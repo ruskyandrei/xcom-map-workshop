@@ -66,8 +66,27 @@ pictures and hover pane), the panel with the Wave preview and the values, and th
 sounds. What it draws is made without the page in [`effects_view.js`](tools/viewer/web/effects_view.js) (markers,
 boxes, spheres) and [`effects_preview.js`](tools/viewer/web/effects_preview.js) (the likeness); what a record says and
 what of it can change is [`effects_rules.js`](tools/viewer/web/effects_rules.js)'s, and a particle system's stepping
-[`effects_sim.js`](tools/viewer/web/effects_sim.js)'s. `window.viewer`, set in `startScene`, is the set of hooks the
-browser checks drive.
+[`effects_sim.js`](tools/viewer/web/effects_sim.js)'s. The Spawns view and the mission objects' moves are
+[`spawns_wiring.js`](tools/viewer/web/spawns_wiring.js)'s: the markers of the base map's spawn points, the streams'
+mission objects and a patch's spawn points, the view on or off and its families, a marker picked and its panel with
+its controls, the project's moves and edits of them (moved, turned, given values, copied, deleted, each one undo step)
+and what the project records of them, the picked marker's gizmo, a spawn point added from the Add panel, and the
+project's spawn rule. What a marker is and says is worked out without the page in
+[`spawns_view.js`](tools/viewer/web/spawns_view.js), and what the game does with a spawn point in
+[`spawn_rules.js`](tools/viewer/web/spawn_rules.js). The Landing zones view is
+[`zones_wiring.js`](tools/viewer/web/zones_wiring.js)'s: the zones drawn and the map's own landing pieces a moved zone
+takes along, the view on or off, a zone picked with its gizmo and panel, the zones changed and added (each change one
+undo step) and what follows a change of the cleared mark. A zone's rules (its soldier points, the map's own landings,
+which zones plain Enemy Within lands at) are worked out without the page in
+[`spawns.js`](tools/viewer/web/spawns.js). The Buildings view and box select are
+[`buildings_wiring.js`](tools/viewer/web/buildings_wiring.js)'s: the project's buildings as boxes (roots in
+`volumeRoots`) and the map's own (those that can be edited with them, the others in grey to be read), the project's
+buildings worked out from the boxes after every edit and put back from a project, the view on or off and its tools,
+the boxes changed (each change one undo step), the six face handles a box has (a picked no-spawn volume and box
+select use them too) and their drags, the cursor's floors drawn round the boxes, the panel, the Normal button's Floor
+boxes, and box select (a box drawn over the ground that selects what is inside). A building's floors, the cursor's
+floors and a building's problems are worked out without the page in [`floors.js`](tools/viewer/web/floors.js).
+`window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
 page and the editor's JSON routes. Its handler's `handle_<area>` methods hand each route to its area's module:
@@ -209,6 +228,9 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | Build and Play in game: Build's panel and its window, Play's dialog, the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the prefab builder's Test in game opened, the build queue's chip | [`build_play.js`](tools/viewer/web/build_play.js) (`createBuildPlay`). What a build status or a play's answer says, in words, goes in [`build_window.js`](tools/viewer/web/build_window.js) or [`play.js`](tools/viewer/web/play.js), pure, with their node tests; Build's panel itself is [`build_options.js`](tools/viewer/web/build_options.js), the test squad's dialog [`squad.js`](tools/viewer/web/squad.js), the prefab test's window [`prefab_test.js`](tools/viewer/web/prefab_test.js) and the queue's controller [`build_queue.js`](tools/viewer/web/build_queue.js). |
 | The Lights view: a light's root, its panel section, Solo, its reach, its drag handles (and the picked effect's or sound's), the area lights following their pieces, a light added from the Add panel or a recipe, the project's light records | [`lights_wiring.js`](tools/viewer/web/lights_wiring.js) (`createLightsWiring`). What it draws (a marker, an emission shape, a handle, Solo's lights) goes in [`lights_view.js`](tools/viewer/web/lights_view.js) (three.js, nothing of the page), and a light value's rule in [`light_rules.js`](tools/viewer/web/light_rules.js), pure, with its node and Python tests (`shared_cases_test.mjs`, `twin_constants_test.mjs`, `test_lights.py`). |
 | The Effects view: an effect's, sound's or lens flare's root and where it stands, the view's kinds, its panel, the Wave preview, its values' controls, the likeness, a copy added, the project's records of effects and sounds | [`effects_wiring.js`](tools/viewer/web/effects_wiring.js) (`createEffectsWiring`). What it draws goes in [`effects_view.js`](tools/viewer/web/effects_view.js) (a marker, a box, a sound's spheres) or [`effects_preview.js`](tools/viewer/web/effects_preview.js) (the likeness), three.js and nothing of the page; what a record says and what of it can change in [`effects_rules.js`](tools/viewer/web/effects_rules.js), and a particle system's stepping in [`effects_sim.js`](tools/viewer/web/effects_sim.js), pure, with their node tests. |
+| The Spawns view and the mission objects' moves: a spawn point's or mission object's marker, the view's families, its panel and controls, a move, turn, value, copy or delete of one, its gizmo, a spawn point added from the Add panel, the project's spawn rule | [`spawns_wiring.js`](tools/viewer/web/spawns_wiring.js) (`createSpawnsWiring`). What a marker is, draws and says goes in [`spawns_view.js`](tools/viewer/web/spawns_view.js) (its shapes take three.js as an argument) and what the game does with a spawn point in [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), pure, with their node tests (`spawns_view_test.mjs`, `spawn_rules_test.mjs`, `project_spawns_test.mjs`). |
+| The Landing zones view: a zone drawn, picked, moved and turned with its gizmo, its panel and controls, a zone changed, copied, deleted or added, what follows the cleared mark | [`zones_wiring.js`](tools/viewer/web/zones_wiring.js) (`createZonesWiring`). A zone's rules go in [`spawns.js`](tools/viewer/web/spawns.js), pure, with its node tests (`clear_map_test.mjs`, `twin_constants_test.mjs`). |
+| The Buildings view and box select: a floor box (made, stretched, moved, copied, deleted), a building's name, kind and floors, the map's own buildings edited or read, the face handles and their drags, the cursor's floors round a box, the view's panel, the Normal button's Floor boxes, box select | [`buildings_wiring.js`](tools/viewer/web/buildings_wiring.js) (`createBuildingsWiring`). A building's or a floor's rule (the floors around pieces, the cursor's floors, a building's problems, the pieces a box lists) goes in [`floors.js`](tools/viewer/web/floors.js), pure, with its node tests (`floor_rules_test.mjs`, `map_buildings_test.mjs`, `source_floor_match_test.mjs`); a building's record in [`project.js`](tools/viewer/web/project.js) (`validBuilding`, `tidyBuilding`). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
@@ -305,7 +327,18 @@ where there is one.
     piece is being assigned, the area lights' copies, the drag handles and a drag under way, and the reach worked out;
   - what of the Effects view they read or set (the redraw asked, the markers drawn, the Normal button's Effects
     switch, the Wave preview's player, the likeness's switch, thinning and count), and what it reads of other areas:
-    groups' pieces now (`liveCache`), box select's middles, the picked spawn marker, the pointer and its tips' redraw.
+    groups' pieces now (`liveCache`), box select's middles, the picked spawn marker, the pointer and its tips' redraw;
+  - what of the Spawns view they (and the Clear map window and the Buildings view's handles on a no-spawn volume)
+    read or set: the Normal button's spawn switch, whether its layer is made, the families shown, the zone it
+    describes, the install's spawn rules, the entries drawn, the project's moves and edits of spawn points and mission
+    objects (`missionMoves`) with their drag, and the kind being placed; and what it reads of the header's mission
+    picker (`missionIndex`);
+  - whether the next click places a landing zone (`zonePlacing`: the Landing zones view's, which the keys and the
+    pointer handlers read);
+  - what of the Buildings view and box select app.js's selection, the views' switches, the map's buildings' records,
+    the keys, the pointer handlers and the test hooks read or set: the Normal button's Floor boxes, each building's
+    name and kind (`buildingMeta`), the map's own buildings selected or picked to be read, the view's tool and a drag
+    under way, and box select's tool, box, drag and what it would take.
 
   A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
   was (`setAreaShown(recall(AREA_SHOWN) === '1')`, `setLikenessOn(...)` inside the Effects view's factory), so it is
@@ -316,7 +349,7 @@ where there is one.
   an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
   searches for any assignment to the moved names left behind.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
-  `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
+  `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`, `createZonesWiring`, `createBuildingsWiring`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
   did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers
   stay as they were. app.js makes it after the functions and objects it is given, and before any code that runs as
   the page loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a
@@ -332,10 +365,18 @@ where there is one.
   and placed are made so, after the document session; they call each other (the builder's save opens the Save as
   prefab dialog, whose Save saves the builder), so the first made is given the second's functions as functions that
   call them.
-  When part of an area's run of code stays in app.js (a helper other areas use, as `projector`; another view's
-  function, as `setZonesShown`; a constant of app.js's event wiring), app.js keeps those declarations where they were
-  and makes the factory after them, where the run ended: what the run does as the page loads then still happens at the
-  same point among the page's other code. A function app.js keeps in a `let` (`applyLighting`, set by `startScene`) is
+  When part of an area's run of code stays in app.js (a helper other areas use, as `projector` or `gameToView`; a
+  constant of app.js's event wiring), app.js keeps those declarations where they were and makes the factory after
+  them, where the run ended: what the run does as the page loads then still happens at the same point among the
+  page's other code. An object a view makes as the page loads that a view made before it also uses (the landing
+  zones' layer, which the Spawns view shows too) stays in app.js where it was made, and both are given it. A function
+  of the area that an earlier stage left elsewhere in app.js (the Landing zones view's `setZonesShown`) moves into
+  the factory with the run: a function declaration runs nothing as the page loads. An area whose code was two runs
+  with other code between (the Buildings view's, box select's after the made pieces') is made where the first run
+  was, so what the second run did as the page loads (the panel's handlers, box select's layer) now happens there,
+  earlier: a change that does so checks that no code between sets a handler on, or listens to, the same targets, and
+  that what moves earlier makes only objects three.js draws by render order and depth (it consults the order objects
+  were made only where both are equal), so nothing is drawn differently. A function app.js keeps in a `let` (`applyLighting`, set by `startScene`) is
   given as a function that calls it. The event wiring (a panel's field handlers set further down, the keys, the
   pointer handlers, the draw loop) stays in app.js and calls what the factory returns; the state it reads of the area
   is editor_state.js's.

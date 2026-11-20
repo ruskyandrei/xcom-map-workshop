@@ -69,9 +69,9 @@ export function setProjectPicture(next) { projectPicture = next; }
 export let projectSpawnRules = null;
 export function setProjectSpawnRules(next) { projectSpawnRules = next; }
 
-// The buildings drawn as boxes and edited (project.js validBuilding; app.js's setBuildings draws them): the project's,
-// made from nothing by the Build, and the map's own that can be edited, each as the project's are (map buildings plan,
-// section 1). buildingsVersion is raised with each new list, for what is worked out from it.
+// The buildings drawn as boxes and edited (project.js validBuilding; buildings_wiring.js's setBuildings draws them):
+// the project's, made from nothing by the Build, and the map's own that can be edited, each as the project's are (map
+// buildings plan, section 1). buildingsVersion is raised with each new list, for what is worked out from it.
 export let buildings = [], buildingsVersion = 0;
 export function setBuildingsValue(next) { buildings = next; }
 export function setBuildingsVersion(next) { buildingsVersion = next; }
@@ -108,8 +108,8 @@ export function setBuildTimer(next) { buildTimer = next; }
 // - playStatus: the play status as the server last gave it (/play.json, or a play's answer: the install plays go to,
 //   how the game is started, the squad, each mission kind's line), null until asked; the Missions panel reads its
 //   kinds too;
-// - pickedZone: the landing zone picked in the Landing zones view, by id, or null (app.js's pickZone); Land here plays
-//   the project landing there;
+// - pickedZone: the landing zone picked in the Landing zones view, by id, or null (zones_wiring.js's pickZone); Land
+//   here plays the project landing there;
 // - missionPickValue: the header's Mission picker's value (app.js's chooseMission), a record's index ('0', '1', ...) or
 //   'kind:<kind>' for a kind the project adds (mission types plan, D2); a play is of that mission unless one is chosen.
 export let playStatus = null, pickedZone = null, missionPickValue = '0';
@@ -196,6 +196,10 @@ export function setPickedEffect(next) { pickedEffect = next; }
 // and spawn points are drawn.
 export let streamSet = new Set();
 export function setStreamSet(next) { streamSet = next; }
+// The mission the header's Mission picker shows (app.js's chooseMission): its record's index, -1 for a kind the
+// project adds (missionPickValue says which).
+export let missionIndex = 0;
+export function setMissionIndex(next) { missionIndex = next; }
 // What is being placed (app.js's startPlacing): { clip, entry (from the piece list, or null), ghost }, or null.
 export let placing = null;
 export function setPlacing(next) { placing = next; }
@@ -252,11 +256,11 @@ export function setLikenessCount(next) { likenessCount = next; }
 // key -> its roots, or null.
 export let liveCache = null;
 export function setLiveCache(next) { liveCache = next; }
-// Box select's pieces' middles while its box is up (app.js's pickCandidates), or null: worked out again when what is
-// drawn changes.
+// Box select's pieces' middles while its box is up (buildings_wiring.js's pickCandidates), or null: worked out again
+// when what is drawn changes.
 export let pickCentres = null;
 export function setPickCentres(next) { pickCentres = next; }
-// The picked spawn marker's key (spawns_view.js spawnKey; app.js's setPickedSpawn sets it and draws), or null.
+// The picked spawn marker's key (spawns_view.js spawnKey; spawns_wiring.js's setPickedSpawn sets it and draws), or null.
 export let pickedSpawn = null;
 export function setPickedSpawnValue(next) { pickedSpawn = next; }
 // The last pointer position over the view, for paste and the tips under the pointer, or null; tipDirty: a tip is to be
@@ -264,3 +268,60 @@ export function setPickedSpawnValue(next) { pickedSpawn = next; }
 export let pointer = null, tipDirty = false;
 export function setPointer(next) { pointer = next; }
 export function setTipDirty(next) { tipDirty = next; }
+
+// What other areas read or set of the Spawns view (spawns_wiring.js; app.js's map opening, the Clear map window, the
+// Buildings view's handles on a no-spawn volume, the keys, the pointer handlers, the draw loop and the test hooks):
+// - normalSpawns: the Normal button's "Spawn points and objectives" switch (remembered; read from the browser's
+//   storage as a map opens); spawnLayerReady: the view's layer is made (the views' buttons show it from then on);
+// - spawnFilters: the families the flyout shows, by family (remembered);
+// - spawnZonePick: a landing zone picked in the Spawns view, described only (decision D3), or null;
+// - spawnRulesData: what the install does with spawn points (spawn-rules.json), read as a map opens, or null;
+// - spawnEntriesNow: spawnRecords' entries for the mission the header shows, as drawn;
+// - missionMoves: the project's moves and edits of mission objects and spawn points, by marker key (spawns_view.js
+//   spawnKey): a stream object's {stream, actor, location, rotation}; a base spawn point's, with the values it changes
+//   (stream null, saved as overrides of level "base"); a copy's (stream 'copy'); missionDragView: those moves while a
+//   drag lasts, drawn in their place, or null (setMissionMovesValue: the view's setMissionMoves also draws them);
+// - spawnPlacing: the kind of spawn point the next click places (the Add panel's Spawn points), or null.
+export let normalSpawns = false, spawnLayerReady = false, spawnFilters = {}, spawnZonePick = null, spawnRulesData = null,
+           spawnEntriesNow = [];
+export function setNormalSpawnsValue(next) { normalSpawns = next; }
+export function setSpawnLayerReady(next) { spawnLayerReady = next; }
+export function setSpawnFilters(next) { spawnFilters = next; }
+export function setSpawnZonePick(next) { spawnZonePick = next; }
+export function setSpawnRulesData(next) { spawnRulesData = next; }
+export function setSpawnEntriesNow(next) { spawnEntriesNow = next; }
+export let missionMoves = new Map(), missionDragView = null, spawnPlacing = null;
+export function setMissionMovesValue(next) { missionMoves = next; }
+export function setMissionDragView(next) { missionDragView = next; }
+export function setSpawnPlacing(next) { spawnPlacing = next; }
+
+// What other areas read or set of the Landing zones view (zones_wiring.js; app.js's keys and pointer handlers):
+// zonePlacing, whether the next click places a landing zone (the Add panel's Landing zones kind).
+export let zonePlacing = false;
+export function setZonePlacing(next) { zonePlacing = next; }
+
+// What other areas read or set of the Buildings view and box select (buildings_wiring.js; app.js's selection, the
+// views' switches, the map's buildings' records, the clipboard, Select all of a kind, the keys, the pointer handlers,
+// the draw loop and the test hooks):
+// - boxesShown: the Normal button's Floor boxes switch, the project's boxes drawn and picked in the normal view (off
+//   whenever a map opens; setBoxesShownValue, beside the view's setBoxesShown, which also draws);
+// - buildingMeta: building id -> { name, kind }, and for one of the map's own its record (map); changed in place;
+// - ownSet: the map's own buildings selected with pieces in the normal view (a copy of the selection gets a building
+//   of the project with the same boxes); ownPicked: one of the map's own boxes picked to be read, its fill mesh, or
+//   null (setOwnPickedValue, beside the view's setOwnPicked, which also draws);
+// - volumeTool: the view's tool, 'new' while the next drag draws a box, or null; volumeDrag: a box's face, a new box
+//   or a no-spawn volume's face being dragged, or null (setVolumeToolValue, beside the view's setVolumeTool);
+// - box select's tool waiting for a drag (pickTool; setPickToolValue, beside setPickTool), its box in game units
+//   (pickBox; setPickBoxValue, beside the test hooks' setPickBox, which also draws), its drag (pickDrag) and what the
+//   box would take (pickHits); the pieces' middles while it is up are pickCentres, above.
+export let boxesShown = false, ownPicked = null, volumeTool = null, volumeDrag = null;
+export const buildingMeta = new Map(), ownSet = new Set();
+export function setBoxesShownValue(next) { boxesShown = next; }
+export function setOwnPickedValue(next) { ownPicked = next; }
+export function setVolumeToolValue(next) { volumeTool = next; }
+export function setVolumeDrag(next) { volumeDrag = next; }
+export let pickTool = false, pickBox = null, pickDrag = null, pickHits = [];
+export function setPickToolValue(next) { pickTool = next; }
+export function setPickBoxValue(next) { pickBox = next; }
+export function setPickDrag(next) { pickDrag = next; }
+export function setPickHits(next) { pickHits = next; }

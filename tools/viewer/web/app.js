@@ -3,52 +3,49 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { createGizmo, placedPose, actorMatrix, recipeMove } from './gizmo.js';
 import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
-import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
-         validStage, tidyStage, stageMax, STAGE_MAPS,
-         validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, mapBuildingId,
-         BUILDING_SAME, validLandingZone, validSpawnRules } from './project.js';
+import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid, validStage, tidyStage,
+         stageMax, STAGE_MAPS, groupKey, buildingKey, pruneGroups, mapBuildingId, BUILDING_SAME, validLandingZone } from './project.js';
 import { ROLES as FLAG_ROLES, lowPiece, made as madeFlags, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
-import { ownLandings, startingZones, soldierSpots, landingUnmoved, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
+import { ownLandings, startingZones, groundOf } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController, sentence } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
 import { createMapBrowser } from './map_browser.js';
 import { createSetupDialog, setupApi } from './setup.js';
-import { ADDED_KINDS, addedMission, kindKey, zoneServes } from './missions.js';
+import { ADDED_KINDS, addedMission, kindKey } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
 import { createMapPicture } from './map_picture.js';
-import { FAMILIES, KINDS, NEW_VOLUME, SPAWN_COPY_KINDS, SPAWN_VALUE_KEYS, addFacingPointer, addPlace, addTemplate, baseEditWords, boxMiddle, boxWords, copyEntry,
-         copyMarkerRecord, copyRecord, copyTemplateWhy, deletedEntry, editCopy, editSpawn, familyOf, identityLines, makeSpawnBox, makeSpawnMarker, paintSpawnMarker,
-         recordBox, shownEntries, spawnEditable, SPAWN_MARKER_SIZE, spawnKey, spawnMoveWords, spawnNamed, spawnOverride, spawnRecords, titleOf,
-         volumePlace } from './spawns_view.js';
-import { consumerWords, fromWords, useLines } from './spawn_rules.js';
+import { deletedEntry, spawnEditable, spawnKey, spawnNamed } from './spawns_view.js';
 import { makeEffectMarker } from './effects_view.js';
 import { viewHeight } from './effects_preview.js';
 import { recordName, survivesClear } from './effects_rules.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { api as prefabApi, createPrefabBrowser } from './prefabs.js';
-import { emptyPrefabScene, orderedWrites, PREFAB_MIN_Z, PREFAB_MAX_Z } from './prefab_document.js';
+import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { MADE_KINDS, cloneBlasts, optionsOf, stateOfRoot } from './piece_records.js';
-import { activeMapId, allRoots, areaBindings, areaShown, askedPick, assigning, builder, builderMode, buildings,
-         buildingsVersion, chooseToken, cleared, clearKeepsOutside, clipboard, copySerial, data, derivedCopies,
-         donorHashes, effectMarkers, effectRoots, effectsDirty, effectsOn, effectTemplates, eventMemo, families,
-         foreignEffects, geometryCache, groupIndex, groups, handleDefs, hintTimer, landingZones, lastBuild,
-         lastLightSync, leaving, library, libraryRecords, lightDrag, lighting, lightRadius, lightRoots, lightsDirty,
-         lightsOn, lightsShown, likenessCount, likenessOn, likenessThin, liveCache, loadErrorCount, mergedBuildings,
-         missionPickValue, nextChooseToken, nextCopySerial, normalEffects, normalLights, pickCentres, pickedEffect,
-         pickedSpawn, pickedZone, pieces, placing, playStatus, pointer, prefabParameter, prefabTab, project,
-         projectMissions, projectPicture, projectSpawnRules, reachNow, reachShown, roots, selected, setActiveMapId,
-         setAreaBindings, setAreaShown, setAskedPick, setAssigning, setBuildingsValue, setBuildingsVersion, setCleared,
-         setClearKeepsOutside, setClipboard, setData, setEffectsDirty, setEffectsOn, setEventMemo, setFamilies,
-         setGroups, setHintTimer, setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLibrary,
-         setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue, setLiveCache, setLoadErrorCount,
-         setLooksReady, setMergedBuildings, setMissionPickValue, setNormalEffectsValue, setNormalLightsValue,
-         setPickCentres, setPickedEffect, setPickedSpawnValue, setPickedZone, setPieces, setPlacing, setPointer,
-         setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown,
-         setSelected, setSpawnsOn, setStageValue, setStreamSet, setTipDirty, setVolumesOn, setZonesOn, soloOn, spawnsOn,
-         stage, streamSet, tipDirty, volumeRoots, volumesOn, wavePlayer, zonesOn } from './editor_state.js';
+import { activeMapId, allRoots, areaBindings, areaShown, askedPick, assigning, boxesShown, builder, builderMode,
+         buildingMeta, buildings, buildingsVersion, chooseToken, cleared, clearKeepsOutside, clipboard, copySerial,
+         data, derivedCopies, donorHashes, effectMarkers, effectRoots, effectsDirty, effectsOn, effectTemplates,
+         eventMemo, families, foreignEffects, geometryCache, groupIndex, groups, handleDefs, hintTimer, landingZones,
+         lastBuild, lastLightSync, leaving, library, libraryRecords, lightDrag, lighting, lightRadius, lightRoots,
+         lightsDirty, lightsOn, lightsShown, likenessCount, likenessOn, likenessThin, liveCache, loadErrorCount,
+         mergedBuildings, missionIndex, missionMoves, missionPickValue, nextChooseToken, nextCopySerial, normalEffects,
+         normalLights, normalSpawns, ownPicked, ownSet, pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone,
+         pickHits, pickTool, pieces, placing, playStatus, pointer, prefabParameter, prefabTab, project, projectMissions,
+         projectPicture, projectSpawnRules, reachNow, reachShown, roots, selected, setActiveMapId, setAreaBindings,
+         setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCleared, setClearKeepsOutside, setClipboard,
+         setData, setEffectsDirty, setEffectsOn, setEventMemo, setFamilies, setGroups, setHintTimer, setLandingRead,
+         setLandingZones, setLastLightSync, setLeaving, setLibrary, setLighting, setLightRadius, setLightsDirty,
+         setLightsOn, setLightsShownValue, setLiveCache, setLoadErrorCount, setLooksReady, setMergedBuildings,
+         setMissionIndex, setMissionPickValue, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue,
+         setOwnPickedValue, setPickBoxValue, setPickedEffect, setPickedSpawnValue, setPickedZone, setPickToolValue,
+         setPieces, setPlacing, setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules,
+         setReachKey, setReachShown, setSelected, setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick,
+         setStageValue, setStreamSet, setTipDirty, setZonesOn, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady,
+         spawnPlacing, spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots,
+         volumesOn, volumeTool, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -56,9 +53,12 @@ import { createBuilderSession } from './builder_session.js';
 import { createPrefabPlace } from './prefab_place.js';
 import { createLightsWiring } from './lights_wiring.js';
 import { createEffectsWiring } from './effects_wiring.js';
+import { createSpawnsWiring } from './spawns_wiring.js';
+import { createZonesWiring } from './zones_wiring.js';
+import { createBuildingsWiring } from './buildings_wiring.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
-import { forget, recall, remember } from './storage.js';
+import { recall, remember } from './storage.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
@@ -81,9 +81,9 @@ import { createLookPicker } from './look_picker.js';
 import { GROUND, GROUND_LOOKS, anotherRock, drawnGround, groundBox as groundShapeBox, groundLookOf, groundWords as groundShapeWords, raisedGround,
          resizedGround, slopeOf, slopeWords, toolGround, turnedGround, versionedGround, POINTS_VERSION, movedPoint, resetRock, ROCK,
          madeGroundShape, madeGroundNumbers, groundBounds } from './ground.js';
-import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors,
-         stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, floorsAround, sourceFloorMatch,
-         buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf, LISTED_CLASSES } from './floors.js';
+import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight,
+         ownedFloors, stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, sourceFloorMatch,
+         cursorStoreys, carriedListing, floorMapOf, LISTED_CLASSES } from './floors.js';
 
 const $ = id => document.getElementById(id);
 // Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
@@ -137,27 +137,26 @@ const pickables = [], texturePromises = new Map();
 // The layer of the map's lights' roots (editor_state.js: lightRoots; the Lights view: lights_wiring.js, made below).
 const lightLayer = new THREE.Group();
 world.add(lightLayer);
-// The layer of the project's building boxes' roots (editor_state.js: volumeRoots; the Buildings view, further down).
+// The layer of the project's building boxes' roots (editor_state.js: volumeRoots; the Buildings view:
+// buildings_wiring.js).
 const volumeLayer = new THREE.Group();
-// Box select (its section is below the Buildings view's): the tool waiting for a drag, the box, the drag, what the
+// Box select (buildings_wiring.js, with the Buildings view): the tool waiting for a drag, the box, the drag, what the
 // box would take, and the pieces' middles while it is up.
-let pickTool = false, pickBox = null, pickDrag = null, pickHits = [];     // (pickCentres: editor_state.js)
+// (pickTool, pickBox, pickDrag, pickHits, pickCentres: editor_state.js)
 // The three views (the user, 11 November 2026): Normal, Buildings (volumesOn) and Lights (lightsOn), one at a time.
 // In the Buildings view only boxes are picked, in the Lights view only lights. In the normal view pieces are, and
 // with the Normal button's two switches also lights (normalLights) and the project's floor boxes (boxesShown), a
 // building whole. Both switches are off whenever a map opens.
-let boxesShown = false;     // (lightsOn, normalLights: editor_state.js)
-// the Landing zones view (the user, 13 November 2026): the zones over everything, and only they are picked
-let zonesHidBefore = false;     // (zonesOn: editor_state.js)
+// (lightsOn, normalLights, boxesShown: editor_state.js)
 // the Effects view (effects and sounds plan, FX1; effects_wiring.js): its markers, and only they are picked.
 // Since FX3 each effect, sound and lens flare is a root of its own (effectRoots, an original's also by its key in
 // effectIndex), moved and turned by the gizmo, copied and deleted as pieces are where its family builds; the Normal
 // button's Effects switch (normalEffects) draws and picks them with pieces in the normal view. effectMarkers: the
 // markers drawn now, the roots' and the copies a piece's copy carries.
 // (effectsOn, pickedEffect, effectsDirty, effectMarkers, normalEffects: editor_state.js)
-// the Spawns view (editor spawns plan, SP3; its section is below the landing zones'): only its markers are picked; the
-// Normal button's switch (normalSpawns, remembered) draws and picks them with pieces
-let normalSpawns = false, spawnLayerReady = false;     // (spawnsOn: editor_state.js)
+// the Spawns view (editor spawns plan, SP3; spawns_wiring.js): only its markers are picked; the Normal button's switch
+// (normalSpawns, remembered) draws and picks them with pieces
+// (spawnsOn, normalSpawns, spawnLayerReady: editor_state.js)
 // (the Wave preview's player, wavePlayer: editor_state.js)
 world.add(volumeLayer);
 const cutMaterials = new Map();
@@ -397,7 +396,7 @@ function select(id, add = false, keep = false) {
   else if (id && effectRoots.has(id) && !effectsOn && !normalEffects) setEffectsShown(true);
   if (lightsOn && id && !lightRoots.has(id)) setLightsShown(false);
   else if (id && lightRoots.has(id) && !lightsShown) setLightsShown(true);
-  if (id) ownPicked = null;
+  if (id) setOwnPickedValue(null);
   if (!add && !keep) ownSet.clear();
   setSelected(id);
   { const was = pickedEffect; setPickedEffect(effectRoots.has(id) ? id : null); if (was !== pickedEffect) setEffectsDirty(true); }     // (one that starts off is drawn while it is picked)
@@ -2662,32 +2661,10 @@ function setNormalView() {
   if (effectsOn) setEffectsShown(false);
   if (spawnsOn) setSpawnsShown(false);
 }
-// The Landing zones view (Shift+Z): the zones shown and drawn over everything (under a floor, inside a piece), and a
-// click picks a zone or lets the picked one go, never a piece or a light. The zones' layer is put back as it was after.
-function setZonesShown(on) {
-  on = Boolean(on) && Boolean(data) && data.scope === 'map' && !data.preview && !builderMode;
-  if (on === zonesOn) return;
-  if (on) {
-    if (spawnsOn) setSpawnsShown(false);      // (first: it puts the zones' layer back as it was)
-    if (volumesOn) setVolumesShown(false);
-    if (lightsOn) setLightsShown(false);
-    if (effectsOn) setEffectsShown(false);
-    stopPickBox(); select(null);
-    zonesHidBefore = !landingLayer.visible;
-    landingLayer.visible = true;
-  } else {
-    setPickedZone(null);
-    stopZonePlacing();      // a zone asked for from the Add panel and not placed yet goes with its view
-    if (zonesHidBefore) landingLayer.visible = false;
-  }
-  setZonesOn(on);
-  refreshLandingZones(); lightButton();
-  if (on) flashHint('Landing zones view: only landing zones are selected · Shift+Z leaves it');
-}
 // After a view or a switch changed: whether lights are drawn, what stays selected, the buttons.
 function syncLights() {
   setLightsShownValue(lightsOn || (normalLights && !volumesOn));
-  if (volumesOn || lightsOn || !boxesShown) { ownSet.clear(); if (!volumesOn) ownPicked = null; }
+  if (volumesOn || lightsOn || !boxesShown) { ownSet.clear(); if (!volumesOn) setOwnPickedValue(null); }
   const picks = gizmo.picks();
   const keep = picks.ids.filter(id => (lightRoots.has(id) ? lightsShown : volumeRoots.has(id) ? volumesOn || (boxesShown && !lightsOn) : !lightsOn));
   if (keep.length !== picks.ids.length) gizmo.setSelection(keep, picks.active); else gizmo.regroup();
@@ -2717,40 +2694,6 @@ function projector() {
     return [rect.left + (p.x + 1) / 2 * rect.width, rect.top + (1 - p.y) / 2 * rect.height];
   };
 }
-// The piece list's Landing zones kind: one entry, placed with a click (the one way to add a zone)
-function zoneEntries() {
-  if (!data || data.scope !== 'map' || data.preview || builderMode) return [];
-  const count = zonesNow().length;
-  return [{ key: 'zone', id: 'zone-new', zone: true, name: 'Landing zone', kind: 'Landing zones', pkg: 'where the squad lands',
-            detail: 'Placed on a tile, facing north; moved and turned with its gizmo', count, builds: true,
-            title: 'A new landing zone: click the tile it is to stand on. It starts as a copy of the first zone\'s kind, facing north, and is used by Long War (tick Plain EW in its panel for plain Enemy Within)',
-            sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
-            text: 'landing zone lz drop zone skyranger squad start spawn evac' }];
-}
-// The piece list's Spawn points kind (the user, 18 November 2026: new spawns from the Add panel too): a Pod and a Meld
-// point, each placed with a click as a copy of the map's first plain pod or first Meld point (SP7's copies: the Build
-// clones the template, a pod with a pod index of its own), where the spawn family builds
-function spawnAddEntries() {
-  if (!spawnsAvailable() || !spawnFamilyBuilds()) return [];
-  const out = [];
-  for (const kind of SPAWN_COPY_KINDS) {
-    const template = addTemplate(data.spawns, kind);
-    if (!template) continue;
-    const name = KINDS[kind].label, of = template.fresh ? '' : short(template.actor), volume = kind === 'noSpawn';     // (a fresh volume has no actor: a map with no no-spawn volume of its own)
-    out.push({ key: `spawn:${kind}`, id: `spawn-new-${kind}`, spawnAdd: kind, name, kind: 'Spawn points',
-               pkg: template.fresh ? 'made from one of the map\'s volumes' : `a copy of ${of}`,
-               detail: kind === 'pod' ? 'Placed on a tile, with a pod index of its own' : volume ? 'Placed over the tiles round the click; keeps aliens and civilians out'
-                 : 'Placed on a tile, with its values',
-               count: (data.spawns ?? []).filter(o => o.kind === kind && !o.landing).length, builds: true,
-               title: volume ? `A new no-spawn volume: click the tile it is to stand over. ${template.fresh ? 'It is 3 by 3 tiles and four levels high, made from one of the map\'s plain volumes'
-                 : `It is a copy of ${of}, its size and values`}; the game places no alien or civilian inside it. Move, size, copy, delete and set what it keeps out in the Spawns view`
-                 : `A new ${name.toLowerCase()}: click the tile it is to stand on. It is a copy of ${of}, with its values and the way it faces; `
-                 + 'move, turn, copy, delete and give it values in the Spawns view',
-               sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
-               text: `${name} spawn point ${kind === 'pod' ? 'pod aliens enemies' : volume ? 'no spawn volume block keep out aliens civilians' : 'meld canister'}`.toLowerCase() });
-  }
-  return out;
-}
 // (walls, floors, roofs and ground are drawn from the Build menu on the Add button, no longer listed here: B1)
 const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
 // The Lights view (lights_wiring.js): the map's lights as roots, the view, the panel's light section, Solo, the
@@ -2765,10 +2708,12 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, as
         withStorableCone } = createLightsWiring({
   $, actorPose, baseMatrix, camera, copyable, copyText, editChanged, field, flashHint, gizmo, HANDLE_PICK, highlight,
   isStream, ladderMarks, lightLayer, pickables, PL, plural, pointOutside, projector, renderer, restingHint, select,
-  setSpawnsShown, setVolumesShown, setZonesShown, short, showPop, sun, syncLights, text, world,
+  short, showPop, sun, syncLights, text, world,
   // (made further down: called through, since they are not made yet while this runs)
   applyLighting: () => applyLighting(), banner: (message, actions, options) => banner(message, actions, options),
-  stopPickBox: () => stopPickBox(),
+  // (made with the Spawns, Landing zones and Buildings views, further down: called through)
+  setSpawnsShown: on => setSpawnsShown(on), setVolumesShown: on => setVolumesShown(on),
+  setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(),
   // (made with the Effects view, further down: called through)
   drawEffectShape: () => drawEffectShape(), effectNow: (root, r) => effectNow(root, r), effectsShown: () => effectsShown(),
   effectValuesEditable: root => effectValuesEditable(root), setEffectsShown: on => setEffectsShown(on),
@@ -2908,22 +2853,29 @@ function projectNote(message) { text($('diagnostics'), 'div', message, 'note'); 
 // project's state put on the map.
 const { editStateNow, applyState } = createDocumentState({
   actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, buildRoots, builder, clearEdits,
-  clearedChanged, cloneGroups, coverOf, coverVersion, drawBroken, editChanged, gizmo, lightState, liveMembers,
-  loadForeignTemplates, mapBreakable, memberOf, missionOverrides, movedMatrix, ownSize, plural, projectNote,
-  savedBuildings, sceneChanged, setBuildings, setMissionMoves, setStage, short, sourceKey, syncSpawnRule, templateFor,
+  cloneGroups, coverOf, coverVersion, drawBroken, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates,
+  mapBreakable, memberOf, movedMatrix, ownSize, plural, projectNote, savedBuildings, sceneChanged, setStage, short,
+  sourceKey, templateFor,
   // (made with the Effects view, further down: called through, since they are not made yet while this runs)
   addEffectRoots: list => addEffectRoots(list), addedEffectOf: entity => addedEffectOf(entity),
   applyEffectRecord: record => applyEffectRecord(record), effectState: (overrides, added) => effectState(overrides, added),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
   baseSpawnOf: actor => baseSpawnOf(actor), missionKey: (stream, actor) => missionKey(stream, actor),
-  spawnCopyRecords: () => spawnCopyRecords(), streamObjects: stream => streamObjects(stream) });
+  missionOverrides: () => missionOverrides(), setMissionMoves: next => setMissionMoves(next),
+  spawnCopyRecords: () => spawnCopyRecords(), streamObjects: stream => streamObjects(stream),
+  syncSpawnRule: () => syncSpawnRule(),
+  // (made with the Landing zones and Buildings views, further down: called through, since they are not made yet while
+  // this runs)
+  clearedChanged: () => clearedChanged(), setBuildings: next => setBuildings(next) });
 // The document session (document_session.js): opening, saving and leaving a project, its drafts kept for recovery
 // and offered back, and the banner under the header.
 const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
         openProject, projectChanged, saveProject } = createDocumentSession({
-  $, SESSION, applyState, bombHelperFix, builder, camera, controls, dirty, documentWrites, editChanged, editState, flashHint,
-  gizmo, loadingState, ownSize, plural, projectNote, projectsAvailable, saveState, setMissionMoves, showFileDialog, text,
-  touchRecent, unsavedDocument,
+  $, SESSION, applyState, builder, camera, controls, dirty, documentWrites, editChanged, editState, flashHint, gizmo,
+  loadingState, ownSize, plural, projectNote, projectsAvailable, saveState, showFileDialog, text, touchRecent,
+  unsavedDocument,
+  // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
+  bombHelperFix: moves => bombHelperFix(moves), setMissionMoves: next => setMissionMoves(next),
   // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
   openingProgress: name => openingProgress(name),
   // (made with the prefab builder just below, which is given the session's banner and drafts: called through)
@@ -2939,9 +2891,11 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
   $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf, buildRoot, controls, dirty, discardAndGo, discardDraft,
   documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, frame, gizmo, gridNow, gridOrigin, isStream,
   libraryTemplate, lightPose, loadingState, movedMatrix, plural, projectChanged, recipeOf, removeRoots, rootName, sceneChanged,
-  selectActors, short, snapshot, templateFor, text, volumeBox, world,
+  selectActors, short, snapshot, templateFor, text, world,
   // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
   openingProgress: name => openingProgress(name),
+  // (made with the Buildings view, further down: called through, since it is not made yet while this runs)
+  volumeBox: root => volumeBox(root),
   // (made with prefabs saved and placed just below, which is given the builder's records and save: called through)
   prefabRecords: options => prefabRecords(options), showPrefabDialog: whole => showPrefabDialog(whole) });
 // Prefabs saved and placed (prefab_place.js): the Save as prefab dialog, the save, and a prefab of the Add panel's
@@ -2963,8 +2917,11 @@ const mapLabel = id => mapCatalogue?.maps.find(m => m.id === id)?.label ?? id ??
 const { followBuild, followQueueForProject, landHere, openBuild, openPrefabTest, playInGame, prefabTest, refreshInstalls,
         refreshSquadLine, renderPlayItems, renderQueueChip, setLastBuild } = createBuildPlay({
   $, bakeNote, banner, builder, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo, headerMissions, mapLabel,
-  needsPrepare, plural, projectsAvailable, saveProject, selectActors, setZones, short, showFileDialog, showPop, showPrepare,
-  showSpawn, text, zonesNow });
+  needsPrepare, plural, projectsAvailable, saveProject, selectActors, short, showFileDialog, showPop, showPrepare, text,
+  zonesNow,
+  // (made with the Spawns and Landing zones views, further down: called through, since they are not made yet while
+  // this runs)
+  setZones: (next, words) => setZones(next, words), showSpawn: (actor, stream) => showSpawn(actor, stream) });
 async function renderProjectMenu() {
   const info = $('projectInfo');
   info.replaceChildren();
@@ -4241,703 +4198,30 @@ function setGroundGrid(on) {
 $('groundGridToggle').checked = groundGrid.visible;
 $('groundGridToggle').onchange = e => { setGroundGrid(e.target.checked); e.target.blur(); };
 
-// ---------------------------------------------------------------- landing zones (Clear map plan, section 4)
-// Each zone drawn as its footprint: the evac zone's box (faint), the six soldier points as dots, an arrow the way the
-// squad faces, its number, and for a zone that is one of the map's own landings the grounded Skyranger's outline. A
-// click picks one (ahead of the pieces under it); dragged, it moves by whole tiles; the panel turns it, raises it,
-// orders, copies and deletes it. Every change is one undo step, and the first one makes the project's own list.
+// The landing zones' layer, shown as View options' Landing zones says (the Landing zones view: zones_wiring.js,
+// made below; the Spawns view, made just below, shows the zones too).
 const LANDING_SHOWN = 'workshop.landingZones';
 const landingLayer = new THREE.Group(); world.add(landingLayer);
 landingLayer.visible = recall(LANDING_SHOWN) !== '0';
-// ---------------------------------------------------------------- spawn points and objectives (spawns plan, SP3)
-// The Spawns view (Shift+U, the rail's button) and the Normal button's "Spawn points and objectives" switch draw one
-// list of markers (spawns_view.js spawnRecords): the base map's spawn points (export 33), the objects of the streams
-// the header's mission streams, an added bomb's donor objects, an LWR patch's spawn points. A click on one opens its
-// panel (spawnPanel): what it is, its values and where each comes from, its group, what uses it and what it uses, and
-// what the game does with it (spawn_rules.js, from /maps/<id>/spawn-rules.json). In the view a click picks a marker,
-// or a landing zone to describe it, or lets the picked one go, never a piece; in Normal with the switch on, a marker
-// is picked ahead of the piece behind it. A stream object's arrows move its group by whole tiles (mission types plan,
-// Part E: missionMoves). The switch replaced View options' Mission objects (decision D2): a saved choice carries over.
-const NORMAL_SPAWNS = 'workshop.normalSpawns', SPAWN_FILTERS = 'workshop.spawnFilters';
-{
-  const old = recall('workshop.missionObjects');
-  if (old !== null && recall(NORMAL_SPAWNS) === null) remember(NORMAL_SPAWNS, old === '0' ? '0' : '1');
-  forget('workshop.missionObjects');
-}
-normalSpawns = recall(NORMAL_SPAWNS) === '1';
-const spawnLayer = new THREE.Group(); world.add(spawnLayer);
-spawnLayer.visible = false;
-spawnLayerReady = true;
-let spawnFilters = (() => { try { return JSON.parse(recall(SPAWN_FILTERS) || '{}') || {}; } catch { return {}; } })();
-// (the picked marker's key, pickedSpawn: editor_state.js)
-let spawnZonePick = null;          // a landing zone picked in the Spawns view, described only (decision D3)
-let spawnLandingBefore = true;     // whether the landing zones showed before the Spawns view showed them
-let spawnRulesData = null;         // what the install does with spawn points (spawn-rules.json), read as a map opens
-let spawnEntriesNow = [];          // spawnRecords' entries for the mission the header shows
-const spawnsAvailable = () => Boolean(data) && data.scope === 'map' && !data.preview && !builderMode;
-const spawnsShown = () => spawnsAvailable() && (spawnsOn || (normalSpawns && !volumesOn && !lightsOn && !zonesOn && !effectsOn));
-// A mission's objects moved in their streams (mission types plan, Part E): `${stream}|${actor}` -> {stream, actor,
-// location, rotation}, saved as overrides of `level: "stream"` (the stream as the package). The Build moves each in
-// place in the variant's copy of the stream. An object moves with its group (a capture point with its volume, a bomb
-// or a power node with its button, emitters, rebuild volume and, for the bomb, its helper point), by whole tiles and
-// levels, one undo step a drag. The key is the marker's (spawnKey).
-// The base map's pods, Meld points and drop-in points the project edits (the editor spawns plan, SP6) are kept here
-// too, as `base|${actor}` -> {stream: null, actor, location, rotation, spawn}: where each stands and faces now and the
-// values it changes (spawns_view.js editSpawn), saved as overrides of `level: "base"`. Each moves alone, by whole tiles
-// and levels, a drop-in point turns by quarters in its panel, and each takes its values there; the Build edits it in place.
-let missionMoves = new Map(), missionDragView = null;
-const missionKey = (stream, actor) => spawnKey(stream, actor);
-const missionMoveOf = (stream, actor) => (missionDragView ?? missionMoves).get(missionKey(stream, actor));
-const missionAt = (stream, o) => missionMoveOf(stream, o.actor)?.location ?? o.location;
-// a stream's mission objects: a stream of the export's, else the donor stream an added kind takes them from
-const streamObjects = stream => data?.streams?.[stream]?.missionObjects
-  ?? Object.values(data?.donors ?? {}).find(d => d.stream === stream)?.missionObjects ?? [];
-function missionMembers(stream, o) {
-  const objects = streamObjects(stream);
-  return o.group ? objects.filter(x => x.group === o.group) : [o];
-}
-function missionOverrides() {
-  return [...missionMoves.values()].filter(m => m.stream !== 'copy').map(m => (m.stream === null ? spawnOverride(data.name, baseSpawnOf(m.actor), m)
-    : { target: { package: m.stream, level: 'stream', actor: m.actor }, location: [...m.location], rotation: [...m.rotation] }));
-}
-// the project's copies of the map's pods and Meld points (SP7), as its added records
-const spawnCopyRecords = () => [...missionMoves.values()].filter(m => m.stream === 'copy').map(m => copyRecord(data.name, m));
-// a base spawn point's record (export 33), but a landing's
-const baseSpawnOf = actor => (data?.spawns ?? []).find(r => r.actor === actor && !r.landing) ?? null;
-const spawnFamilyBuilds = () => Boolean(families?.families?.spawn?.builds);
-// The moves with an object's group shifted by `delta` (game units): a member back at its own place is no move. A base
-// spawn point (stream null) moves alone.
-function movedMissions(stream, actor, delta, from = missionMoves) {
-  if (stream === null) return editedSpawns(actor, { delta }, from);
-  if (stream === 'copy') return editedCopies(actor, { delta }, from);
-  const o = streamObjects(stream).find(x => x.actor === actor);
-  const next = new Map(from);
-  if (!o) return next;
-  for (const m of missionMembers(stream, o)) {
-    const k = missionKey(stream, m.actor), at = from.get(k)?.location ?? m.location;
-    const location = at.map((v, i) => Math.round((v + delta[i]) * 1000) / 1000);
-    if (location.every((v, i) => Math.abs(v - m.location[i]) < 1e-3)) next.delete(k);
-    else next.set(k, { stream, actor: m.actor, location, rotation: (m.rotation ?? [0, 0, 0]).map(v => Math.round(v)) });
-  }
-  return next;
-}
-// A project saved before export 33 moved the bomb without its helper point (F-124; decision D6): the helper gets the
-// group's move where every other part of the bomb shares one offset and the helper has none. Returns the moves with
-// it added, or null when nothing needs it.
-function bombHelperFix(moves = missionMoves) {
-  let next = null;
-  for (const stream of new Set([...moves.values()].map(m => m.stream))) {
-    const parts = streamObjects(stream).filter(o => o.group === 'bomb');
-    const helpers = parts.filter(o => o.role === 'point'), others = parts.filter(o => o.role !== 'point');
-    if (!helpers.length || !others.length || helpers.some(h => moves.has(missionKey(stream, h.actor)))) continue;
-    const offsets = new Set(others.map(o => { const m = moves.get(missionKey(stream, o.actor));
-      return (m ? m.location.map((v, i) => v - o.location[i]) : [0, 0, 0]).map(v => Math.round(v * 10) / 10).join(','); }));
-    if (offsets.size !== 1) continue;
-    const delta = [...offsets][0].split(',').map(Number);
-    if (delta.every(v => !v)) continue;
-    next = next ?? new Map(moves);
-    for (const h of helpers) next.set(missionKey(stream, h.actor), { stream, actor: h.actor,
-      location: h.location.map((v, i) => Math.round((v + delta[i]) * 1000) / 1000), rotation: (h.rotation ?? [0, 0, 0]).map(v => Math.round(v)) });
-  }
-  return next;
-}
-// The streamed pieces of the moved objects (a power node's mesh, the bomb's) drawn where they stand now.
-function placeStreamRoots() {
-  const moves = missionDragView ?? missionMoves;
-  for (const root of roots.values()) {
-    const s = root.userData.source;
-    if (!isStream(s)) continue;
-    const m = moves.get(missionKey(s.stream ?? s.sourcePackage, s.actor));
-    if (!m && !root.userData.streamMoved) continue;
-    root.matrix.copy(m ? movedMatrix(s, m.location, m.rotation) : new THREE.Matrix4().fromArray(s.matrix));
-    root.matrixWorldNeedsUpdate = true;
-    root.userData.streamMoved = Boolean(m);
-  }
-}
-function setMissionMoves(next) {
-  missionMoves = next; missionDragView = null;
-  placeStreamRoots(); refreshSpawnMarkers(); placeMissionGizmo();
-}
-// The edits with a base spawn point's changed (spawns_view.js editSpawn: delta, turn, spawn values).
-function editedSpawns(actor, change, from = missionMoves) {
-  const o = baseSpawnOf(actor), next = new Map(from), k = missionKey(null, actor);
-  if (!o) return next;
-  const entry = editSpawn(o, from.get(k) ?? null, change);
-  if (entry) next.set(k, entry); else next.delete(k);
-  return next;
-}
-// One undo step: a base spawn point turned or given values (its panel's controls; also the test's way in).
-function editBaseSpawn(actor, change, hint) {
-  const before = new Map(missionMoves), after = editedSpawns(actor, change);
-  if (stateKeyOf(after) === stateKeyOf(before)) return false;
-  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
-  if (hint) flashHint(hint);
-  return true;
-}
-const stateKeyOf = moves => JSON.stringify([...moves.entries()]);
-// The edits with a copy's changed (spawns_view.js editCopy), and one undo step of it (SP7).
-function editedCopies(actor, change, from = missionMoves) {
-  const k = spawnKey('copy', actor), entry = from.get(k), o = copyTemplateOf(entry), next = new Map(from);
-  if (o) next.set(k, editCopy(o, entry, change));
-  return next;
-}
-function editSpawnCopy(actor, change, hint) {
-  const before = new Map(missionMoves), after = editedCopies(actor, change);
-  if (stateKeyOf(after) === stateKeyOf(before)) return false;
-  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
-  if (hint) flashHint(hint);
-  return true;
-}
-// One undo step: a copy of a base pod or Meld point (or of a copy: its template's, with its values and turn), a tile
-// east of it, picked (SP7). Returns the copy's key, or null where it can't be copied.
-function copySpawn(key) {
-  const e = spawnEntry(key);
-  const o = e?.layer === 'copy' ? copyTemplateOf(missionMoves.get(key)) : e?.layer === 'base' ? e.record : null;
-  if (!o || copyTemplateWhy(o) || missionMoves.get(key)?.deleted) return null;
-  const at = spawnAt(e), now = missionMoves.get(key);
-  const actor = copyName(o), k = spawnKey('copy', actor), box = o.kind === 'noSpawn' ? spawnBoxNow(e) : null;
-  const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + TILE, at[1], at[2]], box: box && [box[0] + TILE, box[1], box[2], box[3] + TILE, box[4], box[5]],
-                               rotation: now?.rotation ?? (o.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: now?.spawn ?? {} });
-  const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
-  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
-  setPickedSpawn(k);
-  flashHint(`Copied ${short(e.record.actor)} a tile east · drag its arrows to place it`);
-  return k;
-}
-// a copy's template: the base record it copies, or NEW_VOLUME for a no-spawn volume made fresh (no `from`)
-const copyTemplateOf = m => (m?.stream !== 'copy' ? null : m.copy.from ? baseSpawnOf(m.copy.from) : m.copy.kind === 'noSpawn' ? NEW_VOLUME : null);
-// a new copy's name: its template's with a serial (a fresh volume's after the class)
-const copyName = o => `${o.actor ?? `TheWorld.PersistentLevel.${o.actorClass}`}_copy${nextCopySerial()}`;
-// a no-spawn volume's box now (the drag's, the project's, else the map's): [x0, y0, z0, x1, y1, z1]
-const spawnBoxNow = e => missionMoveOf(e.stream, e.record.actor)?.box ?? recordBox(e.record);
-// A new pod or Meld point from the Add panel (its Spawn points kind): the Spawns view is shown with the kind's family,
-// and the next click places a copy of the kind's template (spawns_view.js addTemplate) on the tile under it
-let spawnPlacing = null;
-function startSpawnPlacing(kind) {
-  const template = addTemplate(data?.spawns, kind);
-  if (!template || !spawnFamilyBuilds()) return;
-  setSpawnsShown(true);
-  const family = KINDS[kind].family;
-  if (spawnFilters[family] === false) {
-    spawnFilters = { ...spawnFilters, [family]: true }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); syncSpawnFilters(); refreshSpawnMarkers();
-  }
-  // (the picked point goes, so its arrows are never under the click)
-  if (pickedSpawn) setPickedSpawn(null);
-  spawnPlacing = kind; renderer.domElement.style.cursor = 'crosshair';
-  placeMissionGizmo();
-  flashHint(`Click the tile the new ${KINDS[kind].label.toLowerCase()} is to stand ${kind === 'noSpawn' ? 'over' : 'on'} · Esc cancels`);
-}
-function stopSpawnPlacing() {
-  if (!spawnPlacing) return;
-  spawnPlacing = null; renderer.domElement.style.cursor = ''; pieces.setChosen?.(null); restingHint();
-  placeMissionGizmo();
-}
-// One undo step: the copy placed where the click falls (on a piece, else on the ground grid's plane), on the tile under
-// it by whole tiles from its template, at the template's height above its own floor; then picked
-function placeSpawn(clientX, clientY) {
-  const kind = spawnPlacing, template = addTemplate(data?.spawns, kind);
-  stopSpawnPlacing();
-  if (!template) return null;
-  const hit = pick(clientX, clientY)?.point
-    ?? rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -groundHeight()), new THREE.Vector3());
-  if (!hit) return null;
-  const actor = copyName(template), k = spawnKey('copy', actor);
-  let entry;
-  if (kind === 'noSpawn') {
-    // a volume: its box over whole tiles round the click, its bottom on the level of the surface under it
-    const grid = { origin: data?.tileGrid?.origin ?? [0, 0, 0], size: data?.tileGrid?.size ?? [TILE, TILE, LEVEL] };
-    const box = volumePlace(template, [hit.x, hit.z, hit.y], groundAt(hit.x, hit.z, hit.y + 64), grid);
-    entry = copyEntry(template, { id: uuid(), actor, box, spawn: {} });
-  } else {
-    const [tx, ty, tz] = template.location;
-    const place0 = addPlace(template, [hit.x, hit.z, hit.y], null, null);
-    const at = addPlace(template, [hit.x, hit.z, hit.y], groundAt(place0[0], place0[1], hit.y + 64), groundAt(tx, ty, tz + 64));
-    entry = copyEntry(template, { id: uuid(), actor, location: at, rotation: (template.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: {} });
-  }
-  const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
-  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
-  setPickedSpawn(k);
-  flashHint(kind === 'noSpawn' ? `Added a no-spawn volume${template.fresh ? '' : `, a copy of ${short(template.actor)}`} · its arrows move it, its white handles stretch a side`
-    : `Added a ${KINDS[kind].label.toLowerCase()}, a copy of ${short(template.actor)} · its arrows move it`);
-  return k;
-}
-// One undo step: a base pod, Meld point, drop-in point or no-spawn volume deleted (its moves and values go with it), or
-// a copy taken away (SP7).
-function deleteSpawn(key) {
-  const e = spawnEntry(key);
-  if (!e || !['base', 'copy'].includes(e.layer) || (e.layer === 'base' && (!spawnEditable(e.record) || missionMoves.get(key)?.deleted))) return false;
-  const before = new Map(missionMoves), after = new Map(missionMoves);
-  if (e.layer === 'copy') after.delete(key);
-  else after.set(key, deletedEntry(e.record));
-  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
-  flashHint(e.layer === 'copy' ? 'Copy taken away' : spawnNamed(e.record) ? 'Deleted · something names it, so the Build keeps it and warns' : 'Deleted · the Build takes it out of the level\'s list');
-  return true;
-}
-// One undo step: the picked object's group moved by `delta` (also the test's way in).
-function moveMissionGroup(stream, actor, delta) {
-  if (!delta.some(v => Math.abs(v) > 1e-6)) return false;
-  if (stream === null) return editBaseSpawn(actor, { delta }, 'Moved the spawn point · the Build moves it in place');
-  if (stream === 'copy') return editSpawnCopy(actor, { delta }, 'Moved the copy');
-  const before = new Map(missionMoves), after = movedMissions(stream, actor, delta);
-  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
-  const o = streamObjects(stream).find(x => x.actor === actor), n = missionMembers(stream, o).length;
-  flashHint(`Moved ${n > 1 ? `the group of ${n}` : 'the mission object'} · the Build moves ${n > 1 ? 'them' : 'it'} in the stream's copy`);
-  return true;
-}
-// the donor an added kind's objects come from (an added council bomb: Slaughterhouse's stream), or null
-function spawnDonor() {
-  if (missionIndex >= 0 || !missionPickValue.startsWith('kind:')) return null;
-  const kind = missionPickValue.slice(5), d = data?.donors?.[kind];
-  return d ? { kind, ...d } : null;
-}
-const spawnEntry = key => (key ? spawnEntriesNow.find(e => e.key === key) ?? null : null);
-// where a marker stands now: where the project's move puts it (a stream's or donor's object, a base spawn point), else
-// where its map has it
-// (a no-spawn volume's: its box's middle)
-const spawnAt = e => (e.record.kind === 'noSpawn' && (e.record.box || missionMoveOf(e.stream, e.record.actor)?.box)
-  ? boxMiddle(spawnBoxNow(e)) : missionAt(e.stream, e.record));
-// the spawn points the panel turns: a drop-in point's facing picks the side its units drop from (a unit dropped from a
-// height, as a wave's are from 768 up, starts a tile behind it and lands on it facing its way:
-// XGAISpawnMethod_DropIn.OnActivate_UpdateSpawnPoint, XComWaveSystem's DropHeight); a pod's only says where on a ring
-// round it its other aliens start (XComAlienPod.GetDistributedLocationAround), which aims nothing, so the panel has no
-// turn for it, nor for any other point (the user, 18 November 2026: only where it changes the game)
-const TURNED_KINDS = ['dropIn'];
-// which way a base drop-in point faces now (its yaw), or null for one that isn't edited here or saves no rotation
-function spawnFacing(e) {
-  if (!['base', 'copy'].includes(e.layer) || !TURNED_KINDS.includes(e.record.kind)) return null;
-  const m = missionMoveOf(e.stream, e.record.actor);
-  if (m?.deleted) return null;
-  return m ? m.rotation[1] : e.record.savesRotation || spawnMovable(e) ? Math.round(e.record.rotation?.[1] ?? 0) : null;
-}
-// the project's copies as the view's entries (SP7): `copy|${actor}`, layer 'copy', their template's record under their
-// own name (spawns_view.js copyMarkerRecord)
-function copyEntries() {
-  const out = [];
-  for (const m of missionMoves.values()) {
-    const o = copyTemplateOf(m);
-    if (o) out.push({ key: spawnKey('copy', m.actor), layer: 'copy', stream: 'copy', record: copyMarkerRecord(o, m), readOnly: false });
-  }
-  return out;
-}
-const spawnDeleted = e => e?.layer === 'base' && Boolean(missionMoves.get(e.key)?.deleted);
-function refreshSpawnMarkers() {
-  // (a halo's geometry is three.js's one for every sprite: only its material is the marker's own)
-  for (const child of [...spawnLayer.children]) { child.traverse(o => (o.isSprite ? o.material.dispose() : o.geometry?.dispose())); spawnLayer.remove(child); }
-  spawnEntriesNow = spawnsAvailable() ? [...spawnRecords(data, streamSet, spawnDonor()), ...copyEntries()] : [];
-  // (a deleted base point shows only with the flyout's Deleted points switch on)
-  const shown = shownEntries(spawnEntriesNow, spawnFilters, spawnDeleted);
-  if (pickedSpawn && !shown.some(e => e.key === pickedSpawn)) setPickedSpawnValue(null);      // another mission's, or a family hidden
-  spawnLayer.visible = spawnsShown();
-  for (const e of shown) {
-    const marker = makeSpawnMarker(THREE, e.record.kind, e.readOnly || spawnDeleted(e));
-    marker.position.copy(gameToView(spawnAt(e)));
-    marker.userData.spawn = e.key;
-    // (the picked pod or drop-in point shows the way it faces)
-    const yaw = e.key === pickedSpawn ? spawnFacing(e) : null;
-    if (yaw !== null) addFacingPointer(THREE, marker, yaw);
-    paintSpawnMarker(THREE, marker, e.key === pickedSpawn);
-    spawnLayer.add(marker);
-    // a no-spawn volume's box round its marker (not picked: the marker is)
-    const b = e.record.kind === 'noSpawn' ? spawnBoxNow(e) : null;
-    if (b) {
-      const box = makeSpawnBox(THREE, 'noSpawn', gameToView(boxMiddle(b)), [b[3] - b[0], b[5] - b[2], b[4] - b[1]],
-                               { pale: e.readOnly || spawnDeleted(e), picked: e.key === pickedSpawn });
-      box.userData.spawnBox = e.key;
-      spawnLayer.add(box);
-    }
-  }
-  spawnPanel();
-}
-// The picked marker's panel (or the picked zone's, in the Spawns view)
-function spawnPanel() {
-  const e = spawnEntry(pickedSpawn), shown = spawnsShown();
-  const zones = spawnsOn && spawnZonePick && !e ? zoneState() : null, k = zones ? zones.zones.findIndex(z => z.id === spawnZonePick) : -1;
-  $('spawnPanel').hidden = !shown || (!e && k < 0);
-  $('spawnZoneEdit').hidden = k < 0;
-  $('spawnEdit').hidden = true;
-  const info = $('spawnInfo');
-  info.replaceChildren();
-  const line = (head, value) => { const p = document.createElement('p'); if (head) text(p, 'strong', `${head}: `); p.append(value); info.append(p); return p; };
-  // (the About fold's one line: the first thing said of it)
-  queueMicrotask(() => { $('spawnAboutSum').textContent = $('spawnAboutSum').title = info.firstElementChild?.textContent ?? ''; });
-  if (k >= 0) {
-    const z = zones.zones[k], ewSlot = zones.slots.has(k);
-    $('spawnTitle').textContent = `Landing zone ${k + 1} of ${zones.zones.length}`;
-    line('', `${z.lwr === false ? 'Long War doesn\'t use it' : 'Long War lands the squad here (one of its landing lines)'}${ewSlot ? '; plain Enemy Within lands here in place of one of the map\'s own landings' : '; plain Enemy Within lands at the map\'s own landing instead'}.`);
-    if (z.missionType || z.councilType) line('', `Kept for ${[z.missionType, z.councilType].filter(Boolean).join(', ')}.`);
-    line('', 'Landing zones are moved, turned, copied and deleted in the Landing zones view.');
-    return;
-  }
-  if (!e) return;
-  const label = headerMissions().find(m => m.value === missionPickValue)?.label;
-  // a base spawn point the project edits shows the project's values, marked as its own (SP6); a copy (SP7) its own
-  const baseEdit = e.layer === 'base' || e.layer === 'copy' ? missionMoves.get(e.key) ?? null : null;
-  const o = e.layer === 'base' && baseEdit && Object.keys(baseEdit.spawn).length ? { ...e.record, values: { ...e.record.values,
-    ...Object.fromEntries(Object.entries(baseEdit.spawn).map(([k, v]) => [k, { value: v, from: 'project' }])) } } : e.record;
-  const volume = o.kind === 'noSpawn', fresh = e.layer === 'copy' && !o.copyOf;
-  $('spawnTitle').textContent = e.layer === 'copy' ? `${KINDS[o.kind]?.label ?? o.kind}: ${fresh ? 'a new one' : `a copy of ${short(o.copyOf)}`}` : titleOf(e, spawnEntriesNow, label);
-  for (const l of identityLines({ ...e, record: o }, spawnEntriesNow, fromWords)) line(l.head, l.text);
-  if (volume && spawnBoxNow(e)) { const b = spawnBoxNow(e); line('Box', `${boxWords(b)}, from ${Math.round(b[2])} to ${Math.round(b[5])} up.`); }
-  const movable = e.layer === 'stream' || e.layer === 'donor';
-  const moved = movable ? missionMoves.get(missionKey(e.stream, o.actor)) : null;
-  const n = movable ? missionMembers(e.stream, o).length : 1;
-  const { usedBy, uses } = useLines(o);
-  if (e.layer === 'copy') line('Used by', `nothing: the copy is the project's own${o.kind === 'pod' ? ', with a pod index no pod of the map or its streams has and no pod event names' : ''}.`);
-  else if (volume && !usedBy.length) line('Used by', 'nothing names it: the game finds its no-spawn volumes itself.');
-  else line('Used by', usedBy.length ? `${usedBy.slice(0, 8).join('; ')}${usedBy.length > 8 ? `; and ${usedBy.length - 8} more` : ''}.`
-    : `nothing found in ${e.layer === 'base' ? 'the map' : e.stream}. ${familyOf(o) === 'objectives' ? "The mission's code finds its objectives itself." : `Another layer, ${o.kind === 'pod' ? 'its pod index' : 'a pod index'} or the game's code may still use it.`}`);
-  if (uses.length) line('Uses', `${uses.join('; ')}.`);
-  const words = consumerWords(o, { rules: spawnRulesData, mission: headerMission(), placed: validSpawnRules(projectSpawnRules), mapExcluded: Boolean(spawnRulesData?.excluded) });
-  if (words.length) line('In the game', words.join(' '));
-  if (!moved && missionReached(o) && missionFloorLost(o)) line('', 'The edit leaves no floor of the map under it: the Build warns of it.');
-  // (a base pod or Meld point: the Build counts the places left, compiler.spawn_places, spawns plan SP5; one the
-  // project moved, at its new place)
-  else if (!moved && e.layer === 'base' && ['pod', 'meld'].includes(o.kind) && missionFloorLost(baseEdit ? { ...o, location: baseEdit.location } : o)) {
-    line('', `The edit leaves no floor of the map under it: the Build counts its place as lost${o.kind === 'pod' ? ' and warns when fewer pod places are left than the map had' : ' and warns when its spawn group is left without a hard point'}.`);
-  }
-  if (e.layer === 'patch') line('', `From ${e.stream}, Long War's patch: shown, not edited.`);
-  else if (e.layer === 'copy' && fresh) {
-    line('', `A new no-spawn volume: the Build makes it from one of the map's plain volumes, made a no-spawn volume and stretched over this box, with ${Object.keys(baseEdit?.spawn ?? {}).length ? 'the values above' : 'the class\'s values (it keeps aliens and civilians out)'}.`);
-    if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
-  } else if (e.layer === 'copy') {
-    line('', `A copy of ${short(o.copyOf)}: the Build clones it with its components${o.kind === 'pod' ? ' and gives it a pod index of its own' : volume ? ', stretched over this box' : ''}, with ${Object.keys(baseEdit?.spawn ?? {}).length ? 'the values above' : 'its template\'s values'}.`);
-    if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
-  } else if (e.layer === 'base' && baseEdit?.deleted) {
-    line('', spawnNamed(e.record) ? 'Deleted, but something names it (Used by above): the Build keeps it, and warns, so what names it isn\'t left pointing at nothing.'
-      : 'Deleted: the Build takes it out of the level\'s list, so the game never has it.');
-  } else if (e.layer === 'base' && baseEdit) {
-    const words = spawnMoveWords(e.record, baseEdit);
-    line('', `${words ? `${words} ` : ''}The Build ${words ? (volume ? 'moves and stretches it and sets its values' : 'moves it and sets its values') : 'sets its values'} in place: it keeps its name, so what uses it still does${o.links?.length && words ? `; what it links to (${o.links.map(k => k.property).join(', ')}) stays where the map has it` : ''}.`);
-    if (!spawnFamilyBuilds()) line('', 'This editor version doesn\'t build edits of spawn points: the Build refuses the project\'s.');
-  } else if (e.layer === 'base') line('', spawnMovable(e) ? 'It stands where the map has it.' : baseEditWords);
-  else if (!moved) line('', e.layer === 'donor' ? `It stands where ${e.stream} has it on its own map: Long War moves it when it finds places, else it plays there.` : 'It stands where the original map has it.');
-  else {
-    const d = moved.location.map((v, i) => v - o.location[i]);
-    const levels = Math.abs(Math.round(d[2] / LEVEL));
-    line('', `Moved ${Math.round(Math.hypot(d[0], d[1]) / TILE)} tiles across${levels ? ` and ${levels} ${levels === 1 ? 'level' : 'levels'} ${d[2] > 0 ? 'up' : 'down'}` : ''} from where ${e.layer === 'donor' ? 'its stream' : 'the original map'} has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${e.stream}.`);
-  }
-  if (movable) {
-    // a stream's copy replaces it in every record that streams it (keyed by the source package): name them all
-    const using = streamMissions(e.stream);
-    if (using.length > 1) line('', `The Build moves it for every mission of the variant that streams ${e.stream}: ${using.join(', ')}.`);
-  }
-  if (movable && projectsAvailable() && spawnMovable(e)) line('', `Drag the arrows to move it${n > 1 ? ` with its group (${n} parts)` : ''} by whole tiles and levels; Ctrl+Z undoes.`).className = 'how';
-  if (['base', 'copy'].includes(e.layer) && projectsAvailable() && spawnMovable(e)) {
-    const below = [TURNED_KINDS.includes(o.kind) && 'turn it', SPAWN_VALUE_KEYS[o.kind].length && (volume ? 'set what it keeps out' : 'set its values')].filter(Boolean);
-    line('', `Drag the arrows to move it by whole tiles and levels${volume ? ', its white handles to stretch a side to the tile lines and levels (Alt: steps of 8)' : ''}${below.length ? `; ${below.join(' and ')} below` : ''}; Ctrl+Z undoes.`).className = 'how';
-    spawnEditControls(e, baseEdit);
-  } else if (spawnDeleted(e) && projectsAvailable()) spawnEditControls(e, baseEdit);
-}
-// A base pod's, Meld point's, drop-in point's or no-spawn volume's controls (SP6), or a copy's (SP7): quarter turns
-// for a drop-in point, a pod's commander, secondary and use ticks, a Meld point's difficulty, turn it is
-// destroyed on and spawn group, a volume's aliens and civilians ticks; back to the map's; Copy (a plain pod, any Meld
-// point or volume: spawns_view.js copyTemplateWhy) and Delete. A deleted point has Restore alone. Each change is one
-// undo step.
-function spawnEditControls(e, entry) {
-  const box = $('spawnEdit'), copy = e.layer === 'copy';
-  const base = copy ? copyTemplateOf(entry) : e.record, actor = e.record.actor;
-  if (!base) return;
-  box.replaceChildren();
-  box.hidden = false;
-  // (a row with the turns and As the map has it, or Restore, where it has any; a row with Copy and Delete)
-  const row = text(box, 'div', '', 'row turnrow');
-  const button = (label, title, act) => { const b = text(row, 'button', label); b.type = 'button'; b.title = title; b.onclick = act; return b; };
-  if (entry?.deleted) {
-    button('Restore', 'Back as the map has it', () => resetBaseSpawn(actor));
-    return;
-  }
-  const edit = (change, hint) => (copy ? editSpawnCopy(actor, change, hint) : editBaseSpawn(actor, change, hint));
-  const now = key => (entry && key in entry.spawn ? entry.spawn[key] : base.values?.[key]?.value);
-  const set = (key, value, hint) => edit({ spawn: { [key]: value } }, hint);
-  if (TURNED_KINDS.includes(base.kind)) {
-    for (const [label, turn, title] of [['Turn left', -QUARTER, 'A quarter turn to the left ([)'], ['Turn right', QUARTER, 'A quarter turn to the right (])']]) {
-      button(label, `${title}: its units drop in from a tile behind it (high up, for a wave's) and land facing its way`, () => edit({ turn }, `Turned the drop-in point a quarter ${turn > 0 ? 'right' : 'left'}`));
-    }
-  }
-  if (entry && !copy) button('As the map has it', base.kind === 'noSpawn' ? 'Back where the map has it, its size and its own values'
-    : 'Back where the map has it, facing its way, with its own values', () => resetBaseSpawn(actor));
-  if (!row.childElementCount) row.remove();
-  const row2 = text(box, 'div', '', 'row copyrow');
-  const why = copyTemplateWhy(base);
-  const c = text(row2, 'button', 'Copy');
-  c.type = 'button'; c.disabled = Boolean(why);
-  c.title = why ? `Not copied: ${why}` : base.kind === 'noSpawn' ? 'A copy a tile east, its size and values (Ctrl+D)'
-    : 'A copy a tile east, with its values and turn: the Build clones it with its components (Ctrl+D)';
-  c.onclick = () => copySpawn(e.key);
-  const d = text(row2, 'button', copy ? 'Delete copy' : 'Delete');
-  d.type = 'button';
-  d.title = `${copy ? 'The copy taken away' : spawnNamed(base) ? 'Something names it (Used by): a delete keeps it in the map, with a warning' : 'Out of the level\'s list: the game never has it'} (Delete)`;
-  d.onclick = () => deleteSpawn(e.key);
-  if (base.kind === 'pod') {
-    for (const [key, label, title] of [
-      ['commander', ' Commander\'s place', 'The mission\'s commander pod takes a commander\'s place first'],
-      ['secondary', ' Secondary', 'The pod\'s Secondary flag (bSecondaryPod)'],
-      ['use', ' Use', 'Off, the deployment leaves it out where the Overmind decides so (bUse)']]) {
-      const wrap = text(box, 'label', '', `check${entry && key in entry.spawn ? ' edited' : ''}`);
-      const tick = document.createElement('input');
-      tick.type = 'checkbox'; tick.checked = now(key) === true;
-      tick.onchange = () => set(key, tick.checked, `${label.trim()} ${tick.checked ? 'on' : 'off'}`);
-      wrap.append(tick, label);
-      wrap.title = title;
-    }
-  } else if (base.kind === 'noSpawn') {
-    // (the game's class keeps both out: an older export without its values reads as that)
-    for (const [key, label, title] of [
-      ['aliens', ' Keeps aliens out', 'The game places no alien inside it when it looks for a free spot: a pod deploying its aliens, a unit dropped in (AlienNoSpawnZone)'],
-      ['civilians', ' Keeps civilians out', 'The game places no civilian inside it (CivilianNoSpawnZone)']]) {
-      const wrap = text(box, 'label', '', `check${entry && key in entry.spawn ? ' edited' : ''}`);
-      const tick = document.createElement('input');
-      tick.type = 'checkbox'; tick.checked = now(key) !== false;
-      tick.onchange = () => set(key, tick.checked, `${label.trim()}: ${tick.checked ? 'on' : 'off'}`);
-      wrap.append(tick, label);
-      wrap.title = title;
-    }
-  } else if (base.kind === 'meld') {
-    const pick = text(box, 'label', 'Difficulty ', `valueline${entry && 'difficulty' in entry.spawn ? ' edited' : ''}`);
-    pick.title = 'The game draws a hard point of a spawn group first';
-    const select = document.createElement('select');
-    for (const v of ['Easy', 'Hard']) select.append(new Option(v, v));
-    select.value = now('difficulty') === 'Hard' ? 'Hard' : 'Easy';
-    select.onchange = () => set('difficulty', select.value, `Meld point ${select.value.toLowerCase()}`);
-    pick.append(select);
-    const turnRow = text(box, 'div', '', `valuepair${entry && 'destroyedOnTurn' in entry.spawn ? ' edited' : ''}`);
-    numberField(turnRow, 'Destroyed on turn', now('destroyedOnTurn') ?? -1, { lo: -1, hi: 99, step: 1,
-      title: 'The turn its canister is destroyed on, 1 to 99; 0 or -1 for no countdown',
-      onCommit: v => set('destroyedOnTurn', Math.round(v), Math.round(v) > 0 ? `Destroyed on turn ${Math.round(v)}` : 'No countdown') });
-    const groupRow = text(box, 'div', '', `valuepair${entry && 'spawnGroup' in entry.spawn ? ' edited' : ''}`);
-    numberField(groupRow, 'Spawn group', now('spawnGroup') ?? 0, { lo: 0, hi: 99, step: 1,
-      title: 'The game draws canisters from the points of a spawn group, 0 to 99',
-      onCommit: v => set('spawnGroup', Math.round(v), `Spawn group ${Math.round(v)}`) });
-  }
-}
-// One undo step: a base spawn point back where and as the map has it.
-function resetBaseSpawn(actor) {
-  const k = missionKey(null, actor);
-  if (!missionMoves.has(k)) return false;
-  const before = new Map(missionMoves), after = new Map(missionMoves);
-  after.delete(k);
-  gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
-  flashHint('As the map has it');
-  return true;
-}
-// the missions the header lists (the project's, or the map's) that stream a package: a record that streams it, or an
-// added kind whose donor it is
-function streamMissions(stream) {
-  return headerMissions().filter(m => (m.mission?.streams ?? []).includes(stream)
-    || (m.value.startsWith('kind:') && data?.donors?.[m.value.slice(5)]?.stream === stream)).map(m => m.label);
-}
-const missionReached = o => ['capturePoint', 'radar', 'bomb', 'powerNode', 'use', 'soldier', 'landing', 'operative', 'vip'].includes(o.kind)
-  && !['effect', 'rebuild', 'visible', 'waypoint', 'volume', 'point'].includes(o.role);
-// Whether the map's saved floor tiles under an object (its level and the one below) had floor and the edit took all
-// of it away (compiler.mission_objects' rule, on the saved tiles only).
-function missionFloorLost(o) {
-  const grid = data?.tileGrid, tiles = data?.tactical?.floorTiles;
-  if (!grid?.origin || !tiles?.length) return false;
-  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [TILE, TILE, LEVEL];
-  const tx = Math.floor((o.location[0] - ox) / sx), ty = Math.floor((o.location[1] - oy) / sy), tz = Math.floor((o.location[2] - oz) / sz);
-  const under = tiles.filter(f => f.tile[0] === tx && f.tile[1] === ty && (f.tile[2] === tz || f.tile[2] === tz - 1));
-  return under.length > 0 && under.every(f => f.actor && !floorStays(f.actor));
-}
-function setPickedSpawn(key) {
-  if (key && selected) select(null);
-  setPickedSpawnValue(key ?? null); spawnZonePick = null;
-  refreshSpawnMarkers(); placeMissionGizmo();
-}
-// A stream object's group moves by its arrows (a donor's too, an added bomb's: stage SP4), and so does a base pod, Meld
-// point or drop-in point where the spawn family builds (SP6)
-const spawnMovable = e => Boolean(e) && (e.layer === 'stream' || e.layer === 'donor'
-  || (e.layer === 'base' && spawnEditable(e.record) && spawnFamilyBuilds() && !spawnDeleted(e))
-  || (e.layer === 'copy' && spawnFamilyBuilds()));
-// The picked stream object's gizmo: arrows on its marker that move its group by whole tiles across and whole levels
-// (64 units) up, as a landing zone's do. Escape during a drag puts it back.
-const missionProxy = new THREE.Object3D(); world.add(missionProxy);
-const missionGizmo = new TransformControls(camera, renderer.domElement);
-missionGizmo.attach(missionProxy); missionGizmo.enabled = false; missionGizmo.setMode('translate');
-const missionGizmoHelper = missionGizmo.getHelper(); missionGizmoHelper.visible = false; world.add(missionGizmoHelper);
-let missionDrag = null;
-const missionGizmoWanted = () => Boolean(spawnMovable(spawnEntry(pickedSpawn)) && spawnsShown() && projectsAvailable() && !placing
-  && !spawnPlacing && !volumesOn && !lightsOn && !zonesOn && !effectsOn);
-function placeMissionGizmo() {
-  const e = missionGizmoWanted() ? spawnEntry(pickedSpawn) : null;
-  missionGizmo.enabled = missionGizmoHelper.visible = Boolean(e);
-  if (!e || missionGizmo.dragging) return;
-  missionProxy.position.copy(gameToView(spawnAt(e)));
-  missionProxy.quaternion.identity(); missionProxy.updateMatrixWorld(true);
-}
-missionGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
-missionGizmo.addEventListener('mouseDown', () => {
-  const e = spawnEntry(pickedSpawn);
-  missionDrag = spawnMovable(e) ? { stream: e.stream, actor: e.record.actor, at: missionProxy.position.clone(), delta: [0, 0, 0], key: '' } : null;
-});
-missionGizmo.addEventListener('objectChange', () => {
-  const d = missionDrag;
-  if (!d || d.cancelled) return;
-  const p = missionProxy.position, dx = Math.round((p.x - d.at.x) / TILE) * TILE, dz = Math.round((p.z - d.at.z) / TILE) * TILE,
-        dy = Math.round((p.y - d.at.y) / LEVEL) * LEVEL;
-  p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
-  d.delta = [dx, dz, dy];                 // the view's basis is x, up, y
-  const key = d.delta.join(',');
-  if (key !== d.key) {
-    d.key = key;
-    missionDragView = movedMissions(d.stream, d.actor, d.delta);
-    placeStreamRoots(); refreshSpawnMarkers();
-  }
-});
-missionGizmo.addEventListener('mouseUp', () => {
-  const d = missionDrag;
-  missionDrag = null; missionDragView = null;
-  if (d && !d.cancelled && moveMissionGroup(d.stream, d.actor, d.delta)) return;
-  placeStreamRoots(); refreshSpawnMarkers();
-  setTimeout(placeMissionGizmo, 0);       // (the controls end their drag after this event)
-});
-function cancelMissionGizmo() {
-  if (!missionDrag) return;
-  missionDrag.cancelled = true; missionDragView = null; placeStreamRoots(); refreshSpawnMarkers();
-}
-// the marker nearest the click within a few pixels, as a light's is picked: its key, or null
-function pickSpawnMarker(clientX, clientY) {
-  if (!spawnLayer.visible || !spawnLayer.children.length) return null;
-  const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
-  let best = null, bestD = 18;          // (about the halo's size on screen)
-  for (const marker of spawnLayer.children) {
-    if (!marker.userData.spawn) continue;       // (a volume's box: its marker is picked)
-    marker.updateWorldMatrix(true, false);
-    p.setFromMatrixPosition(marker.matrixWorld).project(camera);
-    if (p.z > 1 || p.z < -1) continue;
-    const d = Math.hypot(rect.left + (p.x + 1) / 2 * rect.width - clientX, rect.top + (1 - p.y) / 2 * rect.height - clientY);
-    if (d < bestD) { bestD = d; best = marker.userData.spawn; }
-  }
-  return best;
-}
-// A click in the Spawns view: a marker, else a landing zone to describe, else the picked one let go
-function spawnClick(e) {
-  const key = pickSpawnMarker(e.clientX, e.clientY);
-  if (key) { setPickedSpawn(key); return; }
-  const z = zoneHit(e.clientX, e.clientY);
-  setPickedSpawn(null);
-  spawnZonePick = z ? z.id : null;
-  spawnPanel();
-}
-// A spawn point or mission object named in the build window (`stream`: its stream, null for the base map's): the
-// mission that streams it picked in the header, its marker shown (the Normal switch turned on where neither control
-// shows it, its family too) and picked, the camera on it.
-function showSpawn(actor, stream = null) {
-  if (!data) return;
-  if (stream === undefined || stream === null) {
-    stream = (data.spawns ?? []).some(r => r.actor === actor) ? null
-      : Object.entries(data.streams ?? {}).find(([, s]) => (s.missionObjects ?? []).some(o => o.actor === actor))?.[0]
-        ?? Object.values(data.donors ?? {}).find(d => (d.missionObjects ?? []).some(o => o.actor === actor))?.stream ?? null;
-  }
-  if (stream && data.streams?.[stream] && !streamSet.has(stream)) {
-    const index = (data.missions ?? []).findIndex(m => (m.streams ?? []).includes(stream));
-    if (index >= 0 && headerMissions().some(m => m.index === index)) { $('mission').value = String(index); $('mission').onchange({ target: $('mission') }); }
-  }
-  if (stream && !data.streams?.[stream]) {
-    const kind = Object.entries(data.donors ?? {}).find(([, d]) => d.stream === stream)?.[0];
-    const pick = kind && headerMissions().find(m => m.value === `kind:${kind}`);
-    if (pick && missionPickValue !== pick.value) { $('mission').value = pick.value; $('mission').onchange({ target: $('mission') }); }
-  }
-  if (!spawnsShown()) setNormalSpawns(true);
-  const key = spawnKey(stream, actor), entry = spawnRecords(data, streamSet, spawnDonor()).find(x => x.key === key)
-    ?? spawnRecords(data, streamSet, spawnDonor()).find(x => x.record.actor === actor);
-  if (!entry) { flashHint(`${short(actor)} is no spawn point or mission object of the mission the header shows`); return; }
-  const family = familyOf(entry.record);
-  if (spawnFilters[family] === false || (!(family in spawnFilters) && FAMILIES.find(f => f.id === family)?.on === false)) {
-    spawnFilters = { ...spawnFilters, [family]: true }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); syncSpawnFilters();
-  }
-  refreshSpawnMarkers();
-  setPickedSpawn(entry.key);
-  const at = gameToView(spawnAt(entry));
-  camera.position.add(at.clone().sub(controls.target)); controls.target.copy(at); controls.update();
-}
-function scaleSpawnMarkers() {
-  if (!spawnLayer.visible) return;
-  for (const marker of spawnLayer.children) {
-    if (!marker.userData.spawn) continue;       // (a volume's box keeps its size in the world)
-    scaleMarker(marker, camera, marker.position); marker.scale.multiplyScalar(SPAWN_MARKER_SIZE);
-  }
-}
-// The Spawns view on or off (Shift+U, the rail's button): the other views step aside, the selection goes, and the
-// landing zones show (a click on one describes it)
-function setSpawnsShown(on) {
-  on = Boolean(on) && spawnsAvailable();
-  if (on === spawnsOn) return;
-  if (on) {
-    if (volumesOn) setVolumesShown(false);
-    if (lightsOn) setLightsShown(false);
-    if (zonesOn) setZonesShown(false);
-    if (effectsOn) setEffectsShown(false);
-    stopPickBox(); select(null);
-    spawnLandingBefore = landingLayer.visible;
-    landingLayer.visible = true;
-  } else {
-    spawnZonePick = null;
-    stopSpawnPlacing();     // a spawn point asked for from the Add panel and not placed yet goes with its view
-    if (!spawnLandingBefore) landingLayer.visible = false;
-  }
-  setSpawnsOn(on);
-  refreshSpawnMarkers(); lightButton(); placeMissionGizmo();
-  if (on) {
-    const shown = shownEntries(spawnEntriesNow, spawnFilters), n = kinds => shown.filter(e => kinds.includes(e.record.kind)).length;
-    flashHint(`Spawns view: ${plural(n(['pod']), 'pod')}, ${plural(n(['meld']), 'Meld point')}, ${plural(n(['dropIn']), 'drop-in point')}`
-      + `${n(['bomb', 'powerNode', 'capturePoint', 'radar', 'use']) ? `, ${plural(n(['bomb', 'powerNode', 'capturePoint', 'radar', 'use']), 'objective')}` : ''} · click one to see what it is · Shift+U leaves it`);
-  }
-}
-// The Normal button's switch: the markers drawn and picked with pieces in the normal view (remembered)
-function setNormalSpawns(on) {
-  normalSpawns = Boolean(on);
-  remember(NORMAL_SPAWNS, normalSpawns ? '1' : '0');
-  if (!spawnsShown() && pickedSpawn) setPickedSpawn(null);
-  refreshSpawnMarkers(); lightButton(); placeMissionGizmo();
-}
-function syncSpawnFilters() {
-  for (const f of FAMILIES) { const box = $(`spawnShow-${f.id}`); if (box) box.checked = f.id in spawnFilters ? spawnFilters[f.id] !== false : f.on; }
-}
-$('normalSpawns').onchange = e => { setNormalSpawns(e.target.checked); e.target.blur(); };
-$('spawnZoneEdit').onclick = () => { const id = spawnZonePick; setZonesShown(true); if (id) pickZone(id); };
-for (const f of FAMILIES) {
-  const box = $(`spawnShow-${f.id}`);
-  if (!box) continue;
-  box.onchange = e => { spawnFilters = { ...spawnFilters, [f.id]: e.target.checked }; remember(SPAWN_FILTERS, JSON.stringify(spawnFilters)); refreshSpawnMarkers(); placeMissionGizmo(); e.target.blur(); };
-}
-syncSpawnFilters();
-// What the install does with spawn points, read as a map opens (spawn-rules.json); the panel says it once it is here
-// The Spawns flyout's "Scripted drop-ins land where placed" (spawns plan, SP8): ticked when the project has the rule;
-// off and greyed, with the reason, where the install plays them where placed already (plain Enemy Within, or a Long War
-// whose loader lacks the drop-in mutator); on a map the install's ExcludeMaps names (the Chryssalid Hive) and no rule,
-// a line says the variant, under a name of its own, loses that. A ticked box stays clickable, to take the rule off.
-function syncSpawnRule() {
-  const box = $('dropInsPlaced'), note = $('dropInsNote');
-  if (!box || !note) return;
-  const on = validSpawnRules(projectSpawnRules), r = spawnRulesData;
-  const why = !r ? '' : r.kind === 'ew' ? 'Plain Enemy Within lands scripted drop-ins where they are placed already.'
-    : r.dropIns === 'absent' ? 'This install\'s Long War has no drop-in mutator in its loader: scripted drop-ins land where placed already.' : '';
-  box.checked = on;
-  box.disabled = Boolean(why) && !on;
-  box.indeterminate = projectSpawnRules != null && !on;     // a rule this page can't read: saved back as it is
-  const lines = [];
-  if (why) lines.push(why);
-  if (projectSpawnRules != null && !on) lines.push('The project has a spawn rule this editor doesn\'t know; the Build refuses it. Click to take it off.');
-  if (!on && !why && r?.excluded) lines.push(`Long War's ExcludeMaps names ${activeMapId}, so it lands its scripted drop-ins where placed; the variant has a name of its own and loses that unless this is ticked.`);
-  note.textContent = lines.join(' ');
-  note.hidden = !lines.length;
-}
-function setSpawnRule(next) {
-  const before = projectSpawnRules;
-  if (JSON.stringify(before) === JSON.stringify(next)) return;
-  const put = v => { setProjectSpawnRules(v); syncSpawnRule(); spawnPanel(); };
-  gizmo.record({ redo: () => put(next), undo: () => put(before) });
-  flashHint(next ? 'Scripted drop-ins land where placed: the Build excludes the variant from Long War\'s drop-in mutator' : 'Scripted drop-ins as the install plays them');
-}
-$('dropInsPlaced').onchange = e => setSpawnRule(e.target.checked ? { dropIns: 'placed' } : null);
-function loadSpawnRules() {
-  spawnRulesData = null;
-  if (!spawnsAvailable()) return;
-  const id = activeMapId;
-  fetch(`/maps/${encodeURIComponent(id)}/spawn-rules.json`).then(r => (r.ok ? r.json() : null)).then(rules => {
-    if (id === activeMapId) { spawnRulesData = rules; spawnPanel(); syncSpawnRule(); }
-  }).catch(() => {});
-}
+// The Spawns view and the mission moves (spawns_wiring.js): the markers, the view, the picked one's panel and
+// gizmo, the project's moves and edits of spawn points and mission objects, and the spawn rule.
+const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
+        editedSpawns, editSpawnCopy, loadSpawnRules, missionFloorLost, missionGizmo, missionGizmoWanted, missionKey,
+        missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker,
+        placeMissionGizmo, placeSpawn, refreshSpawnMarkers, resetBaseSpawn, scaleSpawnMarkers, setMissionMoves,
+        setNormalSpawns, setPickedSpawn, setSpawnRule, setSpawnsShown, showSpawn, spawnAddEntries, spawnAt, spawnBoxNow,
+        spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnMovable, spawnPanel,
+        spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects, syncSpawnFilters,
+        syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
+  $, camera, controls, flashHint, floorStays, gizmo, groundAt, groundHeight, headerMissions, isStream, landingLayer,
+  lightButton, movedMatrix, pick, plural, projectsAvailable, rayAt, renderer, restingHint, select, setLightsShown,
+  short, text, tileCorner, world,
+  // (made further down: called through, since they are not made yet while this runs)
+  gameToView: p => gameToView(p), headerMission: () => headerMission(),
+  numberField: (parent, label, value, options) => numberField(parent, label, value, options),
+  pickZone: id => pickZone(id), setEffectsShown: on => setEffectsShown(on), setVolumesShown: on => setVolumesShown(on),
+  setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(),
+  zoneHit: (clientX, clientY) => zoneHit(clientX, clientY), zoneState: () => zoneState() });
 
 // The Effects view (effects_wiring.js): the map's effects, sounds and lens flares as roots, the view, the likeness,
 // the panel with the Wave preview and the values, and the project's records of effects and sounds.
@@ -4948,973 +4232,43 @@ const { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffe
         numberField, paintEffects, pickEffect, pickEffectAt, playWave, refreshEffects, removeEffectRoots,
         setEffectsShown, setEffectStays, setEffectValues, setLikeness, setNormalEffects, stepGhostLikenesses,
         stepLikenesses, stopWave } = createEffectsWiring({
-  $, actorPose, assetUrl, baseMatrix, camera, carried, controls, effectTemplate, flashHint, gizmo, gltfLoader,
-  isForeignTarget, isStream, lightButton, ownerRoot, plural, pointOutside, renderer, sceneChanged, select,
-  setLightsShown, setPickedSpawn, setSpawnsShown, setVolumesShown, setZonesShown, short, text, texture, track, viewport,
-  world, zoneState,
-  // (made further down: called through, since it is not made yet while this runs)
-  stopPickBox: () => stopPickBox() });
-const ZONE_OWN = 0x4aa3ff, ZONE_LWR = 0xffb347, ZONE_PICKED = 0xffffff;
-let zonePlacing = false;     // (the picked zone, pickedZone: editor_state.js)
-// While the zone gizmo is dragged: { id, change } drawn in place of the zone (zoneState)
-let zoneDragView = null;
-const zoneMaterial = (color, opacity, through = false) => (through
-  ? new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false, depthTest: false })
-  : new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }));
+  $, actorPose, assetUrl, baseMatrix, camera, controls, effectTemplate, flashHint, gizmo, gltfLoader, isForeignTarget,
+  isStream, lightButton, ownerRoot, plural, pointOutside, renderer, sceneChanged, select, setLightsShown,
+  setPickedSpawn, setSpawnsShown, short, text, texture, track, viewport, world,
+  // (made further down: called through, since they are not made yet while this runs)
+  carried: (point, from, to) => carried(point, from, to), setVolumesShown: on => setVolumesShown(on),
+  setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(), zoneState: () => zoneState() });
+// A game point (x, y, z) as a point of the view, whose basis is x, up, y (the Spawns and Landing zones views and the
+// test hooks)
 const gameToView = p => new THREE.Vector3(p[0], p[2], p[1]);
-// The zones and which are the map's own landings: { zones, own (the map's own landings), slots (zone index -> own index) }
-function zoneState() {
-  const zones = zonesNow().map(z => (zoneDragView?.change && z.id === zoneDragView.id ? { ...z, ...zoneDragView.change } : z)), own = data ? ownLandings(data) : [], slots = new Map(ownSlots(zones, own.length).map((z, k) => [z, k]));
-  return { zones, own, slots };
-}
-// The floor's top under a point at a zone's ground: the map's floor tile there on the ground's level, by its saved
-// height (the tutorial's road is 18 over its level's start, so marks at the ground itself sink under it), else null
-let floorTopIndex = null;
-function floorTop(x, y, ground) {
-  const grid = data?.tileGrid;
-  if (!grid?.origin || !data.tactical?.floorTiles) return null;
-  if (floorTopIndex?.data !== data) {
-    const tops = new Map();
-    for (const f of data.tactical.floorTiles) tops.set(f.tile.join(','), Math.max(tops.get(f.tile.join(',')) ?? -Infinity, f.location[2]));
-    floorTopIndex = { data, tops };
-  }
-  // the spot's tile as the game counts it; its ground's level takes a ground up to a unit under a level's start (the
-  // maps' floors are a unit over the game's corner: 2 over the origin, as before)
-  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [TILE, TILE, LEVEL];
-  const key = [Math.floor((x - ox) / sx), Math.floor((y - oy) / sy), Math.floor((ground + 1 - oz) / sz)].join(',');
-  const top = floorTopIndex.tops.get(key);
-  return top !== undefined && top >= ground - 8 && top <= ground + sz ? top : null;
-}
-// Where the squad stands for a zone (spawns.js soldierSpots): a landing with no frame (the tutorial's) keeps its own
-// points while its zone stays where the map has it
-function zoneSoldiers(z, st = zoneState()) {
-  const k = st.zones.findIndex(x => x.id === z.id);
-  return soldierSpots(z, k >= 0 && st.slots.has(k) ? st.own[st.slots.get(k)] : null);
-}
-function zoneLabel(text, color) {
-  const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
-  const c = canvas.getContext('2d');
-  c.fillStyle = `#${color.toString(16).padStart(6, '0')}`; c.beginPath(); c.arc(32, 32, 28, 0, Math.PI * 2); c.fill();
-  c.fillStyle = '#10161a'; c.font = 'bold 34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, 32, 34);
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false, transparent: true }));
-  sprite.scale.set(70, 70, 1); sprite.renderOrder = 9; sprite.raycast = () => {};
-  return sprite;
-}
-// The rigid move from one of the map's own landings to its zone: a point of the landing (the Skyranger) carried along
-function carried(point, from, to) {
-  const d = yawOf(to.direction) - yawOf(from.direction), v = turnBy([point[0] - from.location[0], point[1] - from.location[1], 0], d);
-  return [to.location[0] + v[0], to.location[1] + v[1], point[2] + (to.location[2] - from.location[2])];
-}
-function refreshLandingZones() {
-  for (const child of [...landingLayer.children]) {
-    child.traverse(o => { o.geometry?.dispose(); if (o.material?.map) o.material.map.dispose(); });
-    landingLayer.remove(child);
-  }
-  const on = data && !builderMode && data.scope === 'map' && !data.preview;
-  $('landingRow').hidden = !on;
-  placeZoneGizmo();
-  if (!on) { $('landingPanel').hidden = true; return; }
-  const st = zoneState(), { zones, own, slots } = st;
-  zones.forEach((z, k) => {
-    const group = new THREE.Group(), soldiers = zoneSoldiers(z, st), ground = groundOf(z), picked = z.id === pickedZone;
-    // the marks lie on the floor under each soldier point, so a floor over the level's start doesn't hide them
-    const tops = soldiers.map(s => floorTop(s.location[0], s.location[1], ground) ?? ground), lift = Math.max(...tops);
-    const color = picked ? ZONE_PICKED : slots.has(k) ? ZONE_OWN : ZONE_LWR;
-    group.userData.zoneId = z.id;
-    const b = evacBox(z);
-    // the evac zone's footprint on the ground (picked by it) and its box faintly
-    const foot = new THREE.Mesh(new THREE.PlaneGeometry(b[3] - b[0], b[4] - b[1]).rotateX(-Math.PI / 2), zoneMaterial(color, picked ? 0.32 : 0.18));
-    foot.position.set((b[0] + b[3]) / 2, lift + 3, (b[1] + b[4]) / 2); foot.userData.zoneId = z.id; foot.renderOrder = 3;
-    group.add(foot);
-    const box = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(b[3] - b[0], b[5] - b[2], b[4] - b[1])), zoneMaterial(color, 0.45, true));
-    box.position.set((b[0] + b[3]) / 2, (b[2] + b[5]) / 2, (b[1] + b[4]) / 2); box.raycast = () => {}; group.add(box);
-    // the six soldier points, where the squad stands
-    soldiers.forEach((s, n) => {
-      const dot = new THREE.Mesh(new THREE.CircleGeometry(22, 20).rotateX(-Math.PI / 2), zoneMaterial(color, 0.85));
-      dot.position.copy(gameToView([s.location[0], s.location[1], tops[n] + 4])); dot.renderOrder = 4; dot.userData.zoneId = z.id; group.add(dot);
-    });
-    // an arrow the way the squad faces (the soldier points' facing)
-    const mid = soldiers.reduce((a, s) => [a[0] + s.location[0] / soldiers.length, a[1] + s.location[1] / soldiers.length], [0, 0]);
-    const f = turnBy([1, 0, 0], soldiers[0].yaw), tip = [mid[0] + f[0] * 260, mid[1] + f[1] * 260], side = [-f[1] * 50, f[0] * 50];
-    const arrow = [mid[0], mid[1], tip[0], tip[1], tip[0], tip[1], tip[0] - f[0] * 70 + side[0], tip[1] - f[1] * 70 + side[1], tip[0], tip[1],
-                   tip[0] - f[0] * 70 - side[0], tip[1] - f[1] * 70 - side[1]];
-    const pts = []; for (let i = 0; i < arrow.length; i += 2) pts.push(arrow[i], lift + 6, arrow[i + 1]);
-    const line = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)), zoneMaterial(color, 0.9, true));
-    line.raycast = () => {}; group.add(line);
-    const label = zoneLabel(String(k + 1), color); label.position.copy(gameToView([mid[0], mid[1], lift + 140])); group.add(label);
-    // the number is drawn over everything and picks its zone wherever the zone is (under a floor, inside a piece)
-    delete label.raycast; label.userData.zoneId = z.id; label.userData.zoneBadge = true;
-    // one of the map's own landings: the grounded Skyranger, carried with it
-    const o = slots.has(k) ? own[slots.get(k)] : null, mesh = o?.landing?.skyranger?.actors?.find(a => a.role === 'mesh');
-    if (mesh) {
-      const c = carried(mesh.location, o.zone, z), yaw = mesh.rotation[1] + yawOf(z.direction) - yawOf(o.zone.direction);
-      const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(900, 300, 700)), zoneMaterial(color, 0.3, true));
-      outline.position.copy(gameToView([c[0], c[1], c[2] + 150])); outline.rotation.y = -yaw * Math.PI / 32768; outline.raycast = () => {};
-      group.add(outline);
-    }
-    // the Landing zones view: drawn over everything
-    if (zonesOn) group.traverse(o => { if (o.material) { o.material.depthTest = false; o.renderOrder = Math.max(o.renderOrder, 8); } });
-    landingLayer.add(group);
-  });
-  landingPanel();
-}
-// The map's own landing pieces (the frame, the Skyranger) whose zone has moved from where the map has them (as the
-// Build reckons it: spawns.js landingUnmoved, so a zone a unit off its frame keeps them): the zone draws them, the
-// pieces are not shown
-function movedLandingActors() {
-  const { zones, own, slots } = zoneState(), out = new Set();
-  for (const [k, j] of slots) {
-    const o = own[j], z = zones[k];
-    if (landingUnmoved(z, o)) continue;
-    if (o.frame) out.add(o.frame);
-    for (const a of o.landing?.skyranger?.actors ?? []) out.add(a.path);
-    if (!o.landing) {     // an older export: the Skyranger nearest the frame
-      const sky = [...roots.values()].map(r => r.userData.source).filter(s => isLanding(s) && /skyranger/i.test(s.archetype ?? ''))
-        .sort((a, b) => Math.hypot(a.location[0] - o.zone.location[0], a.location[1] - o.zone.location[1])
-                      - Math.hypot(b.location[0] - o.zone.location[0], b.location[1] - o.zone.location[1]))[0];
-      if (sky) out.add(sky.actor);
-    }
-  }
-  return out;
-}
-// A change of the zones as one undo step; the project's own list from the first change on
-function setZones(next, words) {
-  const before = landingZones ? landingZones.map(z => ({ ...z })) : null, after = next.map(z => ({ ...z }));
-  gizmo.record({
-    redo: () => { setLandingZones(after.map(z => ({ ...z }))); zonesChanged(); },
-    undo: () => { setLandingZones(before ? before.map(z => ({ ...z })) : null); zonesChanged(); },
-  });
-  if (words) flashHint(`${words} · Ctrl+Z undoes`);
-}
-function zonesChanged() {
-  if (pickedZone && !zonesNow().some(z => z.id === pickedZone)) setPickedZone(null);
-  setEffectsDirty(true);     // (the landing's effects and sound follow a moved zone)
-  refreshLandingZones(); refreshGroundGrid(); cutaway(); projectChanged(); editChanged();
-}
-// The zones with plain EW's marks written out (`ew: true`): a list saved before the mark goes by order (ownSlots),
-// and any change keeps the zones plain EW played
-function explicitZones() {
-  const zones = zonesNow().map(z => ({ ...z }));
-  if (!explicitEw(zones)) for (const k of ownSlots(zones, data ? ownLandings(data).length : 0)) zones[k].ew = true;
-  return zones;
-}
-function changeZone(id, change, words) {
-  const zones = explicitZones(), k = zones.findIndex(z => z.id === id);
-  if (k < 0) return;
-  const next = change(zones, k);
-  if (next) setZones(next, words);
-}
-function pickZone(id) {
-  if (id && !zonesOn) setZonesShown(true);     // a zone is picked and edited in the Landing zones view only
-  setPickedZone(id);
-  if (id && selected) select(null);
-  refreshLandingZones();
-}
-// The picked zone's gizmo (the user, 13 November: a gizmo in place of the panel's buttons). Its handle stands on the
-// drop zone's frame (StartLoc), on the ground. It moves the zone by whole tiles across and whole levels (64 units) up,
-// and turns it by quarter turns about the vertical: the only steps a zone takes (an LZArray line faces one of four
-// ways). G shows the arrows, R the ring; each drag is one undo step, Escape during one puts it back.
-const zoneProxy = new THREE.Object3D(); world.add(zoneProxy);
-const zoneGizmo = new TransformControls(camera, renderer.domElement);
-zoneGizmo.attach(zoneProxy); zoneGizmo.enabled = false; zoneGizmo.setRotationSnap(Math.PI / 2);
-const zoneGizmoHelper = zoneGizmo.getHelper(); zoneGizmoHelper.visible = false; world.add(zoneGizmoHelper);
-let zoneGizmoMode = 'translate', zoneGizmoDrag = null;
-const zoneGizmoWanted = () => Boolean(pickedZone && zonesOn && landingLayer.visible && !placing && !volumesOn && !lightsOn);
-function placeZoneGizmo() {
-  const z = zoneGizmoWanted() ? zonesNow().find(v => v.id === pickedZone) : null;
-  zoneGizmo.enabled = zoneGizmoHelper.visible = Boolean(z);
-  if (!z || zoneGizmo.dragging) return;
-  zoneProxy.position.copy(gameToView([z.location[0], z.location[1], groundOf(z)]));
-  zoneProxy.quaternion.identity(); zoneProxy.updateMatrixWorld(true);
-  zoneGizmo.setMode(zoneGizmoMode);
-  zoneGizmo.showX = zoneGizmo.showZ = zoneGizmoMode !== 'rotate';
-}
-function setZoneGizmoMode(mode) {
-  zoneGizmoMode = mode; placeZoneGizmo();
-  flashHint(mode === 'rotate' ? 'Turn the landing zone by quarter turns (G moves it)' : 'Move the landing zone by whole tiles and levels (R turns it)');
-}
-zoneGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
-zoneGizmo.addEventListener('mouseDown', () => {
-  const z = zonesNow().find(v => v.id === pickedZone);
-  zoneGizmoDrag = z ? { id: z.id, from: z, at: zoneProxy.position.clone(), change: null, key: '' } : null;
-});
-zoneGizmo.addEventListener('objectChange', () => {
-  const d = zoneGizmoDrag;
-  if (!d || d.cancelled) return;
-  if (zoneGizmo.mode === 'translate') {
-    const p = zoneProxy.position, dx = Math.round((p.x - d.at.x) / TILE) * TILE, dz = Math.round((p.z - d.at.z) / TILE) * TILE,
-          dy = Math.round((p.y - d.at.y) / LEVEL) * LEVEL;
-    p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
-    // the zone's ground lands on a level of the grid: a zone saved off the levels (the tutorial's, fitted before the
-    // ground was snapped: 16 under the grid) comes onto one with its first move
-    const l = d.from.location, oz = data.tileGrid?.origin?.[2] ?? 0, ground = l[2] - ZONE_GROUND + dy;
-    const level = Math.round(oz + Math.round((ground - oz) / LEVEL) * LEVEL) + ZONE_GROUND;
-    const z = data.tileGrid && Math.abs(level - (l[2] + dy)) >= 1 ? level : l[2] + dy;
-    d.change = dx || dy || dz ? { location: [l[0] + dx, l[1] + dz, z] } : null;
-  } else {
-    // a turn about the view's up is the opposite turn of the game's yaw (the view's basis is x, up, y)
-    const q = Math.round(2 * Math.atan2(zoneProxy.quaternion.y, zoneProxy.quaternion.w) / (Math.PI / 2));
-    zoneProxy.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), q * Math.PI / 2);
-    const turns = ((-q % 4) + 4) % 4;
-    d.change = turns ? { direction: ZONE_DIRECTIONS[(ZONE_DIRECTIONS.indexOf(d.from.direction) + turns) % 4] } : null;
-  }
-  const key = JSON.stringify(d.change);
-  if (key !== d.key) { d.key = key; zoneDragView = { id: d.id, change: d.change }; refreshLandingZones(); }
-});
-zoneGizmo.addEventListener('mouseUp', () => {
-  const d = zoneGizmoDrag;
-  zoneGizmoDrag = null; zoneDragView = null;
-  if (d?.change && !d.cancelled)
-    changeZone(d.id, (zones, k) => { zones[k] = { ...zones[k], ...d.change }; return zones; }, d.change.direction ? 'Turned the landing zone' : 'Moved the landing zone');
-  else refreshLandingZones();
-  setTimeout(placeZoneGizmo, 0);       // (the controls end their drag after this event)
-});
-function cancelZoneGizmo() {
-  if (!zoneGizmoDrag) return;
-  zoneGizmoDrag.cancelled = true; zoneDragView = null; refreshLandingZones();
-}
-function zoneHit(clientX, clientY) {
-  if (!landingLayer.visible || !landingLayer.children.length) return null;
-  const hits = rayAt(clientX, clientY).intersectObjects(landingLayer.children, true).filter(h => h.object.userData.zoneId);
-  // a zone's number badge first: it is drawn over everything, so a click on it is meant for its zone
-  const hit = hits.find(h => h.object.userData.zoneBadge) ?? hits[0];
-  return hit ? { id: hit.object.userData.zoneId, distance: hit.distance, point: hit.point, badge: Boolean(hit.object.userData.zoneBadge) } : null;
-}
-// The panel for the picked zone: its number, whether it is one of the map's own landings, its kind and mission, notes
-function landingPanel() {
-  const panel = $('landingPanel'), { zones, own, slots } = zoneState(), k = zones.findIndex(z => z.id === pickedZone);
-  panel.hidden = k < 0 || volumesOn;
-  if (k < 0) return;
-  const z = zones[k];
-  $('landingTitle').textContent = `Landing zone ${k + 1} of ${zones.length}`;
-  const group = own[slots.get(k)]?.group;
-  $('landingInfo').textContent = [slots.has(k) && own.length > 1 ? `Plain EW lands here in place of the map's own landing ${slots.get(k) + 1}${/^Group/.test(group ?? '') ? ` (${group})` : ''}.` : '',
-    z.missionType || z.councilType ? `Kept for ${[z.missionType, z.councilType].filter(Boolean).join(', ')}.` : '',
-    `Facing ${z.direction}; ground at ${Math.round(groundOf(z))}.`].filter(Boolean).join(' ');
-  $('landingKind').value = ['normal', 'inside'].includes(z.kind) ? z.kind : 'normal';
-  $('landingKind').disabled = !['normal', 'inside'].includes(z.kind ?? 'normal');
-  $('landingLwr').checked = z.lwr !== false;
-  $('landingEw').checked = slots.has(k);
-  $('landingEw').disabled = !own.length;
-  $('landingEw').parentElement.title = own.length ? `Plain Enemy Within lands here: one of the map's own landings is moved to this zone in the package. This map has ${plural(own.length, 'landing')} of its own, so up to ${own.length} zone${own.length === 1 ? '' : 's'} can be marked`
-    : 'This map has no landing of its own that the editor can read, so plain Enemy Within plays none of these zones';
-  $('landingPlay').hidden = !project || !projectsAvailable();
-  const mission = headerMission(), serves = zoneServes(z, mission);
-  $('landingPlay').disabled = !serves;
-  $('landingPlay').title = serves ? 'Play in game, the squad landing at this zone' + (mission ? ` (${mission.label}, the mission the header shows)` : '')
-    : `This zone is kept for another mission than the one the header shows (${mission?.label}): pick that mission in the header to land here`;
-  const notes = zoneNotes(z, k, { zones, own, slots });
-  $('landingNotes').hidden = !notes.length; $('landingNotes').textContent = notes.join(' ');
-}
-// Notes while editing, none of which blocks: outside the grid, a soldier point over no floor, a piece on one, played
-// under LWR only, played nowhere
-function zoneNotes(z, k, { zones, own, slots }) {
-  const notes = [], grid = data.tileGrid, [ox, oy, oz] = grid.origin, [nx, ny, nz] = grid.dimensions, [sx, sy, sz] = grid.size ?? [TILE, TILE, LEVEL];
-  const soldiers = zoneSoldiers(z, { zones, own, slots }), ground = groundOf(z);
-  if (soldiers.some(s => s.location[0] < ox || s.location[0] > ox + nx * sx || s.location[1] < oy || s.location[1] > oy + ny * sy
-                             || ground < oz - 1 || ground > oz + nz * sz)) notes.push('It is outside the tile grid: its soldiers would stand where there are no tiles.');
-  // the floor tiles of the ground's level (the compiler's check_zones: the level of the ground plus 2)
-  const level = Math.floor((ground + 2 - oz) / sz);
-  const floor = new Set((data.tactical?.floorTiles ?? []).filter(f => floorStays(f.actor) && f.tile[2] === level).map(f => `${f.tile[0]},${f.tile[1]}`));
-  const flat = [...roots.values()].filter(r => r.userData.source.added && !r.userData.deleted).map(r => new THREE.Box3().setFromObject(r))
-    .filter(b => b.max.y - b.min.y <= 40 && Math.abs(b.max.y - ground) <= 20);
-  const tall = [...roots.values()].filter(r => r.userData.source.added && !r.userData.deleted).map(r => new THREE.Box3().setFromObject(r))
-    .filter(b => b.max.y - b.min.y > 40 && b.min.y < ground + 150 && b.max.y > ground + 8);
-  // on a map grown as it is, the map's own low scenery past its far sides: the Build makes it walkable (F-100; the
-  // compiler's scenery_floor), and the map's saved floor tiles stop at its own grid
-  const ownDims = ownSize()?.dims, ox1 = ownDims ? ox + ownDims[0] * sx : Infinity, oy1 = ownDims ? oy + ownDims[1] * sy : Infinity;
-  const scenery = stage?.grid && !cleared ? [...roots.values()]
-    .filter(r => !r.userData.source.added && !r.userData.deleted && r.userData.source.actorClass === 'XComLevelActor')
-    .map(r => new THREE.Box3().setFromObject(r))
-    .filter(b => b.max.y - b.min.y <= 32 && b.min.y >= oz - sz / 4 && b.max.y <= oz + nz * sz && (b.max.x > ox1 || b.max.z > oy1) && Math.abs(b.max.y - ground) <= 20) : [];
-  flat.push(...scenery);
-  const bare = [], blocked = [];
-  soldiers.forEach((s, n) => {
-    const [x, y] = s.location, key = `${Math.floor((x - ox) / sx)},${Math.floor((y - oy) / sy)}`;
-    if (!floor.has(key) && !flat.some(b => x >= b.min.x && x <= b.max.x && y >= b.min.z && y <= b.max.z)) bare.push(n + 1);
-    if (tall.some(b => x >= b.min.x && x <= b.max.x && y >= b.min.z && y <= b.max.z)) blocked.push(n + 1);
-  });
-  if (bare.length) notes.push(`Soldier point${bare.length === 1 ? '' : 's'} ${bare.join(', ')} ${bare.length === 1 ? 'is' : 'are'} over no floor: lay floor there.`);
-  if (blocked.length) notes.push(`A piece stands on soldier point${blocked.length === 1 ? '' : 's'} ${blocked.join(', ')}.`);
-  if (!slots.has(k) && z.lwr === false) notes.push('Neither Long War nor plain EW uses it: it is never played.');
-  if (slots.has(k) && slots.size < own.length) notes.push(`Plain EW also lands at ${plural(own.length - slots.size, 'more of the map\'s own landing')}, where the map has ${own.length - slots.size === 1 ? 'it' : 'them'}: mark ${own.length - slots.size === 1 ? 'another zone' : 'more zones'} Plain EW to move ${own.length - slots.size === 1 ? 'it' : 'them'}.`);
-  return notes;
-}
-$('landingToggle').checked = landingLayer.visible;
-$('landingToggle').onchange = e => { landingLayer.visible = e.target.checked; remember(LANDING_SHOWN, e.target.checked ? '1' : '0'); if (!e.target.checked) pickZone(null); e.target.blur(); };
-const zoneTurn = (k, dir) => (zones => { zones[k] = { ...zones[k], direction: ZONE_DIRECTIONS[(ZONE_DIRECTIONS.indexOf(zones[k].direction) + dir + 4) % 4] }; return zones; });
-$('landingPlay').onclick = landHere;
-const turnZone = dir => changeZone(pickedZone, (zones, k) => zoneTurn(k, dir)(zones), 'Turned the landing zone');
-// A copy is played by Long War; plain EW keeps the zones it had
-function copyZone() {
-  const id = uuid();
-  changeZone(pickedZone, (zones, k) => {
-    const l = zones[k].location, { lwr, ew, ...rest } = zones[k];
-    zones.push({ ...rest, id, location: [l[0] + 192, l[1], l[2]] });
-    return zones;
-  }, 'Copied the landing zone');
-  pickZone(id);
-}
-// Deleting the only zone marked Plain EW marks the first zone left, so plain EW always has one
-function deleteZone() {
-  let moved = false;
-  changeZone(pickedZone, (zones, k) => {
-    const [gone] = zones.splice(k, 1);
-    if (gone.ew && zones.length && !zones.some(z => z.ew)) { zones[0] = { ...zones[0], ew: true }; moved = true; }
-    return zones;
-  }, 'Deleted the landing zone');
-  if (moved) flashHint('Deleted the landing zone · zone 1 is now plain EW\'s · Ctrl+Z undoes');
-  pickZone(null);
-}
-$('landingCopy').onclick = copyZone;
-$('landingDelete').onclick = deleteZone;
-$('landingKind').onchange = e => changeZone(pickedZone, (zones, k) => { zones[k] = { ...zones[k], kind: e.target.value }; return zones; }, 'Changed the landing zone\'s kind');
-$('landingLwr').onchange = e => changeZone(pickedZone, (zones, k) => {
-  const { lwr, ...rest } = zones[k]; zones[k] = e.target.checked ? rest : { ...rest, lwr: false }; return zones;
-}, e.target.checked ? 'Long War lands at the zone' : 'Long War no longer lands at the zone');
-// Plain EW: at least one zone, and no more than the map has landings of its own (the user, 13 November)
-$('landingEw').onchange = e => {
-  const zones = explicitZones(), k = zones.findIndex(z => z.id === pickedZone), own = data ? ownLandings(data).length : 0;
-  const marked = zones.filter(z => z.ew).length;
-  if (k < 0) return;
-  if (e.target.checked && marked >= own) {
-    e.target.checked = false;
-    banner(`This map has ${plural(own, 'landing')} of its own, so plain EW can land at ${own === 1 ? 'one zone' : `${own} zones`}: uncheck Plain EW on ${own === 1 ? 'the other zone' : 'another zone'} first.`, [], { timeout: 8000 });
-    return;
-  }
-  if (!e.target.checked && zones[k].ew && marked <= 1) {
-    e.target.checked = true;
-    banner('Plain EW needs a landing zone: check Plain EW on another zone first.', [], { timeout: 8000 });
-    return;
-  }
-  changeZone(pickedZone, (list, j) => {
-    const { ew, ...rest } = list[j]; list[j] = e.target.checked ? { ...rest, ew: true } : rest;
-    // the list keeps saying which zones plain EW plays when the last mark of an old list's order goes
-    if (!list.some(z => z.ew)) list[j] = { ...rest, ew: true };
-    return list;
-  }, e.target.checked ? 'Plain EW lands at the zone' : 'Plain EW no longer lands at the zone');
-};
-// Add a landing zone (the piece list's Landing zones kind): the zones are shown, and the next click on the view places
-// one on the tile under it, at the ground grid's height
-function startZonePlacing() {
-  setZonesShown(true);
-  if (!landingLayer.visible) { landingLayer.visible = true; $('landingToggle').checked = true; remember(LANDING_SHOWN, '1'); refreshLandingZones(); }
-  zonePlacing = true; renderer.domElement.style.cursor = 'crosshair';
-  flashHint('Click the tile the new landing zone is to stand on · Esc cancels');
-}
-function stopZonePlacing() {
-  if (!zonePlacing) return;
-  zonePlacing = false; renderer.domElement.style.cursor = ''; pieces.setChosen?.(null); restingHint();
-}
-function placeZone(clientX, clientY) {
-  zonePlacing = false; renderer.domElement.style.cursor = ''; pieces.setChosen?.(null);
-  const ground = groundHeight(), at = rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -ground), new THREE.Vector3());
-  if (!at) return;
-  const [ox, oy] = data.tileGrid.origin, first = zonesNow()[0];
-  // a zone's StartLoc sits a unit off a tile's corner, as LWR's lines do (Bar's first: 719, -1681)
-  const x = ox + Math.round((at.x - ox) / TILE) * TILE - 1, y = oy + Math.round((at.z - oy) / TILE) * TILE - 1, id = uuid();
-  const zones = explicitZones(), ew = !zones.some(z => z.ew) && ownLandings(data).length > 0;
-  setZones([...zones, { id, location: [x, y, ground + 64], direction: 'north', kind: first?.kind === 'inside' ? 'inside' : 'normal', ...(ew ? { ew: true } : {}) }], 'Added a landing zone');
-  pickZone(id);
-}
-// After the cleared mark changes: the menu, the streamed patches' pieces and the view-only lights (a cleared map
-// draws none: the Build takes them out), the ground grid
-function clearedChanged() {
-  if (!data) return;
-  $('projectSize').hidden = !projectsAvailable();
-  $('projectClear').hidden = !projectsAvailable();
-  $('projectMissions').hidden = !projectsAvailable();
-  $('projectPicture').hidden = !projectsAvailable();
-  setMergedBuildings(null);
-  refreshMissionPicker();     // a project's missions, or none
-  refreshLightVisibility();
-  setEffectsDirty(true);
-  if (!builderMode) cutaway();
-  refreshGroundGrid(); refreshLandingZones();
-}
-// The Buildings view (prefab plan 5.3a): the project's buildings as boxes in the view, one for each box of each floor,
-// made, stretched and moved there. A box is a root as a piece or a light is (volumeRoots; the gizmo moves it, by whole
-// tiles and levels), drawn see-through in its floor's colour; the map's own floor volumes show in grey, never picked.
-// While the view is on (the tool strip's button, Shift+B) only boxes are picked: no piece or light can be selected or
-// moved by accident. `buildings`, what the project saves and the Floor buttons, the cutaway and the pieces' Floors
-// lines read, is written from the boxes after every edit (syncVolumes).
-const FLOOR_COLOURS = [0x4aa3ff, 0xffb347, 0x5ad17a, 0xe06cff, 0xff6b6b, 0x4ad1c8, 0xd1c84a, 0xb0b8c0];
-const volumeMaterials = FLOOR_COLOURS.map(color => ({
-  fill: new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false }),
-  picked: new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.26, side: THREE.DoubleSide, depthWrite: false }),
-  // while it is drawn or stretched: the same see-through box, a little whiter
-  drag: new THREE.MeshBasicMaterial({ color: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.45), transparent: true, opacity: 0.3,
-                                      side: THREE.DoubleSide, depthWrite: false }),
-  line: new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9, depthWrite: false }),
-  through: new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.3, depthWrite: false, depthTest: false }) }));
-const ownVolumeMaterials = {
-  fill: new THREE.MeshBasicMaterial({ color: 0x9aa7b0, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false }),
-  picked: new THREE.MeshBasicMaterial({ color: 0xc8d4dc, transparent: true, opacity: 0.24, side: THREE.DoubleSide, depthWrite: false }),
-  line: new THREE.LineBasicMaterial({ color: 0x9aa7b0, transparent: true, opacity: 0.45, depthWrite: false }) };
-const ownVolumeLayer = new THREE.Group(); world.add(ownVolumeLayer);
-const buildingMeta = new Map();     // building id -> { name, kind }
-let volumeSerial = 0, volumesKey = '[]', volumeTool = null, volumeDrag = null, volumeHover = null;     // (volumesOn: editor_state.js)
-let volumeClip = null, lastBuilding = null, aroundIds = [];
-let ownPicked = null;       // one of the map's own boxes, picked to read: its fill mesh (never moved or changed)
-// The map's own buildings selected with pieces in the normal view (the Normal button's Floor boxes): a copy of the
-// selection then gets a building of the project with the same boxes. They are never moved, turned or deleted: the
-// Build leaves the map's own volumes as they are (the user, 11 November 2026, after copying the Bar).
-const ownSet = new Set();
-const volumeGrid = () => (data?.tileGrid?.origin && data.tileGrid.dimensions
-  ? { origin: data.tileGrid.origin, dimensions: data.tileGrid.dimensions, size: data.tileGrid.size ?? [TILE, TILE, LEVEL], unbounded: builderMode,
-      ...(builderMode ? { heights: [PREFAB_MIN_Z, PREFAB_MAX_Z] } : {}) } : null);
-const newBuildingId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
-const boxCount = n => `${n} ${n === 1 ? 'box' : 'boxes'}`;
-const liveVolumes = () => [...volumeRoots.values()].filter(r => !r.userData.deleted);
-// (in the normal view a building is picked whole: every box that moves with the selection)
-const pickedVolumes = () => (volumesOn ? gizmo.picks().ids.map(id => volumeRoots.get(id)).filter(r => r && !r.userData.deleted)
-  : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
-// A box's place, [x0, y0, z0, x1, y1, z1] in game units. Its root's matrix is the whole box: a unit cube moved to its
-// middle, scaled to its size and, after a turn with pieces in the normal view, turned by quarter turns; so the
-// gizmo's moves, turns and undo carry all of it. The box is what that cube covers along the axes.
-function volumeBox(root) {
-  const e = root.matrix.elements, r = v => Number(v.toFixed(3)) + 0;
-  const half = row => (Math.abs(e[row]) + Math.abs(e[4 + row]) + Math.abs(e[8 + row])) / 2;
-  const hx = half(0), hz = half(1), hy = half(2);
-  return [r(e[12] - hx), r(e[14] - hy), r(e[13] - hz), r(e[12] + hx), r(e[14] + hy), r(e[13] + hz)];
-}
-function setVolumeBox(root, box) {
-  const v = root.userData.volume, size = [box[3] - box[0], box[4] - box[1], box[5] - box[2]];
-  const centre = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2];
-  root.matrix.makeScale(size[0], size[2], size[1]).setPosition(centre[0], centre[2], centre[1]); root.matrixWorldNeedsUpdate = true;
-  // its unedited pose is where it is put: the gizmo's moves count from here
-  Object.assign(root.userData.source, { matrix: root.matrix.toArray(), location: centre, rotation: [0, 0, 0] });
-  root.userData.edit = null;
-  v.size = size;
-  if (!root.children.length) {
-    const geometry = new THREE.BoxGeometry(1, 1, 1), edges = new THREE.EdgesGeometry(geometry);
-    const fill = new THREE.Mesh(geometry), line = new THREE.LineSegments(edges), through = new THREE.LineSegments(edges.clone());
-    fill.userData.volumeId = root.userData.source.id; line.raycast = through.raycast = () => {};
-    for (const part of [fill, line, through]) { part.renderOrder = 2; root.add(part); }
-    root.userData.fill = fill; root.userData.lines = [line, through];
-  }
-  // drawn a unit short of its faces, so two boxes that touch don't flicker
-  for (const part of root.children) part.scale.set(1 - 1 / Math.max(2, size[0]), 1 - 1 / Math.max(2, size[2]), 1 - 1 / Math.max(2, size[1]));
-  paintVolume(root);
-}
-// A box's colours: its floor's, fuller when selected, whiter while it is drawn or stretched.
-function paintVolume(root, picked = pickedVolumes().includes(root)) {
-  const m = volumeMaterials[root.userData.volume.effective % volumeMaterials.length];
-  root.userData.fill.material = volumeDrag?.root === root ? m.drag : picked ? m.picked : m.fill;
-  root.userData.lines[0].material = m.line; root.userData.lines[1].material = m.through;
-}
-// (`origin`: the map's floor volume a box of one of the map's buildings is, null for a new box; it holds only while
-// the box is in that building, its `home`)
-function makeVolume(box, building, floor, origin = null) {
-  const id = `volume:${++volumeSerial}`, root = new THREE.Group();
-  root.matrixAutoUpdate = false;
-  root.userData = { volume: { building, floor, size: [0, 0, 0], effective: floor, origin, home: building }, deleted: false, edit: null,
-                    source: { id, isVolume: true, sourcePackage: '', layer: 'volume', actor: id, hidden: false } };
-  volumeRoots.set(id, root); volumeLayer.add(root);
-  setVolumeBox(root, box);
-  return root;
-}
-// The project's buildings as the boxes say them: a building's floors are its boxes' floor numbers in order (a number
-// no box has is no floor: the ones above it count down), and each box's floor as counted (volume.effective).
-function buildingsFromVolumes() {
-  const by = new Map();
-  for (const root of liveVolumes()) { const b = root.userData.volume.building; if (!by.has(b)) by.set(b, []); by.get(b).push(root); }
-  const out = [];
-  for (const [id, list] of by) {
-    const numbers = [...new Set(list.map(r => r.userData.volume.floor))].sort((a, b) => a - b).slice(0, BUILDING_FLOORS_MAX);
-    for (const r of list) r.userData.volume.effective = Math.max(0, Math.min(numbers.length - 1, numbers.indexOf(r.userData.volume.floor)));
-    const meta = buildingMeta.get(id) ?? { name: '', kind: 'building' };
-    const floorRoots = numbers.map((n, k) => list.filter(r => r.userData.volume.effective === k));
-    // one of the map's: `replaces` its building volume, each box with the floor volume it is (tidyBuilding sorts them)
-    out.push(tidyBuilding({ id, name: meta.name, kind: meta.kind, ...(meta.map ? { replaces: mapTarget(meta.map) } : {}),
-      floors: floorRoots.map(rs => (meta.map
-        ? { boxes: rs.map(volumeBox), volumes: rs.map(r => (r.userData.volume.home === id ? r.userData.volume.origin : null)) }
-        : { boxes: rs.map(volumeBox).sort((a, b) => a.join().localeCompare(b.join())) })) }));
-  }
-  return out.sort((a, b) => a.id.localeCompare(b.id));
-}
-// After an edit of the boxes (a move let go, an undo, a new box): the project's buildings follow, and with them the
-// Floor buttons, the cutaway and the pieces' Floors lines.
-function syncVolumes() {
-  if (!data || gizmo.controls.dragging || volumeDrag) return;
-  const next = buildingsFromVolumes(), key = JSON.stringify(next);
-  if (key === volumesKey) return;
-  volumesKey = key; setBuildingsValue(next); setBuildingsVersion(buildingsVersion + 1); setMergedBuildings(null);
-  setLiveCache(null);     // a group's buildings are counted by their boxes
-  floorOptions();       // the Floor buttons, then the cutaway
-}
-// The project's buildings put in the view (a project opened, or the edits cleared): every box made anew. The history
-// is the caller's to forget, as for added pieces.
-// The map's own buildings that can be edited come with them, each as the project's record has it (changed or
-// deleted), else as the map has it. Returns the records of map buildings this export can't edit (a van's, one it
-// lacks, a second record for one): the caller carries them unchanged.
-function setBuildings(next) {
-  for (const root of volumeRoots.values()) { for (const child of root.children) child.geometry.dispose(); volumeLayer.remove(root); }
-  volumeRoots.clear(); buildingMeta.clear(); lastBuilding = null;
-  const editable = new Map((data?.buildings ?? []).filter(mapEditable).map(b => [targetKey(mapTarget(b)), b]));
-  const records = new Map(), unknown = [];
-  for (const b of next.filter(validBuilding)) {
-    if (b.replaces) {
-      const key = targetKey(b.replaces);
-      if (editable.has(key) && !records.has(key)) records.set(key, b); else unknown.push(b);
-      continue;
-    }
-    const tidy = tidyBuilding(b);
-    buildingMeta.set(tidy.id, { name: tidy.name, kind: tidy.kind });
-    tidy.floors.forEach((floor, k) => { for (const box of floor.boxes) makeVolume(box, tidy.id, k); });
-  }
-  for (const [key, e] of editable) {
-    const record = records.get(key), id = mapIdOf(e);
-    buildingMeta.set(id, { name: record?.name || short(e.actor), kind: record && !record.deleted ? record.kind ?? 'building' : mapKind(e), map: e });
-    const floors = record?.deleted ? [] : record ? tidyBuilding(record).floors : mapFloors(e);
-    floors.forEach((floor, k) => floor.boxes.forEach((box, n) => makeVolume(box, id, k, floor.volumes?.[n] ?? null)));
-  }
-  setBuildingsValue(buildingsFromVolumes()); volumesKey = JSON.stringify(buildings);
-  setBuildingsVersion(buildingsVersion + 1); setMergedBuildings(null);
-  if (data) drawOwnVolumes();
-  refreshVolumes();
-  if (data) floorOptions();
-  return unknown;
-}
-// What is drawn of the boxes: only with the view on, each in its floor's colour, the selected ones fuller.
-function refreshVolumes() {
-  const picked = new Set(pickedVolumes());
-  for (const root of volumeRoots.values()) {
-    root.visible = (volumesOn || (boxesShown && !lightsOn)) && !root.userData.deleted;
-    paintVolume(root, picked.has(root));
-  }
-  const ownShown = volumesOn || (boxesShown && !lightsOn);
-  if (ownShown && !ownVolumeLayer.children.length && data?.buildings?.some(b => !mapEditable(b))) drawOwnVolumes();
-  ownVolumeLayer.visible = ownShown;
-  for (const part of ownVolumeLayer.children) if (part.userData.own)
-    part.material = part === ownPicked || ownSet.has(part.userData.own.building) ? ownVolumeMaterials.picked : ownVolumeMaterials.fill;
-}
-function drawOwnVolumes() {
-  for (const child of [...ownVolumeLayer.children]) { child.geometry.dispose(); ownVolumeLayer.remove(child); }
-  ownPicked = null;
-  for (const b of (data?.buildings ?? []).filter(b => !mapEditable(b))) (b.floors ?? []).forEach((floor, k) => (floor.boxes ?? []).forEach(({ min, max }, n) => {
-    const geometry = new THREE.BoxGeometry(max[0] - min[0], max[2] - min[2], max[1] - min[1]);
-    const fill = new THREE.Mesh(geometry, ownVolumeMaterials.fill), line = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), ownVolumeMaterials.line);
-    // picked to be read, never changed: the building, the floor and the floor volume it is
-    fill.userData.own = { building: b, floor: k, box: [...min, ...max],
-                          volume: (floor.volumes ?? []).length === (floor.boxes ?? []).length ? floor.volumes[n] : null };
-    line.raycast = () => {};
-    for (const part of [fill, line]) { part.position.set((min[0] + max[0]) / 2, (min[2] + max[2]) / 2, (min[1] + max[1]) / 2); part.renderOrder = 1; ownVolumeLayer.add(part); }
-  }));
-}
-function setOwnPicked(mesh) {
-  if (mesh === ownPicked) return;
-  ownPicked = mesh;
-  refreshVolumes(); volumePanel();
-}
-function setVolumesShown(on) {
-  const next = Boolean(on) && data?.scope === 'map' && !data.preview;
-  if (next === volumesOn) return;
-  if (next) {
-    if (zonesOn) setZonesShown(false);
-    if (effectsOn) setEffectsShown(false);
-    // the pieces selected on the way in: "Boxes around them" makes a building of them
-    aroundIds = gizmo.selection().filter(r => roots.has(r.userData.source.id) && !r.userData.source.cover && !r.userData.deleted).map(r => r.userData.source.id);
-    stopPickBox();
-    select(null);
-    setLightsOn(false);
-    setVolumesOn(true);
-    if (gizmo.mode === 'rotate') gizmo.setMode('translate');
-    if (!ownVolumeLayer.children.length) drawOwnVolumes();
-  } else {
-    setVolumeTool(null);
-    setVolumesOn(false); aroundIds = []; ownPicked = null;
-    if (volumeRoots.has(gizmo.active)) select(null);
-  }
-  syncLights();
-  refreshVolumes(); volumePanel(); restingHint();
-}
-// ---- changes, each one undo step. A box is never thrown away while the history may name it: deleting hides it.
-const volumeState = root => ({ box: volumeBox(root), building: root.userData.volume.building, floor: root.userData.volume.floor, deleted: root.userData.deleted });
-function putVolumeState(root, s) {
-  setVolumeBox(root, s.box); root.userData.volume.building = s.building; root.userData.volume.floor = s.floor; root.userData.deleted = s.deleted;
-}
-// change(): alters boxes (`targets`) and building names and kinds; recorded with what they were before.
-function recordVolumes(targets, change, selection = null) {
-  const before = targets.map(volumeState), metaBefore = new Map([...buildingMeta].map(([k, v]) => [k, { ...v }])), picksBefore = gizmo.picks();
-  change();
-  const after = targets.map(volumeState), metaAfter = new Map([...buildingMeta].map(([k, v]) => [k, { ...v }]));
-  const put = (states, meta, picks) => {
-    targets.forEach((root, i) => putVolumeState(root, states[i]));
-    buildingMeta.clear(); for (const [k, v] of meta) buildingMeta.set(k, { ...v });
-    if (picks) gizmo.setSelection(picks.ids.filter(id => !volumeRoots.get(id)?.userData.deleted), picks.active);
-  };
-  gizmo.record({ redo: () => put(after, metaAfter, selection ?? picksBefore), undo: () => put(before, metaBefore, picksBefore) });
-}
-// The floor a new box at height z0 is in a building: the floor whose boxes start there, else one for each floor that
-// starts lower.
-function floorFor(building, z0) {
-  const starts = new Map();
-  for (const r of liveVolumes()) if (r.userData.volume.building === building) {
-    const f = r.userData.volume.floor, z = volumeBox(r)[2];
-    starts.set(f, Math.min(starts.get(f) ?? Infinity, z));
-  }
-  for (const [f, z] of starts) if (Math.abs(z - z0) <= 8) return f;
-  const below = [...starts].filter(([, z]) => z < z0).map(([f]) => f);
-  return Math.min(BUILDING_FLOORS_MAX - 1, below.length ? Math.max(...below) + 1 : 0);
-}
-function newBuilding() {
-  const id = newBuildingId();
-  let n = 1;
-  const names = new Set([...buildingMeta.values()].map(m => m.name));
-  while (names.has(`Building ${n}`)) n++;
-  buildingMeta.set(id, { name: `Building ${n}`, kind: 'building' });
-  return id;
-}
-// The building a new box joins: the one of the box selected (or made) last, while it still has a box.
-function buildingForNew() {
-  const live = new Set(liveVolumes().map(r => r.userData.volume.building));
-  const from = volumeRoots.get(selected)?.userData.volume.building ?? lastBuilding;
-  return live.has(from) ? from : null;
-}
-function addVolumes(boxes, building = null) {
-  const id = building ?? buildingForNew() ?? newBuilding();
-  const made = boxes.map(({ box, floor }) => { const root = makeVolume(box, id, floor ?? floorFor(id, box[2])); root.userData.deleted = true; return root; });
-  const meta = { ...buildingMeta.get(id) };
-  gizmo.record({ redo: () => { for (const r of made) r.userData.deleted = false; if (!buildingMeta.has(id)) buildingMeta.set(id, { ...meta });
-                               gizmo.setSelection(made.map(r => r.userData.source.id)); },
-                 undo: () => { for (const r of made) r.userData.deleted = true; gizmo.setSelection([]); } });
-  lastBuilding = id;
-  return made;
-}
-function deleteVolumes() {
-  const targets = pickedVolumes();
-  if (!targets.length) return;
-  recordVolumes(targets, () => { for (const r of targets) r.userData.deleted = true; }, { ids: [], active: null });
-  flashHint(`${boxCount(targets.length)} deleted · Ctrl+Z brings ${targets.length === 1 ? 'it' : 'them'} back`);
-}
-function copyVolumes(cut = false) {
-  const targets = pickedVolumes();
-  if (!targets.length) return;
-  volumeClip = targets.map(r => ({ box: volumeBox(r), building: r.userData.volume.building, floor: r.userData.volume.floor }));
-  if (cut) deleteVolumes();
-  flashHint(`${boxCount(targets.length)} ${cut ? 'cut' : 'copied'} · Ctrl+V puts ${targets.length === 1 ? 'a copy' : 'copies'} on top, as the next floor`);
-}
-// Paste: each copied box again on top of where it was copied from, as the floor above it in its building (a building
-// that is gone gets the boxes as a new one). Moved from there with the gizmo. One undo step, whatever the buildings
-// (review finding 34: it was one a building), which takes the new buildings' names back too.
-function pasteVolumes() {
-  if (!volumeClip?.length) { flashHint('Nothing copied yet: select a box and press Ctrl+C'); return; }
-  const live = new Set(liveVolumes().map(r => r.userData.volume.building)), grid = volumeGrid();
-  const top = grid && !builderMode ? grid.origin[2] + grid.dimensions[2] * grid.size[2] : Infinity;
-  const byBuilding = new Map();
-  for (const c of volumeClip) { if (!byBuilding.has(c.building)) byBuilding.set(c.building, []); byBuilding.get(c.building).push(c); }
-  const made = [], fresh = new Map(), names = new Set([...buildingMeta.values()].map(m => m.name));
-  let last = null;
-  for (const [building, clips] of byBuilding) {
-    let id = building;
-    if (!live.has(building)) {
-      // (a building that is gone: a new one, named as newBuilding names one)
-      id = newBuildingId();
-      let n = 1;
-      while (names.has(`Building ${n}`)) n++;
-      names.add(`Building ${n}`); fresh.set(id, { name: `Building ${n}`, kind: 'building' });
-    }
-    const rise = Math.max(...clips.map(c => c.box[5])) - Math.min(...clips.map(c => c.box[2]));
-    const fits = Math.max(...clips.map(c => c.box[5])) + rise <= top + 0.5 && live.has(building);
-    for (const c of clips) {
-      const root = makeVolume(fits ? [c.box[0], c.box[1], c.box[2] + rise, c.box[3], c.box[4], c.box[5] + rise] : [...c.box], id,
-                              fits ? Math.min(BUILDING_FLOORS_MAX - 1, c.floor + 1) : c.floor);
-      root.userData.deleted = true;
-      made.push(root);
-    }
-    last = id;
-  }
-  const ids = made.map(r => r.userData.source.id), before = gizmo.picks();
-  gizmo.record({
-    redo: () => { for (const [id, meta] of fresh) buildingMeta.set(id, { ...meta }); for (const r of made) r.userData.deleted = false; gizmo.setSelection(ids); },
-    undo: () => { for (const r of made) r.userData.deleted = true; for (const id of fresh.keys()) buildingMeta.delete(id); gizmo.setSelection(before.ids, before.active); },
-  });
-  lastBuilding = last;
-  flashHint(`${boxCount(made.length)} pasted`);
-}
-// A box for each floor of a building around the pieces that were selected when the view was turned on.
-function volumesAround() {
-  const grid = volumeGrid(), boxes = aroundIds.map(id => roots.get(id)).filter(r => r && !r.userData.deleted).map(r => boxOf(r, true)?.slice()).filter(Boolean);
-  const floors = grid && floorsAround(boxes, grid);
-  if (!floors) { flashHint('Select the building\'s pieces first, then turn this view on'); return; }
-  const id = newBuilding();
-  addVolumes(floors.map((f, k) => ({ box: f.boxes[0], floor: k })), id);
-}
-// ---- the selected box's six face handles: a drag stretches that face, to tile lines and levels (Alt: 8 units)
-const FACES = [['x0', 0, -1], ['x1', 0, 1], ['y0', 1, -1], ['y1', 1, 1], ['z0', 2, -1], ['z1', 2, 1]];
-const FACE_WORDS = { x0: 'West side', x1: 'East side', y0: 'South side', y1: 'North side', z0: 'Bottom', z1: 'Top' };
-const volumeHandleLayer = new THREE.Group(); world.add(volumeHandleLayer);
-const volumeHandles = new Map(FACES.map(([key]) => {
-  const material = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true });
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), material);
-  mesh.renderOrder = 9; mesh.raycast = () => {}; mesh.userData.material = material; volumeHandleLayer.add(mesh);
-  return [key, mesh];
-}));
-const volumeStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(36), 3)),
-                                           new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthTest: false }));
-volumeStems.renderOrder = 8; volumeStems.raycast = () => {}; volumeStems.frustumCulled = false; volumeHandleLayer.add(volumeStems);
-const handleVolume = () => { const r = volumeRoots.get(selected); return volumesOn && r && !r.userData.deleted && !placing && pickedVolumes().length === 1 ? r : null; };
-// the picked no-spawn volume whose handles show: one the project moves (spawnMovable), its markers shown, nothing placed
-const spawnVolumeHandle = () => {
-  const e = spawnEntry(pickedSpawn);
-  return e?.record.kind === 'noSpawn' && spawnMovable(e) && spawnsShown() && projectsAvailable() && !placing && !spawnPlacing && !volumesOn
-    && !lightsOn && !zonesOn && !effectsOn && !missionGizmo.dragging && spawnBoxNow(e) ? e : null;
-};
-// the box the six handles are on: the selected building's box, a picked no-spawn volume's, or in the normal view the
-// select box
-const handleBox = () => {
-  const r = handleVolume();
-  if (r) return volumeBox(r);
-  const e = spawnVolumeHandle();
-  if (e) return spawnBoxNow(e);
-  return pickBox && !volumesOn && !placing && pickDrag?.kind !== 'new' ? pickBox : null;
-};
-// game point -> the view's
-const viewPoint = ([x, y, z]) => new THREE.Vector3(x, z, y);
-function facePoint(box, key) {
-  const [, axis, side] = FACES.find(f => f[0] === key), p = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2];
-  p[axis] = side < 0 ? box[axis] : box[axis + 3];
-  return p;
-}
-// Where a face's handle is drawn: out from the face along its axis, clear of the gizmo's arrows, which reach about
-// an eighth of the camera's distance from the box's middle whatever the box's size.
-function handlePoint(box, key) {
-  const [, axis, side] = FACES.find(f => f[0] === key), p = facePoint(box, key);
-  const centre = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2], d = camera.position.distanceTo(viewPoint(centre));
-  p[axis] = centre[axis] + side * Math.max((box[axis + 3] - box[axis]) / 2 + d * 0.035, d * 0.2);
-  return p;
-}
-function updateVolumeHandles() {
-  const box = volumeDrag?.kind === 'face' ? volumeBox(volumeDrag.root) : volumeDrag?.kind === 'spawn' ? volumeDrag.box : handleBox();
-  volumeHandleLayer.visible = Boolean(box) && !gizmo.controls.dragging && !missionGizmo.dragging;
-  pickBoxParts.move.visible = volumeHandleLayer.visible && Boolean(pickBox) && !volumesOn;
-  if (!volumeHandleLayer.visible) { if (volumeHover) hoverVolumeHandle(null); return; }
-  const lit = volumeDrag?.key ?? pickDrag?.key ?? (pickDrag?.kind === 'move' ? 'move' : volumeHover), stems = volumeStems.geometry.attributes.position;
-  if (pickBoxParts.move.visible) {
-    pickBoxParts.move.position.copy(viewPoint(pickMovePoint()));
-    pickBoxParts.moveMaterial.color.setHex(lit === 'move' ? 0xffe27a : 0x96e5d7);
-    scaleMarker(pickBoxParts.move, camera, pickBoxParts.move.position);
-  }
-  let n = 0;
-  for (const [key, mesh] of volumeHandles) {
-    mesh.position.copy(viewPoint(handlePoint(box, key)));
-    mesh.userData.material.color.setHex(key === lit ? 0xffe27a : 0xffffff);
-    scaleMarker(mesh, camera, mesh.position);
-    const from = viewPoint(facePoint(box, key));
-    stems.setXYZ(n++, from.x, from.y, from.z); stems.setXYZ(n++, mesh.position.x, mesh.position.y, mesh.position.z);
-  }
-  stems.needsUpdate = true;
-}
-function volumeHandleNear(x, y) {
-  const box = handleBox();
-  if (!box) return null;
-  const project = projector();
-  return FACES.map(([key]) => { const s = project(viewPoint(handlePoint(box, key))); return s && { key, d: Math.hypot(s[0] - x, s[1] - y) }; })
-    .filter(c => c && c.d <= HANDLE_PICK + 2).sort((a, b) => a.d - b.d)[0]?.key ?? null;
-}
-function hoverVolumeHandle(key) {
-  if (key === volumeHover) return;
-  volumeHover = key;
-  renderer.domElement.style.cursor = key ? 'grab' : volumeTool || pickTool ? 'crosshair' : '';
-  renderer.domElement.title = !key ? '' : key === 'move' ? 'Drag to move the box over the ground'
-    : volumesOn ? `${FACE_WORDS[key]}: drag to stretch the box (to tile lines and levels; Alt for steps of 8)`
-      : spawnVolumeHandle() ? `${FACE_WORDS[key]}: drag to stretch the no-spawn volume (to tile lines and levels; Alt for steps of 8)` : `${FACE_WORDS[key]}: drag to stretch the box`;
-}
-// Where the pointer's ray comes nearest a line through `origin` along game axis `axis`: the coordinate on that axis.
-function alongAxis(clientX, clientY, origin, axis) {
-  const ray = rayAt(clientX, clientY).ray, o = viewPoint(origin), d = viewPoint([axis === 0 ? 1 : 0, axis === 1 ? 1 : 0, axis === 2 ? 1 : 0]);
-  const w = o.clone().sub(ray.origin), b = d.dot(ray.direction), e = d.dot(w), f = ray.direction.dot(w), den = 1 - b * b;
-  if (Math.abs(den) < 1e-6) return null;
-  return origin[axis] + (b * f - e) / den;
-}
-// The cursor's floors in the Buildings view (floors.js cursorStoreys): around each of the project's boxes, and the
-// map's own box being read, a yellow line at each height where a cursor floor starts over it, with the floor's
-// number at a corner for the selected ones. A box's bottom should sit on one (the panel says when it doesn't), and
-// a face dragged up or down goes to one when it is near.
-const cursorRingLayer = new THREE.Group();
-cursorRingLayer.renderOrder = 3; world.add(cursorRingLayer);
-const ringMaterials = { near: new THREE.LineBasicMaterial({ color: 0xffd84a, depthTest: false, transparent: true, opacity: 0.95 }),
-                        far: new THREE.LineBasicMaterial({ color: 0xffd84a, depthTest: false, transparent: true, opacity: 0.3 }) };
-const ringLabels = new Map();
-function ringLabel(label) {
-  if (!ringLabels.has(label)) {
-    const canvas = Object.assign(document.createElement('canvas'), { width: 128, height: 64 }), c = canvas.getContext('2d');
-    c.fillStyle = 'rgba(20, 24, 30, 0.85)'; c.beginPath(); c.roundRect(2, 2, 124, 60, 12); c.fill();
-    c.strokeStyle = '#ffd84a'; c.lineWidth = 3; c.stroke();
-    c.fillStyle = '#ffd84a'; c.font = '600 30px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(label, 64, 34);
-    ringLabels.set(label, new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false, transparent: true }));
-  }
-  return ringLabels.get(label);
-}
-let cursorRingKey = '';
-function drawCursorRings() {
-  const storeys = volumesOn && data ? storeysNow() : null, items = [];
-  if (storeys?.length) {
-    const picked = new Set(pickedVolumes());
-    for (const root of volumeRoots.values()) if (root.visible) items.push([volumeBox(root).map(v => Math.round(v)), picked.has(root) || volumeDrag?.root === root]);
-    if (ownPicked) items.push([ownPicked.userData.own.box.map(v => Math.round(v)), true]);
-  }
-  const key = JSON.stringify(items);
-  if (key === cursorRingKey) return;
-  cursorRingKey = key;
-  for (const child of [...cursorRingLayer.children]) { child.geometry?.dispose(); cursorRingLayer.remove(child); }
-  const seen = new Set();
-  for (const [box, near] of items.sort((a, b) => b[1] - a[1])) {
-    const out = 14, x0 = box[0] - out, x1 = box[3] + out, y0 = box[1] - out, y1 = box[4] + out;
-    for (const s of storeysOver(storeys, box)) {
-      const at = `${x0},${y0},${x1},${y1},${Math.round(s.z)}`;
-      if (seen.has(at)) continue;
-      seen.add(at);
-      const ring = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(
-        [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => viewPoint([x, y, s.z]))), near ? ringMaterials.near : ringMaterials.far);
-      ring.raycast = () => {}; ring.renderOrder = 3; cursorRingLayer.add(ring);
-      if (!near) continue;
-      const label = new THREE.Sprite(ringLabel(`${s.floor} · ${Math.round(s.z)}`));
-      label.position.copy(viewPoint([x0, y0, s.z + 14])); label.scale.set(76, 38, 1); label.renderOrder = 4; label.raycast = () => {};
-      cursorRingLayer.add(label);
-    }
-  }
-}
-// What the panel says of the cursor's floors over a box.
-function cursorLine(over, made) {
-  if (!over.length) return 'No cursor volume of the map is over it: the cursor has no floors here.';
-  const heights = over.map(s => Math.round(s.z)), list = heights.length > 1 ? `${heights.slice(0, -1).join(', ')} and ${heights.at(-1)}` : `${heights[0]}`;
-  return `The cursor's ${plural(over.length, 'floor')} here ${over.length === 1 ? 'starts' : 'start'} at ${list} (the yellow lines)`
-    + `${made ? ': the map has no cursor volumes of its own, and the Build gives it these' : ''}.`;
-}
-function snapTo(value, axis, fine, box = null) {
-  const grid = volumeGrid();
-  if (fine || !grid) return Math.round(value / 8) * 8;
-  if (axis === 2 && box) {
-    // a cursor floor's start near by wins over the level (a map's may be off the levels: the Bar's second is at 210)
-    const near = storeysOver(storeysNow(), box).map(s => s.z).sort((a, b) => Math.abs(a - value) - Math.abs(b - value))[0];
-    if (near != null && Math.abs(near - value) <= CURSOR_NEAR) return near;
-  }
-  return grid.origin[axis] + Math.round((value - grid.origin[axis]) / grid.size[axis]) * grid.size[axis];
-}
-function volumeHint(message) {
-  const hint = $('dragHint');
-  clearTimeout(hintTimer);
-  hint.hidden = false; hint.replaceChildren(`${message} · `);
-  text(hint, 'kbd', 'Esc'); hint.append(' cancels');
-}
-const tilesOf = box => { const g = volumeGrid(), s = g?.size ?? [TILE, TILE, LEVEL]; return [(box[3] - box[0]) / s[0], (box[4] - box[1]) / s[1]].map(v => Number(v.toFixed(2)) + 0); };
-// ---- the pointer in the view while it is on: a face handle stretches, the New box tool draws a footprint
-function startVolumeDrag(e) {
-  // a picked no-spawn volume's face handle (the Spawns view, or the Normal button's spawn switch): stretches its box
-  const sv = !volumesOn && e.button === 0 && !volumeDrag && !gizmo.controls.dragging ? spawnVolumeHandle() : null, sk = sv && volumeHandleNear(e.clientX, e.clientY);
-  if (sk) {
-    const before = spawnBoxNow(sv), [, axis] = FACES.find(f => f[0] === sk);
-    volumeDrag = { kind: 'spawn', key: sk, entry: sv.key, stream: sv.stream, actor: sv.record.actor, before, box: before, pointerId: e.pointerId,
-                   from: alongAxis(e.clientX, e.clientY, facePoint(before, sk), axis) };
-    showPop(null);
-    renderer.domElement.setPointerCapture(e.pointerId);
-    renderer.domElement.style.cursor = 'grabbing';
-    return true;
-  }
-  if (!volumesOn || placing || e.button !== 0 || volumeDrag || gizmo.controls.dragging) return false;
-  const key = volumeHandleNear(e.clientX, e.clientY);
-  if (key) {
-    const root = handleVolume(), before = volumeBox(root), [, axis] = FACES.find(f => f[0] === key);
-    // the handle stands off its face: the drag moves the face by as much as the pointer moves along the axis
-    volumeDrag = { kind: 'face', root, key, before, pointerId: e.pointerId, from: alongAxis(e.clientX, e.clientY, facePoint(before, key), axis) };
-    paintVolume(root);
-  } else if (gizmo.busy()) return false;
-  else if (volumeTool === 'new') {
-    const grid = volumeGrid(), hit = pick(e.clientX, e.clientY)?.point;
-    if (!grid) return false;
-    // the level under the cursor: what is drawn there, to the nearest level; else the grid's lowest
-    const level = hit ? grid.origin[2] + Math.round((hit.y - grid.origin[2]) / grid.size[2]) * grid.size[2] : grid.origin[2];
-    // with a floor chosen in the Floor buttons, that floor's height in the building there
-    const storey = hit ? chosenStorey(hit.x, hit.z) : null, z0 = builderMode ? (storey ? storey.z : level) : Math.max(grid.origin[2], storey ? storey.z : level);
-    const at = rayAt(e.clientX, e.clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -z0), new THREE.Vector3());
-    if (!at) return false;
-    const tile = [0, 1].map(k => { const n = Math.floor(((k ? at.z : at.x) - grid.origin[k]) / grid.size[k]); return builderMode ? n : Math.max(0, Math.min(grid.dimensions[k] - 1, n)); });
-    const building = buildingForNew() ?? newBuilding();
-    const root = makeVolume(tileBox(grid, tile, tile, z0), building, floorFor(building, z0));
-    volumeDrag = { kind: 'new', root, grid, tile, z0, building, pointerId: e.pointerId };
-    refreshVolumes();
-  } else return false;
-  showPop(null);
-  renderer.domElement.setPointerCapture(e.pointerId);
-  renderer.domElement.style.cursor = 'grabbing';
-  return true;
-}
-const tileBox = (grid, a, b, z0) => [grid.origin[0] + Math.min(a[0], b[0]) * grid.size[0], grid.origin[1] + Math.min(a[1], b[1]) * grid.size[1], z0,
-                                    grid.origin[0] + (Math.max(a[0], b[0]) + 1) * grid.size[0], grid.origin[1] + (Math.max(a[1], b[1]) + 1) * grid.size[1],
-                                    grid.unbounded ? z0 + STOREY_HEIGHT : Math.min(z0 + STOREY_HEIGHT, Math.max(z0 + grid.size[2], grid.origin[2] + grid.dimensions[2] * grid.size[2]))];
-function moveVolumeDrag(e) {
-  const d = volumeDrag;
-  if (d.kind === 'spawn') {
-    // a no-spawn volume's side to the tile lines and levels (Alt: steps of 8), at least a quarter tile from the other;
-    // drawn live (missionDragView), one undo step at the release
-    const [, axis, side] = FACES.find(f => f[0] === d.key);
-    const at = alongAxis(e.clientX, e.clientY, facePoint(d.before, d.key), axis);
-    if (at == null || d.from == null) return;
-    const least = axis === 2 ? 16 : 24, box = [...d.before];
-    let value = snapTo((side < 0 ? d.before[axis] : d.before[axis + 3]) + at - d.from, axis, e.altKey);
-    if (side < 0) { value = Math.min(value, d.before[axis + 3] - least); box[axis] = value; }
-    else { value = Math.max(value, d.before[axis] + least); box[axis + 3] = value; }
-    if (box.every((v, k) => v === d.box[k])) return;
-    d.box = box;
-    missionDragView = d.stream === 'copy' ? editedCopies(d.actor, { box }) : editedSpawns(d.actor, { box });
-    refreshSpawnMarkers();
-    volumeHint(`${FACE_WORDS[d.key]} at ${Math.round(value)}: ${boxWords(box)}`);
-    return;
-  }
-  if (d.kind === 'face') {
-    const [, axis, side] = FACES.find(f => f[0] === d.key);
-    const at = alongAxis(e.clientX, e.clientY, facePoint(d.before, d.key), axis);
-    if (at == null || d.from == null) return;
-    const least = axis === 2 ? 16 : 24, box = [...d.before];
-    let value = snapTo((side < 0 ? d.before[axis] : d.before[axis + 3]) + at - d.from, axis, e.altKey, d.before);
-    if (side < 0) { value = Math.min(value, d.before[axis + 3] - least); box[axis] = value; }
-    else { value = Math.max(value, d.before[axis] + least); box[axis + 3] = value; }
-    setVolumeBox(d.root, box);
-    const [tx, ty] = tilesOf(box);
-    volumeHint(`${FACE_WORDS[d.key]} at ${Math.round(value)}: ${tx} by ${ty} tiles, ${Math.round(box[5] - box[2])} high`);
-    volumePanel();
-  } else {
-    const at = rayAt(e.clientX, e.clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -d.z0), new THREE.Vector3());
-    if (!at) return;
-    const tile = [0, 1].map(k => { const n = Math.floor(((k ? at.z : at.x) - d.grid.origin[k]) / d.grid.size[k]); return builderMode ? n : Math.max(0, Math.min(d.grid.dimensions[k] - 1, n)); });
-    const box = tileBox(d.grid, d.tile, tile, d.z0);
-    setVolumeBox(d.root, box);
-    const [tx, ty] = tilesOf(box);
-    volumeHint(`New box: ${tx} by ${ty} tiles at height ${Math.round(d.z0)}`);
-  }
-}
-function endVolumeDrag(keep) {
-  const d = volumeDrag;
-  if (!d) return false;
-  volumeDrag = null;
-  try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* already released */ }
-  renderer.domElement.style.cursor = volumeTool ? 'crosshair' : '';
-  if (d.kind === 'spawn') {
-    missionDragView = null;
-    const changed = d.box.some((v, k) => Math.abs(v - d.before[k]) > 1e-6), hint = `No-spawn volume ${boxWords(d.box)}`;
-    if (!(keep && changed && (d.stream === 'copy' ? editSpawnCopy(d.actor, { box: d.box }, hint) : editBaseSpawn(d.actor, { box: d.box }, hint)))) {
-      refreshSpawnMarkers(); restingHint();
-    }
-    return true;
-  }
-  if (d.kind === 'face') {
-    const after = volumeBox(d.root);
-    setVolumeBox(d.root, d.before);
-    if (keep && after.some((v, k) => Math.abs(v - d.before[k]) > 1e-6)) recordVolumes([d.root], () => setVolumeBox(d.root, after));
-  } else {
-    const box = volumeBox(d.root), floor = d.root.userData.volume.floor;
-    // the preview goes; the box is made as one undo step
-    for (const child of d.root.children) child.geometry.dispose();
-    volumeLayer.remove(d.root); volumeRoots.delete(d.root.userData.source.id);
-    if (keep) { addVolumes([{ box, floor }], d.building); setVolumeTool(null); }
-    else if (!liveVolumes().some(r => r.userData.volume.building === d.building)) buildingMeta.delete(d.building);
-  }
-  restingHint(); editChanged();
-  return true;
-}
+// The Landing zones view (zones_wiring.js): the zones drawn, the view, a zone picked with its gizmo and panel, the
+// zones changed and added, and what follows a change of the cleared mark.
+const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
+        placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,
+        stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
+        zoneSoldiers, zoneState } = createZonesWiring({
+  $, banner, camera, controls, cutaway, editChanged, flashHint, floorStays, gameToView, gizmo, groundHeight, isLanding,
+  landHere, LANDING_SHOWN, landingLayer, lightButton, ownSize, plural, projectChanged, projectsAvailable, rayAt,
+  refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer, restingHint, select, setEffectsShown,
+  setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
+  // (made further down: called through, since they are not made yet while this runs)
+  headerMission: () => headerMission(), setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
+// The Buildings view and box select (buildings_wiring.js): the project's buildings as boxes and the map's own, the
+// view, its handles, drags and panel, the Normal button's Floor boxes, and box select.
+const { addVolumes, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag, endVolumeDrag,
+        FACES, handlePoint, hoverVolumeHandle, liveVolumes, makeVolume, mapRestoreChange, movePickDrag, moveVolumeDrag,
+        newBuilding, newBuildingId, ownVolumeLayer, pasteVolumes, PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint,
+        pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox, refreshVolumes, restoreMapBuildings, setBoxesShown,
+        setBuildings, setOwnPicked, setPickTool, setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle,
+        startPickDrag, startVolumeDrag, stopPickBox, syncVolumes, takePickBox, updateVolumeHandles, viewPoint,
+        volumeBox, volumeClick, volumeHandleNear, volumeHint, volumePanel } = createBuildingsWiring({
+  $, allBuildings, boxOf, builderBounds, camera, chosenStorey, copySelection, deleteSelection, editBaseSpawn,
+  editChanged, editedCopies, editedKey, editedSpawns, editSpawnCopy, effectsShown, effectViewOnly, flashHint,
+  floorOptions, freshBox, gizmo, HANDLE_PICK, isStream, kindButton, lightViewOnly, mapEditable, mapEdits, mapFloors,
+  mapIdOf, mapKind, mapTarget, missionGizmo, pick, plural, PROJECT_BUILDING, projectListings, projector,
+  projectsAvailable, rayAt, refreshSpawnMarkers, renderer, restingHint, select, selectionWords, setEffectsShown,
+  setZonesShown, short, showPop, spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights, text,
+  volumeLayer, world });
 // ---- a cover block's or invisible floor's handles (private/plans/done/cover-block-handles-plan.md, decisions 2 and 3):
 // with one selected, a white handle off each face along the piece's own axes (four sides, and a block's top and
 // bottom), drawn and picked as a building box's are. A drag moves that face by the snap setting's steps
@@ -7534,470 +5888,6 @@ function deleteWallOpening() {
   flashHint('Removed the opening · Ctrl+Z puts it back');
   return true;
 }
-function setVolumeTool(tool) {
-  volumeTool = volumesOn ? tool : null;
-  renderer.domElement.style.cursor = volumeTool ? 'crosshair' : '';
-  $('volumeNew').classList.toggle('on', volumeTool === 'new');
-  if (volumeTool === 'new') { clearTimeout(hintTimer); const hint = $('dragHint'); hint.hidden = false; hint.replaceChildren('New box: drag over the tiles it is to cover · '); text(hint, 'kbd', 'Esc'); hint.append(' cancels'); }
-  else restingHint();
-}
-// A click in the view while it is on: the box under it, never a piece or a light.
-function volumeClick(e) {
-  if (volumeTool) return;
-  const add = e.ctrlKey || e.shiftKey || e.metaKey;
-  const hit = rayAt(e.clientX, e.clientY).intersectObjects([...[...volumeRoots.values()].filter(r => r.visible).map(r => r.userData.fill),
-                                                            ...ownVolumeLayer.children.filter(c => c.userData.own)])[0];
-  if (hit?.object.userData.volumeId) { ownPicked = null; select(hit.object.userData.volumeId, add); }
-  // one of the map's own: shown in the panel, read only
-  else if (hit) { if (selected) select(null); setOwnPicked(hit.object); }
-  else if (!add) { if (selected) select(null); setOwnPicked(null); }
-}
-// ---- the panel: what the view is for and its tools, and the selected boxes' building and floor
-const volumeUi = { root: $('volumePanel'), picked: $('volumePicked'), title: $('volumeTitle'), bottom: $('volumeBottom'), top: $('volumeTop'),
-                   building: $('volumeBuilding'), name: $('volumeName'), kind: $('volumeKind'), floor: $('volumeFloor'), note: $('volumeNote'), warn: $('volumeWarn') };
-let volumeCountKey = '', volumeCountText = '';
-// How many pieces the boxes list, and of them how many cut down (worked out when nothing is being dragged).
-function volumeCounts(targets) {
-  const key = `${buildingsVersion}|${editedKey()}|${targets.map(r => r.userData.source.id).join()}`;
-  if (key === volumeCountKey) return volumeCountText;
-  const boxes = targets.map(r => { const b = volumeBox(r); return { boxes: [{ min: b.slice(0, 3), max: b.slice(3, 6) }] }; });
-  let listed = 0, cut = 0;
-  for (const root of roots.values()) {
-    const o = root.userData.source;
-    if (root.userData.deleted || o.cover || o.hidden || !LISTED_CLASSES.has(o.actorClass)) continue;
-    const rough = boxOf(root);
-    if (!rough || !touchedFloors(rough, boxes).length) continue;
-    listed++;
-    if (o.cutout && projectListings(root).some(l => l.cutdownFloor)) cut++;
-  }
-  volumeCountKey = key;
-  volumeCountText = `${plural(listed, 'piece')} of the map ${listed === 1 ? 'stands' : 'stand'} in ${targets.length === 1 ? 'it' : 'them'}${cut ? `, ${cut} cutting down` : ''}.`;
-  return volumeCountText;
-}
-function volumePanel() {
-  // in the normal view: only for a building selected there, without the view's own tools
-  const shown = volumesOn || (volumeRoots.has(selected) && pickedVolumes().length > 0) || (Boolean(ownPicked) && !selected);
-  volumeUi.root.hidden = !shown;
-  if (!shown) return;
-  for (const part of [$('volumeIntro').parentElement, $('volumeOwn'), $('volumeNew').parentElement]) part.style.display = volumesOn ? '' : 'none';
-  $('volumeHead').replaceChildren(volumesOn ? 'Buildings view ' : 'Building ');
-  text($('volumeHead'), 'span', volumesOn ? 'pieces are locked' : 'picked whole');
-  const targets = pickedVolumes(), one = targets.length === 1 ? targets[0] : null, grid = volumeGrid();
-  const live = liveVolumes().length, ownCount = (data?.buildings ?? []).filter(b => !mapEditable(b) && b.floors?.length).length;
-  $('volumeHow').textContent = live && volumesOn ? 'Click a box to select it; the gizmo moves it, the white dots stretch it.' : '';
-  $('volumeIntro').textContent = live ? `${boxCount(live)} in ${plural(buildings.length, 'building')}${ownCount ? `; ${ownCount} more of the map's own, in grey` : ''}.`
-    : 'A building is boxes laid over its floors: the game hides the pieces in the upper boxes when a soldier is inside, and cuts the walls down. Draw one with New box.';
-  $('volumeOwn').textContent = ownCount ? `${ownCount === 1 ? 'One building of the map stays' : `${ownCount} buildings of the map stay`} as the map has `
-    + `${ownCount === 1 ? 'it' : 'them'}, in grey: a van's goes with its van${data.exporterVersion >= 21 ? '' : ' (this export predates editing the map\'s buildings: prepare the map again)'}. `
-    + 'Click a grey box to read it.' : '';
-  mapChangesList();
-  $('volumeAround').hidden = !aroundIds.length;
-  $('volumeAround').textContent = `Boxes around the ${aroundIds.length === 1 ? 'piece' : `${aroundIds.length} pieces`} selected`;
-  const own = ownPicked?.userData.own, readOnly = !targets.length && Boolean(own);
-  volumeUi.picked.hidden = !targets.length && !own;
-  for (const input of [volumeUi.bottom, volumeUi.top, volumeUi.building, volumeUi.name, volumeUi.kind, volumeUi.floor]) input.disabled = readOnly;
-  $('volumeCopy').hidden = $('volumeDelete').hidden = readOnly; volumeUi.kind.parentElement.hidden = readOnly;
-  $('volumeRestore').hidden = true;
-  $('volumePrefab').hidden = readOnly;      // floor boxes alone are saveable too
-  volumeUi.name.parentElement.firstChild.textContent = readOnly ? 'Floor volume' : 'Name';
-  if (readOnly) {
-    // one of the map's own boxes: what the map saves of it
-    const b = own.box, g = grid?.size ?? [TILE, TILE, LEVEL], t = k => Number(((b[k + 3] - b[k]) / g[k]).toFixed(2)) + 0;
-    const floor = own.building.floors[own.floor], members = floor.members ?? [], cut = members.filter(m => m.cutdownFloor).length;
-    volumeUi.title.textContent = `The map's box · ${t(0)} by ${t(1)} tiles, ${Math.round(b[5] - b[2])} high`;
-    volumeUi.bottom.value = Math.round(b[2] * 100) / 100; volumeUi.top.value = Math.round(b[5] * 100) / 100;
-    volumeUi.building.replaceChildren(Object.assign(document.createElement('option'), { value: '', textContent: short(own.building.name) }));
-    volumeUi.floor.value = own.floor + 1; volumeUi.name.value = own.volume ? short(own.volume) : '';
-    volumeUi.note.textContent = `Floor ${own.floor + 1} of ${own.building.floors.length} of the map's own ${short(own.building.name)}`
-      + `${floor.boxes.length > 1 ? `, one of this floor's ${floor.boxes.length} boxes` : ''}. The map lists ${plural(members.length, 'piece')} on this floor`
-      + `${cut ? `, ${cut} cutting down` : ''}. It is shown to be read: ${own.building.van ? 'a van\'s own building goes with its van' : 'this building stays as the map has it'}.`
-      + `${volumesOn ? '' : ' Selected with its pieces and copied (Ctrl+C, Ctrl+V), the copy gets a building of your own with the same boxes; this one stays where it is.'}`
-      + `${storeysNow() ? ` ${cursorLine(storeysOver(storeysNow(), b), false)}` : ''}`;
-    volumeUi.warn.hidden = true;
-    return;
-  }
-  if (!targets.length) return;
-  const boxes = targets.map(volumeBox), same = get => { const values = new Set(targets.map(get)); return values.size === 1 ? [...values][0] : null; };
-  const [tx, ty] = one ? tilesOf(boxes[0]) : [0, 0];
-  volumeUi.title.textContent = one ? `Box · ${tx} by ${ty} tiles, ${Math.round(boxes[0][5] - boxes[0][2])} high` : `${targets.length} boxes`;
-  const whole = !volumesOn;
-  const active = document.activeElement, put = (input, value) => { if (active !== input) input.value = value ?? ''; };
-  put(volumeUi.bottom, one ? Math.round(boxes[0][2] * 100) / 100 : ''); put(volumeUi.top, one ? Math.round(boxes[0][5] * 100) / 100 : '');
-  volumeUi.bottom.disabled = volumeUi.top.disabled = !one || whole;
-  volumeUi.building.disabled = volumeUi.floor.disabled = whole;
-  const building = same(r => r.userData.volume.building), meta = building ? buildingMeta.get(building) : null;
-  const options = [...buildingMeta].filter(([id]) => liveVolumes().some(r => r.userData.volume.building === id))
-    .map(([id, m], i) => Object.assign(document.createElement('option'), { value: id, textContent: m.name || `Building ${i + 1}` }));
-  if (!building) options.unshift(Object.assign(document.createElement('option'), { value: '', textContent: 'Several', disabled: true }));
-  options.push(Object.assign(document.createElement('option'), { value: 'new', textContent: 'New building' }));
-  if (active !== volumeUi.building) { volumeUi.building.replaceChildren(...options); volumeUi.building.value = building ?? ''; }
-  put(volumeUi.name, meta?.name ?? ''); volumeUi.name.disabled = volumeUi.kind.disabled = !meta;
-  if (active !== volumeUi.kind) volumeUi.kind.value = meta?.kind ?? 'building';
-  const floor = same(r => r.userData.volume.floor);
-  put(volumeUi.floor, floor == null ? '' : floor + 1);
-  const dragging = gizmo.controls.dragging || volumeDrag;
-  const notes = whole ? ['Here the building is picked whole, to move, turn, copy or delete with its pieces. Its boxes are stretched and set to floors in the Buildings view (Shift+B).'] : [];
-  const counted = same(r => r.userData.volume.effective);
-  if (floor != null && counted != null && counted !== floor) notes.push(`Counted as floor ${counted + 1}: its building has no box on a floor below.`);
-  if (meta?.map) {
-    // one of the map's own buildings: whether the project changed it, and its notched volumes
-    const changed = mapEdits().changed.has(building);
-    notes.push(`One of the map's own buildings (${short(meta.map.actor)}): ${changed ? 'changed, so the Build edits it in place' : 'as the map has it'}.`);
-    $('volumeRestore').hidden = !changed;
-    const plain = new Map(meta.map.floors.flatMap(f => f.volumes.map((v, n) => [short(v), f.plain?.[n] !== false])));
-    const notched = targets.filter(r => r.userData.volume.origin && r.userData.volume.home === building && plain.get(r.userData.volume.origin) === false);
-    if (notched.length) notes.push(`${one ? 'This box is' : `${plural(notched.length, 'box')} of these are`} a notched floor volume of the map's, drawn by its outer box: `
-      + 'moved, it keeps its notches; stretched, the Build puts a plain box in its place, the notches filled.');
-  }
-  if (!dragging) notes.push(volumeCounts(targets));
-  const storeys = storeysNow(), misses = [];
-  if (storeys && one) notes.push(cursorLine(storeysOver(storeys, boxes[0]), storeys.some(s => s.made)));
-  if (storeys && !dragging) for (const box of boxes) {
-    const over = storeysOver(storeys, box);
-    if (cursorMiss(box, over)) misses.push(`${one ? 'This box' : 'A box'} starts at ${Math.round(box[2])}, away from where the cursor's floors start here `
-      + `(${over.map(s => Math.round(s.z)).join(', ')}): the mouse wheel would not stop at this storey. Start it within ${CURSOR_NEAR} units of one.`);
-  }
-  volumeUi.note.textContent = notes.join(' ');
-  const problems = new Set();
-  if (!dragging && grid) for (const b of buildings) {
-    if (!targets.some(r => r.userData.volume.building === b.id)) continue;
-    const authored = [...roots.values()].some(r => {
-      if (r.userData.deleted || !r.userData.source.added) return false;
-      projectListings(r);
-      return r.userData.authoredFloors?.has(b.id);
-    });
-    const others = allBuildings().filter(x => x.project !== b && x.id !== PROJECT_BUILDING + b.id && !(buildingMeta.get(b.id)?.map && x.id === buildingMeta.get(b.id).map.id));
-    for (const p of buildingProblems(b, grid, others, authored, (k, n) => freshBox(b, k, n))) problems.add(`${b.name || 'the building'}: ${p}`);
-  }
-  const said = [problems.size ? `This may behave oddly in the game (the Build builds it and warns): ${[...problems].join('; ')}.` : '', ...new Set(misses)].filter(Boolean);
-  volumeUi.warn.hidden = !said.length;
-  volumeUi.warn.textContent = said.join(' ');
-}
-function typedHeight(input, index) {
-  const root = pickedVolumes().length === 1 ? pickedVolumes()[0] : null, value = Number(input.value);
-  if (!root || input.value === '' || !Number.isFinite(value)) { volumePanel(); return; }
-  const box = volumeBox(root);
-  box[index] = value;
-  if (box[5] - box[2] < 16) { flashHint('A box is at least 16 units high'); input.value = volumeBox(root)[index]; return; }
-  recordVolumes([root], () => setVolumeBox(root, box));
-}
-// (a field lets go once its change is made, so the keys work in the view again)
-volumeUi.bottom.onchange = () => { typedHeight(volumeUi.bottom, 2); volumeUi.bottom.blur(); };
-volumeUi.top.onchange = () => { typedHeight(volumeUi.top, 5); volumeUi.top.blur(); };
-volumeUi.building.onchange = () => {
-  const targets = pickedVolumes(), value = volumeUi.building.value;
-  if (!targets.length || !value) return;
-  recordVolumes(targets, () => {
-    const id = value === 'new' ? newBuilding() : value;
-    for (const r of targets) r.userData.volume.building = id;
-    lastBuilding = id;
-  });
-  volumeUi.building.blur();
-};
-const editMeta = change => {
-  const id = pickedVolumes()[0]?.userData.volume.building;
-  if (id && buildingMeta.has(id)) recordVolumes([], () => Object.assign(buildingMeta.get(id), change));
-};
-volumeUi.name.onchange = () => { editMeta({ name: volumeUi.name.value.trim().slice(0, 60) }); volumeUi.name.blur(); };
-volumeUi.kind.onchange = () => { editMeta({ kind: volumeUi.kind.value }); volumeUi.kind.blur(); };
-volumeUi.floor.max = String(BUILDING_FLOORS_MAX);      // (the script's and the compiler's limit: review finding 34)
-volumeUi.floor.onchange = () => {
-  const targets = pickedVolumes(), n = Number(volumeUi.floor.value);
-  if (!targets.length || !Number.isInteger(n) || n < 1 || n > BUILDING_FLOORS_MAX) { volumePanel(); return; }
-  recordVolumes(targets, () => { for (const r of targets) r.userData.volume.floor = n - 1; });
-  volumeUi.floor.blur();
-};
-// Restore the map's (map buildings plan, section 1): a changed or deleted building of the map back as the map has
-// it, its boxes made again from the export and its record gone, as one undo step. (A deleted one has no box left to
-// click: the Buildings view lists the changed and deleted ones, mapChangesList.)
-function mapRestoreChange(ids) {
-  const targets = liveVolumes().filter(r => ids.includes(r.userData.volume.building)), made = [];
-  for (const id of ids) {
-    const e = buildingMeta.get(id)?.map;
-    if (e) mapFloors(e).forEach((f, k) => f.boxes.forEach((box, n) => { const r = makeVolume(box, id, k, f.volumes[n]); r.userData.deleted = true; made.push(r); }));
-  }
-  const before = ids.map(id => ({ ...buildingMeta.get(id) }));
-  const after = before.map(m => ({ ...m, name: short(m.map.actor), kind: mapKind(m.map) }));
-  const put = (gone, back, metas) => { for (const r of gone) r.userData.deleted = true; for (const r of back) r.userData.deleted = false;
-                                       ids.forEach((id, k) => buildingMeta.set(id, { ...metas[k] })); };
-  return { redo: () => put(targets, made, after), undo: () => put(made, targets, before), count: ids.length };
-}
-function restoreMapBuildings(ids) {
-  ids = ids.filter(id => buildingMeta.get(id)?.map);
-  if (!ids.length) return;
-  const change = mapRestoreChange(ids), picks = gizmo.picks();
-  gizmo.record({ redo: () => { change.redo(); gizmo.setSelection([]); },
-                 undo: () => { change.undo(); gizmo.setSelection(picks.ids.filter(id => volumeRoots.get(id) ? !volumeRoots.get(id).userData.deleted : allRoots.has(id)), picks.active); } });
-  flashHint(`${ids.length === 1 ? short(buildingMeta.get(ids[0]).map.actor) : plural(ids.length, 'building')} as the map has ${ids.length === 1 ? 'it' : 'them'} · Ctrl+Z undoes it`);
-}
-$('volumeRestore').onclick = () => { const b = pickedVolumes()[0]?.userData.volume.building; if (b) restoreMapBuildings([b]); };
-// The Buildings view's list of the map's buildings the project changed or deleted, each with Restore.
-let mapChangesKey = '';
-function mapChangesList() {
-  const edits = mapEdits(), list = $('volumeChanged');
-  const ids = volumesOn ? [...edits.changed, ...edits.gone].sort() : [];
-  const key = ids.map(id => `${id}:${edits.gone.has(id)}`).join();
-  if (key === mapChangesKey) return;
-  mapChangesKey = key;
-  list.hidden = !ids.length;
-  list.replaceChildren();
-  if (!ids.length) return;
-  text(list, 'div', 'The map\'s buildings this project changes:', 'lightnote');
-  for (const id of ids) {
-    const row = text(list, 'div', '', 'row');
-    text(row, 'span', `${short(buildingMeta.get(id).map.actor)} · ${edits.gone.has(id) ? 'deleted' : 'changed'}`);
-    const button = text(row, 'button', 'Restore the map\'s');
-    button.type = 'button';
-    button.title = 'Back as the map has it: its boxes made again, its name and kind the map\'s (Ctrl+Z undoes it)';
-    button.onclick = () => restoreMapBuildings([id]);
-  }
-}
-$('volumeNew').onclick = () => setVolumeTool(volumeTool === 'new' ? null : 'new');
-$('volumeAround').onclick = volumesAround;
-$('volumeCopy').onclick = () => (volumesOn ? copyVolumes() : copySelection());
-$('volumeDelete').onclick = () => (volumesOn ? deleteVolumes() : deleteSelection());
-// The Normal button's Floor boxes switch: the project's boxes drawn in the normal view. A click on a box's edge, or the select
-// box, then takes its whole building with whatever else is picked; it moves by whole tiles and turns by quarter turns,
-// is copied with its pieces as a new building, and deleted. Stretching a box and its floor stay the Buildings view's.
-function setBoxesShown(on) {
-  boxesShown = Boolean(on) && data?.scope === 'map' && !data.preview;
-  syncLights(); volumePanel();
-}
-$('boxesToggle').onchange = e => { setBoxesShown(e.target.checked); e.target.blur(); };
-// The box whose edge is under a screen point, in the normal view (a box's sides are see-through: the pieces inside
-// are picked through them).
-function pickBoxEdge(x, y) {
-  if (!boxesShown || volumesOn || lightsOn) return null;
-  const project = projector();
-  let best = null;
-  const near = (b, hit) => {
-    const corner = ([i, j, k]) => project(viewPoint([b[i * 3], b[1 + j * 3], b[2 + k * 3]]));
-    for (const [lo, hi] of BOX_EDGES) {
-      const p = corner(lo), q = corner(hi);
-      if (!p || !q) continue;
-      const dx = q[0] - p[0], dy = q[1] - p[1], length = dx * dx + dy * dy;
-      const t = length ? Math.max(0, Math.min(1, ((x - p[0]) * dx + (y - p[1]) * dy) / length)) : 0;
-      const d = Math.hypot(p[0] + t * dx - x, p[1] + t * dy - y);
-      if (d <= 6 && (!best || d < best.d)) best = { d, ...hit };
-    }
-  };
-  // the project's boxes first: one of the map's is taken only where it is nearer
-  for (const root of volumeRoots.values()) if (root.visible) near(volumeBox(root), { id: root.userData.source.id });
-  for (const mesh of ownVolumeLayer.children) if (mesh.userData.own) near(mesh.userData.own.box, { own: mesh });
-  return best;
-}
-const pickVolumeEdge = (x, y) => pickBoxEdge(x, y)?.id ?? null;
-// One of the map's own buildings picked in the normal view: with Ctrl or Shift, added to what is selected (or taken
-// out again); alone, shown to be read.
-function pickOwn(mesh, add) {
-  const building = mesh.userData.own.building;
-  if (!add) select(null);
-  if (add && ownSet.has(building)) ownSet.delete(building); else ownSet.add(building);
-  ownPicked = ownSet.has(building) && !selected ? mesh : null;
-  refreshVolumes(); volumePanel();
-  if (ownSet.has(building)) flashHint(`${short(building.name)}, a building of the map: copied with its pieces, the copy gets a building of your own`);
-}
-$('volumeDone').onclick = () => setVolumesShown(false);
-$('editBuildings').onclick = () => data && setVolumesShown(!volumesOn);
-// Box select (the user, 11 November 2026: "a better way of selecting many items at once"): in the normal view a box
-// is drawn over the ground (the tool strip's button, T), stretched by the six face handles a building's box has and
-// moved by the dot in its middle. Select (Enter) takes every piece whose middle is inside, with its group and linked
-// pieces whole as a click takes them; Shift+Enter adds them to the selection. Only what is drawn is taken (a floor
-// hidden by the Floor buttons is not), and never a streamed patch's piece. The box is the tool's alone: it is not
-// saved, and no undo step.
-const PICK_SLACK = 4;      // a wall on the box's side counts as inside
-const PICK_DROP = 32;      // the box starts this far under the level it is drawn on: the floor under a house comes too
-const pickBoxLayer = new THREE.Group(); pickBoxLayer.visible = false; world.add(pickBoxLayer);
-const pickBoxParts = (() => {
-  const fill = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x96e5d7, transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false }));
-  const line = new THREE.LineSegments(new THREE.EdgesGeometry(fill.geometry), new THREE.LineBasicMaterial({ color: 0x96e5d7, transparent: true, opacity: 0.95, depthWrite: false }));
-  const through = new THREE.LineSegments(line.geometry, new THREE.LineBasicMaterial({ color: 0x96e5d7, transparent: true, opacity: 0.35, depthWrite: false, depthTest: false }));
-  // what Select would take: each piece's box in white
-  const hits = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthTest: false }));
-  const moveMaterial = new THREE.MeshBasicMaterial({ color: 0x96e5d7, depthTest: false, transparent: true });
-  const move = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), moveMaterial);
-  for (const part of [fill, line, through, hits, move]) { part.raycast = () => {}; part.renderOrder = 7; part.frustumCulled = false; pickBoxLayer.add(part); }
-  move.renderOrder = 9;
-  return { fill, line, through, hits, move, moveMaterial };
-})();
-// the twelve edges of a box, as pairs of corners (each a 0 or 1 for x, y and z)
-const BOX_EDGES = [];
-for (let axis = 0; axis < 3; axis++) for (let u = 0; u < 2; u++) for (let v = 0; v < 2; v++) {
-  const lo = [0, 0, 0], hi = [0, 0, 0], [p, q] = [0, 1, 2].filter(k => k !== axis);
-  lo[p] = hi[p] = u; lo[q] = hi[q] = v; hi[axis] = 1;
-  BOX_EDGES.push([lo, hi]);
-}
-// The pieces Select can take, each with its drawn box and that box's middle (worked out once for a drag).
-function pickCandidates() {
-  if (!pickCentres) {
-    setPickCentres([]);
-    for (const root of lightsOn || effectsOn ? [] : roots.values()) {
-      const o = root.userData.source;
-      if (root.userData.deleted || !root.visible || isStream(o)) continue;
-      const b = boxOf(root);
-      if (b) pickCentres.push({ id: o.id, box: b.slice(), at: [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2] });
-    }
-    // with the lights shown, the lights that can be edited; with View options' Floor boxes, the project's boxes
-    if (lightsShown) for (const root of lightRoots.values()) {
-      const o = root.userData.source, e = root.matrix.elements;
-      if (!root.visible || root.userData.deleted || isStream(o) || lightViewOnly(o)) continue;
-      pickCentres.push({ id: o.id, kind: 'light', at: [e[12], e[14], e[13]], box: [e[12] - 14, e[12] + 14, e[14] - 14, e[14] + 14, e[13] - 14, e[13] + 14] });
-    }
-    // with the markers drawn (the Effects view, where only they are taken, or the Normal button's switch), the
-    // effects, sounds and flares the editor changes (effects and sounds plan, FX3b)
-    if (effectsShown() && !lightsOn) for (const root of effectRoots.values()) {
-      const o = root.userData.source, e = root.matrix.elements;
-      if (!root.visible || root.userData.deleted || isStream(o)) continue;
-      if (effectViewOnly(o, 'move') && effectViewOnly(o, 'copy') && effectViewOnly(o, 'delete')) continue;
-      pickCentres.push({ id: o.id, kind: o.kind, at: [e[12], e[14], e[13]], box: [e[12] - 14, e[12] + 14, e[14] - 14, e[14] + 14, e[13] - 14, e[13] + 14] });
-    }
-    if (boxesShown && !lightsOn && !effectsOn) for (const root of volumeRoots.values()) {
-      if (!root.visible) continue;
-      const b = volumeBox(root);
-      pickCentres.push({ id: root.userData.source.id, kind: 'box', at: [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2], box: [b[0], b[3], b[1], b[4], b[2], b[5]] });
-    }
-    // and the map's own boxes: taken to be copied
-    if (boxesShown && !lightsOn && !effectsOn) ownVolumeLayer.children.filter(c => c.userData.own).forEach((mesh, n) => {
-      const b = mesh.userData.own.box;
-      pickCentres.push({ id: `own:${n}`, kind: 'own', mesh, at: [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2], box: [b[0], b[3], b[1], b[4], b[2], b[5]] });
-    });
-  }
-  return pickCentres;
-}
-// The box and what it would take, drawn again; `recount` after anything that may have moved or hidden a piece.
-function refreshPickBox(recount = false) {
-  if (recount) setPickCentres(null);
-  const b = pickBox, parts = pickBoxParts, button = $('editBox');
-  pickBoxLayer.visible = Boolean(b);
-  $('boxBar').hidden = !b;
-  button.classList.toggle('on', pickTool || Boolean(b)); button.setAttribute('aria-pressed', pickTool || Boolean(b));
-  if (!pickDrag) kindButton();      // Select all of a kind narrows to a box drawn
-  if (!b) { pickHits = []; return; }
-  for (const part of [parts.fill, parts.line, parts.through]) {
-    part.position.set((b[0] + b[3]) / 2, (b[2] + b[5]) / 2, (b[1] + b[4]) / 2);
-    part.scale.set(Math.max(1, b[3] - b[0]), Math.max(1, b[5] - b[2]), Math.max(1, b[4] - b[1]));
-  }
-  pickHits = pickCandidates().filter(c => c.at.every((v, k) => v >= b[k] - PICK_SLACK && v <= b[k + 3] + PICK_SLACK));
-  const points = new Float32Array(pickHits.length * 72);
-  let n = 0;
-  for (const { box } of pickHits) for (const edge of BOX_EDGES) for (const [i, j, k] of edge) {
-    points[n++] = box[i]; points[n++] = box[4 + k]; points[n++] = box[2 + j];
-  }
-  parts.hits.geometry.dispose();
-  parts.hits.geometry = new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(points, 3));
-  $('boxBarText').textContent = pickHits.length ? `${pickWords()} inside` : lightsOn ? 'No light inside' : effectsOn ? 'No effect or sound inside' : 'No piece inside';
-  $('boxTake').disabled = $('boxAdd').disabled = !pickHits.length;
-}
-// what the box holds, in words: pieces, lights and floor boxes
-function pickWords() {
-  const of = kind => pickHits.filter(c => c.kind === kind).length;
-  const lights = of('light'), boxes = of('box') + of('own'), effects = of('effect'), sounds = of('sound'), flares = of('flare');
-  const n = pickHits.length - lights - boxes - effects - sounds - flares;
-  const parts = [n && plural(n, 'piece'), lights && plural(lights, 'light'), boxes && `${boxes} floor ${boxes === 1 ? 'box' : 'boxes'}`,
-                 effects && plural(effects, 'effect'), sounds && plural(sounds, 'sound'), flares && plural(flares, 'lens flare')].filter(Boolean);
-  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0];
-}
-const pickMovePoint = () => [(pickBox[0] + pickBox[3]) / 2, (pickBox[1] + pickBox[4]) / 2, (pickBox[2] + pickBox[5]) / 2];
-function pickMoveNear(x, y) {
-  if (!pickBox || volumesOn || placing) return false;
-  const s = projector()(viewPoint(pickMovePoint()));
-  return Boolean(s) && Math.hypot(s[0] - x, s[1] - y) <= HANDLE_PICK + 4;
-}
-// where the pointer's ray meets the level at height z (a point of the view: x, the height, y)
-const levelPoint = (e, z) => rayAt(e.clientX, e.clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -z), new THREE.Vector3());
-function setPickTool(on) {
-  if (on && (!data || placing)) return;
-  if (on && volumesOn) setVolumesShown(false);
-  if (on && zonesOn) setZonesShown(false);     // box select takes pieces, which the Landing zones view doesn't
-  // (the Effects view stays: there the box takes its markers only, as the Lights view's takes lights)
-  pickTool = Boolean(on);
-  if (!pickTool) { pickBox = null; pickDrag = null; }
-  renderer.domElement.style.cursor = pickTool ? 'crosshair' : '';
-  refreshPickBox(true); restingHint();
-}
-const stopPickBox = () => { if (pickTool || pickBox) setPickTool(false); };
-function startPickDrag(e) {
-  if (volumesOn || placing || e.button !== 0 || pickDrag || gizmo.controls.dragging || !(pickTool || pickBox)) return false;
-  const key = pickBox ? volumeHandleNear(e.clientX, e.clientY) : null;
-  if (key) {
-    const [, axis] = FACES.find(f => f[0] === key);
-    pickDrag = { kind: 'face', key, before: [...pickBox], pointerId: e.pointerId, from: alongAxis(e.clientX, e.clientY, facePoint(pickBox, key), axis) };
-  } else if (pickMoveNear(e.clientX, e.clientY)) {
-    const level = pickMovePoint()[2], at = levelPoint(e, level);
-    if (!at) return false;
-    pickDrag = { kind: 'move', before: [...pickBox], pointerId: e.pointerId, from: [at.x, at.z], level };
-  } else if (gizmo.busy() || !pickTool) return false;
-  else {
-    // drawn on what is under the pointer (else the grid's lowest level), from a little under it up to the grid's top
-    const grid = volumeGrid(), hit = pick(e.clientX, e.clientY)?.point;
-    const work = builderMode ? builderBounds().map(([, box]) => box) : [];
-    const level = Math.min(hit ? hit.y : grid ? grid.origin[2] : 0, ...work.map(b => b[2])), at = levelPoint(e, level);
-    if (!at) return false;
-    const top = Math.max(level + STOREY_HEIGHT, grid ? grid.origin[2] + grid.dimensions[2] * grid.size[2] : level + 4 * STOREY_HEIGHT, ...work.map(b => b[5]));
-    pickDrag = { kind: 'new', before: pickBox, pointerId: e.pointerId, from: [at.x, at.z], level, top };
-    pickBox = [at.x, at.z, level - PICK_DROP, at.x, at.z, top].map(Math.round);
-  }
-  showPop(null);
-  renderer.domElement.setPointerCapture(e.pointerId);
-  renderer.domElement.style.cursor = 'grabbing';
-  refreshPickBox(true);
-  return true;
-}
-function movePickDrag(e) {
-  const d = pickDrag;
-  if (d.kind === 'face') {
-    const [, axis, side] = FACES.find(f => f[0] === d.key), at = alongAxis(e.clientX, e.clientY, facePoint(d.before, d.key), axis);
-    if (at == null || d.from == null) return;
-    const box = [...d.before], value = Math.round((side < 0 ? d.before[axis] : d.before[axis + 3]) + at - d.from);
-    if (side < 0) box[axis] = Math.min(value, d.before[axis + 3] - 8); else box[axis + 3] = Math.max(value, d.before[axis] + 8);
-    pickBox = box;
-  } else {
-    const at = levelPoint(e, d.level);
-    if (!at) return;
-    if (d.kind === 'move') {
-      const dx = Math.round(at.x - d.from[0]), dy = Math.round(at.z - d.from[1]);
-      pickBox = [d.before[0] + dx, d.before[1] + dy, d.before[2], d.before[3] + dx, d.before[4] + dy, d.before[5]];
-    } else pickBox = [Math.min(d.from[0], at.x), Math.min(d.from[1], at.z), d.level - PICK_DROP, Math.max(d.from[0], at.x), Math.max(d.from[1], at.z), d.top].map(Math.round);
-  }
-  refreshPickBox();
-  volumeHint(`Box select: ${pickHits.length ? `${pickWords()} inside` : effectsOn ? 'no effect or sound inside' : 'no piece inside'}`);
-}
-function endPickDrag(keep) {
-  const d = pickDrag;
-  if (!d) return false;
-  pickDrag = null;
-  try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* already released */ }
-  if (!keep) pickBox = d.before && [...d.before];
-  else if (d.kind === 'new') {
-    // a press without a drag draws nothing: the tool waits for one
-    if (pickBox[3] - pickBox[0] < 8 || pickBox[4] - pickBox[1] < 8) pickBox = d.before && [...d.before];
-    else pickTool = false;
-  }
-  renderer.domElement.style.cursor = pickTool ? 'crosshair' : '';
-  refreshPickBox(true); restingHint();
-  return true;
-}
-// Select: the pieces inside become the selection (`add`: join it), and the box goes.
-function takePickBox(add = false) {
-  if (!pickBox) return;
-  refreshPickBox(true);
-  const owns = pickHits.filter(c => c.kind === 'own'), ids = pickHits.filter(c => c.kind !== 'own').map(c => c.id), was = gizmo.picks();
-  if (!ids.length && !owns.length) { flashHint(lightsOn ? 'No light is inside the box' : effectsOn ? 'No effect or sound is inside the box' : 'No piece has its middle inside the box'); return; }
-  const before = add ? was.ids.filter(id => allRoots.get(id)) : [];
-  stopPickBox();
-  // a piece holds the pivot when there is one
-  gizmo.setSelection([...new Set([...before, ...ids])], before.includes(was.active) ? was.active : ids.find(id => roots.has(id)) ?? ids[0]);
-  if (!add) ownSet.clear();
-  for (const c of owns) ownSet.add(c.mesh.userData.own.building);
-  ownPicked = !gizmo.active && owns.length ? owns[0].mesh : null;
-  select(gizmo.active, false, true);
-  flashHint(`${[gizmo.selection().length && selectionWords(gizmo.selection()), ownSet.size && `${plural(ownSet.size, 'building')} of the map`].filter(Boolean).join(' and ')} selected`);
-}
-$('editBox').onclick = () => setPickTool(!(pickTool || pickBox));
-$('boxTake').onclick = () => takePickBox(false);
-$('boxAdd').onclick = () => takePickBox(true);
-$('boxAgain').onclick = () => setPickTool(true);
-$('boxCancel').onclick = stopPickBox;
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 const WHOLE_OVERHANG = 4 * TILE;    // four tiles
 function cutaway() {
@@ -8222,7 +6112,7 @@ async function fetchJson(url, onProgress) {
 // The map's missions (an export's `missions`: its DefaultMaps.ini records) and the one whose streamed packages show.
 // missionPickValue is the picker's value: a record's index ('0', '1', ...), or 'kind:<kind>' for a kind the project
 // adds (mission types plan, D2), which streams nothing; missionIndex is the record's index, -1 for an added kind.
-let missionIndex = 0;     // (the picker's value, missionPickValue, and the streams shown, streamSet: editor_state.js)
+// (missionIndex, the picker's value, missionPickValue, and the streams shown, streamSet: editor_state.js)
 // (an added kind the address asks for, askedPick: editor_state.js)
 // The missions the header's picker lists: the map's records, or the project's missions when it names them (its
 // records kept, then the kinds it adds).
@@ -8260,17 +6150,17 @@ function missionLabels(missions) {
 function chooseMission(value) {
   const missions = data?.preview ? [] : data?.missions ?? [];
   const v = String(value ?? '0');
-  if (v.startsWith('kind:')) { setMissionPickValue(v); missionIndex = -1; setStreamSet(new Set()); return; }
+  if (v.startsWith('kind:')) { setMissionPickValue(v); setMissionIndex(-1); setStreamSet(new Set()); return; }
   const index = Number(v);
-  missionIndex = Number.isInteger(index) && missions[index] ? index : 0;
+  setMissionIndex(Number.isInteger(index) && missions[index] ? index : 0);
   setMissionPickValue(String(missionIndex));
   setStreamSet(new Set(missions[missionIndex]?.streams ?? []));
 }
 async function open() {
   stopPickBox();
-  boxesShown = false; setNormalLightsValue(false); setLightsOn(false); setLightsShownValue(false); setZonesOn(false);
+  setBoxesShownValue(false); setNormalLightsValue(false); setLightsOn(false); setLightsShownValue(false); setZonesOn(false);
   setEffectsOn(false); setPickedEffect(null); setNormalEffectsValue(false); effectLayer.visible = false; setEffectsDirty(true); stopWave();
-  setSpawnsOn(false); setPickedSpawnValue(null); spawnZonePick = null; normalSpawns = recall(NORMAL_SPAWNS) === '1'; spawnRulesData = null;
+  setSpawnsOn(false); setPickedSpawnValue(null); setSpawnZonePick(null); setNormalSpawnsValue(recall(NORMAL_SPAWNS) === '1'); setSpawnRulesData(null);
   const parameters=new URLSearchParams(location.search);
   loadingState('Opening the map list…');
   const mapResponse=await fetch('/maps.json');
@@ -8580,7 +6470,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
       return b ? Object.fromEntries(FACES.map(([key]) => [key, project(viewPoint(handlePoint(b, key)))])) : null; },
     spawnEdits: () => [...missionMoves.values()].map(m => structuredClone(m)),
     spawnPanelText: () => ($('spawnPanel').hidden ? null : { title: $('spawnTitle').textContent, info: $('spawnInfo').textContent }),
-    setSpawnFilter: (family, on) => { spawnFilters = { ...spawnFilters, [family]: on }; syncSpawnFilters(); refreshSpawnMarkers(); },
+    setSpawnFilter: (family, on) => { setSpawnFilters({ ...spawnFilters, [family]: on }); syncSpawnFilters(); refreshSpawnMarkers(); },
     // the Effects view (effects and sounds plan, FX1): each marker's record id, where it stands (game units), its
     // screen point and whether it is a copy the Build makes with a piece
     effectsOn: () => effectsOn, setEffectsShown, pickEffect, pickedEffect: () => pickedEffect, effectShapes,
@@ -8618,7 +6508,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     ownBoxes: () => ownVolumeLayer.children.filter(c => c.userData.own).map(c => ({ building: c.userData.own.building.name, floor: c.userData.own.floor, box: c.userData.own.box })),
     lightsOn: () => lightsOn, normalLights: () => normalLights, setNormalLights, setNormalView,
     pickBox: () => pickBox && [...pickBox], pickTool: () => pickTool, setPickTool, takePickBox, pickHits: () => pickHits.map(c => c.id),
-    setPickBox: box => { pickBox = [...box]; pickTool = false; refreshPickBox(true); },
+    setPickBox: box => { setPickBoxValue([...box]); setPickToolValue(false); refreshPickBox(true); },
     pieceBox: id => (roots.get(id) ? boxOf(roots.get(id))?.slice() ?? null : null),
     pickMoveHandle: () => (pickBox ? projector()(viewPoint(pickMovePoint())) : null),
     pickFaceHandle: key => (pickBox ? projector()(viewPoint(handlePoint(pickBox, key))) : null),
@@ -9246,7 +7136,7 @@ document.addEventListener('keydown', e => {
     else if (placing) stopPlacing();
     else if (document.querySelector('.pop:not([hidden])')) showPop(null);
     else if (selected) select(null);
-    else if (ownSet.size || (ownPicked && !volumesOn)) { ownSet.clear(); ownPicked = null; refreshVolumes(); volumePanel(); }
+    else if (ownSet.size || (ownPicked && !volumesOn)) { ownSet.clear(); setOwnPickedValue(null); refreshVolumes(); volumePanel(); }
     else return;
   }
   else if (e.altKey) return;

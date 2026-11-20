@@ -8,11 +8,11 @@
 //   unless a stream of the mission is the donor itself;
 // - an LWR patch's spawn points (streams[<name>].spawns), read only, with the layer's name.
 // One marker an actor: a bomb's button, floor marker, emitters and helper point stay in the inspector. A click on a
-// marker opens the inspector (app.js); the stream objects' group gizmo moves them (Part E), and the base map's pods,
-// Meld points and drop-in points move, turn and take values where the spawn family builds (SP6: editSpawn), as its
-// no-spawn volumes move and are sized by their box. Multiplayer teams' starts get no marker, and a deleted point shows
-// only with the flyout's Deleted points switch. Pure but for the marker shapes, which take three.js as an argument so
-// the node tests load this.
+// marker opens the inspector (spawns_wiring.js); the stream objects' group gizmo moves them (Part E), and the base
+// map's pods, Meld points and drop-in points move, turn and take values where the spawn family builds (SP6:
+// editSpawn), as its no-spawn volumes move and are sized by their box. Multiplayer teams' starts get no marker, and a
+// deleted point shows only with the flyout's Deleted points switch. Pure but for the marker shapes, which take
+// three.js as an argument so the node tests load this.
 
 // kind -> what it is called, its colour, its marker's shape and the flyout family it shows under
 export const KINDS = {
