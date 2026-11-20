@@ -53,9 +53,25 @@ walker before and after (names, kinds, sizes, offsets, values, refusals). A diff
   both maps gives the same lines and end; the dominant light's component, whose properties the old walk read as
   garbage until a `struct.error`, is refused at its first name. Its callers (`audit_clear`, `audit_install`,
   `audit_spawns`, `map_layout`) each catch any exception of it, as they did.
+- **[Package.tagged](../../tools/viewer/package.py)** (the viewer's, which every export, every Build and every reader
+  of a map's properties goes through), last and on its own: its walk is `props.tags`, each value decoded as before;
+  a refusal of the walk is still a `FormatError`, in `props.tags`' words. Every export of both maps reads the same
+  properties, values and ends, and every array read as structs the same (1,872 on the Bar, 1,753 on TempleShip);
+  arrays that are not structs are refused alike, in other words. The gate was the export: fresh exports of URB_Bar,
+  TempleShip and URB_PierA (two mission streams and three patches read as layers) into scratch caches, three runs
+  each with the code before and after, interleaved, gave the same `scene.json` byte for byte in every run, in the
+  same time (seconds, before / after, each the mean of three: the Bar 23.7 / 23.1, TempleShip 17.1 / 17.2, the pier
+  19.1 / 20.0, its best runs 18.7 / 18.3; other work ran on the computer meanwhile), so `Package.tagged` takes the
+  walk itself and not only its bounds checks.
+- `props.tags`' docstring names its walkers, and [ARCHITECTURE.md](../../ARCHITECTURE.md) says that tagged properties
+  are walked by `props.tags` and by nothing else in what ships.
+
+The relight's piece cache keys on the code of the files it depends on (relight.py's `TOOL_FILES`), and this stage
+changes four of them (props.py, package.py, lightmap_fields.py, relight.py): a project's next baked Build relights
+its kept pieces once, as after any change to those files.
 
 Checked: each walker's module's tests after its commit (map_frame's 11, inline_lighting's 5, light_factory's 22 and
 native_lights' 30, the lighting fixture's 18 and native_fields' 12, relight's 28 and the Lightmass settings' 2,
 pack_card's 27 and the card's users' in the lab (20) and viewer suites (pack export 5, damaged inputs 6), script_enums'
 8, typed_props' in the schema's 9, native_fields' 12 and transplant's 34, props' 9 and its callers' (audit_clear 16,
-audit_spawns 2, bad input 5)).
+audit_spawns 2, bad input 5), Package.tagged's in the whole viewer suite (639)).

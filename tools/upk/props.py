@@ -63,8 +63,11 @@ def tags(b, at, end, names):
 
     `names` is the table the bytes were written with: for bytes a Build has written, its grower's (package_grow.Grower
     names), whose added names lie past the map's own (review finding 37). The one bounded walk of tagged properties
-    (review finding 52), with the checks of the viewer's Package.tagged; tools/bake/native_copy.py's Walker, the
-    Kismet reader (kismet_links.py) and bake_actor.py walk with it."""
+    (review finding 52): every walker of what the release ships walks with it and keeps only what it does with each
+    property (the viewer's Package.tagged, tools/bake/native_copy.py's Walker, the Kismet reader, bake_actor.py,
+    typed_props.py, pack_card.py, script_enums.py, the bake's map picture, inline lighting, recipe lights, lightmap
+    fields and relight, and read_props here). A walker whose callers catch an error of its own turns the ValueError
+    into that error."""
     count = len(names)
 
     def name(o, what):

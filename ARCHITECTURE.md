@@ -271,6 +271,11 @@ where there is one.
 - A reader of package bytes checks its bounds and refuses (a `ValueError` saying what it met). It never reads on: a
   damaged or modded package then fails in one place with a reason. A writer goes through `write_edited` and reads
   back what it wrote (finding 52).
+- Tagged properties are walked by `props.tags` (`props.read_tags` for a list) and by nothing else in what ships: a
+  walker keeps only what it does with each property (its values, its rules), and a module whose callers catch an
+  error of its own turns the walk's `ValueError` into that error (the viewer's `FormatError`, `pack_card`'s
+  `CardError`, `typed_props`' `WalkError`). About sixteen walks once read the bytes each its own way, some with no
+  bounds checked (finding 52). The research tools that do not ship keep walks of their own.
 - Whatever a piece's relit images depend on is in the piece cache's key. A key that misses an input gives a stale
   piece that looks right (finding 42).
 
