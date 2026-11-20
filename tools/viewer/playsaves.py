@@ -28,6 +28,7 @@ so a campaign saved after that would have gone on at save1000. A save999 it made
 The save folders are the user's (Documents\\My Games\\XCOM - Enemy Within\\XComGame\\SaveData) and the install's own
 (XEW\\XComGame\\SaveData, where a game started with -nohomedir or a lab copy keeps them): each one that is there."""
 import hashlib
+import os
 from pathlib import Path
 import re
 import shutil
@@ -115,13 +116,31 @@ def _stamp(path):
 
 def _move_to_next_slot(folder, path, taken, moved):
     """A whole play save that took a campaign save's slot moved to the slot the game would give a new save (the
-    highest number plus one, EXP-56)."""
+    highest number plus one, EXP-56). `taken` holds every slot in use or to be filled again (the play save's own
+    included, and the slots whose copies go back), so the slot is a fresh one: never the play save's own, never a
+    copied slot, never a file that is there."""
     n = max(taken | {0}) + 1
+    while (Path(folder) / f'save{n}').exists(): n += 1
     target = Path(folder) / f'save{n}'
     path.replace(target)
     taken.add(n)
     moved.append(dict(folder=str(folder), name=path.name, to=target.name))
     return target
+
+
+def _put_back(copy, path):
+    """A copied save put back in its slot through a temporary file (not a save<N> name, so the game never lists it),
+    its bytes checked against the copy's recorded hash before and after. Returns None, or why it was not put back."""
+    kept = Path(copy['copy'])
+    temp = path.with_name(f'.{path.name}.restore.tmp')
+    try:
+        shutil.copy2(kept, temp)
+        if _sha256(temp) != copy['sha256']: return f'its copy ({kept}) is not the save that was copied; it is kept'
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
+    if _sha256(path) != copy['sha256']: return f'it did not read back as its copy ({kept}); the copy is kept'
+    return None
 
 
 def _set_aside(folder, path, aside, prefix, out):
@@ -161,27 +180,40 @@ def keep(folder, backup, aside, prefix):
 def restore(entry):
     """After a play, one save folder (keep's entry): each play's save the play wrote or changed set aside if broken,
     and left where it is if whole, unless it took the slot of a save copied before the play: then it moves to the
-    next slot and that save is put back from its copy. The copies are taken away. Returns dict(moved, setAside,
-    restored)."""
+    next slot. Then the copies, each by its own: a copied save whose slot is empty is put back from its copy (through
+    a temporary file, checked against its hash); a copy is taken away only once its slot holds its bytes (or holds a
+    campaign's own newer save). So a restore that stopped part-way (a failed copy, a stopped server) is run again
+    from the copies as well as from the slots, and loses neither save. Returns dict(moved, setAside, restored, left)."""
     folder = Path(entry['folder'])
-    moved, set_aside, restored = [], [], []
+    moved, set_aside, restored, left = [], [], [], []
+    copies = entry.get('copies') or {}
     if folder.is_dir():
         found = saves(folder)
-        taken = set(found)
+        # every slot in use, and the copied ones (put back below): a play save moves past all of them
+        taken = set(found) | {int(m.group(1)) for m in map(SAVE.fullmatch, copies) if m}
         for n, path in sorted(found.items()):
             if entry['files'].get(path.name) == _stamp(path): continue
             if not is_play_save(header(path)): continue
-            copy = entry['copies'].get(path.name)
+            copy = copies.get(path.name)
             whole = is_whole(path) or not entry.get('aside')   # (an entry from before broken saves were told)
             if whole and not copy: continue                     # a new slot, as the game gives once logged in
-            taken.discard(n)
             if whole: _move_to_next_slot(folder, path, taken, moved)
             else: _set_aside(folder, path, entry['aside'], entry['prefix'], set_aside)
-            if copy and Path(copy['copy']).is_file():
-                shutil.copy2(copy['copy'], path)
-                taken.add(n)
-                restored.append(dict(folder=str(folder), name=path.name))
-    for copy in entry['copies'].values():
-        try: Path(copy['copy']).unlink()
+    for name, copy in copies.items():
+        path, kept = folder / name, Path(copy['copy'])
+        if path.is_file() and _sha256(path) == copy['sha256']:
+            pass                                                # in its slot: untouched, or put back already
+        elif path.is_file():
+            if is_play_save(header(path)) and kept.is_file():   # a play save the loop above could not move
+                left.append(dict(folder=str(folder), name=name, why=f'a play\'s save is in its slot; its copy {kept} is kept'))
+                continue
+            # a campaign's own save written there since (the copy is the older one): the slot is left as it is
+        elif kept.is_file():
+            why = _put_back(copy, path) if folder.is_dir() else f'its folder is gone; its copy {kept} is kept'
+            if why:
+                left.append(dict(folder=str(folder), name=name, why=why))
+                continue
+            restored.append(dict(folder=str(folder), name=name))
+        try: kept.unlink()
         except FileNotFoundError: pass
-    return dict(moved=moved, setAside=set_aside, restored=restored)
+    return dict(moved=moved, setAside=set_aside, restored=restored, left=left)

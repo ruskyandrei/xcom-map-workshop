@@ -37,6 +37,12 @@ INI files as they were before each change: the record and landing-zone lines it 
 console commands a play starts the game with (XEW\\Binaries\\PLAY_FILE) and the game's own config files kept aside for a
 play (below). The record travels with the game folder if it is renamed or moved.
 
+Each change of the install's files (an install, a play's clean-up, Remove from game, records switched off) keeps a
+journal there too, change.json, written before its first write (_Change): a config file is written through a temporary
+file and a replace, and a package file it replaces or takes out waits aside until the change is done. A change stopped
+part-way (a crash, a forced stop) is rolled back by the next look at the install (ready, recover_change), so its files
+and the ledgers never disagree (review finding 2).
+
 The game's config during a play: the console commands that give a play its squad make the game write its
 XComContent.ini again with them in it (the engine saves a class's config after `set`: findings register F-73). So a
 play keeps the file aside first (backup_config) and it is put back once the game has closed (restore_config: by the
@@ -65,6 +71,7 @@ maps_text(game) is the install's DefaultMaps.ini as the install has it, the edit
 exporter and Build read the install through it, so an install of the editor's never shows up as a map or a record
 there.
 """
+import contextlib
 import datetime
 import hashlib
 import json
@@ -72,7 +79,6 @@ import os
 from pathlib import Path
 import re
 import shutil
-import subprocess
 import sys
 import threading
 import time
@@ -201,8 +207,43 @@ def _write_json(path, data):
                 time.sleep(0.02)
 
 
+KEEP_BACKUPS = 20       # the install's newest backup folders kept (review finding 49): about ten plays' worth
+KEEP_HISTORY = 200      # and the newest entries of the ledger's history
+
+
+def _prune(game, data):
+    """The ledger `data` (in place) cut to the newest KEEP_HISTORY history entries and KEEP_BACKUPS backups, the older
+    backup folders deleted (review finding 49): each play adds two of each, and nothing took them away. Never one
+    something still needs: a lab file kept there to go back (labFiles), or one a stopped change's roll-back kept
+    (interrupted-*); and no folder at all while a change is under way or a stopped one waits (its journal), so a
+    roll-back never brings back a ledger naming a folder that is gone. A folder that can't be deleted stays listed."""
+    if len(data.get('history') or []) > KEEP_HISTORY: data['history'] = data['history'][-KEEP_HISTORY:]
+    backups = data.get('backups') or []
+    if len(backups) <= KEEP_BACKUPS: return
+    if _current(game) is not None or change_path(game).exists() or test_install_path(game).exists(): return
+    root = os.path.normcase(os.path.abspath(Path(game) / LEDGER_FOLDER / 'backups'))
+
+    def folder(rel):
+        """The backup folder an entry (or a file under it) names, as a normalised path; None outside the backups."""
+        path = os.path.normcase(os.path.abspath(Path(game) / rel))
+        if not path.startswith(root + os.sep): return None
+        return os.path.join(root, os.path.relpath(path, root).split(os.sep)[0])
+    needed = {folder(rel) for rel in (data.get('labFiles') or {}).values() if isinstance(rel, str)}
+    kept = []
+    for rel in backups[:-KEEP_BACKUPS]:
+        path = folder(rel) if isinstance(rel, str) else None
+        if path is None or path in needed or os.path.basename(path).startswith('interrupted-'):
+            kept.append(rel)
+            continue
+        shutil.rmtree(path, ignore_errors=True)
+        if os.path.exists(path): kept.append(rel)
+    data['backups'] = kept + backups[-KEEP_BACKUPS:]
+
+
 def write_ledger(game, data):
-    """The dict read_ledger gives, written back as the two files; play.json only once a play has put something in."""
+    """The dict read_ledger gives, written back as the two files; play.json only once a play has put something in.
+    Its history and backups are kept to the newest (_prune)."""
+    _prune(game, data)
     play = {k: data[k] for k in PLAY_KEYS if k in data}
     main = {k: v for k, v in data.items() if k not in PLAY_KEYS}
     _write_json(ledger_path(game), dict(main, schema=SCHEMA, schemaVersion=3))
@@ -218,10 +259,9 @@ def sha256(path):
 
 
 def game_running():
-    """Whether XCOM: Enemy Within is running (any install)."""
-    out = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True,
-                         creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0)).stdout
-    return 'XComEW.exe' in out
+    """Whether XCOM: Enemy Within is running (any install): one look at the process table (procs.running)."""
+    import procs
+    return procs.running('XComEW.exe')
 
 
 def plan_variant_lz(lz, m, note, zone=None):
@@ -295,36 +335,64 @@ def patchtool_record(lines, variant):
     return at[0] - 1 if ok else None
 
 
-def _rotation_out(lines, ledger, variant=None):
+def _rotation_out(lines, ledger, variant=None, kept=None):
     """The rotation records the editor added (install_rotation) taken out of `lines` (in place): every variant's, or
-    one's. Returns what could not be taken out, in words."""
+    one's. Returns what could not be taken out, in words; `kept` (a list) is given the entries left."""
     left = []
     for entry in ledger.get('rotation') or []:
         if variant is not None and entry['variant'] != variant: continue
         found = _run(lines, _encoded(entry))
         if found is None:
             left.append(f'the rotation records for {entry["variant"]} have changed; take them out by hand')
+            if kept is not None: kept.append(entry)
             continue
         del lines[found:found + len(entry['lines'])]
     return left
 
 
-def _base_back(lines, changes):
+def _named(lines, variant):
+    """Whether a live record of `lines` names the map `variant` (any case): a record the editor wrote that no longer
+    stands as written is still in the game while one does, and is gone once none does (taken out by hand)."""
+    import deploy_fixture as dep
+    return any(dep.is_record(l) and same_map(dep.field(l, 'Name'), variant) for l in lines)
+
+
+def _base_back(lines, changes, kept=None):
     """The install's own records the editor commented out ([{original, written}]) put back in `lines` (in place);
-    returns how many are no longer there as written."""
+    returns how many are no longer there as written (`kept`, a list, is given them)."""
     missing = 0
     for change in changes:
         written = change['written'].encode('latin-1')
         at = next((i for i, l in enumerate(lines) if l == written), None)
-        if at is None: missing += 1
+        if at is None:
+            missing += 1
+            if kept is not None: kept.append(change)
         else: lines[at] = change['original'].encode('latin-1')
     return missing
 
 
+def _drop_written(lines, want):
+    """Each line of `want` still as written taken out of `lines` (in place): what stands of a block the editor wrote
+    and someone edited since, which a removal leaves in the game and keeps noted (review finding 26), so that its
+    records still as written are never read as the install's own."""
+    for line in want:
+        if line in lines: lines.remove(line)
+
+
+def _strip_records(lines, blocks):
+    """The editor's record blocks taken out of `lines` (in place), for reading the install's own lines: each whole
+    (_take_out), else what of it is still as written (_drop_written)."""
+    for block in blocks:
+        if not _take_out(lines, block): _drop_written(lines, _encoded(block))
+
+
 def _strip_rotation(lines, ledger):
-    """Everything a rotation install or a record switched off changed undone in `lines` (in place): the variants'
-    records out, the install's own records the editor commented out live again."""
-    _rotation_out(lines, ledger)
+    """Everything a rotation install or a record switched off changed undone in `lines` (in place), for reading the
+    install's own lines: the variants' records out (what stands of an edited entry too), the install's own records
+    the editor commented out live again."""
+    stuck = []
+    _rotation_out(lines, ledger, kept=stuck)
+    for entry in stuck: _drop_written(lines, _encoded(entry))
     _base_back(lines, ledger.get('linesOff') or [])
 
 
@@ -337,8 +405,7 @@ def pristine_lines(game, lines=None):
     ledger = read_ledger(game)
     at = _ours(ledger, lines)
     if at is not None: lines[at] = ledger['slot']['original'].encode('latin-1')
-    for block in ledger.get('records') or []:
-        _take_out(lines, block)
+    _strip_records(lines, ledger.get('records') or [])
     _strip_rotation(lines, ledger)
     return lines
 
@@ -367,6 +434,10 @@ def ready(game):
     except (OSError, ValueError, InstallError) as error:
         return f'its DefaultMaps.ini or the editor\'s record of it can\'t be read ({error})'
     if game_running(): return 'XCOM is running'
+    # a change of the install's files that was stopped part-way is undone before anything else looks at them
+    try: recover_change(game)
+    except (OSError, ValueError, InstallError) as error:
+        return f'a change of the install that was stopped part-way can\'t be undone yet ({error})'
     return None
 
 
@@ -400,11 +471,17 @@ def _check_ready(game):
     if why: raise InstallError(why)
 
 
-def _backup(game, stamp):
+def _backup_folder(game, stamp):
+    """A new folder in the install's backups, named after `stamp`."""
     folder = Path(game) / LEDGER_FOLDER / 'backups' / stamp
     k = 2
     while folder.exists(): folder, k = folder.with_name(f'{stamp}-{k}'), k + 1
     folder.mkdir(parents=True)
+    return folder
+
+
+def _backup(game, stamp):
+    folder = _backup_folder(game, stamp)
     for name in ('DefaultMaps.ini', LZ, RANDOM_SPAWNS):
         if config(game, name).is_file(): shutil.copy2(config(game, name), folder / name)
     return folder
@@ -699,15 +776,18 @@ def _copy_files(game, ledger, files, play=False, atomic=None, project=None, keep
                 copy = Path(keep) / 'CookedPCConsole' / name
                 shutil.copy2(dst, copy)
                 ledger.setdefault('labFiles', {})[name] = str(copy.relative_to(game))
-            target = test_temp(dst, atomic) if atomic else dst
-            try:
-                shutil.copyfile(src, target)
-                if sha256(target) != digest: raise InstallError(f'{dst} did not copy intact')
-                if atomic:
-                    if dst.exists(): raise InstallError(f'{dst} appeared while the test was installing')
-                    os.replace(target, dst)
-            finally:
-                if atomic: target.unlink(missing_ok=True)
+            change = None if atomic else _current(game)
+            if change is not None: change.copy_in(src, dst, digest)     # what it replaces moved aside, noted first
+            else:
+                target = test_temp(dst, atomic) if atomic else dst
+                try:
+                    shutil.copyfile(src, target)
+                    if sha256(target) != digest: raise InstallError(f'{dst} did not copy intact')
+                    if atomic:
+                        if dst.exists(): raise InstallError(f'{dst} appeared while the test was installing')
+                        os.replace(target, dst)
+                finally:
+                    if atomic: target.unlink(missing_ok=True)
             if play and name not in kept: played[name] = digest
             else: kept[name] = digest
         elif not play and name in played:
@@ -786,6 +866,231 @@ def recover_test_install(game):
     journal.unlink()
 
 
+# ---- a change of the install's files, kept recoverable (review finding 2)
+
+def change_path(game):
+    """The journal of a change of the install's files under way (_Change)."""
+    return Path(game) / LEDGER_FOLDER / 'change.json'
+
+
+_CHANGE = threading.local()         # the change this thread is making (_Change), if any
+_ACTIVE = set()                     # the games a change is under way in, in this process: recovery leaves them alone
+_ACTIVE_LOCK = threading.Lock()
+
+
+def _key(game):
+    return os.path.normcase(os.path.abspath(game))
+
+
+def _current(game):
+    """The change this thread is making in `game`, or None."""
+    change = getattr(_CHANGE, 'current', None)
+    return change if change is not None and change.key == _key(game) else None
+
+
+def _aside(path):
+    """Where a package file the change replaces or takes out waits until the change commits."""
+    return path.with_name(f'.{path.name}.change.tmp')
+
+
+def _put_bytes(path, data):
+    """`path` given these bytes through a temporary file and a replace."""
+    temp = path.with_name(f'.{path.name}.change-put.tmp')
+    try:
+        temp.write_bytes(data)
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+class _Change:
+    """One change of the install's files kept recoverable, as a prefab test's install is (begin_test_install). Its
+    journal (change.json, beside the ledgers) is written before the first write, holds both ledgers' text as they were,
+    and grows before each write by what that write is:
+    - a config file (_write_config): its SHA-256 as it was and after the write, its bytes as they were kept in
+      <game>\\XCOM Map Workshop\\change\\;
+    - a package file copied in (copy_in) or taken out (take_out): one it replaces or takes out is moved aside in
+      CookedPCConsole (.<name>.change.tmp) rather than deleted, and the copy goes in through a temporary file.
+    A change that ends in an error is rolled back at once; one stopped part-way (a crash, a forced stop) is rolled back
+    by the next operation on the install (recover_change), so the install's files and the ledger always agree: never a
+    record in DefaultMaps.ini that the ledger doesn't know. Once the change's last ledger write is done it commits: the
+    journal says so, then the kept bytes, the files moved aside and the journal go."""
+
+    def __init__(self, game, what):
+        self.game, self.key, self.what = Path(game), _key(game), what
+        self.folder = self.game / LEDGER_FOLDER / 'change'
+        with _LEDGER_IO:
+            ledgers = {p.name: (p.read_text(encoding='utf-8') if p.is_file() else None)
+                       for p in (ledger_path(game), play_ledger_path(game))}
+        self.journal = dict(what=what, at=_now(None)[0].isoformat(timespec='seconds'), state='open', configs={}, files={},
+                            ledgers=ledgers)
+
+    def save(self):
+        _write_json(change_path(self.game), self.journal)
+
+    def __enter__(self):
+        with _ACTIVE_LOCK:
+            if self.key in _ACTIVE: raise InstallError('another change of this install is under way')
+            _ACTIVE.add(self.key)
+        try:
+            if change_path(self.game).exists(): raise InstallError('an interrupted change of the install is not undone yet')
+            self.save()
+        except BaseException:
+            with _ACTIVE_LOCK: _ACTIVE.discard(self.key)
+            raise
+        _CHANGE.current = self
+        return self
+
+    def __exit__(self, kind, error, trace):
+        _CHANGE.current = None
+        try:
+            if kind is None: self.commit()
+            # an error: undone now (a stop that is no error, KeyboardInterrupt or the tests' stand-in for a crash, is
+            # left for recover_change, and so is a roll-back that fails: the error that stopped the change is the one
+            # reported)
+            elif issubclass(kind, Exception):
+                try: _roll_back(self.game, self.journal)
+                except Exception: pass
+        finally:
+            with _ACTIVE_LOCK: _ACTIVE.discard(self.key)
+        return False
+
+    def config(self, name, path, lines):
+        """Noted before a config file is written: its bytes as they were (the first time), its hash after."""
+        import deploy_fixture as dep
+        entry = self.journal['configs'].get(name)
+        if entry is None:
+            self.folder.mkdir(parents=True, exist_ok=True)
+            kept = self.folder / name
+            shutil.copy2(path, kept)
+            entry = self.journal['configs'][name] = dict(before=sha256(kept), kept=str(kept.relative_to(self.game)))
+        entry['after'] = hashlib.sha256(dep.EOL.join(lines)).hexdigest()
+        self.save()
+
+    def copy_in(self, src, dst, digest):
+        """A package file copied into CookedPCConsole, noted first: what it replaces is moved aside."""
+        there = dst.exists()
+        self.journal['files'][dst.name] = dict(digest=digest, aside=_aside(dst).name if there else None)
+        self.save()
+        if there: os.replace(dst, _aside(dst))
+        temp = dst.with_name(f'.{dst.name}.change-put.tmp')
+        try:
+            shutil.copyfile(src, temp)
+            if sha256(temp) != digest: raise InstallError(f'{dst} did not copy intact')
+            os.replace(temp, dst)
+        finally:
+            temp.unlink(missing_ok=True)
+
+    def take_out(self, path, put_back=None):
+        """A package file taken out of CookedPCConsole, noted first: moved aside, and `put_back` (a file kept before
+        the editor's replaced it) copied into its place."""
+        self.journal['files'][path.name] = dict(aside=_aside(path).name, removed=True)
+        self.save()
+        os.replace(path, _aside(path))
+        if put_back is not None:
+            temp = path.with_name(f'.{path.name}.change-put.tmp')
+            try:
+                shutil.copy2(put_back, temp)
+                os.replace(temp, path)
+            finally:
+                temp.unlink(missing_ok=True)
+
+    def commit(self):
+        self.journal['state'] = 'committed'
+        self.save()
+        _clean_change(self.game, self.journal)
+
+
+def _change(game, what):
+    """A change of the install's files (_Change) as a `with` block: the one this thread is making in `game` already, if
+    any (a step of a larger change), else a new one."""
+    return contextlib.nullcontext(_current(game)) if _current(game) is not None else _Change(game, what)
+
+
+def _write_config(game, name, lines):
+    """A config file of the install written through a temporary file and a replace (deploy_fixture.write_checked),
+    noted first in the change under way."""
+    import deploy_fixture as dep
+    path = config(game, name)
+    change = _current(game)
+    if change is not None: change.config(name, path, lines)
+    dep.write_checked(path, lines)
+
+
+def _clean_change(game, journal):
+    """A finished change's leftovers taken away: the files moved aside, the config bytes kept, then the journal (kept
+    while a file moved aside can't be deleted yet: the next recover_change tries again)."""
+    stuck = False
+    for name, entry in (journal.get('files') or {}).items():
+        if not entry.get('aside') or Path(name).name != name: continue
+        try: (cooked(game) / entry['aside']).unlink(missing_ok=True)
+        except OSError: stuck = True
+    shutil.rmtree(Path(game) / LEDGER_FOLDER / 'change', ignore_errors=True)
+    if not stuck: change_path(game).unlink(missing_ok=True)
+
+
+def _roll_back(game, journal):
+    """An unfinished change undone (see _Change): each config file the change wrote has its bytes from before again,
+    unless something changed it since (then it is left, its bytes from before kept in the backups); each package file
+    it copied in is taken out and each it moved aside put back; the ledgers have their text from before. Then the
+    leftovers go and the ledger's history says so. Returns what was left, in words."""
+    game = Path(game)
+    left, folders = [], []
+    for name, entry in (journal.get('configs') or {}).items():
+        if name not in ('DefaultMaps.ini', LZ, RANDOM_SPAWNS): continue
+        path, kept = config(game, name), game / entry['kept']
+        now = sha256(path) if path.is_file() else None
+        if now == entry['before'] or not kept.is_file(): continue
+        if now == entry.get('after') and sha256(kept) == entry['before']:
+            _put_bytes(path, kept.read_bytes())
+            continue
+        folder = _backup_folder(game, 'interrupted-' + _now(None)[1])
+        shutil.copy2(kept, folder / name)
+        folders.append(str(folder.relative_to(game)))
+        left.append(f'{name} has changed since the interrupted change ({journal.get("what")}); it is left as it is, and '
+                    f'its text from before is in {folder.relative_to(game)}')
+    for name, entry in (journal.get('files') or {}).items():
+        if Path(name).name != name: continue
+        path = cooked(game) / name
+        aside = cooked(game) / entry['aside'] if entry.get('aside') else None
+        if entry.get('digest') and path.is_file() and sha256(path) == entry['digest'] and (aside is None or aside.is_file()):
+            path.unlink()                                       # the file the change copied in
+        if aside is not None and aside.is_file(): os.replace(aside, path)
+        path.with_name(f'.{name}.change-put.tmp').unlink(missing_ok=True)
+    for name, text in (journal.get('ledgers') or {}).items():
+        if name not in ('installs.json', 'play.json'): continue
+        path = game / LEDGER_FOLDER / name
+        if text is None: path.unlink(missing_ok=True)
+        else:
+            with _LEDGER_IO: _put_bytes(path, text.encode('utf-8'))
+    ledger = read_ledger(game)
+    ledger['backups'] = ledger.get('backups', []) + folders
+    ledger.setdefault('history', []).append(dict(at=_now(None)[0].isoformat(timespec='seconds'), interrupted=journal.get('what'),
+                                                 rolledBack=True, **({'left': left} if left else {})))
+    write_ledger(game, ledger)
+    _clean_change(game, dict(journal, files={}))
+    return left
+
+
+_RECOVERING = threading.Lock()
+
+
+def recover_change(game):
+    """A change of the install's files that was stopped part-way (its journal still there, and no change under way in
+    this server) rolled back, or one that had committed cleaned up. Refuses while XCOM runs. Returns what was left, in
+    words, or None when there was nothing to recover."""
+    if not change_path(game).is_file(): return None
+    with _RECOVERING:
+        with _ACTIVE_LOCK:
+            if _key(game) in _ACTIVE or not change_path(game).is_file(): return None
+        if game_running(): raise InstallError('XCOM is running')
+        journal = json.loads(change_path(game).read_text(encoding='utf-8'))
+        if journal.get('state') == 'committed':
+            _clean_change(game, journal)
+            return []
+        return _roll_back(game, journal)
+
+
 def exclusion_note(note, m):
     """The comment of a variant's drop-in exclusion line: the editor's note and the project's name (printable ASCII)."""
     name = re.sub(r'[^\x20-\x7E]', '', str((m.get('project') or {}).get('name') or '')).strip()
@@ -818,7 +1123,7 @@ def _exclusions_out(game, ledger, key, variants=None):
     blocks = [b for b in ledger.get(key) or [] if variants is None or b['variant'] in variants]
     if not blocks or not config(game, RANDOM_SPAWNS).is_file(): return 0, []
     rs = dep.lines_of(config(game, RANDOM_SPAWNS).read_bytes())
-    done, left = 0, []
+    done, left, gone = 0, [], []
     for block in blocks:
         want = _encoded(block)
         found = _run(rs, want)
@@ -829,8 +1134,10 @@ def _exclusions_out(game, ledger, key, variants=None):
         dep.check_change(rs, new_rs, removed=(found, len(want)))
         rs = new_rs
         done += 1
-    if done: dep.write_checked(config(game, RANDOM_SPAWNS), rs)
-    ledger[key] = [b for b in ledger.get(key) or [] if b not in blocks]
+        gone.append(block)
+    if done: _write_config(game, RANDOM_SPAWNS, rs)
+    # a line left stays noted as the editor's (review finding 26)
+    ledger[key] = [b for b in ledger.get(key) or [] if b not in gone]
     return done, left
 
 
@@ -841,7 +1148,7 @@ def _zones_out(game, ledger, key, variants=None):
     blocks = [b for b in ledger.get(key) or [] if variants is None or b['variant'] in variants]
     if not blocks or not config(game, LZ).is_file(): return 0, []
     lz = dep.lines_of(config(game, LZ).read_bytes())
-    done, left = 0, []
+    done, left, gone = 0, [], []
     for block in blocks:
         want = _encoded(block)
         found = _run(lz, want)
@@ -852,37 +1159,68 @@ def _zones_out(game, ledger, key, variants=None):
         dep.check_change(lz, new_lz, removed=(found, len(want)))
         lz = new_lz
         done += 1
-    if done: dep.write_checked(config(game, LZ), lz)
-    ledger[key] = [b for b in ledger.get(key) or [] if b not in blocks]
+        gone.append(block)
+    if done: _write_config(game, LZ, lz)
+    # lines left stay noted as the editor's (review finding 26)
+    ledger[key] = [b for b in ledger.get(key) or [] if b not in gone]
     return done, left
 
 
-def _files_out(game, ledger, key):
+def _files_out(game, ledger, key, held=None):
     """The files the ledger notes under `key` deleted from the install, unless changed since: (names, what was left).
-    A file that replaced one of the lab's (`labFiles`: _copy_files kept it) has the lab's back in its place."""
-    done, left = [], []
+    A file that replaced one of the lab's (`labFiles`: _copy_files kept it) has the lab's back in its place. `held`
+    ({project id: variant}, and None for a file nothing says whose it is: _held): the files of variants whose record
+    is still in the game, which stay. A file left stays noted as the editor's (review finding 26)."""
+    done, left, stays = [], [], {}
     lab = ledger.get('labFiles') or {}
+    owners = file_owners(ledger)
     for name, digest in sorted((ledger.get(key) or {}).items()):
         path = cooked(game) / name
         if not path.exists(): continue
+        owner = owners.get(name.lower())
+        if held and owner in held:
+            left.append(f'{name} stays: the record for {held[owner]} is still in DefaultMaps.ini (it plays this file)'
+                        if held[owner] else f'{name} stays: records the editor wrote are still in DefaultMaps.ini, and '
+                        'nothing says which plays it')
+            stays[name] = digest
+            continue
         if sha256(path) != digest:
             left.append(f'{name} has changed since it was installed; it stays')
+            stays[name] = digest
             continue
         earlier = Path(game) / lab[name] if name in lab else None
-        if earlier is not None and earlier.is_file():
+        change = _current(game)
+        if change is not None:      # moved aside, noted first; the lab's put back in its place
+            change.take_out(path, earlier if earlier is not None and earlier.is_file() else None)
+        elif earlier is not None and earlier.is_file():
             temp = path.with_name(f'.{name}.lab.tmp')
             shutil.copy2(earlier, temp)
             os.replace(temp, path)
         else:
             path.unlink()
         done.append(name)
-    ledger[key] = {}
+    ledger[key] = stays
     # whose each file is, and the lab's files kept, for the files still noted
     noted = {k for other in ('files', 'playFiles') for k in ledger.get(other) or {}}
     for what in ('owners', 'labFiles'):
         if what in ledger:
             ledger[what] = {k: v for k, v in ledger[what].items() if k in noted}
     return done, left
+
+
+def _held(ledger, variants):
+    """{project id: variant} for the files of these variants (whose records are still in the game), for _files_out:
+    each variant's project, as its play's install or its campaign install notes it; for a variant whose project
+    nothing says, None (the files noted before owners were, whose project nothing says either). A map's own record
+    copied for a play brings no file."""
+    out = {}
+    for variant in variants:
+        entry = (ledger.get('installed') or {}).get(variant) or {}
+        rotation = next((e for e in ledger.get('rotation') or [] if e['variant'] == variant), None)
+        if entry.get('kind') == 'map' and rotation is None: continue
+        project = (entry.get('project') or {}).get('id') or ((rotation or {}).get('project') or {}).get('id')
+        out[project or None] = variant if project else None
+    return out
 
 
 def clear_play(game, now=None):
@@ -892,35 +1230,43 @@ def clear_play(game, now=None):
     there was nothing."""
     import deploy_fixture as dep
     game = Path(game)
+    recover_change(game)
     ledger = read_ledger(game)
     records = ledger.get('records') or []
     if not (records or ledger.get('playZones') or ledger.get('playExclusions') or ledger.get('playFiles')
             or play_file(game).is_file() or start_file(game).is_file()): return None
     _check_ready(game)
     now, stamp = _now(now)
-    done = dict(records=0, landingZones=0, dropInExclusions=0, files=[], left=[], playFile=False)
-    if records:
-        maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
-        ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
-        new_maps, kept = list(maps), []
-        for block in records:
-            if _take_out(new_maps, block): done['records'] += 1
-            else:
-                done['left'].append(f'the record for {block["variant"]} has changed; take it out by hand')
-                kept.append(block)
-        if new_maps != maps: dep.write_checked(config(game, 'DefaultMaps.ini'), new_maps)
-        ledger['records'] = kept
-        ledger['installed'] = {k: v for k, v in (ledger.get('installed') or {}).items() if k in {b['variant'] for b in kept}}
-    done['landingZones'], left = _zones_out(game, ledger, 'playZones')
-    done['left'] += left
-    done['dropInExclusions'], left = _exclusions_out(game, ledger, 'playExclusions')
-    done['left'] += left
-    done['files'], left = _files_out(game, ledger, 'playFiles')
-    done['left'] += left
-    done['playFile'] = _commands_out(game)
-    ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), playCleared=True, records=done['records'],
-                                                  files=len(done['files'])))
-    write_ledger(game, ledger)
+    with _change(game, 'a play\'s clear-up'):
+        done = dict(records=0, landingZones=0, dropInExclusions=0, files=[], left=[], playFile=False)
+        if records:
+            maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
+            ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
+            new_maps, kept = list(maps), []
+            for block in records:
+                if _take_out(new_maps, block): done['records'] += 1
+                elif _named(maps, block['variant']):
+                    done['left'].append(f'the record for {block["variant"]} has changed; take it out by hand')
+                    kept.append(block)
+                # (else no record of that name is left: taken out by hand already)
+            if new_maps != maps: _write_config(game, 'DefaultMaps.ini', new_maps)
+        else: kept = []
+        held = _held(ledger, [b['variant'] for b in kept])
+        if records:
+            ledger['records'] = kept
+            ledger['installed'] = {k: v for k, v in (ledger.get('installed') or {}).items() if k in {b['variant'] for b in kept}}
+        done['landingZones'], left = _zones_out(game, ledger, 'playZones')
+        done['left'] += left
+        done['dropInExclusions'], left = _exclusions_out(game, ledger, 'playExclusions')
+        done['left'] += left
+        # the files of a variant whose record stayed stay too: a record naming a package that isn't there could be
+        # drawn by the game (review finding 26)
+        done['files'], left = _files_out(game, ledger, 'playFiles', held)
+        done['left'] += left
+        done['playFile'] = _commands_out(game)
+        ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), playCleared=True, records=done['records'],
+                                                      files=len(done['files'])))
+        write_ledger(game, ledger)
     return done
 
 
@@ -996,8 +1342,7 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
         new_maps[at:at] = block
     # the result without the editor's lines must be the install's own lines
     check = list(new_maps)
-    for b in [entry] + [b for b in records if b['variant'] != variant]:
-        _take_out(check, b)
+    _strip_records(check, [entry] + [b for b in records if b['variant'] != variant])
     _strip_rotation(check, ledger)
     if check != pristine: raise InstallError('planned change touches other lines')
     new_lz = None
@@ -1017,33 +1362,34 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
         writes[RANDOM_SPAWNS] = dep.EOL.join(new_rs)
     if test:
         begin_test_install(game, test, files, writes)
-    _copy_files(game, ledger, files, play=True, atomic=test, project=(m.get('project') or {}).get('id'),
-                keep=None if test else kept)
-    if test:
-        for name, data in writes.items():
-            replace_bytes(config(game, name), data, test)
-    else:
-        dep.write_checked(config(game, 'DefaultMaps.ini'), new_maps)
-        if new_lz is not None: dep.write_checked(config(game, LZ), new_lz)
-        if new_rs is not None: dep.write_checked(config(game, RANDOM_SPAWNS), new_rs)
-    ledger['records'] = [b for b in records if b['variant'] != variant] + [entry]
-    if lz_new:
-        ledger.setdefault('playZones', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in lz_new]))
-    if rs_new:
-        ledger.setdefault('playExclusions', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in rs_new]))
-    project = m.get('project') or {}
-    installed = dict(kind='project', map=variant, base=base, buildId=m.get('buildId'), installedAt=now.isoformat(timespec='seconds'),
-                     project=dict(id=project.get('id'), name=project.get('name'), revision=project.get('revision')),
-                     quick=bool(m.get('quick')))     # a quick build: its lighting not baked
-    if test:
-        installed['prefabTest'] = test
-    if chosen:
-        installed['mission'] = chosen
-    ledger.setdefault('installed', {})[variant] = installed
-    ledger.setdefault('history', []).append(dict(at=installed['installedAt'], installed=variant, buildId=m.get('buildId'),
-                                                 **({'introBack': True} if intro_back else {}),
-                                                 **({'standsInFor': 'patchtool'} if 'original' in entry else {})))
-    write_ledger(game, ledger)
+    with (contextlib.nullcontext() if test else _change(game, f'the install of {variant} for a play')):
+        _copy_files(game, ledger, files, play=True, atomic=test, project=(m.get('project') or {}).get('id'),
+                    keep=None if test else kept)
+        if test:
+            for name, data in writes.items():
+                replace_bytes(config(game, name), data, test)
+        else:
+            _write_config(game, 'DefaultMaps.ini', new_maps)
+            if new_lz is not None: _write_config(game, LZ, new_lz)
+            if new_rs is not None: _write_config(game, RANDOM_SPAWNS, new_rs)
+        ledger['records'] = [b for b in records if b['variant'] != variant] + [entry]
+        if lz_new:
+            ledger.setdefault('playZones', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in lz_new]))
+        if rs_new:
+            ledger.setdefault('playExclusions', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in rs_new]))
+        project = m.get('project') or {}
+        installed = dict(kind='project', map=variant, base=base, buildId=m.get('buildId'), installedAt=now.isoformat(timespec='seconds'),
+                         project=dict(id=project.get('id'), name=project.get('name'), revision=project.get('revision')),
+                         quick=bool(m.get('quick')))     # a quick build: its lighting not baked
+        if test:
+            installed['prefabTest'] = test
+        if chosen:
+            installed['mission'] = chosen
+        ledger.setdefault('installed', {})[variant] = installed
+        ledger.setdefault('history', []).append(dict(at=installed['installedAt'], installed=variant, buildId=m.get('buildId'),
+                                                     **({'introBack': True} if intro_back else {}),
+                                                     **({'standsInFor': 'patchtool'} if 'original' in entry else {})))
+        write_ledger(game, ledger)
     if test:
         test_install_path(game).unlink()
     group = next((g['group'] for g in (m.get('config') or {}).get('ownLandingGroups') or [] if g['zone'] == zone), None) \
@@ -1085,6 +1431,7 @@ def install_map_record(game, name, mission=None, now=None):
     import maplist
     import missions
     game = Path(game)
+    recover_change(game)
     ledger = read_ledger(game)
     maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
     pristine = pristine_lines(game, maps)
@@ -1104,10 +1451,11 @@ def install_map_record(game, name, mission=None, now=None):
             _check_ready(game)
             now, stamp = _now(now)
             ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
-            dep.write_checked(config(game, 'DefaultMaps.ini'), new_maps)
-            ledger['records'] = [b for b in ledger.get('records') or [] if b['variant'] != name]
-            (ledger.get('installed') or {}).pop(name, None)
-            write_ledger(game, ledger)
+            with _change(game, f'the record for a play of {name} taken out'):
+                _write_config(game, 'DefaultMaps.ini', new_maps)
+                ledger['records'] = [b for b in ledger.get('records') or [] if b['variant'] != name]
+                (ledger.get('installed') or {}).pop(name, None)
+                write_ledger(game, ledger)
         return None
     _check_ready(game)
     now, stamp = _now(now)
@@ -1131,18 +1479,18 @@ def install_map_record(game, name, mission=None, now=None):
     entry = dict(variant=name, lines=[l.decode('latin-1') for l in block])
     others = [b for b in ledger.get('records') or [] if b['variant'] != name]
     check = list(new_maps)
-    for b in [entry] + others:
-        _take_out(check, b)
+    _strip_records(check, [entry] + others)
     _strip_rotation(check, ledger)
     if check != pristine: raise InstallError('planned change touches other lines')
-    dep.write_checked(config(game, 'DefaultMaps.ini'), new_maps)
-    ledger['records'] = others + [entry]
-    how = 'switched off' if switched else 'commented out by the editor' if off else 'ahead of its own'
-    installed = dict(kind='map', map=name, base=name, installedAt=now.isoformat(timespec='seconds'), project=None,
-                     mission=dict(id=index, label=label), how=how)
-    ledger.setdefault('installed', {})[name] = installed
-    ledger.setdefault('history', []).append(dict(at=installed['installedAt'], installed=name, mission=index, record=how))
-    write_ledger(game, ledger)
+    with _change(game, f'a record for a play of {name}'):
+        _write_config(game, 'DefaultMaps.ini', new_maps)
+        ledger['records'] = others + [entry]
+        how = 'switched off' if switched else 'commented out by the editor' if off else 'ahead of its own'
+        installed = dict(kind='map', map=name, base=name, installedAt=now.isoformat(timespec='seconds'), project=None,
+                         mission=dict(id=index, label=label), how=how)
+        ledger.setdefault('installed', {})[name] = installed
+        ledger.setdefault('history', []).append(dict(at=installed['installedAt'], installed=name, mission=index, record=how))
+        write_ledger(game, ledger)
     return installed
 
 
@@ -1352,8 +1700,7 @@ def _plan_rotation(ledger, new_maps, entries, pristine):
     ledger['rotation'] = entries
     _sync_off(new_maps, ledger, pristine)
     check = list(new_maps)
-    for b in ledger.get('records') or []:
-        _take_out(check, b)
+    _strip_records(check, ledger.get('records') or [])
     _strip_rotation(check, ledger)
     if check != pristine: raise InstallError('planned change touches other lines')
 
@@ -1362,7 +1709,7 @@ def _write_rotation(game, ledger, maps, new_maps, entries, pristine):
     """DefaultMaps.ini written with the rotation installs `entries` (_plan_rotation)."""
     import deploy_fixture as dep
     _plan_rotation(ledger, new_maps, entries, pristine)
-    if new_maps != maps: dep.write_checked(config(game, 'DefaultMaps.ini'), new_maps)
+    if new_maps != maps: _write_config(game, 'DefaultMaps.ini', new_maps)
 
 
 def install_rotation(game, folder, mode, now=None):
@@ -1432,26 +1779,27 @@ def _install_rotation(game, folder, mode, now=None):
         dep.check_change(rs, new_rs, inserted=(rs_at, len(rs_new)))
     kept = _backup(game, stamp)
     ledger['backups'] = ledger.get('backups', []) + [str(kept.relative_to(game))]
-    _copy_files(game, ledger, files, project=project.get('id'), keep=kept)
-    _write_rotation(game, ledger, maps, new_maps, others + [entry], pristine)
-    if new_lz is not None:
-        dep.write_checked(config(game, LZ), new_lz)
-        ledger.setdefault('landingZones', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in lz_new]))
-    else:
-        # the variant's landing zones a play put there are the campaign's from now on
-        taken = [b for b in ledger.get('playZones') or [] if b['variant'] == variant]
-        ledger['playZones'] = [b for b in ledger.get('playZones') or [] if b not in taken]
-        ledger['landingZones'] = (ledger.get('landingZones') or []) + taken
-    if new_rs is not None:
-        dep.write_checked(config(game, RANDOM_SPAWNS), new_rs)
-        ledger.setdefault('dropInExclusions', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in rs_new]))
-    else:
-        # the variant's drop-in exclusion a play put there is the campaign's from now on
-        taken = [b for b in ledger.get('playExclusions') or [] if b['variant'] == variant]
-        ledger['playExclusions'] = [b for b in ledger.get('playExclusions') or [] if b not in taken]
-        ledger['dropInExclusions'] = (ledger.get('dropInExclusions') or []) + taken
-    ledger.setdefault('history', []).append(dict(at=entry['installedAt'], rotation=variant, mode=mode, buildId=m.get('buildId')))
-    write_ledger(game, ledger)
+    with _change(game, f'the install of {variant} for campaigns'):
+        _copy_files(game, ledger, files, project=project.get('id'), keep=kept)
+        _write_rotation(game, ledger, maps, new_maps, others + [entry], pristine)
+        if new_lz is not None:
+            _write_config(game, LZ, new_lz)
+            ledger.setdefault('landingZones', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in lz_new]))
+        else:
+            # the variant's landing zones a play put there are the campaign's from now on
+            taken = [b for b in ledger.get('playZones') or [] if b['variant'] == variant]
+            ledger['playZones'] = [b for b in ledger.get('playZones') or [] if b not in taken]
+            ledger['landingZones'] = (ledger.get('landingZones') or []) + taken
+        if new_rs is not None:
+            _write_config(game, RANDOM_SPAWNS, new_rs)
+            ledger.setdefault('dropInExclusions', []).append(dict(variant=variant, lines=[l.decode('latin-1') for l in rs_new]))
+        else:
+            # the variant's drop-in exclusion a play put there is the campaign's from now on
+            taken = [b for b in ledger.get('playExclusions') or [] if b['variant'] == variant]
+            ledger['playExclusions'] = [b for b in ledger.get('playExclusions') or [] if b not in taken]
+            ledger['dropInExclusions'] = (ledger.get('dropInExclusions') or []) + taken
+        ledger.setdefault('history', []).append(dict(at=entry['installedAt'], rotation=variant, mode=mode, buildId=m.get('buildId')))
+        write_ledger(game, ledger)
     import settings
     warnings = mission_warnings(plan['missions'], base, mode, lwr=settings.game_kind(game) == 'lwr', kept=plan['kept'])
     rivals =[e['variant'] for e in others if e['base'] == base and e['mode'] == 'replace'] if mode == 'replace' else []
@@ -1471,6 +1819,7 @@ def remove_rotation(game, variants, now=None, everything=False):
     Returns the variants something was taken out for."""
     import deploy_fixture as dep
     game = Path(game)
+    recover_change(game)
     ledger = read_ledger(game)
     variants = list(dict.fromkeys(variants))
     mine = [e['variant'] for e in ledger.get('rotation') or [] if e['variant'] in variants]
@@ -1489,15 +1838,16 @@ def remove_rotation(game, variants, now=None, everything=False):
     for block in played:
         if not _take_out(new_maps, block): raise InstallError(f'the record the editor wrote for {block["variant"]} has changed; take it out by hand')
     ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
-    ledger['records'] = [b for b in ledger.get('records') or [] if b not in played]
-    for block in played: (ledger.get('installed') or {}).pop(block['variant'], None)
-    _write_rotation(game, ledger, maps, new_maps, [e for e in ledger.get('rotation') or [] if e['variant'] not in mine], pristine)
-    if zones:
-        for key in ('landingZones', 'playZones'): _zones_out(game, ledger, key, variants)     # one changed since is left
-        for key in ('dropInExclusions', 'playExclusions'): _exclusions_out(game, ledger, key, variants)
-    done = list(dict.fromkeys(mine + [b['variant'] for b in played] + [b['variant'] for b in zones]))
-    ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), **{'undone' if everything else 'rotationOut': done}))
-    write_ledger(game, ledger)
+    with _change(game, f'{", ".join(variants)} taken out of the game\'s config'):
+        ledger['records'] = [b for b in ledger.get('records') or [] if b not in played]
+        for block in played: (ledger.get('installed') or {}).pop(block['variant'], None)
+        _write_rotation(game, ledger, maps, new_maps, [e for e in ledger.get('rotation') or [] if e['variant'] not in mine], pristine)
+        if zones:
+            for key in ('landingZones', 'playZones'): _zones_out(game, ledger, key, variants)     # one changed since is left
+            for key in ('dropInExclusions', 'playExclusions'): _exclusions_out(game, ledger, key, variants)
+        done = list(dict.fromkeys(mine + [b['variant'] for b in played] + [b['variant'] for b in zones]))
+        ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), **{'undone' if everything else 'rotationOut': done}))
+        write_ledger(game, ledger)
     return done
 
 
@@ -1522,10 +1872,11 @@ def set_records_use(game, originals, use, now=None):
     ledger['manualOff'] = sorted(manual)
     new_maps = list(maps)
     ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
-    _write_rotation(game, ledger, maps, new_maps, ledger.get('rotation') or [], pristine)
-    after = {c['original'] for c in ledger['linesOff']}
-    ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), records='on' if use else 'off', count=len(originals)))
-    write_ledger(game, ledger)
+    with _change(game, 'records switched ' + ('on' if use else 'off')):
+        _write_rotation(game, ledger, maps, new_maps, ledger.get('rotation') or [], pristine)
+        after = {c['original'] for c in ledger['linesOff']}
+        ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), records='on' if use else 'off', count=len(originals)))
+        write_ledger(game, ledger)
     return dict(changed=len(before ^ after), replaced=[o for o in originals if use and o in after])
 
 
@@ -1533,19 +1884,21 @@ def restore_intro(game, now=None):
     """An earlier version's intro install taken out: the install's own first mission again. True when it changed."""
     import deploy_fixture as dep
     game = Path(game)
+    recover_change(game)
     ledger = read_ledger(game)
     if not ledger.get('slot'): return False
     _check_ready(game)
     now, stamp = _now(now)
     maps = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
     new_maps = list(maps)
-    changed = _restore_intro(ledger, new_maps)
-    if changed:
-        ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
-        dep.check_change(maps, new_maps, replaced=[i for i, (a, b) in enumerate(zip(maps, new_maps)) if a != b])
-        dep.write_checked(config(game, 'DefaultMaps.ini'), new_maps)
-        ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), introBack=True))
-    write_ledger(game, ledger)
+    with _change(game, 'an earlier version\'s intro install taken out'):
+        changed = _restore_intro(ledger, new_maps)
+        if changed:
+            ledger['backups'] = ledger.get('backups', []) + [str(_backup(game, stamp).relative_to(game))]
+            dep.check_change(maps, new_maps, replaced=[i for i, (a, b) in enumerate(zip(maps, new_maps)) if a != b])
+            _write_config(game, 'DefaultMaps.ini', new_maps)
+            ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), introBack=True))
+        write_ledger(game, ledger)
     return changed
 
 
@@ -1656,13 +2009,12 @@ def restore_saves(game, now=None):
     if not entries: return None
     if game_running(): raise InstallError('XCOM is running')
     # kept: what keep_saves did before the play (whole saves to the play range, broken ones set aside)
-    done = dict(moved=[], setAside=[], restored=[], kept=[m for e in entries for m in e.get('moved') or []],
+    done = dict(moved=[], setAside=[], restored=[], left=[], kept=[m for e in entries for m in e.get('moved') or []],
                 keptAside=[m for e in entries for m in e.get('setAside') or []])
     for entry in entries:
         result = playsaves.restore(entry)
-        done['moved'] += result['moved']
-        done['setAside'] += result['setAside']
-        done['restored'] += result['restored']
+        for key in ('moved', 'setAside', 'restored', 'left'):
+            done[key] += result[key]
     for entry in entries:
         for copy in entry.get('copies', {}).values():
             folder = Path(copy['copy']).parent
@@ -1693,41 +2045,53 @@ def reset(game, now=None):
     had_slot = bool(ledger.get('slot'))
     done['intro'] = _restore_intro(ledger, new_maps)
     if had_slot and not done['intro']: done['left'].append('the intro slot was changed by something else since; it is left as it is')
+    # what can't be taken out stays noted as the editor's, and the files of a variant whose record stays stay too
+    # (review finding 26)
+    kept, kept_rotation, kept_off = [], [], []
     for block in records:
-        if not _take_out(new_maps, block):
+        if _take_out(new_maps, block): done['records'] += 1
+        elif _named(maps, block['variant']):
             done['left'].append(f'the record for {block["variant"]} has changed; take it out by hand')
-            continue
-        done['records'] += 1
+            kept.append(block)
+        # (else no record of that name is left: taken out by hand already)
     # the rotation installs: the variants' records out, the base maps' own back in rotation
-    left = _rotation_out(new_maps, ledger)
-    done['left'] += left
-    done['rotation'] = len(ledger.get('rotation') or []) - len(left)
+    stuck = []
+    left = _rotation_out(new_maps, ledger, kept=stuck)
+    for entry, why in zip(stuck, left):
+        if _named(maps, entry['variant']):
+            kept_rotation.append(entry)
+            done['left'].append(why)
+    done['rotation'] = len(ledger.get('rotation') or []) - len(kept_rotation)
     off = ledger.get('linesOff') or []
-    missing = _base_back(new_maps, off)
+    missing = _base_back(new_maps, off, kept_off)
     done['recordsBack'] = len(off) - missing
     if missing:
         done['left'].append(f'{missing} of the install\'s own records that the editor commented out have changed since; put them back by hand')
-    if new_maps != maps: dep.write_checked(config(game, 'DefaultMaps.ini'), new_maps)
-    for key in ('landingZones', 'playZones'):
-        count, left = _zones_out(game, ledger, key)
-        done['landingZones'] += count
-        done['left'] += left
-    for key in ('dropInExclusions', 'playExclusions'):
-        count, left = _exclusions_out(game, ledger, key)
-        done['dropInExclusions'] += count
-        done['left'] += left
-    for key in ('files', 'playFiles'):
-        names, left = _files_out(game, ledger, key)
-        done['files'] += names
-        done['left'] += left
-    done['files'].sort()
-    if _commands_out(game): done['playFile'] = True
-    ledger.update(slot=None, records=[], landingZones=[], files={}, playZones=[], playFiles={}, intro=None, installed={},
-                  dropInExclusions=[], playExclusions=[],
-                  lastPlay=None, rotation=[], linesOff=[], manualOff=[], owners={})
-    ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), reset=True, records=done['records'],
-                                                  files=len(done['files']), **({'introBack': True} if done['intro'] else {})))
-    write_ledger(game, ledger)
+    held = _held(ledger, [b['variant'] for b in kept] + [e['variant'] for e in kept_rotation])
+    with _change(game, "everything of the editor's taken out of the game"):
+        if new_maps != maps: _write_config(game, 'DefaultMaps.ini', new_maps)
+        for key in ('landingZones', 'playZones'):
+            count, left = _zones_out(game, ledger, key)
+            done['landingZones'] += count
+            done['left'] += left
+        for key in ('dropInExclusions', 'playExclusions'):
+            count, left = _exclusions_out(game, ledger, key)
+            done['dropInExclusions'] += count
+            done['left'] += left
+        for key in ('files', 'playFiles'):
+            names, left = _files_out(game, ledger, key, held)
+            done['files'] += names
+            done['left'] += left
+        done['files'].sort()
+        if _commands_out(game): done['playFile'] = True
+        # the landing zones, drop-in lines and files left are still noted (_zones_out, _exclusions_out, _files_out)
+        stay = {b['variant'] for b in kept}
+        ledger.update(slot=None, records=kept, intro=None, lastPlay=None, rotation=kept_rotation, linesOff=kept_off,
+                      installed={k: v for k, v in (ledger.get('installed') or {}).items() if k in stay},
+                      manualOff=[o for o in ledger.get('manualOff') or [] if o in {c['original'] for c in kept_off}])
+        ledger.setdefault('history', []).append(dict(at=now.isoformat(timespec='seconds'), reset=True, records=done['records'],
+                                                      files=len(done['files']), **({'introBack': True} if done['intro'] else {})))
+        write_ledger(game, ledger)
     done['config'] = restore_config(game)
     done['saves'] = restore_saves(game)
     return done

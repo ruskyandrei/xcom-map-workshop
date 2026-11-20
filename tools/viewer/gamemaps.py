@@ -112,8 +112,9 @@ def listing(player):
 def use(player, request):
     """The install's own records switched on or off."""
     import deploy_fixture as dep
+    # (each id a text: a list or an object in their place made set() raise, review finding 46)
     if not isinstance(request, dict) or not isinstance(request.get('records'), list) or not request['records'] \
-            or not isinstance(request.get('use'), bool):
+            or not all(isinstance(r, str) for r in request['records']) or not isinstance(request.get('use'), bool):
         raise ProjectError(400, 'Send {"records": [id...], "use": true or false}.')
     game = _game(player, 'Not changed')
     wanted = set(request['records'])

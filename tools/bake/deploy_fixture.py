@@ -51,10 +51,11 @@ import datetime
 import hashlib
 import io
 import json
+import os
 import re
 import shutil
-import subprocess
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'upk'))
@@ -219,8 +220,13 @@ def plan_lz(lines, base, variant, note):
 
 
 def game_running():
-    out = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True).stdout
-    return 'XComEW.exe' in out
+    """Whether XCOM: Enemy Within is running: one look at the process table (tools/viewer/procs.py), as the editor's
+    install step asks it."""
+    viewer = str(Path(__file__).resolve().parents[1] / 'viewer')
+    if viewer not in sys.path:
+        sys.path.append(viewer)
+    import procs
+    return procs.running('XComEW.exe')
 
 
 def checks(game):
@@ -246,9 +252,26 @@ def check_change(old, new, replaced=(), inserted=None, removed=None):
 
 
 def write_checked(path, new_lines):
-    path.write_bytes(EOL.join(new_lines))
-    if lines_of(path.read_bytes()) != new_lines:
-        raise ValueError(f'{path} did not read back as written')
+    """The lines written to `path` through a temporary file beside it, read back, then put in its place with a replace:
+    a crash or a forced stop mid-write never leaves the game's config file cut short, and one that does not read back
+    as written never replaces it (review finding 2)."""
+    path = Path(path)
+    temp = path.with_name(f'.{path.name}.write.tmp')
+    try:
+        temp.write_bytes(EOL.join(new_lines))
+        if lines_of(temp.read_bytes()) != new_lines:
+            raise ValueError(f'{path} did not read back as written')
+        # another process holding the file a moment (a virus scanner, an editor) makes Windows refuse the replace
+        for attempt in range(50):
+            try:
+                os.replace(temp, path)
+                break
+            except PermissionError:
+                if attempt == 49:
+                    raise
+                time.sleep(0.02)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def unused(path):

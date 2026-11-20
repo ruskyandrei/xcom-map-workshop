@@ -242,6 +242,27 @@ def tree_alive(pid, created):
     return alive
 
 
+def processes():
+    """{pid: (parent pid, exe name)} of every process now, from one snapshot of the process table: no child process
+    (Windows; an OSError elsewhere, or when the snapshot can't be taken)."""
+    if not WINDOWS:
+        raise OSError('the process table is read on Windows only')
+    return _processes()
+
+
+def running(image):
+    """Whether a process whose exe is named `image` (any case) runs now: one snapshot of the process table, where
+    asking tasklist started a process each time (review finding 50). Unknown process state is reported as running, as
+    tree_alive does; elsewhere than Windows, False."""
+    if not WINDOWS:
+        return False
+    try:
+        table = _processes()
+    except OSError:
+        return True
+    return any(name.lower() == image.lower() for _, name in table.values())
+
+
 class Contained:
     """A launched process tree: `proc` (its subprocess.Popen), `pid`, `created` (identity)."""
 

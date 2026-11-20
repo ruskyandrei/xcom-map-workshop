@@ -22,6 +22,10 @@ so a newer version installed over an older one takes the older out first, whiche
 undoes exactly that: the lines it added go, the lines it
 commented out come back, the files it copied are deleted if unchanged; it says whether DefaultMaps.ini is then byte
 for byte as it was before the pack (it is, unless something else changed the file meanwhile, whose changes stay).
+What it can't take out (lines changed since, a file changed since) stays noted in the state file for the next
+Uninstall, and a map whose records stay in the game keeps its files, as a card changed since keeps the pack's maps
+(review finding 26): a record naming a map that is not there could be drawn by the game. An install over an earlier
+one with such leftovers stops until they are put right.
 
 The lines come from pack.json, worked out from the install the pack was made from (installs.rotation_plan): a map whose
 base map has no record in the target install is left out, and so is one that already has a record of its name there.
@@ -30,6 +34,9 @@ The files are read and written as bytes (Latin-1, CRLF), as the editor's own ins
 
 CMD = r'''@echo off
 rem {what} this map pack. Double-click it, or give the game folder: {name}.cmd "D:\Steam\steamapps\common\XCom-Enemy-Unknown"
+rem Windows PowerShell builds its own module path: one inherited from PowerShell 7 hides its Get-FileHash.
+setlocal
+set "PSModulePath="
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pack-tools\pack.ps1" {action} %*
 set code=%errorlevel%
 if "%~1"=="" pause
@@ -152,16 +159,22 @@ function Add-Exclusion($rs, $map) {
     $rs.InsertRange($at, $lines)
     return ,$lines
 }
-function Remove-Exclusions($state, [ref]$left) {
+function Remove-Exclusions($state, [ref]$left, [ref]$kept) {
     if (-not (@($state.exclusions).Count -and (Test-Path -LiteralPath $rsPath))) { return }
     $rs = Read-Lines $rsPath
     foreach ($block in @($state.exclusions)) {
         $run = [string[]]@($block.lines)
         $at = Find-Run $rs $run
-        if ($at -lt 0) { $left.Value += "the drop-in exclusion of $($block.variant) has changed: take it out by hand"; continue }
+        if ($at -lt 0) { $left.Value += "the drop-in exclusion of $($block.variant) has changed: take it out by hand"; $kept.Value += $block; continue }
         $rs.RemoveRange($at, $run.Count)
     }
     Write-Lines $rsPath $rs
+}
+# What could not be taken out stays noted in the pack's state file, for Uninstall.cmd to take out once it is put right.
+function Save-Left($state, $keep) {
+    foreach ($key in @($keep.Keys)) { $state | Add-Member -NotePropertyName $key -NotePropertyValue @($keep[$key]) -Force }
+    ConvertTo-Json $state -Depth 6 | Set-Content -Encoding UTF8 -LiteralPath $statePath
+    Write-Host "What is left stays noted in $statePath`: run Uninstall.cmd again once it is put right." -ForegroundColor Yellow
 }
 
 function Uninstall-Pack {
@@ -169,35 +182,56 @@ function Uninstall-Pack {
     $state = Get-Content -Raw -Encoding UTF8 -LiteralPath $statePath | ConvertFrom-Json
     $left = @()
     if ($state.route -eq 'cards') {
-        # the folder's files and the caches beside it, each deleted if unchanged; the folder goes once empty
+        # the folder's files and the caches beside it, each deleted if unchanged; the folder goes once empty. While the
+        # card stays (changed since), it names the maps, and they stay too.
+        $keep = @{ files = @(); exclusions = @() }
+        $cardStays = $false
+        foreach ($file in @($state.files | Where-Object { $_.name -match 'LWRMapPack_\d{4}\.upk$' })) {
+            $path = Join-Path $cooked $file.name
+            if ((Test-Path -LiteralPath $path) -and (Sha $path) -ne $file.sha256) { $cardStays = $true }
+        }
         $gone = 0
         foreach ($file in @($state.files)) {
             $path = Join-Path $cooked $file.name
             if (-not (Test-Path -LiteralPath $path)) { continue }
-            if ((Sha $path) -ne $file.sha256) { $left += "$($file.name) has changed since: it stays"; continue }
+            if ((Sha $path) -ne $file.sha256) { $left += "$($file.name) has changed since: it stays"; $keep.files += $file; continue }
+            if ($cardStays) { $left += "$($file.name) stays: the pack's card, changed since, still names it"; $keep.files += $file; continue }
             Remove-Item -LiteralPath $path
             $gone++
         }
         $there = Join-Path $cooked $state.folder
         if ((Test-Path -LiteralPath $there) -and -not @(Get-ChildItem -LiteralPath $there -Force).Count) { Remove-Item -LiteralPath $there }
-        Remove-Exclusions $state ([ref]$left)
-        Remove-Item -LiteralPath $statePath
-        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse }
+        $kept = @()
+        Remove-Exclusions $state ([ref]$left) ([ref]$kept)
+        $keep.exclusions = $kept
         Write-Host "Taken out: the pack's folder $($state.folder), $gone file(s)."
         foreach ($note in $left) { Write-Host "  Left: $note" -ForegroundColor Yellow }
+        if (@($keep.files).Count -or @($keep.exclusions).Count) { Save-Left $state $keep; return $true }
+        Remove-Item -LiteralPath $statePath
+        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse }
         return $true
     }
     $maps = Read-Lines $mapsPath
+    $keep = @{ added = @(); commented = @(); zones = @(); exclusions = @(); files = @() }
+    $taken = 0; $back = 0; $held = @()
     foreach ($block in @($state.added)) {
         $run = [string[]]@($block.lines)
         $at = Find-Run $maps $run
-        if ($at -lt 0) { $left += "the records of $($block.variant) have changed: take them out by hand"; continue }
-        $maps.RemoveRange($at, $run.Count)
+        if ($at -ge 0) { $maps.RemoveRange($at, $run.Count); $taken++; continue }
+        # not there as written: still in the game while a record of its name is, and then its files stay too (a record
+        # naming a map that is not there could be drawn); with none, taken out by hand already
+        $named = '^\s*Maps=\(.*(?<![A-Za-z])Name="' + [regex]::Escape($block.variant) + '"'
+        if (-not @($maps | Where-Object { $_ -match $named }).Count) { continue }
+        $left += "the records of $($block.variant) have changed: take them out by hand"
+        $keep.added += $block
+        if ($block.PSObject.Properties.Name -contains 'files') { $held += @($block.files) }
+        else { $held += @($state.files | ForEach-Object { $_.name }) }    # a state from before: which are its, nothing says
     }
     foreach ($line in @($state.commented)) {
         $at = $maps.IndexOf(';' + $line)
-        if ($at -lt 0) { $left += 'a record this pack commented out has changed since: check it by hand'; continue }
+        if ($at -lt 0) { $left += 'a record this pack commented out has changed since: check it by hand'; $keep.commented += $line; continue }
         $maps[$at] = $line
+        $back++
     }
     Write-Lines $mapsPath $maps
     if (@($state.zones).Count -and (Test-Path -LiteralPath $lzPath)) {
@@ -205,23 +239,27 @@ function Uninstall-Pack {
         foreach ($block in @($state.zones)) {
             $run = [string[]]@($block.lines)
             $at = Find-Run $lz $run
-            if ($at -lt 0) { $left += "the landing zones of $($block.variant) have changed: take them out by hand"; continue }
+            if ($at -lt 0) { $left += "the landing zones of $($block.variant) have changed: take them out by hand"; $keep.zones += $block; continue }
             $lz.RemoveRange($at, $run.Count)
         }
         Write-Lines $lzPath $lz
     }
-    Remove-Exclusions $state ([ref]$left)
+    $kept = @()
+    Remove-Exclusions $state ([ref]$left) ([ref]$kept)
+    $keep.exclusions = $kept
     $gone = 0
     foreach ($file in @($state.files)) {
         $path = Join-Path $cooked $file.name
         if (-not (Test-Path -LiteralPath $path)) { continue }
-        if ((Sha $path) -ne $file.sha256) { $left += "$($file.name) has changed since: it stays"; continue }
+        if ($held -contains $file.name) { $left += "$($file.name) stays: records that play it are still in DefaultMaps.ini"; $keep.files += $file; continue }
+        if ((Sha $path) -ne $file.sha256) { $left += "$($file.name) has changed since: it stays"; $keep.files += $file; continue }
         Remove-Item -LiteralPath $path
         $gone++
     }
-    Remove-Item -LiteralPath $statePath
-    Write-Host "Taken out: the records of $(@($state.added).Count) map(s), $(@($state.commented).Count) record(s) of the game's own back in use, $gone file(s)."
+    Write-Host "Taken out: the records of $taken map(s), $back record(s) of the game's own back in use, $gone file(s)."
     foreach ($note in $left) { Write-Host "  Left: $note" -ForegroundColor Yellow }
+    if (@($keep.Values | ForEach-Object { @($_) }).Count) { Save-Left $state $keep }
+    else { Remove-Item -LiteralPath $statePath }
     $before = Join-Path $backup 'DefaultMaps.ini'
     if (Test-Path -LiteralPath $before) {
         if ((Sha $before) -eq (Sha $mapsPath)) {
@@ -244,6 +282,7 @@ if ($Action -ne 'install') { Fail "Unknown action '$Action': install or uninstal
 if (Test-Path -LiteralPath $statePath) {
     Write-Host 'This pack is installed already: taking the earlier install out first.'
     [void](Uninstall-Pack)
+    if (Test-Path -LiteralPath $statePath) { Fail 'Part of the earlier install could not be taken out (above), and it stays noted: put it right and run Install.cmd again.' }
 }
 $useCards = Test-Cards
 if ($Route -eq 'classic') { $useCards = $false } elseif ($Route -eq 'cards') { $useCards = $true } elseif ($Route) { Fail "Unknown way '$Route': cards or classic." }
@@ -315,7 +354,9 @@ if ($useCards) {
     if ($caches.Count) { Write-Host "$($caches.Count) lighting cache file(s) lie beside the folder, in CookedPCConsole itself." }
     if ($exclusions.Count) { Write-Host "$($exclusions.Count) drop-in exclusion(s) were added to DefaultRandomSpawns.ini (a card can't carry them)." }
     foreach ($note in $notes) { Write-Host "  Note: $note" -ForegroundColor Yellow }
-    Write-Host 'No file of the game was changed. In the game''s console, Mutate LWRMapTest Packs lists the pack. Uninstall.cmd takes it out again.'
+    $changed = 'No file of the game was changed.'
+    if ($exclusions.Count) { $changed = 'No other file of the game was changed.' }
+    Write-Host "$changed In the game's console, Mutate LWRMapTest Packs lists the pack. Uninstall.cmd takes it out again."
     exit 0
 }
 $maps = Read-Lines $mapsPath
@@ -340,7 +381,8 @@ foreach ($map in @($pack.maps)) {
     if ($last -lt 0) { $skipped += "$($map.variant): this game has no record for its base map, $($map.base)"; continue }
     $records = [string[]]@($map.records)
     $maps.InsertRange($last + 1, $records)
-    $added += @{ variant = $map.variant; lines = $records }
+    # with its files, which stay while its records do (Uninstall-Pack)
+    $added += @{ variant = $map.variant; lines = $records; files = [string[]]@($map.files) }
     # each map says whether it replaces its base map (a pack from before that says it once, for all)
     $way = $map.mode
     if (-not $way) { $way = $pack.mode }

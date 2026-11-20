@@ -258,6 +258,24 @@ class DeployRestore(unittest.TestCase):
         with self.assertRaises(ValueError):
             dep.restore(plan['record'], self.game)
 
+    def test_a_config_file_is_written_whole_or_not_at_all(self):
+        """Review finding 2: write_checked writes a temporary file beside the config file, reads it back and only then
+        replaces the file, so a stop mid-write or a bad read-back leaves the game's file as it was."""
+        from unittest import mock
+        path = self.cfg / 'DefaultMaps.ini'
+        lines = dep.lines_of(self.maps)
+        new = lines[:-1] + [b';added', b'']
+        with mock.patch.object(dep.os, 'replace', side_effect=OSError('stopped')):
+            with self.assertRaises(OSError): dep.write_checked(path, new)
+        self.assertEqual(path.read_bytes(), self.maps)
+        with mock.patch.object(dep, 'lines_of', return_value=[b'not what was written']):
+            with self.assertRaises(ValueError): dep.write_checked(path, new)
+        self.assertEqual(path.read_bytes(), self.maps)
+        self.assertEqual(sorted(p.name for p in self.cfg.iterdir()), ['DefaultLZMutator.ini', 'DefaultMaps.ini'])
+        dep.write_checked(path, new)
+        self.assertEqual(path.read_bytes(), dep.EOL.join(new))
+        self.assertEqual(sorted(p.name for p in self.cfg.iterdir()), ['DefaultLZMutator.ini', 'DefaultMaps.ini'])
+
 
 if __name__ == '__main__':
     unittest.main()
