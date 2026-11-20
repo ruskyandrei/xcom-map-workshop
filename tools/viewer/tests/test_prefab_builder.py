@@ -9,7 +9,7 @@ import unittest
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import test_prefabs as fixtures
+import viewer_fixtures as fixtures
 from prefab_bounds import measure, policy, require_supported
 from prefabs import validate
 from export_math import transform, view_matrix
@@ -89,8 +89,8 @@ class BoundsTests(unittest.TestCase):
 
 
 class BuilderRoutes(unittest.TestCase):
-    setUp = fixtures.RouteTests.setUp
-    call = fixtures.RouteTests.call
+    setUp = fixtures.PrefabServer.setUp
+    call = fixtures.PrefabServer.call
 
     def test_families_without_a_map(self):
         status, table = self.call('GET', '/families.json')

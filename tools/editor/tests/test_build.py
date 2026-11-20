@@ -11,8 +11,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import build  # noqa: E402
 import compiler  # noqa: E402
+import editor_fixtures  # noqa: E402
 
-RECORDS = HERE.parents[1] / 'patch' / 'tests' / 'defaultmaps-records.txt'
 BASE = b'pristine bar'
 VARIANT, PATCH = 'URB_Bar_Test_1234', 'patch_urb_bar_test_1234'
 PICTURE_PROJECT = '0f8b2c4e-1d2a-4b6c-8e9f-123456789abc'       # a project with a map picture has a real id (pictures.py)
@@ -51,10 +51,8 @@ LIGHTS = dict(type='lights',
 
 
 def record(name):
-    for line in RECORDS.read_bytes().split(b'\n'):
-        if line.startswith(name.encode() + b'\t'):
-            return line.split(b'\t', 1)[1].decode('latin-1')
-    raise KeyError(name)
+    """The game's DefaultMaps.ini record of the map `name` (editor_fixtures.record), as text."""
+    return editor_fixtures.record(name).decode('latin-1')
 
 
 class ConfigLines(unittest.TestCase):

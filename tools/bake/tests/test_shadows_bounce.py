@@ -85,8 +85,7 @@ class OneMesh:
         return ('Actor', 'Actor.Component', 'Mesh')[index - 1]
 
     def native(self, index):
-        sys.path.insert(0, str(HERE.parents[1] / 'viewer' / 'tests'))
-        from test_formats import minimal_mesh
+        from fixtures import minimal_mesh
         from package import Reader
         return Reader(minimal_mesh())
 

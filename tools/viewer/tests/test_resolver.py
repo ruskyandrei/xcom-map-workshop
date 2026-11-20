@@ -5,15 +5,7 @@ import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from export_math import transform,view_matrix
 from resolver import resolve_scene,snap,place
-
-
-def scene():
-    obj=dict(id='1:2',actor='TheWorld.PersistentLevel.Piece',actorClass='XComLevelActor',mesh='m',
-             materials=[],location=[10,0,0],rotation=[0,0,0],scale=[1,1,1],hidden=False,floors=[],
-             componentTransform=transform([0,0,0],[0,0,0],[1,1,1]))
-    place(obj,obj['location'],obj['rotation'],obj['scale'])
-    return dict(objects=[obj],meshes={'m':dict(bounds=[0,0,0,1,1,1,2])},materials={},textures={},
-                buildings=[],diagnostics=[])
+from viewer_fixtures import scene
 
 
 class ResolverTests(unittest.TestCase):

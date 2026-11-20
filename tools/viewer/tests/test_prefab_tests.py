@@ -21,9 +21,8 @@ from prefab_tests import PrefabTests, read, stage, write
 from play import Player
 from projects import ProjectError, ProjectStore
 from viewer import Handler, LocalServer
-import test_play
-from test_prefabs import prefab
-from viewer_fixtures import document
+from viewer_fixtures import document, game_folder, prefab, record
+import deploy_fixture as dep
 
 BUILDER = """
 from pathlib import Path
@@ -60,7 +59,7 @@ class Tests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
         self.game = self.root / 'Game'
-        test_play.game_folder(self.game, test_play.dep.set_field(test_play.record('bar'), 'Name', stage.MAP))
+        game_folder(self.game, dep.set_field(record('bar'), 'Name', stage.MAP))
         self.maps = installs.config(self.game, 'DefaultMaps.ini')
         self.maps_before = self.maps.read_bytes()
         self.base = installs.cooked(self.game) / f'{stage.MAP}.upk'

@@ -13,7 +13,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 import compiler  # noqa: E402
 from compiler import compile_project, native_split, stream_only  # noqa: E402
-from test_compiler import DONOR_SHA, PL, document, scene, target  # noqa: E402
+from editor_fixtures import DONOR_SHA, PL, document, scene, target  # noqa: E402
 
 CAN = dict(move=True, copy=True, delete=True, values=False)
 

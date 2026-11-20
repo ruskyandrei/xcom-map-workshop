@@ -60,14 +60,12 @@ def configured(key, *parts):
     return None if folder is None else folder.joinpath(*parts)
 
 
-COOKED_ENV = 'XCOM_COOKED'
-COOKED_ALIAS = 'XCOM_LWR_COOKED'      # its old name, still read (review finding 58: one variable for one folder)
+COOKED_ENV = 'XCOM_COOKED'      # one variable for one folder (review finding 58)
 
 
 def cooked_override():
-    """The CookedPCConsole folder XCOM_COOKED (or its old name XCOM_LWR_COOKED) names in place of the settings', or
-    None."""
-    folder = os.environ.get(COOKED_ENV) or os.environ.get(COOKED_ALIAS)
+    """The CookedPCConsole folder XCOM_COOKED names in place of the settings', or None."""
+    folder = os.environ.get(COOKED_ENV)
     return Path(folder) if folder else None
 
 

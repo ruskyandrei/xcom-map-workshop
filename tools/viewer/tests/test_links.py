@@ -7,7 +7,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from package import Package, Reader
 from scene_metadata import fragment_breaks, kismet_references, prefab_members
 from resolver import resolve_scene
-from test_resolver import scene
+from viewer_fixtures import scene
 import settings
 
 # URB_Bar from the LWR install (the lwr setting); without it the Kismet test skips

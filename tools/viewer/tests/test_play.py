@@ -17,26 +17,16 @@ from urllib.request import Request, urlopen
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, str(HERE.parents[1] / 'bake' / 'tests'))
-from builds import BuildRunner  # noqa: E402
 import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture as dep  # noqa: E402
 import gamelaunch  # noqa: E402
 import maplist  # noqa: E402
 import missions  # noqa: E402
-from play import Player  # noqa: E402
 import playsaves  # noqa: E402
-from projects import ProjectError, ProjectStore  # noqa: E402
-from fixtures import record  # noqa: E402
-from viewer_fixtures import ID, OTHER, document  # noqa: E402
+from projects import ProjectError  # noqa: E402
+from viewer_fixtures import (ID, MUTATOR_LOADER, OTHER, RANDOM_SPAWNS, VARIANT, PlayInstalls, game_folder,  # noqa: E402
+                             record)
 from viewer import Handler, LocalServer  # noqa: E402
-
-VARIANT = 'URB_Bar_Remix_0f8b'
-# Long War's loader with the drop-in mutator, and its drop-in settings (editor spawns plan, SP8)
-MUTATOR_LOADER = b'[XComMutator.XComMutatorLoader]\r\narrTacticalMutators="XComLZMutator.XComSpawnAlienMutator"\r\n'
-RANDOM_SPAWNS = dep.EOL.join([b'[XComLZMutator.XComSpawnAlienMutator]', b'MAX_DROP_DIST = 32', b'ExcludeMaps = "EWI_ChryssalidHive"',
-                              b';ExcludeMaps = "DLC2_2_Deluge"', b'', b'[XComLZMutator.XComSpawnMutator]', b'PLAYER_PROXIMITY = 29', b''])
-SLOT = installs.FIRST_MISSIONS[0]      # the first mission's record, which the game asks for by name
 
 
 def bomb_record(name='URB_Bar'):
@@ -71,91 +61,7 @@ CONTENT = '\n'.join([
     ''])
 
 
-def game_folder(game, slot, lz=b'LZArray=(MapName="URB_Bar",StartLoc=(X=1,Y=2,Z=3))', kind='lwr'):
-    (game / 'XEW/XComGame/Config').mkdir(parents=True)
-    (game / 'XEW/XComGame/CookedPCConsole').mkdir(parents=True)
-    (game / 'XEW/Binaries/Win32').mkdir(parents=True)
-    (game / 'XEW/Binaries/Win32/XComEW.exe').write_bytes(b'exe')
-    (game / 'XEW/XComGame/Config/DefaultMaps.ini').write_bytes(dep.EOL.join([b'[XComGame.XComMapManager]', record('bar'), slot, b'']))
-    (game / 'XEW/XComGame/Config/DefaultLZMutator.ini').write_bytes(dep.EOL.join([b'[XComLZMutator.XComLZMutator]', lz, b'']))
-    if kind == 'lwr': (game / 'XEW/XComGame/Config/DefaultLWRebalance.ini').write_bytes(b'')
-    (game / 'XEW/XComGame/CookedPCConsole/URB_Bar.upk').write_bytes(b'bar')
-    (game / 'XEW/XComGame/CookedPCConsole/CIN_DropshipIntros.upk').write_bytes(b'intro')
-
-
-class Play(unittest.TestCase):
-    def setUp(self):
-        running = installs.game_running
-        self.addCleanup(setattr, installs, 'game_running', running)
-        self.running = False
-        installs.game_running = lambda: self.running
-        self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        # LWR's own first mission: another map's record under the slot's DisplayName
-        self.default = dep.set_field(record('liquorstore'), 'DisplayName', SLOT)
-        self.lwr, self.copy = root / 'games' / 'LWR', root / 'games' / 'Copy'
-        game_folder(self.lwr, self.default)
-        game_folder(self.copy, self.default)
-        self.output = root / 'builds'
-        self.store = ProjectStore(root / 'projects')
-        self.store.save(ID, document(output=dict(shipAs=VARIANT, patch='patch_' + VARIANT.lower())), 0)
-        self.builds = BuildRunner(self.store, root / 'cache', self.output, command=lambda f: [sys.executable, '-c', ''])
-        self.catalogue = dict(defaultMap='URB_Bar', maps=dict(URB_Bar=dict(id='URB_Bar', name='URB_Bar', root=root)))
-        self.settings = dict(projects=root / 'projects', output=self.output, cache=root / 'cache', lwr=self.lwr,
-                             install=None, udk=None, lab=None)
-        # the user's Documents, with the game's own generated config in it
-        self.documents = root / 'Documents'
-        self.content = self.documents / 'My Games/XCOM - Enemy Within/XComGame/Config/XComContent.ini'
-        self.content.parent.mkdir(parents=True)
-        self.content.write_bytes(b'[XComGame.XComContentManager]\r\nthe game\'s own\r\n')
-        self.started = []
-
-    def player(self, install=None, **more):
-        # cleanup off: these tests look at what a play installs, which a real play takes out again once the game has
-        # closed (the tests of that pass cleanup=True)
-        return Player(dict(self.settings, install=install), self.builds, self.catalogue, self.store,
-                      start=lambda argv, cwd=None: self.started.append((argv, cwd)), steam=lambda: Path('steam.exe'),
-                      user_documents=self.documents, **dict(dict(appear=0, every=0.01, cleanup=False), **more))
-
-    def package(self, revision=1, quick=False, zones=None, ids=None, groups=None, maps=None, record_missions=None, exclusion=False):
-        """A built package: the relit map, its cache and its own copy of the landing intro, streamed in its place; a
-        quick build's has no cache. `zones`: the project's own landing-zone lines (config.landingZonesFromProject).
-        `maps`: the Build's records (config.maps, text), with `record_missions` (config.recordMissions) when given."""
-        folder = self.output / VARIANT
-        (folder / 'CookedPCConsole').mkdir(parents=True, exist_ok=True)
-        intro = f'CIN_DropshipIntros_{VARIANT}'
-        files = {}
-        for name, data in [(f'{VARIANT}.upk', b'relit map %d' % revision), ('Lighting_4242.tfc', b'lightmaps'),
-                           (f'{intro}.upk', b'intro copy')]:
-            if quick and name.endswith('.tfc'): continue
-            (folder / 'CookedPCConsole' / name).write_bytes(data)
-            files[f'CookedPCConsole/{name}'] = hashlib.sha256(data).hexdigest()
-        m = dict(schema=installs.PACKAGE_SCHEMA, schemaVersion=1, buildId=f'{VARIANT}-{revision}', builtAt='2026-11-08T12:00:00',
-                 project=dict(id=ID, name='Bar remix', revision=revision), source=dict(map='URB_Bar', sha256='s' * 64),
-                 variant=VARIANT, patch=None, files=files, streams=[], replaceStreams={'CIN_DropshipIntros': intro},
-                 **({'quick': True} if quick else {}),
-                 **({'config': dict(landingZones=zones, landingZonesFromProject=True, landingZoneIds=ids or [],
-                                    **({'ownLandingGroups': groups} if groups else {}))} if zones is not None else {}))
-        if exclusion:       # the project leaves scripted drop-ins where placed (build.drop_in_exclusion)
-            m.setdefault('config', {})['dropInExclusion'] = dict(file='DefaultRandomSpawns.ini', section='XComLZMutator.XComSpawnAlienMutator',
-                                                               line=f'ExcludeMaps = "{VARIANT}"')
-        if maps is not None:
-            m.setdefault('config', {}).update(maps=maps, missions=[missions.label(missions.kind_key(r)) for r in maps],
-                                              **({'recordMissions': record_missions} if record_missions is not None else {}))
-        (folder / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
-
-    def files(self, game):
-        return {n: (game / 'XEW/XComGame/Config' / n).read_bytes() for n in ('DefaultMaps.ini', 'DefaultLZMutator.ini')}
-
-    def records(self, game, name):
-        maps = dep.lines_of((game / 'XEW/XComGame/Config/DefaultMaps.ini').read_bytes())
-        return [l for l in maps if dep.is_record(l) and dep.field(l, 'Name') == name]
-
-    def settle(self, player):
-        """Wait for the player's watch to end (the game 'closed')."""
-        player.watching.join(timeout=10)
-        self.assertFalse(player.watching.is_alive())
-
+class Play(PlayInstalls, unittest.TestCase):
     def played(self, request):
         """A play by a player of its own, its watch ended before the next (two players' watches race each other on
         the kept files, which the server's one player never does)."""

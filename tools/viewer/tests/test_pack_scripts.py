@@ -1,4 +1,4 @@
-"""A map pack's Install.cmd and Uninstall.cmd (pack_scripts.py) on the temporary game installs of test_play.py:
+"""A map pack's Install.cmd and Uninstall.cmd (pack_scripts.py) on the temporary game installs of viewer_fixtures.PlayInstalls:
 - review finding 26: Uninstall keeps a map whose records were edited since in the game, with its files, and keeps
   noting what it left; a card changed since keeps the pack's maps; the cards install no longer says no file was
   changed after adding drop-in lines;
@@ -14,16 +14,13 @@ import zipfile
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, str(HERE.parents[1] / 'bake' / 'tests'))
 import installs  # noqa: E402,F401  (it puts tools/bake on the path)
 import deploy_fixture as dep  # noqa: E402
 import manager  # noqa: E402
-import test_manager  # noqa: E402  (its Manager is used by name, so that its tests don't run here again)
-from test_manager import OTHER, OTHER_ID, pack_env, powershell_report  # noqa: E402
-import test_play  # noqa: E402
-from viewer_fixtures import ID  # noqa: E402
+from viewer_fixtures import (ID, MUTATOR_LOADER, RANDOM_SPAWNS, VARIANT, ManagerInstalls, PlayInstalls,  # noqa: E402
+                             pack_env, powershell_report)
+from viewer_fixtures import SECOND_ID as OTHER_ID, SECOND_VARIANT as OTHER  # noqa: E402
 
-VARIANT = test_play.VARIANT
 WINDOWS_POWERSHELL = sys.platform == 'win32' and shutil.which('powershell')
 
 
@@ -34,8 +31,8 @@ def xcom_running():
 
 @unittest.skipUnless(WINDOWS_POWERSHELL, 'the pack\'s scripts run with Windows PowerShell')
 class PackScripts(unittest.TestCase):
-    setUp = test_play.Play.setUp
-    M = test_manager.Manager
+    setUp = PlayInstalls.setUp
+    M = ManagerInstalls
     player, package, files, records, more_missions, second, card_game = (
         M.player, M.package, M.files, M.records, M.more_missions, M.second, M.card_game)
     run_script, run_script_with = M.run_script, M.run_script_with
@@ -96,8 +93,8 @@ class PackScripts(unittest.TestCase):
         install says what it changed: with a drop-in line added, not that no file was changed."""
         for game in (self.copy,):
             self.card_game(game)
-            (game / 'XEW/XComGame/Config/DefaultMutatorLoader.ini').write_bytes(test_play.MUTATOR_LOADER)
-            (game / 'XEW/XComGame/Config/DefaultRandomSpawns.ini').write_bytes(test_play.RANDOM_SPAWNS)
+            (game / 'XEW/XComGame/Config/DefaultMutatorLoader.ini').write_bytes(MUTATOR_LOADER)
+            (game / 'XEW/XComGame/Config/DefaultRandomSpawns.ini').write_bytes(RANDOM_SPAWNS)
         if xcom_running(): self.skipTest('XCOM is running: the scripts refuse, as they should')
         self.package(exclusion=True)
         self.second()

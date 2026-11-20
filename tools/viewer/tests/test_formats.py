@@ -11,23 +11,7 @@ from mesh import read_mesh
 from export import transform, view_matrix, multiply
 from texture import decompress_payload, dds_header
 from PIL import Image
-
-
-def minimal_mesh(colours=None, stated=None):
-    """colours: the colour stream's BGRA bytes (None: no stream); stated: the count its header gives, when not the
-    array's own."""
-    pack = lambda fmt,*v: struct.pack('<'+fmt,*v)
-    array = lambda stride,count,raw: pack('2i',stride,count)+raw
-    stream = pack('2I',0,0) if colours is None else (
-        pack('2I',4,len(colours)//4 if stated is None else stated)+array(4,len(colours)//4,colours))
-    # Original clockwise triangle, normal +Z. Y/Z reflection gives glTF CCW +Y.
-    positions = pack('9f',0,0,0,0,1,0,1,0,0)
-    vertices = b''.join(bytes([255,128,128,255,128,128,255,255])+pack('2e',0,0) for _ in range(3))
-    return (pack('7fi',0,0,0,1,1,0,2,0)+bytes(24)+array(6,0,b'')+array(8,0,b'')+
-            pack('5i',18,0,0,0,1)+pack('4i',0,0,0,0)+pack('i',1)+
-            pack('4i4Ii',0,1,1,1,0,1,0,2,0)+pack('3iB',1,0,1,0)+
-            pack('2I',12,3)+array(12,3,positions)+pack('4I',1,12,3,0)+array(12,3,vertices)+
-            stream+pack('I',3)+array(2,3,pack('3H',0,1,2)))
+from viewer_fixtures import minimal_mesh
 
 
 class FixturePackage:

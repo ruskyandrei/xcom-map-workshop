@@ -1,6 +1,6 @@
 """The base map's spawn points edited (the compiler's spawn family: spawn_edits.py) against recorded fixtures.
 
-spawn_edit_cases.json holds, for each case of the compiler tests' spawn scene (test_compiler.CompilerTests.spawn_scene),
+spawn_edit_cases.json holds, for each case of the compiler tests' spawn scene (editor_fixtures.MissionScenes.spawn_scene),
 its inputs (the scene: the base scene with the keys the case changes, the project document, the families switched on
 or off) and what the compiler gave for them
 when the family was moved out of the Compiler class (review finding 23): whether the report is ok, the native edit's
@@ -41,10 +41,10 @@ def outcome(doc, scene, enable=(), family_off=False):
 
 
 def record():
-    """The cases, built from the compiler tests' spawn scene and records (test_compiler.py's four spawn tests)."""
-    import test_compiler as t
-    PL, document, target = t.PL, t.document, t.target
-    s, at = t.CompilerTests('test_base_spawn_points_copied_and_deleted').spawn_scene()
+    """The cases, built from the compiler tests' spawn scene and records (editor_fixtures; test_compiler.py's four
+    spawn tests)."""
+    from editor_fixtures import PL, MissionScenes, document, target
+    s, at = MissionScenes().spawn_scene()
     scenes, cases = {}, []
 
     def case(name, scene, doc, enable=(), family_off=False):

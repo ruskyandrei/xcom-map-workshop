@@ -17,6 +17,7 @@ import upkinfo  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import labpaths  # noqa: E402
+from upk_fixtures import uncompressed  # noqa: E402
 
 # URB_Bar as shipped: XCOM_BAR_UPK, else the LWR install's (tools/viewer/settings.py); without it the tests skip
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
@@ -32,25 +33,6 @@ def summary(chunks):
     head += struct.pack('<I3I', 1, 1, 2, 3) + struct.pack('<III', 8916, 0, 2)
     head += struct.pack('<I', len(chunks)) + b''.join(struct.pack('<IIII', *c) for c in chunks)
     return head + struct.pack('<II', 0, 0)
-
-
-def uncompressed(path):
-    """The package at `path` as it would be stored uncompressed (DLC2_3_Furies.upk as LWR ships it): the summary with
-    no chunks, PKG_StoreCompressed and the compression flags cleared, then the logical bytes."""
-    raw = Path(path).read_bytes()
-    h = upkinfo.summary(raw)
-    full, _ = decomp.decompress_pkg(str(path))
-    table = package_edit.chunk_table_offset(raw, h['chunks'])
-    r = upkinfo.R(raw)
-    r.u32(); r.u16(); r.u16(); r.u32(); r.fstr()
-    head = bytearray(raw[:table])
-    struct.pack_into('<I', head, r.o, int(h['flags'], 16) & ~package_edit.STORE_COMPRESSED)
-    struct.pack_into('<I', head, table - 4, 0)
-    lo = h['chunks'][0][0]
-    out = bytes(head) + struct.pack('<I', 0) + raw[table + 4 + 16 * len(h['chunks']):h['chunks'][0][2]]
-    if len(out) != lo:
-        raise ValueError('the summary is not where the first chunk starts')
-    return out + full[lo:]
 
 
 def make_package(path, logical, chunk_sizes, block=300):

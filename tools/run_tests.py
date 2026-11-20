@@ -27,11 +27,14 @@ set-up (setUpClass, and the tearDownClass of the class before). --times reads th
 --log naming a folder that already holds logs, --times reads those (the suites named, else every log there) and runs
 nothing.
 
+--help lists every environment variable the tests and the tools read (ENVIRONMENT below), what each does and what
+skips without it.
+
 Exit status 0 when everything passed, 1 when anything failed or a suite could not run. The browser smoke
 (tools/viewer/tests/browser_smoke.py) needs a test server and is not run here.
 """
 import argparse
-from collections import Counter
+from collections import Counter, namedtuple
 from datetime import datetime
 import os
 from pathlib import Path
@@ -39,6 +42,7 @@ import re
 import shutil
 import subprocess
 import sys
+import textwrap
 import time
 
 REPO = Path(__file__).resolve().parents[1]
@@ -54,6 +58,138 @@ TEST = re.compile(r'^(\w+) \((\w[\w.]*\.[\w.]*)\)(?: \.\.\. (.*))?$')
 VERDICT = re.compile(r"(?:^|\.\.\. )(ok|FAIL|ERROR|skipped '.*'|skipped|expected failure|unexpected success)$")
 NODE_FILE = re.compile(r'^== (\S+) \(exit -?\d+\)$')
 SLOWEST = 20
+
+# Every environment variable the tests and the tools read, in groups, as --help prints them: a Var is (its name, what
+# it does, what happens without it); a Package is (its name, the install's file it stands for, the tests that read
+# it). tools/repo/tests/test_run_tests.py checks that every XCOM_ name the tracked files under tools/ use is here,
+# that each here is used, and that the README names no other.
+Var = namedtuple('Var', 'name does without')
+Package = namedtuple('Package', 'name file readers')
+ENVIRONMENT = (
+    ('The folders the tests read', (
+        Var('XCOM_MAP_WORKSHOP_SETTINGS',
+            'The settings file read in place of <Documents>\\XCOM Map Workshop\\settings.json (tools/viewer/settings.py). '
+            'It holds every folder the tests and the tools take: the game install, the cache, the projects, the lab. '
+            "The browser checks' servers, the release's smoke test and build_outputs.py's Builds are started with it "
+            'naming a scratch file.',
+            'the settings file in Documents. With neither, the tests that read the game skip, each saying what it lacks.'),
+        Var('XCOM_COOKED',
+            "A CookedPCConsole folder read in place of the configured install's by the tests that take its packages "
+            'through tools/lab/labpaths.py (most of the bake and upk suites, and the default of each XCOM_<MAP>_UPK '
+            'below), and by test_material_rules.py. The other viewer tests that read the install take the settings\' '
+            'folder only: to point every test at another install, name a settings file.',
+            "the configured LWR install's CookedPCConsole (the lwr setting). With neither, those tests skip."),
+        Var('XCOM_GAME',
+            "A game folder read in place of the configured install's by test_game_grid.py (the upk suite: every map "
+            "the editor lists, on a plain Enemy Within install, say) and test_patchtool_record.py (the editor suite: "
+            'Set-ShipConfig on copies of its two config files).',
+            'the configured install. With none, those tests skip.'),
+        Var('XCOM_VIEWER_CACHE',
+            "The viewer cache read in place of the cache setting's folder by test_compiler.py: its tests on the export "
+            "of URB_Bar they pin by its SHA-256, and on the library of other maps' pieces.",
+            "the cache setting's folder. Without the pinned export there (or a library index this version reads), those "
+            'tests skip.'),
+    )),
+    ('Longer checks, off unless set', (
+        Var('XCOM_INSTALL_TESTS',
+            'Runs the checks over every map of the install (tools/upk/tests/test_game_grid.py, about two minutes). This '
+            'runner sets it when every suite runs, as the release does, or with --install.',
+            'those checks skip.'),
+        Var('XCOM_TRANSPLANT_RING',
+            "Set to 1: test_transplant.py runs its oracle over every Firaxis-cooked base map, not three pairs of maps.",
+            'that test skips; the three pairs run.'),
+    )),
+    ('One package of the install each: the file at a path of its own, in place of the one in the folder XCOM_COOKED '
+     "names or the configured install's (tools/lab/labpaths.py test_file). The tests that read it skip when the "
+     'file is not there.', (
+        Package('XCOM_BAR_UPK', 'URB_Bar.upk', 'most of the bake suite\'s tests of a map, test_package_edit.py, '
+                'test_package_grow.py, test_manager.py'),
+        Package('XCOM_BATTLESHIP_UPK', 'CBattleship_01.upk', 'test_native_lights.py'),
+        Package('XCOM_BLANK_UPK', 'CB2_MP_Blank.upk', 'test_native_copy.py'),
+        Package('XCOM_BOMB_STREAM_UPK', 'URB_Slaughterhouse_Stream.upk', 'test_stream_copy.py'),
+        Package('XCOM_CAPTURE_STREAM_UPK', 'URB_PoliceStation_CNH.upk', 'test_stream_copy.py'),
+        Package('XCOM_DEMOLITION_UPK', 'URB_Demolition_EWI.upk', 'test_native_copy.py'),
+        Package('XCOM_ENTRANCE_UPK', 'CIN_TP05A_EnteringAlienBase.upk', 'test_intro_copy.py'),
+        Package('XCOM_FARM_UPK', 'CsmallScout_Farm.upk', 'test_native_lights.py'),
+        Package('XCOM_FORESTTRENCH_UPK', 'CLrgScout_ForestTrench.upk', 'test_light_factory.py'),
+        Package('XCOM_FURIES_UPK', 'DLC2_3_Furies.upk', 'test_package_grow.py'),
+        Package('XCOM_HIGHWAYFALLEN_UPK', 'URB_HighwayFallen.upk', 'test_native_flags.py'),
+        Package('XCOM_INTRO_UPK', 'CIN_DropshipIntros.upk', 'test_intro_copy.py, test_manager.py'),
+        Package('XCOM_LOWFRIENDS_UPK', 'DLC1_1_LowFriends.upk', 'test_shadowmaps.py'),
+        Package('XCOM_MAP_IMAGES_UPK', 'UILibrary_MapImages_SF.upk', 'test_map_frame.py'),
+        Package('XCOM_OVERPASS_UPK', 'URB_StreetOverpass.upk', 'test_fixture.py'),
+        Package('XCOM_PATCH_BAR_UPK', 'patch_bar.upk', 'test_stream_copy.py'),
+        Package('XCOM_POLICE_PATCH_UPK', 'patch_policestation.upk', 'test_cover_blocks.py'),
+        Package('XCOM_POLICE_UPK', 'URB_PoliceStation.upk', 'test_cover_blocks.py, test_gen_mesh.py, '
+                "test_light_factory.py, test_native_copy.py, test_streams.py (which takes the settings' folder, not "
+                "XCOM_COOKED's)"),
+        Package('XCOM_STONEWALL_UPK', 'CLrgScout_Stonewall.upk', 'test_native_copy.py'),
+        Package('XCOM_TEMPLE_UPK', 'TempleShip.upk', 'test_light_factory.py, test_native_lights.py'),
+        Package('XCOM_TRUCKSTOP_STREAM_UPK', 'URB_TruckStop_Stream.upk', 'test_light_factory.py, test_map_frame.py, '
+                'test_build.py'),
+        Package('XCOM_TRUCKSTOP_UPK', 'URB_TruckStop_EWI.upk', 'test_light_factory.py'),
+    )),
+    ('Set by the tools for what they start, not by hand', (
+        Var('XCOM_UNPACKED',
+            'The folder where tools/upk/decomp.py keeps the decoded images of the maps a Build opens, read and written: '
+            'the Build sets it to its work folder, so its processes decode each map once (test_faster_bake.py and '
+            'build_outputs.py set it too).',
+            'nothing is kept on disk: each process decodes the maps it opens again.'),
+        Var('XCOM_UNPACKED_KEEP',
+            "A folder of kept decoded images of the install's maps, which decomp.py reads (and writes only in its keep "
+            'step), so a later Build opens them without decoding; the Build sets it.',
+            'nothing is read from it.'),
+        Var('XCOM_WORKSHOP_TEST_FOLDER',
+            'The test folder tools/viewer/prefab_tests.py hands to the PowerShell it starts to look for a process still '
+            'working in it.',
+            'not set by hand: the PowerShell finds nothing.'),
+    )),
+    ("The lab's hidden game runs (tools/lab/hidden_game.py, which sets the stand-in input's own)", (
+        Var('XCOM_HIDDEN_SOUND',
+            "Set to 1: a hidden run (tools/lab/GameRemote.cs) leaves the game's sound on.",
+            'the game is muted in Windows while the run lasts.'),
+        Var('XCOM_STAND_IN_INPUT',
+            'Set to always: the stand-in input (tools/lab/StandInInput.c, beside XComEW.exe for a run) gives the game '
+            'stand-ins for the mouse and keyboard even where Windows has them (hidden_game.py\'s option, and '
+            'test_hidden_game.py).',
+            'stand-ins only where Windows has no mouse or keyboard.'),
+        Var('XCOM_STAND_IN_INPUT_LOG',
+            'A file the stand-in input appends a line to for each device the game asks for and what it got (a run\'s '
+            'folder holds it).',
+            'no log.'),
+        Var('XCOM_STAND_IN_INPUT_TRACE',
+            'Set to 1: every call on a stand-in goes into that log too.',
+            'the devices alone are logged.'),
+        Var('XCOM_STAND_IN_CRASH_LOG',
+            "Set to 1: the run's first faults go into that log too (thread, code, module and offset, the modules on "
+            "that thread's stack).",
+            'no faults are logged.'),
+        Var('XCOM_STAND_IN_CHECK_FAULT',
+            'Set to 1 by test_hidden_game.py: the stand-in check (tools/lab/tests/StandInInputCheck.cs) faults on '
+            'purpose, for the crash log to name.',
+            'it does not fault.'),
+    )),
+)
+
+
+def environment_names():
+    """Every variable ENVIRONMENT lists."""
+    return [entry.name for _, entries in ENVIRONMENT for entry in entries]
+
+
+def environment_help(width=116):
+    """ENVIRONMENT as --help prints it."""
+    def wrap(text, first, rest):
+        return textwrap.wrap(text, width, initial_indent=first, subsequent_indent=rest, break_on_hyphens=False)
+    out = ['environment variables (every one the tests and the tools read):']
+    for heading, entries in ENVIRONMENT:
+        out += [''] + wrap(heading, '  ', '  ')
+        for e in entries:
+            if isinstance(e, Package):
+                out += wrap('%-26s %s: %s' % (e.name, e.file, e.readers), '    ', ' ' * 31)
+                continue
+            out += ['    ' + e.name] + wrap(e.does, ' ' * 8, ' ' * 8) + wrap('Without it: ' + e.without, ' ' * 8, ' ' * 8)
+    return '\n'.join(out)
 
 
 def stamped(output):
@@ -253,7 +389,8 @@ def logged_times(folder, suites):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0], epilog=environment_help(),
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('suites', nargs='*', metavar='suite',
                     help=f'which to run (default all: {", ".join(SUITES)})')
     ap.add_argument('-k', dest='pattern', help="only tests whose names hold this (unittest's -k; for node, file names)")

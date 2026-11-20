@@ -1,14 +1,18 @@
 """The suite runner (tools/run_tests.py): a selection that runs nothing fails, skips are counted by reason, the logs'
-lines carry their times and --times reads them."""
+lines carry their times and --times reads them, and --help lists every environment variable the tools read."""
 import contextlib
 import io
 from pathlib import Path
+import re
+import subprocess
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import run_tests  # noqa: E402
+
+REPO = Path(__file__).resolve().parents[3]
 
 # a made-up verbose unittest run, as its lines come: the two times of each are when it began and when it ended
 LOG = [
@@ -115,6 +119,36 @@ class Times(unittest.TestCase):
             with contextlib.redirect_stdout(out):
                 self.assertEqual(run_tests.main(['editor', '--times', '--log', str(folder)]), 1)
             self.assertIn('no editor.log', out.getvalue())
+
+
+class Environment(unittest.TestCase):
+    """run_tests.ENVIRONMENT, which --help prints, lists every environment variable the tests and the tools read
+    (review finding 58: they were named only where each was read)."""
+    NAME = re.compile(rb'XCOM_[A-Z0-9_]+')
+
+    def names_in(self, path):
+        return {m.group().decode() for m in self.NAME.finditer(path.read_bytes())} if path.is_file() else set()
+
+    def test_every_variable_the_tools_read_is_listed_and_each_listed_one_is_read(self):
+        # the files Git has or would add under tools/, but the runner itself (where the list is) and this test
+        out = subprocess.run(['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard', 'tools'], cwd=REPO,
+                             capture_output=True, check=True).stdout.decode('utf-8')
+        own = {Path(run_tests.__file__).resolve(), Path(__file__).resolve()}
+        read = set().union(*(self.names_in(REPO / p) for p in out.split('\0') if p and (REPO / p).resolve() not in own))
+        listed = run_tests.environment_names()
+        self.assertEqual(len(listed), len(set(listed)), 'a variable listed twice')
+        self.assertEqual(sorted(read - set(listed)), [], 'read by the tools, not in run_tests.ENVIRONMENT')
+        self.assertEqual(sorted(set(listed) - read), [], 'in run_tests.ENVIRONMENT, read by no tool')
+
+    def test_the_readme_names_only_listed_variables(self):
+        self.assertEqual(sorted(self.names_in(REPO / 'README.md') - set(run_tests.environment_names())), [])
+
+    def test_help_prints_each_variable(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            run_tests.main(['--help'])
+        for name in run_tests.environment_names():
+            self.assertIn(name, out.getvalue())
 
 
 if __name__ == '__main__':

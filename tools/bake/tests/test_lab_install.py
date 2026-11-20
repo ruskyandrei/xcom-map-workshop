@@ -12,7 +12,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import deploy_fixture as dep  # noqa: E402
 import lab_install  # noqa: E402
-from test_deploy import record  # noqa: E402
+from fixtures import record  # noqa: E402
 
 
 class LabInstall(unittest.TestCase):

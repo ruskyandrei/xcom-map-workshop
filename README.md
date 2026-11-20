@@ -97,6 +97,27 @@ each one is.
 only those (`run_tests.py viewer editor`). The bake suite takes about seven minutes (every suite together about eleven), and the suites that read the
 game's maps need an install.
 
+The tests take the install, the cache and the other folders from the settings; a test that lacks one skips and says
+why. Environment variables point them elsewhere. `python -B tools/run_tests.py --help` lists every one the tests and
+the tools read, what it does and what skips without it; these are the ones for running the tests on another setup:
+
+| Variable | What it does | Without it |
+| --- | --- | --- |
+| `XCOM_MAP_WORKSHOP_SETTINGS` | Another settings file: every folder at once. | The settings file in Documents. |
+| `XCOM_COOKED` | Another CookedPCConsole folder, for the tests that read the install's packages through `tools/lab/labpaths.py` (most of the bake and upk suites). | The configured install's; those tests skip without one. |
+| `XCOM_GAME` | Another game folder, for the checks of every map the editor lists and the patch tool's config test. | The configured install; those tests skip without one. |
+| `XCOM_VIEWER_CACHE` | Another viewer cache, for the compiler tests on the export of URB_Bar they pin. | The cache setting's folder; those tests skip without the export. |
+| `XCOM_<MAP>_UPK` (22 of them, `--help` names each with its file) | One package of the install at a path of its own. | The configured install's; the tests that read it skip without the file. |
+| `XCOM_INSTALL_TESTS` | The checks over every map of the install: `run_tests.py` sets it with `--install`, and when every suite runs. | Those checks skip. |
+| `XCOM_TRANSPLANT_RING` | Set to 1: the transplant oracle over every base map. | That test skips. |
+
+The rest belong to the tools' own runs, which set them: the Build's decoded maps, a prefab test's folder, and the
+lab's hidden game runs (where `XCOM_HIDDEN_SOUND=1` leaves the game's sound on).
+
+Each suite's tests share records and helpers through a fixtures module of the suite's own, and what several suites
+share is in `tools/tests/`; no test file imports another, so any one runs alone
+(`python -B -m unittest discover -s tools/<suite>/tests -p <file>`).
+
 `python tools/release/make_release.py` builds a release; the installer needs Inno Setup 6 or 7.
 
 ## Licence

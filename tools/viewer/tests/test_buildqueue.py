@@ -21,7 +21,7 @@ from buildqueue import BuildQueue  # noqa: E402
 from builds import BuildRunner  # noqa: E402
 import gamesetup  # noqa: E402
 from projects import ProjectError, ProjectStore  # noqa: E402
-from test_builds import STANDIN  # noqa: E402
+from viewer_fixtures import STANDIN  # noqa: E402
 from viewer_fixtures import ID, OTHER, document  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 

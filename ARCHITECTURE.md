@@ -182,7 +182,8 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A line of the game's config | [`mapsini.py`](tools/viewer/mapsini.py). |
 | A tool folder on the import path | [`paths.use()`](tools/paths.py), at the top of the module. |
 | A browser check | The table of checks (`CHECKS`) in [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py). |
-| A test's shared records | Its suite's fixtures module: [`viewer_fixtures.py`](tools/viewer/tests/viewer_fixtures.py), [`tools/bake/tests/fixtures.py`](tools/bake/tests/fixtures.py). |
+| A test's shared records and helpers | Its suite's fixtures module: [`viewer_fixtures.py`](tools/viewer/tests/viewer_fixtures.py), [`tools/bake/tests/fixtures.py`](tools/bake/tests/fixtures.py), [`editor_fixtures.py`](tools/editor/tests/editor_fixtures.py), [`upk_fixtures.py`](tools/upk/tests/upk_fixtures.py) (a suite without one makes one, named for the suite). One more than one suite needs: [`tools/tests/shared_fixtures.py`](tools/tests/shared_fixtures.py) (the DefaultMaps records, a made-up mesh), which each suite's fixtures module imports it from. |
+| An environment variable a test or a tool reads | `ENVIRONMENT` in [`run_tests.py`](tools/run_tests.py), with what it does and what happens without it (`run_tests.py --help` prints it), in the commit that reads it. |
 | A rule both the page and Python need | A JSON file both read, or a case file both sides' tests read ([`shared_cases_test.mjs`](tools/viewer/tests/shared_cases_test.mjs) lists them). |
 
 Three places take no new code, only what joins the modules: [`app.js`](tools/viewer/web/app.js), the compiler's
@@ -301,8 +302,21 @@ where there is one.
 
 - What is pure has a unit or node test. What is wired has a browser check. A reader of a format has a test on a
   made-up package that needs no install, besides any check over installed maps.
-- A suite's shared records are in its own fixtures module. A test that cannot run says why it skipped, and a
-  selection that runs nothing fails. A test checks the code of the checkout it runs in.
+- A suite's shared records and helpers are in its own fixtures module, and no test file imports another: a test
+  that imported another's helpers ran only beside it, and could run its tests twice. Each test file runs alone
+  (`python -B -m unittest discover -s tools/<suite>/tests -p <file>`). A helper made of a test class's methods (the
+  play tests' game installs, a server with a prefab library) is a mixin there, which a class takes as a base before
+  `unittest.TestCase` or method by method; a mixin is no `TestCase`, so no importer runs tests of it.
+- What more than one suite's tests need is in [`tools/tests/shared_fixtures.py`](tools/tests/shared_fixtures.py),
+  which each suite's fixtures module names. No suite puts another suite's tests folder on the path or reads a file
+  from it; a case file that a node test and a Python test both read is the exception ("One home" above).
+- A test that cannot run says why it skipped, and a selection that runs nothing fails. A test checks the code of the
+  checkout it runs in.
+- Every environment variable the tests and the tools read is listed in `run_tests.py`'s `ENVIRONMENT`, with what it
+  does and what skips without it, and the README gives the ones for running the tests on another setup.
+  `test_run_tests.py` fails on a variable read and not listed. A variable names one thing: a test that needs another
+  package of the install names a variable of its own, or takes it from the folder `XCOM_COOKED` names
+  (`labpaths.install_map`).
 - A refactor is checked by equal outputs (section 5). A change of behaviour is checked by a test that failed before it.
 - A bake test class that builds packages shares one build among tests whose edits do not meet
   ([`fixtures.SharedBuild`](tools/bake/tests/fixtures.py): each test reads its own edit's part, inside a sub-test named

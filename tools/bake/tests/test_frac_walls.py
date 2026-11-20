@@ -835,9 +835,8 @@ class GroundShapes(unittest.TestCase):
             mesh = q.own(comp, 'StaticMesh')
             self.assertEqual(q.cls(mesh), 'StaticMesh')
             self.assertTrue(q.name(mesh).split('.')[-1].startswith(prefix), q.name(mesh))
-            # one convex element (test_cover_blocks.hull reads it): a box's six planes, a ramp's wedge's five
-            import test_cover_blocks
-            *_, fields = test_cover_blocks.hull(q, q.own(mesh, 'BodySetup'))
+            # one convex element (fixtures.hull reads it): a box's six planes, a ramp's wedge's five
+            *_, fields = fixtures.hull(q, q.own(mesh, 'BodySetup'))
             self.assertEqual(len(fields['FacePlaneData']), 6 if label == 'Block' else 5)
             # the donor's material stays bound by the component
             self.assertEqual(q.effective(comp, 'Materials', None), self.p.effective(self.p.own(self.p.by_name[PL + self.DONOR],
@@ -855,11 +854,10 @@ class GroundShapes(unittest.TestCase):
 
     def test_a_rock_collides_as_its_hull(self):
         import ground
-        import test_cover_blocks
         q = self.q
         mesh = q.own(q.own(self.sec['Rock'], 'StaticMeshComponent'), 'StaticMesh')
         self.assertTrue(q.name(mesh).split('.')[-1].startswith('Ground_rock_2x1_'), q.name(mesh))
-        *_, fields = test_cover_blocks.hull(q, q.own(mesh, 'BodySetup'))
+        *_, fields = fixtures.hull(q, q.own(mesh, 'BodySetup'))
         rock = dict(shape='rock', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=96.0, seed=7)
         self.assertEqual(len(fields['FacePlaneData']), len(ground.corners_and_faces(rock)[1]))
         rec = {r['label']: r for r in self.m['nativeCopies']['generatedWalls']}
