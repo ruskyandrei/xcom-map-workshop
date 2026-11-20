@@ -162,10 +162,13 @@ class Claims:
     `names` are held by anything but the project `project_id` (with proof it is its own)."""
 
     def __init__(self, projects=None, builds=None, games=(), project_id=None):
+        """projects: the projects folder, or the server's ProjectStore, whose files are read only when they changed
+        since its last look (review finding 20)."""
         self.project_id = project_id
         self.held = {}      # lower-case name -> [(what holds it, owner project id or None, soft)]
         self.notes = []     # what could not be looked at, in words (an install that is not set)
-        if projects is not None: self._projects(Path(projects))
+        if hasattr(projects, 'claimed'): self._store(projects)
+        elif projects is not None: self._projects(Path(projects))
         if builds is not None: self._builds(Path(builds))
         for game in games:
             if game is not None: self._game(Path(game))
@@ -191,6 +194,17 @@ class Claims:
             out = document.get('output')
             if not isinstance(out, dict): continue
             label = f'the project “{document.get("name") or path.stem}”'
+            for key in ('shipAs', 'patch'):
+                self.add(out.get(key), label, owner)
+            if isinstance(out.get('shipAs'), str):
+                self.add(cache_name(out['shipAs']), label, owner)
+
+    def _store(self, store):
+        """As _projects, from the store's cache of what each project file said (ProjectStore.claimed)."""
+        try: claims = store.claimed()
+        except OSError as error: raise NamesError(f'the projects folder {store.root} can\'t be read ({error})')
+        for out, owner, name in claims:
+            label = f'the project “{name}”'
             for key in ('shipAs', 'patch'):
                 self.add(out.get(key), label, owner)
             if isinstance(out.get('shipAs'), str):
@@ -307,7 +321,7 @@ class Service:
     def claims(self, project_id=None):
         games, notes = self._folders()
         try:
-            claims = Claims(self.store.root, self.builds, games, project_id)
+            claims = Claims(self.store, self.builds, games, project_id)
         except NamesError as error:
             raise ProjectError(503, f'The map name can\'t be worked out: {error}.')
         claims.notes = notes

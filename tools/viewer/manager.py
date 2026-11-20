@@ -153,13 +153,10 @@ def listing(projects, builds, player):
     # being built now, or about to be (the build queue's next): the shared active-writer query
     building = builds.active_projects()
     rows = []
-    for summary in projects.list():
-        if summary.get('error'):
+    # each project read once, its summary from the very document read (review finding 20)
+    for summary, document in projects.listing():
+        if document is None:
             rows.append(summary)
-            continue
-        try: document = projects.load(summary['id'])
-        except ProjectError as error:
-            rows.append(dict(summary, error=error.message))
             continue
         variant = (document.get('output') or {}).get('shipAs')
         m, folder = _manifest(builds, summary['id'], variant)

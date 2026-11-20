@@ -246,6 +246,63 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.load(ID)['revision'], 1)
         self.assertIn('copy', {p['file']: p for p in self.store.list()}['Bar remix - broken.json']['error'])
 
+    def test_each_project_file_is_read_once_until_it_changes(self):
+        """Review finding 20: a listing reads each project file once; the next reads only what changed; the polled
+        lookups (the build status, the queue view, the map names) read nothing new; the project manager's listing
+        reads each project once, its summary from the document it gives; a file renamed or changed outside the
+        editor is seen at the next listing."""
+        ids = [ID, OTHER, '2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e']
+        for k, project_id in enumerate(ids):
+            self.store.save(project_id, document(project_id, name=f'Project {k}', output=dict(shipAs=f'Ship{k}', patch=f'patch_ship{k}')), 0)
+        store = ProjectStore(self.root)
+        store.list()
+        self.assertEqual(store.reads, 3)
+        store.list()
+        self.assertEqual(store.reads, 3)
+        for project_id in ids:
+            self.assertEqual(store.cached(project_id)['output']['shipAs'], f'Ship{ids.index(project_id)}')
+            store.path(project_id)
+        self.assertEqual(len(store.claimed()), 3)
+        self.assertEqual(store.reads, 3)
+        rows = store.listing()
+        self.assertEqual(store.reads, 6)
+        self.assertEqual({s['id']: (s['revision'], d['revision']) for s, d in rows}, {i: (1, 1) for i in ids})
+        store.load(ID)
+        self.assertEqual(store.reads, 7)
+        # renamed outside the editor: found under its new name at the next listing
+        (self.root / 'Project 1.json').rename(self.root / 'renamed by hand.json')
+        self.assertIn('renamed by hand.json', [p['file'] for p in store.list()])
+        self.assertEqual(store.path(OTHER).name, 'renamed by hand.json')
+        # changed outside the editor: that one read again, and its summary is the new one
+        path = self.root / 'Project 0.json'
+        changed = dict(json.loads(path.read_text(encoding='utf8')), revision=5, name='Project 0 by hand')
+        path.write_text(json.dumps(changed), encoding='utf8', newline='\n')
+        before = store.reads
+        listed = {p['id']: p for p in store.list()}
+        self.assertEqual((listed[ID]['revision'], listed[ID]['name'], store.reads - before), (5, 'Project 0 by hand', 1))
+        self.assertEqual(store.cached(ID)['revision'], 5)
+
+    def test_a_save_that_cant_be_written_says_why(self):
+        """Review finding 46: a full disk, a locked file or a read-only folder is a ProjectError with the reason, and
+        the revision before stays the project."""
+        import errno
+        self.store.save(ID, document(), 0)
+        full = OSError(errno.ENOSPC, 'No space left on device')
+        with mock.patch('projects.os.fsync', side_effect=full):
+            with self.assertRaises(ProjectError) as error: self.store.save(ID, document(name='Bar remix'), 1)
+        self.assertEqual(error.exception.status, 500)
+        self.assertIn('the disk is full', error.exception.message)
+        self.assertFalse(list(self.root.glob('*.tmp')))
+        locked = PermissionError(errno.EACCES, 'Access is denied')
+        with mock.patch('projects.shutil.copyfile', side_effect=locked):
+            with self.assertRaises(ProjectError) as error: self.store.save(ID, document(), 1)
+        self.assertIn('access was refused', error.exception.message)
+        self.assertEqual(self.store.load(ID)['revision'], 1)
+        with mock.patch('projects.os.replace', side_effect=locked):
+            with self.assertRaises(ProjectError) as error: self.store.save_recovery(ID, dict(owner=PAGE_A, baseRevision=1))
+        self.assertIn('could not be written', error.exception.message)
+        self.assertEqual(self.store.save(ID, document(), 1)['revision'], 2)
+
     def test_a_save_based_on_an_older_revision_is_a_conflict(self):
         self.store.save(ID, document(), 0)
         self.store.save(ID, document(), 1)

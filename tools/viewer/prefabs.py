@@ -480,6 +480,10 @@ class PrefabStore(ProjectStore):
     def readable(self, document):
         return True
 
+    def live(self, summary):
+        """A cached summary with whether the prefab's picture is kept brought up to date."""
+        return dict(summary, picture=self.picture_path(summary['id']).is_file())
+
     def _pictures(self, prefab_id, document, current, current_path, picture_from):
         return {}       # (a prefab's picture is the page's drawing: save_picture)
 

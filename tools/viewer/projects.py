@@ -55,6 +55,16 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
 
 
+def os_reason(error):
+    """Why a file operation failed, in words the page shows (review finding 46)."""
+    import errno
+    if error.errno == errno.ENOSPC or getattr(error, 'winerror', None) in (39, 112): return 'the disk is full'
+    if isinstance(error, PermissionError) or getattr(error, 'winerror', None) in (5, 32, 33):
+        return ('access was refused: the file is open in another program, or the file or its folder is read-only'
+                f' ({error.strerror or error})')
+    return str(error.strerror or error)
+
+
 def draft_query(query):
     """A DELETE of a draft's address query (parse_qs with blank values kept): (owner, savedAt). `owner` must be said
     (blank: the draft kept before drafts had owners), so no page deletes drafts it can't name."""
@@ -203,6 +213,10 @@ class ProjectStore:
                     revision=document.get('revision'), savedAt=document.get('savedAt'),
                     recovery=bool(self._drafts(document['id'])))
 
+    def live(self, summary):
+        """A cached summary with what other files say brought up to date: whether drafts are kept."""
+        return dict(summary, recovery=bool(self._drafts(summary['id'])))
+
     def __init__(self, root, names=None):
         """names: what checks a new project's output names as it saves (outputnames.Service; the server's), or None
         (a store a tool opens checks their form alone)."""
@@ -210,6 +224,11 @@ class ProjectStore:
         self.lock = threading.RLock()
         self.paths = {}             # project id -> its file, as last found; checked before each use
         self.names = names
+        # What each file in the folder said the last time it was read (review finding 20): file -> {stamp (modified
+        # time, size, file id), entry (dict(id, rank, readable, named, problem, summary, name, revision, output) or a
+        # ProjectError), claim ((output, owner, name) of a document of this schema, or None)}. A file is read again
+        # only when its stamp changed; `reads` counts the reads.
+        self.cache, self.reads = {}, 0
 
     def check_output(self, document, current):
         """A project's output names as it saves, in the store's lock (output names plan 3.3): fixed once saved, so a
@@ -233,21 +252,28 @@ class ProjectStore:
         """The folder of what stays on this computer for a project: its previous revision and recovery."""
         return self.root / STATE / self.check_id(project_id)
 
-    @staticmethod
-    def _read(path):
+    def _read(self, path):
+        self.reads += 1         # (every JSON file the store reads, drafts too: review finding 20's count)
         try: return json.loads(path.read_text(encoding='utf8'))
         except FileNotFoundError: return None
         except (OSError, ValueError) as error: raise ProjectError(500, f'{path.name} could not be read: {error}')
 
     @staticmethod
     def _write(path, value):
+        """`value` written to `path` through a temporary file; a failure (a full disk, a locked file, a read-only
+        folder) is a ProjectError that says why, the temporary file gone (review finding 46)."""
         temp = path.with_name(path.name + '.tmp')
-        with open(temp, 'w', encoding='utf8', newline='\n') as stream:
-            json.dump(value, stream, indent=1, ensure_ascii=False)
-            stream.write('\n')
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temp, path)
+        try:
+            with open(temp, 'w', encoding='utf8', newline='\n') as stream:
+                json.dump(value, stream, indent=1, ensure_ascii=False)
+                stream.write('\n')
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temp, path)
+        except OSError as error:
+            try: temp.unlink(missing_ok=True)
+            except OSError: pass
+            raise ProjectError(500, f'{path.name} could not be written: {os_reason(error)}.') from None
 
     def _state_folder(self, project_id):
         state = self.state(project_id)
@@ -258,11 +284,59 @@ class ProjectStore:
         return state
 
     def _id_of(self, path):
-        try:
-            document = json.loads(path.read_text(encoding='utf8'))
-            return document.get('id') if isinstance(document, dict) else None
-        except (OSError, ValueError):
-            return None
+        record = self._look(path)
+        return record['id'] if record else None
+
+    def _look(self, path):
+        """What the file says (self.cache's record), read again only when it changed; None when it is gone."""
+        try: stat = path.stat()
+        except OSError: return None
+        stamp = (stat.st_mtime_ns, stat.st_size, stat.st_ino)
+        with self.lock:
+            record = self.cache.get(str(path))
+            if record and record['stamp'] == stamp: return record
+            try: document = self._read(path)
+            except ProjectError as error: document = error
+            record = dict(stamp=stamp, id=document.get('id') if isinstance(document, dict) else None, claim=None,
+                          entry=self._entry(path, document))
+            if isinstance(document, dict) and document.get('schema') == self.schema and isinstance(document.get('output'), dict):
+                record['claim'] = (document['output'], document.get('id') if isinstance(document.get('id'), str) and document.get('id') else None,
+                                   document.get('name') or path.stem)
+            self.cache[str(path)] = record
+            return record
+
+    def _entry(self, path, document):
+        """What the listing and the lookups need of a file's document: dict(id, rank, readable, named, problem,
+        summary, name, revision, output), or the ProjectError that makes it no document of this store's."""
+        if isinstance(document, ProjectError): return document
+        if not isinstance(document, dict) or document.get('schema') != self.schema:
+            return ProjectError(422, f'This is not an XCOM Map Workshop {self.noun}.')
+        if not ID.fullmatch(str(document.get('id'))): return ProjectError(422, f'The {self.noun} has no valid id.')
+        try: self.check(document); problem = None
+        except ProjectError as error: problem = error
+        return dict(id=document['id'], rank=self._rank(document), readable=self.readable(document),
+                    named=file_stem(str(document.get('name'))) == path.stem, problem=problem,
+                    summary=None if problem else self.summary(path, document), name=document.get('name'),
+                    revision=document.get('revision'), output=document.get('output'))
+
+    def cached(self, project_id):
+        """What the store knows of the project from its last read of the project's file (review finding 20): its
+        `name`, `revision`, `output` (and the listing's summary), read again only when the file changed. For the polled
+        routes (the build status, the queue view). A ProjectError when there is no such project or it can't be read."""
+        with self.lock:
+            path = self._find(project_id)
+            record = self._look(path) if path is not None else None
+        entry = record['entry'] if record else ProjectError(404, f'No such {self.noun}.')
+        if isinstance(entry, ProjectError): raise entry
+        if entry['problem']: raise entry['problem']
+        return entry
+
+    def claimed(self):
+        """[(output, owner id or None, name)] of every file of this schema in the folder that has output names
+        (outputnames.Claims), from what the files said when last read. An OSError when the folder can't be read."""
+        with self.lock:
+            self._scan(strict=True)
+            return [r['claim'] for r in self.cache.values() if r['claim']]
 
     # ------------------------------------------------------------------ finding the files
 
@@ -328,40 +402,41 @@ class ProjectStore:
             try: folder.rmdir()
             except OSError: pass
 
-    def _scan(self):
-        """Every project file: [(path, document or ProjectError)], with self.paths refreshed. A project of another
-        schema version is found by its id (opening it says which version) but listed with its error. Two files with
-        one project id (a copy made beside it): the newest revision is the project, the other is listed as a copy."""
+    def _scan(self, strict=False):
+        """Every project file: [(path, entry or ProjectError)] (`_entry`), with self.paths refreshed. A project of
+        another schema version is found by its id (opening it says which version) but listed with its error. Two files
+        with one project id (a copy made beside it): the newest revision is the project, the other is listed as a
+        copy. A file unchanged since it was last read is not read again (review finding 20). `strict`: a folder that
+        can't be read is an OSError, not an empty listing."""
         self._migrate()
         found = []
         if self.root.is_dir():
-            for path in sorted(self.root.iterdir()):
-                if not path.is_file() or path.suffix.lower() != SUFFIX: continue
-                try:
-                    document = self._read(path)
-                    if not isinstance(document, dict) or document.get('schema') != self.schema:
-                        raise ProjectError(422, f'This is not an XCOM Map Workshop {self.noun}.')
-                    if not ID.fullmatch(str(document.get('id'))): raise ProjectError(422, f'The {self.noun} has no valid id.')
-                    found.append((path, document))
-                except ProjectError as error:
-                    found.append((path, error))
+            try: paths = sorted(self.root.iterdir())
+            except OSError:
+                if strict: raise
+                paths = []
+            for path in paths:
+                if path.suffix.lower() != SUFFIX or not path.is_file(): continue
+                record = self._look(path)
+                if record is not None: found.append((path, record['entry']))
+        seen = {str(path) for path, _ in found}
+        for key in [k for k in self.cache if k not in seen]: del self.cache[key]       # (files gone since)
         best = {}
-        for path, document in found:
-            if isinstance(document, ProjectError): continue
+        for path, entry in found:
+            if isinstance(entry, ProjectError): continue
             # (a copy that can be read is the project before one that can't: review finding 9)
-            rank = (self.readable(document), *self._rank(document), file_stem(str(document.get('name'))) == path.stem)
-            if document['id'] not in best or rank > best[document['id']][0]: best[document['id']] = (rank, path)
+            rank = (entry['readable'], *entry['rank'], entry['named'])
+            if entry['id'] not in best or rank > best[entry['id']][0]: best[entry['id']] = (rank, path)
         self.paths = {project_id: path for project_id, (_, path) in best.items()}
         rows = []
-        for path, document in found:
-            if not isinstance(document, ProjectError):
-                if not same_path(self.paths[document['id']], path):
-                    document = ProjectError(409, f'A copy of the {self.noun} in “{self.paths[document["id"]].name}” (the '
-                                                 f'same {self.noun} id). Open that one; delete or move this copy.')
-                else:
-                    try: self.check(document)
-                    except ProjectError as error: document = error
-            rows.append((path, document))
+        for path, entry in found:
+            if not isinstance(entry, ProjectError):
+                if not same_path(self.paths[entry['id']], path):
+                    entry = ProjectError(409, f'A copy of the {self.noun} in “{self.paths[entry["id"]].name}” (the '
+                                              f'same {self.noun} id). Open that one; delete or move this copy.')
+                elif entry['problem']:
+                    entry = entry['problem']
+            rows.append((path, entry))
         return rows
 
     def _find(self, project_id):
@@ -391,15 +466,37 @@ class ProjectStore:
     # ------------------------------------------------------------------ the routes' operations
 
     def list(self):
-        """Every project's summary, newest save first; unreadable ones (and copies) are listed with their error."""
+        """Every project's summary, newest save first; unreadable ones (and copies) are listed with their error. A file
+        unchanged since the last listing is not read again."""
         with self.lock: rows = self._scan()
         found = []
-        for path, document in rows:
-            if isinstance(document, ProjectError):
-                found.append(dict(id=path.name, name=path.name, file=path.name, error=document.message))
+        for path, entry in rows:
+            if isinstance(entry, ProjectError):
+                found.append(dict(id=path.name, name=path.name, file=path.name, error=entry.message))
                 continue
-            found.append(self.summary(path, document))
+            found.append(self.live(entry['summary']))
         return sorted(found, key=lambda p: str(p.get('savedAt') or ''), reverse=True)
+
+    def listing(self):
+        """Every project as the project manager lists it (review finding 20): [(summary, document or None)], newest
+        save first, each project's file read once, its summary made from the very document given (None, and the
+        summary's `error`, when it can't be read)."""
+        with self.lock: rows = self._scan()
+        found = []
+        for path, entry in rows:
+            if isinstance(entry, ProjectError):
+                found.append((dict(id=path.name, name=path.name, file=path.name, error=entry.message), None))
+                continue
+            try:
+                document = self._read(path)
+                if document is None: raise ProjectError(404, f'No such {self.noun}.')
+                self.check(document)
+                if document.get('id') != entry['id']: raise ProjectError(409, f'{path.name} now holds another {self.noun}.')
+            except ProjectError as error:
+                found.append((dict(entry['summary'], error=error.message), None))
+                continue
+            found.append((self.live(self.summary(path, document)), document))
+        return sorted(found, key=lambda p: str(p[0].get('savedAt') or ''), reverse=True)
 
     def capture(self, project_id):
         """The saved project exactly as a build of it is to read it (build queue plan, 9.1): (document, the file's bytes,
@@ -447,18 +544,27 @@ class ProjectStore:
             self.check_output(document, current)
             document = dict(document, revision=revision + 1, savedAt=now())
             document.setdefault('created', document['savedAt'])
-            self.root.mkdir(parents=True, exist_ok=True)
-            pictured = self._pictures(project_id, document, current, current_path, picture_from)
-            target = self._target(project_id, document['name'], current_path)
-            if current is not None:
-                # Keep the previous revision, itself written atomically, before replacing the project.
-                state = self._state_folder(project_id)
-                shutil.copyfile(current_path, state / (self.prev + '.tmp'))
-                os.replace(state / (self.prev + '.tmp'), state / self.prev)
-                # Only the case of the name changed: rename the file first, so it shows the new case.
-                if same_path(target, current_path) and target.name != current_path.name: os.replace(current_path, target)
+            # (a full disk, a locked file or a read-only folder: said, not a dropped connection, review finding 46)
+            try:
+                self.root.mkdir(parents=True, exist_ok=True)
+                pictured = self._pictures(project_id, document, current, current_path, picture_from)
+                target = self._target(project_id, document['name'], current_path)
+                if current is not None:
+                    # Keep the previous revision, itself written atomically, before replacing the project.
+                    state = self._state_folder(project_id)
+                    shutil.copyfile(current_path, state / (self.prev + '.tmp'))
+                    os.replace(state / (self.prev + '.tmp'), state / self.prev)
+                    # Only the case of the name changed: rename the file first, so it shows the new case.
+                    if same_path(target, current_path) and target.name != current_path.name: os.replace(current_path, target)
+            except OSError as error:
+                raise ProjectError(500, f'Nothing was written in {self.root}: {os_reason(error)}.') from None
             self._write(target, document)
-            if current_path is not None and not same_path(current_path, target): current_path.unlink(missing_ok=True)
+            if current_path is not None and not same_path(current_path, target):
+                try: current_path.unlink(missing_ok=True)
+                except OSError as error:        # (saved: said beside the answer)
+                    pictured = dict(pictured, note=f'{current_path.name}, the {self.noun}\'s file before it was renamed, '
+                                                   f'could not be removed ({os_reason(error)}): it is listed as a copy '
+                                                   f'until it is deleted.')
             if owner is not None:
                 try: self._draft_path(project_id, owner).unlink(missing_ok=True)
                 except OSError: pass        # (saved all the same: the draft is offered once more, then discarded)
@@ -541,7 +647,8 @@ class ProjectStore:
         with self.lock:
             if self._find(project_id) is None: raise ProjectError(404, f'No such {self.noun}.')
             answer = self._stale(project_id, state)
-            self._state_folder(project_id)
+            try: self._state_folder(project_id)
+            except OSError as error: raise ProjectError(500, f'The folder for kept changes could not be made: {os_reason(error)}.') from None
             self._write(path, dict(state, savedAt=now()))
             return dict(answer, ok=True)
 

@@ -559,15 +559,16 @@ class BuildQueue:
                                'queue the projects again.', 'context-changed', queue=self._view())
 
     def _name(self, project_id):
+        # (as the store last read the file: review finding 20)
         try:
-            return self.projects.load(project_id).get('name')
+            return self.projects.cached(project_id).get('name')
         except ProjectError:
             return None
 
     def _estimate(self, item):
         """How long the project's last full build took (its package's times.full), or None when unknown."""
         try:
-            document = self.projects.load(item['project'])
+            document = self.projects.cached(item['project'])
         except ProjectError:
             return None
         package = self.builds.package(item['project'], (document.get('output') or {}).get('shipAs'))

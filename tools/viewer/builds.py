@@ -650,8 +650,9 @@ class BuildRunner:
                     revision=m['project'].get('revision'), files=sorted(Path(f).name for f in m.get('files') or {}))
 
     def status(self, project_id):
-        document = self.projects.load(project_id)
-        variant = (document.get('output') or {}).get('shipAs')
+        # (polled every 2 s: the project's output names as the store last read them, not the file read again each
+        # time: review finding 20)
+        variant = (self.projects.cached(project_id).get('output') or {}).get('shipAs')
         with self.lock:
             job = self.job
             mine = job if job and job['project'] == project_id else None

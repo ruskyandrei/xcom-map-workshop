@@ -5088,7 +5088,8 @@ async function saveProject({ name = null, replace = null, rename = null, output 
     if (previous && previous !== document.id) documentWrites.run(() => projectApi.dropRecovery(previous, SESSION)).catch(() => {});
     dropAdopted(projectApi, previous);
     recoveryTrouble = null;
-    const { pictureMissing, ...saved } = result;
+    const { pictureMissing, note, ...saved } = result;
+    if (note) banner(`Saved ${document.name}. ${note}`);      // (saved, with something left to say: projects.py)
     project = { doc: { ...document, ...saved }, revision: result.revision, carried, savedKey: stateKey(state) };
     if (previous !== document.id) {
       // another project now (Save as, or Replace): its own build status, not the one saved from's (review finding 10)
