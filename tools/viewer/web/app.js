@@ -2871,12 +2871,15 @@ function floorSupportOf(sources) {
   return floorData().stamps.get(stampSignature(sources))?.support ?? null;
 }
 
-// Reset all: the map as exported. Added pieces go, deleted ones return, moved ones go home, groups end, and the grid,
-// the landing zones and the clear mark are the map's own again; one undo step.
+// Reset all: the map as exported. Added pieces go, deleted ones return, moved ones go home, broken ones are mended,
+// groups end, and the grid, the landing zones and the clear mark are the map's own again; one undo step.
 function resetAll() {
   const all = [...roots.values()], lights = [...lightRoots.values()];
   const added = all.filter(r => r.userData.source.added), deleted = [...all, ...lights].filter(r => r.userData.deleted);
   const flagged = all.filter(r => !r.userData.source.added && r.userData.flags), flagsBefore = flagged.map(r => r.userData.flags);
+  // the map's own pieces broken (Break, E6) are mended: their blasts and Breaks further in battle go (review finding 28)
+  const broken = all.filter(r => !r.userData.source.added && r.userData.blasts?.length);
+  const brokenBefore = broken.map(r => ({ blasts: cloneBlasts(r.userData.blasts), further: Boolean(r.userData.breaksFurther) }));
   const moved = [...all, ...lights].filter(r => r.userData.edit && !r.userData.source.added);
   const addedLights = lights.filter(r => r.userData.source.added), changed = lights.filter(r => !r.userData.source.added && valuesEdited(r));
   // effects and sounds: copies go, deleted ones return, moved ones go home, kept ones follow their piece again
@@ -2889,7 +2892,7 @@ function resetAll() {
   const edits = mapEdits(), restore = mapRestoreChange([...edits.changed, ...edits.gone]);
   // the project's own buildings go: their boxes, which the buildings are made from
   const ownBoxes = liveVolumes().filter(r => !buildingMeta.get(r.userData.volume.building)?.map);
-  if (!added.length && !deleted.length && !moved.length && !flagged.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
+  if (!added.length && !deleted.length && !moved.length && !flagged.length && !broken.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
       && !addedEffects.length && !stays.length && !valued.length
       && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size && !projectSpawnRules) return;
   const before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r)), picks = gizmo.picks();
@@ -2908,6 +2911,7 @@ function resetAll() {
   gizmo.record({
     redo: () => {
       for (const r of flagged) r.userData.flags = null;
+      for (const r of broken) { r.userData.blasts = null; r.userData.breaksFurther = false; drawBroken(r); }
       removeRoots(added); removeLightRoots(addedLights); removeEffectRoots(addedEffects); for (const r of stays) r.userData.stays = false;
       for (const r of valued) r.userData.values = null;
       for (const r of deleted) r.userData.deleted = false; gizmo.applyMatrices(moved, home);
@@ -2919,6 +2923,7 @@ function resetAll() {
     },
     undo: () => {
       flagged.forEach((r, k) => { r.userData.flags = flagsBefore[k]; });
+      broken.forEach((r, k) => { r.userData.blasts = cloneBlasts(brokenBefore[k].blasts); r.userData.breaksFurther = brokenBefore[k].further; drawBroken(r); });
       addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects); for (const r of stays) r.userData.stays = true;
       valued.forEach((r, k) => { r.userData.values = fxValues[k]; });
       for (const r of deleted) r.userData.deleted = true; gizmo.applyMatrices(moved, before);

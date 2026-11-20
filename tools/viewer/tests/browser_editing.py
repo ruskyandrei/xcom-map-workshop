@@ -9,7 +9,9 @@ pieces will do (the pieces made here use it as their donor).
   prefab builder opens the prefab with them as they are, unchanged.
 - modals (finding 11): in Missions, Map picture, Clear map and Prepare, Tab from the last control goes to the first
   and Shift+Tab from the first to the last; Delete, M and W don't reach the scene behind; Escape closes and the focus
-  goes back to the control the dialog was opened from. Missions with no row ticked puts the focus on a row's tick."""
+  goes back to the control the dialog was opened from. Missions with no row ticked puts the focus on a row's tick.
+- reset-all (finding 28): one of the map's fracturing pieces broken with Break (B and a click on it) is the only
+  change: Reset all mends it, and Ctrl+Z breaks it again; broken with another piece deleted, Reset all puts both back."""
 import json
 import math
 
@@ -172,3 +174,59 @@ def check_modals(browser, url, open_viewer):
     errors = [e for e in errors if 'status of 404' not in e]
     assert not errors, errors
     return out
+
+
+# one of the map's own fracturing pieces, standing and drawn (Break works on it: app.js mapBreakable)
+BREAKABLE = """[...viewer.roots.values()].filter(r => !r.userData.source.added && !r.userData.deleted && r.visible && !r.userData.source.hidden
+  && ['XComFracLevelActor', 'XComDecoFracLevelActor'].includes(r.userData.source.actorClass)
+  && viewer.data.meshes[r.userData.source.mesh]?.sections?.some(s => s.fragments?.length)).map(r => r.userData.source.id)"""
+
+
+def break_piece(page, ids):
+    """One of the pieces `ids` broken as the user does: picked, framed, B, a click on it. Its id."""
+    for piece in ids[:12]:
+        page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); document.activeElement?.blur?.(); }', piece)
+        page.wait_for_timeout(150)
+        page.keyboard.press('b')
+        box = page.evaluate('id => viewer.pieceBox(id)', piece)
+        for fx, fy in ((0.5, 0.5), (0.3, 0.5), (0.7, 0.5), (0.5, 0.3), (0.5, 0.7)):
+            at = [box[0] + fx * (box[1] - box[0]), box[2] + fy * (box[3] - box[2]), (box[4] + box[5]) / 2]
+            x, y = page.evaluate('p => viewer.screenOf(p)', at)
+            page.mouse.click(x, y)
+            if page.evaluate('id => viewer.roots.get(id).userData.blasts?.length ?? 0', piece):
+                page.keyboard.press('Escape')
+                return piece
+        page.keyboard.press('Escape')
+    raise AssertionError('no fracturing piece of this map could be clicked to break it')
+
+
+def check_reset_all(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    ids = page.evaluate(BREAKABLE)
+    assert ids, 'this map has no fracturing piece of its own'
+    piece = break_piece(page, ids)
+    page.evaluate('viewer.select(null)')
+    blasts = page.evaluate('id => viewer.roots.get(id).userData.blasts', piece)
+    assert page.evaluate('viewer.changes()')['broken'] == 1 and page.evaluate('viewer.changes().total') == 1
+    # breakage the only change: Reset all shows, and mends it
+    assert page.locator('#editResetAll').is_visible()
+    page.locator('#editResetAll').click()
+    assert page.evaluate('viewer.changes().total') == 0, page.evaluate('viewer.changes()')
+    assert page.evaluate('id => viewer.roots.get(id).userData.blasts', piece) is None
+    page.keyboard.press('Control+z')
+    assert page.evaluate('id => viewer.roots.get(id).userData.blasts', piece) == blasts
+    assert page.evaluate('viewer.changes().broken') == 1
+    # with another piece deleted too: both back as the map has them
+    other = page.evaluate("id => [...viewer.roots.values()].find(r => !r.userData.source.added && r.visible && !r.userData.source.hidden "
+                          "&& r.userData.source.id !== id && r.userData.source.actor !== viewer.roots.get(id).userData.source.actor).userData.source.id", piece)
+    page.evaluate('id => viewer.select(id)', other)
+    page.keyboard.press('Delete')
+    assert page.evaluate('viewer.changes()')['deleted'] >= 1
+    page.locator('#editResetAll').click()
+    assert page.evaluate('viewer.changes().total') == 0, page.evaluate('viewer.changes()')
+    assert not page.evaluate('id => viewer.roots.get(id).userData.deleted', other)
+    assert page.evaluate('id => viewer.roots.get(id).userData.blasts', piece) is None
+    page.close()
+    assert not errors, errors
+    return dict(piece=piece, blasts=len(blasts))

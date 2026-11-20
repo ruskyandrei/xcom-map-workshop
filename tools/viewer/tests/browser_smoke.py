@@ -5227,6 +5227,9 @@ def main():
             if 'modals' in only:
                 from browser_editing import check_modals
                 print(json.dumps(dict(modals=check_modals(browser, page.url, open_viewer))))
+            if 'reset-all' in only:
+                from browser_editing import check_reset_all
+                print(json.dumps(dict(resetAll=check_reset_all(browser, page.url, open_viewer))))
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))
