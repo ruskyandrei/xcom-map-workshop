@@ -146,12 +146,15 @@ class GameSchema(unittest.TestCase):
     def test_its_references_are_the_copiers_walker_less_that_walkers_wrong_guesses(self):
         """native_copy.Walker takes every array of 4-byte values for references unless it is on a list; the typed
         walk lists a reference only where the property is one. On the bar the typed walk finds no reference the
-        walker lacks, and what the walker has beyond it are arrays of numbers (curves' lookup tables above all)."""
+        walker lacks, and what the walker has beyond it are arrays of numbers (curves' lookup tables above all), but
+        for one array the walker has right: VisGroupActor's DependentOn, whose class (UnrealEd's, an editor's) no
+        cooked script package holds, so the typed walk can't type it; every value of it names a VisGroupActor. The
+        typed walk alone would lose those references, so it does not replace the walker's guess."""
         import native_copy
         from package import Package
         p = Package(BAR)
         walker = native_copy.Walker(p)
-        both, extra = 0, {}
+        both, extra, dependent = 0, {}, set()
         for i, e in enumerate(p.exports, 1):
             f = typed_props.fields(p, i, self.schema)
             data = p.data[e['off']:e['off'] + e['size']]
@@ -160,9 +163,15 @@ class GameSchema(unittest.TestCase):
             self.assertLessEqual(mine, set(theirs), p.name(i))
             both += len(mine)
             for at in set(theirs) - mine:
-                extra[theirs[at].rsplit('.', 1)[-1].split('[')[0].split('(')[0]] = p.cls(i)
+                prop = theirs[at].rsplit('.', 1)[-1].split('[')[0].split('(')[0]
+                extra[prop] = p.cls(i)
+                if prop == 'DependentOn':
+                    dependent.add(p.cls(struct.unpack_from('<i', data, at)[0]))
         self.assertGreater(both, 30000)
         self.assertIn('LookupTable', extra)
+        self.assertEqual((extra.get('DependentOn'), dependent), ('VisGroupActor', {'VisGroupActor'}))
+        self.assertIsNone(self.schema.prop(typed_props.class_path(p, next(
+            i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'VisGroupActor')), 'DependentOn'))
         for prop, cls in extra.items():
             known = self.schema.prop(typed_props.class_path(p, next(
                 i for i in range(1, len(p.exports) + 1) if p.cls(i) == cls)), prop)
