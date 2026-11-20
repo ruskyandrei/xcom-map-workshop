@@ -41,8 +41,14 @@ walker before and after (names, kinds, sizes, offsets, values, refusals). A diff
   name's number as unsigned (an enum entry's still is: LWR's padded enums), took a bool's tag size on top of its one
   byte and did not check a struct's or an enum's name; a cooked enum holds no property but its None. The 282 enums
   of the install's XComGame.upk read the same (so `READER_VERSION` stays), and every export of both maps.
+- **[typed_props](../../tools/upk/typed_props.py)** (the typed walk: every name and object reference of an export, by
+  the game's property types): its tagged walk is `props.tags`, which reads and checks the tag's names; the walk notes
+  each as a field, the closing None's too, in the order it did. A refusal is still a `WalkError` with the property's
+  path, in `props.tags`' words. The old walk read a bool's byte without a bound and measured a struct's or an enum
+  property's value from its name, 8 bytes short of where it starts. Every export of both maps gives the same fields,
+  starts, ends and untyped arrays.
 
 Checked: each walker's module's tests after its commit (map_frame's 11, inline_lighting's 5, light_factory's 22 and
 native_lights' 30, the lighting fixture's 18 and native_fields' 12, relight's 28 and the Lightmass settings' 2,
-pack_card's 27 and the card's users' in the lab (20) and viewer suites (pack export 5, damaged inputs 6),
-script_enums' 8).
+pack_card's 27 and the card's users' in the lab (20) and viewer suites (pack export 5, damaged inputs 6), script_enums'
+8, typed_props' in the schema's 9, native_fields' 12 and transplant's 34).
