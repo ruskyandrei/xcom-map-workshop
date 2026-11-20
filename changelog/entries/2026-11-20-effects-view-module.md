@@ -63,3 +63,9 @@ Checked:
   exits 1 only because `streams` skips its streamed piece's edit on the Bar). The likeness check's frame time with
   the likenesses drawn (16 ms twice here) is the commit before's under the same load (16 and 22 ms on the base): the
   computer's load, not the move.
+- **`browser_smoke.py --all`** on fresh test servers, with a scratch cache and `--play-install <scratch game>`, after
+  both views' moves: the nine runs of the editor's checks pass, 70 checks ran and 6 skipped, each for its map or its
+  run (TempleShip's two, the police station's light bar and Play run elsewhere; `streams`' edit and the patch previews
+  have nothing on the Bar's export to work on), 14 min with other work on the computer. The Play run was refused
+  before it played: the server's play status said "XCOM is running", since a game had been started on the computer
+  (by other work) during the run. Nothing of Play moved in this stage.

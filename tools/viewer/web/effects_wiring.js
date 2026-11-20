@@ -16,7 +16,8 @@
 //
 // createEffectsWiring takes what it needs of app.js as one argument object, when app.js makes it: the camera, the
 // renderer and the scene, the textures and meshes as the map's pieces are read, the other views' switches, the
-// landing zones, and the Lights view's owners of glowing pieces (ownerRoot) and buttons. Its own state is inside it
+// landing zones, the Lights view's switch and its pieces' owners (ownerRoot), and the rail's view buttons
+// (lightButton). Its own state is inside it
 // (the kinds shown, the likenesses and the hover pane); what other areas read or set (the view's switch, the markers
 // drawn, the redraw asked, the Wave preview's player, the likeness's switch and count) is editor_state.js's.
 import * as THREE from 'three';
