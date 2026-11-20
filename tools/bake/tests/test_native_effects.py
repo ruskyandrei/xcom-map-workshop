@@ -16,6 +16,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(TOOLS / 'upk'))
 sys.path.insert(0, str(TOOLS / 'viewer'))
 sys.path.insert(0, str(TOOLS / 'lab'))
+import fixtures  # noqa: E402
 import labpaths  # noqa: E402
 import native_copy  # noqa: E402
 from package import Package  # noqa: E402
@@ -24,6 +25,34 @@ INTRO, NO_INTRO = labpaths.install_map('Act1_IntroLevel')
 SKY, LIGHTS = 'XComLevelActor_116', 'Emitter_4'
 PAIRS = {SKY: [LIGHTS]}
 PL = 'TheWorld.PersistentLevel.'
+
+
+def stage(src, out, edit):
+    """transplant.stage_edit (fixtures.lanes_build's `stage`)."""
+    import transplant
+    return transplant.stage_edit(src, out, edit)
+
+
+# The builds the lanes' classes share (fixtures.SharedBuild): one edit a lane, each class's tests reading the records
+# of its own lanes (fixtures.LanesPart). The lanes' edits touch different actors, and no lane reads another's records:
+# the flares' lane lists no effect in the floors' emitter lists that Lanes reads whole. Each edit's records are the ones
+# it gets built alone (bar the new exports' names). Kept a build of their own: the values (ValueLanes, which value a
+# sound Lanes moves and copy where Lanes' copies stand), each lane with a clear (the two cleared maps), the refusals,
+# and the carried effects (three edits of one Skyranger).
+BUILDS = fixtures.ModuleBuilds(
+    bar=lambda: ({Lanes.EDIT: dict(effects=Lanes.EFFECTS, sounds=Lanes.SOUNDS), FlareLanes.EDIT: dict(flares=FlareLanes.FLARES)},
+                 fixtures.lanes_build(BAR, 'Lanes'), fixtures.LanesPart),
+    foreign=lambda: ({ForeignLanes.EDIT: ForeignLanes.lanes(), ForeignFlares.EDIT: ForeignFlares.lanes()},
+                     fixtures.lanes_build(BAR, 'Foreign', stage=stage), fixtures.LanesPart))
+
+
+def tearDownModule():
+    BUILDS.close()
+
+
+class SharedPart(fixtures.SharedPart):
+    """A class whose tests read the edit EDIT of the shared build BUILD of BUILDS (fixtures.LanesPart)."""
+    BUILDS = BUILDS
 
 
 @unittest.skipUnless(INTRO and INTRO.exists(), NO_INTRO)
@@ -88,8 +117,9 @@ def emitters(q, building):
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
-class Lanes(unittest.TestCase):
-    """One build of Bar with the effects' and sounds' lanes (moves, deletes, copies), read back."""
+class Lanes(SharedPart, unittest.TestCase):
+    """One build of Bar with the effects' and sounds' lanes (moves, deletes, copies), read back: the shared build
+    `bar`, where the flares' lane has FlareLanes' edit."""
     EFFECTS = dict(
         moves=[dict(name='Emitter_14', location=[-627.0, 1286.0, 50.0], rotation=[0, 0, 0]),     # out of floor 1
                dict(name='Emitter_1', location=[100.0, 500.0, 300.0], rotation=[0, 16384, 0])],  # into floor 1
@@ -104,87 +134,90 @@ class Lanes(unittest.TestCase):
                      rotation=[0, 0, 0]),
                 dict(id='e', name='AmbientSoundSimple_0_copy5', source='AmbientSoundSimple_0', location=[-950.0, -550.0, 62.0],
                      rotation=[0, 0, 0])])
+    BUILD = 'bar'
+    EDIT = 'the effects\' and sounds\' lanes: two effects and a sound moved, one of each deleted, three and two copied'
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
+        super().setUpClass()
+        cls.tmp = cls.enterClassContext(tempfile.TemporaryDirectory())
         cls.p = Package(BAR)
-        out = Path(cls.tmp.name) / 'Lanes'
-        cls.m = native_copy.build(BAR, out, 'Lanes', [], effects=cls.EFFECTS, sounds=cls.SOUNDS)
-        cls.q = Package(out / 'Lanes.upk')
-        cls.section = cls.m['nativeCopies']
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
 
     def test_moves_in_place(self):
-        q, listed = self.q, set(native_copy.level_actors(self.q))
-        for m in self.EFFECTS['moves'] + self.SOUNDS['moves']:
-            i = q.by_name[PL + m['name']]
-            self.assertEqual(i, self.p.by_name[PL + m['name']])         # the same export: what names it still does
-            self.assertIn(i, listed)
-            self.assertEqual(([round(v, 3) for v in q.own(i, 'Location')], list(q.own(i, 'Rotation', [0, 0, 0]))),
-                             (m['location'], m['rotation']))
+        with self.part() as part:
+            q, listed = part.q, set(native_copy.level_actors(part.q))
+            for m in self.EFFECTS['moves'] + self.SOUNDS['moves']:
+                i = q.by_name[PL + m['name']]
+                self.assertEqual(i, self.p.by_name[PL + m['name']])         # the same export: what names it still does
+                self.assertIn(i, listed)
+                self.assertEqual(([round(v, 3) for v in q.own(i, 'Location')], list(q.own(i, 'Rotation', [0, 0, 0]))),
+                                 (m['location'], m['rotation']))
 
     def test_deletes_leave_the_list_and_keep_the_export(self):
-        listed = set(native_copy.level_actors(self.q))
-        for name in ('Emitter_45', 'AmbientSoundSimple_3'):
-            self.assertIn(PL + name, self.q.by_name)
-            self.assertNotIn(self.q.by_name[PL + name], listed)
+        with self.part() as part:
+            listed = set(native_copy.level_actors(part.q))
+            for name in ('Emitter_45', 'AmbientSoundSimple_3'):
+                self.assertIn(PL + name, part.q.by_name)
+                self.assertNotIn(part.q.by_name[PL + name], listed)
 
     def test_copies_own_what_is_under_them(self):
-        listed = set(native_copy.level_actors(self.q))
-        rows = {r['actor']: r for r in self.section['effects'] + self.section['sounds'] if r['how'] == 'copied'}
-        self.assertEqual(sorted(rows), ['AmbientSoundSimple_0_copy4', 'AmbientSoundSimple_0_copy5', 'Emitter_10_copy1',
-                                        'Emitter_10_copy2', 'Emitter_10_copy3'])
-        cues = set()
-        for name, r in rows.items():
-            i = self.q.by_name[PL + r['copy']]
-            self.assertIn(i, listed)
-            self.assertEqual(self.q.cls(i), self.p.cls(self.p.by_name[PL + r['source']]))
-            if r['source'].startswith('AmbientSound'):
-                component = self.q.own(i, 'AudioComponent')
-                cue = self.q.own(component, 'SoundCue')
-                node = self.q.own(i, 'SoundNodeInstance')
-                self.assertTrue(self.q.name(cue).startswith(self.q.name(i) + '.'), self.q.name(cue))
-                self.assertEqual(self.q.own(cue, 'FirstNode'), node)
-                self.assertEqual(self.q.own(i, 'AmbientProperties'), node)
-                cues.add(cue)
-            else:
-                component = self.q.own(i, 'ParticleSystemComponent')
-                self.assertTrue(self.q.name(component).startswith(self.q.name(i) + '.'))
-                source = self.p.by_name[PL + r['source']]
-                self.assertEqual(self.q.own(component, 'Template'),
-                                 self.p.own(self.p.own(source, 'ParticleSystemComponent'), 'Template'))
-        self.assertEqual(len(cues), 2)      # each copy its own cue
+        with self.part() as part:
+            q, section = part.q, part.section
+            listed = set(native_copy.level_actors(q))
+            rows = {r['actor']: r for r in section['effects'] + section['sounds'] if r['how'] == 'copied'}
+            self.assertEqual(sorted(rows), ['AmbientSoundSimple_0_copy4', 'AmbientSoundSimple_0_copy5', 'Emitter_10_copy1',
+                                            'Emitter_10_copy2', 'Emitter_10_copy3'])
+            cues = set()
+            for name, r in rows.items():
+                i = q.by_name[PL + r['copy']]
+                self.assertIn(i, listed)
+                self.assertEqual(q.cls(i), self.p.cls(self.p.by_name[PL + r['source']]))
+                if r['source'].startswith('AmbientSound'):
+                    component = q.own(i, 'AudioComponent')
+                    cue = q.own(component, 'SoundCue')
+                    node = q.own(i, 'SoundNodeInstance')
+                    self.assertTrue(q.name(cue).startswith(q.name(i) + '.'), q.name(cue))
+                    self.assertEqual(q.own(cue, 'FirstNode'), node)
+                    self.assertEqual(q.own(i, 'AmbientProperties'), node)
+                    cues.add(cue)
+                else:
+                    component = q.own(i, 'ParticleSystemComponent')
+                    self.assertTrue(q.name(component).startswith(q.name(i) + '.'))
+                    source = self.p.by_name[PL + r['source']]
+                    self.assertEqual(q.own(component, 'Template'),
+                                     self.p.own(self.p.own(source, 'ParticleSystemComponent'), 'Template'))
+            self.assertEqual(len(cues), 2)      # each copy its own cue
 
     def test_sources_are_untouched(self):
-        for name in ('Emitter_10', 'AmbientSoundSimple_0'):
-            for i in native_copy.subtree(self.p, self.p.by_name[PL + name]):
-                e, f = self.p.exports[i - 1], self.q.exports[self.q.by_name[self.p.name(i)] - 1]
-                self.assertEqual(bytes(self.p.data[e['off']:e['off'] + e['size']]), bytes(self.q.data[f['off']:f['off'] + f['size']]),
-                                 self.p.name(i))
+        with self.part() as part:
+            q = part.q
+            for name in ('Emitter_10', 'AmbientSoundSimple_0'):
+                for i in native_copy.subtree(self.p, self.p.by_name[PL + name]):
+                    e, f = self.p.exports[i - 1], q.exports[q.by_name[self.p.name(i)] - 1]
+                    self.assertEqual(bytes(self.p.data[e['off']:e['off'] + e['size']]), bytes(q.data[f['off']:f['off'] + f['size']]),
+                                     self.p.name(i))
 
     def test_floor_lists(self):
-        got = emitters(self.q, FLOOR1)
-        before = emitters(self.p, FLOOR1)
-        self.assertEqual(before[1], ['Emitter_13', 'Emitter_14', 'Emitter_37', 'Emitter_4', 'Emitter_45'])
-        copy = {r['actor']: r['copy'].split('.')[-1] for r in self.section['effects'] if r['how'] == 'copied'}
-        # untouched ones keep their listing (Emitter_13, _37, _4 though they stand outside the boxes); the moved-out
-        # and the deleted leave; the moved-in and the copy in floor 1's box join; floor 0 never lists
-        self.assertEqual(got[0], before[0])
-        self.assertEqual(got[1], sorted(['Emitter_13', 'Emitter_37', 'Emitter_4', 'Emitter_1', copy['Emitter_10_copy1']]))
-        self.assertEqual(got[2], sorted(before[2] + [copy['Emitter_10_copy3']]))
-        rows = {(f['effect'], f['floor'], f['how']) for f in self.section['floorEmitters']}
-        self.assertEqual(rows, {('Emitter_14', 1, 'left'), ('Emitter_45', 1, 'left'), ('Emitter_1', 1, 'joined'),
-                                (copy['Emitter_10_copy1'], 1, 'joined'), (copy['Emitter_10_copy3'], 2, 'joined')})
-        # no other building's lists change
-        for b in ('XComBuildingVolume_1', 'XComBuildingVolume_2', 'XComBuildingVolume_8'):
-            self.assertEqual(emitters(self.q, b), emitters(self.p, b))
+        # (the floors' emitter lists of the whole map: the shared build's other lane, the flares', lists no effect)
+        with self.part() as part:
+            got = emitters(part.q, FLOOR1)
+            before = emitters(self.p, FLOOR1)
+            self.assertEqual(before[1], ['Emitter_13', 'Emitter_14', 'Emitter_37', 'Emitter_4', 'Emitter_45'])
+            copy = {r['actor']: r['copy'].split('.')[-1] for r in part.section['effects'] if r['how'] == 'copied'}
+            # untouched ones keep their listing (Emitter_13, _37, _4 though they stand outside the boxes); the moved-out
+            # and the deleted leave; the moved-in and the copy in floor 1's box join; floor 0 never lists
+            self.assertEqual(got[0], before[0])
+            self.assertEqual(got[1], sorted(['Emitter_13', 'Emitter_37', 'Emitter_4', 'Emitter_1', copy['Emitter_10_copy1']]))
+            self.assertEqual(got[2], sorted(before[2] + [copy['Emitter_10_copy3']]))
+            rows = {(f['effect'], f['floor'], f['how']) for f in part.section['floorEmitters']}
+            self.assertEqual(rows, {('Emitter_14', 1, 'left'), ('Emitter_45', 1, 'left'), ('Emitter_1', 1, 'joined'),
+                                    (copy['Emitter_10_copy1'], 1, 'joined'), (copy['Emitter_10_copy3'], 2, 'joined')})
+            # no other building's lists change
+            for b in ('XComBuildingVolume_1', 'XComBuildingVolume_2', 'XComBuildingVolume_8'):
+                self.assertEqual(emitters(part.q, b), emitters(self.p, b))
 
     def test_lane_refusals(self):
-        out = Path(self.tmp.name) / 'Refused'
+        out = Path(self.tmp) / 'Refused'
         at = dict(location=[0, 0, 0], rotation=[0, 0, 0])
         for effects, sounds, words in ((dict(moves=[dict(name='AmbientSoundSimple_2', **at)]), None, 'not an effect'),
                                        (dict(deletes=[dict(name='Emitter_999')]), None, 'no actor Emitter_999'),
@@ -196,8 +229,9 @@ class Lanes(unittest.TestCase):
 
     def test_a_cleared_map_keeps_the_moved_sound_the_copies_and_the_skyrangers(self):
         # (the user, 18 November 2026: Clear left a cleared Bar's ambient sounds in its play area) the map's own
-        # sounds go with the clear, but one the project moved, its copies and the Skyranger's
-        out = Path(self.tmp.name) / 'Cleared'
+        # sounds go with the clear, but one the project moved, its copies and the Skyranger's (a build of its own: the
+        # sounds' lane alone, with a clear)
+        out = Path(self.tmp) / 'Cleared'
         m = native_copy.build(BAR, out, 'Cleared', [], sounds=dict(moves=self.SOUNDS['moves'], copies=self.SOUNDS['copies'][:1]),
                               cleared=dict(grid=[52, 39, 12]))
         q = Package(out / 'Cleared.upk')
@@ -351,105 +385,108 @@ PIER, NO_PIER = labpaths.install_map('URB_PierA')
 
 
 @unittest.skipUnless(BAR and BAR.exists() and PIER and PIER.exists(), NO_BAR or NO_PIER)
-class ForeignLanes(unittest.TestCase):
+class ForeignLanes(SharedPart, unittest.TestCase):
     """The 17 November offline trial made a test (plan 2.7): URB_PierA's lit sea foam (Emitter_10) and air conditioner
     (AmbientSoundSimple_1), which URB_Bar lacks, staged in Bar by transplant.stage_edit and cloned by the lanes; two
-    copies of the effect from the one staged actor."""
+    copies of the effect from the one staged actor. Staged and built with ForeignFlares' flares of AlienBase01 (the
+    shared build `foreign`)."""
     FOAM, AIR = 'Emitter_10', 'AmbientSoundSimple_1'
+    BUILD = 'foreign'
+    EDIT = 'URB_PierA\'s sea foam copied twice and its air conditioner once, into the effects\' and sounds\' lanes'
 
     @classmethod
-    def setUpClass(cls):
+    def lanes(cls):
         import transplant
-        cls.tmp = tempfile.TemporaryDirectory()
-        out = Path(cls.tmp.name)
         donor = dict(package='URB_PierA', sha256=transplant.sha256(PIER))
-        at = lambda x, y, z: dict(location=[x, y, z], rotation=[0, 0, 0])
-        cls.edit = dict(copies=[], effects=dict(moves=[], deletes=[], copies=[
+        at = lambda x, y, z: dict(location=[x, y, z], rotation=[0, 0, 0])  # noqa: E731
+        return dict(effects=dict(moves=[], deletes=[], copies=[
             dict(id='a', name='Emitter_10_copy1', source=cls.FOAM, actorClass='Emitter', donor=donor, **at(200.0, -600.0, 2.0)),
             dict(id='b', name='Emitter_10_copy2', source=cls.FOAM, actorClass='Emitter', donor=donor, **at(400.0, -600.0, 2.0))]),
             sounds=dict(moves=[], deletes=[], copies=[
                 dict(id='c', name='AmbientSoundSimple_1_copy3', source=cls.AIR, actorClass='AmbientSoundSimple', donor=donor,
                      **at(-300.0, -1000.0, 60.0))]))
-        cls.staged, cls.new_edit, cls.report = transplant.stage_edit(BAR, out / 'transplant', cls.edit)
-        cls.m = native_copy.build(cls.staged, out / 'build', 'Foreign', cls.new_edit['copies'],
-                                  effects=cls.new_edit['effects'], sounds=cls.new_edit['sounds'])
-        cls.q = Package(out / 'build' / 'Foreign.upk')
-        cls.pier = Package(PIER)
-        cls.section = cls.m['nativeCopies']
 
     @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.pier = Package(PIER)
 
     def test_each_donor_actor_is_staged_once_and_the_lanes_name_it(self):
-        row, = self.report['donors']
-        self.assertEqual((row['map'], row['pieces'], row['effects'], row['cut']), ('URB_PierA', 0, 2, []))
-        self.assertEqual(self.report['foreignPieces'], 2)
-        foam, again = self.new_edit['effects']['copies']
-        air, = self.new_edit['sounds']['copies']
-        self.assertEqual(foam['source'], row['staged'][self.FOAM])
-        self.assertEqual(again['source'], foam['source'])
-        self.assertEqual(air['source'], row['staged'][self.AIR])
-        self.assertTrue(foam['staged'] and again['staged'] and air['staged'])
-        self.assertEqual((foam['donor']['actor'], air['donor']['actor']), (self.FOAM, self.AIR))
-        self.assertEqual(self.edit['effects']['copies'][0]['source'], self.FOAM)    # the edit given is not changed
+        with self.part() as part:
+            row, = part.donors
+            self.assertEqual((row['map'], row['pieces'], row['effects'], row['cut']), ('URB_PierA', 0, 2, []))
+            # the report counts each donor's staged pieces and effects (this one's two; the shared build's other edit
+            # stages from AlienBase01)
+            self.assertEqual(part.report['foreignPieces'], sum(r['pieces'] + r['effects'] for r in part.report['donors']))
+            self.assertEqual(row['pieces'] + row['effects'], 2)
+            foam, again = part.staged['effects']['copies']
+            air, = part.staged['sounds']['copies']
+            self.assertEqual(foam['source'], row['staged'][self.FOAM])
+            self.assertEqual(again['source'], foam['source'])
+            self.assertEqual(air['source'], row['staged'][self.AIR])
+            self.assertTrue(foam['staged'] and again['staged'] and air['staged'])
+            self.assertEqual((foam['donor']['actor'], air['donor']['actor']), (self.FOAM, self.AIR))
+            self.assertEqual(part.edit['effects']['copies'][0]['source'], self.FOAM)    # the edit given is not changed
 
     def test_the_clones_are_listed_and_the_staged_actors_not(self):
-        q, listed = self.q, set(native_copy.level_actors(self.q))
-        for name in (self.new_edit['effects']['copies'][0]['source'], self.new_edit['sounds']['copies'][0]['source']):
-            self.assertNotIn(q.by_name[PL + name], listed)
-        rows = {r['actor']: r for r in self.section['effects'] + self.section['sounds']}
-        self.assertEqual(sorted(rows), ['AmbientSoundSimple_1_copy3', 'Emitter_10_copy1', 'Emitter_10_copy2'])
-        foam = self.pier.own(self.pier.by_name[PL + self.FOAM], 'ParticleSystemComponent')
-        for name in ('Emitter_10_copy1', 'Emitter_10_copy2'):
-            i = q.by_name[PL + rows[name]['copy']]
-            self.assertIn(i, listed)
-            component = q.own(i, 'ParticleSystemComponent')
-            self.assertTrue(q.name(component).startswith(q.name(i) + '.'))
-            self.assertEqual(q.name(q.own(component, 'Template')), self.pier.name(self.pier.own(foam, 'Template')))
-            self.assertGreater(q.own(i, 'LightEnvironment', 0), 0)               # lit: a light environment of its own
-            self.assertTrue(q.name(q.own(i, 'LightEnvironment')).startswith(q.name(i) + '.'))
-        sound = q.by_name[PL + rows['AmbientSoundSimple_1_copy3']['copy']]
-        self.assertIn(sound, listed)
-        cue = q.own(q.own(sound, 'AudioComponent'), 'SoundCue')
-        self.assertTrue(q.name(cue).startswith(q.name(sound) + '.'))
-        self.assertEqual(q.own(cue, 'FirstNode'), q.own(sound, 'SoundNodeInstance'))
+        with self.part() as part:
+            q, listed = part.q, set(native_copy.level_actors(part.q))
+            for name in (part.staged['effects']['copies'][0]['source'], part.staged['sounds']['copies'][0]['source']):
+                self.assertNotIn(q.by_name[PL + name], listed)
+            rows = {r['actor']: r for r in part.section['effects'] + part.section['sounds']}
+            self.assertEqual(sorted(rows), ['AmbientSoundSimple_1_copy3', 'Emitter_10_copy1', 'Emitter_10_copy2'])
+            foam = self.pier.own(self.pier.by_name[PL + self.FOAM], 'ParticleSystemComponent')
+            for name in ('Emitter_10_copy1', 'Emitter_10_copy2'):
+                i = q.by_name[PL + rows[name]['copy']]
+                self.assertIn(i, listed)
+                component = q.own(i, 'ParticleSystemComponent')
+                self.assertTrue(q.name(component).startswith(q.name(i) + '.'))
+                self.assertEqual(q.name(q.own(component, 'Template')), self.pier.name(self.pier.own(foam, 'Template')))
+                self.assertGreater(q.own(i, 'LightEnvironment', 0), 0)               # lit: a light environment of its own
+                self.assertTrue(q.name(q.own(i, 'LightEnvironment')).startswith(q.name(i) + '.'))
+            sound = q.by_name[PL + rows['AmbientSoundSimple_1_copy3']['copy']]
+            self.assertIn(sound, listed)
+            cue = q.own(q.own(sound, 'AudioComponent'), 'SoundCue')
+            self.assertTrue(q.name(cue).startswith(q.name(sound) + '.'))
+            self.assertEqual(q.own(cue, 'FirstNode'), q.own(sound, 'SoundNodeInstance'))
 
     def test_export_28_reads_them_as_the_donor_has_them(self):
         import effects_metadata
         import piece_flags
-        # (read with the install's script packages, as an export of the map in the install is)
-        scripts = piece_flags.ScriptDefaults.of(Path(PIER).parent)
-        mine = effects_metadata.describe(self.q, defaults=effects_metadata.Defaults(self.q, scripts))
-        theirs = effects_metadata.describe(self.pier)
-        copies = {r['actor'].rsplit('.', 1)[-1]: r for r in mine['effects'] + mine['sounds']}
-        rows = {r['actor']: r['copy'].rsplit('.', 1)[-1] for r in self.section['effects'] + self.section['sounds']}
-        home = {r['actor'].rsplit('.', 1)[-1]: r for r in theirs['effects'] + theirs['sounds']}
-        for name, source in (('Emitter_10_copy1', self.FOAM), ('Emitter_10_copy2', self.FOAM),
-                             ('AmbientSoundSimple_1_copy3', self.AIR)):
-            r, h = copies[rows[name]], home[source]
-            self.assertTrue(r['listed'])
-            if r['kind'] == 'effect':
-                self.assertEqual((r['template'], r['lit'], r['parameters']), (h['template'], h['lit'], h['parameters']))
-                # (the fingerprint hashes the bytes, whose object indices the bring renumbers: what it says is compared)
-                said = ('objects', 'lodLevels', 'emitters', 'offers', 'fixedBox')
-                self.assertEqual({k: mine['systems'][r['system']][k] for k in said},
-                                 {k: theirs['systems'][h['system']][k] for k in said})
-            else:
-                self.assertEqual([w.split('|')[1] for w in r['waves']], [w.split('|')[1] for w in h['waves']])
-                self.assertTrue(all(mine['waves'][w]['playable'] for w in r['waves']))
-                self.assertEqual(r['values'], h['values'])
+        with self.part() as part:
+            # (read with the install's script packages, as an export of the map in the install is)
+            scripts = piece_flags.ScriptDefaults.of(Path(PIER).parent)
+            mine = effects_metadata.describe(part.q, defaults=effects_metadata.Defaults(part.q, scripts))
+            theirs = effects_metadata.describe(self.pier)
+            copies = {r['actor'].rsplit('.', 1)[-1]: r for r in mine['effects'] + mine['sounds']}
+            rows = {r['actor']: r['copy'].rsplit('.', 1)[-1] for r in part.section['effects'] + part.section['sounds']}
+            home = {r['actor'].rsplit('.', 1)[-1]: r for r in theirs['effects'] + theirs['sounds']}
+            for name, source in (('Emitter_10_copy1', self.FOAM), ('Emitter_10_copy2', self.FOAM),
+                                 ('AmbientSoundSimple_1_copy3', self.AIR)):
+                r, h = copies[rows[name]], home[source]
+                self.assertTrue(r['listed'])
+                if r['kind'] == 'effect':
+                    self.assertEqual((r['template'], r['lit'], r['parameters']), (h['template'], h['lit'], h['parameters']))
+                    # (the fingerprint hashes the bytes, whose object indices the bring renumbers: what it says is compared)
+                    said = ('objects', 'lodLevels', 'emitters', 'offers', 'fixedBox')
+                    self.assertEqual({k: mine['systems'][r['system']][k] for k in said},
+                                     {k: theirs['systems'][h['system']][k] for k in said})
+                else:
+                    self.assertEqual([w.split('|')[1] for w in r['waves']], [w.split('|')[1] for w in h['waves']])
+                    self.assertTrue(all(mine['waves'][w]['playable'] for w in r['waves']))
+                    self.assertEqual(r['values'], h['values'])
 
     def test_a_staged_source_must_be_staged_and_unlisted(self):
         import native_effects
-        q, listed = self.q, set(native_copy.level_actors(self.q))
-        staged = self.new_edit['effects']['copies'][0]['source']
-        with self.assertRaises(ValueError) as caught:
-            native_effects.lane_actor(q, staged, ('Emitter',), listed, 'an effect')
-        self.assertIn('not in the level', str(caught.exception))
-        with self.assertRaises(ValueError) as caught:
-            native_effects.lane_actor(q, 'Emitter_2', ('Emitter',), listed, 'an effect', staged=True)
-        self.assertIn('staged from another map', str(caught.exception))
+        with self.part() as part:
+            q, listed = part.q, set(native_copy.level_actors(part.q))
+            staged = part.staged['effects']['copies'][0]['source']
+            with self.assertRaises(ValueError) as caught:
+                native_effects.lane_actor(q, staged, ('Emitter',), listed, 'an effect')
+            self.assertIn('not in the level', str(caught.exception))
+            with self.assertRaises(ValueError) as caught:
+                native_effects.lane_actor(q, 'Emitter_2', ('Emitter',), listed, 'an effect', staged=True)
+            self.assertIn('staged from another map', str(caught.exception))
 
 
 # ---------------------------------------------------------------- lens flares (plan Part D, stage FX6b)
@@ -457,9 +494,10 @@ BASE, NO_BASE = labpaths.install_map('AlienBase01')
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
-class FlareLanes(unittest.TestCase):
+class FlareLanes(SharedPart, unittest.TestCase):
     """One build of Bar with the flares' lane: its two lens flares (made from an archetype, which names their
-    template) moved, deleted and copied, read back; and what a cleared map keeps of them."""
+    template) moved, deleted and copied, read back (the shared build `bar`, where the effects' and sounds' lanes have
+    Lanes' edit); and what a cleared map keeps of them."""
     FLARES = dict(
         moves=[dict(name='LensFlareSource_7', location=[900.0, -220.0, 300.0], rotation=[0, 8192, 0])],
         deletes=[dict(name='LensFlareSource_8')],
@@ -467,85 +505,87 @@ class FlareLanes(unittest.TestCase):
                      rotation=[0, 0, 0]),
                 dict(id='b', name='LensFlareSource_8_copy2', source='LensFlareSource_8', location=[96.0, 640.0, 200.0],
                      rotation=[0, 16384, 0])])
+    BUILD = 'bar'
+    EDIT = 'the flares\' lane: LensFlareSource_7 moved, _8 deleted, each copied'
 
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
+        super().setUpClass()
+        cls.tmp = cls.enterClassContext(tempfile.TemporaryDirectory())
         cls.p = Package(BAR)
-        out = Path(cls.tmp.name) / 'Flares'
-        cls.m = native_copy.build(BAR, out, 'Flares', [], flares=cls.FLARES)
-        cls.q = Package(out / 'Flares.upk')
-        cls.section = cls.m['nativeCopies']
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
 
     def test_a_flare_is_an_actor_and_its_component(self):
+        # (the source map: no build)
         p, i = self.p, self.p.by_name[PL + 'LensFlareSource_7']
         tree = native_copy.subtree(p, i)
         self.assertEqual(sorted(p.cls(j) for j in tree), ['LensFlareComponent', 'LensFlareSource'])
         self.assertEqual(p.cls(p.effective(p.own(i, 'LensFlareComp'), 'Template')), 'LensFlare')
 
     def test_the_move_is_in_place(self):
-        q, m = self.q, self.FLARES['moves'][0]
-        i = q.by_name[PL + m['name']]
-        self.assertEqual(i, self.p.by_name[PL + m['name']])
-        self.assertIn(i, native_copy.level_actors(q))
-        self.assertEqual(([round(v, 3) for v in q.own(i, 'Location')], list(q.own(i, 'Rotation', [0, 0, 0]))),
-                         (m['location'], m['rotation']))
+        with self.part() as part:
+            q, m = part.q, self.FLARES['moves'][0]
+            i = q.by_name[PL + m['name']]
+            self.assertEqual(i, self.p.by_name[PL + m['name']])
+            self.assertIn(i, native_copy.level_actors(q))
+            self.assertEqual(([round(v, 3) for v in q.own(i, 'Location')], list(q.own(i, 'Rotation', [0, 0, 0]))),
+                             (m['location'], m['rotation']))
 
     def test_the_delete_leaves_the_list_and_keeps_the_export(self):
-        self.assertIn(PL + 'LensFlareSource_8', self.q.by_name)
-        self.assertNotIn(self.q.by_name[PL + 'LensFlareSource_8'], native_copy.level_actors(self.q))
+        with self.part() as part:
+            self.assertIn(PL + 'LensFlareSource_8', part.q.by_name)
+            self.assertNotIn(part.q.by_name[PL + 'LensFlareSource_8'], native_copy.level_actors(part.q))
 
     def test_a_copy_has_a_component_of_its_own_and_shares_the_template(self):
-        q, listed = self.q, set(native_copy.level_actors(self.q))
-        rows = {r['actor']: r for r in self.section['flares'] if r['how'] == 'copied'}
-        self.assertEqual(sorted(rows), ['LensFlareSource_7_copy1', 'LensFlareSource_8_copy2'])
-        components = set()
-        for name, r in rows.items():
-            i = q.by_name[PL + r['copy']]
-            source = self.p.by_name[PL + r['source']]
-            self.assertIn(i, listed)
-            self.assertEqual(q.cls(i), 'LensFlareSource')
-            self.assertEqual(len(r['exports']), 2)                  # the actor and its component, nothing else
-            component = q.own(i, 'LensFlareComp')
-            self.assertTrue(q.name(component).startswith(q.name(i) + '.'), q.name(component))
-            self.assertNotEqual(component, self.p.own(source, 'LensFlareComp'))
-            components.add(component)
-            # the template (its archetype's) and the colour as the source has them
-            theirs = self.p.own(source, 'LensFlareComp')
-            self.assertEqual(q.name(q.effective(component, 'Template')), self.p.name(self.p.effective(theirs, 'Template')))
-            self.assertEqual(q.own(component, 'SourceColor'), self.p.own(theirs, 'SourceColor'))
-            self.assertEqual(q.exports[i - 1]['arch'], self.p.exports[source - 1]['arch'])
-            self.assertEqual([round(v, 3) for v in q.own(i, 'Location')], r['location'])
-        self.assertEqual(len(components), 2)
-        self.assertEqual(list(q.own(q.by_name[PL + rows['LensFlareSource_8_copy2']['copy']], 'Rotation')), [0, 16384, 0])
+        with self.part() as part:
+            q, listed = part.q, set(native_copy.level_actors(part.q))
+            rows = {r['actor']: r for r in part.section['flares'] if r['how'] == 'copied'}
+            self.assertEqual(sorted(rows), ['LensFlareSource_7_copy1', 'LensFlareSource_8_copy2'])
+            components = set()
+            for name, r in rows.items():
+                i = q.by_name[PL + r['copy']]
+                source = self.p.by_name[PL + r['source']]
+                self.assertIn(i, listed)
+                self.assertEqual(q.cls(i), 'LensFlareSource')
+                self.assertEqual(len(r['exports']), 2)                  # the actor and its component, nothing else
+                component = q.own(i, 'LensFlareComp')
+                self.assertTrue(q.name(component).startswith(q.name(i) + '.'), q.name(component))
+                self.assertNotEqual(component, self.p.own(source, 'LensFlareComp'))
+                components.add(component)
+                # the template (its archetype's) and the colour as the source has them
+                theirs = self.p.own(source, 'LensFlareComp')
+                self.assertEqual(q.name(q.effective(component, 'Template')), self.p.name(self.p.effective(theirs, 'Template')))
+                self.assertEqual(q.own(component, 'SourceColor'), self.p.own(theirs, 'SourceColor'))
+                self.assertEqual(q.exports[i - 1]['arch'], self.p.exports[source - 1]['arch'])
+                self.assertEqual([round(v, 3) for v in q.own(i, 'Location')], r['location'])
+            self.assertEqual(len(components), 2)
+            self.assertEqual(list(q.own(q.by_name[PL + rows['LensFlareSource_8_copy2']['copy']], 'Rotation')), [0, 16384, 0])
 
     def test_the_sources_are_untouched_but_for_the_move(self):
-        for name in ('LensFlareSource_8', 'LensFlareSource_7.LensFlareComponent_7'):
-            i = self.p.by_name[PL + name]
-            e, f = self.p.exports[i - 1], self.q.exports[self.q.by_name[PL + name] - 1]
-            self.assertEqual(bytes(self.p.data[e['off']:e['off'] + e['size']]), bytes(self.q.data[f['off']:f['off'] + f['size']]))
+        with self.part() as part:
+            q = part.q
+            for name in ('LensFlareSource_8', 'LensFlareSource_7.LensFlareComponent_7'):
+                i = self.p.by_name[PL + name]
+                e, f = self.p.exports[i - 1], q.exports[q.by_name[PL + name] - 1]
+                self.assertEqual(bytes(self.p.data[e['off']:e['off'] + e['size']]), bytes(q.data[f['off']:f['off'] + f['size']]))
 
     def test_export_28_reads_them(self):
         import effects_metadata
         import piece_flags
-        scripts = piece_flags.ScriptDefaults.of(Path(BAR).parent)
-        read = effects_metadata.describe(self.q, defaults=effects_metadata.Defaults(self.q, scripts))
-        by = {r['actor'].rsplit('.', 1)[-1]: r for r in read['flares']}
-        copies = {r['actor']: r['copy'] for r in self.section['flares'] if r['how'] == 'copied'}
-        self.assertEqual(by['LensFlareSource_7']['location'], [900.0, -220.0, 300.0])
-        self.assertFalse(by['LensFlareSource_8']['listed'])
-        for name in copies.values():
-            r = by[name]
-            self.assertTrue(r['listed'])
-            self.assertEqual((r['template'], r['colour'], r['can']['copy']),
-                             ('FX_Lens_Flares.LF_XCom_Base_C', by['LensFlareSource_7']['colour'], True))
+        with self.part() as part:
+            scripts = piece_flags.ScriptDefaults.of(Path(BAR).parent)
+            read = effects_metadata.describe(part.q, defaults=effects_metadata.Defaults(part.q, scripts))
+            by = {r['actor'].rsplit('.', 1)[-1]: r for r in read['flares']}
+            copies = {r['actor']: r['copy'] for r in part.section['flares'] if r['how'] == 'copied'}
+            self.assertEqual(by['LensFlareSource_7']['location'], [900.0, -220.0, 300.0])
+            self.assertFalse(by['LensFlareSource_8']['listed'])
+            for name in copies.values():
+                r = by[name]
+                self.assertTrue(r['listed'])
+                self.assertEqual((r['template'], r['colour'], r['can']['copy']),
+                                 ('FX_Lens_Flares.LF_XCom_Base_C', by['LensFlareSource_7']['colour'], True))
 
     def test_lane_refusals(self):
-        out = Path(self.tmp.name) / 'Refused'
+        out = Path(self.tmp) / 'Refused'
         at = dict(location=[0, 0, 0], rotation=[0, 0, 0])
         for flares, words in ((dict(moves=[dict(name='Emitter_2', **at)]), 'not a lens flare'),
                               (dict(deletes=[dict(name='LensFlareSource_99')]), 'no actor LensFlareSource_99'),
@@ -558,7 +598,8 @@ class FlareLanes(unittest.TestCase):
             self.assertIn(words, str(caught.exception))
 
     def test_a_cleared_map_keeps_the_moved_one_and_the_copies(self):
-        out = Path(self.tmp.name) / 'Cleared'
+        # (a build of its own: the flares' lane alone, with a clear)
+        out = Path(self.tmp) / 'Cleared'
         flares = dict(moves=self.FLARES['moves'], copies=self.FLARES['copies'][:1])
         m = native_copy.build(BAR, out, 'Cleared', [], flares=flares, cleared=dict(grid=[52, 39, 12]))
         q = Package(out / 'Cleared.upk')
@@ -570,69 +611,68 @@ class FlareLanes(unittest.TestCase):
 
 
 @unittest.skipUnless(BAR and BAR.exists() and BASE and BASE.exists(), NO_BAR or NO_BASE)
-class ForeignFlares(unittest.TestCase):
+class ForeignFlares(SharedPart, unittest.TestCase):
     """A lens flare of another map: AlienBase01's hyperwave beacon glare (LensFlareSource_0, which saves its template
     itself) and an alien ambient glow (LensFlareSource_1), neither of which URB_Bar has, staged in Bar by
-    transplant.stage_edit and cloned by the flares' lane; two copies of the one staged actor."""
+    transplant.stage_edit and cloned by the flares' lane; two copies of the one staged actor. Staged and built with
+    ForeignLanes' effect and sound of URB_PierA (the shared build `foreign`)."""
     BEACON, GLOW = 'LensFlareSource_0', 'LensFlareSource_1'
+    BUILD = 'foreign'
+    EDIT = 'AlienBase01\'s beacon glare copied twice and its ambient glow once, into the flares\' lane'
 
     @classmethod
-    def setUpClass(cls):
+    def lanes(cls):
         import transplant
-        cls.tmp = tempfile.TemporaryDirectory()
-        out = Path(cls.tmp.name)
         donor = dict(package='AlienBase01', sha256=transplant.sha256(BASE))
-        at = lambda x, y, z: dict(location=[x, y, z], rotation=[0, 0, 0])
-        cls.edit = dict(copies=[], flares=dict(moves=[], deletes=[], copies=[
+        at = lambda x, y, z: dict(location=[x, y, z], rotation=[0, 0, 0])  # noqa: E731
+        return dict(flares=dict(moves=[], deletes=[], copies=[
             dict(id='a', name='LensFlareSource_0_copy1', source=cls.BEACON, actorClass='LensFlareSource', donor=donor, **at(0.0, 640.0, 200.0)),
             dict(id='b', name='LensFlareSource_0_copy2', source=cls.BEACON, actorClass='LensFlareSource', donor=donor, **at(96.0, 640.0, 200.0)),
             dict(id='c', name='LensFlareSource_1_copy3', source=cls.GLOW, actorClass='LensFlareSource', donor=donor, **at(192.0, 640.0, 200.0))]))
-        cls.staged, cls.new_edit, cls.report = transplant.stage_edit(BAR, out / 'transplant', cls.edit)
-        cls.m = native_copy.build(cls.staged, out / 'build', 'ForeignFlares', cls.new_edit['copies'],
-                                  flares=cls.new_edit['flares'])
-        cls.q = Package(out / 'build' / 'ForeignFlares.upk')
-        cls.base = Package(BASE)
-        cls.section = cls.m['nativeCopies']
 
     @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.base = Package(BASE)
 
     def test_each_is_staged_once_and_nothing_is_cut(self):
-        row, = self.report['donors']
-        self.assertEqual((row['map'], row['pieces'], row['effects'], row['cut']), ('AlienBase01', 0, 2, []))
-        beacon, again, glow = self.new_edit['flares']['copies']
-        self.assertEqual((beacon['source'], again['source'], glow['source']),
-                         (row['staged'][self.BEACON], row['staged'][self.BEACON], row['staged'][self.GLOW]))
-        self.assertTrue(beacon['staged'] and again['staged'] and glow['staged'])
+        with self.part() as part:
+            row, = part.donors
+            self.assertEqual((row['map'], row['pieces'], row['effects'], row['cut']), ('AlienBase01', 0, 2, []))
+            beacon, again, glow = part.staged['flares']['copies']
+            self.assertEqual((beacon['source'], again['source'], glow['source']),
+                             (row['staged'][self.BEACON], row['staged'][self.BEACON], row['staged'][self.GLOW]))
+            self.assertTrue(beacon['staged'] and again['staged'] and glow['staged'])
 
     def test_the_clones_are_listed_with_their_templates_and_the_staged_actors_not(self):
-        q, listed = self.q, set(native_copy.level_actors(self.q))
-        for c in self.new_edit['flares']['copies']:
-            self.assertNotIn(q.by_name[PL + c['source']], listed)
-        rows = {r['actor']: r for r in self.section['flares']}
-        self.assertEqual(sorted(rows), ['LensFlareSource_0_copy1', 'LensFlareSource_0_copy2', 'LensFlareSource_1_copy3'])
-        for name, source in (('LensFlareSource_0_copy1', self.BEACON), ('LensFlareSource_0_copy2', self.BEACON),
-                             ('LensFlareSource_1_copy3', self.GLOW)):
-            i = q.by_name[PL + rows[name]['copy']]
-            self.assertIn(i, listed)
-            component = q.own(i, 'LensFlareComp')
-            self.assertTrue(q.name(component).startswith(q.name(i) + '.'))
-            theirs = self.base.own(self.base.by_name[PL + source], 'LensFlareComp')
-            template = q.own(component, 'Template')
-            self.assertEqual(q.name(template), self.base.name(self.base.own(theirs, 'Template')))
-            self.assertEqual(q.cls(template), 'LensFlare')
-            self.assertEqual(q.own(component, 'SourceColor'), self.base.own(theirs, 'SourceColor'))
+        with self.part() as part:
+            q, listed = part.q, set(native_copy.level_actors(part.q))
+            for c in part.staged['flares']['copies']:
+                self.assertNotIn(q.by_name[PL + c['source']], listed)
+            rows = {r['actor']: r for r in part.section['flares']}
+            self.assertEqual(sorted(rows), ['LensFlareSource_0_copy1', 'LensFlareSource_0_copy2', 'LensFlareSource_1_copy3'])
+            for name, source in (('LensFlareSource_0_copy1', self.BEACON), ('LensFlareSource_0_copy2', self.BEACON),
+                                 ('LensFlareSource_1_copy3', self.GLOW)):
+                i = q.by_name[PL + rows[name]['copy']]
+                self.assertIn(i, listed)
+                component = q.own(i, 'LensFlareComp')
+                self.assertTrue(q.name(component).startswith(q.name(i) + '.'))
+                theirs = self.base.own(self.base.by_name[PL + source], 'LensFlareComp')
+                template = q.own(component, 'Template')
+                self.assertEqual(q.name(template), self.base.name(self.base.own(theirs, 'Template')))
+                self.assertEqual(q.cls(template), 'LensFlare')
+                self.assertEqual(q.own(component, 'SourceColor'), self.base.own(theirs, 'SourceColor'))
 
     def test_export_28_reads_them_as_the_donor_has_them(self):
         import effects_metadata
-        mine = {r['actor'].rsplit('.', 1)[-1]: r for r in effects_metadata.describe(self.q)['flares']}
-        home = {r['actor'].rsplit('.', 1)[-1]: r for r in effects_metadata.describe(self.base)['flares']}
-        rows = {r['actor']: r['copy'].rsplit('.', 1)[-1] for r in self.section['flares']}
-        for name, source in (('LensFlareSource_0_copy1', self.BEACON), ('LensFlareSource_1_copy3', self.GLOW)):
-            r, h = mine[rows[name]], home[source]
-            self.assertTrue(r['listed'])
-            self.assertEqual((r['template'], r['colour'], r['can']), (h['template'], h['colour'], h['can']))
+        with self.part() as part:
+            mine = {r['actor'].rsplit('.', 1)[-1]: r for r in effects_metadata.describe(part.q)['flares']}
+            home = {r['actor'].rsplit('.', 1)[-1]: r for r in effects_metadata.describe(self.base)['flares']}
+            rows = {r['actor']: r['copy'].rsplit('.', 1)[-1] for r in part.section['flares']}
+            for name, source in (('LensFlareSource_0_copy1', self.BEACON), ('LensFlareSource_1_copy3', self.GLOW)):
+                r, h = mine[rows[name]], home[source]
+                self.assertTrue(r['listed'])
+                self.assertEqual((r['template'], r['colour'], r['can']), (h['template'], h['colour'], h['can']))
 
 
 if __name__ == '__main__':

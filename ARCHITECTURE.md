@@ -293,8 +293,9 @@ where there is one.
 - A refactor is checked by equal outputs (section 5). A change of behaviour is checked by a test that failed before it.
 - A bake test class that builds packages shares one build among tests whose edits do not meet
   ([`fixtures.SharedBuild`](tools/bake/tests/fixtures.py): each test reads its own edit's part, inside a sub-test named
-  for the edit; an edit that fails to apply fails its own test alone), and keeps one build with one edit for each kind
-  of edit, so a fault that shows only when an edit is alone, or only beside others, is still caught.
+  for the edit; an edit that fails to apply fails its own test alone; classes of one module share builds through
+  `fixtures.ModuleBuilds`), and keeps one build with one edit for each kind of edit, so a fault that shows only when an
+  edit is alone, or only beside others, is still caught.
 
 ### Changing things
 
