@@ -19,7 +19,6 @@ page its list of a kind's looks: the entries with only the numbers the page draw
 """
 import argparse
 import copy
-import importlib
 import json
 from pathlib import Path
 import subprocess
@@ -88,10 +87,21 @@ def entry(kind, mesh, material=None, folder=None):
 
 
 def measurer(kind):
-    """The kind's measurer module (wall_measure, slab_measure, ground_measure)."""
+    """The kind's measurer module (KINDS: wall_measure, slab_measure, ground_measure). Each is imported by its name
+    here, not through importlib, so that the release's list of modules (make_release.modules, which reads the
+    imports) ships all three."""
     if str(HERE) not in sys.path:
         sys.path.insert(0, str(HERE))
-    return importlib.import_module(KINDS[kind][1])
+    if kind == 'wall':
+        import wall_measure as module
+    elif kind == 'slab':
+        import slab_measure as module
+    elif kind == 'ground':
+        import ground_measure as module
+    else:
+        raise KeyError(kind)
+    assert module.__name__ == KINDS[kind][1]
+    return module
 
 
 def resolve(kind, look, package=None, actor=None, folder=None):

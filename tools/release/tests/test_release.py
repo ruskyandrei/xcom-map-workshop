@@ -38,6 +38,16 @@ class ReleaseTests(unittest.TestCase):
         for extra in make_release.EXTRAS:
             self.assertTrue((make_release.TOOLS / extra).is_file(), extra)
 
+    def test_the_look_measurers_ship(self):
+        # the Build measures a donor afresh when the catalogue lacks its look (looks.measurer): each measurer the
+        # looks name must be in the zip, though it is reached only through that one function
+        sys.path.insert(0, str(make_release.TOOLS / 'bake'))
+        import looks
+        names = {p.relative_to(make_release.TOOLS).as_posix() for p in make_release.modules()}
+        for kind, (_, module, _) in looks.KINDS.items():
+            self.assertIn('bake/%s.py' % module, names, kind)
+            self.assertEqual(looks.measurer(kind).__name__, module)
+
     def test_the_launcher_and_installer_files(self):
         for name in make_release.TEMPLATES.values():
             data = (RELEASE / name).read_bytes()

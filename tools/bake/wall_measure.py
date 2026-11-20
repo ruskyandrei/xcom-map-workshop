@@ -78,7 +78,7 @@ import warnings
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-for folder in ('viewer', 'upk', 'lab'):
+for folder in ('viewer', 'upk'):
     sys.path.insert(0, str(HERE.parent / folder))
 sys.path.insert(0, str(HERE))
 import gen_mesh  # noqa: E402
@@ -104,9 +104,9 @@ CHECK_TOLERANCE = {'bottom': 0.05, 'top': 0.05, 'storey': 0.5, 'face': 0.5, 'hal
 
 # ---------------------------------------------------------------------------------------------------- the donor
 def install_package(name):
-    import labpaths
+    import settings
     from package import Package
-    path = labpaths.lwr_cooked(name + '.upk')
+    path = (folder := settings.lwr_cooked()) and folder / (name + '.upk')
     if path is None or not path.exists():
         raise SystemExit('%s.upk is not in the configured install (python tools/viewer/viewer.py settings)' % name)
     return Package(path)
