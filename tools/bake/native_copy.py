@@ -2958,21 +2958,11 @@ def main():
             piece_blasts = doc.get('pieceBlasts') or []
             doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
         for c in doc:
-            copies.append(dict(actor=c['actor'], label=c.get('label'), location=[float(v) for v in c['location']],
+            # each record whole, as the compiler (and transplant.py) wrote it: build() reads its fields (a made
+            # wall's wallGroup among them, review finding 36); only the pose and the group are read as numbers here
+            copies.append(dict(c, location=[float(v) for v in c['location']],
                                rotation=[int(v) for v in c['rotation']] if c.get('rotation') is not None else None,
-                               yaw=c.get('yaw'), breakGroup=int(c.get('breakGroup') or 0),
-                               **({'assembly': c['assembly'], 'family': c.get('family')} if c.get('assembly') else {}),
-                               **({'ladder': c['ladder']} if c.get('ladder') else {}),
-                               # its flags (piece flags plan), written on its clone
-                               **({'flags': c['flags']} if c.get('flags') else {}),
-                               # a moved piece of the map's broken by blasts (E6), written on its clone
-                               **({'blasts': c['blasts']} if c.get('blasts') else {}),
-                               # (and asked to break further in battle, a roof or floor the game keeps whole)
-                               **({'breaksFurther': True} if c.get('breaksFurther') else {}),
-                               # a fracturing wall made from numbers on its materials (frac_walls.py)
-                               **({'generated': c['generated']} if c.get('generated') else {}),
-                               # a piece of another map, staged in the map by transplant.py
-                               **({'staged': True, 'donor': c.get('donor')} if c.get('staged') else {})))
+                               breakGroup=int(c.get('breakGroup') or 0)))
     for item in args.copy:
         if len(item) not in (4, 5):
             a.error(f'--copy takes ACTOR X Y Z [YAW], not {item}')

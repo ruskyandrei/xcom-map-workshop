@@ -55,6 +55,59 @@ class FloorMembershipCases(unittest.TestCase):
             self.assertEqual([n for n, *_ in got], list(range(len(got))), c['case'])
 
 
+class CommandLine(unittest.TestCase):
+    """The Build runs native_copy.py with a --copies file (tools/editor/build.py): main hands build() each copy record
+    whole, a made wall's wallGroup included (review finding 36), and the file's other sections as they are."""
+    # a copy record with every field compiler.native_split writes, and a staged one as transplant.py rewrites it
+    WALL = dict(actor='XComFracLevelActor_11', location=[0, 636, 14.5], rotation=[0, 16384, 0], box=[[0, 0, 0], [1, 1, 1]],
+                label='XComFracLevelActor_11_copy1', wallGroup=1, untried=True, flags={'mouse': False},
+                generated={'kind': 'wall', 'version': 3}, blasts=[{'at': [1, 2, 3], 'radius': 100}], breaksFurther=True)
+    PROP = dict(actor='XComDestructibleActor_4', location=[144, 660, 14.5], rotation=[0, 0, 0], label='prop', breakGroup=1,
+                family='door', assembly='a1', ladder={'foot': [1, 2, 3], 'top': [1, 2, 9]}, futureField='kept')
+    STAGED = dict(actor='StaticMeshActor_9', location=[1, 2, 3], yaw=8192, staged=True,
+                  donor={'package': 'URB_PoliceStation', 'actor': 'StaticMeshActor_3'})
+
+    def run_main(self, doc):
+        got = {}
+
+        class Stop(Exception):
+            pass
+
+        def build(*args, **kwargs):
+            got['args'], got['kwargs'] = args, kwargs
+            raise Stop
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'native-edit.json'
+            path.write_text(__import__('json').dumps(doc), encoding='utf-8', newline='\n')
+            argv, real = sys.argv, native_copy.build
+            sys.argv = ['native_copy.py', 'src.upk', d, 'Variant', '--copies', str(path)]
+            native_copy.build = build
+            try:
+                with self.assertRaises(Stop):
+                    native_copy.main()
+            finally:
+                sys.argv, native_copy.build = argv, real
+        return got['args'], got['kwargs']
+
+    def test_copy_records_reach_build_whole(self):
+        args, kwargs = self.run_main(dict(copies=[self.WALL, self.PROP, self.STAGED],
+                                          breakOriginals=[{'name': 'XComLevelActor_2', 'group': 1}]))
+        copies = args[3]
+        self.assertEqual(len(copies), 3)
+        for sent, received in zip((self.WALL, self.PROP, self.STAGED), copies):
+            for key, value in sent.items():
+                self.assertEqual(received.get(key), value, key)
+        self.assertEqual(copies[0]['wallGroup'], 1)
+        self.assertEqual(kwargs['break_originals'], [{'name': 'XComLevelActor_2', 'group': 1}])
+
+    def test_the_pose_is_read_as_numbers(self):
+        args, _ = self.run_main([dict(actor='XComLevelActor_1', location=['1', 2, 3.5], rotation=['0', 16384.0, 0],
+                                      breakGroup='2')])
+        (c,) = args[3]
+        self.assertEqual((c['location'], c['rotation'], c['breakGroup']), ([1.0, 2.0, 3.5], [0, 16384, 0], 2))
+        self.assertEqual([type(v) for v in c['location'] + c['rotation']], [float] * 3 + [int] * 3)
+
+
 @unittest.skipUnless(DEMOLITION and DEMOLITION.exists(), NO_DEMOLITION)
 class RebuildTemplateBrush(unittest.TestCase):
     def test_a_volume_with_no_brush_is_passed_over(self):
