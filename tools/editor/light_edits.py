@@ -459,7 +459,7 @@ class LightEdits:
                 owner_now, why = bound.get(rec['actor'], (None, None))
                 if owner_now is None and why != 'kept':
                     unsettled.append(short(rec['actor']))
-            if unsettled and self.c.cleared and kind == 'delete':
+            if unsettled and self.c.mission_edits.cleared and kind == 'delete':
                 # a cleared map's Build takes out every area light whose glowing piece isn't settled (clear_level)
                 unsettled = []
             if unsettled:

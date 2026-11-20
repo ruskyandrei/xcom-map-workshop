@@ -251,7 +251,7 @@ class BuildingEdits:
         if not (dims and origin and size):
             self.c.error('building-grid', 'the export of %s has no tile grid, which a building needs' % self.c.map)
             return
-        count = list(self.c.stage_grid or dims[:3])
+        count = list(self.c.mission_edits.stage_grid or dims[:3])
         lo = [float(v) for v in origin[:3]]
         hi = [lo[k] + count[k] * size[k] for k in range(3)]
         storeys = self.c.cursor_storeys()

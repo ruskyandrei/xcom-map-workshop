@@ -1350,7 +1350,7 @@ class StageTests(unittest.TestCase):
         c.scene['tileGrid'] = dict(c.scene['tileGrid'], dimensions=[45, 203, 15], size=[96, 96, 64])
         c.map = 'TempleShip'
         c.cleared_mark(); c.stage()
-        self.assertEqual((c.stage_grid, [e['code'] for e in c.errors]), ([40, 150, 8], []))
+        self.assertEqual((c.mission_edits.stage_grid, [e['code'] for e in c.errors]), ([40, 150, 8], []))
 
     def test_a_malformed_stage_is_refused(self):
         for stage in ({'grid': [61]}, {'grid': [61.5, 39]}, {'grid': [61, 39], 'ground': 'yes'}, [61, 39], {'grid': [True, 39]},
@@ -2522,10 +2522,10 @@ class FamilyTests(unittest.TestCase):
         nx, ny, nz = s['tileGrid']['dimensions']
         c = compiler.Compiler(document(stage=dict(grid=[nx, ny, nz + 4])), s)
         if c is not None:
-            c.stage_grid = [nx, ny, nz + 4]
+            c.mission_edits.stage_grid = [nx, ny, nz + 4]
             c.copies.append(dict(box=[ox, ox + 96, oy, oy + 96, oz + 64 * nz - 6, oz + 64 * nz + 2], label='high'))
             self.assertEqual(list(c.added_floors()[0]), [(0, 0, nz)])
-            c.stage_grid = None
+            c.mission_edits.stage_grid = None
             self.assertEqual(c.added_floors()[0], {})
 
     def test_a_moved_or_deleted_ladder_takes_its_patch_helper_with_it(self):

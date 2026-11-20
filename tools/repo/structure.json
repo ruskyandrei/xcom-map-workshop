@@ -9,6 +9,7 @@
     "tools/editor/flag_edits.py",
     "tools/editor/light_edits.py",
     "tools/editor/made_edits.py",
+    "tools/editor/mission_edits.py",
     "tools/editor/spawn_edits.py"
   ],
   "file lines": {
