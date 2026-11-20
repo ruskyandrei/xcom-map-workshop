@@ -17,6 +17,9 @@ places the relight writes, and by `native_fields` for the transplant's reference
   `component_record`'s; that cross-check of one reader with itself is gone.
 - `native_fields`' fields of a mesh component come from it, in the order they did; the check that an inline bulk
   record points to its payload stays its own.
+- The relight's images now depend on `native_fields` (lighting_records imports it), so it is in the piece cache's key
+  (relight.py's `TOOL_FILES`; the bake suite's key test found it missing). With lighting_records.py and
+  lightmap_fields.py changed too, a project's next baked Build relights its kept pieces once.
 - The checks of the three readers are now each reader's: a vertex-colour flag other than 0 or 1, a colour array whose
   stride or count differs from its header, an unknown lightmap type, an object that is not one, and a vertex
   lightmap's bulk record with a negative count or size are refused wherever a component is read (the transplant's

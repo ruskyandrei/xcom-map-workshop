@@ -1424,8 +1424,8 @@ def run_jobs(queue, jobs, start_args, on_piece):
 # key too, for whatever this list leaves out
 TOOL_FILES = ('bake/relight.py', 'bake/bounce.py', 'bake/shadows.py', 'bake/lightmap_encode.py',
               'bake/lightmap_texels.py', 'bake/albedo.py', 'bake/lightmap_textures.py', 'bake/lightmap_fields.py',
-              'bake/dxt1.py', 'upk/lighting_records.py', 'upk/props.py', 'upk/decomp.py', 'upk/lzo1x.py',
-              'upk/upkinfo.py', 'upk/package_edit.py', 'viewer/mesh.py', 'viewer/export_math.py',
+              'bake/dxt1.py', 'upk/lighting_records.py', 'upk/native_fields.py', 'upk/props.py', 'upk/decomp.py',
+              'upk/lzo1x.py', 'upk/upkinfo.py', 'upk/package_edit.py', 'viewer/mesh.py', 'viewer/export_math.py',
               'viewer/export.py', 'viewer/lights.py', 'viewer/texture.py', 'viewer/package.py')
 CACHE_BOXES = 64        # with more edit boxes than this, pieces are not kept: each box is tested against each piece
 
