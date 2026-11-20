@@ -245,7 +245,7 @@ class GrowBar(unittest.TestCase):
         # a map stored uncompressed (DLC2_3_Furies.upk as LWR ships it) is read in the compressed layout
         # (package_edit.compressed_layout) and written compressed, with a fixed-size edit, a new name and a moved export
         sys.path.insert(0, str(HERE))
-        from test_package_edit import uncompressed
+        from upk_fixtures import uncompressed
         lo = self.h['chunks'][0][0]
         with tempfile.TemporaryDirectory() as d:
             src, out = Path(d) / 'flat.upk', Path(d) / 'URB_Bar.upk'

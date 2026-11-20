@@ -27,6 +27,7 @@ import props as legacy_props  # noqa: E402
 
 sys.path.insert(0, str(TOOLS / 'lab'))
 import labpaths  # noqa: E402
+from fixtures import export_bytes, hull  # noqa: E402
 
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
 POLICE, NO_POLICE = labpaths.test_file('XCOM_POLICE_UPK', labpaths.lwr_cooked('URB_PoliceStation.upk'),
@@ -97,64 +98,6 @@ def native_layout(b, at):
     f['indices'] = list(struct.unpack(f'<{count}H', idx))
     f['rest'] = b[r.pos:]
     return f
-
-
-RAW = {'Vector': '3f', 'Plane': '4f', 'Box': '6fB'}
-
-
-def tagged(p, b, at=0):
-    """[(name, kind, value)] of tagged properties in b from `at` up to None: a struct of plain fields as a list, of
-    tagged fields as tagged(); an array as (count, raw elements)."""
-    out = []
-    while True:
-        name = p.names[struct.unpack_from('<i', b, at)[0]]
-        if name == 'None':
-            return out
-        kind = p.names[struct.unpack_from('<i', b, at + 8)[0]]
-        size = struct.unpack_from('<i', b, at + 16)[0]
-        at += 24
-        if kind == 'StructProperty':
-            sname = p.names[struct.unpack_from('<i', b, at)[0]]
-            at += 8
-            body = b[at:at + size]
-            out.append((name, sname, list(struct.unpack('<' + RAW[sname], body)) if sname in RAW else tagged(p, body)))
-        elif kind == 'ArrayProperty':
-            out.append((name, kind, (struct.unpack_from('<i', b, at)[0], b[at + 4:at + size])))
-        elif kind == 'BoolProperty':
-            out.append((name, kind, b[at]))
-            at += 1
-            continue
-        else:
-            out.append((name, kind, b[at:at + size]))
-        at += size
-
-
-def hull(p, body_setup):
-    """An RB_BodySetup's (version, [its tagged property names], its one convex element's fields as convex_hull gives
-    them)."""
-    props = tagged(p, export_bytes(p, body_setup), legacy_props.props_start(p.data, p.exports[body_setup - 1], p.names)
-                   - p.exports[body_setup - 1]['off'])
-    named = {n: v for n, _, v in props}
-    version = struct.unpack('<i', named['PreCachedPhysDataVersion'])[0]
-    [(top, _, (count, elems))] = named['AggGeom']
-    assert top == 'ConvexElems' and count == 1
-    fmts = dict(VertexData='3f', PermutedVertexData='4f', FaceTriData='i', EdgeDirections='3f',
-                FaceNormalDirections='3f', FacePlaneData='4f')
-    out = {}
-    for name, kind, value in tagged(p, elems):
-        if name == 'ElemBox':
-            out[name] = [value[:3], value[3:6], value[6]]
-        else:
-            n, raw = value
-            size = struct.calcsize('<' + fmts[name])
-            rows = [list(struct.unpack_from('<' + fmts[name], raw, size * k)) for k in range(n)]
-            out[name] = [r[0] for r in rows] if fmts[name] == 'i' else rows
-    return version, [n for n, _, _ in props], out
-
-
-def export_bytes(p, i):
-    e = p.exports[i - 1]
-    return bytes(p.data[e['off']:e['off'] + e['size']])
 
 
 def props_list(p, i):
