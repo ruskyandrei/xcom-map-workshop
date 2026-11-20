@@ -73,6 +73,7 @@ after 0.5.2; the tags up to v0.5.2 mark releases made before it was public.
 | `tools/lab/`, `tools/patch/`, `tools/re/`, `tools/udk/`, `unrealscript/` | The tools of the experiments: driving the game in a lab copy, patch maps made with the UDK, reading the game's executable. The editor's Build does not need them. |
 | `tools/repo/` | Checks that keep the repository free of anything personal or private. |
 | `research/` | What was found out about the game and how: the [findings register](research/findings-register.md), the experiments (`experiments/EXP-*.md`), the [native code notes](research/native-code-notes.md) and the first [research summary](research/mission-editor-research.md). |
+| [KNOWN-BUGS.md](KNOWN-BUGS.md) | The bugs known and not fixed yet: what you see, how to work round it, and the finding behind each. |
 | [CHANGELOG.md](CHANGELOG.md) | The change ledger's index: one month file per month in `changelog/`, newest first, and one file per change since the last release in `changelog/entries/`, each with how it was checked. |
 
 No game files, or anything made from them, are in the repository. Neither are the source files of other modding

@@ -6,6 +6,10 @@
   entry's file or a month file for a new change; each release gathers the entries into the month's file
   ([CHANGELOG.md](CHANGELOG.md) is the index). Experiment results still go in `research/experiments/` and the
   findings register; the ledger records changes to the tools and documents.
+- **Keep the known bug register.** A bug in the editor or its builds that is found and left unfixed (a failed game
+  check, a report, a review) gets an entry in [KNOWN-BUGS.md](KNOWN-BUGS.md): what a user sees, since when, a
+  workaround, the cause in a line and its finding. The commit that merges its fix takes it out, and says so in its
+  ledger entry.
 - **Commit whenever a piece of work is done**, without waiting to be asked: a fix, a feature or a stage of a plan,
   once its tests pass, on the branch it was done on, with its ledger entry in the same commit. Leave nothing finished
   lying uncommitted at the end of a turn. Push only when the user asks.

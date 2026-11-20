@@ -66,7 +66,8 @@ sits on the commit it was built from, so main is pushed before the release is cr
        [project.js](../../../tools/viewer/web/project.js) and [prefabs.py](../../../tools/viewer/prefabs.py) with
        the last release's commit (`git show <commit>:<path>`).
    - **Known limits:** four at most, the most important, each said as what happens in the game (no list of what
-     isn't played: see the rules). Ask for reports through **Save a bug report** in the Build window.
+     isn't played: see the rules). Read [KNOWN-BUGS.md](../../../KNOWN-BUGS.md) for the open bugs and take any a
+     tester is likely to meet, with its workaround. Ask for reports through **Save a bug report** in the Build window.
    - **Checksums:** leave `SETUP_SHA` and `ZIP_SHA` placeholders until step 7.
 5. **The "New in" lists.** These go inside the release.
    - [guide.html](../../../tools/release/guide/guide.html)'s "New in this version": add a `New in <version>` table
