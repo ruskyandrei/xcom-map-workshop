@@ -39,6 +39,11 @@ import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREF
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
 import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
+import { activeMapId, allRoots, builderMode, buildings, buildingsVersion, cleared, clearKeepsOutside, data, effectIndex, effectRoots,
+         groupIndex, groups, landingZones, lightIndex, lightRoots, prefabParameter, project, projectMissions, projectPicture,
+         projectSpawnRules, roots, selected, setActiveMapId, setBuildingsValue, setBuildingsVersion, setCleared,
+         setClearKeepsOutside, setData, setGroups, setLandingZones, setProject, setProjectMissions, setProjectPicture,
+         setProjectSpawnRules, setSelected, setStageValue, stage, volumeRoots } from './editor_state.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { forget, recall, remember } from './storage.js';
@@ -77,8 +82,6 @@ holdModals();
 releaseAfterChange();     // (selects, tick boxes and sliders let the shortcuts work once changed: review finding 33)
 // Whether a dialog (or the look picker) is open: the editor's shortcuts take no keys then, and no other window opens.
 function modalOpen() { return anyModal() || Boolean(lookPicker?.isOpen); }
-const prefabParameter = new URLSearchParams(location.search).get('prefab');
-const builderMode = prefabParameter !== null;
 const builder = { doc: null, kept: [], envelope: null, metadata: new Map(), savedKey: '', loading: true, repairing: false };
 const documentWrites = orderedWrites();
 let leaving = false, navigating = false;
@@ -122,13 +125,12 @@ for (let k = 0; k < 2; k++) {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthTest: false, side: THREE.DoubleSide }));
   mark.renderOrder = 10; ladderMarks.add(mark);
 }
-const roots = new Map(), pickables = [], texturePromises = new Map();
-// The map's lights, their own roots (editor lights plan 4.6; the lights section below), and every root the gizmo moves:
-// pieces and lights.
-const lightRoots = new Map(), lightLayer = new THREE.Group();
+const pickables = [], texturePromises = new Map();
+// The layer of the map's lights' roots (editor_state.js: lightRoots; the lights section below).
+const lightLayer = new THREE.Group();
 world.add(lightLayer);
-// The project's building boxes, their own roots too (the Buildings view, further down).
-const volumeRoots = new Map(), volumeLayer = new THREE.Group();
+// The layer of the project's building boxes' roots (editor_state.js: volumeRoots; the Buildings view, further down).
+const volumeLayer = new THREE.Group();
 // Box select (its section is below the Buildings view's): the tool waiting for a drag, the box, the drag, what the
 // box would take, and the pieces' middles while it is up.
 let pickTool = false, pickBox = null, pickDrag = null, pickHits = [], pickCentres = null;
@@ -148,12 +150,8 @@ let effectsOn = false, pickedEffect = null, effectsDirty = true, effectMarkers =
 // the Spawns view (editor spawns plan, SP3; its section is below the landing zones'): only its markers are picked; the
 // Normal button's switch (normalSpawns, remembered) draws and picks them with pieces
 let spawnsOn = false, normalSpawns = false, spawnLayerReady = false;
-const effectRoots = new Map(), effectIndex = new Map();
 let wavePlayer = null;     // the Wave preview's player: { audio, wave, record (its id), state: loading, playing or failed, why }
 world.add(volumeLayer);
-const allRoots = { get: id => roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id) ?? effectRoots.get(id),
-                   has: id => roots.has(id) || lightRoots.has(id) || volumeRoots.has(id) || effectRoots.has(id),
-                   values: () => [...roots.values(), ...lightRoots.values(), ...volumeRoots.values(), ...effectRoots.values()][Symbol.iterator]() };
 const cutMaterials = new Map();
 const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:true,transparent:true,opacity:0.65,depthWrite:false});
 const textureLoader = new THREE.TextureLoader();
@@ -170,9 +168,7 @@ const gltfLoader = new GLTFLoader();
 // Groups nest (prefab plan 5.4): a member is a piece or another group ({group}); a piece is a direct member of one
 // group at most, and a group of one. A piece picked selects the outermost group it is in; Ungroup ends that one, so
 // it peels one level; Ctrl+G on pieces and whole groups makes a group of them, the groups kept inside.
-// groups: id -> { id, locked, breakTogether, members: Map(member key -> member record) }; groupIndex: member key -> the
-// group it is a direct member of (a piece's key, or a group's: groupKey(id)).
-let groups = new Map(), groupIndex = new Map();
+// (groups and groupIndex, and setGroups: editor_state.js)
 const parentGroup = g => groupIndex.get(groupKey(g.id));
 // A group and the groups it is in, from the inside out.
 function groupChain(g) { const out = []; for (let x = g; x && out.length < 64; x = parentGroup(x)) out.push(x); return out; }
@@ -191,10 +187,6 @@ function leafKeys(g, out = [], depth = 0) {
 const memberRecord = o => (o.isVolume ? { building: volumeRoots.get(o.id)?.userData.volume.building ?? '' }
   : o.added ? { added: o.actor } : { package: o.sourcePackage, level: o.layer, actor: o.actor });
 const memberOf = o => memberKey(memberRecord(o));
-function setGroups(next) {
-  groups = next; groupIndex = new Map();
-  for (const g of groups.values()) for (const k of g.members.keys()) groupIndex.set(k, g);
-}
 const cloneGroup = g => ({ ...g, members: new Map(g.members) });
 const cloneGroups = (from = groups) => new Map([...from].map(([id, g]) => [id, cloneGroup(g)]));
 // Pieces of the packages a mission streams into the map (LWR's patches, mission objects): shown for reference, never
@@ -247,31 +239,15 @@ const gridOrigin = () => data?.tileGrid?.origin?.slice(0, 2) ?? null;
 // object's, a soldier's spot, the floor under a piece placed) is counted from it, as compiler.py tile_corner has it.
 // Placing (snap, the lines, the grid rule) keeps the origin, the level volume's corner, where the maps' pieces stand.
 const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v => v - 1) ?? null;
-// The map's size as the project sets it (project.js validStage): { grid: [nx, ny], ground } or null for the map's own
-// (setStage, further down, draws it).
-let stage = null;
-// A cleared map (Clear map plan, section 6): the Build takes out what the editor never showed; the map's size may then
-// be set as on the blank map, smaller too. The landing zones as the project sets them (project.js validLandingZone):
-// null while the project keeps the map's own landings and the install's lines (zonesNow gives those); the install's
-// lines for the map (GET landing-lines.json) and its kind come with the map: 'lwr' or 'longwar' (Long War), 'ew'
-// (plain Enemy Within), or null, a game the editor doesn't know (none set, or the read failed: `failed` says why), a
-// state of its own and not Long War (review finding 31). landingRead: that read, which a project waits for.
-let cleared = false, landingZones = null, landingLines = { kind: null, lines: [] }, landingRead = Promise.resolve();
-// The clear kept the scenery outside the play area (the Clear map window's tick): the Build's clear_level then leaves
-// the lights, smoke, stains and glints placed out there, and so does the view
-let clearKeepsOutside = false;
-// The missions the project is for (mission types plan, D1): null, every mission of the base map; else the list of
-// {record: i} and {kind, ship?} entries the Build writes records for (the Missions panel, Clear map's question)
-let projectMissions = null;
-// The project's map picture (LWR map packs plan, 4.3): null, or { sha256 } of the picture the server keeps with it
-let projectPicture = null;
-// the project's spawn rules (spawns plan, SP8): null, or { dropIns: 'placed' } (a malformed one is carried as saved)
-let projectSpawnRules = null;
-// The buildings drawn as boxes and edited (project.js validBuilding; setBuildings, further down, draws them): the
-// project's, made from nothing by the Build, and the map's own that can be edited, each as the project's are (map
-// buildings plan, section 1). allBuildings is what the floors code reads: the map's as exported where unchanged (their
-// saved listings), the project's and the changed ones of the map by their boxes.
-let buildings = [], buildingsVersion = 0, mergedBuildings = null;
+// (The map's size as the project sets it, the cleared map, its landing zones, missions, picture and spawn rules, and
+// the buildings: editor_state.js.) The install's landing lines for the map (GET landing-lines.json) and its kind come
+// with the map: 'lwr' or 'longwar' (Long War), 'ew' (plain Enemy Within), or null, a game the editor doesn't know (none
+// set, or the read failed: `failed` says why), a state of its own and not Long War (review finding 31). landingRead:
+// that read, which a project waits for.
+let landingLines = { kind: null, lines: [] }, landingRead = Promise.resolve();
+// allBuildings is what the floors code reads: the map's as exported where unchanged (their saved listings), the
+// project's and the changed ones of the map by their boxes.
+let mergedBuildings = null;
 const PROJECT_BUILDING = 'project:';
 function allBuildings() {
   if (!mergedBuildings) {
@@ -365,8 +341,8 @@ function useMapFamilies(table) {
   landingActors = Array.isArray(table?.landing) ? new Set(table.landing) : null;
   gizmo.regroup();
 }
-let data, selected, loadErrorCount = 0, lighting;
-let activeMapId, cachePrefix='/cache/', mapCatalogue=null, mapBrowser=null;
+let loadErrorCount = 0, lighting;
+let cachePrefix='/cache/', mapCatalogue=null, mapBrowser=null;
 let lightRadius = 700;
 
 const short = path => path.split('.').at(-1);
@@ -415,7 +391,7 @@ function select(id, add = false, keep = false) {
   else if (id && lightRoots.has(id) && !lightsShown) setLightsShown(true);
   if (id) ownPicked = null;
   if (!add && !keep) ownSet.clear();
-  selected = id;
+  setSelected(id);
   { const was = pickedEffect; pickedEffect = effectRoots.has(id) ? id : null; if (was !== pickedEffect) effectsDirty = true; }     // (one that starts off is drawn while it is picked)
   const root = roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id) ?? effectRoots.get(id);
   $('inspector').hidden = !root || Boolean(root.userData.volume);
@@ -2768,10 +2744,10 @@ function resetAll() {
                 missions: projectMissions ? projectMissions.map(e => ({ ...e })) : null, moves: new Map(missionMoves),
                 rules: projectSpawnRules };
   const mapState = m => {
-    cleared = m.cleared; clearKeepsOutside = m.keeps; landingZones = m.zones ? m.zones.map(z => ({ ...z })) : null;
-    projectMissions = m.missions ? m.missions.map(e => ({ ...e })) : null;
+    setCleared(m.cleared); setClearKeepsOutside(m.keeps); setLandingZones(m.zones ? m.zones.map(z => ({ ...z })) : null);
+    setProjectMissions(m.missions ? m.missions.map(e => ({ ...e })) : null);
     setMissionMoves(new Map(m.moves ?? []));
-    projectSpawnRules = m.rules ?? null; syncSpawnRule();
+    setProjectSpawnRules(m.rules ?? null); syncSpawnRule();
     mergedBuildings = null; pickedZone = null; setStage(m.stage); clearedChanged(); refreshLandingZones(); refreshMissionPicker();
   };
   const groupsBefore = cloneGroups(), valuesBefore = changed.map(r => ({ ...r.userData.values })), bindingsBefore = new Map(areaBindings);
@@ -3077,7 +3053,6 @@ let fixedLights = [], derivedCopies = [], ownerIndex = null, paintedLights = new
 let handleDefs = [], handleHover = null, lightDrag = null;   // the selected light's drag handles (below commitColour)
 // area light actor path -> its glowing piece as the project sets it ({ target, component }), or null: kept fixed
 let areaBindings = new Map();
-const lightIndex = new Map();     // an original light's key (package|level|actor) -> its root
 const derivedMarks = new THREE.Group(); world.add(derivedMarks);
 const lightShapes = new THREE.Group(); world.add(lightShapes);
 const solo = createSolo(world);
@@ -4467,7 +4442,7 @@ function askLeave() {
 }
 // Projects: the edits saved, reopened and recovered (first-editor plan E1; project.js, research/editor-contracts.md).
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
-let project = null;   // { doc, revision, carried: {overrides, added} kept as they were, savedKey }
+// (The project open, `project`: editor_state.js.)
 let templates = null, recoveryTimer = null, recoveryKept = false, saving = false;
 // Drafts for recovery belong to the page session that keeps them (review finding 3; projects.py): this page's id,
 // made as it loads, names its own draft, and the page deletes only that one, or a draft it showed the user and the
@@ -4543,9 +4518,9 @@ function clearEdits() {
   setGroups(new Map()); liveCache = null;
   clearLightEdits();
   clearEffectEdits();
-  cleared = false; clearKeepsOutside = false; landingZones = null; mergedBuildings = null; projectMissions = null;
-  projectPicture = null;
-  projectSpawnRules = null; syncSpawnRule();
+  setCleared(false); setClearKeepsOutside(false); setLandingZones(null); mergedBuildings = null; setProjectMissions(null);
+  setProjectPicture(null);
+  setProjectSpawnRules(null); syncSpawnRule();
   setMissionMoves(new Map());
   setStage(null);
   setBuildings([]);
@@ -4566,11 +4541,11 @@ async function applyState(state, progress = null) {
   for (const message of await loadForeignTemplates(state.added, progress))
     if (!foreignNoted.has(message)) { foreignNoted.add(message); projectNote(`${message}: its copies are kept and saved back unchanged.`); }
   clearEdits();
-  cleared = state.cleared === true; clearKeepsOutside = cleared && state.clearKeepsOutside === true; mergedBuildings = null;
-  landingZones = Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null;
-  projectMissions = Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null;
-  projectPicture = validPicture(state.picture) ? { sha256: state.picture.sha256 } : null;
-  projectSpawnRules = state.spawnRules ?? null; syncSpawnRule();
+  setCleared(state.cleared === true); setClearKeepsOutside(cleared && state.clearKeepsOutside === true); mergedBuildings = null;
+  setLandingZones(Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null);
+  setProjectMissions(Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null);
+  setProjectPicture(validPicture(state.picture) ? { sha256: state.picture.sha256 } : null);
+  setProjectSpawnRules(state.spawnRules ?? null); syncSpawnRule();
   setStage(validStage(state.stage, ownSize()?.dims) ? state.stage : null);
   clearedChanged();
   // (a record for a map building this export can't edit is kept and saved back unchanged)
@@ -4806,7 +4781,7 @@ async function openProject(id) {
   carried.buildings = [...(carried.buildings ?? []), ...(Array.isArray(doc.buildings) ? doc.buildings : []).filter(b => !validBuilding(b))];
   carried.overrides.push(...malformed.overrides); carried.added.push(...malformed.added); carried.groups.push(...malformed.groups);
   carried.areaLightBindings.push(...malformed.areaLightBindings);
-  project = { doc, revision: doc.revision, carried, savedKey: stateKey(editState()) };
+  setProject({ doc, revision: doc.revision, carried, savedKey: stateKey(editState()) });
   // a bomb moved before export 33 left its helper point behind (F-124; decision D6): the helper gets the move now, and
   // the project shows as changed until it is saved
   const helped = bombHelperFix();
@@ -4990,7 +4965,7 @@ async function saveProject({ name = null, replace = null, rename = null, output 
     recoveryTrouble = null;
     const { pictureMissing, note, ...saved } = result;
     if (note) banner(`Saved ${document.name}. ${note}`);      // (saved, with something left to say: projects.py)
-    project = { doc: { ...document, ...saved }, revision: result.revision, carried, savedKey: stateKey(state) };
+    setProject({ doc: { ...document, ...saved }, revision: result.revision, carried, savedKey: stateKey(state) });
     if (previous !== document.id) {
       // another project now (Save as, or Replace): its own build status, not the one saved from's (review finding 10)
       lastBuild = null; clearTimeout(buildTimer);
@@ -6270,7 +6245,7 @@ function setStage(next) {
   for (const child of [...stageArea.children]) { child.geometry.dispose(); stageArea.remove(child); }
   const dims = stageDims(next, own);
   // a size this map can't take (smaller than the map's own, not cleared) is kept as the project has it, not drawn
-  stage = dims ? tidyStage(next) : (next && validStage(next, own?.dims) && !cleared ? tidyStage(next) : null);
+  setStageValue(dims ? tidyStage(next) : (next && validStage(next, own?.dims) && !cleared ? tidyStage(next) : null));
   if (!own) return;
   showGrid(dims);
   // a map grown as it is: the new area as a faint sheet, green where the Build lays the map's ground (where it is laid
@@ -6676,9 +6651,9 @@ function clearMap(size, keepOutside = false) {
       setMissionMoves(new Map(spawnsAfter));
       for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = true;
       areaBindings = new Map(); setGroups(new Map());
-      cleared = true; clearKeepsOutside = keepOutside; mergedBuildings = null; setStage(next); clearedChanged();
-      projectMissions = missionsCleared.map(e => ({ ...e })); refreshMissionPicker();
-      if (kept) { landingZones = [{ ...kept }]; pickedZone = null; refreshLandingZones(); }
+      setCleared(true); setClearKeepsOutside(keepOutside); mergedBuildings = null; setStage(next); clearedChanged();
+      setProjectMissions(missionsCleared.map(e => ({ ...e }))); refreshMissionPicker();
+      if (kept) { setLandingZones([{ ...kept }]); pickedZone = null; refreshLandingZones(); }
       refreshLightVisibility(); lightsDirty = true; gizmo.setSelection([]); sceneChanged();
     },
     undo: () => {
@@ -6686,9 +6661,9 @@ function clearMap(size, keepOutside = false) {
       setMissionMoves(new Map(spawnsBefore));
       for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = false;
       areaBindings = new Map(bindingsBefore); setGroups(cloneGroups(groupsBefore));
-      cleared = clearedBefore; clearKeepsOutside = keepsBefore; mergedBuildings = null; setStage(stageBefore); clearedChanged();
-      projectMissions = missionsBefore ? missionsBefore.map(e => ({ ...e })) : null; refreshMissionPicker();
-      if (kept) { landingZones = zonesBefore ? zonesBefore.map(z => ({ ...z })) : null; pickedZone = null; refreshLandingZones(); }
+      setCleared(clearedBefore); setClearKeepsOutside(keepsBefore); mergedBuildings = null; setStage(stageBefore); clearedChanged();
+      setProjectMissions(missionsBefore ? missionsBefore.map(e => ({ ...e })) : null); refreshMissionPicker();
+      if (kept) { setLandingZones(zonesBefore ? zonesBefore.map(z => ({ ...z })) : null); pickedZone = null; refreshLandingZones(); }
       refreshLightVisibility(); lightsDirty = true; gizmo.setSelection(picks.ids, picks.active); sceneChanged();
     },
   });
@@ -6758,8 +6733,8 @@ function setMissions(entries) {
   const before = projectMissions ? projectMissions.map(e => ({ ...e })) : null;
   if (JSON.stringify(next) === JSON.stringify(before)) return;
   gizmo.record({
-    redo: () => { projectMissions = next ? next.map(e => ({ ...e })) : null; refreshMissionPicker(); projectChanged(); },
-    undo: () => { projectMissions = before ? before.map(e => ({ ...e })) : null; refreshMissionPicker(); projectChanged(); },
+    redo: () => { setProjectMissions(next ? next.map(e => ({ ...e })) : null); refreshMissionPicker(); projectChanged(); },
+    undo: () => { setProjectMissions(before ? before.map(e => ({ ...e })) : null); refreshMissionPicker(); projectChanged(); },
   });
 }
 $('projectMissions').onclick = () => showMissions(false);
@@ -6771,8 +6746,8 @@ const mapPicture = createMapPicture({
          canvas: $('mapPictureCanvas'), empty: $('mapPictureEmpty'), file: $('mapPictureFile'), choose: $('mapPictureChoose'), take: $('mapPictureTake'),
          result: $('mapPictureResult'), resultNote: $('mapPictureResultNote'), status: $('mapPictureStatus'), use: $('mapPictureUse'),
          remove: $('mapPictureRemove'), close: $('mapPictureClose') },
-  onUse: result => { projectPicture = { sha256: result.sha256 }; projectChanged(); flashHint('The map picture is set: save the project to keep it'); },
-  onRemove: () => { projectPicture = null; projectChanged(); flashHint('The map picture is removed: save the project to keep it so'); },
+  onUse: result => { setProjectPicture({ sha256: result.sha256 }); projectChanged(); flashHint('The map picture is set: save the project to keep it'); },
+  onRemove: () => { setProjectPicture(null); projectChanged(); flashHint('The map picture is removed: save the project to keep it so'); },
   grabView,
 });
 // Take from the view (LWR map packs plan, 4.5): the 3D view as it is now, on a canvas of its own. The renderer keeps no
@@ -7573,7 +7548,7 @@ function syncSpawnRule() {
 function setSpawnRule(next) {
   const before = projectSpawnRules;
   if (JSON.stringify(before) === JSON.stringify(next)) return;
-  const put = v => { projectSpawnRules = v; syncSpawnRule(); spawnPanel(); };
+  const put = v => { setProjectSpawnRules(v); syncSpawnRule(); spawnPanel(); };
   gizmo.record({ redo: () => put(next), undo: () => put(before) });
   flashHint(next ? 'Scripted drop-ins land where placed: the Build excludes the variant from Long War\'s drop-in mutator' : 'Scripted drop-ins as the install plays them');
 }
@@ -8543,8 +8518,8 @@ function movedLandingActors() {
 function setZones(next, words) {
   const before = landingZones ? landingZones.map(z => ({ ...z })) : null, after = next.map(z => ({ ...z }));
   gizmo.record({
-    redo: () => { landingZones = after.map(z => ({ ...z })); zonesChanged(); },
-    undo: () => { landingZones = before ? before.map(z => ({ ...z })) : null; zonesChanged(); },
+    redo: () => { setLandingZones(after.map(z => ({ ...z }))); zonesChanged(); },
+    undo: () => { setLandingZones(before ? before.map(z => ({ ...z })) : null); zonesChanged(); },
   });
   if (words) flashHint(`${words} · Ctrl+Z undoes`);
 }
@@ -8901,7 +8876,7 @@ function syncVolumes() {
   if (!data || gizmo.controls.dragging || volumeDrag) return;
   const next = buildingsFromVolumes(), key = JSON.stringify(next);
   if (key === volumesKey) return;
-  volumesKey = key; buildings = next; buildingsVersion++; mergedBuildings = null;
+  volumesKey = key; setBuildingsValue(next); setBuildingsVersion(buildingsVersion + 1); mergedBuildings = null;
   liveCache = null;     // a group's buildings are counted by their boxes
   floorOptions();       // the Floor buttons, then the cutaway
 }
@@ -8931,8 +8906,8 @@ function setBuildings(next) {
     const floors = record?.deleted ? [] : record ? tidyBuilding(record).floors : mapFloors(e);
     floors.forEach((floor, k) => floor.boxes.forEach((box, n) => makeVolume(box, id, k, floor.volumes?.[n] ?? null)));
   }
-  buildings = buildingsFromVolumes(); volumesKey = JSON.stringify(buildings);
-  buildingsVersion++; mergedBuildings = null;
+  setBuildingsValue(buildingsFromVolumes()); volumesKey = JSON.stringify(buildings);
+  setBuildingsVersion(buildingsVersion + 1); mergedBuildings = null;
   if (data) drawOwnVolumes();
   refreshVolumes();
   if (data) floorOptions();
@@ -11749,7 +11724,7 @@ async function open() {
     setupDialog.show({ firstRun: true });
     return new Promise(() => {});
   }
-  activeMapId=builderMode ? null : parameters.get('map') || mapCatalogue.defaultMap;
+  setActiveMapId(builderMode ? null : parameters.get('map') || mapCatalogue.defaultMap);
   const activeMap=mapCatalogue.maps.find(map=>map.id===activeMapId);
   // (the map the address asks for, when it isn't prepared yet: kept now, as the browser marks its entry ready)
   const askedUnprepared = !builderMode && activeMap && !activeMap.ready ? activeMapId : null;
@@ -11768,7 +11743,7 @@ async function open() {
       goTo({ map: id, scene: null, project: null, mission: null });
     } });
   if (builderMode) {
-    data = emptyPrefabScene();
+    setData(emptyPrefabScene());
     await startScene({ parameters, familiesAsked: fetch('/families.json').then(r => r.json()), mapName: 'Prefab' });
     return;
   }
@@ -11791,7 +11766,7 @@ async function open() {
   const mapName = activeMap.label;
   loadingState(`Opening ${mapName}: reading its layout…`, 0);
   const familiesAsked = fetch(`/maps/${encodeURIComponent(activeMapId)}/families.json`).then(r => (r.ok ? r.json() : null)).catch(() => null);
-  data = await fetchJson(cachePrefix+requestedScene, share => loadingState(`Opening ${mapName}: reading its layout…`, 0.1 * share));
+  setData(await fetchJson(cachePrefix+requestedScene, share => loadingState(`Opening ${mapName}: reading its layout…`, 0.1 * share)));
   await startScene({ parameters, familiesAsked, mapName });
 }
 // Both maps and the prefab workspace start the same editor on a scene.

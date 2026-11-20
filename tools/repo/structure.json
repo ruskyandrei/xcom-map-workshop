@@ -1,7 +1,7 @@
 {
   "app.js": {
-    "functions": 812,
-    "lets": 112
+    "functions": 811,
+    "lets": 105
   },
   "compiler families": [
     "tools/editor/spawn_edits.py"
@@ -16,7 +16,7 @@
     "tools/editor/tests/test_compiler.py": 3263,
     "tools/viewer/installs.py": 2035,
     "tools/viewer/tests/browser_smoke.py": 5880,
-    "tools/viewer/web/app.js": 12792
+    "tools/viewer/web/app.js": 12767
   },
   "function lines": {
     "tools/bake/buildings.py::edit": 210,
