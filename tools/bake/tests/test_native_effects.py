@@ -71,7 +71,7 @@ class CarriedEffects(unittest.TestCase):
 
     def build(self, name, copies, hides):
         out = Path(self.tmp.name) / name
-        m = native_copy.build(INTRO, out, name, copies, hides=hides, carried_effects=PAIRS)
+        m = native_copy.build(native_copy.BuildState(INTRO, out, name, copies, hides=hides, carried_effects=PAIRS))
         return m, Package(out / ('%s.upk' % name))
 
     def test_moved_with_it(self):
@@ -224,7 +224,7 @@ class Lanes(SharedPart, unittest.TestCase):
                                        (dict(moves=[dict(name='Emitter_2', **at)], deletes=[dict(name='Emitter_2')]), None, 'twice'),
                                        (None, dict(copies=[dict(id='x', name='x', source='Emitter_2', **at)]), 'not an ambient sound')):
             with self.assertRaises(ValueError, msg=words) as caught:
-                native_copy.build(BAR, out, 'Refused', [], effects=effects, sounds=sounds)
+                native_copy.build(native_copy.BuildState(BAR, out, 'Refused', [], effects=effects, sounds=sounds))
             self.assertIn(words, str(caught.exception))
 
     def test_a_cleared_map_keeps_the_moved_sound_the_copies_and_the_skyrangers(self):
@@ -232,8 +232,9 @@ class Lanes(SharedPart, unittest.TestCase):
         # sounds go with the clear, but one the project moved, its copies and the Skyranger's (a build of its own: the
         # sounds' lane alone, with a clear)
         out = Path(self.tmp) / 'Cleared'
-        m = native_copy.build(BAR, out, 'Cleared', [], sounds=dict(moves=self.SOUNDS['moves'], copies=self.SOUNDS['copies'][:1]),
-                              cleared=dict(grid=[52, 39, 12]))
+        m = native_copy.build(native_copy.BuildState(
+            BAR, out, 'Cleared', [], sounds=dict(moves=self.SOUNDS['moves'], copies=self.SOUNDS['copies'][:1]),
+            cleared=dict(grid=[52, 39, 12])))
         q = Package(out / 'Cleared.upk')
         listed = set(native_copy.level_actors(q))
         self.assertIn(q.by_name[PL + 'AmbientSoundSimple_2'], listed)               # moved by the project: kept
@@ -283,7 +284,8 @@ class ValueLanes(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.p = Package(BAR)
         out = Path(cls.tmp.name) / 'Values'
-        cls.m = native_copy.build(BAR, out, 'Values', [], effects=cls.EFFECTS, sounds=cls.SOUNDS)
+        cls.m = native_copy.build(native_copy.BuildState(BAR, out, 'Values', [], effects=cls.EFFECTS,
+                                                         sounds=cls.SOUNDS))
         cls.q = Package(out / 'Values.upk')
         cls.section = cls.m['nativeCopies']
         cls.copy = {r['actor']: cls.q.by_name[PL + r['copy']] for r in cls.section['effects'] + cls.section['sounds']
@@ -376,7 +378,7 @@ class ValueLanes(unittest.TestCase):
                (dict(values=[dict(name='Emitter_45', effect=dict(scale=2.0))], deletes=[dict(name='Emitter_45')]), None, 'deleted')]
         for effects, sounds, words in bad:
             with self.assertRaises(ValueError, msg=words) as caught:
-                native_copy.build(BAR, out, 'Refused', [], effects=effects, sounds=sounds)
+                native_copy.build(native_copy.BuildState(BAR, out, 'Refused', [], effects=effects, sounds=sounds))
             self.assertIn(words, str(caught.exception))
 
 
@@ -594,14 +596,15 @@ class FlareLanes(SharedPart, unittest.TestCase):
                               (dict(values=[dict(name='LensFlareSource_7', flare=dict(colour=[1, 0, 0, 1]))]),
                                'no values to set')):
             with self.assertRaises(ValueError, msg=words) as caught:
-                native_copy.build(BAR, out, 'Refused', [], flares=flares)
+                native_copy.build(native_copy.BuildState(BAR, out, 'Refused', [], flares=flares))
             self.assertIn(words, str(caught.exception))
 
     def test_a_cleared_map_keeps_the_moved_one_and_the_copies(self):
         # (a build of its own: the flares' lane alone, with a clear)
         out = Path(self.tmp) / 'Cleared'
         flares = dict(moves=self.FLARES['moves'], copies=self.FLARES['copies'][:1])
-        m = native_copy.build(BAR, out, 'Cleared', [], flares=flares, cleared=dict(grid=[52, 39, 12]))
+        m = native_copy.build(native_copy.BuildState(BAR, out, 'Cleared', [], flares=flares,
+                                                     cleared=dict(grid=[52, 39, 12])))
         q = Package(out / 'Cleared.upk')
         listed = set(native_copy.level_actors(q))
         self.assertIn(q.by_name[PL + 'LensFlareSource_7'], listed)             # moved by the project: kept

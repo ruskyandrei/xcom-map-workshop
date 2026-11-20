@@ -145,6 +145,26 @@ taken out. Each other lane has a maker module that `build` calls: [`native_light
 modules. With `--bake`, the copies get lighting of their own and the relight runs. It writes the variant map and a
 fixture manifest.
 
+A Build of the copy tool is one record, `BuildState`. Its first fields are the inputs: the map, the output folder,
+the variant, the copies, the native edit's other lanes and the options. The caller makes it: `main` through
+`edit_state`, from the native edit the Build writes (`native-edit.json`) and the command line, each copy through
+`copy_record`, so no field of a copy is lost on the way; a test makes its own. `build(st)` runs the steps in their
+order, each a function of the state that reads its fields and writes its results to fields `BuildState` names with
+the step that fills them:
+- the light edits (`native_lights`);
+- `clone_copies`: the copies, an assembly's together, with their tiles, flags and blasts;
+- the cover blocks, then `fracturing_copies`: the fracturing copies' columns, and the pieces made from numbers;
+- the break groups, the hides and the effects' lanes, then `wall_columns`: the walls' columns after them;
+- `edit_buildings`: the building floors, and the buildings made and edited;
+- `edits_in_place`: the map's own pieces edited where they stand (lights registered, the clear, landings, flags,
+  blasts);
+- `floors_and_cursors`: the floors' effect lists and the made slabs' cursor floors;
+- `write_and_verify`: the write, and what was written read back.
+
+Then the record: the manifest (`manifest_parts`) and, with `--bake`, the relight (`relight_command`). The growing
+writer's order is the map's, so the steps keep theirs. `st.gone()` is the one answer to what the edit has taken out
+so far.
+
 **The relight.** [`tools/bake/relight.py`](tools/bake/relight.py) relights each component an edit reaches as a change
 on the original bake: the map's own lights through EW's lightmap codec
 ([`lightmap_encode.py`](tools/bake/lightmap_encode.py)), with shadows ([`shadows.py`](tools/bake/shadows.py), Embree),
@@ -186,7 +206,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A field of an added thing's record (a copy of a piece, a cover block, a light, an effect, a sound, a lens flare) | [`piece_records.js`](tools/viewer/web/piece_records.js): `recordOf` writes it (for every writer: a project, a prefab, the builder's document), `optionsOf` reads it (a project opened, a prefab placed, a paste), and `PIECE_FIELDS` names it; a case in [`piece_record_cases.json`](tools/viewer/tests/piece_record_cases.json) or [`piece_records_test.mjs`](tools/viewer/tests/piece_records_test.mjs). Then as for a field of the project document, and the prefab's check of a piece in [`prefabs.py`](tools/viewer/prefabs.py). |
 | An edit family of the compiler | A class in a module of its own in `tools/editor`, made with the `Compiler` it works for (`self.c`), with its own tables and state. It takes what it shares with the compiler from [`compiler_tables.py`](tools/editor/compiler_tables.py), never imports the compiler, and reports through the compiler's `error`, `warn` and `note`. The compiler imports it at the top and names again the tables of it that others read through the compiler. The compiler holds it as an attribute named as its module (`self.effect_edits`), and reads the family's state through it (`self.effect_edits.ops`): the state has one home. A method of the family stays on the compiler only as a one-line forwarder, and only when a test or a tool calls it there by name (`Compiler.stage`). [`spawn_edits.py`](tools/editor/spawn_edits.py) is the model; section 1 lists the others. |
 | A table or helper of the compiler that a family reads too | [`compiler_tables.py`](tools/editor/compiler_tables.py), named in its `__all__`. One only the compiler reads stays in `compiler.py`; one only a family reads goes in the family's module (the `SPAWN_*` tables in `spawn_edits.py`, the effects' in `effect_edits.py`, the `LIGHT_*` tables and `light_rule` in `light_edits.py`). |
-| A lane of the native edit | One change across the compiler's spec, `native_split` in [`native_edit.py`](tools/editor/native_edit.py), a maker module in `tools/bake` (as [`native_effects.py`](tools/bake/native_effects.py)) called from `native_copy.build`, and the Build. |
+| A lane of the native edit | One change across the compiler's spec, `native_split` in [`native_edit.py`](tools/editor/native_edit.py), the copy tool and the Build. In the copy tool ([`native_copy.py`](tools/bake/native_copy.py)): a maker module in `tools/bake` (as [`native_effects.py`](tools/bake/native_effects.py)); the lane's field on `BuildState` and its reading in `edit_state` (with its line in `CommandLine.LANES` of [`test_native_copy.py`](tools/bake/tests/test_native_copy.py)); and a step, a function taking the `BuildState` that reads its fields and writes its results to fields the class names, called from `build` in the place the map's writes need. |
 | A piece lookup (what the compiler asks of the library of other maps' pieces) | [`piece_lookup.py`](tools/editor/piece_lookup.py) (`Library`), raising `LibraryError` (in [`compiler_tables.py`](tools/editor/compiler_tables.py)) with its code for what can't be had. The library's scan and its records are the viewer's [`library.py`](tools/viewer/library.py). |
 | A reader of package bytes | [`tools/upk`](tools/upk): tagged properties through [`props.tags`](tools/upk/props.py), compressed chunks through [`decomp.read_chunk`](tools/upk/decomp.py), a map's objects through the viewer's [`Package`](tools/viewer/package.py). |
 | A writer of package bytes | [`package_edit.write_edited`](tools/upk/package_edit.py) for edits in place, [`package_grow.py`](tools/upk/package_grow.py) for new exports. |

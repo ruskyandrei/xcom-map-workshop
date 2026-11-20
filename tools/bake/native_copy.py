@@ -62,6 +62,7 @@ made by native_lights.py, in both modes. With --bake the added and changed place
 receivers they reach (the copies' too), and the relight gets their before and after states (--light-edits).
 """
 import argparse
+import dataclasses
 import json
 from pathlib import Path
 import struct
@@ -2238,30 +2239,125 @@ def by_assembly(copies):
     return out
 
 
-class BuildState:
-    """What a Build has done so far that its later steps and its record read (review finding 51). gone() is the one
-    answer to what the edit has taken out: the pieces hidden, the slots the building edits emptied, the lights the
-    light edits deleted, the effects, sounds, flares and spawn points the lanes took out (and the carried effects
-    of deleted pieces), and what the clear took. keep() holds the results the manifest (manifest_parts) and the
-    relight command (relight_command) are made from."""
+def filled(factory=None):
+    """A field of BuildState that build fills, not an input: None, or empty (`factory`), until its step."""
+    return dataclasses.field(init=False, **({'default_factory': factory} if factory else {'default': None}))
 
-    def __init__(self, p):
-        self.p = p
-        self.hidden = []            # hide_pieces' records
-        self.edit_slots = set()     # the building edits' emptied slots
-        self.lights_gone = set()    # the light edits' deletes
-        self.effects_gone = set()   # the effects', sounds', flares' and spawns' lanes' deletes and the carried effects'
-        self.cleared = None         # clear_level's record
+
+@dataclasses.dataclass(eq=False)
+class BuildState:
+    """A Build of the copy tool: what it is given, and what it has done so far that its later steps and its record
+    read (review finding 51). Its caller makes it with the inputs (main from the command line and the native edit, a
+    test with its own); build() takes it and fills the rest. build's docstring says what each input does.
+
+    gone() is the one answer to what the edit has taken out: the pieces hidden, the slots the building edits emptied,
+    the lights the light edits deleted, the effects, sounds, flares and spawn points the lanes took out (and the
+    carried effects of deleted pieces), and what the clear took. The manifest (manifest_parts) and the relight
+    command (relight_command) are made from its fields once build has filled them."""
+    src: object                     # the pristine map (its path)
+    out: object                     # the folder the variant map and its fixture manifest go to
+    variant: str                    # the variant's name
+    copies: list                    # the copies: the native edit's `copies`
+    bake: bool = False              # the copies lit of their own and the relight run (--bake)
+    cache: object = None            # with bake: the variant texture cache's name (--cache)
+    receivers_near: float = 600.0   # with bake: the relight's receivers within this many units of a copy
+    jobs: object = None             # with bake: the relight's worker processes
+    tiles: bool = True              # the copies seeded in the tiles, under rebuild volumes (not --no-tiles)
+    edit_spec: object = None        # with bake: an editor patch spec whose hides the relight models too
+    # the native edit's other lanes (compiler.native_split's keys, in the names build takes them by)
+    break_originals: tuple = ()     # breakOriginals
+    hides: tuple = ()               # hides
+    assemblies: tuple = ()          # assemblies
+    lights: object = None           # lights
+    covers: tuple = ()              # covers
+    buildings: tuple = ()           # buildings
+    building_edits: tuple = ()      # buildingEdits
+    cleared: object = None          # cleared
+    landing_zones: object = None    # landingZones
+    carried_effects: object = None  # carriedEffects
+    piece_cache: object = None      # with bake: the folder of the project's last baked pieces (--piece-cache)
+    base: object = None             # with piece_cache: the SHA-256 of the map before any of the edit (--base)
+    stream_tiles: tuple = ()        # streamTiles (the Build's, from streamMoves)
+    piece_flags: tuple = ()         # pieceFlags
+    flag_ladders: tuple = ()        # pieceFlagLadders
+    effects: object = None          # effects
+    sounds: object = None           # sounds
+    flares: object = None           # flares
+    spawns: object = None           # spawns
+    piece_blasts: tuple = ()        # pieceBlasts
+    # what build fills, as it goes
+    p: object = filled()                # the pristine map read (build, first)
+    g: object = filled()                # the variant map's growing writer (build, first)
+    light_state: object = filled()      # the light edits resolved against the pristine map, or None (build)
+    hidden: list = filled(list)         # hide_pieces' records
+    edit_slots: set = filled(set)       # the building edits' emptied slots
+    lights_gone: set = filled(set)      # the light edits' deletes
+    effects_gone: set = filled(set)     # the lanes' deletes (effects, sounds, flares, spawns), the carried effects'
+    cleared_record: object = filled()   # clear_level's record
+    # the copies made (clone_copies)
+    made: list = filled(list)           # each copy's record: its original, clone, pose, extra lights and tiles
+    actors: list = filled(list)         # what the level's list gets: the clones, their volumes (and the cover blocks)
+    firsts: list = filled(list)         # the ladders' top tile volumes, first in the level's list
+    ladders: list = filled(list)        # each ladder's copy: its ends and top tile volume
+    vans: list = filled(list)           # each van's building and floor volumes, carried with it
+    flag_copies: list = filled(list)    # the copies' flags written on their clones (set_roles)
+    blast_copies: list = filled(list)   # the copies broken by their blasts (break_component)
+    # the fracturing copies and the walls made from numbers (fracturing_copies)
+    poses: list = filled(list)          # each copy's (original, clone, its pose before, after, family)
+    fracturing: list = filled(list)     # the fracturing copies, as (original, clone), their columns moved with them
+    generated_records: list = filled(list)  # the pieces made from numbers (frac_walls.add_walls' records)
+    # the walls' columns (wall_columns), and what it reads that build made
+    walled: set = filled(set)           # the break groups that hold a wall made from numbers
+    cover_records: list = filled(list)  # the cover blocks made (cover_blocks.add_blocks' records)
+    columns: dict = filled(dict)        # each wall's columns changed by the hides and the door copies (edit_columns)
+    door_listings: list = filled(list)  # doors in a made wall's opening, listed in its columns
+    group_listings: list = filled(list)     # a made wall's break group's pieces, listed in its columns
+    neighbour_listings: list = filled(list)     # made walls and the fracturing pieces they meet, listing each other
+    # the building floors (edit_buildings)
+    floor_caches: list = filled(list)   # each copy in its building floor's cutaway (edit_floor_caches)
+    made_floors: list = filled(list)    # the made walls in the map's buildings' cutaways (list_made_walls)
+    building_actors: list = filled(list)    # the buildings' new volumes, for the level's list
+    building_records: list = filled(list)   # the buildings made from nothing (buildings.make)
+    edit_records: list = filled(list)   # the map's own buildings edited (buildings.edit)
+    # the map's own actors edited in place (edits_in_place), and what it reads that build made
+    light_result: object = filled()     # what the light edits made in the map (native_lights.apply), or None (build)
+    hide_volumes: list = filled(list)   # the rebuild volumes of the pieces taken out, the clear's and the tiles' edits
+    effect_moved: set = filled(set)     # the effects moved (carried or by a lane), which a clear keeps
+    registration: object = filled()     # the light edits listed in the receivers' lightmaps (baked), or None
+    landing_record: object = filled()   # the map's landings moved (native_spawns.apply), or None
+    flag_record: object = filled()      # the map's own pieces' flags written (flags_in_place), or None
+    blast_record: object = filled()     # the map's own pieces broken where they stand (blasts_in_place), or None
+    stream_record: list = filled(list)  # a mission's pieces' tiles moved in their stream
+    priority: tuple = filled(tuple)     # the ladders' top tile volumes the rebuild queues first, on a resized map
+    # the floors' effect lists and the cursor floors (floors_and_cursors), and what it reads that build made
+    effect_record: list = filled(list)  # the effects carried with the moved, copied and deleted pieces
+    lane_effects: list = filled(list)   # the effects lane's records (native_effects.apply)
+    floor_emitters: list = filled(list)     # the effects listed in, or taken out of, the building floors' lists
+    cursor_record: object = filled()    # the made slabs' cursor floors (made_cursors.apply), or None
+    cursor_clones: list = filled(list)  # the cursor volumes made, for the level's list
+    # the map written and read back (write_and_verify), and what it reads that build made
+    effect_clones: list = filled(list)  # the effects, sounds, flares and spawn points copied, for the level's list
+    lane_sounds: list = filled(list)    # the sounds lane's records (native_sounds.apply)
+    lane_flares: list = filled(list)    # the flares lane's records (native_flares.apply)
+    lane_spawns: list = filled(list)    # the spawns lane's records (native_spawns.apply_lane)
+    level: object = filled()            # the level's actor list written (add_to_level)
+    dst: object = filled()              # the map written: <out>/<variant>.upk, or the grown map in <out>/grown
+    report: object = filled()           # the growing writer's report of the write
+    q: object = filled()                # the written map, read again
+    # what build makes between its steps
+    groups: dict = filled(dict)         # the break groups linked (link_children): each group's clones
+    children: dict = filled(dict)       # each clone's parts linked to it (link_children)
+    hidden_buildings: list = filled(list)   # the moved or deleted vans' buildings taken out (hide_van_buildings)
+    # the record (manifest_parts)
+    sections: list = filled(list)       # the manifest's section of each copy
+    copy_members: dict = filled(dict)   # the lights listed in the copies' lightmaps by membership
 
     def gone(self):
         """Every actor (export index) the edit has taken out so far."""
         out = {h['export'] for h in self.hidden} | self.edit_slots | self.lights_gone | set(self.effects_gone)
-        if self.cleared:
-            out |= {self.p.by_name[PL + n] for n in self.cleared['taken'] if PL + n in self.p.by_name}
+        if self.cleared_record:
+            out |= {self.p.by_name[PL + n] for n in self.cleared_record['taken'] if PL + n in self.p.by_name}
         return out
-
-    def keep(self, **results):
-        self.__dict__.update(results)
 
 
 def manifest_parts(st, q, bake):
@@ -2269,7 +2365,7 @@ def manifest_parts(st, q, bake):
     read again as `q`: (the copies' sections, the rest of it, the lights section or None). Kept on `st` too, for the
     relight command: the sections and the lights listed in the copies by membership."""
     import native_lights
-    p, made, hidden, cleared_record = st.p, st.made, st.hidden, st.cleared
+    p, made, hidden, cleared_record = st.p, st.made, st.hidden, st.cleared_record
     src, level, report, children, groups = st.src, st.level, st.report, st.children, st.groups
     assemblies, ladders, columns, effect_record = st.assemblies, st.ladders, st.columns, st.effect_record
     lane_effects, lane_sounds = st.lane_effects, st.lane_sounds
@@ -2281,7 +2377,7 @@ def manifest_parts(st, q, bake):
     cursor_record, stream_record = st.cursor_record, st.stream_record
     flag_copies, flag_record = st.flag_copies, st.flag_record
     blast_copies, blast_record, vans = st.blast_copies, st.blast_record, st.vans
-    state, light_result, registration = st.lights, st.light_result, st.registration
+    state, light_result, registration = st.light_state, st.light_result, st.registration
     # the copies' components and the lights listed in them by membership
     copy_members = {q.name(m['info']['mapping'][ci]): [(x['guid'].hex(), x['light']) for x in found
                                                         if x.get('membership')]
@@ -2379,7 +2475,7 @@ def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, job
     <out>/<variant>.light-edits.json."""
     import native_lights
     p, sections, hidden, landing_record = st.p, st.sections, st.hidden, st.landing_record
-    state, registration, copy_members = st.lights, st.registration, st.copy_members
+    state, registration, copy_members = st.light_state, st.registration, st.copy_members
     cmd = [sys.executable, '-B', '-u', str(HERE / 'relight.py'), str(dst), str(out), variant, '--cache', cache,
            '--receivers-near', str(receivers_near)]
     for sec in sections:
@@ -2427,112 +2523,20 @@ def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, job
     return cmd
 
 
-def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.0, jobs=None, tiles=True,
-          edit_spec=None, break_originals=(), hides=(), assemblies=(), lights=None, covers=(), buildings=(),
-          building_edits=(), cleared=None, landing_zones=None, carried_effects=None, piece_cache=None, base=None,
-          stream_tiles=(), piece_flags=(), flag_ladders=(), effects=None, sounds=None, flares=None, spawns=None,
-          piece_blasts=()):
-    """The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
-    <out>/grown and the relit variant (relight.py), and the fixture manifest <out>/<variant>.fixture.json, with a
-    `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
-    or yaw alone (the original's pitch and roll); with neither, the original's rotation. `edit_spec`, with `bake`: an
-    editor patch spec whose exact hides (and posed copies) relight models too (relight.py --edit-spec), for an edit
-    whose hidden pieces stay in a patch. A copy's `breakGroup` (a number) and `break_originals` ({name, group}: the
-    map's own pieces left in place) link the editor's groups that break together (link_children). `hides` ({name,
-    box}) are taken out of the map (hide_pieces), after the copies are made (a moved piece is the source of its copy)
-    and before the relight, which leaves them out of the scene after the edit (--remove-caster).
-
-    Copies with the same `assembly` (the compiler's assemblies: a car's parts, a door's leaf and frame) are one copy of
-    it: cloned together, so their references to each other point at each other's clones (clone_assembly), with one
-    rebuild volume over them all (assembly_box), its tiles recorded on the first. `assemblies` (the compiler's moves:
-    id, family, members, turns, translation) go into the manifest.
-
-    `lights` is the native edit's light edits (editor lights plan, 9.5; native_lights.py): resolved against the
-    pristine map once, made in the map before the copies (a light gets no tiles), and recorded in the manifest's
-    `lights` section. With `bake`, the copies' extra lights come from the lights after the edit, each added or changed
-    placed light that emits is listed in the texture lightmaps of the receivers it reaches at their final poses (the
-    copies' too), and the relight gets the resolved before and after lights (relight.py --light-edits,
-    <out>/<variant>.light-edits.json). Without, every receiver's lightmap list stays as it is.
-
-    `covers` are the editor's cover blocks (the compiler's: name, kind, location, rotation, size, heights, box):
-    invisible pieces that give cover, a hidden level actor and a box mesh made from a recipe (cover_blocks.py), each
-    in its tiles as a copy is. The manifest's `coverBlocks` lists them.
-
-    `buildings` are buildings made from nothing (buildings.py: id, name, kind, floors of boxes): a building volume
-    and floor volumes cloned from the map's, each floor listing the pieces that stand in it after the edit (the map's
-    own that are not hidden, and the copies), by the game editor's own rule. The manifest's `buildings` lists them.
-    `building_edits` are the map's own buildings changed or deleted (the compiler's buildingEdits; buildings.edit),
-    edited in place after the copies and hides: the manifest's `buildingEdits` lists what each kept, moved, made and
-    took out.
-
-    A copy with `staged` is a piece of another map, staged in `src` by transplant.py (its `actor` the staged actor,
-    which no level lists). Without `bake` it keeps its home map's lighting. With `bake` it is lit from nothing: its
-    lightmaps list this map's lights alone, its shadow maps name this map's dominant light, and the relight gives
-    it the light of where it stands (relight.py --foreign-copy), with the staged actor left out of both scenes.
-
-    `cleared` (the compiler's: {grid, keepOutside?}) says the map was cleared (Clear map plan, section 7): the hides get no rebuild
-    volume of their own, and clear_level takes out what the editor never showed and puts one volume over the grid,
-    after the hides and the building edits. The manifest's `cleared` section counts what it took by class.
-
-    `carried_effects` (the compiler's `carriedEffects`, {piece: [effect]}: export 23's carriedBy) are the effects
-    that follow their piece's move, copy or delete (native_effects.py).
-
-    `effects` and `sounds` (the compiler's lanes: {moves, deletes, copies}; the effects and sounds plan, stage FX3) are
-    the effects and ambient sounds the project moves in place, takes out of the level's list or copies
-    (native_effects.apply, native_sounds.apply); after every other writer, native_effects.floor_lists lists the moved
-    and new effects (the lanes' and the carried ones) in the building floors whose boxes hold them and takes the moved
-    and deleted ones out of the lists that named them. A directly moved effect stays on a cleared map. The manifest's
-    `effects`, `sounds` and `floorEmitters` sections say what was done, read back (native_effects.verify).
-
-    `flares` is the same lane for the lens flares (LensFlareSource actors; stage FX6b, native_flares.apply): a move in
-    place, a delete off the level's list, a copy cloned with its LensFlareComponent, the flare template shared. A
-    flare is in no floor's list; a clear takes the map's flares out (CLEAR_OUT) but for one the project moves itself,
-    and a copy is made after the clear. The manifest's `flares` section says what was done, read back.
-
-    `spawns` (the compiler's lane: {moves, values}; the editor spawns plan, SP6) moves the base map's pods, Meld points
-    and drop-in points in place and sets their values (native_spawns.apply_lane); the manifest's `spawns` section
-    says what was done, read back (native_spawns.verify).
-
-    `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
-    theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
-
-    Pieces' flags (piece flags plan): a copy's `flags` ({role: bool}) are written on its clone once it is made
-    (set_roles; a copy of low scenery whose Floor is off is not made walkable), and `piece_flags` (the compiler's
-    `pieceFlags`: the map's own pieces whose flags change where they stand) on the map's actors after every copy is
-    made and the clear has run (flags_in_place), their tiles worked out again, with `flag_ladders`' top tiles first.
-    Each is read back from the written map. The manifest's `pieceFlags` section lists what was asked, written and
-    read back.
-
-    Broken pieces (custom geometry editing plan, E6): a copy's `blasts` (a moved piece of the map's) are written on its
-    clone, and `piece_blasts` (the compiler's `pieceBlasts`: the map's own fracturing pieces broken where they stand) on
-    the map's components after every copy is made (blasts_in_place), their tiles worked out again: the fragments each
-    blast reaches saved painted out with those the map paints out. A piece the game keeps whole (most roofs and floors)
-    draws a copy of its mesh with those fragments cut away and stays whole in battle, unless its `breaksFurther` asks
-    it to break further (break_component). The manifest's `pieceBlasts` section lists them."""
-    import cover_blocks
+def clone_copies(st):
+    """The Build `st`'s copies (BuildState) made as new actors, an assembly's together (clone_assembly), each with
+    the lights its lightmap may list, its tiles and rebuild volume, a van's building, a ladder's top tile, its flags
+    and its blasts: build's first step after the light edits. Fills the state's made, actors, firsts, ladders, vans,
+    flag_copies and blast_copies."""
     import native_lights
-    src, out = Path(src), Path(out)
-    out.mkdir(parents=True, exist_ok=True)
-    if bake and not cache:
-        raise ValueError('a baked copy needs a variant texture cache name (--cache)')
-    if bake:
-        lightmap_writer.cache_fname(cache)     # a cache name that can be a file and an FName, before any work
-    p = lighting.Package(src)
-    g = package_grow.Grower(str(src))
-    # the light edits: resolved against the pristine map, then made in the map (plan 4.3, steps 1 and 2)
-    state = None if native_lights.is_empty(lights) else native_lights.prepare(p, lights)
-    light_result = native_lights.apply(g, p, state) if state else None
-    # what the edit takes out, added to as each step takes something (BuildState.gone)
-    st = BuildState(p)
-    st.lights_gone = set((light_result or {}).get('gone') or ())
+    p, g, copies, bake, tiles, state = st.p, st.g, st.copies, st.bake, st.tiles, st.light_state
     # the lights a copy's lightmap may list: the after registry (plan 4.3, step 3)
     after_lights = None
     if bake and copies:
         after_lights = list(state['after'].values()) if state else list(native_lights.source_registry(p).values())
     meshes = {}
     made, actors, firsts, ladders, vans = [], [], [], [], []
-    flag_copies, flag_record = [], None
-    blast_copies, blast_record = [], None
+    flag_copies, blast_copies = [], []
     scenery_grid = None     # the tile grid, read when a copy of low scenery needs it (F-100)
     for assembly, group in by_assembly(copies):
         members = []
@@ -2650,9 +2654,16 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                              tiles=tile_info if k == 0 else None,
                              walkable=ai in walked,
                              **({'assembly': assembly, 'family': c.get('family')} if assembly else {})))
-    # the cover blocks: hidden level actors on box meshes, made from a recipe (cover_blocks.py), each in its tiles
-    cover_actors, cover_records = cover_blocks.add_blocks(g, p, covers) if covers else ([], [])
-    actors += cover_actors
+    st.made, st.actors, st.firsts, st.ladders, st.vans = made, actors, firsts, ladders, vans
+    st.flag_copies, st.blast_copies = flag_copies, blast_copies
+
+
+def fracturing_copies(st):
+    """The Build `st`'s fracturing copies (BuildState: a car's glass, a wall, a storey floor) with their columns,
+    and the walls, slabs and ground shapes made from numbers (frac_walls.py), after the copies are made
+    (clone_copies) and the cover blocks. Fills the state's poses (each copy's original, clone, the original's pose
+    and its own, and its family), fracturing (the fracturing copies, as (original, clone)) and generated_records."""
+    p, g, bake, made = st.p, st.g, st.bake, st.made
     # each copy: its original, its clone, the original's pose and its own
     poses = []
     for m in made:
@@ -2699,37 +2710,17 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
             elif r['kind'] == 'ground':
                 print('    %s: a ground shape made from numbers as %s, %d triangles, one collision element; its lightmap %s'
                       % (r['label'], r['meshName'], r['triangles'], lit))
-    walled = {m['wallGroup'] for m in made if m.get('wallGroup')}
-    groups, children = link_children(g, p, made, break_originals,
-                                     [(c['breakGroup'], c['actor']) for c in cover_records if c.get('breakGroup')],
-                                     walled=walled)
-    hidden, hide_volumes = hide_pieces(g, p, hides, volumes=not cleared) if hides else ([], [])
-    st.hidden = hidden
-    # the effects the moved, copied and deleted pieces carry (native_effects.py: a Skyranger's lights go with it)
-    import native_effects
-    effect_clones, effect_gone, effect_record = native_effects.carry(
-        g, p, [(original, m.get('label'), before, after) for m, (original, _, before, after, _) in zip(made, poses)
-               if m.get('staged') is not True], {h['export'] for h in hidden}, carried_effects)
-    # the effects and sounds the project edits itself (the effects and sounds plan, Part D): moved in place, deleted
-    # from the level's list, copied with what they own
-    import native_sounds
-    lane_clones, lane_gone, lane_effects = native_effects.apply(g, p, effects)
-    sound_clones, sound_gone, lane_sounds = native_sounds.apply(g, p, sounds)
-    import native_flares
-    flare_clones, flare_gone, lane_flares = native_flares.apply(g, p, flares)
-    # the base map's spawn points the project moves or gives values (the editor spawns plan, SP6)
-    import native_spawns
-    spawn_clones, spawn_gone, lane_spawns = native_spawns.apply_lane(g, p, spawns)
-    effect_gone = set(effect_gone) | lane_gone | sound_gone | flare_gone | spawn_gone
-    effect_clones = list(effect_clones) + lane_clones + sound_clones + flare_clones + spawn_clones
-    st.effects_gone = effect_gone
-    if effect_gone:
-        empty_slots(g, p, effect_gone)
-    effect_moved = ({p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'moved'}
-                    | {r['export'] for r in lane_effects + lane_flares + lane_sounds if r['how'] == 'moved'})
-    # a moved or deleted van's building and floor volumes go with it
-    edited = {p.by_name[PL + e['actor']] for e in building_edits if PL + e['actor'] in p.by_name}
-    hidden_buildings = hide_van_buildings(g, p, {h['export'] for h in hidden}, edited) if hidden else []
+    st.poses, st.fracturing, st.generated_records = poses, fracturing, generated_records
+
+
+def wall_columns(st):
+    """The walls' fragment columns after the hides and the lanes (BuildState `st`): the hidden pieces left out and
+    the door copies added (edit_columns), and the walls made from numbers listing a door in their opening, a group
+    that breaks with them and the fracturing pieces they meet (frac_walls.py). Fills the state's columns,
+    door_listings, group_listings and neighbour_listings."""
+    p, g, made, poses, fracturing = st.p, st.g, st.made, st.poses, st.fracturing
+    generated_records, hidden, walled = st.generated_records, st.hidden, st.walled
+    break_originals, cover_records = st.break_originals, st.cover_records
     # the walls' columns without the hidden pieces and with the door copies (G8); every copy in the cutaway of its
     # building floor (G7)
     columns = edit_columns(g, p, {h['export'] for h in hidden}, [x[:4] for x in poses if x[4] == 'door'], fracturing)
@@ -2793,6 +2784,18 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         for d in neighbour_listings:
             print('    %s and %s list each other\'s columns where they meet (%d and %d listings)'
                   % (named[d['wall']], named.get(d['other'], d['other']), d['lists'], d['listed']))
+    st.columns, st.door_listings = columns, door_listings
+    st.group_listings, st.neighbour_listings = group_listings, neighbour_listings
+
+
+def edit_buildings(st):
+    """The building floors after the copies, the hides and the walls' columns (BuildState `st`): each copy in the
+    cutaway of the map's building floor it stands in (edit_floor_caches), the walls made from numbers in the map's
+    buildings they stand in (list_made_walls), the buildings made from nothing (buildings.make) and the map's own
+    edited in place (buildings.edit), with the slots they empty. Fills the state's floor_caches, made_floors,
+    building_actors, building_records, edit_records and edit_slots."""
+    p, g, made, poses, generated_records, hidden = st.p, st.g, st.made, st.poses, st.generated_records, st.hidden
+    buildings, building_edits = st.buildings, st.building_edits
     # the map's own buildings edited in place (their new boxes), for the copies' floors
     replaced = {}
     for e in building_edits:
@@ -2833,6 +2836,25 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
             if edit_slots:
                 empty_slots(g, p, edit_slots)
     st.edit_slots = set(edit_slots)
+    st.floor_caches, st.made_floors = floor_caches, made_floors
+    st.building_actors, st.building_records, st.edit_records = building_actors, building_records, edit_records
+
+
+def edits_in_place(st):
+    """The map's own actors edited in place once every copy is made from them (BuildState `st`): the added and
+    changed lights listed in the receivers they reach (native_lights.register), the clear (clear_level), the map's
+    landings moved (native_spawns.apply), pieces' flags (flags_in_place) and blasts (blasts_in_place) where they
+    stand, a mission's pieces' tiles moved in their stream, and the ladders' top tiles first in the rebuild order.
+    Fills the state's registration, cleared_record, landing_record, flag_record, blast_record, stream_record and
+    priority, and adds to its hide_volumes, firsts and ladders."""
+    import native_lights
+    p, g, bake, tiles, state, light_result = st.p, st.g, st.bake, st.tiles, st.light_state, st.light_result
+    cleared, building_edits, landing_zones, stream_tiles = (st.cleared, st.building_edits, st.landing_zones,
+                                                            st.stream_tiles)
+    piece_flags, flag_ladders, piece_blasts = st.piece_flags, st.flag_ladders, st.piece_blasts
+    hidden, hide_volumes, effect_moved = st.hidden, st.hide_volumes, st.effect_moved
+    firsts, ladders = st.firsts, st.ladders
+    flag_record = blast_record = None
     # the added and changed placed lights in the lightmaps of the map's own receivers they reach (baked builds only;
     # plan 4.3, step 4); the copies' are in their clones already
     registration = None
@@ -2849,7 +2871,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                 for n in [e['actor']] + [v for f in e.get('floors') or [] for v in f.get('volumes') or [] if v]
                 if PL + n in p.by_name} | effect_moved      # a moved piece's effects stay with it
         cleared_record, clear_volume = clear_level(g, p, taken, keep, cleared.get('keepOutside'))
-        st.cleared = cleared_record
+        st.cleared_record = cleared_record
         hide_volumes = hide_volumes + [clear_volume]
     landing_record = None
     if landing_zones:
@@ -2885,6 +2907,18 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         # first, highest first when two climbs share a tile. A map of the game's as it is has none.
         priority = [l['topVolume']['export'] for l in sorted(ladders, key=lambda l: -l['top'][2])]
         firsts = []
+    st.registration, st.landing_record, st.stream_record = registration, landing_record, stream_record
+    st.flag_record, st.blast_record, st.priority = flag_record, blast_record, priority
+    st.hide_volumes, st.firsts, st.ladders = hide_volumes, firsts, ladders
+
+
+def floors_and_cursors(st):
+    """The building floors' effect lists against the final effects and floors (native_effects.floor_lists), and the
+    made floors' and roofs' own cursor floors (made_cursors.py), after the copies, the buildings, the clear and the
+    landings (BuildState `st`). Fills the state's floor_emitters, cursor_record and cursor_clones."""
+    import native_effects
+    p, g, building_edits, building_records = st.p, st.g, st.building_edits, st.building_records
+    effect_record, lane_effects, generated_records = st.effect_record, st.lane_effects, st.generated_records
     # the building floors' effect lists, once, against the final effects and floors (plan Part D): after the copies'
     # cutaways, the buildings made and edited, the clear and the landings
     moved_now = {r['export']: r['location'] for r in lane_effects if r['how'] == 'moved'}
@@ -2911,6 +2945,27 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
             for c in cursor_record['crossed']:
                 print("    %s is over the map's %s cursor volume %s, left as it is" % (
                     c['slab'], 'stair' if c['why'] == 'stair' else 'turned', c['volume']))
+    st.floor_emitters, st.cursor_record, st.cursor_clones = floor_emitters, cursor_record, cursor_clones
+
+
+def write_and_verify(st):
+    """The variant map written and read back (BuildState `st`): every new actor in the level's list (add_to_level),
+    the map written by the growing writer (<out>/<variant>.upk, or with bake the grown map in <out>/grown, its name
+    table holding the variant cache's name), then what was written checked from a fresh read: the copies' vertex
+    lightmaps, the light edits, the lanes and the floors' effect lists, the made cursors, the flags; the ladders'
+    rebuild order read from it. Fills the state's level, dst, report and q, and the ladders' records read back."""
+    import native_effects
+    import native_flares
+    import native_lights
+    import native_sounds
+    import native_spawns
+    p, g, src, out, variant, bake, cache = st.p, st.g, st.src, st.out, st.variant, st.bake, st.cache
+    firsts, actors, hide_volumes, priority, made = st.firsts, st.actors, st.hide_volumes, st.priority, st.made
+    building_actors, effect_clones, cursor_clones = st.building_actors, st.effect_clones, st.cursor_clones
+    state, light_result, cursor_record = st.light_state, st.light_result, st.cursor_record
+    floor_emitters, lane_effects, lane_sounds = st.floor_emitters, st.lane_effects, st.lane_sounds
+    lane_flares, lane_spawns = st.lane_flares, st.lane_spawns
+    flag_copies, flag_record, ladders = st.flag_copies, st.flag_record, st.ladders
     level = add_to_level(g, p, firsts + actors + hide_volumes + building_actors + effect_clones + cursor_clones
                          + (light_result['actors'] if light_result else []), before_rebuild=priority)
     dst = out / ('grown' if bake else '') / (src.name if bake else f'{variant}.upk')
@@ -2942,35 +2997,220 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     for rec in flag_copies + (flag_record['pieces'] if flag_record else []):
         verify_roles(q, rec)
     ladders = ladder_order(q, [dict(l, copy=q.name(l['export']).split('.')[-1]) for l in ladders]) if ladders else []
+    st.level, st.dst, st.report, st.q, st.ladders = level, dst, report, q, ladders
+
+
+def build(st):
+    """The Build `st` (BuildState), made by its caller with its inputs: the fields named here (src, out, variant,
+    copies, bake...), which build reads once, and the state build fills as it goes.
+
+    The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
+    <out>/grown and the relit variant (relight.py), and the fixture manifest <out>/<variant>.fixture.json, with a
+    `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
+    or yaw alone (the original's pitch and roll); with neither, the original's rotation. `edit_spec`, with `bake`: an
+    editor patch spec whose exact hides (and posed copies) relight models too (relight.py --edit-spec), for an edit
+    whose hidden pieces stay in a patch. A copy's `breakGroup` (a number) and `break_originals` ({name, group}: the
+    map's own pieces left in place) link the editor's groups that break together (link_children). `hides` ({name,
+    box}) are taken out of the map (hide_pieces), after the copies are made (a moved piece is the source of its copy)
+    and before the relight, which leaves them out of the scene after the edit (--remove-caster).
+
+    Copies with the same `assembly` (the compiler's assemblies: a car's parts, a door's leaf and frame) are one copy of
+    it: cloned together, so their references to each other point at each other's clones (clone_assembly), with one
+    rebuild volume over them all (assembly_box), its tiles recorded on the first. `assemblies` (the compiler's moves:
+    id, family, members, turns, translation) go into the manifest.
+
+    `lights` is the native edit's light edits (editor lights plan, 9.5; native_lights.py): resolved against the
+    pristine map once, made in the map before the copies (a light gets no tiles), and recorded in the manifest's
+    `lights` section. With `bake`, the copies' extra lights come from the lights after the edit, each added or changed
+    placed light that emits is listed in the texture lightmaps of the receivers it reaches at their final poses (the
+    copies' too), and the relight gets the resolved before and after lights (relight.py --light-edits,
+    <out>/<variant>.light-edits.json). Without, every receiver's lightmap list stays as it is.
+
+    `covers` are the editor's cover blocks (the compiler's: name, kind, location, rotation, size, heights, box):
+    invisible pieces that give cover, a hidden level actor and a box mesh made from a recipe (cover_blocks.py), each
+    in its tiles as a copy is. The manifest's `coverBlocks` lists them.
+
+    `buildings` are buildings made from nothing (buildings.py: id, name, kind, floors of boxes): a building volume
+    and floor volumes cloned from the map's, each floor listing the pieces that stand in it after the edit (the map's
+    own that are not hidden, and the copies), by the game editor's own rule. The manifest's `buildings` lists them.
+    `building_edits` are the map's own buildings changed or deleted (the compiler's buildingEdits; buildings.edit),
+    edited in place after the copies and hides: the manifest's `buildingEdits` lists what each kept, moved, made and
+    took out.
+
+    A copy with `staged` is a piece of another map, staged in `src` by transplant.py (its `actor` the staged actor,
+    which no level lists). Without `bake` it keeps its home map's lighting. With `bake` it is lit from nothing: its
+    lightmaps list this map's lights alone, its shadow maps name this map's dominant light, and the relight gives
+    it the light of where it stands (relight.py --foreign-copy), with the staged actor left out of both scenes.
+
+    `cleared` (the compiler's: {grid, keepOutside?}) says the map was cleared (Clear map plan, section 7): the hides get no rebuild
+    volume of their own, and clear_level takes out what the editor never showed and puts one volume over the grid,
+    after the hides and the building edits. The manifest's `cleared` section counts what it took by class.
+
+    `carried_effects` (the compiler's `carriedEffects`, {piece: [effect]}: export 23's carriedBy) are the effects
+    that follow their piece's move, copy or delete (native_effects.py).
+
+    `effects` and `sounds` (the compiler's lanes: {moves, deletes, copies}; the effects and sounds plan, stage FX3) are
+    the effects and ambient sounds the project moves in place, takes out of the level's list or copies
+    (native_effects.apply, native_sounds.apply); after every other writer, native_effects.floor_lists lists the moved
+    and new effects (the lanes' and the carried ones) in the building floors whose boxes hold them and takes the moved
+    and deleted ones out of the lists that named them. A directly moved effect stays on a cleared map. The manifest's
+    `effects`, `sounds` and `floorEmitters` sections say what was done, read back (native_effects.verify).
+
+    `flares` is the same lane for the lens flares (LensFlareSource actors; stage FX6b, native_flares.apply): a move in
+    place, a delete off the level's list, a copy cloned with its LensFlareComponent, the flare template shared. A
+    flare is in no floor's list; a clear takes the map's flares out (CLEAR_OUT) but for one the project moves itself,
+    and a copy is made after the clear. The manifest's `flares` section says what was done, read back.
+
+    `spawns` (the compiler's lane: {moves, values}; the editor spawns plan, SP6) moves the base map's pods, Meld points
+    and drop-in points in place and sets their values (native_spawns.apply_lane); the manifest's `spawns` section
+    says what was done, read back (native_spawns.verify).
+
+    `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
+    theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
+
+    Pieces' flags (piece flags plan): a copy's `flags` ({role: bool}) are written on its clone once it is made
+    (set_roles; a copy of low scenery whose Floor is off is not made walkable), and `piece_flags` (the compiler's
+    `pieceFlags`: the map's own pieces whose flags change where they stand) on the map's actors after every copy is
+    made and the clear has run (flags_in_place), their tiles worked out again, with `flag_ladders`' top tiles first.
+    Each is read back from the written map. The manifest's `pieceFlags` section lists what was asked, written and
+    read back.
+
+    Broken pieces (custom geometry editing plan, E6): a copy's `blasts` (a moved piece of the map's) are written on its
+    clone, and `piece_blasts` (the compiler's `pieceBlasts`: the map's own fracturing pieces broken where they stand) on
+    the map's components after every copy is made (blasts_in_place), their tiles worked out again: the fragments each
+    blast reaches saved painted out with those the map paints out. A piece the game keeps whole (most roofs and floors)
+    draws a copy of its mesh with those fragments cut away and stays whole in battle, unless its `breaksFurther` asks
+    it to break further (break_component). The manifest's `pieceBlasts` section lists them."""
+    import cover_blocks
+    import native_lights
+    st.src, st.out = Path(st.src), Path(st.out)
+    st.out.mkdir(parents=True, exist_ok=True)
+    if st.bake and not st.cache:
+        raise ValueError('a baked copy needs a variant texture cache name (--cache)')
+    if st.bake:
+        lightmap_writer.cache_fname(st.cache)     # a cache name that can be a file and an FName, before any work
+    p = lighting.Package(st.src)
+    g = package_grow.Grower(str(st.src))
+    # the light edits: resolved against the pristine map, then made in the map (plan 4.3, steps 1 and 2)
+    st.light_state = None if native_lights.is_empty(st.lights) else native_lights.prepare(p, st.lights)
+    st.light_result = native_lights.apply(g, p, st.light_state) if st.light_state else None
+    # what the edit takes out, added to as each step takes something (BuildState.gone)
+    st.p = p
+    st.lights_gone = set((st.light_result or {}).get('gone') or ())
+    # the copies (clone_copies)
+    st.g = g
+    clone_copies(st)
+    # the cover blocks: hidden level actors on box meshes, made from a recipe (cover_blocks.py), each in its tiles
+    cover_actors, st.cover_records = cover_blocks.add_blocks(g, p, st.covers) if st.covers else ([], [])
+    st.actors += cover_actors
+    # the fracturing copies and the walls made from numbers (fracturing_copies)
+    fracturing_copies(st)
+    st.walled = {m['wallGroup'] for m in st.made if m.get('wallGroup')}
+    st.groups, st.children = link_children(
+        g, p, st.made, st.break_originals,
+        [(c['breakGroup'], c['actor']) for c in st.cover_records if c.get('breakGroup')], walled=st.walled)
+    st.hidden, st.hide_volumes = hide_pieces(g, p, st.hides, volumes=not st.cleared) if st.hides else ([], [])
+    # the effects the moved, copied and deleted pieces carry (native_effects.py: a Skyranger's lights go with it)
+    import native_effects
+    st.effect_clones, effect_gone, st.effect_record = native_effects.carry(
+        g, p, [(original, m.get('label'), before, after)
+               for m, (original, _, before, after, _) in zip(st.made, st.poses) if m.get('staged') is not True],
+        {h['export'] for h in st.hidden}, st.carried_effects)
+    # the effects and sounds the project edits itself (the effects and sounds plan, Part D): moved in place, deleted
+    # from the level's list, copied with what they own
+    import native_sounds
+    lane_clones, lane_gone, st.lane_effects = native_effects.apply(g, p, st.effects)
+    sound_clones, sound_gone, st.lane_sounds = native_sounds.apply(g, p, st.sounds)
+    import native_flares
+    flare_clones, flare_gone, st.lane_flares = native_flares.apply(g, p, st.flares)
+    # the base map's spawn points the project moves or gives values (the editor spawns plan, SP6)
+    import native_spawns
+    spawn_clones, spawn_gone, st.lane_spawns = native_spawns.apply_lane(g, p, st.spawns)
+    effect_gone = set(effect_gone) | lane_gone | sound_gone | flare_gone | spawn_gone
+    st.effect_clones = list(st.effect_clones) + lane_clones + sound_clones + flare_clones + spawn_clones
+    st.effects_gone = effect_gone
+    if effect_gone:
+        empty_slots(g, p, effect_gone)
+    st.effect_moved = ({p.by_name[PL + r['effect']] for r in st.effect_record if r['how'] == 'moved'}
+                       | {r['export'] for r in st.lane_effects + st.lane_flares + st.lane_sounds
+                          if r['how'] == 'moved'})
+    # a moved or deleted van's building and floor volumes go with it
+    edited = {p.by_name[PL + e['actor']] for e in st.building_edits if PL + e['actor'] in p.by_name}
+    st.hidden_buildings = hide_van_buildings(g, p, {h['export'] for h in st.hidden}, edited) if st.hidden else []
+    # the walls' columns (wall_columns)
+    wall_columns(st)
+    # the building floors: the copies', the made walls', the buildings made and edited (edit_buildings)
+    edit_buildings(st)
+    # the map's own actors edited in place: lights registered, the clear, landings, flags, blasts (edits_in_place)
+    edits_in_place(st)
+    # the building floors' effect lists and the made slabs' cursor floors (floors_and_cursors)
+    floors_and_cursors(st)
+    # the map written and read back (write_and_verify)
+    write_and_verify(st)
     # what the record is made from (manifest_parts, relight_command)
-    st.keep(src=src, level=level, report=report, made=made, children=children, groups=groups, assemblies=assemblies,
-            ladders=ladders, columns=columns, effect_record=effect_record, lane_effects=lane_effects,
-            lane_sounds=lane_sounds, lane_flares=lane_flares, lane_spawns=lane_spawns, floor_emitters=floor_emitters,
-            floor_caches=floor_caches, hidden_buildings=hidden_buildings, building_records=building_records,
-            edit_records=edit_records, cover_records=cover_records, generated_records=generated_records,
-            door_listings=door_listings, group_listings=group_listings, made_floors=made_floors,
-            neighbour_listings=neighbour_listings, landing_record=landing_record, cursor_record=cursor_record,
-            stream_record=stream_record, flag_copies=flag_copies, flag_record=flag_record, blast_copies=blast_copies,
-            blast_record=blast_record, vans=vans, lights=state, light_result=light_result, registration=registration)
-    sections, common, lights_record = manifest_parts(st, q, bake)
+    sections, common, lights_record = manifest_parts(st, st.q, st.bake)
     tool = common['tool']
-    if not bake:
-        files = {str(dst): lightmap_writer.sha256(dst.read_bytes())}
-        manifest = dict(source=str(src), sourceSha256=lighting.digest(src), variant=variant, cache=None,
+    if not st.bake:
+        files = {str(st.dst): lightmap_writer.sha256(st.dst.read_bytes())}
+        manifest = dict(source=str(st.src), sourceSha256=lighting.digest(st.src), variant=st.variant, cache=None,
                         outputs=files, nativeCopies=dict(common, copies=sections), tool=tool)
     else:
         # the readers find the original's texture caches through tfc-folder.txt beside the grown map (nothing copied)
-        lighting.link_caches(dst.parent, src.parent)
-        cmd = relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, jobs, piece_cache, base)
+        lighting.link_caches(st.dst.parent, st.src.parent)
+        cmd = relight_command(st, st.dst, st.out, st.variant, st.cache, st.receivers_near, st.edit_spec, st.jobs,
+                              st.piece_cache, st.base)
         print(' '.join(cmd), flush=True)
         subprocess.run(cmd, check=True)
-        manifest = json.loads((out / f'{variant}.fixture.json').read_text(encoding='utf-8'))
-        manifest['nativeCopies'] = dict(common, copies=sections, grown=str(dst),
-                                        editSpec=str(edit_spec) if edit_spec else None)
+        manifest = json.loads((st.out / f'{st.variant}.fixture.json').read_text(encoding='utf-8'))
+        manifest['nativeCopies'] = dict(common, copies=sections, grown=str(st.dst),
+                                        editSpec=str(st.edit_spec) if st.edit_spec else None)
     if lights_record:
         manifest['lights'] = lights_record
-    (out / f'{variant}.fixture.json').write_text(json.dumps(manifest, indent=1) + '\n', encoding='utf-8', newline='\n')
+    (st.out / f'{st.variant}.fixture.json').write_text(json.dumps(manifest, indent=1) + '\n', encoding='utf-8',
+                                                       newline='\n')
     return manifest
+
+
+def copy_record(c):
+    """A copy as build reads it, from a copy of the native edit (or one main makes from the command line): the record
+    whole, as the compiler (and transplant.py) wrote it, since build reads its fields (a made wall's wallGroup among
+    them: review finding 36, a copy's field dropped on the way); only the pose and the group are read as numbers."""
+    return dict(c, location=[float(v) for v in c['location']],
+                rotation=[int(v) for v in c['rotation']] if c.get('rotation') is not None else None,
+                breakGroup=int(c.get('breakGroup') or 0))
+
+
+def edit_state(src, out, variant, doc, **options):
+    """The Build (BuildState) of the native edit `doc` on the map `src`, into `out` as `variant`: `doc` as the Build
+    writes it (native-edit.json: compiler.native_split's dict of lanes), or a list of copies alone; `options` are the
+    state's other inputs (bake, cache, receivers_near, jobs, tiles, edit_spec, piece_cache, base). Each lane goes to
+    its field as it is, and each copy through copy_record."""
+    copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
+    cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = None
+    stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
+    if isinstance(doc, dict):
+        assemblies = doc.get('assemblies') or []
+        lights = doc.get('lights')
+        covers = doc.get('covers') or []
+        buildings = doc.get('buildings') or []
+        edits = doc.get('buildingEdits') or []
+        cleared = doc.get('cleared')
+        landing_zones = doc.get('landingZones')
+        carried_effects = doc.get('carriedEffects')
+        effects, sounds, flares = doc.get('effects'), doc.get('sounds'), doc.get('flares')
+        spawns = doc.get('spawns')
+        stream_tiles = doc.get('streamTiles') or []
+        piece_flags = doc.get('pieceFlags') or []
+        flag_ladders = doc.get('pieceFlagLadders') or []
+        piece_blasts = doc.get('pieceBlasts') or []
+        doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
+    for c in doc:
+        copies.append(copy_record(c))
+    return BuildState(src, out, variant, copies, break_originals=break_originals, hides=hides, assemblies=assemblies,
+                      lights=lights, covers=covers, buildings=buildings, building_edits=edits, cleared=cleared,
+                      landing_zones=landing_zones, carried_effects=carried_effects, stream_tiles=stream_tiles,
+                      piece_flags=piece_flags, flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares,
+                      spawns=spawns, piece_blasts=piece_blasts, **options)
 
 
 def main():
@@ -3006,56 +3246,28 @@ def main():
                         '--piece-cache; needs --base)')
     a.add_argument('--base', metavar='SHA', help='with --piece-cache: the SHA-256 of the map before any of the edit')
     args = a.parse_args()
-    copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
-    cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = None
-    stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
-    if args.copies:
-        doc = json.loads(args.copies.read_text(encoding='utf-8'))
-        if isinstance(doc, dict):
-            assemblies = doc.get('assemblies') or []
-            lights = doc.get('lights')
-            covers = doc.get('covers') or []
-            buildings = doc.get('buildings') or []
-            edits = doc.get('buildingEdits') or []
-            cleared = doc.get('cleared')
-            landing_zones = doc.get('landingZones')
-            carried_effects = doc.get('carriedEffects')
-            effects, sounds, flares = doc.get('effects'), doc.get('sounds'), doc.get('flares')
-            spawns = doc.get('spawns')
-            stream_tiles = doc.get('streamTiles') or []
-            piece_flags = doc.get('pieceFlags') or []
-            flag_ladders = doc.get('pieceFlagLadders') or []
-            piece_blasts = doc.get('pieceBlasts') or []
-            doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
-        for c in doc:
-            # each record whole, as the compiler (and transplant.py) wrote it: build() reads its fields (a made
-            # wall's wallGroup among them, review finding 36); only the pose and the group are read as numbers here
-            copies.append(dict(c, location=[float(v) for v in c['location']],
-                               rotation=[int(v) for v in c['rotation']] if c.get('rotation') is not None else None,
-                               breakGroup=int(c.get('breakGroup') or 0)))
+    doc = json.loads(args.copies.read_text(encoding='utf-8')) if args.copies else []
+    st = edit_state(args.src, args.out, args.variant, doc, bake=args.bake, cache=args.cache,
+                    receivers_near=args.receivers_near, jobs=args.jobs, tiles=not args.no_tiles,
+                    edit_spec=args.edit_spec, piece_cache=args.piece_cache, base=args.base)
     for item in args.copy:
         if len(item) not in (4, 5):
             a.error(f'--copy takes ACTOR X Y Z [YAW], not {item}')
-        copies.append(dict(actor=item[0], location=[float(v) for v in item[1:4]],
-                           yaw=int(item[4]) if len(item) == 5 else None))
+        st.copies.append(copy_record(dict(actor=item[0], location=item[1:4],
+                                          yaw=int(item[4]) if len(item) == 5 else None)))
     if args.actor:
         if not args.at:
             a.error('--actor needs --at')
-        copies.append(dict(actor=args.actor, location=args.at, yaw=args.yaw))
+        st.copies.append(copy_record(dict(actor=args.actor, location=args.at, yaw=args.yaw)))
     import native_lights
-    if not copies and not hides and not covers and not buildings and not edits and not cleared and not landing_zones \
-            and not stream_tiles and not piece_flags and native_lights.is_empty(lights) and not effects and not sounds \
-            and not flares and not spawns and not piece_blasts:
+    if not st.copies and not st.hides and not st.covers and not st.buildings and not st.building_edits \
+            and not st.cleared and not st.landing_zones and not st.stream_tiles and not st.piece_flags \
+            and native_lights.is_empty(st.lights) and not st.effects and not st.sounds and not st.flares \
+            and not st.spawns and not st.piece_blasts:
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')
-    m = build(args.src, args.out, args.variant, copies, args.bake, args.cache, args.receivers_near, args.jobs,
-              tiles=not args.no_tiles, edit_spec=args.edit_spec, break_originals=break_originals, hides=hides,
-              assemblies=assemblies, lights=lights, covers=covers, buildings=buildings, building_edits=edits,
-              cleared=cleared, landing_zones=landing_zones, carried_effects=carried_effects,
-              piece_cache=args.piece_cache, base=args.base, stream_tiles=stream_tiles, piece_flags=piece_flags,
-              flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares, spawns=spawns,
-              piece_blasts=piece_blasts)
+    m = build(st)
     # one line per copy; the whole record is the manifest's nativeCopies section
     for c in m['nativeCopies']['copies']:
         t = c['tiles']

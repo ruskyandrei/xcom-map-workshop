@@ -543,7 +543,8 @@ class StagedVan(unittest.TestCase):
                            rotation=list(home[m][1]), label=m + '_copy', assembly='add:van', family='van')
                       for m in cls.members]
         cls.staged, cls.edit, cls.report = transplant.stage_edit(BAR, cls.out, dict(copies=cls.copies), schema=game_schema())
-        cls.manifest = native_copy.build(cls.staged, cls.out / 'build', 'URB_BarVan', cls.edit['copies'])
+        cls.manifest = native_copy.build(native_copy.BuildState(cls.staged, cls.out / 'build', 'URB_BarVan',
+                                                                cls.edit['copies']))
 
     @classmethod
     def tearDownClass(cls):
@@ -614,7 +615,8 @@ class LooseEnds(unittest.TestCase):
             dict(actor=cls.PALLET, donor=dict(package='URB_MilitaryAmmo'), location=[1300.0, -640.0, 0.0],
                  rotation=[0, 0, 0])])
         cls.staged, cls.new_edit, cls.report = transplant.stage_edit(BAR, cls.out, cls.edit, schema=game_schema())
-        cls.manifest = native_copy.build(cls.staged, cls.out / 'build', 'URB_BarLoose', cls.new_edit['copies'])
+        cls.manifest = native_copy.build(native_copy.BuildState(cls.staged, cls.out / 'build', 'URB_BarLoose',
+                                                                cls.new_edit['copies']))
 
     @classmethod
     def tearDownClass(cls):
@@ -698,7 +700,8 @@ class StagedAssembly(unittest.TestCase):
                       for m in cls.members]
         cls.staged, cls.edit, cls.report = transplant.stage_edit(BAR, cls.out / 'whole', dict(copies=cls.copies),
                                                                  schema=game_schema())
-        cls.manifest = native_copy.build(cls.staged, cls.out / 'build', 'URB_BarCar', cls.edit['copies'])
+        cls.manifest = native_copy.build(native_copy.BuildState(cls.staged, cls.out / 'build', 'URB_BarCar',
+                                                                cls.edit['copies']))
         cls.Package = Package
 
     @classmethod
@@ -790,7 +793,8 @@ class StagedCopy(unittest.TestCase):
                  rotation=[0, 0, 0], label='lamp again'),
             dict(actor='XComLevelActor_37', location=cls.OWN, rotation=[0, 0, 0], label='the bar\'s own')])
         cls.staged, cls.new_edit, cls.report = transplant.stage_edit(BAR, cls.out, cls.edit, schema=game_schema())
-        cls.manifest = native_copy.build(cls.staged, cls.out / 'build', 'URB_BarStaged', cls.new_edit['copies'])
+        cls.manifest = native_copy.build(native_copy.BuildState(cls.staged, cls.out / 'build', 'URB_BarStaged',
+                                                                cls.new_edit['copies']))
         cls.q = native_copy.lighting.Package(cls.out / 'build' / 'URB_BarStaged.upk')
 
     @classmethod
@@ -1027,8 +1031,9 @@ class FreshLight(unittest.TestCase):
             dict(actor=cls.WALL, donor=dict(package='CAbductor_Cliffside'), location=[1150.0, -900.0, 0.0],
                  rotation=[0, 0, 0])])
         cls.staged, cls.edit, _ = transplant.stage_edit(BAR, cls.out, edit, schema=game_schema())
-        cls.manifest = native_copy.build(cls.staged, cls.out / 'baked', 'URB_BarFresh', cls.edit['copies'], bake=True,
-                                         cache='URB_BarFresh_Lighting', receivers_near=600.0)
+        cls.manifest = native_copy.build(native_copy.BuildState(
+            cls.staged, cls.out / 'baked', 'URB_BarFresh', cls.edit['copies'], bake=True, cache='URB_BarFresh_Lighting',
+            receivers_near=600.0))
         cls.q = native_copy.lighting.Package(cls.out / 'baked' / 'URB_BarFresh.upk')
         cls.relit = json.loads((cls.out / 'baked' / 'URB_BarFresh.relight.json').read_text(encoding='utf-8'))
         cls.records = cls.manifest['nativeCopies']['copies']

@@ -136,7 +136,7 @@ class FlagsBuilt(unittest.TestCase):
         cls.pieces = [dict(name='XComLevelActor_103', flags=dict(walking=False, sight=False, mouse=False)),
                       dict(name='XComDestructibleActor_111', flags=dict(walking=True, cover=True)),
                       dict(name='XComLevelActor_11', flags=dict(mouse=False))]
-        cls.m = native_copy.build(BAR, out, 'Flags', cls.copies, piece_flags=cls.pieces)
+        cls.m = native_copy.build(native_copy.BuildState(BAR, out, 'Flags', cls.copies, piece_flags=cls.pieces))
         cls.q = lighting.Package(out / 'Flags.upk')
         cls.record = cls.m['nativeCopies']['pieceFlags']
 
@@ -204,7 +204,8 @@ class FlagsBuilt(unittest.TestCase):
 
     def test_writing_again_on_the_built_map_writes_nothing(self):
         out = Path(self.tmp.name) / 'again'
-        m = native_copy.build(Path(self.tmp.name) / 'Flags.upk', out, 'Again', [], piece_flags=self.pieces)
+        m = native_copy.build(native_copy.BuildState(Path(self.tmp.name) / 'Flags.upk', out, 'Again', [],
+                                                     piece_flags=self.pieces))
         f = m['nativeCopies']['pieceFlags']
         self.assertEqual(f['written'], 0)
         self.assertIsNone(f['tiles'])
@@ -212,21 +213,24 @@ class FlagsBuilt(unittest.TestCase):
     def test_a_piece_the_map_hasnt_or_the_edit_takes_out_is_an_error(self):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(ValueError):
-                native_copy.build(BAR, d, 'Missing', [], piece_flags=[dict(name='XComLevelActor_99999', flags=dict(mouse=False))])
+                native_copy.build(native_copy.BuildState(
+                    BAR, d, 'Missing', [], piece_flags=[dict(name='XComLevelActor_99999', flags=dict(mouse=False))]))
             box = native_copy.piece_box(self.p, self.p.by_name[PL + 'XComLevelActor_11'],
                                         self.p.own(self.p.by_name[PL + 'XComLevelActor_11'], 'Location'),
                                         self.p.own(self.p.by_name[PL + 'XComLevelActor_11'], 'Rotation', [0, 0, 0]))
             with self.assertRaises(ValueError):
-                native_copy.build(BAR, d, 'Gone', [], hides=[dict(name='XComLevelActor_11', box=box)],
-                                  piece_flags=[dict(name='XComLevelActor_11', flags=dict(mouse=False))])
+                native_copy.build(native_copy.BuildState(
+                    BAR, d, 'Gone', [], hides=[dict(name='XComLevelActor_11', box=box)],
+                    piece_flags=[dict(name='XComLevelActor_11', flags=dict(mouse=False))]))
 
     def test_a_maps_ladder_near_a_change_rebuilds_its_top_tile_first(self):
         # XComLadder_3 where the map has it (foot (11, 23, 0), top (12, 23, 6): two tiles short of its moved copy in
         # test_native_copy), its own walking turned off: the region's volume would queue its foot first; the top tile's
         # own volume goes first in the level's list, and the foot's after
         with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(BAR, d, 'FlagLadder', [], piece_flags=[dict(name='XComLadder_3', flags=dict(walking=False))],
-                                  flag_ladders=[dict(actor='XComLadder_3', foot=[11, 23, 0], top=[12, 23, 6])])
+            m = native_copy.build(native_copy.BuildState(
+                BAR, d, 'FlagLadder', [], piece_flags=[dict(name='XComLadder_3', flags=dict(walking=False))],
+                flag_ladders=[dict(actor='XComLadder_3', foot=[11, 23, 0], top=[12, 23, 6])]))
             [ladder] = m['nativeCopies']['ladders']
             self.assertTrue(ladder['inPlace'])
             self.assertLess(ladder['topPlace'], ladder['footPlace'])
@@ -234,17 +238,18 @@ class FlagsBuilt(unittest.TestCase):
             volumes = [a for a in native_copy.level_actors(q) if a > 0 and q.cls(a) == 'XComRebuildWorldDataVolume']
             self.assertEqual(volumes[0], ladder['topVolume']['export'])
             # a change that needs no tile work rebuilds no ladder
-            m = native_copy.build(BAR, Path(d) / 'mouse', 'FlagMouse', [],
-                                  piece_flags=[dict(name='XComLadder_3', flags=dict(mouse=False))],
-                                  flag_ladders=[dict(actor='XComLadder_3', foot=[11, 23, 0], top=[12, 23, 6])])
+            m = native_copy.build(native_copy.BuildState(
+                BAR, Path(d) / 'mouse', 'FlagMouse', [], piece_flags=[dict(name='XComLadder_3', flags=dict(mouse=False))],
+                flag_ladders=[dict(actor='XComLadder_3', foot=[11, 23, 0], top=[12, 23, 6])]))
             self.assertEqual(m['nativeCopies']['ladders'], [])
 
     def test_on_a_cleared_map_the_clears_volume_covers_the_tiles_and_kept_pieces_take_flags(self):
         # the clear leaves the map's pieces (the delete records take them out) and puts one volume over the grid: the
         # flags' tiles are seeded, with no volume of their own
         with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(BAR, d, 'FlagCleared', [], cleared=dict(grid=[52, 39, 12]),
-                                  piece_flags=[dict(name='XComLevelActor_103', flags=dict(walking=False))])
+            m = native_copy.build(native_copy.BuildState(
+                BAR, d, 'FlagCleared', [], cleared=dict(grid=[52, 39, 12]),
+                piece_flags=[dict(name='XComLevelActor_103', flags=dict(walking=False))]))
             f = m['nativeCopies']['pieceFlags']
             self.assertEqual(f['tiles']['volumes'], "the cleared map's")
             self.assertTrue(all('volume' not in t for t in f['tiles']['regions']))
