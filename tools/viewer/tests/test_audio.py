@@ -134,6 +134,35 @@ class Refusals(unittest.TestCase):
         with self.assertRaisesRegex(audio.OggError, 'not in the install'):
             audio.WaveCache().get('root', scene, 'patch_bar|A.Hum', None, lambda name: None)
 
+    def test_an_exports_scene_is_read_once_for_each_version_of_it(self):
+        """(review finding 50) The wave route reads what it needs of scene.json once, not on every wave played: the
+        name, source, stream names and soundWaves, again only when the file changes."""
+        import os
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            path = root / 'scene.json'
+            path.write_text(json.dumps(dict(self.SCENE, objects=[dict(name='XComLevelActor_1')] * 50)), encoding='utf-8')
+            cache = audio.WaveCache()
+            with mock.patch.object(audio.json, 'loads', wraps=json.loads) as loads:
+                first, again = cache.scene(root), cache.scene(root)
+                self.assertEqual(loads.call_count, 1)
+                self.assertIs(first, again)
+                self.assertEqual(first, dict(name='URB_Bar', source=self.SCENE['source'], streams=['patch_bar'],
+                                             soundWaves=self.SCENE['soundWaves']))
+                # what it keeps answers as the whole scene does
+                with self.assertRaisesRegex(audio.OggError, 'compressed'):
+                    cache.get(root, first, 'URB_Bar|A.Hum', lambda: 1 / 0, lambda name: 1 / 0)
+                with self.assertRaisesRegex(audio.OggError, 'not in the install'):
+                    cache.get(root, dict(first, soundWaves={'patch_bar|A.Hum': dict(playable=True)}), 'patch_bar|A.Hum',
+                              None, lambda name: None)
+                # a re-export writes a new file: read again
+                path.write_text(json.dumps(dict(self.SCENE, name='URB_Bar2')), encoding='utf-8')
+                st = path.stat()
+                os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns + 10 ** 9))
+                self.assertEqual(cache.scene(root)['name'], 'URB_Bar2')
+                self.assertEqual(loads.call_count, 2)
+
 
 # ---------------------------------------------------------------- the configured install
 

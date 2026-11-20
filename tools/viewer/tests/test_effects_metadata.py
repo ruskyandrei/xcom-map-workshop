@@ -10,7 +10,6 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import effects_metadata as em  # noqa: E402
-from package import Reader  # noqa: E402
 
 
 class Fake:
@@ -357,9 +356,10 @@ class Fixtures(unittest.TestCase):
         self.addCleanup(tmp.cleanup)
         ex = export.Exporter(p, Path(tmp.name))
         ex.prefabs, ex.kismet = scene_metadata.prefab_members(p), scene_metadata.kismet_references(p)
-        found = ex.effects('map')
+        found = ex.effects()
         self.assertEqual((len(found['effects']), len(found['sounds']), len(found['flares'])), (70, 6, 2))
-        self.assertEqual(found['defaults'], 'script')
+        # (the class defaults read from the game's script packages, not the module's table)
+        self.assertTrue(em.Defaults(p).scripts)
         # export 29: every emitter drawn or saying why, its textures and meshes written beside the map's
         emitters = [e for s in found['systems'].values() if s for e in s['emitters']]
         self.assertTrue(all('draw' in e and (e['draw'] or e['why']) for e in emitters))
@@ -375,10 +375,9 @@ class Fixtures(unittest.TestCase):
         # export 23's carriedBy is still there, for the compiler's carried effects
         self.assertEqual(sorted(e['actor'] for e in found['effects'] if e['carriedBy']),
                          sorted(e['actor'] for e in scene_metadata.effect_metadata(p) if e['carriedBy']))
-        self.assertEqual(ex.effects('sample')['effects'], [])
         inherited = export.Exporter(p, None, namespace='inherited-patch_bar')
         inherited.prefabs, inherited.kismet = ex.prefabs, ex.kismet
-        self.assertEqual(inherited.effects('map')['effects'], [])
+        self.assertEqual(inherited.effects()['effects'], [])
 
 
 if __name__ == '__main__':

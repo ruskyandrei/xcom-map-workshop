@@ -11,6 +11,7 @@ last page ending the stream, and the granule positions never going back. A wave 
 guessed at; nothing searches for `OggS` in a package.
 """
 import hashlib
+import json
 import struct
 import threading
 from collections import OrderedDict
@@ -165,6 +166,26 @@ class WaveCache:
         self.waves = OrderedDict()      # (root, wave id, fingerprint) -> (bytes, etag, record)
         self.packages = {}              # (path, size, mtime) -> Package
         self.checked = {}               # (path, size, mtime) -> sha256 hex
+        self.scenes = {}                # (scene.json, size, mtime) -> what get() reads of it
+
+    def scene(self, root):
+        """What get() reads of the export at `root` (its name, source, stream names and soundWaves), read from its
+        scene.json once for each version of the file rather than for every wave the page plays (a large map's
+        scene.json is megabytes)."""
+        path = Path(root) / 'scene.json'
+        st = path.stat()
+        key = (str(path), st.st_size, st.st_mtime_ns)
+        with self.lock:
+            if key in self.scenes:
+                return self.scenes[key]
+        whole = json.loads(path.read_text(encoding='utf-8'))
+        kept = {k: whole[k] for k in ('name', 'source', 'soundWaves') if k in whole}
+        kept['streams'] = list(whole.get('streams') or {})
+        with self.lock:
+            if len(self.scenes) > 8:
+                self.scenes.pop(next(iter(self.scenes)))
+            self.scenes[key] = kept
+        return kept
 
     def package(self, path, want_sha=None):
         from package import Package

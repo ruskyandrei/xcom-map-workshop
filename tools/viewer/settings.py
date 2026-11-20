@@ -3,7 +3,7 @@
 Settings say where projects, builds, exported maps and the toolchain live: no tool in this repository hard-codes a
 folder of one computer. They are kept as JSON in Documents\\XCOM Map Workshop\\settings.json, beside the projects,
 where every program sees the same file (the Microsoft Store's Python redirects what it writes under %APPDATA% to a
-folder of its own, out of sight of PowerShell and the lab tools; a file it left there is moved here when first read).
+folder of its own, out of sight of PowerShell and the lab tools).
 The XCOM_MAP_WORKSHOP_SETTINGS environment variable names another file (tests use it). Unset folders take defaults
 (default_folders): in a release, projects and builds in the editor's own folder; else, and the cache always, under
 Documents\\XCOM Map Workshop. The game install has no default: building needs it set. UDK is optional (only a
@@ -57,19 +57,7 @@ def documents():
 def settings_path():
     if os.environ.get('XCOM_MAP_WORKSHOP_SETTINGS'): return Path(os.environ['XCOM_MAP_WORKSHOP_SETTINGS'])
     path = documents() / APP / 'settings.json'
-    if not path.is_file(): _move_old_settings(path)
     return path
-
-
-def _move_old_settings(path):
-    """Settings kept in %APPDATA%\\XCOM Map Workshop before 8 November 2026 move beside the projects (once)."""
-    old = Path(os.environ['APPDATA']) / APP / 'settings.json' if os.environ.get('APPDATA') else None
-    if old is None or not old.is_file(): return
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(old.read_bytes())
-        old.replace(old.with_name('settings.json.moved'))
-    except OSError: pass
 
 
 def _stored(path):

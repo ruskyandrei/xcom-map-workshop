@@ -1,10 +1,13 @@
 """The Build's choice of export (compiler.find_export, review findings 17 and 44): a project with no usable export of
 its map fails the build with its own "build failed:" reason (a BuildError, never SystemExit from library code)."""
+import contextlib
+import io
 import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
@@ -34,8 +37,17 @@ class NoExport(unittest.TestCase):
                 b.snapshot()
             self.assertIn('no export of URB_Bar', str(failed.exception))
             self.assertIn('prepare the map', str(failed.exception))
+            # (review finding 55) the failure has a code, which the page's Prepare prompt goes by, never its words
+            self.assertEqual(failed.exception.code, 'export-missing')
             with self.assertRaises(compiler.ExportMissing):
                 compiler.find_export(cache, json.loads(project.read_text(encoding='utf-8')))
+            # main says the code on a line of its own before the reason, which the build runner keeps
+            said = io.StringIO()
+            with mock.patch.object(build.Build, 'run', side_effect=build.BuildError('no export', code='export-missing')), \
+                    contextlib.redirect_stdout(said):
+                self.assertEqual(build.main([str(project), '--pinned', '--game', str(root / 'game'), '--cache', str(cache),
+                                             '--output', str(root / 'output')]), 1)
+            self.assertEqual(said.getvalue().splitlines(), ['build failed code: export-missing', 'build failed: no export'])
 
 
 if __name__ == '__main__':

@@ -51,7 +51,7 @@ This skill is the guide alone. The guide's and README's "New in" tables belong t
      changed thing a user sees is a candidate.
    - `git log --oneline -- tools/release/guide/` against `git log --oneline -- tools/viewer/web/`: page changes
      since the pictures were taken.
-2. **Read the whole guide** against the editor. It is about 2,100 lines: read it all, not just the sections you
+2. **Read the whole guide** against the editor. It is about 3,000 lines: read it all, not just the sections you
    expect to change.
    - The controls a section numbers against the page: `tools/viewer/web/index.html` (the header, the tool strip
      `#rail`, the Project menu `#projectMenu`, the piece panel `#inspector`, each dialog), and what the code says

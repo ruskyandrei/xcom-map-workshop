@@ -90,7 +90,7 @@ each one is.
 4. `xcom_editor.cmd` starts the editor on port 8768. A map is exported from your install the first time it is opened.
 
 `python -B tools/run_tests.py` runs the test suites and prints each failure with its traceback; name suites to run
-only those (`run_tests.py viewer editor`). The bake suite takes about six minutes, and the suites that read the
+only those (`run_tests.py viewer editor`). The bake suite takes about seven minutes (every suite together about eleven), and the suites that read the
 game's maps need an install.
 
 `python tools/release/make_release.py` builds a release; the installer needs Inno Setup 6 or 7.

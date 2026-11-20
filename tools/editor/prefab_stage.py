@@ -28,7 +28,7 @@ from prefab_bounds import GRID_LEVELS, MAX_TILES, PLAYED_LEVELS, SLACK, TILE, fo
 from prefab_bounds import LEVEL as LEVEL_HEIGHT  # noqa: E402
 from prefabs import recover_sources, validate  # noqa: E402
 from projects import ID, SCHEMA, SCHEMA_VERSION, ProjectError, now  # noqa: E402
-from shell import DONOR as SHELL_DONOR, squad_places  # noqa: E402
+from shell import DONOR as SHELL_DONOR, squad_places  # noqa: E402  (SHELL_DONOR: prefab_tests reads it here)
 
 MAP = 'CB2_MP_Blank'
 # the blank map's own tile grid; a test grows it to the height its prefab needs: at least PLAYED_LEVELS (18, the

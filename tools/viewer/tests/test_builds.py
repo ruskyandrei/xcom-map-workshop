@@ -22,7 +22,7 @@ from builds import BuildRunner
 import procs
 import publication
 from projects import ProjectError, ProjectStore
-from test_projects import ID, OTHER, document
+from viewer_fixtures import ID, OTHER, document
 from viewer import Handler, LocalServer
 
 VIEWER = str(Path(__file__).resolve().parents[1])
@@ -242,6 +242,14 @@ class Builds(unittest.TestCase):
         self.assertEqual(job['warnings'], ['the package swap left a note',
                                            'writing the lighting changed 37 texels (by up to 0.21) in the lightmaps of 2 '
                                            'pieces that were not relit: A, B'])
+
+    def test_a_failure_with_a_code_keeps_it_for_the_page(self):
+        """(review finding 55) build.py's "build failed code:" line is kept as the job's errorCode, which the page's
+        Prepare prompt goes by; the reason is still the job's error."""
+        job = dict(lines=[], stages=[], stage=None, running=None, progress=None, error=None, errorCode=None)
+        self.runner._line(job, 'build failed code: export-missing')
+        self.runner._line(job, 'build failed: no export of URB_Bar with SHA-256 ...: prepare the map')
+        self.assertEqual((job['errorCode'], job['error']), ('export-missing', 'no export of URB_Bar with SHA-256 ...: prepare the map'))
 
     def test_a_failed_build_says_why(self):
         self.outcome = 'fail'

@@ -1,6 +1,6 @@
 """The editor's compiler for static pieces (first-editor plan, slice E3).
 
-Turns a saved project (research/editor-contracts.md, schema 1 to 3) and the viewer export of its source map into a
+Turns a saved project (research/editor-contracts.md, schema 1 to 4: READ_VERSIONS) and the viewer export of its source map into a
 patchtool spec (tools/patch/README.md) plus a report. The spec is a snapshot of one project revision: the same
 project and export always give the same spec, byte for byte.
 
@@ -31,9 +31,9 @@ are assemblies (assemblies(): a car's parts, a door's leaf and its frame, a ladd
 assembly's pieces with one move. On the grid (grid_move: whole tiles, whole storeys and quarter turns from the
 original) everything the map saves per tile maps exactly; since 10 November 2026 any other pose builds too, with an
 off-grid warning naming the nearest pose on the grid (the user took the editor's snapping limits away; the Build
-carries the per-tile data by the exact move, untested in the game off the grid). Each family is refused until it passes
-in the game (ladders, doors with a frame, cars and vans did on 8 November; lights were switched on on 9 November, see
-below); `enable` (--family) builds one for an experiment before that. A door's frame edited without its leaf is
+carries the per-tile data by the exact move). A family builds once it has passed in the game (ladders, doors with a
+frame, cars and vans did on 8 November; lights were switched on on 9 November, see below); `enable` (--family) builds
+one that doesn't (FAMILIES' `builds`) for an experiment. A door's frame edited without its leaf is
 a destructible prop of its own. Copies of an assembly carry its family, its id and its grid move to the Build.
 
 Fracturing pieces (walls, storey floors, roof slabs: XComFracLevelActor, XComDecoFracLevelActor) and physics props
@@ -43,9 +43,11 @@ are found. A fracturing piece is no assembly, but it is checked against the grid
 columns are saved one to a tile and the Build carries them with the copy, which is exact only for whole tiles, whole
 storeys and quarter turns (off the grid: the off-grid warning). A physics prop takes any pose. The Build makes both in the map itself (NATIVE_CLASSES).
 
-Anything else is refused with an error, never built partly or approximately: families not built yet (they name their
-milestone), assemblies edited in part, pieces of other levels than the base map's, components offset
-from their actor, and records the export lacks. A build is allowed only when the report has no errors.
+Anything else is never built partly or approximately: families not built yet (they name their milestone),
+assemblies edited in part, pieces of other levels than the base map's, components offset from their actor, and
+records the export lacks. A record of that kind, or one that is malformed, is left out and named (the report's
+`leftOut`) and the rest builds; an error (a document or export the compiler can't read, a project that would build
+nothing) stops the build: the Build goes on only when the report has no errors.
 
 Lights (private/plans/done/editor-lights-plan.md, L6) are the `light` family: an original placed light moved, turned, changed,
 switched off or deleted, a copy of one, or a spot light made from the built-in recipe; and the generated area lights a
@@ -81,8 +83,8 @@ a stream's are view only.
 Lens flares (LensFlareSource actors; stage FX6b) are the `flare` family, made the same way: an override moves, turns
 or deletes one in place, an added record with `kind: flare` copies one (this map's, or another map's through the
 library), and they go into the spec's `flares` object, which the Build's tools/bake/native_flares.py makes. A flare
-has no values object (its template and colour stay as the map has them). The family builds where it is enabled
-(`enable`, --family flare) until its game check.
+has no values object (its template and colour stay as the map has them). The family builds for every project since
+EXP-71 (17 November 2026).
 
 Rotators are rounded to whole rotation units half away from zero, as the viewer's resolver rounds (game_round); the
 report gives each pose's rounding. Each copy's world box (its mesh bounds, turned by the full rotation and scaled) is
@@ -139,10 +141,8 @@ MADE_MAX_STOREYS = made_split.MAX_STOREYS
 
 def _ground_looks():
     """A ground shape's looks (custom geometry plan, M6: tools/bake/ground_looks.json, ground.LOOKS), each its patch's
-    thickness; the one plain recipe until the file is written."""
+    thickness."""
     path = Path(__file__).resolve().parents[1] / 'bake' / 'ground_looks.json'
-    if not path.exists():
-        return {'plain': 8.0}
     return {look['id']: float(look.get('recipe', {}).get('thickness', 8.0))
             for look in json.loads(path.read_text(encoding='utf-8'))['looks']}
 
@@ -408,9 +408,6 @@ FOREIGN_SOFT = ('hidden', 'assembly', 'family', 'check')
 FOREIGN_WORDS = {'hidden': '%s of %s is hidden in its own map (a helper, not something to see)',
                  'assembly': '%s of %s is linked to other pieces in its own map (a car\'s body and its glass, a prop and '
                              'what it turns into)'}
-# Milestone M1's classes (research/editor-contracts.md, section 6), and the milestone each other class names.
-M1_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComDestructibleActor', 'XComCollectible')
-MILESTONE = {c: FAMILIES[f]['milestone'] for c, f in CLASS_FAMILY.items() if not FAMILIES[f]['builds']}
 # The export a project's edits build from (plan 4.1): export 18 has each light's GUIDs and bake membership and the
 # area lights' glowing pieces, without which a moved piece could leave its glow's light behind.
 EXPORT_MINIMUM = 18
@@ -548,8 +545,6 @@ LOOT_NOTES = {
     'move': '%s is a collectible (mission loot): moved, it still counts once',
     'delete': '%s is a collectible (mission loot): deleted, it no longer counts',
 }
-# An added piece naming a partner that isn't a car's is refused with the car's milestone.
-PARTNER_MILESTONE = FAMILIES['car']['milestone']
 NAME_BASE = 900
 # UDK's Save As stops at a warning for package names over 30 characters (findings register T-09).
 NAME_LIMIT = 30
@@ -680,22 +675,6 @@ def building_well_formed(b):
                 v is None or (isinstance(v, str) and v) for v in volumes)):
             return False
     return True
-
-
-def valid_zone(zone):
-    """spawns.valid_zone, False for a zone one of whose names is a list or an object (spawns.py looks them up)."""
-    try:
-        return spawns.valid_zone(zone)
-    except TypeError:
-        return False
-
-
-def valid_mission(entry, records):
-    """missions.valid_entry, False for an entry whose kind is a list or an object (missions.py looks it up)."""
-    try:
-        return missions.valid_entry(entry, records)
-    except TypeError:
-        return False
 
 
 def world_box(obj, meshes, location, rotation, along=None):
@@ -1251,9 +1230,10 @@ class Compiler:
         # deletes, copies), the group member keys of the ones the project adds, and the effects a record of the
         # project's own takes from the piece that carries them (they leave carriedEffects)
         self.effect_ops = {k: dict(moves=[], deletes=[], copies=[], values=[]) for k in EFFECT_KINDS}
-        # the base map's spawn points moved or given values (the editor spawns plan, SP6): the spec's `spawns` object
-        self.spawn_ops = dict(moves=[], deletes=[], copies=[], values=[])
-        self.pod_index = None      # the next free pod index for a copy (free_pod_index)
+        # the base map's spawn points moved, given values, copied and deleted (the editor spawns plan, SP6 and SP7):
+        # their own module, which imports this one's tables (review finding 23)
+        from spawn_edits import SpawnEdits
+        self.spawn_edits = SpawnEdits(self)
         self.effect_members = set()
         self.effect_own = set()
         self.new_buildings = []      # buildings made from nothing: the spec's `buildings` object (buildings())
@@ -1266,6 +1246,14 @@ class Compiler:
         self.flag_edits = []
         self.floor_off, self.floor_on = set(), {}
         self.flag_counts = dict(requested=0, applied=0, leftOut=0, roles={r: 0 for r in piece_flags.ROLES}, companions=0)
+        # what run()'s stages work out, in its order (review finding 23): check_document the map's package;
+        # cleared_mark the clear; spawn_rules_mark the drop-in rule; stage the larger grid; landing_zones the zones and
+        # the map's own landings. Each keeps these values when the stage doesn't run (a document that stops earlier).
+        self.package = ''
+        self.cleared, self.keep_outside = False, False
+        self.spawn_rules = None
+        self.stage_grid = None
+        self.zones, self.own_landings_found, self.own_count = None, None, None
 
     # ---------------------------------------------------------------- diagnostics
     def error(self, code, message, **where):
@@ -1378,7 +1366,7 @@ class Compiler:
             for rec in (r for layer in layers for r in layer):
                 self.effect_actors.setdefault((rec.get('sourcePackage'), rec.get('layer'), rec.get('actor')), dict(rec, kind=kind))
         # the base map's spawn points by actor path (export 33's `spawns`)
-        self.spawn_actors = {r['actor']: r for r in self.scene.get('spawns') or [] if isinstance(r, dict) and r.get('actor')}
+        self.spawn_edits.index(self.scene)
         self.building_names = {b.get('id'): b.get('name') for b in self.scene.get('buildings') or []}
         self.object_boxes = None
         # the map's meshes, and those of the pieces of other maps as they are looked up (foreign_piece)
@@ -2038,12 +2026,12 @@ class Compiler:
         grid = self.scene.get('tileGrid') or {}
         if not grid.get('origin'):
             return self.with_made_slabs(own, None)
-        count = list(getattr(self, 'stage_grid', None) or grid['dimensions'][:3])
+        count = list(self.stage_grid or grid['dimensions'][:3])
         box = [float(grid['origin'][k]) for k in range(3)] + [grid['origin'][k] + count[k] * grid['size'][k] for k in range(3)]
-        if (own or volumes) and not getattr(self, 'cleared', False):
+        if (own or volumes) and not self.cleared:
             return self.with_made_slabs(self.grown_storeys(own, grid), box)
         bottom = float(grid['origin'][2])
-        levels = (getattr(self, 'stage_grid', None) or grid['dimensions'])[2]
+        levels = (self.stage_grid or grid['dimensions'])[2]
         top = bottom + levels * grid['size'][2]
         # (a grid made taller gets a storey more for each 192 units: shell.py clones the last)
         storeys = max(CURSOR_STOREYS, round((top - bottom) / CURSOR_STOREY))
@@ -2063,7 +2051,7 @@ class Compiler:
     def grown_storeys(self, own, grid):
         """The map's own cursor floors `own` [(floor, box)] on the project's grid (cursor_storeys; shell.py
         grow_cursors is what the Build does)."""
-        stage = getattr(self, 'stage_grid', None)
+        stage = self.stage_grid
         if not stage:
             return own
         o, n, size = grid['origin'], grid['dimensions'], grid['size']
@@ -2099,7 +2087,7 @@ class Compiler:
         if not origin:
             return {}, {}
         # the levels as the project has them: a grid grown up has floor on its new levels too (once stage() has run)
-        levels = max(dims[2], (getattr(self, 'stage_grid', None) or [0, 0, 0])[2]) if dims else None
+        levels = max(dims[2], (self.stage_grid or [0, 0, 0])[2]) if dims else None
         waiting = {id(job[0]) for job in self.ladder_jobs}
         # (a copy whose flags make it no floor, and that collides, gives none: piece flags plan, 6.1)
         flat = [c for c in self.copies if c.get('box') and not c.get('ladder') and c.get('actorClass') != 'XComLadder'
@@ -2138,8 +2126,8 @@ class Compiler:
                       'soldier can\'t stand on, so they won\'t be walked on' % (label, over, HEADROOM, len(tiles)), tiles=tiles[:12])
 
     def ladder_ends(self, name, src, loc, rot, where):
-        """A ladder copy's climb at its pose (ladders.ends against the export's original floor tiles and the floor the
-        project's own flat pieces are expected to give, added_floors): dict(foot, top) tiles, top being the linked top
+        """A ladder copy's climb at its pose (ladders.ends against the export's floor tiles whose pieces are still there,
+        floor_now, and the floor the project's own flat pieces are expected to give, added_floors): dict(foot, top) tiles, top being the linked top
         tile T′ that the Build rebuilds first, or None with the warning ladder-climb (the ladder is built all the same,
         as a piece with no climb: the check goes by drawn boxes, and warns rather than refuses). An end that counts on
         a floor the project adds is warned of (ladder-new-floor): that floor is made by the game's rebuild, where the
@@ -2151,8 +2139,9 @@ class Compiler:
                       'climb of its own' % (self.map, name), family='ladder', **where)
             return None
         new, _ = self.added_floors()
-        # (the floor of a piece the project's flags make no floor is gone: floor_now)
-        floors = self.floors & self.floor_now() if self.floor_off else self.floors
+        # (the floor of a piece deleted or moved, or that the project's flags make no floor, is gone: floor_now, as the
+        # other floor checks count it; a moved piece's copy gives floor where it lands, in `new`)
+        floors = self.floors & self.floor_now()
         e = ladders.ends(loc, rot, extent, tile_corner(grid), floors | set(new))
         if e['climbs']:
             counted = sorted({new[t] for t in (tuple(e['footTile']), tuple(e['linkedTop'])) if t not in floors})
@@ -2238,321 +2227,6 @@ class Compiler:
         return ['%s.%s' % (h['stream'], short(h['actor'])) for h in found]
 
     # ---------------------------------------------------------------- records
-    def spawn_of(self, target):
-        """The base map's spawn point a target {package, level: base, actor} names (export 33's `spawns` record), or
-        None."""
-        if not isinstance(target, dict) or target.get('level') != 'base' or not isinstance(target.get('actor'), str):
-            return None
-        if str(target.get('package')).casefold() not in (str(self.map).casefold(), str(getattr(self, 'package', '')).casefold()):
-            return None
-        return self.spawn_actors.get(target['actor'])
-
-    def spawn_values(self, rec, record, name, where):
-        """An override's `spawn` values checked against the point's kind: (values that differ from the map's, ok). A
-        pod's `commander`, `secondary` and `use` are true or false; a Meld point's `difficulty` is Easy or Hard, its
-        `destroyedOnTurn` a whole number from -1 (never) to 99 and its `spawnGroup` one from 0 to 99. A key of another
-        kind is an error; one of no kind is noted and carried. A value the map has already builds nothing."""
-        values = rec.get('spawn')
-        if values is None:
-            return {}, True
-        if not isinstance(values, dict):
-            self.error('malformed', 'the spawn values of %s must be an object' % name, **where)
-            return {}, False
-        kind = record['kind']
-        allowed = SPAWN_VALUE_KEYS.get(kind, ())
-        known = {k for keys in SPAWN_VALUE_KEYS.values() for k in keys}
-        out, ok = {}, True
-        for key, value in sorted(values.items()):
-            if key not in known:
-                self.note('unknown-field', 'spawn value %r of %s is not one this editor knows; it is carried and not '
-                          'built' % (key, name), **where)
-                continue
-            if key not in allowed:
-                self.error('spawn-values', '%s is %s, which has no %s' % (name, SPAWN_WORDS.get(kind, kind), key), **where)
-                ok = False
-                continue
-            good = (isinstance(value, bool) if key in SPAWN_BOOLS else
-                    value in ('Easy', 'Hard') if key == 'difficulty' else
-                    isinstance(value, int) and not isinstance(value, bool) and (-1 <= value <= 99 if key == 'destroyedOnTurn'
-                                                                                else 0 <= value <= 99))
-            if not good:
-                self.error('spawn-values', '%s: %s %r is not a value it can have (%s)' % (name, key, value, dict(
-                    commander='true or false', secondary='true or false', use='true or false', difficulty='Easy or Hard',
-                    destroyedOnTurn='a whole number from -1, never, to 99', spawnGroup='a whole number from 0 to 99',
-                    aliens='true or false', civilians='true or false')[key]),
-                    **where)
-                ok = False
-                continue
-            have = ((record.get('values') or {}).get(key) or {}).get('value')
-            if have != value:
-                out[key] = value
-        return out, ok
-
-    def spawn_box(self, box, name, where):
-        """A no-spawn volume's box [x0, y0, z0, x1, y1, z1] checked: six numbers, each side longer than the other.
-        Returns it rounded to a thousandth of a unit, or None (an error)."""
-        if not (isinstance(box, list) and len(box) == 6 and all(isinstance(v, (int, float)) and not isinstance(v, bool)
-                                                                and math.isfinite(v) for v in box)):
-            self.error('malformed', '%s: its box must be six numbers, [x0, y0, z0, x1, y1, z1]' % name, **where)
-            return None
-        if not (box[3] > box[0] and box[4] > box[1] and box[5] > box[2]):
-            self.error('malformed', '%s: its box %s is empty (each far side must be past the near one)' % (name, box), **where)
-            return None
-        return [round(float(v), 3) for v in box]
-
-    def spawn_override(self, target, rec, where, record):
-        """A base pod, Meld point, drop-in point or no-spawn volume moved, turned, sized or given values (the editor
-        spawns plan, SP6), in place: the Build keeps its actor, so what names it (Kismet, wave groups, pod events by
-        index) still does. A no-spawn volume moves and sizes by its `box` alone, never a pose."""
-        kind, name = record.get('kind'), short(target['actor'])
-        for f in sorted(set(rec) - {'target', 'location', 'rotation', 'deleted', 'spawn', 'box'}):
-            self.note('unknown-field', 'field %r is not part of the override of a spawn point and is ignored' % f, **where)
-        if kind != 'noSpawn' and 'box' in rec:
-            self.error('malformed', '%s is %s, which moves by its place, not a box' % (name, SPAWN_WORDS.get(kind, 'a spawn record')), **where)
-            return
-        if kind == 'noSpawn' and ('location' in rec or 'rotation' in rec):
-            self.error('malformed', '%s is a no-spawn volume: it moves and is sized by its box, not a place and turn' % name, **where)
-            return
-        if kind not in SPAWN_EDIT_KINDS:
-            self.error('spawn-view-only', '%s is %s, which the editor shows but doesn\'t change' % (
-                name, missions.object_words(record) if kind else 'a spawn record'), **where)
-            return
-        if not self.builds('spawn'):
-            self.error('family', '%s is %s edit. %s' % (name, SPAWN_WORDS[kind], FAMILIES['spawn']['note']),
-                       family='spawn', **where)
-            return
-        if record.get('listed') is False:
-            self.error('spawn-unlisted', '%s is not in the level\'s actor list, so the game never has it: there is '
-                       'nothing to %s' % (name, 'delete' if rec.get('deleted') is True else 'move'), **where)
-            return
-        if rec.get('deleted') is True:
-            self.spawn_delete(target, rec, where, record)
-            return
-        if record.get('unread'):
-            self.error('spawn-unread', '%s: the export could not read its values (%s), so the Build leaves it as it is'
-                       % (name, record['unread']), **where)
-            return
-        values, ok = self.spawn_values(rec, record, name, where)
-        if not ok:
-            return
-        moved = False
-        if 'box' in rec:
-            # a no-spawn volume stretched over its new box in place (native_spawns: its Location and DrawScale3D)
-            box = self.spawn_box(rec['box'], name, where)
-            if box is None:
-                return
-            if not record.get('box'):
-                self.error('spawn-unread', '%s: the export could not read its box, so the Build leaves it as it is' % name, **where)
-                return
-            before = [float(v) for v in list(record['box']['min']) + list(record['box']['max'])]
-            moved = any(abs(a - b) >= EPS_LOCATION for a, b in zip(box, before))
-            if moved:
-                middle = [round((box[k] + box[k + 3]) / 2, 3) for k in range(3)]
-                self.spawn_ops['moves'].append(dict(name=name, actorClass=record['actorClass'], kind=kind, box=box,
-                                                    before=dict(box=before)))
-                self.entities.append(dict(kind='spawn', op='move', target=target['actor'], actorClass=record['actorClass'],
-                                          location=middle, box=box))
-        elif 'location' in rec or 'rotation' in rec:
-            p = self.pose(dict(location=rec.get('location', record['location']),
-                               rotation=rec.get('rotation', record['rotation'])), where)
-            if not p:
-                return
-            loc, rot, rounding = p
-            moved = not (all(abs(a - b) < EPS_LOCATION for a, b in zip(loc, record['location']))
-                         and rot == [int(v) for v in record['rotation']])
-            if moved:
-                if record.get('links'):
-                    self.note('spawn-links', '%s moves; %s stay where the map has them' % (name, ', '.join(sorted(
-                        {'its %s %s' % (lk.get('property'), short(str(lk.get('actor') or ''))) for lk in record['links']}))[:240]),
-                        **where)
-                self.spawn_ops['moves'].append(dict(name=name, actorClass=record['actorClass'], kind=kind, location=loc,
-                                                    rotation=rot, before=dict(location=list(record['location']),
-                                                                              rotation=list(record['rotation']))))
-                self.entities.append(dict(kind='spawn', op='move', target=target['actor'], actorClass=record['actorClass'],
-                                          location=loc, rotation=rot, rotationRounding=tidy(rounding, 6)))
-        if values:
-            self.spawn_ops['values'].append(dict(name=name, actorClass=record['actorClass'], kind=kind, spawn=values))
-            self.entities.append(dict(kind='spawn', op='values', target=target['actor'], actorClass=record['actorClass'],
-                                      spawn=values))
-        if not moved and not values:
-            self.note('unchanged', '%s is as the map has it; nothing to build for it' % name, **where)
-
-    @staticmethod
-    def spawn_names(record):
-        """What names a base spawn point, in words, as export 33 reads its map: the Kismet that uses it (directly or
-        through an object list), a wave system's place, a pod event for its index, another actor's typed reference, and
-        what lists it by name."""
-        out = []
-        for u in record.get('uses') or []:
-            by = short(str(u.get('by') or ''))
-            how = u.get('how')
-            out.append('%s (%s)' % (by, {'direct': 'Kismet', 'indirect': 'Kismet, through an object list',
-                                         'wave': 'a wave system\'s place', 'event': 'a pod event for its index',
-                                         'typed': 'its %s' % u.get('property', 'reference')}.get(how, how or 'a use')))
-        out += ['%s (lists it by name)' % short(str(r)) for r in record.get('referencedBy') or []]
-        return sorted(set(out))
-
-    def spawn_delete(self, target, rec, where, record):
-        """A base pod, Meld point or drop-in point deleted (the editor spawns plan, SP7): built only when nothing names
-        it (spawn_names) and its uses were read; otherwise warning spawn-delete-named, and the point stays."""
-        name = short(target['actor'])
-        for f in sorted(set(rec) & {'location', 'rotation', 'spawn'}):
-            self.note('unknown-field', '%s is deleted, so its %s is ignored' % (name, f), **where)
-        names = self.spawn_names(record)
-        if record.get('unread') or names:
-            why = ('the export could not read what uses it (%s)' % record['unread'] if record.get('unread') else
-                   '%s %s' % ('; '.join(names[:4]) + ('; and %d more' % (len(names) - 4) if len(names) > 4 else ''),
-                              'names it' if len(names) == 1 else 'name it'))
-            self.warn('spawn-delete-named', '%s stays: %s, and a deleted point would leave %s pointing at nothing'
-                      % (name, why, 'that' if len(names) <= 1 else 'them'), actor=target['actor'], **where)
-            return
-        self.spawn_ops['deletes'].append(dict(name=name, actorClass=record['actorClass'], kind=record['kind']))
-        self.entities.append(dict(kind='spawn', op='delete', target=target['actor'], actorClass=record['actorClass']))
-
-    def free_pod_index(self):
-        """The next pod index no pod of the variant has and no pod event names (a copy's, SP7): above every index the
-        base map's pods and its streams' save, every event the export's uses name, and the copies made so far."""
-        if self.pod_index is None:
-            used = [-1]
-            records = list(self.scene.get('spawns') or [])
-            for s in (self.scene.get('streams') or {}).values():
-                if isinstance(s, dict):
-                    records += list(s.get('missionObjects') or []) + list(s.get('spawns') or [])
-            for r in records:
-                if not isinstance(r, dict):
-                    continue
-                if r.get('kind') == 'pod':
-                    v = ((r.get('values') or {}).get('podIndex') or {}).get('value')
-                    if isinstance(v, int) and not isinstance(v, bool):
-                        used.append(v)
-                for u in r.get('uses') or []:
-                    if u.get('how') == 'event' and isinstance(u.get('podId'), int):
-                        used.append(u['podId'])
-            self.pod_index = max(used) + 1
-        index, self.pod_index = self.pod_index, self.pod_index + 1
-        return index
-
-    def volume_add(self, rec, where):
-        """A no-spawn volume the project adds over its `box`: a copy of one of the map's (`from`; the Build clones it)
-        or a new one (no `from`: the Build makes it from one of the map's plain volumes, retyped), with its own values
-        (`aliens`, `civilians`)."""
-        out = rec['actor']
-        name = short(out)
-        for f in sorted(set(rec) - {'id', 'actor', 'kind', 'from', 'box', 'spawn'}):
-            if f in ('location', 'rotation', 'components', 'template', 'cover', 'light', 'flags', 'prefab', 'partner', 'tinted',
-                     'effect', 'sound'):
-                self.error('malformed', '%s is a no-spawn volume the project adds, so it has no %s (a box places it)' % (name, f), **where)
-                return
-            self.note('unknown-field', 'field %r is not part of an added no-spawn volume and is ignored' % f, **where)
-        if not isinstance(rec.get('id'), str) or not rec['id']:
-            self.error('malformed', '%s has no id' % name, **where)
-            return
-        src = rec.get('from')
-        tname = None
-        template = {'kind': 'noSpawn', 'actorClass': 'XComNoSpawnVolume',
-                    'values': {'aliens': {'value': True, 'from': 'class'}, 'civilians': {'value': True, 'from': 'class'}}}
-        if src is not None:
-            template = self.spawn_of(src)
-            if template is None:
-                self.error('missing', '%s copies %s, which is no spawn point of this map\'s export'
-                           % (name, short(str((src or {}).get('actor')))), **where)
-                return
-            tname = short(src['actor'])
-            if template.get('kind') != 'noSpawn':
-                self.error('malformed', '%s says it is a no-spawn volume but copies %s, which is %s' % (
-                    name, tname, SPAWN_WORDS.get(template.get('kind'), template.get('kind'))), **where)
-                return
-            if template.get('listed') is False or template.get('unread'):
-                self.error('spawn-copy-template', '%s copies %s, %s' % (name, tname, 'which is not in the level\'s actor list'
-                           if template.get('listed') is False else 'whose values the export could not read (%s)'
-                           % template['unread']), **where)
-                return
-        if not self.builds('spawn'):
-            self.error('family', '%s is a no-spawn volume. %s' % (name, FAMILIES['spawn']['note']), family='spawn', **where)
-            return
-        box = self.spawn_box(rec.get('box'), name, where)
-        if box is None:
-            return
-        values, ok = self.spawn_values(rec, template, name, where)
-        if not ok:
-            return
-        middle = [round((box[k] + box[k + 3]) / 2, 3) for k in range(3)]
-        copy = dict(id=rec['id'], name=name, source=tname, kind='noSpawn', actorClass='XComNoSpawnVolume', box=box)
-        if values:
-            copy['spawn'] = values
-        self.spawn_ops['copies'].append(copy)
-        self.entities.append(dict(kind='spawn', op='add', entity=out, id=rec['id'], actorClass='XComNoSpawnVolume',
-                                  template=src['actor'] if src else None, location=middle, box=box,
-                                  **({'spawn': values} if values else {})))
-
-    def spawn_add(self, rec, where):
-        """A copy of one of the map's pods or Meld points (the editor spawns plan, SP7): the Build clones the template
-        (with its components) under the level and sets the copy's own values; a pod's copy gets a free pod index
-        (free_pod_index). A copy is made only from a plain template: a pod with no commander or secondary flag, no
-        forced type and no link to another actor (so the copy takes no patrol, volume or contingent link); any Meld
-        point."""
-        out = rec['actor']
-        name = short(out)
-        kind = rec.get('kind')
-        if kind == 'noSpawn':
-            self.volume_add(rec, where)
-            return
-        for f in sorted(set(rec) - {'id', 'actor', 'kind', 'from', 'location', 'rotation', 'spawn'}):
-            if f in ('components', 'template', 'cover', 'light', 'flags', 'prefab', 'partner', 'tinted', 'effect', 'sound'):
-                self.error('malformed', '%s is a copy of %s, so it has no %s' % (name, SPAWN_WORDS[kind], f), **where)
-                return
-            self.note('unknown-field', 'field %r is not part of an added spawn point and is ignored' % f, **where)
-        if not isinstance(rec.get('id'), str) or not rec['id']:
-            self.error('malformed', '%s has no id' % name, **where)
-            return
-        src = rec.get('from')
-        template = self.spawn_of(src)
-        if template is None:
-            self.error('missing', '%s copies %s, which is no spawn point of this map\'s export'
-                       % (name, short(str((src or {}).get('actor')))), **where)
-            return
-        tname = short(src['actor'])
-        if template.get('kind') != kind:
-            self.error('malformed', '%s says it is %s but copies %s, which is %s' % (
-                name, SPAWN_WORDS[kind], tname, SPAWN_WORDS.get(template.get('kind'), template.get('kind'))), **where)
-            return
-        if not self.builds('spawn'):
-            self.error('family', '%s is a copy of %s. %s' % (name, SPAWN_WORDS[kind], FAMILIES['spawn']['note']),
-                       family='spawn', **where)
-            return
-        if template.get('listed') is False or template.get('unread'):
-            self.error('spawn-copy-template', '%s copies %s, %s' % (name, tname, 'which is not in the level\'s actor list'
-                       if template.get('listed') is False else 'whose values the export could not read (%s)'
-                       % template['unread']), **where)
-            return
-        v = lambda key: ((template.get('values') or {}).get(key) or {}).get('value')  # noqa: E731
-        if kind == 'pod':
-            why = [w for w, bad in (('the commander\'s place', v('commander')), ('a secondary pod', v('secondary')),
-                                    ('of a forced alien type', v('forceType')),
-                                    ('linked to %s' % ', '.join(sorted(short(str(lk.get('actor'))) for lk in template.get('links') or [])),
-                                     template.get('links'))) if bad]
-            if why:
-                self.error('spawn-copy-template', '%s copies %s, which is %s: a copy is made only from a plain pod'
-                           % (name, tname, ' and '.join(why)), **where)
-                return
-        values, ok = self.spawn_values(rec, template, name, where)
-        if not ok:
-            return
-        p = self.pose(rec, where)
-        if not p:
-            return
-        loc, rot, rounding = p
-        copy = dict(id=rec['id'], name=name, source=tname, kind=kind, actorClass=template['actorClass'], location=loc,
-                    rotation=rot)
-        if kind == 'pod':
-            copy['podIndex'] = self.free_pod_index()
-        if values:
-            copy['spawn'] = values
-        self.spawn_ops['copies'].append(copy)
-        self.entities.append(dict(kind='spawn', op='add', entity=out, id=rec['id'], actorClass=template['actorClass'],
-                                  template=src['actor'], location=loc, rotation=rot, rotationRounding=tidy(rounding, 6),
-                                  **({'podIndex': copy['podIndex']} if kind == 'pod' else {}), **({'spawn': values} if values else {})))
-
     def light_of(self, target):
         """The export's light a target {package, level, actor} names, or None."""
         key = target_key(target)
@@ -2577,9 +2251,9 @@ class Compiler:
             if light is not None:
                 self.light_override(target, rec, where, light)
                 continue
-            spawn = self.spawn_of(target)
+            spawn = self.spawn_edits.spawn_of(target)
             if spawn is not None:
-                self.spawn_override(target, rec, where, spawn)
+                self.spawn_edits.spawn_override(target, rec, where, spawn)
                 continue
             if isinstance(target, dict) and target.get('level') == 'stream':
                 self.stream_override(target, rec, where)
@@ -2975,7 +2649,7 @@ class Compiler:
 
     def added(self):
         known = {'id', 'actor', 'from', 'components', 'location', 'rotation', 'prefab', 'partner', 'tinted', 'light',
-                 'template', 'cover', 'flags', 'kind', 'effect', 'sound', 'generated', 'blasts'}
+                 'template', 'cover', 'flags', 'kind', 'effect', 'sound', 'generated', 'blasts', 'breaksFurther'}
         gated = {}      # an assembly's copies: id -> (assembly, [(source actor, record, where, parts, pose)])
         for k, rec in enumerate(self.doc.get('added') or []):
             where = dict(record='added[%d]' % k)
@@ -2988,8 +2662,8 @@ class Compiler:
                 continue
             where['entity'] = out
             if rec.get('kind') in SPAWN_COPY_KINDS:
-                # a pod or a Meld point copied (the editor spawns plan, SP7)
-                self.spawn_add(rec, where)
+                # a pod, a Meld point or a no-spawn volume copied (the editor spawns plan, SP7)
+                self.spawn_edits.spawn_add(rec, where)
                 continue
             if 'kind' in rec:
                 # an effect, a sound or a flare copied (the effects and sounds plan, Part C)
@@ -3000,6 +2674,10 @@ class Compiler:
                 continue
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an added piece and is ignored' % f, **where)
+            if 'breaksFurther' in rec and 'blasts' not in rec:
+                # (as an override's: a copy's breaksFurther goes with its blasts; a made piece's is in `generated`)
+                self.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored' % short(out),
+                          **where)
             if not self.flags_valid(rec, where) or not self.generated_valid(rec, where):
                 continue
             if 'flags' in rec and ('template' in rec or 'cover' in rec or self.light_of(rec.get('from')) is not None):
@@ -3999,9 +3677,8 @@ class Compiler:
         {package, sha256} for the Build's staging and its system's record ({key: record}); (None, None, None) with an
         error. What the library can't bring is
         refused (a landing's actor, one riding on another, one whose closure the transplant refuses); one only the
-        foreign gate holds back (FOREIGN_FAMILIES, which has listed effects and sounds since EXP-69, and lists no
-        lens flare until its game check) is built as any copy, as the pieces of a kind not brought before are
-        (FOREIGN_SOFT)."""
+        foreign gate holds back (FOREIGN_FAMILIES, which has listed effects and sounds since EXP-69 and lens flares
+        since EXP-71) is built as any copy, as the pieces of a kind not brought before are (FOREIGN_SOFT)."""
         if self.library is None:
             self.error('no-library', '%s copies %s of %s, and this build has no library of other maps\' pieces'
                        % (name, short(src['actor']), src['package']), **where)
@@ -4444,13 +4121,14 @@ class Compiler:
                                     deletes=sorted(ops['deletes'], key=lambda d: d['name']),
                                     copies=sorted(ops['copies'], key=lambda d: d['name']),
                                     values=sorted(ops['values'], key=lambda d: d['name'])))
-        if any(self.spawn_ops.values()):
+        spawn_ops = self.spawn_edits.ops
+        if any(spawn_ops.values()):
             # the base map's spawn points moved or given values (the editor spawns plan, SP6): made in the map by the
             # Build's writer (native_split moves them there; tools/bake/native_spawns.py)
-            objects.append(dict(type='spawns', moves=sorted(self.spawn_ops['moves'], key=lambda d: d['name']),
-                                values=sorted(self.spawn_ops['values'], key=lambda d: d['name']),
-                                deletes=sorted(self.spawn_ops['deletes'], key=lambda d: d['name']),
-                                copies=sorted(self.spawn_ops['copies'], key=lambda d: d['name'])))
+            objects.append(dict(type='spawns', moves=sorted(spawn_ops['moves'], key=lambda d: d['name']),
+                                values=sorted(spawn_ops['values'], key=lambda d: d['name']),
+                                deletes=sorted(spawn_ops['deletes'], key=lambda d: d['name']),
+                                copies=sorted(spawn_ops['copies'], key=lambda d: d['name'])))
         if self.flag_edits:
             # the map's own pieces whose flags change where they stand (piece flags plan): written in the map by the
             # Build's writer (native_split moves them there), each with its box for the tiles it rebuilds
@@ -4493,7 +4171,7 @@ class Compiler:
             extra['carriedEffects'] = {k: sorted(v) for k, v in sorted(carried.items())}
         # the project's landing zones (section 4): the variant's LZArray lines, and the map's own landings moved
         # the project's spawn rules (spawns plan, SP8): the Build writes the variant's ExcludeMaps line
-        if getattr(self, 'spawn_rules', None):
+        if self.spawn_rules:
             extra['spawnRules'] = dict(self.spawn_rules)
         if self.zones is not None:
             extra['landingZones'] = dict(zones=self.zones, own=spawns.own_slots(self.zones, self.own_count),
@@ -4590,7 +4268,7 @@ class Compiler:
         if not (dims and origin and size):
             self.error('building-grid', 'the export of %s has no tile grid, which a building needs' % self.map)
             return
-        count = list(getattr(self, 'stage_grid', None) or dims[:3])
+        count = list(self.stage_grid or dims[:3])
         lo = [float(v) for v in origin[:3]]
         hi = [lo[k] + count[k] * size[k] for k in range(3)]
         storeys = self.cursor_storeys()
@@ -4762,14 +4440,14 @@ class Compiler:
                                           'keeps its own size', record='stage')
             return
         bare = self.map in STAGE_MAPS
-        grows_only = not getattr(self, 'cleared', False)
+        grows_only = not self.cleared
         own = (self.scene.get('tileGrid') or {}).get('dimensions')
         if not own:
             self.error('stage-grid', 'the export of %s has no tile grid to resize' % self.map)
             return
         if not bare and any(stage.get(k) is not None for k in ('lines', 'hideGround')):
             self.note('stage-ground', '"lines" and "hideGround" are the blank map\'s; on %s they do nothing' % self.map)
-        if getattr(self, 'cleared', False) and stage.get('ground') is not None:
+        if self.cleared and stage.get('ground') is not None:
             self.note('stage-ground', '"ground" does nothing on a cleared map: it lays no ground')
         grid = list(grid[:2]) + [grid[2] if len(grid) == 3 else own[2]]
         if grows_only and (grid[0] < own[0] or grid[1] < own[1]):
@@ -4910,7 +4588,7 @@ class Compiler:
         if not grid.get('origin') or not grid.get('dimensions'):
             return None
         o, size = grid['origin'], grid.get('size') or [TILE, TILE, STOREY]
-        dims = getattr(self, 'stage_grid', None) or grid['dimensions']
+        dims = self.stage_grid or grid['dimensions']
         return [float(o[0]), float(o[1]), float(o[2]), float(o[0]) + dims[0] * size[0], float(o[1]) + dims[1] * size[1],
                 float(o[2]) + dims[2] * size[2]]
 
@@ -4962,7 +4640,7 @@ class Compiler:
         kept, ids = [], set()
         for k, z in enumerate(raw or []):
             where = dict(record='landingZones[%d]' % k)
-            if not valid_zone(z):
+            if not spawns.valid_zone(z):
                 self.leave_out('landing-shape', 'landing zone %d is not {id, location: [x, y, z], direction, kind, ...}: '
                                'it is left out' % (k + 1), **where)
             elif z['id'] in ids:
@@ -5025,9 +4703,9 @@ class Compiler:
             if listed is not None and (not isinstance(listed, list) or not listed):
                 dropped.append((dict(record='missions'), 'the project\'s missions must be a list of at least one'))
                 listed = None
-            kept = [e for e in listed if valid_mission(e, records)] if listed is not None else None
+            kept = [e for e in listed if missions.valid_entry(e, records)] if listed is not None else None
             for k, e in enumerate(listed or []):
-                if not valid_mission(e, records):
+                if not missions.valid_entry(e, records):
                     dropped.append((dict(record='missions[%d]' % k), 'mission %d of the project\'s list is neither one of the '
                                     'base map\'s %d records nor a kind a record alone gives a map (%s)'
                                     % (k + 1, records, ', '.join(missions.ADDED_KINDS))))
@@ -5221,7 +4899,7 @@ class Compiler:
         # (a copy: its template's record under its own name, with its values; never one the map had)
         for e in self.entities:
             if e['kind'] == 'spawn' and e['op'] == 'add':
-                t = self.spawn_actors.get(e['template'])
+                t = self.spawn_edits.actors.get(e['template'])
                 if t:
                     out.append((with_values(dict(t, actor=e['entity'], copied=True), e.get('spawn')), e['location']))
         return out
@@ -5319,7 +4997,7 @@ class Compiler:
         added, _ = self.added_floors()
         scenery = self.scenery_floor()
         # each zone's own landing, where it is one (a landing with no frame keeps its own points until its zone moves)
-        found = getattr(self, 'own_landings_found', None) or []
+        found = self.own_landings_found or []
         mine = {k: found[k] for k in range(min(len(zones), len(found)))} if own else \
             {k: found[j] for j, k in enumerate(spawns.own_slots(zones, len(found)))}
         far = []
@@ -5376,7 +5054,7 @@ class Compiler:
         floor tiles stop at its own grid, so a soldier point over one of these counts as floor. The Build turns on the
         collision of those that have it off and puts their tiles in the rebuild's queue. (The export doesn't say which
         collide: a piece of debris that collides but is no floor counts here too.)"""
-        if not getattr(self, 'stage_grid', None) or self.cleared:
+        if not self.stage_grid or self.cleared:
             return []
         grid = self.scene.get('tileGrid') or {}
         origin, dims = grid.get('origin'), grid.get('dimensions')
@@ -5455,15 +5133,13 @@ class Compiler:
                                                valued=len(self.effect_ops[kind]['values'])
                                                + sum(1 for c in self.effect_ops[kind]['copies'] if c.get('values')))
                                      for kind, key in EFFECT_LANES},
-                                  spawns=dict(moved=len(self.spawn_ops['moves']), valued=len(self.spawn_ops['values']),
-                                              added=len(self.spawn_ops['copies']), deleted=len(self.spawn_ops['deletes'])),
+                                  spawns={k: len(self.spawn_edits.ops[op]) for k, op in (
+                                      ('moved', 'moves'), ('valued', 'values'), ('added', 'copies'), ('deleted', 'deletes'))},
                                   flags=dict(self.flag_counts, inPlace=len(self.flag_edits),
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
-                      errors=self.errors, warnings=self.warnings, notes=self.notes, stageGrid=getattr(self, 'stage_grid', None),
-                      cleared=getattr(self, 'cleared', False), clearKeepsOutside=getattr(self, 'keep_outside', False),
-                      landingZones=getattr(self, 'zones', None),
-                      ownLandings=getattr(self, 'own_count', None),
-                      spawnRules=getattr(self, 'spawn_rules', None),
+                      errors=self.errors, warnings=self.warnings, notes=self.notes, stageGrid=self.stage_grid,
+                      cleared=self.cleared, clearKeepsOutside=self.keep_outside, landingZones=self.zones,
+                      ownLandings=self.own_count, spawnRules=self.spawn_rules,
                       missions=self.missions_kept()[0] if self.map is not None else None,
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']))
                                  for b in self.new_buildings],
@@ -5578,10 +5254,10 @@ class Library:
 # a project's larger tile grid (Compiler.stage): most of the game's own maps are under 100 tiles a side, but not all
 # (TempleShip is 45 by 203, AlienBase01 63 by 168); the editor makes up to 256 (the user, 16 November 2026; 128
 # before), and a map past it keeps its own as its limit (stage_max)
-STAGE_GRID_PLAYED, STAGE_GRID_MAX = 70, 256
-# levels: the game's own maps go to 18 (1,152 units, the tallest of its 96: prefab plan 5.6b); the editor makes up to
-# 30 (1,920 units; the user, 14 November 2026)
-STAGE_LEVELS_PLAYED, STAGE_LEVELS_MAX = 18, 30
+STAGE_GRID_MAX = 256
+# levels: the game's own maps go to 18 (1,152 units, the tallest of its 96: prefab plan 5.6b; prefab_bounds.PLAYED_LEVELS,
+# the test stage's least height); the editor makes up to 30 (1,920 units; the user, 14 November 2026)
+STAGE_LEVELS_MAX = 30
 
 
 def stage_max(own):
@@ -5851,7 +5527,10 @@ def native_split(spec):
 
 
 class ExportMissing(LookupError):
-    """No usable export of a project's source map in the viewer cache (find_export)."""
+    """No usable export of a project's source map in the viewer cache (find_export). `code` is what a failed Build
+    says for it (build.py's "build failed code:" line, the build job's errorCode), so the page offers Prepare by it,
+    never by the message's words (review finding 55)."""
+    code = 'export-missing'
 
 
 def find_export(cache, doc, minimum=EXPORT_MINIMUM):

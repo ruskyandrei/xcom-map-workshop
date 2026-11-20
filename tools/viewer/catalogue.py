@@ -3,7 +3,8 @@ game packages during a browser request.
 
 What makes a generation folder usable is decided here once, for the map list, the cache's pruning (prune.py) and the
 Build's choice of export (compiler.find_export): its scene.json reads whole as a scene of schema 1, of a map or a piece
-study, with a map name and an exporter version, and a folder named as a generation
+study (an earlier exporter's, read only to be pruned: the editor opens whole maps), with a map name and an exporter
+version, and a folder named as a generation
 (<first 16 hex digits of the package's SHA-256>-v<exporter version>-<scope>[-<suffix>]) agrees with what its scene
 says of the package, the version and the scope. A truncated or foreign scene.json is no candidate: the next one is
 taken (review finding 17).
@@ -103,6 +104,11 @@ def load_catalogue(folder, allow_empty=False):
     folder=Path(folder).resolve(strict=True)
     if (folder/'scene.json').is_file():
         entry=generation(folder)
+        if entry['scope'] != 'map':
+            # (an earlier exporter's piece study, of three of URB_Bar's pieces: its folders are still read, to be
+            # pruned, but the editor opens whole maps only)
+            raise ValueError(f'{folder.name} is a piece study of an earlier export, which the editor no longer opens: '
+                             'export the whole map')
         return dict(defaultMap=entry['id'],maps={entry['id']:entry})
     maps={}
     # A cache root has map folders containing published generations. A map folder

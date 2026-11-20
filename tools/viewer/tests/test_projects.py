@@ -12,24 +12,14 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from catalogue import load_catalogue
-from projects import SCHEMA, SCHEMA_VERSION, ProjectError, ProjectStore, file_stem
+from projects import SCHEMA_VERSION, ProjectError, ProjectStore, file_stem
 import settings as settings_module
 from viewer import Handler, LocalServer
+from viewer_fixtures import ID, OTHER, document  # noqa: F401  (the records the viewer suite shares)
 
-ID = '0f8b2c4e-1d2a-4b6c-8e9f-123456789abc'
-OTHER = '1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d'
 # page sessions (the id each page makes as it loads)
 PAGE_A, PAGE_B, PAGE_C = ('aaaaaaaa-0000-4000-8000-00000000000a', 'bbbbbbbb-0000-4000-8000-00000000000b',
                           'cccccccc-0000-4000-8000-00000000000c')
-
-
-def document(project_id=ID, **changes):
-    doc = dict(schema=SCHEMA, schemaVersion=SCHEMA_VERSION, id=project_id, name='Bar remix', mode='edit',
-               source=dict(map='URB_Bar', package='URB_Bar.upk', sha256='a' * 64, exporterVersion=12),
-               overrides=[dict(target=dict(package='URB_Bar', level='base', actor='TheWorld.PersistentLevel.A_1'), deleted=True)],
-               added=[])
-    doc.update(changes)
-    return doc
 
 
 class StoreTests(unittest.TestCase):
@@ -108,113 +98,6 @@ class StoreTests(unittest.TestCase):
         (self.root / 'readme.txt').write_text('hi', encoding='utf8')
         self.assertIn('not an XCOM Map Workshop project', {p['file']: p for p in self.store.list()}['notes.json']['error'])
         self.assertEqual(len(self.store.list()), 4)
-
-    def test_project_folders_of_the_old_layout_are_moved_once(self):
-        def legacy(project_id, name, *kept):
-            folder = self.root / project_id; folder.mkdir(parents=True)
-            (folder / 'project.json').write_text(json.dumps(document(project_id, name=name, revision=2)), encoding='utf8', newline='\n')
-            for k in kept: (folder / k).write_text(json.dumps(dict(baseRevision=1, note=k)), encoding='utf8', newline='\n')
-            return folder
-        a = legacy(ID, 'Bar remix', 'project.prev.json', 'recovery.json')
-        b = legacy(OTHER, 'Bar remix')
-        (b / 'my notes.txt').write_text('keep me', encoding='utf8')
-        listed = self.store.list()
-        self.assertEqual(sorted(p['file'] for p in listed), ['Bar remix (2).json', 'Bar remix.json'])
-        self.assertFalse(a.exists())
-        self.assertEqual(sorted(p.name for p in b.iterdir()), ['my notes.txt'])     # anything else in it stays
-        self.assertEqual(self.store.recovery(ID)['note'], 'recovery.json')
-        self.assertEqual(json.loads((self.root / '.workshop' / ID / 'project.prev.json').read_text(encoding='utf8'))['note'], 'project.prev.json')
-        self.assertEqual(self.store.save(ID, document(), 2, owner=PAGE_A)['revision'], 3)
-        # (an owner-less draft is no page's: it stays until a page shows it and the user restores or discards it)
-        self.assertEqual(self.store.recovery(ID)['note'], 'recovery.json')
-
-    def _legacy(self, revision, saved_at='2026-11-01T00:00:00Z', name='Bar remix', **kept):
-        folder = self.root / ID; folder.mkdir(parents=True)
-        (folder / 'project.json').write_text(json.dumps(document(name=name, revision=revision, savedAt=saved_at, note='legacy')),
-                                             encoding='utf8', newline='\n')
-        for k, value in kept.items(): (folder / f'{k}.json').write_text(json.dumps(value), encoding='utf8', newline='\n')
-        return folder
-
-    def _current(self, revision, saved_at='2026-11-01T00:00:00Z', name='Bar remix'):
-        self.root.mkdir(parents=True, exist_ok=True)
-        (self.root / f'{name}.json').write_text(json.dumps(document(name=name, revision=revision, savedAt=saved_at, note='current')),
-                                                encoding='utf8', newline='\n')
-
-    def _listed(self):
-        return {p['file']: p for p in self.store.list()}
-
-    def test_an_old_layout_folder_never_writes_over_a_newer_project(self):
-        """Review finding 5: a restored backup of the old layout beside a current library is ranked against the file
-        that holds the project; the newer is the project and the other is kept as a copy beside it."""
-        self._current(2)
-        self._legacy(1)
-        listed = self._listed()
-        self.assertEqual(self.store.load(ID)['revision'], 2)
-        self.assertEqual(self.store.load(ID)['note'], 'current')
-        self.assertIn('A copy of the project', listed['Bar remix (kept copy).json']['error'])
-        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['revision'], 1)
-        self.assertFalse((self.root / ID).exists())
-
-    def test_an_old_layout_folder_with_a_newer_revision_becomes_the_project(self):
-        self._current(2)
-        self._legacy(3)
-        self._listed()
-        self.assertEqual((self.store.load(ID)['revision'], self.store.load(ID)['note']), (3, 'legacy'))
-        kept = json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))
-        self.assertEqual((kept['revision'], kept['note']), (2, 'current'))
-
-    def test_equal_revisions_go_by_the_later_save_and_a_tie_keeps_the_file_here(self):
-        self._current(2, saved_at='2026-11-02T00:00:00Z')
-        self._legacy(2, saved_at='2026-11-05T00:00:00Z')
-        self._listed()
-        self.assertEqual(self.store.load(ID)['note'], 'legacy')
-        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['note'], 'current')
-        # a tie: the file here stays the project; a second copy is numbered, never written over
-        self._legacy(2, saved_at='2026-11-05T00:00:00Z')
-        (self.root / ID / 'project.json').write_text(json.dumps(document(revision=2, savedAt='2026-11-05T00:00:00Z', note='tie')),
-                                                     encoding='utf8', newline='\n')
-        self._listed()
-        self.assertEqual(self.store.load(ID)['note'], 'legacy')
-        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy) (2).json').read_text(encoding='utf8'))['note'], 'tie')
-        # the same bytes twice keep one
-        shutil_copy = (self.root / 'Bar remix.json').read_bytes()
-        (self.root / ID).mkdir(); (self.root / ID / 'project.json').write_bytes(shutil_copy)
-        before = sorted(p.name for p in self.root.iterdir())
-        self._listed()
-        self.assertEqual(sorted(p.name for p in self.root.iterdir()), [n for n in before if n != ID])
-
-    def test_old_layout_drafts_and_previous_revisions_are_kept_beside_those_here(self):
-        self.store.save(ID, document(), 0)
-        self.store.save(ID, document(), 1)
-        self.store.save_recovery(ID, dict(baseRevision=2, note='here'))
-        self._legacy(1, **{'project.prev': dict(note='old prev'), 'recovery': dict(baseRevision=1, note='old draft')})
-        self._listed()
-        state = self.root / '.workshop' / ID
-        notes = sorted(json.loads(p.read_text(encoding='utf8')).get('note') for p in state.glob('recovery*.json'))
-        self.assertEqual(notes, ['here', 'old draft'])
-        self.assertEqual(self.store.recovery(ID)['others'], 1)
-        self.assertEqual(json.loads((state / 'project.prev (2).json').read_text(encoding='utf8'))['note'], 'old prev')
-        self.assertEqual(self.store.load(ID)['revision'], 2)
-
-    def test_a_migration_stopped_halfway_finishes_at_the_next_listing(self):
-        self._current(2)
-        self._legacy(3)
-        real = os.replace
-        calls = []
-
-        def stop_on_second(source, target):
-            calls.append(Path(target).name)
-            if len(calls) == 2: raise OSError('stopped')
-            return real(source, target)
-        with mock.patch('projects.os.replace', stop_on_second):
-            with self.assertRaises(OSError): self.store.list()
-        # the file here was moved aside, the folder's not yet in: nothing is lost, and the next listing finishes
-        self.assertEqual(calls, ['Bar remix (kept copy).json', 'Bar remix.json'])
-        self.assertTrue((self.root / ID / 'project.json').is_file())
-        self._listed()
-        self.assertEqual((self.store.load(ID)['revision'], self.store.load(ID)['note']), (3, 'legacy'))
-        self.assertEqual(json.loads((self.root / 'Bar remix (kept copy).json').read_text(encoding='utf8'))['revision'], 2)
-        self.assertFalse((self.root / ID).exists())
 
     def test_a_malformed_shared_project_is_listed_with_its_reason_and_the_rest_open(self):
         """Review finding 9: a file of the project schema whose shape the editor can't read (its base map a string,

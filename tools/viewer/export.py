@@ -33,6 +33,8 @@ import piece_flags
 #     pieces (`emitterAttachment`, objects' `areaLights`) and the scene's `lightMetadata`
 # 19: a masked material's cut-out follows its OpacityMask input (T-29)
 # 20: the map's cursor volumes (`cursorVolumes`: the cursor's floors; prefab plan B1.2)
+# 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md, E0b):
+#     each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
 # 22: the map's own landings (`landings`: each landing prefab's ten actors, its group and the grounded Skyranger's
 #     prefab; private/plans/done/clear-map-plan.md, section 4)
 # 23: the level's effects (`effects`: its Emitter actors, each with its particle system and the piece that carries it;
@@ -76,11 +78,13 @@ import piece_flags
 #     so the view carries it with a moved zone as the Build does
 # 36: a fracturing piece whose component keeps its fragments (bPreventChunkRemoval: most roofs and floors) says so
 #     (`keepsPieces`), so the editor offers Breaks further in battle on it and on copies made from it (F-139)
-EXPORT_VERSION = 36   # 21: what the editor needs to edit the map's own buildings (private/plans/done/map-buildings-editable-plan.md,
-                       #     E0b): each building's actor, level, isUfo, referencedBy, van, and its floor volumes' plain
+# 37: what nothing read is no longer written (review finding 63): the map's own `content` (every level actor and
+#     Kismet record; a streamed or previewed layer still reads its own), `effectsMetadata`, a material's
+#     `render.compiledTextures` and scenes.json; a streamed package's buildings, tile grid and tactical data are no
+#     longer worked out only to be dropped. Each mission says its kind (`missions[].kind`, missions.kind_key: a
+#     council mission's `Special/<council type>`), which the page and the server took from its label before.
+EXPORT_VERSION = 37
 LIGHT_METADATA_VERSION = 1
-EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION
-SAMPLES = ("XComLevelActor_242", "XComDestructibleActor_20", "XComDecoFracLevelActor_9")
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
 # readers' FormatError and other ValueErrors (lzo1x's block cut short among them), a struct cut short, an index or key
@@ -224,15 +228,15 @@ class Exporter:
                 self.flags[actor] = None
         return self.flags[actor]
 
-    def effects(self, scope):
+    def effects(self):
         """The package's effects, sounds and flares (export 28; effects_metadata.describe): the map's own, each effect
-        with the piece that carries it (export 23's rule), and a mission stream's, read only; none for a sample or
-        for the patch a preview builds on. Sets self.landings (export 22), which they are matched against."""
+        with the piece that carries it (export 23's rule), and a mission stream's, read only; none for the patch a
+        preview builds on. Sets self.landings (export 22), which they are matched against."""
         p = self.p
-        self.landings = [] if self.prefix or scope != 'map' else self.guarded('landings', lambda: landing_metadata(p, self.warn), [])
+        self.landings = [] if self.prefix else self.guarded('landings', lambda: landing_metadata(p, self.warn), [])
         stream = self.prefix[len('stream-'):-1] if self.prefix.startswith('stream-') else None
-        nothing = dict(effects=[], sounds=[], flares=[], systems={}, waves={}, defaults=None)
-        if scope != 'map' or (self.prefix and stream is None):
+        nothing = dict(effects=[], sounds=[], flares=[], systems={}, waves={})
+        if self.prefix and stream is None:
             return nothing
         carried = {} if stream else self.guarded('effect carriers', lambda: {
             e['actor']: dict(by=e['carriedBy'], how=e['carriedHow']) for e in effect_metadata(p) if e['carriedBy']}, {})
@@ -244,7 +248,6 @@ class Exporter:
             stream=stream, defaults=defaults, warn=self.warn), None)
         if found is None:
             return nothing
-        found['defaults'] = 'script' if defaults.scripts else 'table'
         # export 29: what the page draws each system's likeness from (effects_draw.py; plan Part J1)
         self.guarded('effect drawings', lambda: effects_draw.attach(p, defaults, found['systems'], self, compiled_textures,
                                                                     effects_draw.RULES, self.warn), None)
@@ -416,7 +419,6 @@ class Exporter:
                     compiled.update(mask=names[mask], channel=channel)
                 else:
                     diffuse = self.texture(colour) if blend == 'BLEND_Masked' else self.texture_channel(colour, 'RGB')
-                render_profile['compiledTextures'] = compiled
                 self.warn(p.name(index), f"No texture parameter: colour from the compiled shader's {names[colour]}"
                           + (f", cut out by {names[mask]}'s {compiled['channel']} channel" if 'channel' in compiled else '')
                           + ' (approximation)')
@@ -582,15 +584,16 @@ class Exporter:
                     # its flags (export 27): how the game's tiles and mouse use it, the same on each of its components
                     **({'pieceFlags': flags} if (flags := self.piece_flags(actor)) else {}))
 
-    def run(self, scope):
+    def run(self, scope='map'):
+        """The package's scene: the whole level (`scope` is always "map": the scene says so, as catalogue.py checks). A
+        streamed package's (stream_layers) keeps only its pieces, lights, effects and level records, so its buildings,
+        tile grid and tactical data are not worked out (review finding 63); the map itself writes no level records
+        (`content`), which a layer keeps for stream_layers' and compose_scene's counts."""
         p = self.p
+        stream = self.prefix.startswith('stream-')
         actors = [i for i,n in enumerate(p.paths,1) if n.startswith("TheWorld.PersistentLevel.") and n.count(".")==2
                   and not n.rsplit(".",1)[-1].startswith("Default__")]
         selected = set(actors)
-        if scope == "sample":
-            selected = {p.by_name["TheWorld.PersistentLevel."+n] for n in SAMPLES}
-            partner = p.own(p.by_name["TheWorld.PersistentLevel.XComDestructibleActor_20"], "HidingPartner", 0)
-            if partner > 0: selected.add(partner)
         self.prefabs = prefab_members(p, self.warn)
         self.kismet = kismet_references(p, self.warn)
         self.breaks = fragment_breaks(p, selected, self.warn)
@@ -609,25 +612,26 @@ class Exporter:
                 if self.progress and (done == total or done * 100 // max(total, 1) > step):
                     step = done * 100 // max(total, 1)
                     self.progress(done, total)
-        buildings = self.guarded('buildings', lambda: building_metadata(p,objects,self.kismet), [])
-        # Lights only for whole-map scenes; the sample study moves its pieces apart.
-        lights = self.guarded('lights', lambda: light_records(p,actors if scope == "map" else [],self.prefix,
+        buildings = [] if stream else self.guarded('buildings', lambda: building_metadata(p,objects,self.kismet), [])
+        lights = self.guarded('lights', lambda: light_records(p,actors,self.prefix,
                                                               'inherited' if self.prefix else 'base',self.warn), [])
         self.guarded('light metadata', lambda: light_metadata(p, lights, objects, self.kismet, self.warn), None)
         self.area_matcher = self.guarded('area lights', lambda: area_lights(p, objects, lights, self.meshes, self.materials,
                                                                             self.warn), None)
         # a van's own building goes with the van (compiler.van_buildings: the editor keeps it fixed)
-        import sys
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'editor'))
-        import compiler
-        vans = compiler.van_buildings(dict(objects=objects, buildings=buildings, meshes=self.meshes), p.path.stem)
-        for building in buildings: building['van'] = building['id'] in vans
-        if self.prefix:
+        if not stream:
+            import sys
+            sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'editor'))
+            import compiler
+            vans = compiler.van_buildings(dict(objects=objects, buildings=buildings, meshes=self.meshes), p.path.stem)
+            for building in buildings: building['van'] = building['id'] in vans
+        if self.prefix and not stream:
             for building in buildings:building['id']=self.prefix+building['id']
             for obj in objects:
                 for entry in obj['floors']:entry['building']=self.prefix+entry['building']
         bounds = None
-        for obj in objects:
+        # (a stream's playable bounds, grid and tactical data are dropped: none is worked out)
+        for obj in (objects if not stream else []):
             if obj["actorClass"] != "XComLevelVolume": continue
             b = self.meshes[obj["mesh"]]["bounds"]
             m = obj["matrix"]
@@ -643,9 +647,9 @@ class Exporter:
             if bounds is None or area > bounds[0]: bounds = (area,candidate)
         grid=tile_grid(p,bounds[1],self.warn) if bounds else None
         tactical=tactical_metadata(p,objects,self.meshes,grid,self.warn) if grid else None
-        effects = self.effects(scope)
-        # the map's spawn points (export 33): [] for a map with none, absent for a piece study or a streamed package
-        spawns = {} if self.prefix or scope != 'map' else dict(spawns=spawn_metadata(p, self.landings, self.warn))
+        effects = self.effects()
+        # the map's spawn points (export 33): [] for a map with none, absent for a streamed or previewed package
+        spawns = {} if self.prefix else dict(spawns=spawn_metadata(p, self.landings, self.warn))
         return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope,
                     playableBounds=bounds[1] if bounds else None,
                     tileGrid=grid, tactical=tactical,
@@ -654,7 +658,6 @@ class Exporter:
                     landings=self.landings, **spawns,
                     effects=effects['effects'], sounds=effects['sounds'], flares=effects['flares'],
                     effectSystems=effects['systems'], soundWaves=effects['waves'],
-                    effectsMetadata=dict(version=EFFECTS_METADATA_VERSION, defaults=effects['defaults']),
                     lighting="dynamic", lightMetadata=dict(version=LIGHT_METADATA_VERSION, areaMatcher=self.area_matcher),
                     source=dict(file=str(p.path),sha256=self.digest or sha256(p.path),
                     version=p.header["ver"],licensee=p.header["lic"]),
@@ -662,7 +665,7 @@ class Exporter:
                                 meshes=len(self.meshes),materials=len(self.materials),textures=sum(bool(v) for v in self.textures.values())),
                     objects=objects, lights=lights, meshes=self.meshes,
                     materials=self.materials,textures=self.textures,diagnostics=self.diagnostics,
-                    content=self.guarded('level records', lambda: content_records(p), []))
+                    **({'content': self.guarded('level records', lambda: content_records(p), [])} if self.prefix else {}))
 
 
 def map_records(package_path):
@@ -673,6 +676,7 @@ def map_records(package_path):
     [] for a package outside an install."""
     import maplist
     import installs
+    import missions
     path = Path(package_path).resolve()
     ini = path.parent.parent / 'Config' / 'DefaultMaps.ini'
     if not ini.is_file(): return []
@@ -685,8 +689,8 @@ def map_records(package_path):
         group, mission, label = maplist.mission_of(line)
         if mission in maplist.LEFT_OUT: continue
         streams = [s for s in re.findall(r'MapName="([^"]+)"', line) if not s.upper().startswith('CIN_')]
-        out.append(dict(type=mission, label=label, group=group, display=maplist.field(line, 'DisplayName') or '',
-                        streams=list(dict.fromkeys(streams))))
+        out.append(dict(type=mission, label=label, group=group, kind=missions.kind_key(line),
+                        display=maplist.field(line, 'DisplayName') or '', streams=list(dict.fromkeys(streams))))
     return out
 
 
@@ -811,9 +815,6 @@ def export_map(source, cache_root, scope, specs=(), progress=None):
             (stage/filename).write_text(json.dumps(scene,separators=(',',':')),encoding='utf-8')
         # compact (review finding 50: indented, the largest was 15.6 MB against 8.3)
         (stage/"scene.json").write_text(json.dumps(result,separators=(',',':')),encoding="utf-8")
-        scenes=[dict(name=p.path.stem+' · Original',url='scene.json')]+[
-            dict(name=s['name']+' · Experimental',url=f) for f,s in previews]
-        (stage/'scenes.json').write_text(json.dumps(scenes,separators=(',',':')),encoding='utf-8')
         if target.exists():
             # Publish to a new generation instead of deleting an existing export.
             target = parent / (target.name + "-" + stage.name.removeprefix(".export-"))

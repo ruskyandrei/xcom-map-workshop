@@ -79,9 +79,9 @@ def sha256(data):
 def modules():
     """Our modules the entries import, transitively (repo-relative paths under tools/)."""
     def find(name):
-        for folder in FOLDERS:
-            path = TOOLS / folder / ('%s.py' % name)
-            if path.is_file(): return path
+        # tools/ itself holds paths.py (review finding 54), which the ._pth lists as it lists the folders
+        for path in [TOOLS / folder / ('%s.py' % name) for folder in FOLDERS] + [TOOLS / ('%s.py' % name)]:
+            if path.is_file() and path.name != 'run_tests.py': return path
         return None
     seen, todo = set(), [TOOLS / e for e in ENTRIES]
     while todo:
@@ -131,7 +131,8 @@ def python(stage, cache):
     pth = next(target.glob('python3*._pth'))
     zipname = next(target.glob('python3*.zip')).name
     # relative to the ._pth's folder; `import site` makes Lib\site-packages work as usual
-    lines = [zipname, '.', r'Lib\site-packages'] + [r'..\tools\%s' % f for f in FOLDERS] + ['import site']
+    lines = ([zipname, '.', r'Lib\site-packages'] + [r'..\tools\%s' % f for f in FOLDERS] + [r'..\tools']
+             + ['import site'])
     pth.write_text('\r\n'.join(lines) + '\r\n', encoding='ascii', newline='')
     site = target / 'Lib' / 'site-packages'
     site.mkdir(parents=True)

@@ -45,7 +45,7 @@ sits on the commit it was built from, so main is pushed before the release is cr
      before them; `python tools/release/gather_changelog.py --list` prints them newest first), the
      "### Release <last> published" entry among them, and
      `git log --oneline origin/main..<branch>`.
-2. **Run every suite on the branch being released**, in the background (about eight minutes):
+2. **Run every suite on the branch being released**, in the background (about eleven minutes):
    `python tools/run_tests.py`. With every suite it also checks the tile grid of every map the editor lists
    (`tools/upk/tests/test_game_grid.py`, two of those minutes), so a new install or DLC is covered.
    - All must pass. If one fails, stop and report it with its traceback; its logs folder is printed.

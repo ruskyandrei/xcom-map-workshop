@@ -42,8 +42,8 @@ It never stops a process that is not this server.
 The default port is **8768**, the main viewer/editor server. Keep one server there and restart it after a re-export
 (it picks its exports when it starts); web changes only need a browser reload. Test servers use `--port`
 8790–8799 and are stopped after the check. `--no-open` starts the server without opening a browser.
-Use `--scope sample` on URB_Bar for a close study of asphalt, compact car body/glass and a fractured wall.
-Sample mode can switch between study positions and original placements. Other maps require `--scope map`.
+An export is of the whole map (`--scope map`, the only scope; the piece study of three of URB_Bar's pieces that
+earlier exports offered is gone, and such a generation is no longer opened).
 An arbitrary new map has not been validated just because its package version matches.
 
 ### Choose a base map in the UI
@@ -73,8 +73,8 @@ map by its name, package or mission; **Prepared only** hides maps not exported y
 the server runs `viewer.py export <package> --scope map` in the background into the cache it serves, one map at a
 time (about 20-30 s and 120 MB a map), the browser shows the time so far, and the page opens the map when it is done,
 with no restart. A link to a map not exported yet (a project of one, say) opens the browser on it and exports it.
-Listing every map needs the `lwr` setting; without it, or when serving one exact generation, only exported maps are
-listed, as before.
+Listing every map needs the `game` setting (called `lwr` before 8 November 2026; a settings file with `lwr` is read
+the same); without it, or when serving one exact generation, only exported maps are listed.
 
 **Updated maps prepare themselves again.** A map of the install whose export is older than the editor's exporter
 (`EXPORT_VERSION`: an update since the map was prepared, such as export 19's masked props) is exported again when it
@@ -85,7 +85,7 @@ leaves a short banner with **Re-export**; a map that comes
 back still outdated in the same browser session waits for a click instead of starting again.
 
 Library mode chooses one published full-map generation per map, preferring the highest exporter version and then
-the latest manifest. It skips `.export-*` staging folders, malformed manifests and sample exports. An export made
+the latest manifest. It skips `.export-*` staging folders, malformed manifests and earlier piece studies. An export made
 outside the server (`viewer.py export`) needs a restart to be listed. Serving an exact generation, as above, keeps
 that generation pinned and shows just its base map. A map-specific cache folder can also be served to select its
 latest full generation.
@@ -113,8 +113,8 @@ triangles. It is read from the map's package in the install (which must be the f
 per server, for invisible floors' ground.
 Export 15 adds what of the map's Kismet names each piece (`referencedBy`, as "SeqAct_ToggleHidden_1 Target"; the
 inspector's **Mission script** chip, and the compiler warns of moving or deleting such a piece) and each building
-floor's volume boxes (`buildings[].floors[].boxes`, which the compiler's floor note reads). The library picks a map's
-newest export and doesn't re-export it, so a map exported before needs `viewer.py export` again. Export 16 adds
+floor's volume boxes (`buildings[].floors[].boxes`, which the compiler's floor note reads). A map exported before an
+export like this is exported again when it next opens (**Updated maps prepare themselves again**, above). Export 16 adds
 what each fracturing piece's fragment columns break (`breaks`: a car's glass names its body and parts), from which the
 compiler joins Police Station's standalone police light bars to their sedans. Export 17 adds what the game's damage
 does to each piece (`destruction`, [scene_metadata.py](scene_metadata.py) `destruction`): its kind (a prop, with one
@@ -263,7 +263,8 @@ The 3D view fills the window. The rest appears when it is needed, so the screen 
 
 The game loads more than the map package: each of the map's `DefaultMaps.ini` records (one per mission) streams
 other packages into it. Since export 13 the export reads them from the install the package is in (`missions` and
-`streams` in `scene.json`, landing intros and other cinematics left out), and the original layout shows them:
+`streams` in `scene.json`, landing intros and other cinematics left out; since export 37 each mission also says its
+kind, `kind`: a council mission's `Special/<council type>`), and the original layout shows them:
 - **LWR's patches** (`patch_<map>`, on 93 of LWR's 95 maps, and `patch_hide_randomized_objects`): mostly pieces
   placed hidden in the game, cover blocks and blockers (URB_PoliceStation's six: `highcover`, `Cover2x4`,
   `CoverSmallCar` over a burnt-out car...), hidden as in the game unless **Hide patch helpers** is unticked.
@@ -279,7 +280,7 @@ private/plans/done/mission-types-plan.md). Streamed pieces can be
 picked and inspected (a chip says which package they come from), but never moved, copied or deleted as pieces: the
 Build edits the map's own pieces. So an edit that moves a piece LWR's patch covers (the burnt-out car) leaves LWR's
 hidden cover where it was: untick Hide patch helpers to see it. A mission's own objects (export 24's
-`missionObjects`, markers on View options' Mission objects) are the exception: a picked one's arrows move it with its
+`missionObjects`, markers shown by the Normal view's **Spawn points and objectives** switch) are the exception: a picked one's arrows move it with its
 group, saved as overrides of `level: "stream"`, and the Build moves them in place in its copy of that mission's stream
 (`tools/bake/stream_copy.py --moves`), which that mission's records alone stream. **Missions…** (Map menu,
 `missions_panel.js`) sets the project's `missions`: the base map's records and kinds a record alone gives it.
@@ -844,7 +845,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
 - **Ctrl+S** saves the next revision; without a project open it opens the Save dialog. The address carries
   `?map=…&project=<id>`, so a reload reopens it. Saving under another project drops the changes kept for recovery of
   the one open before: they are saved now.
-- On a patch preview or piece study, Save and Save as… are off (projects edit a map's original layout); Load and the
+- On a patch preview, Save and Save as… are off (projects edit a map's original layout); Load and the
   recent list still open a project on its map.
 - **Opening** a project replays it onto the map as exported: originals moved or deleted, copies added. It also puts
   back the camera from the last save, and starts with an empty undo history.
@@ -871,9 +872,6 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   - What stays on this computer is kept by project id in the hidden `.workshop` folder beside them:
     `.workshop\<id>\project.prev.json` (the revision before) and a `recovery-<page>.json` for each page's unsaved
     changes (`recovery.json` from before 20 November 2026).
-  - Project folders of the earlier layout (`<id>\project.json`, before 8 November 2026) are moved to this one the
-    first time the server reads the folder. One of a project that a file here holds already never writes over it:
-    the newer revision is the project, and the other is kept beside it as `<name> (kept copy).json`.
   - Saves are atomic.
   - A project with another schema version is refused with a message, not converted.
   - The **projects** setting moves the folder; `serve --projects <folder>` overrides it for one server (tests use a
@@ -966,7 +964,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     variant's name, out of rotation, with its own landing intro streamed), and the base map's landing zones are added
     under that name (the project's own, when it has `landingZones`: see Clear map, the ground grid and landing
     zones). The record is an abduction whatever kind the base map's is (Temple Ship's is the final
-    mission's), as the intro slot's was; a Temple Ship variant hasn't been played this way.
+    mission's); a Temple Ship variant hasn't been played this way.
   - It opens Build's panel first ([`build_options.js`](web/build_options.js)), with the same **Bake the lighting**
     choice, off by default.
     - **Build and play** builds (saving first if there are unsaved changes), and installs and plays the package when
@@ -1004,9 +1002,6 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
 - **Undo everything**, in the Game maps window (below; it was the Project menu's Remove from game), takes it all back out: the records and landing-zone lines it added, the files it copied
   (unless they changed since), the commands file and any config kept aside. Both INI files end up byte for byte as
   they were.
-- **An install from before 9 November 2026** made a map the first mission of a new campaign (Install as intro map: it
-  rewrote the record named `URB_CommercialAlley_EWI (Commercial Alley Redux) |0`). Its record of that is still read:
-  the next play, or Undo everything, puts the game's own line back.
 - **The editor reads an install the way the game does:** the map list, the exporter and Build read `DefaultMaps.ini` with the
   editor's lines taken out (`installs.maps_text`), so an installed variant never shows up as a map or a record.
 - All of these refuse, with the reason, while XCOM runs. A package file already in `CookedPCConsole` is replaced only
@@ -1224,9 +1219,8 @@ python tools/viewer/viewer.py doctor --cache "<cache>"
 ```
 
 - **Settings** live in `Documents\XCOM Map Workshop\settings.json`, beside the projects, where every program sees
-  the same file. (Until 8 November 2026 they were in `%APPDATA%`; the Microsoft Store's Python redirects what it
-  writes there to a folder of its own, out of sight of PowerShell. A file left there is moved the first time it is
-  read.) `XCOM_MAP_WORKSHOP_SETTINGS` names another file. No tool in this repository hard-codes a folder of one
+  the same file (not under `%APPDATA%`: the Microsoft Store's Python redirects what it writes there to a folder of
+  its own, out of sight of PowerShell). `XCOM_MAP_WORKSHOP_SETTINGS` names another file. No tool in this repository hard-codes a folder of one
   computer: they all take these settings, or arguments. The settings:
   - **projects** and **output** (builds): in a release, default `projects` and `builds` in the editor's own folder
     (beside `tools` and `python`; `default_folders`), where an upgrade keeps them; under `Documents\XCOM Map
@@ -1316,8 +1310,11 @@ mission gates and runtime rebuilds are not evaluated. Patch previews deliberatel
 Synthetic tests need no game files:
 
 ```powershell
-python -m unittest discover -s tools/viewer/tests -p 'test_*.py' -v
+python -B tools/run_tests.py viewer            # or: viewer -k projects, for some tests
 ```
+
+[run_tests.py](../run_tests.py) prints each failure with its traceback and keeps the logs; run a test file only through
+it or `unittest discover`, since some test files import their neighbours.
 
 `test_projects.py` covers project storage (revisions, conflicts, the previous revision, recovery, refused schema
 versions and paths, file names from project names, renames, clashes, copies, the earlier folder layout moved), the HTTP routes (refusing other origins, hosts and non-JSON bodies), and the settings and doctor.
@@ -1357,15 +1354,15 @@ install and would start the game, so it refuses any server not started with `ser
 of an LWR install's), the open map's package in `XEW\XComGame\CookedPCConsole` and an `XEW\Binaries` folder.
 `test_play.py` covers the same on temporary installs, with a start that records its command: a map played with
 nothing installed, a project's record added and taken out byte for byte, plain Enemy Within, the game's config kept
-aside and put back when the game closes, an earlier version's intro install put back, a separate copy, lines and
+aside and put back when the game closes, a separate copy, lines and
 files changed since, XCOM running, the routes, the squad's text and Steam's command.
 
-It checks rendering, resource errors, the search list (hidden until there is text), the piece panel, typed
+It checks rendering, resource errors, the piece panel, typed
 position/yaw with undo, copy and paste through the placing preview (Esc cancels, a click places; a linked car on Bar;
-a whole-tile, quarter-turned paste), the milestone marks, delete and Reset all with undo, groups (locking two pieces,
-selecting and moving them as one, the gold marks, unlocking, break together, pasting a group, ungrouping, each with
-undo; with projects, a group saved and reopened), align (low edges on X and Z, then the first one picked as the
-target, then a locked group lining up as one, each with undo), the piece
+a whole-tile, quarter-turned paste), the milestone marks, delete and Reset all with undo, groups (grouping two pieces,
+selecting and moving them as one, the gold marks, no unlocking, break together, pasting a group, ungrouping, nesting,
+each with undo; with projects, a group saved and reopened), align (low edges on X and Z, then the first one picked as
+the target, then a group lining up as one, each with undo), the piece
 list (distinct entries, drawn thumbnails, kind filter, size sort, name filter, click and Shift+click placing with
 undo), the menus, camera controls and grid, and saves a screenshot for visual review. Binary regression tests cover truncation, bad indices, winding, basis/component composition, compressed bulk
 data and a known BC1 texture. A successful render is not a gameplay test.
@@ -1438,11 +1435,13 @@ current **All maps** catalogue and warns about pieces it still can't load. In th
 poses, groups and assembly links and can be undone in one step. Save to keep the new references. Unresolved
 records stay in the prefab. After rescanning **All maps**, use **Prefab → Find missing pieces** to try again.
 
-**Prefab → Test in game** builds a private snapshot of the current workspace on CB2_MP_Blank, grown to 18
-levels (0 to 1,152), its ground hidden (still stood on) inside a noon sky above and below, and launches that
-build with no aliens. A neutral fill light illuminates the stage with or without baking. Lighting is baked by
-default. Unnamed and unsaved work can test. Missing content, off-grid poses
-and a footprint that leaves insufficient squad room are refused with details. After a reload you can follow the
+**Prefab → Test in game** builds a private snapshot of the current workspace on CB2_MP_Blank, grown to at least 18
+levels (0 to 1,152, the tallest of the game's maps) and up to 30 for a taller prefab (`prefab_stage.stage_levels`),
+its ground hidden (still stood on) inside a noon sky above and below, and launches that build with no aliens. A
+neutral fill light illuminates the stage with or without baking. The dialog starts with Bake off, for a faster test.
+Unnamed and unsaved work can test. The test follows the Build's rules: what the Build warns about it warns about, and
+a piece that can't be built is left out and named. Only an empty or unreadable snapshot, a footprint that leaves no
+room for the squad, or a stage that can't be prepared stops it, with details. After a reload you can follow the
 test and explicitly launch a ready result. The game watch takes out the test installation when XCOM closes.
 
 Glowing props carry their source map's matched generated area lights into the prefab preview and every build.
@@ -1464,7 +1463,7 @@ Acceptance uses scratch stores on a test port; stop the server afterwards:
 ```powershell
 python tools/viewer/viewer.py serve --port 8791 --no-open --projects "<scratch>/projects" --builds "<scratch>/builds"
 python tools/viewer/tests/browser_builder.py --url http://127.0.0.1:8791/ --screenshot "<scratch>/builder.png" --large
-python -m unittest discover -s tools/viewer/tests -p "test_prefab*.py"
+python -B tools/run_tests.py viewer -k prefab
 node tools/viewer/tests/prefab_document_test.mjs
 ```
 
