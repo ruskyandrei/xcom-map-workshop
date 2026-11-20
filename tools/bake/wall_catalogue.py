@@ -16,10 +16,11 @@ facts, warnings, twin, recipe}. lwrOnly is true when the donor's map is not one 
 licensee is not 64: Long War Rebalance's own packages are licensee 0); the rule is written in the file's `about`.
 The file is LF, the looks sorted by mesh, one look a line, the same bytes from the same install (a test checks it).
 
-  python -B tools/bake/wall_catalogue.py build [--out <file>] [--only <mesh> ...] [--audit <file>]
-  python -B tools/bake/wall_catalogue.py check       (a fresh build gives the checked-in file's bytes)
+  python -B tools/bake/wall_catalogue.py build [--out <file>] [--only <mesh> ...] [--audit <file>] [--check]
 
-Nothing is written into the game's folders.
+The maps are read from the game install the settings name (python tools/viewer/viewer.py settings), as the slab and
+ground catalogues read theirs. --check builds again and says whether the file is the same, writing nothing (`check`,
+the old spelling of `build --check`, still works for one release). Nothing is written into the game's folders.
 """
 import argparse
 import json
@@ -30,7 +31,7 @@ import time
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-for folder in ('viewer', 'upk', 'lab'):
+for folder in ('viewer', 'upk'):
     sys.path.insert(0, str(REPO / 'tools' / folder))
 sys.path.insert(0, str(HERE))
 import measure_common as mc  # noqa: E402
@@ -72,19 +73,19 @@ def unscaled(p, actor):
 
 
 class Maps:
-    """The install's map packages, opened once each (the few most recently used kept open)."""
+    """The install's map packages (in its cooked folder `cooked`), opened once each (the few most recently used kept
+    open)."""
 
-    def __init__(self, keep=4):
-        self.open, self.keep = {}, keep
+    def __init__(self, cooked, keep=4):
+        self.cooked, self.open, self.keep = Path(cooked), {}, keep
 
     def get(self, name):
-        import labpaths
         from package import Package
         if name in self.open:
             self.open[name] = self.open.pop(name)
             return self.open[name]
-        path = labpaths.lwr_cooked(name + '.upk')
-        if path is None or not Path(path).exists():
+        path = self.cooked / (name + '.upk')
+        if not path.exists():
             raise FileNotFoundError('%s.upk is not in the configured install (python tools/viewer/viewer.py settings)' % name)
         p = Package(path)
         self.open[name] = p
@@ -134,11 +135,18 @@ def look_of(maps, mesh, wall):
                 warnings=entry['warnings'], twin=twin, recipe=entry['recipe'])
 
 
-def build(audit=AUDIT, only=None, progress=None):
-    """The catalogue (a dict) of the audit's walls (`only`: those meshes)."""
+def build(audit=AUDIT, only=None, progress=None, game=None):
+    """The catalogue (a dict) of the audit's walls (`only`: those meshes), read from the install `game` (the
+    settings' when None)."""
+    import library
+    import settings
+    if game is None:
+        game, _ = settings.game_install(settings.load_settings())
+        if game is None:
+            raise ValueError('the game install is not set (python tools/viewer/viewer.py settings)')
     walls = json.loads(Path(audit).read_text(encoding='utf-8'))['walls']
     names = sorted(m for m in walls if not only or m in only)
-    maps = Maps()
+    maps = Maps(library.cooked_of(game))
     looks = []
     # by the map each was measured on, so each map is opened once
     for k, mesh in enumerate(sorted(names, key=lambda m: (walls[m]['measuredOn'], m))):
@@ -179,17 +187,22 @@ def summary(catalogue):
 
 def main():
     a = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    a.add_argument('action', choices=('build', 'check'))
+    a.add_argument('action', choices=('build', 'check'), help="build (check: the old spelling of build --check, kept "
+                   "for one release)")
     a.add_argument('--out', type=Path, default=OUT)
     a.add_argument('--audit', type=Path, default=AUDIT)
     a.add_argument('--only', nargs='*', help='only these meshes (a partial catalogue: not for checking in)')
+    a.add_argument('--check', action='store_true', help='build again and compare with the file; write nothing')
     a.add_argument('--quiet', action='store_true')
     args = a.parse_args()
+    if args.action == 'check':
+        print('(check is now build --check)', flush=True)
+        args.check = True
     progress = None if args.quiet else (lambda line: print(line, flush=True))
     catalogue = build(args.audit, set(args.only) if args.only else None, progress)
-    if args.action == 'check':
-        same = OUT.exists() and OUT.read_text(encoding='utf-8') == text(catalogue)
-        print('the same bytes as %s' % OUT.name if same else '%s differs from a fresh build' % OUT.name)
+    if args.check:
+        same = args.out.exists() and args.out.read_text(encoding='utf-8') == text(catalogue)
+        print('the same bytes as %s' % args.out.name if same else '%s differs from a fresh build' % args.out.name)
         raise SystemExit(0 if same else 1)
     path = write(catalogue, args.out)
     print(json.dumps(summary(catalogue), indent=1))
