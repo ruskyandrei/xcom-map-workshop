@@ -14,19 +14,10 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'viewer'))
 import compiler  # noqa: E402
 from compiler import compile_project  # noqa: E402
-from test_compiler import PL, add, codes, document, noted, refused, scene, target, warned  # noqa: E402
+from editor_fixtures import PL, add, codes, compiled, document, made, noted, refused, scene, target, warned  # noqa: E402
 
 WALL = dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[dict(x0=96, x1=192, z0=0, z1=60)], seed=2))
 RELIT = dict(kind='relit', version=1)
-
-
-def made(generated, name='XComFracLevelActor_11', serial=1, at=(0, 600, 0)):
-    return dict(add(name, serial, at), generated=generated)
-
-
-def compiled(added):
-    spec, report = compile_project(document((), added, schemaVersion=2), scene())
-    return spec, report
 
 
 class GeneratedTests(unittest.TestCase):

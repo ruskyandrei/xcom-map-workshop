@@ -12,7 +12,7 @@ import compiler  # noqa: E402
 from compiler import compile_project  # noqa: E402
 import ladders  # noqa: E402
 import piece_flags  # noqa: E402
-from test_compiler import PL, add, assembly_scene, document, noted, part, refused, scene, target, warned  # noqa: E402
+from editor_fixtures import PL, add, assembly_scene, document, noted, part, refused, scene, target, warned  # noqa: E402
 
 
 def flagged(s, collides=True, body=True, **own):

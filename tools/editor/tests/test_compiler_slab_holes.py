@@ -8,8 +8,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'viewer'))
-from test_compiler import left_out  # noqa: E402
-from test_compiler_generated import compiled, made  # noqa: E402
+from editor_fixtures import compiled, left_out, made  # noqa: E402
 
 T = 96.0
 

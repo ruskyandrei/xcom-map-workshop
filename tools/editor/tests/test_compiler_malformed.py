@@ -10,7 +10,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
 from compiler import compile_project  # noqa: E402
-from test_compiler import PL, add, document, part, scene, target  # noqa: E402
+from editor_fixtures import PL, add, document, part, scene, target  # noqa: E402
 
 # a copy that builds, beside each malformed record: the build goes on with it
 GOOD = add('XComLevelActor_1', 1, (96, 96, 0))
