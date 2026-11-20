@@ -3,14 +3,17 @@
   python tools/viewer/tests/browser_smoke.py --url http://127.0.0.1:<port>/?map=URB_Bar --screenshot <png>
          [--projects] [--squad] [--play [--play-project <id>]] [--only <checks>]
   python tools/viewer/tests/browser_smoke.py --all [--scratch <folder>] [--cache <scratch cache>] [--play-install <a scratch game folder>]
+         [--ports a,b,c,d]
+  python tools/viewer/tests/browser_smoke.py --url http://127.0.0.1:<port>/ --write-api-names
 
 The checks are one table (CHECKS, listed by --help): each one's name, what it does, what the server must be started
 with and the maps it can run on. With no --only, the whole run does the table's checks in order; --only names some
 (those run only when named too) and refuses a name it doesn't know. The report (printed, and written beside the
 screenshot as .json) lists what ran and what was skipped, with why; a check --only asked for that was skipped, whole
-or in part, fails the run. --all runs every check on fresh test servers of its own (ports 8795-8798, scratch folders,
-a scratch cache and a scratch settings file, --dry-play), one after another, each stopped after its run, and reports
-each run's lists.
+or in part, fails the run. --all runs every check on fresh test servers of its own (ports 8795-8798, or --ports, scratch
+folders, a scratch cache and a scratch settings file, --dry-play), one after another, each stopped after its run, and
+reports each run's lists. --write-api-names writes the test hooks' names that the check api-names compares
+(api_names.py).
 No game is started.
 """
 import argparse
@@ -5480,6 +5483,8 @@ NEEDS = {
 CHECKS = (
     Check('temple-interior', check_temple_interior, 'TempleShip opens in Interior, its backdrop, roof and helpers hidden',
           when=all_of(ON_TEMPLE, version(11))),
+    Check('api-names', lambda c: __import__('api_names').check(c), 'window.viewer\'s names on the Bar, the blank map and in the '
+          'builder, as viewer_api_names.json records them (pages of its own)'),
     Check('streams', on_page(check_streams), 'the missions\' streamed packages, their mission select and pieces'),
     Check('spawns', on_page(check_spawns_view, check_spawn_edits), 'the Spawns view and spawn edits'),
     Check('skins', check_skins, 'skinned meshes posed by their own skeletons; a door and a prop pictured', when=version(7)),
@@ -5668,7 +5673,18 @@ def smoke(args):
 
 # --all: everything, on fresh test servers of its own -------------------------------------------------------------------
 REPO = Path(__file__).resolve().parents[3]
-ALL_PORTS = (8795, 8796, 8797, 8798)
+ALL_PORTS = (8795, 8796, 8797, 8798)        # (--ports gives others: two whole runs from two worktrees at once)
+
+
+def ports(text):
+    """--ports a,b,c,d: test servers' ports (8790-8799), never the main server's."""
+    got = tuple(int(p) for p in text.split(',') if p.strip()) if re.fullmatch(r'[\d, ]+', text) else ()
+    if MAIN_PORT in got: raise argparse.ArgumentTypeError(f'{MAIN_PORT} is the main server, the one the user keeps open')
+    if not got or len(set(got)) != len(got) or not all(8790 <= p <= 8799 for p in got):
+        raise argparse.ArgumentTypeError(f'{text!r}: distinct test server ports (8790-8799), comma-separated')
+    return got
+
+
 # Each run: the map it opens, this script's arguments (or another script of this folder), and whether it plays.
 ALL_RUNS = (
     dict(name='whole', map='URB_Bar', smoke=['--projects', '--squad']),
@@ -5722,7 +5738,7 @@ def scratch_cache(root, cache):
     if not game: raise SystemExit('the settings name no game install to export the maps from: give --cache <a prepared scratch cache>')
     folder = cooked(resolve_game(game)[0])
     viewer = [sys.executable, '-B', str(REPO / 'tools' / 'viewer' / 'viewer.py')]
-    maps = sorted({run['map'] for run in ALL_RUNS})
+    maps = sorted({run['map'] for run in ALL_RUNS} | set(__import__('api_names').MAPS))
     for name in maps:
         print(f'exporting {name} into {cache}', flush=True)
         subprocess.run([*viewer, 'export', str(folder / f'{name}.upk'), '--cache', str(cache)], cwd=REPO, check=True, capture_output=True)
@@ -5734,7 +5750,7 @@ def scratch_cache(root, cache):
 def start_server(port, folder, cache, extra=()):
     """A test server on `port` with scratch projects, builds, squad and settings in `folder` (the settings name the
     scratch cache and the user's game install, read only) and --dry-play, so that nothing starts the game."""
-    if port_taken(port): raise SystemExit(f'port {port} is taken: --all starts servers of its own on {ALL_PORTS}; free it first')
+    if port_taken(port): raise SystemExit(f'port {port} is taken: --all starts servers of its own there; free it first, or give --ports')
     game = own_game()
     (folder / 'settings.json').write_text(json.dumps(dict(cache=str(cache), **({'game': str(game)} if game else {})), indent=1),
                                           encoding='utf-8', newline='\n')
@@ -5778,7 +5794,7 @@ def run_all(args):
     cache = scratch_cache(root, args.cache)
     report, failed = [], False
     for k, run in enumerate(ALL_RUNS):
-        port, folder = ALL_PORTS[k % len(ALL_PORTS)], root / run['name']
+        port, folder = args.ports[k % len(args.ports)], root / run['name']
         if run.get('play') and not args.play_install:
             report.append(dict(name=run['name'], skipped='give --play-install <a scratch game folder> (Play installs into it)'))
             print(f"SKIP {run['name']}: {report[-1]['skipped']}", flush=True)
@@ -5833,14 +5849,22 @@ def main():
     ap.add_argument("--only",help="Run only these checks (the names below, comma-separated), in the table's order, and stop: "
                     "for working on them")
     ap.add_argument("--all",action="store_true",help="Run every check on fresh test servers of its own (ports 8795-8798), one after another")
+    ap.add_argument("--ports",type=ports,default=ALL_PORTS,help="With --all: the test servers' ports instead, as a,b,c,d (8790-8799)")
+    ap.add_argument("--write-api-names",action="store_true",help="Write window.viewer's names on the Bar, the blank map and in the "
+                    "builder, read from the test server --url names, into viewer_api_names.json (what api-names compares), and stop")
     ap.add_argument("--scratch",help="With --all: the folder for the servers' scratch folders and the report (default: a new temporary one)")
     ap.add_argument("--play-install",help="With --all: a scratch game folder for the Play check (without it, Play is skipped)")
-    ap.add_argument("--cache",help="With --all: a scratch cache holding exports of URB_Bar, URB_PoliceStation and TempleShip, and the "
+    ap.add_argument("--cache",help="With --all: a scratch cache holding exports of URB_Bar, URB_PoliceStation, TempleShip and CB2_MP_Blank, and the "
                     "game's library scanned (default: made in the scratch folder); never the user's own")
     args = ap.parse_args()
+    if args.write_api_names:
+        if not args.url or args.all or args.only: ap.error('--write-api-names reads the server --url names, and runs no check')
+        refuse_main_server(args.url)
+        return __import__('api_names').write(args.url)
     if args.all:
         if args.url or args.only: ap.error('--all starts its own servers and runs every check: no --url or --only with it')
         return run_all(args)
+    if args.ports != ALL_PORTS: ap.error('--ports is for --all (with --url, the server is the one it names)')
     if not args.url or not args.screenshot: ap.error('--url and --screenshot are needed (or --all)')
     refuse_main_server(args.url)
     if args.only:
