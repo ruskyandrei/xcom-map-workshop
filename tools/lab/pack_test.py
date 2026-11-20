@@ -40,13 +40,13 @@ import zipfile
 
 HERE = Path(__file__).resolve().parent
 sys.path[:0] = [str(HERE), str(HERE.parent / 'viewer'), str(HERE.parent / 'upk')]
+import installs  # noqa: E402
 import pack_card  # noqa: E402
 
 MARKER = 'XComLab-copy.txt'
 NOTE = 'XComLab-pack-test.json'
 FIRST_FOLDER = 'XComLabFirstMission'
 FIRST_NUMBER = 9999
-INTRO_SLOTS = ('URB_CommercialAlley_EWI (Commercial Alley Redux) |0', 'URB_CommercialAlley_EWI (Commercial Alley Redux)')
 
 
 class TestError(Exception):
@@ -171,7 +171,7 @@ def intro_record(game):
     for raw in (config(game) / 'DefaultMaps.ini').read_bytes().splitlines():
         try: record = pack_card.parse_record(raw)
         except pack_card.CardError: continue
-        if record is not None and record.kind == 'Maps' and record.fields.get('DisplayName') in INTRO_SLOTS:
+        if record is not None and record.kind == 'Maps' and record.fields.get('DisplayName') in installs.FIRST_MISSION:
             return pack_card.map_line(record.fields)
     raise TestError('the copy\'s DefaultMaps.ini has no record with the first mission\'s display name')
 

@@ -10,6 +10,7 @@ import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pack_test  # noqa: E402
+import installs  # noqa: E402
 import pack_card  # noqa: E402
 from pack_test import TestError  # noqa: E402
 
@@ -153,6 +154,15 @@ class FirstMission(unittest.TestCase):
 
     def test_a_map_no_card_names_is_refused(self):
         with self.assertRaisesRegex(TestError, 'no card'): pack_test.first_mission(self.game, 'Nowhere', echo=quiet)
+
+    def test_the_first_missions_names_are_the_installers(self):
+        # one home, installs.FIRST_MISSIONS: LWR's display name, and plain EW's (the same without " |0")
+        ini = pack_test.config(self.game) / 'DefaultMaps.ini'
+        for name in installs.FIRST_MISSIONS:
+            ini.write_bytes(('[XComGame.XComMapManager]\r\n' + INTRO.replace(installs.FIRST_MISSIONS[0], name) + '\r\n').encode())
+            self.assertEqual(pack_test.intro_record(self.game)['DisplayName'], name)
+        ini.write_bytes(('[XComGame.XComMapManager]\r\n' + BAR + '\r\n').encode())
+        with self.assertRaisesRegex(TestError, 'no record'): pack_test.intro_record(self.game)
 
 
 W = 'MutatorLoader XComGame.XComShell'
