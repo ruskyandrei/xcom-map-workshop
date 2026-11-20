@@ -58,24 +58,13 @@ class NotNamed(InlineError):
 def _tags(raw, start, end, names):
     """[(name, kind, tag start, tag end)] of the tagged properties in raw[start:end] (the None terminator excluded),
     and the position of the terminator."""
-    out, at = [], start
-    while True:
-        index, number = struct.unpack_from('<ii', raw, at)
-        name = lighting_name(names, index, number)
-        if name == 'None': return out, at
-        kind = lighting_name(names, *struct.unpack_from('<ii', raw, at + 8))
-        size = struct.unpack_from('<i', raw, at + 16)[0]
-        body = at + 24
-        if kind in ('StructProperty', 'ByteProperty'): body += 8
-        stop = body + (1 if kind == 'BoolProperty' else size)
-        if stop > end: raise InlineError(f'property {name} runs past the export')
-        out.append((name, kind, at, stop))
-        at = stop
-
-
-def lighting_name(names, index, number):
-    if not 0 <= index < len(names): raise InlineError(f'name {index} is outside the name table')
-    return names[index] if number == 0 else f'{names[index]}_{number - 1}'
+    try:
+        rows, after = legacy_props.read_tags(raw, start, end, names)
+    except ValueError as error:
+        raise InlineError(str(error)) from None
+    # a tag is 24 bytes, and a struct's or an enum's name 8 more, before its value
+    return [(name, kind, at - 24 - (8 if kind in ('StructProperty', 'ByteProperty') else 0), at + size)
+            for name, kind, _, _, at, size in rows], after - 8
 
 
 def _bulk(r):
