@@ -1820,7 +1820,7 @@ function groupTree(copied, chainOf) {
   return pruneGroups(new Map([...made.values()].map(g => [g.id, g])));
 }
 const mapChain = key => groupChain(groupIndex.get(key));
-async function pasteSnapshot(clip, delta, step = null) {
+async function pasteSnapshot(clip, delta, step = null, { whole = false, first = null } = {}) {
   const serial = copySerial + 1;   // the paste's own number, for its prefab groups
   // (the parts of one actor are pasted as one copy; a made piece is one piece on its own, though a room's walls or a
   // look change's pieces share a donor actor: the user's quick Build of 19 November 2026 refused a room saved as one
@@ -1905,11 +1905,16 @@ async function pasteSnapshot(clip, delta, step = null) {
     else if (only) tree.get(only).prefab = { ...clip.wrap };
   }
   const newGroups = [...tree.values()];
+  // (what it gives back says how many pieces it left out and why: `lost`, `why`, so a caller's own hint can say so;
+  // `stopped`: its `first` said no)
+  Object.assign(built, { lost: lost.size, why: failed[0] ? failed[0].error?.message ?? String(failed[0].error) : null });
+  // whole: all or nothing; first(): run after the pieces are made and just before the paste is recorded (a look
+  // change's delete), false to place nothing (setMadeLook)
+  if (whole && lost.size) return built;
+  if (first && first() === false) return Object.assign(built, { stopped: true });
   const before = gizmo.picks(), ids = [...built.map(r => r.userData.source.id), ...lights.map(r => r.userData.source.id),
                                        ...effects.map(r => r.userData.source.id),
                                        ...(boxesShown ? boxes.map(r => r.userData.source.id) : [])];
-  // (what it gives back says how many pieces it left out: `lost`, so a caller's own hint doesn't hide the reason)
-  Object.assign(built, { lost: lost.size });
   if (!built.length && !lights.length && !effects.length && !boxes.length) return built;     // (nothing could be placed)
   gizmo.record({
     size: built.length,
@@ -10910,16 +10915,30 @@ async function setMadeLook(root, kind, look) {
       const { storeys: _, ...rest } = openingsInLook(gen[kind], numbers);
       numbers = withStoreys(rest, storeysInLook(gen[kind], rest)).wall;
     }
-    return { source: { ...template, added: { from: fromOf(template), generated: madeRequest(gen.kind, l, numbers, Boolean(look.plain)) } },
-             matrix: movedMatrix(template, state.location, state.rotation) };
+    // (its flags, tint and blasts stay with it: only its look changes; piece_records.js)
+    const was = stateOfRoot(r.userData), broken = gen.blasts ? { blasts: gen.blasts, ...(gen.breaksFurther ? { breaksFurther: true } : {}) } : {};
+    return { source: template, matrix: movedMatrix(template, state.location, state.rotation),
+             state: { ...was, generated: { ...madeRequest(gen.kind, l, numbers, Boolean(look.plain)), ...broken } } };
   });
   // (only the pieces made again are deleted, not the rest of their locked group; pieces of one group, a room's,
   // take their places in it)
   const keys = targets.map(r => memberOf(r.userData.source)), held = groupIndex.get(keys[0]);
   const regroup = Boolean(held) && keys.every(k => groupIndex.get(k) === held);
-  gizmo.setSelection(targets.map(r => r.userData.source.id));
-  deleteNow(true, targets);
-  await pasteSnapshot({ entries, pivotIndex: Math.max(0, targets.indexOf(root)), name: look.name }, new THREE.Matrix4());
+  // The new pieces are made first (their meshes asked of the server), nothing changed meanwhile. Then, in one go after
+  // that one wait, the old ones are deleted, the new ones placed and the group mended, joined as one undo step: nothing
+  // done during the wait is joined to it, and a mesh that can't be had, or a piece changed meanwhile, leaves
+  // everything as it was (review finding 30).
+  const poses = targets.map(r => r.matrix.clone());
+  const pasted = await pasteSnapshot({ entries, pivotIndex: Math.max(0, targets.indexOf(root)), name: look.name }, new THREE.Matrix4(), null, {
+    whole: true,
+    first: () => {
+      if (targets.some((r, k) => roots.get(r.userData.source.id) !== r || r.userData.deleted || !r.matrix.equals(poses[k]))) return false;
+      gizmo.setSelection(targets.map(r => r.userData.source.id));
+      deleteNow(true, targets);
+      return true;
+    } });
+  if (pasted.stopped) { flashHint(`${targets.length > 1 ? 'They' : 'It'} changed while the new look was made: choose ${look.name} again`); return; }
+  if (pasted.lost) { flashHint(`${look.name} can't be used: ${plural(pasted.lost, 'piece')} in it could not be drawn (${pasted.why}); nothing changed`); return; }
   if (regroup) {
     const made = gizmo.picks().ids.map(id => roots.get(id)).filter(Boolean);
     changeGroups(next => {

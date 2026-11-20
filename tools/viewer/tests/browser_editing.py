@@ -15,7 +15,10 @@ pieces will do (the pieces made here use it as their donor).
 - draw-errors (finding 29, needs --projects): a project holding a copy of a piece whose mesh the browser can't load
   opens all the same, with the copy counted as a display error and its record kept and saved back; a paste of that
   piece says it could not be drawn and places nothing, and once the mesh can be had again the next paste places it
-  (a failed load is not kept)."""
+  (a failed load is not kept).
+- look-undo (finding 30): a made wall's look changed while its new mesh is slow to come, with another piece deleted
+  in that wait: the look change is one undo step of its own (Ctrl+Z puts the old wall back and leaves the other
+  piece deleted, a second Ctrl+Z brings that back), and the wall keeps its flags and blasts in the new look."""
 import json
 import math
 import time
@@ -314,3 +317,48 @@ def check_draw_errors(browser, url, open_viewer, save_dialog):
     errors = [e for e in errors if 'no-such-texture' not in e]
     assert not errors, errors
     return dict(piece=lone['actor'], project=project['id'])
+
+
+# the server's made meshes held back a second and a half in this page (as a slow server would be)
+SLOW_MADE = """() => { const real = window.fetch;
+  window.fetch = (u, o) => ((u instanceof Request ? u.url : String(u)).includes('/generated/')
+    ? new Promise(done => setTimeout(done, 1500)).then(() => real(u, o)) : real(u, o)); }"""
+WALL_STANDS = """id => { const r = viewer.roots.get(id); return Boolean(r && !r.userData.deleted); }"""
+
+
+def check_look_undo(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    plain = dict(WALL, version=4)
+    plain.pop('breaksFurther')
+    wall, = page.evaluate(FIXTURE.replace('entry({ blasts, breaksFurther: true, flags: { walking: false } })', ''), [[plain], BLASTS, 384])[:1]
+    other = page.evaluate("id => [...viewer.roots.values()].find(r => !r.userData.source.added && r.visible && !r.userData.source.hidden "
+                          "&& r.userData.source.id !== id).userData.source.id", wall)
+    page.evaluate(SLOW_MADE)
+    # the look change starts (a look of one of this map's own walls, from the catalogue: a new mesh the server makes, on
+    # its way), and another piece is deleted meanwhile
+    page.evaluate("""async id => { const map = viewer.data.name, { looks } = await (await fetch('/looks/walls.json')).json();
+      const entry = looks.find(e => e.map.toLowerCase() === map.toLowerCase() && viewer.catalogued('wall', viewer.lookFromEntry('wall', e).donor));
+      window.lookDone = viewer.setMadeLook(id, 'wall', viewer.lookFromEntry('wall', entry)); }""", wall)
+    page.wait_for_timeout(200)
+    page.evaluate("id => { viewer.select(id); document.activeElement?.blur?.(); }", other)
+    page.keyboard.press('Delete')
+    assert page.evaluate('id => viewer.roots.get(id).userData.deleted', other)
+    assert page.evaluate(WALL_STANDS, wall), 'the old wall went before its new look was there'
+    page.evaluate('window.lookDone')
+    page.wait_for_function('id => !viewer.roots.get(id) || viewer.roots.get(id).userData.deleted', arg=wall, timeout=30000)
+    made = page.evaluate("""id => [...viewer.roots.values()].filter(r => !r.userData.deleted && r.userData.source.added?.generated?.kind === 'fracWall')
+      .map(r => ({ id: r.userData.source.id, generated: r.userData.source.added.generated, flags: r.userData.flags }))""", wall)
+    assert len(made) == 1 and made[0]['generated']['wall'].get('look', {}).get('mesh'), made
+    assert made[0]['generated']['blasts'] == plain['blasts'] and made[0]['flags'] == dict(cover=False), made
+    # one Ctrl+Z: the old wall back, the new one gone, the other piece still deleted; a second: that one back
+    page.evaluate('document.activeElement?.blur?.()')
+    page.keyboard.press('Control+z')
+    assert page.evaluate(WALL_STANDS, wall) and not page.evaluate(WALL_STANDS, made[0]['id'])
+    assert page.evaluate('id => viewer.roots.get(id).userData.deleted', other)
+    page.keyboard.press('Control+z')
+    assert not page.evaluate('id => viewer.roots.get(id).userData.deleted', other)
+    assert page.evaluate(WALL_STANDS, wall)
+    page.close()
+    assert not errors, errors
+    return dict(wall=wall, look=made[0]['generated']['kind'])

@@ -5234,6 +5234,9 @@ def main():
                 assert args.projects, 'the draw-errors check saves a project: give --projects, on a test server'
                 from browser_editing import check_draw_errors
                 print(json.dumps(dict(drawErrors=check_draw_errors(browser, page.url, open_viewer, save_dialog))))
+            if 'look-undo' in only:
+                from browser_editing import check_look_undo
+                print(json.dumps(dict(lookUndo=check_look_undo(browser, page.url, open_viewer))))
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))
