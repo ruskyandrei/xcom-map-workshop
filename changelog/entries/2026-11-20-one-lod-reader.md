@@ -35,4 +35,9 @@ component, no install needed ([test_native_fields.py](../../tools/upk/tests/test
 it in both licensee branches (EW's swaps and meshes, UDK's end after the LOD array; a texture lightmap and a vertex
 one with its inline payloads) through the reader and the three that take from it, and refuses each broken layout in
 each of them. The upk tests of native_fields (15) and audit_lighting (4, the UDK example map's licensee-0 records
-among them); the bake tests of the lighting fixture (18), shadow maps (8) and inline lighting (5).
+among them); the bake tests of the lighting fixture (18), shadow maps (8) and inline lighting (5). At the end: the
+bake suite (694 tests, 1 skipped: XCOM_TRANSPLANT_RING; 496 s with other work running), the upk suite (175, 7
+skipped: the install-wide checks, run on their own with `--install` (175, 3 skipped), and no private reference
+writer), the repo suite (38); the ten Builds (`build_outputs.py`) the same as on the stage's base; two real baked
+Builds, the relight run, of the Bar's pieces and of its made pieces the same as on the base, every relit image
+texel for texel (102 / 109 s and 144 / 158 s, after / before, other work running).
