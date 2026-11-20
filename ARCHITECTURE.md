@@ -58,7 +58,9 @@ the compiler makes for itself:
 - [`effect_edits.py`](tools/editor/effect_edits.py) (`EffectEdits`): the map's effects, ambient sounds and lens flares;
 - [`light_edits.py`](tools/editor/light_edits.py) (`LightEdits`): the map's placed lights, and the area lights its
   glowing pieces take along;
-- [`flag_edits.py`](tools/editor/flag_edits.py) (`FlagEdits`): pieces' flags (walking, cover, sight, floor, mouse).
+- [`flag_edits.py`](tools/editor/flag_edits.py) (`FlagEdits`): pieces' flags (walking, cover, sight, floor, mouse);
+- [`made_edits.py`](tools/editor/made_edits.py) (`MadeEdits`): walls, floors, roofs and ground shapes made from
+  numbers, cut into pieces where they are too large, and the blasts that break a fracturing piece.
 
 The tables and helpers that the compiler and its families share (`FAMILIES`, `short`, `tidy` and the others its
 `__all__` names) are in [`compiler_tables.py`](tools/editor/compiler_tables.py). The compiler takes them all with
@@ -258,7 +260,7 @@ Listed on 20 November 2026:
 | --- | --- | --- |
 | `tools/viewer/web/app.js` | 12,767 | The page's entry. Every area of the page was added to it before the page had modules. |
 | `tools/viewer/tests/browser_smoke.py` | 5,856 | Every browser check and its table in one file. Not shipped. |
-| `tools/editor/compiler.py` | 4,442 | The compiler, and all its edit families but four with their own tables. |
+| `tools/editor/compiler.py` | 3,713 | The compiler, and all its edit families but five with their own tables. |
 | `tools/editor/tests/test_compiler.py` | 3,263 | The compiler's tests, grown with it. Not shipped. |
 | `tools/bake/native_copy.py` | 3,177 | The copy tool: every lane's joining and several lanes' own code. |
 | `tools/bake/relight.py` | 2,045 | The relight, its scenes and its piece cache. |
@@ -326,9 +328,9 @@ harmless). New code calls `paths.use()` at the top of its module, as section 3 s
 ### Compiler families
 
 A module listed under `compiler families` does not import the compiler. It lists the families in modules of their own
-(section 1), `spawn_edits.py`, `effect_edits.py`, `light_edits.py` and `flag_edits.py`, each of which takes the tables
-and helpers it shares with the compiler from `compiler_tables.py`. A family moved out of the `Compiler` class is listed
-in the commit that moves it.
+(section 1), `spawn_edits.py`, `effect_edits.py`, `light_edits.py`, `flag_edits.py` and `made_edits.py`, each of
+which takes the tables and helpers it shares with the compiler from `compiler_tables.py`. A family moved out of the
+`Compiler` class is listed in the commit that moves it.
 
 ### structure.json's form
 
