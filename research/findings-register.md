@@ -2027,8 +2027,11 @@ run's save with `tools/lab/save_tiles.py`).
   floor copy under something hanging lower than about 150 units over it stays without floor there. Whether F-47
   (a script copy of a floor inside EXP-08's block, 151 and then 188 units under its ceiling) was this too can't be
   told from its notes: its run 3b had 188 units and still no floor.
-- Not done: the editor doesn't warn of it. The saved tiles are in the export (`tactical`), so a floor copy's tiles
-  could be checked against the occupied tiles over them.
+- Warned in part (the compiler's HEADROOM, 150 units): a flat piece the project adds with another piece the project
+  adds hanging less than that over some of its tiles (`floor-headroom`), and a made slab standing less than that over
+  the map's own floor tiles (`slab-headroom`). Not warned: this finding's own case, a copy under one of the map's own
+  pieces (the duct here). The saved tiles are in the export (`tactical`), so a floor copy's tiles could be checked
+  against the map's occupied tiles over them.
 
 ## Starting a battle without a campaign (EXP-29)
 

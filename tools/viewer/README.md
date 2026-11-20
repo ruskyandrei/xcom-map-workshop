@@ -1283,8 +1283,10 @@ applied yet.
 
 ## Current limits
 
-Edits are drawn and saved as projects; there are no build or deploy controls yet, so nothing reaches the game. The patch resolver is experimental:
-it has not been verified against a fresh game run. Inherited patches are composed from their saved scene state;
+What the page draws and the server reads, not what the Build makes: the Build's and the game's limits are in the user
+guide and [GETTING-STARTED.md](../release/GETTING-STARTED.md)'s Known limits, and bugs known and not fixed in
+[KNOWN-BUGS.md](../../KNOWN-BUGS.md). The patch previews' resolver (`export --spec`) has not been checked against a
+game run. Inherited patches are composed from their saved scene state;
 scripted changes made by those patches at runtime are not evaluated.
 Unsupported operations/properties and missing sources are reported. Seeding, navigation, interactions, destruction
 and native runtime tile rebuilding are not simulated. Spawn snapping at rounding boundaries still needs runtime parity checks.
@@ -1297,12 +1299,13 @@ constant-colour approximation. Alien surface glow uses the packed texture's gree
 and intensity; its stripped cooked graph is approximated. Energy doors show a stationary tinted pattern. Layered
 vertex painting, packed normal/specular maps, animated emissive effects, reflections and specialised shaders still need work.
 Opaque materials with no colour texture to read draw a colour by kind or neutral grey (export 14; before it, a
-diagnostic pink). Burning trees show their unburnt texture. Decals, particles, sky shaders,
-instancing and LOD switching are not implemented. No claim of gameplay or performance parity is made.
+diagnostic pink). Burning trees show their unburnt texture. Particle effects are drawn as a likeness in the Effects
+view, not as the game's emitters run them. Decals, sky shaders, instancing and LOD switching are not implemented. No
+claim of gameplay or performance parity is made.
 
 All decoded game assets, scene manifests and screenshots belong in the external cache, never this repository.
 The importer does not modify game packages or configuration. Re-export after changing source data or importer logic;
-existing generations are retained. The cache is disposable; future editable projects will live separately.
+existing generations are retained. The cache is disposable; projects live in their own folder (the projects setting).
 The tile grid shows original saved surface data, not live movement range or a guarantee of reachability. Door states,
 mission gates and runtime rebuilds are not evaluated. Patch previews deliberately lay it flat instead.
 
