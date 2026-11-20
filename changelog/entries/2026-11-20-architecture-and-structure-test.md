@@ -37,7 +37,8 @@ The first guidance for the code written from here on (editor refactor, stage 0, 
     inside any factory is over 74 lines: a factory is a module made as a closure, which is the model the page's
     modules follow.
   - Four files that do not ship are listed as well: browser_smoke.py, test_compiler.py, test_build.py and
-    wall_measure.py.
+    wall_measure.py. browser_smoke.py's ceiling is its size once stage 0's `api-names` check and `--ports` were in
+    (5,880 lines).
 - [AGENTS.md](../../AGENTS.md) has a bullet: new code follows ARCHITECTURE.md, the checklist is read before a commit
   that adds a module or a format's reader, and a ceiling is lowered with its file and raised only with the user's
   word. [README.md](../../README.md)'s "This repository" links the document.

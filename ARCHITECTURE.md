@@ -292,8 +292,9 @@ No module the release ships imports a module of the lab, the research tools or t
 No function in what the release ships changes `sys.path` itself (a call of its `insert`, `append`, `extend`,
 `remove`, `pop` or `clear`, or an assignment to it), beyond those listed under `path changes`, each with its reason.
 Today they are `paths.use` itself, and `looks.measurer`, which puts its own folder on the path before it imports a
-look's measurer by name. `paths.use()` calls inside functions are allowed: a folder already on the path is left
-where it is.
+look's measurer by name. The test does not hold `paths.use()` calls: fourteen shipped ones are still inside
+functions, left from the review's import work (a folder already on the path is left where it is, so they are
+harmless). New code calls `paths.use()` at the top of its module, as section 3 says.
 
 ### Compiler families
 
