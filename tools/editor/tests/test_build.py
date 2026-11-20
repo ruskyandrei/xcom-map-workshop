@@ -314,6 +314,26 @@ class LightCounts(unittest.TestCase):
             self.assertIn(limitation, build.QUICK_LIGHTS)
 
 
+class ToolRunner(unittest.TestCase):
+    def test_a_tool_in_a_folder_the_code_page_lacks_runs_and_is_logged(self):
+        """Build._run starts each tool with UTF-8 for its output (procs.utf8_env): a builds folder under a Cyrillic user
+        name is printed, where a tool writing in the system's code page stopped at its first path. The test's own
+        environment is stripped of the variables first (the test runner sets one)."""
+        import os
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / 'Иван' / 'builds'
+            folder.mkdir(parents=True)
+            tool = folder / 'tool.py'
+            tool.write_text('import sys\nprint("work folder: " + sys.argv[1])\n', encoding='utf-8')
+            said = []
+            b = build.Build(folder / 'project.json', temp, folder, temp, None, echo=said.append)
+            bare = {k: v for k, v in os.environ.items() if k not in ('PYTHONUTF8', 'PYTHONIOENCODING')}
+            with mock.patch.dict(os.environ, bare, clear=True):
+                b._run([sys.executable, '-B', tool, folder / '.work'], folder / 'tool.log')
+            self.assertIn('    work folder: %s' % (folder / '.work'), said)
+            self.assertIn('work folder: %s' % (folder / '.work'), (folder / 'tool.log').read_text(encoding='utf-8'))
+
+
 class Builds(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

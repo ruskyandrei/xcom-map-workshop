@@ -31,6 +31,14 @@ class ContainError(OSError):
     pass
 
 
+def utf8_env(env=None):
+    """The environment for a child whose output is read through a pipe as UTF-8: `env` (default this process's) with
+    PYTHONUTF8 and PYTHONIOENCODING set, which every Python process below it inherits. Without them a piped Python
+    child writes in the system's ANSI code page, so a folder whose name that code page lacks (a Cyrillic or Chinese
+    user name under Documents, on a Western system) stops it at its first print of a path."""
+    return dict(os.environ if env is None else env, PYTHONUTF8='1', PYTHONIOENCODING='utf-8')
+
+
 if WINDOWS:
     import ctypes
     from ctypes import wintypes
@@ -335,7 +343,9 @@ class Contained:
 
 
 def launch(argv, **popen):
-    """Start argv as a contained tree (see the module notes): a Contained. Popen's own arguments pass through."""
+    """Start argv as a contained tree (see the module notes): a Contained. Popen's own arguments pass through; its
+    environment (`env`, default this process's) gets UTF-8 for Python's standard streams (utf8_env)."""
+    popen['env'] = utf8_env(popen.get('env'))
     if not WINDOWS:
         proc = subprocess.Popen(argv, start_new_session=True, **popen)
         return Contained(proc)

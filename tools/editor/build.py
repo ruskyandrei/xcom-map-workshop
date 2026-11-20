@@ -126,6 +126,7 @@ import maplist  # noqa: E402
 import missions as mission_kinds  # noqa: E402
 import outputnames  # noqa: E402
 import pictures  # noqa: E402
+import procs  # noqa: E402
 import publication  # noqa: E402
 import spawnrules  # noqa: E402
 import spawns  # noqa: E402
@@ -669,11 +670,13 @@ class Build:
         self.has_lights, self.lights, self.unchanged = False, None, False
 
     def _run(self, args, log):
-        """Run a tool, its output to the log file and the console; raise on a failure."""
+        """Run a tool, its output to the log file and the console; raise on a failure. The tool writes its output in
+        UTF-8 (procs.utf8_env), so a path whose characters the system's code page lacks is printed, not fatal."""
         self.echo('  $ %s' % subprocess.list2cmdline([str(a) for a in args]))
         with open(log, 'w', encoding='utf-8', newline='\n') as f:
             proc = subprocess.Popen([str(a) for a in args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                    text=True, encoding='utf-8', errors='replace', cwd=str(TOOLS.parent))
+                                    text=True, encoding='utf-8', errors='replace', cwd=str(TOOLS.parent),
+                                    env=procs.utf8_env())
             for line in proc.stdout:
                 f.write(line)
                 self.echo('    ' + line.rstrip())
