@@ -97,12 +97,24 @@ export function setRecoveryTrouble(next) { recoveryTrouble = next; }
 // mission picker).
 export let askedPick = null;
 export function setAskedPick(next) { askedPick = next; }
-// The open project's Build (app.js's Build window): lastBuild, its last build status as the server gave it, with the
-// project's id (app.js's setLastBuild takes one for the open project only: review finding 10); buildTimer, the next
-// ask for a running build's status.
+// The open project's Build (build_play.js's Build window): lastBuild, its last build status as the server gave it, with
+// the project's id (build_play.js's setLastBuild takes one for the open project only: review finding 10); buildTimer,
+// the next ask for a running build's status.
 export let lastBuild = null, buildTimer = null;
 export function setLastBuildValue(next) { lastBuild = next; }
 export function setBuildTimer(next) { buildTimer = next; }
+// Play in game (build_play.js) and what it goes by:
+// - playStatus: the play status as the server last gave it (/play.json, or a play's answer: the install plays go to,
+//   how the game is started, the squad, each mission kind's line), null until asked; the Missions panel reads its
+//   kinds too;
+// - pickedZone: the landing zone picked in the Landing zones view, by id, or null (app.js's pickZone); Land here plays
+//   the project landing there;
+// - missionPickValue: the header's Mission picker's value (app.js's chooseMission), a record's index ('0', '1', ...) or
+//   'kind:<kind>' for a kind the project adds (mission types plan, D2); a play is of that mission unless one is chosen.
+export let playStatus = null, pickedZone = null, missionPickValue = '0';
+export function setPlayStatus(next) { playStatus = next; }
+export function setPickedZone(next) { pickedZone = next; }
+export function setMissionPickValue(next) { missionPickValue = next; }
 // The serial the last copy's name took (`<actor>_copy<n>`): output names already used, applied or not, are never
 // handed out again (a project saves it as nextSerial). nextCopySerial() takes the next one.
 export let copySerial = 0;
