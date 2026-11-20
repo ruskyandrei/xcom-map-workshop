@@ -123,6 +123,7 @@ TOOLS = HERE.parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(TOOLS / 'viewer'))
 sys.path.insert(0, str(TOOLS / 'upk'))
+import builds as build_runs  # noqa: E402
 import compiler  # noqa: E402
 import decomp  # noqa: E402
 import installs  # noqa: E402
@@ -176,7 +177,6 @@ STREAM_COPY = TOOLS / 'bake' / 'stream_copy.py'
 INTROS = ('CIN_DropshipIntros', 'CIN_FastropeIntros', 'CIN_TP05A_EnteringAlienBase')
 LANDINGS = ('CIN_DropshipIntros', 'CIN_FastropeIntros')   # the Skyranger's landings among them (the README's words)
 RADIUS = 1024.0
-KEEP_WORK = 3       # a variant's newest work folders kept whole (prune_work)
 LOG_TAIL = 40       # the lines of a failing tool's log read for the pieces it names (Build.untried_named)
 EOL = '\r\n'
 
@@ -1626,32 +1626,21 @@ class Build:
         return m
 
     def prune_work(self):
-        """Old work folders out of the builds folder (faster-bake plan, 6.1): each build leaves 60 to 150 MB there
-        (the grown map, the lit map, the arrays, the previews), and nothing else removes them. Of every variant, the
-        KEEP_WORK newest stay whole (a bug report reads the newest: builds.py); older ones keep their logs and their
-        small records. Folders that are not a build's (patchtool's, the kept pieces) are left."""
-        root = self.output / '.work'
-        builds = {}
-        for folder in root.iterdir() if root.is_dir() else ():
-            # <Variant>-<date>-<time>, and since 16 November 2026 the server's builds' -<attempt> after it
-            m = re.fullmatch(r'([A-Za-z][A-Za-z0-9_]*)-(\d{8}-\d{6})(?:-[0-9a-f]{8})?', folder.name)
-            if m and folder.is_dir():
-                builds.setdefault(m.group(1), []).append((m.group(2), folder.name, folder))
-        freed = 0
-        for folders in builds.values():
-            for _, _, old in sorted(folders)[:-KEEP_WORK]:
-                for child in list(old.iterdir()):
-                    try:
-                        if child.is_dir() and child.name != 'logs':
-                            freed += sum(f.stat().st_size for f in child.rglob('*') if f.is_file())
-                            shutil.rmtree(child)
-                        elif child.is_file() and child.stat().st_size > 1 << 20:
-                            freed += child.stat().st_size
-                            child.unlink()
-                    except OSError:
-                        pass        # a file held open: the next build's prune takes it
-        if freed:
-            self.echo('old build work folders pruned: %.0f MB freed' % (freed / 2 ** 20))
+        """Old work out of the builds folder after every build, built or failed (builds.prune_work; faster-bake plan
+        6.1, review finding 49): of every variant the KEEP_WORK newest work folders stay whole (a bug report reads the
+        newest) and older ones keep their logs and small records; kept pieces unused for PIECE_DAYS are deleted. This
+        build's own work folder and kept pieces are left. Variants no project ships as are left to the server's prune
+        as it starts (BuildRunner.prune), which knows the projects of its builds folder."""
+        variant = getattr(self, 'variant', None)
+        spare = [getattr(self, 'work', None), self.output / '.work' / 'pieces' / variant if variant else None]
+        try:
+            result = build_runs.prune_work(self.output, spare=spare)
+        except Exception as error:      # never the build's own outcome
+            self.echo('old build work was not pruned (%s)' % error)
+            return
+        if result['freed']:
+            self.echo('old build work pruned: %.0f MB freed (%d work folders, %d sets of kept pieces)'
+                      % (result['freed'] / 2 ** 20, result['folders'], result['pieces']))
 
     def run(self):
         try:
@@ -1671,10 +1660,10 @@ class Build:
                     if not self.drop_untried(error):
                         raise
             m = self.package()
-            self.prune_work()
         finally:
             if getattr(self, 'unpacked_work', None):
                 shutil.rmtree(self.unpacked_work, ignore_errors=True)
+            self.prune_work()
         self.echo('built %s: %s (%s)' % (m['buildId'], self.folder, ', '.join('%s %s' % (Path(f).name, h[:12]) for f, h in m['files'].items())))
         return m
 

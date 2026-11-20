@@ -1608,6 +1608,40 @@ class Builds(unittest.TestCase):
         self.assertTrue(other.is_dir())
         self.assertTrue((work / 'pieces' / VARIANT / 'kept.npz').is_file())
 
+    def test_a_failed_build_prunes_old_work_too(self):
+        """(review findings 49 and 62) The prune runs after a failed build as after a built one: its own work folder
+        and kept pieces stay as they are, however old, and kept pieces no build has used for PIECE_DAYS go. A
+        variant no project ships as is left whole: the build knows one projects folder (the server prunes those)."""
+        import os
+        import time
+        import builds as build_runs
+        work = self.output / '.work'
+        for stamp in ('20261101-100000', '20261102-100000', '20261103-100000'):
+            old = work / ('%s-%s' % (VARIANT, stamp))
+            (old / 'lit').mkdir(parents=True)
+            (old / 'lit' / 'URB_Bar.upk').write_bytes(b'x' * 10)
+            (old / 'logs').mkdir()
+        unowned = work / 'Nobodys_Variant-20261001-100000' / 'lit'
+        unowned.mkdir(parents=True)
+        long_ago = time.time() - (build_runs.PIECE_DAYS + 1) * 86400
+        stale, own = work / 'pieces' / 'Other_Variant', work / 'pieces' / VARIANT
+        for kept in (stale, own):
+            kept.mkdir(parents=True)
+            (kept / 'piece.npz').write_bytes(b'kept')
+            os.utime(kept / 'piece.npz', (long_ago, long_ago))
+            os.utime(kept, (long_ago, long_ago))
+        self.failing = 'native_copy'
+        with self.assertRaises(build.BuildError):
+            self.make('110000').run()
+        self.assertEqual([f.name for f in (work / ('%s-20261101-100000' % VARIANT)).iterdir()], ['logs'])
+        self.assertTrue((work / ('%s-20261102-100000' % VARIANT) / 'lit' / 'URB_Bar.upk').is_file())
+        failed, = (f for f in work.glob('%s-20261107-110000*' % VARIANT))
+        self.assertTrue((failed / 'logs').is_dir())
+        self.assertFalse(stale.exists())
+        self.assertTrue((own / 'piece.npz').is_file())
+        self.assertTrue(unowned.is_dir())
+        self.assertTrue(any('old build work pruned' in line for line in self.said))
+
     def test_a_failed_build_leaves_the_last_good_package(self):
         first = self.make('110000').run()
         self.failing = 'native_copy'

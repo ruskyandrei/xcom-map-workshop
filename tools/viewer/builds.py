@@ -41,6 +41,12 @@ file, --projects its folder), so a save, a rename or a new picture after the cap
 and the job (`digest`, `picture`), the manifest (project.sha256, picture.sha256) and a bug report (the snapshot itself)
 name the same bytes. The build queue prunes the folder (buildqueue.py, ATTEMPT_DAYS).
 
+What builds leave in <builds>/.work is pruned (`prune_work`; review finding 49) by build.py after every build, built
+or failed, and by the server as it starts (`BuildRunner.prune`, beside recover), which also knows the variants the
+projects ship as: every variant keeps its KEEP_WORK newest work folders whole and older ones keep their logs and small
+records; a variant no project ships as keeps none whole once its last build is ORPHAN_DAYS old; kept pieces unused for
+PIECE_DAYS go (ORPHAN_DAYS for a variant none ships as).
+
 The one build slot is shared: the editor's Build, Play in game's build, prefab tests and the build queue. The queue
 reserves it while it runs (reserve/release), so no other build starts between its projects; a build already running
 finishes first. Readers of packages (Install in the game, the map pack, Play in game) take leases (lease): a project
@@ -59,6 +65,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from uuid import uuid4
 import zipfile
 
@@ -77,6 +84,13 @@ KEEP = 400
 DRAIN_GRACE = 15.0          # seconds a finished build.py's leftover processes get before they are killed
 DRAIN_LIMIT = 90.0          # seconds after which processes that won't end leave the slot busy (a writer of unknown state)
 REPORT_FILE_MAX = 32 << 20  # a bug report's zip leaves out a file larger than this (and says so)
+# what builds leave in <builds>/.work (prune_work)
+KEEP_WORK = 3               # of every variant's work folders (<Variant>-<stamp>), the newest kept whole
+ORPHAN_DAYS = 14            # a variant no project ships as keeps none whole, nor its kept pieces, once its last build is this old
+PIECE_DAYS = 30             # a variant's kept pieces (.work/pieces/<Variant>) are deleted once unused this long
+SMALL_FILE = 1 << 20        # an older work folder keeps its logs and its files up to this size (its records)
+WORK_FOLDER = re.compile(r'([A-Za-z][A-Za-z0-9_]*)-(\d{8}-\d{6})(?:-[0-9a-f]{8})?')   # and since 16 November the attempt's
+DAY = 86400.0
 
 
 def now():
@@ -134,6 +148,130 @@ def capture(projects, project_id, folder):
     return document, sha, path, snapshot, picture
 
 
+def owned_variants(root):
+    """The variants (output.shipAs, lower case) the project files in the folder `root` ship as, or None when the
+    folder or a file in it can't be read now (then no variant is taken for one that no project ships as). A file that
+    is not JSON is no project the editor builds."""
+    try:
+        paths = [p for p in Path(root).iterdir() if p.is_file() and p.suffix.lower() == '.json']
+    except (OSError, TypeError):
+        return None
+    owned = set()
+    for path in paths:
+        try:
+            document = json.loads(path.read_text(encoding='utf-8'))
+        except OSError:
+            return None
+        except ValueError:
+            continue
+        output = document.get('output') if isinstance(document, dict) else None
+        if isinstance(output, dict) and isinstance(output.get('shipAs'), str):
+            owned.add(output['shipAs'].lower())
+    return owned
+
+
+def _size(folder):
+    total = 0
+    for file in folder.rglob('*'):
+        try:
+            if file.is_file():
+                total += file.stat().st_size
+        except OSError:
+            pass
+    return total
+
+
+def _strip(folder):
+    """A work folder down to its logs and its small files (its records): the bytes freed."""
+    freed = 0
+    try:
+        children = list(folder.iterdir())
+    except OSError:
+        return 0
+    for child in children:
+        try:
+            if child.is_dir() and child.name != 'logs':
+                size = _size(child)
+                shutil.rmtree(child)
+                freed += size
+            elif child.is_file() and child.stat().st_size > SMALL_FILE:
+                size = child.stat().st_size
+                child.unlink()
+                freed += size
+        except OSError:
+            pass        # a file held open: a later prune takes it
+    return freed
+
+
+def _made(stamp, folder):
+    """When a work folder's build started: its name's stamp (local time), else the folder's own time."""
+    try:
+        return datetime.datetime.strptime(stamp, '%Y%m%d-%H%M%S').timestamp()
+    except ValueError:
+        try:
+            return folder.stat().st_mtime
+        except OSError:
+            return 0.0
+
+
+def prune_work(output, owned=None, keep=KEEP_WORK, spare=(), now=None):
+    """What builds leave in <output>/.work pruned (faster-bake plan 6.1; review finding 49), by build.py after every
+    build, built or failed, and by the server as it starts (BuildRunner.prune). Each build leaves 60 to 150 MB of work
+    (the grown map, the lit map, the arrays, the previews). Of every variant the `keep` newest work folders stay whole
+    (a bug report reads the newest: BuildRunner.report); older ones keep their logs and small records (_strip).
+    `owned`: the variants the projects ship as (owned_variants), or None when that is not known; a variant none ships
+    as keeps no work folder whole once its last build is ORPHAN_DAYS old. A variant's kept pieces (relight.py
+    PieceCache, one build's worth) are deleted once neither they nor the variant's work folders have changed for
+    PIECE_DAYS, or ORPHAN_DAYS for a variant none ships as. `spare`: folders left as they are (a running build's own).
+    The rest of .work (patchtool's, the publish journals, the snapshots, which buildqueue.py prunes) is left.
+    Returns dict(freed=bytes, folders=work folders pruned, pieces=kept piece sets deleted)."""
+    root = Path(output) / '.work'
+    now = time.time() if now is None else now
+    owned = None if owned is None else {v.lower() for v in owned}
+    spared = {os.path.normcase(os.path.abspath(p)) for p in spare if p}
+
+    def listed(folder):
+        try:
+            return [p for p in folder.iterdir() if p.is_dir()]
+        except OSError:
+            return []
+
+    def left(folder):
+        return os.path.normcase(os.path.abspath(folder)) in spared
+    variants = {}
+    for folder in listed(root):
+        m = WORK_FOLDER.fullmatch(folder.name)
+        if m:
+            variants.setdefault(m.group(1).lower(), []).append((m.group(2), folder.name, folder))
+    freed = folders = pieces = 0
+    last = {}           # variant -> when its newest build started
+    for variant, found in variants.items():
+        found.sort(key=lambda f: f[:2])
+        last[variant] = _made(found[-1][0], found[-1][2])
+        orphan = owned is not None and variant not in owned and last[variant] < now - ORPHAN_DAYS * DAY
+        whole = 0 if orphan else max(keep, 0)
+        for _, _, old in found[:len(found) - whole]:
+            got = 0 if left(old) else _strip(old)
+            freed += got
+            folders += bool(got)
+    for cache in listed(root / 'pieces'):
+        if left(cache):
+            continue
+        variant = cache.name.lower()
+        try:
+            used = max([cache.stat().st_mtime] + [f.stat().st_mtime for f in cache.iterdir()])
+        except OSError:
+            continue
+        days = ORPHAN_DAYS if owned is not None and variant not in owned else PIECE_DAYS
+        if max(used, last.get(variant, 0.0)) < now - days * DAY:
+            size = _size(cache)
+            shutil.rmtree(cache, ignore_errors=True)
+            if not cache.exists():
+                freed += size
+                pieces += 1
+    return dict(freed=freed, folders=folders, pieces=pieces)
+
+
 def slot_busy(message, **extra):
     """The structured answer when the build slot is taken (the only refusal the build queue waits on)."""
     return ProjectError(409, message, code='build-slot', **extra)
@@ -173,6 +311,7 @@ class BuildRunner:
         self.blocked = {}           # variant (lower case) -> why its output waits (an unsettled journal)
         self.listeners = []         # called (no arguments, outside the lock) when the slot may have freed
         self.queue = None           # the build queue (buildqueue.py), when the server has one
+        self.pruner = None          # the thread pruning the builds folder's old work as the server starts (prune)
 
     # ------------------------------------------------------------------ starting
 
@@ -557,6 +696,27 @@ class BuildRunner:
             else:
                 path.unlink(missing_ok=True)
         self.reconcile()
+        # the builds folder's old work pruned beside the start (the first prune of a folder may free gigabytes)
+        self.pruner = threading.Thread(target=self.prune, daemon=True, name='build-work-prune')
+        self.pruner.start()
+
+    def prune(self):
+        """The builds folder's old work pruned (prune_work), with the variants the projects ship as known, so a
+        variant no project ships as is pruned too: as the server starts (recover). The result, or None when it failed
+        (never the server's start)."""
+        try:
+            result = prune_work(self.output, owned=owned_variants(getattr(self.projects, 'root', None)))
+        except Exception as error:
+            result, said = None, f'The builds folder\'s old work could not be pruned: {error}'
+        else:
+            said = (f'Old build work pruned: {result["freed"] / 2 ** 20:.0f} MB freed ({result["folders"]} work '
+                    f'folders, {result["pieces"]} sets of kept pieces).') if result['freed'] else None
+        if said:
+            try:
+                print(said, flush=True)
+            except (OSError, ValueError):       # an output that can't take it: the prune is done all the same
+                pass
+        return result
 
     @staticmethod
     def _still(pid, created, record):

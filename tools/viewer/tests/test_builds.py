@@ -499,6 +499,81 @@ class Builds(unittest.TestCase):
         runner.recover()
         self.assertIn('can\'t be read', runner.busy()[1])
 
+    def work_folder(self, name):
+        """A build's work folder in the builds folder, as build.py leaves one: heavy work, logs and small records."""
+        folder = self.output / '.work' / name
+        (folder / 'lit').mkdir(parents=True)
+        (folder / 'lit' / 'URB_Bar.upk').write_bytes(b'x' * 10)
+        (folder / 'logs').mkdir()
+        (folder / 'logs' / 'build.log').write_text('log')
+        (folder / 'compile-report.json').write_text('{}')
+        (folder / 'arrays.bin').write_bytes(bytes(builds_module.SMALL_FILE + 1))
+        return folder
+
+    def kept_pieces(self, variant, days):
+        """A variant's kept pieces (relight.py PieceCache), last written `days` ago."""
+        folder = self.output / '.work' / 'pieces' / variant
+        folder.mkdir(parents=True)
+        (folder / 'piece.npz').write_bytes(b'kept')
+        then = time.time() - days * builds_module.DAY
+        os.utime(folder / 'piece.npz', (then, then))
+        os.utime(folder, (then, then))
+        return folder
+
+    def test_old_work_is_pruned_as_the_server_starts(self):
+        """(review findings 49 and 62) As the server starts (recover), the builds folder's old work is pruned beside
+        it: a variant a project ships as keeps its three newest work folders whole and older ones keep their logs and
+        small records; a variant no project ships as keeps none whole once its last build is ORPHAN_DAYS old (one
+        built since is left); kept pieces unused for PIECE_DAYS go (ORPHAN_DAYS for a variant none ships as), those
+        of a variant built since stay; the rest of the work folder is left."""
+        import datetime
+        today = datetime.datetime.now()
+
+        def stamp(days):
+            return (today - datetime.timedelta(days=days)).strftime('%Y%m%d-%H%M%S')
+        owned = [self.work_folder('URB_Bar_Remix_0f8b-%s' % stamp(days)) for days in (40, 30, 20, 10)]
+        gone = [self.work_folder('Deleted_Project-%s-0123abcd' % stamp(days)) for days in (20, 15)]
+        recent = self.work_folder('Saved_Elsewhere-%s' % stamp(1))
+        (self.output / '.work' / 'patchtool').mkdir()
+        (self.output / '.work' / 'patchtool' / 'cooked.bin').write_bytes(bytes(builds_module.SMALL_FILE + 1))
+        late = builds_module.PIECE_DAYS + 1
+        unused = self.kept_pieces('URB_Bar_Other_1a2b', late)
+        built_since = self.kept_pieces('URB_Bar_Remix_0f8b', late)
+        gone_pieces = self.kept_pieces('Deleted_Project', builds_module.ORPHAN_DAYS + 1)
+        recent_pieces = self.kept_pieces('Saved_Elsewhere', builds_module.ORPHAN_DAYS + 1)
+        runner = BuildRunner(self.store, Path(self.temp.name) / 'cache', self.output, command=self.runner.command)
+        with mock.patch('builtins.print') as said:
+            runner.recover()
+            runner.pruner.join(30)
+        stripped = ['compile-report.json', 'logs']
+        self.assertEqual(sorted(f.name for f in owned[0].iterdir()), stripped)
+        self.assertTrue((owned[0] / 'logs' / 'build.log').is_file())
+        for folder in owned[1:]:
+            self.assertTrue((folder / 'lit' / 'URB_Bar.upk').is_file() and (folder / 'arrays.bin').is_file())
+        for folder in gone:
+            self.assertEqual(sorted(f.name for f in folder.iterdir()), stripped)
+        self.assertTrue((recent / 'arrays.bin').is_file())
+        self.assertTrue((self.output / '.work' / 'patchtool' / 'cooked.bin').is_file())
+        self.assertEqual([p.exists() for p in (unused, built_since, gone_pieces, recent_pieces)], [False, True, False, True])
+        self.assertIn('3 work folders, 2 sets of kept pieces', said.call_args[0][0])
+        self.assertEqual(runner.prune(), dict(freed=0, folders=0, pieces=0))     # nothing more to do
+
+    def test_pruning_spares_a_running_builds_work_and_needs_the_projects_for_a_variant_none_ships_as(self):
+        """(review finding 49) prune_work leaves the folders it is told to spare; with no projects known (build.py's
+        own prune) a variant alone keeps its newest; an unreadable projects folder is no projects known."""
+        import datetime
+        old = (datetime.datetime.now() - datetime.timedelta(days=builds_module.ORPHAN_DAYS + 5)).strftime('%Y%m%d-%H%M%S')
+        folder = self.work_folder('Nobodys_Variant-%s' % old)
+        self.assertEqual(builds_module.prune_work(self.output)['folders'], 0)
+        self.assertEqual(builds_module.prune_work(self.output, owned=set(), spare=[folder])['folders'], 0)
+        self.assertTrue((folder / 'arrays.bin').is_file())
+        self.assertEqual(builds_module.prune_work(self.output, owned=set())['folders'], 1)
+        self.assertEqual(sorted(f.name for f in folder.iterdir()), ['compile-report.json', 'logs'])
+        self.assertEqual(builds_module.owned_variants(self.store.root), {'urb_bar_remix_0f8b', 'urb_bar_other_1a2b'})
+        self.assertIsNone(builds_module.owned_variants(Path(self.temp.name) / 'no projects here'))
+        (self.store.root / 'not a project.json').write_text('{', encoding='utf-8')
+        self.assertEqual(len(builds_module.owned_variants(self.store.root)), 2)
+
     def test_a_journal_that_cannot_be_settled_blocks_that_projects_builds(self):
         folder = publication.journals(self.output)
         folder.mkdir(parents=True)
