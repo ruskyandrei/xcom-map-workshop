@@ -229,3 +229,38 @@ export function setHandleDefs(next) { handleDefs = next; }
 export function setLightDrag(next) { lightDrag = next; }
 export function setReachKey(next) { reachKey = next; }
 export function setReachNow(next) { reachNow = next; }
+
+// What other areas read or set of the Effects view (effects_wiring.js; app.js's selection, edit hub, keys, pointer
+// handlers, draw loop and test hooks):
+// - effectsDirty: what is drawn is to be worked out again (refreshEffects) before it is next read; effectMarkers: the
+//   markers drawn now, the roots' and the copies a piece's copy carries;
+// - normalEffects: the Normal button's Effects switch, which draws and picks them with pieces in the normal view;
+// - wavePlayer: the Wave preview's player, { audio, wave, record (its id), state: loading, playing or failed, why }, or
+//   null (setWavePlayer gives back what it set: playWave names it in the same statement);
+// - likenessOn: View options' Effects as they look (read from the browser's storage as the page loads); likenessThin,
+//   likenessCount: how far the likenesses' particles are thinned to the view's budget, and how many there are.
+export let effectsDirty = true, effectMarkers = [], normalEffects = false, wavePlayer = null;
+export function setEffectsDirty(next) { effectsDirty = next; }
+export function setEffectMarkers(next) { effectMarkers = next; }
+export function setNormalEffectsValue(next) { normalEffects = next; }
+export function setWavePlayer(next) { wavePlayer = next; return next; }
+export let likenessOn = true, likenessThin = 1, likenessCount = 0;
+export function setLikenessOn(next) { likenessOn = next; }
+export function setLikenessThin(next) { likenessThin = next; }
+export function setLikenessCount(next) { likenessCount = next; }
+// Groups' pieces on the map now (app.js's liveMembers makes it; whatever adds or takes away roots drops it): member
+// key -> its roots, or null.
+export let liveCache = null;
+export function setLiveCache(next) { liveCache = next; }
+// Box select's pieces' middles while its box is up (app.js's pickCandidates), or null: worked out again when what is
+// drawn changes.
+export let pickCentres = null;
+export function setPickCentres(next) { pickCentres = next; }
+// The picked spawn marker's key (spawns_view.js spawnKey; app.js's setPickedSpawn sets it and draws), or null.
+export let pickedSpawn = null;
+export function setPickedSpawnValue(next) { pickedSpawn = next; }
+// The last pointer position over the view, for paste and the tips under the pointer, or null; tipDirty: a tip is to be
+// worked out again.
+export let pointer = null, tipDirty = false;
+export function setPointer(next) { pointer = next; }
+export function setTipDirty(next) { tipDirty = next; }
