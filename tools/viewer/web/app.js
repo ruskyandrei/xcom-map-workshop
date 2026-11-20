@@ -38,7 +38,7 @@ import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from '.
 import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
-import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
+import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, recordOf, stateOf, stateOfRoot } from './piece_records.js';
 import { activeMapId, allRoots, builderMode, buildings, buildingsVersion, cleared, clearKeepsOutside, data, effectIndex, effectRoots,
          groupIndex, groups, landingZones, lightIndex, lightRoots, prefabParameter, project, projectMissions, projectPicture,
          projectSpawnRules, roots, selected, setActiveMapId, setBuildingsValue, setBuildingsVersion, setCleared,
@@ -3882,13 +3882,12 @@ function lightState(overrides, added) {
   for (const root of lightRoots.values()) {
     const o = root.userData.source;
     if (o.added) {
+      // (a recipe light with all its values; a copy of a map's light with those changed from its original's)
       const pose = lightPose(root);
-      if (o.added.template) added.set(o.actor, { id: o.added.entity, actor: o.actor, template: { ...o.added.template }, ...pose, light: { ...root.userData.values } });
-      else {
-        const light = changedValues(root.userData.values, o.added.templateValues);
-        added.set(o.actor, { id: o.added.entity, actor: o.actor, from: o.added.from, components: [o.added.component], ...pose,
-                             ...(Object.keys(light).length ? { light } : {}) });
-      }
+      if (o.added.template) added.set(o.actor, recordOf({ form: 'light', id: o.added.entity, actor: o.actor, template: { ...o.added.template }, ...pose,
+                                                         light: { ...root.userData.values } }));
+      else added.set(o.actor, recordOf({ form: 'light', id: o.added.entity, actor: o.actor, from: o.added.from, component: o.added.component, ...pose,
+                                         light: changedValues(root.userData.values, o.added.templateValues) }));
       continue;
     }
     if (isStream(o) || lightViewOnly(o)) continue;
@@ -4459,25 +4458,26 @@ function editState() {
   return eventMemo.state ??= editStateNow();
 }
 function editStateNow() {
+  // (`added`: each added thing's unit while its roots are read, made its record after: piece_records.js recordOf)
   const overrides = new Map(), added = new Map();
   for (const root of roots.values()) {
     const o = root.userData.source;
     if (o.added && o.cover) {      // a cover block: its recipe (a version that makes its type), size and cover, at its corner
-      added.set(o.actor, { id: o.added.entity, actor: o.actor,
-                           template: { ...o.added.template, version: coverVersion(o.added.template.version, o.cover.type) }, cover: { ...o.cover },
+      added.set(o.actor, { form: 'cover', id: o.added.entity, actor: o.actor,
+                           template: { ...o.added.template, version: coverVersion(o.added.template.version, o.cover.type) }, cover: o.cover,
                            ...actorPose(o, root.matrix) });
     } else if (o.added) {
-      let entity = added.get(o.actor);
-      if (!entity) {
-        // (its tint, made numbers, flags and a broken copy's blasts: piece_records.js)
-        entity = { id: o.added.entity, actor: o.actor, from: o.added.from, components: [], ...actorPose(o, root.matrix),
-                   prefab: o.prefab ?? null, partner: o.partner ?? null, ...recordFields(stateOfRoot(root.userData)) };
-        if (builderMode && builder.metadata.get(o.actor)?.recipe) entity.recipe = builder.metadata.get(o.actor).recipe;
+      let unit = added.get(o.actor);
+      if (!unit) {
+        // (its tint, made numbers, flags and a broken copy's blasts: its state)
+        unit = { id: o.added.entity, actor: o.actor, from: o.added.from, components: [], ...actorPose(o, root.matrix),
+                 prefab: o.prefab, partner: o.partner, state: stateOfRoot(root.userData) };
+        if (builderMode && builder.metadata.get(o.actor)?.recipe) unit.recipe = builder.metadata.get(o.actor).recipe;
         else if (builderMode && !builder.metadata.has(o.actor) && o.foreign?.key)
-          entity.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
-        added.set(o.actor, entity);
+          unit.recipe = { key: o.foreign.key, name: library?.entry(o.foreign.key)?.name ?? short(data.meshes[o.mesh].name) };
+        added.set(o.actor, unit);
       }
-      entity.components.push(o.component);
+      unit.components.push(o.component);
     } else if ((root.userData.deleted || root.userData.edit || root.userData.flags || root.userData.blasts?.length) && !overrides.has(sourceKey(o))) {
       // (flags or blasts alone: an override with no pose, the piece where the map has it; a deleted piece has neither)
       const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
@@ -4487,7 +4487,7 @@ function editStateNow() {
             ...(root.userData.blasts?.length && root.userData.breaksFurther ? { breaksFurther: true } : {}) });
     }
   }
-  for (const entity of added.values()) entity.components?.sort();
+  for (const [actor, unit] of added) added.set(actor, recordOf(unit));
   const areaLightBindings = lightState(overrides, added);
   effectState(overrides, added);
   // A group keeps the pieces still on the map and the groups inside it; one left with fewer than two members isn't
@@ -8278,8 +8278,8 @@ function effectState(overrides, added) {
     if (isStream(o)) continue;
     const values = savedValues(root.userData.values);
     if (o.added) {
-      added.set(o.actor, { id: o.added.entity, actor: o.actor, kind: o.added.kind, from: { ...o.added.from }, ...actorPose(o, root.matrix),
-                           ...(values ? { [o.added.kind]: values } : {}) });
+      added.set(o.actor, recordOf({ form: 'effect', id: o.added.entity, actor: o.actor, kind: o.added.kind, from: { ...o.added.from },
+                                    ...actorPose(o, root.matrix), values }));
       continue;
     }
     const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
