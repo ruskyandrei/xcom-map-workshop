@@ -1,5 +1,5 @@
 """The test squad: the one squad every Play in game lands with, its file, and the page's routes
-(private/plans/todo/test-squad-plan.md, sections 4 and 5.1).
+(the test squad plan, private/plans/done/test-squad-plan.md, sections 4 and 5.1).
 
 The squad is kept in test-squad.json beside the editor's settings (settings.settings_path(): normally
 Documents\\XCOM Map Workshop), so a redirected Documents folder or the settings override (tests) moves it too. Its

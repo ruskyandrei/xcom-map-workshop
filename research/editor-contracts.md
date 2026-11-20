@@ -349,8 +349,8 @@ the editor and compiler use that source's authored floor entries, including cutd
 Matching works with existing prefabs and allows the overlapping boxes found in buildings such as the Farm scout.
 Independently edited pieces and floor layouts use the spatial membership rule.
 
-The size a map can hold is **128 by 128 tiles (96 units each), z −192 through 2,112**, with **0.5 unit** boundary
-tolerance (prefab plan 5.6b; 30 levels since 14 November 2026, 18 before). Height 0 is the builder's drawn grid; the
+The size a map can hold is **256 by 256 tiles (96 units each; 128 before 16 November 2026), z −192 through 2,112**,
+with **0.5 unit** boundary tolerance (prefab plan 5.6b; 30 levels since 14 November 2026, 18 before). Height 0 is the builder's drawn grid; the
 tile grid is 0 to 1,920 (30 levels of 64; the game's own maps go to 18, and over 1,152 `measure` says `tall`: not
 played), and anything may stick out 192 units under or over it, where it has no tiles. A selection is saved with
 its map's grid bottom at 0. `measure` also lists what reaches out of the grid (`outside`).
@@ -413,36 +413,38 @@ picture that can't be found or written is a note, and the map is built without o
 
 **Warnings and notes** (14 November 2026, the user's word: warnings only for what can cause a problem in the game).
 The compiler's report keeps `warnings` for what can (a piece that can't be walked on, climbed, covered behind or
-hidden as it should, a landing on nothing, a mission script acting on the wrong actor, an untried piece) and `notes`
+hidden as it should, a landing on nothing, a mission script acting on the wrong actor) and `notes`
 for what can't (loot counts, how a piece looks, an ignored field, an edit that changes nothing, a building box past
 the grid, a piece that can't break with its group). The editor and the prefab test show the warnings only.
 
-**Untried pieces** (14 November 2026, at the user's word: warn and build). What only the editor's own gates held
-back is built with a warning, in a project's Build and in the prefab test alike:
+**Pieces of a kind the Build has not made before** (14 November 2026, at the user's word: build, don't leave out;
+16 November: no message says a thing is untried). What only the editor's own gates held back is built, in a
+project's Build and in the prefab test alike, with a warning only where the game shows something odd:
 
-- a move or a copy of a class with no family of its own (`class-untried`; `SkeletalMeshActor`,
-  `FracturedStaticMeshActor` and the like): made in the map as any copy;
+- a move or a copy of a class with no family of its own (`SkeletalMeshActor`, `FracturedStaticMeshActor` and the
+  like): made in the map as any copy, with no warning;
 - a part of a car, van, door or other assembly edited on its own (`assembly-split`): each part built as a piece
   of its own, the rest of the assembly left where it is;
 - a tinted copy (`tint-dropped`: built without its tint) and a copy naming a partner that is not in the edit
   (`partner-dropped`);
-- a piece of another map the library holds back as hidden, linked, of a kind not switched on, or waiting for its
-  game test (`foreign-untried`; the library panel shows it with an **Untried** tag and lets it be placed).
+- a piece of another map the library holds back as hidden, linked, of a kind not switched on, or waiting for a
+  game test (`foreign-held`, a warning only for what shows in the game; the library panel tags such a piece by what
+  shows, and lets it be placed).
 
-The compiler marks these copies `untried` (the spec's copy object carries an `untried` list beside `labels`;
-`native_split` passes it on and makes every untried copy in the map). When the transplant or copy stage fails
-with untried copies in the edit, the Build takes them out, with the hide of a moved one (it stays where the map
-has it), and runs the stages again: its `leftout` stage and the manifest's `leftOut` name them
-(`untried-failed`). A failure with no untried copy is the build's own, as before. Still left out by the compiler,
+The compiler marks these copies internally (the spec's copy object carries an `untried` list beside `labels`;
+`native_split` passes it on and makes every such copy in the map). When the transplant or copy stage fails with
+such copies in the edit, the Build takes out the ones the failure names, with the hide of a moved one (it stays
+where the map has it), and runs the stages again: its `leftout` stage and the manifest's `leftOut` name them
+(`untried-failed`). A failure that names none of them is the build's own, as before. Still left out by the compiler,
 because nothing can be built from them: a piece missing from the export or whose donor map is missing, a broken
 record, a piece of a streamed level, an unknown recipe, a piece whose closure can't be brought into another map,
 and a volume (`not-a-piece`: the level volume holds the map's tile data). The view-only lights stay view only.
 
 The stage converter still
 refuses what is the stage's own: no blank map or a changed one, a prefab that leaves the squad no room on the
-128 by 128 stage, an error of the document's, nothing left to build. It takes the blank map's actual squad positions, reserves their
+256 by 256 stage (`MAX_TILES`), an error of the document's, nothing left to build. It takes the blank map's actual squad positions, reserves their
 tiles and a one-tile border, and fits the whole prefab footprint using a single tile-aligned translation.
-The ground stays at the blank map's own level and the grid can grow from 36 by 36 to at most 128 by 128.
+The ground stays at the blank map's own level and the grid can grow from 36 by 36 to at most 256 by 256.
 A footprint can satisfy the prefab size limit and still leave too little room for the squad.
 
 The converter generates an ordinary project and a compiler report with test-local identities. The builder's
@@ -480,10 +482,10 @@ The plan's recipe qualification (section 6) applies. Each family's status, now:
 | Mission-linked pieces | Works; from export 15 the inspector marks a piece the map's Kismet names (**Mission script**) | Copied, moved or deleted; moved or deleted, the compiler warns (`mission-linked`; a refusal from 8 to 13 November 2026), since the script acts on the hidden original, not on the copy. On Bar and Police Station these are the landing's grounded Skyranger and drop zone | Not tested in the game |
 | Landing-zone pieces (archetype in `DGN_DropShipSoldierSpawn.*` or `VEH_Lv1Skyranger_MOD.Prefabs.*`, F-45) | Works; the inspector marks them **Landing zone** (served in `families.json` as `landing`) | Copied, moved or deleted; moved or deleted, the compiler warns (`landing-zone`; a refusal from 9 to 13 November 2026), since LWR's landing-zone mutator spawns the landing from the originals, so the dropship's landing breaks (F-45). On every cached map one to six pieces; some are also mission-linked | Not tested in the game |
 | Hidden helpers, volumes | Inspect only; cannot be copied or deleted | Never built (`not-a-piece`) | — |
-| Classes with no family of their own (`SkeletalMeshActor`, `FracturedStaticMeshActor`, ...) | Works; the inspector's chip says **Untried** | Built untried since 14 November 2026 (`class-untried`), left out by the Build only if it can't make them | Not played. Offline: a moved and a copied `FracturedStaticMeshActor` of LSupplyShip_ForestGrove built in a quick build |
+| Classes with no family of their own (`SkeletalMeshActor`, `FracturedStaticMeshActor`, ...) | Works | Built since 14 November 2026, left out by the Build only if it can't make them (`untried-failed`) | Offline: a moved and a copied `FracturedStaticMeshActor` of LSupplyShip_ForestGrove built in a quick build |
 
-"Works" means the viewer draws, moves, copies, deletes and saves it. That says nothing about gameplay, collision,
-cover or tile data: no edited piece has been built or tested in the game yet.
+"Works" means the viewer draws, moves, copies, deletes and saves it. The last column says what was seen of the
+kind in the game; the experiment notes and the [findings register](findings-register.md) hold the runs.
 
 ## 7. Streams and the variant record
 
@@ -513,10 +515,10 @@ names have several records, and for 38 of them the free slot differs.
 
 ## 8. Effects, sounds and lens flares in the export (export 28; draw data: export 29)
 
-Written 17 November 2026 for stage FX1 of the effects and sounds plan. The export carries them for the page's
-Effects view (Shift+X), which shows them and edits nothing. No project record names them yet: the records the editing
-stages add (`effect` and `sound` values objects on overrides and added records, project and prefab schema 3) are the
-plan's Part C and come with its stage FX3. [effects_metadata.py](../tools/viewer/effects_metadata.py) builds the
+Written 17 November 2026 for stage FX1 of the effects and sounds plan, when the export carried them for the page's
+Effects view (Shift+X) to show only. The editing stages since (FX3 on) record them as `effect` and `sound` values
+objects on overrides and added records (project and prefab schema 3): moved, copied, deleted and grouped with pieces,
+and other maps' added, as the rows below say. [effects_metadata.py](../tools/viewer/effects_metadata.py) builds the
 records; [test_effects_metadata.py](../tools/viewer/tests/test_effects_metadata.py) pins them to actors of the install.
 
 **Where.** The map's own are the scene's `effects`, `sounds` and `flares` (sorted by actor). A mission stream's own are

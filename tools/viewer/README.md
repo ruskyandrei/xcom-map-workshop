@@ -73,8 +73,8 @@ map by its name, package or mission; **Prepared only** hides maps not exported y
 the server runs `viewer.py export <package> --scope map` in the background into the cache it serves, one map at a
 time (about 20-30 s and 120 MB a map), the browser shows the time so far, and the page opens the map when it is done,
 with no restart. A link to a map not exported yet (a project of one, say) opens the browser on it and exports it.
-Listing every map needs the `lwr` setting; without it, or when serving one exact generation, only exported maps are
-listed, as before.
+Listing every map needs the `game` setting (called `lwr` before 8 November 2026; a settings file with `lwr` is read
+the same); without it, or when serving one exact generation, only exported maps are listed.
 
 **Updated maps prepare themselves again.** A map of the install whose export is older than the editor's exporter
 (`EXPORT_VERSION`: an update since the map was prepared, such as export 19's masked props) is exported again when it
@@ -113,8 +113,8 @@ triangles. It is read from the map's package in the install (which must be the f
 per server, for invisible floors' ground.
 Export 15 adds what of the map's Kismet names each piece (`referencedBy`, as "SeqAct_ToggleHidden_1 Target"; the
 inspector's **Mission script** chip, and the compiler warns of moving or deleting such a piece) and each building
-floor's volume boxes (`buildings[].floors[].boxes`, which the compiler's floor note reads). The library picks a map's
-newest export and doesn't re-export it, so a map exported before needs `viewer.py export` again. Export 16 adds
+floor's volume boxes (`buildings[].floors[].boxes`, which the compiler's floor note reads). A map exported before an
+export like this is exported again when it next opens (**Updated maps prepare themselves again**, above). Export 16 adds
 what each fracturing piece's fragment columns break (`breaks`: a car's glass names its body and parts), from which the
 compiler joins Police Station's standalone police light bars to their sedans. Export 17 adds what the game's damage
 does to each piece (`destruction`, [scene_metadata.py](scene_metadata.py) `destruction`): its kind (a prop, with one
@@ -279,7 +279,7 @@ private/plans/done/mission-types-plan.md). Streamed pieces can be
 picked and inspected (a chip says which package they come from), but never moved, copied or deleted as pieces: the
 Build edits the map's own pieces. So an edit that moves a piece LWR's patch covers (the burnt-out car) leaves LWR's
 hidden cover where it was: untick Hide patch helpers to see it. A mission's own objects (export 24's
-`missionObjects`, markers on View options' Mission objects) are the exception: a picked one's arrows move it with its
+`missionObjects`, markers shown by the Normal view's **Spawn points and objectives** switch) are the exception: a picked one's arrows move it with its
 group, saved as overrides of `level: "stream"`, and the Build moves them in place in its copy of that mission's stream
 (`tools/bake/stream_copy.py --moves`), which that mission's records alone stream. **Missions…** (Map menu,
 `missions_panel.js`) sets the project's `missions`: the base map's records and kinds a record alone gives it.
@@ -1316,8 +1316,11 @@ mission gates and runtime rebuilds are not evaluated. Patch previews deliberatel
 Synthetic tests need no game files:
 
 ```powershell
-python -m unittest discover -s tools/viewer/tests -p 'test_*.py' -v
+python -B tools/run_tests.py viewer            # or: viewer -k projects, for some tests
 ```
+
+[run_tests.py](../run_tests.py) prints each failure with its traceback and keeps the logs; run a test file only through
+it or `unittest discover`, since some test files import their neighbours.
 
 `test_projects.py` covers project storage (revisions, conflicts, the previous revision, recovery, refused schema
 versions and paths, file names from project names, renames, clashes, copies, the earlier folder layout moved), the HTTP routes (refusing other origins, hosts and non-JSON bodies), and the settings and doctor.
@@ -1360,12 +1363,12 @@ nothing installed, a project's record added and taken out byte for byte, plain E
 aside and put back when the game closes, an earlier version's intro install put back, a separate copy, lines and
 files changed since, XCOM running, the routes, the squad's text and Steam's command.
 
-It checks rendering, resource errors, the search list (hidden until there is text), the piece panel, typed
+It checks rendering, resource errors, the piece panel, typed
 position/yaw with undo, copy and paste through the placing preview (Esc cancels, a click places; a linked car on Bar;
-a whole-tile, quarter-turned paste), the milestone marks, delete and Reset all with undo, groups (locking two pieces,
-selecting and moving them as one, the gold marks, unlocking, break together, pasting a group, ungrouping, each with
-undo; with projects, a group saved and reopened), align (low edges on X and Z, then the first one picked as the
-target, then a locked group lining up as one, each with undo), the piece
+a whole-tile, quarter-turned paste), the milestone marks, delete and Reset all with undo, groups (grouping two pieces,
+selecting and moving them as one, the gold marks, no unlocking, break together, pasting a group, ungrouping, nesting,
+each with undo; with projects, a group saved and reopened), align (low edges on X and Z, then the first one picked as
+the target, then a group lining up as one, each with undo), the piece
 list (distinct entries, drawn thumbnails, kind filter, size sort, name filter, click and Shift+click placing with
 undo), the menus, camera controls and grid, and saves a screenshot for visual review. Binary regression tests cover truncation, bad indices, winding, basis/component composition, compressed bulk
 data and a known BC1 texture. A successful render is not a gameplay test.
@@ -1438,11 +1441,13 @@ current **All maps** catalogue and warns about pieces it still can't load. In th
 poses, groups and assembly links and can be undone in one step. Save to keep the new references. Unresolved
 records stay in the prefab. After rescanning **All maps**, use **Prefab → Find missing pieces** to try again.
 
-**Prefab → Test in game** builds a private snapshot of the current workspace on CB2_MP_Blank, grown to 18
-levels (0 to 1,152), its ground hidden (still stood on) inside a noon sky above and below, and launches that
-build with no aliens. A neutral fill light illuminates the stage with or without baking. Lighting is baked by
-default. Unnamed and unsaved work can test. Missing content, off-grid poses
-and a footprint that leaves insufficient squad room are refused with details. After a reload you can follow the
+**Prefab → Test in game** builds a private snapshot of the current workspace on CB2_MP_Blank, grown to at least 18
+levels (0 to 1,152, the tallest of the game's maps) and up to 30 for a taller prefab (`prefab_stage.stage_levels`),
+its ground hidden (still stood on) inside a noon sky above and below, and launches that build with no aliens. A
+neutral fill light illuminates the stage with or without baking. The dialog starts with Bake off, for a faster test.
+Unnamed and unsaved work can test. The test follows the Build's rules: what the Build warns about it warns about, and
+a piece that can't be built is left out and named. Only an empty or unreadable snapshot, a footprint that leaves no
+room for the squad, or a stage that can't be prepared stops it, with details. After a reload you can follow the
 test and explicitly launch a ready result. The game watch takes out the test installation when XCOM closes.
 
 Glowing props carry their source map's matched generated area lights into the prefab preview and every build.
@@ -1464,7 +1469,7 @@ Acceptance uses scratch stores on a test port; stop the server afterwards:
 ```powershell
 python tools/viewer/viewer.py serve --port 8791 --no-open --projects "<scratch>/projects" --builds "<scratch>/builds"
 python tools/viewer/tests/browser_builder.py --url http://127.0.0.1:8791/ --screenshot "<scratch>/builder.png" --large
-python -m unittest discover -s tools/viewer/tests -p "test_prefab*.py"
+python -B tools/run_tests.py viewer -k prefab
 node tools/viewer/tests/prefab_document_test.mjs
 ```
 
