@@ -110,7 +110,8 @@ if not report['ok'] or a.compile:
 
 
 def built(out):
-    m = build.Build(store.path(PROJECT_ID), str(a.cache), out, game, None, quick=True, enable=('spawn',)).run()
+    m = build.Build(build.BuildInputs(store.path(PROJECT_ID), str(a.cache), out, game, None, quick=True,
+                                      enable=('spawn',))).run()
     upk = out / m['variant'] / 'CookedPCConsole' / ('%s.upk' % m['variant'])
     print('built %s in %ss: spawnEdits %s, %s' % (m['variant'], m.get('seconds'), m.get('spawnEdits'),
                                                  hashlib.sha256(upk.read_bytes()).hexdigest()[:16]))

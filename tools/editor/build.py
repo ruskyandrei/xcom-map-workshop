@@ -105,6 +105,7 @@ in " |0" where the install's do (LWR's do; plain EW's don't).
 """
 import argparse
 import contextlib
+import dataclasses
 import datetime
 import hashlib
 import io
@@ -660,42 +661,101 @@ def readme(m):
 
 # ---------------------------------------------------------------- stages
 
+@dataclasses.dataclass(frozen=True)
+class BuildInputs:
+    """What a Build is given, as one record (Build.__init__ took 22 parameters: review finding 23). main makes it from
+    the command line, which is how the server's builds give it (tools/viewer/builds.py and buildqueue.py start this
+    file as a process); the tests, build_outputs.py and the examples make it themselves. The first five are the
+    project and its folders; the rest have the defaults a command line's build has. Build.__init__ reads it once and
+    keeps each value as the stages read it (folders as paths)."""
+    project: object         # the project file, or the server's snapshot of it (saved_file names the project's own)
+    cache: object           # the viewer cache: the map's export and the library of other maps' pieces
+    output: object          # the builds folder
+    lwr: object             # the game install (LWR or plain Enemy Within), only read
+    udk: object             # UDK 2011-09, or None: only a patch needs UDK, and no project the compiler accepts has one
+    radius: float = RADIUS  # the relight's receivers are those within this many units of the edit
+    patch_work: object = None   # patchtool's work folder (None: the builds folder's own)
+    now: object = None      # the build's clock (None: now), for its id, its stamp and builtAt
+    run: object = None      # runs a tool (None: Build._run; tests and build_outputs.py give a recorder)
+    seed: object = None     # the seeder (None: Build._seed; tests give a stand-in)
+    echo: object = print    # where the build's lines go
+    enable: tuple = ()      # families built although the compiler doesn't build them yet (--family)
+    quick: bool = False     # the edit made in the map without baking its lighting (edit_unbaked)
+    foreign: tuple = ()     # families whose pieces from other maps build before their switch (--foreign-family)
+    projects: object = None     # the projects folder the build's names are checked against (None: the project file's)
+    games: tuple = ()       # other game installs whose names the build's are checked against (the one Play in game uses)
+    named: object = None    # named_base's growing write (None: Build._name_copy; tests give a stand-in)
+    # the server's launch this build is (builds.py: a UUID), carried into the manifest so the server knows its own
+    # package, and into the build's id so two builds in one second are told apart
+    attempt: object = None
+    saved_file: object = None   # the project's own file when the build reads a snapshot of it (the build queue's)
+    boundary: object = None     # publication.publish's step hook (tests)
+    picture: object = None  # the map picture's writer (None: Build._picture; tests give a stand-in)
+
+
 class Build:
-    def __init__(self, project, cache, output, lwr, udk, radius=RADIUS, patch_work=None, now=None, run=None,
-                 seed=None, echo=print, enable=(), quick=False, foreign=(), projects=None, games=(), named=None,
-                 attempt=None, saved_file=None, boundary=None, picture=None):
-        self.project_path = Path(project)
-        # the server's launch this build is (builds.py: a UUID), carried into the manifest so the server knows its own
-        # package, and into the build's id so two builds in one second are told apart; the project's own file when
-        # the build reads a snapshot of it (the build queue's)
-        self.attempt = attempt
-        self.saved_file = Path(saved_file) if saved_file else None
-        self.boundary = boundary        # publication.publish's step hook (tests)
+    def __init__(self, inputs):
+        """The Build of `inputs` (BuildInputs). The state its stages fill is named here too, each with the stage that
+        fills it, so none is made by first use."""
+        self.project_path = Path(inputs.project)
+        self.attempt = inputs.attempt
+        self.saved_file = Path(inputs.saved_file) if inputs.saved_file else None
+        self.boundary = inputs.boundary
         # whose names the build checks its own against (outputnames.Claims): the projects folder (the project file's
         # own, unless given), the builds folder, the game install it reads and `games` (the one Play in game uses)
-        self.projects = Path(projects) if projects else self.project_path.parent
-        self.games = tuple(Path(g) for g in games if g)
-        self.quick = bool(quick)        # the edit made in the map without baking its lighting (edit_unbaked)
-        self.enable = tuple(enable)     # families built although the compiler doesn't build them yet (--family)
-        self.foreign = tuple(foreign)   # families whose pieces from other maps build before their switch (--foreign-family)
-        self.cache, self.output, self.lwr = Path(cache), Path(output), Path(lwr)
-        self.udk = Path(udk) if udk else None     # only a patch needs UDK, and no project the compiler accepts has one
+        self.projects = Path(inputs.projects) if inputs.projects else self.project_path.parent
+        self.games = tuple(Path(g) for g in inputs.games if g)
+        self.quick = bool(inputs.quick)
+        self.enable = tuple(inputs.enable)
+        self.foreign = tuple(inputs.foreign)
+        self.cache, self.output, self.lwr = Path(inputs.cache), Path(inputs.output), Path(inputs.lwr)
+        self.udk = Path(inputs.udk) if inputs.udk else None
+        self.radius = inputs.radius
         # patchtool's work folder: the builds folder's own, so a build needs nothing from our lab's layout
-        self.radius = radius
-        self.patch_work = Path(patch_work) if patch_work else self.output / '.work' / 'patchtool'
-        self.now = now or datetime.datetime.now()
-        self.stamp = self.now.strftime('%Y%m%d-%H%M%S') + ('-%s' % attempt.replace('-', '')[:8] if attempt else '')
-        self.run_tool = run or self._run
-        self.seed_tool = seed or self._seed
-        self.name_tool = named or self._name_copy     # named_base's growing write (tests give a stand-in)
-        self.picture_tool = picture or self._picture  # the map picture's writer (tests give a stand-in)
-        self.pictured = self.picture_note = None
-        self.echo = echo
+        self.patch_work = Path(inputs.patch_work) if inputs.patch_work else self.output / '.work' / 'patchtool'
+        self.now = inputs.now or datetime.datetime.now()
+        self.stamp = (self.now.strftime('%Y%m%d-%H%M%S')
+                      + ('-%s' % self.attempt.replace('-', '')[:8] if self.attempt else ''))
+        self.run_tool = inputs.run or self._run
+        self.seed_tool = inputs.seed or self._seed
+        self.name_tool = inputs.named or self._name_copy
+        self.picture_tool = inputs.picture or self._picture
+        self.echo = inputs.echo
         self.stages = []
         self.started = self.stage_started = time.monotonic()
-        self.has_lights, self.lights, self.unchanged = False, None, False
-        # the compiler's report (compile-report.json), and the untried pieces the Build itself left out (drop_untried)
-        self.compile_report, self.untried_dropped = None, []
+        # The state the stages fill, in run's order; none of it is read before its stage has run.
+        # snapshot: the project's document (its bytes read once), its picture file, its names and source map, the
+        # export, the install's base map (`base`, which the shell stage may replace with the equipped map), the work
+        # folder and the decoded packages kept in it (unpacked)
+        self.doc = self.project_sha = self.picture_png = None
+        self.variant = self.patch = self.map = self.sha = self.export = self.scene = None
+        self.base = self.install_base = self.install_cooked = self.work = self.unpacked_work = None
+        # compile: the compiler's report (compile-report.json) and what it left out, whether the map's size and the
+        # missions list are read, and the native edit with what the stages after it read of it; `copies` is the edit's
+        # file (transplant names the staged one). drop_untried changes some of them, and lists the untried pieces the
+        # Build itself left out
+        self.compile_report = self.left_out = self.missions_listed = self.native = self.natives = None
+        self.stage_kept = True
+        self.covers = self.buildings = self.building_edits = self.any_buildings = None
+        self.piece_flags = self.piece_blasts = self.flags_edit = self.spawn_edits = self.effects_edit = None
+        self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = None
+        self.has_lights, self.lights, self.moves_landings = False, None, False
+        self.stream_moves = self.stream_tiles = self.spec = self.copies = self.compiled = None
+        self.untried_dropped = []
+        # patch_and_cook: the cooked patch and its seed plan; shell: what the equipped map brought
+        self.cooked = self.seed_plan = self.shelled = None
+        # transplant: the map the copy tool reads (the base map, or the one staged with pieces of other maps) and the
+        # maps those came from
+        self.source = self.donors = None
+        # light: the folder of the edited map, its texture cache's name, whether its lighting is unchanged, and the
+        # relight's record
+        self.lit = self.cache_name = self.relit = None
+        self.unchanged = False
+        # the map's own landings the project moves, read once, when the intro copies (package) first ask (landing_moves)
+        self._landing_moves = None
+        # package: the seeds' report, the map picture written (or the note why not), the lightmaps put inside the map,
+        # and the manifest and folder of the finished package
+        self.seeded = self.pictured = self.picture_note = self.inside = self.manifest = self.folder = None
 
     def _run(self, args, log):
         """Run a tool, its output to the log file and the console; raise on a failure. The tool writes its output in
@@ -973,7 +1033,7 @@ class Build:
         or [nx, ny, nz] with the levels, from its own bottom): the same tool lays ground over the new area and writes
         the map's tile data for it (prefab plan 5.11, 5.6b)."""
         # (a size the compiler left out is not read: the map keeps its own)
-        stage = (self.doc.get('stage') if getattr(self, 'stage_kept', True) else None) or {}
+        stage = (self.doc.get('stage') if self.stage_kept else None) or {}
         grid = stage.get('grid')    # the compiler has checked it against the map's own
         cleared = bool(self.cleared)
         ambient = self.doc.get('prefabTest') and self.map in compiler.STAGE_MAPS
@@ -1377,7 +1437,7 @@ class Build:
         if self.doc.get('picture') is None:
             return
         named = pictures.named(self.doc)
-        png = getattr(self, 'picture_png', None) if named else None
+        png = self.picture_png if named else None
         if png is None:
             self.picture_note = PICTURE_MISSING % (named[:12] if named else 'its record is malformed')
             self.echo('note: %s' % self.picture_note)
@@ -1454,9 +1514,9 @@ class Build:
 
     def landing_moves(self):
         """The map's own landings the project moves (native_spawns.plan on the base map): [{index, frame}], or []."""
-        if not getattr(self, 'moves_landings', False):
+        if not self.moves_landings:
             return []
-        if not hasattr(self, '_landing_moves'):
+        if self._landing_moves is None:
             paths.use('bake')
             import native_spawns
             import scene_metadata
@@ -1597,7 +1657,7 @@ class Build:
                              exporterVersion=self.scene.get('exporterVersion')), variant=self.variant,
                  **({'prefabTest': self.doc['prefabTest']} if 'prefabTest' in self.doc else {}),
                  **({'leftOut': self.left_out} if self.left_out else {}),
-                 **({'shell': self.shelled} if getattr(self, 'shelled', None) else {}),
+                 **({'shell': self.shelled} if self.shelled else {}),
                  # cache: the texture cache the package ships (none once its lightmaps are inside the map)
                  patch=patch, cache=None if self.inside else self.cache_name,
                  **({'lightingInside': self.inside} if self.inside else {}),
@@ -1650,8 +1710,8 @@ class Build:
         newest) and older ones keep their logs and small records; kept pieces unused for PIECE_DAYS are deleted. This
         build's own work folder and kept pieces are left. Variants no project ships as are left to the server's prune
         as it starts (BuildRunner.prune), which knows the projects of its builds folder."""
-        variant = getattr(self, 'variant', None)
-        spare = [getattr(self, 'work', None), self.output / '.work' / 'pieces' / variant if variant else None]
+        variant = self.variant
+        spare = [self.work, self.output / '.work' / 'pieces' / variant if variant else None]
         try:
             result = build_runs.prune_work(self.output, spare=spare)
         except Exception as error:      # never the build's own outcome
@@ -1680,7 +1740,7 @@ class Build:
                         raise
             m = self.package()
         finally:
-            if getattr(self, 'unpacked_work', None):
+            if self.unpacked_work:
                 shutil.rmtree(self.unpacked_work, ignore_errors=True)
             self.prune_work()
         self.echo('built %s: %s (%s)' % (m['buildId'], self.folder, ', '.join('%s %s' % (Path(f).name, h[:12]) for f, h in m['files'].items())))
@@ -1744,9 +1804,9 @@ def main(argv=None):
             except (OSError, ValueError):
                 play = None
             games = [play] if play else []
-        Build(project, args.cache or s['cache'], args.output or s['output'], lwr, udk, radius=args.radius,
-              enable=args.family, quick=args.quick, foreign=args.foreign_family, games=games,
-              projects=args.projects, attempt=args.attempt, saved_file=args.saved_file).run()
+        Build(BuildInputs(project, args.cache or s['cache'], args.output or s['output'], lwr, udk, radius=args.radius,
+                          enable=args.family, quick=args.quick, foreign=args.foreign_family, games=games,
+                          projects=args.projects, attempt=args.attempt, saved_file=args.saved_file)).run()
     except BuildError as error:
         if error.code:
             print('build failed code: %s' % error.code)

@@ -102,6 +102,11 @@ package and never touches a game install: the install is only read. Its stages, 
 - light: the copy tool, then the seeds, the map picture and the lightmaps put inside the map;
 - package.
 
+A Build is given what it builds as one record, `BuildInputs`: the project, its folders, the options a command line
+gives and the stand-ins a test gives for its tools. `main` makes it from the command line, which is how the server's
+builds start it (as a process). `Build.__init__` reads the record once, and names the state each stage fills, with
+the stage.
+
 A quick build makes the same edit without the relight. It hands on the package folder
 `<output>/<Variant>/`: `CookedPCConsole/<Variant>.upk` (with the intro and stream copies its records need),
 `README.txt`, and `manifest.json`. The manifest holds the project's revision, the source map's hash, each file with

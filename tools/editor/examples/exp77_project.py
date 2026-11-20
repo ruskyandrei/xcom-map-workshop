@@ -128,7 +128,8 @@ def main():
     if not args.build:
         return
     try:
-        m = build.Build(store.path(project_id), s['cache'], args.builds, game, s['udk'], quick=args.quick).run()
+        m = build.Build(build.BuildInputs(store.path(project_id), s['cache'], args.builds, game, s['udk'],
+                                          quick=args.quick)).run()
     except build.BuildError as error:
         raise SystemExit('build failed: %s' % error)
     print(json.dumps({k: m.get(k) for k in ('buildId', 'variant', 'quick', 'seconds')}))

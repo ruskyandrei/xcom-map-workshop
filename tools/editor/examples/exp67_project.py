@@ -120,7 +120,8 @@ def main():
         return
     play = settings_module.install_game(s)[0] if args.out is None else None
     try:
-        m = build.Build(project, s['cache'], builds, game, s['udk'], quick=args.quick, games=[play] if play else []).run()
+        m = build.Build(build.BuildInputs(project, s['cache'], builds, game, s['udk'], quick=args.quick,
+                                          games=[play] if play else [])).run()
     except build.BuildError as error:
         raise SystemExit('build failed: %s' % error)
     print(json.dumps({k: m.get(k) for k in ('buildId', 'variant', 'quick', 'seconds')}))

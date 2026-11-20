@@ -32,7 +32,8 @@ class NoExport(unittest.TestCase):
             broken.mkdir(parents=True)
             (broken / 'scene.json').write_text('{"schemaVersion": 1, "na', encoding='utf-8')      # truncated
             (root / 'output').mkdir()
-            b = build.Build(project, cache, root / 'output', root / 'game', None, echo=lambda *a: None)
+            b = build.Build(build.BuildInputs(project, cache, root / 'output', root / 'game', None,
+                                              echo=lambda *a: None))
             with self.assertRaises(build.BuildError) as failed:
                 b.snapshot()
             self.assertIn('no export of URB_Bar', str(failed.exception))

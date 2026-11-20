@@ -73,7 +73,8 @@ print('warnings', [(w['code'], w['message'][:160]) for w in report['warnings']])
 if not report['ok'] or '--compile' in sys.argv:
     sys.exit(0 if report['ok'] else 1)
 try:
-    m = build.Build(project, cache, OUT / 'builds', game, None, quick='--full' not in sys.argv, foreign=gates).run()
+    m = build.Build(build.BuildInputs(project, cache, OUT / 'builds', game, None, quick='--full' not in sys.argv,
+                                      foreign=gates)).run()
 except build.BuildError as error:
     print('build failed:', error)
     sys.exit(1)

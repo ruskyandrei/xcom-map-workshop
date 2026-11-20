@@ -576,8 +576,8 @@ def run_build(project, cache, install, output, quick, enable, foreign, log):
     import decomp
     rec = Recorder()
     lines = []
-    b = build.Build(project, cache, output, install, None, now=NOW, run=rec, echo=lines.append, quick=quick,
-                    enable=enable, foreign=foreign, games=())
+    b = build.Build(build.BuildInputs(project, cache, output, install, None, now=NOW, run=rec, echo=lines.append,
+                                      quick=quick, enable=enable, foreign=foreign, games=()))
     rec.build = b
     # (the Build points the decoders at its work folder and the cache's kept images through the environment)
     saved = {k: os.environ.get(k) for k in (decomp.WORK_ENV, decomp.KEEP_ENV)}
@@ -593,7 +593,7 @@ def run_build(project, cache, install, output, quick, enable, foreign, log):
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    return m, error, rec, getattr(b, 'work', None)
+    return m, error, rec, b.work
 
 
 def package_files(folder):
