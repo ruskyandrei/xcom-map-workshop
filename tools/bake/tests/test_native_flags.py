@@ -20,6 +20,9 @@ sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import labpaths  # noqa: E402
 
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
+# a map no object of which saves bIgnoreFor3DCursorCollision, the mouse flag's property (review finding 37)
+FALLEN, NO_FALLEN = labpaths.test_file('XCOM_HIGHWAYFALLEN_UPK', labpaths.lwr_cooked('URB_HighwayFallen.upk'),
+                                       'URB_HighwayFallen.upk')
 PL = native_copy.PL
 
 
@@ -38,8 +41,7 @@ class StructField(unittest.TestCase):
     def test_the_field_is_patched_and_its_siblings_and_the_tail_kept(self):
         g = package_grow.Grower(str(BAR))
         p = lighting.Package(BAR)
-        walker = native_copy.Walker(p)
-        walker.names = g.names
+        walker = native_copy.Walker(p, g)
         n = lambda s: g.name(s)    # noqa: E731
 
         def boolean(name, value):
@@ -72,6 +74,51 @@ class StructField(unittest.TestCase):
                                               'bBlockUnitVisibility', False)
         self.assertEqual((how, fields(d3)), ('struct added', {'bBlockUnitVisibility[0]': 0}))
         self.assertTrue(bytes(d3).endswith(none + tail))
+
+
+@unittest.skipUnless(FALLEN and FALLEN.exists(), NO_FALLEN)
+class NameNewToTheMap(unittest.TestCase):
+    """(Review finding 37) A copy given "mouse off" on a map that has no bIgnoreFor3DCursorCollision in its name table:
+    set_roles adds the name to the grower's table and the tag before the closing None, and the writers that walk the
+    copy afterwards (link_children, move_columns) get past it. Nothing is written to disk."""
+    @classmethod
+    def setUpClass(cls):
+        cls.p = lighting.Package(FALLEN)
+        cls.level = cls.p.by_name['TheWorld.PersistentLevel']
+
+    def copy(self, classes):
+        p = self.p
+        self.assertNotIn('bIgnoreFor3DCursorCollision', p.names)
+        actor = next(i for i in native_copy.level_actors(p) if i > 0 and p.cls(i) in classes
+                     and p.exports[i - 1]['outer'] == self.level and native_copy.has_mesh(p, i))
+        before = ([float(v) for v in p.own(actor, 'Location', [0.0, 0.0, 0.0])],
+                  [int(v) for v in p.own(actor, 'Rotation', [0, 0, 0])])
+        after = ([v + 192.0 for v in before[0]], before[1])
+        g = package_grow.Grower(str(FALLEN))
+        info = native_copy.clone_assembly(g, p, [(actor, *after)])[0]
+        return g, actor, info, before, after
+
+    def mouse_off(self, g, actor, info):
+        rec = native_copy.set_roles(g, self.p, actor, info['actor'], {'mouse': False}, label='copy')
+        self.assertEqual(rec['written'], [['bIgnoreFor3DCursorCollision', True, 'added']])
+
+    def test_link_children_walks_past_it(self):
+        g, actor, info, _, after = self.copy(('XComLevelActor',))
+        self.mouse_off(g, actor, info)
+        made = [dict(actor=self.p.name(actor).split('.')[-1], info=info, location=after[0], rotation=after[1],
+                     breakGroup=0)]
+        native_copy.link_children(g, self.p, made, [])
+
+    def test_move_columns_walks_past_it(self):
+        # a fracturing copy that saves no FragmentColumns (cut out of the copy here): move_columns walks to the end
+        g, actor, info, before, after = self.copy(native_copy.FRACTURING)
+        e = self.p.exports[actor - 1]
+        start = native_copy.legacy_props.props_start(self.p.data, e, self.p.names) - e['off']
+        b = bytearray(g.export_data(info['actor']))
+        _, tag, value, size = native_copy.find_prop(native_copy.Walker(self.p), b, start, len(b), 'FragmentColumns[0]')
+        g.relocate(info['actor'], bytes(b[:tag] + b[value + size:]))
+        self.mouse_off(g, actor, info)
+        self.assertIsNone(native_copy.move_columns(g, self.p, actor, info['actor'], before, after, {info['actor']}))
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)

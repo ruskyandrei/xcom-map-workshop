@@ -85,6 +85,20 @@ class CutTests(unittest.TestCase):
                          [(0.0, 0.0, dict(slab, x1=16 * T, y1=16 * T, holes=[]))])
 
 
+    def test_overlapping_holes_drop_only_the_pieces_they_take_whole(self):
+        # (review finding 32) 17 by 1 tiles, holes over tiles 0 to 9 and 0 to 8: their areas add up to more than the
+        # first 16-tile piece's, yet its tiles 10 to 15 are solid, and it stays; a piece the holes take whole goes
+        holes = [dict(x0=0.0, x1=10 * T, y0=0.0, y1=T), dict(x0=0.0, x1=9 * T, y0=0.0, y1=T)]
+        slab = dict(x0=0.0, x1=17 * T, y0=0.0, y1=T, holes=holes, seed=2)
+        pieces = made_split.slab_pieces(slab)
+        self.assertEqual([(dx, n['x1']) for dx, _, n in pieces], [(0.0, 16 * T), (16 * T, T)])
+        self.assertEqual(pieces[0][2]['holes'], holes)
+        self.assertEqual(frac_slab.tiles(pieces[0][2]), {(i, 0) for i in range(10, 16)})
+        self.assertTrue(made_split.slab_left(slab))
+        self.assertFalse(made_split.slab_left(dict(slab, holes=holes + [dict(x0=8 * T, x1=17 * T, y0=0.0, y1=T)])))
+        self.assertFalse(made_split.slab_pieces(dict(slab, holes=holes + [dict(x0=8 * T, x1=17 * T, y0=0.0, y1=T)])))
+
+
 class TextureTests(unittest.TestCase):
     """A piece's texture goes on from where it sits in the whole (`whole`): its faces read as the whole's would at
     the same place."""

@@ -89,6 +89,28 @@ class LiteralEncoder(unittest.TestCase):
             lzo_literals(b'')
 
 
+class Overlapping(unittest.TestCase):
+    def test_the_neighbours_find_what_a_scan_of_every_edit_finds(self):
+        # (review finding 43) edits apart from each other, in any order; a new one meets one of them exactly when the
+        # one before it or the one at or after it does
+        rng = random.Random(3)
+        edits, starts = {}, []
+        for _ in range(400):
+            off, size = rng.randrange(0, 5000), rng.randrange(1, 12)
+            if any(o < off + size and off < o + len(d) for o, d in edits.items()):
+                continue
+            edits[off] = bytes(size)
+            starts = sorted(edits)
+        for _ in range(3000):
+            off, size = rng.randrange(-20, 5020), rng.randrange(1, 40)
+            found = package_edit.overlapping(edits, starts, off, size)
+            every = [o for o, d in edits.items() if o < off + size and off < o + len(d)]
+            self.assertEqual(found is not None, bool(every), (off, size))
+            if found is not None:
+                self.assertIn(found, every)
+        self.assertIsNone(package_edit.overlapping({}, [], 10, 4))
+
+
 class SyntheticPackage(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
@@ -160,6 +182,27 @@ class SyntheticPackage(unittest.TestCase):
                 write_edited(self.src, self.dst, edits)
         with self.assertRaises(ValueError):
             write_edited(self.src, self.src, [(mid, b'ab')])
+
+    def test_many_edits_reencode_the_blocks_they_meet_and_no_other(self):
+        # (review finding 43) each chunk and block is tested against its neighbouring edits only
+        rng = random.Random(7)
+        edits, at = [], self.uo0
+        while True:
+            at += rng.randrange(1, 60)
+            size = rng.randrange(1, 9)
+            if at + size > self.uo0 + len(self.logical):
+                break
+            edits.append((at, bytes(rng.randrange(256) for _ in range(size))))
+            at += size
+        rng.shuffle(edits)
+        report = write_edited(self.src, self.dst, edits)
+        expect = bytearray(self.full)
+        for off, data in edits:
+            expect[off:off + len(data)] = data
+        full, _ = self.decoded()
+        self.assertEqual(full[self.uo0:], bytes(expect[self.uo0:]))
+        self.assertEqual([c['index'] for c in report['chunksReencoded']], [0, 1, 2])
+        self.assertEqual(report['edits'], len(edits))
 
     def test_refuses_trailing_data(self):
         with open(self.src, 'ab') as f:

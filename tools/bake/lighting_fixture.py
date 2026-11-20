@@ -39,6 +39,7 @@ only `Lighting`, which every map has).
       [--noop COMPONENT] [--redirect TEXTURE] [--scale COMPONENT SLOT FACTOR] [--paint COMPONENT SLOT R G B]
 """
 import argparse
+import bisect
 import hashlib
 import json
 import math
@@ -179,6 +180,7 @@ class Fixture:
         self.cache = cache
         self.cache_name = parse_cache_name(self.p, cache) if cache else None
         self.edits = {}            # logical offset -> bytes
+        self.edit_starts = []      # their offsets in order (an overlap is looked for among neighbours only)
         self.force = []            # offsets of forced no-op edits
         self.cache_data = bytearray()
         self.redirected = {}       # texture export -> {mip index: (payload, raw)}
@@ -188,11 +190,19 @@ class Fixture:
 
     def edit(self, offset, data, what):
         old = bytes(self.p.data[offset:offset + len(data)])
-        for o, d in self.edits.items():
-            if o < offset + len(data) and offset < o + len(d):
-                raise ValueError(f'{what}: overlaps an earlier edit at {o}')
+        if not len(data):
+            raise ValueError(f'{what}: an empty edit')       # (the writer refuses one: package_edit.normalise_edits)
+        o = package_edit.overlapping(self.edits, self.edit_starts, offset, len(data))
+        if o is not None:
+            raise ValueError(f'{what}: overlaps an earlier edit at {o}')
         self.edits[offset] = bytes(data)
+        bisect.insort(self.edit_starts, offset)
         self.log.append(dict(what=what, offset=offset, old=old.hex(), new=bytes(data).hex()))
+
+    def unedit(self, offset):
+        """The edit at `offset` taken back, when there is one (its log entries are the caller's)."""
+        if self.edits.pop(offset, None) is not None:
+            del self.edit_starts[bisect.bisect_left(self.edit_starts, offset)]
 
     def component(self, path):
         index = self.p.by_name.get(path)
@@ -291,7 +301,7 @@ class Fixture:
                                                                         m['payloadOffset'] + m['bytes']]))
                 new, n = paint_dxt1(raw, m['width'], m['height'], bias, scale, block)
                 if n:
-                    self.edits.pop(m['payloadOffset'], None)
+                    self.unedit(m['payloadOffset'])
                     self.log = [e for e in self.log if e.get('offset') != m['payloadOffset']]
                     self.edit(m['payloadOffset'], new, f'paint inline mip {m["width"]}x{m["height"]} of '
                                                        f'{t["fields"]["path"]}')
@@ -426,7 +436,7 @@ class Fixture:
                 t['mips'][k]['raw'] = new
                 t['mips'][k]['painted'] = t['mips'][k].get('painted', 0) + n
             elif n:
-                self.edits.pop(m['payloadOffset'], None)
+                self.unedit(m['payloadOffset'])
                 self.log = [e for e in self.log if e.get('offset') != m['payloadOffset']]
                 self.edit(m['payloadOffset'], new, f'image inline mip {w_k}x{h_k} of {t["fields"]["path"]}')
             counts.append(dict(mip=f'{w_k}x{h_k}', blocks=n))
@@ -476,7 +486,7 @@ class Fixture:
                 t['mips'][k]['raw'] = new
                 t['mips'][k]['painted'] = t['mips'][k].get('painted', 0) + img.size
             else:
-                self.edits.pop(m['payloadOffset'], None)
+                self.unedit(m['payloadOffset'])
                 self.log = [e for e in self.log if e.get('offset') != m['payloadOffset']]
                 self.edit(m['payloadOffset'], new, f'gray inline mip {m["width"]}x{m["height"]} of '
                                                    f'{t["fields"]["path"]}')

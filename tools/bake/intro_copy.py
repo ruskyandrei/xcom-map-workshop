@@ -179,7 +179,7 @@ def fill_places(g, p, base, landings):
     """missing_places written into the copy: the report's rows (action by name, group, landing, the place and yaw,
     the Skyranger it came from; a place left alone has `left` and why) and {action: (location, rotation)} for
     move_anchors."""
-    w = native_copy.Walker(p)
+    w = native_copy.Walker(p, g)
     rows, filled = [], {}
     for f in missing_places(p, base, landings):
         name = p.name(f['action']).split('.')[-1]
@@ -198,7 +198,7 @@ def move_anchors(g, p, base, moves, filled=None):
     [location, yaw]}}): returns [dict(action, group, old, new)] and the moves no place was found for. `filled`: the
     places fill_places gave ({action: (location, rotation)}), taken as the old ones."""
     import spawns
-    w = native_copy.Walker(p)
+    w = native_copy.Walker(p, g)
     done, places = [], anchors(p, base)
     for a in places:
         if a['action'] in (filled or {}):
@@ -222,7 +222,7 @@ def move_anchors(g, p, base, moves, filled=None):
 def rename_switches(g, p, base, variant):
     """Every Switch String entry of package `p` (grower `g`) that names `base` made `variant`: [{switch, entries,
     of}] of the switches changed."""
-    w = native_copy.Walker(p)
+    w = native_copy.Walker(p, g)
     renamed = []
     for i, data, at, size, entries in switches(p, g.export_data):
         hits = [k for k, (_, text) in enumerate(entries) if same_map(text, base)]
@@ -314,7 +314,7 @@ def _case_names(w, data, at, size):
 def add_cases(g, p, pairs):
     """In package `p` (grower `g`), each Switch String with a case for a pair's base map gets one more case, the pair's
     variant, right after the base's, whose output link is a copy of the base case's: {variant: [switch]}."""
-    w = native_copy.Walker(p)
+    w = native_copy.Walker(p, g)
     added = {variant: [] for _, variant in pairs}
     for i, data, _, _, _ in switches(p, g.export_data):
         e = p.exports[i - 1]
@@ -399,7 +399,7 @@ def pack_copy(src, dst, maps):
         return report
     g = package_grow.Grower(str(src))
     added = add_cases(g, p, [(t['base'], t['variant']) for t in taken])
-    w = native_copy.Walker(p)
+    w = native_copy.Walker(p, g)
     for i, (v, variants) in sorted(flown.items()):
         if v is None:
             continue

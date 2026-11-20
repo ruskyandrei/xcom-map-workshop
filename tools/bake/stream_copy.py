@@ -53,7 +53,7 @@ def move_actors(g, p, moves, src):
     report's rows."""
     import native_spawns
     import spawns
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     poses = {level_actor(p, m['actor'], src): m for m in moves}
     rows = []
     for i, m in poses.items():

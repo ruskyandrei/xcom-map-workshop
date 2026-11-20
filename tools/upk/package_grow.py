@@ -35,6 +35,7 @@ Whether the game accepts tables after the export data, beyond the summary's head
   python -B tools/upk/package_grow.py <in.upk> <out.upk>      (a growing write with no change: the tables move)
 """
 import argparse
+import bisect
 import os
 import struct
 import sys
@@ -143,6 +144,7 @@ class Grower:
         if depends != bytes(4 * self.h['expcount']):
             raise ValueError('the depends map is not all empty arrays; this writer would drop it')
         self.edits = {}                 # logical offset -> bytes, fixed size, inside the old package
+        self.edit_starts = []           # the edits' offsets in order (an overlap is looked for among neighbours only)
         self.tail = bytearray()         # logical bytes after self.end, export data first
         self.marks = []                 # where in the tail each placed export's data starts (chunks are cut only there)
         self.added = 0
@@ -154,10 +156,13 @@ class Grower:
         data = bytes(data)
         if offset < self.chunks[0][0] or offset + len(data) > self.end:
             raise ValueError(f'edit at {offset} is outside the compressed chunks')
-        for o, d in self.edits.items():
-            if o < offset + len(data) and offset < o + len(d):
-                raise ValueError(f'edit at {offset} overlaps one at {o}')
+        if not data:
+            raise ValueError(f'empty edit at {offset}')     # (the writer refuses one: package_edit.normalise_edits)
+        o = package_edit.overlapping(self.edits, self.edit_starts, offset, len(data))
+        if o is not None:
+            raise ValueError(f'edit at {offset} overlaps one at {o}')
         self.edits[offset] = data
+        bisect.insort(self.edit_starts, offset)
 
     def name(self, text):
         """The name table index of `text`, adding it when it is new."""

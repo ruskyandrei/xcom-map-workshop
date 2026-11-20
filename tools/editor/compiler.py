@@ -1474,6 +1474,11 @@ class Compiler:
         version = 1 if plain else (2 if isinstance(look, dict) else 1) if points else g['version'] if ok else None
         if ok and g['kind'] == 'fracSlab':
             ok = self.slab_valid(g.get('slab'), num, version)
+            if ok and not made_split.slab_left(g['slab']):
+                # (nothing of it to build: the Build's check refuses it, review finding 32)
+                self.error('slab-all-holes', '%s: its holes leave none of it, so it is left out of the build'
+                           % (rec.get('label') or short(rec.get('from', {}).get('actor', '?'))), **where)
+                return False
         elif ok and g['kind'] == 'ground':
             ok = self.ground_valid(g.get('ground'), num, version, points)
         elif ok and g['kind'] == 'fracWall':
@@ -1559,7 +1564,8 @@ class Compiler:
 
     @staticmethod
     def slab_valid(s, num, version=1):
-        """Whether a slab's numbers are well formed (tools/bake/frac_slab.py check is the Build's)."""
+        """Whether a slab's numbers are well formed (tools/bake/frac_slab.py check is the Build's; one its holes leave
+        none of is well formed, and left out by generated_valid)."""
         def whole(v, base):
             return abs((v - base) / 96.0 - round((v - base) / 96.0)) < 1e-4
         if not (isinstance(s, dict) and all(num(s.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))):

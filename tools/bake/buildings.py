@@ -137,8 +137,7 @@ def clone_volume(g, p, walker, template, box, tag, edit=None):
             # these walk with the names the package has by now (the grower's: the map's, then the ones added)
             if edit:
                 data = edit(bytearray(data), start)
-            grown = native_copy.Walker(p)
-            grown.names = g.names
+            grown = native_copy.Walker(p, g)
             data = native_copy.set_vector(grown, g, data, start, 'Location', location)
             data = native_copy.set_vector(grown, g, data, start, 'DrawScale3D', scale)
             new = g.add_export(old, bytes(data), number=g.unused_number(g.entries[old - 1].name_index))
@@ -256,7 +255,7 @@ def make(g, p, buildings, pieces):
     """The buildings made in the map `g` grows. Returns (the new actors for the level's list, the report: [dict(id,
     name, kind, building, box, floors: [dict(volumes, boxes, members: [dict(actor, cutdown)])], unread)])."""
     check(buildings)
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     bt, ft = templates(p, walker)
     if bt is None or ft is None:
         raise ValueError('the map has no %s to clone a new building from' % ' and no '.join(
@@ -337,13 +336,6 @@ def floor_map(old_volumes, new_volumes):
     return {k: min((where[v] for v in names if v in where), default=None) for k, names in enumerate(old_volumes)}
 
 
-def grown_walker(p, g):
-    """A walker of the package as it grows: the names `g` added after the map's own."""
-    w = native_copy.Walker(p)
-    w.names = g.names
-    return w
-
-
 def placed(p, volume, box):
     """(Location, DrawScale3D) that put a plain volume's brush over `box` ([x0, y0, z0, x1, y1, z1]), as
     clone_volume works them out; DrawScale is kept."""
@@ -369,7 +361,7 @@ def put_volume(g, p, volume, box, number=None):
     """A floor volume of the map moved and stretched in place over `box`: its Location, and DrawScale3D when its size
     changed (or it saves one), and its FloorNumber when `number` is given. Returns what changed: 'moved', 'stretched',
     'renumbered' or None."""
-    w = grown_walker(p, g)
+    w = native_copy.Walker(p, g)
     old = world_box(p, volume)
     e = p.exports[volume - 1]
     start = start_of(p, volume)
@@ -410,7 +402,7 @@ def edit(g, p, edits, pieces, gone=(), copies=None):
     import scene_metadata
     copies = copies or {}
     gone = set(gone)
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     t = building_template(p, walker)
     ft = None
     actors, slots, report = [], set(), []
@@ -461,7 +453,7 @@ def edit(g, p, edits, pieces, gone=(), copies=None):
                             raise ValueError('the map has no plain floor volume to clone a new box from')
 
                     def numbered(data, start, j=j):
-                        return native_lights.set_property(grown_walker(p, g), g, data, start, 'FloorNumber',
+                        return native_lights.set_property(native_copy.Walker(p, g), g, data, start, 'FloorNumber',
                                                           'IntProperty', None, struct.pack('<i', j + 1))
                     v = clone_volume(g, p, walker, ft, box, 'XComFloorVolume', numbered)
                     actors.append(v)
@@ -544,7 +536,7 @@ def edit(g, p, edits, pieces, gone=(), copies=None):
                 if t is None:
                     raise ValueError('the map has no building with floors to take a new floor\'s shape from')
                 elements.append(floor_bytes(g, walker, t, volumes[j], []))
-                elements[-1] = with_lists(g, grown_walker(p, g), elements[-1], volumes[j], lists[j], None)
+                elements[-1] = with_lists(g, native_copy.Walker(p, g), elements[-1], volumes[j], lists[j], None)
                 continue
             f = old[k]
             keep = []
@@ -558,11 +550,11 @@ def edit(g, p, edits, pieces, gone=(), copies=None):
                 else:
                     keep.append(em)
             element = bytes(b[f['element'][0]:f['element'][1]])
-            elements.append(with_lists(g, grown_walker(p, g), element, volumes[j], lists[j],
+            elements.append(with_lists(g, native_copy.Walker(p, g), element, volumes[j], lists[j],
                                        keep if f['emitters'] else None))
         every_box = [x for boxes in new_floors for x in boxes]
         union = [min(x[k] for x in every_box) for k in range(3)] + [max(x[k + 3] for x in every_box) for k in range(3)]
-        w = grown_walker(p, g)
+        w = native_copy.Walker(p, g)
         data = bytearray(native_copy.rebuilt(bytes(b), found, elements))
         groups = dict(emptied=False, repointed=[])
         old_every = [x for f in old for x in f['boxes'] if x]

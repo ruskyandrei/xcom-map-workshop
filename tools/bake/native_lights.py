@@ -530,7 +530,7 @@ def apply(g, p, state):
     per op, in order, dict(op, name, exports {actor, component}, tagsAdded, written, actorTagsAdded, actorWritten,
     guids, flags, saved, imports, created)). New entries get their export indices."""
     import native_copy
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     actors, gone, records = [], set(), []
     for op in state['ops']:
         kind, b, a = op['op'], op['before'], op['after']

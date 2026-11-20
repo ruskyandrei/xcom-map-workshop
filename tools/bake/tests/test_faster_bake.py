@@ -109,6 +109,23 @@ class Reach(unittest.TestCase):
         self.assertEqual(got.tolist(), [True, True, False])
         self.assertFalse(relight.texel_reach(world, relight.box_of(world), [], [], edited=[dict(lamp, enabled=False)]).any())
 
+    def test_a_source_size_of_0_is_its_own_and_none_the_default(self):
+        # (review finding 44) a deliberate 0 is not read as UDK's default
+        self.assertEqual((relight.light_source_angle(dict(lightSourceAngle=0.0)), relight.light_source_angle({})),
+                         (0.0, 3.0))
+        self.assertEqual((relight.light_source_radius(dict(lightSourceRadius=0)), relight.light_source_radius({}),
+                          relight.light_source_radius(dict(lightSourceRadius=None))), (0.0, 100.0, 100.0))
+        # the dominant light's hard shadow: a piece 30 units to the side of what an edit 1,000 units over it shades
+        # is out of reach with no penumbra, in reach with the default's
+        box, edit = [0, 10, 0, 10, 0, 1], [40, 50, 0, 10, 1000, 1010]
+        sun = dict(kind='directional', toLight=[0.0, 0.0, 1.0])
+        self.assertFalse(relight.shadow_meets(dict(sun, lightSourceAngle=0.0), edit, box))
+        self.assertTrue(relight.shadow_meets(sun, edit, box))
+        world = np.array([[5.0, 5, 0.5]])
+        self.assertFalse(relight.texel_reach(world, box, [edit], [dict(sun, lightSourceAngle=0.0, enabled=True)],
+                                             near=0).any())
+        self.assertTrue(relight.texel_reach(world, box, [edit], [dict(sun, enabled=True)], near=0).all())
+
     def test_the_edit_boxes_that_reach_a_piece_are_those_edit_reaches_finds_one_at_a_time(self):
         low = dict(self.LAMP, location=[-400, 25, 60], lightSourceRadius=10)
         sun = dict(kind='directional', toLight=[-0.6, 0.0, 0.8], enabled=True, brightness=1.0)
@@ -132,6 +149,24 @@ class Jobs(unittest.TestCase):
         # one worker, or no band size: every piece whole
         self.assertEqual({j[0] for j in relight.piece_jobs(pieces, 1, band_texels=20000)}, {'whole'})
         self.assertEqual({j[0] for j in relight.piece_jobs(pieces, 4, band_texels=0)}, {'whole'})
+
+    def test_the_queue_is_cut_for_the_workers_allowed_and_the_workers_for_the_queue(self):
+        # (review finding 41) one large floor and no shadow map: its bands, each with a worker of its own
+        floor = [('floor', None, False, 90000)]
+        queue, jobs = relight.plan_jobs(floor, [], 16, band_texels=20000)
+        self.assertEqual((queue, jobs), ([('band', 'floor', None, False, k, 5) for k in range(5)], 5))
+        # two large floors: their bands on as many workers as are allowed, no more
+        two = floor + [('other', None, False, 90000)]
+        self.assertEqual([len(q) for q in [relight.plan_jobs(two, [], 16, 20000)[0]]], [10])
+        self.assertEqual(relight.plan_jobs(two, [], 16, 20000)[1], 10)
+        self.assertEqual(relight.plan_jobs(two, [], 3, 20000)[1], 3)
+        # one worker allowed: every piece whole, here
+        self.assertEqual(relight.plan_jobs(floor, [], 1, 20000), ([('whole', 'floor', None, False)], 1))
+        # the shadow maps go first, and count as jobs
+        shadow = [('shadow', ('shadow', 0), None, False, {})]
+        queue, jobs = relight.plan_jobs([('small', None, False, 500)], shadow, 8, 20000)
+        self.assertEqual((queue[0], len(queue), jobs), (shadow[0], 2, 2))
+        self.assertEqual(relight.plan_jobs([], [], 8, 20000), ([], 1))
 
     def test_bands_are_put_together_and_a_failed_band_fails_its_piece_once(self):
         done = []
@@ -239,6 +274,26 @@ class KeptPieces(unittest.TestCase):
                       relight.PieceCache(d, 'base', dict(samples=16)).key(
                           'P', self.FIELDS, [self.LAMP], [self.LAMP], [[['box', True]], []])]
             self.assertEqual(len({key, *others}), 7)
+
+    def test_the_key_follows_the_code_the_images_depend_on_and_the_release(self):
+        # (review finding 42) every file of the list is there, and every module of the tools the relight loads is in
+        # it but the writer of the variant, which only writes what the pieces give
+        tools = HERE.parents[1]
+        self.assertEqual([n for n in relight.TOOL_FILES if not (tools / n).is_file()], [])
+        script = ('import sys; from pathlib import Path; t = Path(sys.argv[1]); sys.path.insert(0, str(t / "bake")); '
+                  'import relight; print("\\n".join(sorted({Path(m.__file__).resolve().relative_to(t).as_posix() '
+                  'for m in list(sys.modules.values()) if getattr(m, "__file__", None) '
+                  'and Path(m.__file__).resolve().is_relative_to(t)})))')
+        import subprocess
+        loaded = subprocess.run([sys.executable, '-B', '-c', script, str(tools)], capture_output=True, text=True,
+                                check=True).stdout.split()
+        self.assertTrue(loaded)
+        self.assertEqual(sorted(set(loaded) - set(relight.TOOL_FILES) - {'bake/lighting_fixture.py'}), [])
+        with tempfile.TemporaryDirectory() as d:
+            args = ('P', self.FIELDS, [self.LAMP], [self.LAMP], [[['box', True]], []])
+            key = relight.PieceCache(d, 'base', {}).key(*args)
+            with mock.patch('version.VERSION', '0.0.0-another'):
+                self.assertNotEqual(relight.PieceCache(d, 'base', {}).key(*args), key)
 
 
 @unittest.skipUnless(HAS_BAR, NO_BAR)

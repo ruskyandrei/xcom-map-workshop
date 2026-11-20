@@ -220,8 +220,7 @@ def apply(g, p, slabs):
         return (dict(hidden=[], added=[], crossed=[dict(c, volume=p.name(c['volume']).rsplit('.', 1)[-1]) for c in plan['crossed']])
                 if plan['crossed'] else None), []
     native_copy.empty_slots(g, p, set(plan['hidden']))
-    walker = native_copy.Walker(p)
-    walker.names = g.names
+    walker = native_copy.Walker(p, g)
     fallback = min((v for v in volumes if not v['stair'] and not v['turned']), key=lambda v: (v['floor'], v['key']),
                    default=None)
     if fallback is None:

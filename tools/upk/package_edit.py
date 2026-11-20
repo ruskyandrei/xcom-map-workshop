@@ -18,6 +18,7 @@ is compressed like every other map.
   python package_edit.py <in.upk> <out.upk> --noop <logical offset> <length>
 """
 import argparse
+import bisect
 import os
 import struct
 import sys
@@ -164,6 +165,17 @@ def read_chunk(raw, co):
     return tag, bsz, usum, blocks, r.o
 
 
+def overlapping(edits, starts, offset, size):
+    """The offset of the edit of `edits` ({offset: bytes}, none empty, none overlapping another; `starts` their offsets
+    in order) that meets [offset, offset + size), or None. Only the edit before and the one at or after can: one further
+    on meets it only where the one at or after does (review finding 43: a scan of every edit went quadratic)."""
+    i = bisect.bisect_left(starts, offset)
+    for o in starts[max(0, i - 1):i + 1]:
+        if o < offset + size and offset < o + len(edits[o]):
+            return o
+    return None
+
+
 def normalise_edits(edits, lo, hi):
     out = sorted((int(off), bytes(data)) for off, data in edits)
     end = None
@@ -199,6 +211,13 @@ def write_edited(src, dst, edits, force=False, verify=True, raw=None):
     lo, hi = chunks[0][0], chunks[-1][0] + chunks[-1][1]
     edits = normalise_edits(edits, lo, hi)
 
+    starts, ends = [off for off, _ in edits], [off + len(data) for off, data in edits]
+
+    def touches(a, b):
+        """Whether an edit meets [a, b): the first edit ending after a, the edits being in order and apart."""
+        k = bisect.bisect_right(ends, a)
+        return k < len(starts) and starts[k] < b
+
     expect = bytearray(full)
     changed_bytes = 0
     for off, data in edits:
@@ -208,7 +227,7 @@ def write_edited(src, dst, edits, force=False, verify=True, raw=None):
     out_chunks, new_entries, report_chunks, reencoded = [], [], [], 0
     co_new = chunks[0][2]
     for i, (uo, us, co, cs) in enumerate(chunks):
-        touched = any(off < uo + us and off + len(data) > uo for off, data in edits)
+        touched = touches(uo, uo + us)
         if not touched:
             out_chunks.append(raw[co:co + cs])
             new_entries.append((uo, us, co_new, cs))
@@ -222,7 +241,7 @@ def write_edited(src, dst, edits, force=False, verify=True, raw=None):
             old = raw[p:p + c]
             p += c
             part = bytes(expect[pos:pos + u])
-            hit = any(off < pos + u and off + len(data) > pos for off, data in edits)
+            hit = touches(pos, pos + u)
             if part == full[pos:pos + u] and not (force and hit):
                 enc = old
             else:

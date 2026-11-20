@@ -100,7 +100,7 @@ def carry(g, p, copies, hidden, pairs):
     by_piece = carried(p, pairs)
     if not by_piece:
         return [], set(), []
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     hidden = set(hidden)
     clones, gone, report = [], set(), []
     moved = set()
@@ -264,8 +264,7 @@ def set_values(g, p, source, kind, values, mapping=None):
     native_copy.clone_actor's) on its clone. What it writes to is the actor's own (its component, its node): never
     the source of a clone, an archetype or a cue asset. Returns what was written (dict: drawScale, startsOn,
     parameters, radiusMin, radiusMax, volume, pitch), as check_values reads it back."""
-    import buildings
-    walker = buildings.grown_walker(p, g)
+    walker = native_copy.Walker(p, g)
     mapping = mapping or {}
 
     def own(i):
@@ -394,7 +393,7 @@ def apply(g, p, ops, classes=EFFECT_CLASSES, what='an effect'):
     if not ops or not any(ops.get(k) for k in ('moves', 'deletes', 'copies', 'values')):
         return [], set(), []
     kind = ('effect' if tuple(classes) == EFFECT_CLASSES else 'flare' if tuple(classes) == FLARE_CLASSES else 'sound')
-    walker = native_copy.Walker(p)
+    walker = native_copy.Walker(p, g)
     listed = set(native_copy.level_actors(p))
     edited, clones, gone, record = set(), [], set(), []
     for m in ops.get('moves') or []:
@@ -460,7 +459,7 @@ def floor_lists(g, p, moved, new, deleted, edits=(), made=()):
     joining.update(new)
     if not leaving and not joining:
         return []
-    walker = buildings.grown_walker(p, g)
+    walker = native_copy.Walker(p, g)
     level = p.by_name['TheWorld.PersistentLevel']
     edited = {}
     for e in edits or ():
@@ -477,7 +476,7 @@ def floor_lists(g, p, moved, new, deleted, edits=(), made=()):
     template = None
     for r in made or ():
         if template is None:
-            template = buildings.building_template(p, native_copy.Walker(p))
+            template = buildings.building_template(p, native_copy.Walker(p, g))
         targets.append((r['building'], buildings.start_of(p, template['actor']),
                         [[_box(x) for x in f['boxes']] for f in r['floors']]))
     report = []
