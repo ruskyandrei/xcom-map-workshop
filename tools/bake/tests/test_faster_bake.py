@@ -1,7 +1,6 @@
 """The faster-bake plan's parts (private/plans/done/faster-bake-plan.md): packages decoded once, the writer's
 changed blocks, the reach test for each texel, pieces relit in bands, the worker pool, the pieces kept for the next
 build. The tests on the bar itself run when the map is here."""
-import json
 import os
 from pathlib import Path
 import sys

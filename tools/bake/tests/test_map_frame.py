@@ -135,6 +135,13 @@ class Pixels(unittest.TestCase):
         self.assertEqual(map_frame.encode(rgba), map_frame.encode(picture()))
 
 
+
+def read_picture(path):
+    """The DXT1 pixels of the map package's own picture, or None when it has none (or one laid out another way)."""
+    found = map_frame.locate(viewer_package.Package(path))
+    return found['pixels'] if found else None
+
+
 def read_back(path):
     """(package, the picture's export index, its description) of a written map; the native data must read whole as a
     2D texture (native_fields raises when bytes are left over)."""
@@ -164,7 +171,7 @@ class WrittenPicture(unittest.TestCase):
         cls.dir.cleanup()
 
     def test_the_map_had_none_and_gets_one_export(self):
-        self.assertIsNone(map_frame.read_picture(STREAM))
+        self.assertIsNone(read_picture(STREAM))
         self.assertIsNone(map_frame.locate(self.before))
         self.assertFalse(any(i['name'] == 'Texture2D' for i in self.before.imports))
         p, index, d, fields, found = read_back(self.out)
@@ -198,7 +205,7 @@ class WrittenPicture(unittest.TestCase):
         self.assertEqual(d['pixels'], self.pixels)
         self.assertEqual(d['guid'], map_frame.cache_guid(self.pixels))
         self.assertEqual(d['tail'], [0, 1, 0])
-        self.assertEqual(map_frame.read_picture(self.out), self.pixels)
+        self.assertEqual(read_picture(self.out), self.pixels)
         # a net index of its own: the map's next, and the map counts one more
         self.assertEqual(d['netIndex'], self.before.header['gens'][0][2])
         self.assertEqual(p.header['gens'][0][2], d['netIndex'] + 1)

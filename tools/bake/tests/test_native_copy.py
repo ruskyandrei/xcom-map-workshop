@@ -950,7 +950,7 @@ class NativeCopy(unittest.TestCase):
                          (-2784, -1920.0, 0.0, 52, 39, 12))
         g = package_grow.Grower(str(BAR))
         info = native_copy.clone_actor(g, p, old, where, rotation)
-        tiles = native_copy.add_tiles(g, p, old, where, rotation)
+        tiles = native_copy.add_tiles_box(g, p, native_copy.piece_box(p, old, where, rotation))
         # the post crosses tiles 16-17 x 0-1 up to level 6; with a ring around and a level above, nothing was marked
         self.assertEqual(tiles['tiles'], [15, 18, 0, 2, 1, 7])
         self.assertEqual((tiles['seeded'], tiles['alreadyMarked']), (84, 0))

@@ -7,7 +7,6 @@ GlobalPersistentCookerData). For uncompressed packages it also walks the depends
 many int32s per export, which must stay inside the header. Compressed packages are only listed, because their
 tables sit inside LZO chunks.
 """
-import os
 import struct
 import sys
 from pathlib import Path

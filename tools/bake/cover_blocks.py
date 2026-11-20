@@ -68,7 +68,6 @@ import light_factory  # noqa: E402
 
 PACKAGE = 'XComMapEdCover'
 LEVEL = 'TheWorld.PersistentLevel'
-KINDS = ('high', 'low', 'block')
 FORCED_EXPORT = 0x1
 UNIT = struct.unpack('<f', struct.pack('<f', 0.99999994))[0]     # the unit length the cooked hulls save
 
@@ -294,12 +293,6 @@ def breaking_recipe(version):
     if version not in BREAKING:
         raise ValueError(f'cover block recipe version {version!r} has no block that breaks with a group')
     return BREAKING[version]
-
-
-def breaking_digest(version):
-    """SHA-256 of a breaking block's recipe, pinned by the tests as recipe_digest's."""
-    text = json.dumps(breaking_recipe(version), sort_keys=True, separators=(',', ':'))
-    return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
 # ---------------------------------------------------------------- the box mesh

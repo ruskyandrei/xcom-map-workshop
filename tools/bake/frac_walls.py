@@ -86,7 +86,6 @@ import made_blasts  # noqa: E402
 import frac_wall  # noqa: E402
 import ground  # noqa: E402
 import gen_mesh  # noqa: E402
-import light_factory  # noqa: E402
 import looks  # noqa: E402
 import props as legacy_props  # noqa: E402
 
@@ -172,12 +171,6 @@ def donor_look(kind, numbers, version, since):
             raise ValueError('the look of %s has not been resolved (looks.resolved)' % look['mesh'])
     elif version >= since:
         raise ValueError('a generated %s of request version %d names its look by its donor ({mesh, measure})' % (kind, version))
-
-
-def section_points(R):
-    """A wall recipe's section corners on both sides ([y, z, v]: its +y side's and, where the -y side differs, its
-    `sectionB`)."""
-    return list(R['section']) + list(R.get('sectionB') or ())
 
 
 def local_box(wall):

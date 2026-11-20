@@ -31,7 +31,7 @@ only the container's changed 128 KB blocks re-encoded (as literal LZO1X runs, li
 must be the package's last compressed chunk and the last thing in the file. Both outputs are read back and checked.
 The default grid is URB_Bar's: origin (-2784, -1920, 0), tiles 96 x 96 x 64.
 """
-import argparse, json, math, os, struct, sys
+import argparse, json, os, struct, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 HEADER = 12          # NetIndex, then the FName None that ends the (empty) property list

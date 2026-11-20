@@ -17,7 +17,7 @@ bar's floor, it made the match worse), masked materials' holes (they shadow as s
       [--remove-light LIGHT ...]
       [--edit-spec SPEC] [--native-copy COPY=SOURCE ...] [--foreign-copy COPY=STAGED ...] [--fresh-copy COPY ...]
       [--light-edits FILE] [--receivers-near R] [--no-quick]
-      [--jobs N] [--band-texels N] [--floor F] [--as-before] [--piece-cache DIR --base SHA]
+      [--jobs N] [--band-texels N] [--floor F] [--piece-cache DIR --base SHA]
 
 An edit is relit as a change on the original bake (see `apply_change`). `--edit-spec` takes the edit from an editor
 patch spec (`tools/editor/compiler.py`): the pieces its exact hider hides are removed casters, and its copies are
@@ -72,8 +72,7 @@ onto them and that are more than REACH_NEAR from every edited light's radius, be
 relights them all. `--jobs N` relights components in N worker processes (each builds the scenes once).
 
 Since the faster-bake plan (private/plans/done/faster-bake-plan.md), an edit's relight goes further than the quick
-test for each piece, unless `--as-before` (which gives the output of before that plan, byte for byte, for
-comparisons):
+test for each piece:
 - in a piece in reach, only the texels the edit can change are relit (`texel_reach`: the same rule for each texel;
   not with `--no-quick`); the others keep the original bake exactly;
 - a piece whose largest change is under `--floor` (0.043) keeps its bake;
@@ -1346,15 +1345,6 @@ def _worker_job(job):
     return out
 
 
-def _relight_here(p, path, scene, checker, after, source=None, fresh=False):
-    """(path, result, error text, whether the error is a failure rather than a valid exclusion)."""
-    try:
-        return (path, relight_component(p, path, scene, checker=checker, after=after, source=source,
-                                        **({'fresh': True} if fresh else {})), None, False)
-    except Exception as error:
-        return path, None, f'{type(error).__name__}: {error}', not isinstance(error, Excluded)
-
-
 def piece_jobs(pieces, jobs, band_texels=BAND_TEXELS):
     """The jobs for `pieces` ((path, source, fresh, rectangle texels)), largest first: a piece of more than twice
     `band_texels` (with more than one worker) as bands, each a job; the others whole."""
@@ -1613,10 +1603,6 @@ def main():
                         'job (default %(default)s; 0: every piece whole)')
     a.add_argument('--floor', type=float, default=CHANGE_FLOOR,
                    help='edit: a piece whose largest change is under this keeps its bake (default %(default)s)')
-    a.add_argument('--as-before', action='store_true', default=bool(os.environ.get('XCOM_RELIGHT_AS_BEFORE')),
-                   help='edit: the output of before the faster-bake plan, for comparisons: every texel of a piece in '
-                        'reach relit, no floor, the slot scale set anew and the whole rectangle written (also with '
-                        'the environment variable XCOM_RELIGHT_AS_BEFORE set, for a whole build)')
     a.add_argument('--piece-cache', type=Path, metavar='DIR',
                    help="edit: keep each piece's result in DIR and take from there the pieces whose lights and "
                         'reaching edits are as they were in the last build (needs --base)')
@@ -1788,11 +1774,11 @@ def main():
     if after is not None and not args.no_quick:
         print(f'the quick reach test keeps {len(todo)} of {len(todo) + len(unreached)} components')
     timings['reach'] = round(time.perf_counter() - started - timings['scenes'], 1)
-    # what an edit's relight does beyond the quick test for each piece (faster-bake plan, 3.5, 5.1, 5.2), unless
-    # --as-before: the reach test for each texel, the floor under a change, the scale kept
-    finer = quick and not args.as_before
-    options = dict(texelReach=finer, exact=after is not None and not args.as_before, edited=edited)
-    floor = args.floor if after is not None and not args.as_before else 0.0
+    # what an edit's relight does beyond the quick test for each piece (faster-bake plan, 3.5, 5.1, 5.2): the reach
+    # test for each texel, the floor under a change, the scale kept
+    finer = quick
+    options = dict(texelReach=finer, exact=after is not None, edited=edited)
+    floor = args.floor if after is not None else 0.0
     kept = None
     keys, results, seconds = {}, {}, {}
     if keep_pieces:
@@ -1879,7 +1865,7 @@ def main():
         for key, value in r['images'].items():
             arrays[f'c{n}_{key}'] = value
         only = {'onlyChanged': True} if r.get('onlyChanged') else {}
-        if after is not None and not args.as_before:
+        if after is not None:
             only['ring'] = True     # the padding around the rectangle follows its border (lighting_fixture.image)
         ops += [dict(op='image', component=path, slot=0, npz=str(npz), key=f'c{n}_nac', **only),
                 dict(op='image', component=path, slot=1, npz=str(npz), key=f'c{n}_dmc', **only),

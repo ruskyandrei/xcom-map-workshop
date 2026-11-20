@@ -814,11 +814,10 @@ def plain_volume(p, index):
 
 def rebuild_template(p):
     """The volume add_rebuild_volume clones, by its name in the persistent level: REBUILD_TEMPLATE where the map has
-    it, else the first plain, unrotated volume with a brush model of the persistent level by REBUILD_FALLBACKS (F-59,
-    F-67)."""
+    it, else the first plain volume with a brush model of the persistent level by REBUILD_FALLBACKS (F-59, F-67). A
+    turned one would do as well: add_volume saves the clone unturned, its brush's own box stretched over the tiles."""
     if PL + REBUILD_TEMPLATE in p.by_name:
         return REBUILD_TEMPLATE
-    walker = Walker(p)
     found = {}
     for path, index in p.by_name.items():
         cls = p.cls(index)
@@ -826,17 +825,11 @@ def rebuild_template(p):
             continue
         if not plain_volume(p, index) or p.own(index, 'Brush', 0) <= 0:
             continue
-        e = p.exports[index - 1]
-        data = p.data[e['off']:e['off'] + e['size']]
-        start = legacy_props.props_start(p.data, e, p.names) - e['off']
-        at = walker.value(data, start, e['size'], 'Rotation')
-        if at is not None and struct.unpack_from('<3i', data, at) != (0, 0, 0):
-            continue
         found[cls] = path[len(PL):]
     for cls in REBUILD_FALLBACKS:
         if cls in found:
             return found[cls]
-    raise ValueError('the map has no plain, unrotated volume with a brush to clone a rebuild volume from')
+    raise ValueError('the map has no plain volume with a brush to clone a rebuild volume from')
 
 
 def volume_pose(p, volume, box):
@@ -1124,17 +1117,12 @@ def assembly_box(p, members):
     return [f(b[k] for b in boxes) for k in range(6) for f in [(min, max)[k % 2]]]
 
 
-def add_tiles(g, p, actor, location, rotation):
-    """The copy's tiles: seeds above the ground and a rebuild volume over every tile it crosses (level 0 has floor
-    flags everywhere, so the rebuild always re-checks it). Returns the manifest's `tiles` section; its `volume` is the
-    new actor to add to the level."""
-    return add_tiles_box(g, p, piece_box(p, actor, location, rotation))
-
-
 def add_tiles_box(g, p, box):
-    """add_tiles for a world box [x0, x1, y0, y1, z0, z1]: an assembly's copy (assembly_box) has one. None for a box
-    that crosses no tile of the map (a piece outside the level volume, as the maps' own backdrop pieces are): it has
-    no tiles to seed or rebuild."""
+    """A copy's tiles, for its world box [x0, x1, y0, y1, z0, z1] (a piece's piece_box, an assembly's assembly_box):
+    seeds above the ground and a rebuild volume over every tile it crosses (level 0 has floor flags everywhere, so the
+    rebuild always re-checks it). Returns the manifest's `tiles` section; its `volume` is the new actor to add to the
+    level. None for a box that crosses no tile of the map (a piece outside the level volume, as the maps' own backdrop
+    pieces are): it has no tiles to seed or rebuild."""
     grid = level_grid(p)
     seeds = seed_tiles_under(g, p, box, grid)
     t = seeds['tiles']

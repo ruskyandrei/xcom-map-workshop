@@ -55,8 +55,6 @@ import native_copy  # noqa: E402
 import package_grow  # noqa: E402
 import props as legacy_props  # noqa: E402
 
-INTROS = ('CIN_DropshipIntros', 'CIN_FastropeIntros', 'CIN_TP05A_EnteringAlienBase')
-
 
 def read_fstring(b, at):
     """(text, offset after) of the FString at `at`: a length with its terminator, ANSI when positive, UTF-16 when

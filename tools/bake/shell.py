@@ -688,13 +688,10 @@ def equip(map_path, out, cooked=None, donor=DONOR, schema=None, grid=None, groun
             for k in range(storeys - len(order)):
                 made = native_copy.clone_actor(g, p, last, p.own(last, 'Location', [0.0, 0.0, 0.0]), [0, 0, 0])
                 clones.append((made['actor'], last, floor + 1 + k))
-        for index, (vlo, vhi) in zip(cursor, boxes):
-            span = (1.0, vlo[2])
-            if index in order:
-                n = order.index(index)
-                bottom = box[2] + STOREY * n
-                top = max(box[5], bottom + STOREY) if n == storeys - 1 else bottom + STOREY
-                span = ((top - bottom) / (vhi[2] - vlo[2]), bottom)
+        for n, (index, (vlo, vhi)) in enumerate(zip(cursor, boxes)):
+            bottom = box[2] + STOREY * n
+            top = max(box[5], bottom + STOREY) if n == storeys - 1 else bottom + STOREY
+            span = ((top - bottom) / (vhi[2] - vlo[2]), bottom)
             placed = place_volume(walker, g, p, index, {0: spans[0], 1: spans[1], 2: span})
             report['placed'].append(dict(actor=p.name(index).rsplit('.', 1)[-1],
                                          floor=p.effective(index, 'm_iFloorNumber'), **placed))
