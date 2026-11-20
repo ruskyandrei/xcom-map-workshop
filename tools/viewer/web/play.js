@@ -27,7 +27,6 @@ export function playedMessage(r, mapLabel) {
     p.squad ? `Squad: ${p.squad.name}, ${p.squad.count} unit${p.squad.count === 1 ? '' : 's'}${p.squad.warnings?.length
       ? ` (${p.squad.warnings.length} warning${p.squad.warnings.length === 1 ? '' : 's'}: Test squad setup lists them)` : ''}.` : null,
     ...(p.mission?.missing ?? []),
-    p.introBack ? 'The first mission an earlier version of the editor installed is the game\'s own again.' : null,
     p.note,
   ].filter(Boolean).join('\n');
 }
@@ -46,7 +45,6 @@ export function inGame(game, mapLabel) {
   // the project manager's installs for campaigns (manager.js)
   for (const r of game.rotation ?? []) parts.push(`${r.project?.name ?? r.variant} ${r.mode === 'replace' ? `in place of ${r.base}` : `in the rotation beside ${r.base}`}`);
   if (game.switchedOff) parts.push(`${game.switchedOff} map record${game.switchedOff === 1 ? '' : 's'} switched off`);
-  if (game.intro) parts.push(`${named(game.intro.map, mapLabel)} as the first mission of a new campaign, from an earlier version of the editor`);
   return parts.length ? parts.join('; ') : 'Nothing of the editor\'s';
 }
 

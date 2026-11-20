@@ -193,9 +193,9 @@ export function editSpawn(o, entry, { delta = [0, 0, 0], turn = 0, spawn = null,
   const next = { stream: null, actor: o.actor, location, rotation, spawn: values };
   return spawnPosed(next, o) || Object.keys(values).length ? next : null;
 }
-/** A base spawn point's override (the project's `overrides` record, compiler.spawn_override): its pose only where it
- * moved or turned (a volume: its box where it moved or was sized), its values where it has any. pkg: the map's package
- * (the export's name). */
+/** A base spawn point's override (the project's `overrides` record, spawn_edits.py SpawnEdits.spawn_override): its
+ * pose only where it moved or turned (a volume: its box where it moved or was sized), its values where it has any.
+ * pkg: the map's package (the export's name). */
 export function spawnOverride(pkg, o, entry) {
   const out = { target: { package: pkg, level: 'base', actor: entry.actor } };
   if (entry.deleted) return { ...out, deleted: true };
@@ -237,7 +237,8 @@ export function spawnEntryOf(o, record) {
 export const SPAWN_COPY_KINDS = ['pod', 'meld', 'noSpawn'];
 const shortName = a => String(a ?? '').split('.').pop();
 /** The template of a new no-spawn volume on a map with none to copy: the Build makes it from one of the map's plain
- * volumes (compiler.spawn_add, native_copy.add_volume), keeping aliens and civilians out as the game's class does. */
+ * volumes (spawn_edits.py SpawnEdits.spawn_add, native_copy.add_volume), keeping aliens and civilians out as the
+ * game's class does. */
 export const NEW_VOLUME = Object.freeze({ actor: null, actorClass: 'XComNoSpawnVolume', kind: 'noSpawn', listed: true, box: null, fresh: true,
                                           values: { aliens: { value: true, from: 'class' }, civilians: { value: true, from: 'class' } },
                                           uses: [], links: [], referencedBy: [], other: [] });
@@ -295,8 +296,8 @@ export function copyEntry(o, { id, actor, location, rotation, box = null, spawn 
   if (o.kind === 'noSpawn') { const b = tidyBox(box); return { stream: 'copy', copy, actor, location: boxMiddle(b), rotation: [0, 0, 0], box: b, spawn: { ...spawn } }; }
   return { stream: 'copy', copy, actor, location: [...location], rotation: [...rotation], spawn: { ...spawn } };
 }
-/** A copy's added record (compiler.spawn_add's): pkg the map's package. A volume's has its box and no pose, and no
- * `from` when it is a fresh one. */
+/** A copy's added record (spawn_edits.py SpawnEdits.spawn_add's): pkg the map's package. A volume's has its box and
+ * no pose, and no `from` when it is a fresh one. */
 export function copyRecord(pkg, entry) {
   const from = entry.copy.from ? { from: { package: pkg, level: 'base', actor: entry.copy.from } } : {};
   const values = Object.keys(entry.spawn).length ? { spawn: { ...entry.spawn } } : {};
@@ -342,8 +343,8 @@ export function copyMarkerRecord(o, entry) {
                      ...(o.kind === 'pod' ? { podIndex: { value: 'its own', from: 'project' } } : {}) },
            uses: [], links: [], referencedBy: [], other: [], copyOf: o.actor };
 }
-/** Whether something names a base record (export 33's uses and the names listing it), as compiler.spawn_names reads
- * it: a delete of it is kept back. */
+/** Whether something names a base record (export 33's uses and the names listing it), as spawn_edits.py
+ * SpawnEdits.spawn_names reads it: a delete of it is kept back. */
 export const spawnNamed = o => Boolean(o?.uses?.length || o?.referencedBy?.length || o?.unread);
 
 /** The panel's words for an edit's move and turn ("" when it stands as the map has it). */

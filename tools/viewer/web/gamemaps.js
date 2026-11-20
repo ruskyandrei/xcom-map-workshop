@@ -39,7 +39,6 @@ function removedText(d) {
   if (d.recordsBack) parts.push(`${plural(d.recordsBack, 'record')} of the game's own back in use`);
   if (d.landingZones) parts.push(`the landing zones of ${plural(d.landingZones, 'map')}`);
   if (d.files.length) parts.push(plural(d.files.length, 'file'));
-  if (d.intro) parts.push('the first mission an earlier version installed (the game\'s own again)');
   if (d.playFile) parts.push('the commands file');
   const left = d.left.length ? ` Left as they are: ${d.left.join('; ')}.` : '';
   return (parts.length ? `Taken out of the game: ${parts.join(', ')}.` : 'The editor had nothing in the game.') + left;

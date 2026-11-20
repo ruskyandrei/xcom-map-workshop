@@ -365,7 +365,7 @@ function useMapFamilies(table) {
   landingActors = Array.isArray(table?.landing) ? new Set(table.landing) : null;
   gizmo.regroup();
 }
-let data, selected, originalPositions = false, loadErrorCount = 0, lighting;
+let data, selected, loadErrorCount = 0, lighting;
 let activeMapId, cachePrefix='/cache/', mapCatalogue=null, mapBrowser=null;
 let lightRadius = 700;
 
@@ -4476,7 +4476,7 @@ let templates = null, recoveryTimer = null, recoveryKept = false, saving = false
 const SESSION = uuid();
 let adoptedDraft = null, recoveryTrouble = null;
 const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
-// Projects edit a full map's original layout: not a piece study or a patch preview.
+// Projects edit a full map's original layout: not a patch preview.
 const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 'map' && !data.preview;
 // The edits on screen, as a project records them: overrides of original actors and added actors, sorted.
 function editState() {
@@ -6004,19 +6004,9 @@ function removeRoots(list) {
   for (const root of list) { roots.delete(root.userData.source.id); content.remove(root); }
   pickables.splice(0, pickables.length, ...pickables.filter(p => !parts.has(p)));
 }
-// The piece's unedited matrix: as exported (for a copy, where it was placed), or at its study position in sample mode.
+// The piece's unedited matrix: as exported (for a copy, where it was placed).
 function baseMatrix(root) {
-  const obj = root.userData.source, matrix = new THREE.Matrix4().fromArray(obj.matrix);
-  if (data.scope === 'sample' && !originalPositions && !obj.added) {
-    const carLocation = data.objects.find(o => short(o.actor) === 'XComDestructibleActor_20')?.location || [0,0,0];
-    const name = short(obj.actor);
-    const anchor = name === 'XComLevelActor_242' ? [0,0,0] : name === 'XComDecoFracLevelActor_9' ? [-230,0,0] : [150,1,0];
-    const source = name === 'XComFracLevelActor_10' ? carLocation : obj.location;
-    matrix.elements[12] += anchor[0] - source[0];
-    matrix.elements[13] += anchor[1] - source[2];
-    matrix.elements[14] += anchor[2] - source[1];
-  }
-  return matrix;
+  return new THREE.Matrix4().fromArray(root.userData.source.matrix);
 }
 function placeObjects() {
   for (const root of roots.values()) {
@@ -6615,7 +6605,7 @@ function clearSize() {
 }
 function showClearMap() {
   showPop(null);
-  if (!projectsAvailable() || !ownSize()) { banner('Clear map is for a whole map, not a piece study, a preview or the prefab builder.'); return; }
+  if (!projectsAvailable() || !ownSize()) { banner('Clear map is for a whole map, not a preview or the prefab builder.'); return; }
   clearSize();
   clearDialog.root.hidden = false;
   setTimeout(() => $('clearMapOk').focus(), 0);
@@ -11809,8 +11799,6 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   mergedBuildings = null;
   // No layout menu any more (the user's choice, 7 November): a patch preview (Bar's EXP-07 and EXP-08 layouts)
   // opens only from its address, ?scene=preview-<n>.json.
-  originalPositions = data.scope !== 'sample';
-  $('layout').hidden = data.scope !== 'sample';
   document.title = `${data.name} · XCOM Map Workshop`;
   $('previewChip').hidden = !data.preview;
   // Configure light data before the first lit material compiles.
@@ -12196,7 +12184,6 @@ $('wire').onchange = e => {
   for (const mat of new Set([...pickables.map(p => p.userData.baseMaterial), ...cutMaterials.values()])) mat.wireframe = e.target.checked;
 };
 $('exposure').oninput = e => { renderer.toneMappingExposure = Number(e.target.value); };
-$('layout').onclick = () => { originalPositions = !originalPositions; placeObjects(); frame(); $('layout').textContent = originalPositions ? 'Piece study' : 'Original positions'; };
 let pointerStart;
 // The Buildings view's drags (a box's face handle, the New box tool) take the press first.
 // A cover piece's handles likewise (cover-block-handles-plan.md).

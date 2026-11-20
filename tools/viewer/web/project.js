@@ -103,7 +103,7 @@ export const tidyBuilding = b => (b.deleted ? { id: b.id, ...(b.name ? { name: b
 // map plan, section 6) the grid may also be smaller than the map's, in any of the three; the corner and the bottom
 // never move.
 // (256 tiles a side since 16 November 2026, at the user's word; 128 before)
-export const STAGE_GRID_MAX = 256, STAGE_LEVELS_MAX = 30, STAGE_LEVELS_PLAYED = 18;
+export const STAGE_GRID_MAX = 256, STAGE_LEVELS_MAX = 30;
 // The maps whose size can be set without clearing them: the bare map a new prefab or a new map starts from
 // (compiler.py STAGE_MAPS). Any map as it is may grow (13 November 2026); a cleared one may also shrink.
 export const STAGE_MAPS = ['CB2_MP_Blank'];
@@ -195,7 +195,7 @@ const validEffectValues = (v, kind) => v === undefined || (v && typeof v === 'ob
 const validSpawnValues = v => v === undefined || (v && typeof v === 'object' && !Array.isArray(v)
   && Object.values(v).every(x => typeof x === 'boolean' || typeof x === 'string' || Number.isInteger(x)));
 // (a no-spawn volume's box, [x0, y0, z0, x1, y1, z1]: each far side past the near one, as spawns_view.js validBox and
-// the compiler's spawn_box have it, not a building box's at least 1 unit; review finding 34)
+// spawn_edits.py SpawnEdits.spawn_box have it, not a building box's at least 1 unit; review finding 34)
 const validSpawnBox = b => Array.isArray(b) && b.length === 6 && b.every(Number.isFinite) && b[3] > b[0] && b[4] > b[1] && b[5] > b[2];
 // (flags: a piece's flags, piece_flags.js validFlags; an override may be flags alone, with no pose: the piece where the
 // map has it; an effect's may be its values alone, and a spawn point's too; a no-spawn volume's is its box, its values
