@@ -2313,6 +2313,12 @@ class BuildState:
     door_listings: list = filled(list)  # doors in a made wall's opening, listed in its columns
     group_listings: list = filled(list)     # a made wall's break group's pieces, listed in its columns
     neighbour_listings: list = filled(list)     # made walls and the fracturing pieces they meet, listing each other
+    # the building floors (edit_buildings)
+    floor_caches: list = filled(list)   # each copy in its building floor's cutaway (edit_floor_caches)
+    made_floors: list = filled(list)    # the made walls in the map's buildings' cutaways (list_made_walls)
+    building_actors: list = filled(list)    # the buildings' new volumes, for the level's list
+    building_records: list = filled(list)   # the buildings made from nothing (buildings.make)
+    edit_records: list = filled(list)   # the map's own buildings edited (buildings.edit)
 
     def gone(self):
         """Every actor (export index) the edit has taken out so far."""
@@ -2753,6 +2759,58 @@ def wall_columns(st):
     st.group_listings, st.neighbour_listings = group_listings, neighbour_listings
 
 
+def edit_buildings(st):
+    """The building floors after the copies, the hides and the walls' columns (BuildState `st`): each copy in the
+    cutaway of the map's building floor it stands in (edit_floor_caches), the walls made from numbers in the map's
+    buildings they stand in (list_made_walls), the buildings made from nothing (buildings.make) and the map's own
+    edited in place (buildings.edit), with the slots they empty. Fills the state's floor_caches, made_floors,
+    building_actors, building_records, edit_records and edit_slots."""
+    p, g, made, poses, generated_records, hidden = st.p, st.g, st.made, st.poses, st.generated_records, st.hidden
+    buildings, building_edits = st.buildings, st.building_edits
+    # the map's own buildings edited in place (their new boxes), for the copies' floors
+    replaced = {}
+    for e in building_edits:
+        bi = p.by_name.get(PL + e['actor'])
+        if bi is not None:
+            replaced[bi] = None if e.get('deleted') else [x for f in e['floors'] for x in [f['boxes']]]
+    # a van's parts are in its own building's cutaway, which comes with them
+    made_walls = {r['copy'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab', 'ground')}
+    floor_caches = edit_floor_caches(g, p, [x[:4] for x in poses if x[4] != 'van' and x[1] not in made_walls], replaced)
+    # walls made from numbers in the map's own buildings they stand in, by their own boxes (M3 item 7)
+    made_floors = list_made_walls(g, p, generated_records, replaced) if made_walls else []
+    for d in made_floors:
+        print('    %s: in %s\'s cutaway, %s' % (
+            next(r['label'] for r in generated_records if r.get('copy') == d['wall']), p.name(d['building']).split('.')[-1],
+            ', '.join('floor %d%s' % (k, ', CutdownFloor %d' % cut if cut else '') for k, cut in d['floors'])))
+    # the buildings made from nothing: their volumes, and in each floor the pieces that stand in it after the edit
+    building_actors, building_records, edit_records, edit_slots = [], [], [], set()
+    if buildings or building_edits:
+        import buildings as new_buildings
+        gone = {h['export'] for h in hidden}
+        level_index = p.by_name['TheWorld.PersistentLevel']
+        candidates = [dict(actor=i, source=i, name=p.name(i).split('.')[-1]) for i in level_actors(p)
+                      if i > 0 and i not in gone and p.exports[i - 1]['outer'] == level_index
+                      and not p.effective(i, 'bHidden', False)]
+        made_boxes = {r['copy']: r['box'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab', 'ground')}
+        candidates += [dict(actor=copy, source=original, location=after[0], rotation=after[1], label=m['label'],
+                            name='copy of ' + p.name(original).split('.')[-1],
+                            **({'box': made_boxes[copy]} if copy in made_boxes else {}))
+                       for m, (original, copy, _, after, _) in zip(made, poses)]
+        if buildings:
+            building_actors, building_records = new_buildings.make(g, p, buildings, candidates)
+        if building_edits:
+            # a moved piece's copy stands in for it in the building's external mesh groups
+            moved_copies = {original: copy for original, copy, *_ in poses if original in gone}
+            edit_actors, edit_slots, edit_records = new_buildings.edit(g, p, building_edits, candidates, gone,
+                                                                       moved_copies)
+            building_actors += edit_actors
+            if edit_slots:
+                empty_slots(g, p, edit_slots)
+    st.edit_slots = set(edit_slots)
+    st.floor_caches, st.made_floors = floor_caches, made_floors
+    st.building_actors, st.building_records, st.edit_records = building_actors, building_records, edit_records
+
+
 def build(st):
     """The Build `st` (BuildState), made by its caller with its inputs: the fields named here (src, out, variant,
     copies, bake...), which build reads once, and the state build fills as it goes.
@@ -2839,7 +2897,7 @@ def build(st):
     src, out, variant, bake, cache = st.src, st.out, st.variant, st.bake, st.cache
     receivers_near, jobs, tiles, edit_spec = st.receivers_near, st.jobs, st.tiles, st.edit_spec
     break_originals, hides, assemblies, lights, covers = st.break_originals, st.hides, st.assemblies, st.lights, st.covers
-    buildings, building_edits, cleared, landing_zones = st.buildings, st.building_edits, st.cleared, st.landing_zones
+    building_edits, cleared, landing_zones = st.building_edits, st.cleared, st.landing_zones
     carried_effects, piece_cache, base, stream_tiles = st.carried_effects, st.piece_cache, st.base, st.stream_tiles
     piece_flags, flag_ladders, effects, sounds = st.piece_flags, st.flag_ladders, st.effects, st.sounds
     flares, spawns, piece_blasts = st.flares, st.spawns, st.piece_blasts
@@ -2905,46 +2963,10 @@ def build(st):
     wall_columns(st)
     columns, door_listings = st.columns, st.door_listings
     group_listings, neighbour_listings = st.group_listings, st.neighbour_listings
-    # the map's own buildings edited in place (their new boxes), for the copies' floors
-    replaced = {}
-    for e in building_edits:
-        bi = p.by_name.get(PL + e['actor'])
-        if bi is not None:
-            replaced[bi] = None if e.get('deleted') else [x for f in e['floors'] for x in [f['boxes']]]
-    # a van's parts are in its own building's cutaway, which comes with them
-    made_walls = {r['copy'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab', 'ground')}
-    floor_caches = edit_floor_caches(g, p, [x[:4] for x in poses if x[4] != 'van' and x[1] not in made_walls], replaced)
-    # walls made from numbers in the map's own buildings they stand in, by their own boxes (M3 item 7)
-    made_floors = list_made_walls(g, p, generated_records, replaced) if made_walls else []
-    for d in made_floors:
-        print('    %s: in %s\'s cutaway, %s' % (
-            next(r['label'] for r in generated_records if r.get('copy') == d['wall']), p.name(d['building']).split('.')[-1],
-            ', '.join('floor %d%s' % (k, ', CutdownFloor %d' % cut if cut else '') for k, cut in d['floors'])))
-    # the buildings made from nothing: their volumes, and in each floor the pieces that stand in it after the edit
-    building_actors, building_records, edit_records, edit_slots = [], [], [], set()
-    if buildings or building_edits:
-        import buildings as new_buildings
-        gone = {h['export'] for h in hidden}
-        level_index = p.by_name['TheWorld.PersistentLevel']
-        candidates = [dict(actor=i, source=i, name=p.name(i).split('.')[-1]) for i in level_actors(p)
-                      if i > 0 and i not in gone and p.exports[i - 1]['outer'] == level_index
-                      and not p.effective(i, 'bHidden', False)]
-        made_boxes = {r['copy']: r['box'] for r in generated_records if r['kind'] in ('fracWall', 'fracSlab', 'ground')}
-        candidates += [dict(actor=copy, source=original, location=after[0], rotation=after[1], label=m['label'],
-                            name='copy of ' + p.name(original).split('.')[-1],
-                            **({'box': made_boxes[copy]} if copy in made_boxes else {}))
-                       for m, (original, copy, _, after, _) in zip(made, poses)]
-        if buildings:
-            building_actors, building_records = new_buildings.make(g, p, buildings, candidates)
-        if building_edits:
-            # a moved piece's copy stands in for it in the building's external mesh groups
-            moved_copies = {original: copy for original, copy, *_ in poses if original in gone}
-            edit_actors, edit_slots, edit_records = new_buildings.edit(g, p, building_edits, candidates, gone,
-                                                                       moved_copies)
-            building_actors += edit_actors
-            if edit_slots:
-                empty_slots(g, p, edit_slots)
-    st.edit_slots = set(edit_slots)
+    # the building floors: the copies', the made walls', the buildings made and edited (edit_buildings)
+    edit_buildings(st)
+    floor_caches, made_floors = st.floor_caches, st.made_floors
+    building_actors, building_records, edit_records = st.building_actors, st.building_records, st.edit_records
     # the added and changed placed lights in the lightmaps of the map's own receivers they reach (baked builds only;
     # plan 4.3, step 4); the copies' are in their clones already
     registration = None
