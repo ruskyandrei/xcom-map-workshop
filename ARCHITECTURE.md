@@ -31,7 +31,10 @@ project document. It asks the server through [`api.js`](tools/viewer/web/api.js)
 through [`storage.js`](tools/viewer/web/storage.js). [`project.js`](tools/viewer/web/project.js) holds the document's
 shape on the page. What several of the page's areas use (the scene, its roots, the selection, the project open, the
 groups, the buildings and the cleared map's state) lives in [`editor_state.js`](tools/viewer/web/editor_state.js).
-`window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
+An added thing's record (a copy of a piece, a made piece, a cover block, a light, an effect, a sound or a lens flare),
+as a project, a prefab and the prefab builder's document keep it, is written and read in one place,
+[`piece_records.js`](tools/viewer/web/piece_records.js). `window.viewer`, set in `startScene`, is the set of hooks the
+browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
 page and the editor's JSON routes. Its handler's `handle_<area>` methods hand each route to its area's module:
@@ -123,6 +126,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A setting (a folder, an install) | [`settings.py`](tools/viewer/settings.py). |
 | A record of the map's export | [`export.py`](tools/viewer/export.py) or [`scene_metadata.py`](tools/viewer/scene_metadata.py), with `EXPORT_VERSION` raised. |
 | A field of the project document | [`projects.py`](tools/viewer/projects.py) and [`project.js`](tools/viewer/web/project.js), with the compiler's reading of it, and the contract in [`research/editor-contracts.md`](research/editor-contracts.md). |
+| A field of an added thing's record (a copy of a piece, a cover block, a light, an effect, a sound, a lens flare) | [`piece_records.js`](tools/viewer/web/piece_records.js): `recordOf` writes it (for every writer: a project, a prefab, the builder's document), `optionsOf` reads it (a project opened, a prefab placed, a paste), and `PIECE_FIELDS` names it; a case in [`piece_record_cases.json`](tools/viewer/tests/piece_record_cases.json) or [`piece_records_test.mjs`](tools/viewer/tests/piece_records_test.mjs). Then as for a field of the project document, and the prefab's check of a piece in [`prefabs.py`](tools/viewer/prefabs.py). |
 | An edit family of the compiler | A class in a module of its own in `tools/editor`, made with the `Compiler` it works for (`self.c`), with its own tables and state. It takes what it shares with the compiler from [`compiler_tables.py`](tools/editor/compiler_tables.py), never imports the compiler, and reports through the compiler's `error`, `warn` and `note`. The compiler imports it at the top and names again the tables of it that others read through the compiler. [`spawn_edits.py`](tools/editor/spawn_edits.py) is the model. |
 | A table or helper of the compiler that a family reads too | [`compiler_tables.py`](tools/editor/compiler_tables.py), named in its `__all__`. One only the compiler reads stays in `compiler.py`; one only a family reads goes in the family's module (the `SPAWN_*` tables in `spawn_edits.py`). |
 | A lane of the native edit | One change across the compiler's spec, `native_split`, a maker module in `tools/bake` (as [`native_effects.py`](tools/bake/native_effects.py)) called from `native_copy.build`, and the Build. |
@@ -160,8 +164,8 @@ where there is one.
 
 - A rule, a constant or a reader of a format is written once. Before writing a reader, a walker or a writer, look for
   the one there is: `props.tags`, `decomp.read_chunk`, `package_edit.write_edited`, `mapsini`; on the page `api.js`,
-  `storage.js`, `constants.js` and `piece_records.js`. Copies drift apart and each fails differently (findings 52, 55
-  and 56).
+  `storage.js`, `constants.js` and `piece_records.js` (the one writer and reader of an added thing's record). Copies
+  drift apart and each fails differently (findings 52, 55 and 56).
 - A rule both the page and Python need lives in a JSON file both read, or has a case file both sides' tests read. It
   is never copied by hand with no test (finding 55).
 - Code never decides by the words of a message. An error that code reads carries a code: words get rewritten
@@ -183,6 +187,15 @@ where there is one.
   missions, picture and spawn rules. app.js still declares the state of the areas not yet moved out of it; new state
   never goes there. An assignment to an imported name throws only when its line runs, and no browser check runs every
   line: a change that moves state searches for any assignment to the moved names left behind.
+- An added thing's record is written only through `piece_records.js`'s `recordOf` and read only through its
+  `optionsOf`. A writer gathers what it knows of the thing (a unit: its names, source, components, pose, links,
+  state, recipe, a cover block's, a light's or an effect's own fields) and hands it to `recordOf`, which gives the
+  fields in the one order every writer has always written. The saved files' bytes and a project's saved key
+  (`stateKey`, which compares records as text) follow that order, so it changes only on purpose. A reader hands the
+  record to `optionsOf` and makes the root from what it gives. Where the writers differ, the difference is the unit's (a prefab's records have no `id`) or the path's
+  (`recordOf(unit, 'prefab')` puts a recipe light's values before its pose). The three writers and the readers were
+  recorded on every kind of piece when they moved onto these, and those records are the node test's cases
+  (`piece_record_cases.json`).
 - A module's top level only declares, so the order of imports means nothing. No module imports app.js.
 - A rule, a record or a sentence is in a pure module with a node test. The wiring of a panel is beside it and has a
   browser check in the table of checks. A hook a browser check uses is on `window.viewer`.
