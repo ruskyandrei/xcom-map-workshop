@@ -503,10 +503,10 @@ class MadeEdits:
         slabs = self.made_slab_wholes()
         if not slabs:
             return
-        houses = [(b['name'] or 'a new building', [[x for x in f['boxes']] for f in b['floors']]) for b in self.c.new_buildings]
-        houses += [(e['name'], [[x for x in f['boxes']] for f in e['floors']]) for e in self.c.building_edits
+        houses = [(b['name'] or 'a new building', [[x for x in f['boxes']] for f in b['floors']]) for b in self.c.building_edits.new_buildings]
+        houses += [(e['name'], [[x for x in f['boxes']] for f in e['floors']]) for e in self.c.building_edits.edits
                    if not e.get('deleted') and e.get('floors')]
-        edited = {e['actor'] for e in self.c.building_edits}
+        edited = {e['actor'] for e in self.c.building_edits.edits}
         for b in self.c.scene.get('buildings') or []:
             if b.get('actor') in edited:
                 continue

@@ -129,6 +129,9 @@ from flag_edits import FlagEdits  # noqa: E402
 # (the tests, the bake suite's agreement test, an example)
 from made_edits import (FRAC_SLAB_MAX_TILES, FRAC_WALL_LOOKS, FRAC_WALL_MIN_LENGTH, WALL_SWEEPS,  # noqa: E402,F401
                         MadeEdits, opening_play, wall_joins)
+# the buildings family (made from nothing, and the map's own changed or deleted), and its tables and helpers others
+# read through the compiler (the tests, the viewer's prefab builder test)
+from building_edits import BUILDING_FLOORS_MAX, BuildingEdits, moved_whole, source_floor_match  # noqa: E402,F401
 
 COMPILER_VERSION = 3
 # a floor or roof slab made from numbers (custom geometry plan, M5: tools/bake/frac_slab.py, slab_looks.json): the
@@ -186,9 +189,10 @@ READ_VERSIONS = (1, 2, 3, 4)
 # the map's own low scenery past its far sides, on a grid the project grows, is made walkable by the Build (F-100;
 # native_copy.SCENERY_LOW, shell.py scenery_to_walk): a level actor no taller than this, within the grid's levels
 SCENERY_LOW = 32.0
-# The cursor's floors (the export's cursorVolumes, export 20): a building's floor should start within CURSOR_NEAR of
-# where one starts. A map with none gets CURSOR_STOREYS even storeys of CURSOR_STOREY from the Build (shell.py).
-CURSOR_NEAR, CURSOR_STOREY, CURSOR_STOREYS = 32.0, 192.0, 4
+# The cursor's floors (the export's cursorVolumes, export 20): a map with none gets CURSOR_STOREYS even storeys of
+# CURSOR_STOREY from the Build (shell.py); a building's floor should start within the buildings family's
+# CURSOR_NEAR of where one starts.
+CURSOR_STOREY, CURSOR_STOREYS = 192.0, 4
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
@@ -346,47 +350,6 @@ def finite(v, n):
                                                        and math.isfinite(x) for x in v)
 
 
-BUILDING_SHAPE = ('each building is {"id", "name", "kind": "building" or "ufo", "floors": [{"boxes": [[x0, y0, z0, x1, '
-                  'y1, z1]]}]}, each floor with at least one box that has room in it; one of the map\'s has "replaces": '
-                  '{"package", "level", "actor"} and each floor "volumes" as long as its boxes, or is {"id", "replaces", '
-                  '"deleted": true}')
-
-
-def building_well_formed(b):
-    """Whether a `buildings` record has the shape BUILDING_SHAPE says."""
-    def number(v):
-        return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
-    if not isinstance(b, dict) or not isinstance(b.get('id'), str) or not b['id'] \
-            or not isinstance(b.get('name', ''), str):
-        return False
-    rep = b.get('replaces')
-    if rep is not None and not (isinstance(rep, dict) and set(rep) == {'package', 'level', 'actor'}
-                                and all(isinstance(v, str) for v in rep.values())):
-        return False
-    if 'deleted' in b:
-        return b['deleted'] is True and rep is not None and 'floors' not in b
-    if not keyable(b.get('kind', 'building')) or b.get('kind', 'building') not in BUILDING_KINDS:
-        return False
-    floors = b.get('floors')
-    if not isinstance(floors, list) or not 1 <= len(floors) <= BUILDING_FLOORS_MAX:
-        return False
-    for f in floors:
-        boxes = f.get('boxes') if isinstance(f, dict) else None
-        if not isinstance(boxes, list) or not boxes:
-            return False
-        for x in boxes:
-            if not (isinstance(x, list) and len(x) == 6 and all(number(v) for v in x)
-                    and all(x[k + 3] - x[k] >= 1 for k in range(3))):
-                return False
-        volumes = f.get('volumes')
-        if rep is None and volumes is not None:
-            return False
-        if rep is not None and not (isinstance(volumes, list) and len(volumes) == len(boxes) and all(
-                v is None or (isinstance(v, str) and v) for v in volumes)):
-            return False
-    return True
-
-
 def is_landing(obj):
     """Whether an export's piece is one of the map's landing-zone pieces (LANDING_PREFIXES, by its archetype)."""
     return str(obj.get('archetype') or '').casefold().startswith(LANDING_PREFIXES)
@@ -459,60 +422,6 @@ def rigid_move(src_location, src_rotation, location, rotation):
     b = transform(location, rotation, [1, 1, 1])
     inverse = [[a[j][i] for j in range(3)] + [-sum(a[j][i] * a[j][3] for j in range(3))] for i in range(3)] + [[0, 0, 0, 1]]
     return multiply(b, inverse)
-
-
-def source_floor_match(buildings, floors, before, location, rotation):
-    """The source building a building of the project comes from, as seen from one piece taken from that source: the
-    source's buildings (an export's: floors with boxes {min, max}) carried by the piece's move (from its source pose
-    `before` {location, rotation} to `location`, `rotation`, a whole number of quarter turns), each floor paired with
-    the project floor its boxes overlap most. `floors`: the project building's ([{boxes: [[x0, y0, z0, x1, y1, z1]]}]).
-    The source building chosen is the one that overlaps the project building most, and it must pair its floors with
-    distinct project floors (one at least). Returns dict(building, floor_map: [project floor or None per source floor],
-    moved: the source's floors carried, [[[x0, y0, z0, x1, y1, z1]]]) or None. The boxes may have been edited since:
-    the piece keeps what its map saved where the rule agrees (buildings.carried). web/floors.js sourceFloorMatch is
-    the twin; both pass tests/source_floor_match_cases.json."""
-    pitch, yaw, roll = [(a - b + 32768) % 65536 - 32768 for a, b in zip(rotation, before['rotation'])]
-    turns = game_round(yaw / QUARTER)
-    if max(abs(pitch), abs(roll), abs(yaw - turns * QUARTER)) > POSE_SLACK:
-        return None
-    origin = [*turned(before['location'][:2], turns), before['location'][2]]
-    shift = [v - origin[k] for k, v in enumerate(location)]
-
-    def move(point):
-        return [v + shift[k] for k, v in enumerate((*turned(point[:2], turns), point[2]))]
-
-    def carry(box):
-        a, b = move(box['min']), move(box['max'])
-        return [min(v, w) for v, w in zip(a, b)] + [max(v, w) for v, w in zip(a, b)]
-
-    def meet(p, q):
-        n = 1.0
-        for j in range(3):
-            n *= max(0.0, min(p[j + 3], q[j + 3]) - max(p[j], q[j]))
-        return n
-
-    best = None
-    for b in buildings:
-        if not b.get('floors'):
-            continue
-        moved = [[carry(x) for x in f.get('boxes') or []] for f in b['floors']]
-        floor_map, used, total, fine = [], set(), 0.0, True
-        for boxes in moved:
-            pick, most = None, 0.0
-            for j, g in enumerate(floors):
-                got = sum(meet(x, y) for x in boxes for y in g['boxes'])
-                if got > most:
-                    pick, most = j, got
-            if pick is not None and pick in used:
-                fine = False
-            if pick is not None:
-                used.add(pick)
-            floor_map.append(pick)
-            total += most
-        if not fine or not used or (best and total <= best[0]):
-            continue
-        best = (total, dict(building=b, floor_map=floor_map, moved=moved))
-    return best[1] if best else None
 
 
 def same_moves(moves, slack=INSTANCE_MATCH):
@@ -681,10 +590,9 @@ class Compiler:
         # the base map's spawn points moved, given values, copied and deleted (the editor spawns plan, SP6 and SP7):
         # their own module (review finding 23)
         self.spawn_edits = SpawnEdits(self)
-        self.new_buildings = []      # buildings made from nothing: the spec's `buildings` object (buildings())
-        self.building_edits = []     # the map's own buildings changed or deleted: the spec's `buildingEdits` object
-        self.floor_sources = {}
-        self.donor_buildings = {}
+        # buildings made from nothing and the map's own changed or deleted (the spec's `buildings` and `buildingEdits`
+        # objects), with the sources of the copies whose floors they read: their own module (review finding 23)
+        self.building_edits = BuildingEdits(self)
         self.untried_foreign = {}    # (package folded, actor path) of the pieces of other maps built untried
         # pieces' flags (piece flags plan): the map's own pieces whose flags change where they stand (the spec's
         # `pieceFlags` object), the actors whose floor such an edit takes away or gives, and the report's counts:
@@ -954,7 +862,7 @@ class Compiler:
         # and quarter turns from the original) then reads as for one of the map's own pieces
         parts = record['objects']
         donor_key = target['package'].casefold()
-        self.donor_buildings[donor_key] = record.get('buildings', [])
+        self.building_edits.donor_buildings[donor_key] = record.get('buildings', [])
         if record.get('grid') and self.grid_origin is not None:
             shift = [float(a) - b for a, b in zip(self.scene['tileGrid']['origin'][:3], record['grid'])]
             parts = [dict(o, floorLocation=o['location'], location=[v + d for v, d in zip(o['location'], shift)]) for o in parts]
@@ -1485,11 +1393,11 @@ class Compiler:
         if self.floor_boxes is None or getattr(self, '_floor_boxes_now', None) is not None:
             return self.floor_boxes if self.floor_boxes is None else self._floor_boxes_now
         records = {}
-        for b in self.building_records()[0]:
+        for b in self.building_edits.building_records()[0]:
             rep = b.get('replaces')
             if isinstance(rep, dict) and str(rep.get('package')).casefold() == self.map.casefold() and rep.get('level') == 'base' and isinstance(rep.get('actor'), str):
                 records.setdefault(rep['actor'], b)
-        usable = self.map_buildings()
+        usable = self.building_edits.map_buildings()
         out, done = [], set()
         for name, index, xs in self.floor_boxes:
             rec = records.get(name)
@@ -1861,7 +1769,7 @@ class Compiler:
                           **where)
         if extra.get('family') == 'ladder':
             self.ladder_jobs.append((self.copies[-1], short(out), src, loc, rot, where))
-        self.floor_sources[short(out)] = src
+        self.building_edits.floor_sources[short(out)] = src
         if piece:
             return      # (the whole's entity is split_made's)
         self.entities.append(dict(kind='add', entity=out, id=rec.get('id'), template=rec['from']['actor'],
@@ -2002,12 +1910,12 @@ class Compiler:
         deleted = {original_key(r['target']) for r in self.doc.get('overrides') or []
                    if isinstance(r, dict) and isinstance(r.get('target'), dict) and r.get('deleted') is True}
         linked = {}   # member key -> the group that links it
-        listed = self.building_records()[0]
+        listed = self.building_edits.building_records()[0]
         made = {b['id'] for b in listed if b.get('deleted') is not True}
         # the map's own buildings that can be edited, by the id made from their actor, record or none (map buildings
         # plan, section 2); a deleted one is no member
         gone = {b['id'] for b in listed if b.get('deleted') is True}
-        made |= {map_building_id(b) for b, why in self.map_buildings().values() if why is None} - gone
+        made |= {map_building_id(b) for b, why in self.building_edits.map_buildings().values() if why is None} - gone
         records = self.doc.get('groups', [])
         if not isinstance(records, list):
             self.leave_out('malformed', '"groups" must be a list of groups: the groups are left out, so none of them '
@@ -2247,12 +2155,12 @@ class Compiler:
             # the map's own fracturing pieces broken where they stand (custom geometry editing plan, E6): their
             # components' painted fragments written in the map by the Build's writer (native_split moves them there)
             objects.append(dict(type='pieceBlasts', pieces=sorted(self.blast_edits, key=lambda e: e['name'])))
-        if self.new_buildings:
+        if self.building_edits.new_buildings:
             # buildings made from nothing: made in the map by the Build's writer (native_split moves them there)
-            objects.append(dict(type='buildings', buildings=self.new_buildings))
-        if self.building_edits:
+            objects.append(dict(type='buildings', buildings=self.building_edits.new_buildings))
+        if self.building_edits.edits:
             # the map's own buildings changed or deleted: edited in place by the Build's writer (buildings.edit)
-            objects.append(dict(type='buildingEdits', edits=self.building_edits))
+            objects.append(dict(type='buildingEdits', edits=self.building_edits.edits))
         name = re.sub(r'[^\x20-\x7E]|"|\|', '', self.doc.get('name') or '').strip() or 'variant'
         # The streamed patches' pieces the Build takes out of its copies of them ({stream: [actor]}): a moved or
         # deleted ladder's helpers (G6).
@@ -2296,232 +2204,6 @@ class Compiler:
     def has_edits(self):
         return any(self.doc.get(k) for k in ('overrides', 'added', 'areaLightBindings', 'buildings', 'cleared',
                                              'landingZones', 'stage', 'spawnRules'))
-
-    def map_buildings(self):
-        """The export's own buildings (export 21 has their actors): {actor path: (record, why it stays fixed or None)}.
-        Fixed: a building with no floors, a van's (it goes with the van), one with a floor that has no floor volume
-        or a volume without a box (F-86, F-95), and a patch's. Older exports have none."""
-        if getattr(self, '_map_buildings', None) is not None:
-            return self._map_buildings
-        out = {}
-        for b in self.scene.get('buildings') or [] if (self.scene.get('exporterVersion') or 0) >= 21 else []:
-            if not isinstance(b, dict) or not b.get('actor') or not isinstance(b.get('name'), str):
-                continue
-            floors = b.get('floors') or []
-            why = None
-            if not floors:
-                why = 'it has no floors'
-            elif b.get('van'):
-                why = "it is a van's own building, which goes with the van"
-            elif any(not f.get('volumes') for f in floors):
-                why = 'a floor of it has no floor volume'
-            elif any(len(f.get('boxes') or []) != len(f['volumes']) for f in floors):
-                why = 'a floor volume of it has no box'
-            elif not str(b.get('id')).isdigit():
-                why = "it is a patch's"
-            out[b['name']] = (b, why)
-        self._map_buildings = out
-        return out
-
-    def building_records(self):
-        """The project's `buildings` records this compiler can read: (the records, in order, [(where, why) of each one
-        left out]): one that is malformed (building_well_formed), one whose id an earlier record has, or the whole
-        value when it is no list. The groups, the floors a copy stands in and buildings() all read these."""
-        if getattr(self, '_building_records', None) is None:
-            items, kept, dropped, ids = self.doc.get('buildings'), [], [], set()
-            if items and not isinstance(items, list):
-                dropped.append((dict(record='buildings'), '"buildings" is no list'))
-            for k, b in enumerate(items if isinstance(items, list) else []):
-                where = dict(record='buildings[%d]' % k, **({'building': b['id']} if isinstance(b, dict) and isinstance(b.get('id'), str) else {}))
-                if not building_well_formed(b):
-                    dropped.append((where, 'building record %d can\'t be read' % (k + 1)))
-                elif b['id'] in ids:
-                    dropped.append((where, 'building record %d has the id of an earlier one (%s)' % (k + 1, b['id'])))
-                else:
-                    ids.add(b['id'])
-                    kept.append(b)
-            self._building_records = (kept, dropped)
-        return self._building_records
-
-    def buildings(self):
-        """The project's `buildings` (optional; prefab plan 5.1; map buildings plan, sections 2 and 3).
-        - Buildings made from nothing, each {id, name, kind: 'building' | 'ufo', floors: [{boxes: [[x0, y0, z0, x1,
-          y1, z1]]}]}, floor 0 first, the boxes in world units and unturned. The Build makes a building volume and a
-          floor volume for each box, and lists in each floor the pieces standing in it (tools/bake/buildings.py).
-          A copied actor whose source building the building comes from (source_floor_match: the source's floors
-          carried by the copy's move overlap the building's, their boxes edited or not) keeps what its map saved
-          where the rule agrees with the source's boxes and with the building's (`carry`, buildings.carried): the
-          map's hand-made inclusion and exclusion lists come along (a UFO's roof listed on its roof floor only).
-        - The map's own buildings changed (`replaces` the map's building volume, each floor's `volumes` beside its
-          boxes) or deleted (`deleted`): the Build edits them in place (buildings.edit). One the compiler can't use is
-          passed over with a warning (building-replaces) and stays as exported; one unchanged (every box within
-          BUILDING_SAME of its volume's, the same kind) builds nothing.
-        Nothing here stops a Build but an export with no tile grid: a record that can't be read, or that names a
-        building an earlier one names, is left out (building-shape, building_records); a box outside the tile grid,
-        two floors that meet, a floor away from the cursor's floors are warnings, and for the map's buildings only
-        where a box changed (the map's own overlaps, as exported, are not reported)."""
-        items, dropped = self.building_records()
-        for where, why in dropped:
-            self.leave_out('building-shape', '%s, so it is left out (a building of the map\'s stays as the map has it): %s'
-                           % (why, BUILDING_SHAPE), **where)
-        if not items:
-            return
-        if not self.builds('building'):
-            self.error('family', 'the project has %s. %s' % (FAMILIES['building']['what'], FAMILIES['building']['note']),
-                       family='building')
-            return
-        grid = self.scene.get('tileGrid') or {}
-        dims, origin, size = grid.get('dimensions'), grid.get('origin'), grid.get('size')
-        if not (dims and origin and size):
-            self.error('building-grid', 'the export of %s has no tile grid, which a building needs' % self.map)
-            return
-        count = list(self.stage_grid or dims[:3])
-        lo = [float(v) for v in origin[:3]]
-        hi = [lo[k] + count[k] * size[k] for k in range(3)]
-        storeys = self.cursor_storeys()
-
-        def meet(a, b):
-            return all(min(a[k + 3], b[k + 3]) - max(a[k], b[k]) > BUILDING_OVERLAP for k in range(3))
-
-        # every box after the edit: dict(building id, label, floor, box, changed, own: the map's, authored)
-        boxes, replaced, gone = [], set(), set()
-        exported = self.map_buildings()
-        for b in items:
-            if b.get('replaces') is None:
-                self.new_building(b, boxes)
-                continue
-            rep = b['replaces']
-            where = dict(building=b['id'])
-            found = exported.get(rep['actor']) if rep['package'].casefold() == self.map.casefold() and rep['level'] == 'base' else None
-            why = found[1] if found else ('the export of %s has no buildings\' actors (export 21): prepare it again'
-                                          % self.map if (self.scene.get('exporterVersion') or 0) < 21
-                                          else 'it is not one of the map\'s buildings')
-            if not why and rep['actor'] in replaced:
-                why = 'an earlier record names it'
-            if why:
-                self.warn('building-replaces', 'the record for the map\'s building %s is passed over: %s; the building '
-                          'stays as the map has it' % (short(rep['actor']), why), **where)
-                continue
-            replaced.add(rep['actor'])
-            e = found[0]
-            label = b.get('name') or e['actor']
-            old = [[dict(volume=short(v), box=list(x['min']) + list(x['max'])) for v, x in zip(f['volumes'], f['boxes'])]
-                   for f in e['floors']]
-            if b.get('deleted'):
-                gone.add(rep['actor'])
-                if e.get('referencedBy'):
-                    self.warn('mission-linked', "the map's building %s is named by the map's Kismet (%s): deleted, its "
-                              "script acts on a volume out of the level" % (label, '; '.join(e['referencedBy'])), **where)
-                self.building_edits.append(dict(id=b['id'], actor=e['actor'], name=label, deleted=True, old=old,
-                                                kind='ufo' if e.get('isUfo') else 'building', moved=False))
-                continue
-            own_volumes = {v['volume']: v['box'] for f in old for v in f}
-            floors, used = [], set()
-            for k, f in enumerate(b['floors']):
-                vols = []
-                for v in f['volumes']:
-                    if v is not None and (v not in own_volumes or v in used):
-                        self.warn('building-replaces', 'floor %d of the map\'s building %s names the floor volume %s, '
-                                  'which is %s: its box gets a new volume' % (
-                                      k + 1, label, v, 'named twice' if v in used else 'not one of the building\'s'), **where)
-                        v = None
-                    if v is not None:
-                        used.add(v)
-                    vols.append(v)
-                floors.append(dict(boxes=[[tidy(float(x), 3) for x in box] for box in f['boxes']], volumes=vols))
-            same_box = lambda box, v: v is not None and all(abs(box[j] - own_volumes[v][j]) <= BUILDING_SAME for j in range(6))
-            unchanged = (len(floors) == len(old) and (b.get('kind', 'building') == 'ufo') == bool(e.get('isUfo'))
-                         and all(sorted(filter(None, f['volumes'])) == sorted(v['volume'] for v in o) and len(f['volumes']) == len(o)
-                                 and all(same_box(x, v) for x, v in zip(f['boxes'], f['volumes'])) for f, o in zip(floors, old)))
-            for k, f in enumerate(floors):
-                for x, v in zip(f['boxes'], f['volumes']):
-                    boxes.append(dict(building=b['id'], label=label, floor=k, box=x, own=True, authored=False,
-                                      changed=not same_box(x, v),
-                                      bottom=own_volumes[v][2] if v is not None else None))
-            if unchanged:
-                continue
-            if e.get('referencedBy'):
-                self.warn('mission-linked', "the map's building %s is named by the map's Kismet (%s): it is edited in "
-                          "place, so the script still finds it, but moved or resized it may act differently"
-                          % (label, '; '.join(e['referencedBy'])), **where)
-            self.building_edits.append(dict(id=b['id'], actor=e['actor'], name=label, deleted=False,
-                                            kind=b.get('kind', 'building'), floors=floors, old=old,
-                                            moved=moved_whole(old, floors)))
-        # the map's buildings left as exported (fixed ones too), and the ones of no record
-        for path, (e, why) in exported.items():
-            if path in replaced:
-                continue
-            for k, f in enumerate(e.get('floors') or []):
-                for x in f.get('boxes') or []:
-                    boxes.append(dict(building=map_building_id(e), label=e['actor'], floor=k, own=True, authored=False,
-                                      box=list(x['min']) + list(x['max']), changed=False))
-        if (self.scene.get('exporterVersion') or 0) < 21:
-            # an older export: the map's floor volumes by building name (export 15)
-            for name, index, xs in self.floor_boxes or []:
-                for x in xs:
-                    boxes.append(dict(building='map|' + name, label=short(name), floor=index, own=True, authored=False,
-                                      box=list(x['min']) + list(x['max']) if isinstance(x, dict) else list(x), changed=False))
-        # the warnings, for each changed or new box
-        said = set()
-        for n, item in enumerate(boxes):
-            if not item['changed']:
-                continue
-            x, k, label = item['box'], item['floor'], item['label']
-            where = dict(building=item['building'], floor=k, box=x)
-            if any(x[j] < lo[j] - 0.5 or x[j + 3] > hi[j] + 0.5 for j in range(3)):
-                self.note('building-outside', 'floor %d of the building %s reaches outside the map\'s tile grid: the '
-                          'game has no tiles there' % (k + 1, label), **where)
-            for m, other in enumerate(boxes):
-                if m == n or (other['building'] == item['building'] and (other['floor'] == k or item['authored'])):
-                    continue
-                if (min(m, n), max(m, n)) in said or not meet(x, other['box']):
-                    continue
-                said.add((min(m, n), max(m, n)))
-                whose = ('the same building' if other['building'] == item['building'] else
-                         "the map's own building %s" % other['label'] if other['own'] and not other['changed']
-                         else 'the building %s' % other['label'])
-                self.warn('building-overlap', 'floor %d of the building %s overlaps floor %d of %s: a piece in both is '
-                          'listed by both, and a unit there may see either floor cut away' % (k + 1, label, other['floor'] + 1, whose),
-                          **where)
-            starts = sorted({round(c[2], 2) for _, c in storeys or []
-                             if min(c[3], x[3]) - max(c[0], x[0]) > 0 and min(c[4], x[4]) - max(c[1], x[1]) > 0})
-            # (a map box at its volume's own height, moved sideways or stretched across, is as the map had it)
-            same_height = item.get('bottom') is not None and abs(item['bottom'] - x[2]) <= BUILDING_SAME
-            if starts and not same_height and not any(abs(x[2] - z) <= CURSOR_NEAR for z in starts):
-                self.warn('building-cursor', 'floor %d of the building %s starts at %g, away from where the cursor\'s '
-                          'floors start there (%s): the mouse wheel would not stop at this storey'
-                          % (k + 1, label, x[2], ', '.join('%g' % z for z in starts)), starts=starts, **where)
-        if self.errors:
-            self.new_buildings, self.building_edits = [], []
-
-    def new_building(self, b, boxes):
-        """A building made from nothing (buildings()): into self.new_buildings, with `carry` {copy label: dict(saved:
-        [[floor, CutdownFloor]] as its map saved them, floors: its source building's boxes carried by the copy's move,
-        floor_map: the building's floor for each of those)} for the copies whose source building it comes from
-        (source_floor_match); its boxes into `boxes`."""
-        label = b.get('name') or b['id']
-        carry = {}
-        for copy in self.copies:
-            source = self.floor_sources.get(copy['label'])
-            # (a wall made from numbers is not its donor: the rule lists it by its own box, custom geometry plan M3)
-            if source is None or (copy.get('generated') or {}).get('kind') in MADE_KINDS + ('ground',):
-                continue
-            donor = copy.get('donor')
-            originals = self.donor_buildings.get(donor['package'].casefold(), []) if donor else (self.scene.get('buildings') or [])
-            before = dict(location=source.get('floorLocation', source['location']), rotation=source['rotation'])
-            match = source_floor_match(originals, b['floors'], before, copy['location'], copy['rotation'])
-            if match:
-                carry[copy['label']] = dict(
-                    saved=[[f['floor'], f['cutdownFloor']] for f in source.get('floors', []) if f['building'] == match['building']['id']],
-                    floors=[[[tidy(v, 3) for v in x] for x in f] for f in match['moved']], floor_map=match['floor_map'])
-        for k, f in enumerate(b['floors']):
-            for x in f['boxes']:
-                boxes.append(dict(building=b['id'], label=label, floor=k, box=[float(v) for v in x], own=False,
-                                  authored=bool(carry), changed=True))
-        self.new_buildings.append(dict(id=b['id'], name=b.get('name') or '', kind=b.get('kind', 'building'),
-                                       **({'carry': carry} if carry else {}),
-                                       floors=[dict(boxes=[[tidy(float(v), 3) for v in x] for x in f['boxes']])
-                                               for f in b['floors']]))
 
     def stage(self):
         """The project's `stage` (optional): `grid` [nx, ny] or [nx, ny, nz], the map's tile grid made that many tiles
@@ -2876,8 +2558,8 @@ class Compiler:
             return
         kinds = {e['kind'] for e in listed if 'kind' in e}
         if kinds & {'Crash', 'LandedUFO'}:
-            gone = {e['actor'] for e in self.building_edits if e.get('deleted')}
-            ufo = any(b.get('kind') == 'ufo' for b in self.new_buildings) or any(
+            gone = {e['actor'] for e in self.building_edits.edits if e.get('deleted')}
+            ufo = any(b.get('kind') == 'ufo' for b in self.building_edits.new_buildings) or any(
                 e.get('isUfo') and e.get('name', e.get('actor')) not in gone and e.get('actor') not in gone
                 for e in self.scene.get('buildings') or [])
             if not ufo:
@@ -3212,7 +2894,7 @@ class Compiler:
             self.stage()
             self.ladder_climbs()
             self.floor_headroom()
-            self.buildings()
+            self.building_edits.buildings()
             self.made_edits.made_slabs_in_floors()
             self.made_edits.made_slab_cursors()
             self.landing_zones()
@@ -3246,10 +2928,10 @@ class Compiler:
                       ownLandings=self.own_count, spawnRules=self.spawn_rules,
                       missions=self.missions_kept()[0] if self.map is not None else None,
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']))
-                                 for b in self.new_buildings],
+                                 for b in self.building_edits.new_buildings],
                       mapBuildings=[dict(id=e['id'], actor=e['actor'], **({'deleted': True} if e['deleted'] else
                                                                            dict(floors=len(e['floors']), moved=e['moved'])))
-                                    for e in self.building_edits],
+                                    for e in self.building_edits.edits],
                       entities=sorted(self.entities, key=lambda e: (e['kind'], e.get('op') or '', e.get('target') or e.get('entity'),
                                                                     e.get('ownerEntity') or '')),
                       groups=self.group_report, assemblies=sorted(self.moves, key=lambda m: m['id']),
@@ -3356,14 +3038,6 @@ def stage_max(own):
     the limit at its own size and can still be made larger (project.js stageMax is the twin)."""
     return [max(limit, int(own[k]) if own and len(own) > k else 0)
             for k, limit in enumerate((STAGE_GRID_MAX, STAGE_GRID_MAX, STAGE_LEVELS_MAX))]
-# a project's buildings made from nothing (Compiler.buildings): the kinds, the most floors (a CutdownFloor is a byte;
-# the game's own buildings have at most 5), and how far two boxes may reach into each other before they overlap
-BUILDING_KINDS = ('building', 'ufo')
-BUILDING_FLOORS_MAX = 10    # (ten floors of three levels fill a 30-level grid)
-BUILDING_OVERLAP = 0.5
-# a map building's box is unchanged when every coordinate is within this of its volume's box in the export (the page
-# rounds a box to three decimals; the export does not): web/project.js BUILDING_SAME and buildings.SAME are the twins
-BUILDING_SAME = 0.01
 
 
 # LWR's pod mutator keeps only map sections this many tiles from the squad's middle (F-90): stage-small
@@ -3400,30 +3074,6 @@ def numbers(ns):
 
 def zone_words(ns):
     return 'landing zone%s %s' % ('' if len(ns) == 1 else 's', numbers(ns))
-
-
-def moved_whole(old, floors):
-    """Whether a map building's floors (dict(boxes, volumes)) are its old ones (dict(volume, box) each) moved
-    together: every old volume kept on its floor, every box its old one carried by one move of whole quarter turns
-    and a translation that is not nothing. A building moved whole leaves its visibility groups behind."""
-    if len(old) != len(floors):
-        return False
-    pairs = []
-    for f, o in zip(floors, old):
-        boxes = {v['volume']: v['box'] for v in o}
-        if len(f['volumes']) != len(o) or set(f['volumes']) != set(boxes):
-            return False
-        pairs += [(boxes[v], x) for v, x in zip(f['volumes'], f['boxes'])]
-    for turns in range(4):
-        def carried(box):
-            corners = [turned((box[i], box[j]), turns) for i in (0, 3) for j in (1, 4)]
-            return [min(c[0] for c in corners), min(c[1] for c in corners), box[2],
-                    max(c[0] for c in corners), max(c[1] for c in corners), box[5]]
-        first = carried(pairs[0][0])
-        shift = [pairs[0][1][j] - first[j] for j in range(3)]
-        if all(all(abs(x[j] - (carried(b)[j] + shift[j % 3])) <= BUILDING_SAME for j in range(6)) for b, x in pairs):
-            return turns != 0 or any(abs(v) > BUILDING_SAME for v in shift)
-    return False
 
 
 def scripted_users(record):

@@ -4,6 +4,7 @@
     "lets": 105
   },
   "compiler families": [
+    "tools/editor/building_edits.py",
     "tools/editor/effect_edits.py",
     "tools/editor/flag_edits.py",
     "tools/editor/light_edits.py",
