@@ -511,8 +511,8 @@ class BarLights(unittest.TestCase):
         edit = dict(adds=[dict(name='PointLight_0_copy1', **{'from': 'PointLight_0'}, location=[0.0, 0.0, 200.0],
                                rotation=[0, 0, 0], guidSeed='proj|PointLight_0_copy1')])
         with tempfile.TemporaryDirectory() as d:
-            native_copy.build(BAR, Path(d) / 'a', 'URB_BarL', [], lights=edit)
-            native_copy.build(BAR, Path(d) / 'b', 'URB_BarL', [], lights=edit)
+            native_copy.build(native_copy.BuildState(BAR, Path(d) / 'a', 'URB_BarL', [], lights=edit))
+            native_copy.build(native_copy.BuildState(BAR, Path(d) / 'b', 'URB_BarL', [], lights=edit))
             self.assertEqual((Path(d) / 'a' / 'URB_BarL.upk').read_bytes(), (Path(d) / 'b' / 'URB_BarL.upk').read_bytes())
 
     def test_area_lights_keep_their_class_flags_and_owner_and_join_no_lightmap(self):
@@ -550,7 +550,8 @@ class BarLights(unittest.TestCase):
     def build_baked(self, d, copies, lights, name='URB_BarLit'):
         calls = []
         with mock.patch.object(native_copy.subprocess, 'run', fake_relight(calls)):
-            m = native_copy.build(BAR, d, name, copies, bake=True, cache=f'{name}_Lighting', lights=lights)
+            m = native_copy.build(native_copy.BuildState(BAR, d, name, copies, bake=True, cache=f'{name}_Lighting',
+                                                         lights=lights))
         (cmd,) = calls
         doc = json.loads(Path(cmd[cmd.index('--light-edits') + 1]).read_text(encoding='utf-8'))
         grown = lighting.Package(Path(d) / 'grown' / 'URB_Bar.upk')
@@ -682,7 +683,7 @@ class BarLights(unittest.TestCase):
         copies = [dict(actor='XComLevelActor_37', location=[-1155.0, -1874.4, 0.0],
                        rotation=p.own(lamp, 'Rotation', [0, 0, 0]))]
         with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(BAR, d, 'URB_BarQuick', copies, lights=lights)
+            m = native_copy.build(native_copy.BuildState(BAR, d, 'URB_BarQuick', copies, lights=lights))
             q = lighting.Package(Path(d) / 'URB_BarQuick.upk')
             comps = [i for i in range(1, len(p.exports) + 1) if p.cls(i) in ('StaticMeshComponent',)
                      and p.name(i).startswith(PL) and native_lights.lightmap_kind(p, i) == 'texture']
@@ -721,7 +722,8 @@ class ZeroWrites(unittest.TestCase):
                 dict(name='PointLight_0_copy3', **{'from': 'PointLight_0'}, location=[0.0, 0.0, -20000.0],
                      rotation=[0, 0, 0], light=dict(radius=64.0), guidSeed='proj|PointLight_0_copy3')]
         with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(BAR, d, 'URB_BarZero', [], bake=True, cache='URB_BarZero_Lighting', lights=dict(adds=adds))
+            m = native_copy.build(native_copy.BuildState(BAR, d, 'URB_BarZero', [], bake=True,
+                                                         cache='URB_BarZero_Lighting', lights=dict(adds=adds)))
             out = Path(d)
             self.assertTrue(m['lightingUnchanged'])
             self.assertIsNone(m['cache'])

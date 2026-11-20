@@ -64,7 +64,7 @@ class SharedBuild:
 
 def native_build(src, variant):
     """SharedBuild's make for native_copy.build: the map `src` with the edits' build arguments (each edit a dict of
-    native_copy.build's list arguments: copies, hides, assemblies...) joined in the edits' order, written as
+    native_copy.BuildState's list inputs: copies, hides, assemblies...) joined in the edits' order, written as
     <folder>/<variant>.upk with its manifest beside it. It returns (the manifest, the written map read again). Two
     edits naming one actor, hidden piece or assembly interact: refused (ValueError), as they need builds of their
     own."""
@@ -85,7 +85,7 @@ def native_build(src, variant):
                 if owner.setdefault(key, name) != name:
                     raise ValueError('the edits %r and %r both name the %s %s: they need builds of their own'
                                      % (owner[key], name, key[0], key[1]))
-        manifest = native_copy.build(src, folder, variant, **joined)
+        manifest = native_copy.build(native_copy.BuildState(src, folder, variant, **joined))
         return manifest, lighting_records.Package(Path(folder) / ('%s.upk' % variant))
     return make
 
@@ -159,7 +159,7 @@ class SharedPart:
 def copies_build(src, variant, stage=None, **options):
     """SharedBuild's make for native_copy.build when each edit is a list of copies (made walls, slabs and ground, the
     doors standing in them), so that two edits may copy one piece: the edits' copies joined in the edits' order and
-    built without baking, with `options` (native_copy.build's other arguments), as <folder>/<variant>.upk. `stage`,
+    built without baking, with `options` (native_copy.BuildState's other inputs), as <folder>/<variant>.upk. `stage`,
     for pieces of another map, is transplant.stage_edit's call (src, folder, edit) -> (the staged map, the staged
     edit, its report), made on the joined copies first; the build is then made from the staged map in <folder>/build.
     The edits are told apart by where their copies stand in the build's sections (native_copy keeps the copies'
@@ -186,7 +186,7 @@ def copies_build(src, variant, stage=None, **options):
             joined, out = edit['copies'], folder / 'build'
         else:
             src_map = src
-        manifest = native_copy.build(src_map, out, variant, joined, **options)
+        manifest = native_copy.build(native_copy.BuildState(src_map, out, variant, joined, **options))
         return dict(manifest=manifest, q=lighting_records.Package(out / ('%s.upk' % variant)), copies=joined,
                     report=report, spans=spans)
     return make
@@ -252,7 +252,8 @@ def lanes_build(src, variant, stage=None):
             folder.mkdir(parents=True)
             src_map, edit, report = stage(src, folder, edit)
             out = folder / 'build'
-        manifest = native_copy.build(src_map, out, variant, edit['copies'], **{lane: edit[lane] for lane in joined})
+        manifest = native_copy.build(native_copy.BuildState(src_map, out, variant, edit['copies'],
+                                                            **{lane: edit[lane] for lane in joined}))
         return dict(manifest=manifest, q=lighting_records.Package(out / ('%s.upk' % variant)), edit=edit, report=report)
     return make
 

@@ -149,8 +149,9 @@ class BarMovedBaked(unittest.TestCase):
         original, subprocess.run = subprocess.run, run
         try:
             with tempfile.TemporaryDirectory() as d, self.assertRaises(RuntimeError):
-                native_copy.build(BAR, d, 'URB_BarLz', [], bake=True, cache='Lighting_7351',
-                                  landing_zones=dict(zones=[dict(MOVED, ew=True)], own=[0], ownLandings=1))
+                native_copy.build(native_copy.BuildState(
+                    BAR, d, 'URB_BarLz', [], bake=True, cache='Lighting_7351',
+                    landing_zones=dict(zones=[dict(MOVED, ew=True)], own=[0], ownLandings=1)))
         finally:
             subprocess.run = original
         cmd = calls[0]

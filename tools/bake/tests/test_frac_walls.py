@@ -319,7 +319,8 @@ class BakedLayout(unittest.TestCase):
         def no_relight(cmd, check):
             (out / 'Baked.fixture.json').write_text('{}', encoding='utf-8')
         with mock.patch.object(native_copy.subprocess, 'run', no_relight):
-            cls.m = native_copy.build(BAR, out, 'Baked', [dict(c) for c in cls.WALLS], bake=True, cache='Baked_Lighting')
+            cls.m = native_copy.build(native_copy.BuildState(BAR, out, 'Baked', [dict(c) for c in cls.WALLS], bake=True,
+                                                             cache='Baked_Lighting'))
         cls.q = Package(out / 'grown' / BAR.name)
         cls.walls = cls.m['nativeCopies']['generatedWalls']
 
@@ -395,7 +396,7 @@ class DoorInMadeWall(unittest.TestCase):
             # the doorway's tile centre (x -1584) and the wall's line; the door's yaw a half turn from its own
             copies.append(dict(actor=n, location=[-1584.0, -192.0, 16.0], rotation=[0, 0, 0],
                                assembly='add:XComInteractiveLevelActor_7_copy', family='door'))
-        cls.m = native_copy.build(BAR, out, 'FracDoor', copies)
+        cls.m = native_copy.build(native_copy.BuildState(BAR, out, 'FracDoor', copies))
         cls.q = Package(out / 'FracDoor.upk')
 
     @classmethod
@@ -438,7 +439,7 @@ class GroupWithMadeWall(unittest.TestCase):
         copies = [dict(actor=DONOR, location=[-1728.0, -192.0, 16.0], rotation=[0, 0, 0], label='Made', wallGroup=1,
                        generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[], seed=7))),
                   dict(actor=cls.PROP, location=[-1490.0, -170.0, 16.0], rotation=[0, 0, 0], label='Prop', breakGroup=1)]
-        cls.m = native_copy.build(BAR, out, 'FracGroup', copies)
+        cls.m = native_copy.build(native_copy.BuildState(BAR, out, 'FracGroup', copies))
         cls.q = Package(out / 'FracGroup.upk')
 
     @classmethod
@@ -729,10 +730,10 @@ class GroundOnBackdrop(unittest.TestCase):
         donor = p.by_name[PL + self.DONOR]
         self.assertIs(p.effective(donor, 'bWorldGeometry', None), False)
         with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(DEMOLITION, Path(d), 'GroundOnBackdrop', [dict(
+            m = native_copy.build(native_copy.BuildState(DEMOLITION, Path(d), 'GroundOnBackdrop', [dict(
                 actor=self.DONOR, label='Block', location=list(p.own(donor, 'Location', [0.0, 0.0, 0.0])),
                 rotation=[0, 0, 0], generated=dict(kind='ground', version=1, ground=dict(
-                    shape='block', x0=0.0, x1=192.0, y0=0.0, y1=192.0, height=64.0)))], bake=False)
+                    shape='block', x0=0.0, x1=192.0, y0=0.0, y1=192.0, height=64.0)))], bake=False))
             q = Package(Path(d) / 'GroundOnBackdrop.upk')
             (actor,) = [c['export'] for c in m['nativeCopies']['copies'] if c['label'] == 'Block']
             for name, want in (('bWorldGeometry', True), ('bCollideActors', True), ('bPathColliding', True),
@@ -819,7 +820,8 @@ class GroundShapes(unittest.TestCase):
                   dict(actor=cls.DONOR, label='Rock', location=[-960.0, -1440.0, 0.0], rotation=[0, 0, 0],
                        generated=dict(kind='ground', version=1,
                                       ground=dict(shape='rock', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=96.0, seed=7)))]
-        cls.m = native_copy.build(BAR, out, 'Ground', copies, bake=True, cache='Ground_Lighting')
+        cls.m = native_copy.build(native_copy.BuildState(BAR, out, 'Ground', copies, bake=True,
+                                                         cache='Ground_Lighting'))
         cls.p = Package(BAR)
         cls.q = Package(out / 'Ground.upk')
         cls.sec = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}
@@ -1145,11 +1147,11 @@ class MapBroken(unittest.TestCase):
                        blasts=cls.blasts),
                   dict(actor='XComFracLevelActor_3', label='Roof3Copy', location=[-1056.0, -576.0, 400.0],
                        rotation=[0, 0, 0], blasts=cls.roof3_blasts)]
-        cls.m = native_copy.build(BAR, out, 'FracMapBroken', copies,
-                                  piece_blasts=[dict(name=cls.ROOF, blasts=cls.blasts),
-                                                dict(name='XComFracLevelActor_3', blasts=cls.roof3_blasts),
-                                                dict(name='XComFracLevelActor_7', blasts=cls.roof3_blasts,
-                                                     breaksFurther=True)])
+        cls.m = native_copy.build(native_copy.BuildState(
+            BAR, out, 'FracMapBroken', copies,
+            piece_blasts=[dict(name=cls.ROOF, blasts=cls.blasts),
+                          dict(name='XComFracLevelActor_3', blasts=cls.roof3_blasts),
+                          dict(name='XComFracLevelActor_7', blasts=cls.roof3_blasts, breaksFurther=True)]))
         cls.q = Package(out / 'FracMapBroken.upk')
         cls.copy = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}
         cls.moved = cls.copy['Moved']
@@ -1256,7 +1258,8 @@ class MapBroken(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             for name in (plain, 'XComFracLevelActor_99999'):
                 with self.assertRaises(ValueError, msg=name):
-                    native_copy.build(BAR, Path(tmp), 'FracMapBad', [], piece_blasts=[dict(name=name, blasts=self.blasts)])
+                    native_copy.build(native_copy.BuildState(BAR, Path(tmp), 'FracMapBad', [],
+                                                             piece_blasts=[dict(name=name, blasts=self.blasts)]))
 
 
 if __name__ == '__main__':

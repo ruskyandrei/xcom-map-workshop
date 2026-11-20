@@ -145,9 +145,9 @@ class StaticMeshActorDonor(unittest.TestCase):
             self.skipTest(why)
         shape = dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0, look='dirt')
         with tempfile.TemporaryDirectory() as tmp:
-            m = native_copy.build(path, Path(tmp), 'Dirt', [dict(
+            m = native_copy.build(native_copy.BuildState(path, Path(tmp), 'Dirt', [dict(
                 actor='StaticMeshActor_67', label='Block', location=[0.0, 0.0, 0.0], rotation=[0, 0, 0],
-                generated=dict(kind='ground', version=1, ground=shape))], bake=False)
+                generated=dict(kind='ground', version=1, ground=shape))], bake=False))
             q = Package(Path(tmp) / 'Dirt.upk')
             actor = {c['label']: c['export'] for c in m['nativeCopies']['copies']}['Block']
             self.assertEqual(q.cls(actor), 'XComLevelActor')
@@ -194,9 +194,9 @@ class PierDonors(unittest.TestCase):
         shape = dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0,
                      look=dict(mesh=self.scaled['facts']['mesh'], material=R['material'], measure=1, recipe=R))
         with tempfile.TemporaryDirectory() as tmp:
-            m = native_copy.build(PIER, Path(tmp), 'Scaled', [dict(
+            m = native_copy.build(native_copy.BuildState(PIER, Path(tmp), 'Scaled', [dict(
                 actor=self.SCALED, label='Block', location=[0.0, 0.0, 0.0], rotation=[0, 0, 0],
-                generated=dict(kind='ground', version=2, ground=shape))], bake=False)
+                generated=dict(kind='ground', version=2, ground=shape))], bake=False))
             q = Package(Path(tmp) / 'Scaled.upk')
             actor = {c['label']: c['export'] for c in m['nativeCopies']['copies']}['Block']
             comp = q.own(actor, 'StaticMeshComponent')

@@ -62,6 +62,7 @@ made by native_lights.py, in both modes. With --bake the added and changed place
 receivers they reach (the copies' too), and the relight gets their before and after states (--light-edits).
 """
 import argparse
+import dataclasses
 import json
 from pathlib import Path
 import struct
@@ -2238,26 +2239,61 @@ def by_assembly(copies):
     return out
 
 
+@dataclasses.dataclass(eq=False)
 class BuildState:
-    """What a Build has done so far that its later steps and its record read (review finding 51). gone() is the one
-    answer to what the edit has taken out: the pieces hidden, the slots the building edits emptied, the lights the
-    light edits deleted, the effects, sounds, flares and spawn points the lanes took out (and the carried effects
-    of deleted pieces), and what the clear took. keep() holds the results the manifest (manifest_parts) and the
-    relight command (relight_command) are made from."""
+    """A Build of the copy tool: what it is given, and what it has done so far that its later steps and its record
+    read (review finding 51). Its caller makes it with the inputs (main from the command line and the native edit, a
+    test with its own); build() takes it and fills the rest. build's docstring says what each input does.
 
-    def __init__(self, p):
-        self.p = p
-        self.hidden = []            # hide_pieces' records
-        self.edit_slots = set()     # the building edits' emptied slots
-        self.lights_gone = set()    # the light edits' deletes
-        self.effects_gone = set()   # the effects', sounds', flares' and spawns' lanes' deletes and the carried effects'
-        self.cleared = None         # clear_level's record
+    gone() is the one answer to what the edit has taken out: the pieces hidden, the slots the building edits emptied,
+    the lights the light edits deleted, the effects, sounds, flares and spawn points the lanes took out (and the
+    carried effects of deleted pieces), and what the clear took. keep() holds the results the manifest
+    (manifest_parts) and the relight command (relight_command) are made from."""
+    src: object                     # the pristine map (its path)
+    out: object                     # the folder the variant map and its fixture manifest go to
+    variant: str                    # the variant's name
+    copies: list                    # the copies: the native edit's `copies`
+    bake: bool = False              # the copies lit of their own and the relight run (--bake)
+    cache: object = None            # with bake: the variant texture cache's name (--cache)
+    receivers_near: float = 600.0   # with bake: the relight's receivers within this many units of a copy
+    jobs: object = None             # with bake: the relight's worker processes
+    tiles: bool = True              # the copies seeded in the tiles, under rebuild volumes (not --no-tiles)
+    edit_spec: object = None        # with bake: an editor patch spec whose hides the relight models too
+    # the native edit's other lanes (compiler.native_split's keys, in the names build takes them by)
+    break_originals: tuple = ()     # breakOriginals
+    hides: tuple = ()               # hides
+    assemblies: tuple = ()          # assemblies
+    lights: object = None           # lights
+    covers: tuple = ()              # covers
+    buildings: tuple = ()           # buildings
+    building_edits: tuple = ()      # buildingEdits
+    cleared: object = None          # cleared
+    landing_zones: object = None    # landingZones
+    carried_effects: object = None  # carriedEffects
+    piece_cache: object = None      # with bake: the folder of the project's last baked pieces (--piece-cache)
+    base: object = None             # with piece_cache: the SHA-256 of the map before any of the edit (--base)
+    stream_tiles: tuple = ()        # streamTiles (the Build's, from streamMoves)
+    piece_flags: tuple = ()         # pieceFlags
+    flag_ladders: tuple = ()        # pieceFlagLadders
+    effects: object = None          # effects
+    sounds: object = None           # sounds
+    flares: object = None           # flares
+    spawns: object = None           # spawns
+    piece_blasts: tuple = ()        # pieceBlasts
+    # what build fills, as it goes
+    p: object = dataclasses.field(default=None, init=False)     # the pristine map read (build, first)
+    hidden: list = dataclasses.field(default_factory=list, init=False)      # hide_pieces' records
+    edit_slots: set = dataclasses.field(default_factory=set, init=False)    # the building edits' emptied slots
+    lights_gone: set = dataclasses.field(default_factory=set, init=False)   # the light edits' deletes
+    # the effects', sounds', flares' and spawns' lanes' deletes and the carried effects'
+    effects_gone: set = dataclasses.field(default_factory=set, init=False)
+    cleared_record: object = dataclasses.field(default=None, init=False)    # clear_level's record
 
     def gone(self):
         """Every actor (export index) the edit has taken out so far."""
         out = {h['export'] for h in self.hidden} | self.edit_slots | self.lights_gone | set(self.effects_gone)
-        if self.cleared:
-            out |= {self.p.by_name[PL + n] for n in self.cleared['taken'] if PL + n in self.p.by_name}
+        if self.cleared_record:
+            out |= {self.p.by_name[PL + n] for n in self.cleared_record['taken'] if PL + n in self.p.by_name}
         return out
 
     def keep(self, **results):
@@ -2269,7 +2305,7 @@ def manifest_parts(st, q, bake):
     read again as `q`: (the copies' sections, the rest of it, the lights section or None). Kept on `st` too, for the
     relight command: the sections and the lights listed in the copies by membership."""
     import native_lights
-    p, made, hidden, cleared_record = st.p, st.made, st.hidden, st.cleared
+    p, made, hidden, cleared_record = st.p, st.made, st.hidden, st.cleared_record
     src, level, report, children, groups = st.src, st.level, st.report, st.children, st.groups
     assemblies, ladders, columns, effect_record = st.assemblies, st.ladders, st.columns, st.effect_record
     lane_effects, lane_sounds = st.lane_effects, st.lane_sounds
@@ -2281,7 +2317,7 @@ def manifest_parts(st, q, bake):
     cursor_record, stream_record = st.cursor_record, st.stream_record
     flag_copies, flag_record = st.flag_copies, st.flag_record
     blast_copies, blast_record, vans = st.blast_copies, st.blast_record, st.vans
-    state, light_result, registration = st.lights, st.light_result, st.registration
+    state, light_result, registration = st.light_state, st.light_result, st.registration
     # the copies' components and the lights listed in them by membership
     copy_members = {q.name(m['info']['mapping'][ci]): [(x['guid'].hex(), x['light']) for x in found
                                                         if x.get('membership')]
@@ -2379,7 +2415,7 @@ def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, job
     <out>/<variant>.light-edits.json."""
     import native_lights
     p, sections, hidden, landing_record = st.p, st.sections, st.hidden, st.landing_record
-    state, registration, copy_members = st.lights, st.registration, st.copy_members
+    state, registration, copy_members = st.light_state, st.registration, st.copy_members
     cmd = [sys.executable, '-B', '-u', str(HERE / 'relight.py'), str(dst), str(out), variant, '--cache', cache,
            '--receivers-near', str(receivers_near)]
     for sec in sections:
@@ -2427,12 +2463,11 @@ def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, job
     return cmd
 
 
-def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.0, jobs=None, tiles=True,
-          edit_spec=None, break_originals=(), hides=(), assemblies=(), lights=None, covers=(), buildings=(),
-          building_edits=(), cleared=None, landing_zones=None, carried_effects=None, piece_cache=None, base=None,
-          stream_tiles=(), piece_flags=(), flag_ladders=(), effects=None, sounds=None, flares=None, spawns=None,
-          piece_blasts=()):
-    """The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
+def build(st):
+    """The Build `st` (BuildState), made by its caller with its inputs: the fields named here (src, out, variant,
+    copies, bake...), which build reads once, and the state build fills as it goes.
+
+    The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
     <out>/grown and the relit variant (relight.py), and the fixture manifest <out>/<variant>.fixture.json, with a
     `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
     or yaw alone (the original's pitch and roll); with neither, the original's rotation. `edit_spec`, with `bake`: an
@@ -2511,6 +2546,13 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     it to break further (break_component). The manifest's `pieceBlasts` section lists them."""
     import cover_blocks
     import native_lights
+    src, out, variant, copies, bake, cache = st.src, st.out, st.variant, st.copies, st.bake, st.cache
+    receivers_near, jobs, tiles, edit_spec = st.receivers_near, st.jobs, st.tiles, st.edit_spec
+    break_originals, hides, assemblies, lights, covers = st.break_originals, st.hides, st.assemblies, st.lights, st.covers
+    buildings, building_edits, cleared, landing_zones = st.buildings, st.building_edits, st.cleared, st.landing_zones
+    carried_effects, piece_cache, base, stream_tiles = st.carried_effects, st.piece_cache, st.base, st.stream_tiles
+    piece_flags, flag_ladders, effects, sounds = st.piece_flags, st.flag_ladders, st.effects, st.sounds
+    flares, spawns, piece_blasts = st.flares, st.spawns, st.piece_blasts
     src, out = Path(src), Path(out)
     out.mkdir(parents=True, exist_ok=True)
     if bake and not cache:
@@ -2523,7 +2565,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     state = None if native_lights.is_empty(lights) else native_lights.prepare(p, lights)
     light_result = native_lights.apply(g, p, state) if state else None
     # what the edit takes out, added to as each step takes something (BuildState.gone)
-    st = BuildState(p)
+    st.p = p
     st.lights_gone = set((light_result or {}).get('gone') or ())
     # the lights a copy's lightmap may list: the after registry (plan 4.3, step 3)
     after_lights = None
@@ -2849,7 +2891,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                 for n in [e['actor']] + [v for f in e.get('floors') or [] for v in f.get('volumes') or [] if v]
                 if PL + n in p.by_name} | effect_moved      # a moved piece's effects stay with it
         cleared_record, clear_volume = clear_level(g, p, taken, keep, cleared.get('keepOutside'))
-        st.cleared = cleared_record
+        st.cleared_record = cleared_record
         hide_volumes = hide_volumes + [clear_volume]
     landing_record = None
     if landing_zones:
@@ -2951,7 +2993,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
             door_listings=door_listings, group_listings=group_listings, made_floors=made_floors,
             neighbour_listings=neighbour_listings, landing_record=landing_record, cursor_record=cursor_record,
             stream_record=stream_record, flag_copies=flag_copies, flag_record=flag_record, blast_copies=blast_copies,
-            blast_record=blast_record, vans=vans, lights=state, light_result=light_result, registration=registration)
+            blast_record=blast_record, vans=vans, light_state=state, light_result=light_result, registration=registration)
     sections, common, lights_record = manifest_parts(st, q, bake)
     tool = common['tool']
     if not bake:
@@ -3049,13 +3091,13 @@ def main():
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')
-    m = build(args.src, args.out, args.variant, copies, args.bake, args.cache, args.receivers_near, args.jobs,
-              tiles=not args.no_tiles, edit_spec=args.edit_spec, break_originals=break_originals, hides=hides,
-              assemblies=assemblies, lights=lights, covers=covers, buildings=buildings, building_edits=edits,
-              cleared=cleared, landing_zones=landing_zones, carried_effects=carried_effects,
-              piece_cache=args.piece_cache, base=args.base, stream_tiles=stream_tiles, piece_flags=piece_flags,
-              flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares, spawns=spawns,
-              piece_blasts=piece_blasts)
+    m = build(BuildState(args.src, args.out, args.variant, copies, args.bake, args.cache, args.receivers_near, args.jobs,
+                         tiles=not args.no_tiles, edit_spec=args.edit_spec, break_originals=break_originals,
+                         hides=hides, assemblies=assemblies, lights=lights, covers=covers, buildings=buildings,
+                         building_edits=edits, cleared=cleared, landing_zones=landing_zones,
+                         carried_effects=carried_effects, piece_cache=args.piece_cache, base=args.base,
+                         stream_tiles=stream_tiles, piece_flags=piece_flags, flag_ladders=flag_ladders,
+                         effects=effects, sounds=sounds, flares=flares, spawns=spawns, piece_blasts=piece_blasts))
     # one line per copy; the whole record is the manifest's nativeCopies section
     for c in m['nativeCopies']['copies']:
         t = c['tiles']

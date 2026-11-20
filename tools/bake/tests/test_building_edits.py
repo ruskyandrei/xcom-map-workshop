@@ -68,7 +68,8 @@ class Bar(unittest.TestCase):
 
     def built(self, variant, edits, copies=(), hides=()):
         out = Path(self.tmp.name) / variant
-        m = native_copy.build(BAR, out, variant, list(copies), tiles=False, hides=list(hides), building_edits=edits)
+        m = native_copy.build(native_copy.BuildState(BAR, out, variant, list(copies), tiles=False, hides=list(hides),
+                                                     building_edits=edits))
         q = lighting.Package(out / ('%s.upk' % variant))
         return q, {b['name']: b for b in buildings.survey(q)}, m['nativeCopies']['buildingEdits']
 
