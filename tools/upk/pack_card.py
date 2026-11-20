@@ -45,6 +45,8 @@ import re
 import struct
 import sys
 
+import props as legacy_props   # (beside this file: found as this module was)
+
 FORMAT = 1
 TAG = 0x9E2A83C1
 VERSION, LICENSEE = 845, 0
@@ -404,22 +406,23 @@ def _name(names, r):
 def _properties(names, r, end, arrays):
     """Tagged properties up to None -> {name: value}; an array index above 0 makes the value a list."""
     out = {}
+    walk = legacy_props.tags(r.data, r.at, end, names)
     while True:
-        name = _name(names, r)
-        if name == 'None': return out
-        kind = _name(names, r)
-        size, at = r.unpack('<ii')
+        try: name, kind, what, at, start, size = next(walk)
+        except StopIteration as done:
+            r.at = done.value
+            return out
+        # (an object whose size runs past the file's end leaves the walk reading past it: a struct.error)
+        except (ValueError, struct.error) as error: raise CardError(str(error)) from None
+        r.at = start
         if kind == 'BoolProperty': value = bool(r.unpack('<B'))
         elif kind == 'StructProperty':
-            what = _name(names, r)
             if size != 12 or what not in ('Vector', 'Rotator'): raise CardError(f'{name}: a {what} struct of {size} bytes')
             value = tuple(r.unpack('<fff' if what == 'Vector' else '<iii'))
         elif kind == 'ByteProperty':
-            _name(names, r)                                  # the enum's name
             value = _name(names, r) if size == 8 else r.unpack('<B')
         else:
             stop = r.at + size
-            if stop > end: raise CardError(f'{name} runs past the object')
             if kind == 'IntProperty': value = r.unpack('<i')
             elif kind == 'FloatProperty': value = r.unpack('<f')
             elif kind == 'StrProperty': value = r.string()

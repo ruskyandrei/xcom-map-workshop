@@ -29,6 +29,14 @@ walker before and after (names, kinds, sizes, offsets, values, refusals). A diff
   and stopped without a word where the closing None was missing; with `props.tags` such a struct is refused. Every
   export of both maps reads the same (316 settings on the Bar, 1,446 on TempleShip: no member has a number or is a
   byte property, and every struct is closed), so no output changes.
+- **[pack_card](../../tools/upk/pack_card.py)** (`_properties`, a map pack card's properties): the walk is
+  `props.tags`, each value still read and checked by the card's rules. A refusal of the walk is a `CardError` in its
+  words, as one of an object whose size runs past the file's end. Its old walk read a byte property of a size other
+  than 1 or 8 as one byte and went on from there, and took a name with a negative number; neither is in a card the
+  writer makes. Cards read the same: the tests' cards, the install's 188 Maps lines and 453 LZArray lines each
+  through a card, and the two cut cards refused alike; every export of both maps too (a card's reader refuses most of
+  a map's properties, in the same words).
 
 Checked: each walker's module's tests after its commit (map_frame's 11, inline_lighting's 5, light_factory's 22 and
-native_lights' 30, the lighting fixture's 18 and native_fields' 12, relight's 28 and the Lightmass settings' 2).
+native_lights' 30, the lighting fixture's 18 and native_fields' 12, relight's 28 and the Lightmass settings' 2,
+pack_card's 27 and the card's users' in the lab (20) and viewer suites (pack export 5, damaged inputs 6)).
