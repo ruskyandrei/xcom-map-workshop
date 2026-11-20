@@ -65,3 +65,9 @@ Checked:
   `floor-placing`, `floor-tiles`, `lights`, `effects`, `header`, `play-area`, `tile-grid` and `small-defects`: 25 ran,
   all passed (`streams` skips its streamed piece's edit on the Bar); then `prefabs`, `prefab-effects`, `builder`,
   `reset-all`, `let-go` and `ladder-floor` on the Bar, and `walls` and `made-prefab` on the police station, passed.
+- **`browser_smoke.py --all`** on fresh test servers, with a scratch cache and `--play-install <scratch game>`, after
+  the three views' moves (the Spawns view, the Landing zones view, this one): the nine runs of the editor's checks
+  pass, 70 checks ran and 6 skipped, each for its map or its run (TempleShip's two, the police station's light bar and
+  Play run elsewhere; `streams`' edit and the patch previews have nothing on the Bar's export to work on), 14 min with
+  other work on the computer. The Play run was refused before it played: the server's play status said "XCOM is
+  running", since the game was open on the computer. Nothing of Play moved in this stage.
