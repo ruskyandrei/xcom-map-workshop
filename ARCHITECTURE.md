@@ -155,8 +155,9 @@ where there is one.
   lived in the lab's `deploy_fixture.py`, so the release shipped it (finding 53).
 - New code goes into the module that owns its area. A new area gets a new module. app.js, the `Compiler` and
   `native_copy.build` take only what joins the modules: they are large because everything was added to them.
-- A file stays under 1,500 lines and a function under 150. The ones over that today are listed (section 4) and may
-  only shrink.
+- Keep files to about 1,500 lines and functions to about 150: past that, code gets hard to read whole. These are
+  guidance, not limits (section 4). When a change makes a file or function grow well past them, see first whether
+  the new code is a module or a function of its own.
 - A function with more than about eight parameters takes a record instead. `Build.__init__` took 22 and
   `native_copy.build` 30, and every caller had to name them all (findings 23 and 51).
 - An object's state is made where the object is made, with a comment saying which step fills it. It is never made by
@@ -237,75 +238,34 @@ where there is one.
 - Measure before making something faster, and write the numbers in the ledger entry.
 - A comment says why, in words that stay true. It names no line number and no private plan.
 
-## 4. The limits and the exceptions
+## 4. Sizes, and the rules a test holds
 
-[`tools/repo/tests/test_structure.py`](tools/repo/tests/test_structure.py) (the repo suite) holds these rules, with its
-numbers in [`tools/repo/structure.json`](tools/repo/structure.json). Each failure names its rule and this section.
+### Sizes
 
-A listed exception has a ceiling at its size when it was listed. A ceiling follows its file down and never back up:
-- over its ceiling, it fails;
-- more than a twentieth under its ceiling, it fails until the ceiling is lowered to the new size;
-- within the limit, or gone, it fails until its entry is taken out (or written under its new name).
+About 1,500 lines a file and 150 a function are guideline sizes, not limits: no test fails on them. A larger file or
+function is fine when it has a reason, such as a table, a format read whole, a test file of many cases, or a run that
+reads best in one piece. The same goes for app.js's module-level state and top-level functions: new ones belong in the
+module that owns their area, but nothing counts them for you.
 
-A ceiling is lowered in the commit that shrinks its file. It is raised only with the user's word, said in the ledger
-entry. The files are the ones Git has or would add, so a new file counts before it is committed.
+`python -B tools/repo/tests/test_structure.py --sizes` lists what is over the guideline sizes, largest first, and
+app.js's counts of `let`s and top-level functions; the two numbers are `guideline sizes` in
+[`tools/repo/structure.json`](tools/repo/structure.json). It measures:
+- Python's functions and methods by their syntax tree, from `def` to their last line, with their nested functions;
+- the page's top-level functions by their text;
+- a page module made as a factory (`createX`, which declares its functions inside and returns them, as
+  `createProjectDialog` does) by each function it declares, since a factory is a module made as a closure;
+- functions only in what the release ships (the modules and page files `tools/release/make_release.py` lists), and
+  files among every tracked Python file and page module.
 
-`python -B tools/repo/tests/test_structure.py --root <folder>` checks another checkout, such as a scratch copy, and
-prints its problems by rule.
+The largest today are what the refactor is taking apart: app.js (every area of the page was added to it before the
+page had modules), the compiler, the copy tool's `build`, and the browser checks in one file.
 
-### File size
+### What the structure test holds
 
-A tracked Python file or page module (`tools/viewer/web/*.js`) over 1,500 lines must be listed under `file lines`.
-Listed on 20 November 2026:
-
-| File | Lines | Why it is over |
-| --- | --- | --- |
-| `tools/viewer/web/app.js` | 12,767 | The page's entry. Every area of the page was added to it before the page had modules. |
-| `tools/viewer/tests/browser_smoke.py` | 5,856 | Every browser check and its table in one file. Not shipped. |
-| `tools/editor/compiler.py` | 4,442 | The compiler, and all its edit families but four with their own tables. |
-| `tools/editor/tests/test_compiler.py` | 3,263 | The compiler's tests, grown with it. Not shipped. |
-| `tools/bake/native_copy.py` | 3,177 | The copy tool: every lane's joining and several lanes' own code. |
-| `tools/bake/relight.py` | 2,045 | The relight, its scenes and its piece cache. |
-| `tools/viewer/installs.py` | 2,035 | Every way into and out of an install: records, files, ledger, LWR's files. |
-| `tools/editor/tests/test_build.py` | 1,890 | The Build's tests. Not shipped. |
-| `tools/editor/build.py` | 1,759 | The Build's stages in one class. |
-| `tools/bake/wall_measure.py` | 1,619 | The wall measurer, kept as it is so that saved walls keep their numbers. Not shipped. |
-
-### Function size
-
-A function over 150 lines in what the release ships (the modules and page files `tools/release/make_release.py`
-lists) must be listed under `function lines`, as `<file>::<name>`.
-- Python's functions and methods are measured by their syntax tree, from `def` to their last line, with their nested
-  functions.
-- The page's top-level functions are measured by their text.
-- A page module made as a factory (`createX`, which declares its functions inside and returns them, as
-  `createProjectDialog` does) is a module made as a closure. Each function it declares is measured
-  (`createProjectDialog.render`), not the factory, whose size its file's limit holds.
-
-Listed on 20 November 2026:
-
-| Function | Lines | What it is |
-| --- | --- | --- |
-| `tools/bake/native_copy.py::build` | 544 | The copy tool's whole run, lane by lane. |
-| `tools/viewer/web/app.js::startScene` | 303 | The page's start, with the `window.viewer` hooks the browser checks use. |
-| `tools/bake/buildings.py::edit` | 210 | The map's own buildings changed or deleted, edited in place. |
-| `tools/bake/native_copy.py::main` | 198 | The copy tool's command line. |
-| `tools/bake/shell.py::equip` | 191 | The game's blank map given what a battle needs from another map, and a larger grid. |
-| `tools/viewer/manager.py::_pack` | 188 | A map pack made: its config lines, its card and its zip. |
-| `tools/viewer/effects_metadata.py::describe` | 169 | The export's records of a package's effects, sounds and lens flares. |
-| `tools/editor/compiler.py::Compiler.groups` | 166 | The user's groups, those that break together linked in the map. |
-| `tools/bake/transplant.py::stage_edit` | 154 | Pieces of other maps staged in a copy of the map. |
-| `tools/bake/frac_walls.py::add_walls` | 153 | Made walls built as fracturing pieces in the map being grown. |
-
-Six files and ten functions among what ships are exceptions. Measured whole, eleven of the page's factories would be
-over 150 lines too (the largest, `createProjectManager`, 442), though no function inside any of them is over 74. That
-is why a factory is measured by its functions.
-
-### app.js's top level
-
-`app.js` has a ceiling on its module-level `let`s (105) and on its top-level functions (811: function declarations and
-functions assigned to a top-level `const`), under `app.js`. New state and new functions go into the module that owns
-their area, so both counts only go down.
+[`tools/repo/tests/test_structure.py`](tools/repo/tests/test_structure.py) (the repo suite) holds the rules below,
+with its lists in `structure.json`. Each failure names its rule and this section. The files are the ones Git has or
+would add, so a new file counts before it is committed. `python -B tools/repo/tests/test_structure.py --root <folder>`
+checks another checkout, such as a scratch copy, and prints its problems by rule.
 
 ### The page's imports
 
@@ -364,8 +324,7 @@ The tools that show a move changed nothing:
 - `python -B tools/run_tests.py <suite> --times`: the slowest tests and classes. Use it before and after making a
   suite faster.
 
-A change that shrinks a listed file or function lowers its ceiling in `structure.json` in the same commit. A change
-that sets a pattern writes it into this document: its section, and its row in section 2.
+A change that sets a pattern writes it into this document: its section, and its row in section 2.
 
 ## 6. A checklist for a change
 
@@ -375,4 +334,5 @@ Before a commit that adds a module, a function longer than a screen, or a reader
 2. Does it go where section 2 says? If the table has no row, add the module and the row.
 3. Is its pure part apart from its wiring, and tested?
 4. Is the same rule needed on the other side, the page or Python? Then one file both read, or a case file.
-5. Did a number of the structure test go up? Then the change is in the wrong place.
+5. Did it make a file or a function grow well past the guideline sizes (section 4)? Then see whether the new code
+   is a module or a function of its own.

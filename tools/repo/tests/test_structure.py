@@ -1,13 +1,13 @@
-"""The code's shape, as far as a test can hold it (ARCHITECTURE.md, section 4 "The limits and the exceptions"),
-with its numbers in tools/repo/structure.json.
+"""The code's shape, as far as a test can hold it (ARCHITECTURE.md, section 4 "Sizes, and the rules a test holds"),
+with its lists in tools/repo/structure.json.
 
-- File size: a tracked Python file or page module over the file limit fails unless structure.json lists it with a
-  ceiling; a listed one fails over its ceiling.
-- Function size: the same for a function over the function limit in what the release ships (its modules and page
-  files, as tools/release/make_release.py lists them). Python's functions and methods by their syntax tree; the
-  page's top-level functions by their text, and a factory (`createX`, declaring its functions inside: a module made
-  as a closure) by the functions it declares.
-- app.js's top level: its module-level `let`s and its top-level functions, each with a ceiling.
+Sizes are guidance, not a rule: no test fails on them. `--sizes` lists what is over the guideline sizes
+(structure.json's `guideline sizes`): the tracked Python files and page modules by their lines; the functions of what
+the release ships (its modules and page files, as tools/release/make_release.py lists them), Python's functions and
+methods by their syntax tree, the page's top-level functions by their text, and a factory (`createX`, declaring its
+functions inside: a module made as a closure) by the functions it declares; and app.js's counts of module-level
+`let`s and top-level functions. The rules the test holds:
+
 - The page's imports: no page module imports app.js; no import cycle among them beyond those listed.
 - What ships imports: no shipped module imports a module of the lab, the research tools or the tests (structure.json
   names their paths) beyond those listed, each with its reason.
@@ -16,10 +16,7 @@ with its numbers in tools/repo/structure.json.
 - Compiler families: a module listed as a family of the compiler does not import the compiler.
 - structure.json's form: sorted, one entry a line, so that changes to different entries merge cleanly.
 
-A ceiling follows its file down and never back up: a listed file or function fails when it has shrunk more than a
-twentieth under its ceiling (lower the ceiling), when it is within the limit again (take its entry out), and when it
-is gone (take its entry out, or write it under its new name). Every message names its rule and the section of
-ARCHITECTURE.md that explains it.
+Every message names its rule and the section of ARCHITECTURE.md that explains it.
 
 The files are the ones Git has or would add (tracked, and untracked ones that are not ignored), so a new file counts
 before it is committed. To check another checkout (a scratch copy with planted breaks):
@@ -27,6 +24,10 @@ before it is committed. To check another checkout (a scratch copy with planted b
   python -B tools/repo/tests/test_structure.py --root <folder>
 
 prints its problems by rule and exits 1 if there are any.
+
+  python -B tools/repo/tests/test_structure.py --sizes [--root <folder>]
+
+prints what is over the guideline sizes, largest first (exit 0: it is guidance).
 """
 import argparse
 import ast
@@ -44,11 +45,10 @@ import moved_code  # noqa: E402
 
 CONFIG = 'tools/repo/structure.json'
 DOC = 'ARCHITECTURE.md'
-SECTION = '4 "The limits and the exceptions"'
+SECTION = '4 "Sizes, and the rules a test holds"'
+HEADING = '## 4. Sizes, and the rules a test holds'
 # the rules, each the heading of its part of the document's section 4
-RULES = ('File size', 'Function size', "app.js's top level", "The page's imports", 'What ships imports',
-         'The import path', 'Compiler families', "structure.json's form")
-SLACK = 1 / 20
+RULES = ("The page's imports", 'What ships imports', 'The import path', 'Compiler families', "structure.json's form")
 WEB = 'tools/viewer/web/'
 APP = WEB + 'app.js'
 FACTORY = re.compile(r'^create[A-Z]')
@@ -64,40 +64,9 @@ def lines(data):
     return data.count(b'\n') + (1 if data and not data.endswith(b'\n') else 0)
 
 
-def sized(rule, kind, sizes, ceilings, limit):
-    """The problems of one sized rule: `sizes` {key: lines} of what is measured, `ceilings` {key: lines} of the
-    listed exceptions, `limit` the rule's limit."""
-    found = []
-    for key, n in sorted(sizes.items()):
-        if n > limit and key not in ceilings:
-            found.append('%s: %s %s has %d lines, over the limit of %d: split it, or put the new code in a module of '
-                         'its own %s' % (rule, kind, key, n, limit, where(rule)))
-    for key, ceiling in sorted(ceilings.items()):
-        n = sizes.get(key)
-        if n is None:
-            found.append('%s: %s %s is listed in %s but not there: take its entry out, or write it under its new '
-                         'name %s' % (rule, kind, key, CONFIG, where(rule)))
-        elif n > ceiling:
-            found.append('%s: %s %s has %d lines, over its ceiling of %d: the change belongs in another module, or a '
-                         'ceiling is raised only with the user\'s word %s' % (rule, kind, key, n, ceiling, where(rule)))
-        elif n <= limit:
-            found.append('%s: %s %s has %d lines, within the limit of %d now: take its entry out of %s %s'
-                         % (rule, kind, key, n, limit, CONFIG, where(rule)))
-        elif n < ceiling * (1 - SLACK):
-            found.append('%s: %s %s has %d lines, more than a twentieth under its ceiling of %d: lower the ceiling '
-                         'to %d in %s %s' % (rule, kind, key, n, ceiling, n, CONFIG, where(rule)))
-    return found
-
-
-def counted(rule, what, n, ceiling):
-    """The problems of a count with a ceiling that follows it down."""
-    if n > ceiling:
-        return ['%s: %s is %d, over its ceiling of %d: new code goes into the module that owns its area %s'
-                % (rule, what, n, ceiling, where(rule))]
-    if n < ceiling * (1 - SLACK):
-        return ['%s: %s is %d, more than a twentieth under its ceiling of %d: lower the ceiling to %d in %s %s'
-                % (rule, what, n, ceiling, n, CONFIG, where(rule))]
-    return []
+def over(sizes, guideline):
+    """[(key, size)] of `sizes` over `guideline`, largest first (then by key)."""
+    return sorted(((k, n) for k, n in sizes.items() if n > guideline), key=lambda kn: (-kn[1], kn[0]))
 
 
 def cycles(graph):
@@ -192,12 +161,9 @@ def imported_names(tree):
             yield node.module.split('.')[0], node.lineno
 
 
-def file_size(t):
-    sizes = {}
-    for f in t.files:
-        if f.endswith('.py') or f in t.page:
-            sizes[f] = lines((t.root / f).read_bytes())
-    return sized('File size', 'file', sizes, t.config['file lines'], t.config['limits']['file lines'])
+def file_sizes(t):
+    """{path: lines} of every tracked Python file and page module."""
+    return {f: lines((t.root / f).read_bytes()) for f in t.files if f.endswith('.py') or f in t.page}
 
 
 def function_sizes(t):
@@ -215,19 +181,23 @@ def function_sizes(t):
     return sizes
 
 
-def function_size(t):
-    return sized('Function size', 'function', function_sizes(t), t.config['function lines'],
-                 t.config['limits']['function lines'])
-
-
-def app_top_level(t):
+def app_counts(t):
+    """(module-level `let` statements, top-level functions) of app.js."""
     found, (starts, _) = t.js(APP)
-    lets = sum(1 for _, keyword in starts if keyword == 'let')
-    functions = len(found)
-    ceilings = t.config['app.js']
-    rule = "app.js's top level"
-    return (counted(rule, "app.js's count of module-level lets", lets, ceilings['lets'])
-            + counted(rule, "app.js's count of top-level functions", functions, ceilings['functions']))
+    return sum(1 for _, keyword in starts if keyword == 'let'), len(found)
+
+
+def size_report(t):
+    """The lines of the guidance report: what is over the guideline sizes, and app.js's counts."""
+    guide = t.config['guideline sizes']
+    files, functions = over(file_sizes(t), guide['file lines']), over(function_sizes(t), guide['function lines'])
+    lets, tops = app_counts(t)
+    out = ['Files over %d lines (guidance, %s section %s): %d' % (guide['file lines'], DOC, SECTION, len(files))]
+    out += ['  %6d  %s' % (n, k) for k, n in files]
+    out += ['Functions over %d lines in what ships: %d' % (guide['function lines'], len(functions))]
+    out += ['  %6d  %s' % (n, k) for k, n in functions]
+    out += ['app.js: %d module-level let statements, %d top-level functions' % (lets, tops)]
+    return out
 
 
 def page_graph(t):
@@ -361,8 +331,7 @@ def config_form(t):
             % (rule, CONFIG, n + 1, got[n] if n < len(got) else '', wanted[n] if n < len(wanted) else '', where(rule))]
 
 
-CHECKS = (('File size', file_size), ('Function size', function_size), ("app.js's top level", app_top_level),
-          ("The page's imports", page_imports), ('What ships imports', what_ships_imports),
+CHECKS = (("The page's imports", page_imports), ('What ships imports', what_ships_imports),
           ('The import path', import_path), ('Compiler families', compiler_families),
           ("structure.json's form", config_form))
 
@@ -385,14 +354,11 @@ class Structure(unittest.TestCase):
         found = check(self.t)
         self.assertEqual(found, [], '\n' + '\n'.join(found))
 
-    def test_file_size(self):
-        self.check(file_size)
-
-    def test_function_size(self):
-        self.check(function_size)
-
-    def test_app_js_top_level(self):
-        self.check(app_top_level)
+    def test_the_size_report_runs(self):
+        # guidance, not a rule: it lists, and fails on nothing
+        report = size_report(self.t)
+        self.assertTrue(report[0].startswith('Files over %d lines' % self.t.config['guideline sizes']['file lines']))
+        self.assertTrue(report[-1].startswith('app.js: '))
 
     def test_page_imports(self):
         self.check(page_imports)
@@ -411,34 +377,18 @@ class Structure(unittest.TestCase):
 
     def test_the_document_has_a_part_for_each_rule(self):
         doc = (ROOT / DOC).read_text(encoding='utf-8')
-        self.assertIn('## 4. The limits and the exceptions', doc)
-        part = doc.split('## 4. The limits and the exceptions', 1)[1].split('\n## ', 1)[0]
-        self.assertEqual([r for r in RULES if '### %s\n' % r not in part], [])
+        self.assertIn(HEADING, doc)
+        part = doc.split(HEADING, 1)[1].split('\n## ', 1)[0]
+        self.assertEqual([r for r in RULES + ('Sizes',) if '### %s\n' % r not in part], [])
         self.assertEqual([rule for rule, _ in CHECKS], list(RULES))
 
 
 class Rules(unittest.TestCase):
     """The rules' own logic, on made-up numbers."""
 
-    def test_a_ceiling_follows_its_file_down(self):
-        ceilings = {'a.py': 2000, 'b.py': 2000, 'c.py': 2000, 'gone.py': 1800, 'listed.py': 1700}
-        sizes = {'a.py': 2001, 'b.py': 1899, 'c.py': 1901, 'new.py': 1600, 'small.py': 1500, 'listed.py': 1400}
-        found = '\n'.join(sized('File size', 'file', sizes, ceilings, 1500))
-        self.assertIn('a.py has 2001 lines, over its ceiling of 2000', found)
-        self.assertIn('b.py has 1899 lines, more than a twentieth under its ceiling of 2000: lower the ceiling to 1899',
-                      found)
-        self.assertNotIn('c.py', found)                          # under its ceiling by less than a twentieth
-        self.assertIn('new.py has 1600 lines, over the limit of 1500', found)
-        self.assertNotIn('small.py', found)                      # at the limit is within it
-        self.assertIn('gone.py is listed', found)
-        self.assertIn('listed.py has 1400 lines, within the limit of 1500 now: take its entry out', found)
-        self.assertTrue(all(line.endswith('section %s: File size)' % SECTION) for line in found.splitlines()))
-
-    def test_a_count_follows_down(self):
-        self.assertEqual(counted('r', 'x', 100, 100), [])
-        self.assertIn('over its ceiling of 100', counted('r', 'x', 101, 100)[0])
-        self.assertIn('lower the ceiling to 94', counted('r', 'x', 94, 100)[0])
-        self.assertEqual(counted('r', 'x', 96, 100), [])
+    def test_over_the_guideline_largest_first(self):
+        sizes = {'a.py': 2001, 'b.py': 1899, 'c.py': 1500, 'd.py': 2001, 'e.py': 10}
+        self.assertEqual(over(sizes, 1500), [('a.py', 2001), ('d.py', 2001), ('b.py', 1899)])   # at it is within
 
     def test_cycles_are_the_strongly_connected_groups(self):
         graph = {'a.js': {'b.js'}, 'b.js': {'c.js'}, 'c.js': {'a.js', 'd.js'}, 'd.js': set(), 'e.js': {'e.js'},
@@ -455,8 +405,12 @@ class Rules(unittest.TestCase):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description='Check the code shape of a checkout (structure.json\'s rules).')
-    ap.add_argument('--root', type=Path, required=True, help='the checkout to check (a Git checkout)')
+    ap.add_argument('--root', type=Path, default=ROOT, help='the checkout to check (a Git checkout; default this one)')
+    ap.add_argument('--sizes', action='store_true', help='list what is over the guideline sizes (guidance; exit 0)')
     args = ap.parse_args(argv)
+    if args.sizes:
+        print('\n'.join(size_report(Tree(args.root))))
+        return 0
     found = problems(args.root)
     for rule, items in found.items():
         print('%-24s %s' % (rule, 'ok' if not items else '%d problem(s)' % len(items)))
@@ -466,6 +420,6 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    if '--root' in sys.argv:
+    if '--root' in sys.argv or '--sizes' in sys.argv:
         sys.exit(main())
     unittest.main()

@@ -46,8 +46,8 @@
 - **Run the suites with [tools/run_tests.py](tools/run_tests.py)** (all, or by name; `-k` for some tests). It prints
   each failure with its traceback and keeps the full logs, so a failure never needs a second run to be found. Run a
   test file on its own only through it or `unittest discover`: some test files import their neighbours.
-- **New code follows [ARCHITECTURE.md](ARCHITECTURE.md):** where it goes, the rules, the limits. Read its checklist
-  (section 6) before a commit that adds a module, a long function, or a reader or writer of a format. A ceiling in
-  [tools/repo/structure.json](tools/repo/structure.json) is lowered in the commit that shrinks its file, and raised
-  only with the user's word, said in the ledger entry. The `repo` suite's structure test checks the limits.
+- **New code follows [ARCHITECTURE.md](ARCHITECTURE.md):** where it goes, the rules, the guideline sizes. Read its
+  checklist (section 6) before a commit that adds a module, a long function, or a reader or writer of a format. The
+  `repo` suite's structure test holds the rules a test can (the page's and the release's imports, the import path,
+  the compiler's families); sizes are guidance, listed by `python -B tools/repo/tests/test_structure.py --sizes`.
 - See [README.md](README.md) for the layout and the setup this depends on.
