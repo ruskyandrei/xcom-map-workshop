@@ -119,6 +119,13 @@ class Python(unittest.TestCase):
         self.assertEqual([s for _, s, _ in r['results']], ['same', 'MISSING', 'DIFFERS'])
         self.assertEqual(r['results'][1][2], 'in neither file')
 
+    def test_an_exact_name_is_the_module_level_function_beside_a_method_of_that_name(self):
+        both = NEW_PY + '\n\ndef spec(self):\n    return dict(effects=self.effects)\n'
+        result = moved_code.compare(OLD_PY, both, 'python', names=['spec'])
+        self.assertEqual([(label, status) for label, status, _ in result['results']], [('spec', 'same')])
+        method = moved_code.compare(OLD_PY, both, 'python', names=['spec=EffectEdits.spec'])
+        self.assertEqual(method['results'][0][1], 'DIFFERS')
+
     def test_a_name_on_two_classes_must_be_qualified(self):
         two = NEW_PY + '\n\nclass Other:\n    def spec(self):\n        return 1\n'
         with self.assertRaises(moved_code.Ambiguous):

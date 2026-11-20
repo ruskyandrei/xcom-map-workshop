@@ -471,8 +471,12 @@ class Ambiguous(ValueError):
 
 
 def find(funcs, spec, side):
-    """The qualified name in `funcs` that `spec` names (a name, or a dotted one matched on whole components), or None."""
-    found = [q for q in funcs if q == spec or q.endswith('.' + spec)]
+    """The qualified name in `funcs` that `spec` names (a name, or a dotted one matched on whole components), or None.
+    A name that is exactly one function's qualified name is that function (a module-level `records` beside a method
+    `PlayInstalls.records`); otherwise it must match one function's last components."""
+    if spec in funcs:
+        return spec
+    found = [q for q in funcs if q.endswith('.' + spec)]
     if len(found) > 1:
         raise Ambiguous('%s names %d functions in the %s file (%s): qualify it' % (spec, len(found), side, ', '.join(found)))
     return found[0] if found else None
