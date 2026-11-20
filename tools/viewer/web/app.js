@@ -1680,11 +1680,13 @@ async function pasteSnapshot(clip, delta, step = null, { whole = false, first = 
     root.userData.deleted = true;
     return root;
   });
+  // (each copy made as a record of it would be read: its new names, its pose, its links named anew and its state;
+  // piece_records.js optionsOf)
   const objs = clip.entries.map(e => {
     const { source, matrix } = e, placed = delta.clone().multiply(matrix), copy = copies.get(unitOf(e));
-    return addedObject(source, placed, { actor: copy.name, entity: copy.entity, ...actorPose(source, placed),
+    return addedObject(source, placed, optionsOf({ actor: copy.name, id: copy.entity, ...actorPose(source, placed),
       prefab: linkTag(e),
-      partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null, ...stateOfEntry(e) });
+      partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null }, 'piece', stateOfEntry(e)));
   });
   // (giving way by time, so that the busy mark keeps turning through a large paste and a small one never waits)
   // A piece that can't be drawn (its mesh, a material or a texture not had) is left out, all its parts, and the hint
