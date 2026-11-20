@@ -187,5 +187,100 @@ class Recovery(unittest.TestCase):
 REAL_GAME_RUNNING, REAL_DEP_GAME_RUNNING = installs.game_running, dep.game_running
 
 
+class Removal(unittest.TestCase):
+    """Review finding 26: a play's clear-up and Remove from game, with one record the editor added edited before (a
+    mod manager, a hand edit). The record stays, and so do its variant's files and the ledger's note of what was left:
+    a live record naming a package that is gone could be drawn by the game. Once the record is taken out by hand, the
+    next removal takes the rest."""
+    setUp = test_play.Play.setUp
+    package = test_play.Play.package
+    fresh = Recovery.fresh
+    state = Recovery.state
+
+    def edit_record(self, game, variant, k=0):
+        """The k-th record of `variant` in DefaultMaps.ini given a display name of the user's own."""
+        path = installs.config(game, 'DefaultMaps.ini')
+        lines = dep.lines_of(path.read_bytes())
+        at = [i for i, l in enumerate(lines) if dep.is_record(l) and dep.field(l, 'Name') == variant][k]
+        lines[at] = dep.set_field(lines[at], 'DisplayName', 'Edited by hand')
+        path.write_bytes(dep.EOL.join(lines))
+
+    def drop_records(self, game, variant):
+        """Every record of `variant` (and the editor's comment lines for it) taken out of DefaultMaps.ini by hand."""
+        path = installs.config(game, 'DefaultMaps.ini')
+        lines = [l for l in dep.lines_of(path.read_bytes())
+                 if not (dep.is_record(l) and dep.field(l, 'Name') == variant) and not l.startswith(f'; {variant}:'.encode())]
+        path.write_bytes(dep.EOL.join(lines))
+
+    def cooked(self, game):
+        return sorted(p.name for p in installs.cooked(game).iterdir())
+
+    def test_a_plays_clear_up_keeps_the_files_of_a_record_edited_since(self):
+        self.package()
+        game = self.fresh('clear-up')
+        own = self.cooked(game)
+        installs.install_package(game, self.output / VARIANT)
+        played = self.cooked(game)
+        self.edit_record(game, VARIANT)
+        done = installs.clear_play(game)
+        self.assertEqual(done['records'], 0)
+        self.assertEqual(self.cooked(game), played)                         # the variant's files stay
+        self.assertTrue(any(f'record for {VARIANT}' in n for n in done['left']))
+        self.assertTrue(any(n.startswith(f'{VARIANT}.upk stays') for n in done['left']))
+        ledger = installs.read_ledger(game)
+        self.assertEqual([b['variant'] for b in ledger['records']], [VARIANT])
+        self.assertEqual(set(ledger['playFiles']), set(played) - set(own))   # still noted as the editor's
+        self.assertIn(VARIANT, ledger['installed'])
+        # the record taken out by hand: the next clear-up takes the files
+        self.drop_records(game, VARIANT)
+        done = installs.clear_play(game)
+        self.assertEqual(self.cooked(game), own)
+        self.assertEqual(done['left'], [])
+        ledger = installs.read_ledger(game)
+        self.assertFalse(ledger['records'] or ledger['playFiles'] or ledger.get('owners'))
+
+    def test_remove_from_game_keeps_what_it_could_not_take_out(self):
+        self.package()
+        game = self.fresh('remove')
+        original = self.state(game)
+        own = self.cooked(game)
+        installs.install_rotation(game, self.output / VARIANT, 'replace')
+        installed = self.cooked(game)
+        self.edit_record(game, VARIANT, 1)                                  # one of its campaign records
+        done = installs.reset(game)
+        self.assertEqual(done['rotation'], 0)
+        self.assertEqual(self.cooked(game), installed)
+        self.assertTrue(any(f'rotation records for {VARIANT}' in n for n in done['left']))
+        ledger = installs.read_ledger(game)
+        self.assertEqual([e['variant'] for e in ledger['rotation']], [VARIANT])
+        self.assertEqual(set(ledger['files']), set(installed) - set(own))
+        self.assertTrue(all(o for o in ledger['owners'].values()))
+        # the variant is still the editor's, so it is no map of the install's own
+        self.assertFalse(any(dep.field(l, 'Name') == VARIANT for l in installs.pristine_lines(game)
+                             if dep.is_record(l) and dep.field(l, 'DisplayName') != 'Edited by hand'))
+        status = installs.status(game)
+        self.assertTrue(status['anything'])
+        # taken out by hand, and the base map's records put back by hand: the next Remove takes the files
+        self.drop_records(game, VARIANT)
+        maps = installs.config(game, 'DefaultMaps.ini')
+        maps.write_bytes(maps.read_bytes().replace(b'\r\n;Maps=(', b'\r\nMaps=('))
+        done = installs.reset(game)
+        self.assertEqual(self.cooked(game), own)
+        ledger = installs.read_ledger(game)
+        self.assertFalse(ledger['rotation'] or ledger['files'] or ledger.get('owners'))
+        self.assertEqual(installs.config(game, 'DefaultMaps.ini').read_bytes(),
+                         original[str(Path('XEW/XComGame/Config/DefaultMaps.ini'))])
+
+    def test_landing_zones_left_stay_noted(self):
+        self.package()
+        game = self.fresh('zones')
+        installs.install_package(game, self.output / VARIANT)
+        lz = installs.config(game, installs.LZ)
+        lz.write_bytes(lz.read_bytes().replace(f'MapName="{VARIANT}"'.encode(), f'MapName="{VARIANT}" '.encode()))
+        done = installs.reset(game)
+        self.assertTrue(any('landing-zone lines' in n for n in done['left']))
+        self.assertEqual([b['variant'] for b in installs.read_ledger(game)['playZones']], [VARIANT])
+
+
 if __name__ == '__main__':
     unittest.main()

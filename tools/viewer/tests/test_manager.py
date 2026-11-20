@@ -44,6 +44,30 @@ OTHER_ID, OTHER = '1a2b3c4d-1d2a-4b6c-8e9f-123456789abc', 'URB_Bar_Second_1a2b'
 UNBUILT_ID, MISSING_ID = '2b3c4d5e-1d2a-4b6c-8e9f-123456789abc', '3c4d5e6f-1d2a-4b6c-8e9f-123456789abc'
 
 
+def pack_env(extra_modules=None):
+    """The environment a pack's scripts run in when double-clicked (review finding 25): this one without the module
+    path a shell may have set (PowerShell 7's, inherited by a suite started from it), so Windows PowerShell builds its
+    own. `extra_modules`: folders put first on PSModulePath instead (a launch from PowerShell 7)."""
+    import os
+    env = {k: v for k, v in os.environ.items() if k.upper() != 'PSMODULEPATH'}
+    if extra_modules: env['PSModulePath'] = ';'.join(str(m) for m in extra_modules)
+    return env
+
+
+def powershell_report(env=None):
+    """Which Windows PowerShell a pack's scripts get with this environment, its module path and whether it finds
+    Get-FileHash (Microsoft.PowerShell.Utility), for a failure's message."""
+    probe = ('"host: " + [Diagnostics.Process]::GetCurrentProcess().Path + " " + $PSVersionTable.PSVersion; '
+             '"Get-FileHash: " + [bool](Get-Command Get-FileHash -ErrorAction SilentlyContinue); '
+             '"PSModulePath: " + $env:PSModulePath')
+    try:
+        done = subprocess.run(['cmd', '/c', 'powershell', '-NoProfile', '-Command', probe], capture_output=True, text=True,
+                              timeout=60, env=pack_env() if env is None else env)
+        return 'Windows PowerShell as the scripts get it:\n' + done.stdout + done.stderr
+    except (OSError, subprocess.SubprocessError) as error:
+        return f'Windows PowerShell could not be asked ({error})'
+
+
 class Manager(unittest.TestCase):
     setUp = test_play.Play.setUp
     player = test_play.Play.player
@@ -665,16 +689,19 @@ class Manager(unittest.TestCase):
         self.run_script(newer, 'Uninstall.cmd', self.copy)
         self.assertEqual(sorted(str(p.relative_to(cooked)) for p in cooked.rglob('*')), held)
 
-    def run_script_with(self, folder, name, game, *more):
-        done = subprocess.run(['cmd', '/c', str(folder / name), str(game), *more], capture_output=True, text=True, timeout=120)
-        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+    def run_script_with(self, folder, name, game, *more, env=None, code=0):
+        """A pack's Install.cmd or Uninstall.cmd run on a game folder, with Windows PowerShell's environment as a
+        double-click gives it (pack_env; review finding 25): its output. A failure's message says which PowerShell ran
+        and whether it found the commands the scripts use."""
+        done = subprocess.run(['cmd', '/c', str(folder / name), str(game), *more], capture_output=True, text=True, timeout=120,
+                              env=pack_env() if env is None else env)
+        if done.returncode != code:
+            self.fail(f'{name} ended with {done.returncode}:\n{done.stdout}{done.stderr}\n{powershell_report(env)}')
         return done.stdout
 
     def run_script(self, folder, name, game):
         """A pack's Install.cmd or Uninstall.cmd run on a game folder: its output."""
-        done = subprocess.run(['cmd', '/c', str(folder / name), str(game)], capture_output=True, text=True, timeout=120)
-        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-        return done.stdout
+        return self.run_script_with(folder, name, game)
 
     @unittest.skipUnless(sys.platform == 'win32' and shutil.which('powershell'), 'the pack\'s scripts run with Windows PowerShell')
     def test_a_packs_scripts_install_it_as_the_editor_does_and_take_it_out_byte_for_byte(self):
@@ -731,9 +758,8 @@ class Manager(unittest.TestCase):
         maps = self.copy / 'XEW/XComGame/Config/DefaultMaps.ini'
         maps.write_bytes(dep.EOL.join(l for l in dep.lines_of(maps.read_bytes()) if dep.field(l, 'Name') != 'URB_Bar'))
         bare = self.files(self.copy)
-        done = subprocess.run(['cmd', '/c', str(folder / 'Install.cmd'), str(self.copy)], capture_output=True, text=True, timeout=120)
-        self.assertEqual(done.returncode, 1)
-        self.assertIn('no record for its base map', done.stdout)
+        out = self.run_script_with(folder, 'Install.cmd', self.copy, code=1)
+        self.assertIn('no record for its base map', out)
         self.assertEqual(self.files(self.copy), bare)
 
     def test_a_packs_scripts_and_the_editor_install_a_projects_own_landing_zones_alike(self):

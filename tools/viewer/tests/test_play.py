@@ -940,7 +940,8 @@ class Play(unittest.TestCase):
         with self.assertRaisesRegex(installs.InstallError, 'has changed since'): installs.install_rotation(self.lwr, folder, 'additional')
         self.assertEqual(self.snapshot(self.lwr), before)
         installs.reset(self.lwr)
-        self.assertFalse(installs.read_ledger(self.lwr).get('owners'))
+        # the file changed since stays, still noted as this project's (review finding 26); the others went
+        self.assertEqual(installs.read_ledger(self.lwr).get('owners'), {f'{VARIANT}.upk': ID})
         # a ledger from before owners: the rotation entry says the variant is this project's
         (cooked / f'{VARIANT}.upk').unlink()
         installs.install_rotation(self.lwr, folder, 'additional')
