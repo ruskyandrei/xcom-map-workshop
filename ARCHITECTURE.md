@@ -365,7 +365,8 @@ its own ledger entry. A function that cannot move without a change of behaviour 
 
 The tools that show a move changed nothing:
 - [`tools/repo/moved_code.py`](tools/repo/moved_code.py) `<base commit> <old file> <new file> [--subst OLD=NEW ...]
-  [--subst-file <json>] [--names ...]`: each moved Python function's syntax tree, or JavaScript function's tokens, is
+  [--subst-file <json>] [--names ...]`: each moved Python function's syntax tree, or JavaScript function's tokens (a
+  page factory's functions included, as `createX.f`), is
   the old one's, after the move's stated substitutions (`--subst-file` holds [OLD, NEW] pairs, for a write moved to its
   owner's setter). Use it for every move.
 - `tools/editor/tests/build_outputs.py`: the quick and baked Builds of ten project inputs that hold every lane of the

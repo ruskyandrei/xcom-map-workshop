@@ -170,6 +170,18 @@ class JavaScript(unittest.TestCase):
         self.assertEqual({k: (f.start_line, f.end_line) for k, f in inner.items()},
                          {'createThing.one': (3, 5), 'createThing.two': (6, 8)})
 
+    def test_a_function_moved_into_a_factory_is_found_by_its_name(self):
+        old = 'let n = 0;\nfunction one() {\n  return n;\n}\nfunction keep() {\n  return 1;\n}\n'
+        new = ('export function createThing({ n }) {\n  function one() {\n    return n;\n  }\n  return { one };\n}\n'
+               'function keep() {\n  return 1;\n}\n')
+        named = moved_code.compare(old, new, 'js', names=['one'])
+        self.assertEqual([(label, status) for label, status, _ in named['results']], [('one', 'same')])
+        paired = moved_code.compare(old, new, 'js')
+        self.assertIn(('one -> createThing.one', 'same'), [(label, status) for label, status, _ in paired['results']])
+        self.assertIn(('keep', 'same'), [(label, status) for label, status, _ in paired['results']])
+        changed = moved_code.compare(old, new.replace('return n;', 'return n + 1;'), 'js', names=['one'])
+        self.assertEqual(changed['results'][0][1], 'DIFFERS')
+
 
 @unittest.skipUnless(shutil.which('git'), 'needs Git')
 class CommandLine(unittest.TestCase):

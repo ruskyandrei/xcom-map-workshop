@@ -11,6 +11,8 @@ the same path (a function moved inside its file) or two (functions moved out int
   (`Compiler.effect_of` into `EffectEdits.effect_of`).
 - JavaScript: each top-level function's text (`function f(...)`, `async function f`, `export function f`, and
   `const f = (...) =>` or `const f = function`), its tokens compared with whitespace and comments' wrapping aside.
+  The functions a factory declares (`createX`, a page module made as a closure) count too, named `createX.f`, so a
+  function moved from app.js into a factory is found by its own name (`--names f`, or paired by name without it).
 
 --subst OLD=NEW (repeatable) replaces the text OLD by NEW in each old function before the comparison, in the order
 given; the text before the first `=` is replaced by the text after it (`--subst self.=self.c.`). --subst-file names
@@ -39,10 +41,12 @@ import difflib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import textwrap
 
+FACTORY = re.compile(r'^create[A-Z]')       # a page module made as a closure (the structure test's word too)
 Token = namedtuple('Token', 'kind value start end depth')
 Function = namedtuple('Function', 'name start_line end_line text')
 
@@ -444,7 +448,16 @@ def kind_of(path):
 
 
 def functions(text, kind):
-    return python_functions(text) if kind == 'python' else js_functions(text)
+    """{qualified name: Function} of a file: Python's functions and methods; JavaScript's top-level functions and the
+    functions each factory (`createX`) declares."""
+    if kind == 'python':
+        return python_functions(text)
+    found = js_functions(text)
+    inner = {}
+    for name, f in found.items():
+        if FACTORY.match(name):
+            inner.update(js_inner_functions(f))
+    return dict(found, **inner)
 
 
 def substitute(text, substs):
