@@ -11,7 +11,7 @@ blasts a cut piece's whole was given. Once every copy is made, the compiler's ru
 meet (join_made_walls, wall_joins), that stand on another (made_walls_stacked) and their gaps (made_wall_openings,
 opening_play); made floors and roofs in a building but in none of its floors (made_slabs_in_floors), and over the
 map's cursor volumes or too near its floor (made_slab_cursors). The cursor's floors over the made slabs are the
-compiler's (with_made_slabs reads `slabs`).
+floor family's (floor_edits.py: with_made_slabs reads `slabs`).
 
 This family was moved out of compiler.Compiler as SpawnEdits was (review finding 23). A MadeEdits works for one
 Compiler: it reads the scene, the meshes, the copies and hides made so far, the buildings and the floor tiles from it,
@@ -30,7 +30,7 @@ from itertools import product
 from pathlib import Path
 
 # (compiler_tables puts tools/viewer on the path, for export_math, and tools/bake, for the Build's looks, ground
-# shapes, blasts, made floors' cursors and cuts)
+# shapes, blasts, made floors' cursors and cuts, and a made wall's storeys)
 from compiler_tables import (FRAC_SLAB_LOOKS, GROUND_LOOKS, HEADROOM, MADE_KINDS, TILE, donor_shape, keyable,
                              made_wall_along, short, tidy, union, wall_heights, world_box)
 from export_math import transform
@@ -39,6 +39,7 @@ import ground as ground_shapes
 import made_blasts
 import made_cursors
 import made_split
+import frac_wall     # (loaded already: ground's import loads it)
 
 # A fracturing wall made from numbers (custom geometry plan, section 0): its numbers are its tile edges, it is at
 # least this long (tools/bake/frac_walls.py MIN_LENGTH; test_frac_walls checks they agree), and its solid stops
@@ -90,7 +91,6 @@ def wall_look_storeys(wall):
         resolved = looks.resolve('wall', look)
     except looks.LookError:
         return int(wall.get('storeys') or 2), False
-    import frac_wall
     own = frac_wall.storeys_of(frac_wall.look_of(dict(wall, look=resolved)))
     return max(own), max(own) > 1 and 1 in own
 
@@ -480,7 +480,7 @@ class MadeEdits:
                               label, 'volume' if len(names) == 1 else 'volumes', ', '.join(sorted(names)),
                               'it is' if len(names) == 1 else 'they are', 'its' if len(names) == 1 else 'their'), **where)
         # (the floor tiles' saved places: a tile's floor is where the map's own piece has it)
-        floors = [f for f in self.c.floor_records_now() if len(f.get('location') or ()) == 3]
+        floors = [f for f in self.c.floor_edits.floor_records_now() if len(f.get('location') or ()) == 3]
         for c, where in self.made_slab_wholes():
             b, under = [c['box'][k] for k in (0, 2, 4, 1, 3, 5)], c['box'][4]
             tiles = sorted(list(f['tile']) for f in floors
@@ -513,7 +513,7 @@ class MadeEdits:
             floors = [[[*v['min'], *v['max']] for v in f.get('boxes') or [] if isinstance(v, dict)] for f in b.get('floors') or []]
             if any(floors):
                 houses.append((b.get('actor') or 'a building of the map\'s', floors))
-        ground = [f for f in self.c.floor_records_now() if len(f.get('location') or ()) == 3]
+        ground = [f for f in self.c.floor_edits.floor_records_now() if len(f.get('location') or ()) == 3]
         for c, where in slabs:
             box = c['box']
             for name, floors in houses:
