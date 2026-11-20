@@ -20,7 +20,7 @@ export const playApi = {
 const named = (name, mapLabel) => { const label = mapLabel(name); return label && label !== name ? `${label} (${name})` : name; };
 
 /** One thing the editor installed, in a few words. */
-export const installedName = i => i.kind === 'map' ? `a record for ${i.map} (its own are commented out)`
+const installedName = i => i.kind === 'map' ? `a record for ${i.map} (its own are commented out)`
   : `${i.project?.name ?? 'a project'}, revision ${i.project?.revision} (${i.map})${i.quick ? ', lighting not baked' : ''}`;
 
 /** What the editor has in the install, in a few words; null when that isn't known. */

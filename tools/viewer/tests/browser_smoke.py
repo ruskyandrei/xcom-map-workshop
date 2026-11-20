@@ -150,14 +150,20 @@ def check_arrow_pan(page):
     check_drag_look(page, fly=False)
     check_tool_keys(page)
     check_camera_speeds(page)
-    # Typing in a field keeps the keys.
-    page.locator('#libFilter').evaluate('e => e.focus()')
-    before = page.evaluate(state)
+    # Typing in a field keeps the keys. (The Add panel's filter: the panel opened first, as a hidden field takes no
+    # focus, and the keys then went to the camera: why the full run failed here since the camera checks moved on.)
+    page.keyboard.press('p')
+    page.locator('#libFilter').wait_for(state='visible')
+    page.locator('#libFilter').focus()
+    assert page.evaluate("document.activeElement?.id") == 'libFilter'
+    before = settled(page, state)
     for key in ('ArrowUp', 'w', 'q', 'e'):
         page.keyboard.down(key); page.wait_for_timeout(200); page.keyboard.up(key)
     after = page.evaluate(state)
     assert camera_delta(before, after) < 1e-3, (before, after)
     page.evaluate('document.activeElement.blur()')
+    page.keyboard.press('p')
+    page.locator('#libFilter').wait_for(state='hidden')
 
 
 def check_camera_speeds(page):

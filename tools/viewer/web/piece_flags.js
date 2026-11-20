@@ -6,7 +6,7 @@
 // the finished tiles.
 
 export const ROLES = ['walking', 'cover', 'sight', 'floor', 'mouse'];
-export const TILE_ROLES = ['walking', 'cover', 'sight', 'floor'];
+const TILE_ROLES = ['walking', 'cover', 'sight', 'floor'];
 
 const asBool = (raw, prop) => (raw[prop] === undefined || raw[prop] === null ? null : Boolean(raw[prop]));
 const stateOf = v => (v === null ? 'unknown' : v ? 'on' : 'off');
@@ -94,7 +94,7 @@ export function states(contract, cls, raw) {
 }
 
 /** The property writes that set one role: [[property, value]]. */
-export function primaryWrites(role, want) {
+function primaryWrites(role, want) {
   if (role === 'walking') return [['bAlwaysConsiderForCover', Boolean(want)]];
   if (role === 'cover') return [['bIgnoreForCover', !want]];
   if (role === 'sight') return [['bBlockUnitVisibility', Boolean(want)]];
@@ -178,7 +178,7 @@ export function rawOf(record) {
 
 /** [class, raw, source] of a piece made from numbers (generated kind `kind`) on a donor of class `cls` with these
  * settings, as the Build makes it: piece_flags.made_settings' twin (contract.madeGround, contract.classDefaults). */
-export function madeSettings(contract, cls, raw, source, kind) {
+function madeSettings(contract, cls, raw, source, kind) {
   const g = contract.madeGround;
   if (kind !== 'ground' || !g) return [cls, { ...raw }, { ...source }];
   const next = g.retyped[cls] ?? cls, family = contract.classes[next];

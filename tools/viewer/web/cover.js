@@ -24,7 +24,7 @@ export const isBlocker = c => c?.type === 'block';
 /** What a block gives units beside it, in words: "high cover", "low cover", "no cover". */
 export const coverWords = c => (isBlocker(c) ? 'no cover' : `${c.type} cover`);
 /** A type's first heights (below and above the floor): the recipe's. */
-export const typeHeights = (recipe, type) => [...recipe.heights[type]];
+const typeHeights = (recipe, type) => [...recipe.heights[type]];
 // What the Add panel's two entries place: one tile, a block of high cover from the recipe's bottom to its top; moved,
 // sized and turned after.
 export const coverStart = recipe => ({ type: 'high', size: [TILE, TILE], heights: typeHeights(recipe, 'high') });
@@ -55,7 +55,7 @@ const round = v => Math.round(v * 100) / 100;
 export const lengthWords = v => (v % TILE === 0 ? `${v / TILE} tile${v === TILE ? '' : 's'}` : `${round(v)} units`);
 /** A size across in words: "1 × 2 tiles" when both are whole tiles, else "48 × 96 units". */
 export const sizeWords = ([x, y]) => (x % TILE === 0 && y % TILE === 0 ? `${x / TILE} × ${y / TILE} tiles` : `${round(x)} × ${round(y)} units`);
-export const coverName = c => (isFloor(c) ? `Invisible floor ${sizeWords(c.size)}`
+const coverName = c => (isFloor(c) ? `Invisible floor ${sizeWords(c.size)}`
   : `${isBlocker(c) ? 'Blocker' : 'Cover block'} ${sizeWords(c.size)}, top ${round(c.heights[1])} (${coverWords(c)})`);
 
 /** The record the page keeps in data.meshes for a piece's box (the name, bounds and counts the panels read). */

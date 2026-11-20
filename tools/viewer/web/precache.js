@@ -25,7 +25,7 @@ export function size(bytes) {
 const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 /** What a line under an option says, from the plan (precache.py plan()). */
-export function piecesLine(plan) {
+function piecesLine(plan) {
   const p = plan.pieces, e = plan.estimates.pieces;
   if (p.error) return p.error;
   if (!p.ready) return 'The library has not been read yet: it is read first (about half a minute), then every piece of it.';
@@ -33,7 +33,7 @@ export function piecesLine(plan) {
   if (!p.missing) return `All ${count(p.total)} pieces of ${plural(p.maps, 'map')} are cached.${stale}`;
   return `${count(p.missing)} of ${count(p.total)} pieces to read (${count(p.kept)} cached): ${duration(e.seconds)}, about ${size(e.bytes)}.${stale}`;
 }
-export function mapsLine(plan) {
+function mapsLine(plan) {
   const m = plan.maps, e = plan.estimates.maps, todo = m.missing + m.outdated;
   if (!m.available) return 'This server does not prepare maps.';
   if (!todo) return `All ${count(m.total)} maps are prepared.`;

@@ -38,7 +38,7 @@ const geometries = {
   area: new THREE.OctahedronGeometry(0.45),
 };
 // The view's Y-up basis to the actor's own X-forward one: markers are built about the actor's frame.
-export const markerShape = kind => geometries[kind] ?? geometries.point;
+const markerShape = kind => geometries[kind] ?? geometries.point;
 
 /** A light record (the export's, game units) with its pose and values now: values in the package's terms (plan 9.1,
  *  colour bytes), as the Map lighting mode and the markers read them. */

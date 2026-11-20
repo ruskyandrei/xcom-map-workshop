@@ -145,7 +145,7 @@ export const baseEditWords = 'The Build keeps it where the map has it.';
 
 /** The kinds of base spawn point a project moves, turns and gives values (compiler.SPAWN_EDIT_KINDS), and the values
  * of each (compiler.SPAWN_VALUE_KEYS). A no-spawn volume is moved and sized by its box, never turned. */
-export const SPAWN_EDIT_KINDS = ['pod', 'meld', 'dropIn', 'noSpawn'];
+const SPAWN_EDIT_KINDS = ['pod', 'meld', 'dropIn', 'noSpawn'];
 export const SPAWN_VALUE_KEYS = { pod: ['commander', 'secondary', 'use'], meld: ['difficulty', 'destroyedOnTurn', 'spawnGroup'], dropIn: [],
                                   noSpawn: ['aliens', 'civilians'] };
 /** Whether a base record is one the Build can edit: its kind, in the level's actor list, its values read (a volume:

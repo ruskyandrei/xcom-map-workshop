@@ -21,12 +21,12 @@ export const WALL_LOOKS = [{ id: 'bar-inside', name: 'Bar inside wall', package:
 // the Build cutting it into pieces of at most pieceTiles and its look's storeys.
 export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 192, half: 12, minTiles: 1, maxTiles: 128,
                       maxStoreys: 12, pieceTiles: 16 };
-// A made wall's mesh as the editor's server draws it (app.js madeShapeOf; generated.py's limits: minLength and
-// maxLength are its MIN_LENGTH and MAX_LENGTH, pinned in tests/twin_constants.json, review finding 55)
-export const FRAC_WALL = { endInset: 8, halfY: 12, bottom: -16, top: 384, slots: 6, minLength: 40, maxLength: WALL.maxTiles * TILE };
+// The lengths of made wall the editor's server draws a mesh for (app.js madeShapeOf; generated.py's MIN_LENGTH and
+// MAX_LENGTH, pinned in tests/twin_constants.json, review finding 55); the mesh's other numbers are WALL's
+export const FRAC_WALL = { minLength: 40, maxLength: WALL.maxTiles * TILE };
 // A wall's tops by its storeys (frac_wall.shaped: one storey stands to 192, as the game's one-storey inside walls do;
 // its cornice is the top 12 and an opening's top stays 24 under the top, as on a tall wall)
-export const STOREY_TOPS = { 1: 192, 2: 384 };
+const STOREY_TOPS = { 1: 192, 2: 384 };
 // A gap's limits: the highest its top goes under the cornice (past it, the gap is cut through to the wall's top), the
 // smallest sizes, the Alt step, and the threshold a doorway starts with: the strip of wall kept under it, so no gap is
 // left under its door (the user, 19 November 2026; under the game's cover line, so it gives no cover and units walk
@@ -350,7 +350,7 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
 
 // ---- what an opening does in play
 /** The centres along the wall (in its frame) of the tiles whose centre line passes through the opening. */
-export const centresThrough = (wall, o) => [...Array(tilesOf(wall)).keys()].map(k => (k + 0.5) * TILE)
+const centresThrough = (wall, o) => [...Array(tilesOf(wall)).keys()].map(k => (k + 0.5) * TILE)
   .filter(c => c > o.x0 + 1 && c < o.x1 - 1);
 /** What the game does at an opening, by its sweeps at the tile centres it spans: { tiles, walk, climb, sight, cover
  *  ('none' | 'low' | 'high' | 'whole': the wall's own cover at those tiles) }. `climb`: units vault through it, as

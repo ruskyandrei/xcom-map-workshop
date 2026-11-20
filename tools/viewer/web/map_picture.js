@@ -4,7 +4,7 @@
 // is the result as the game will show it, after DXT1 (the server sends that back). Use this picture sends the cropped
 // 512 x 256 PNG to the server (tools/viewer/pictures.py keeps it with the project) and hands its SHA-256 to the page,
 // which saves it with the project. The image itself never leaves the browser: only the cropped picture is sent.
-import { HEIGHT, WIDTH, clampFrame, dragCorner, moveFrame, scaleSteps, sourceRect, startFrame, zoomFrame } from './map_picture_crop.js';
+import { HEIGHT, WIDTH, dragCorner, moveFrame, scaleSteps, sourceRect, startFrame, zoomFrame } from './map_picture_crop.js';
 
 const at = id => `/projects/${encodeURIComponent(id)}/picture.png`;
 async function failure(response) {

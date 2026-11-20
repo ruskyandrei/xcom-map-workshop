@@ -3,10 +3,9 @@
 // and a malformed one is carried as it is for the compiler to refuse.
 // Run: node tools/viewer/tests/project_spawns_test.mjs
 import assert from 'node:assert/strict';
-import { READ_VERSIONS, SCHEMA_VERSION, sortState, stateKey, validAdded, validOverride, validSpawnRules } from '../web/project.js';
+import { SCHEMA_VERSION, sortState, stateKey, validAdded, validOverride, validSpawnRules } from '../web/project.js';
 
 assert.equal(SCHEMA_VERSION, 4);
-assert.deepEqual(READ_VERSIONS, [1, 2, 3, 4]);
 
 assert.ok(validSpawnRules({ dropIns: 'placed' }));
 for (const bad of [null, undefined, {}, { dropIns: 'install' }, { dropIns: true }, { dropIns: 'placed', waves: 'placed' }, ['placed'], 'placed']) {

@@ -25,7 +25,7 @@ export function requestOrder(sorted, picked) {
 }
 
 // The step a row's build is at, in words: what a tool is counting, or the stage.
-export function stepWords(job) {
+function stepWords(job) {
   if (!job) return '';
   const p = job.progress;
   if (p) return sentence(p.total ? `${p.what}: ${p.done} of ${p.total}` : `${p.what}…`);

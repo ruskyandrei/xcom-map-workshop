@@ -22,7 +22,6 @@
     <symbol id="i-snap" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
-    <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="1.5"/><path d="M8 10.5V7.5a4 4 0 0 1 7.8-1.2"/></symbol>
     <symbol id="i-frame" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><circle cx="12" cy="12" r="2.5"/></symbol>
     <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 13.5L4.5 9 9 4.5"/><path d="M4.5 9h10a5.5 5.5 0 0 1 0 11h-3"/></symbol>
     <symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 13.5L19.5 9 15 4.5"/><path d="M19.5 9h-10a5.5 5.5 0 0 0 0 11h3"/></symbol>
@@ -242,7 +241,7 @@
       <div class="posehead"><span id="spawnTitle" class="headname wrap">Spawn point</span><button class="howbutton" type="button" aria-label="About this panel" title="What this does"><svg class="i"><use href="#i-info"/></svg></button></div>
       <div id="spawnEdit" class="spawnedit" hidden></div>
       <div class="row"><button id="spawnZoneEdit" type="button" hidden title="The Landing zones view, this zone picked: it is moved, turned, copied and deleted there">Edit in the Landing zones view</button></div>
-      <details id="spawnAbout" class="fold" data-fold="spawnabout" open>
+      <details class="fold" data-fold="spawnabout" open>
         <summary class="posehead"><span class="headname">About</span><span id="spawnAboutSum" class="foldval"></span></summary>
         <div id="spawnInfo" class="lightnote spawninfo"></div>
       </details>
@@ -250,7 +249,7 @@
     <section id="effectPanel" class="panel" aria-label="Effect, sound or lens flare" hidden>
       <div class="posehead" id="effectTitle">Effect</div>
       <div id="effectChips" class="chips"></div>
-      <div class="row" id="effectEdit"><button id="effectStay" type="button" hidden>Keep where it is</button><button id="effectKind" type="button" hidden>Select all</button></div>
+      <div class="row"><button id="effectStay" type="button" hidden>Keep where it is</button><button id="effectKind" type="button" hidden>Select all</button></div>
       <div id="effectWaves" hidden></div>
       <div id="effectValues" hidden></div>
       <div id="effectParams"></div>
@@ -453,7 +452,7 @@
         </div>
       </div>
       <details id="groupBox" class="fold groupbox" data-fold="group" open hidden>
-        <summary id="groupHead" class="grouphead"><svg class="i"><use id="groupIcon" href="#i-lock"/></svg><span id="groupTitle" class="headname"></span><button class="howbutton" type="button" aria-label="About this section" title="What this does"><svg class="i"><use href="#i-info"/></svg></button></summary>
+        <summary id="groupHead" class="grouphead"><svg class="i"><use href="#i-lock"/></svg><span id="groupTitle" class="headname"></span><button class="howbutton" type="button" aria-label="About this section" title="What this does"><svg class="i"><use href="#i-info"/></svg></button></summary>
         <div id="groupText" class="grouptext how"></div>
         <div class="row">
           <button id="groupMake" type="button" title="Group the selected pieces and groups (Ctrl+G): they select and move as one, and keep their group options">Group</button>
@@ -483,7 +482,7 @@
         <div id="flagsWhy" class="flagswhy" aria-live="polite"></div>
         <div id="flagsAsk" class="flagsask" hidden></div>
         <div id="flagsTargets" class="lightnote"></div>
-        <div id="flagsNote" class="lightnote how">Flags change how the game uses the piece. Its appearance, collision and destruction settings stay the same.</div>
+        <div class="lightnote how">Flags change how the game uses the piece. Its appearance, collision and destruction settings stay the same.</div>
         <div class="row"><button id="flagsReset" type="button" title="Back to the flags the map saves for it (one undo step); where it stands is not changed">Reset flags</button></div>
       </details>
       <details id="poseBox" class="fold pose" data-fold="place" open>
@@ -527,12 +526,12 @@
       <label class="check" title="Outlines the pieces the selected light lights: the ones its bake lists it in (teal), or once it is moved, changed or added, the ones its new reach touches (orange), which a full build relights"><input id="reachToggle" type="checkbox"> Outline the pieces a light reaches</label>
       <div id="skyRow" hidden><label class="check" title="The lights without a place: the sun or moon, and the sky light"><input id="skyToggle" type="checkbox"> Sun, moon and sky</label><div id="skyList" class="skylist" hidden></div></div>
       <h3>Show</h3>
-      <label class="check" id="groundGridRow" title="A faint grid on the ground's plane (the landing zones' height), drawn only where the map has no floor: over holes on a map as it is, everywhere on a cleared one. Floor pieces laid at ground level cover it; a piece placed over nothing lands on it"><input id="groundGridToggle" type="checkbox" checked> Ground grid</label>
+      <label class="check" title="A faint grid on the ground's plane (the landing zones' height), drawn only where the map has no floor: over holes on a map as it is, everywhere on a cleared one. Floor pieces laid at ground level cover it; a piece placed over nothing lands on it"><input id="groundGridToggle" type="checkbox" checked> Ground grid</label>
       <label class="check" id="landingRow" title="The landing zones: where the squad lands, drawn as the drop zone's frame, the evac zone, the six soldier points and an arrow for the way it faces, each with its number. Picked, moved and turned in the Landing zones view (Shift+Z)"><input id="landingToggle" type="checkbox" checked> Landing zones</label>
       <label class="check" id="playAreaRow" title="The play area: the map's level volume, the box its tile grid fills, which units can't leave. Its sides show as faint amber walls and its edges as lines, from the lowest tile level to the top of the highest (B)"><input id="playAreaToggle" type="checkbox" checked> Play area</label>
       <label class="check" title="The tiles around the selected piece, or the piece being placed. Filled: tiles the piece reaches a quarter tile or more into. Outlined: tiles it only reaches into at the edge. Blue when it floats above the floor under it. From the drawn mesh: the game decides from its collision when the map loads."><input id="grid" type="checkbox" checked> Tile grid</label>
       <label class="check" title="The map's saved floor tiles, where the game's bake made floor, coloured by the piece that carries each. Hatched grey: a piece moved or deleted since, whose tiles the Build's rebuild checks again. The saved data only: a copy's floor comes from the Build's rebuild. Hover a tile to name its piece; click it to select the piece"><input id="floorTiles" type="checkbox"> Floor tiles</label>
-      <label class="check" id="likenessRow" title="Each effect drawn where it stands, moving, roughly as the game draws it: its own textures, colours, size and rhythm, without the game's shader. Untick it for a busy map on a slow computer; the markers and the editing stay"><input id="likenessToggle" type="checkbox" checked> Effects as they look</label>
+      <label class="check" title="Each effect drawn where it stands, moving, roughly as the game draws it: its own textures, colours, size and rhythm, without the game's shader. Untick it for a busy map on a slow computer; the markers and the editing stay"><input id="likenessToggle" type="checkbox" checked> Effects as they look</label>
       <label class="check"><input id="wire" type="checkbox"> Wireframe</label>
       <label class="check" id="helpersRow" hidden title="Pieces a patch places hidden in the game (LWR's invisible cover and blockers): unticked, they show as a wireframe"><input id="hideHelpers" type="checkbox" checked> Hide patch helpers</label>
       <label class="check"><input id="statsToggle" type="checkbox"> Performance stats</label>
@@ -602,7 +601,7 @@
               <option value="savedAt">Last saved</option><option value="build">Last built</option><option value="name">Name</option><option value="map">Map</option></select></label>
           </div>
           <div class="filetable">
-            <div id="managerHead" class="filehead pmhead"><label title="Select or clear every project the filter shows (Ctrl+A selects them)"><input id="managerAll" type="checkbox"> <span id="managerShown">Select all shown</span></label></div>
+            <div class="filehead pmhead"><label title="Select or clear every project the filter shows (Ctrl+A selects them)"><input id="managerAll" type="checkbox"> <span id="managerShown">Select all shown</span></label></div>
             <div id="managerList" class="filelist mlist" role="listbox" aria-multiselectable="true" aria-label="Projects"></div>
           </div>
         </div>

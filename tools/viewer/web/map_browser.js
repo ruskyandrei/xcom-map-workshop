@@ -4,7 +4,7 @@
 // exports it in the background (tools/viewer/exports.py, about half a minute), and the page then opens it.
 import { nextStop, tabOrder } from './modal.js';
 
-export const GROUPS = [['prefabs', 'Prefabs'], ['abduction', 'Abduction'], ['ufo', 'UFO'], ['terror', 'Terror'], ['council', 'Council'],
+const GROUPS = [['prefabs', 'Prefabs'], ['abduction', 'Abduction'], ['ufo', 'UFO'], ['terror', 'Terror'], ['council', 'Council'],
   ['exalt', 'EXALT'], ['story', 'Story'], ['other', 'Other']];
 
 async function call(url, post = false) {

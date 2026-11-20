@@ -284,7 +284,7 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
  *  colour modules reach over DATA_COLOUR in that channel, or null for none. The game's fires do it: their start
  *  colour is red 1 to 3 (the brightness) and green and blue anything up to 50 (each flame's own offset into its
  *  scrolling texture), which as a colour would draw them cyan-white. */
-export const DATA_COLOUR = 8;
+const DATA_COLOUR = 8;
 export function dataChannels(draw) {
   const most = [0, 0, 0];
   const look = d => {
@@ -325,7 +325,7 @@ export function dataChannels(draw) {
  *  over life, at their least). The fires' chunks do so: their alpha rises from 1.5 to 10 as they rise, and each
  *  dissolves; as a plain opacity it would make them solid squares. An alpha set above 1 and held (a steam's
  *  Opacity 2) is a plain opacity. The drawing then takes the shape to the power of the alpha. */
-export const ERODE_FROM = 1.2;
+const ERODE_FROM = 1.2;
 export function alphaErodes(draw) {
   const least = d => {
     if (!d || d.unread) return null;

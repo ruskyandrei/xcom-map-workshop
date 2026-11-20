@@ -4,11 +4,11 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { createGizmo, placedPose, actorMatrix, recipeMove } from './gizmo.js';
 import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
 import { api as projectApi, memberKey, newDocument, sortState, sourceOf, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
-         validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_LEVELS_PLAYED, STAGE_MAPS,
+         validAdded, validBinding, validGroup, validOverride, validStage, tidyStage, stageMax, STAGE_MAPS,
          validBuilding, tidyBuilding, BUILDING_FLOORS_MAX, groupKey, buildingKey, pruneGroups, validPrefabMark, mapBuildingId,
          BUILDING_SAME, validLandingZone, validPicture, validSpawnRules, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
 import { ROLES as FLAG_ROLES, lowPiece, made as madeFlags, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw, roles as flagRoles } from './piece_flags.js';
-import { ownLandings, startingZones, place as zonePlace, soldierSpots, landingUnmoved, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
+import { ownLandings, startingZones, soldierSpots, landingUnmoved, groundOf, evacBox, ownSlots, explicitEw, turn as turnBy, yawOf, DIRECTIONS as ZONE_DIRECTIONS, GROUND as ZONE_GROUND } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { playApi, renderInstalls } from './play.js';
 import { createSquadDialog, squadLine } from './squad.js';
@@ -34,8 +34,8 @@ import { KIND_LABEL, VALUE_LIMITS, effectRecords, keptValues, parameterControls,
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser, SOFT } from './library.js';
 import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
-import { emptyPrefabScene, measurePrefab, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
-         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
+import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
+         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
 import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
@@ -49,10 +49,10 @@ import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes
 import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
          coverWords, floorStart, isBlocker, isFloor, lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
-import { gridMove, nearestGridPose, QUARTER, TILE } from './poserule.js';
+import { gridMove, nearestGridPose, TILE } from './poserule.js';
 import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
-         withoutOpening, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook, openingsInLook,
+         withoutOpening, withStoreys, wallJoins, joinWords, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook, openingsInLook,
          steppedStoreys,
          SLAB_LOOKS, SLAB, slabTiles, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, reshuffledSlab, holeWords, slabWords,
          toolSlab, slabLookOf, roomRoof, FRAC_WALL } from './walls.js';
@@ -1576,9 +1576,8 @@ function askLineCollision() {
   if (lineCollisionAsked) return;
   lineCollisionAsked = true;
   if (builderMode) { lineCollision ??= new Map(); return; }
-  const map = activeMapId;
-  fetch(`/maps/${encodeURIComponent(map)}/collision.json`).then(r => (r.ok ? r.json() : null)).catch(() => null).then(reply => {
-    if (map !== activeMapId) return;
+  // (one map per page: the answer is always the open map's)
+  fetch(`/maps/${encodeURIComponent(activeMapId)}/collision.json`).then(r => (r.ok ? r.json() : null)).catch(() => null).then(reply => {
     lineCollision ??= new Map();
     lineCollisionFailed = !reply?.meshes;
     for (const [id, c] of Object.entries(reply?.meshes ?? {})) lineCollision.set(id, collisionMesh(c));
@@ -2306,8 +2305,6 @@ const entryParts = entry => entry.sources.map(source => ({ source, matrix: new T
 function chooseEntry(entry) {
   chooseToken++;
   if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing(); return; }
-  if (entry.lookPicker) { openLookPicker(entry.lookPicker); return; }      // a kind's Choose a look (M4c)
-  if (entry.wallLook) { startWallDrawing(entry.ground ? groundLookNow() : entry.wallLook, { room: Boolean(entry.room), slab: Boolean(entry.slab), roof: Boolean(entry.roof), ground: entry.ground ?? null }); return; }     // the Walls and Floors and roofs kinds: drawn by dragging
   stopWallDrawing();
   if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
   if (entry.spawnAdd) { stopPlacing(); stopZonePlacing(); startSpawnPlacing(entry.spawnAdd); return; }      // Spawn points
@@ -3287,7 +3284,6 @@ const solo = createSolo(world);
 const LIGHT_LABELS = { brightness: 'Brightness', radius: 'Radius', falloffExponent: 'Falloff', innerConeAngle: 'The inner cone',
                        outerConeAngle: 'The outer cone' };
 const REACH_WARN = 300;
-const isLightRoot = r => Boolean(r?.userData.light);
 const lightKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
 const sameValue = (a, b) => (Array.isArray(a) ? Array.isArray(b) && a.length === b.length && a.every((v, k) => v === b[k]) : a === b);
 function changedValues(values, base) {
@@ -6563,11 +6559,10 @@ function ownSize() {
     ownGrid = { dims: [...data.tileGrid.dimensions], max: [...data.playableBounds.max] };
   return ownGrid;
 }
-// Whether the map's size can be set: on any whole map (13 November), growing only while it is as it is, and any way, in
-// any of the three, once it is cleared (Clear map plan, section 6). On the bare map a new map starts from
-// (project.js STAGE_MAPS) the Build lays its ground over the new area.
+// The map's size can be set on any whole map (13 November), growing only while it is as it is, and any way, in any of
+// the three, once it is cleared (Clear map plan, section 6). Whether this is the bare map a new map starts from
+// (project.js STAGE_MAPS): the Build lays its ground over the new area.
 const bareMap = () => STAGE_MAPS.includes(activeMapId);
-const sizeEditable = () => Boolean(ownSize());
 // The grid a stage asks for, as [nx, ny, nz], when this map can take it; else null (the map's own size)
 function stageDims(next, own = ownSize()) {
   if (!own || !next || !validStage(next, own.dims)) return null;
@@ -9919,11 +9914,11 @@ function lookChosen(kind, look) {
   if (pieces.open) showPieces(true);
   flashHint(`Ground in ${look.name.toLowerCase()}: pick a shape in the Ground kind, then drag it out`);
 }
-/** Open the look picker of `kind` ('wall', 'slab', 'ground'; look picker plan, L1): a panel of its own over the view,
- *  each of the kind's looks a card with a large picture of a sample made in it (`sample`: a ground look's shape, the
- *  piece's or the tool's), a click choosing one (onChoose(look), else lookChosen), "Pick from the view" (I) for the
- *  eyedropper. `current`: the look key of the piece being given a look (its card ringed and first). */
-async function openLookPicker(kind, { onChoose = null, title = null, sample = null, current = null } = {}) {
+/** Open the look picker of `kind` ('wall', 'slab', 'ground'; look picker plan, L1) for a piece being given a look: a
+ *  panel of its own over the view, each of the kind's looks a card with a large picture of a sample made in it
+ *  (`sample`: a ground look's shape, the piece's or the tool's), a click choosing one (onChoose(look)), "Pick from the
+ *  view" (I) for the eyedropper. `current`: the look key of the piece (its card ringed and first). */
+async function openLookPicker(kind, { onChoose, title = null, sample = null, current = null }) {
   const list = await loadLooks(kind);
   if (list.error) { flashHint(`${list.error}: the editor asks again when the looks are opened again`); return; }
   stopWallDrawing(); stopPlacing();
@@ -9933,8 +9928,8 @@ async function openLookPicker(kind, { onChoose = null, title = null, sample = nu
   lookPicker.open({
     kind, title: title ?? LOOK_TITLES[kind], entries: list.looks, used, current,
     sample: kind === 'ground' ? (sample ?? 'patch') : kind,
-    verb: onChoose ? 'click to give the piece this look' : 'click to draw in this look',
-    onChoose: entry => (onChoose ?? (l => lookChosen(kind, l)))(lookFromEntry(kind, entry)),
+    verb: 'click to give the piece this look',
+    onChoose: entry => onChoose(lookFromEntry(kind, entry)),
     onPick: () => startLookPick(kind, onChoose),
   });
 }
@@ -9986,9 +9981,6 @@ async function lookPickAt(x, y) {
   }
   (want.onChoose ?? (l => lookChosen(want.kind, l)))(look);
 }
-// The ground's look: the one last picked (the piece panel's swatches pick it; remembered in this browser).
-const GROUND_LOOK = 'workshop.groundLook';
-const groundLookNow = () => storedLook('ground') ?? GROUND_LOOKS.find(l => l.id === recall(GROUND_LOOK)) ?? GROUND_LOOKS[0];
 // ---- the Build menu (custom geometry editing plan, B1, 19 November 2026): the Add button's flyout starts drawing a made
 // piece at once; the find box finds the same tools by their words
 // (drawn plain, B2: in its kind's default look's shape, the look chosen afterwards in the piece panel)
@@ -11793,7 +11785,7 @@ function cutaway() {
   touchShadows();
   cutKey = editedKey();
   // The floor cut applies to every building at once (the user's choice, 7 November: no building list).
-  const requested = $('floor').value ?? 'all', chosen = 'all';
+  const requested = $('floor').value ?? 'all';
   const interior=$('scenery').value==='interior';
   const allFloors = $('floor').querySelector('[data-value=all]');
   if (allFloors) allFloors.title = interior ? 'All interior floors' : 'All floors · roof closed';
@@ -11819,7 +11811,6 @@ function cutaway() {
       const idx = Number(requested)-1;
       const groups = new Map();
       for (const entry of listingsNow(root)) {
-        if (chosen !== 'all' && entry.building !== chosen) continue;
         const old = groups.get(entry.building);
         // The game's floor pass runs top to bottom: the lowest cache entry wins.
         if (!old || entry.floor < old.floor) groups.set(entry.building,entry);

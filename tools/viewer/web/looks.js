@@ -8,7 +8,7 @@
 // version 3, a slab's or ground shape's version 2); the copy it is made on is of the donor placing chosen (the
 // catalogue's, a library row's, or a piece picked in the view), which the Build clones.
 
-export const LOOK_FILES = { wall: 'walls', slab: 'slabs', ground: 'ground' };
+const LOOK_FILES = { wall: 'walls', slab: 'slabs', ground: 'ground' };
 // a made piece's request version once its look is named by its donor
 export const DONOR_VERSION = { wall: 3, slab: 2, ground: 2 };
 
@@ -42,7 +42,7 @@ export function loadLooks(kind, fetcher = fetch) {
   return pending[kind];
 }
 
-/** The kind's catalogue if it has been read, else null. */
+/** The kind's catalogue if it has been read, else null (the failed-reads browser check reads it). */
 export const looksLoaded = kind => lists[kind] ?? null;
 
 /** The catalogue entry a donor look ({ mesh, measure, material? }) names, or null (a look id, an unread catalogue, a

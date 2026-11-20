@@ -13,14 +13,14 @@
 import { QUARTER, POSE_SLACK, turned } from './poserule.js';
 
 export const TILE = 96, STOREY = 64;
-export const FLAT = 48;        // units: a floor piece is at most this tall
-export const THIN = 8;         // units: a decoration (rug, plate) is at most this thick
-export const RESTS = 12;       // units: a decoration's bottom lies this close to the floor piece under it
+const FLAT = 48;        // units: a floor piece is at most this tall
+const THIN = 8;         // units: a decoration (rug, plate) is at most this thick
+const RESTS = 12;       // units: a decoration's bottom lies this close to the floor piece under it
 
 const median = values => { const s = [...values].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
 /** What a copy of a component is: class, archetype, mesh, materials, scale and tint. */
-export const partSignature = o => [o.actorClass, o.archetype ?? '', o.mesh, (o.materials ?? []).join(','),
+const partSignature = o => [o.actorClass, o.archetype ?? '', o.mesh, (o.materials ?? []).join(','),
                                    (o.scale ?? [1, 1, 1]).join(','), (o.tint ?? []).join(',')].join('|');
 /** What a copy of an actor is: its components' signatures. Two actors with one signature are copies of one piece. */
 export const stampSignature = parts => parts.map(partSignature).sort().join('\n');
@@ -159,7 +159,7 @@ export function floorAt(buildings, box) {
   return best;
 }
 /** A CutdownFloor moved by `floors` floors, as the Build moves it (0 names none and stays). */
-export const movedCutdown = (cut, floors) => (cut ? Math.max(1, Math.min(255, cut + floors)) : 0);
+const movedCutdown = (cut, floors) => (cut ? Math.max(1, Math.min(255, cut + floors)) : 0);
 /** A copy's building-floor listings (the Build's rule, native_copy.copy_floors, with the shared cases in
  *  tools/bake/tests/floor_membership_cases.json): listings, the original's [{building, floor, cutdownFloor}]
  *  (building: an index); here and there, floorAt of the original's and the copy's boxes; floorCount(building). A piece
@@ -255,7 +255,7 @@ const sortedUnique = values => [...new Set(values)].sort((a, b) => a - b);
 /** Cells [xs[i], xs[i + 1]] x [ys[j], ys[j + 1]] merged into rectangles of one value (`value(i, j)`: a string or
  *  number, or null for a cell left out): runs along X in each row, carried up Y while the run and value hold.
  *  [[value, [x0, y0, x1, y1]]] (made_cursors.rectangles). */
-export function madeRectangles(xs, ys, value) {
+function madeRectangles(xs, ys, value) {
   const out = [], nx = xs.length - 1, ny = ys.length - 1;
   let open = new Map();
   for (let j = 0; j <= ny; j++) {
@@ -324,7 +324,7 @@ function madeMoves(slab, plain, grid) {
 }
 /** made_cursors.split: { hidden: [keys], volumes: [{ source, floor, box, over }], crossed: [{ slab, volume, why }] }
  *  for the cursor volumes [{ key, floor, box, stair, turned }] and the made slabs [{ box, label }]. */
-export function madeSplit(volumes, slabs, grid = null) {
+function madeSplit(volumes, slabs, grid = null) {
   slabs = (slabs ?? []).filter(s => s.box[3] - s.box[0] > MADE_EDGE && s.box[4] - s.box[1] > MADE_EDGE);
   const out = { hidden: [], volumes: [], crossed: [] };
   const plain = volumes.filter(v => !v.stair && !v.turned);
@@ -390,8 +390,8 @@ export function storeysOver(storeys, box) {
 /** Whether a box starts at none of the cursor's floors over it (within CURSOR_NEAR). */
 export const cursorMiss = (box, over) => over.length > 0 && !over.some(s => Math.abs(box[2] - s.z) <= CURSOR_NEAR);
 
-export const LIST_MARGIN = 20;   // a piece is a floor's when its bottom is more than this under the volume's top
-export const LIST_SLACK = 2;     // how near a floor's box a piece's box counts as touching it
+const LIST_MARGIN = 20;   // a piece is a floor's when its bottom is more than this under the volume's top
+const LIST_SLACK = 2;     // how near a floor's box a piece's box counts as touching it
 export const STOREY_HEIGHT = 192;
 /** The floors (indices) a piece's world box [x0, x1, y0, y1, z0, z1] counts for. floors: [{ boxes: [{min, max}] }]. */
 export function touchedFloors(box, floors, margin = LIST_MARGIN, slack = LIST_SLACK) {
@@ -456,18 +456,8 @@ export function sourceFloorMatch(buildings, floors, from, to) {
   return best && { building: best.building, floorMap: best.floorMap, moved: best.moved };
 }
 /** `count` floors of one box each over a footprint [x0, y0, x1, y1], from `base` up, each `storey` high. */
-export const stackedFloors = (footprint, base, count, storey = STOREY_HEIGHT) => Array.from({ length: count }, (_, k) => (
+const stackedFloors = (footprint, base, count, storey = STOREY_HEIGHT) => Array.from({ length: count }, (_, k) => (
   { boxes: [[footprint[0], footprint[1], base + k * storey, footprint[2], footprint[3], base + (k + 1) * storey]] }));
-/** What stackedFloors would give back a building's floors: { footprint, base, count, storey }, or null when its
- *  floors are not one box each over one footprint, stacked at one height. */
-export function stackOf(building) {
-  const floors = building.floors;
-  if (!floors.length || floors.some(f => f.boxes.length !== 1)) return null;
-  const first = floors[0].boxes[0], storey = first[5] - first[2], near = (a, b) => Math.abs(a - b) < 0.01;
-  const ok = floors.every((f, k) => { const b = f.boxes[0];
-    return [0, 1, 3, 4].every(j => near(b[j], first[j])) && near(b[2], first[2] + k * storey) && near(b[5], first[2] + (k + 1) * storey); });
-  return ok ? { footprint: [first[0], first[1], first[3], first[4]], base: first[2], count: floors.length, storey } : null;
-}
 /** The floors of a building around pieces' boxes ([x0, x1, y0, y1, z0, z1] each): the footprint out to whole tiles
  *  (an edge within a quarter tile of a tile line goes to that line: a wall stands on the line), the base at the
  *  lowest piece (to the level it is within 24 units of), storeys `storey` high with one more on top for a roof, and

@@ -21,7 +21,7 @@ export function nextStop(e, stops) {
 /** A dialog's own Tab order: `next(event, stops)` gives the control Tab goes to, or undefined for the usual round. */
 export function tabOrder(root, next) { orders.set(root, next); }
 /** The dialog on top: the last `.modal` shown in the page, or null. */
-export function topModal(doc = document) {
+function topModal(doc = document) {
   const open = doc.querySelectorAll('.modal:not([hidden])');
   return open[open.length - 1] ?? null;
 }

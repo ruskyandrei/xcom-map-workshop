@@ -97,7 +97,7 @@ void main() {
 /** Which texture gives a draw record its colour and which its shape: { picture, opacity, mask, maskFrom } (draw
  *  version 4, effects_draw.pick_textures). A record of draw version 3 or before (a library template kept from then)
  *  is read as it was meant: a packed picture ('channel') shapes by its red channel and gives no colour. */
-export function textureRoles(draw) {
+function textureRoles(draw) {
   if (draw.opacity === 'channel') return { picture: null, opacity: 'none', mask: draw.picture ?? draw.mask ?? null, maskFrom: 'red' };
   return { picture: draw.picture ?? null, opacity: draw.opacity ?? 'brightness', mask: draw.mask ?? null, maskFrom: draw.maskFrom ?? 'brightness' };
 }
@@ -127,7 +127,7 @@ function particleMaterial(draw, vertexShader, soft) {
 /** The tint a material's own colour parameters give a particle with no colour picture (effects_draw.material_colours):
  *  their mean, brought down to 1 at most keeping its hue; null where the material has none. The night smoke's are
  *  all but black: its plume is drawn dark (then lifted to a dark grey by DIM_FLOOR), not white or pink. */
-export function materialTint(draw) {
+function materialTint(draw) {
   const colours = Object.values(draw.colours ?? {}).filter(c => Array.isArray(c) && c.length >= 3);
   if (!colours.length) return null;
   const mean = [0, 1, 2].map(k => colours.reduce((sum, c) => sum + Math.max(0, Number(c[k]) || 0), 0) / colours.length);

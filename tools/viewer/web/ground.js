@@ -28,7 +28,7 @@ export const GROUND_LOOKS = [
     lwrOnly: false, words: "bare brown earth", repeat: 320, thickness: 8 },
   { id: "rock", name: "Rock", package: "CLrgScout_ForestTrench", actor: "XComLevelActor_34", mesh: "Rock_E.Meshes.RockE_Destro",
     lwrOnly: false, words: "grey weathered rock", repeat: 244, thickness: 8 }];
-export const GROUND_SHAPES = ['patch', 'block', 'ramp', 'rock'];
+const GROUND_SHAPES = ['patch', 'block', 'ramp', 'rock'];
 export const ROCK_SEEDS = 2 ** 31;     // a rock's seed is 0 to ROCK_SEEDS - 1 (ground.py)
 // the tool's limits; a block's, a ramp's and a rock's height when drawn; a floor tile steeper than about 10 degrees is
 // sloped (no cover on it, F-81) and past 45 no floor (ground.py SLOPED, STEEP)
@@ -49,10 +49,10 @@ export function groundLookOf(g) {
                  lwrOnly: Boolean(cat.lwrOnly), words: cat.setting ?? '', repeat: cat.recipe.repeat, thickness: cat.recipe.thickness ?? 8,
                  donor: { mesh: look.mesh, material: look.material, measure: look.measure } } : null;
 }
-export const groundTiles = g => [Math.round((g.x1 - g.x0) / TILE), Math.round((g.y1 - g.y0) / TILE)];
+const groundTiles = g => [Math.round((g.x1 - g.x0) / TILE), Math.round((g.y1 - g.y0) / TILE)];
 // a patch's top over the ground it lies on (ground.PATCH_LIFT): the blank map's floor planes are drawn 2 over their
 // collision (F-137)
-export const PATCH_LIFT = 3;
+const PATCH_LIFT = 3;
 /** The shape's box in its mesh's frame [x0, x1, y0, y1, z0, z1] (ground.local_box): a patch's top PATCH_LIFT over the
  *  ground it lies on, its plate under it; a block or ramp on it. */
 export function groundBox(g) {

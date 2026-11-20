@@ -33,7 +33,7 @@ export function placedPose(source, matrix) {
 }
 
 /** Game location and rotator (degrees) of a pose in the viewer's basis. */
-export function gamePose(matrix) {
+function gamePose(matrix) {
   const g = conjugate(matrix).elements;   // column-major
   const at = (row, col) => g[col * 4 + row];
   const deg = v => v * 180 / Math.PI;

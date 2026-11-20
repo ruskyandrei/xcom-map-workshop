@@ -37,7 +37,7 @@ const SHOWS = {
 };
 
 /** What Undo everything did (installs.reset's result), in a sentence. */
-export function removedText(d) {
+function removedText(d) {
   const parts = [];
   if (d.records) parts.push(plural(d.records, 'map record'));
   if (d.rotation) parts.push(`${plural(d.rotation, 'build')} from the campaign's maps`);

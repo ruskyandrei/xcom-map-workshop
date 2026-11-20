@@ -147,7 +147,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
       sun.color.copy(neutral.sun); sun.intensity = neutral.intensity; sun.castShadow = neutral.castShadow;
       sun.position.copy(target).add(new THREE.Vector3(1, 1.6, -1).multiplyScalar(radius));
       uniforms.localGridInfo.value.w = 0;
-      return { local: 0, dropped: 0 };
+      return { local: 0 };
     }
     const skies = lights.filter(l => l.kind === 'sky');
     const sky = [0, 0, 0], ground = [0, 0, 0];
@@ -172,7 +172,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     const chosen = new Set(lights);
     fillGrid(l => chosen.has(l));
     uniforms.localGridInfo.value.w = bounds && lights.some(l => l.kind === 'point' || l.kind === 'spot') ? 1 : 0;
-    return { local: lights.filter(l => l.kind === 'point' || l.kind === 'spot').length, dropped: 0 };
+    return { local: lights.filter(l => l.kind === 'point' || l.kind === 'spot').length };
   }
 
   /** Solo (editor lights plan 4.6): the map dimmed to a faint neutral, its own lights off; apply() puts it back. */
