@@ -50,6 +50,9 @@ class ReleaseTests(unittest.TestCase):
                        'XEW\\XComGame\\CookedPCConsole', 'LicenseFile={#Stage}\\LICENSE.txt',
                        'OutputBaseFilename=XCOM-Map-Workshop-{#Version}-Setup', '[InstallDelete]'):
             self.assertIn(needed, text)
+        # an upgrade while the editor runs: Setup asks for it to be closed by the mutex its server holds
+        import appmutex
+        self.assertIn('AppMutex=%s,Global\\%s' % (appmutex.NAME, appmutex.NAME), text)
         # the user guide: a Start menu shortcut to it, and offered on the last page (the file make_release stages)
         entries = [line for line in text.splitlines() if '{app}\\%s"' % guide.KIT_NAME in line]
         self.assertEqual(len(entries), 2, entries)

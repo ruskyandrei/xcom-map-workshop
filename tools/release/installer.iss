@@ -46,6 +46,9 @@ SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayName=XCOM Map Workshop {#Version}
 CloseApplications=no
+; the editor's server holds this mutex while it runs (tools/viewer/appmutex.py): Setup and the uninstaller ask for it
+; to be closed first, since they replace or remove the python and tools folders a running editor holds open
+AppMutex=XCOMMapWorkshopEditor,Global\XCOMMapWorkshopEditor
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

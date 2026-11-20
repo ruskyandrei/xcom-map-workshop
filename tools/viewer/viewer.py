@@ -1154,6 +1154,9 @@ def main():
             ap.error(f"Port {args.port} is already in use, probably by a viewer that is already running (8768 is the "
                      "main one). Restart that one (Ctrl+C in its window) instead of starting a second; tests "
                      "use --port 8790-8799.")
+        # while it runs, Setup sees the editor running and asks for it to be closed before an upgrade (finding 60)
+        import appmutex
+        appmutex.hold()
         try:
             serve_cache(args, ap, server, exact)
         finally:
