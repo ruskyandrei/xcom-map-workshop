@@ -60,7 +60,8 @@ export function createMissionsPanel({ els }) {
     });
     changed();
     els.root.hidden = false;
-    setTimeout(() => els.ok.focus(), 0);
+    // (OK when a row is ticked; with none, OK is off and can't take the focus: the first row's tick then)
+    setTimeout(() => (els.ok.disabled ? els.list.querySelector('input:not(:disabled)') ?? els.cancel : els.ok).focus(), 0);
   }
   els.form.onsubmit = e => {
     e.preventDefault();

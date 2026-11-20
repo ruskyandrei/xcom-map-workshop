@@ -38,6 +38,7 @@ import { emptyPrefabScene, measurePrefab, normalizePrefab, reconcilePrefab, orde
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_PLAYED_LEVELS, PREFAB_PLAYED_TOP, PREFAB_TILES } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
 import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
+import { anyModal, holdModals } from './modal.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
@@ -64,6 +65,11 @@ import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, flo
          buildingProblems, STOREY_HEIGHT, cursorStoreys, storeysOver, cursorMiss, CURSOR_NEAR, carriedListing, floorMapOf } from './floors.js';
 
 const $ = id => document.getElementById(id);
+// Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
+// (modal.js; put in first, so the build window's own key catcher doesn't keep Tab from it)
+holdModals();
+// Whether a dialog (or the look picker) is open: the editor's shortcuts take no keys then, and no other window opens.
+function modalOpen() { return anyModal() || Boolean(lookPicker?.isOpen); }
 const prefabParameter = new URLSearchParams(location.search).get('prefab');
 const builderMode = prefabParameter !== null;
 const builder = { doc: null, kept: [], envelope: null, metadata: new Map(), savedKey: '', loading: true, repairing: false };
@@ -5801,7 +5807,7 @@ const gameMaps = createGameMaps({
   onChanged: () => refreshInstalls(),
 });
 function showGameMaps() {
-  if (gameMaps.open || projectManager.open || fileDialog.open || mapBrowser?.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
+  if (modalOpen()) return;
   showPop(null);
   if (placing) stopPlacing();
   gameMaps.show();
@@ -5829,13 +5835,13 @@ async function refreshMapList() {
   } catch { /* the list stays as it was; a reload brings it */ }
 }
 function showPrecache() {
-  if (precache.open || gameMaps.open || projectManager.open || fileDialog.open || mapBrowser?.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
+  if (modalOpen()) return;
   showPop(null);
   if (placing) stopPlacing();
   precache.show();
 }
 function showProjectManager() {
-  if (gameMaps.open || projectManager.open || fileDialog.open || mapBrowser?.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
+  if (modalOpen()) return;
   showPop(null);
   if (placing) stopPlacing();
   projectManager.show();
@@ -12000,6 +12006,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     missionGizmo: () => ({ enabled: missionGizmo.enabled, at: [missionProxy.position.x, missionProxy.position.z, missionProxy.position.y] }),
     missions: () => projectMissions, showMissions, missionsPanel,
     tileGrid: () => { updateTileGrid(); return grid.children[0]?.userData ?? null; },
+    // (the dialogs' keys, for the browser check: browser_editing.py)
+    showPrepare,
     pick, changes, pickables, pieces, showPieces, library, setLibraryScope, libraryTemplate, setSnapMode, families: () => families, playArea,
     // prefabs (prefab plan stage P), for the browser smoke test
     prefabs: prefabTab, prefabApi, prefabRecords, savePrefab, choosePrefab, prefabClip,
@@ -12153,7 +12161,7 @@ poseInputs.forEach((input, i) => {
   });
 });
 function showMapBrowser() {
-  if (!mapBrowser || mapBrowser.open || lookPicker?.isOpen || fileDialog.open || projectManager.open || gameMaps.open || setupDialog.open || buildOptions.open || !$('buildModal').hidden) return;
+  if (!mapBrowser || modalOpen()) return;
   showPop(null);
   if (placing) stopPlacing();
   mapBrowser.show();
@@ -12621,7 +12629,7 @@ window.addEventListener('blur', () => { panKeys.clear(); panFast = false; });
 // nothing selected is the browser's own copy. The Save and Load dialogs keep their own keys while open.
 document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
-  if (lookPicker?.isOpen || fileDialog.open || projectManager.open || gameMaps.open || mapBrowser?.open || setupDialog.open || buildOptions.open) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
+  if (modalOpen()) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
   if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); if (!e.repeat) saveProject(); return; }
   if ((e.ctrlKey || e.metaKey) && key === 'o') { e.preventDefault(); if (!e.repeat) showFileDialog('load'); return; }
   if ((e.ctrlKey || e.metaKey) && key === 'b') { e.preventDefault(); if (!e.repeat) openBuild(); return; }

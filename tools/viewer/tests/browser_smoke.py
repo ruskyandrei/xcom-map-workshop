@@ -5224,6 +5224,9 @@ def main():
                 # (the review's editing checks: browser_editing.py; saves a prefab, so on a test server with --projects)
                 from browser_editing import check_made_prefab
                 print(json.dumps(dict(madePrefab=check_made_prefab(browser, page.url, open_viewer))))
+            if 'modals' in only:
+                from browser_editing import check_modals
+                print(json.dumps(dict(modals=check_modals(browser, page.url, open_viewer))))
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))

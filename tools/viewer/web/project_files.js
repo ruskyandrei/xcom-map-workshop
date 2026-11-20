@@ -224,19 +224,14 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
       render();
     };
   }
-  // The dialog keeps its keys: nothing reaches the editor's shortcuts behind it while it is open.
+  // The dialog keeps its keys: nothing reaches the editor's shortcuts behind it while it is open. (Tab goes round its
+  // controls as in every dialog: modal.js)
   els.root.addEventListener('keydown', e => {
     const key = e.key;
     if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f'].includes(key.toLowerCase())) e.preventDefault();
     else if (key === 'Escape') { e.preventDefault(); if (!els.confirm.hidden) { hideConfirm(); els.name.focus(); } else close(); }
     else if (key === 'ArrowDown' || key === 'ArrowUp') { e.preventDefault(); move(key === 'ArrowDown' ? 1 : -1); }
     else if (key === 'Enter' && e.target.closest('.filerow')) { e.preventDefault(); submit(); }
-    else if (key === 'Tab') {
-      // Focus stays in the dialog.
-      const items = [...els.root.querySelectorAll('button:not(:disabled), input, select:not(:disabled)')].filter(el => el.offsetParent);
-      const i = items.indexOf(document.activeElement), next = items[(i + (e.shiftKey ? -1 : 1) + items.length) % items.length];
-      if (next) { e.preventDefault(); next.focus(); }
-    }
     e.stopPropagation();
   });
 

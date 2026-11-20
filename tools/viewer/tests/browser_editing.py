@@ -6,7 +6,10 @@ pieces will do (the pieces made here use it as their donor).
 - made-prefab (finding 6): made pieces (a wall with an opening and a blast, a floor with a hole, a ramp, a rock with
   moved points) and a broken copy of a map's fracturing piece, put in a prefab from a selection, saved, read back and
   placed again, keep their numbers, blasts and flags; the placing preview draws the made pieces' own meshes; the
-  prefab builder opens the prefab with them as they are, unchanged."""
+  prefab builder opens the prefab with them as they are, unchanged.
+- modals (finding 11): in Missions, Map picture, Clear map and Prepare, Tab from the last control goes to the first
+  and Shift+Tab from the first to the last; Delete, M and W don't reach the scene behind; Escape closes and the focus
+  goes back to the control the dialog was opened from. Missions with no row ticked puts the focus on a row's tick."""
 import json
 import math
 
@@ -95,3 +98,77 @@ def check_made_prefab(browser, url, open_viewer):
     page.close()
     assert not errors, errors
     return dict(map=url, pieces=len(before), ghost=ghost)
+
+
+STOPS = """async id => { const { tabStops } = await import('/modal.js');
+  return tabStops(document.getElementById(id)).map(el => el.id || el.textContent.trim().slice(0, 30) || el.outerHTML.slice(0, 60)); }"""
+FOCUSED = """id => { const root = document.getElementById(id), a = document.activeElement;
+  return { inside: root.contains(a), name: a?.id || a?.textContent?.trim().slice(0, 30) || a?.outerHTML?.slice(0, 60) || a?.tagName }; }"""
+FOCUS_STOP = """async ([id, k]) => { const { tabStops } = await import('/modal.js'); tabStops(document.getElementById(id)).at(k).focus(); }"""
+
+
+def modal_case(page, root, opens):
+    """One dialog, opened with the header's Map button focused: its Tab ring both ways, the scene's keys kept from what
+    is behind, Escape, and the focus back on that button."""
+    piece = page.evaluate("[...viewer.roots.values()].find(r => !r.userData.source.added && r.visible && !r.userData.source.hidden).userData.source.id")
+    page.evaluate('id => viewer.select(id)', piece)
+    page.evaluate("document.getElementById('mapButton').focus()")
+    page.evaluate(opens)
+    page.wait_for_selector(f'#{root}:not([hidden])')
+    page.wait_for_timeout(150)      # (a dialog's own focus comes a moment after it shows)
+    assert page.evaluate(FOCUSED, root)['inside'], (root, page.evaluate(FOCUSED, root))
+    stops = page.evaluate(STOPS, root)
+    assert len(stops) >= 2, (root, stops)
+    page.evaluate(FOCUS_STOP, [root, -1])
+    page.keyboard.press('Tab')
+    assert page.evaluate(FOCUSED, root)['name'] == stops[0], (root, page.evaluate(FOCUSED, root), stops)
+    page.keyboard.press('Shift+Tab')
+    assert page.evaluate(FOCUSED, root)['name'] == stops[-1], (root, page.evaluate(FOCUSED, root), stops)
+    for _ in stops:
+        page.keyboard.press('Tab')
+        assert page.evaluate(FOCUSED, root)['inside'], root
+    # the scene behind takes no keys: Delete leaves the picked piece, M opens no map browser, W moves no camera
+    page.evaluate(FOCUS_STOP, [root, 0])
+    camera = page.evaluate('viewer.camera.position.toArray()')
+    page.keyboard.press('Delete')
+    page.keyboard.press('m')
+    page.keyboard.down('w')
+    page.wait_for_timeout(250)
+    page.keyboard.up('w')
+    assert not page.evaluate('id => viewer.roots.get(id).userData.deleted', piece), root
+    assert page.locator('#mapDialog').is_hidden(), root
+    assert page.evaluate('viewer.camera.position.toArray()') == camera, root
+    assert page.locator(f'#{root}').is_visible(), root
+    page.keyboard.press('Escape')
+    page.wait_for_selector(f'#{root}', state='hidden')
+    page.wait_for_timeout(50)
+    assert page.evaluate('document.activeElement?.id') == 'mapButton', (root, page.evaluate('document.activeElement?.id'))
+    page.evaluate('viewer.select(null)')
+    return len(stops)
+
+
+def check_modals(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors, expected=(404,))
+    out = {}
+    out['clearMap'] = modal_case(page, 'clearMap', 'viewer.showClearMap()')
+    out['prepareModal'] = modal_case(page, 'prepareModal', "viewer.showPrepare('open')")
+    page.evaluate("document.getElementById('projectBanner').hidden = true")      # (Prepare's Later leaves its banner)
+    out['mapPictureDialog'] = modal_case(page, 'mapPictureDialog', "viewer.mapPicture.show({ project: { id: "
+                                         "'00000000-0000-4000-8000-000000000011', name: 'Keys check' }, map: viewer.mapId, own: null })")
+    out['missionsDialog'] = modal_case(page, 'missionsDialog', 'viewer.showMissions()')
+    # Missions with no row ticked: OK is off, and the focus is on the first row's tick, not left behind the dialog
+    page.evaluate("document.getElementById('mapButton').focus()")
+    page.evaluate("""viewer.missionsPanel.show({ title: 'Check', note: 'None ticked', onOk: () => {},
+      rows: [{ entry: { record: 0 }, label: 'First', checked: false, disabled: 'not here' }, { entry: { record: 1 }, label: 'Second', checked: false }] })""")
+    page.wait_for_selector('#missionsDialog:not([hidden])')
+    page.wait_for_timeout(150)
+    assert page.locator('#missionsOk').is_disabled()
+    assert page.evaluate("document.activeElement === document.querySelectorAll('#missionsList input')[1]"), page.evaluate(FOCUSED, 'missionsDialog')
+    page.keyboard.press('Escape')
+    page.wait_for_selector('#missionsDialog', state='hidden')
+    assert page.evaluate('document.activeElement?.id') == 'mapButton'
+    page.close()
+    errors = [e for e in errors if 'status of 404' not in e]
+    assert not errors, errors
+    return out
