@@ -277,31 +277,6 @@ def class_of(g, ref):
     return 'Class'
 
 
-def _walk(names, b, at, end):
-    """(name, kind, struct name, value offset, size) of each tagged property from `at`."""
-    def fname(o):
-        i, n = struct.unpack_from('<ii', b, o)
-        if not 0 <= i < len(names) or n < 0:
-            raise ValueError(f'bad name at {o}')
-        return names[i] + (f'_{n - 1}' if n else '')
-    while at + 8 <= end:
-        name = fname(at)
-        if name == 'None':
-            return
-        kind = fname(at + 8)
-        size = struct.unpack_from('<i', b, at + 16)[0]
-        at += 24
-        sub = None
-        if kind == 'BoolProperty':
-            size = 1
-        elif kind in ('StructProperty', 'ByteProperty'):
-            sub = fname(at)
-            at += 8
-        yield name, kind, sub, at, size
-        at += size
-    raise ValueError('no closing None')
-
-
 def used_guids(g, p):
     """The 16-byte LightGuid and LightmapGuid of every light component in the source `p` and of every light
     component export `g` has added since (clones and recipe lights alike)."""
@@ -318,7 +293,7 @@ def used_guids(g, p):
             continue
         data = g.export_data(i)
         start = legacy_props.props_start(data, dict(off=0, size=len(data), flags=e.get('<Q', 24)), g.names)
-        for name, kind, sub, at, size in _walk(g.names, data, start, len(data)):
+        for name, kind, sub, _, at, size in legacy_props.tags(data, start, len(data), g.names):
             if name in GUID_KEYS and sub == 'Guid' and size == 16:
                 used.add(bytes(data[at:at + 16]))
     return used

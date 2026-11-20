@@ -17,5 +17,9 @@ walker before and after (names, kinds, sizes, offsets, values, refusals). A diff
   ends, so that two can be taken out): every export the same; a refusal of `props.tags` is still an `InlineError`,
   in `props.tags`' words. Its name helper (`lighting_name`), used by nothing else, went with its loop. The dominant
   light's component is refused in other words ("bad property name at 4", where it named the bad index).
+- **[light_factory](../../tools/bake/light_factory.py)** (`used_guids`, the GUIDs of the light components a Build
+  added): `_walk`, a copy of `props.tags` without its bounds checks, is gone; `used_guids` walks with `props.tags`.
+  Every export the same; the dominant light's component refused in `props.tags`' words.
 
-Checked: each walker's module's tests after its commit (map_frame's 11, inline_lighting's 5).
+Checked: each walker's module's tests after its commit (map_frame's 11, inline_lighting's 5, light_factory's 22 and
+native_lights' 30).
