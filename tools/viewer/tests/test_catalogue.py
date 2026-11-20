@@ -47,8 +47,11 @@ class CatalogueTests(unittest.TestCase):
     def test_latest_full_generation_per_map_and_checked_labels(self):
         self.export('URB_Bar','old',version=9)
         latest=self.export('URB_Bar','current')
-        self.export('URB_Bar','newer-study',version=99,scope='sample')
+        study=self.export('URB_Bar','newer-study',version=99,scope='sample')
         self.export('URB_Bar','.export-unfinished',version=100)
+        # an earlier exporter's piece study is never opened, not even as an exact generation (review finding 63)
+        with self.assertRaisesRegex(ValueError,'piece study'):
+            load_catalogue(study)
         self.export('TempleShip','current')
         broken=self.root/'OtherMap'/'broken';broken.mkdir(parents=True)
         (broken/'scene.json').write_text('[]',encoding='utf8',newline='\n')

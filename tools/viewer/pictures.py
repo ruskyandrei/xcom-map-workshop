@@ -74,12 +74,6 @@ def named(document):
     return value if isinstance(value, str) and SHA256.fullmatch(value) else None
 
 
-def valid_record(picture):
-    """A document's `picture` as a save takes it: {sha256}."""
-    return isinstance(picture, dict) and set(picture) == {'sha256'} and isinstance(picture['sha256'], str) \
-        and bool(SHA256.fullmatch(picture['sha256']))
-
-
 def _opened(data):
     """The picture `data` is, as a Pillow RGB image: an opaque 512 x 256 PNG of up to MAX_BYTES, else a ProjectError."""
     from PIL import Image

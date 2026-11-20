@@ -1,5 +1,5 @@
 """The test squad as the game takes it: each family's loadout rules, the choices an install offers, the squad
-resolved against them, and the m_aSoldiers text a play sets (the test squad plan, private/plans/done/test-squad-plan.md, section 5.3).
+resolved against them, and the m_aSoldiers text a play sets (private/plans/done/test-squad-plan.md, section 5.3).
 
 A play writes the squad straight into XComOnlineProfileSettings.m_aSoldiers (gamelaunch.py, F-74): one
 TTransferSoldier per unit, in the text form `getall` prints. Long War Rebalance's scripts were read for what this

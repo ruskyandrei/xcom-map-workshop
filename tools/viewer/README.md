@@ -42,8 +42,8 @@ It never stops a process that is not this server.
 The default port is **8768**, the main viewer/editor server. Keep one server there and restart it after a re-export
 (it picks its exports when it starts); web changes only need a browser reload. Test servers use `--port`
 8790–8799 and are stopped after the check. `--no-open` starts the server without opening a browser.
-Use `--scope sample` on URB_Bar for a close study of asphalt, compact car body/glass and a fractured wall.
-Sample mode can switch between study positions and original placements. Other maps require `--scope map`.
+An export is of the whole map (`--scope map`, the only scope; the piece study of three of URB_Bar's pieces that
+earlier exports offered is gone, and such a generation is no longer opened).
 An arbitrary new map has not been validated just because its package version matches.
 
 ### Choose a base map in the UI
@@ -85,7 +85,7 @@ leaves a short banner with **Re-export**; a map that comes
 back still outdated in the same browser session waits for a click instead of starting again.
 
 Library mode chooses one published full-map generation per map, preferring the highest exporter version and then
-the latest manifest. It skips `.export-*` staging folders, malformed manifests and sample exports. An export made
+the latest manifest. It skips `.export-*` staging folders, malformed manifests and earlier piece studies. An export made
 outside the server (`viewer.py export`) needs a restart to be listed. Serving an exact generation, as above, keeps
 that generation pinned and shows just its base map. A map-specific cache folder can also be served to select its
 latest full generation.
@@ -263,7 +263,8 @@ The 3D view fills the window. The rest appears when it is needed, so the screen 
 
 The game loads more than the map package: each of the map's `DefaultMaps.ini` records (one per mission) streams
 other packages into it. Since export 13 the export reads them from the install the package is in (`missions` and
-`streams` in `scene.json`, landing intros and other cinematics left out), and the original layout shows them:
+`streams` in `scene.json`, landing intros and other cinematics left out; since export 37 each mission also says its
+kind, `kind`: a council mission's `Special/<council type>`), and the original layout shows them:
 - **LWR's patches** (`patch_<map>`, on 93 of LWR's 95 maps, and `patch_hide_randomized_objects`): mostly pieces
   placed hidden in the game, cover blocks and blockers (URB_PoliceStation's six: `highcover`, `Cover2x4`,
   `CoverSmallCar` over a burnt-out car...), hidden as in the game unless **Hide patch helpers** is unticked.
@@ -844,7 +845,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
 - **Ctrl+S** saves the next revision; without a project open it opens the Save dialog. The address carries
   `?map=…&project=<id>`, so a reload reopens it. Saving under another project drops the changes kept for recovery of
   the one open before: they are saved now.
-- On a patch preview or piece study, Save and Save as… are off (projects edit a map's original layout); Load and the
+- On a patch preview, Save and Save as… are off (projects edit a map's original layout); Load and the
   recent list still open a project on its map.
 - **Opening** a project replays it onto the map as exported: originals moved or deleted, copies added. It also puts
   back the camera from the last save, and starts with an empty undo history.
@@ -871,9 +872,6 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
   - What stays on this computer is kept by project id in the hidden `.workshop` folder beside them:
     `.workshop\<id>\project.prev.json` (the revision before) and a `recovery-<page>.json` for each page's unsaved
     changes (`recovery.json` from before 20 November 2026).
-  - Project folders of the earlier layout (`<id>\project.json`, before 8 November 2026) are moved to this one the
-    first time the server reads the folder. One of a project that a file here holds already never writes over it:
-    the newer revision is the project, and the other is kept beside it as `<name> (kept copy).json`.
   - Saves are atomic.
   - A project with another schema version is refused with a message, not converted.
   - The **projects** setting moves the folder; `serve --projects <folder>` overrides it for one server (tests use a
@@ -966,7 +964,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     variant's name, out of rotation, with its own landing intro streamed), and the base map's landing zones are added
     under that name (the project's own, when it has `landingZones`: see Clear map, the ground grid and landing
     zones). The record is an abduction whatever kind the base map's is (Temple Ship's is the final
-    mission's), as the intro slot's was; a Temple Ship variant hasn't been played this way.
+    mission's); a Temple Ship variant hasn't been played this way.
   - It opens Build's panel first ([`build_options.js`](web/build_options.js)), with the same **Bake the lighting**
     choice, off by default.
     - **Build and play** builds (saving first if there are unsaved changes), and installs and plays the package when
@@ -1004,9 +1002,6 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
 - **Undo everything**, in the Game maps window (below; it was the Project menu's Remove from game), takes it all back out: the records and landing-zone lines it added, the files it copied
   (unless they changed since), the commands file and any config kept aside. Both INI files end up byte for byte as
   they were.
-- **An install from before 9 November 2026** made a map the first mission of a new campaign (Install as intro map: it
-  rewrote the record named `URB_CommercialAlley_EWI (Commercial Alley Redux) |0`). Its record of that is still read:
-  the next play, or Undo everything, puts the game's own line back.
 - **The editor reads an install the way the game does:** the map list, the exporter and Build read `DefaultMaps.ini` with the
   editor's lines taken out (`installs.maps_text`), so an installed variant never shows up as a map or a record.
 - All of these refuse, with the reason, while XCOM runs. A package file already in `CookedPCConsole` is replaced only
@@ -1224,9 +1219,8 @@ python tools/viewer/viewer.py doctor --cache "<cache>"
 ```
 
 - **Settings** live in `Documents\XCOM Map Workshop\settings.json`, beside the projects, where every program sees
-  the same file. (Until 8 November 2026 they were in `%APPDATA%`; the Microsoft Store's Python redirects what it
-  writes there to a folder of its own, out of sight of PowerShell. A file left there is moved the first time it is
-  read.) `XCOM_MAP_WORKSHOP_SETTINGS` names another file. No tool in this repository hard-codes a folder of one
+  the same file (not under `%APPDATA%`: the Microsoft Store's Python redirects what it writes there to a folder of
+  its own, out of sight of PowerShell). `XCOM_MAP_WORKSHOP_SETTINGS` names another file. No tool in this repository hard-codes a folder of one
   computer: they all take these settings, or arguments. The settings:
   - **projects** and **output** (builds): in a release, default `projects` and `builds` in the editor's own folder
     (beside `tools` and `python`; `default_folders`), where an upgrade keeps them; under `Documents\XCOM Map
@@ -1360,7 +1354,7 @@ install and would start the game, so it refuses any server not started with `ser
 of an LWR install's), the open map's package in `XEW\XComGame\CookedPCConsole` and an `XEW\Binaries` folder.
 `test_play.py` covers the same on temporary installs, with a start that records its command: a map played with
 nothing installed, a project's record added and taken out byte for byte, plain Enemy Within, the game's config kept
-aside and put back when the game closes, an earlier version's intro install put back, a separate copy, lines and
+aside and put back when the game closes, a separate copy, lines and
 files changed since, XCOM running, the routes, the squad's text and Steam's command.
 
 It checks rendering, resource errors, the piece panel, typed

@@ -16,7 +16,6 @@ from urllib.request import Request, urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from catalogue import load_catalogue  # noqa: E402
-import viewer  # noqa: E402
 from viewer import Handler, LocalServer, contained  # noqa: E402
 
 

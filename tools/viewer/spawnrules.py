@@ -1,5 +1,5 @@
 """What a game install does with a map's spawn points: Long War's tactical spawn mutators, read from the install's
-config each time it is asked (private/plans/todo/editor-spawns-implementation-plan.md, SP2 and SP8). Pure functions
+config each time it is asked (private/plans/done/editor-spawns-implementation-plan.md, SP2 and SP8). Pure functions
 over text, and `rules(game)`, which reads the two files.
 
 - DefaultMutatorLoader.ini: `arrTacticalMutators` lines in [XComMutator.XComMutatorLoader], in order. The five

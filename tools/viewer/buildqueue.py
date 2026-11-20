@@ -149,6 +149,7 @@ class BuildQueue:
         self.worker, self.worker_live = None, False
         self.token = str(uuid.uuid4())     # this server's queue as the slot's owner
         self.active = None          # (item, Attempt) being built
+        self.stop_after = None      # the attempt a stop tells the builds runner to stop once it is saved (_stopping)
         self.ran_since = None       # clock() when the queue last started running (active seconds)
         self.started_at = {}        # item id -> clock() when its build started
         self.estimates = {}         # item id -> seconds or None
@@ -193,7 +194,12 @@ class BuildQueue:
             try:
                 self._stop(reason='The editor was closed while the queue was building. Resume goes on.')
             except ProjectError:
-                pass
+                # the queue can't be saved: its build is stopped all the same, as the server is closing (the file
+                # still says running, which the next server's start makes sure has ended)
+                with self.lock:
+                    attempt = self.active[1] if self.active else None
+                if attempt is not None:
+                    self._tell_stop(attempt.id)
             end = self.clock() + wait
             while self.clock() < end:
                 with self.lock:
@@ -352,13 +358,18 @@ class BuildQueue:
             try:
                 status, answer, changed, starts = act(payload)
             except BaseException:
-                self.q = before         # a request refused part-way leaves the queue as it was
+                self.q, self.stop_after = before, None      # a request refused part-way leaves the queue as it was
                 raise
             if changed:
                 self.q['revision'] += 1
             receipts[request_id] = dict(hash=fingerprint, at=time.time(), action=action, status=status, answer=answer)
             self._prune_receipts()
-            self._commit(before)
+            try:
+                self._commit(before)
+            finally:
+                stop, self.stop_after = self.stop_after, None
+            if stop is not None:
+                self._tell_stop(stop)       # (saved: a queue that can't be saved stays running, its build too)
             if starts:
                 self._start_worker()
             self.cond.notify_all()
@@ -430,9 +441,8 @@ class BuildQueue:
         building = self.active is not None or any(i['state'] in ('starting', 'building') for i in q['items'])
         q.update(state='stopping' if building else 'stopped', stopReason=reason)
         attempt = self.active[1] if self.active else None
-        if attempt is not None:
-            # told outside the lock below, once the change is saved: the builds runner's lock comes after this one
-            threading.Thread(target=self.builds.stop_attempt, args=(attempt.id,), daemon=True, name='build-queue-stop').start()
+        # its build is told to stop by the caller once the change is saved (_tell_stop)
+        self.stop_after = attempt.id if attempt is not None else None
         self.waiting_for = None
         return (202 if building else 200), dict(stopped=not building), True, False
 
@@ -443,10 +453,18 @@ class BuildQueue:
                 return
             before = copy.deepcopy(self.q)
             _, _, changed, _ = self._stopping(reason)
+            stop, self.stop_after = self.stop_after, None
             if changed:
                 self.q['revision'] += 1
-                self._commit(before)
+                self._commit(before)        # (one that can't be saved raises: the queue and its build go on)
+            if stop is not None:
+                self._tell_stop(stop)
             self.cond.notify_all()
+
+    def _tell_stop(self, attempt_id):
+        """The builds runner told to stop the queue's build, on a thread of its own: the runner's lock comes after
+        this one."""
+        threading.Thread(target=self.builds.stop_attempt, args=(attempt_id,), daemon=True, name='build-queue-stop').start()
 
     def stop_for(self, attempt_id):
         """The build window's Cancel on the queue's build: the queue stops (its build with it)."""

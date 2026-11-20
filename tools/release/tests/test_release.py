@@ -3,6 +3,7 @@ hand install's reading of a build's README.txt."""
 from pathlib import Path
 import re
 import sys
+import tempfile
 import unittest
 
 HERE = Path(__file__).resolve().parent
@@ -63,6 +64,33 @@ class ReleaseTests(unittest.TestCase):
         # a compiler given that doesn't exist is passed over for the usual places (none here, or Inno Setup's)
         found = make_release.find_iscc(make_release.REPO / 'no-such' / 'ISCC.exe')
         self.assertTrue(found is None or found.name.lower() == 'iscc.exe')
+
+    def test_the_installers_game_kind_is_the_editors(self):
+        """(review finding 55) The installer's GameKind tells what a game folder holds by the same folder and config
+        files, in the same order, as settings.game_kind, and passes over the lab copy by settings' marker, as
+        resolve_game does. Its labels are settings.KINDS', plain Enemy Within's said "(plain)" beside the two Long Wars."""
+        import settings
+        text = make_release.INSTALLER.read_bytes().decode('ascii')
+        body = text[text.index('function GameKind('):]
+        body = body[:body.index('\nend;')]
+        self.assertEqual(re.findall(r"DirExists\(Root \+ '([^']+)'\)", body), ['XEW\\XComGame\\CookedPCConsole'])
+        marker, *configs = re.findall(r"FileExists\(Root \+ '([^']+)'\)", body)
+        self.assertEqual(marker, settings.LAB_MARKER)
+        labels = re.findall(r"Result := '([^']+)'", body)
+        self.assertEqual(labels, [settings.KINDS['lwr'], settings.KINDS['longwar'], settings.KINDS['ew'] + ' (plain)'])
+        # a folder holding the installer's first config file and the ones after it, then its second..., then none: the
+        # kinds settings tells in that order are the ones the installer's labels name in its order
+        told = []
+        for first in range(len(configs) + 1):
+            with tempfile.TemporaryDirectory() as tmp:
+                game = Path(tmp)
+                Path(game, *'XEW\\XComGame\\CookedPCConsole'.split('\\')).mkdir(parents=True)
+                for name in configs[first:]:
+                    path = Path(game, *name.split('\\'))
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(b'')
+                told.append(settings.game_kind(game))
+        self.assertEqual(told, ['lwr', 'longwar', 'ew'])
 
     def test_a_download_is_checked_before_it_is_kept(self):
         import hashlib

@@ -14,11 +14,9 @@ keeps its backup and recovery. A save writes the file the project's name gives (
 forbids replaced by `_`, ` (2)` added when another project has that name), and renames the file when the name changes.
 
 Saves are atomic (a temporary file, then a replace) and carry the revision they were based on: a save based on an
-older revision is refused as a conflict instead of overwriting work saved from another tab. A document with another
-schema version is refused with a clear message; there is no migration before the tool is public.
-
-Projects saved before 8 November 2026 had a folder each, named by id (`<id>\\project.json`, `project.prev.json`,
-`recovery.json`). The store moves such folders to the layout above the first time it reads the projects folder.
+older revision is refused as a conflict instead of overwriting work saved from another tab. A document of a schema
+version the editor reads (READ_VERSIONS) opens, and a save writes the current one (SCHEMA_VERSION); any other version
+is refused with a clear message.
 """
 from datetime import datetime, timezone
 import itertools
@@ -28,7 +26,6 @@ from pathlib import Path
 import re
 import shutil
 import threading
-import uuid
 
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (records of their own:
@@ -347,68 +344,12 @@ class ProjectStore:
         revision = document.get('revision')
         return (revision if isinstance(revision, int) and not isinstance(revision, bool) else 0, str(document.get('savedAt') or ''))
 
-    @staticmethod
-    def _free(path):
-        """`path`, or the first `<stem> (2)`, `(3)`... beside it that is free: nothing is written over."""
-        if not path.exists(): return path
-        for n in itertools.count(2):
-            other = path.with_name(f'{path.stem} ({n}){path.suffix}')
-            if not other.exists(): return other
-
-    def _migrate(self):
-        """Moves each project folder of the old layout (<id>\\project.json) to a file named after the project, its
-        previous revision and recovery to .workshop\\<id>\\. The folder goes once empty; anything else in it stays.
-
-        Nothing is written over (review finding 5). When a file of this layout holds the project already (a backup
-        restored beside a current library), the two are ranked as the listing ranks copies (revision, then the later
-        save; the file here wins a tie) and the other is kept beside it as `<name> (kept copy).json`, which the
-        listing shows as a copy of the project; the same bytes twice keep one. A previous revision or a draft whose
-        name is taken is kept under a name of its own (a draft as another page's). Each step is one rename, so a
-        stop halfway leaves the folder to finish at the next listing."""
-        if not self.root.is_dir(): return
-        for folder in sorted(self.root.iterdir()):
-            old = folder / 'project.json'
-            if not folder.is_dir() or not ID.fullmatch(folder.name) or not old.is_file(): continue
-            try: document = json.loads(old.read_text(encoding='utf8'))
-            except (OSError, ValueError): document = None
-            project_id = document.get('id') if isinstance(document, dict) and ID.fullmatch(str(document.get('id'))) else folder.name
-            name = document.get('name') if isinstance(document, dict) and isinstance(document.get('name'), str) and document['name'].strip() else folder.name
-            state = None
-            for kept in ('project.prev.json', 'recovery.json'):
-                source = folder / kept
-                if not source.is_file(): continue
-                state = state or self._state_folder(project_id)
-                target = state / kept
-                if target.exists():
-                    if target.read_bytes() == source.read_bytes():
-                        source.unlink(); continue
-                    target = state / f'recovery-{uuid.uuid4()}.json' if kept == 'recovery.json' else self._free(target)
-                os.replace(source, target)
-            target = self._target(project_id, name, None)
-            if not target.exists():
-                os.replace(old, target)
-            elif target.read_bytes() == old.read_bytes():
-                old.unlink()
-            else:
-                copy = self._free(target.with_name(f'{target.stem} (kept copy){SUFFIX}'))
-                try: here = json.loads(target.read_text(encoding='utf8'))
-                except (OSError, ValueError): here = None
-                if self._rank(document) > self._rank(here):
-                    os.replace(target, copy)        # the file here is the older: kept beside, then the folder's moves in
-                    os.replace(old, target)
-                else:
-                    os.replace(old, copy)
-            for temp in folder.glob('*.tmp'): temp.unlink(missing_ok=True)
-            try: folder.rmdir()
-            except OSError: pass
-
     def _scan(self, strict=False):
         """Every project file: [(path, entry or ProjectError)] (`_entry`), with self.paths refreshed. A project of
         another schema version is found by its id (opening it says which version) but listed with its error. Two files
         with one project id (a copy made beside it): the newest revision is the project, the other is listed as a
         copy. A file unchanged since it was last read is not read again (review finding 20). `strict`: a folder that
         can't be read is an OSError, not an empty listing."""
-        self._migrate()
         found = []
         if self.root.is_dir():
             try: paths = sorted(self.root.iterdir())

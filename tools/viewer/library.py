@@ -771,8 +771,7 @@ def piece(cache, game, source, shared=None):
     meshes, materials, textures, diagnostics). `grid` is its home map's tile grid origin (grid_origin). `key` is its recipe's, the index's entry key. `base` is the URL prefix of its folder; a mesh's and a texture's `url`
     are file names in it. Written on first request, read back after. `shared`: a dict a caller reading many pieces
     keeps between them (pieces()), for the install's map list and the packages opened."""
-    from export import EXPORT_VERSION, Exporter
-    from package import Package
+    from export import EXPORT_VERSION
     package, actor = str(source.get('package') or ''), str(source.get('actor') or '')
     if not NAME.fullmatch(package) or not NAME.fullmatch(actor):
         raise ProjectError(400, 'A piece is named by its map and its actor.')

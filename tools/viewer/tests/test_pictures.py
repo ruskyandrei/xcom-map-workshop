@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from catalogue import load_catalogue  # noqa: E402
 import pictures  # noqa: E402
 from projects import ProjectError, ProjectStore  # noqa: E402
-from test_projects import ID, OTHER, document  # noqa: E402
+from viewer_fixtures import ID, OTHER, document  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
 

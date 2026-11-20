@@ -98,12 +98,12 @@ class OnLwrMaps(unittest.TestCase):
             exporter = export.Exporter(p, Path(d))
             # masked branches keep the colour texture's alpha as their cut-out
             fade = self.material(exporter, 'FX_Fire_Trees.Singles.M_Pine_Tree_Single_Burning_Fade_LOD0')
-            self.assertEqual(fade['render']['compiledTextures']['diffuse'], 'pineBranchSplit')
             self.assertFalse(fade['diffuse'].endswith('-RGB'))
+            self.assertEqual(exporter.textures[fade['diffuse']]['name'].rsplit('.', 1)[-1], 'pineBranchSplit')
             self.assertEqual(fade['render']['opacitySource'], 'diffuse-alpha')
             # the wreck debris's only colour-like texture is a packed mask: charred metal by kind instead
             debris = self.material(exporter, 'GenericDestructionLibrary.Materials.M_Alien_Machinery')
-            self.assertNotIn('compiledTextures', debris['render'])
+            self.assertFalse([d for d in exporter.diagnostics if d['source'] == debris['name'] and 'compiled shader' in d['message']])
             self.assertEqual((debris['render']['family'], debris['render']['constantColor']),
                              ('approximate', [0.025, 0.026, 0.03]))
             bark = self.material(exporter, 'RurUS_RevFoliage.Materials.BurntTreeBark')

@@ -1,5 +1,5 @@
 """What a game install's own data says about its soldiers, SHIVs and equipment: the catalogue the test squad is set up
-from (the test squad plan, private/plans/done/test-squad-plan.md, section 5.2).
+from (private/plans/done/test-squad-plan.md, section 5.2).
 
 Three sources, all of the install the squad plays in:
 - the enums of its XComGame.upk (tools/upk/script_enums.py): which entry each item, class, perk, stat, country and

@@ -66,7 +66,33 @@ function Read-Lines([string]$path) {
     $list.AddRange([string[]]($text -split "`r`n"))
     return ,$list
 }
-function Write-Lines([string]$path, $lines) { [IO.File]::WriteAllBytes($path, $latin.GetBytes([string]::Join("`r`n", [string[]]$lines))) }
+# A config is written whole beside itself, read back, then put in its place (File.Replace keeps its attributes), so a
+# write cut short (a full disk, the machine turned off) leaves the file as it was, never half of the new one; a file
+# something holds open is tried again a few times.
+function Write-Lines([string]$path, $lines) {
+    $bytes = $latin.GetBytes([string]::Join("`r`n", [string[]]$lines))
+    $temp = "$path.pack-new"
+    try {
+        [IO.File]::WriteAllBytes($temp, $bytes)
+        if ([Convert]::ToBase64String([IO.File]::ReadAllBytes($temp)) -ne [Convert]::ToBase64String($bytes)) { throw 'it did not read back as written' }
+    } catch {
+        Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
+        Fail "$path could not be written ($_); it is left as it was."
+    }
+    for ($try = 1; ; $try++) {
+        try {
+            if (Test-Path -LiteralPath $path) { [IO.File]::Replace($temp, $path, [NullString]::Value) } else { [IO.File]::Move($temp, $path) }
+            return
+        } catch {
+            if ($try -ge 5) {
+                Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
+                $why = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message }
+                Fail "$path could not be replaced ($why); it is left as it was."
+            }
+            Start-Sleep -Milliseconds 400
+        }
+    }
+}
 function Sha([string]$path) { (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLower() }
 function Test-Game([string]$folder) {
     return $folder -and (Test-Path -LiteralPath (Join-Path $folder 'XEW\XComGame\Config\DefaultMaps.ini')) -and

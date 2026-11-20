@@ -25,6 +25,8 @@ class Streams(unittest.TestCase):
     def test_the_missions_and_what_each_streams(self):
         records = export.map_records(POLICE)
         self.assertEqual([r['label'] for r in records], ['Abduction', 'Terror', 'Data recovery'])
+        # export 37: each mission's kind (a council mission's is Special/<council type>)
+        self.assertEqual([r['kind'] for r in records], ['Abduction', 'TerrorSite', 'CaptureAndHold'])
         self.assertEqual(records[2]['group'], 'exalt')
         # landing intros are left out; the LWR patch is in every record, the data recovery's own stream in one
         self.assertEqual(records[0]['streams'], ['patch_policestation', 'patch_hide_randomized_objects'])
@@ -96,10 +98,12 @@ class Streams(unittest.TestCase):
             exporter = export.Exporter(self.p, Path(d))
             info = exporter.materials[exporter.material(self.p.by_name['StreetSet.Materials.Asphalt_Patch_G'])]
             # its PatchSet (0, 0, 1, 1) picks the mask's blue channel for the cut-out
-            self.assertEqual(info['render']['compiledTextures'],
-                             dict(diffuse='Asphalt_Patch_DIFF', mask='Asphalt_Patch_MASK', channel='B',
-                                  textures=['StreetSet.Textures.Asphalt_Patch_DIFF', 'StreetSet.Textures.Asphalt_Patch_MASK']))
             self.assertTrue(info['diffuse'].endswith('-RGB') and info['opacity'].endswith('-B'))
+            source = lambda key: exporter.textures[exporter.textures[key]['derivedFrom']]['name']  # noqa: E731
+            self.assertEqual((source(info['diffuse']), source(info['opacity'])),
+                             ('StreetSet.Textures.Asphalt_Patch_DIFF', 'StreetSet.Textures.Asphalt_Patch_MASK'))
+            self.assertIn("colour from the compiled shader's Asphalt_Patch_DIFF, cut out by Asphalt_Patch_MASK's B channel",
+                          ' '.join(d['message'] for d in exporter.diagnostics if d['source'] == info['name']))
             self.assertEqual(info['render']['opacitySource'], 'packed-alpha')
             # Firaxis's own misspelt parameter (PROP_Objects_Old's "Diffsue_Map"), known by its texture's name
             pipes = next(i for n, i in self.p.by_name.items() if n.endswith('.PipeParts_A')

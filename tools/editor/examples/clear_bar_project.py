@@ -14,7 +14,6 @@ goes by each part's box) are not deleted, and the project says `clearKeepsOutsid
 smoke and stains out there too."""
 import argparse
 import hashlib
-import json
 from pathlib import Path
 import sys
 import time

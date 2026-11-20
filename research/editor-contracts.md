@@ -275,11 +275,6 @@ as data only (its kind, and numbers, words and short texts, bounded), and the co
     the same words, and a copy that can be read is the project before one that can't (20 November 2026).
   - **`.workshop`** (hidden on Windows) keeps what stays on this computer, by id, so renaming a file keeps its backup
     and recovery.
-  - **The earlier layout** (`<id>\project.json`, `project.prev.json`, `recovery.json`) is moved to this one the first
-    time the server reads the folder. The id folder goes once empty; other files in it stay. Nothing is written
-    over (20 November 2026): when a file of the new layout holds the project already, the two are ranked as copies
-    are (revision, then `savedAt`; the file there wins a tie) and the other is kept as `<name> (kept copy).json`,
-    listed as a copy. A previous revision or a draft whose name is taken is kept under a name of its own.
 - **Saving is atomic:** a temporary file, flushed, then replaced, with the previous revision copied aside first.
 - **Each save names the revision it was based on.** A save based on an older revision is refused (409, with the
   current revision); the viewer offers to overwrite it or open the saved one. Two tabs therefore cannot silently
@@ -524,9 +519,9 @@ records; [test_effects_metadata.py](../tools/viewer/tests/test_effects_metadata.
 **Where.** The map's own are the scene's `effects`, `sounds` and `flares` (sorted by actor). A mission stream's own are
 its layer's (`streams[<name>].effects`, `.sounds`, `.flares`), with `layer: "stream"` and `stream` its name; the
 cinematic streams (`CIN_`) are not read, as for pieces. `effectSystems` and `soundWaves` are keyed
-`<package>|<object path>` and hold every system and wave the map's and its streams' records name. `effectsMetadata`
-is `{ version: 1, defaults: "script" | "table" }`: whether class defaults came from the game's script packages or,
-where those can't be read, from the module's `CLASS_DEFAULTS`.
+`<package>|<object path>` and hold every system and wave the map's and its streams' records name. (Exports 28 to
+36 also wrote `effectsMetadata`, whether class defaults came from the game's script packages or the module's
+`CLASS_DEFAULTS`; nothing read it, and export 37 dropped it.)
 
 **Every record:**
 

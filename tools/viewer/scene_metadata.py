@@ -428,7 +428,7 @@ def effect_metadata(p):
 
 
 # the landing's prefabs (private/plans/done/clear-map-plan.md, section 4; F-96): a landing is a PrefabInstance of
-# the soldier-spawn dropship prefab (its ten actors, roles by archetype as spawns.ARCHETYPES), the grounded Skyranger
+# the soldier-spawn dropship prefab (its ten actors, roles by archetype: LANDING_ROLES), the grounded Skyranger
 # a PrefabInstance of the Skyranger prefab (its mesh, an emitter, a sound and a PointInSpace)
 LANDING_TEMPLATE = "DGN_DropShipSoldierSpawn.Prefabs."
 SKYRANGER_TEMPLATE = "VEH_Lv1Skyranger_MOD.Prefabs."
@@ -777,7 +777,7 @@ def mission_objects(p, warn=None):
 
 
 # ---------------------------------------------------------------- spawn points and who uses them (export 33)
-# private/plans/todo/editor-spawns-implementation-plan.md, SP1: the base map's pods, Meld points, drop-in points,
+# private/plans/done/editor-spawns-implementation-plan.md, SP1: the base map's pods, Meld points, drop-in points,
 # soldier and other points, starts, alien path nodes and no-spawn volumes, each with its values and where each came
 # from, its outgoing links and what uses it. A mission stream's pods, Meld points and drop-ins carry the same through
 # mission_objects. Read only.

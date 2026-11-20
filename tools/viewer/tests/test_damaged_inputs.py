@@ -59,9 +59,14 @@ class Damaged(unittest.TestCase):
         said = {d['source']: d['message'] for d in scene['diagnostics']}
         self.assertIn('list index out of range', said['buildings'])
         self.assertIn('invalid stored block lengths', said['cursor volumes'])
-        self.assertIn('Floors', said['level records'])
         self.assertIn('cut short', said['landings'])
-        self.assertEqual((scene['buildings'], scene['cursorVolumes'], scene['content'], scene['landings']), ([], [], [], []))
+        self.assertEqual((scene['buildings'], scene['cursorVolumes'], scene['landings']), ([], [], []))
+        # (export 37: the map writes no level records; a streamed package's layer reads its own, guarded the same)
+        self.assertNotIn('content', scene)
+        with mock.patch.object(export, 'content_records', broken(KeyError('Floors'))):
+            layer = export.Exporter(Package(self.path), stage, namespace='stream-Damaged').run('map')
+        self.assertIn('Floors', {d['source']: d['message'] for d in layer['diagnostics']}['level records'])
+        self.assertEqual(layer['content'], [])
         # the matcher missing: the export says why, and the compiler says exporting again alone won't help
         self.assertIn('area-light matcher', said['area lights'])
         self.assertIsNone(scene['lightMetadata']['areaMatcher'])

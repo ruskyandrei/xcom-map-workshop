@@ -4,8 +4,10 @@
 
 const COUNCIL = { 'Council bomb': 'Bomb', 'Council assault': 'Assault', 'Council rescue': 'Rescue', 'Council extraction': 'Extraction' };
 
-/** An export's mission ({type, label}: scene.json's `missions`) as a kind: 'Abduction', 'Special/Bomb'... */
-export const kindKey = m => m?.type === 'Special' ? (COUNCIL[m.label] ? `Special/${COUNCIL[m.label]}` : 'Special') : (m?.type ?? '');
+/** An export's mission ({type, label, kind}: scene.json's `missions`) as a kind: 'Abduction', 'Special/Bomb'...: its
+ * `kind` (export 37), else, for an older export, from its type and its council label. */
+export const kindKey = m => typeof m?.kind === 'string' ? m.kind
+  : m?.type === 'Special' ? (COUNCIL[m.label] ? `Special/${COUNCIL[m.label]}` : 'Special') : (m?.type ?? '');
 
 /** The mission types a landing zone line can be kept for (eMission_..., eFCMType_...), for an export's mission. */
 export function missionTypes(m) {

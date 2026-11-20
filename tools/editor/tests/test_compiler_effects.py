@@ -3,7 +3,6 @@ overrides and added records, checked against the export's effects and sounds (ex
 landing's, the mission's script), the families' gates, carrying taken away by a record of the effect's own, the
 floors' note, their values (stage FX5) and the native edit's `effects` and `sounds` lanes; and lens flares (stage
 FX6b: the `flare` family and the `flares` lane). A made-up scene: no install needed."""
-import copy
 import sys
 import unittest
 from unittest import mock
