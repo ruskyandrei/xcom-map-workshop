@@ -41,9 +41,10 @@ page and the editor's JSON routes. Its handler's `handle_<area>` methods hand ea
 **A project.** [`tools/viewer/projects.py`](tools/viewer/projects.py) keeps one JSON document per project in the
 projects folder. It is saved atomically with the revision it was based on, so a save from an older revision is refused
 as a conflict. The document says `schema: xcom-map-workshop/project` and its `schemaVersion` (`SCHEMA_VERSION`, with
-the versions still read in `READ_VERSIONS`). It names its map's export by SHA-256 and holds the edits: the map's
-pieces changed or deleted, added pieces, groups, buildings, lights, effects, sounds, spawn points, landing zones,
-missions and the map picture. [`research/editor-contracts.md`](research/editor-contracts.md) is the contract. The page
+the versions still read in `READ_VERSIONS`). Its `source` names the map and the SHA-256 of the map's package, by
+which the Build finds the export and checks the install's map. It holds the edits: the map's pieces changed or
+deleted (`overrides`), added pieces, groups, buildings, lights, effects, sounds, spawn points, landing zones, missions
+and the map picture. [`research/editor-contracts.md`](research/editor-contracts.md) is the contract. The page
 writes the document; the compiler reads it.
 
 **The compiler.** [`tools/editor/compiler.py`](tools/editor/compiler.py): `compile_project(doc, scene, ...)` gives
@@ -60,7 +61,8 @@ set of lanes: `copies`, `breakOriginals`, `hides`, `assemblies`, `covers`, `buil
 
 **The Build.** [`tools/editor/build.py`](tools/editor/build.py) (`Build.run`) takes a saved project to a finished
 package and never touches a game install: the install is only read. Its stages, in order:
-- snapshot: the project, the export and the pristine base map, each by its SHA-256;
+- snapshot: the saved project, and the map's export and the pristine base map from the install, both found by the
+  map's SHA-256;
 - compile, and a preflight that every name the build writes is free for this project;
 - patch, only when the native edit leaves a patch something to do;
 - shell, which equips the game's blank map with what a battle needs;
@@ -136,8 +138,8 @@ where there is one.
 ### Shape
 
 - A module is named for the one thing it does: an area of the page, an edit family, a file format. What the release
-  ships is never in a module named as an audit, a fixture, an experiment or a test: product code once lived in the lab
-  module that first needed it, and the release had to ship the lab (finding 53).
+  ships is never in a module named as an audit, a fixture, an experiment or a test of the code: the config lines once
+  lived in the lab's `deploy_fixture.py`, so the release shipped it (finding 53).
 - New code goes into the module that owns its area. A new area gets a new module. app.js, the `Compiler` and
   `native_copy.build` take only what joins the modules: they are large because everything was added to them.
 - A file stays under 1,500 lines and a function under 150. The ones over that today are listed (section 4) and may
@@ -182,8 +184,9 @@ where there is one.
 ### Imports and folders
 
 - A folder goes on the import path through `paths.use()`, which puts it there once, at the top of a module. A shipped
-  function never changes `sys.path` itself (section 4). File names stay unique across the repository
-  (`tools/repo/tests/test_names.py`), so which file a name finds never depends on the path's order (finding 54).
+  function never changes `sys.path` itself (section 4). Python file names stay unique across the repository and
+  take no standard or installed module's name (`tools/repo/tests/test_names.py`), so which file a name finds never
+  depends on the path's order (finding 54).
 - What the release ships does not import the lab, the research tools or a test (finding 54).
 - A folder comes from the settings, an argument or the repository; never from one computer. Documents and notes write
   placeholders such as `<cache>`, `<LWR install>` or `<lab>`.
@@ -254,14 +257,14 @@ Listed on 20 November 2026:
 | --- | --- | --- |
 | `tools/bake/native_copy.py::build` | 544 | The copy tool's whole run, lane by lane. |
 | `tools/viewer/web/app.js::startScene` | 303 | The page's start, with the `window.viewer` hooks the browser checks use. |
-| `tools/bake/buildings.py::edit` | 210 | A map building's floors and volumes edited in place. |
+| `tools/bake/buildings.py::edit` | 210 | The map's own buildings changed or deleted, edited in place. |
 | `tools/bake/native_copy.py::main` | 198 | The copy tool's command line. |
-| `tools/bake/shell.py::equip` | 191 | The blank map's shell equipped with what a battle needs. |
-| `tools/viewer/manager.py::_pack` | 188 | A map pack's zip, card and records. |
-| `tools/viewer/effects_metadata.py::describe` | 169 | An effect's identity, state and uses for the export. |
-| `tools/editor/compiler.py::Compiler.groups` | 166 | The project's groups checked and linked to break together. |
-| `tools/bake/transplant.py::stage_edit` | 154 | A piece of another map staged in this one. |
-| `tools/bake/frac_walls.py::add_walls` | 153 | Made walls added as fracturing pieces. |
+| `tools/bake/shell.py::equip` | 191 | The game's blank map given what a battle needs from another map, and a larger grid. |
+| `tools/viewer/manager.py::_pack` | 188 | A map pack made: its config lines, its card and its zip. |
+| `tools/viewer/effects_metadata.py::describe` | 169 | The export's records of a package's effects, sounds and lens flares. |
+| `tools/editor/compiler.py::Compiler.groups` | 166 | The user's groups, those that break together linked in the map. |
+| `tools/bake/transplant.py::stage_edit` | 154 | Pieces of other maps staged in a copy of the map. |
+| `tools/bake/frac_walls.py::add_walls` | 153 | Made walls built as fracturing pieces in the map being grown. |
 
 Six files and ten functions among what ships are exceptions. Measured whole, eleven of the page's factories would be
 over 150 lines too (the largest, `createProjectManager`, 442), though no function inside any of them is over 74. That
