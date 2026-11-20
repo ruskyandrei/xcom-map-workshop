@@ -2319,6 +2319,16 @@ class BuildState:
     building_actors: list = filled(list)    # the buildings' new volumes, for the level's list
     building_records: list = filled(list)   # the buildings made from nothing (buildings.make)
     edit_records: list = filled(list)   # the map's own buildings edited (buildings.edit)
+    # the map's own actors edited in place (edits_in_place), and what it reads that build made
+    light_result: object = filled()     # what the light edits made in the map (native_lights.apply), or None (build)
+    hide_volumes: list = filled(list)   # the rebuild volumes of the pieces taken out, the clear's and the tiles' edits
+    effect_moved: set = filled(set)     # the effects moved (carried or by a lane), which a clear keeps
+    registration: object = filled()     # the light edits listed in the receivers' lightmaps (baked), or None
+    landing_record: object = filled()   # the map's landings moved (native_spawns.apply), or None
+    flag_record: object = filled()      # the map's own pieces' flags written (flags_in_place), or None
+    blast_record: object = filled()     # the map's own pieces broken where they stand (blasts_in_place), or None
+    stream_record: list = filled(list)  # a mission's pieces' tiles moved in their stream
+    priority: tuple = filled(tuple)     # the ladders' top tile volumes the rebuild queues first, on a resized map
 
     def gone(self):
         """Every actor (export index) the edit has taken out so far."""
@@ -2811,6 +2821,78 @@ def edit_buildings(st):
     st.building_actors, st.building_records, st.edit_records = building_actors, building_records, edit_records
 
 
+def edits_in_place(st):
+    """The map's own actors edited in place once every copy is made from them (BuildState `st`): the added and
+    changed lights listed in the receivers they reach (native_lights.register), the clear (clear_level), the map's
+    landings moved (native_spawns.apply), pieces' flags (flags_in_place) and blasts (blasts_in_place) where they
+    stand, a mission's pieces' tiles moved in their stream, and the ladders' top tiles first in the rebuild order.
+    Fills the state's registration, cleared_record, landing_record, flag_record, blast_record, stream_record and
+    priority, and adds to its hide_volumes, firsts and ladders."""
+    import native_lights
+    p, g, bake, tiles, state, light_result = st.p, st.g, st.bake, st.tiles, st.light_state, st.light_result
+    cleared, building_edits, landing_zones, stream_tiles = (st.cleared, st.building_edits, st.landing_zones,
+                                                            st.stream_tiles)
+    piece_flags, flag_ladders, piece_blasts = st.piece_flags, st.flag_ladders, st.piece_blasts
+    hidden, hide_volumes, effect_moved = st.hidden, st.hide_volumes, st.effect_moved
+    firsts, ladders = st.firsts, st.ladders
+    flag_record = blast_record = None
+    # the added and changed placed lights in the lightmaps of the map's own receivers they reach (baked builds only;
+    # plan 4.3, step 4); the copies' are in their clones already
+    registration = None
+    if state and bake:
+        registration = native_lights.register(g, p, state, native_lights.Registrar(p),
+                                              exclude={h['export'] for h in hidden})
+    if light_result and light_result['gone']:
+        empty_slots(g, p, light_result['gone'])
+    cleared_record = None
+    if cleared:
+        taken = st.gone()
+        # the map's buildings the edit changes in place keep their volumes
+        keep = {p.by_name[PL + n] for e in building_edits if not e.get('deleted')
+                for n in [e['actor']] + [v for f in e.get('floors') or [] for v in f.get('volumes') or [] if v]
+                if PL + n in p.by_name} | effect_moved      # a moved piece's effects stay with it
+        cleared_record, clear_volume = clear_level(g, p, taken, keep, cleared.get('keepOutside'))
+        st.cleared_record = cleared_record
+        hide_volumes = hide_volumes + [clear_volume]
+    landing_record = None
+    if landing_zones:
+        import native_spawns
+        landing_record, landing_volumes = native_spawns.apply(g, p, landing_zones, st.gone())
+        hide_volumes = hide_volumes + landing_volumes
+    # the map's own pieces whose flags change where they stand: after every copy is made from them and the clear
+    # has run, so neither a copy nor a piece the clear takes out gets them
+    if piece_flags:
+        gone_now = st.gone()
+        flag_record, flag_volumes, flag_firsts, flag_ladder_records = flags_in_place(
+            g, p, piece_flags, flag_ladders, gone_now, tiles=tiles, volumes=not cleared)
+        hide_volumes = hide_volumes + flag_volumes
+        firsts += flag_firsts
+        ladders += flag_ladder_records
+    # the map's own fracturing pieces broken where they stand (E6): after every copy is made from them
+    if piece_blasts:
+        gone_now = st.gone()
+        blast_record, blast_volumes = blasts_in_place(g, p, piece_blasts, gone_now, tiles=tiles, volumes=not cleared)
+        hide_volumes = hide_volumes + blast_volumes
+    # a mission's solid pieces moved in their stream (mission types plan, Part E; stream_copy.tile_boxes): the map's
+    # baked tiles rebuilt where each stood, and seeded and rebuilt where it stands now, as a moved landing's are
+    stream_record = []
+    for t in stream_tiles or ():
+        old, new = hide_tiles(g, p, t['old']), add_tiles_box(g, p, t['new'])
+        hide_volumes = hide_volumes + [v['volume']['export'] for v in (old, new) if v]
+        stream_record.append(dict(stream=t['stream'], actor=t['actor'], old=old['tiles'] if old else None,
+                                  new=new['tiles'] if new else None, seeded=new['seeded'] if new else 0))
+    priority = ()
+    if ladders and any(a > 0 and p.cls(a) == 'XComRebuildWorldDataVolume' for a in level_actors(p)):
+        # A resized map (the blank map, a grown or cleared one: shell.py's ground volume) already has a rebuild
+        # volume. It would queue the ladders' newly seeded tiles before their top volumes. Queue the top tiles
+        # first, highest first when two climbs share a tile. A map of the game's as it is has none.
+        priority = [l['topVolume']['export'] for l in sorted(ladders, key=lambda l: -l['top'][2])]
+        firsts = []
+    st.registration, st.landing_record, st.stream_record = registration, landing_record, stream_record
+    st.flag_record, st.blast_record, st.priority = flag_record, blast_record, priority
+    st.hide_volumes, st.firsts, st.ladders = hide_volumes, firsts, ladders
+
+
 def build(st):
     """The Build `st` (BuildState), made by its caller with its inputs: the fields named here (src, out, variant,
     copies, bake...), which build reads once, and the state build fills as it goes.
@@ -2895,12 +2977,12 @@ def build(st):
     import cover_blocks
     import native_lights
     src, out, variant, bake, cache = st.src, st.out, st.variant, st.bake, st.cache
-    receivers_near, jobs, tiles, edit_spec = st.receivers_near, st.jobs, st.tiles, st.edit_spec
+    receivers_near, jobs, edit_spec = st.receivers_near, st.jobs, st.edit_spec
     break_originals, hides, assemblies, lights, covers = st.break_originals, st.hides, st.assemblies, st.lights, st.covers
-    building_edits, cleared, landing_zones = st.building_edits, st.cleared, st.landing_zones
-    carried_effects, piece_cache, base, stream_tiles = st.carried_effects, st.piece_cache, st.base, st.stream_tiles
-    piece_flags, flag_ladders, effects, sounds = st.piece_flags, st.flag_ladders, st.effects, st.sounds
-    flares, spawns, piece_blasts = st.flares, st.spawns, st.piece_blasts
+    building_edits, cleared = st.building_edits, st.cleared
+    carried_effects, piece_cache, base = st.carried_effects, st.piece_cache, st.base
+    effects, sounds = st.effects, st.sounds
+    flares, spawns = st.flares, st.spawns
     src, out = Path(src), Path(out)
     out.mkdir(parents=True, exist_ok=True)
     if bake and not cache:
@@ -2920,7 +3002,6 @@ def build(st):
     clone_copies(st)
     made, actors, firsts, ladders, vans = st.made, st.actors, st.firsts, st.ladders, st.vans
     flag_copies, blast_copies = st.flag_copies, st.blast_copies
-    flag_record = blast_record = None
     # the cover blocks: hidden level actors on box meshes, made from a recipe (cover_blocks.py), each in its tiles
     cover_actors, cover_records = cover_blocks.add_blocks(g, p, covers) if covers else ([], [])
     actors += cover_actors
@@ -2967,58 +3048,12 @@ def build(st):
     edit_buildings(st)
     floor_caches, made_floors = st.floor_caches, st.made_floors
     building_actors, building_records, edit_records = st.building_actors, st.building_records, st.edit_records
-    # the added and changed placed lights in the lightmaps of the map's own receivers they reach (baked builds only;
-    # plan 4.3, step 4); the copies' are in their clones already
-    registration = None
-    if state and bake:
-        registration = native_lights.register(g, p, state, native_lights.Registrar(p),
-                                              exclude={h['export'] for h in hidden})
-    if light_result and light_result['gone']:
-        empty_slots(g, p, light_result['gone'])
-    cleared_record = None
-    if cleared:
-        taken = st.gone()
-        # the map's buildings the edit changes in place keep their volumes
-        keep = {p.by_name[PL + n] for e in building_edits if not e.get('deleted')
-                for n in [e['actor']] + [v for f in e.get('floors') or [] for v in f.get('volumes') or [] if v]
-                if PL + n in p.by_name} | effect_moved      # a moved piece's effects stay with it
-        cleared_record, clear_volume = clear_level(g, p, taken, keep, cleared.get('keepOutside'))
-        st.cleared_record = cleared_record
-        hide_volumes = hide_volumes + [clear_volume]
-    landing_record = None
-    if landing_zones:
-        import native_spawns
-        landing_record, landing_volumes = native_spawns.apply(g, p, landing_zones, st.gone())
-        hide_volumes = hide_volumes + landing_volumes
-    # the map's own pieces whose flags change where they stand: after every copy is made from them and the clear
-    # has run, so neither a copy nor a piece the clear takes out gets them
-    if piece_flags:
-        gone_now = st.gone()
-        flag_record, flag_volumes, flag_firsts, flag_ladder_records = flags_in_place(
-            g, p, piece_flags, flag_ladders, gone_now, tiles=tiles, volumes=not cleared)
-        hide_volumes = hide_volumes + flag_volumes
-        firsts += flag_firsts
-        ladders += flag_ladder_records
-    # the map's own fracturing pieces broken where they stand (E6): after every copy is made from them
-    if piece_blasts:
-        gone_now = st.gone()
-        blast_record, blast_volumes = blasts_in_place(g, p, piece_blasts, gone_now, tiles=tiles, volumes=not cleared)
-        hide_volumes = hide_volumes + blast_volumes
-    # a mission's solid pieces moved in their stream (mission types plan, Part E; stream_copy.tile_boxes): the map's
-    # baked tiles rebuilt where each stood, and seeded and rebuilt where it stands now, as a moved landing's are
-    stream_record = []
-    for t in stream_tiles or ():
-        old, new = hide_tiles(g, p, t['old']), add_tiles_box(g, p, t['new'])
-        hide_volumes = hide_volumes + [v['volume']['export'] for v in (old, new) if v]
-        stream_record.append(dict(stream=t['stream'], actor=t['actor'], old=old['tiles'] if old else None,
-                                  new=new['tiles'] if new else None, seeded=new['seeded'] if new else 0))
-    priority = ()
-    if ladders and any(a > 0 and p.cls(a) == 'XComRebuildWorldDataVolume' for a in level_actors(p)):
-        # A resized map (the blank map, a grown or cleared one: shell.py's ground volume) already has a rebuild
-        # volume. It would queue the ladders' newly seeded tiles before their top volumes. Queue the top tiles
-        # first, highest first when two climbs share a tile. A map of the game's as it is has none.
-        priority = [l['topVolume']['export'] for l in sorted(ladders, key=lambda l: -l['top'][2])]
-        firsts = []
+    # the map's own actors edited in place: lights registered, the clear, landings, flags, blasts (edits_in_place)
+    st.light_result, st.hide_volumes, st.effect_moved = light_result, hide_volumes, effect_moved
+    edits_in_place(st)
+    registration, landing_record, stream_record = st.registration, st.landing_record, st.stream_record
+    flag_record, blast_record, priority = st.flag_record, st.blast_record, st.priority
+    hide_volumes, firsts, ladders = st.hide_volumes, st.firsts, st.ladders
     # the building floors' effect lists, once, against the final effects and floors (plan Part D): after the copies'
     # cutaways, the buildings made and edited, the clear and the landings
     moved_now = {r['export']: r['location'] for r in lane_effects if r['how'] == 'moved'}
