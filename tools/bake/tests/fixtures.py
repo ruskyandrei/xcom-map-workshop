@@ -3,6 +3,7 @@ needs one (the viewer's manager, play and output-name tests) imports no other su
 tools/bake it imports when it runs, so a suite that only reads a record loads none of it."""
 import contextlib
 from pathlib import Path
+import tempfile
 import traceback
 
 HERE = Path(__file__).resolve().parent
@@ -113,3 +114,94 @@ class NativePart:
                        floorCaches=[f for f in nc['floorCaches'] if f['copy'] in actors],
                        columns={piece: change for piece, change in nc['columns'].items()
                                 if any(a['copy'] in actors for a in change['added'])})
+
+
+class ModuleBuilds:
+    """The shared builds (SharedBuild) that several classes of one test module read: `specs` is {build: a function
+    returning its (edits, make, view)}. Each is made the first time a class asks for it (get), so that a class run
+    alone makes only the build it reads, and kept until the module's tests end (close, from the module's
+    tearDownModule)."""
+
+    def __init__(self, **specs):
+        self.specs, self.made, self.tmp = specs, {}, None
+
+    def get(self, name):
+        if name not in self.made:
+            if self.tmp is None:
+                self.tmp = tempfile.TemporaryDirectory()
+            edits, make, view = self.specs[name]()
+            self.made[name] = SharedBuild(Path(self.tmp.name) / name, edits, make, view)
+        return self.made[name]
+
+    def close(self):
+        self.made.clear()
+        if self.tmp is not None:
+            self.tmp.cleanup()
+            self.tmp = None
+
+
+def copies_build(src, variant, stage=None, **options):
+    """SharedBuild's make for native_copy.build when each edit is a list of copies (made walls, slabs and ground, the
+    doors standing in them), so that two edits may copy one piece: the edits' copies joined in the edits' order and
+    built without baking, with `options` (native_copy.build's other arguments), as <folder>/<variant>.upk. `stage`,
+    for pieces of another map, is transplant.stage_edit's call (src, folder, edit) -> (the staged map, the staged
+    edit, its report), made on the joined copies first; the build is then made from the staged map in <folder>/build.
+    The edits are told apart by where their copies stand in the build's sections (native_copy keeps the copies'
+    order, an assembly's together), so two edits naming one assembly are refused (ValueError). Returns a dict:
+    manifest, q (the written map read again), copies (those built: the staged ones where staged), report (the
+    staging's, or None) and spans ({edit: (its first copy, its count)})."""
+    def make(folder, edits):
+        import lighting_records
+        import native_copy
+        joined, spans, owner = [], {}, {}
+        for name, copies in edits.items():
+            if not isinstance(copies, list):
+                raise TypeError('edit %r is not a list of copies' % name)
+            for a in {c['assembly'] for c in copies if c.get('assembly')}:
+                if owner.setdefault(a, name) != name:
+                    raise ValueError('the edits %r and %r both name the assembly %s: they need builds of their own'
+                                     % (owner[a], name, a))
+            spans[name] = (len(joined), len(copies))
+            joined += [dict(c) for c in copies]
+        folder, out, report = Path(folder), Path(folder), None
+        if stage:
+            folder.mkdir(parents=True)
+            src_map, edit, report = stage(src, folder, dict(copies=joined))
+            joined, out = edit['copies'], folder / 'build'
+        else:
+            src_map = src
+        manifest = native_copy.build(src_map, out, variant, joined, **options)
+        return dict(manifest=manifest, q=lighting_records.Package(out / ('%s.upk' % variant)), copies=joined,
+                    report=report, spans=spans)
+    return make
+
+
+class CopiesPart:
+    """One edit's part of a shared copies_build (SharedBuild's view): `edit` (its copies as asked), `copies` (as
+    built: the staged ones where staged), `q` (the written map), `manifest` (the whole build's), `report` (the
+    staging's, whole) and `m`, the manifest with its nativeCopies cut to the records that name the edit's copies:
+    their sections, made pieces' records (generatedWalls), door listings, made walls' building floors, neighbour
+    listings with either side its own, and flags on its copies (pieceFlags' onCopies). The build's records of the
+    whole map (the made cursors, the hidden pieces, the columns...) belong to no one edit and are not in `m`: a test
+    that reads one reads `manifest`, in a build where no other edit makes one."""
+    LISTS = (('generatedWalls', ('copy',)), ('doorListings', ('copy',)), ('madeWallFloors', ('wall',)),
+             ('neighbourListings', ('wall', 'other')))
+
+    def __init__(self, name, edit, made):
+        first, count = made['spans'][name]
+        self.name, self.edit = name, edit
+        self.manifest, self.q, self.report = made['manifest'], made['q'], made['report']
+        self.copies = made['copies'][first:first + count]
+        nc = self.manifest['nativeCopies']
+        sections = nc['copies'][first:first + count]
+        if [s['actor'] for s in sections] != [c['actor'] for c in self.copies]:
+            raise AssertionError('the build\'s sections from %d are %s, not the edit %r\'s copies %s'
+                                 % (first, [s['actor'] for s in sections], name, [c['actor'] for c in self.copies]))
+        mine = {s['copy'].split('.')[-1] for s in sections}
+        part = dict(copies=sections)
+        for key, fields in self.LISTS:
+            if key in nc:
+                part[key] = [r for r in nc[key] if any(r[f] in mine for f in fields)]
+        if 'pieceFlags' in nc:
+            part['pieceFlags'] = dict(onCopies=[r for r in nc['pieceFlags']['onCopies'] if r['copy'] in mine])
+        self.m = dict(self.manifest, nativeCopies=part)

@@ -20,6 +20,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(TOOLS / 'upk'))
 sys.path.insert(0, str(TOOLS / 'viewer'))
 sys.path.insert(0, str(TOOLS / 'lab'))
+import fixtures  # noqa: E402
 import frac_wall  # noqa: E402
 import frac_walls  # noqa: E402
 import gen_mesh  # noqa: E402
@@ -45,6 +46,55 @@ COPIES = [
 
 def overlap(a, b):
     return all(min(a[2 * k + 1], b[2 * k + 1]) - max(a[2 * k], b[2 * k]) > 0 for k in range(3))
+
+
+def stage(src, out, edit):
+    """transplant.stage_edit with the game's schema (fixtures.copies_build's `stage`)."""
+    import transplant
+    sys.path.insert(0, str(TOOLS / 'editor'))
+    import schema as schema_module
+    return transplant.stage_edit(src, out, edit, schema=schema_module.Schema(schema_module.build(BAR.parent)))
+
+
+# The builds the classes share (fixtures.SharedBuild): each class's tests read one edit, its copies told apart by
+# where they stand in the build (fixtures.CopiesPart). The edits of one build stand apart: none joins, stacks on or
+# seeds the tiles of another, none lists a map's piece that another reads, so each edit's records are the ones it gets
+# built alone (bar the new exports' indices). Two builds of the Bar, not one: Broken's pieces stand where MadeSlabs'
+# do and its far roof seeds tiles the reference wall seeds; MadeWallInBuilding's walls seed tiles the joined walls
+# seed and list the Bar's wall 16, whose columns JoinedMadeWalls reads. MadeSlabs reads the made cursors of the whole
+# map, so bar_1 carries no other slab. The classes that keep a build of their own: the one made wall with a door
+# (DoorInMadeWall) and the one group with a made wall (GroupWithMadeWall), each alone and both where the reference
+# wall stands; the Bar's own pieces broken in place (MapBroken) and its refusals; a baked build (BakedLayout); ground
+# on two other maps (GroundOnBackdrop) and the relight's GroundShapes.
+BUILDS = fixtures.ModuleBuilds(
+    bar_1=lambda: ({Built.EDIT: [dict(c) for c in COPIES], JoinedMadeWalls.EDIT: JoinedMadeWalls.copies(),
+                    MadeSlabs.EDIT: MadeSlabs.copies()}, fixtures.copies_build(BAR, 'FracShared'), fixtures.CopiesPart),
+    bar_2=lambda: ({Broken.EDIT: Broken.copies(), MadeWallInBuilding.EDIT: MadeWallInBuilding.copies()},
+                   fixtures.copies_build(BAR, 'FracShared2'), fixtures.CopiesPart),
+    station=lambda: ({StagedDonor.EDIT: StagedDonor.copies(), StagedDoorInMadeWall.EDIT: StagedDoorInMadeWall.copies()},
+                     fixtures.copies_build(POLICE, 'FracStaged', stage=stage), fixtures.CopiesPart),
+    alley=lambda: ({GroundOnStaticMeshActor.EDIT: GroundOnStaticMeshActor.copies(),
+                    GroundOnStaticMeshActor.FLAGS_EDIT: GroundOnStaticMeshActor.copies(flags=dict(walking=False, cover=False))},
+                   fixtures.copies_build(ALLEY, 'GroundShared'), fixtures.CopiesPart))
+
+
+def tearDownModule():
+    BUILDS.close()
+
+
+class SharedPart:
+    """A class whose tests read the edit EDIT of the shared build BUILD (BUILDS), each test in part()."""
+    BUILD = EDIT = None
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.build = BUILDS.get(cls.BUILD)
+
+    def part(self, edit=None):
+        """This test's part of the shared build (fixtures.CopiesPart), for the class's edit or `edit`, in a subtest
+        named for it (fixtures.SharedBuild.part)."""
+        return self.build.part(self, edit or self.EDIT)
 
 
 class Columns(unittest.TestCase):
@@ -92,117 +142,117 @@ class Columns(unittest.TestCase):
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
-class Built(unittest.TestCase):
+class Built(SharedPart, unittest.TestCase):
+    BUILD = 'bar_1'
+    EDIT = 'three copies of the inside wall on the pavement: the reference (relit), the twin and the custom wall'
+
     @classmethod
     def setUpClass(cls):
-        import native_copy
         from package import Package
-        cls.tmp = tempfile.TemporaryDirectory()
-        out = Path(cls.tmp.name)
-        cls.m = native_copy.build(BAR, out, 'FracPoc', [dict(c) for c in COPIES])
-        cls.q = Package(out / 'FracPoc.upk')
+        super().setUpClass()
         cls.p = Package(BAR)
-        cls.walls = cls.m['nativeCopies']['generatedWalls']
-        # (the manifest lists the copies in the order asked)
-        cls.copies = dict(zip((c['label'] for c in COPIES), cls.m['nativeCopies']['copies']))
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
-
-    def made(self):
-        return [w for w in self.walls if w['kind'] == 'fracWall']
+    @staticmethod
+    def made(part):
+        return [w for w in part.m['nativeCopies']['generatedWalls'] if w['kind'] == 'fracWall']
 
     def test_the_manifest_names_each_wall(self):
-        self.assertEqual([(w['kind'], w['label']) for w in self.walls],
-                         [('relit', 'Reference'), ('fracWall', 'Twin'), ('fracWall', 'Custom')])
-        twin, custom = self.made()
-        self.assertEqual((twin['fragments'], twin['solids'], custom['fragments'], custom['solids']), (30, 1, 27, 3))
-        self.assertTrue(twin['painted'] and custom['painted'])
-        self.assertEqual([c.get('generated') for c in self.m['nativeCopies']['copies']], ['relit', 'fracWall', 'fracWall'])
+        with self.part() as part:
+            nc = part.m['nativeCopies']
+            self.assertEqual([(w['kind'], w['label']) for w in nc['generatedWalls']],
+                             [('relit', 'Reference'), ('fracWall', 'Twin'), ('fracWall', 'Custom')])
+            twin, custom = self.made(part)
+            self.assertEqual((twin['fragments'], twin['solids'], custom['fragments'], custom['solids']), (30, 1, 27, 3))
+            self.assertTrue(twin['painted'] and custom['painted'])
+            self.assertEqual([c.get('generated') for c in nc['copies']], ['relit', 'fracWall', 'fracWall'])
 
     def test_the_reference_keeps_the_donors_mesh(self):
-        q = self.q
-        actor = q.by_name[PL + self.walls[0]['copy']]
-        comp = q.own(actor, 'FracturedStaticMeshComponent')
-        self.assertEqual(q.name(q.own(comp, 'StaticMesh')), frac_wall.RECIPE['donor'])
+        with self.part() as part:
+            q = part.q
+            actor = q.by_name[PL + part.m['nativeCopies']['generatedWalls'][0]['copy']]
+            comp = q.own(actor, 'FracturedStaticMeshComponent')
+            self.assertEqual(q.name(q.own(comp, 'StaticMesh')), frac_wall.RECIPE['donor'])
 
     def test_the_new_meshes_are_written_whole_under_our_package(self):
-        q = self.q
-        for w in self.made():
-            mesh = q.by_name[w['mesh']]
-            self.assertEqual(q.cls(mesh), 'FracturedStaticMesh')
-            self.assertTrue(w['mesh'].startswith(frac_walls.PACKAGE + '.FracWall_'))
-            m = gen_mesh.read(q, mesh)
-            e = q.exports[mesh - 1]
-            self.assertEqual(gen_mesh.write(m, m['at']), bytes(q.data[m['at']:e['off'] + e['size']]))
-            self.assertEqual(q.cls(m['bodySetup']), 'RB_BodySetup')
-            self.assertEqual(len(m['fractured']['fragments']), w['fragments'])
+        with self.part() as part:
+            q = part.q
+            for w in self.made(part):
+                mesh = q.by_name[w['mesh']]
+                self.assertEqual(q.cls(mesh), 'FracturedStaticMesh')
+                self.assertTrue(w['mesh'].startswith(frac_walls.PACKAGE + '.FracWall_'))
+                m = gen_mesh.read(q, mesh)
+                e = q.exports[mesh - 1]
+                self.assertEqual(gen_mesh.write(m, m['at']), bytes(q.data[m['at']:e['off'] + e['size']]))
+                self.assertEqual(q.cls(m['bodySetup']), 'RB_BodySetup')
+                self.assertEqual(len(m['fractured']['fragments']), w['fragments'])
 
     def test_each_component_saves_its_numbers_as_the_games_walls_do(self):
-        q = self.q
-        for w in self.made():
-            actor = q.by_name[PL + w['copy']]
-            comp = q.own(actor, 'FracturedStaticMeshComponent')
-            mesh = q.own(comp, 'StaticMesh')
-            self.assertEqual(q.name(mesh), w['mesh'])
-            m = gen_mesh.read(q, mesh)
-            lod = m['lods'][0]
-            self.assertEqual(q.own(comp, 'NumResourceIndices'), len(lod['indices'][1]))
-            world = lightmap_texels.world_matrix(q, comp)
-            pos = np.array(lod['positions'], float)
-            z = (np.c_[pos, np.ones(len(pos))] @ world.T)[:, 2]
-            self.assertAlmostEqual(q.own(comp, 'FragmentBoundsMinZ'), z.min(), 3)
-            self.assertAlmostEqual(q.own(comp, 'FragmentBoundsMaxZ'), z.max(), 3)
-            # one painted colour for each new vertex
-            flag, _ = frac_walls._lod_colours(q.data, q.properties(comp)[1])
-            self.assertEqual(q.data[flag], 1)
-            self.assertEqual(struct.unpack_from('<2I', q.data, flag + 1), (4, len(pos)))
+        with self.part() as part:
+            q = part.q
+            for w in self.made(part):
+                actor = q.by_name[PL + w['copy']]
+                comp = q.own(actor, 'FracturedStaticMeshComponent')
+                mesh = q.own(comp, 'StaticMesh')
+                self.assertEqual(q.name(mesh), w['mesh'])
+                m = gen_mesh.read(q, mesh)
+                lod = m['lods'][0]
+                self.assertEqual(q.own(comp, 'NumResourceIndices'), len(lod['indices'][1]))
+                world = lightmap_texels.world_matrix(q, comp)
+                pos = np.array(lod['positions'], float)
+                z = (np.c_[pos, np.ones(len(pos))] @ world.T)[:, 2]
+                self.assertAlmostEqual(q.own(comp, 'FragmentBoundsMinZ'), z.min(), 3)
+                self.assertAlmostEqual(q.own(comp, 'FragmentBoundsMaxZ'), z.max(), 3)
+                # one painted colour for each new vertex
+                flag, _ = frac_walls._lod_colours(q.data, q.properties(comp)[1])
+                self.assertEqual(q.data[flag], 1)
+                self.assertEqual(struct.unpack_from('<2I', q.data, flag + 1), (4, len(pos)))
 
     def test_a_build_without_baking_gives_each_wall_one_even_light_from_a_piece_near_it(self):
         # (M2, D9) every vertex at one texel (a coordinate scale of 0) of a lit piece of the map near the wall
-        q = self.q
-        for w in self.made():
-            self.assertEqual(w['light']['kind'], 'even')
-            comp = q.own(q.by_name[PL + w['copy']], 'FracturedStaticMeshComponent')
-            lm = frac_walls.lightmap_offsets(q.data, q.properties(comp)[1])
-            self.assertEqual(struct.unpack_from('<2f', q.data, lm['scale']), (0.0, 0.0))
-            bias = struct.unpack_from('<2f', q.data, lm['bias'])
-            self.assertTrue(all(0.0 < b < 1.0 for b in bias))
-            for tex, _ in lm['slots'][:2]:
-                index = struct.unpack_from('<i', q.data, tex)[0]
-                self.assertEqual(q.cls(index), 'LightMapTexture2D')
-            self.assertGreater(w['light']['light'], 0.0)
-            self.assertIn(w['light']['piece'], q.by_name)
+        with self.part() as part:
+            q = part.q
+            for w in self.made(part):
+                self.assertEqual(w['light']['kind'], 'even')
+                comp = q.own(q.by_name[PL + w['copy']], 'FracturedStaticMeshComponent')
+                lm = frac_walls.lightmap_offsets(q.data, q.properties(comp)[1])
+                self.assertEqual(struct.unpack_from('<2f', q.data, lm['scale']), (0.0, 0.0))
+                bias = struct.unpack_from('<2f', q.data, lm['bias'])
+                self.assertTrue(all(0.0 < b < 1.0 for b in bias))
+                for tex, _ in lm['slots'][:2]:
+                    index = struct.unpack_from('<i', q.data, tex)[0]
+                    self.assertEqual(q.cls(index), 'LightMapTexture2D')
+                self.assertGreater(w['light']['light'], 0.0)
+                self.assertIn(w['light']['piece'], q.by_name)
 
     def test_without_baking_the_dominant_light_is_the_even_light_pieces(self):
         # (M2 item 2) the shadow map of the piece the even light comes from, at a texel of its rectangle; or, where it
         # has none, the light listed irrelevant
         import shadowmaps
-        q = self.q
-        moon = frac_walls.dominant_shadow(q)['guid']
-        for w in self.made():
-            comp = q.own(q.by_name[PL + w['copy']], 'FracturedStaticMeshComponent')
-            maps = shadowmaps.shadow_maps(q, comp)
-            listed = q.own(comp, 'IrrelevantLights', b'')
-            piece = q.by_name[w['light']['piece']]
-            theirs = [sm for sm in shadowmaps.shadow_maps(q, piece) if sm['guid'] == moon.hex()]
-            if theirs:
-                self.assertEqual(len(maps), 1)
-                self.assertEqual((maps[0]['guid'], maps[0]['texture'], maps[0]['scale']),
-                                 (moon.hex(), theirs[0]['texture'], [0.0, 0.0]))
-                self.assertEqual(q.exports[maps[0]['export'] - 1]['outer'], comp)
-                self.assertNotIn(moon, listed)
-                self.assertFalse(w['shadowMap']['irrelevant'])
-            else:
-                self.assertEqual(maps, [])
-                self.assertIn(moon, listed)
-                self.assertTrue(w['shadowMap']['irrelevant'])
+        with self.part() as part:
+            q = part.q
+            moon = frac_walls.dominant_shadow(q)['guid']
+            for w in self.made(part):
+                comp = q.own(q.by_name[PL + w['copy']], 'FracturedStaticMeshComponent')
+                maps = shadowmaps.shadow_maps(q, comp)
+                listed = q.own(comp, 'IrrelevantLights', b'')
+                piece = q.by_name[w['light']['piece']]
+                theirs = [sm for sm in shadowmaps.shadow_maps(q, piece) if sm['guid'] == moon.hex()]
+                if theirs:
+                    self.assertEqual(len(maps), 1)
+                    self.assertEqual((maps[0]['guid'], maps[0]['texture'], maps[0]['scale']),
+                                     (moon.hex(), theirs[0]['texture'], [0.0, 0.0]))
+                    self.assertEqual(q.exports[maps[0]['export'] - 1]['outer'], comp)
+                    self.assertNotIn(moon, listed)
+                    self.assertFalse(w['shadowMap']['irrelevant'])
+                else:
+                    self.assertEqual(maps, [])
+                    self.assertIn(moon, listed)
+                    self.assertTrue(w['shadowMap']['irrelevant'])
 
     def test_a_baked_build_gives_each_wall_its_own_rectangle_of_its_size(self):
         # (M2) set_light on the donor's own record: the rectangle the wall's mesh asks for, at the donor's corner
-        # (texel 193, down to the block at 192) or the atlas's where it doesn't fit
-        p, q = self.p, self.q
+        # (texel 193, down to the block at 192) or the atlas's where it doesn't fit (the source map's record: no build)
+        p = self.p
         comp = p.own(p.by_name[PL + DONOR], 'FracturedStaticMeshComponent')
         e = p.exports[comp - 1]
         data = bytes(p.data[e['off']:e['off'] + e['size']])
@@ -217,40 +267,44 @@ class Built(unittest.TestCase):
             self.assertEqual(out[:lm['scale']], data[:lm['scale']])
 
     def test_the_columns_list_the_fragments_over_them(self):
-        q = self.q
-        for w in self.made():
-            actor = q.by_name[PL + w['copy']]
-            comp = q.own(actor, 'FracturedStaticMeshComponent')
-            m = gen_mesh.read(q, q.own(comp, 'StaticMesh'))
-            world = lightmap_texels.world_matrix(q, comp)
-            lod = m['lods'][0]
-            pos = np.array(lod['positions'], float)
-            wpos = (np.c_[pos, np.ones(len(pos))] @ world.T)[:, :3]
-            idx = lod['indices'][1]
-            points = {}
-            for s in lod['sections']:
-                for f, (first, n) in enumerate(s['fragments']):
-                    points.setdefault(f, set()).update(idx[first:first + 3 * n])
-            fbox = {f: [v for k in range(3) for v in (wpos[sorted(vs), k].min(), wpos[sorted(vs), k].max())]
-                    for f, vs in points.items() if vs}
-            cols = q.structs(q.own(actor, 'FragmentColumns'))
-            self.assertEqual(len(cols), w['columns'])
-            for c in cols:
-                b = struct.unpack('<6fB', c[('Bounds', 0)]['value'])
-                box = [b[0], b[3], b[1], b[4], b[2], b[5]]
-                saved = [(it.get(('FragIndex', 0), {}).get('value', 0), it.get(('MinZ', 0), {}).get('value', 0.0))
-                         for it in q.structs(c.get(('FragCache', 0), {}).get('value'))]
-                self.assertEqual({f for f, _ in saved}, {f for f, fb in fbox.items() if overlap(fb, box)})
-                self.assertEqual([z for _, z in saved], sorted(z for _, z in saved))
-                for f, z in saved:
-                    self.assertAlmostEqual(z, fbox[f][4], 3)
-                self.assertEqual(q.structs(c.get(('DestructibleCache', 0), {}).get('value')), [])
+        with self.part() as part:
+            q = part.q
+            for w in self.made(part):
+                actor = q.by_name[PL + w['copy']]
+                comp = q.own(actor, 'FracturedStaticMeshComponent')
+                m = gen_mesh.read(q, q.own(comp, 'StaticMesh'))
+                world = lightmap_texels.world_matrix(q, comp)
+                lod = m['lods'][0]
+                pos = np.array(lod['positions'], float)
+                wpos = (np.c_[pos, np.ones(len(pos))] @ world.T)[:, :3]
+                idx = lod['indices'][1]
+                points = {}
+                for s in lod['sections']:
+                    for f, (first, n) in enumerate(s['fragments']):
+                        points.setdefault(f, set()).update(idx[first:first + 3 * n])
+                fbox = {f: [v for k in range(3) for v in (wpos[sorted(vs), k].min(), wpos[sorted(vs), k].max())]
+                        for f, vs in points.items() if vs}
+                cols = q.structs(q.own(actor, 'FragmentColumns'))
+                self.assertEqual(len(cols), w['columns'])
+                for c in cols:
+                    b = struct.unpack('<6fB', c[('Bounds', 0)]['value'])
+                    box = [b[0], b[3], b[1], b[4], b[2], b[5]]
+                    saved = [(it.get(('FragIndex', 0), {}).get('value', 0), it.get(('MinZ', 0), {}).get('value', 0.0))
+                             for it in q.structs(c.get(('FragCache', 0), {}).get('value'))]
+                    self.assertEqual({f for f, _ in saved}, {f for f, fb in fbox.items() if overlap(fb, box)})
+                    self.assertEqual([z for _, z in saved], sorted(z for _, z in saved))
+                    for f, z in saved:
+                        self.assertAlmostEqual(z, fbox[f][4], 3)
+                    self.assertEqual(q.structs(c.get(('DestructibleCache', 0), {}).get('value')), [])
 
     def test_the_tiles_are_seeded_over_each_walls_own_box(self):
-        ref, twin, custom = (self.copies[k]['tiles']['tiles'] for k in ('Reference', 'Twin', 'Custom'))
-        self.assertEqual(twin[0] - ref[0], 8)               # the twin is the reference's box, eight tiles east
-        self.assertEqual(twin[1] - twin[0], ref[1] - ref[0])
-        self.assertLess(custom[1] - custom[0], twin[1] - twin[0])   # the custom wall is shorter than the donor
+        with self.part() as part:
+            # (the manifest lists the copies in the order asked)
+            copies = dict(zip((c['label'] for c in COPIES), part.m['nativeCopies']['copies']))
+            ref, twin, custom = (copies[k]['tiles']['tiles'] for k in ('Reference', 'Twin', 'Custom'))
+            self.assertEqual(twin[0] - ref[0], 8)               # the twin is the reference's box, eight tiles east
+            self.assertEqual(twin[1] - twin[0], ref[1] - ref[0])
+            self.assertLess(custom[1] - custom[0], twin[1] - twin[0])   # the custom wall is shorter than the donor
 
 
 @unittest.skipUnless(BAR.exists() and POLICE.exists(), NO_POLICE)
@@ -437,42 +491,33 @@ class NeighbourRule(unittest.TestCase):
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
-class JoinedMadeWalls(unittest.TestCase):
+class JoinedMadeWalls(SharedPart, unittest.TestCase):
     """(M3 items 2 and 3) Made walls that meet, built in URB_Bar: an L (M1 along x, running through; M2 a quarter turn
     from its far end, butting) and a T's stem (M3) on the Bar's own inside wall XComDecoFracLevelActor_16 (along x at
     y 672). Their columns and the walls they touch list each other's by the game's rule, at the joint only."""
     MAP_WALL = 'XComDecoFracLevelActor_16'
+    BUILD = 'bar_1'
+    EDIT = 'an L of made walls (M1 running through, M2 butting) and a T\'s stem (M3) on the Bar\'s inside wall 16'
 
-    @classmethod
-    def setUpClass(cls):
-        import native_copy
-        from package import Package
-        cls.tmp = tempfile.TemporaryDirectory()
-        out = Path(cls.tmp.name)
-
+    @staticmethod
+    def copies():
         def wall(label, at, yaw, ends=None):
             w = dict(x0=0.0, x1=384.0, openings=[], seed=3)
             gen = dict(kind='fracWall', version=1, wall=w)
             if ends:
                 gen = dict(kind='fracWall', version=2, wall=dict(w, ends=ends))
             return dict(actor=DONOR, location=at, rotation=[0, yaw, 0], label=label, generated=gen)
-        copies = [wall('M1', [-1536.0, 1440.0, 16.0], 0, ['free', 'through']),
-                  wall('M2', [-1152.0, 1440.0, 16.0], 16384),
-                  wall('M3', [-1440.0, 672.0, 16.0], 16384)]
-        cls.m = native_copy.build(BAR, out, 'FracJoined', copies)
-        cls.q = Package(out / 'FracJoined.upk')
-        nc = cls.m['nativeCopies']
-        cls.export = {c['label']: c['export'] for c in nc['copies']}
-        cls.export[cls.MAP_WALL] = cls.q.by_name[PL + cls.MAP_WALL]
+        return [wall('M1', [-1536.0, 1440.0, 16.0], 0, ['free', 'through']),
+                wall('M2', [-1152.0, 1440.0, 16.0], 16384),
+                wall('M3', [-1440.0, 672.0, 16.0], 16384)]
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
+    def exports(self, part):
+        export = {c['label']: c['export'] for c in part.m['nativeCopies']['copies']}
+        export[self.MAP_WALL] = part.q.by_name[PL + self.MAP_WALL]
+        return export
 
-    def columns(self, name):
-        import native_copy
-        q = self.q
-        i = self.export[name]
+    @staticmethod
+    def columns(q, i):
         out = []
         for c in q.structs(q.own(i, 'FragmentColumns')):
             b = struct.unpack('<6f', c[('Bounds', 0)]['value'][:24])
@@ -482,72 +527,71 @@ class JoinedMadeWalls(unittest.TestCase):
         return out
 
     def test_the_through_wall_reaches_the_far_face(self):
-        sec = {r['label']: r for r in self.m['nativeCopies']['generatedWalls']}
-        self.assertAlmostEqual(sec['M1']['box'][1], -1152.0 + 8.0, 3)
-        self.assertAlmostEqual(sec['M2']['box'][2], 1440.0 + 8.0, 3)        # butting on M1's face
+        with self.part() as part:
+            sec = {r['label']: r for r in part.m['nativeCopies']['generatedWalls']}
+            self.assertAlmostEqual(sec['M1']['box'][1], -1152.0 + 8.0, 3)
+            self.assertAlmostEqual(sec['M2']['box'][2], 1440.0 + 8.0, 3)        # butting on M1's face
 
     def test_the_l_and_the_t_list_each_other_at_the_joint_only(self):
-        e = self.export
-        listings = {(d['wall'], d['other']) for d in self.m['nativeCopies']['neighbourListings']}
-        name = lambda i: self.q.name(i).split('.')[-1]  # noqa: E731
-        self.assertIn((name(e['M1']), name(e['M2'])), listings)
-        self.assertIn((name(e['M3']), self.MAP_WALL), listings)
-        for a, b in (('M1', 'M2'), ('M2', 'M1'), ('M3', self.MAP_WALL), (self.MAP_WALL, 'M3')):
-            cols = self.columns(a)
-            hits = [k for k, c in enumerate(cols) if any(x == e[b] for x, _ in c['lists'])]
-            self.assertTrue(hits, (a, b))
-            # only the columns at the joint: reaching it or within the corner square's half of it
-            joint = {'M1': -1152.0, 'M2': 1440.0, 'M3': 672.0, self.MAP_WALL: -1440.0}[a]
-            axis = 1 if a in ('M2', 'M3') else 0
-            for k in hits:
-                box = cols[k]['box']
-                self.assertLessEqual(max(box[2 * axis] - joint, joint - box[2 * axis + 1]), 8.0, (a, b, box))
-        # M2 and M3 are far apart: nothing between them
-        self.assertFalse(any(x == e['M3'] for c in self.columns('M2') for x, _ in c['lists']))
+        with self.part() as part:
+            q, e = part.q, self.exports(part)
+            listings = {(d['wall'], d['other']) for d in part.m['nativeCopies']['neighbourListings']}
+            name = lambda i: q.name(i).split('.')[-1]  # noqa: E731
+            self.assertIn((name(e['M1']), name(e['M2'])), listings)
+            self.assertIn((name(e['M3']), self.MAP_WALL), listings)
+            for a, b in (('M1', 'M2'), ('M2', 'M1'), ('M3', self.MAP_WALL), (self.MAP_WALL, 'M3')):
+                cols = self.columns(q, e[a])
+                hits = [k for k, c in enumerate(cols) if any(x == e[b] for x, _ in c['lists'])]
+                self.assertTrue(hits, (a, b))
+                # only the columns at the joint: reaching it or within the corner square's half of it
+                joint = {'M1': -1152.0, 'M2': 1440.0, 'M3': 672.0, self.MAP_WALL: -1440.0}[a]
+                axis = 1 if a in ('M2', 'M3') else 0
+                for k in hits:
+                    box = cols[k]['box']
+                    self.assertLessEqual(max(box[2 * axis] - joint, joint - box[2 * axis + 1]), 8.0, (a, b, box))
+            # M2 and M3 are far apart: nothing between them
+            self.assertFalse(any(x == e['M3'] for c in self.columns(q, e['M2']) for x, _ in c['lists']))
 
     def test_every_listing_follows_the_rule(self):
-        import frac_walls
-        e = self.export
-        cols = {n: self.columns(n) for n in ('M1', 'M2', 'M3', self.MAP_WALL)}
-        boxes = {r['label']: r['box'] for r in self.m['nativeCopies']['generatedWalls']}
-        comp = self.q.own(e[self.MAP_WALL], 'FracturedStaticMeshComponent')
-        bounds = {n: boxes[n] for n in ('M1', 'M2', 'M3')}
-        bounds[self.MAP_WALL] = [None] * 4 + [self.q.own(comp, 'FragmentBoundsMinZ'), self.q.own(comp, 'FragmentBoundsMaxZ')]
-        by_export = {e[n]: n for n in cols}
-        for a, rows in cols.items():
-            for c in rows:
-                for actor, index in c['lists']:
-                    b = by_export.get(actor)
-                    if b is None or (a == self.MAP_WALL and b == self.MAP_WALL):
-                        continue
-                    self.assertTrue(frac_walls.lists_column(c['box'], cols[b][index]['box'], bounds[b]), (a, b, index))
+        with self.part() as part:
+            q, e = part.q, self.exports(part)
+            cols = {n: self.columns(q, e[n]) for n in ('M1', 'M2', 'M3', self.MAP_WALL)}
+            boxes = {r['label']: r['box'] for r in part.m['nativeCopies']['generatedWalls']}
+            comp = q.own(e[self.MAP_WALL], 'FracturedStaticMeshComponent')
+            bounds = {n: boxes[n] for n in ('M1', 'M2', 'M3')}
+            bounds[self.MAP_WALL] = [None] * 4 + [q.own(comp, 'FragmentBoundsMinZ'), q.own(comp, 'FragmentBoundsMaxZ')]
+            by_export = {e[n]: n for n in cols}
+            for a, rows in cols.items():
+                for c in rows:
+                    for actor, index in c['lists']:
+                        b = by_export.get(actor)
+                        if b is None or (a == self.MAP_WALL and b == self.MAP_WALL):
+                            continue
+                        self.assertTrue(frac_walls.lists_column(c['box'], cols[b][index]['box'], bounds[b]), (a, b, index))
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
-class MadeWallInBuilding(unittest.TestCase):
+class MadeWallInBuilding(SharedPart, unittest.TestCase):
     """(M3 item 7) A made wall standing in one of the map's buildings is in that building's cutaway by the game
     editor's rule for its own box: the twin of URB_Bar's inside wall at the donor's own place lands in the floors the
     Bar lists the donor in, with the same CutdownFloor; a one-storey wall there in the ground floor only."""
+    BUILD = 'bar_2'
+    EDIT = 'the inside wall\'s twin where the donor stands and a one-storey wall beside it, in the Bar\'s building'
+
+    @staticmethod
+    def copies():
+        pose = dict(location=[-1056.0, 864.0, 16.0], rotation=[0, 49152, 0])
+        return [dict(actor=DONOR, label='Twin', generated=dict(kind='fracWall', version=1,
+                                                             wall=dict(x0=-384.0, x1=192.0, openings=[], seed=1)), **pose),
+                dict(actor=DONOR, label='Low', location=[-1152.0, 864.0, 16.0], rotation=[0, 49152, 0],
+                     generated=dict(kind='fracWall', version=1, wall=dict(x0=-384.0, x1=192.0, openings=[], seed=2,
+                                                                          storeys=1)))]
 
     @classmethod
     def setUpClass(cls):
-        import native_copy
         from package import Package
-        cls.tmp = tempfile.TemporaryDirectory()
-        out = Path(cls.tmp.name)
-        pose = dict(location=[-1056.0, 864.0, 16.0], rotation=[0, 49152, 0])
-        copies = [dict(actor=DONOR, label='Twin', generated=dict(kind='fracWall', version=1,
-                                                                 wall=dict(x0=-384.0, x1=192.0, openings=[], seed=1)), **pose),
-                  dict(actor=DONOR, label='Low', location=[-1152.0, 864.0, 16.0], rotation=[0, 49152, 0],
-                       generated=dict(kind='fracWall', version=1, wall=dict(x0=-384.0, x1=192.0, openings=[], seed=2,
-                                                                            storeys=1)))]
-        cls.m = native_copy.build(BAR, out, 'FracInBuilding', copies)
+        super().setUpClass()
         cls.p = Package(BAR)
-        cls.q = Package(out / 'FracInBuilding.upk')
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
 
     @staticmethod
     def listings(p, actor):
@@ -566,115 +610,119 @@ class MadeWallInBuilding(unittest.TestCase):
     def test_the_twin_is_listed_where_the_donor_is(self):
         donor = self.listings(self.p, self.p.by_name[PL + DONOR])
         self.assertTrue(donor)
-        sec = {c['label']: c['export'] for c in self.m['nativeCopies']['copies']}
-        self.assertEqual(self.listings(self.q, sec['Twin']), donor)
-        found = {d['wall']: d for d in self.m['nativeCopies']['madeWallFloors']}
-        twin = found[self.q.name(sec['Twin']).split('.')[-1]]
-        self.assertEqual({twin['building']: twin['floors']}, donor)
+        with self.part() as part:
+            sec = {c['label']: c['export'] for c in part.m['nativeCopies']['copies']}
+            self.assertEqual(self.listings(part.q, sec['Twin']), donor)
+            found = {d['wall']: d for d in part.m['nativeCopies']['madeWallFloors']}
+            twin = found[part.q.name(sec['Twin']).split('.')[-1]]
+            self.assertEqual({twin['building']: twin['floors']}, donor)
 
     def test_a_building_made_in_the_editor_takes_a_made_walls_own_box(self):
+        # (the source map's record: no build)
         import buildings
         box = [0.0, 96.0, -12.0, 12.0, 0.0, 208.0]
         self.assertEqual(buildings.piece_box(self.p, dict(source=self.p.by_name[PL + DONOR], box=box), {}), box)
 
     def test_a_one_storey_wall_is_in_the_ground_floor_only(self):
-        sec = {c['label']: c['export'] for c in self.m['nativeCopies']['copies']}
-        low = self.listings(self.q, sec['Low'])
-        self.assertEqual([[k for k, _ in floors] for floors in low.values()], [[0]])
+        with self.part() as part:
+            sec = {c['label']: c['export'] for c in part.m['nativeCopies']['copies']}
+            low = self.listings(part.q, sec['Low'])
+            self.assertEqual([[k for k, _ in floors] for floors in low.values()], [[0]])
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
-class MadeSlabs(unittest.TestCase):
+class MadeSlabs(SharedPart, unittest.TestCase):
     """(M5) Slabs made from numbers in URB_Bar: a roof on a copy of the bar's roof (XComFracLevelActor_3) over a made wall, and an upper floor on a copy of the bar's upstairs strip
     (XComFracLevelActor_17, turned a half turn)."""
     ROOF, FLOOR = 'XComFracLevelActor_3', 'XComFracLevelActor_17'
+    BUILD = 'bar_1'
+    EDIT = 'a made roof over a made wall and a made upper floor on the Bar\'s upstairs strip turned a half turn'
 
     @classmethod
-    def setUpClass(cls):
-        import native_copy
-        from package import Package
-        cls.tmp = tempfile.TemporaryDirectory()
-        out = Path(cls.tmp.name)
-        copies = [dict(actor=cls.ROOF, label='Roof', location=[-1728.0, -1056.0, 400.0], rotation=[0, 0, 0],
-                       generated=dict(kind='fracSlab', version=1,
-                                      slab=dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4,
-                                                holes=[dict(x0=96.0, x1=192.0, y0=96.0, y1=192.0)]))),
-                  dict(actor=cls.FLOOR, label='Floor', location=[-1056.0, -768.0, 0.0], rotation=[0, 32768, 0],
-                       generated=dict(kind='fracSlab', version=1,
-                                      slab=dict(x0=0.0, x1=288.0, y0=480.0, y1=672.0, seed=5, look='floor'))),
-                  dict(actor=DONOR, label='Under', location=[-1728.0, -960.0, 16.0], rotation=[0, 0, 0],
-                       generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[], seed=6)))]
-        cls.m = native_copy.build(BAR, out, 'FracSlabs', copies)
-        cls.p = Package(BAR)
-        cls.q = Package(out / 'FracSlabs.upk')
-        cls.sec = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}
+    def copies(cls):
+        return [dict(actor=cls.ROOF, label='Roof', location=[-1728.0, -1056.0, 400.0], rotation=[0, 0, 0],
+                     generated=dict(kind='fracSlab', version=1,
+                                    slab=dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4,
+                                              holes=[dict(x0=96.0, x1=192.0, y0=96.0, y1=192.0)]))),
+                dict(actor=cls.FLOOR, label='Floor', location=[-1056.0, -768.0, 0.0], rotation=[0, 32768, 0],
+                     generated=dict(kind='fracSlab', version=1,
+                                    slab=dict(x0=0.0, x1=288.0, y0=480.0, y1=672.0, seed=5, look='floor'))),
+                dict(actor=DONOR, label='Under', location=[-1728.0, -960.0, 16.0], rotation=[0, 0, 0],
+                     generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=384.0, openings=[], seed=6)))]
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
+    @staticmethod
+    def sections(part):
+        return {c['label']: c['export'] for c in part.m['nativeCopies']['copies']}
 
     def test_the_slabs_are_made_with_their_own_mesh_and_keep_their_floor_flags(self):
-        q = self.q
-        for label in ('Roof', 'Floor'):
-            actor = self.sec[label]
-            comp = q.own(actor, 'FracturedStaticMeshComponent')
-            self.assertTrue(q.name(q.own(comp, 'StaticMesh')).split('.')[-1].startswith('FracSlab_'), label)
-            self.assertIsNone(q.own(comp, 'EditorPaintedVisibleFragments'))
-            self.assertTrue(q.effective(actor, 'bPathColliding', False), label)
-            self.assertTrue(q.effective(actor, 'bCanStepUpOn', False), label)
-        rec = {r['label']: r for r in self.m['nativeCopies']['generatedWalls']}
-        self.assertEqual(rec['Roof']['kind'], 'fracSlab')
-        # the roof's box: x -1728 to -1344, y -1056 to -768, its plate 398 to 402
-        for got, want in zip(rec['Roof']['box'], [-1728.0, -1344.0, -1056.0, -768.0, 398.0, 402.0]):
-            self.assertAlmostEqual(got, want, 2)
-        # the floor turned a half turn: its mesh's y 480 to 672 lies at y -1440 to -1248, its top at 194
-        for got, want in zip(rec['Floor']['box'], [-1344.0, -1056.0, -1440.0, -1248.0, 192.0, 194.0]):
-            self.assertAlmostEqual(got, want, 2)
+        with self.part() as part:
+            q, sec = part.q, self.sections(part)
+            for label in ('Roof', 'Floor'):
+                actor = sec[label]
+                comp = q.own(actor, 'FracturedStaticMeshComponent')
+                self.assertTrue(q.name(q.own(comp, 'StaticMesh')).split('.')[-1].startswith('FracSlab_'), label)
+                self.assertIsNone(q.own(comp, 'EditorPaintedVisibleFragments'))
+                self.assertTrue(q.effective(actor, 'bPathColliding', False), label)
+                self.assertTrue(q.effective(actor, 'bCanStepUpOn', False), label)
+            rec = {r['label']: r for r in part.m['nativeCopies']['generatedWalls']}
+            self.assertEqual(rec['Roof']['kind'], 'fracSlab')
+            # the roof's box: x -1728 to -1344, y -1056 to -768, its plate 398 to 402
+            for got, want in zip(rec['Roof']['box'], [-1728.0, -1344.0, -1056.0, -768.0, 398.0, 402.0]):
+                self.assertAlmostEqual(got, want, 2)
+            # the floor turned a half turn: its mesh's y 480 to 672 lies at y -1440 to -1248, its top at 194
+            for got, want in zip(rec['Floor']['box'], [-1344.0, -1056.0, -1440.0, -1248.0, 192.0, 194.0]):
+                self.assertAlmostEqual(got, want, 2)
 
     def test_a_slabs_columns_follow_the_slabs_rule(self):
-        q = self.q
-        cols = list(q.structs(q.own(self.sec['Roof'], 'FragmentColumns')))
-        self.assertEqual(len(cols), 5 * 4)            # 4 by 3 tiles: a column a cell, the last row and column 1 wide
-        boxes = [struct.unpack('<6f', c[('Bounds', 0)]['value'][:24]) for c in cols]
-        # cells from the slab's corner less one unit, cut across to the fragments they list
-        self.assertAlmostEqual(min(b[0] for b in boxes), -1728.0, 2)
-        self.assertAlmostEqual(min(b[1] for b in boxes), -1056.0, 2)
-        self.assertAlmostEqual(max(b[3] for b in boxes), -1344.0, 2)
-        self.assertAlmostEqual(min(b[2] for b in boxes), 398.0 - 1.0, 2)
+        with self.part() as part:
+            q = part.q
+            cols = list(q.structs(q.own(self.sections(part)['Roof'], 'FragmentColumns')))
+            self.assertEqual(len(cols), 5 * 4)            # 4 by 3 tiles: a column a cell, the last row and column 1 wide
+            boxes = [struct.unpack('<6f', c[('Bounds', 0)]['value'][:24]) for c in cols]
+            # cells from the slab's corner less one unit, cut across to the fragments they list
+            self.assertAlmostEqual(min(b[0] for b in boxes), -1728.0, 2)
+            self.assertAlmostEqual(min(b[1] for b in boxes), -1056.0, 2)
+            self.assertAlmostEqual(max(b[3] for b in boxes), -1344.0, 2)
+            self.assertAlmostEqual(min(b[2] for b in boxes), 398.0 - 1.0, 2)
 
     def test_the_slabs_bring_cursor_floors_breaking_under_them(self):
         # (M5b, F-128) the bar's four map-wide cursor volumes are taken out and stand again round the slabs; over the
         # floor (192 to 194) the floors break at 190 and over the roof (398 to 402) at 396, 2 under each underside
-        # (EXP-80 run G), the map's floor numbers kept
+        # (EXP-80 run G), the map's floor numbers kept. The made cursors are the whole map's: no other edit of the
+        # shared build makes a slab, so they are this edit's
         import shell
-        rec = self.m['nativeCopies']['madeCursors']
-        self.assertEqual(len(rec['hidden']), 4)
-        over = [a for a in rec['added'] if a['over']]
+        with self.part() as part:
+            rec = part.manifest['nativeCopies']['madeCursors']
+            self.assertEqual(len(rec['hidden']), 4)
+            over = [a for a in rec['added'] if a['over']]
 
-        def bands(foot):
-            return sorted((round(a['box'][2]), round(a['box'][5]), a['floor']) for a in over
-                          if all(abs(a['box'][k] - v) < 0.01 for k, v in zip((0, 1, 3, 4), foot)))
-        self.assertEqual(bands([-1344.0, -1440.0, -1056.0, -1248.0]),
-                         [(0, 190, 1), (190, 402, 2), (402, 594, 3), (594, 768, 4)])
-        self.assertEqual(bands([-1728.0, -1056.0, -1344.0, -768.0]),
-                         [(0, 210, 1), (210, 396, 2), (396, 594, 3), (594, 768, 4)])
-        self.assertEqual(len(over), 8)
-        # what the bar's volumes covered outside the slabs stands again at the same heights and floors
-        for a in rec['added']:
-            if not a['over']:
-                self.assertIn((round(a['box'][2]), round(a['box'][5]), a['floor']),
-                              [(0, 210, 1), (210, 402, 2), (402, 594, 3), (594, 768, 4)])
-        # read back: the clones listed, the bar's own not
-        q, live = self.q, shell.listed(self.q)
-        listed = [i for i in shell.actors(q, 'XComCursorVolume') if i in live]
-        self.assertEqual(sorted(q.name(i).split('.')[-1] for i in listed), sorted(a['copy'] for a in rec['added']))
-        self.assertFalse(set(rec['hidden']) & {q.name(i).split('.')[-1] for i in listed})
+            def bands(foot):
+                return sorted((round(a['box'][2]), round(a['box'][5]), a['floor']) for a in over
+                              if all(abs(a['box'][k] - v) < 0.01 for k, v in zip((0, 1, 3, 4), foot)))
+            self.assertEqual(bands([-1344.0, -1440.0, -1056.0, -1248.0]),
+                             [(0, 190, 1), (190, 402, 2), (402, 594, 3), (594, 768, 4)])
+            self.assertEqual(bands([-1728.0, -1056.0, -1344.0, -768.0]),
+                             [(0, 210, 1), (210, 396, 2), (396, 594, 3), (594, 768, 4)])
+            self.assertEqual(len(over), 8)
+            # what the bar's volumes covered outside the slabs stands again at the same heights and floors
+            for a in rec['added']:
+                if not a['over']:
+                    self.assertIn((round(a['box'][2]), round(a['box'][5]), a['floor']),
+                                  [(0, 210, 1), (210, 402, 2), (402, 594, 3), (594, 768, 4)])
+            # read back: the clones listed, the bar's own not
+            q = part.q
+            live = shell.listed(q)
+            listed = [i for i in shell.actors(q, 'XComCursorVolume') if i in live]
+            self.assertEqual(sorted(q.name(i).split('.')[-1] for i in listed), sorted(a['copy'] for a in rec['added']))
+            self.assertFalse(set(rec['hidden']) & {q.name(i).split('.')[-1] for i in listed})
 
     def test_the_wall_under_the_roof_and_the_roof_list_each_other(self):
-        listings = {(d['wall'], d['other']) for d in self.m['nativeCopies']['neighbourListings']}
-        name = lambda i: self.q.name(i).split('.')[-1]  # noqa: E731
-        self.assertTrue((name(self.sec['Roof']), name(self.sec['Under'])) in listings
-                        or (name(self.sec['Under']), name(self.sec['Roof'])) in listings, listings)
+        with self.part() as part:
+            sec = self.sections(part)
+            listings = {(d['wall'], d['other']) for d in part.m['nativeCopies']['neighbourListings']}
+            name = lambda i: part.q.name(i).split('.')[-1]  # noqa: E731
+            self.assertTrue((name(sec['Roof']), name(sec['Under'])) in listings
+                            or (name(sec['Under']), name(sec['Roof'])) in listings, listings)
 
 
 @unittest.skipUnless(DEMOLITION.exists(), NO_DEMOLITION)
@@ -706,25 +754,33 @@ class GroundOnBackdrop(unittest.TestCase):
 
 
 @unittest.skipUnless(ALLEY.exists(), NO_ALLEY)
-class GroundOnStaticMeshActor(unittest.TestCase):
+class GroundOnStaticMeshActor(SharedPart, unittest.TestCase):
     """(EXP-79 run D) A block made on URB_CommercialAlley's asphalt (StaticMeshActor_50), which saves bCanStepUpOn and
     its collision off: no soldier climbed onto a block made from it. The copy is an XComLevelActor (F-130) that can be
-    stepped up on."""
+    stepped up on. Its two blocks (one with flags) are one shared build: both stand where the donor does, outside the
+    map's grid, where neither seeds a tile."""
     DONOR = 'StaticMeshActor_50'
+    BUILD = 'alley'
+    EDIT = 'a block made on the alley\'s asphalt where it stands'
+    FLAGS_EDIT = 'a block made on the alley\'s asphalt where it stands, walking and cover off'
+
+    @classmethod
+    def copies(cls, **flags):
+        from package import Package
+        p = Package(ALLEY)
+        donor = p.by_name[PL + cls.DONOR]
+        return [dict(actor=cls.DONOR, label='Block', location=list(p.own(donor, 'Location', [0.0, 0.0, 0.0])),
+                     rotation=[0, 0, 0], generated=dict(kind='ground', version=1, ground=dict(
+                         shape='block', x0=0.0, x1=192.0, y0=0.0, y1=192.0, height=64.0)), **flags)]
 
     def test_the_block_can_be_stepped_up_on(self):
-        import native_copy
         from package import Package
         p = Package(ALLEY)
         donor = p.by_name[PL + self.DONOR]
         self.assertIs(p.effective(donor, 'bCanStepUpOn', None), False)
-        with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(ALLEY, Path(d), 'GroundOnStaticMeshActor', [dict(
-                actor=self.DONOR, label='Block', location=list(p.own(donor, 'Location', [0.0, 0.0, 0.0])),
-                rotation=[0, 0, 0], generated=dict(kind='ground', version=1, ground=dict(
-                    shape='block', x0=0.0, x1=192.0, y0=0.0, y1=192.0, height=64.0)))], bake=False)
-            q = Package(Path(d) / 'GroundOnStaticMeshActor.upk')
-            (actor,) = [c['export'] for c in m['nativeCopies']['copies'] if c['label'] == 'Block']
+        with self.part() as part:
+            q = part.q
+            (actor,) = [c['export'] for c in part.m['nativeCopies']['copies'] if c['label'] == 'Block']
             self.assertEqual(q.cls(actor), 'XComLevelActor')
             self.assertIs(q.effective(actor, 'bCanStepUpOn', None), True)
             self.assertIs(q.effective(actor, 'bCollideActors', None), True)
@@ -732,23 +788,14 @@ class GroundOnStaticMeshActor(unittest.TestCase):
     def test_its_flags_are_a_level_pieces(self):
         # (19 November 2026) walking and cover off on such a block: planned on the level piece it is made
         # (piece_flags.made_settings), written on its clone before frac_walls retypes it, read back as written
-        import native_copy
         import piece_flags
-        from package import Package
-        p = Package(ALLEY)
-        donor = p.by_name[PL + self.DONOR]
-        with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(ALLEY, Path(d), 'GroundFlags', [dict(
-                actor=self.DONOR, label='Block', location=list(p.own(donor, 'Location', [0.0, 0.0, 0.0])),
-                rotation=[0, 0, 0], flags=dict(walking=False, cover=False), generated=dict(kind='ground', version=1, ground=dict(
-                    shape='block', x0=0.0, x1=192.0, y0=0.0, y1=192.0, height=64.0)))], bake=False)
-            (rec,) = m['nativeCopies']['pieceFlags']['onCopies']
+        with self.part(self.FLAGS_EDIT) as part:
+            (rec,) = part.m['nativeCopies']['pieceFlags']['onCopies']
             self.assertEqual((rec['actorClass'], rec['applied'], rec.get('unsupported'), rec.get('refused')),
                              ('XComLevelActor', dict(walking=False, cover=False), None, None))
             self.assertEqual((rec['before']['walking'], rec['after']['walking'], rec['after']['cover'], rec['after']['floor']),
                              ('on', 'off', 'off', 'on'))
-            q = Package(Path(d) / 'GroundFlags.upk')
-            r = piece_flags.resolve(q, rec['export'])
+            r = piece_flags.resolve(part.q, rec['export'])
             self.assertEqual((r['cls'], r['raw']['bAlwaysConsiderForCover'], r['raw']['bIgnoreForCover'], r['raw']['bPathColliding']),
                              ('XComLevelActor', False, True, True))
 
@@ -861,22 +908,17 @@ class GroundShapes(unittest.TestCase):
         self.assertEqual(colours, {bytes.fromhex('ecf4f8f6')})      # the asphalt's main painted colour (ground_measure's too)
 
 
-class StagedDoorInMadeWall(unittest.TestCase):
+class StagedDoorInMadeWall(SharedPart, unittest.TestCase):
     """(M3 item 4) A door of another map in a made wall's doorway: URB_Bar's door 7 and its frame brought to
     URB_PoliceStation with the wall's donor (transplant.stage_edit), nothing there listing them, are listed by
     frac_walls.door_columns in the made wall's columns within a tile of the door, on every storey."""
     DOOR = ['XComInteractiveLevelActor_7', 'XComDestructibleActor_65']
+    BUILD = 'station'
+    EDIT = 'the Bar\'s door 7 and its frame staged in a made wall\'s doorway on the police station'
 
     @classmethod
-    def setUpClass(cls):
-        import native_copy
+    def copies(cls):
         import transplant
-        sys.path.insert(0, str(TOOLS / 'editor'))
-        import schema as schema_module
-        from package import Package
-        cls.tmp = tempfile.TemporaryDirectory()
-        out = Path(cls.tmp.name)
-        schema = schema_module.Schema(schema_module.build(BAR.parent))
         donor = dict(package='URB_Bar', sha256=transplant.sha256(BAR))
         copies = [dict(actor=DONOR, donor=donor, location=[0.0, 0.0, 16.0], rotation=[0, 0, 0], label='Made',
                        generated=dict(kind='fracWall', version=1, wall=dict(
@@ -884,100 +926,83 @@ class StagedDoorInMadeWall(unittest.TestCase):
         for n in cls.DOOR:
             copies.append(dict(actor=n, donor=donor, location=[144.0, 0.0, 16.0], rotation=[0, 0, 0],
                                assembly='add:XComInteractiveLevelActor_7_copy', family='door'))
-        cls.staged, cls.edit, _ = transplant.stage_edit(POLICE, out, dict(copies=copies), schema=schema)
-        cls.m = native_copy.build(cls.staged, out / 'build', 'FracStagedDoor', cls.edit['copies'])
-        cls.q = Package(out / 'build' / 'FracStagedDoor.upk')
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
+        return copies
 
     def test_the_door_and_its_frame_are_listed_by_the_doorway(self):
-        q = self.q
-        nc = self.m['nativeCopies']
-        wall = next(c['export'] for c in nc['copies'] if c.get('generated') == 'fracWall')
-        doors = [c['export'] for c in nc['copies'] if c.get('family') == 'door' or c['actor'] in self.DOOR]
-        self.assertEqual(len(doors), 2, nc['copies'])
-        listed, near = {}, []
-        for c in q.structs(q.own(wall, 'FragmentColumns')):
-            b = struct.unpack('<6f', c[('Bounds', 0)]['value'][:24])
-            box = (round(b[0]), round(b[3]), round(b[2]), round(b[5]))
-            if b[0] < 287:
-                near.append(box)            # the doorway's tile (96 to 192) and one tile each side
-            for e in q.structs(c.get(('DestructibleCache', 0), {}).get('value')):
-                listed.setdefault(e[('DestructibleActor', 0)]['value'], []).append(box)
-        # every storey of the station's grid the wall reaches (three: it stands 400 tall)
-        self.assertEqual(len(near), 9)
-        for d in doors:
-            self.assertEqual(sorted(listed.get(d, [])), sorted(near), q.name(d))
-        self.assertEqual(sorted(len(d['columns']) for d in nc.get('doorListings', [])), [9, 9])
+        with self.part() as part:
+            q = part.q
+            nc = part.m['nativeCopies']
+            wall = next(c['export'] for c in nc['copies'] if c.get('generated') == 'fracWall')
+            doors = [c['export'] for c in nc['copies'] if c.get('family') == 'door' or c['actor'] in self.DOOR]
+            self.assertEqual(len(doors), 2, nc['copies'])
+            listed, near = {}, []
+            for c in q.structs(q.own(wall, 'FragmentColumns')):
+                b = struct.unpack('<6f', c[('Bounds', 0)]['value'][:24])
+                box = (round(b[0]), round(b[3]), round(b[2]), round(b[5]))
+                if b[0] < 287:
+                    near.append(box)            # the doorway's tile (96 to 192) and one tile each side
+                for e in q.structs(c.get(('DestructibleCache', 0), {}).get('value')):
+                    listed.setdefault(e[('DestructibleActor', 0)]['value'], []).append(box)
+            # every storey of the station's grid the wall reaches (three: it stands 400 tall)
+            self.assertEqual(len(near), 9)
+            for d in doors:
+                self.assertEqual(sorted(listed.get(d, [])), sorted(near), q.name(d))
+            self.assertEqual(sorted(len(d['columns']) for d in nc.get('doorListings', [])), [9, 9])
 
 
-class StagedDonor(unittest.TestCase):
+class StagedDonor(SharedPart, unittest.TestCase):
     """A made wall on a map without the Bar's wall (custom geometry plan, M1 item 1): the donor brought from URB_Bar
     as any piece of another map is (transplant.stage_edit), then the copy made from numbers through the staged actor:
     the custom wall, and a second one along y (a quarter turn from the donor's yaw, its columns along y), on
-    URB_PoliceStation."""
-    WALLS = [dict(location=[0.0, 0.0, 16.0], rotation=[0, 0, 0], label='Along x',
+    URB_PoliceStation, eight tiles north of the made wall StagedDoorInMadeWall's door stands in (the build both
+    share)."""
+    WALLS = [dict(location=[0.0, 768.0, 16.0], rotation=[0, 0, 0], label='Along x',
                   generated=COPIES[2]['generated']),
-             dict(location=[384.0, 0.0, 16.0], rotation=[0, 16384, 0], label='Along y',
+             dict(location=[384.0, 768.0, 16.0], rotation=[0, 16384, 0], label='Along y',
                   generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=288.0, openings=[
                       dict(x0=96.0, x1=192.0, z0=72.0, z1=168.0)], seed=3)))]
+    BUILD = 'station'
+    EDIT = 'two made walls on the police station from the Bar\'s staged donor, along x and along y'
 
     @classmethod
-    def setUpClass(cls):
-        import native_copy
+    def copies(cls):
         import transplant
-        sys.path.insert(0, str(TOOLS / 'editor'))
-        import schema as schema_module
-        from package import Package
-        cls.tmp = tempfile.TemporaryDirectory()
-        out = Path(cls.tmp.name)
-        schema = schema_module.Schema(schema_module.build(BAR.parent))
-        edit = dict(copies=[dict(w, actor=DONOR, donor=dict(package='URB_Bar', sha256=transplant.sha256(BAR)))
-                            for w in cls.WALLS])
-        cls.staged, cls.edit, cls.report = transplant.stage_edit(POLICE, out, edit, schema=schema)
-        cls.m = native_copy.build(cls.staged, out / 'build', 'FracStaged', cls.edit['copies'])
-        cls.q = Package(out / 'build' / 'FracStaged.upk')
-        cls.grid = native_copy.level_grid(cls.q)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
+        return [dict(w, actor=DONOR, donor=dict(package='URB_Bar', sha256=transplant.sha256(BAR))) for w in cls.WALLS]
 
     def test_the_donor_is_staged_and_both_walls_are_made_from_numbers(self):
-        self.assertEqual(self.report['donors'][0]['map'], 'URB_Bar')
-        self.assertTrue(all(c['staged'] for c in self.edit['copies']))
-        walls = self.m['nativeCopies']['generatedWalls']
-        self.assertEqual([(w['kind'], w['label']) for w in walls], [('fracWall', 'Along x'), ('fracWall', 'Along y')])
-        for w in walls:
-            mesh = self.q.by_name[w['mesh']]
-            self.assertEqual(self.q.cls(mesh), 'FracturedStaticMesh')
-            self.assertTrue(w['painted'])
+        with self.part() as part:
+            self.assertEqual(part.report['donors'][0]['map'], 'URB_Bar')
+            self.assertTrue(all(c['staged'] for c in part.copies))
+            walls = part.m['nativeCopies']['generatedWalls']
+            self.assertEqual([(w['kind'], w['label']) for w in walls], [('fracWall', 'Along x'), ('fracWall', 'Along y')])
+            for w in walls:
+                mesh = part.q.by_name[w['mesh']]
+                self.assertEqual(part.q.cls(mesh), 'FracturedStaticMesh')
+                self.assertTrue(w['painted'])
 
     def test_each_wall_stands_where_it_was_put_with_its_columns_along_it(self):
-        q = self.q
-        for w, spec in zip(self.m['nativeCopies']['generatedWalls'], self.WALLS):
-            actor = q.by_name[PL + w['copy']]
-            self.assertEqual([round(v, 1) for v in q.own(actor, 'Location')], spec['location'])
-            box = w['box']
-            along = 0 if spec['rotation'][1] == 0 else 1
-            length = spec['generated']['wall']['x1']
-            # the solid, 8 in from each tile edge, along the wall's axis from its start
-            self.assertAlmostEqual(box[2 * along], spec['location'][along] + 8, 3)
-            self.assertAlmostEqual(box[2 * along + 1], spec['location'][along] + length - 8, 3)
-            cols = q.structs(q.own(actor, 'FragmentColumns'))
-            self.assertEqual(len(cols), w['columns'])
-            for c in cols:
-                b = struct.unpack('<6fB', c[('Bounds', 0)]['value'])
-                lo, hi = (b[0], b[1]), (b[3], b[4])
-                self.assertLessEqual(hi[along] - lo[along], frac_walls.TILE + 1e-3)     # a tile along the wall
-                self.assertLess(hi[1 - along] - lo[1 - along], 30)                   # the wall's thickness across
-
+        with self.part() as part:
+            q = part.q
+            for w, spec in zip(part.m['nativeCopies']['generatedWalls'], self.WALLS):
+                actor = q.by_name[PL + w['copy']]
+                self.assertEqual([round(v, 1) for v in q.own(actor, 'Location')], spec['location'])
+                box = w['box']
+                along = 0 if spec['rotation'][1] == 0 else 1
+                length = spec['generated']['wall']['x1']
+                # the solid, 8 in from each tile edge, along the wall's axis from its start
+                self.assertAlmostEqual(box[2 * along], spec['location'][along] + 8, 3)
+                self.assertAlmostEqual(box[2 * along + 1], spec['location'][along] + length - 8, 3)
+                cols = q.structs(q.own(actor, 'FragmentColumns'))
+                self.assertEqual(len(cols), w['columns'])
+                for c in cols:
+                    b = struct.unpack('<6fB', c[('Bounds', 0)]['value'])
+                    lo, hi = (b[0], b[1]), (b[3], b[4])
+                    self.assertLessEqual(hi[along] - lo[along], frac_walls.TILE + 1e-3)     # a tile along the wall
+                    self.assertLess(hi[1 - along] - lo[1 - along], 30)                   # the wall's thickness across
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
-class Broken(unittest.TestCase):
+class Broken(SharedPart, unittest.TestCase):
     """(custom geometry editing plan, B5) A made wall and roof built broken by their blasts in URB_Bar: their components
     save EditorPaintedVisibleFragments (one int a fragment, 0 for those the blasts knock out) and DestroyedChunks (the
     hidden fragments' boxes), as the game's maps save painted-out pieces; a whole copy of the bar's roof, which saves
@@ -989,105 +1014,109 @@ class Broken(unittest.TestCase):
     SLAB = dict(x0=0.0, x1=384.0, y0=0.0, y1=288.0, seed=4, holes=[])
     BLAST = [dict(at=[192.0, 12.0, 100.0], radius=96.0)]
     ROOF_BLAST = [dict(at=[192.0, 144.0, 0.0], radius=96.0)]
+    BUILD = 'bar_2'
+    EDIT = 'a made wall and roof broken by their blasts, a whole made roof and a broken one asked to break further'
 
     @classmethod
-    def setUpClass(cls):
-        import native_copy
-        from package import Package
-        cls.tmp = tempfile.TemporaryDirectory()
-        out = Path(cls.tmp.name)
-        copies = [dict(actor=DONOR, label='Wall', location=[-1728.0, -960.0, 16.0], rotation=[0, 0, 0],
-                       generated=dict(kind='fracWall', version=1, wall=cls.WALL, blasts=cls.BLAST)),
-                  dict(actor=cls.ROOF, label='Roof', location=[-1728.0, -1056.0, 400.0], rotation=[0, 0, 0],
-                       generated=dict(kind='fracSlab', version=1, slab=cls.SLAB, blasts=cls.ROOF_BLAST)),
-                  dict(actor=cls.ROOF, label='Whole', location=[-1344.0, -1056.0, 400.0], rotation=[0, 0, 0],
-                       generated=dict(kind='fracSlab', version=1, slab=dict(cls.SLAB, seed=5))),
-                  dict(actor=cls.ROOF, label='Further', location=[-1344.0, -672.0, 400.0], rotation=[0, 0, 0],
-                       generated=dict(kind='fracSlab', version=1, slab=cls.SLAB, blasts=cls.ROOF_BLAST, breaksFurther=True))]
-        cls.m = native_copy.build(BAR, out, 'FracBroken', copies)
-        cls.q = Package(out / 'FracBroken.upk')
-        cls.sec = {c['label']: c['export'] for c in cls.m['nativeCopies']['copies']}
-        cls.rec = {r['label']: r for r in cls.m['nativeCopies']['generatedWalls']}
+    def copies(cls):
+        return [dict(actor=DONOR, label='Wall', location=[-1728.0, -960.0, 16.0], rotation=[0, 0, 0],
+                     generated=dict(kind='fracWall', version=1, wall=cls.WALL, blasts=cls.BLAST)),
+                dict(actor=cls.ROOF, label='Roof', location=[-1728.0, -1056.0, 400.0], rotation=[0, 0, 0],
+                     generated=dict(kind='fracSlab', version=1, slab=cls.SLAB, blasts=cls.ROOF_BLAST)),
+                dict(actor=cls.ROOF, label='Whole', location=[-1344.0, -1056.0, 400.0], rotation=[0, 0, 0],
+                     generated=dict(kind='fracSlab', version=1, slab=dict(cls.SLAB, seed=5))),
+                dict(actor=cls.ROOF, label='Further', location=[-1344.0, -672.0, 400.0], rotation=[0, 0, 0],
+                     generated=dict(kind='fracSlab', version=1, slab=cls.SLAB, blasts=cls.ROOF_BLAST, breaksFurther=True))]
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
+    @staticmethod
+    def read(part):
+        """The written map, the copies' exports by label and their made pieces' records by label."""
+        nc = part.m['nativeCopies']
+        return (part.q, {c['label']: c['export'] for c in nc['copies']},
+                {r['label']: r for r in nc['generatedWalls']})
 
-    def arrays(self, label):
-        q = self.q
-        comp = q.own(self.sec[label], 'FracturedStaticMeshComponent')
+    @staticmethod
+    def arrays(q, actor):
+        comp = q.own(actor, 'FracturedStaticMeshComponent')
         return q.own(comp, 'EditorPaintedVisibleFragments'), q.own(comp, 'DestroyedChunks')
 
     def test_the_broken_pieces_save_their_painted_fragments(self):
         import made_blasts
-        for label, built, blasts in (('Wall', frac_wall.build(self.WALL), self.BLAST),
-                                     ('Roof', __import__('frac_slab').build(self.SLAB), self.ROOF_BLAST)):
-            visible, chunks = self.arrays(label)
-            n = self.rec[label]['fragments']
-            count, *values = struct.unpack('<%di' % (n + 1), visible)
-            gone = [k for k, v in enumerate(values) if v == 0]
-            self.assertEqual(count, n, label)
-            self.assertEqual(gone, made_blasts.hidden(built, blasts), label)
-            self.assertEqual(self.rec[label]['broken'], len(gone))
-            self.assertTrue(0 < len(gone) < n, label)
-            self.assertEqual(struct.unpack_from('<i', chunks)[0], len(gone))
-            self.assertEqual(len(chunks), 4 + 25 * len(gone))
-            for k, i in enumerate(gone):
-                box = struct.unpack_from('<6f', chunks, 4 + 25 * k)
-                want = built['fragments'][i]['box']
-                for got, w in zip((box[0], box[3], box[1], box[4], box[2], box[5]), want):
-                    self.assertAlmostEqual(got, w, places=2)
+        with self.part() as part:
+            q, sec, rec = self.read(part)
+            for label, built, blasts in (('Wall', frac_wall.build(self.WALL), self.BLAST),
+                                         ('Roof', __import__('frac_slab').build(self.SLAB), self.ROOF_BLAST)):
+                visible, chunks = self.arrays(q, sec[label])
+                n = rec[label]['fragments']
+                count, *values = struct.unpack('<%di' % (n + 1), visible)
+                gone = [k for k, v in enumerate(values) if v == 0]
+                self.assertEqual(count, n, label)
+                self.assertEqual(gone, made_blasts.hidden(built, blasts), label)
+                self.assertEqual(rec[label]['broken'], len(gone))
+                self.assertTrue(0 < len(gone) < n, label)
+                self.assertEqual(struct.unpack_from('<i', chunks)[0], len(gone))
+                self.assertEqual(len(chunks), 4 + 25 * len(gone))
+                for k, i in enumerate(gone):
+                    box = struct.unpack_from('<6f', chunks, 4 + 25 * k)
+                    want = built['fragments'][i]['box']
+                    for got, w in zip((box[0], box[3], box[1], box[4], box[2], box[5]), want):
+                        self.assertAlmostEqual(got, w, places=2)
 
     def test_a_whole_copy_saves_neither(self):
-        self.assertEqual(self.arrays('Whole'), (None, None))
-        self.assertFalse(self.rec['Whole'].get('broken'))
+        with self.part() as part:
+            q, sec, rec = self.read(part)
+            self.assertEqual(self.arrays(q, sec['Whole']), (None, None))
+            self.assertFalse(rec['Whole'].get('broken'))
 
     def test_a_broken_roof_asked_to_break_further_lets_its_fragments_go(self):
         # (F-138) the bar's roof keeps its fragments (bPreventChunkRemoval): the copy asked to break further saves it
         # off; the whole one keeps the donor's; the wall's donor has no such setting
-        q = self.q
-        comp = lambda label: q.own(self.sec[label], 'FracturedStaticMeshComponent')
-        self.assertIs(q.own(comp('Further'), 'bPreventChunkRemoval'), False)
-        self.assertTrue(self.rec['Further'].get('chunksLet'))
-        self.assertFalse(self.rec['Further'].get('keptWhole'))
-        self.assertIs(q.own(comp('Whole'), 'bPreventChunkRemoval'), True)
-        self.assertFalse(self.rec['Whole'].get('chunksLet') or self.rec['Whole'].get('keptWhole'))
-        self.assertIsNone(q.own(comp('Wall'), 'bPreventChunkRemoval'))
-        self.assertFalse(self.rec['Wall'].get('chunksLet') or self.rec['Wall'].get('keptWhole'))
+        with self.part() as part:
+            q, sec, rec = self.read(part)
+            comp = lambda label: q.own(sec[label], 'FracturedStaticMeshComponent')  # noqa: E731
+            self.assertIs(q.own(comp('Further'), 'bPreventChunkRemoval'), False)
+            self.assertTrue(rec['Further'].get('chunksLet'))
+            self.assertFalse(rec['Further'].get('keptWhole'))
+            self.assertIs(q.own(comp('Whole'), 'bPreventChunkRemoval'), True)
+            self.assertFalse(rec['Whole'].get('chunksLet') or rec['Whole'].get('keptWhole'))
+            self.assertIsNone(q.own(comp('Wall'), 'bPreventChunkRemoval'))
+            self.assertFalse(rec['Wall'].get('chunksLet') or rec['Wall'].get('keptWhole'))
 
     def test_a_broken_roof_stays_whole_with_its_hole_in_its_mesh(self):
         # (F-139) the broken roof keeps the setting and draws a mesh of its own without the fragments knocked out; the
         # one that breaks further draws the mesh as made, all its fragments in it
         import made_blasts
-        q = self.q
-        comp = q.own(self.sec['Roof'], 'FracturedStaticMeshComponent')
-        self.assertIs(q.own(comp, 'bPreventChunkRemoval'), True)
-        rec = self.rec['Roof']
-        self.assertTrue(rec.get('keptWhole'))
-        self.assertFalse(rec.get('chunksLet'))
-        self.assertIn('_Cut_', rec['meshName'])
-        built = __import__('frac_slab').build(self.SLAB)
-        gone = made_blasts.hidden(built, self.ROOF_BLAST)
-        mesh = gen_mesh.read(q, q.own(comp, 'StaticMesh'))
-        lod = mesh['lods'][0]
-        for s in lod['sections']:
-            self.assertFalse(any(s['fragments'][i][1] for i in gone))
-        whole = built['mesh']['lods'][0]
-        dropped = sum(s['fragments'][i][1] for s in whole['sections'] for i in gone)
-        self.assertEqual(len(lod['indices'][1]), len(whole['indices'][1]) - 3 * dropped)
-        self.assertEqual(q.own(comp, 'NumResourceIndices'), len(lod['indices'][1]))
-        self.assertEqual(rec['triangles'], len(lod['indices'][1]) // 3)
-        further = gen_mesh.read(q, q.own(q.own(self.sec['Further'], 'FracturedStaticMeshComponent'), 'StaticMesh'))
-        self.assertEqual(len(further['lods'][0]['indices'][1]), len(whole['indices'][1]))
+        with self.part() as part:
+            q, sec, recs = self.read(part)
+            comp = q.own(sec['Roof'], 'FracturedStaticMeshComponent')
+            self.assertIs(q.own(comp, 'bPreventChunkRemoval'), True)
+            rec = recs['Roof']
+            self.assertTrue(rec.get('keptWhole'))
+            self.assertFalse(rec.get('chunksLet'))
+            self.assertIn('_Cut_', rec['meshName'])
+            built = __import__('frac_slab').build(self.SLAB)
+            gone = made_blasts.hidden(built, self.ROOF_BLAST)
+            mesh = gen_mesh.read(q, q.own(comp, 'StaticMesh'))
+            lod = mesh['lods'][0]
+            for s in lod['sections']:
+                self.assertFalse(any(s['fragments'][i][1] for i in gone))
+            whole = built['mesh']['lods'][0]
+            dropped = sum(s['fragments'][i][1] for s in whole['sections'] for i in gone)
+            self.assertEqual(len(lod['indices'][1]), len(whole['indices'][1]) - 3 * dropped)
+            self.assertEqual(q.own(comp, 'NumResourceIndices'), len(lod['indices'][1]))
+            self.assertEqual(rec['triangles'], len(lod['indices'][1]) // 3)
+            further = gen_mesh.read(q, q.own(q.own(sec['Further'], 'FracturedStaticMeshComponent'), 'StaticMesh'))
+            self.assertEqual(len(further['lods'][0]['indices'][1]), len(whole['indices'][1]))
 
     def test_the_export_reads_the_mask(self):
         # the viewer's export (export.py component) draws a component with the array saved: its count the mesh's
-        q = self.q
-        comp = q.own(self.sec['Wall'], 'FracturedStaticMeshComponent')
-        mesh = gen_mesh.read(q, q.own(comp, 'StaticMesh'))
-        visible = q.effective(comp, 'EditorPaintedVisibleFragments')
-        self.assertEqual(struct.unpack_from('<i', visible)[0], len(mesh['fractured']['fragments']))
-        self.assertEqual(len(visible), 4 + 4 * len(mesh['fractured']['fragments']))
+        with self.part() as part:
+            q, sec, _ = self.read(part)
+            comp = q.own(sec['Wall'], 'FracturedStaticMeshComponent')
+            mesh = gen_mesh.read(q, q.own(comp, 'StaticMesh'))
+            visible = q.effective(comp, 'EditorPaintedVisibleFragments')
+            self.assertEqual(struct.unpack_from('<i', visible)[0], len(mesh['fractured']['fragments']))
+            self.assertEqual(len(visible), 4 + 4 * len(mesh['fractured']['fragments']))
 
 
 class MapBroken(unittest.TestCase):
