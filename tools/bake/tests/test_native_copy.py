@@ -57,8 +57,9 @@ class FloorMembershipCases(unittest.TestCase):
 
 
 class CommandLine(unittest.TestCase):
-    """The Build runs native_copy.py with a --copies file (tools/editor/build.py): main hands build() each copy record
-    whole, a made wall's wallGroup included (review finding 36), and the file's other sections as they are."""
+    """The Build runs native_copy.py with a --copies file (tools/editor/build.py): main makes the Build's state from it
+    through edit_state, and each copy, the native edit's and the command line's, through copy_record, whole, a made
+    wall's wallGroup included (review finding 36), and the file's other sections as they are."""
     # a copy record with every field compiler.native_split writes, and a staged one as transplant.py rewrites it
     WALL = dict(actor='XComFracLevelActor_11', location=[0, 636, 14.5], rotation=[0, 16384, 0], box=[[0, 0, 0], [1, 1, 1]],
                 label='XComFracLevelActor_11_copy1', wallGroup=1, untried=True, flags={'mouse': False},
@@ -67,8 +68,22 @@ class CommandLine(unittest.TestCase):
                 family='door', assembly='a1', ladder={'foot': [1, 2, 3], 'top': [1, 2, 9]}, futureField='kept')
     STAGED = dict(actor='StaticMeshActor_9', location=[1, 2, 3], yaw=8192, staged=True,
                   donor={'package': 'URB_PoliceStation', 'actor': 'StaticMeshActor_3'})
+    # one copy carrying every optional field there is (compiler.native_split's, transplant.py's staged ones, the
+    # command line's yaw) and one no reader knows yet, its pose and group as text and floats
+    EVERY = dict(actor='XComFracLevelActor_11', location=['0', 636, 14.5], rotation=[0.0, '16384', 0], yaw=8192,
+                 label='wall', box=[[0, 0, 0], [1, 1, 1]], breakGroup='3', wallGroup=2, untried=True,
+                 donor={'package': 'URB_PoliceStation', 'actor': 'StaticMeshActor_3'}, staged=True,
+                 flags={'mouse': False, 'floor': True}, generated={'kind': 'fracWall', 'version': 3},
+                 blasts=[{'at': [1, 2, 3], 'radius': 100}], breaksFurther=True, family='door', assembly='a1',
+                 ladder={'foot': [1, 2, 3], 'top': [1, 2, 9]}, futureField={'kept': [1]})
+    # each lane of the native edit (but copies) and the state's field it goes to
+    LANES = dict(breakOriginals='break_originals', hides='hides', assemblies='assemblies', lights='lights',
+                 covers='covers', buildings='buildings', buildingEdits='building_edits', cleared='cleared',
+                 landingZones='landing_zones', carriedEffects='carried_effects', effects='effects', sounds='sounds',
+                 flares='flares', spawns='spawns', streamTiles='stream_tiles', pieceFlags='piece_flags',
+                 pieceFlagLadders='flag_ladders', pieceBlasts='piece_blasts')
 
-    def run_main(self, doc):
+    def run_main(self, doc, *more):
         got = {}
 
         class Stop(Exception):
@@ -81,7 +96,8 @@ class CommandLine(unittest.TestCase):
             path = Path(d) / 'native-edit.json'
             path.write_text(__import__('json').dumps(doc), encoding='utf-8', newline='\n')
             argv, real = sys.argv, native_copy.build
-            sys.argv = ['native_copy.py', 'src.upk', d, 'Variant', '--copies', str(path)]
+            sys.argv = ['native_copy.py', 'src.upk', d, 'Variant'] + (['--copies', str(path)] if doc is not None else []) \
+                + list(more)
             native_copy.build = build
             try:
                 with self.assertRaises(Stop):
@@ -107,6 +123,45 @@ class CommandLine(unittest.TestCase):
         (c,) = st.copies
         self.assertEqual((c['location'], c['rotation'], c['breakGroup']), ([1.0, 2.0, 3.5], [0, 16384, 0], 2))
         self.assertEqual([type(v) for v in c['location'] + c['rotation']], [float] * 3 + [int] * 3)
+
+    def test_a_copy_carrying_every_field_comes_through_whole(self):
+        # finding 36's kind of loss: a field of a copy dropped between the native edit and build, by any of the ways
+        # in (the record alone, the native edit as a dict or as a list of copies, main from the --copies file)
+        want = dict(self.EVERY, location=[0.0, 636.0, 14.5], rotation=[0, 16384, 0], breakGroup=3)
+        got = native_copy.copy_record(self.EVERY)
+        self.assertEqual(got, want)
+        self.assertEqual([type(v) for v in got['location'] + got['rotation'] + [got['breakGroup']]],
+                         [float] * 3 + [int] * 4)
+        for doc in ([self.EVERY], dict(copies=[self.EVERY])):
+            with self.subTest(doc=type(doc).__name__):
+                self.assertEqual(native_copy.edit_state('src.upk', 'out', 'Variant', doc).copies, [want])
+                self.assertEqual(self.run_main(doc).copies, [want])
+        self.assertEqual(self.EVERY['location'], ['0', 636, 14.5])     # the record given is left as it was
+
+    def test_every_lane_reaches_its_field(self):
+        # every lane the copy tool reads from the native edit is in LANES, and each reaches its field as it is
+        import inspect
+        import re
+        read = set(re.findall(r"doc\.get\('(\w+)'\)", inspect.getsource(native_copy.edit_state))) - {'copies'}
+        self.assertEqual(read, set(self.LANES))
+        doc = dict(copies=[], **{lane: [{'lane': lane}] for lane in self.LANES})
+        for st in (native_copy.edit_state('src.upk', 'out', 'Variant', doc), self.run_main(doc)):
+            for lane, name in self.LANES.items():
+                self.assertEqual(getattr(st, name), [{'lane': lane}], lane)
+        st = native_copy.edit_state('src.upk', 'out', 'Variant', dict(copies=[]), bake=True, cache='Variant_Lighting',
+                                    tiles=False, jobs=3)
+        self.assertEqual((st.bake, st.cache, st.tiles, st.jobs, st.lights, st.hides), (True, 'Variant_Lighting', False,
+                                                                                      3, None, []))
+
+    def test_the_command_lines_copies_come_through_copy_record(self):
+        st = self.run_main(None, '--copy', 'XComLevelActor_1', '1', '2', '3.5', '8192', '--actor', 'XComLevelActor_2',
+                           '--at', '4', '5', '6')
+        self.assertEqual(st.copies, [
+            dict(actor='XComLevelActor_1', location=[1.0, 2.0, 3.5], yaw=8192, rotation=None, breakGroup=0),
+            dict(actor='XComLevelActor_2', location=[4.0, 5.0, 6.0], yaw=None, rotation=None, breakGroup=0)])
+        # after the native edit's copies, in the order given
+        st = self.run_main([dict(actor='XComLevelActor_3', location=[0, 0, 0])], '--copy', 'XComLevelActor_1', '1', '2', '3')
+        self.assertEqual([c['actor'] for c in st.copies], ['XComLevelActor_3', 'XComLevelActor_1'])
 
 
 @unittest.skipUnless(DEMOLITION and DEMOLITION.exists(), NO_DEMOLITION)

@@ -3171,6 +3171,48 @@ def build(st):
     return manifest
 
 
+def copy_record(c):
+    """A copy as build reads it, from a copy of the native edit (or one main makes from the command line): the record
+    whole, as the compiler (and transplant.py) wrote it, since build reads its fields (a made wall's wallGroup among
+    them: review finding 36, a copy's field dropped on the way); only the pose and the group are read as numbers."""
+    return dict(c, location=[float(v) for v in c['location']],
+                rotation=[int(v) for v in c['rotation']] if c.get('rotation') is not None else None,
+                breakGroup=int(c.get('breakGroup') or 0))
+
+
+def edit_state(src, out, variant, doc, **options):
+    """The Build (BuildState) of the native edit `doc` on the map `src`, into `out` as `variant`: `doc` as the Build
+    writes it (native-edit.json: compiler.native_split's dict of lanes), or a list of copies alone; `options` are the
+    state's other inputs (bake, cache, receivers_near, jobs, tiles, edit_spec, piece_cache, base). Each lane goes to
+    its field as it is, and each copy through copy_record."""
+    copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
+    cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = None
+    stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
+    if isinstance(doc, dict):
+        assemblies = doc.get('assemblies') or []
+        lights = doc.get('lights')
+        covers = doc.get('covers') or []
+        buildings = doc.get('buildings') or []
+        edits = doc.get('buildingEdits') or []
+        cleared = doc.get('cleared')
+        landing_zones = doc.get('landingZones')
+        carried_effects = doc.get('carriedEffects')
+        effects, sounds, flares = doc.get('effects'), doc.get('sounds'), doc.get('flares')
+        spawns = doc.get('spawns')
+        stream_tiles = doc.get('streamTiles') or []
+        piece_flags = doc.get('pieceFlags') or []
+        flag_ladders = doc.get('pieceFlagLadders') or []
+        piece_blasts = doc.get('pieceBlasts') or []
+        doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
+    for c in doc:
+        copies.append(copy_record(c))
+    return BuildState(src, out, variant, copies, break_originals=break_originals, hides=hides, assemblies=assemblies,
+                      lights=lights, covers=covers, buildings=buildings, building_edits=edits, cleared=cleared,
+                      landing_zones=landing_zones, carried_effects=carried_effects, stream_tiles=stream_tiles,
+                      piece_flags=piece_flags, flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares,
+                      spawns=spawns, piece_blasts=piece_blasts, **options)
+
+
 def main():
     a = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     a.add_argument('src', type=Path)
@@ -3204,56 +3246,28 @@ def main():
                         '--piece-cache; needs --base)')
     a.add_argument('--base', metavar='SHA', help='with --piece-cache: the SHA-256 of the map before any of the edit')
     args = a.parse_args()
-    copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
-    cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = None
-    stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
-    if args.copies:
-        doc = json.loads(args.copies.read_text(encoding='utf-8'))
-        if isinstance(doc, dict):
-            assemblies = doc.get('assemblies') or []
-            lights = doc.get('lights')
-            covers = doc.get('covers') or []
-            buildings = doc.get('buildings') or []
-            edits = doc.get('buildingEdits') or []
-            cleared = doc.get('cleared')
-            landing_zones = doc.get('landingZones')
-            carried_effects = doc.get('carriedEffects')
-            effects, sounds, flares = doc.get('effects'), doc.get('sounds'), doc.get('flares')
-            spawns = doc.get('spawns')
-            stream_tiles = doc.get('streamTiles') or []
-            piece_flags = doc.get('pieceFlags') or []
-            flag_ladders = doc.get('pieceFlagLadders') or []
-            piece_blasts = doc.get('pieceBlasts') or []
-            doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
-        for c in doc:
-            # each record whole, as the compiler (and transplant.py) wrote it: build() reads its fields (a made
-            # wall's wallGroup among them, review finding 36); only the pose and the group are read as numbers here
-            copies.append(dict(c, location=[float(v) for v in c['location']],
-                               rotation=[int(v) for v in c['rotation']] if c.get('rotation') is not None else None,
-                               breakGroup=int(c.get('breakGroup') or 0)))
+    doc = json.loads(args.copies.read_text(encoding='utf-8')) if args.copies else []
+    st = edit_state(args.src, args.out, args.variant, doc, bake=args.bake, cache=args.cache,
+                    receivers_near=args.receivers_near, jobs=args.jobs, tiles=not args.no_tiles,
+                    edit_spec=args.edit_spec, piece_cache=args.piece_cache, base=args.base)
     for item in args.copy:
         if len(item) not in (4, 5):
             a.error(f'--copy takes ACTOR X Y Z [YAW], not {item}')
-        copies.append(dict(actor=item[0], location=[float(v) for v in item[1:4]],
-                           yaw=int(item[4]) if len(item) == 5 else None))
+        st.copies.append(copy_record(dict(actor=item[0], location=item[1:4],
+                                          yaw=int(item[4]) if len(item) == 5 else None)))
     if args.actor:
         if not args.at:
             a.error('--actor needs --at')
-        copies.append(dict(actor=args.actor, location=args.at, yaw=args.yaw))
+        st.copies.append(copy_record(dict(actor=args.actor, location=args.at, yaw=args.yaw)))
     import native_lights
-    if not copies and not hides and not covers and not buildings and not edits and not cleared and not landing_zones \
-            and not stream_tiles and not piece_flags and native_lights.is_empty(lights) and not effects and not sounds \
-            and not flares and not spawns and not piece_blasts:
+    if not st.copies and not st.hides and not st.covers and not st.buildings and not st.building_edits \
+            and not st.cleared and not st.landing_zones and not st.stream_tiles and not st.piece_flags \
+            and native_lights.is_empty(st.lights) and not st.effects and not st.sounds and not st.flares \
+            and not st.spawns and not st.piece_blasts:
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')
-    m = build(BuildState(args.src, args.out, args.variant, copies, args.bake, args.cache, args.receivers_near, args.jobs,
-                         tiles=not args.no_tiles, edit_spec=args.edit_spec, break_originals=break_originals,
-                         hides=hides, assemblies=assemblies, lights=lights, covers=covers, buildings=buildings,
-                         building_edits=edits, cleared=cleared, landing_zones=landing_zones,
-                         carried_effects=carried_effects, piece_cache=args.piece_cache, base=args.base,
-                         stream_tiles=stream_tiles, piece_flags=piece_flags, flag_ladders=flag_ladders,
-                         effects=effects, sounds=sounds, flares=flares, spawns=spawns, piece_blasts=piece_blasts))
+    m = build(st)
     # one line per copy; the whole record is the manifest's nativeCopies section
     for c in m['nativeCopies']['copies']:
         t = c['tiles']
