@@ -276,7 +276,9 @@ class KeptPieces(unittest.TestCase):
 
     def test_the_key_follows_the_code_the_images_depend_on_and_the_release(self):
         # (review finding 42) every file of the list is there, and every module of the tools the relight loads is in
-        # it but the writer of the variant, which only writes what the pieces give
+        # it but the writer of the variant, which only writes what the pieces give, and paths.py, which only puts
+        # folders on the import path (review finding 54; test_names.py keeps which file a name finds from depending
+        # on it)
         tools = HERE.parents[1]
         self.assertEqual([n for n in relight.TOOL_FILES if not (tools / n).is_file()], [])
         script = ('import sys; from pathlib import Path; t = Path(sys.argv[1]); sys.path.insert(0, str(t / "bake")); '
@@ -287,7 +289,7 @@ class KeptPieces(unittest.TestCase):
         loaded = subprocess.run([sys.executable, '-B', '-c', script, str(tools)], capture_output=True, text=True,
                                 check=True).stdout.split()
         self.assertTrue(loaded)
-        self.assertEqual(sorted(set(loaded) - set(relight.TOOL_FILES) - {'bake/lightmap_writer.py'}), [])
+        self.assertEqual(sorted(set(loaded) - set(relight.TOOL_FILES) - {'bake/lightmap_writer.py', 'paths.py'}), [])
         with tempfile.TemporaryDirectory() as d:
             args = ('P', self.FIELDS, [self.LAMP], [self.LAMP], [[['box', True]], []])
             key = relight.PieceCache(d, 'base', {}).key(*args)
