@@ -7,7 +7,8 @@ places the relight writes, and by `native_fields` for the transplant's reference
 [native_fields.py](../../tools/upk/native_fields.py) holds the one reader: `mesh_lods` (the licensee branch, once),
 `lod_record`, `lightmap_record`, `object_refs` and `bulk_record`, each value with its place in the package.
 
-- [lighting_records](../../tools/upk/lighting_records.py) gives its records from it in the same form and key order
+- [lighting_records](../../tools/upk/lighting_records.py) (which imports `native_fields` beside it, found as it was
+  itself) gives its records from it in the same form and key order
   (`component_record`, `lod_record`, `lightmap`, `refs`, `bulk_meta`), and `component_lods` with the rule that a
   StaticMeshComponent ends after its records; `bulk_meta` keeps its refusal of a negative count or size, which the
   shared reader can't have: a texture's unused mips in a separate file say -1 (40 of the Bar's Texture2D records).

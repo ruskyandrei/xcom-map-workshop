@@ -15,8 +15,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'viewer'))
 from package import Package, Reader, FormatError, cache_file, link_caches  # noqa: E402,F401 (the bakers read them here)
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import native_fields  # noqa: E402
+import native_fields  # noqa: E402   (beside this file: found as this module was)
 
 
 def digest(path):
