@@ -30,8 +30,9 @@ through the import map (fetched by `setup_vendor.py`, not tracked). The page dra
 project document. It asks the server through [`api.js`](tools/viewer/web/api.js), and keeps what a browser remembers
 through [`storage.js`](tools/viewer/web/storage.js). [`project.js`](tools/viewer/web/project.js) holds the document's
 shape on the page. What several of the page's areas use (the scene, its roots, the selection, the project open, the
-groups, the buildings, the cleared map's state, what the document session shares with other areas, and what Play in
-game goes by) lives in [`editor_state.js`](tools/viewer/web/editor_state.js). The open document's life is
+groups, the buildings, the cleared map's state, what the document session shares with other areas, what Play in
+game goes by, the prefab builder's document, the clipboard and the Add panel's lists) lives in
+[`editor_state.js`](tools/viewer/web/editor_state.js). The open document's life is
 [`document_session.js`](tools/viewer/web/document_session.js)'s: a project opened, saved and left, its unsaved state
 kept on the server as a draft against a lost tab and offered back, and the banner under the header. The scene to and
 from a document's state is [`document_state.js`](tools/viewer/web/document_state.js)'s: `editStateNow` reads the edits
@@ -43,8 +44,16 @@ game are [`build_play.js`](tools/viewer/web/build_play.js)'s: Build's panel and 
 end, Play's dialog and the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the
 prefab builder's Test in game and the build queue's chip. What a build status or a play's answer says, in words, is
 worked out without the page in [`build_window.js`](tools/viewer/web/build_window.js) and
-[`play.js`](tools/viewer/web/play.js). `window.viewer`, set in `startScene`, is the set of hooks the browser checks
-drive.
+[`play.js`](tools/viewer/web/play.js). The prefab builder (the page opened on a prefab) is
+[`builder_session.js`](tools/viewer/web/builder_session.js)'s: the prefab's document as the scene holds it, opened with
+a draft offered back and saved, its size line and the ground drawn under it, Align to grid, missing pieces looked for
+by recipe, and the Problems check. Prefabs saved and placed are [`prefab_place.js`](tools/viewer/web/prefab_place.js)'s:
+the selection (or the builder's whole document) as a prefab's records, the Save as prefab dialog and the save, the
+prefab's picture, and a prefab of the Add panel's Prefabs tab read into a clip and placed as a paste is. A prefab
+document's rules (its size and limits, its records normalized) are
+[`prefab_document.js`](tools/viewer/web/prefab_document.js)'s, and the Prefabs tab is
+[`prefabs.js`](tools/viewer/web/prefabs.js)'s. `window.viewer`, set in `startScene`, is the set of hooks the browser
+checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
 page and the editor's JSON routes. Its handler's `handle_<area>` methods hand each route to its area's module:
@@ -160,7 +169,9 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | Kind of work | Where it goes |
 | --- | --- |
 | An area of the page (a panel, a view, a tool) | A module of its own in `tools/viewer/web`. When it needs many of app.js's functions, it is made by a factory that takes them as one argument object: `createProjectDialog` in [`project_files.js`](tools/viewer/web/project_files.js) and `createQueueController` in [`build_queue.js`](tools/viewer/web/build_queue.js) are the model, and `createDocumentSession` in [`document_session.js`](tools/viewer/web/document_session.js) is one made from many of app.js's functions (section 3, "The page"). |
-| Opening, saving or leaving a document, its drafts kept for recovery, the banner under the header | [`document_session.js`](tools/viewer/web/document_session.js) (`createDocumentSession`). The prefab builder's own saving and opening are in app.js, with the builder, and share its drafts' state in [`editor_state.js`](tools/viewer/web/editor_state.js). |
+| Opening, saving or leaving a document, its drafts kept for recovery, the banner under the header | [`document_session.js`](tools/viewer/web/document_session.js) (`createDocumentSession`). The prefab builder's own saving and opening are in [`builder_session.js`](tools/viewer/web/builder_session.js), and share its drafts' state in [`editor_state.js`](tools/viewer/web/editor_state.js). |
+| The prefab builder: the prefab's document as the scene holds it, opened, kept and saved; its size line and the ground under it, Align to grid, missing pieces looked for by recipe, the Problems check | [`builder_session.js`](tools/viewer/web/builder_session.js) (`createBuilderSession`). A prefab document's rules (its size and limits, its records normalized onto its own grid) go in [`prefab_document.js`](tools/viewer/web/prefab_document.js), pure, with its node test, and the server's side in [`prefabs.py`](tools/viewer/prefabs.py). |
+| A prefab saved or placed: the selection as a prefab's records, the Save as prefab dialog, the save, the prefab's picture, a prefab of the Prefabs tab read and placed | [`prefab_place.js`](tools/viewer/web/prefab_place.js) (`createPrefabPlace`). The Add panel's Prefabs tab is [`prefabs.js`](tools/viewer/web/prefabs.js)'s browser; each piece's record is [`piece_records.js`](tools/viewer/web/piece_records.js)'s. |
 | Build and Play in game: Build's panel and its window, Play's dialog, the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the prefab builder's Test in game opened, the build queue's chip | [`build_play.js`](tools/viewer/web/build_play.js) (`createBuildPlay`). What a build status or a play's answer says, in words, goes in [`build_window.js`](tools/viewer/web/build_window.js) or [`play.js`](tools/viewer/web/play.js), pure, with their node tests; Build's panel itself is [`build_options.js`](tools/viewer/web/build_options.js), the test squad's dialog [`squad.js`](tools/viewer/web/squad.js), the prefab test's window [`prefab_test.js`](tools/viewer/web/prefab_test.js) and the queue's controller [`build_queue.js`](tools/viewer/web/build_queue.js). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
@@ -230,7 +241,7 @@ where there is one.
   - a collection (a `Map`, an array) is changed in place through the import as it is.
 
   A counter taken one step at a time has a `next<Name>()` beside its setter (`nextCopySerial()`, where app.js wrote
-  `++copySerial`).
+  `++copySerial`; `nextChooseToken()`).
 
   What one area alone uses lives in that area's module, inside its factory when it is made by one (the document
   session's `navigating`). What several areas use lives in [`editor_state.js`](tools/viewer/web/editor_state.js):
@@ -242,13 +253,18 @@ where there is one.
     glowing pieces, the count of pieces that could not be drawn, `allBuildings`' list;
   - what Play in game goes by and other areas read or set: the play status (the Missions panel reads its mission
     kinds), the picked landing zone (the Landing zones view picks it, Land here plays it) and the mission picker's
-    value.
+    value;
+  - what the prefab builder and prefabs saved and placed share with other areas: the builder's document (`builder`),
+    the edit hub's memo of one edit event (`eventMemo`: app.js's `editChanged` makes it, and `editState` and the
+    builder's document and key keep their answers in it), the map's families, the Add panel's piece list and Prefabs
+    tab, the clipboard and the Add panel's choice counter, other maps' pieces and effects as read with their maps'
+    hashes, the meshes loaded, and the saved prefabs' pictures waiting to be drawn.
 
   app.js still declares the state of the areas not yet moved out of it; new state never goes there. An assignment to
   an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
   searches for any assignment to the moved names left behind.
-- A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`)
-  takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
+- A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
+  `createBuilderSession`, `createPrefabPlace`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
   did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers
   stay as they were. app.js makes it after the functions and objects it is given, and before any code that runs as
   the page loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a
@@ -257,7 +273,13 @@ where there is one.
   its `banner` and `saveProject`, so the session is given `followBuild: (status, id) => followBuild(status, id)`.
   What runs as the page loads (a button's handler set, a key listener added, a dialog made) moves into the factory
   with its functions and runs when the factory is made. app.js makes the factory where that code was, so the page
-  sets things up in the order it did: the order of listeners on one target is the order they are called in.
+  sets things up in the order it did: the order of listeners on one target is the order they are called in. A factory
+  given a value app.js makes further down that is not a function (a constant, as the page session's `SESSION`) is
+  made after it instead, and what it sets up runs that much later: a change that moves it so checks that no other
+  code sets a handler on, or listens to, the same targets in between. The prefab builder's session and prefabs saved
+  and placed are made so, after the document session; they call each other (the builder's save opens the Save as
+  prefab dialog, whose Save saves the builder), so the first made is given the second's functions as functions that
+  call them.
   `moved_code.py` reads the functions a factory declares (`createX.f`) and finds them by their own names.
 - An added thing's record is written only through `piece_records.js`'s `recordOf` and read only through its
   `optionsOf`. A writer gathers what it knows of the thing (a unit: its names, source, components, pose, links,
