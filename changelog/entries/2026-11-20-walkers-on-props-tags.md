@@ -36,7 +36,13 @@ walker before and after (names, kinds, sizes, offsets, values, refusals). A diff
   writer makes. Cards read the same: the tests' cards, the install's 188 Maps lines and 453 LZArray lines each
   through a card, and the two cut cards refused alike; every export of both maps too (a card's reader refuses most of
   a map's properties, in the same words).
+- **[script_enums](../../tools/upk/script_enums.py)** (`_skip_properties`, the properties before an enum's names):
+  `props.tags` finds where they end; a refusal is still an `EnumError`, in its words. The old walk took a property
+  name's number as unsigned (an enum entry's still is: LWR's padded enums), took a bool's tag size on top of its one
+  byte and did not check a struct's or an enum's name; a cooked enum holds no property but its None. The 282 enums
+  of the install's XComGame.upk read the same (so `READER_VERSION` stays), and every export of both maps.
 
 Checked: each walker's module's tests after its commit (map_frame's 11, inline_lighting's 5, light_factory's 22 and
 native_lights' 30, the lighting fixture's 18 and native_fields' 12, relight's 28 and the Lightmass settings' 2,
-pack_card's 27 and the card's users' in the lab (20) and viewer suites (pack export 5, damaged inputs 6)).
+pack_card's 27 and the card's users' in the lab (20) and viewer suites (pack export 5, damaged inputs 6),
+script_enums' 8).
