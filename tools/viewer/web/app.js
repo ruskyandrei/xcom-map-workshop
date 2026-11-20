@@ -5162,7 +5162,9 @@ function buildStepDetail(key, stage, job, running) {
   // a build whose light edits change no texel (a light added switched off) keeps the map's lighting
   if (key === 'light' && stage?.lightingUnchanged) return ['lighting unchanged: no texel to relight', flagWords(stage.pieceFlags)].filter(Boolean).join('; ');
   if (key === 'light' && stage) return [`${plural(stage.written, 'piece')} relit`, `${stage.unchanged} unchanged`,
-                                        stage.hidden && `${stage.hidden} taken out`, flagWords(stage.pieceFlags)].filter(Boolean).join(', ');
+                                        stage.hidden && `${stage.hidden} taken out`, flagWords(stage.pieceFlags),
+                                        stage.otherPiecesChanged && `${plural(stage.otherPiecesChanged.count, 'piece')} not relit changed too (below)`]
+    .filter(Boolean).join(', ');
   if (!running) return '';
   const p = job.progress;
   if (p) return sentence(p.total ? `${p.what}: ${p.done} of ${p.total}` : `${p.what}…`);
@@ -5219,12 +5221,15 @@ function renderBuild() {
   goneList.hidden = !gone.length;
   goneList.replaceChildren();
   if (gone.length) {
-    text(goneList, 'li', `${plural((compiled.leftOut ?? 0) + (stages.leftout?.count ?? 0) || gone.length, 'piece')} left out of this build: ${gone.length === 1 ? 'it' : 'they'} can't be built. The rest ${running ? 'is being built' : built ? 'is built' : 'was being built'}.`, 'head');
+    // the heading's count and the "… and N more" line's agree: the compiler's and the Build's own left-out pieces
+    const goneCount = (compiled?.leftOut ?? compiled?.leftOutPieces?.length ?? 0) + (stages.leftout?.count ?? 0) || gone.length;
+    const shownGone = Math.min(gone.length, 50);
+    text(goneList, 'li', `${plural(goneCount, 'piece')} left out of this build: ${gone.length === 1 ? 'it' : 'they'} can't be built. The rest ${running ? 'is being built' : built ? 'is built' : 'was being built'}.`, 'head');
     for (const row of gone.slice(0, 50)) {
       const li = text(goneList, 'li', row.message, row.actor ? 'pick' : '');
       if (row.actor) { li.title = `Select ${short(row.actor)}`; li.onclick = () => selectActors([row.actor]); }
     }
-    if ((compiled.leftOut ?? gone.length) > 50) text(goneList, 'li', `… and ${(compiled.leftOut ?? gone.length) - 50} more (the build's compile-report.json has them all)`);
+    if (goneCount > shownGone) text(goneList, 'li', `… and ${goneCount - shownGone} more (the build's compile-report.json has them all)`);
   }
   // what the edit does to the missions the variant keeps (the compiler's mission warnings, mission types plan C3), by
   // mission: warnings only, the build goes on
@@ -5272,6 +5277,12 @@ function renderBuild() {
   if (built && pkg) {
     pathLink(result, pkg.folder);
     text(result, 'small', pkg.files.join(' · '));
+    // the relight's writes reached the lightmaps of pieces it was not relighting (build.py other_pieces_changed)
+    const other = stages.light?.otherPiecesChanged;
+    if (other) {
+      const piece = p => { const parts = String(p).split('.'); return parts.length > 1 && /Component/.test(parts.at(-1)) ? parts.at(-2) : parts.at(-1); };
+      text(result, 'div', `Writing the lighting also changed ${other.texels} texels (by up to ${Math.round(100 * (other.largest ?? 0))}%) in the lightmaps of ${plural(other.count, 'piece')} it did not relight: ${(other.pieces ?? []).slice(0, 6).map(piece).join(', ')}${other.count > 6 ? ', …' : ''}. Their lighting there differs from the map's own bake.`);
+    }
   } else if (status.state === 'failed' || cancelled) {
     if (wantsPrepare) text(result, 'div', `The editor's copy of ${mapLabel(activeMapId)} is older than this build needs. Prepare the map again, then build.`, 'remedy');
     text(result, 'div', job.error ?? 'See the log.');

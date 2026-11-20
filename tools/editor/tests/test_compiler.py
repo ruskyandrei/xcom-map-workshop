@@ -355,10 +355,12 @@ class CompilerTests(unittest.TestCase):
         _, report = compile_project(document(spawnRules=dict(dropIns='placed'), missions=[dict(record=0)]), s)
         note = next(n for n in report['notes'] if n['code'] == 'dropins-placed')
         self.assertEqual((note['actions'], note['missions']), (2, ['Abduction']))
-        # not a rule this editor knows: refused
+        # not a rule this editor knows: left out (refused until review finding 39), the drop-ins as the install has them
         for bad in (dict(dropIns='install'), dict(dropIns='placed', waves='placed'), 'placed', []):
-            _, report = compile_project(document(spawnRules=bad), s)
+            spec, report = compile_project(document([dict(target=target('XComLevelActor_2'), deleted=True)], spawnRules=bad), s)
             self.assertEqual(codes(report), ['spawn-rules'], bad)
+            self.assertTrue(report['ok'], bad)
+            self.assertEqual((report['spawnRules'], native_split(spec)[1].get('spawnRules')), (None, None))
         # none: no note, nothing passed on
         spec, report = compile_project(document([dict(target=target('XComLevelActor_2'), deleted=True)]), s)
         self.assertEqual((noted(report, 'dropins'), report['spawnRules'], native_split(spec)[1].get('spawnRules')), ([], None, None))
@@ -611,12 +613,18 @@ class CompilerTests(unittest.TestCase):
         self.assertEqual(warned(report, 'mission-'), [])
 
     def test_the_projects_missions_list_is_checked(self):
-        # mission types plan, D1: a list the Build can't write is an error; a UFO mission wants a UFO building
+        # mission types plan, D1: an entry the Build can't write is left out, and a list that keeps none is as no list:
+        # every record (an error until review finding 39); a UFO mission wants a UFO building
         s, _ = self.mission_scene()
         base = [dict(target=target('XComLevelActor_2'), deleted=True)]
         for bad in ([], 'all', [dict(record=2)], [dict(kind='Crash')], [dict(kind='TerrorSite', ship='eShip_UFOSmallScout')]):
             _, report = compile_project(document(base, missions=bad), s)
             self.assertEqual(codes(report), ['missions'], bad)
+            self.assertTrue(report['ok'], bad)
+            self.assertIsNone(report['missions'], bad)
+            self.assertEqual(noted(report, 'missions-all'), ['missions-all'], bad)
+        _, report = compile_project(document(base, missions=[dict(record=2), dict(record=0)]), s)
+        self.assertEqual(([d['record'] for d in report['leftOut']], report['missions']), (['missions[0]'], [dict(record=0)]))
         _, report = compile_project(document(base, missions=[dict(record=1), dict(kind='Crash', ship='eShip_UFOSmallScout'),
                                                              dict(kind='Special/Bomb')]), s)
         self.assertTrue(report['ok'], refused(report))
@@ -815,15 +823,20 @@ class CompilerTests(unittest.TestCase):
         self.assertEqual(spec['objects'], [])
         self.assertEqual([w['code'] for w in report['warnings']], ['group-not-linked'])
 
-    def test_malformed_groups_are_refused(self):
+    def test_malformed_groups_are_left_out(self):
+        # (refused until review finding 39: a group is left out, and the rest builds)
         one = {'added': PL + 'XComDestructibleActor_4_copy1'}
         for bad in (dict(id='g', members=[one]), dict(id='g', members=[one, one]), dict(members=[one, target('XComLevelActor_1')]),
                     dict(id='g', members=[one, dict(actor='x')]), dict(id='g', breakTogether='yes', members=[one, target('XComLevelActor_1')]), 'g'):
             spec, report = compile_project(document([], [add('XComDestructibleActor_4', 1, (0, -500, 0))], groups=[bad]), scene())
-            self.assertIsNone(spec)
+            self.assertTrue(report['ok'], bad)
             self.assertEqual(codes(report), ['malformed'], bad)
+            self.assertEqual([d['record'] for d in report['leftOut']], ['groups[0]'])
+            self.assertEqual(spec['objects'][0]['labels'], ['XComDestructibleActor_4_copy1'])
+            self.assertNotIn('breakGroups', spec['objects'][0])
         spec, report = compile_project(document(groups='g'), scene())
         self.assertEqual(codes(report), ['malformed'])
+        self.assertTrue(report['ok'])
 
     def test_collectibles_build_like_destructible_props_and_warn_about_loot(self):
         doc = document([dict(target=target('XComCollectible_10'), location=[96, -600, 0], rotation=[0, 0, 0])],
@@ -1191,6 +1204,8 @@ class StageTests(unittest.TestCase):
         self.assertIn('stage-grown-map', noted(report))
         _, report = self.run_stage({'grid': [20, 39]}, name='URB_Bar')
         self.assertEqual(codes(report), ['stage-grid'])
+        # (left out since review finding 39: the map keeps its size and the rest builds)
+        self.assertEqual((report['ok'], report['stageGrid'], [d['record'] for d in report['leftOut']]), (True, None, ['stage']))
         # higher as it is (the user, 13 November 2026): taken, the note saying where the cursor's new floors come from
         _, report = self.run_stage({'grid': [52, 39, 16]}, name='URB_Bar')
         self.assertTrue(report['ok'], refused(report))
@@ -1426,6 +1441,7 @@ class ClearTests(unittest.TestCase):
         self.assertIn('stage-grown-map', noted(report))
         _, report = compile_project(document(cleared='yes'), s)
         self.assertEqual(codes(report), ['cleared-shape'])
+        self.assertEqual((report['ok'], report['cleared']), (True, False))      # left out: not cleared (finding 39)
 
     def test_a_cleared_maps_grid_may_be_smaller_or_larger(self):
         s = clear_scene()
@@ -1533,11 +1549,14 @@ class ClearTests(unittest.TestCase):
         # none
         _, report = compile_project(document(landingZones=[]), s)
         self.assertEqual(warned(report, 'landing'), ['landing-none'])
-        # malformed: nothing to build from
-        for zones in ('none', [dict(ZONE, direction='up')], [ZONE, ZONE]):
+        # malformed (review finding 39): the zone is left out and the rest are the variant's; a list that is no list,
+        # or whose zones are all left out, is as none (the base map's lines copied), never a refusal
+        for zones, kept in (('none', None), ([dict(ZONE, direction='up')], None), ([ZONE, ZONE], [ZONE]),
+                            ([dict(ZONE, direction='up'), second], [second])):
             spec, report = compile_project(document(landingZones=zones), s)
-            self.assertIsNone(spec)
-            self.assertIn('landing-shape', codes(report))
+            self.assertTrue(report['ok'], refused(report))
+            self.assertIn('landing-shape', [d['code'] for d in report['leftOut']])
+            self.assertEqual((spec.get('landingZones') or {}).get('zones'), kept)
 
     def test_a_zone_over_no_floor_or_under_a_piece(self):
         s = clear_scene()
@@ -1743,6 +1762,11 @@ class MapBuildingTests(unittest.TestCase):
                     dict(id='b', name='Hut', floors=[dict(boxes=[[0, 0, 0, 96, 96, 96]], volumes=[None])])):
             _, report, _ = self.compiled([bad])
             self.assertEqual(codes(report), ['building-shape'], bad)
+            self.assertTrue(report['ok'], bad)          # left out, the rest built (review finding 39)
+        # one bad record among good ones: only it is left out
+        _, report, _ = self.compiled([dict(id='b', name='Hut', floors=[dict(boxes=[[0, 0, 0, 96, 96, 96]], volumes=[None])]),
+                                      self.shed()])
+        self.assertEqual(([d['record'] for d in report['leftOut']], report['ok']), (['buildings[0]'], True))
 
     def test_a_group_may_hold_a_map_building_with_no_record(self):
         g = dict(id='g', locked=True, breakTogether=False, members=[target('XComLevelActor_1'), dict(building=self.SHED)])
@@ -1784,11 +1808,13 @@ class BuildingTests(unittest.TestCase):
         self.assertEqual([e['id'] for e in report['groups']], ['a', 'b', 'c'])
         # a group of one group and one piece; a group that breaks together skips the group inside it
         self.assertEqual(codes(run(inner, g('c', dict(group='a'), piece(3), breakTogether=True))), [])
-        # named groups must be the project's, in one group at most, and in no loop
-        self.assertEqual(codes(run(inner, g('c', dict(group='zz'), piece(3)))), ['group-nesting'])
-        self.assertEqual(codes(run(g('a', dict(group='a'), piece(1)))), ['group-nesting'])
-        self.assertEqual(codes(run(inner, g('c', dict(group='a'), piece(3)), g('d', dict(group='a'), piece(4)))), ['group-nesting'])
-        self.assertEqual(codes(run(g('a', dict(group='b'), piece(1)), g('b', dict(group='a'), piece(2)))), ['group-nesting'])
+        # named groups must be the project's, in one group at most, and in no loop: else a note (refused until review
+        # finding 39; nothing of nesting reaches the game, so the groups build as they are)
+        nested = lambda report: (codes(report), [n['code'] for n in report['notes'] if n['code'] == 'group-nesting'])  # noqa: E731
+        self.assertEqual(nested(run(inner, g('c', dict(group='zz'), piece(3)))), ([], ['group-nesting']))
+        self.assertEqual(nested(run(g('a', dict(group='a'), piece(1)))), ([], ['group-nesting']))
+        self.assertEqual(nested(run(inner, g('c', dict(group='a'), piece(3)), g('d', dict(group='a'), piece(4)))), ([], ['group-nesting']))
+        self.assertEqual(nested(run(g('a', dict(group='b'), piece(1)), g('b', dict(group='a'), piece(2)))), ([], ['group-nesting']))
 
     def test_a_group_holds_lights_and_buildings_which_only_move_with_it(self):
         g = lambda gid, *members, **more: dict(dict(id=gid, locked=True, breakTogether=False, members=list(members)), **more)

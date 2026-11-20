@@ -98,6 +98,26 @@ class Contained(unittest.TestCase):
             time.sleep(0.5)
             self.assertFalse(ran.exists())
 
+    def test_a_child_in_a_folder_of_any_name_writes_its_output_in_utf8(self):
+        """A piped Python child writes in the system's code page unless told otherwise; launch tells it UTF-8, so a
+        folder whose name that code page lacks (Cyrillic on a Western system) is printed, not fatal. The test's own
+        environment is stripped of the variables first (the test runner sets one)."""
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / 'Сборка карт'
+            folder.mkdir()
+            script = folder / 'tool.py'
+            script.write_text('import sys\nprint(sys.stdout.encoding)\nprint(__file__)\n', encoding='utf-8')
+            bare = {k: v for k, v in __import__('os').environ.items() if k not in ('PYTHONUTF8', 'PYTHONIOENCODING')}
+            c = procs.launch([sys.executable, '-B', str(script)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             text=True, encoding='utf-8', errors='replace', env=bare)
+            self.addCleanup(c.close)
+            out = c.proc.stdout.read()
+            self.assertEqual(c.proc.wait(), 0, out)
+            encoding, path = out.splitlines()[:2]
+            self.assertEqual(encoding.lower().replace('-', ''), 'utf8')
+            self.assertEqual(Path(path), script)
+            c.proc.stdout.close()
+
     def test_identity_names_a_live_process_and_not_a_dead_one(self):
         p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])
         born = procs.identity(p.pid)

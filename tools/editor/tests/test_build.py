@@ -306,12 +306,33 @@ class LightCounts(unittest.TestCase):
                                                before=dict(location=[1.0, 2.0, 3.0], rotation=[0, 0, 0]))]))
         self.assertEqual((build.light_counts(still)['moved'], build.light_counts(still)['changed']), (0, 0))
 
-    def test_the_quick_build_light_text_stays_conditional_until_the_game_test(self):
-        # plan 4.3: until EXP-26 run 2 is played, the unbaked behaviour is stated as to be confirmed
-        self.assertIn('still to be confirmed (EXP-26 run 2)', build.QUICK_LIGHTS)
+    def test_the_quick_build_light_text_says_what_is_not_baked(self):
+        # plan 4.3, said plainly (review finding 44: the editor never says a thing waits for a game test)
         for limitation in ('a deleted light\'s pool stays on the baked surfaces', 'an added light has no baked light',
                            'the old glow stays baked where it was'):
             self.assertIn(limitation, build.QUICK_LIGHTS)
+        for doubt in ('to be confirmed', 'not yet known', 'EXP-26'):
+            self.assertNotIn(doubt, build.QUICK_LIGHTS)
+
+
+class ToolRunner(unittest.TestCase):
+    def test_a_tool_in_a_folder_the_code_page_lacks_runs_and_is_logged(self):
+        """Build._run starts each tool with UTF-8 for its output (procs.utf8_env): a builds folder under a Cyrillic user
+        name is printed, where a tool writing in the system's code page stopped at its first path. The test's own
+        environment is stripped of the variables first (the test runner sets one)."""
+        import os
+        with tempfile.TemporaryDirectory() as temp:
+            folder = Path(temp) / 'Иван' / 'builds'
+            folder.mkdir(parents=True)
+            tool = folder / 'tool.py'
+            tool.write_text('import sys\nprint("work folder: " + sys.argv[1])\n', encoding='utf-8')
+            said = []
+            b = build.Build(folder / 'project.json', temp, folder, temp, None, echo=said.append)
+            bare = {k: v for k, v in os.environ.items() if k not in ('PYTHONUTF8', 'PYTHONIOENCODING')}
+            with mock.patch.dict(os.environ, bare, clear=True):
+                b._run([sys.executable, '-B', tool, folder / '.work'], folder / 'tool.log')
+            self.assertIn('    work folder: %s' % (folder / '.work'), said)
+            self.assertIn('work folder: %s' % (folder / '.work'), (folder / 'tool.log').read_text(encoding='utf-8'))
 
 
 class Builds(unittest.TestCase):
@@ -446,7 +467,9 @@ class Builds(unittest.TestCase):
                 self.flag_fixture(args, lit, variant)
             (lit / ('%s.relight.json' % variant)).write_text(json.dumps(dict(
                 components=[1, 2], unchanged=[3], skipped=[], copies=[] if native else [dict(source='X_1', triangles=5)],
-                nativeCopies=[dict(copy='XComLevelActor_99', source='XComLevelActor_1')] if native else [])))
+                nativeCopies=[dict(copy='XComLevelActor_99', source='XComLevelActor_1')] if native else [],
+                # the relight's record of texels its writes changed in pieces it didn't relight (lighting_fixture)
+                otherPiecesChanged=getattr(self, 'other_changed', dict(textures=0, pieces=[], texels=0, largest=0.0)))))
 
     def tool(self, name):
         return [r for r in self.ran if r[0] != 'pwsh' and any(a.endswith(name) for a in r)]
@@ -1093,6 +1116,26 @@ class Builds(unittest.TestCase):
             self.make(udk=False).run()
         self.assertEqual([r for r in self.ran if r[0] == 'pwsh'], [])
 
+    def test_texels_changed_in_pieces_not_relit_reach_the_light_stage(self):
+        """(review finding 15) The relight's record of texels its writes changed in the lightmaps of pieces it was not
+        relighting reaches the light stage as a record of its own (count, largest change, the first pieces), by both
+        command lines (native_copy.py --bake, and relight.py alone); a clean record adds nothing."""
+        pieces = ['TheWorld.PersistentLevel.XComLevelActor_%d.StaticMeshComponent_0' % k for k in range(25)]
+        self.other_changed = dict(textures=2, pieces=pieces, texels=37, largest=0.21)
+        for stamp, objects, tool in (('110000', [COPY, DOOR, HIDE], 'native_copy.py'), ('111500', [DOOR], 'relight.py')):
+            with self.subTest(tool=tool):
+                self.ran.clear()
+                self.spec['objects'] = objects
+                m = self.make(stamp).run()
+                self.assertTrue(any('--cache' in r for r in self.tool(tool)))
+                other = next(s for s in m['stages'] if s['stage'] == 'light')['otherPiecesChanged']
+                self.assertEqual({k: other[k] for k in ('texels', 'largest', 'count', 'textures')},
+                                 dict(texels=37, largest=0.21, count=25, textures=2))
+                self.assertEqual(other['pieces'], pieces[:build.OTHER_SHOWN])
+        self.other_changed = dict(textures=0, pieces=[], texels=0, largest=0.0)
+        m = self.make('112000').run()
+        self.assertNotIn('otherPiecesChanged', next(s for s in m['stages'] if s['stage'] == 'light'))
+
     def test_the_copiers_copies_stay_in_the_patch(self):
         self.spec['objects'] = [DOOR]
         m = self.make().run()
@@ -1129,6 +1172,73 @@ class Builds(unittest.TestCase):
             self.make().run()
         self.assertEqual(self.ran, [])
 
+    def test_a_project_whose_only_change_is_its_missions_builds(self):
+        """(review finding 39) The missions list and the map picture are changes like any other: a project that only
+        narrows its missions, or only gives its map a picture (the LWR 3 map packs' use), builds the map unchanged
+        with them, its lighting kept."""
+        self.spec['objects'] = []
+        self.doc['missions'] = [dict(record=0)]
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        m = self.make().run()
+        self.assertTrue(m['lightingUnchanged'])
+        self.assertEqual((m['config']['missionsFromProject'], m['config']['missions']), (True, ['Abduction']))
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), BASE)
+
+    def test_a_project_whose_only_change_is_its_picture_builds(self):
+        self.spec['objects'] = []
+        digest = self.with_picture()
+        m = self.make('111500').run()
+        self.assertEqual((m['lightingUnchanged'], m['picture']['sha256']), (True, digest))
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(),
+                         BASE + b' +picture ' + digest.encode())
+
+    def test_the_missions_the_compiler_keeps_are_the_records_written(self):
+        """(review finding 39) An entry of the missions list the compiler leaves out is not written either: the
+        records are the report's `missions` (None: every record of the base map)."""
+        self.doc['missions'] = [dict(record=5), dict(record=0)]
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        self.report['missions'] = [dict(record=0)]
+        self.assertEqual(self.make().run()['config']['missions'], ['Abduction'])
+        self.report['missions'] = None          # none of its entries could be written: every record
+        m = self.make('111500').run()
+        self.assertNotIn('missionsFromProject', m['config'])
+
+    def test_a_map_size_the_compiler_left_out_is_not_read(self):
+        """(review finding 39) The compiler leaves out a size it can't build (record `stage`) and the rest builds: the
+        shell stage then reads nothing of `stage`, and the map keeps its own size."""
+        sys.path.insert(0, str(Path(build.__file__).resolve().parents[1] / 'bake'))
+        import package
+        import shell
+        self.doc['stage'] = dict(grid=[20, 10], lines=True)
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        with mock.patch.object(package, 'Package', lambda path: None), \
+                mock.patch.object(shell, 'needs', lambda p, building=False: []):
+            # the same size, kept: the shell stage runs on it
+            self.make().run()
+            self.assertEqual(len(self.tool('shell.py')), 1)
+            self.ran.clear()
+            self.report['leftOut'] = [dict(code='stage-grid', message='the size is left out', record='stage')]
+            m = self.make('111500').run()
+        self.assertEqual(self.tool('shell.py'), [])
+        self.assertNotIn('shell', m)
+        self.assertEqual(m['leftOut'], [dict(actor='', code='stage-grid', message='the size is left out')])
+
+    def test_a_picture_that_cannot_be_written_is_a_note_and_the_bake_is_kept(self):
+        """(review finding 39) A picture the writer fails on no longer fails the build after its whole bake: it is a
+        note, and the map is built without a picture of its own."""
+        self.with_picture()
+
+        def broken(src, dst, png):
+            raise ValueError('not a picture the writer can read')
+        b = self.make()
+        b.picture_tool = broken
+        m = b.run()
+        self.assertNotIn('picture', m)
+        self.assertIn('could not be written', m['pictureNote'])
+        self.assertIn('not a picture the writer can read', m['pictureNote'])
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(),
+                         b'inside relit map 1 seeded with lightmaps')
+
     def test_patchtool_works_in_the_builds_folder_by_default(self):
         import datetime
         b = build.Build(self.project, self.tmp.name, self.output, self.lwr, self.udk, now=datetime.datetime(2026, 11, 7),
@@ -1160,6 +1270,38 @@ class Builds(unittest.TestCase):
         q = self.make('111000', quick=True).run()
         self.assertEqual((q['picture'], q['stages'][-1]['stage']), (dict(sha256=digest, format='DXT1'), 'picture'))
         self.assertTrue(built.read_bytes().endswith(b' +picture ' + digest.encode()))
+
+    def test_a_snapshots_build_takes_the_picture_captured_beside_it(self):
+        """(review finding 12) A build of the server's snapshot (--saved-file) takes the picture captured beside it
+        (project.picture.png) and nothing else: a picture chosen since, kept with the project, is not this build's. The
+        manifest names the bytes it read."""
+        import pictures
+        digest = self.with_picture()
+        attempt = Path(self.tmp.name) / 'attempt'
+        attempt.mkdir()
+        snapshot = attempt / 'project.json'
+        snapshot.write_bytes(self.project.read_bytes())
+        kept = self.project.parent / '.workshop' / PICTURE_PROJECT / 'picture.png'
+        pictures.beside(snapshot).write_bytes(kept.read_bytes())
+        self.with_picture(colour=(200, 10, 10))         # chosen since: the store's now, not the snapshot's
+
+        def make(stamp):
+            import datetime
+            return build.Build(snapshot, self.tmp.name, self.output, self.lwr, self.udk, patch_work=self.work,
+                               now=datetime.datetime(2026, 11, 7, 11, int(stamp), 0), run=self.run_tool, seed=self.seed,
+                               echo=self.said.append, named=self.name_copy, picture=self.picture_copy,
+                               projects=self.project.parent, saved_file=self.project)
+        m = make('0').run()
+        (_, _, png), = self.pictured
+        self.assertEqual(Path(png), pictures.beside(snapshot))
+        self.assertEqual(m['picture']['sha256'], digest)
+        self.assertEqual((m['project']['sha256'], m['project']['file']),
+                         (hashlib.sha256(snapshot.read_bytes()).hexdigest(), str(self.project)))
+        # with no copy beside it, the build says the picture is missing (the store's is another)
+        pictures.beside(snapshot).unlink()
+        m = make('5').run()
+        self.assertNotIn('picture', m)
+        self.assertIn('not on this computer', m['pictureNote'])
 
     def test_a_project_without_a_map_picture_builds_none(self):
         m = self.make().run()
@@ -1466,6 +1608,40 @@ class Builds(unittest.TestCase):
         self.assertTrue(other.is_dir())
         self.assertTrue((work / 'pieces' / VARIANT / 'kept.npz').is_file())
 
+    def test_a_failed_build_prunes_old_work_too(self):
+        """(review findings 49 and 62) The prune runs after a failed build as after a built one: its own work folder
+        and kept pieces stay as they are, however old, and kept pieces no build has used for PIECE_DAYS go. A
+        variant no project ships as is left whole: the build knows one projects folder (the server prunes those)."""
+        import os
+        import time
+        import builds as build_runs
+        work = self.output / '.work'
+        for stamp in ('20261101-100000', '20261102-100000', '20261103-100000'):
+            old = work / ('%s-%s' % (VARIANT, stamp))
+            (old / 'lit').mkdir(parents=True)
+            (old / 'lit' / 'URB_Bar.upk').write_bytes(b'x' * 10)
+            (old / 'logs').mkdir()
+        unowned = work / 'Nobodys_Variant-20261001-100000' / 'lit'
+        unowned.mkdir(parents=True)
+        long_ago = time.time() - (build_runs.PIECE_DAYS + 1) * 86400
+        stale, own = work / 'pieces' / 'Other_Variant', work / 'pieces' / VARIANT
+        for kept in (stale, own):
+            kept.mkdir(parents=True)
+            (kept / 'piece.npz').write_bytes(b'kept')
+            os.utime(kept / 'piece.npz', (long_ago, long_ago))
+            os.utime(kept, (long_ago, long_ago))
+        self.failing = 'native_copy'
+        with self.assertRaises(build.BuildError):
+            self.make('110000').run()
+        self.assertEqual([f.name for f in (work / ('%s-20261101-100000' % VARIANT)).iterdir()], ['logs'])
+        self.assertTrue((work / ('%s-20261102-100000' % VARIANT) / 'lit' / 'URB_Bar.upk').is_file())
+        failed, = (f for f in work.glob('%s-20261107-110000*' % VARIANT))
+        self.assertTrue((failed / 'logs').is_dir())
+        self.assertFalse(stale.exists())
+        self.assertTrue((own / 'piece.npz').is_file())
+        self.assertTrue(unowned.is_dir())
+        self.assertTrue(any('old build work pruned' in line for line in self.said))
+
     def test_a_failed_build_leaves_the_last_good_package(self):
         first = self.make('110000').run()
         self.failing = 'native_copy'
@@ -1473,13 +1649,22 @@ class Builds(unittest.TestCase):
             self.make('112000').run()
         self.assertEqual(json.loads((self.output / VARIANT / 'manifest.json').read_text())['buildId'], first['buildId'])
 
-    def failing_once(self, tool):
-        """The first run of `tool` fails; later ones go through."""
+    def failing_once(self, tool, says='', times=1):
+        """The first `times` runs of `tool` fail as Build._run says a failure ("<tool> failed (exit 1); see <log>"),
+        their log ending with `says` (a str, or one per failure); later ones go through."""
         runs, plain = [], Builds.run_tool.__get__(self)
 
         def run(args, log):
             mine = any(tool in str(a) for a in args)
-            self.failing = tool if mine and not runs else None
+            if mine and '--copies' in [str(a) for a in args]:     # the edit as this run was given it
+                self.edits_seen = getattr(self, 'edits_seen', []) + [
+                    json.loads(Path(args[[str(a) for a in args].index('--copies') + 1]).read_text(encoding='utf-8'))]
+            if mine and len(runs) < times:
+                runs.append(1)
+                self.ran.append([str(a) for a in args])
+                text = says if isinstance(says, str) else says[len(runs) - 1]
+                Path(log).write_text('ran\nTraceback (most recent call last):\nValueError: %s\n' % text, encoding='utf-8')
+                raise build.BuildError('%s failed (exit 1); see %s' % (tool, log))
             if mine:
                 runs.append(1)
             return plain(args, log)
@@ -1493,7 +1678,7 @@ class Builds(unittest.TestCase):
                        **{'from': ['SkeletalMeshActor_30']})
         moved = dict(HIDE, alsoHide=['SkeletalMeshActor_30'], labels=['move:SkeletalMeshActor_30'])
         self.spec['objects'] = [tried, untried, moved]
-        self.failing_once('native_copy')
+        self.failing_once('native_copy', 'bad property name in TheWorld.PersistentLevel.SkeletalMeshActor_30')
         m = self.make().run()
         first, second = self.tool('native_copy.py')
         edit = json.loads(Path(second[second.index('--copies') + 1]).read_text(encoding='utf-8'))
@@ -1515,10 +1700,59 @@ class Builds(unittest.TestCase):
         # an edit of untried pieces alone: nothing is left to build
         self.ran.clear()
         self.spec['objects'] = [dict(COPY, untried=[True])]
-        self.failing_once('native_copy')
+        self.failing_once('native_copy', 'making XComLevelActor_1_copy1 failed')
         with self.assertRaises(build.BuildError) as caught:
             self.make('112000').run()
         self.assertIn('nothing of the project can be built', str(caught.exception))
+
+    def test_a_failure_that_names_no_untried_piece_is_not_run_again(self):
+        """(review finding 40) Untried copies are dropped and the stages run again only when the failing tool names
+        one of them (its message or its log's last lines); else the failure is the build's own, said at once."""
+        self.spec['objects'] = [dict(COPY, untried=[True])]
+        self.failing_once('native_copy', 'the disk is full')
+        with self.assertRaisesRegex(build.BuildError, 'native_copy failed'):
+            self.make().run()
+        self.assertEqual(len(self.tool('native_copy.py')), 1)
+
+    def test_only_the_untried_pieces_a_failure_names_are_dropped_with_what_depends_on_them(self):
+        """(review finding 40) Of two untried copies, the one the failure names is dropped, with its glow light and
+        its group (left with one piece, which no longer breaks with anything); a second failure that names the other
+        drops it too, and the stage lists both. The 'nothing left' test is the compile step's (has_work): a mission
+        object's move left keeps the build going."""
+        first = dict(COPY, labels=['SkeletalMeshActor_30_copy1'], classes=['SkeletalMeshActor'], untried=[True],
+                     breakGroups=[1], **{'from': ['SkeletalMeshActor_30']})
+        second = dict(COPY, labels=['SkeletalMeshActor_31_copy2'], classes=['SkeletalMeshActor'], untried=[True],
+                      **{'from': ['SkeletalMeshActor_31']})
+        prop = dict(COPY, labels=['XComDestructibleActor_4_copy3'], classes=['XComDestructibleActor'], breakGroups=[1],
+                    untried=[False], **{'from': ['XComDestructibleActor_4']})
+        glow = dict(LIGHTS, deletes=[], changes=[], adds=[], area=[
+            dict(op='copy', name='GeneratedMeshAreaLight_1_SkeletalMeshActor_30_copy1', light='GeneratedMeshAreaLight_1',
+                 owner='SkeletalMeshActor_30', ownerEntity='SkeletalMeshActor_30_copy1', location=[0, 0, 0], rotation=[0, 0, 0])])
+        self.spec['objects'] = [first, second, prop, glow]
+        self.failing_once('native_copy', ['bad property in SkeletalMeshActor_30_copy1', 'SkeletalMeshActor_31 has no mesh'], times=2)
+        m = self.make().run()
+        self.assertEqual(len(self.tool('native_copy.py')), 3)
+        before, edit, last = self.edits_seen
+        self.assertEqual(before['copies'][2]['breakGroup'], 1)
+        # after the first: the named copy gone, its glow light with it, and its group (now one prop) unlinked
+        self.assertEqual([c['label'] for c in edit['copies']], ['SkeletalMeshActor_31_copy2', 'XComDestructibleActor_4_copy3'])
+        self.assertNotIn('breakGroup', edit['copies'][1])
+        self.assertEqual(edit['lights']['area'], [])
+        self.assertEqual([c['label'] for c in last['copies']], ['XComDestructibleActor_4_copy3'])
+        stage = [s for s in m['stages'] if s['stage'] == 'leftout'][-1]
+        self.assertEqual(([p['actor'] for p in stage['pieces']], stage['count']),
+                         (['SkeletalMeshActor_30_copy1', 'SkeletalMeshActor_31_copy2'], 2))
+        self.assertEqual([s.get('groupsUnlinked') for s in m['stages'] if s['stage'] == 'leftout'], [[1], None])
+        self.assertIsNone(m['lights'])
+        # the compile step's own test: untried copies alone beside a mission object's move still leave work
+        self.ran.clear()
+        self.spec['objects'] = [dict(second, breakGroups=[0])]
+        self.spec['streamMoves'] = {'URB_Bar_CNH': [dict(actor='XComSpawnPoint_1', location=[0, 0, 0], rotation=[0, 0, 0])]}
+        self.failing_once('native_copy', 'SkeletalMeshActor_31 has no mesh')
+        b = self.make('113000')
+        b.stream_tile_boxes = lambda: []
+        b.stream_copies = lambda cooked: {}
+        self.assertIn('leftout', [s['stage'] for s in b.run()['stages']])
 
     def test_a_project_that_does_not_compile_builds_nothing(self):
         self.spec = None
@@ -1583,7 +1817,7 @@ class Builds(unittest.TestCase):
         self.assertEqual(q['stages'][3]['lights']['added'], 2)
         readme = (self.output / VARIANT / 'README.txt').read_bytes().decode('latin-1')
         self.assertIn(build.QUICK_LIGHTS, readme)
-        self.assertIn('EXP-26 run 2', readme)
+        self.assertNotIn('EXP-26', readme)
         self.assertNotIn('Each added, moved or changed light is baked', readme)
 
     def test_a_full_build_that_changes_no_lighting_ships_the_edited_map_without_a_cache(self):

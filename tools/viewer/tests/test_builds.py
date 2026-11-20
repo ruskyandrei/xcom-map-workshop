@@ -13,6 +13,7 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest import mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -177,6 +178,71 @@ class Builds(unittest.TestCase):
         self.assertEqual((s['package']['foreignPieces'], s['package']['foreignEffects'], s['package']['donors']),
                          (2, 0, [dict(map='URB_PoliceStation', pieces=2, effects=None, bytes=1234)]))
 
+    def test_a_build_reads_the_project_and_its_picture_as_captured(self):
+        """(review finding 12) The editor's Build captures the saved project, and the picture it names, into an attempt
+        folder before build.py starts, as the build queue does: a save under another name and two new pictures after
+        the capture change nothing of the build, and the job, the package and the bug report name the same bytes. A
+        retry after Cancel captures again."""
+        import hashlib
+        import io
+        import zipfile
+        from PIL import Image
+        import pictures
+
+        def png(colour):
+            out = io.BytesIO()
+            Image.new('RGB', (512, 256), colour).save(out, 'PNG')
+            return out.getvalue()
+        first = pictures.save_picture(self.store, ID, png((10, 20, 30)))['sha256']
+        doc = self.store.load(ID)
+        self.store.save(ID, dict(doc, picture=dict(sha256=first)), doc['revision'])
+        job = self.runner.start(ID)['job']
+        snapshot = Path(job['snapshot'])
+        captured = snapshot.read_bytes()
+        self.assertEqual(snapshot.parent.parent, self.output / '.work' / 'queue-attempts')
+        self.assertEqual(snapshot.parent.name, job['attempt'])
+        self.assertEqual((job['revision'], job['digest'], job['picture']), (2, hashlib.sha256(captured).hexdigest(), first))
+        self.assertEqual(pictures.sha256(pictures.beside(snapshot).read_bytes()), first)
+        own = self.store.path(ID)
+        for colour in ((200, 0, 0), (0, 200, 0)):     # the first picture is then kept nowhere but in the snapshot
+            now = self.store.load(ID)
+            digest = pictures.save_picture(self.store, ID, png(colour), saved=(now.get('picture') or {}).get('sha256'))['sha256']
+            self.store.save(ID, dict(now, name='Renamed remix', picture=dict(sha256=digest)), now['revision'])
+        self.assertNotEqual(self.store.path(ID), own)
+        self.assertIsNone(pictures.picture_file(self.store, ID, first))
+        self.go.touch()
+        s = self.wait(ID, 'built')
+        self.assertEqual((snapshot.read_bytes(), s['package']['revision']), (captured, 2))
+        self.assertEqual(pictures.sha256(pictures.beside(snapshot).read_bytes()), first)
+        # the bug report carries the snapshot and names its bytes
+        r = self.runner.report(ID)
+        z = zipfile.ZipFile(r['zip'])
+        self.assertEqual(z.read('project/project.json'), captured)
+        self.assertEqual(json.loads(z.read('report.json'))['build']['digest'], job['digest'])
+        # a retry after a cancel captures the latest save, into a folder of its own
+        self.go.unlink()
+        self.runner.start(ID)
+        self.runner.cancel(ID)
+        self.wait(ID, 'cancelled')
+        self.go.touch()
+        again = self.runner.start(ID)['job']
+        self.assertEqual(again['revision'], 4)
+        self.assertNotEqual(again['snapshot'], job['snapshot'])
+        self.assertEqual(again['picture'], digest)
+        self.wait(ID, 'built')
+
+    def test_a_tools_indented_warning_is_a_warning_of_the_build(self):
+        """(review finding 15) build.py echoes a tool's lines indented under its command line: the relight's warning
+        that its writes changed pieces it didn't relight is found there too, not only at a line's start."""
+        job = dict(lines=[], stages=[], stage=None, running=None, progress=None, error=None)
+        self.runner._line(job, 'warning: the package swap left a note')
+        self.runner._line(job, '        warning: writing the lighting changed 37 texels (by up to 0.21) in the lightmaps '
+                               'of 2 pieces that were not relit: A, B')
+        self.runner._line(job, '    the word warning: in the middle is no warning')
+        self.assertEqual(job['warnings'], ['the package swap left a note',
+                                           'writing the lighting changed 37 texels (by up to 0.21) in the lightmaps of 2 '
+                                           'pieces that were not relit: A, B'])
+
     def test_a_failed_build_says_why(self):
         self.outcome = 'fail'
         self.runner.start(ID)
@@ -221,6 +287,17 @@ class Builds(unittest.TestCase):
         self.assertTrue(any(n.startswith('project/') for n in names))
         report = json.loads(zipfile.ZipFile(r['zip']).read('report.json'))
         self.assertEqual((report['variant'], report['build']['state']), ('URB_Bar_Remix_0f8b', 'built'))
+        self.assertEqual(sorted(r['files']), sorted(names))         # the answer names what the zip holds
+        # a file over the limit is left out of the zip, and the answer says so instead of listing it (review finding 44)
+        (self.output / '.work' / own / 'logs' / 'relight.log').write_text('x' * 100000, encoding='utf-8')
+        with mock.patch.object(builds_module, 'REPORT_FILE_MAX', 50000):
+            r = self.runner.report(ID)
+        names = zipfile.ZipFile(r['zip']).namelist()
+        self.assertNotIn(f'work/{own}/logs/relight.log', names + r['files'])
+        self.assertEqual(r['leftOut'], [f'work/{own}/logs/relight.log'])
+        self.assertEqual(sorted(r['files']), sorted(names))
+        self.assertEqual(json.loads(zipfile.ZipFile(r['zip']).read('report.json'))['leftOut'], r['leftOut'])
+        self.assertFalse((self.output / 'URB_Bar_Remix_0f8b-report.zip.tmp').exists())
 
     def test_the_routes_build_only_for_the_viewer_itself(self):
         catalogue = dict(defaultMap='URB_Bar', maps=dict(URB_Bar=dict(root=Path(self.temp.name))))
@@ -421,6 +498,81 @@ class Builds(unittest.TestCase):
         runner = BuildRunner(self.store, Path(self.temp.name) / 'cache', self.output, command=self.runner.command)
         runner.recover()
         self.assertIn('can\'t be read', runner.busy()[1])
+
+    def work_folder(self, name):
+        """A build's work folder in the builds folder, as build.py leaves one: heavy work, logs and small records."""
+        folder = self.output / '.work' / name
+        (folder / 'lit').mkdir(parents=True)
+        (folder / 'lit' / 'URB_Bar.upk').write_bytes(b'x' * 10)
+        (folder / 'logs').mkdir()
+        (folder / 'logs' / 'build.log').write_text('log')
+        (folder / 'compile-report.json').write_text('{}')
+        (folder / 'arrays.bin').write_bytes(bytes(builds_module.SMALL_FILE + 1))
+        return folder
+
+    def kept_pieces(self, variant, days):
+        """A variant's kept pieces (relight.py PieceCache), last written `days` ago."""
+        folder = self.output / '.work' / 'pieces' / variant
+        folder.mkdir(parents=True)
+        (folder / 'piece.npz').write_bytes(b'kept')
+        then = time.time() - days * builds_module.DAY
+        os.utime(folder / 'piece.npz', (then, then))
+        os.utime(folder, (then, then))
+        return folder
+
+    def test_old_work_is_pruned_as_the_server_starts(self):
+        """(review findings 49 and 62) As the server starts (recover), the builds folder's old work is pruned beside
+        it: a variant a project ships as keeps its three newest work folders whole and older ones keep their logs and
+        small records; a variant no project ships as keeps none whole once its last build is ORPHAN_DAYS old (one
+        built since is left); kept pieces unused for PIECE_DAYS go (ORPHAN_DAYS for a variant none ships as), those
+        of a variant built since stay; the rest of the work folder is left."""
+        import datetime
+        today = datetime.datetime.now()
+
+        def stamp(days):
+            return (today - datetime.timedelta(days=days)).strftime('%Y%m%d-%H%M%S')
+        owned = [self.work_folder('URB_Bar_Remix_0f8b-%s' % stamp(days)) for days in (40, 30, 20, 10)]
+        gone = [self.work_folder('Deleted_Project-%s-0123abcd' % stamp(days)) for days in (20, 15)]
+        recent = self.work_folder('Saved_Elsewhere-%s' % stamp(1))
+        (self.output / '.work' / 'patchtool').mkdir()
+        (self.output / '.work' / 'patchtool' / 'cooked.bin').write_bytes(bytes(builds_module.SMALL_FILE + 1))
+        late = builds_module.PIECE_DAYS + 1
+        unused = self.kept_pieces('URB_Bar_Other_1a2b', late)
+        built_since = self.kept_pieces('URB_Bar_Remix_0f8b', late)
+        gone_pieces = self.kept_pieces('Deleted_Project', builds_module.ORPHAN_DAYS + 1)
+        recent_pieces = self.kept_pieces('Saved_Elsewhere', builds_module.ORPHAN_DAYS + 1)
+        runner = BuildRunner(self.store, Path(self.temp.name) / 'cache', self.output, command=self.runner.command)
+        with mock.patch('builtins.print') as said:
+            runner.recover()
+            runner.pruner.join(30)
+        stripped = ['compile-report.json', 'logs']
+        self.assertEqual(sorted(f.name for f in owned[0].iterdir()), stripped)
+        self.assertTrue((owned[0] / 'logs' / 'build.log').is_file())
+        for folder in owned[1:]:
+            self.assertTrue((folder / 'lit' / 'URB_Bar.upk').is_file() and (folder / 'arrays.bin').is_file())
+        for folder in gone:
+            self.assertEqual(sorted(f.name for f in folder.iterdir()), stripped)
+        self.assertTrue((recent / 'arrays.bin').is_file())
+        self.assertTrue((self.output / '.work' / 'patchtool' / 'cooked.bin').is_file())
+        self.assertEqual([p.exists() for p in (unused, built_since, gone_pieces, recent_pieces)], [False, True, False, True])
+        self.assertIn('3 work folders, 2 sets of kept pieces', said.call_args[0][0])
+        self.assertEqual(runner.prune(), dict(freed=0, folders=0, pieces=0))     # nothing more to do
+
+    def test_pruning_spares_a_running_builds_work_and_needs_the_projects_for_a_variant_none_ships_as(self):
+        """(review finding 49) prune_work leaves the folders it is told to spare; with no projects known (build.py's
+        own prune) a variant alone keeps its newest; an unreadable projects folder is no projects known."""
+        import datetime
+        old = (datetime.datetime.now() - datetime.timedelta(days=builds_module.ORPHAN_DAYS + 5)).strftime('%Y%m%d-%H%M%S')
+        folder = self.work_folder('Nobodys_Variant-%s' % old)
+        self.assertEqual(builds_module.prune_work(self.output)['folders'], 0)
+        self.assertEqual(builds_module.prune_work(self.output, owned=set(), spare=[folder])['folders'], 0)
+        self.assertTrue((folder / 'arrays.bin').is_file())
+        self.assertEqual(builds_module.prune_work(self.output, owned=set())['folders'], 1)
+        self.assertEqual(sorted(f.name for f in folder.iterdir()), ['compile-report.json', 'logs'])
+        self.assertEqual(builds_module.owned_variants(self.store.root), {'urb_bar_remix_0f8b', 'urb_bar_other_1a2b'})
+        self.assertIsNone(builds_module.owned_variants(Path(self.temp.name) / 'no projects here'))
+        (self.store.root / 'not a project.json').write_text('{', encoding='utf-8')
+        self.assertEqual(len(builds_module.owned_variants(self.store.root)), 2)
 
     def test_a_journal_that_cannot_be_settled_blocks_that_projects_builds(self):
         folder = publication.journals(self.output)

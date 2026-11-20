@@ -29,7 +29,8 @@ builds.py reserve):
   1. it waits while another holds the slot (the editor's Build, a prefab test), or while a reader holds the project's
      package (builds.py claim);
   2. the launch intent is written (the row starting, its attempt's id), then the project is captured as saved
-     (projects.py capture) into an immutable snapshot, <builds>/.work/queue-attempts/<attempt>/project.json;
+     (builds.capture: projects.py capture) into an immutable snapshot, <builds>/.work/queue-attempts/<attempt>/
+     project.json, with the map picture it names beside it (project.picture.png), as the editor's Build captures;
   3. if Stop came meanwhile nothing is launched; else build.py builds the snapshot, every folder pinned from the
      context the queue started with (builds.py start_queued);
   4. once the attempt has ended (its processes gone, its package swap settled), the package is verified as this
@@ -64,6 +65,7 @@ import threading
 import time
 import uuid
 
+from builds import capture as capture_project
 import publication
 from projects import ID, ProjectError
 
@@ -718,18 +720,10 @@ class BuildQueue:
                     self.estimates[item_id] = self._estimate(self._row(item_id))
                 break
         self._hook('intent', item_id)
-        # captured as saved, into a snapshot of its own (outside every lock but the store's own)
+        # captured as saved, into a snapshot of its own with its picture (outside every lock but the store's own)
         folder = self.attempts / attempt_id
         try:
-            document, data, sha, path = self.projects.capture(project_id)
-            folder.mkdir(parents=True, exist_ok=True)
-            snapshot = folder / 'project.json'
-            temp = folder / 'project.json.tmp'
-            with open(temp, 'wb') as stream:
-                stream.write(data)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temp, snapshot)
+            document, sha, path, snapshot, picture = capture_project(self.projects, project_id, folder)
         except ProjectError as error:
             return self._ended(item_id, attempt_id, 'failed', error=f'It could not be read: {error.message}')
         except OSError as error:
@@ -762,14 +756,15 @@ class BuildQueue:
 
             def captured():
                 row = self._row(item_id)
-                row['attempt'].update(revision=revision, digest=sha, file=str(path))
+                row['attempt'].update(revision=revision, digest=sha, file=str(path), **({'picture': picture} if picture else {}))
                 row.update(variant=variant, name=document.get('name') or row['name'])
             if not self._transition(captured):
                 self._back(item_id, None)
                 self.builds.unclaim(project_id, self.token)
                 return False
         try:
-            handle = self.builds.start_queued(document, snapshot, context, path, self.token, attempt_id, folder / 'build.log')
+            handle = self.builds.start_queued(document, snapshot, context, path, self.token, attempt_id, folder / 'build.log',
+                                              digest=sha, picture=picture)
         except ProjectError as error:
             self.builds.unclaim(project_id, self.token)
             if error.extra.get('code') == 'build-slot':
