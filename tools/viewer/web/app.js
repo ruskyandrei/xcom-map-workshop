@@ -29,23 +29,26 @@ import { LIMITS as LIKENESS_LIMITS, parametersOf } from './effects_sim.js';
 import { KIND_LABEL, VALUE_LIMITS, effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues,
          soundReach, survivesClear, tintOf, tintVector, valuesViewOnly, withValues } from './effects_rules.js';
 import { createPrecache } from './precache.js';
-import { createLibraryBrowser, SOFT } from './library.js';
-import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from './prefabs.js';
-import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
-         PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_TILES } from './prefab_document.js';
-import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, optionsOf, recordOf, stateOf, stateOfRoot } from './piece_records.js';
-import { activeMapId, allRoots, areaBindings, askedPick, builderMode, buildings, buildingsVersion, cleared, clearKeepsOutside,
-         copySerial, data, effectIndex, effectRoots, groupIndex, groups, landingZones, lastBuild, leaving, library, lightIndex,
-         lightRoots, loadErrorCount, mergedBuildings, missionPickValue, nextCopySerial, pickedZone, playStatus,
-         prefabParameter, project, projectMissions, projectPicture, projectSpawnRules, recoveryTimer, roots, saving, selected,
-         setActiveMapId, setAdoptedDraft, setAreaBindings, setAskedPick, setBuildingsValue, setBuildingsVersion, setCleared,
-         setClearKeepsOutside, setCopySerial, setData, setGroups, setLandingRead, setLandingZones, setLeaving, setLibrary,
-         setLoadErrorCount, setLooksReady, setMergedBuildings, setMissionPickValue, setPickedZone, setProjectMissions,
-         setProjectPicture, setProjectSpawnRules, setRecoveryKept, setRecoveryTrouble, setSaving, setSelected, setStageValue,
-         stage, volumeRoots } from './editor_state.js';
+import { createLibraryBrowser } from './library.js';
+import { api as prefabApi, createPrefabBrowser } from './prefabs.js';
+import { emptyPrefabScene, orderedWrites, PREFAB_MIN_Z, PREFAB_MAX_Z } from './prefab_document.js';
+import { MADE_KINDS, cloneBlasts, optionsOf, recordOf, stateOfRoot } from './piece_records.js';
+import { activeMapId, allRoots, areaBindings, askedPick, builder, builderMode, buildings, buildingsVersion, chooseToken,
+         cleared, clearKeepsOutside, clipboard, copySerial, data, donorHashes, effectIndex, effectRoots,
+         effectTemplates, eventMemo, families, foreignEffects, geometryCache, groupIndex, groups, landingZones,
+         lastBuild, leaving, library, libraryRecords, lightIndex, lightRoots, loadErrorCount, mergedBuildings,
+         missionPickValue, nextChooseToken, nextCopySerial, pickedZone, pieces, playStatus, prefabParameter, prefabTab,
+         project, projectMissions, projectPicture, projectSpawnRules, roots, selected, setActiveMapId, setAreaBindings,
+         setAskedPick, setBuildingsValue, setBuildingsVersion, setCleared, setClearKeepsOutside, setClipboard,
+         setCopySerial, setData, setEventMemo, setFamilies, setGroups, setLandingRead, setLandingZones, setLeaving,
+         setLibrary, setLoadErrorCount, setLooksReady, setMergedBuildings, setMissionPickValue, setPickedZone,
+         setPieces, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setSelected,
+         setStageValue, stage, volumeRoots } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
+import { createBuilderSession } from './builder_session.js';
+import { createPrefabPlace } from './prefab_place.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { forget, recall, remember } from './storage.js';
@@ -59,7 +62,7 @@ import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes
 import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverFrame, coverGameWords, coverSightWords, coverTiles, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
          coverWords, floorStart, isBlocker, isFloor, lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
-import { gridMove, nearestGridPose } from './poserule.js';
+import { gridMove } from './poserule.js';
 import { LEVEL, QUARTER, TILE } from './constants.js';
 import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
@@ -84,7 +87,6 @@ holdModals();
 releaseAfterChange();     // (selects, tick boxes and sliders let the shortcuts work once changed: review finding 33)
 // Whether a dialog (or the look picker) is open: the editor's shortcuts take no keys then, and no other window opens.
 function modalOpen() { return anyModal() || Boolean(lookPicker?.isOpen); }
-const builder = { doc: null, kept: [], envelope: null, metadata: new Map(), savedKey: '', loading: true, repairing: false };
 const documentWrites = orderedWrites();
 const viewport = $('viewport');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -195,7 +197,7 @@ const cloneGroups = (from = groups) => new Map([...from].map(([id, g]) => [id, c
 const isStream = o => o?.layer === 'stream';
 // The families of pieces and the map's assemblies (families.json, tools/viewer/families.py: the compiler's own), or
 // null from a server without them. assemblyIndex: an original's key (package|level|actor) to its assembly.
-let families = null, assemblyIndex = new Map(), originalIndex = null;
+let assemblyIndex = new Map(), originalIndex = null;     // (the families, families: editor_state.js)
 // The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
 // opens once they are, so its pieces in a donor look are drawn in it. A read that fails isn't kept (review finding
 // 31): the banner says why, and Try again reads it again.
@@ -331,7 +333,7 @@ const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: cont
 // of its own (pasteSnapshot): its members' prefab (Police Station's standalone light bar joins its sedan's), else its
 // pivot (a door's leaf and frame share no prefab).
 function useMapFamilies(table) {
-  families = table; assemblyIndex = new Map();
+  setFamilies(table); assemblyIndex = new Map();
   const prefabOf = new Map(data.objects.filter(o => o.prefab && o.layer === 'base').map(o => [o.actor, o.prefab]));
   for (const a of table?.assemblies ?? []) {
     const tag = a.members.length > 1 ? (a.members.map(m => prefabOf.get(m)).find(Boolean) ?? short(a.pivot)) : null;
@@ -989,12 +991,12 @@ function changes() {
 // One edit event builds the document's state once (plan "faster editor", P2): while editChanged runs, editState,
 // builderDocument and builderKey give what they worked out first, where each was built again by every reader (the
 // save state, the title, the size line, the recovery timer: six times an event in the builder).
-let eventMemo = null;
+// (that memo, eventMemo: editor_state.js)
 function editChanged() {
   touchShadows();
   if (eventMemo) return editChangedNow();
-  eventMemo = {};
-  try { return editChangedNow(); } finally { eventMemo = null; }
+  setEventMemo({});
+  try { return editChangedNow(); } finally { setEventMemo(null); }
 }
 function editChangedNow() {
   effectsDirty = true;     // (the Effects view's markers follow the pieces that carry them)
@@ -1171,7 +1173,7 @@ function restingHint() {
 
 // Adding and deleting pieces. Like moves, these are edits a project keeps and the Build makes.
 // A copy is a new piece built from its source's mesh and materials, with its own id, actor name and pivot.
-let clipboard = null;     // (the copies' serial: editor_state.js)
+// (the clipboard, clipboard, and the copies' serial: editor_state.js)
 const newId = () => `added:${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
 let snapMode = 'off';   // 'off', 'fine' (24 units, 15 degrees) or 'tile' (whole tiles, 90 degrees)
 // Snap cycles off, fine steps, whole tiles. Under tile snap a selection with a ladder, door, car, van or fracturing piece
@@ -1762,7 +1764,7 @@ function copySelection(cut = false) {
     flashHint(fx ? `It isn't copied: ${effectViewOnly(fx.userData.source, 'copy') ?? 'it is deleted'}` : 'Select a piece, light or floor box to copy');
     return;
   }
-  clipboard = clip;
+  setClipboard(clip);
   const made = new Set(clip.volumes.map(v => v.building)).size;
   if (cut) deleteSelection(true);
   flashHint(`${cut ? 'Cut' : 'Copied'} ${clip.words}${made ? ` and ${plural(made, 'building')}` : ''} · Ctrl+V to place a copy`);
@@ -1838,7 +1840,7 @@ function paste() {
 
 // Placing, for paste and the piece list: a see-through preview of the clip follows the cursor, a click places a
 // copy there (Shift+click keeps placing), Escape stops. The gizmo is held meanwhile, so a click never grabs a handle.
-let pieces, placing = null, ghostDirty = false;   // placing: { clip, entry (from the piece list, or null), ghost }
+let placing = null, ghostDirty = false;   // placing: { clip, entry (from the piece list, or null), ghost } (pieces: editor_state.js)
 // The preview is drawn twice: plainly where it is in view, faintly where walls or roofs hide it.
 const ghostMaterial = new THREE.MeshBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.45, depthWrite: false });
 const ghostHidden = new THREE.MeshBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.15, depthWrite: false, depthTest: false });
@@ -1846,7 +1848,7 @@ const ghostHidden = new THREE.MeshBasicMaterial({ color: 0x82d5ce, transparent: 
 // tables: its meshes, materials and textures under their own keys (lib-<map>-…, with the folder they are served
 // from), and its components as templates a copy is made of, as the map's own pieces are. A template names its home
 // map (`foreign`), and so does every copy of it; an added record's `from` is the piece in that map.
-const libraryRecords = new Map(), foreignTemplates = new Map();
+const foreignTemplates = new Map();     // (the records read, libraryRecords: editor_state.js)
 const assetUrl = url => (url.startsWith('/') ? url : cachePrefix + url);
 const isForeignTarget = t => typeof t?.package === 'string' && t.level === 'base' && Boolean(data?.name) && t.package.toLowerCase() !== data.name.toLowerCase();
 // Many pieces' records read in a few requests (a prefab's or a project's opening), kept for libraryTemplate, which
@@ -1930,7 +1932,7 @@ function libraryTemplate(source) {
 // (/library/effect.json: export 28's record, its particle system or waves), kept for the placing and the project's
 // copies (foreignEffects, by its target), its system and waves joined to the map's (the panel, the box, the Wave
 // preview read them by their ids, which name the donor). Gives the record as an effect root's source.
-const effectTemplates = new Map(), foreignEffects = new Map(), fetchedEffects = new Map();
+const fetchedEffects = new Map();     // (effectTemplates, foreignEffects: editor_state.js)
 function effectTemplate(source) {
   const id = recordId(source);
   if (!effectTemplates.has(id)) {
@@ -2002,7 +2004,7 @@ const foreignNote = obj => `A piece of ${obj.foreign.package}, not of this map. 
 // What Build's panel says of a project with pieces of other maps: what baking does for them.
 const bakeNote = () => (foreignCount() ? `${plural(foreignCount(), 'piece')} from other maps: baked, ${foreignCount() === 1 ? 'it is' : 'they are'} lit for `
   + `where ${foreignCount() === 1 ? 'it stands' : 'they stand'}; unbaked, ${foreignCount() === 1 ? 'it keeps' : 'they keep'} the light of the map ${foreignCount() === 1 ? 'it comes' : 'they come'} from.` : null);
-let libraryScope = 'map', chooseToken = 0;     // (the All maps library, library: editor_state.js)
+let libraryScope = 'map';     // (the All maps library, library, and chooseToken: editor_state.js)
 const LIBRARY_SCOPES = { map: 'libFilter', all: 'libAllFilter', prefabs: 'prefabFilter' };
 function setLibraryScope(scope) {
   if (builderMode && scope === 'map') scope = 'all';
@@ -2018,7 +2020,7 @@ function setLibraryScope(scope) {
 }
 // An entry of All maps: its piece read (exported by the server the first time), then placed as a copy is.
 async function chooseLibraryEntry(entry) {
-  const token = ++chooseToken;
+  const token = nextChooseToken();
   if (!entry) { stopPlacing(); return; }
   if (entry.effect) { chooseLibraryEffect(entry, token); return; }
   let template;
@@ -2036,8 +2038,8 @@ async function chooseLibraryEntry(entry) {
     if (token !== chooseToken || !pieces.open || libraryScope !== 'all') return;
   }
   const { sources, pivotIndex } = template;
-  clipboard = { entries: sources.map(source => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix) })),
-                pivot: [...sources[pivotIndex].location], pivotIndex, name: entry.name, libraryEntry: entry };
+  setClipboard({ entries: sources.map(source => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix) })),
+                pivot: [...sources[pivotIndex].location], pivotIndex, name: entry.name, libraryEntry: entry });
   startPlacing(clipboard, entry);
 }
 // An effect, sound or lens flare of All maps (effects and sounds plan, stage FX4): this map's own copied as the Effects view's
@@ -2057,8 +2059,8 @@ async function chooseLibraryEffect(entry, token) {
     if (token !== chooseToken || !pieces.open || libraryScope !== 'all') return;
   }
   if (effectViewOnly({ ...source, added: true }, 'copy')) { flashHint(`${entry.name} can't be placed: ${effectViewOnly({ ...source, added: true }, 'copy')}`); return; }
-  clipboard = { entries: [{ source, matrix: new THREE.Matrix4().fromArray(source.matrix) }], pivot: [...source.location], pivotIndex: 0,
-                name: entry.name, libraryEntry: entry };
+  setClipboard({ entries: [{ source, matrix: new THREE.Matrix4().fromArray(source.matrix) }], pivot: [...source.location], pivotIndex: 0,
+                name: entry.name, libraryEntry: entry });
   startPlacing(clipboard, entry);
 }
 function showPieces(on) {
@@ -2081,7 +2083,7 @@ function showPieces(on) {
 const entryParts = entry => entry.sources.map(source => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix) }));
 // Choosing an entry puts it on the clipboard and places it; choosing it again (null) stops.
 function chooseEntry(entry) {
-  chooseToken++;
+  nextChooseToken();
   if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing(); return; }
   stopWallDrawing();
   if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
@@ -2090,14 +2092,14 @@ function chooseEntry(entry) {
     const clip = lightClip(entry.light);
     if (!clip) return;
     if (!lightsShown) { if (volumesOn) setLightsShown(true); else setNormalLights(true); }
-    clipboard = clip;
+    setClipboard(clip);
     startPlacing(clip, entry);
     return;
   }
   // a cover block is placed by its first tile: the centre of the tile at its corner goes under the cursor
   const at = entry.sources[entry.pivotIndex].location;
-  clipboard = { entries: entryParts(entry), pivot: entry.cover ? [at[0] + 48, at[1] + 48, at[2]] : [...at],
-                pivotIndex: entry.pivotIndex, name: entry.name, groundFloor: isFloor(entry.cover) };
+  setClipboard({ entries: entryParts(entry), pivot: entry.cover ? [at[0] + 48, at[1] + 48, at[2]] : [...at],
+                pivotIndex: entry.pivotIndex, name: entry.name, groundFloor: isFloor(entry.cover) });
   if (clipboard.groundFloor) askLineCollision();     // the ground's collision on its way before the floor goes down
   startPlacing(clipboard, entry);
 }
@@ -2189,404 +2191,6 @@ async function copyDragEnd({ clip, stand }, delta) {
   }
   if (delta) flashHint(`Copied ${clip.name}`);
 }
-function prefabPlacementProblem(clip, delta) {
-  if (!builderMode && clip.bounds && data.tileGrid) {
-    const b = clip.bounds, box = new THREE.Box3(new THREE.Vector3(b[0], b[2], b[1]), new THREE.Vector3(b[3], b[5], b[4])).applyMatrix4(delta);
-    const low = [box.min.x, box.min.z, box.min.y], high = [box.max.x, box.max.z, box.max.y], g = data.tileGrid;
-    const over = [0, 1, 2].map(k => Math.max(0, g.origin[k] - low[k], high[k] - (g.origin[k] + g.dimensions[k] * g.size[k])));
-    if (over.some(v => v > 0.5)) {
-      const words = [over[0] > 0.5 && `${Math.ceil(over[0] / g.size[0])} tile${Math.ceil(over[0] / g.size[0]) === 1 ? '' : 's'} along X`,
-                     over[1] > 0.5 && `${Math.ceil(over[1] / g.size[1])} tile${Math.ceil(over[1] / g.size[1]) === 1 ? '' : 's'} along Y`,
-                     over[2] > 0.5 && `${Math.ceil(over[2] / g.size[2])} level${Math.ceil(over[2] / g.size[2]) === 1 ? '' : 's'} in height`].filter(Boolean);
-      return `${clip.name} reaches ${words.join(' and ')} outside this map's tile grid. Out there the map has no tiles: `
-        + 'nothing can be stood on or give cover. Move it in, or make the map larger with Map grid.';
-    }
-  }
-  return null;
-}
-// ---- Prefabs (prefab plan 5.6 and 5.7; prefabs.js, tools/viewer/prefabs.py). A prefab is what a paste makes, saved:
-// added records in a space of its own (the tile grid: the origin a tile corner at ground level), with the groups and
-// buildings among them. Saving a selection writes those records; placing reads them into a clip and pastes it, as one
-// group marked with the prefab (a stamp: nothing ties it to the file afterwards).
-let prefabTab = null;
-const donorHashes = new Map();      // a map's package, lower case -> its SHA-256, as its pieces' records give it
-const gridBase = () => (data?.tileGrid?.origin?.length === 3 ? data.tileGrid.origin : [0, 0, 0]);
-// The selection as a prefab's records: { tiles, pieces, groups, buildings, donors, left (what won't go into it, as
-// sentences), offGrid (the pieces that keep the pose rule and stand off the grid), counts, clip, box }, or null with
-// nothing to save.
-function prefabRecords({ complete = false } = {}) {
-  if (complete) return builderRecords();
-  const clip = snapshot();
-  if (!clip) return null;
-  const grid = gridBase(), low = [Infinity, Infinity, Infinity], high = [-Infinity, -Infinity, -Infinity];
-  const grow = b => { for (let k = 0; k < 3; k++) { low[k] = Math.min(low[k], b[k]); high[k] = Math.max(high[k], b[k + 3]); } };
-  const offGrid = [];
-  for (const r of copyable()) {
-    // (an effect, a sound or a lens flare is where it stands: a sound's reach is no part of the footprint)
-    if (r.userData.effect) { const p = actorPose(r.userData.source, r.matrix).location; grow([...p, ...p]); continue; }
-    if (r.userData.light) { const p = lightPose(r).location; grow([...p, ...p]); continue; }
-    const b = physicalBox(r);
-    if (b) grow(b);
-    const move = isStream(r.userData.source) ? null : gridNow(r);
-    if (move && !move.valid && !offGrid.includes(rootName(r))) offGrid.push(rootName(r));
-  }
-  for (const v of clip.volumes) grow(matrixBox(v.matrix));
-  if (!Number.isFinite(low[0])) return null;
-  // Height 0 is the map's grid bottom (prefab plan 5.6b): every tile level keeps its number, so what stood on the
-  // map's bottom level stands on the builder's drawn grid, and what lies under the grid goes below 0. Builder ground
-  // stays zero.
-  const down = (v, o, step) => o + Math.floor((v - o + 0.5) / step) * step;
-  const origin = [down(low[0], grid[0], TILE), down(low[1], grid[1], TILE), grid[2]];
-  const tiles = [0, 1].map(k => Math.max(1, Math.ceil((high[k] - origin[k]) / TILE - 1e-4)));
-  const shift = new THREE.Matrix4().makeTranslation(-origin[0], -origin[2], -origin[1]);
-  const pieces = [], left = [], donors = new Map(), names = new Map(), copied = [];
-  let n = 0;
-  const units = new Map();
-  for (const e of clip.entries) {
-    if (e.source.isLight) continue;
-    if (e.source.isEffect) continue;        // (below, with the lights)
-    if (!units.has(e.source.actor)) units.set(e.source.actor, []);
-    units.get(e.source.actor).push(e);
-  }
-  const tags = new Map();
-  const donor = from => {
-    const hash = from.package.toLowerCase() === data.name.toLowerCase() ? data.source?.sha256 : donorHashes.get(from.package.toLowerCase());
-    donors.set(from.package.toLowerCase(), { package: from.package, ...(/^[0-9a-f]{64}$/.test(hash ?? '') ? { sha256: hash } : {}) });
-  };
-  for (const [actor, list] of units) {
-    const s = list[0].source, placed = shift.clone().multiply(list[0].matrix), from = fromOf(s);
-    if (s.cover) {
-      const name = `${from.actor}_copy${++n}`;
-      names.set(actor, name); copied.push([memberOf(s), { added: name }]);
-      pieces.push(recordOf({ form: 'cover', actor: name, template: { kind: COVER_KIND, version: coverVersion(s.added?.template?.version, s.cover.type) },
-                             cover: s.cover, ...actorPose(s, placed) }, 'prefab'));
-      continue;
-    }
-    if (from.level !== 'base') { left.push(`${short(data.meshes[s.mesh].name)}: a piece of a level the mission streams in, not of a map`); continue; }
-    const name = `${from.actor}_copy${++n}`, was = linkOf(list[0]);
-    names.set(actor, name); copied.push([memberOf(s), { added: name }]);
-    if (was && !tags.has(was)) tags.set(was, `copy${tags.size + 1}:${was.replace(/^copy\d+:/, '')}`);
-    const entry = s.foreign?.key ? library?.entry(s.foreign.key) : null;
-    // (its tint, flags, a made piece's numbers and a broken copy's blasts, as a project keeps them: its state)
-    pieces.push(recordOf({ actor: name, from: { package: from.package, level: from.level, actor: from.actor }, components: list.map(e => e.source.component),
-                           ...actorPose(s, placed), prefab: was ? tags.get(was) : null, partner: s.partner,
-                           state: list[0].state ?? stateOfRoot({ source: s }), recipe: entry ? { key: entry.key, name: entry.name } : null }, 'prefab'));
-    donor(from);
-  }
-  // (a partner is named by its name in the prefab; one left out is no partner)
-  for (const p of pieces) if (p.from) p.partner = names.get(p.partner) ?? null;
-  // its effects and sounds (effects and sounds plan, stage FX6a) and its lens flares (FX6b): each a copy of its
-  // original, with the values set on it (a flare has none). One its piece carries isn't in the clip: the piece's
-  // copy brings it (snapshot)
-  let effects = 0, sounds = 0, flares = 0;
-  for (const e of clip.entries) {
-    if (!e.source.isEffect) continue;
-    const s = e.source, kind = s.kind, from = fromOf(s), what = kind === 'sound' ? 'a sound' : kind === 'flare' ? 'a lens flare' : 'an effect';
-    if (from.level !== 'base') { left.push(`${recordName(s, data)}: ${what} of a level the mission streams in, not of a map`); continue; }
-    const name = `${from.actor}_copy${++n}`, values = kind === 'flare' ? null : savedValues(e.values);
-    copied.push([memberOf(s), { added: name }]);
-    pieces.push(recordOf({ form: 'effect', actor: name, kind, from: { package: from.package, level: from.level, actor: from.actor },
-                           ...actorPose(s, shift.clone().multiply(e.matrix)), values }, 'prefab'));
-    donor(from);
-    if (kind === 'sound') sounds++; else if (kind === 'flare') flares++; else effects++;
-  }
-  let lights = 0;
-  for (const e of clip.entries) {
-    if (!e.source.isLight) continue;
-    const kind = e.source.kind, recipe = families?.lightRecipes?.[kind];
-    if (!recipe) { left.push(`${short(e.source.actor)}: a ${kind} light, which the editor can't make in another map yet`); continue; }
-    const pose = actorPose(e.source, shift.clone().multiply(e.matrix));
-    if (kind === 'point') pose.rotation = [0, 0, 0];
-    const name = `${PL}${kind === 'point' ? 'PointLight' : 'SpotLight'}_copy${++n}`;
-    copied.push([memberOf(e.source), { added: name }]); lights++;
-    const value = k => { const v = e.values?.[k] ?? recipe.values[k]; return Array.isArray(v) ? [...v] : v; };
-    // (a made light holds only cones in the editor's ranges: a map's stored 100 or 580 goes in as the 89.99 it lights as)
-    pieces.push(recordOf({ form: 'light', actor: name, template: { kind, version: recipe.latest }, light: withStorableCone(Object.fromEntries(Object.keys(recipe.values).map(k => [k, value(k)]))), ...pose }, 'prefab'));
-  }
-  // its buildings: the project's and the map's own selected with the pieces, each a building of the prefab
-  const by = new Map();
-  for (const v of clip.volumes) {
-    if (!by.has(v.building)) by.set(v.building, []);
-    by.get(v.building).push({ floor: v.floor, box: matrixBox(shift.clone().multiply(v.matrix)) });
-  }
-  const buildings = [...by].map(([was, list]) => {
-    const numbers = [...new Set(list.map(x => x.floor))].sort((a, b) => a - b).slice(0, BUILDING_FLOORS_MAX), id = uuid();
-    copied.push([buildingKey(was), { building: id }]);
-    return tidyBuilding({ id, name: clip.buildingMeta[was]?.name ?? '', kind: clip.buildingMeta[was]?.kind ?? 'building',
-                          floors: numbers.map(f => ({ boxes: list.filter(x => x.floor === f).map(x => x.box) })) });
-  });
-  const groups = [...groupTree(copied, mapChain).values()].map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: [...g.members.values()] }));
-  const normalized = normalizePrefab({ pieces, groups, buildings }, [['Selection', [...low, ...high].map((v, k) => v - origin[k % 3])]]);
-  return { ...normalized, groups, donors: [...donors.values()].sort((a, b) => a.package.localeCompare(b.package)), left, offGrid, clip,
-    counts: { pieces: pieces.length - lights - effects - sounds - flares, lights, effects, sounds, flares, buildings: buildings.length, tiles: normalized.tiles },
-           box: new THREE.Box3(new THREE.Vector3(low[0], low[2], low[1]), new THREE.Vector3(high[0], high[2], high[1])) };
-}
-// A prefab as a clip to place in this map: its records put on the map's tile grid (the prefab's origin on the grid's
-// corner; the placing moves it from there), each piece from its template, read from its home map when it is another
-// map's. `left`: what can't be had here, as sentences.
-async function prefabClip(doc, step = null) {
-  const base = gridBase(), here = v => v.map((x, k) => x + base[k]), left = [];
-  const records = doc.pieces.map(p => ({ ...p, location: here(p.location) }));
-  const foreign = [...new Map(records.filter(p => !p.template && !p.kind && isForeignTarget(p.from)).map(p => [targetKey(p.from), p.from])).values()];
-  // (its effects and sounds of other maps: their templates, as a project's copies read them)
-  const foreignFx = [...new Map(records.filter(p => p.kind && !p.template && isForeignTarget(p.from)).map(p => [targetKey(p.from), p.from])).values()];
-  const unread = foreign.filter(f => !libraryRecords.has(`${f.package}|${short(f.actor)}`.toLowerCase()));
-  // the first use reads each piece from the game's maps: all of them asked for at once, so each map is opened once
-  if (unread.length > 1) await readLibraryRecords(unread, (done, total) => step?.(done, total, `Opening ${doc.name}: pieces read`));
-  const failed = new Map();
-  let loaded = 0;
-  await Promise.all(foreign.map(from => libraryTemplate(from).finally(() => step?.(++loaded, foreign.length, `Opening ${doc.name}: pieces loaded`)).then(t => {
-    const entry = library?.entry(t.record.key);
-    // (what the library only holds back is placed: library.js SOFT; what can't be brought is left)
-    if (entry && !entry.placeable && !SOFT.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
-  }, error => { failed.set(targetKey(from), `${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`); })));
-  const unreadFx = foreignFx.filter(f => !effectTemplates.has(recordId(f)));
-  if (unreadFx.length > 1) await readEffectRecords(unreadFx);
-  await Promise.all(foreignFx.map(from => effectTemplate(from).then(t => {
-    const entry = t.foreign?.key ? library?.entry(t.foreign.key) : null;
-    if (entry && !entry.placeable && !SOFT.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
-  }, error => { failed.set(targetKey(from), `${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`); })));
-  const entries = [];
-  for (const p of records) {
-    const key = memberKey({ added: p.actor });
-    if (p.kind && !p.template) {
-      const e = optionsOf(p, 'effect');
-      const failure = failed.get(targetKey(e.from));
-      if (failure) { left.push(failure); continue; }
-      const source = isForeignTarget(e.from) ? foreignEffects.get(targetKey(e.from)) : effectIndex.get(targetKey(e.from))?.userData.source;
-      const what = e.kind === 'sound' ? 'sound' : e.kind === 'flare' ? 'lens flare' : 'effect';
-      if (!source || source.kind !== e.kind) { left.push(`${short(e.from.actor)} of ${e.from.package}: this export of the map has no such ${what}`); continue; }
-      const why = effectViewOnly(source, 'copy');
-      if (why) { left.push(`${recordName(source, data)}: the ${what} isn't copied (${why})`); continue; }
-      // its values are placed where their family builds (families.json); the prefab keeps them either way
-      const values = e.kind !== 'flare' && families?.families?.[`${e.kind}-values`]?.builds ? e.values : null;
-      entries.push({ source, matrix: movedMatrix(source, e.location, e.rotation), ...(values ? { values } : {}), unit: e.actor, key });
-      continue;
-    }
-    if (p.template?.kind === COVER_KIND) {
-      const source = coverOf(p), c = optionsOf(p, 'cover');
-      if (!source) { left.push(`${short(c.actor)}: a cover block of a recipe this editor doesn't make`); continue; }
-      entries.push({ source, matrix: new THREE.Matrix4().fromArray(source.matrix), unit: c.actor, key, link: c.prefab, partner: c.partner });
-    } else if (p.template) {
-      const l = optionsOf(p, 'light'), made = lightsBlocked() ? null : recipeLight(l.recipe, l.light, l.location, l.rotation);
-      if (!made) { left.push(`${short(l.actor)}: a ${l.recipe.kind} light${lightsBlocked() ? ` (${lightsBlocked()})` : ', which this editor can\'t make yet'}`); continue; }
-      entries.push({ source: made.source, matrix: new THREE.Matrix4().fromArray(made.source.matrix), values: made.values, unit: l.actor, key });
-    } else {
-      const failure = failed.get(targetKey(p.from));
-      if (failure) { left.push(failure); continue; }
-      const sources = p.components.map(c => templateFor(p.from, c));
-      if (sources.some(s => !s)) { left.push(`${short(p.from.actor)} of ${p.from.package} is not in this export of the map`); continue; }
-      // (each made as its record says, made numbers and blasts included, as a project's copy is)
-      for (const source of sources) {
-        const state = stateOf(p), o = optionsOf(p, 'piece', state);
-        entries.push({ source, matrix: movedMatrix(source, o.location, o.rotation), unit: o.actor, key, link: o.prefab, partner: o.partner, state });
-      }
-    }
-  }
-  // its made pieces' meshes asked for now, so the placing preview draws them as they will stand (previewGroup); one
-  // the server can't draw shows its donor there, and the paste says why (buildRoot)
-  await Promise.all(entries.filter(e => e.state?.generated).map(e => {
-    const mesh = madeShape(e.source, e.state.generated).mesh;
-    if (!mesh) return null;
-    track(geometryCache, mesh, () => gltfLoader.loadAsync(assetUrl(data.meshes[mesh].url)));
-    return geometryCache.get(mesh)?.catch(() => null);
-  }));
-  const volumes = [], meta = {};
-  for (const b of (doc.buildings ?? []).filter(validBuilding)) {
-    meta[b.id] = { name: b.name ?? '', kind: b.kind ?? 'building' };
-    b.floors.forEach((floor, k) => { for (const box of floor.boxes) volumes.push({ matrix: boxMatrix(box.map((v, i) => v + base[i % 3])), building: b.id, floor: k }); });
-  }
-  const tiles = doc.floor?.tiles ?? [1, 1], mark = { id: doc.id, name: doc.name, revision: doc.revision ?? 0 };
-  return { entries, volumes, buildingMeta: meta, left, name: doc.name, prefab: mark, wrap: mark, pivotIndex: 0,
-           groups: (doc.groups ?? []).map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: g.members.map(memberKey) })),
-           // held by the middle of its footprint, on a tile corner
-           pivot: [base[0] + Math.round(tiles[0] / 2) * TILE, base[1] + Math.round(tiles[1] / 2) * TILE, base[2]],
-           gridLocked: volumes.length > 0 || entries.some(e => !e.source.isLight && !e.source.isEffect && pieceGrid(e.source)) };
-}
-function canRecoverPrefabSources(doc, missing) {
-  const actors = new Set(missing);
-  return doc.pieces.some(p => p.from && p.recipe && actors.has(p.actor));
-}
-// A prefab of the Prefabs tab: read, then placed as a paste is.
-async function choosePrefab(p) {
-  const token = ++chooseToken;
-  if (!p) { stopPlacing(); return null; }
-  flashHint(`Reading ${p.name}…`);
-  return busy(`Opening the prefab ${p.name}…`, step => placePrefab(p, token, step));
-}
-async function placePrefab(p, token, step = null) {
-  let clip, recovered = 0;
-  try {
-    let doc = await prefabApi.load(p.id), size = await prefabApi.size(doc);
-    if (canRecoverPrefabSources(doc, size.unknown)) {
-      const match = await prefabApi.recoverSources(doc).catch(() => null);
-      if (match?.repaired.length) {
-        doc = match.document;
-        recovered = match.repaired.length;
-        size = await prefabApi.size(doc);
-      }
-    }
-    if (!size.supported) throw Error(size.errors.join('; ') + '. Open Edit to repair it.');
-    clip = await prefabClip({ ...doc, floor: { tiles: size.tiles } }, step);
-    clip.bounds = size.bounds.map((v, k) => v + gridBase()[k % 3]);
-  }
-  catch (error) { if (token === chooseToken) flashHint(`${p.name} could not be placed: ${error.message}`); return null; }
-  if (token !== chooseToken) return null;
-  if (clip.left.length) {
-    banner(`${p.name}: ${plural(clip.left.length, 'piece')} could not be placed. ${clip.left[0]}`);
-  }
-  if (!clip.entries.length && !clip.volumes.length) {
-    if (!clip.left.length) flashHint(`There is nothing to place in ${p.name}.`);
-    return clip;
-  }
-  clipboard = clip;
-  if (clip.entries.length >= BUSY_PIECES) await nextFrame();
-  startPlacing(clip, { prefab: p, key: `prefab:${p.id}` });
-  flashHint(`${p.name}${recovered ? ` · recovered ${plural(recovered, 'piece')} by recipe` : ''} · click to place it${clip.gridLocked ? ' (by whole tiles)' : ''} · R turns it`);
-  return clip;
-}
-// A saved prefab's picture: drawn from the selection it was saved from, in a frame (drawPrefabPictures), and kept by
-// the server.
-const prefabPictures = [];
-function drawPrefabPictures() {
-  const job = prefabPictures.shift();
-  if (!job) return;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 96;
-  const object = previewGroup(job.entries, null, new THREE.Matrix4());
-  for (const v of job.volumes ?? []) {
-    const line = new THREE.LineSegments(ghostEdges, ghostLine); line.matrix.copy(v.matrix); line.matrixAutoUpdate = false; object.add(line);
-  }
-  if (!pieces.paintThumbs([{ object, box: job.box, thumb: canvas }])) return;
-  canvas.toBlob(blob => blob && prefabApi.putPicture(job.id, blob).then(() => prefabTab.refresh()).catch(() => {}), 'image/png');
-}
-// Save the selection as a prefab under a name: a new one, or over the prefab `replace` (its summary) as its next
-// revision. Gives { id, name, revision }, null when `going()` turned false before the save was sent, or throws.
-// The server keeps a copy of every piece of a prefab in the library, and the first save of a map's pieces exports
-// each one (about 0.2 s a piece: three minutes for 800), so they are exported first, a few at a time, with
-// step(done, total) after each batch; the save itself then reads them back at once.
-const PREFAB_EXPORT_CHUNK = 20;
-async function savePrefab(name, records = prefabRecords(), replace = null, { step = null, going = () => true } = {}) {
-  if (!records || (!records.pieces.length && !records.buildings.length)) throw Error('Nothing selected can go into a prefab');
-  if (records.size && !records.size.supported) throw Error(records.size.errors.join('; '));
-  const sources = [...new Map(records.pieces.filter(p => p.from && !p.kind).map(p => {
-    const source = { package: p.from.package, level: 'base', actor: short(p.from.actor) };
-    return [recordId(source), source];
-  })).values()];
-  for (let k = 0; k < sources.length; k += PREFAB_EXPORT_CHUNK) {
-    if (!going()) return null;
-    step?.(k, sources.length);
-    // (a piece that can't be had is the save's to judge: it counts it unknown; a failed request leaves the rest to it)
-    try { await prefabApi.warm(sources.slice(k, k + PREFAB_EXPORT_CHUNK)); } catch { break; }
-  }
-  if (!going()) return null;
-  step?.(sources.length, sources.length);
-  const id = replace?.id ?? uuid();
-  const doc = newPrefab(id, name, records);
-  const saved = await prefabApi.save(id, replace ? { ...doc, created: (await prefabApi.load(id)).created } : doc, replace?.revision ?? 0);
-  prefabPictures.push({ id, entries: records.clip.entries, volumes: records.clip.volumes, box: records.box });
-  prefabTab.refresh();
-  return { id, name, revision: saved.revision };
-}
-const prefabDialog = { root: $('prefabDialog'), records: null, replace: null, builder: false, resolve: null, confirmed: null };
-function showPrefabDialog(whole = false) {
-  whole = whole === true;
-  if (!data) return;
-  const records = prefabRecords({ complete: whole });
-  if (!records || (!records.pieces.length && !records.buildings.length)) {
-    flashHint('Select what should be the prefab first (Box select, T, takes a whole building)');
-    return;
-  }
-  prefabDialog.records = records; prefabDialog.replace = null;
-  prefabDialog.builder = whole; prefabDialog.confirmed = null;
-  const maps = records.donors.map(d => d.package);
-  $('prefabWhat').textContent = `${prefabWords(records.counts)}${records.groups.length ? ` · ${plural(records.groups.length, 'group')}` : ''}`
-    + `${maps.length ? ` · pieces of ${maps.join(', ')}` : ''}. It is saved to the Add panel's Prefabs tab, to place in any map as one thing. `
-    + 'The file holds references and places only, so it can be passed on.';
-  const list = (id, title, lines) => {
-    const box = $(id);
-    box.hidden = !lines.length;
-    box.replaceChildren();
-    if (!lines.length) return;
-    text(box, 'b', title);
-    for (const line of lines.slice(0, 40)) text(box, 'div', line);
-    if (lines.length > 40) text(box, 'div', `… and ${lines.length - 40} more`);
-  };
-  list('prefabLeft', `Left out of the prefab (${records.left.length})`, records.left);
-  list('prefabOff', `Off the grid (${records.offGrid.length}): ladders, doors, cars, vans and fracturing pieces build exactly only on whole tiles and quarter turns from where their originals stand`, records.offGrid);
-  // a name to start: the prefab the selection was placed from, else its one building's, else the pivot piece's
-  const held = selectionGroup(), one = records.buildings.length === 1 ? records.buildings[0].name : '';
-  $('prefabName').value = whole ? (builder.doc.revision ? `${builder.doc.name} copy` : '') : (held.kind === 'whole' && held.group.prefab?.name) || one || records.clip.name.replace(/ and \d+ other pieces?$/, '');
-  prefabNameCheck();
-  prefabDialog.root.hidden = false;
-  prefabTab.refresh().then(prefabNameCheck);
-  setTimeout(() => $('prefabName').select(), 0);
-  return new Promise(resolve => { prefabDialog.resolve = resolve; });
-}
-function prefabNameCheck() {
-  const name = $('prefabName').value.trim(), here = name ? prefabTab.byName(name) : null;
-  prefabDialog.replace = here;
-  const self = prefabDialog.builder && here?.id === builder.doc.id;
-  $('prefabOk').disabled = !name || self;
-  $('prefabOk').textContent = here ? 'Replace' : 'Save';
-  $('prefabStatus').textContent = here ? `The library has “${here.name}” (revision ${here.revision}): Replace saves over it. What is placed in maps stays as it is.` : '';
-  if (self) $('prefabStatus').textContent = 'Use Save to update the prefab being edited, or choose another name for Save as.';
-}
-// The dialog's progress row: a ring while it saves, and a bar with a count while the pieces are copied to the library.
-function prefabProgress(on, done = 0, total = 0) {
-  $('prefabProgress').hidden = !on;
-  $('prefabProgressBar').hidden = !(on && total > 0);
-  $('prefabProgressBar').firstElementChild.style.width = total > 0 ? `${Math.round(100 * Math.min(1, done / total))}%` : '0';
-  $('prefabProgressCount').textContent = on && total > 0 ? `${Math.min(done, total)} of ${total}` : '';
-  $('prefabName').disabled = on;
-}
-function hidePrefabDialog(saved = false) { prefabProgress(false); prefabDialog.root.hidden = true; prefabDialog.records = null; prefabDialog.resolve?.(saved === true); prefabDialog.resolve = null; }
-$('prefabName').oninput = () => { prefabDialog.confirmed = null; prefabNameCheck(); };
-$('prefabForm').onsubmit = async e => {
-  e.preventDefault();
-  const name = $('prefabName').value.trim(), { records, replace } = prefabDialog;
-  if (!name || !records) return;
-  if (prefabDialog.builder && replace?.id === builder.doc.id) { prefabNameCheck(); return; }
-  if (prefabDialog.builder && replace && prefabDialog.confirmed !== `${replace.id}:${replace.revision}`) {
-    prefabDialog.confirmed = `${replace.id}:${replace.revision}`;
-    $('prefabStatus').textContent = `Replace “${replace.name}” with these contents? The prefab being edited stays unchanged. Click Confirm replacement to continue.`;
-    $('prefabOk').textContent = 'Confirm replacement'; return;
-  }
-  $('prefabOk').disabled = true; $('prefabStatus').textContent = 'Saving…';
-  prefabProgress(true);
-  // (closed while it saves, the view's own mark says it is still going)
-  const endBusy = busyStart(`Saving the prefab ${name}…`);
-  try {
-    if (prefabDialog.builder) {
-      const saved = await saveBuilder({ name, replace });
-      if (saved) hidePrefabDialog(true);
-      else { hidePrefabDialog(false); }
-      return;
-    }
-    // Closing the dialog while the pieces are exported stops there; once the save is sent it finishes and says so.
-    const open = () => prefabDialog.records === records;
-    const step = (done, total) => {
-      endBusy.job.done = done; endBusy.job.total = done < total ? total : null; busyPaint();
-      if (!open()) return;
-      prefabProgress(true, done, done < total ? total : 0);
-      if (total >= PREFAB_EXPORT_CHUNK)
-        $('prefabStatus').textContent = done < total ? 'Copying the pieces to the library (the first save of a map\'s pieces takes a while)…' : 'Saving…';
-    };
-    const saved = await savePrefab(name, records, replace, { step, going: open });
-    if (!saved) return;
-    if (open()) hidePrefabDialog(true);
-    flashHint(`Saved the prefab ${saved.name}${replace ? ` (revision ${saved.revision})` : ''} · it is in the Add panel's Prefabs tab`);
-  } catch (error) {
-    if (prefabDialog.records !== records) { flashHint(`The prefab ${name} was not saved: ${error.message}`); return; }
-    $('prefabOk').disabled = false; $('prefabStatus').textContent = `Not saved: ${error.message}`;
-  } finally {
-    endBusy();
-    if (prefabDialog.records === records || !prefabDialog.records) prefabProgress(false);
-  }
-};
-$('prefabClose').onclick = $('prefabCancel').onclick = hidePrefabDialog;
-prefabDialog.root.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); hidePrefabDialog(); } });
-$('selectionPrefab').onclick = $('prefabSave').onclick = $('volumePrefab').onclick = showPrefabDialog;
 // Delete: an added piece goes; an original is hidden (and returns with undo or Reset all).
 // A step that touches many pieces (BUSY_PIECES or more) puts the busy mark up first, so the page says what it is
 // doing instead of standing still (plan "faster editor", L3); a small one runs at once.
@@ -4052,341 +3656,6 @@ function needsPrepare() {
   return true;
 }
 
-// The prefab builder uses the same roots, history and tools, with a complete document
-// instead of a delta against a map. Missing pieces remain members of that document.
-const physicalBoxes = new WeakMap();
-function physicalBox(root) {
-  if (root.userData.light) { const p = lightPose(root).location; return [...p, ...p]; }
-  if (root.userData.volume) return volumeBox(root);
-  if (root.userData.effect) return null;
-  const key = root.matrix.elements.join(',') + ':' + root.userData.source.mesh;
-  if (physicalBoxes.get(root)?.key === key) return physicalBoxes.get(root).box;
-  const b = boxOf(root, true), box = b ? [b[0], b[2], b[4], b[1], b[3], b[5]] : null;
-  physicalBoxes.set(root, { key, box }); return box;
-}
-// (PIECE_FIELDS, the record fields this editor knows, are piece_records.js's)
-function builderDocument() {
-  if (!eventMemo) return builderDocumentNow();
-  return eventMemo.document ??= builderDocumentNow();
-}
-function builderDocumentNow() {
-  const state = editState(), known = state.added.map(({ id, ...p }) => {
-    const original = builder.metadata.get(p.actor);
-    // (a field of a newer editor's, which this one doesn't know, is carried as the file had it: prefabs.py `carried`)
-    const carried = original ? Object.fromEntries(Object.entries(original).filter(([k]) => !PIECE_FIELDS.has(k))) : {};
-    return { ...carried, ...p, ...(p.from && original?.recipe && !p.recipe ? { recipe: original.recipe } : {}) };
-  });
-  const pieces = [...known, ...builder.kept].sort((a, b) => a.actor.localeCompare(b.actor));
-  const reconciled = reconcilePrefab(pieces, state.buildings, [...groups.values()].map(g => ({ ...g, members: [...g.members.values()] })));
-  const donors = new Map((builder.doc?.donors ?? []).map(d => [d.package.toLowerCase(), d]));
-  for (const p of pieces) if (p.from && !donors.has(p.from.package.toLowerCase())) {
-    const sha256 = donorHashes.get(p.from.package.toLowerCase());
-    donors.set(p.from.package.toLowerCase(), { package: p.from.package, ...(sha256 ? { sha256 } : {}) });
-  }
-  const used = new Set(pieces.filter(p => p.from).map(p => p.from.package.toLowerCase()));
-  return { ...builder.doc, pieces: reconciled.pieces, groups: reconciled.groups, buildings: state.buildings,
-    donors: [...donors].filter(([key]) => used.has(key)).map(([, d]) => d).sort((a, b) => a.package.localeCompare(b.package)) };
-}
-function builderKey() {
-  if (eventMemo?.key) return eventMemo.key;
-  const { pieces, groups, buildings, donors } = builderDocument();
-  const key = JSON.stringify({ pieces, groups, buildings, donors, envelope: builder.envelope });
-  if (eventMemo) eventMemo.key = key;
-  return key;
-}
-function builderBounds() {
-  const boxes = [...allRoots.values()].filter(r => !r.userData.deleted).map(r => [rootName(r), physicalBox(r)]).filter(([, b]) => b);
-  for (const p of builder.kept) if (['point', 'spot'].includes(p.template?.kind) || (p.kind && !p.template)) boxes.push([p.actor, [...p.location, ...p.location]]);
-  // (an effect, a sound or a lens flare is where it stands)
-  for (const r of effectRoots.values()) {
-    if (r.userData.deleted || !r.userData.source.added) continue;
-    const p = actorPose(r.userData.source, r.matrix).location;
-    boxes.push([short(r.userData.source.actor), [...p, ...p]]);
-  }
-  return boxes;
-}
-function builderRecords() {
-  const doc = builderDocument(), clip = snapshot([...allRoots.values()], new Set()) ?? { entries: [], volumes: [], name: doc.name };
-  const records = normalizePrefab(doc, builderBounds(), { envelope: builder.envelope, unknown: builder.kept.filter(p => !p.kind || p.template).map(p => p.actor) });
-  const lights = records.pieces.filter(p => ['point', 'spot'].includes(p.template?.kind)).length;
-  const [effects, sounds, flares] = ['effect', 'sound', 'flare'].map(kind => records.pieces.filter(p => !p.template && p.kind === kind).length);
-  const b = records.size.bounds;
-  return { ...records, clip, left: [], offGrid: [...roots.values()].filter(r => gridNow(r)?.valid === false).map(rootName),
-    counts: { pieces: records.pieces.length - lights - effects - sounds - flares, lights, effects, sounds, flares, buildings: records.buildings.length, tiles: records.tiles },
-    box: new THREE.Box3(new THREE.Vector3(b[0], b[2], b[1]), new THREE.Vector3(b[3], b[5], b[4])) };
-}
-// Align to grid (the builder's warning, prefab plan 5.6b): the pieces keeping the pose rule (doors, ladders, cars, vans,
-// fracturing pieces) that stand off their grid, and the one smallest shift of the whole prefab that puts every such
-// piece on it: each off piece's nearest whole tile and level (poserule.js nearestGridPose), the least of those that
-// suits them all. { off: [{ root, name }], delta, pivot (a root id) } or, with no such shift, turned (pieces a shift
-// can't help: turned off quarter turns, or pitched) or clash (no one shift suits them all).
-function gridAlignment() {
-  const origin = gridOrigin(), ruled = [];
-  if (!origin) return { off: [] };
-  for (const [id, r] of roots) {
-    if (r.userData.deleted || isStream(r.userData.source) || r.userData.light) continue;
-    const from = recipeOf(r.userData.source);
-    if (!from) continue;
-    const pose = actorPose(r.userData.source, r.matrix);
-    ruled.push({ id, r, from, pose, move: gridMove(from.location, from.rotation, pose.location, pose.rotation, origin) });
-  }
-  const off = ruled.filter(p => !p.move.valid);
-  const named = [...new Map(off.map(p => [rootName(p.r), { root: p.r, id: p.id, name: rootName(p.r) }])).values()];
-  if (!off.length) return { off: [] };
-  const turned = named.filter(n => off.some(p => p.r === n.root && p.move.why.some(w => w === 'pitch or roll' || w === 'quarter turns')));
-  if (turned.length) return { off: named, turned };
-  const suits = d => ruled.every(p => gridMove(p.from.location, p.from.rotation, p.pose.location.map((v, k) => v + d[k]), p.pose.rotation, origin).valid);
-  const best = off.map(p => ({ p, delta: nearestGridPose(p.from.location, p.from.rotation, p.pose.location, p.pose.rotation, origin)
-    .location.map((v, k) => Number((v - p.pose.location[k]).toFixed(4))) }))
-    .sort((a, b) => Math.hypot(...a.delta) - Math.hypot(...b.delta)).find(c => suits(c.delta));
-  return best ? { off: named, delta: best.delta, pivot: best.p.id } : { off: named, clash: true };
-}
-// The shift made: everything of the prefab (pieces, lights, floor boxes) moved as one, one undo step; the selection
-// is given back.
-function alignToGrid() {
-  const plan = gridAlignment();
-  if (!plan.delta || builder.kept.length || gizmo.controls.dragging) return false;
-  const before = gizmo.picks();
-  const ids = [roots, lightRoots, volumeRoots].flatMap(m => [...m].filter(([, r]) => !r.userData.deleted).map(([id]) => id));
-  gizmo.setSelection(ids, plan.pivot);
-  const pose = gizmo.pose();
-  if (pose) gizmo.setPose(pose.location.map((v, k) => v + plan.delta[k]), null);
-  gizmo.setSelection(before.ids.filter(id => allRoots.has(id)), before.active);
-  editChanged();
-  flashHint(`Moved the prefab ${shiftWords(plan.delta)}: every door, ladder and fracturing piece is on the grid`);
-  return Boolean(pose);
-}
-const shiftWords = d => [['east', 'west'], ['south', 'north'], ['up', 'down']]
-  .map(([plus, minus], k) => Math.abs(d[k]) > 0.005 ? `${Math.abs(Number(d[k].toFixed(2)))} ${d[k] > 0 ? plus : minus}` : '')
-  .filter(Boolean).join(', ') || 'nowhere';
-// The warning over the size: what stands off the grid, Show (select those pieces) and Align to grid.
-function gridWarning() {
-  const plan = gridAlignment(), box = $('gridWarning');
-  box.hidden = !plan.off.length;
-  if (box.hidden) return;
-  const names = plan.off.map(n => n.name);
-  $('gridWarningText').textContent = `${plural(names.length, 'piece')} off the tile grid: ${names.slice(0, 3).join(', ')}`
-    + `${names.length > 3 ? ' …' : ''}`;
-  const why = builder.kept.length ? 'Some pieces could not be read: align once they can, so they move too.'
-    : plan.turned ? `${plan.turned.map(n => n.name).join(', ')} ${plan.turned.length === 1 ? 'is' : 'are'} turned off quarter turns or tilted: turn ${plan.turned.length === 1 ? 'it' : 'them'} first (Show selects ${plan.turned.length === 1 ? 'it' : 'them'}).`
-    : plan.clash ? 'No single shift puts them all on the grid: move them apart from each other first (Show selects them).'
-    : `Align to grid moves the whole prefab ${shiftWords(plan.delta)}, the nearest place where they all are.`;
-  box.title = 'Doors, ladders, cars, vans and fracturing pieces keep to the tile grid: whole tiles (96) and levels (64) from '
-    + 'where their originals stand. Off it they build where they stand, and the Build and Test in game say so. ' + why;
-  $('gridAlign').disabled = !plan.delta || builder.kept.length > 0;
-  $('gridAlign').title = plan.delta && !builder.kept.length ? `Moves everything ${shiftWords(plan.delta)} as one: one undo step` : why;
-}
-$('gridAlign').onclick = () => { alignToGrid(); };
-$('gridShow').onclick = () => {
-  const plan = gridAlignment(), ids = (plan.turned ?? plan.off).map(n => n.id);
-  if (!ids.length) return;
-  gizmo.setSelection(ids, ids[0]); editChanged(); frame(roots.get(ids[0]));
-};
-const builderGround = new THREE.Group(); world.add(builderGround);
-let builderGroundKey = '';
-function refreshBuilder() {
-  if (!builderMode || builder.loading || !data) return;
-  const records = builderRecords(), { size } = records, b = size.bounds;
-  $('prefabRecover').hidden = !records.pieces.some(p => p.from && !p.kind);
-  $('prefabRecover').disabled = builder.repairing;
-  $('builderSize').textContent = `${size.tiles[0]} × ${size.tiles[1]} tiles · height ${b[2].toFixed(0)}–${b[5].toFixed(0)}, grid 0–${PREFAB_GRID_TOP}`
-    + (size.warnings.length ? ' · larger than a map holds' : size.unknown.length ? ' · size unverified: missing pieces kept'
-      : size.outside.length ? ' · sticks out of the grid' : '');
-  $('builderSize').title = [...size.warnings.map(w => `${w}. It is saved and placed all the same.`),
-    `A map is at most ${PREFAB_TILES} by ${PREFAB_TILES} tiles; the tile grid is 0 to ${PREFAB_GRID_TOP} units high (${PREFAB_GRID_LEVELS} levels), `
-    + `and anything may stick out to ${PREFAB_MIN_Z} under it and ${PREFAB_MAX_Z} over it, roofs and floor boxes `
-    + 'included. Out of the grid there are no tiles: nothing can be stood on there or give cover.',
-    size.outside.length ? `Out of the grid: ${size.outside.slice(0, 8).join(', ')}${size.outside.length > 8 ? ' …' : ''}.` : ''].filter(Boolean).join('\n');
-  $('builderSize').classList.toggle('warn', size.warnings.length > 0 || !size.verified);
-  gridWarning();
-  const lo = [0, 1].map(k => Math.floor((Math.min(-576, b[k], controls.target[k ? 'z' : 'x'] - 576) - 192) / TILE) * TILE);
-  const hi = [0, 1].map(k => Math.ceil((Math.max(576, b[k + 3], controls.target[k ? 'z' : 'x'] + 576) + 192) / TILE) * TILE);
-  const key = [...lo, ...hi, ...size.origin, ...size.tiles, size.warnings.length].join(',');
-  if (key === builderGroundKey) return;
-  builderGroundKey = key;
-  for (const child of [...builderGround.children]) { child.geometry.dispose(); child.material.dispose(); builderGround.remove(child); }
-  const plane = new THREE.Mesh(new THREE.PlaneGeometry(hi[0] - lo[0], hi[1] - lo[1]).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: 0x778c91, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide }));
-  plane.position.set((hi[0] + lo[0]) / 2, -0.2, (hi[1] + lo[1]) / 2); builderGround.add(plane);
-  const lines = [], line = (x, y, X, Y) => lines.push(x, 0, y, X, 0, Y);
-  // Bound drawing cost even when repairing a very large legacy prefab.
-  const step = Math.max(TILE, Math.ceil(Math.max(hi[0] - lo[0], hi[1] - lo[1]) / (256 * TILE)) * TILE);
-  for (let x = lo[0]; x <= hi[0]; x += step) line(x, lo[1], x, hi[1]);
-  for (let y = lo[1]; y <= hi[1]; y += step) line(lo[0], y, hi[0], y);
-  builderGround.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(lines, 3)),
-    new THREE.LineBasicMaterial({ color: 0x91a9ac, transparent: true, opacity: 0.14 })));
-  const [x, y] = size.origin, [nx, ny] = size.tiles;
-  const outline = [x, 0.4, y, x + nx * TILE, 0.4, y, x + nx * TILE, 0.4, y + ny * TILE, x, 0.4, y + ny * TILE, x, 0.4, y];
-  builderGround.add(new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(outline, 3)),
-    new THREE.LineBasicMaterial({ color: size.warnings.length ? 0xef9979 : 0x82d5ce })));
-  for (const child of builderGround.children) child.raycast = () => {};
-}
-async function applyPrefabDocument(doc, { envelope = null, nextSerial = 0 } = {}, progress = null) {
-  builder.loading = true;
-  builder.metadata = new Map(doc.pieces.map(p => [p.actor, structuredClone(p)]));
-  for (const d of doc.donors ?? []) if (d.sha256) donorHashes.set(d.package.toLowerCase(), d.sha256);
-  // Reserve names and link serials even when none of their pieces can be displayed.
-  for (const p of doc.pieces) for (const s of [/_copy(\d+)$/.exec(p.actor)?.[1], /^copy(\d+):/.exec(p.prefab ?? '')?.[1]]) nextSerial = Math.max(nextSerial, Number(s) || 0);
-  builder.kept = doc.pieces;
-  let carried;
-  // (loading ends whatever happens: a failed open never leaves the builder thinking it is still reading)
-  try { carried = await applyState({ overrides: [], added: doc.pieces.map(p => ({ ...p, id: p.actor })), groups: doc.groups ?? [], buildings: doc.buildings ?? [], nextSerial }, progress); }
-  finally { builder.loading = false; }
-  builder.kept = carried.added.map(({ id, ...p }) => p);
-  builder.envelope = builder.kept.length ? envelope ?? [0, 0, 0, doc.floor.tiles[0] * TILE, doc.floor.tiles[1] * TILE, 0] : null;
-  refreshBuilder(); editChanged();
-}
-async function openPrefabDocument(id) {
-  // the loading overlay while a saved prefab is read and its pieces made (those of other maps are read from them)
-  if (id !== 'new') { $('loading').hidden = false; loadingState('Opening the prefab…'); }
-  try {
-    builder.doc = id === 'new' ? newPrefab(uuid(), 'Untitled prefab', { tiles: [1, 1], pieces: [], groups: [], buildings: [], donors: [] }) : await prefabApi.load(id);
-    if (id !== 'new') loadingState(`Opening ${builder.doc.name}: reading its ${plural(builder.doc.pieces.length, 'piece')}…`, 0);
-    await applyPrefabDocument(builder.doc, {}, openingProgress(builder.doc.name));
-  } finally { $('loading').hidden = true; }
-  builder.savedKey = builderKey();
-  Object.assign(problems, { result: null, error: null, key: null, open: false });
-  builderTitle(); frame(); editChanged();     // (the status was drawn while loading, before the saved state was known)
-  if (id === 'new') return;
-  checkPrefab();
-  const recovery = await prefabApi.recovery(id).catch(() => null);
-  const missing = builder.kept.length;
-  if (recovery?.document) banner(`Unsaved changes to ${builder.doc.name} from ${savedWhen(recovery.savedAt)} were kept.` +
-    draftWords(recovery, builder.doc.revision) +
-    (missing ? ` The saved version has ${plural(missing, 'missing piece')}. Choose which version to open before looking for sources.` : ''), [
-    ['Restore them', async () => {
-      builder.doc.donors = recovery.document.donors;
-      await applyPrefabDocument(recovery.document, recovery);
-      setAdoptedDraft({ owner: recovery.owner, savedAt: recovery.savedAt });
-      setRecoveryKept(true); projectChanged();
-      await recoverOpenedPrefabSources();
-    }],
-    ['Discard them', async () => { await discardDraft(prefabApi, id, recovery); await recoverOpenedPrefabSources(); }],
-  ]);
-  else await recoverOpenedPrefabSources();
-}
-
-function prefabSourceNotice(repaired, unresolved = [], error = '') {
-  const missing = new Map(builder.kept.map(p => [p.actor, p.from && !p.recipe ? 'No recipe was saved.' : 'Could not load its source.']));
-  for (const p of unresolved) missing.set(p.actor, p.reason);
-  const messages = [];
-  if (repaired) messages.push(`Recovered ${plural(repaired, 'piece')} by recipe. Save to keep the new sources.`);
-  if (error) messages.push(`Could not look up prefab sources: ${error}`);
-  if (missing.size) {
-    const names = [...missing].slice(0, 3).map(([actor, reason]) => `${short(actor)}: ${reason}`);
-    messages.push(`${plural(missing.size, 'piece')} still missing. ${names.join(' ')}${missing.size > names.length ? ` And ${missing.size - names.length} more.` : ''}`);
-  }
-  banner(messages.join(' ') || 'All prefab sources are available.');
-}
-
-async function recoverOpenedPrefabSources() {
-  if (!builder.kept.length) return;
-  if (builder.kept.some(p => p.from && p.recipe)) await recoverPrefabSources();
-  else prefabSourceNotice(0);
-}
-
-async function recoverPrefabSources() {
-  if (!builderMode || builder.loading || builder.repairing || saving || gizmo.controls.dragging) return;
-  const before = builderKey(), doc = builderDocument();
-  builder.repairing = $('prefabRecover').disabled = true;
-  flashHint('Looking for the missing pieces in the map catalogue…');
-  try {
-    const result = await prefabApi.recoverSources(doc);
-    const repaired = new Set(result.repaired);
-    if (!repaired.size) {
-      prefabSourceNotice(0, result.unresolved);
-      return;
-    }
-    const replacements = result.document.pieces.filter(p => repaired.has(p.actor));
-    const hashes = new Map(result.document.donors.map(d => [d.package.toLowerCase(), d.sha256]));
-    const made = await Promise.all(replacements.flatMap(p => p.components.map(async component => {
-      const { record } = await libraryTemplate(p.from);
-      if (record.source.sha256 !== hashes.get(p.from.package.toLowerCase()))
-        throw Error('The game package changed while this prefab was open. Reopen the prefab and try again.');
-      const source = templateFor(p.from, component);
-      if (!source) throw Error(`Could not load ${short(p.actor)} from ${p.from.package}.`);
-      return buildRoot(addedObject(source, movedMatrix(source, p.location, p.rotation), { ...p, entity: p.actor }));
-    })));
-    if (before !== builderKey() || saving || gizmo.controls.dragging) throw Error('The prefab changed during the search. Try again.');
-    const old = [...roots.values()].filter(r => repaired.has(r.userData.source.actor));
-    const picks = gizmo.picks(), removed = new Set(old.map(r => r.userData.source.id));
-    const kept = builder.kept, envelope = builder.envelope, metadata = builder.metadata, donors = builder.doc.donors;
-    const remaining = kept.filter(p => !repaired.has(p.actor));
-    const updated = new Map(metadata);
-    for (const p of replacements) updated.set(p.actor, p);
-    gizmo.record({
-      redo() {
-        removeRoots(old); addRoots(made);
-        Object.assign(builder, { kept: remaining, envelope: remaining.length ? envelope : null, metadata: updated });
-        builder.doc.donors = result.document.donors;
-        gizmo.setSelection(picks.ids.filter(id => !removed.has(id)), removed.has(picks.active) ? null : picks.active);
-        sceneChanged();
-      },
-      undo() {
-        removeRoots(made); addRoots(old);
-        Object.assign(builder, { kept, envelope, metadata });
-        builder.doc.donors = donors;
-        gizmo.setSelection(picks.ids, picks.active);
-        sceneChanged();
-      },
-    });
-    prefabSourceNotice(repaired.size, result.unresolved);
-  } catch (error) {
-    prefabSourceNotice(0, [], error.message);
-  } finally {
-    builder.repairing = false;
-    refreshBuilder();
-  }
-}
-
-function builderTitle() {
-  $('projectTitle').textContent = builder.doc?.name ?? 'Untitled prefab';
-  $('mapTitle').textContent = builder.doc?.name ?? 'New prefab';
-  document.title = `${builder.doc?.name ?? 'New prefab'} · Prefab · XCOM Map Workshop`;
-  $('projectButton').classList.toggle('unsaved', dirty());
-}
-async function saveBuilder({ name = null, replace = null } = {}) {
-  if (saving || builder.loading || gizmo.controls.dragging) return false;
-  if (!name && !builder.doc.revision) return showPrefabDialog(true);
-  setSaving(true); clearTimeout(recoveryTimer);
-  try {
-    await documentWrites.wait();
-    const records = prefabRecords({ complete: true }), before = builderKey(), previous = builder.doc.id;
-    if (!records.pieces.length && !records.buildings.length) throw Error('The prefab is empty. Add a piece, light or floor box first.');
-    if (!records.size.supported) throw Error(records.size.errors.join('; '));
-    const target = name ? replace : builder.doc, id = target?.id ?? uuid();
-    const doc = newPrefab(id, name ?? builder.doc.name, records);
-    if (target?.created) doc.created = target.created;
-    else if (replace) doc.created = (await prefabApi.load(id)).created;
-    const result = await prefabApi.save(id, doc, target?.revision ?? 0, { owner: SESSION });
-    // (the server dropped this page's draft of `id`; saved as another prefab, its draft of the one open before goes,
-    // and a draft restored into it: what they held is saved now)
-    if (previous !== id) documentWrites.run(() => prefabApi.dropRecovery(previous, SESSION)).catch(() => {});
-    dropAdopted(prefabApi, previous);
-    const withRecipes = list => list.map(p => result.recipes?.[p.actor] ? { ...p, recipe: result.recipes[p.actor] } : p);
-    const baseline = JSON.parse(before);
-    baseline.pieces = withRecipes(baseline.pieces);
-    builder.doc = { ...doc, pieces: withRecipes(doc.pieces), revision: result.revision, created: result.created, savedAt: result.savedAt };
-    builder.savedKey = JSON.stringify(baseline); setRecoveryKept(false); setRecoveryTrouble(null);
-    setTimeout(checkPrefab, 0);
-    builder.metadata = new Map(withRecipes(records.pieces).map(p => [p.actor, structuredClone(p)]));
-    history.replaceState(null, '', `?prefab=${encodeURIComponent(id)}`);
-    prefabPictures.push({ id, entries: records.clip.entries, volumes: records.clip.volumes, box: records.box });
-    prefabTab.refresh(); builderTitle();
-    flashHint(`Saved ${doc.name} · revision ${result.revision}${!result.size?.verified ? ' · size unverified: missing pieces kept' : ''}`);
-    return true;
-  } catch (error) {
-    if (error.status === 409 && Number.isInteger(error.body?.revision) && !name) {
-      setRecoveryTrouble('stale');      // (told here: the drafts kept meanwhile say nothing more of it)
-      banner(`${builder.doc.name} was saved elsewhere (revision ${error.body.revision}).`, [
-        ['Overwrite it with this', () => { builder.doc.revision = error.body.revision; saveBuilder(); }],
-        ['Open the saved one', () => discardAndGo({ prefab: builder.doc.id })],
-      ]);
-    }
-    else banner(`Not saved: ${error.message}`);
-    return false;
-  } finally { setSaving(false); projectChanged(); }
-}
 // Projects: the edits saved, reopened and recovered (first-editor plan E1; project.js, research/editor-contracts.md).
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
 // (The project open, `project`: editor_state.js.)
@@ -4458,14 +3727,39 @@ const { editStateNow, applyState } = createDocumentState({
 // and offered back, and the banner under the header.
 const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
         openProject, projectChanged, saveProject } = createDocumentSession({
-  $, SESSION, applyState, bombHelperFix, builder, builderDocument, builderTitle, camera, controls, dirty, documentWrites,
-  editChanged, editState, flashHint, gizmo, loadingState, ownSize, plural, problemsPaint, projectNote, projectsAvailable,
-  refreshBuilder, saveBuilder, saveState, setMissionMoves, showFileDialog, text, touchRecent, unsavedDocument,
+  $, SESSION, applyState, bombHelperFix, builder, camera, controls, dirty, documentWrites, editChanged, editState, flashHint,
+  gizmo, loadingState, ownSize, plural, projectNote, projectsAvailable, saveState, setMissionMoves, showFileDialog, text,
+  touchRecent, unsavedDocument,
   // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
   openingProgress: name => openingProgress(name),
+  // (made with the prefab builder just below, which is given the session's banner and drafts: called through)
+  builderDocument: () => builderDocument(), builderTitle: () => builderTitle(), problemsPaint: () => problemsPaint(),
+  refreshBuilder: () => refreshBuilder(), saveBuilder: options => saveBuilder(options),
   // (made with Build and Play just below, which is given the session's banner and save: called through)
   followBuild: (status, id) => followBuild(status, id), renderPlayItems: () => renderPlayItems(),
   setLastBuild: (id, status) => setLastBuild(id, status) });
+// The prefab builder's session (builder_session.js): the prefab's document opened, kept and saved, its size line and
+// ground, Align to grid, the missing pieces looked for by recipe, and the Problems check.
+const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderRecords, builderTitle, openPrefabDocument,
+        physicalBox, problemsPaint, recoverPrefabSources, refreshBuilder, saveBuilder } = createBuilderSession({
+  $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf, buildRoot, controls, dirty, discardAndGo, discardDraft,
+  documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, frame, gizmo, gridNow, gridOrigin, isStream,
+  libraryTemplate, lightPose, loadingState, movedMatrix, plural, projectChanged, recipeOf, removeRoots, rootName, sceneChanged,
+  selectActors, short, snapshot, templateFor, text, volumeBox, world,
+  // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
+  openingProgress: name => openingProgress(name),
+  // (made with prefabs saved and placed just below, which is given the builder's records and save: called through)
+  prefabRecords: options => prefabRecords(options), showPrefabDialog: whole => showPrefabDialog(whole) });
+// Prefabs saved and placed (prefab_place.js): the Save as prefab dialog, the save, and a prefab of the Add panel's
+// Prefabs tab placed as a paste is.
+const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, prefabRecords, savePrefab,
+        showPrefabDialog } = createPrefabPlace({
+  $, BUSY_PIECES, PL, actorPose, assetUrl, banner, boxMatrix, builderRecords, busy, busyPaint, busyStart, copyable, coverOf,
+  coverVersion, effectTemplate, effectViewOnly, flashHint, fromOf, ghostEdges, ghostLine, gltfLoader, gridNow, groupTree,
+  isForeignTarget, isStream, libraryTemplate, lightPose, lightsBlocked, linkOf, madeShape, mapChain, matrixBox, memberOf,
+  movedMatrix, nextFrame, physicalBox, plural, previewGroup, readEffectRecords, readLibraryRecords, recipeLight, recordId,
+  rootName, saveBuilder, selectionGroup, short, snapshot, startPlacing, stopPlacing, templateFor, text, track,
+  withStorableCone });
 const mapLabel = id => mapCatalogue?.maps.find(m => m.id === id)?.label ?? id ?? '';
 // Build and Play in game (build_play.js): Build's panel and the window that follows a build, Play in game with its
 // dialog and the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the prefab
@@ -4524,54 +3818,6 @@ const setupDialog = createSetupDialog({
          message: $('setupMessage'), version: $('setupVersion') },
   // the server lists the new install's maps: open the page afresh on them
   onChosen: () => setTimeout(() => location.reload(), 600) });
-// The builder's Problems check (plan "sturdier prefabs", R5): what a test of the prefab as it stands would say,
-// asked of the server without building anything (POST /prefab-tests/check: the test's prepare step). The chip under
-// the size line counts the pieces that would be left out and the warnings; it opens the list, where a row selects
-// and frames its piece. Checked when a prefab is opened and saved, and on demand; after an edit the chip says the
-// list is from before it.
-const problems = { result: null, key: null, running: false, error: null, open: false };
-async function checkPrefab() {
-  if (!builderMode || builder.loading || problems.running) return;
-  const doc = builderDocument(), key = builderKey();
-  if (!doc.pieces.length && !doc.buildings.length) { Object.assign(problems, { result: null, error: null, key }); problemsPaint(); return; }
-  problems.running = true; problemsPaint();
-  try {
-    const value = await call('POST', '/prefab-tests/check', { snapshot: doc }, { fallback: r => `the server said ${r.status}` });
-    Object.assign(problems, { result: value, error: null, key });
-  } catch (error) { Object.assign(problems, { result: null, error: error.message, key }); }
-  finally { problems.running = false; problemsPaint(); }
-}
-function problemsPaint(stale = Boolean(problems.result) && builderMode && !builder.loading && problems.key !== builderKey()) {
-  const box = $('builderProblems'), chip = $('problemsChip'), list = $('problemsList'), r = problems.result;
-  box.hidden = !builderMode || builder.loading;
-  if (box.hidden) return;
-  const issues = r?.issues ?? [], gone = r?.leftOut ?? 0, warnings = issues.length - gone;
-  chip.textContent = problems.running ? 'Checking…' : problems.error ? 'Not checked' : !r ? 'Check for problems'
-    : !r.ready ? 'Not checked yet' : r.refused ? 'Can\'t be tested'
-    : (gone || warnings ? [gone && `${gone} left out`, warnings && plural(warnings, 'warning')].filter(Boolean).join(' · ') : 'No problems')
-      + (stale ? ' (before the last edit)' : '');
-  chip.classList.toggle('warn', Boolean(gone || r?.refused || problems.error));
-  chip.title = problems.error ? `The check could not be run: ${problems.error}. Click to try again.`
-    : !r ? 'What Test in game would say of this prefab, without building it: the pieces it would leave out and its warnings'
-    : !r.ready ? r.message : `${r.refused ? `${r.refused} ` : ''}Click to ${problems.open ? 'close' : 'open'} the list${stale ? '; it is from before the last edit: Check again in the list brings it up to date' : ''}.`;
-  list.hidden = !problems.open || !r?.ready;
-  list.replaceChildren();
-  if (list.hidden) return;
-  const again = text(list, 'li', '', 'again'), button = text(again, 'button', problems.running ? 'Checking…' : 'Check again');
-  button.type = 'button'; button.disabled = problems.running; button.onclick = () => checkPrefab();
-  if (r.stage) text(again, 'small', ` test stage ${r.stage[0]} × ${r.stage[1]} tiles, ${r.stage[2]} levels`);
-  if (r.refused) text(list, 'li', r.refused, 'leftout');
-  for (const issue of issues.slice(0, 200)) {
-    const li = text(list, 'li', issue.actor && !issue.leftOut ? `${short(issue.actor)} · ${issue.message}` : issue.message, issue.leftOut ? 'leftout' : '');
-    if (issue.actor) { li.classList.add('pick'); li.title = `Select ${short(issue.actor)}`; li.onclick = () => selectActors([issue.actor]); }
-  }
-  if (issues.length > 200) text(list, 'li', `… and ${issues.length - 200} more`);
-  if (!issues.length && !r.refused) text(list, 'li', 'Nothing would be left out, and the compiler has no warning.');
-}
-$('problemsChip').onclick = () => {
-  if (!problems.result?.ready || problems.error) { checkPrefab(); return; }
-  problems.open = !problems.open; problemsPaint();
-};
 // The pieces and lights an actor name stands for (a compile report's entity or target, a prefab test's actor),
 // selected and framed. False when none is in the view.
 function selectActors(names) {
@@ -4795,7 +4041,7 @@ async function material(id,overrideTint=null) {
   return withLocalLights(mat);
 }
 // Meshes and materials load once and are shared by every piece that uses them, copies included.
-const geometryCache = new Map(), materialCache = new Map();
+const materialCache = new Map();     // (the meshes, geometryCache: editor_state.js)
 // Spawned preview pieces (and copies of them) carry their own tint.
 function materialKey(obj, id) {
   const tint = obj.provenance?.type === 'spawn' || obj.added?.tinted ? obj.tint : null;
@@ -11219,11 +10465,11 @@ function setSnapMode(next) {
 $('editSnap').onclick = () => setSnapMode(SNAPS[snapMode][0]);
 $('editLevels').onclick = () => setLevelSnap(!levelSnap);
 levelButton();
-pieces = createPieceBrowser({
+setPieces(createPieceBrowser({
   els: { panel: $('library'), list: $('libList'), filter: $('libFilter'), kind: $('libKind'), where: $('libWhere'),
          sort: $('libSort'), foot: $('libFoot') },
   renderer, preview: entry => previewGroup(entryParts(entry), null, entry.frame), onChoose: chooseEntry,
-});
+}));
 setLibrary(createLibraryBrowser({
   els: { box: $('libAll'), scan: $('libScan'), filter: $('libAllFilter'), kind: $('libAllKind'), home: $('libAllHome'),
          sort: $('libAllSort'), placeable: $('libAllPlaceable'), elsewhere: $('libAllElsewhere'),
@@ -11244,7 +10490,7 @@ setLibrary(createLibraryBrowser({
   },
 }));
 lookPicker = createLookPicker({ prepare: prepareSample, tagsOf: lookTags, recall, remember, hint: flashHint });
-prefabTab = createPrefabBrowser({
+setPrefabTab(createPrefabBrowser({
   els: { box: $('libPrefabs'), filter: $('prefabFilter'), list: $('prefabList'), foot: $('prefabFoot'), note: $('prefabNote'),
          file: $('prefabFile'), importButton: $('prefabImport') },
   onChoose: choosePrefab, onEdit: id => goTo({ prefab: id }), hint: flashHint,
@@ -11257,7 +10503,7 @@ prefabTab = createPrefabBrowser({
     link.download = name; link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   },
-});
+}));
 segmented($('libScope'), () => setLibraryScope($('libScope').value));
 libraryScope = LIBRARY_SCOPES[recall('workshop.libraryScope')] ? recall('workshop.libraryScope') : 'map';
 $('libScope').value = libraryScope;

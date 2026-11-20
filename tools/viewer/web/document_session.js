@@ -2,8 +2,8 @@
 // on the scene; records naming what this export lacks are carried and saved back unchanged), saved (its next revision,
 // Save as, Replace) and left (asked first whether to save); its unsaved state is kept on the server as a draft against
 // a lost tab, and offered back when it opens (a draft belongs to the page session that keeps it: review finding 3);
-// the banner under the header says what happened. The prefab builder's document (app.js) shares the drafts, the
-// leaving and the banner.
+// the banner under the header says what happened. The prefab builder's document (builder_session.js) shares the
+// drafts, the leaving and the banner.
 //
 // createDocumentSession takes what it needs of app.js as one argument object, when app.js makes it: the scene to and
 // from a document (applyState, editState), the gizmo, the camera, the dialogs and panels it opens or paints, and the

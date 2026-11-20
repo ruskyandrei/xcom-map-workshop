@@ -76,7 +76,8 @@ export let buildings = [], buildingsVersion = 0;
 export function setBuildingsValue(next) { buildings = next; }
 export function setBuildingsVersion(next) { buildingsVersion = next; }
 
-// The document session's state (document_session.js; app.js's prefab builder saves and keeps its drafts with it):
+// The document session's state (document_session.js; the prefab builder, builder_session.js, saves and keeps its
+// drafts with it):
 // - leaving: the page is going by the editor's own doing (a document switched to, a map opened as asked), so the
 //   browser's own leave question is not asked;
 // - saving: a project's or a prefab's save is under way; no switch of document, other save or draft starts meanwhile;
@@ -138,3 +139,38 @@ export function setLibrary(next) { library = next; }
 export function setAreaBindings(next) { areaBindings = next; }
 export function setLoadErrorCount(next) { loadErrorCount = next; }
 export function setMergedBuildings(next) { mergedBuildings = next; }
+
+// The prefab builder's document (builder_session.js opens, keeps and saves it; the document session, the scene to and
+// from a document, Build and Play and the Save as prefab dialog read it): doc, the prefab open; kept, the records of
+// its pieces that could not be made here, carried as the file had them; envelope, the size's box while such pieces
+// are kept; metadata, each piece's record as opened or last saved, by actor (a field this editor doesn't know is
+// carried from it); savedKey, what builderKey gave when it was saved; loading, a document being put on the scene;
+// repairing, missing pieces being looked for by recipe.
+export const builder = { doc: null, kept: [], envelope: null, metadata: new Map(), savedKey: '', loading: true, repairing: false };
+// The edit hub's memo of one edit event (app.js's editChanged makes it and drops it): editState, builderDocument and
+// builderKey keep what they worked out first in it.
+export let eventMemo = null;
+export function setEventMemo(next) { eventMemo = next; }
+// The map's families of pieces and its assemblies (families.json, tools/viewer/families.py: the compiler's own), or
+// null from a server without them (app.js's useMapFamilies sets them).
+export let families = null;
+export function setFamilies(next) { families = next; }
+// The Add panel's piece list (pieces.js's browser) and its Prefabs tab (prefabs.js's), made as the page loads.
+export let pieces, prefabTab = null;
+export function setPieces(next) { pieces = next; }
+export function setPrefabTab(next) { prefabTab = next; }
+// What a paste and a placing put down: clipboard, the clip copied or chosen last (a copy, an entry of the Add panel, a
+// prefab); chooseToken, raised by each choice in the Add panel, so that a read ending after another choice places
+// nothing. nextChooseToken() raises it.
+export let clipboard = null, chooseToken = 0;
+export function setClipboard(next) { clipboard = next; }
+export function nextChooseToken() { return ++chooseToken; }
+// Pieces of other maps as read (app.js's library templates): libraryRecords, a piece's record by its id
+// (package|actor, lower case); effectTemplates, an effect's, sound's or lens flare's, by its id; foreignEffects, those
+// as effect roots' sources, by their target; donorHashes, a map's package, lower case -> its SHA-256, as its pieces'
+// records give it.
+export const libraryRecords = new Map(), effectTemplates = new Map(), foreignEffects = new Map(), donorHashes = new Map();
+// The meshes loaded, by mesh key, each shared by every piece that uses it (app.js's track and loaded).
+export const geometryCache = new Map();
+// The saved prefabs' pictures waiting to be drawn (prefab_place.js's drawPrefabPictures draws one a frame).
+export const prefabPictures = [];

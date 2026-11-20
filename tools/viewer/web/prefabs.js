@@ -1,8 +1,8 @@
 // The prefab library (private/plans/done/prefab-library-plan.md, 5.6 and 5.7; tools/viewer/prefabs.py keeps the files). A prefab
 // is a set of pieces, lights, groups and buildings saved in a space of its own (the tile grid: its origin a tile corner
 // at ground level), to place in any map as one thing. The file holds references and numbers only, never game data.
-// This module is the server's routes, the document's shape, and the Add panel's Prefabs tab; app.js makes a prefab of
-// a selection and a clip to place of a prefab.
+// This module is the server's routes, the document's shape, and the Add panel's Prefabs tab; prefab_place.js makes a
+// prefab of a selection and a clip to place of a prefab.
 // 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`: effects and
 // sounds plan, stage FX6a; a lens flare is one more kind since FX6b). 4: a piece made from numbers (`generated`) and a
 // broken copy's `blasts` (review finding 6: piece_records.js). A prefab of schema 1 to 3 opens, and saves as 4.
