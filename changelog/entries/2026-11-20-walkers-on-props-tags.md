@@ -47,8 +47,15 @@ walker before and after (names, kinds, sizes, offsets, values, refusals). A diff
   path, in `props.tags`' words. The old walk read a bool's byte without a bound and measured a struct's or an enum
   property's value from its name, 8 bytes short of where it starts. Every export of both maps gives the same fields,
   starts, ends and untyped arrays.
+- **[props.read_props](../../tools/upk/props.py)** (a line for each property, read by the research tools and `props.py`'s
+  own dump): its walk is `tags()` beside it. The old walk took a name outside the table as `?<index>` and went on,
+  and ended without a word at the export's end; such properties are refused now (a `ValueError`). Every export of
+  both maps gives the same lines and end; the dominant light's component, whose properties the old walk read as
+  garbage until a `struct.error`, is refused at its first name. Its callers (`audit_clear`, `audit_install`,
+  `audit_spawns`, `map_layout`) each catch any exception of it, as they did.
 
 Checked: each walker's module's tests after its commit (map_frame's 11, inline_lighting's 5, light_factory's 22 and
 native_lights' 30, the lighting fixture's 18 and native_fields' 12, relight's 28 and the Lightmass settings' 2,
 pack_card's 27 and the card's users' in the lab (20) and viewer suites (pack export 5, damaged inputs 6), script_enums'
-8, typed_props' in the schema's 9, native_fields' 12 and transplant's 34).
+8, typed_props' in the schema's 9, native_fields' 12 and transplant's 34, props' 9 and its callers' (audit_clear 16,
+audit_spawns 2, bad input 5)).

@@ -4,58 +4,51 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import upkinfo
 
 def read_props(b, off, end, names, imps, exps, depth=0):
-    r = upkinfo.R(b, off)
+    """(a line for each tagged property from `off`, the offset after the closing None), walked by tags()."""
     out = []
-    def nm():
-        i = r.i32(); n = r.i32()
-        s = names[i] if 0 <= i < len(names) else '?%d' % i
-        return s if n == 0 else '%s_%d' % (s, n - 1)
-    while r.o < end:
-        pname = nm()
-        if pname == 'None':
-            break
-        ptype = nm(); size = r.i32(); idx = r.i32()
-        start = r.o
+    walk = tags(b, off, end, names)
+    while True:
+        try:
+            pname, ptype, sname, idx, start, size = next(walk)
+        except StopIteration as done:
+            return out, done.value
         val = None
         if ptype == 'BoolProperty':
-            val = b[r.o]; r.o += 1; size = 0; start = r.o
+            val = b[start]
         elif ptype == 'StructProperty':
-            sname = nm(); start = r.o
             if sname in ('Vector',) and size == 12:
-                val = 'Vector' + str(struct.unpack_from('<3f', b, r.o))
+                val = 'Vector' + str(struct.unpack_from('<3f', b, start))
             elif sname == 'Rotator' and size == 12:
-                val = 'Rotator' + str(struct.unpack_from('<3i', b, r.o))
+                val = 'Rotator' + str(struct.unpack_from('<3i', b, start))
             elif sname == 'Box' and size == 25:
-                val = 'Box' + str(struct.unpack_from('<6f', b, r.o))
+                val = 'Box' + str(struct.unpack_from('<6f', b, start))
             elif sname == 'LinearColor' and size == 16:
-                val = 'LinearColor(R=%g,G=%g,B=%g,A=%g)' % struct.unpack_from('<4f', b, r.o)
+                val = 'LinearColor(R=%g,G=%g,B=%g,A=%g)' % struct.unpack_from('<4f', b, start)
             elif sname == 'Color' and size == 4:
-                bb_, g_, r_, a_ = b[r.o:r.o + 4]; val = 'Color(R=%d,G=%d,B=%d,A=%d)' % (r_, g_, bb_, a_)
+                bb_, g_, r_, a_ = b[start:start + 4]; val = 'Color(R=%d,G=%d,B=%d,A=%d)' % (r_, g_, bb_, a_)
             else:
                 val = 'struct %s (%d bytes)' % (sname, size)
         elif ptype == 'ByteProperty':
-            ename = nm(); start = r.o
+            ename = sname
             if size == 8:
-                i = struct.unpack_from('<i', b, r.o)[0]; val = '%s::%s' % (ename, names[i] if 0 <= i < len(names) else i)
+                i = struct.unpack_from('<i', b, start)[0]; val = '%s::%s' % (ename, names[i] if 0 <= i < len(names) else i)
             else:
-                val = b[r.o]
+                val = b[start]
         elif ptype == 'IntProperty':
-            val = struct.unpack_from('<i', b, r.o)[0]
+            val = struct.unpack_from('<i', b, start)[0]
         elif ptype == 'FloatProperty':
-            val = struct.unpack_from('<f', b, r.o)[0]
+            val = struct.unpack_from('<f', b, start)[0]
         elif ptype in ('ObjectProperty', 'ComponentProperty', 'ClassProperty', 'InterfaceProperty'):
-            i = struct.unpack_from('<i', b, r.o)[0]; val = upkinfo.objname(i, imps, exps)
+            i = struct.unpack_from('<i', b, start)[0]; val = upkinfo.objname(i, imps, exps)
         elif ptype == 'NameProperty':
-            i, n = struct.unpack_from('<ii', b, r.o); val = names[i] + ('' if n == 0 else '_%d' % (n - 1))
+            i, n = struct.unpack_from('<ii', b, start); val = names[i] + ('' if n == 0 else '_%d' % (n - 1))
         elif ptype == 'StrProperty':
-            rr = upkinfo.R(b, r.o); val = repr(rr.fstr())
+            rr = upkinfo.R(b, start); val = repr(rr.fstr())
         elif ptype == 'ArrayProperty':
-            cnt = struct.unpack_from('<i', b, r.o)[0]; val = 'array[%d] (%d bytes)' % (cnt, size)
+            cnt = struct.unpack_from('<i', b, start)[0]; val = 'array[%d] (%d bytes)' % (cnt, size)
         else:
             val = '%s (%d bytes)' % (ptype, size)
-        r.o = start + size
         out.append(('  ' * depth) + '%s[%d] %s = %s' % (pname, idx, ptype, val))
-    return out, r.o
 
 PROP_TYPES = {'BoolProperty', 'StructProperty', 'ByteProperty', 'IntProperty', 'FloatProperty', 'ObjectProperty',
               'ComponentProperty', 'ClassProperty', 'InterfaceProperty', 'NameProperty', 'StrProperty', 'ArrayProperty',
