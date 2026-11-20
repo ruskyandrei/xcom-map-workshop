@@ -144,8 +144,12 @@ import settings as settings_module  # noqa: E402
 from game_files import lwr_file  # noqa: E402
 from projects import ID as PROJECT_ID, ProjectError, ProjectStore  # noqa: E402
 from version import VERSION  # noqa: E402
+# The modules one stage of a Build needs (the shell, the relight's lightmap writer, the map picture's writer, the
+# streams' copier...) are imported in that stage's function, not here: none is loaded once the imports above have run,
+# so an import here would load it earlier, in every process that imports the Build, and many Builds never reach the
+# stage (a quick Build has no relight; most projects move no landing and no mission object).
 
-SCHEMA = 'xcom-map-workshop/variant-package'
+SCHEMA ='xcom-map-workshop/variant-package'
 SCHEMA_VERSION = 1
 PATCHTOOL = TOOLS / 'patch' / 'patchtool.ps1'
 RELIGHT = TOOLS / 'bake' / 'relight.py'
