@@ -2,7 +2,7 @@
 // drawn roughly as the game draws it, from its export's draw data (effects_draw.py) stepped by effects_sim.js. Each
 // sprite emitter is one set of instanced quads that face the camera (or lie along their speed), textured with the
 // picture and mask the export picked and blended as its material says; each mesh emitter is one instanced mesh.
-// app.js owns where and when: this makes a likeness, steps it and lets it go.
+// effects_wiring.js owns where and when: this makes a likeness, steps it and lets it go.
 //
 // A likeness's group holds its particles in the emitter's own frame, in the game's axes (z up): the caller gives the
 // group the matrix that takes that frame to the view (the actor's pose and scale, its component's, and SWAP).
@@ -14,7 +14,7 @@ export const SWAP = new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 
 const REPLAY_PAUSE = 2;       // seconds before an effect that has played out is played again (the editor only)
 const MODES = { BLEND_Translucent: 0, BLEND_Additive: 1, BLEND_Modulate: 2, BLEND_Masked: 3, BLEND_Opaque: 4 };
 // The height of what is being drawn into, in CSS pixels: the view's, or the Add panel's pane while it draws (app.js
-// sets it), for a sprite's least size on the screen.
+// and effects_wiring.js set it), for a sprite's least size on the screen.
 export const viewHeight = { value: 800 };
 const LEAST_PIXELS = 2;
 const DIM_FLOOR = 0.3;
