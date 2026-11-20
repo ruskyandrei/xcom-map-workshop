@@ -3,7 +3,7 @@
 For each component: the lights its lightmap was baked from (the lightmap record's light GUIDs, matched to the map's
 light components), the world position and tangent frame of every texel (`lightmap_texels.py`), the light of each by
 the codec fitted to UDK Lightmass (`lightmap_encode.py`, EXP-18), then both textures written into the component's
-atlas rectangle and its directional slot scale set (`lighting_fixture.py` image and setscale).
+atlas rectangle and its directional slot scale set (`lightmap_writer.py` image and setscale).
 
 By default the light is shadowed by the map's static geometry (`shadows.py`, Embree), the emissive surfaces' generated
 area lights are added (Lightmass bakes emissive surfaces without listing them among a lightmap's lights), and one
@@ -78,7 +78,7 @@ test for each piece:
 - a piece whose largest change is under `--floor` (0.043) keeps its bake;
 - where the relit light still fits under the piece's original slot scale, the scale stays and only the changed texels
   are written (the writer leaves every other 4-texel block's bytes alone), and the ring of padding around the
-  rectangle follows its border (`lighting_fixture.image`).
+  rectangle follows its border (`lightmap_writer.image`).
 The pieces go to the workers largest first, and a piece of more than twice `--band-texels` texels is relit in bands,
 each a job, put together afterwards (`prepare_component`, `compute_component`, `assemble_component`): one large floor
 no longer holds a worker while the others stand idle. The dominant light's shadow maps are traced by the workers too.
@@ -95,7 +95,7 @@ They are listed in the record's `shadowMaps` (written) and `shadowMapsUnchanged`
 `--component-list` reads more component paths, one per line (# starts a comment). A component that cannot be
 relit (no texture lightmap, a lightmap outside Lighting.tfc, StaticLightingHiddenByDefault) is skipped and listed in
 the record's `skipped`; it keeps its bake. Small lightmaps kept whole inside the map package are written there in
-place (`lighting_fixture.py`).
+place (`lightmap_writer.py`).
 
 Texels inside geometry (`bounce.buried_texels`: a floor under a wall's foot, fracture pieces' interior faces) are
 left out when the scene shadows: the dilation spreads their unburied neighbours' values into those at the edges, and
@@ -106,7 +106,7 @@ faces), as in the original bake, which is black there; a texel only near the bur
 `--checker SIZE` keeps the original bake in alternate cubes SIZE units wide (both re-encoded under one slot scale),
 so that in the game any mismatch between the two bakes shows as a checkerboard on floors and walls alike.
 
-Writes <out>/<variant>.upk and the variant texture cache <out>/<cache>.tfc (as lighting_fixture.py does: --cache is a
+Writes <out>/<variant>.upk and the variant texture cache <out>/<cache>.tfc (as lightmap_writer.py does: --cache is a
 name the map's table holds, as the Build's <Map>_Lighting once a growing write has added it, or <Name>_<n> with <Name>
 in it, as Lighting_7004), <out>/<variant>.relight.npz
 (the texel images), <out>/<variant>.relight.json (lights, scales, coverage, comparison with the original bake) and
@@ -130,12 +130,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'upk'))
 sys.path.insert(0, str(ROOT / 'viewer'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import audit_lighting as lighting  # noqa: E402
-import lighting_fixture  # noqa: E402
+import lighting_records as lighting  # noqa: E402
+import lightmap_writer  # noqa: E402
 import lightmap_encode as codec  # noqa: E402
 import lightmap_fields  # noqa: E402
 import lightmap_texels  # noqa: E402
-from lightmap_stats import top_mip_rect, top_mip_rgb  # noqa: E402,F401
+from lightmap_textures import top_mip_rect  # noqa: E402
 import bounce  # noqa: E402
 import shadows  # noqa: E402
 from lights import light_record  # noqa: E402
@@ -1427,8 +1427,8 @@ def run_jobs(queue, jobs, start_args, on_piece):
 # bake, the readers of the map, its meshes and its materials (review finding 42); the release's version goes into the
 # key too, for whatever this list leaves out
 TOOL_FILES = ('bake/relight.py', 'bake/bounce.py', 'bake/shadows.py', 'bake/lightmap_encode.py',
-              'bake/lightmap_texels.py', 'bake/albedo.py', 'bake/lightmap_stats.py', 'bake/lightmap_fields.py',
-              'bake/dxt1.py', 'upk/audit_lighting.py', 'upk/props.py', 'upk/decomp.py', 'upk/lzo1x.py',
+              'bake/lightmap_texels.py', 'bake/albedo.py', 'bake/lightmap_textures.py', 'bake/lightmap_fields.py',
+              'bake/dxt1.py', 'upk/lighting_records.py', 'upk/props.py', 'upk/decomp.py', 'upk/lzo1x.py',
               'upk/upkinfo.py', 'upk/package_edit.py', 'viewer/mesh.py', 'viewer/export_math.py',
               'viewer/export.py', 'viewer/lights.py', 'viewer/texture.py', 'viewer/package.py')
 CACHE_BOXES = 64        # with more edit boxes than this, pieces are not kept: each box is tested against each piece
@@ -1724,7 +1724,7 @@ def main():
     arrays, ops, reports, skipped, unchanged, unreached = {}, [], [], [], [], []
     npz = args.out / f'{args.variant}.relight.npz'
     timings['scenes'] = round(time.perf_counter() - started, 1)
-    probe = lighting_fixture.Fixture(args.src, args.cache)
+    probe = lightmap_writer.Fixture(args.src, args.cache)
     # what goes to the relight: components the fixture can write and, in an edit, that the quick test says it reaches
     todo, meshes, areas, reaching = [], {}, {}, {}
     quick = after is not None and not args.no_quick
@@ -1866,7 +1866,7 @@ def main():
             arrays[f'c{n}_{key}'] = value
         only = {'onlyChanged': True} if r.get('onlyChanged') else {}
         if after is not None:
-            only['ring'] = True     # the padding around the rectangle follows its border (lighting_fixture.image)
+            only['ring'] = True     # the padding around the rectangle follows its border (lightmap_writer.image)
         ops += [dict(op='image', component=path, slot=0, npz=str(npz), key=f'c{n}_nac', **only),
                 dict(op='image', component=path, slot=1, npz=str(npz), key=f'c{n}_dmc', **only),
                 dict(op='setscale', component=path, slot=1, value=r['scale'])]
@@ -1905,7 +1905,7 @@ def main():
     else:
         print('progress: writing the lighting')
         np.savez_compressed(npz, **arrays)
-        manifest = lighting_fixture.run(args.src, args.out, args.variant, ops, args.cache)
+        manifest = lightmap_writer.run(args.src, args.out, args.variant, ops, args.cache)
     tool = dict(path='tools/bake/relight.py', sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
     timings['writing'] = round(time.perf_counter() - writing_started, 1)
     timings['total'] = round(time.perf_counter() - started, 1)
@@ -1948,7 +1948,7 @@ def main():
 
 def unchanged_fixture(src, out, variant):
     """An edit that changes no lighting (plan 4.4): the edited map copied to <out>/<variant>.upk as it is, reading the
-    original's lightmaps, and its fixture manifest as lighting_fixture.py writes one, with no texture cache (cache
+    original's lightmaps, and its fixture manifest as lightmap_writer.py writes one, with no texture cache (cache
     null), no edits and `lightingUnchanged`."""
     import shutil
     out = Path(out)

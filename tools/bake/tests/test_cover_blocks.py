@@ -20,7 +20,7 @@ sys.path.insert(0, str(TOOLS / 'upk'))
 sys.path.insert(0, str(TOOLS / 'viewer'))
 import cover_blocks  # noqa: E402
 import native_copy  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import mesh as viewer_mesh  # noqa: E402
 import package_grow  # noqa: E402
 import props as legacy_props  # noqa: E402
@@ -171,7 +171,7 @@ class Recipe(unittest.TestCase):
         classes = ['SkeletalMesh', 'RB_BodySetup', 'StaticMesh', 'RB_BodySetup']
         package = SimpleNamespace(exports=[dict(outer=i) for i in (0, 1, 0, 3)],
                                   cls=lambda i: classes[i - 1] if i else '')
-        self.assertEqual(cover_blocks._template(None, package, 'RB_BodySetup', outer_class='StaticMesh'), 4)
+        self.assertEqual(cover_blocks.export_template(None, package, 'RB_BodySetup', outer_class='StaticMesh'), 4)
 
     def test_versions(self):
         self.assertEqual(sorted(cover_blocks.RECIPES), [1, 2])

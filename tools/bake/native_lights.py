@@ -39,7 +39,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'upk'))
 sys.path.insert(0, str(HERE.parent / 'viewer'))
 sys.path.insert(0, str(HERE))
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import lightmap_fields  # noqa: E402
 import props as legacy_props  # noqa: E402
 from export_math import forward, transform  # noqa: E402

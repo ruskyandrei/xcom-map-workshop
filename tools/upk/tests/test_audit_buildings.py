@@ -1,11 +1,11 @@
-"""The game editor's rule for which floors list a piece (audit_buildings.touched and listing)."""
+"""The game editor's rule for which floors list a piece (floor_listing.touched and listing)."""
 from pathlib import Path
 import sys
 import unittest
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-import audit_buildings as buildings  # noqa: E402
+import floor_listing as buildings  # noqa: E402
 
 # two storeys of 192 over one footprint, and an L-shaped third floor of two boxes
 FLOORS = [[[0, 0, 16, 960, 960, 208]], [[0, 0, 208, 960, 960, 400]],

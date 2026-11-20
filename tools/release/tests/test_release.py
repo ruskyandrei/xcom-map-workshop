@@ -19,13 +19,17 @@ class ReleaseTests(unittest.TestCase):
     def test_the_zip_takes_the_editors_modules_and_no_lab_or_patch_tools(self):
         names = {p.relative_to(make_release.TOOLS).as_posix() for p in make_release.modules()}
         for needed in ('viewer/viewer.py', 'viewer/gamesetup.py', 'editor/build.py', 'editor/compiler.py',
-                       'bake/native_copy.py', 'bake/relight.py', 'upk/package_grow.py', 'lab/labpaths.py', 'viewer/version.py',
+                       'bake/native_copy.py', 'bake/relight.py', 'upk/package_grow.py', 'viewer/version.py',
+                       # the modules named for what they do (review finding 53): the config lines, the lighting
+                       # records, the lightmap writer and textures
+                       'viewer/mapsini.py', 'upk/lighting_records.py', 'bake/lightmap_writer.py', 'bake/lightmap_textures.py',
                        # pieces from other maps: the library, the transplanter and what it reads objects by
                        'viewer/library.py', 'bake/transplant.py', 'upk/schema.py', 'upk/typed_props.py',
                        'upk/native_fields.py', 'bake/shadowmaps.py', 'viewer/prefabs.py', 'viewer/prefab_bounds.py',
                        'viewer/prefab_tests.py', 'viewer/area_light_bindings.py', 'editor/prefab_stage.py'):
             self.assertIn(needed, names)
-        self.assertFalse([n for n in names if n.startswith(('patch/', 'udk/', 're/')) or '/tests/' in n])
+        # nothing shipped imports the lab's tools since the config lines left deploy_fixture (review finding 53)
+        self.assertFalse([n for n in names if n.startswith(('patch/', 'udk/', 're/', 'lab/')) or '/tests/' in n])
         # one module per name: the embedded Python's path finds each by name alone
         self.assertEqual(len({Path(n).name for n in names}), len(names))
         for extra in make_release.EXTRAS:

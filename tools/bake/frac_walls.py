@@ -385,7 +385,7 @@ def column_element(g, walker, template, column):
 # ---------------------------------------------------------------------------------------------------- the component
 def _lod_colours(data, at):
     """Where LOD 0's painted vertex colours lie in a mesh component's native data data[at:]: (the flag's offset, the
-    end of the colour array), as audit_lighting.lod_record reads the record."""
+    end of the colour array), as lighting_records.lod_record reads the record."""
     pos = at
     count = struct.unpack_from('<i', data, pos)[0]
     if count < 1:
@@ -487,7 +487,7 @@ def donor_paint(p, comp, mesh_dict):
 
 
 def lightmap_offsets(data, at):
-    """Where LOD 0's texture lightmap lies in a mesh component's native data data[at:] (audit_lighting.lightmap's
+    """Where LOD 0's texture lightmap lies in a mesh component's native data data[at:] (lighting_records.lightmap's
     layout): dict(slots [(texture offset, scale offset)] for its three slots, scale, bias (the offsets of its
     coordinate scale and bias)), or None for a component with no texture lightmap."""
     pos = at
@@ -568,7 +568,7 @@ def even_light(p, box, skip=(), near=1500.0):
     import lightmap_encode as codec
     import lightmap_fields
     import native_copy
-    from lightmap_stats import top_mip_rect
+    from lightmap_textures import top_mip_rect
     centre = np.array([(box[0] + box[1]) / 2, (box[2] + box[3]) / 2, (box[4] + box[5]) / 2])
     found = []
     for actor in native_copy.level_actors(p):
@@ -657,12 +657,12 @@ def shadow_map_export(g, p, walker, component, shadow):
     """A new ShadowMap2D under `component` (an export index of the grown map) for the dominant light: a clone of
     `shadow['source']` (shadowmaps' dict) with its coordinate scale and bias `shadow`'s, and its texture a clone of
     the source's own (`shadow['clone']` true: the relight writes it) or the source's (false). Returns its index."""
-    import grow_fixture
+    import lightmap_textures
     import native_copy
     src = shadow['source']['export']
     texture = shadow['source']['texture']
     if shadow.get('clone'):
-        texture = grow_fixture.clone_texture(g, p, texture)
+        texture = lightmap_textures.clone_texture(g, p, texture)
     e = p.exports[src - 1]
     data = bytearray(p.data[e['off']:e['off'] + e['size']])
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
@@ -789,7 +789,7 @@ def cut_copy(g, p, mesh, gone):
     state = getattr(g, 'cut_meshes', None)
     if state is None:
         data = struct.pack('<i', -1) + _none(g)
-        package = g.add_export(cover_blocks._template(g, p, 'Package', outer=0), data, number=0,
+        package = g.add_export(cover_blocks.export_template(g, p, 'Package', outer=0), data, number=0,
                                name_index=g.name(CUT_PACKAGE))
         if g.entries[package - 1].get('<I', 44) != 1:
             raise ValueError('the map\'s forced-export packages count net objects for more than one generation')
@@ -915,7 +915,7 @@ def _package(g, p, names):
     """Our forced-export package (PACKAGE), its entry copied from one of the map's own, counting net objects for its
     meshes and their body setups, a GUID from its contents."""
     data = struct.pack('<i', -1) + _none(g)
-    index = g.add_export(cover_blocks._template(g, p, 'Package', outer=0), data, number=0, name_index=g.name(PACKAGE))
+    index = g.add_export(cover_blocks.export_template(g, p, 'Package', outer=0), data, number=0, name_index=g.name(PACKAGE))
     e = g.entries[index - 1]
     if e.get('<I', 44) != 1:
         raise ValueError('the map\'s forced-export packages count net objects for more than one generation')

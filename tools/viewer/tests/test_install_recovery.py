@@ -15,7 +15,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'bake' / 'tests'))
 import installs  # noqa: E402  (it puts tools/bake on the path)
-import deploy_fixture as dep  # noqa: E402
+import deploy_fixture  # noqa: E402
+import mapsini as dep  # noqa: E402
 import procs  # noqa: E402
 import test_play  # noqa: E402  (its Play is used by name, so that its tests don't run here again)
 import test_manager  # noqa: E402
@@ -225,7 +226,7 @@ class Pruning(unittest.TestCase):
 
 
 # the real checks, before the tests' set-up stands in for them
-REAL_GAME_RUNNING, REAL_DEP_GAME_RUNNING = installs.game_running, dep.game_running
+REAL_GAME_RUNNING, REAL_DEP_GAME_RUNNING = installs.game_running, deploy_fixture.game_running
 
 
 class Removal(unittest.TestCase):

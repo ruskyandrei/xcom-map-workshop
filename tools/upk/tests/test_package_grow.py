@@ -208,7 +208,7 @@ class GrowBar(unittest.TestCase):
             self.assertEqual(h['gens'][0][2], self.h['gens'][0][2])        # no net object of the map's own
 
     def test_cloned_lightmap_textures_read_back_with_their_payloads(self):
-        import audit_lighting as lighting
+        import lighting_records as lighting
         import grow_fixture
         import lightmap_fields
         with tempfile.TemporaryDirectory() as d:

@@ -217,7 +217,7 @@ class RealMap(unittest.TestCase):
 
     def test_forced_noop_on_a_lightmap_record(self):
         sys.path.insert(0, str(HERE.parent))
-        import audit_lighting as lighting
+        import lighting_records as lighting
         p = lighting.Package(BAR)
         h = upkinfo.summary(BAR.read_bytes())
         index = next(i for i in range(1, len(p.exports) + 1)

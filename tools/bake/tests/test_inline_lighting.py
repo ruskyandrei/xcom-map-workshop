@@ -9,7 +9,7 @@ from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import inline_lighting  # noqa: E402
 import lighting_fixture as fx  # noqa: E402
 import lightmap_fields  # noqa: E402

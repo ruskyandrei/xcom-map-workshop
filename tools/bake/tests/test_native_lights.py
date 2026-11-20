@@ -16,7 +16,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import native_copy  # noqa: E402
 import native_lights  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import package_grow  # noqa: E402
 import relight  # noqa: E402
 from lights import effective_cone_degrees, light_record  # noqa: E402
@@ -50,7 +50,7 @@ class FakeGrower:
 
 class FakePackage:
     """The map as the reader read it: its own copy of the name table, which the grower's additions never reach (as
-    audit_lighting.Package's and package_grow.Grower's are two lists)."""
+    lighting_records.Package's and package_grow.Grower's are two lists)."""
     def __init__(self, names):
         self.names = list(names)
 

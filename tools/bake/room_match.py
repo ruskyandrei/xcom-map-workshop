@@ -34,7 +34,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import relight  # noqa: E402  (puts tools/upk and tools/viewer on the path)
-from relight import bounce, codec, lighting, lightmap_fields, lightmap_texels, shadows, top_mip_rgb  # noqa: E402
+from relight import bounce, codec, lighting, lightmap_fields, lightmap_texels, shadows  # noqa: E402
+from lightmap_textures import top_mip_rgb  # noqa: E402
 
 LIT = 0.05                      # original flat light below this is too dark to judge a ratio by (EXP-17 run 6)
 WITHIN = 0.15                   # |log2 ratio| under this: within about 10%

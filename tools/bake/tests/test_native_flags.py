@@ -12,7 +12,7 @@ import unittest
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import native_copy  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import package_grow  # noqa: E402
 import piece_flags  # noqa: E402
 

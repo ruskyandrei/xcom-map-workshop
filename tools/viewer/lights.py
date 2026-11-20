@@ -130,13 +130,13 @@ def light_metadata(p, lights, objects, kismet, warn=None):
     lightmap records don't read (a skeletal mesh) lists no light."""
     upk = str(Path(__file__).resolve().parents[1] / 'upk')
     if upk not in sys.path: sys.path.append(upk)
-    import audit_lighting
+    import lighting_records
     listed, shadowed = {}, {}
     for obj in objects:
         ci = p.by_name.get(obj['component'])
         if not ci or 'StaticMeshComponent' not in p.cls(ci): continue
         try:
-            lods = audit_lighting.component_record(p, ci)['lods']
+            lods = lighting_records.component_record(p, ci)['lods']
         except Exception as error:
             if warn: warn(obj['component'], f'lightmap record not read: {error}')
             continue

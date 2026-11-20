@@ -270,7 +270,7 @@ class Gather(unittest.TestCase):
 class BarScene(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        import audit_lighting as lighting
+        import lighting_records as lighting
         import relight
         cls.relight = relight
         cls.p = lighting.Package(BAR)

@@ -18,7 +18,7 @@ import labpaths  # noqa: E402
 import buildings  # noqa: E402
 import native_copy  # noqa: E402
 import package_grow  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 
 OUTPOST, NO_OUTPOST = labpaths.install_map('URB_ResearchOutpost')
 BAR, NO_BAR = labpaths.install_map('URB_Bar')

@@ -72,10 +72,10 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'upk'))
 sys.path.insert(0, str(HERE.parent / 'viewer'))
 sys.path.insert(0, str(HERE))
-import audit_lighting as lighting  # noqa: E402
-import grow_fixture  # noqa: E402
-import lighting_fixture  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import lightmap_fields  # noqa: E402
+import lightmap_textures  # noqa: E402
+import lightmap_writer  # noqa: E402
 import package_grow  # noqa: E402
 import props as legacy_props  # noqa: E402
 import scene_metadata  # noqa: E402
@@ -241,7 +241,7 @@ def vertex_lightmaps(p, index):
     lightmap_fields locates them: `ownerOffset` and `owner` (the component itself in the cooked maps), and
     `bulkOffsets`, its two bulk records (directional and simple samples). Each inline record holds the absolute
     offset of its payload, so a clone's must be moved to where the clone lies (move_bulk_offsets), as a cloned
-    texture's are (grow_fixture.clone_texture). CLrgScout_Stonewall's vine and Temple Ship's four door volumes are
+    texture's are (lightmap_textures.clone_texture). CLrgScout_Stonewall's vine and Temple Ship's four door volumes are
     lit this way. One in a mesh-swap record is refused: none of the maps has one, and its fields aren't located."""
     if any(lod['lightmap']['type'] == 1 for lod in lighting.component_record(p, index)['swaps']):
         raise ValueError(f'{p.name(index)} has a vertex lightmap in a mesh-swap record, which the copy can\'t move')
@@ -509,7 +509,7 @@ def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=()
             if outer in mapping:
                 g.entries[new - 1].put('<i', 8, mapping[outer])
         for t in textures:
-            if grow_fixture.clone_texture(g, p, t) != tex_map[t]:
+            if lightmap_textures.clone_texture(g, p, t) != tex_map[t]:
                 raise ValueError('the texture clones did not get the planned indices')
         infos.append(dict(actor=mapping[actor], mapping=mapping, textures=tex_map, remapped=remapped))
     return infos
@@ -2316,7 +2316,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     if bake and not cache:
         raise ValueError('a baked copy needs a variant texture cache name (--cache)')
     if bake:
-        lighting_fixture.cache_fname(cache)     # a cache name that can be a file and an FName, before any work
+        lightmap_writer.cache_fname(cache)     # a cache name that can be a file and an FName, before any work
     p = lighting.Package(src)
     g = package_grow.Grower(str(src))
     # the light edits: resolved against the pristine map, then made in the map (plan 4.3, steps 1 and 2)
@@ -2717,8 +2717,8 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     dst.parent.mkdir(parents=True, exist_ok=True)
     if bake:
         # the variant texture cache's name in the table (the Build's <Map>_Lighting), so the relight's fixture,
-        # reading the grown map afresh, can write it into the textures it redirects (lighting_fixture.cache_fname)
-        g.name(lighting_fixture.cache_table_name(cache))
+        # reading the grown map afresh, can write it into the textures it redirects (lightmap_writer.cache_fname)
+        g.name(lightmap_writer.cache_table_name(cache))
     report = g.write(str(dst))
     q = lighting.Package(dst)
     for m in made:
@@ -2830,7 +2830,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                   vans=[dict(v, building=dict(v['building'], copy=q.name(v['building']['export'])),
                              floorVolumes=[dict(f, copy=q.name(f['export'])) for f in v['floorVolumes']]) for v in vans])
     if not bake:
-        files = {str(dst): lighting_fixture.sha256(dst.read_bytes())}
+        files = {str(dst): lightmap_writer.sha256(dst.read_bytes())}
         manifest = dict(source=str(src), sourceSha256=lighting.digest(src), variant=variant, cache=None,
                         outputs=files, nativeCopies=dict(common, copies=sections), tool=tool)
     else:

@@ -268,7 +268,8 @@ class DeployRestore(unittest.TestCase):
         with mock.patch.object(dep.os, 'replace', side_effect=OSError('stopped')):
             with self.assertRaises(OSError): dep.write_checked(path, new)
         self.assertEqual(path.read_bytes(), self.maps)
-        with mock.patch.object(dep, 'lines_of', return_value=[b'not what was written']):
+        import mapsini      # the config writer's own module (review finding 53)
+        with mock.patch.object(mapsini, 'lines_of', return_value=[b'not what was written']):
             with self.assertRaises(ValueError): dep.write_checked(path, new)
         self.assertEqual(path.read_bytes(), self.maps)
         self.assertEqual(sorted(p.name for p in self.cfg.iterdir()), ['DefaultLZMutator.ini', 'DefaultMaps.ini'])

@@ -108,7 +108,7 @@ def _missions(lines, base):
     """The missions the base map serves in the install: [{type, label, group, inRotation, byName, bomb, firstMission
     (when true)}], or None when not known."""
     if lines is None or not base: return None
-    import deploy_fixture as dep
+    import mapsini as dep
     import maplist
     out = []
     for _, line in installs.base_records(lines, base):
@@ -625,7 +625,7 @@ def _pack_record(projects, builds, request, parts, game, now, rng=None):
 
 
 def _pack(projects, builds, player, request, chosen, mode, now, work):
-    import deploy_fixture as dep
+    import mapsini as dep
     from settings import game_kind
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'upk'))
     import pack_card

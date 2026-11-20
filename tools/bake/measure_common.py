@@ -66,13 +66,13 @@ def component_light(p, comp):
     """LOD 0 of a mesh component's lighting record (research/evidence/ground-audit.py's): dict(type (0 none, 1 vertex,
     2 texture, None no record), rect [w, h] in texels for a texture one, painted (its override vertex colours: None, a
     value's hex, or 'varying n'), colours (the override colours, a list of 4 bytes, when it paints them))."""
-    import audit_lighting
+    import lighting_records
     r = p.native(comp)
     if not r.count():
         return dict(type=None)
-    audit_lighting.refs(r, p)
-    audit_lighting.refs(r, p)
-    lm = audit_lighting.lightmap(r, p)
+    lighting_records.refs(r, p)
+    lighting_records.refs(r, p)
+    lm = lighting_records.lightmap(r, p)
     out = dict(type=lm['type'])
     if lm['type'] == 2:
         tex = lm['slots'][0]['index']

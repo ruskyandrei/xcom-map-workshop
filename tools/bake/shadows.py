@@ -22,7 +22,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'upk'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import lightmap_texels  # noqa: E402
 
 MESH_COMPONENTS = {'StaticMeshComponent', 'FracturedStaticMeshComponent', 'XComDebrisStaticMeshComponent'}

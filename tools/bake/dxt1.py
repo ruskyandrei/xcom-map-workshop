@@ -5,7 +5,7 @@ and (c0 + 2 c1) / 3; with c0 <= c1 it is c0, c1, their mean and black. The encod
 principal axis, then refines them by least squares on the chosen indices, and always writes c0 > c1 (or a solid
 block, c0 == c1 with every index 0), so it never produces black by accident.
 
-Images here are float RGB in [0, 1], rows top to bottom, as `lightmap_stats.top_mip_rgb` returns them.
+Images here are float RGB in [0, 1], rows top to bottom, as `lightmap_textures.top_mip_rgb` returns them.
 """
 import numpy as np
 

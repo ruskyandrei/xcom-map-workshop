@@ -14,7 +14,7 @@ sys.path.insert(0, str(HERE.parent))
 import lightmap_texels  # noqa: E402
 import native_lights  # noqa: E402
 import relight  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import labpaths  # noqa: E402

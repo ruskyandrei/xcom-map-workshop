@@ -39,6 +39,8 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from kismet_links import intro_anchors  # noqa: E402,F401
 LEVEL = 'TheWorld.PersistentLevel.'
 LANDING_PREFAB = 'DGN_DropShipSoldierSpawn.Prefabs.SoldierSpawns_DrpshipVol'
 SKYRANGER_PREFAB = 'VEH_Lv1Skyranger_MOD.Prefabs.PRE_SkyrangerGrounded'
@@ -451,63 +453,7 @@ def survey_package(job):
                       ambient=sounds, actorClasses=dict(collections.Counter(a['cls'] for a in level['actors'].values())))
 
 
-# --- the intro's places --------------------------------------------------------------------------------------------
-
-def intro_anchors(intro_path):
-    """Where CIN_DropshipIntros puts its flight for each map: {map: [{group, location, rotation, action}]}, group None
-    for a map whose switch entry leads straight to a Set Location, else 0, 1 or 2 (a Compare Int of GroupNumber with
-    1: A < B, A == B, A > B)."""
-    sys.path.insert(0, str(HERE))
-    import upkinfo as U
-    from kismet_links import P as KP
-    from props import props_start
-    b, h = U.load(intro_path)
-    names, imps, exps = U.tables(b, h)
-    kp = KP(b, names, imps, exps)
-    ops = {}
-    for n, e in enumerate(exps):
-        full = U.objname(n + 1, imps, exps)
-        if '.Main_Sequence.' not in full:
-            continue
-        d, _ = kp.props(props_start(b, e, names), e['off'] + e['size'])
-        ops[full.split('.')[-1]] = (U.clsname(e['cls'], imps, exps), d)
-
-    def outputs(d):
-        out = []
-        if 'OutputLinks' in d:
-            for ol in kp.array_of_structs(d['OutputLinks']):
-                desc = kp.str_(ol['LinkDesc']) if 'LinkDesc' in ol else ''
-                links = [kp.objp(l['LinkedOp']) for l in kp.array_of_structs(ol['Links'])
-                         if 'LinkedOp' in l] if 'Links' in ol else []
-                out.append((desc, links))
-        return out
-
-    def setloc(op):
-        cls, d = ops[op]
-        loc = list(struct.unpack_from('<3f', b, d['LocationValue'][1])) if 'LocationValue' in d else [0.0, 0.0, 0.0]
-        rot = list(struct.unpack_from('<3i', b, d['RotationValue'][1])) if 'RotationValue' in d else [0, 0, 0]
-        return dict(location=loc, rotation=rot, action=op)
-
-    anchors = collections.defaultdict(list)
-    for op, (cls, d) in ops.items():
-        if cls != 'SeqCond_SwitchString' or 'StringArray' not in d:
-            continue
-        cases = [kp.str_(e['StringName']) if 'StringName' in e else '' for e in kp.array_of_structs(d['StringArray'])]
-        for k, (_, links) in enumerate(outputs(d)):
-            if k >= len(cases) or not cases[k] or cases[k] == 'Default':
-                continue
-            for target in links:
-                tcls = ops.get(target, (None,))[0]
-                if tcls == 'SeqAct_SetLocation':
-                    anchors[cases[k]].append(dict(group=None, **setloc(target)))
-                elif tcls == 'SeqCond_CompareInt':
-                    for desc, tl in outputs(ops[target][1]):
-                        group = {'A < B': 0, 'A == B': 1, 'A > B': 2}.get(desc.strip())
-                        for t2 in tl:
-                            if ops.get(t2, (None,))[0] == 'SeqAct_SetLocation':
-                                anchors[cases[k]].append(dict(group=group, **setloc(t2)))
-    return dict(anchors)
-
+# --- the intro's places (kismet_links.intro_anchors reads them) --------------------------------------------------------------------------------------------
 
 def anchor_vs_skyrangers(anchors, skyrangers):
     """Each intro place against the map's grounded Skyrangers' meshes: the nearest one, the distance (x, y), the offset

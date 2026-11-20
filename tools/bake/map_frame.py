@@ -208,7 +208,7 @@ def find(g):
     import light_factory
     for index, e in enumerate(g.entries, 1):
         if e.outer == 0 and g.name_of(e.name_index, e.name_number) == NAME \
-                and light_factory._class_name(g, e.cls) == 'Texture2D':
+                and light_factory.class_of(g, e.cls) == 'Texture2D':
             return index
     return None
 
@@ -224,7 +224,7 @@ def add_picture(g, pixels):
         net = struct.unpack_from('<i', g.export_data(index), 0)[0]
         g.relocate(index, picture_data(g, pixels, net, g.next_offset()))
         return index, 'replaced'
-    found, _made = cover_blocks._imports(g, RECIPE)
+    found, _made = cover_blocks.recipe_imports(g, RECIPE)
     cls = found[RECIPE['class']]
     if cls >= 0:
         raise ValueError('the map holds Engine as a package of its own; no Texture2D class to import')

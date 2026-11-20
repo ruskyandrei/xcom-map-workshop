@@ -1,4 +1,4 @@
-"""Dominant-light shadow maps (shadowmaps.py) and their G8 writer (lighting_fixture.py gray)."""
+"""Dominant-light shadow maps (shadowmaps.py) and their G8 writer (lightmap_writer.py gray)."""
 from pathlib import Path
 import sys
 import tempfile
@@ -9,9 +9,9 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import shadowmaps as sm  # noqa: E402
-import lighting_fixture as fx  # noqa: E402
+import lightmap_writer as fx  # noqa: E402
 import lightmap_fields  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 from texture import decompress_payload  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))

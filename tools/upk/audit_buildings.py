@@ -15,7 +15,7 @@ Over every base map and streamed level a live DefaultMaps.ini record names:
 - the listing rule (--no-boxes leaves it out): the game's editor lists a piece on every floor whose volume it
   touches with its bottom more than 20 units under the volume's top, and a piece with bCutoutMask only on the lowest
   of them, with CutdownFloor the index of the highest (research/native/building-cutaway.md, RebuildCachedActors).
-  listing() is that rule; each listed piece's world box, from its mesh's vertices, is put through it and the answer
+  listing() is that rule (floor_listing.py's, which the Build lists by); each listed piece's world box, from its mesh's vertices, is put through it and the answer
   compared with what the map saves, and again with the box let come within 2 to 64 units of a volume (the game goes
   by the piece's collision, which is a little larger than its mesh).
 
@@ -36,37 +36,13 @@ PIECES = ('XComLevelActor', 'StaticMeshActor', 'XComDestructibleActor', 'XComFra
           'XComInteractiveLevelActor', 'KAsset', 'XComLadder', 'XComCollectible')
 FLAGS = ('IsUfo', 'IsDropShip', 'IsInside', 'm_bIsInternalBuilding', 'm_bAllowBuildingReveal')
 SLACKS = (0.0, 2.0, 8.0, 16.0, 32.0, 64.0)  # how near a floor volume counts as touching it, tried in turn
-MARGIN = 20.0  # the exe's constant: a piece is a floor's when its bottom is more than this under the volume's top
+sys.path.insert(0, HERE)
+from floor_listing import MARGIN, touched, listing  # noqa: E402,F401 (the rule, as the Build lists by it)
 
 
 def paths():
     for folder in ('.', '../viewer', '../bake', '../editor'):
         sys.path.insert(0, os.path.normpath(os.path.join(HERE, folder)))
-
-
-def touched(box, floors, margin=MARGIN, slack=0.0):
-    """The indices of the floors a world box [x0, x1, y0, y1, z0, z1] counts for: it meets one of the floor's volume
-    boxes ([x0, y0, z0, x1, y1, z1]), or comes within `slack` of it, and its bottom is more than `margin` under that
-    volume's top."""
-    out = []
-    for k, volumes in enumerate(floors):
-        for v in volumes:
-            if v and box[4] < v[5] - margin and all(
-                    box[2 * j] <= v[j + 3] + slack and box[2 * j + 1] >= v[j] - slack for j in range(3)):
-                out.append(k)
-                break
-    return out
-
-
-def listing(floors, mask):
-    """Where the game's editor lists a piece that counts for the floors `floors` (indices, as touched() gives):
-    [(floor index, CutdownFloor)]. A piece with bCutoutMask is listed on the lowest only, its CutdownFloor the index
-    of the highest when that is another floor (0: none); any other piece on each, with no CutdownFloor."""
-    if not floors:
-        return []
-    if mask and len(floors) > 1:
-        return [(min(floors), max(floors))]
-    return [(k, 0) for k in sorted(floors)]
 
 
 def keys(props):

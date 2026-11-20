@@ -444,7 +444,7 @@ class Manager(unittest.TestCase):
     def test_a_packs_maps_hold_their_lighting_inside_and_no_cache_goes_along(self):
         """The game finds a .tfc only in CookedPCConsole itself (F-140): each map of the pack holds its build's baked
         lighting inside it (inline_lighting.py), and the pack has no .tfc. The build itself stays as it is."""
-        import audit_lighting as lighting
+        import lighting_records as lighting
         import lighting_fixture as fx
         self.package()
         cooked = self.output / VARIANT / 'CookedPCConsole'

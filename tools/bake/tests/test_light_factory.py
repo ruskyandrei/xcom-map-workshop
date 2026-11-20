@@ -20,7 +20,7 @@ sys.path.insert(0, str(TOOLS / 'upk'))
 sys.path.insert(0, str(TOOLS / 'viewer'))
 import light_factory  # noqa: E402
 import native_copy  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import lights  # noqa: E402
 import package as viewer_package  # noqa: E402
 import package_grow  # noqa: E402

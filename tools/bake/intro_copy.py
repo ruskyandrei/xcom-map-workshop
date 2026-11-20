@@ -50,7 +50,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'upk'))
 sys.path.insert(0, str(HERE.parent / 'viewer'))
 sys.path.insert(0, str(HERE))
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import native_copy  # noqa: E402
 import package_grow  # noqa: E402
 import props as legacy_props  # noqa: E402
@@ -123,9 +123,9 @@ def renamed_entry(w, raw, base, variant):
 
 def anchors(p, base):
     """The base map's flight places in the intro: [dict(group (None for a map with one landing, else 0, 1 or 2),
-    action (its export), location, rotation)], as tools/upk/audit_clear.py intro_anchors reads them (F-97)."""
-    import audit_clear
-    found = audit_clear.intro_anchors(p.path)
+    action (its export), location, rotation)], as tools/upk/kismet_links.py intro_anchors reads them (F-97)."""
+    import kismet_links
+    found = kismet_links.intro_anchors(p.path)
     by_op = {name.split('.')[-1]: i for name, i in p.by_name.items() if '.Main_Sequence.' in name}
     out = []
     for case, places in found.items():

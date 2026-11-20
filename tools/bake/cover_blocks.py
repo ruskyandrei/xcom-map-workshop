@@ -75,7 +75,7 @@ UNIT = struct.unpack('<f', struct.pack('<f', 0.99999994))[0]     # the unit leng
 # XComLevelActor_0, high cover on CoverPatch.highcover, and XComLevelActor_2, low cover on CoverPatch.Cover2x4): the
 # same classes, archetypes, export flags, preambles, properties and their order (tests/test_cover_blocks.py). The mesh
 # component's native data is the map's own, not the patch's: an empty LODData, then the two empty mesh-swap LOD
-# records and their two meshes that Enemy Within's maps (licensee 64) save after it (audit_lighting.component_record).
+# records and their two meshes that Enemy Within's maps (licensee 64) save after it (lighting_records.component_record).
 # The patch, cooked by the UDK (licensee 0), saves the LODData alone; built that way in a map, the game read 42 bytes
 # past the component and stopped as the map loaded ("Bad import index", F-79). Imports and properties are written as light_factory's recipes are; two
 # more kinds: 'enum' ([enum, value]: a ByteProperty saving a name) and 'objects' (an object array).
@@ -460,7 +460,7 @@ def body_setup_properties(g, lo, hi, spec):
 
 
 # ---------------------------------------------------------------- the destination's objects
-def _imports(g, rec):
+def recipe_imports(g, rec):
     """The recipe's imports in the destination ({path: index}, made): found by class, name and outer, else added; a
     top-level package the map holds as an export (the cooked maps' XComGame) is that export."""
     found, made = {}, []
@@ -471,7 +471,7 @@ def _imports(g, rec):
         if index is None and not parent and class_name == 'Package':
             exports = [k for k, e in enumerate(g.entries, 1)
                        if e.outer == 0 and g.name_of(e.name_index, e.name_number) == name
-                       and light_factory._class_name(g, e.cls) == 'Package']
+                       and light_factory.class_of(g, e.cls) == 'Package']
             index = exports[0] if exports else None
         if index is None:
             index = g.add_import(class_package, class_name, outer, name)
@@ -494,13 +494,13 @@ def _property(g, name, kind, value, values):
     if kind == 'events':
         # an array of DestructibleActorEvent structs, each its tagged properties: Action alone, then None
         payload = struct.pack('<i', len(value)) + b''.join(
-            light_factory._property(g, 'Action', 'object', fill(v)) + struct.pack('<ii', g.name('None'), 0) for v in value)
+            light_factory.tagged_property(g, 'Action', 'object', fill(v)) + struct.pack('<ii', g.name('None'), 0) for v in value)
         return struct.pack('<iiiiii', g.name(name), 0, g.name('ArrayProperty'), 0, len(payload), 0) + payload
     if kind.startswith('struct '):
         inner = _properties(g, fill(value), values)
         return (struct.pack('<iiiiii', g.name(name), 0, g.name('StructProperty'), 0, len(inner), 0)
                 + struct.pack('<ii', g.name(kind.split(' ', 1)[1]), 0) + inner)
-    return light_factory._property(g, name, kind, fill(value))
+    return light_factory.tagged_property(g, name, kind, fill(value))
 
 
 def _properties(g, specs, values):
@@ -514,7 +514,7 @@ def _properties(g, specs, values):
     return bytes(out + struct.pack('<ii', g.name('None'), 0))
 
 
-def _template(g, p, cls, outer=None, outer_class=None):
+def export_template(g, p, cls, outer=None, outer_class=None):
     """A map export of class `cls` to copy an export-table entry from: a top-level forced-export package (outer 0) or
     a static mesh."""
     for i in range(1, len(p.exports) + 1):
@@ -532,7 +532,7 @@ def _package(g, p, meshes):
     with its own net object count (its meshes are numbered 1 up, then their body setups) and a GUID from its
     contents."""
     data = struct.pack('<i', -1) + struct.pack('<ii', g.name('None'), 0)
-    index = g.add_export(_template(g, p, 'Package', outer=0), data, number=0, name_index=g.name(PACKAGE))
+    index = g.add_export(export_template(g, p, 'Package', outer=0), data, number=0, name_index=g.name(PACKAGE))
     e = g.entries[index - 1]
     if e.get('<I', 44) != 1:
         raise ValueError('the map\'s forced-export packages count net objects for more than one generation')
@@ -567,8 +567,8 @@ def add_blocks(g, p, blocks, version=1):
             raise ValueError(f'{b["name"]}: no cover block kind {b["kind"]!r} in recipe version {v}')
         if b.get('breakGroup') and b['kind'] not in breaking_recipe(v)['kinds']:
             raise ValueError(f'{b["name"]}: a cover block of kind {b["kind"]!r} can\'t break with a group')
-    found, made = _imports(g, rec)
-    breaking_found = _imports(g, breaking)[0] if breaking else {}
+    found, made = recipe_imports(g, rec)
+    breaking_found = recipe_imports(g, breaking)[0] if breaking else {}
     shapes, placed = {}, []
     for b in blocks:
         lo, hi = [0.0, 0.0, float(b['heights'][0])], [float(b['size'][0]), float(b['size'][1]), float(b['heights'][1])]
@@ -583,8 +583,8 @@ def add_blocks(g, p, blocks, version=1):
         shapes.setdefault(mesh_name(lo, hi), (lo, hi))
         placed.append((mesh_name(lo, hi), centres))
     package = _package(g, p, sorted(shapes))
-    mesh_template = _template(g, p, 'StaticMesh')
-    body_template = _template(g, p, 'RB_BodySetup', outer_class='StaticMesh')
+    mesh_template = export_template(g, p, 'StaticMesh')
+    body_template = export_template(g, p, 'RB_BodySetup', outer_class='StaticMesh')
     spec = rec['bodySetup']
     meshes = {}
     for net, (name, (lo, hi)) in enumerate(sorted(shapes.items()), 1):
@@ -625,7 +625,7 @@ def add_blocks(g, p, blocks, version=1):
             for spec, index, outer in ((rec['actor'], actor, level), (rec['mesh'], actor + 1, actor),
                                        (rec['floor'], actor + 2, actor)):
                 cls = found[spec['class']]
-                data = (light_factory._preamble(spec, cls, g.next_net_index(outer))
+                data = (light_factory.preamble(spec, cls, g.next_net_index(outer))
                         + _properties(g, spec['properties'], values) + bytes.fromhex(spec.get('tail', '')))
                 archetype = found[spec['archetype']] if spec['archetype'] else 0
                 if g.new_export(cls, outer, spec['name'], data, archetype=archetype, flags=spec['flags']) != index:
@@ -654,7 +654,7 @@ def _breaking_block(g, rec, found, level, block, static_mesh, kind=None):
                                (rec['action'], actor + 2, actor), (rec['toughness'], actor + 3, actor)):
         cls = found[spec['class']]
         net = g.next_net_index(outer)
-        head = struct.pack('<i', net) if spec['preamble']['kind'] == 'object' else light_factory._preamble(spec, cls, net)
+        head = struct.pack('<i', net) if spec['preamble']['kind'] == 'object' else light_factory.preamble(spec, cls, net)
         data = head + _properties(g, spec['properties'], values) + bytes.fromhex(spec.get('tail', ''))
         archetype = found[spec['archetype']] if spec['archetype'] else 0
         if g.new_export(cls, outer, spec['name'], data, archetype=archetype, flags=spec['flags']) != index:

@@ -16,7 +16,7 @@ What is made, each a clone of a template the map has (templates): the map's own,
 - the floor volumes: one for each box, stretched over it, FloorNumber its floor's index plus one;
 - Floors: an entry for each floor, naming its floor volumes and its pieces.
 
-Which pieces a floor lists is the game editor's own rule (F-87; audit_buildings.touched and listing): a piece counts
+Which pieces a floor lists is the game editor's own rule (F-87; floor_listing.touched and listing): a piece counts
 for every floor one of whose boxes it touches with its bottom more than 20 units under that box's top; a piece with
 bCutoutMask on its main mesh component is listed on the lowest of them only, with the highest as its CutdownFloor; any
 other piece on each. A piece's box is its main mesh's, at its pose, and comes within SLACK units of a box to touch it
@@ -32,7 +32,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'upk'))
-import audit_buildings  # noqa: E402
+import floor_listing  # noqa: E402
 import native_copy  # noqa: E402
 import native_lights  # noqa: E402
 import props as legacy_props  # noqa: E402
@@ -177,7 +177,7 @@ def piece_box(p, piece, meshes):
 
 def rule(p, source, box, floors):
     """The game editor's rule for a piece whose mesh and flags are export `source`'s, with world box `box`, against
-    `floors` ([[box]]): [(floor, CutdownFloor)] (audit_buildings.touched and listing). None ([]) for a piece that
+    `floors` ([[box]]): [(floor, CutdownFloor)] (floor_listing.touched and listing). None ([]) for a piece that
     collides with nothing: the game lists the actors that touch a floor volume, and only one that collides does (F-87;
     over the install's maps this alone takes the rule from 65% to 83% right on the pieces near a building it doesn't
     list, the listed ones as before)."""
@@ -185,7 +185,7 @@ def rule(p, source, box, floors):
         return []
     mesh = main_mesh(p, source)
     mask = bool(mesh and p.effective(mesh, 'bCutoutMask', False))
-    return audit_buildings.listing(audit_buildings.touched(box, floors, slack=SLACK), mask)
+    return floor_listing.listing(floor_listing.touched(box, floors, slack=SLACK), mask)
 
 
 def members(p, floors, pieces, meshes=None, carry=None):
@@ -668,8 +668,8 @@ def survey(p, only=None):
 
 
 def main():
-    import audit_lighting
-    p = audit_lighting.Package(Path(sys.argv[1]))
+    import lighting_records
+    p = lighting_records.Package(Path(sys.argv[1]))
     for b in survey(p, sys.argv[2] if len(sys.argv) > 2 else None):
         print('%s: box %s, tag %s%s%s' % (b['name'], b['box'], b['tag'], ', %s' % b['flags'] if b['flags'] else '',
                                           ', saves %s' % ', '.join(b['groups']) if b['groups'] else ''))
