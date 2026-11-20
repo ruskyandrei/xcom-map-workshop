@@ -114,43 +114,34 @@ import made_blasts  # noqa: E402
 import made_cursors  # noqa: E402
 import made_split  # noqa: E402
 import spawns  # noqa: E402
+# the tables and helpers the compiler shares with its edit families: compiler_tables.__all__ (compiler.FAMILIES
+# and the rest are its objects); the spawn family, and its table the compiler reads
+from compiler_tables import *  # noqa: E402,F401,F403
+from spawn_edits import SPAWN_COPY_KINDS, SpawnEdits  # noqa: E402
 
 COMPILER_VERSION = 3
-# A fracturing wall made from numbers (custom geometry plan, section 0): its numbers are its tile edges, its solid stops
-# this short of each end and it is at least this long (tools/bake/frac_wall.py RECIPE['endInset'], frac_walls.MIN_LENGTH;
-# test_frac_walls checks they agree)
-FRAC_WALL_END_INSET = 8.0
+# A fracturing wall made from numbers (custom geometry plan, section 0): its numbers are its tile edges, it is at
+# least this long (tools/bake/frac_walls.py MIN_LENGTH; test_frac_walls checks they agree), and its solid stops
+# FRAC_WALL_END_INSET (compiler_tables) short of each end
 FRAC_WALL_MIN_LENGTH = 40.0
 # the looks a made wall can be in (custom geometry plan, M4 item 1: tools/bake/wall_looks.json, frac_wall.LOOKS); the
 # first is the one a wall naming none is in
 FRAC_WALL_LOOKS = [look['id'] for look in json.loads(
     (Path(__file__).resolve().parents[1] / 'bake' / 'wall_looks.json').read_text(encoding='utf-8'))['looks']]
-# a floor or roof slab made from numbers (custom geometry plan, M5: tools/bake/frac_slab.py, slab_looks.json): its
-# looks, each with the heights of its plate in its donor's frame; a slab is whole tiles, 1 to FRAC_SLAB_MAX_TILES each
-# way, its holes whole tiles inside it
-FRAC_SLAB_LOOKS = {look['id']: (look['recipe']['bottom'], look['recipe']['top']) for look in json.loads(
-    (Path(__file__).resolve().parents[1] / 'bake' / 'slab_looks.json').read_text(encoding='utf-8'))['looks']}
+# a floor or roof slab made from numbers (custom geometry plan, M5: tools/bake/frac_slab.py, slab_looks.json): the
+# look of one that names none; a slab is whole tiles, 1 to FRAC_SLAB_MAX_TILES each way, its holes whole tiles
+# inside it; its looks are FRAC_SLAB_LOOKS (compiler_tables)
 FRAC_SLAB_DEFAULT_LOOK = 'roof'
 FRAC_SLAB_MAX_TILES = 16
-MADE_KINDS = ('fracWall', 'fracSlab')    # made from numbers: their own mesh, columns and box
 # a made wall or floor of any size (custom geometry editing plan, B4, D-3, 19 November 2026): the Build cuts it into
 # pieces of at most FRAC_SLAB_MAX_TILES tiles and its look's storeys (made_split); these bound the numbers only
 MADE_MAX_TILES = 128
 MADE_MAX_STOREYS = made_split.MAX_STOREYS
 
 
-def _ground_looks():
-    """A ground shape's looks (custom geometry plan, M6: tools/bake/ground_looks.json, ground.LOOKS), each its patch's
-    thickness."""
-    path = Path(__file__).resolve().parents[1] / 'bake' / 'ground_looks.json'
-    return {look['id']: float(look.get('recipe', {}).get('thickness', 8.0))
-            for look in json.loads(path.read_text(encoding='utf-8'))['looks']}
-
-
 # ground shapes made from numbers (M6: tools/bake/ground.py): a patch, block or ramp of whole tiles (1 to 16 each way), a
 # block's or ramp's height 1 to 384, copying a plain piece (GROUND_CLASSES); a slope steeper than about 10 degrees is
 # sloped (F-81: no cover on it) and past 45 no floor
-GROUND_LOOKS = _ground_looks()
 GROUND_DEFAULT_LOOK = next(iter(GROUND_LOOKS))
 GROUND_SHAPES = ('patch', 'block', 'ramp', 'rock')
 GROUND_ROCK_SEEDS = 2 ** 31     # a rock's seed is 0 to this less one (ground.py ROCK_SEEDS)
@@ -175,27 +166,6 @@ PLAIN_VERSION = {'fracWall': 4, 'fracSlab': 3, 'ground': 3}
 POINTS_VERSION = {'ground': 4}
 
 
-def donor_shape(kind, numbers):
-    """The recipe of a made piece whose look is named by its donor (looks.resolve, from the catalogues; a wall's
-    shaped for its storeys, frac_wall.shaped), None for a look id or none, and False for a donor look no catalogue
-    holds (the Build measures it from its donor then)."""
-    look = numbers.get('look') if isinstance(numbers, dict) else None
-    if not isinstance(look, dict):
-        return None
-    try:
-        resolved = looks.resolve(kind, look)
-    except looks.LookError:
-        return False
-    if kind != 'wall':
-        return resolved['recipe']
-    import frac_wall
-    try:
-        return frac_wall.shaped(dict(numbers, look=resolved))
-    except ValueError:
-        # (a wall taller than its look is made: the Build stacks pieces of it, made_split)
-        return frac_wall.shaped(dict({k: v for k, v in numbers.items() if k != 'storeys'}, look=resolved))
-
-
 def wall_look_storeys(wall):
     """(its look's own storeys, whether a wall one storey tall can be made in it) of a made wall (frac_wall.storeys_of):
     the Bar's inside wall's, (2, yes), for a look id; for a donor look no catalogue holds, its storeys as asked, uncut
@@ -210,36 +180,6 @@ def wall_look_storeys(wall):
     import frac_wall
     own = frac_wall.storeys_of(frac_wall.look_of(dict(wall, look=resolved)))
     return max(own), max(own) > 1 and 1 in own
-
-
-def wall_heights(wall):
-    """A made wall's bottom, top, free ends' inset and its faces' half thickness in its frame (an end running through
-    reaches that far past its tile edge: frac_wall.end_insets): its look's (donor_shape), or the Bar's inside wall's
-    for a look id or a donor look no catalogue holds."""
-    R = donor_shape('wall', wall)
-    if R:
-        return float(R['bottom']), float(R['top']), float(R['endInset']), float(R['half'])
-    return FRAC_WALL_BOTTOM, FRAC_WALL_TOPS[1 if wall.get('storeys') == 1 else 2], FRAC_WALL_END_INSET, FRAC_WALL_END_INSET
-
-
-def made_wall_along(wall, start=None, end=None):
-    """A made wall's box in its frame for world_box: its x range in from its ends (`start` and `end`, the free ends'
-    inset when left out). A wall in a donor's look adds its y and z, its look's half thickness and heights (the made
-    wall is its look's, not its template mesh's, height: a donor whose bottom is over its pivot is made lower); a look
-    id's y and z are its template's (x0, x1 only)."""
-    bottom, top, inset, half = wall_heights(wall)
-    x0 = float(wall['x0']) + (inset if start is None else start)
-    x1 = float(wall['x1']) - (inset if end is None else end)
-    R = donor_shape('wall', wall)
-    if not R:
-        return (x0, x1)
-    low, high = (-half, half)
-    try:
-        import frac_wall
-        low, high = frac_wall.extent(R)
-    except (ImportError, AttributeError, KeyError, TypeError, ValueError):
-        pass
-    return (x0, x1, float(low), float(high), bottom, top)
 
 
 def slab_heights(slab):
@@ -292,7 +232,6 @@ def ground_slope(g):
 # line-of-sight.md): cover 44 to 60, high or low 88 to 104, walking 64 (half a unit thick), sight from the eye tile 96
 # over the floor's level. An opening counts at a tile only where it holds the tile's centre along the wall. Heights
 # are over the floor the wall stands on (its numbers' z 0); a doorway reaches the wall's bottom, -16.
-FRAC_WALL_BOTTOM = -16.0
 WALL_SWEEPS = dict(cover=(44.0, 60.0), high=(88.0, 104.0), walk=64.0, sight=96.0, half=0.5)
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (piece flags plan); 3: effects and sounds (overrides and added records of their own: the effects and
@@ -300,85 +239,6 @@ SCHEMA = 'xcom-map-workshop/project'
 # A project of schema 1 to 3 builds as it did.
 SCHEMA_VERSION = 4
 READ_VERSIONS = (1, 2, 3, 4)
-# Every piece is in one family (private/plans/done/cars-doors-ladders-plan.md, section 3.4), which says whether the Build makes
-# it, how it may be posed, and, while it isn't built, the milestone its refusal names. A piece of an assembly (a car's
-# parts, a door's leaf and frame, a ladder: assemblies()) takes the assembly's family, any other piece its class's.
-# `grid`: the pose rule (grid_move): whole tiles, whole storeys and quarter turns from where the original stands, where
-# what the map saves per tile maps exactly; any other pose builds with an off-grid warning (since 10 November 2026).
-# `what`: how a refusal names the family. Destructible props joined M1 on 6 November 2026 (EXP-13), and collectibles
-# (destructible props that are mission loot, such as the power cores) the same day. Ladders build since 8 November
-# 2026, brought forward from M2 (EXP-22 runs 1 and 2), doors with a frame the same day (EXP-23 runs 1 to 3), cars too
-# (EXP-24 runs 1 and 2) and vans (EXP-24 runs 3 and 4: the Build takes a van's building along). Frameless doors
-# use the same native door recipe (EXP-39). Fracturing pieces and physics props were switched on on 9 November
-# 2026 at the user's word, before a game run (EXP-28): a fracturing piece keeps the grid move, since the Build carries
-# its per-tile fragment columns with it; `builds` off again brings back each one's refusal.
-FAMILIES = {
-    'scenery': dict(builds=True, milestone=1, grid=False, what='scenery'),
-    'destructible': dict(builds=True, milestone=1, grid=False, what='a destructible prop'),
-    'collectible': dict(builds=True, milestone=1, grid=False, what='a collectible'),
-    'ladder': dict(builds=True, milestone=2, grid=True, what='a ladder'),
-    'door': dict(builds=True, milestone=2, grid=True, what='a door'),
-    'frameless-door': dict(builds=True, milestone=2, grid=True, what='a door without a frame'),
-    'car': dict(builds=True, milestone=2, grid=True, what='a car'),
-    'van': dict(builds=True, milestone=2, grid=True, what='a van'),
-    'fracturing': dict(builds=True, milestone=3, grid=True, what='a fracturing piece'),
-    'physics': dict(builds=True, milestone=3, grid=False, what='a physics prop'),
-    'other': dict(builds=False, milestone=3, grid=False, what='another kind of piece'),
-    # lights belong to no milestone: `note` is what the page shows in place of the milestone line while the family is
-    # off (plan 3.4). Switched on 9 November, at the user's word after EXP-26 run 1, before runs 2 to 6.
-    'light': dict(builds=True, milestone=None, grid=False, what='a light',
-                  note='Light edits are drawn and saved; the Build makes them once their game test passes.'),
-    # a building made from nothing (private/plans/done/prefab-library-plan.md, 5.1 and stage B1): on since EXP-44 passed
-    # (11 November 2026); `builds` off again brings back the refusal with its note
-    'building': dict(builds=True, milestone=None, grid=False, what='a building made from nothing',
-                     note='Buildings are saved; the Build makes them once their game test passes.'),
-    # effects (Emitter actors) and ambient sounds moved, turned, copied or deleted in the same map (the effects and
-    # sounds plan, stage FX3): on since EXP-68 passed (17 November 2026); `builds` off again brings back the refusal,
-    # which an experiment's build lifts with --family, and the page offers their edits only where they build
-    # (families.json; viewer.py serve --family)
-    'effect': dict(builds=True, milestone=None, grid=False, what='an effect',
-                   note='Effects are moved, copied and deleted where the effect family builds.'),
-    'sound': dict(builds=True, milestone=None, grid=False, what='an ambient sound',
-                  note='Ambient sounds are moved, copied and deleted where the sound family builds.'),
-    # an effect's or a sound's values (the effects and sounds plan, stage FX5: an effect's size, starting state and
-    # particle parameters; a sound's radii, volume, pitch and starting state): a gate of their own, so the moves,
-    # they build for every project since EXP-70 passed (runs 1 and 2, 17 November 2026: every value loads and plays as
-    # set, a number where the system reads a vector and an added parameter are read, a save and its load keep them);
-    # the page offers the values where they build
-    'effect-values': dict(builds=True, milestone=None, grid=False, what='an effect\'s values',
-                          note='An effect\'s size, starting state and parameters.'),
-    'sound-values': dict(builds=True, milestone=None, grid=False, what='a sound\'s values',
-                         note='A sound\'s reach, volume, pitch and starting state.'),
-    # lens flares (LensFlareSource actors) moved, turned, copied or deleted (the effects and sounds plan, stage FX6b):
-    # they build for every project since EXP-71 passed (17 November 2026: a flare moved, deleted, copied and brought
-    # from another map draws where it is put and comes back after a load); the page offers their edits where the
-    # family builds (families.json)
-    'flare': dict(builds=True, milestone=None, grid=False, what='a lens flare',
-                  note='Lens flares are moved, copied and deleted where the flare family builds.'),
-    # the base map's pods, Meld points and drop-in points moved, turned, given values, copied and deleted (the editor
-    # spawns plan, SP6 and SP7): builds since EXP-72 runs 6 to 8 passed (18 November 2026)
-    'spawn': dict(builds=True, milestone=None, grid=False, what='a spawn point',
-                  note='Spawn points are moved and their values changed where the spawn family builds.'),
-}
-# the spawn points an edit may change (the export's `spawns` kinds), each kind's values, and what a value may be; a
-# no-spawn volume is moved and sized by its box (export 34 reads its two switches)
-SPAWN_EDIT_KINDS = ('pod', 'meld', 'dropIn', 'noSpawn')
-SPAWN_VALUE_KEYS = {'pod': ('commander', 'secondary', 'use'), 'meld': ('difficulty', 'destroyedOnTurn', 'spawnGroup'),
-                    'dropIn': (), 'noSpawn': ('aliens', 'civilians')}
-SPAWN_WORDS = {'pod': 'a pod', 'meld': 'a Meld point', 'dropIn': 'a drop-in point', 'noSpawn': 'a no-spawn volume'}
-# the kinds a project copies (SP7: an added record of `kind` pod, meld or noSpawn; a noSpawn one with no `from` is a
-# new volume, made from one of the map's plain volumes)
-SPAWN_COPY_KINDS = ('pod', 'meld', 'noSpawn')
-SPAWN_BOOLS = ('commander', 'secondary', 'use', 'aliens', 'civilians')
-CLASS_FAMILY = {'XComLevelActor': 'scenery', 'XComOpacityFadeLevelActor': 'scenery',
-                'StaticMeshActor': 'scenery', 'XComDestructibleActor': 'destructible',
-                'XComCollectible': 'collectible', 'XComLadder': 'ladder', 'XComInteractiveLevelActor': 'door',
-                'XComFracLevelActor': 'fracturing', 'XComDecoFracLevelActor': 'fracturing', 'KAsset': 'physics'}
-# The families of assemblies (assemblies()): an edit of one names all its pieces, with one grid move.
-ASSEMBLY_FAMILIES = ('ladder', 'door', 'frameless-door', 'car', 'van')
-# A flat piece the project adds is expected to give floor (added_floors): no more than FLOOR_THICK high, and with
-# HEADROOM clear over a tile (F-71: about 150 units; the game gives no floor to a tile a soldier can't stand on)
-FLOOR_THICK, HEADROOM = 40.0, 150.0
 # the map's own low scenery past its far sides, on a grid the project grows, is made walkable by the Build (F-100;
 # native_copy.SCENERY_LOW, shell.py scenery_to_walk): a level actor no taller than this, within the grid's levels
 SCENERY_LOW = 32.0
@@ -420,7 +280,6 @@ EFFECTS_EXPORT = 28
 EFFECT_CLASSES = {'effect': ('Emitter',),
                   'sound': ('AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundMovable'),
                   'flare': ('LensFlareSource',)}
-EFFECT_KINDS = ('effect', 'sound', 'flare')
 # each kind's object of the spec and of the native edit (its lane), and what the messages call one
 EFFECT_LANES = (('effect', 'effects'), ('sound', 'sounds'), ('flare', 'flares'))
 EFFECT_WORDS = {'effect': 'an effect', 'sound': 'a sound', 'flare': 'a lens flare'}
@@ -525,9 +384,6 @@ RECIPE_ROTATION = {'spot': [-16384, 0, 0],      # pointing down, as a placed Spo
                    'point': [0, 0, 0]}
 # An unresolved area light this near an edited piece's old box (units) is named in a warning (plan 4.8)
 AREA_NEAR = 64.0
-# The pose rule (plan section 3.2)
-TILE, STOREY, QUARTER = 96.0, 64.0, 16384
-POSE_SLACK = 0.5         # how far a grid move may miss a whole tile, storey (units) or quarter turn (rotation units)
 FRAME_MATCH = 1.0        # how far a door's frame stands from its leaf (units): they stand at one place
 PART_AT = 8.0            # how far a car's part its glass names stands from the body (units; Police Station's light bars: 2)
 INSTANCE_MATCH = 1.0     # how far apart two parts' moves may be and still be one copy of an assembly (units)
@@ -556,8 +412,6 @@ BREAKABLE = ('XComDestructibleActor', 'XComCollectible')
 # Cover blocks that break with their group (the Build makes them as hidden props), blockers too; an invisible floor
 # does not.
 BREAKING_COVERS = ('high', 'low', 'block')
-EPS_LOCATION = 1e-4      # the document's location precision
-IDENTITY = transform([0, 0, 0], [0, 0, 0], [1, 1, 1])
 # The landing zone's pieces (F-45): LWR's landing-zone mutator (XComLZMutator.RespawnLZObjects) spawns the landing zone
 # with the map's own pieces of these prefabs as templates (the dropship's soldier-spawn markers, the grounded Skyranger),
 # so a moved or deleted one (hidden in the variant) breaks the landing. They are gameplay pieces, not scenery: they can
@@ -571,26 +425,6 @@ LANDING_PREFIXES = ('dgn_dropshipsoldierspawn.', 'veh_lv1skyranger_mod.prefabs.'
 # too (9 November 2026): the copier has no recipe for either on its own.
 NATIVE_CLASSES = ('XComLevelActor', 'XComOpacityFadeLevelActor', 'StaticMeshActor', 'XComDestructibleActor', 'XComCollectible',
                   'XComFracLevelActor', 'XComDecoFracLevelActor', 'KAsset')
-
-
-def tile_corner(grid):
-    """The corner the game counts a map's tiles from, [x, y, z] (the export's tileGrid.tiles, export 26: its world
-    data's WorldBounds' low corner); for an older export, a unit under tileGrid.origin, as on every installed map
-    (private/plans/done/game-grid-plan.md). None without a grid. A point's tile (a ladder's ends, a mission object's,
-    a soldier's spot) is counted from it, as the game counts it; placing (snap, the lines, the grid rule) and the
-    rules for boxes (the floor a flat piece gives) keep tileGrid.origin, the level volume's corner, where the maps'
-    own pieces stand on whole tiles."""
-    if not grid:
-        return None
-    if grid.get('tiles'):
-        return [float(v) for v in grid['tiles'][:3]]
-    origin = grid.get('origin')
-    return [float(v) - 1 for v in origin[:3]] if origin else None
-
-
-def game_round(n):
-    """Half away from zero, as tools/viewer/resolver.py rounds."""
-    return math.floor(n + 0.5) if n >= 0 else math.ceil(n - 0.5)
 
 
 def blast_words(n):
@@ -612,28 +446,9 @@ def battle_words(keeps, further):
     return ''
 
 
-def short(path):
-    return path.split('.')[-1]
-
-
 def finite(v, n):
     return isinstance(v, list) and len(v) == n and all(isinstance(x, (int, float)) and not isinstance(x, bool)
                                                        and math.isfinite(x) for x in v)
-
-
-def keyable(v):
-    """Whether a value read from a record can be a key: a JSON string, number, true, false or null, never a list or an
-    object (a hand-edited or newer project's; looking one up in a table would raise TypeError)."""
-    return not isinstance(v, (list, dict))
-
-
-def target_key(target):
-    """A target {package, level, actor}'s key into the export's tables, or None when it is no such object or a part of
-    it is a list or an object (such a target names nothing)."""
-    if not isinstance(target, dict):
-        return None
-    key = (target.get('package'), target.get('level'), target.get('actor'))
-    return key if all(keyable(v) for v in key) else None
 
 
 BUILDING_SHAPE = ('each building is {"id", "name", "kind": "building" or "ufo", "floors": [{"boxes": [[x0, y0, z0, x1, '
@@ -677,25 +492,6 @@ def building_well_formed(b):
     return True
 
 
-def world_box(obj, meshes, location, rotation, along=None):
-    """The world box [x0, x1, y0, y1, z0, z1] of one component placed at the actor pose given. `along` (x0, x1) puts
-    the mesh's x range in its own frame in place of its bounds' (a fracturing wall made from numbers on the component's
-    materials, tools/bake/frac_wall.py: its section, so its y and z, are the template's); a whole box (x0, x1, y0, y1,
-    z0, z1) in its frame stands for its bounds (a slab made from numbers, frac_slab.local_box)."""
-    b = list(meshes[obj['mesh']]['bounds'])
-    if along is not None and len(along) == 6:
-        b = [(along[2 * k] + along[2 * k + 1]) / 2 for k in range(3)] + [(along[2 * k + 1] - along[2 * k]) / 2 for k in range(3)]
-    elif along is not None:
-        b[0], b[3] = (along[0] + along[1]) / 2, (along[1] - along[0]) / 2
-    m = multiply(transform(location, rotation, obj['scale']), obj.get('componentTransform') or IDENTITY)
-    pts = []
-    for sx, sy, sz in product((-1, 1), repeat=3):
-        v = [b[0] + sx * b[3], b[1] + sy * b[4], b[2] + sz * b[5]]
-        pts.append([sum(m[i][k] * v[k] for k in range(3)) + m[i][3] for i in range(3)])
-    return [min(p[0] for p in pts), max(p[0] for p in pts), min(p[1] for p in pts), max(p[1] for p in pts),
-            min(p[2] for p in pts), max(p[2] for p in pts)]
-
-
 def opening_play(wall, o):
     """What the game does at an opening of a made wall (walls.js openingPlay is the twin): dict(tiles (how many tiles'
     centre lines pass through it), walk, climb (units vault through it: low cover under it, which the game's tile
@@ -724,7 +520,6 @@ def opening_play(wall, o):
 # line ('line').
 WALL_JOIN_REACH = 1.0           # an end within this of a point or a line meets it
 WALL_JOIN_FLOOR = 32.0          # walls meet when their heights overlap by more than this (a storey apart they don't)
-FRAC_WALL_TOPS = {1: 192.0, 2: 384.0}
 
 
 def wall_joins(walls):
@@ -843,11 +638,6 @@ def landing_actors(scene):
     return sorted({o['actor'] for o in scene.get('objects') or [] if o.get('layer') == 'base' and is_landing(o)})
 
 
-def original_key(t):
-    """The viewer's key for an original piece in a group: its target."""
-    return 'orig|%s|%s|%s' % (t.get('package'), t.get('level'), t.get('actor'))
-
-
 def member_key(m):
     """The viewer's key for a group member: an added piece by its output name ({added}), an original by its target
     ({package, level, actor}), another group by its id ({group}: groups nest; prefab plan 5.4), one of the project's
@@ -863,30 +653,11 @@ def member_key(m):
     return None
 
 
-def union(boxes):
-    return [min(b[0] for b in boxes), max(b[1] for b in boxes), min(b[2] for b in boxes), max(b[3] for b in boxes),
-            min(b[4] for b in boxes), max(b[5] for b in boxes)]
-
-
-def tidy(v, places=4):
-    v = round(v, places)
-    return 0.0 if v == 0 else v
-
-
 def is_identity(m):
     return all(abs(m[i][j] - IDENTITY[i][j]) < 1e-6 for i in range(4) for j in range(4))
 
 
 # ---------------------------------------------------------------- the pose rule (plan section 3.2)
-def turned(v, turns):
-    """(x, y) turned by `turns` quarter turns of yaw, as the game turns an actor (+yaw takes X towards Y,
-    export_math.transform)."""
-    x, y = v[0], v[1]
-    for _ in range(turns % 4):
-        x, y = -y, x
-    return x, y
-
-
 def grid_move(src_location, src_rotation, location, rotation, origin):
     """How a pose moves its original: dict(turns, translation, valid, why). The move takes a point x of the original to
     R(x) + translation, R the nearest whole number of quarter turns of yaw (`turns`, 0 to 3). It is valid (`why`
@@ -1231,8 +1002,7 @@ class Compiler:
         # project's own takes from the piece that carries them (they leave carriedEffects)
         self.effect_ops = {k: dict(moves=[], deletes=[], copies=[], values=[]) for k in EFFECT_KINDS}
         # the base map's spawn points moved, given values, copied and deleted (the editor spawns plan, SP6 and SP7):
-        # their own module, which imports this one's tables (review finding 23)
-        from spawn_edits import SpawnEdits
+        # their own module (review finding 23)
         self.spawn_edits = SpawnEdits(self)
         self.effect_members = set()
         self.effect_own = set()
@@ -5151,14 +4921,6 @@ class Compiler:
         return spec, report
 
 
-class LibraryError(ValueError):
-    """A piece of another map can't be had. `code`: no-library, donor-missing, donor-changed or not-placeable."""
-
-    def __init__(self, code, message):
-        super().__init__(message)
-        self.code = code
-
-
 class Library:
     """The library of other maps' pieces as the compiler asks it (tools/viewer/library.py): the scan's index in the
     cache, and a piece's record, exported from the install on first request."""
@@ -5257,8 +5019,6 @@ def stage_max(own):
     the limit at its own size and can still be made larger (project.js stageMax is the twin)."""
     return [max(limit, int(own[k]) if own and len(own) > k else 0)
             for k, limit in enumerate((STAGE_GRID_MAX, STAGE_GRID_MAX, STAGE_LEVELS_MAX))]
-# the maps whose size a project may set: the bare maps that a new prefab or a new map starts from (tools/bake/shell.py)
-STAGE_MAPS = ('CB2_MP_Blank',)
 # a project's buildings made from nothing (Compiler.buildings): the kinds, the most floors (a CutdownFloor is a byte;
 # the game's own buildings have at most 5), and how far two boxes may reach into each other before they overlap
 BUILDING_KINDS = ('building', 'ufo')
@@ -5303,12 +5063,6 @@ def numbers(ns):
 
 def zone_words(ns):
     return 'landing zone%s %s' % ('' if len(ns) == 1 else 's', numbers(ns))
-
-
-def map_building_id(building):
-    """A map building's id in a project: made from its actor, the same each time the map is opened (web/project.js
-    mapBuildingId)."""
-    return 'map:%s.%s' % (building.get('level') or 'PersistentLevel', short(building['actor']))
 
 
 def moved_whole(old, floors):

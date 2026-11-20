@@ -51,8 +51,11 @@ writes the document; the compiler reads it.
 `(spec, report)`. The spec is the edit, the same bytes for the same project and export. The report gives the errors
 (which stop a Build), warnings, notes and the records left out. The `Compiler` class runs the checks and the edit
 families. `FAMILIES` says which families build for every project. One family is a class in a module of its own:
-[`spawn_edits.py`](tools/editor/spawn_edits.py) (`SpawnEdits`). `native_split(spec)` splits the spec into what a
-patch would do (nothing, for every project the compiler accepts today) and the native edit.
+[`spawn_edits.py`](tools/editor/spawn_edits.py) (`SpawnEdits`). The tables and helpers that the compiler and its
+families share (`FAMILIES`, `short`, `tidy` and the others its `__all__` names) are in
+[`compiler_tables.py`](tools/editor/compiler_tables.py). The compiler takes them all with
+`from compiler_tables import *`, so `compiler.FAMILIES` is that module's object. `native_split(spec)` splits the spec
+into what a patch would do (nothing, for every project the compiler accepts today) and the native edit.
 
 **The native edit.** It is the dict `native_split` returns, the contract between the compiler and the Build. It is a
 set of lanes: `copies`, `breakOriginals`, `hides`, `assemblies`, `covers`, `buildings`, `buildingEdits`, `lights`,
@@ -117,7 +120,8 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A setting (a folder, an install) | [`settings.py`](tools/viewer/settings.py). |
 | A record of the map's export | [`export.py`](tools/viewer/export.py) or [`scene_metadata.py`](tools/viewer/scene_metadata.py), with `EXPORT_VERSION` raised. |
 | A field of the project document | [`projects.py`](tools/viewer/projects.py) and [`project.js`](tools/viewer/web/project.js), with the compiler's reading of it, and the contract in [`research/editor-contracts.md`](research/editor-contracts.md). |
-| An edit family of the compiler | A class in a module of its own in `tools/editor`, given the `Compiler` and reporting through its `error`, `warn` and `note`: [`spawn_edits.py`](tools/editor/spawn_edits.py) is the model. |
+| An edit family of the compiler | A class in a module of its own in `tools/editor`, made with the `Compiler` it works for (`self.c`), with its own tables and state. It takes what it shares with the compiler from [`compiler_tables.py`](tools/editor/compiler_tables.py), never imports the compiler, and reports through the compiler's `error`, `warn` and `note`. The compiler imports it at the top and names again the tables of it that others read through the compiler. [`spawn_edits.py`](tools/editor/spawn_edits.py) is the model. |
+| A table or helper of the compiler that a family reads too | [`compiler_tables.py`](tools/editor/compiler_tables.py), named in its `__all__`. One only the compiler reads stays in `compiler.py`; one only a family reads goes in the family's module (the `SPAWN_*` tables in `spawn_edits.py`). |
 | A lane of the native edit | One change across the compiler's spec, `native_split`, a maker module in `tools/bake` (as [`native_effects.py`](tools/bake/native_effects.py)) called from `native_copy.build`, and the Build. |
 | A reader of package bytes | [`tools/upk`](tools/upk): tagged properties through [`props.tags`](tools/upk/props.py), compressed chunks through [`decomp.read_chunk`](tools/upk/decomp.py), a map's objects through the viewer's [`Package`](tools/viewer/package.py). |
 | A writer of package bytes | [`package_edit.write_edited`](tools/upk/package_edit.py) for edits in place, [`package_grow.py`](tools/upk/package_grow.py) for new exports. |
@@ -172,7 +176,9 @@ where there is one.
 ### The compiler and the Build
 
 - An edit family is a class in a module of its own, with its tables and its state. It reports through the compiler's
-  `error`, `warn` and `note`, so the report stays one report (`spawn_edits.py`).
+  `error`, `warn` and `note`, so the report stays one report (`spawn_edits.py`). It takes the tables and helpers it
+  shares with the compiler from `compiler_tables.py` and never imports the compiler, so a family can be read, tested
+  and moved without the rest of the compiler (section 4).
 - The native edit is the contract between the compiler and the Build. A new lane is added in one change to the
   compiler's spec, `native_split`, the copy tool and the Build.
 - A reader of package bytes checks its bounds and refuses (a `ValueError` saying what it met). It never reads on: a
@@ -231,7 +237,7 @@ Listed on 20 November 2026:
 | --- | --- | --- |
 | `tools/viewer/web/app.js` | 12,792 | The page's entry. Every area of the page was added to it before the page had modules. |
 | `tools/viewer/tests/browser_smoke.py` | 5,856 | Every browser check and its table in one file. Not shipped. |
-| `tools/editor/compiler.py` | 5,622 | The compiler, its tables and all its edit families but one. |
+| `tools/editor/compiler.py` | 5,622 | The compiler, and all its edit families but one with their own tables. |
 | `tools/editor/tests/test_compiler.py` | 3,263 | The compiler's tests, grown with it. Not shipped. |
 | `tools/bake/native_copy.py` | 3,177 | The copy tool: every lane's joining and several lanes' own code. |
 | `tools/bake/relight.py` | 2,045 | The relight, its scenes and its piece cache. |
@@ -298,9 +304,9 @@ harmless). New code calls `paths.use()` at the top of its module, as section 3 s
 
 ### Compiler families
 
-A module listed under `compiler families` does not import the compiler. The list is empty: the one family in a
-module of its own, `spawn_edits.py`, still imports the tables and helpers it shares with the compiler from
-`compiler.py`. A family is listed once it no longer does.
+A module listed under `compiler families` does not import the compiler. It lists `spawn_edits.py`, the one family in
+a module of its own, which takes the tables and helpers it shares with the compiler from `compiler_tables.py`. A family
+moved out of the `Compiler` class is listed in the commit that moves it.
 
 ### structure.json's form
 

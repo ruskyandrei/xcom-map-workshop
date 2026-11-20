@@ -10,14 +10,27 @@ reads the map, its package and the export from it, asks it whether the spawn fam
 (pose), and says what it finds through its error, warn and note, so the report and the pieces left out are the
 compiler's as before. tests/test_spawn_edit_fixtures.py holds what the family gave for the compiler's fixtures when it
 was moved, and checks it still does.
+
+Its own tables (SPAWN_*) are here, and the compiler takes the one it reads (SPAWN_COPY_KINDS) from this module.
+What the family shares with the compiler (FAMILIES, EPS_LOCATION, short, tidy) it takes from compiler_tables, so
+it never imports the compiler.
 """
 import math
 
-# (the compiler imports this module when a Compiler is made, so its tables and helpers are all there by then; it puts
-# tools/viewer on the path for missions)
-from compiler import (EPS_LOCATION, FAMILIES, SPAWN_BOOLS, SPAWN_EDIT_KINDS, SPAWN_VALUE_KEYS, SPAWN_WORDS, short,
-                      tidy)
+# (compiler_tables puts tools/viewer on the path, for missions)
+from compiler_tables import EPS_LOCATION, FAMILIES, short, tidy
 import missions
+
+# the spawn points an edit may change (the export's `spawns` kinds), each kind's values, and what a value may be; a
+# no-spawn volume is moved and sized by its box (export 34 reads its two switches)
+SPAWN_EDIT_KINDS = ('pod', 'meld', 'dropIn', 'noSpawn')
+SPAWN_VALUE_KEYS = {'pod': ('commander', 'secondary', 'use'), 'meld': ('difficulty', 'destroyedOnTurn', 'spawnGroup'),
+                    'dropIn': (), 'noSpawn': ('aliens', 'civilians')}
+SPAWN_WORDS = {'pod': 'a pod', 'meld': 'a Meld point', 'dropIn': 'a drop-in point', 'noSpawn': 'a no-spawn volume'}
+# the kinds a project copies (SP7: an added record of `kind` pod, meld or noSpawn; a noSpawn one with no `from` is a
+# new volume, made from one of the map's plain volumes)
+SPAWN_COPY_KINDS = ('pod', 'meld', 'noSpawn')
+SPAWN_BOOLS = ('commander', 'secondary', 'use', 'aliens', 'civilians')
 
 
 class SpawnEdits:

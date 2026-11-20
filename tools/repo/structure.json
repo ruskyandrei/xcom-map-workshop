@@ -3,7 +3,9 @@
     "functions": 812,
     "lets": 112
   },
-  "compiler families": [],
+  "compiler families": [
+    "tools/editor/spawn_edits.py"
+  ],
   "file lines": {
     "tools/bake/native_copy.py": 3177,
     "tools/bake/relight.py": 2045,
