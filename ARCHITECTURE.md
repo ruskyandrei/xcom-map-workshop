@@ -64,7 +64,9 @@ the compiler makes for itself:
 - [`building_edits.py`](tools/editor/building_edits.py) (`BuildingEdits`): buildings made from nothing, and the map's
   own buildings changed or deleted;
 - [`mission_edits.py`](tools/editor/mission_edits.py) (`MissionEdits`): the map's grid made larger or smaller, the
-  clear, the drop-in rule, landing zones, missions and the places units are dropped at.
+  clear, the drop-in rule, landing zones, missions and the places units are dropped at;
+- [`group_edits.py`](tools/editor/group_edits.py) (`GroupEdits`): the user's groups that break together, and what
+  of each group breaks with it.
 
 The tables and helpers that the compiler and its families share (`FAMILIES`, `short`, `tidy` and the others its
 `__all__` names) are in [`compiler_tables.py`](tools/editor/compiler_tables.py). The compiler takes them all with
@@ -297,8 +299,9 @@ harmless). New code calls `paths.use()` at the top of its module, as section 3 s
 
 A module listed under `compiler families` does not import the compiler. It lists the families in modules of their own
 (section 1), `spawn_edits.py`, `effect_edits.py`, `light_edits.py`, `flag_edits.py`, `made_edits.py`,
-`building_edits.py` and `mission_edits.py`, each of which takes the tables and helpers it shares with the compiler
-from `compiler_tables.py`. A family moved out of the `Compiler` class is listed in the commit that moves it.
+`building_edits.py`, `mission_edits.py` and `group_edits.py`, each of which takes the tables and helpers it shares with
+the compiler from `compiler_tables.py`. A family moved out of the `Compiler` class is listed in the commit that moves
+it.
 
 ### structure.json's form
 

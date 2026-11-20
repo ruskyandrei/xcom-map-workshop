@@ -135,6 +135,8 @@ from building_edits import BUILDING_FLOORS_MAX, BuildingEdits, moved_whole, sour
 # the map grid, the clear, landing zones, missions and spawn places, and the tables others read through the compiler
 # (the tests, the viewer's prefab builder test)
 from mission_edits import STAGE_GRID_MAX, STAGE_LEVELS_MAX, MissionEdits, stage_max  # noqa: E402,F401
+# the user's groups (which of them break together), and its helper others read through the compiler (the tests)
+from group_edits import GroupEdits, member_key  # noqa: E402,F401
 
 COMPILER_VERSION = 3
 # a floor or roof slab made from numbers (custom geometry plan, M5: tools/bake/frac_slab.py, slab_looks.json): the
@@ -309,11 +311,6 @@ NAME_LIMIT = 30
 # the names Windows keeps for devices (CON, NUL, COM1...): no file can have one, with any extension
 DEVICE_NAMES = {'CON', 'PRN', 'AUX', 'NUL', *('COM%d' % i for i in range(1, 10)), *('LPT%d' % i for i in range(1, 10))}
 ACTOR_NAME = re.compile(r'^[A-Za-z_]\w*\Z')
-# Pieces that can break in the game and be linked to break together: destructible props (collectibles build as such).
-BREAKABLE = ('XComDestructibleActor', 'XComCollectible')
-# Cover blocks that break with their group (the Build makes them as hidden props), blockers too; an invisible floor
-# does not.
-BREAKING_COVERS = ('high', 'low', 'block')
 # The landing zone's pieces (F-45): LWR's landing-zone mutator (XComLZMutator.RespawnLZObjects) spawns the landing zone
 # with the map's own pieces of these prefabs as templates (the dropship's soldier-spawn markers, the grounded Skyranger),
 # so a moved or deleted one (hidden in the variant) breaks the landing. They are gameplay pieces, not scenery: they can
@@ -361,21 +358,6 @@ def is_landing(obj):
 def landing_actors(scene):
     """The actors (paths) of the map's own landing-zone pieces: its base level's pieces is_landing tells."""
     return sorted({o['actor'] for o in scene.get('objects') or [] if o.get('layer') == 'base' and is_landing(o)})
-
-
-def member_key(m):
-    """The viewer's key for a group member: an added piece by its output name ({added}), an original by its target
-    ({package, level, actor}), another group by its id ({group}: groups nest; prefab plan 5.4), one of the project's
-    buildings by its id ({building}; plan 5.4a); None if it is none. A light is a member as a piece is."""
-    if isinstance(m, dict) and set(m) == {'building'} and isinstance(m['building'], str):
-        return 'building|' + m['building']
-    if isinstance(m, dict) and set(m) == {'group'} and isinstance(m['group'], str):
-        return 'group|' + m['group']
-    if isinstance(m, dict) and set(m) == {'added'} and isinstance(m['added'], str):
-        return 'added|' + m['added']
-    if isinstance(m, dict) and set(m) == {'package', 'level', 'actor'} and all(isinstance(v, str) for v in m.values()):
-        return original_key(m)
-    return None
 
 
 def is_identity(m):
@@ -576,8 +558,9 @@ class Compiler:
         # for the family's checks, and the blasts of each cut piece's whole: their own module (review finding 23)
         self.made_edits = MadeEdits(self)
         self.blast_edits = []       # the map's own pieces broken where they stand: [dict(name, target, blasts)] (E6)
-        self.break_copies, self.break_originals, self.group_report = {}, [], []
-        self.break_walls = {}       # a made wall's member key -> the break group whose pieces its columns list
+        # the user's groups that break together: the break group of each copy, of each of the map's own pieces left
+        # in place and of each made wall, and the report's groups: their own module (review finding 23)
+        self.group_edits = GroupEdits(self)
         self.moves = []          # each assembly's copy: id, family, members (labels), turns, translation
         # light edits (plan 9.5): the spec's `lights` object, what each piece edit does to the area lights, and the
         # group member keys of the lights the project adds: their own module (review finding 23)
@@ -1886,174 +1869,6 @@ class Compiler:
                                   cover=dict(cover), actorClass='XComLevelActor', location=loc, rotation=rot,
                                   rotationRounding=tidy(rounding, 6), newBox=[tidy(v, 3) for v in box]))
 
-    # ---------------------------------------------------------------- groups
-    def groups(self):
-        """The user's groups (research/editor-contracts.md, section 2). Only "break together" reaches the game: each
-        such group with two or more breakable pieces gets a number, given to its copies (breakGroups) and to the base
-        map's own pieces left in place (breakOriginals), which the copier links at load. A cover block (high or low,
-        not an invisible floor) of such a group breaks with it: it takes the group's number (its `breakGroup`), is
-        built as a hidden prop (tools/bake/cover_blocks.py) and goes when a breakable piece of the group is
-        destroyed; with a block one breakable piece is enough, and it may be the map's own. A wall made from numbers
-        in such a group (custom geometry plan, M3 item 4) lists the group's props and cover blocks in its columns by
-        them (wallGroups; tools/bake/frac_walls.group_columns), so they go when that part of the wall breaks: with a
-        made wall one prop or cover block is enough, and the group's props are made in the map. A locked group's moving as one
-        is the editor's alone, and so is nesting: a member that is another group ({group}) names a group of the
-        project that is in no other group and does not hold this one (else a note, group-nesting: nothing of nesting
-        reaches the game), and takes no part in breaking together, which is over a group's own pieces. A group this
-        compiler can't read is left out (it doesn't break together), and so is a list that is no list. Nor do a light or one of the project's buildings ({building};
-        prefab plan 5.4a), which only move with their group in the editor; a building named must be the project's
-        (group-member, a warning: the member is ignored)."""
-        # (`prefab`: the prefab a group was placed from, a label the editor keeps; nothing of it reaches the game)
-        known = {'id', 'locked', 'breakTogether', 'members', 'prefab'}
-        copies = {c['member']: c for c in self.copies}
-        covers = self.cover_members
-        deleted = {original_key(r['target']) for r in self.doc.get('overrides') or []
-                   if isinstance(r, dict) and isinstance(r.get('target'), dict) and r.get('deleted') is True}
-        linked = {}   # member key -> the group that links it
-        listed = self.building_edits.building_records()[0]
-        made = {b['id'] for b in listed if b.get('deleted') is not True}
-        # the map's own buildings that can be edited, by the id made from their actor, record or none (map buildings
-        # plan, section 2); a deleted one is no member
-        gone = {b['id'] for b in listed if b.get('deleted') is True}
-        made |= {map_building_id(b) for b, why in self.building_edits.map_buildings().values() if why is None} - gone
-        records = self.doc.get('groups', [])
-        if not isinstance(records, list):
-            self.leave_out('malformed', '"groups" must be a list of groups: the groups are left out, so none of them '
-                           'breaks together', record='groups')
-            return
-        number = 0
-        # nesting: each group named as a member is a group of the project, in one group at most, and in no loop
-        ids = {rec['id'] for rec in records if isinstance(rec, dict) and isinstance(rec.get('id'), str)}
-        holder = {}
-        for k, rec in enumerate(records):
-            if not isinstance(rec, dict) or not isinstance(rec.get('members'), list):
-                continue
-            for m in rec['members']:
-                if not (isinstance(m, dict) and set(m) == {'group'} and isinstance(m['group'], str)):
-                    continue
-                where = dict(record='groups[%d]' % k, group=rec.get('id'))
-                if m['group'] not in ids or m['group'] == rec.get('id'):
-                    self.note('group-nesting', 'a group names the group %s as a member, which is %s'
-                              % (m['group'], 'itself' if m['group'] == rec.get('id') else 'not a group of the project'), **where)
-                elif m['group'] in holder:
-                    self.note('group-nesting', 'the group %s is a member of two groups; a group is in one at most' % m['group'], **where)
-                else:
-                    holder[m['group']] = rec.get('id')
-        for start in sorted(holder):
-            seen, at = set(), start
-            while at in holder and at not in seen:
-                seen.add(at)
-                at = holder[at]
-            if at in seen:
-                self.note('group-nesting', 'the group %s is inside itself, through the groups it is in' % start, group=start)
-                break
-        for k, rec in sorted(enumerate(records), key=lambda e: str(e[1].get('id') if isinstance(e[1], dict) else '')):
-            where = dict(record='groups[%d]' % k)
-            members = rec.get('members') if isinstance(rec, dict) else None
-            keys = [member_key(m) for m in members] if isinstance(members, list) else []
-            if not isinstance(rec, dict) or not isinstance(rec.get('id'), str) or len(keys) < 2 or not all(keys) \
-                    or len(set(keys)) != len(keys) or any(not isinstance(rec.get(f, False), bool) for f in ('locked', 'breakTogether')):
-                self.leave_out('malformed', 'a group needs an id, two or more different members ({added}, {package, '
-                               'level, actor}, {group} or {building}) and true or false for locked and breakTogether: '
-                               'this one is left out, so its pieces don\'t break together', **where)
-                continue
-            where['group'] = rec['id']
-            for f in sorted(set(rec) - known):
-                self.note('unknown-field', 'field %r is not part of a group and is ignored' % f, **where)
-            entry = dict(id=rec['id'], locked=rec.get('locked', True), breakTogether=rec.get('breakTogether', False),
-                         number=0, copies=[], originals=[], blocks=[], walls=[], notBreakable=[])
-            self.group_report.append(entry)
-            for m in members:
-                if 'building' in m and m['building'] not in made:
-                    self.warn('group-member', 'the group names the building %s, which is neither one of the project\'s '
-                              'buildings nor one of the map\'s; it is ignored' % m['building'], **where)
-            if not entry['breakTogether']:
-                continue
-            links = []   # (kind, member key, label): a copy, or an original left in place (by its short name)
-            blocks = []  # member keys of its cover blocks, which break with it
-            walls = []   # (member key, label) of its made walls, whose columns list the rest
-            for m, key in zip(members, keys):
-                if 'group' in m:
-                    continue   # a group inside it breaks by its own option
-                if 'building' in m or key in self.light_edits.members or key in self.effect_edits.members \
-                        or ('actor' in m and ((m['package'], m['level'], m['actor']) in self.lights
-                                              or (m['package'], m['level'], m['actor']) in self.effect_actors)):
-                    continue   # a building's boxes, a light, an effect or a sound move with the group in the editor;
-                    # they don't break
-                if key in deleted:
-                    continue   # it isn't there to break
-                if key in linked:
-                    self.warn('group-member', '%s is in two groups that break together; it breaks with group %s only'
-                              % (short(m.get('added') or m.get('actor')), linked[key]), **where)
-                    continue
-                if key in covers:
-                    if self.cover_by_member[key]['kind'] in BREAKING_COVERS:
-                        blocks.append(key)
-                    else:
-                        entry['notBreakable'].append(short(m['added']))     # an invisible floor stays
-                    continue
-                if key in copies:
-                    c = copies[key]
-                    if c['actorClass'] in BREAKABLE:
-                        links.append(('copy', key, c['label']))
-                    elif (c.get('generated') or {}).get('kind') in MADE_KINDS:
-                        walls.append((key, c.get('whole') or c['label']))
-                    else:
-                        entry['notBreakable'].append(c['label'])
-                    continue
-                if 'added' in m:
-                    self.warn('group-member', 'group member %s is not built (see its own error), so it can\'t break with the group'
-                              % short(m['added']), **where)
-                    continue
-                parts = self.actors.get((m['package'], m['level'], m['actor']))
-                if not parts or m['level'] != 'base' or m['package'].casefold() != self.map.casefold():
-                    self.warn('group-member', 'group member %s is not a piece of %s\'s base level in the export, so it can\'t break '
-                              'with the group' % (short(m['actor']), self.map), **where)
-                    continue
-                if parts[0]['actorClass'] in BREAKABLE:
-                    links.append(('original', key, short(m['actor'])))
-                else:
-                    entry['notBreakable'].append(short(m['actor']))
-            for name in entry['notBreakable']:
-                self.note('group-unbreakable', '%s moves with its group but can\'t break with it (only props, cover '
-                          'blocks and made walls break)' % name, **where)
-            if walls and (links or blocks):
-                if len(walls) > 1:
-                    self.note('group-walls', 'the group has %d made walls: each lists the group\'s props and cover blocks '
-                              'it stands by' % len(walls), **where)
-            elif len(links) < (1 if blocks else 2):
-                self.note('group-unbreakable', 'the group breaks together but has %d breakable piece(s), so nothing is linked'
-                          '%s' % (len(links), ' (a cover block goes when a prop of its group is destroyed)' if blocks else ''),
-                          **where)
-                continue
-            # a cover block is made in the map, so its group is linked there even when its props are all the map's own
-            # (and so is a made wall)
-            if not blocks and not walls and not any(kind == 'copy' for kind, _, _ in links):
-                self.warn('group-not-linked', 'the group\'s breakable pieces are all the map\'s own, left in place; the patch '
-                          'links pieces only through its copies yet, so move or copy one of them', **where)
-                continue
-            number += 1
-            entry['number'] = number
-            for kind, key, label in links:
-                linked[key] = rec['id']
-                if kind == 'copy':
-                    self.break_copies[key] = number
-                    entry['copies'].append(label)
-                else:
-                    self.break_originals.append(dict(name=label, group=number))
-                    entry['originals'].append(label)
-            for key, label in walls:
-                linked[key] = rec['id']
-                self.break_walls[key] = number
-                entry['walls'].append(label)
-            for key in blocks:
-                linked[key] = rec['id']
-                self.cover_by_member[key]['breakGroup'] = number
-                entry['blocks'].append(self.cover_by_member[key]['name'])
-                for e in self.entities:
-                    if e.get('kind') == 'add' and 'added|' + e['entity'] == key:
-                        e['actorClass'] = 'XComDestructibleActor'    # built as a hidden prop
-
     # ---------------------------------------------------------------- the spec
     def spec(self):
         objects = []
@@ -2097,19 +1912,19 @@ class Compiler:
             if any(c.get('ladder') for c in copies):
                 copy['ladders'] = [c.get('ladder') for c in copies]
             # Break groups (the user's groups with "break together"): a number per copy, 0 for none.
-            if self.break_copies:
-                copy['breakGroups'] = [self.break_copies.get(c['member'], 0) for c in copies]
+            if self.group_edits.break_copies:
+                copy['breakGroups'] = [self.group_edits.break_copies.get(c['member'], 0) for c in copies]
             # a made wall's break group: the group's pieces its columns list (frac_walls.group_columns)
-            if self.break_walls:
-                copy['wallGroups'] = [self.break_walls.get(c['member'], 0) for c in copies]
-            if self.break_originals:
-                copy['breakOriginals'] = sorted(self.break_originals, key=lambda o: (o['group'], o['name']))
+            if self.group_edits.break_walls:
+                copy['wallGroups'] = [self.group_edits.break_walls.get(c['member'], 0) for c in copies]
+            if self.group_edits.break_originals:
+                copy['breakOriginals'] = sorted(self.group_edits.break_originals, key=lambda o: (o['group'], o['name']))
             copy['extra'] = ['bLogTiles=False']
             objects.append(copy)
-        elif self.break_originals:
+        elif self.group_edits.break_originals:
             # no copy to carry them: the map's own pieces that break with a cover block of their group
             objects.append(dict(type='breakOriginals',
-                                originals=sorted(self.break_originals, key=lambda o: (o['group'], o['name']))))
+                                originals=sorted(self.group_edits.break_originals, key=lambda o: (o['group'], o['name']))))
         hides = sorted(self.hides, key=lambda h: h['name'])
         if hides:
             # The hider's own place doesn't matter in exact mode: the middle of what it hides, at its lowest point.
@@ -2273,7 +2088,7 @@ class Compiler:
             self.made_edits.made_walls_stacked()
             self.made_edits.made_wall_openings()
             self.light_edits.derive_area_lights()
-            self.groups()
+            self.group_edits.groups()
             self.mission_edits.stage()
             self.ladder_climbs()
             self.floor_headroom()
@@ -2318,7 +2133,7 @@ class Compiler:
                                     for e in self.building_edits.edits],
                       entities=sorted(self.entities, key=lambda e: (e['kind'], e.get('op') or '', e.get('target') or e.get('entity'),
                                                                     e.get('ownerEntity') or '')),
-                      groups=self.group_report, assemblies=sorted(self.moves, key=lambda m: m['id']),
+                      groups=self.group_edits.report, assemblies=sorted(self.moves, key=lambda m: m['id']),
                       families=sorted(f for f in FAMILIES if self.builds(f)),
                       donors=[dict(d, pieces=sorted(d['pieces'])) for _, d in sorted(self.donor_report.items())])
         return spec, report
