@@ -1656,13 +1656,12 @@ def restore_saves(game, now=None):
     if not entries: return None
     if game_running(): raise InstallError('XCOM is running')
     # kept: what keep_saves did before the play (whole saves to the play range, broken ones set aside)
-    done = dict(moved=[], setAside=[], restored=[], kept=[m for e in entries for m in e.get('moved') or []],
+    done = dict(moved=[], setAside=[], restored=[], left=[], kept=[m for e in entries for m in e.get('moved') or []],
                 keptAside=[m for e in entries for m in e.get('setAside') or []])
     for entry in entries:
         result = playsaves.restore(entry)
-        done['moved'] += result['moved']
-        done['setAside'] += result['setAside']
-        done['restored'] += result['restored']
+        for key in ('moved', 'setAside', 'restored', 'left'):
+            done[key] += result[key]
     for entry in entries:
         for copy in entry.get('copies', {}).values():
             folder = Path(copy['copy']).parent
