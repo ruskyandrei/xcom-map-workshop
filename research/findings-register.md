@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- T-49 (20 November): Furies (`DLC2_3_Furies`, which LWR stores uncompressed) didn't build in 0.6.0; fixed offline
+  (an uncompressed map is written in the compressed maps' layout), the built map not played.
 - T-47 (a new case, EXP-83 run A, 19 November): a soldier whose tile on a map roof broke away under her (the roof
   let break further) stayed at roof height through the aliens' turn, with no log line about her, and went down only
   when ordered to move. On a made floor (EXP-76 run E) the game had put the soldier on the ground at once.
@@ -3117,6 +3119,24 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
   read back after the load). Before it every load with aliens had crashed (six of six).
 - **Known gap**: with the budget off the game's textures all stay mapped in its 32-bit address space; a long
   session might run out of it. Not seen in runs of a few minutes.
+
+### T-49: Furies didn't build: LWR stores the map uncompressed, and the package writers took only compressed maps
+**Fixed** (20 November 2026; built offline, not played).
+- **What**: a user's 0.6.0 build of a Furies project (`DLC2_3_Furies`: six cover blocks and two pieces' Mouse flag)
+  stopped in `native_copy.py` with `package is not compressed; edit its bytes directly`. The same project failed the
+  same way here.
+- **Cause**: every cooked map of the game is stored compressed (LZO chunks) except `DLC2_3_Furies.upk` as Long War
+  Rebalance ships it: no chunk table, compression flags 0 (the same file, SHA-256 `98e351e3...`, in both LWR copies
+  here and on the user's computer); no other map of either LWR copy is. Reading such a package always worked (the export, the map browser), but the writers (`package_edit.write_edited`,
+  `package_grow.Grower`, which every build that changes a map goes through) refused it.
+- **Fix** (`package_edit.compressed_layout`): an uncompressed package is first put in the layout of the compressed
+  cooked maps, and written from there: the summary uncompressed with a chunk table added (logical offsets unchanged),
+  PKG_StoreCompressed and LZO in its flags, the header's tables whole in the first chunk (from the summary's end to
+  the header size, as URB_Bar and Portent have it), the export data in chunks of up to 1 MB cut only where an
+  export's data starts (T-14), as literal-LZO blocks of 128 KB. The converted Furies has the cooked maps' flags
+  exactly (`0x228a0009`, LZO) and 27 chunks; the user's project now builds whole here.
+- **Not seen in the game**: the built Furies is a map of the kind the game already loads (literal-LZO chunks, tables
+  after the data), only with every chunk literal.
 
 ### T-48: A parked game copy started from its own folder is scaled by Windows
 **Worked around** (19 November 2026, EXP-85 runs D).

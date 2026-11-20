@@ -34,6 +34,25 @@ def summary(chunks):
     return head + struct.pack('<II', 0, 0)
 
 
+def uncompressed(path):
+    """The package at `path` as it would be stored uncompressed (DLC2_3_Furies.upk as LWR ships it): the summary with
+    no chunks, PKG_StoreCompressed and the compression flags cleared, then the logical bytes."""
+    raw = Path(path).read_bytes()
+    h = upkinfo.summary(raw)
+    full, _ = decomp.decompress_pkg(str(path))
+    table = package_edit.chunk_table_offset(raw, h['chunks'])
+    r = upkinfo.R(raw)
+    r.u32(); r.u16(); r.u16(); r.u32(); r.fstr()
+    head = bytearray(raw[:table])
+    struct.pack_into('<I', head, r.o, int(h['flags'], 16) & ~package_edit.STORE_COMPRESSED)
+    struct.pack_into('<I', head, table - 4, 0)
+    lo = h['chunks'][0][0]
+    out = bytes(head) + struct.pack('<I', 0) + raw[table + 4 + 16 * len(h['chunks']):h['chunks'][0][2]]
+    if len(out) != lo:
+        raise ValueError('the summary is not where the first chunk starts')
+    return out + full[lo:]
+
+
 def make_package(path, logical, chunk_sizes, block=300):
     """A synthetic compressed package: a summary, then the logical bytes split into LZO chunks."""
     n = len(chunk_sizes)
@@ -172,6 +191,55 @@ class RealMap(unittest.TestCase):
             q = lighting.Package(dst)
             self.assertEqual(q.data[h['chunks'][0][0]:], p.data[h['chunks'][0][0]:])
             self.assertEqual(lighting.component_record(q, index), lighting.component_record(p, index))
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class UncompressedMap(unittest.TestCase):
+    """A map stored uncompressed (DLC2_3_Furies.upk as LWR ships it; a build of it crashed: the writers took only
+    compressed maps) is put in the compressed cooked maps' layout first; here the bar, uncompressed."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.raw = BAR.read_bytes()
+        cls.h = upkinfo.summary(cls.raw)
+        cls.full, _ = decomp.decompress_pkg(str(BAR))
+        cls.flat = uncompressed(BAR)
+        cls.lo = cls.h['chunks'][0][0]
+
+    def test_the_layout_is_the_cooked_maps(self):
+        self.assertEqual(upkinfo.summary(self.flat)['chunks'], [])
+        out = package_edit.compressed_layout(self.flat)
+        h = upkinfo.summary(out)
+        # every summary field as the cooked map has it, its flags and compression flags too, but the chunk table
+        self.assertEqual({k: v for k, v in h.items() if k != 'chunks'},
+                         {k: v for k, v in self.h.items() if k != 'chunks'})
+        self.assertEqual(h['chunks'][0][:2], self.h['chunks'][0][:2])     # the header's tables whole, in the first
+        self.assertEqual(h['chunks'][0][:2], (h['nameoff'], h['headersize'] - h['nameoff']))
+        self.assertEqual(h['chunks'][0][2], self.h['chunks'][0][0] + 16 * len(h['chunks']))
+        package_edit.check_layout(out, h['chunks'])
+        self.assertEqual(decomp._decode(out, h)[self.lo:], self.full[self.lo:])
+        # chunks cut only where an export's data starts, none past the limit but for one export
+        _, _, exps = upkinfo.tables(self.full, self.h)
+        starts = {e['off']: e['size'] for e in exps if e['size']}
+        for uo, us, co, cs in h['chunks'][1:]:
+            self.assertIn(uo, starts)
+            self.assertTrue(us <= package_edit.CHUNK_UNCOMPRESSED or us == starts[uo], (uo, us))
+            self.assertEqual(package_edit.read_chunk(out, co)[1], package_edit.BLOCK_SIZE)
+
+    def test_a_compressed_package_is_returned_as_it_is(self):
+        self.assertIs(package_edit.compressed_layout(self.raw), self.raw)
+
+    def test_an_edit_of_an_uncompressed_map_is_written_compressed(self):
+        start = self.h['chunks'][3][0] + 100
+        with tempfile.TemporaryDirectory() as d:
+            src, dst = os.path.join(d, 'flat.upk'), os.path.join(d, 'out.upk')
+            Path(src).write_bytes(self.flat)
+            report = write_edited(src, dst, [(start, b'XCOM')])
+            full, h = decomp.decompress_pkg(dst)
+            self.assertEqual(h['compflags'], package_edit.COMPRESS_LZO)
+            self.assertEqual(full[start:start + 4], b'XCOM')
+            self.assertEqual(full[self.lo:start] + full[start + 4:], self.full[self.lo:start] + self.full[start + 4:])
+            self.assertEqual(report['bytesChanged'], sum(a != b for a, b in zip(self.full[start:start + 4], b'XCOM')))
 
 
 if __name__ == '__main__':

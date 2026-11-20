@@ -6,6 +6,30 @@ and how it was checked. Experiment results stay in `research/experiments/` and t
 
 Before 5 November 2026 the history is in Git and in the experiment notes.
 
+## 20 November 2026
+
+### Furies builds: an uncompressed map is written in the compressed maps' layout
+
+A user's report from 0.6.0: a Furies project (six cover blocks, two pieces' Mouse flag) stopped in `native_copy.py`
+with `package is not compressed`. LWR stores `DLC2_3_Furies.upk` uncompressed, the only such map in its install, and
+the package writers took only compressed maps (findings register T-49).
+
+- [package_edit.py](tools/upk/package_edit.py): `compressed_layout` puts an uncompressed package in the compressed
+  cooked maps' layout (the same logical bytes in literal-LZO chunks; the summary with a chunk table, PKG_StoreCompressed
+  and LZO; the header's tables whole in the first chunk; the export data cut into chunks of up to 1 MB only where an
+  export's data starts). `package_bytes` reads a package that way, and `write_edited` reads through it (or takes the
+  bytes from its caller). `chunk_cuts` and `literal_chunk` moved here from the grower.
+- [package_grow.py](tools/upk/package_grow.py): the grower reads through `package_bytes`, so every build step that
+  grows a map takes an uncompressed one and writes it compressed; its chunks come from `literal_chunk`; `sizeChange`
+  is against the file as it was.
+- Tests: [test_package_edit.py](tools/upk/tests/test_package_edit.py) makes the bar uncompressed and checks the layout
+  against the bar's own (every summary field, the first chunk, cuts at export starts, decoding) and an edit written
+  from it; [test_package_grow.py](tools/upk/tests/test_package_grow.py) grows the uncompressed bar (an edit, a name, a
+  moved export) and the install's Furies (which failed on the old writer with the user's error).
+- Checked: the user's project, built here with the 0.6.0 error first, now builds whole (cover blocks seeded, both
+  flags written, the intro copy made; the map reads back with LZO chunks, `0x228a0009` flags as the cooked maps have).
+  Suites: upk, bake and editor. Not played in the game.
+
 ## 19 November 2026
 
 ### Whole-editor review and cleanup plan

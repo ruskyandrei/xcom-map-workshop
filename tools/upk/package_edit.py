@@ -11,6 +11,10 @@ packages whose chunks are not contiguous or do not end the file, and writing ove
 a format operation the game has not yet been seen to accept (baker design, C0); seed_tiles.py only ever grew the last
 chunk.
 
+A package stored uncompressed (DLC2_3_Furies.upk as Long War Rebalance ships it) is first put in the layout of the
+compressed cooked maps (compressed_layout: the same logical bytes in literal-LZO chunks), so what is written from it
+is compressed like every other map.
+
   python package_edit.py <in.upk> <out.upk> --noop <logical offset> <length>
 """
 import argparse
@@ -24,6 +28,10 @@ import lzo1x  # noqa: E402
 import upkinfo  # noqa: E402
 
 CHUNK_TAG = 0x9E2A83C1
+STORE_COMPRESSED = 0x02000000   # PKG_StoreCompressed, in the summary's package flags
+COMPRESS_LZO = 2                # the summary's compression flags, as the cooked maps have them
+BLOCK_SIZE = 1 << 17            # the cooked maps' block size (128 KB)
+CHUNK_UNCOMPRESSED = 1 << 20    # a chunk holds up to this much, unless one item is bigger (the maps' run 0.2-4 MB)
 
 
 def lzo_literals(data):
@@ -57,9 +65,84 @@ def chunk_table_offset(raw, chunks):
     return t
 
 
+def chunk_cuts(starts, total, limit=CHUNK_UNCOMPRESSED):
+    """Where to cut `total` bytes of items (beginning at `starts`) into chunks of up to `limit`, cutting only at an
+    item's start; an item bigger than `limit` gets a chunk to itself. Returns [(start, end)]. The game's loader can't
+    serve a read that crosses a chunk boundary, and hangs (EXP-20 run 4, findings register T-14)."""
+    bounds = sorted(set([0] + [s for s in starts if 0 < s < total])) + [total]
+    cuts = [0]
+    for k in range(1, len(bounds) - 1):
+        if bounds[k + 1] - cuts[-1] > limit:
+            cuts.append(bounds[k])
+    cuts.append(total)
+    return [(a, b) for a, b in zip(cuts, cuts[1:]) if b > a]
+
+
+def literal_chunk(part, bsz=BLOCK_SIZE):
+    """A compressed chunk's bytes (header, block table, blocks) holding `part` as literal-LZO blocks of `bsz`, each
+    decoded again and compared."""
+    blocks = [part[k:k + bsz] for k in range(0, len(part), bsz)]
+    enc = [lzo_literals(b) for b in blocks]
+    for e, b in zip(enc, blocks):
+        if lzo1x.decompress(e, len(b)) != b:
+            raise ValueError('literal LZO round trip failed')
+    body = struct.pack('<IIII', CHUNK_TAG, bsz, sum(map(len, enc)), len(part))
+    return body + b''.join(struct.pack('<II', len(e), len(b)) for e, b in zip(enc, blocks)) + b''.join(enc)
+
+
+def compressed_layout(raw):
+    """An uncompressed package (`raw`) in the layout of the compressed cooked maps, as literal-LZO blocks: the same
+    logical bytes, every offset in the summary and the tables kept. As the cooked maps have it, the summary stays
+    uncompressed with a chunk table added (so its physical size grows by 16 bytes a chunk, and logical offsets don't
+    change), the first chunk holds the header's tables whole, from the end of the summary to the header size, and the
+    export data follows in chunks of up to CHUNK_UNCOMPRESSED cut only where an export's data starts. The package
+    flags get PKG_StoreCompressed and the compression flags LZO. A compressed package is returned as it is."""
+    h = upkinfo.summary(raw)
+    if h['chunks']:
+        return raw
+    table = chunk_table_offset(raw, [])
+    r = upkinfo.R(raw)
+    r.u32(); r.u16(); r.u16(); r.u32(); r.fstr()
+    flags_at = r.o
+    flags = struct.unpack_from('<I', raw, flags_at)[0]
+    if hex(flags) != h['flags']:
+        raise ValueError('package flags not where expected')
+    start = min(v for v in (h['nameoff'], h['impoff'], h['expoff'], h['dependsoff']) if v)
+    header_end = h['headersize']
+    _, _, exps = upkinfo.tables(raw, h)
+    data = sorted(e['off'] for e in exps if e['size'])
+    if not table + 4 <= start < header_end <= len(raw) or (data and data[0] < header_end):
+        raise ValueError('the summary, the tables and the export data are not laid out as in a cooked map')
+    cuts = [(start, header_end)] + [(header_end + a, header_end + b) for a, b in
+                                    chunk_cuts([o - header_end for o in data], len(raw) - header_end)]
+    bodies = [literal_chunk(raw[a:b]) for a, b in cuts]
+    head = bytearray(raw[:table])
+    struct.pack_into('<I', head, flags_at, flags | STORE_COMPRESSED)
+    struct.pack_into('<I', head, table - 4, COMPRESS_LZO)
+    after = raw[table + 4:start]
+    co = len(head) + 4 + 16 * len(cuts) + len(after)
+    entries = struct.pack('<I', len(cuts))
+    for (a, b), body in zip(cuts, bodies):
+        entries += struct.pack('<IIII', a, b - a, co, len(body))
+        co += len(body)
+    out = bytes(head) + entries + after + b''.join(bodies)
+    h2 = upkinfo.summary(out)
+    if decomp._decode(out, h2)[start:] != raw[start:] or {k: v for k, v in h2.items() if k not in (
+            'chunks', 'flags', 'compflags')} != {k: v for k, v in h.items() if k not in ('chunks', 'flags', 'compflags')}:
+        raise ValueError('the compressed layout does not decode to the package')
+    return out
+
+
+def package_bytes(src):
+    """The bytes of the package at `src`, compressed: one stored uncompressed in the compressed layout
+    (compressed_layout)."""
+    with open(src, 'rb') as f:
+        return compressed_layout(f.read())
+
+
 def check_layout(raw, chunks):
     if not chunks:
-        raise ValueError('package is not compressed; edit its bytes directly')
+        raise ValueError('package is not compressed; put it in the compressed layout first (compressed_layout)')
     for i in range(len(chunks) - 1):
         uo, us, co, cs = chunks[i]
         if chunks[i + 1][0] != uo + us or chunks[i + 1][2] != co + cs:
@@ -95,17 +178,19 @@ def normalise_edits(edits, lo, hi):
     return out
 
 
-def write_edited(src, dst, edits, force=False, verify=True):
+def write_edited(src, dst, edits, force=False, verify=True, raw=None):
     """Write dst: src with each (logical offset, bytes) in edits written over the same number of bytes.
 
     With force, every block an edit overlaps is re-encoded even if its bytes did not change (a no-op edit then still
     exercises the re-encode and the chunk moves). Returns a report dict: chunks and blocks re-encoded, bytes changed
     and the file-size change. `verify` False leaves out the check that dst decodes to the intended bytes: for a
-    caller that writes a further file from dst and checks that one whole (package_grow.py)."""
+    caller that writes a further file from dst and checks that one whole (package_grow.py). `raw` is src's bytes as
+    package_bytes gives them, when the caller has them already. An uncompressed src is written compressed: its file-size
+    change is the compressed layout's."""
     if os.path.abspath(src) == os.path.abspath(dst):
         raise ValueError('refusing to overwrite the input')
-    with open(src, 'rb') as f:
-        raw = f.read()
+    if raw is None:
+        raw = package_bytes(src)
     h = upkinfo.summary(raw)
     chunks = h['chunks']
     check_layout(raw, chunks)

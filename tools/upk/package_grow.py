@@ -21,6 +21,10 @@ appends instead:
   chunk table gains the new chunks, so the physical summary grows by 16 bytes a chunk. Logical offsets don't depend
   on it: the cooked maps already have physical and logical offsets 416 bytes apart (their chunk table).
 
+A package stored uncompressed (DLC2_3_Furies.upk as Long War Rebalance ships it) is read in the compressed cooked
+maps' layout (package_edit.compressed_layout: its logical bytes in literal-LZO chunks), so it is written compressed
+like the others.
+
 Nothing that was in the package moves, so no export data needs relocating and inline bulk data keeps its absolute
 offsets. A relocated or new export that holds inline bulk data must have those offsets fixed by its caller, from
 `next_offset()` (tools/bake/lighting_fixture.py clone does it for texture mips).
@@ -37,13 +41,12 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import decomp  # noqa: E402
-import lzo1x  # noqa: E402
 import package_edit  # noqa: E402
 import upkinfo  # noqa: E402
 
 HAS_STACK = 0x02000000          # RF_HasStack, in the high half of an export's object flags
 FORCED_EXPORT = 0x1             # EF_ForcedExport, in an export's export flags
-CHUNK_UNCOMPRESSED = 1 << 20    # appended chunks hold up to this much, unless one item is bigger (the maps' run 0.2-4 MB)
+CHUNK_UNCOMPRESSED = package_edit.CHUNK_UNCOMPRESSED   # appended chunks hold up to this much, unless one item is bigger
 
 
 def net_index_at(object_flags, data):
@@ -111,8 +114,7 @@ class Entry:
 class Grower:
     def __init__(self, src):
         self.src = src
-        with open(src, 'rb') as f:
-            self.raw = f.read()
+        self.raw = package_edit.package_bytes(src)     # an uncompressed map in the compressed layout
         self.h = upkinfo.summary(self.raw)
         self.chunks = [tuple(c) for c in self.h['chunks']]
         package_edit.check_layout(self.raw, self.chunks)
@@ -328,17 +330,7 @@ class Grower:
         return self.full[e.offset:e.offset + e.size]
 
     # -- writing --------------------------------------------------------------------------------------------------
-    @staticmethod
-    def chunk_cuts(starts, total, limit=CHUNK_UNCOMPRESSED):
-        """Where to cut `total` bytes of items (beginning at `starts`) into chunks of up to `limit`, cutting only at an
-        item's start; an item bigger than `limit` gets a chunk to itself. Returns [(start, end)]."""
-        bounds = sorted(set([0] + [s for s in starts if 0 < s < total])) + [total]
-        cuts = [0]
-        for k in range(1, len(bounds) - 1):
-            if bounds[k + 1] - cuts[-1] > limit:
-                cuts.append(bounds[k])
-        cuts.append(total)
-        return [(a, b) for a, b in zip(cuts, cuts[1:]) if b > a]
+    chunk_cuts = staticmethod(package_edit.chunk_cuts)
 
     def write(self, dst):
         if os.path.abspath(self.src) == os.path.abspath(dst):
@@ -371,7 +363,7 @@ class Grower:
         mid = str(dst) + '.grow-tmp'
         if self.edits:
             # (not verified by itself: the check below decodes the final file, which holds these chunks)
-            package_edit.write_edited(self.src, mid, sorted(self.edits.items()), verify=False)
+            package_edit.write_edited(self.src, mid, sorted(self.edits.items()), verify=False, raw=self.raw)
             with open(mid, 'rb') as f:
                 base = f.read()
             os.remove(mid)
@@ -383,16 +375,8 @@ class Grower:
         bsz = package_edit.read_chunk(base, old_chunks[0][2])[1]
         entries = [(uo, us) for uo, us, _, _ in old_chunks]
         for start, stop in self.chunk_cuts(starts, len(tail)):
-            part = bytes(tail[start:stop])
-            blocks = [part[k:k + bsz] for k in range(0, len(part), bsz)]
-            enc = [package_edit.lzo_literals(b) for b in blocks]
-            for e, b in zip(enc, blocks):
-                if lzo1x.decompress(e, len(b)) != b:
-                    raise ValueError('literal LZO round trip failed')
-            body = struct.pack('<IIII', package_edit.CHUNK_TAG, bsz, sum(map(len, enc)), len(part))
-            body += b''.join(struct.pack('<II', len(e), len(b)) for e, b in zip(enc, blocks)) + b''.join(enc)
-            bodies.append(body)
-            entries.append((self.end + start, len(part)))
+            bodies.append(package_edit.literal_chunk(bytes(tail[start:stop]), bsz))
+            entries.append((self.end + start, stop - start))
 
         at = header_fields(base)
         table = at['chunkTable']
@@ -443,7 +427,7 @@ class Grower:
                     netObjects=self.net_objects,
                     exportOffset=export_offset, dependsOffset=depends_offset, nameOffset=name_offset,
                     appendedBytes=len(tail), chunks=len(entries), editsInPlace=len(self.edits),
-                    sizeChange=len(out) - len(self.raw))
+                    sizeChange=len(out) - os.path.getsize(self.src))
 
 
 def main():

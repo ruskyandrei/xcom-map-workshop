@@ -18,6 +18,8 @@ import labpaths  # noqa: E402
 
 # URB_Bar as shipped: XCOM_BAR_UPK, else the LWR install's (tools/viewer/settings.py); without it the tests skip
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
+# DLC2_3_Furies as the install has it (LWR's is stored uncompressed): XCOM_FURIES_UPK, else the LWR install's
+FURIES, NO_FURIES = labpaths.test_file('XCOM_FURIES_UPK', labpaths.lwr_cooked('DLC2_3_Furies.upk'), 'DLC2_3_Furies.upk')
 FLOOR = 'TheWorld.PersistentLevel.XComLevelActor_302.StaticMeshComponent_7'
 
 
@@ -198,6 +200,56 @@ class GrowBar(unittest.TestCase):
                                          ma['payloadOffset'])
                     else:
                         self.assertEqual(ma['offset'], mb['offset'])
+
+
+    def test_an_uncompressed_map_is_grown_compressed(self):
+        # a map stored uncompressed (DLC2_3_Furies.upk as LWR ships it) is read in the compressed layout
+        # (package_edit.compressed_layout) and written compressed, with a fixed-size edit, a new name and a moved export
+        sys.path.insert(0, str(HERE))
+        from test_package_edit import uncompressed
+        lo = self.h['chunks'][0][0]
+        with tempfile.TemporaryDirectory() as d:
+            src, out = Path(d) / 'flat.upk', Path(d) / 'URB_Bar.upk'
+            src.write_bytes(uncompressed(BAR))
+            g = package_grow.Grower(str(src))
+            self.assertEqual((g.end, g.full[lo:]), (len(self.full), self.full[lo:]))
+            at = self.h['chunks'][2][0] + 64
+            g.edit(at, b'XCOM')
+            g.name('XComMapWorkshopTestName')
+            victim = 5
+            data = g.export_data(victim) + b'grown'
+            g.relocate(victim, data)
+            report = g.write(str(out))
+            full, h = decomp.decompress_pkg(str(out))
+            names, imps, exps = upkinfo.tables(full, h)
+            self.assertEqual((h['flags'], h['compflags']), (self.h['flags'], self.h['compflags']))
+            self.assertEqual(full[at:at + 4], b'XCOM')
+            self.assertEqual(full[lo:at], self.full[lo:at])
+            self.assertEqual(names[-1], 'XComMapWorkshopTestName')
+            self.assertEqual(full[exps[victim - 1]['off']:exps[victim - 1]['off'] + len(data)], data)
+            self.assertEqual(report['sizeChange'], out.stat().st_size - src.stat().st_size)
+
+
+@unittest.skipUnless(FURIES and FURIES.exists(), NO_FURIES)
+class GrowFuries(unittest.TestCase):
+    def test_the_map_grows(self):
+        # DLC2_3_Furies.upk, which LWR stores uncompressed: a growing write without changes reads back whole (a build
+        # of the map crashed on it in 0.6.0)
+        flat, h = decomp.decompress_pkg(str(FURIES))
+        names, imps, exps = upkinfo.tables(flat, h)
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / 'DLC2_3_Furies.upk'
+            g = package_grow.Grower(str(FURIES))
+            g.name('XComMapWorkshopTestName')
+            g.write(str(out))
+            full, h2 = decomp.decompress_pkg(str(out))
+            self.assertTrue(h2['chunks'])
+            lo = h2['chunks'][0][0]
+            end = max(e['off'] + e['size'] for e in exps)
+            self.assertEqual(full[lo:end], flat[lo:end])
+            names2, imps2, exps2 = upkinfo.tables(full, h2)
+            self.assertEqual((names2[:-1], imps2), (names, imps))
+            self.assertEqual([(e['off'], e['size']) for e in exps2], [(e['off'], e['size']) for e in exps])
 
 
 if __name__ == '__main__':
