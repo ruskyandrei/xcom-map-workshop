@@ -6,6 +6,7 @@ import re
 import shutil
 import struct
 import tempfile
+import zlib
 from package import Package, FormatError
 from mesh import read_mesh, write_glb
 from skeletal import read_skeletal
@@ -80,6 +81,11 @@ EXPORT_VERSION = 36   # 21: what the editor needs to edit the map's own building
 LIGHT_METADATA_VERSION = 1
 EFFECTS_METADATA_VERSION = effects_metadata.METADATA_VERSION
 SAMPLES = ("XComLevelActor_242", "XComDestructibleActor_20", "XComDecoFracLevelActor_9")
+# What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
+# every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
+# readers' FormatError and other ValueErrors (lzo1x's block cut short among them), a struct cut short, an index or key
+# a damaged table names, a zlib stream that won't decode, a texture format the image library lacks, a file error.
+UNREADABLE = (ValueError, OSError, struct.error, IndexError, KeyError, zlib.error, NotImplementedError)
 
 
 def sha256(path):
@@ -189,7 +195,9 @@ def area_lights(p, objects, lights, meshes, materials, warn):
     for obj in objects: obj['areaLights'] = []
     try:
         import area_light_bindings
-    except ImportError:
+    except ImportError as error:
+        # said in the export's diagnostics, which the compiler's refusal quotes (review finding 31)
+        warn('area lights', f'The area-light matcher (area_light_bindings) could not be loaded: {error}')
         return None
     found = area_light_bindings.associate(p, objects, lights, meshes, materials, warn)
     for light in lights:
@@ -199,11 +207,12 @@ def area_lights(p, objects, lights, meshes, materials, warn):
 
 
 class Exporter:
-    def __init__(self, package, folder,namespace='',progress=None,base=None):
+    def __init__(self, package, folder,namespace='',progress=None,base=None,digest=None):
         """progress(done, total): called as the pieces are read (the export's slow part). base: the map's own
         Exporter, for a package streamed into it (its stub and imported materials are the map's)."""
         self.p, self.folder = package, folder
         self.base = base
+        self.digest = digest        # the package's SHA-256 when the caller has it (export_map: worked out once)
         self.prefix=namespace+'-' if namespace else ''
         self.prefabs = {}
         self.kismet = {}
@@ -222,7 +231,7 @@ class Exporter:
         if actor not in self.flags:
             try:
                 self.flags[actor] = piece_flags.describe(self.p, actor)
-            except (FormatError, ValueError, IndexError, struct.error) as error:
+            except UNREADABLE as error:
                 self.warn(self.p.name(actor), f'Piece flags not read: {error}')
                 self.flags[actor] = None
         return self.flags[actor]
@@ -232,19 +241,25 @@ class Exporter:
         with the piece that carries it (export 23's rule), and a mission stream's, read only; none for a sample or
         for the patch a preview builds on. Sets self.landings (export 22), which they are matched against."""
         p = self.p
-        self.landings = [] if self.prefix or scope != 'map' else landing_metadata(p, self.warn)
+        self.landings = [] if self.prefix or scope != 'map' else self.guarded('landings', lambda: landing_metadata(p, self.warn), [])
         stream = self.prefix[len('stream-'):-1] if self.prefix.startswith('stream-') else None
+        nothing = dict(effects=[], sounds=[], flares=[], systems={}, waves={}, defaults=None)
         if scope != 'map' or (self.prefix and stream is None):
-            return dict(effects=[], sounds=[], flares=[], systems={}, waves={}, defaults=None)
-        carried = {} if stream else {e['actor']: dict(by=e['carriedBy'], how=e['carriedHow'])
-                                     for e in effect_metadata(p) if e['carriedBy']}
-        defaults = effects_metadata.Defaults(p)
-        found = effects_metadata.describe(p, self.kismet, self.prefabs, self.landings, carried, prefix=self.prefix,
-                                          layer='stream' if stream else 'base', stream=stream, defaults=defaults,
-                                          warn=self.warn)
+            return nothing
+        carried = {} if stream else self.guarded('effect carriers', lambda: {
+            e['actor']: dict(by=e['carriedBy'], how=e['carriedHow']) for e in effect_metadata(p) if e['carriedBy']}, {})
+        defaults = self.guarded('script defaults', lambda: effects_metadata.Defaults(p), None)
+        if defaults is None:
+            return nothing
+        found = self.guarded('effects', lambda: effects_metadata.describe(
+            p, self.kismet, self.prefabs, self.landings, carried, prefix=self.prefix, layer='stream' if stream else 'base',
+            stream=stream, defaults=defaults, warn=self.warn), None)
+        if found is None:
+            return nothing
         found['defaults'] = 'script' if defaults.scripts else 'table'
         # export 29: what the page draws each system's likeness from (effects_draw.py; plan Part J1)
-        effects_draw.attach(p, defaults, found['systems'], self, compiled_textures, effects_draw.RULES, self.warn)
+        self.guarded('effect drawings', lambda: effects_draw.attach(p, defaults, found['systems'], self, compiled_textures,
+                                                                    effects_draw.RULES, self.warn), None)
         return found
 
     def particle_mesh(self, mi, override=0):
@@ -256,7 +271,7 @@ class Exporter:
             try:
                 mesh = read_mesh(p, mi)
                 write_glb(mesh, self.folder / f"mesh-{mesh_key}.glb")
-            except (ValueError, OSError, struct.error, IndexError, KeyError) as error:
+            except UNREADABLE as error:
                 self.warn(p.name(mi), f'Particle mesh not read: {error}')
                 return None, [], []
             self.meshes[mesh_key] = dict(name=p.name(mi), url=f"mesh-{mesh_key}.glb",
@@ -284,6 +299,15 @@ class Exporter:
     def warn(self, source, message):
         self.diagnostics.append(dict(source=source, message=str(message)))
 
+    def guarded(self, what, read, fallback):
+        """read(), or `fallback` with a diagnostic when the package's records for `what` can't be read: one unreadable
+        record never ends the whole map's export (review finding 50)."""
+        try:
+            return read()
+        except UNREADABLE as error:
+            self.warn(what, f'{what[:1].upper() + what[1:]} not read: {error}')
+            return fallback
+
     def texture(self, index):
         if index <= 0: return None
         key = self.prefix+str(index)
@@ -293,7 +317,7 @@ class Exporter:
                 info = export_texture(self.p, index, self.folder / f"texture-{key}.png")
                 info["url"] = info.pop("output")
                 self.textures[key] = info
-            except (ValueError, OSError) as error:
+            except UNREADABLE as error:
                 self.warn(self.p.name(index), error)
         return key if self.textures[key] else None
 
@@ -591,18 +615,19 @@ class Exporter:
                 try:
                     obj = self.component(actor,c)
                     if obj: objects.append(obj)
-                except (ValueError, OSError, struct.error) as error:
+                except UNREADABLE as error:
                     self.warn(p.name(c), error)
                 done += 1
                 if self.progress and (done == total or done * 100 // max(total, 1) > step):
                     step = done * 100 // max(total, 1)
                     self.progress(done, total)
-        buildings = building_metadata(p,objects,self.kismet)
+        buildings = self.guarded('buildings', lambda: building_metadata(p,objects,self.kismet), [])
         # Lights only for whole-map scenes; the sample study moves its pieces apart.
-        lights = light_records(p,actors if scope == "map" else [],self.prefix,
-                               'inherited' if self.prefix else 'base',self.warn)
-        light_metadata(p, lights, objects, self.kismet, self.warn)
-        self.area_matcher = area_lights(p, objects, lights, self.meshes, self.materials, self.warn)
+        lights = self.guarded('lights', lambda: light_records(p,actors if scope == "map" else [],self.prefix,
+                                                              'inherited' if self.prefix else 'base',self.warn), [])
+        self.guarded('light metadata', lambda: light_metadata(p, lights, objects, self.kismet, self.warn), None)
+        self.area_matcher = self.guarded('area lights', lambda: area_lights(p, objects, lights, self.meshes, self.materials,
+                                                                            self.warn), None)
         # a van's own building goes with the van (compiler.van_buildings: the editor keeps it fixed)
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'editor'))
@@ -637,19 +662,19 @@ class Exporter:
                     playableBounds=bounds[1] if bounds else None,
                     tileGrid=grid, tactical=tactical,
                     buildings=buildings,
-                    cursorVolumes=[] if self.prefix else cursor_volumes(p),
+                    cursorVolumes=[] if self.prefix else self.guarded('cursor volumes', lambda: cursor_volumes(p), []),
                     landings=self.landings, **spawns,
                     effects=effects['effects'], sounds=effects['sounds'], flares=effects['flares'],
                     effectSystems=effects['systems'], soundWaves=effects['waves'],
                     effectsMetadata=dict(version=EFFECTS_METADATA_VERSION, defaults=effects['defaults']),
                     lighting="dynamic", lightMetadata=dict(version=LIGHT_METADATA_VERSION, areaMatcher=self.area_matcher),
-                    source=dict(file=str(p.path),sha256=sha256(p.path),
+                    source=dict(file=str(p.path),sha256=self.digest or sha256(p.path),
                     version=p.header["ver"],licensee=p.header["lic"]),
                     counts=dict(exports=len(p.exports),selectedActors=len(selected),components=len(objects),lights=len(lights),
                                 meshes=len(self.meshes),materials=len(self.materials),textures=sum(bool(v) for v in self.textures.values())),
                     objects=objects, lights=lights, meshes=self.meshes,
                     materials=self.materials,textures=self.textures,diagnostics=self.diagnostics,
-                    content=content_records(p))
+                    content=self.guarded('level records', lambda: content_records(p), []))
 
 
 def map_records(package_path):
@@ -704,7 +729,7 @@ def stream_layers(p, result, stage, records, progress=None, base=None):
             report = (lambda done, total, name=name: progress(f'reading {name}', done, total)) if progress else None
             package = Package(path)
             layer = Exporter(package, stage, namespace='stream-'+name, progress=report, base=base).run('map')
-        except (FormatError, ValueError, OSError, struct.error) as error:
+        except UNREADABLE as error:
             entry['error'] = str(error)
             continue
         report_to = lambda source, error, name=name: result['diagnostics'].append(  # noqa: E731
@@ -737,13 +762,15 @@ def stream_layers(p, result, stage, records, progress=None, base=None):
 def export_map(source, cache_root, scope, specs=(), progress=None):
     """progress(what, done, total), as each package's pieces are read."""
     p = Package(source)
-    fingerprint = sha256(p.path)[:16]
+    digest = sha256(p.path)       # once: the folder's name and the scene's source both take it
+    fingerprint = digest[:16]
     parent = Path(cache_root).resolve() / p.path.stem
     parent.mkdir(parents=True, exist_ok=True)
     target = parent / f"{fingerprint}-v{EXPORT_VERSION}-{scope}"
     stage = Path(tempfile.mkdtemp(prefix=".export-",dir=parent))
     try:
-        exporter = Exporter(p,stage,progress=(lambda done, total: progress('reading the map', done, total)) if progress else None)
+        exporter = Exporter(p,stage,progress=(lambda done, total: progress('reading the map', done, total)) if progress else None,
+                            digest=digest)
         result = exporter.run(scope)
         previews=[]
         inherited={}
@@ -793,11 +820,12 @@ def export_map(source, cache_root, scope, specs=(), progress=None):
             scene['counts'].update(components=len(scene['objects']),lights=len(scene.get('lights',[])),meshes=len(exporter.meshes),
                                    materials=len(exporter.materials),textures=sum(bool(v) for v in exporter.textures.values()))
         for filename,scene in previews:
-            (stage/filename).write_text(json.dumps(scene,indent=2),encoding='utf-8')
-        (stage/"scene.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
+            (stage/filename).write_text(json.dumps(scene,separators=(',',':')),encoding='utf-8')
+        # compact (review finding 50: indented, the largest was 15.6 MB against 8.3)
+        (stage/"scene.json").write_text(json.dumps(result,separators=(',',':')),encoding="utf-8")
         scenes=[dict(name=p.path.stem+' · Original',url='scene.json')]+[
             dict(name=s['name']+' · Experimental',url=f) for f,s in previews]
-        (stage/'scenes.json').write_text(json.dumps(scenes,indent=2),encoding='utf-8')
+        (stage/'scenes.json').write_text(json.dumps(scenes,separators=(',',':')),encoding='utf-8')
         if target.exists():
             # Publish to a new generation instead of deleting an existing export.
             target = parent / (target.name + "-" + stage.name.removeprefix(".export-"))

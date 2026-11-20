@@ -314,6 +314,37 @@ class StateTests(unittest.TestCase):
                 self.assertEqual(broken.exception.status, 500)
             self.assertEqual(self.path.read_text(encoding='utf-8'), text)
 
+    def test_two_saves_at_once_never_both_win(self):
+        """Review finding 21: two windows save from revision 0 at once (a star each, or a star and a recently used
+        piece): one gets revision 1, the other a 409 with that revision, and the accepted change is the one on disk;
+        reloaded and applied again, the second gets its own revision."""
+        both_read = threading.Barrier(2)
+        real = library.load_state
+        def slow_read(path=None):
+            state = real(path)
+            try: both_read.wait(timeout=1)      # each would have read revision 0 before either writes
+            except threading.BrokenBarrierError: pass
+            return state
+        results = {}
+        def save(name, document):
+            try: results[name] = library.save_state(document, 0, self.path)['revision']
+            except ProjectError as error: results[name] = (error.status, error.extra.get('revision'))
+        other = '%016x' % 7
+        from unittest import mock
+        with mock.patch.object(library, 'load_state', slow_read):
+            threads = [threading.Thread(target=save, args=('star', dict(favourites=[dict(key=KEY)], recent=[]))),
+                       threading.Thread(target=save, args=('recent', dict(favourites=[], recent=[dict(key=other)])))]
+            for t in threads: t.start()
+            for t in threads: t.join(timeout=20)
+        self.assertEqual(sorted(results.values(), key=str), sorted([1, (409, 1)], key=str))
+        winner = next(name for name, value in results.items() if value == 1)
+        on_disk = library.load_state(self.path)
+        self.assertEqual(on_disk['revision'], 1)
+        self.assertEqual(bool(on_disk['favourites']), winner == 'star')
+        merged = dict(favourites=[dict(key=KEY)], recent=[dict(key=other)])
+        self.assertEqual(library.save_state(merged, 1, self.path)['revision'], 2)
+        self.assertEqual([p.name for p in self.path.parent.glob('*.part')], [])
+
 
 INDEX = dict(version=library.INDEX_VERSION, exporterVersion=19, scannedAt='2026-11-11T12:00:00', seconds=1.0,
              donors=[dict(package='URB_One', role='base', sha256='0' * 64, size=1, mtime=1, pieces=1)], failed=[],

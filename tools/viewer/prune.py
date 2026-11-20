@@ -15,9 +15,12 @@ its own is in use: when it starts, before it picks its exports, and after an exp
 switched the map to the new generation.
 
 The rule, for each map folder: of its generations of one package (the same SHA-256 prefix) and scope, the newest
-(exporter version, then the scene's time) stays and the rest go. Another package's (another install's copy of the
-map) stays as its own. In-progress folders (.export-*) and anything that is not a generation are left. The library's
-piece folders (library/pieces/<map>/<digest>-v<version>) go by the same rule.
+readable one (exporter version, then the scene's time) stays and the older ones go. Readable is what the map list and
+the Build take (catalogue.generation: the scene reads whole, of schema 1, of that package, version and scope), so the
+generation they serve is never the one deleted: a newer one whose scene.json is truncated or foreign is passed over and
+left as it is, never taken as the newest (review finding 17). Another package's (another install's copy of the map)
+stays as its own. In-progress folders (.export-*) and anything that is not a generation are left. The library's
+piece folders (library/pieces/<map>/<digest>-v<version>) go by the same rule, by their folders' time.
 
   python -B tools/viewer/prune.py [<cache>] [--dry-run]     what goes (and with --dry-run, nothing is deleted)
 """
@@ -59,8 +62,10 @@ def _folder_time(folder):
 
 def stale(cache, only=None, keep=()):
     """The generation folders that go: [Path], for every map folder of the cache root, or the map folder `only`. A
-    generation with no scene.json is never the newest (an export that did not finish publishing) and goes only when a
-    complete one of its package is newer. `keep`: folders never to delete (the ones a server serves)."""
+    generation with no scene.json is never the newest (an export that did not finish publishing) and is left; one whose
+    scene.json can't be used (catalogue.generation) is never the newest either, and goes only when a readable one of
+    its package is newer. `keep`: folders never to delete (the ones a server serves)."""
+    from catalogue import usable
     cache = Path(cache)
     keep = {Path(k).resolve() for k in keep}
     out = []
@@ -73,7 +78,9 @@ def stale(cache, only=None, keep=()):
             continue
         complete = [c for c in children if (c / 'scene.json').is_file()]
         for group in _newest_first(complete, GENERATION, _scene_time).values():
-            out += group[1:]
+            newest = next((k for k, f in enumerate(group) if usable(f)), None)
+            if newest is not None:
+                out += group[newest + 1:]
     pieces = cache / 'library' / 'pieces'
     if not only and pieces.is_dir():
         for folder in pieces.iterdir():

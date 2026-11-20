@@ -17,10 +17,12 @@ The same record is the `pack` part of pack.json in the pack's zip, so a pack who
 a cleared folder) is offered from its zip in <builds>\\Map packs (`listing`: source "zip"); choosing it makes the
 record. A zip from before cards (pack.json schema 1) gives its name and maps and gets a number when exported.
 """
+import copy
 import json
 from pathlib import Path
 import random
 import re
+import threading
 import zipfile
 
 SCHEMA = 'xcom-map-workshop/pack'
@@ -107,9 +109,32 @@ def draw_number(taken, rng=random):
     return rng.choice(free)
 
 
+_ZIPS = {}          # a zip as it is (path, size, time) -> its record or None: every packs.json read opened every zip
+_ZIPS_LOCK = threading.Lock()
+
+
 def from_zip(path):
     """The record a pack's zip holds (pack.json's `pack`), or one made from a zip of before cards (its name and maps,
-    no card number, version 0), or None when the zip is no pack."""
+    no card number, version 0), or None when the zip is no pack. Read once for the file as it is (its size and time;
+    review finding 50)."""
+    try:
+        stat = Path(path).stat()
+        key = (str(Path(path).resolve()), stat.st_size, stat.st_mtime_ns)
+    except OSError:
+        return None
+    with _ZIPS_LOCK:
+        if key in _ZIPS:
+            found = _ZIPS[key]
+            return copy.deepcopy(found) if found is not None else None
+    found = _read_zip(path)
+    with _ZIPS_LOCK:
+        _ZIPS[key] = found
+        while len(_ZIPS) > 256:
+            _ZIPS.pop(next(iter(_ZIPS)))
+    return copy.deepcopy(found) if found is not None else None
+
+
+def _read_zip(path):
     try:
         with zipfile.ZipFile(path) as z: described = json.loads(z.read('pack.json'))
     except (OSError, ValueError, KeyError, zipfile.BadZipFile): return None

@@ -1047,8 +1047,13 @@ def light_metadata_problem(scene):
     if not isinstance(meta, dict) or (meta.get('version') or 0) < LIGHT_METADATA:
         return 'the export of %s has no light metadata: %s' % (scene.get('name'), how)
     if not meta.get('areaMatcher'):
-        return ('the export of %s has no area-light associations (which glowing piece made each generated light): %s'
-                % (scene.get('name'), how))
+        # (review finding 31: the matcher is missing from the exporter itself, so exporting again alone gives the same)
+        why = next((d.get('message') for d in scene.get('diagnostics') or ()
+                    if isinstance(d, dict) and d.get('source') == 'area lights'), None)
+        return ('the export of %s has no area-light associations (which glowing piece made each generated light): %s. '
+                'Exporting it again gives the same until the editor\'s Python packages are mended (install the editor '
+                'again); then %s' % (scene.get('name'), why or 'the area-light matcher could not be loaded when it was '
+                                     'made', how))
     return None
 
 
@@ -5722,29 +5727,44 @@ def native_split(spec):
     return out, native
 
 
+class ExportMissing(LookupError):
+    """No usable export of a project's source map in the viewer cache (find_export)."""
+
+
 def find_export(cache, doc, minimum=EXPORT_MINIMUM):
     """The export (scene.json) of the project's source map in a viewer cache and its data: one with the project's
     SHA-256 (the cache names folders <first 16 hex digits>-v<exporter version>-map, and a later export of the same
     version <...>-map-<suffix>: export.py publishes beside an existing one) and exporter version `minimum` or
     newer (export 18 has the light data every edit needs: plan 4.1), preferring the exporter version the project was
-    edited on among those, then the newest. A project edited on an older export takes the newest that qualifies."""
+    edited on among those, then the newest. A project edited on an older export takes the newest that qualifies.
+    A candidate whose scene.json can't be read whole, or is not a scene of that package, version and scope
+    (catalogue.read_scene: the check the map list and the cache's pruning make too), is passed over for the next one
+    (review finding 17). ExportMissing when none qualifies."""
+    import catalogue
     src = doc.get('source') or {}
     sha = str(src.get('sha256') or '')
     folder = Path(cache) / str(src.get('map'))
     found = []
     for scene in folder.glob('*-map*/scene.json'):
-        m = re.match(r'^([0-9a-f]{16})-v(\d+)-map(?:-[A-Za-z0-9_]+)?$', scene.parent.name)
-        if m and len(sha) == 64 and sha.startswith(m.group(1)) and int(m.group(2)) >= minimum:
-            found.append((int(m.group(2)) == src.get('exporterVersion'), int(m.group(2)), scene.stat().st_mtime_ns, scene))
+        m = catalogue.GENERATION.match(scene.parent.name)
+        if m and m.group('scope') == 'map' and len(sha) == 64 and sha.startswith(m.group('digest')) \
+                and int(m.group('version')) >= minimum:
+            try:
+                found.append((int(m.group('version')) == src.get('exporterVersion'), int(m.group('version')),
+                              scene.stat().st_mtime_ns, scene))
+            except OSError:
+                continue
     for *_, scene in sorted(found, reverse=True):
-        with open(scene, encoding='utf-8') as f:
-            data = json.load(f)
-        if (data.get('source') or {}).get('sha256') == sha:
+        try:
+            entry, data = catalogue.read_scene(scene.parent)
+        except (OSError, ValueError):
+            continue
+        if entry['sha256'] == sha and entry['scope'] == 'map':
             return scene, data
-    raise SystemExit('no export of %s with SHA-256 %s at version %d or newer in %s: prepare the map (re-export it: the '
-                     'map browser\'s Prepare, or python tools/viewer/viewer.py export '
-                     '"<game>/XEW/XComGame/CookedPCConsole/%s.upk" --scope map) and restart the editor'
-                     % (src.get('map'), sha, minimum, folder, src.get('map')))
+    raise ExportMissing('no export of %s with SHA-256 %s at version %d or newer in %s: prepare the map (re-export it: the '
+                        'map browser\'s Prepare, or python tools/viewer/viewer.py export '
+                        '"<game>/XEW/XComGame/CookedPCConsole/%s.upk" --scope map) and restart the editor'
+                        % (src.get('map'), sha, minimum, folder, src.get('map')))
 
 
 def write_json(path, value):
@@ -5775,7 +5795,11 @@ def main(argv=None):
         with open(export, encoding='utf-8') as f:
             scene = json.load(f)
     else:
-        export, scene = find_export(args.cache, doc)
+        try:
+            export, scene = find_export(args.cache, doc)
+        except ExportMissing as error:
+            print('not compiled: %s' % error)
+            return 1
     library = Library(args.cache, args.game) if args.cache and args.game else None
     spec, report = compile_project(doc, scene, args.family, library, args.foreign_family)
     report['export'] = str(export)

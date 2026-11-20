@@ -193,13 +193,10 @@ class Defaults:
 # ---------------------------------------------------------------- reading a package
 
 def level_list(p, level):
-    """The exports in a level's actor list, or None when it can't be read."""
-    try:
-        _, end = p.properties(level)
-        owner, count = struct.unpack_from('<ii', p.data, end)
-        return set(struct.unpack_from('<%di' % count, p.data, end + 8)) if owner == level else None
-    except (FormatError, struct.error, ValueError):
-        return None
+    """The exports in a level's actor list, or None when it can't be read (scene_metadata.level_list: the one reader,
+    with its bounds and its one answer for a list it can't read)."""
+    import scene_metadata
+    return scene_metadata.level_list(p, level)
 
 
 def subtree(p, index):

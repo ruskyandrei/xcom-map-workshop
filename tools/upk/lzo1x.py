@@ -1,5 +1,18 @@
 # Minimal pure-python LZO1X decompressor (safe variant semantics, enough for UE3 blocks)
-def decompress(src, out_len):
+def decompress(src, out_len=None):
+    """The block `src` decoded. ValueError (never IndexError) for a block cut short or a match before its start, and,
+    given `out_len`, for output of another length: a damaged package fails as the readers' guards expect (review
+    finding 50)."""
+    try:
+        out = _decompress(src)
+    except IndexError:
+        raise ValueError('LZO block cut short (%d bytes)' % len(src)) from None
+    if out_len is not None and len(out) != out_len:
+        raise ValueError('LZO block gives %d bytes, not %d' % (len(out), out_len))
+    return out
+
+
+def _decompress(src):
     dst = bytearray()
     ip = 0
     n = len(src)

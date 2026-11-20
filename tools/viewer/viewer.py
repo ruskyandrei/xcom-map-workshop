@@ -5,12 +5,13 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import socket
+import traceback
 import webbrowser
 from urllib.parse import parse_qs, unquote, urlsplit
 from export import export_map, stream_package, EXPORT_VERSION
-from catalogue import load_catalogue, public_catalogue, with_install
+from catalogue import PackageDigests, load_catalogue, public_catalogue, with_install
 from projects import ProjectError, ProjectStore
 from prefabs import MAX_PICTURE, PrefabStore
 from prefab_tests import PrefabTests
@@ -57,11 +58,34 @@ def install_catalogue(catalogue, cache_root, settings, prune=False):
         print(f"Only exported maps are listed: {note}", flush=True)
         return catalogue, None
     try:
-        catalogue = with_install(catalogue, lwr_maps(game))
-        return catalogue, ExportRunner(catalogue, cache_root, settings['game'], prune=prune)
+        # each exported map serves its export of the install's own file of it (review finding 18)
+        from maplist import package_of
+        digests = PackageDigests(cache_root)
+        def digest(name):
+            path = package_of(game, name)
+            try: return digests.digest(path) if path else None
+            except OSError: return None
+        catalogue = with_install(catalogue, lwr_maps(game), digest)
+        digests.save()
+        return catalogue, ExportRunner(catalogue, cache_root, settings['game'], prune=prune, digests=digests)
     except (OSError, ValueError) as error:
         print(f"Only exported maps are listed: {error}", flush=True)
         return catalogue, None
+
+
+def install_busy(live, precache):
+    """Another install is chosen only when nothing works on this one (review finding 48; the build queue has its own
+    guard): a map export, a library scan or the cache job would go on into the old install's catalogue, beside a new
+    runner that allows a second at once. ProjectError 409 saying what runs."""
+    busy = []
+    exporting = live.exports.running() if live.exports else None
+    if exporting: busy.append(f'{exporting} is being prepared')
+    if live.library and live.library.running(): busy.append('the library of pieces is being read')
+    if precache and precache.running(): busy.append('Cache everything is running')
+    if busy:
+        said = '; '.join(busy)
+        raise ProjectError(409, f'{said[:1].upper() + said[1:]}: wait for it, or cancel it, before choosing another game '
+                                'install.', code='install-busy')
 
 
 def landing_lines(map_id):
@@ -96,6 +120,25 @@ def spawn_rules(map_id):
     except (OSError, ValueError) as error:
         found = dict(spawnrules.rules(None), error=str(error))
     return dict(found, map=map_id, excluded=spawnrules.excluded(found, map_id))
+
+
+def contained(root, rel):
+    """The path `rel` names under the folder `root` (absolute), or root/.denied, worked out from the text alone: a part
+    that is absolute, names a drive or a network share, starts with a slash or backslash, or holds a colon or a NUL is
+    refused before anything is joined, and the joined path is compared with the root without being resolved (resolving
+    opens the path first: a network one would be reached; review finding 45)."""
+    root = str(root)
+    denied = os.path.join(root, '.denied')
+    if rel and (rel[0] in '/\\' or ':' in rel or '\x00' in rel or PureWindowsPath(rel).drive
+                or PureWindowsPath(rel).is_absolute() or PurePosixPath(rel).is_absolute()):
+        return denied
+    target = os.path.normpath(os.path.join(root, rel)) if rel else os.path.normpath(root)
+    base = os.path.normcase(os.path.normpath(root))
+    try:
+        inside = os.path.commonpath([os.path.normcase(target), base]) == base
+    except ValueError:
+        inside = False
+    return target if inside else denied
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -203,13 +246,54 @@ class Handler(SimpleHTTPRequestHandler):
         origin = self.headers.get('Origin')
         return origin is None or origin == f'http://{host}'
 
-    def body_json(self):
-        if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json':
-            raise ProjectError(415, 'Send JSON.')
+    def parse_request(self):
+        """Every request's Host, and its Origin when sent, checked in one place before any route, reads too: a page
+        elsewhere, or one that rebinds its name to 127.0.0.1, reads nothing (review finding 45)."""
+        if not super().parse_request(): return False
+        self.answered = False
+        if self.same_origin(): return True
+        self.body_read = False
+        self.drain_body()
+        self.send_json(403, dict(error=f'Only the editor\'s own page (http://127.0.0.1:{self.server.server_port}/) '
+                                       'may use this server.'), body=self.command != 'HEAD')
+        return False
+
+    def send_response(self, *args, **kwargs):
+        self.answered = True
+        super().send_response(*args, **kwargs)
+
+    def answer(self, method, route):
+        """Run a request's route; any failure it doesn't answer itself is answered as a JSON 500 with its reason, never
+        a dropped connection (review finding 46). The traceback goes to the server's window."""
+        try:
+            route()
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            self.close_connection = True
+        except Exception as error:      # noqa: BLE001 (whatever failed, the page is told why)
+            traceback.print_exc()
+            if getattr(self, 'answered', False):
+                self.close_connection = True
+                return
+            try:
+                self.send_json(500, dict(error=f'The editor\'s server could not do that: {error}' if str(error)
+                                         else f'The editor\'s server could not do that ({type(error).__name__}).'),
+                               body=method != 'HEAD')
+            except OSError:
+                self.close_connection = True
+
+    def body_length(self, limit=32 << 20, too_large='Too large.'):
+        """A request body's length from its Content-Length (none: 0): 400 when it is not a whole number of 0 or more,
+        413 over `limit` (review finding 46: a bad value raised with no answer, a negative one held the thread)."""
         try: length = int(self.headers.get('Content-Length') or 0)
         except ValueError: raise ProjectError(400, 'Invalid Content-Length.')
         if length < 0: raise ProjectError(400, 'Invalid Content-Length.')
-        if length > 32 << 20: raise ProjectError(413, 'Too large.')
+        if length > limit: raise ProjectError(413, too_large)
+        return length
+
+    def body_json(self):
+        if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json':
+            raise ProjectError(415, 'Send JSON.')
+        length = self.body_length()
         self.body_read = True
         try: return json.loads(self.rfile.read(length) or b'null')
         except ValueError: raise ProjectError(400, 'Malformed JSON.')
@@ -250,18 +334,14 @@ class Handler(SimpleHTTPRequestHandler):
             # with that hash, the current one or the one before it; ?as=game: as the game shows it, after DXT1);
             # DELETE takes it away. GET /map-pictures/<map>.png is the game's own picture of a map (404: it has none).
             elif kind == 'picture' and method == 'PUT':
-                try: length = int(self.headers.get('Content-Length') or 0)
-                except ValueError: raise ProjectError(400, 'Invalid Content-Length.')
-                if length > pictures.MAX_BYTES: raise ProjectError(413, 'A map picture is a PNG of up to 1 MB.')
+                length = self.body_length(pictures.MAX_BYTES, 'A map picture is a PNG of up to 1 MB.')
                 if length <= 0: raise ProjectError(400, 'Send the picture.')
                 saved = pictures.named(self.projects.load(project_id))
                 self.body_read = True
                 self.send_json(200, pictures.save_picture(self.projects, project_id, self.rfile.read(length), saved))
             elif kind == 'picture-preview' and method == 'POST':
                 # a cropped picture as the game will show it (after DXT1), for the dialog; nothing is kept
-                try: length = int(self.headers.get('Content-Length') or 0)
-                except ValueError: raise ProjectError(400, 'Invalid Content-Length.')
-                if length > pictures.MAX_BYTES: raise ProjectError(413, 'A map picture is a PNG of up to 1 MB.')
+                length = self.body_length(pictures.MAX_BYTES, 'A map picture is a PNG of up to 1 MB.')
                 if length <= 0: raise ProjectError(400, 'Send the picture.')
                 self.body_read = True
                 self.send_png(pictures.shown_png(self.rfile.read(length)))
@@ -294,14 +374,14 @@ class Handler(SimpleHTTPRequestHandler):
                 raise ProjectError(404, 'This server does not build.')
             elif kind == 'build' and method == 'POST':
                 # {"quick": true}: a quick build (the edit without its lighting baked); no body or {}: a full one
-                request = self.body_json() if int(self.headers.get('Content-Length') or 0) else None
+                request = self.body_json() if self.body_length() else None
                 self.send_json(202, self.builds.start(project_id, quick=isinstance(request, dict) and request.get('quick') is True))
             elif kind == 'build-status' and method == 'GET':
                 self.send_json(200, self.builds.status(project_id))
             elif kind == 'build-cancel' and method == 'POST':
                 # {"attempt": id}: only that launch (a stale page's cancel stops no newer build); none: the running one
-                request = self.body_json() if int(self.headers.get('Content-Length') or 0) else None
-                attempt = request.get('attempt') if isinstance(request, dict) else None
+                request = self.body_json() if self.body_length() else None
+                attempt =request.get('attempt') if isinstance(request, dict) else None
                 if attempt is not None and not (isinstance(attempt, str) and self.projects.check_id(attempt)):
                     raise ProjectError(400, 'Send {"attempt": the build\'s attempt id}.')
                 self.send_json(200, self.builds.cancel(project_id, attempt))
@@ -371,8 +451,7 @@ class Handler(SimpleHTTPRequestHandler):
             elif len(parts) == 3 and parts[2] == 'prefab.json' and method == 'DELETE':
                 self.send_json(200, self.prefabs.delete(parts[1]))
             elif len(parts) == 3 and parts[2] == 'picture.png' and method == 'PUT':
-                length = int(self.headers.get('Content-Length') or 0)
-                if length > MAX_PICTURE: raise ProjectError(413, 'Too large.')
+                length = self.body_length(MAX_PICTURE)
                 self.body_read = True
                 self.send_json(200, self.prefabs.save_picture(parts[1], self.rfile.read(length)))
             elif len(parts) == 3 and parts[2] == 'picture.png' and method == 'GET':
@@ -439,7 +518,7 @@ class Handler(SimpleHTTPRequestHandler):
             if self.exports is None: raise ProjectError(404, 'This server does not export maps.')
             if parts[2] == 'export' and method == 'POST':
                 if not self.same_origin(): raise ProjectError(403, 'Changes are only accepted from the viewer itself.')
-                request = self.body_json() if int(self.headers.get('Content-Length') or 0) else None
+                request = self.body_json() if self.body_length() else None
                 self.send_json(202, self.exports.start(parts[1], prepare=bool(isinstance(request, dict) and request.get('prepare'))))
             elif parts[2] == 'export.json' and method == 'GET':
                 self.send_json(200, self.exports.status(parts[1]))
@@ -489,8 +568,8 @@ class Handler(SimpleHTTPRequestHandler):
         else:
             try:
                 root = Path(entry['root'])
-                scene = json.loads((root / 'scene.json').read_text(encoding='utf-8'))
-                ids = parse_qs(split.query).get('mesh') or sorted(scene.get('meshes') or {})
+                scene = self.collision_cache.scene(root)        # (read once per export, not on every request)
+                ids = parse_qs(split.query).get('mesh') or scene['meshes']
                 find = (lambda: self.exports.package(parts[1])) if self.exports else (lambda: scene['source']['file'])
                 self.send_json(200, dict(meshes=self.collision_cache.get(root, scene, find, ids)))
             except ProjectError as error: self.send_json(error.status, dict(error=error.message, **error.extra))
@@ -797,8 +876,7 @@ class Handler(SimpleHTTPRequestHandler):
                 folder = parts[1]
                 path = self.library.thumb(parts[2][:-4], folder)
                 if method == 'PUT':
-                    length = int(self.headers.get('Content-Length') or 0)
-                    if length > (4 << 20 if folder == 'pictures' else 1 << 20): raise ProjectError(413, 'Too large.')
+                    length = self.body_length(4 << 20 if folder == 'pictures' else 1 << 20)
                     self.body_read = True
                     self.send_json(200, self.library.save_thumb(parts[2][:-4], self.rfile.read(length), folder))
                 elif not path.is_file(): raise ProjectError(404, 'No picture is kept for that.')
@@ -862,7 +940,9 @@ class Handler(SimpleHTTPRequestHandler):
         return True
 
     def map_catalogue(self, body=True):
-        # a server that exports maps marks the ones exported by an older exporter (the page exports them again)
+        # a server that exports maps marks the ones exported by an older exporter (the page exports them again), and
+        # serves each map from its export of the install's file as the file is now
+        if self.exports: self.exports.recheck()
         payload=json.dumps(public_catalogue(self.catalogue, EXPORT_VERSION if self.exports else None)).encode('utf8')
         self.send_response(200)
         self.send_header('Content-Type','application/json')
@@ -882,29 +962,40 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         if body: self.wfile.write(payload)
 
-    def do_GET(self):
+    def do_GET(self): self.answer('GET', self.route_GET)
+
+    def route_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
         elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_generated, self.handle_looks, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
-    def do_PUT(self):
+    def do_PUT(self): self.answer('PUT', self.route_PUT)
+
+    def route_PUT(self):
         if not any(handle('PUT') for handle in (self.handle_squad, self.handle_library, self.handle_prefabs, self.handle_project)): self.send_error(405)
 
-    def do_POST(self):
+    def do_POST(self): self.answer('POST', self.route_POST)
+
+    def route_POST(self):
         if not any(handle('POST') for handle in (self.handle_map, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)): self.send_error(405)
 
-    def do_DELETE(self):
+    def do_DELETE(self): self.answer('DELETE', self.route_DELETE)
+
+    def route_DELETE(self):
         if not any(handle('DELETE') for handle in (self.handle_squad, self.handle_prefabs, self.handle_manager, self.handle_project)): self.send_error(405)
 
-    def do_HEAD(self):
+    def do_HEAD(self): self.answer('HEAD', self.route_HEAD)
+
+    def route_HEAD(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue(body=False)
         elif urlsplit(self.path).path == '/guide.html': self.user_guide(body=False)
         elif not self.handle_wave('HEAD'): super().do_HEAD()
 
     def translate_path(self, path):
         request = unquote(urlsplit(path).path)
-        root,rel=WEB,request.lstrip('/')
+        # (only the one slash the request path starts with is taken off: a second one would make it a network path)
+        root,rel=WEB,request[1:] if request.startswith('/') else request
         if request.startswith('/cache-library/'):
             # a library piece's meshes and textures (library.py): <donor>/<generation>/<file>
             if self.library is None: return str(WEB / ".denied")
@@ -918,9 +1009,7 @@ class Handler(SimpleHTTPRequestHandler):
             root=entry['root'] if entry else self.scene_root
             if root is None: return str(WEB / ".denied")
             if entry:rel=asset
-        target = (root / rel).resolve()
-        if not target.is_relative_to(root): return str(root / ".denied")
-        return str(target)
+        return contained(root, rel)
 
     def list_directory(self, path):
         self.send_error(403, "Directory listing is disabled")
@@ -957,7 +1046,7 @@ def main():
     exp = sub.add_parser("export",help="Read an original EW package into an external cache")
     exp.add_argument("map",type=Path)
     exp.add_argument("--cache",type=Path,help="The viewer cache to export into (default: the cache setting)")
-    exp.add_argument("--scope",choices=("sample","map"),default="sample")
+    exp.add_argument("--scope",choices=("sample","map"),default="map",help="map (the default): the whole map; sample: the three-piece study, URB_Bar's only")
     exp.add_argument("--spec",type=Path,action="append",default=[],help="Include a patch spec as an experimental preview (repeatable)")
     serve = sub.add_parser("serve",help="Open an exported scene locally")
     serve.add_argument("scene",type=Path,nargs="?",help="Cache root with prepared maps, or one exact cache generation (default: the cache setting)")
@@ -1051,80 +1140,11 @@ def main():
         if not exact:
             try: args.scene.mkdir(parents=True, exist_ok=True)
             except OSError as error: ap.error(f"Cache {args.scene}: {error}")
-        # the main server deletes old exports before it picks its own (prune.py; a test server never does)
-        main_server = args.port == MAIN_PORT and not exact
-        if main_server:
-            try:
-                import prune
-                pruned = prune.prune(args.scene)
-                if pruned['removed'] or pruned['failed']:
-                    print(f"Old exports: {len(pruned['removed'])} removed ({pruned['bytes'] / 1e9:.1f} GB)"
-                          + (f", {len(pruned['failed'])} could not be removed" if pruned['failed'] else ''), flush=True)
-            except OSError as error:
-                print(f"Old exports were not removed: {error}", flush=True)
-        try: exported=load_catalogue(args.scene, allow_empty=not exact)
-        except (OSError,ValueError) as error:ap.error(str(error))
+        # The port first (review finding 16): a second start while the editor runs (the release launcher's --reuse, a
+        # double launch) finds it taken before it deletes or reads anything of the cache the running server serves.
+        # The socket listens from here; requests wait for the routes, set once everything below is ready.
         try:
-            settings = load_settings()
-            projects = ProjectStore(args.projects or settings['projects'])
-            prefabs = PrefabStore(args.prefabs or (args.projects.parent / 'prefabs' if args.projects else settings['prefabs']))
-        except (OSError,ValueError) as error:ap.error(f"Settings: {error}")
-        # Build finds a project's export by its map and hash under the cache root (one exact generation's is two up).
-        cache_root = args.scene.parent.parent if exact else args.scene
-        if args.family:
-            import families as family_table
-            family_table.ENABLED.update(args.family)
-        builds = BuildRunner(projects, cache_root, args.builds or settings['output'], enable=args.family)
-        if not (WEB/"vendor/three/three.module.js").is_file():
-            ap.error("Run python tools/viewer/setup_vendor.py once to install the pinned browser library")
-        # Serving a cache root lists every map the game install plays; those not exported yet export on first open.
-        catalogue, exports = (exported, None) if exact else install_catalogue(exported, cache_root, settings, main_server)
-        # Play in game (play.py): in the install setting's game, else the game install.
-        dry = dict(start=lambda argv, cwd=None: None, command=lambda game, name, steam: ([], None, 'dry'), appear=0, cleanup=False) if args.dry_play else {}
-        live = Live(catalogue, exports, Player(settings, builds, catalogue, projects, install=args.install, try_lines=args.try_mission_lines, **dry),
-                    None if exact else LibraryRunner(cache_root, settings['game']))
-        # the test squad (squads.py): its file beside the settings, checked against the install Play in game uses
-        from squads import SquadService, SquadStore, store_path
-        live.player.squads = SquadService(SquadStore(args.squad or store_path()), lambda: live.player.target(),
-                                          cache=Path(cache_root) / '.gamedata')
-        prefab_tests = PrefabTests(builds, live)
-        precache = None if exact else PrecacheRunner(live, cache_root)
-        # a new project's map name (outputnames.py): checked against the projects, the builds, the game install the
-        # editor reads and the one Play in game uses (both followed when the page picks another install)
-        import outputnames
-        from settings import game_install
-        projects.names = outputnames.Service(projects, builds.output, lambda: [
-            (game_install(live.player.settings)[0], 'the game install'),
-            (live.player.target()[0], 'the install Play in game uses')])
-
-        def configure(new_settings):
-            """Another game install chosen in the page: its maps listed (the exported ones kept), Play in game
-            pointed at it."""
-            fresh = load_catalogue(cache_root, allow_empty=True) if not exact else exported
-            catalogue, exports = (fresh, None) if exact else install_catalogue(fresh, cache_root, new_settings, main_server)
-            with live.player.lock:
-                live.catalogue, live.exports = catalogue, exports
-                live.player.settings, live.player.catalogue = new_settings, catalogue
-                if live.library: live.library = LibraryRunner(cache_root, new_settings['game'])
-        # the build queue (buildqueue.py): its context is what a build would use now, read from the settings file as
-        # build.py reads it (and the server's own --install); nothing of its store is touched before activate
-        def queue_context():
-            from settings import game_install as read_game, install_game
-            try: current = load_settings()
-            except (OSError, ValueError) as error: raise ProjectError(409, f'The settings can\'t be read: {error}')
-            game, note = read_game(current)
-            if game is None: raise ProjectError(409, note)
-            play = args.install or install_game(current)[0]
-            check = [str(Path(play).resolve())] if play and not outputnames.same(play, game) else []
-            return dict(projects=str(projects.root.resolve()), output=str(builds.output.resolve()),
-                        cache=str(Path(cache_root).resolve()), game=str(Path(game).resolve()),
-                        udk=str(Path(current['udk']).resolve()) if current.get('udk') else None, checkGames=check)
-        queue = BuildQueue(projects, builds, queue_context)
-        setup = GameSetup(configure, guard=queue.settings_guard)
-        try:
-            server = LocalServer(("127.0.0.1", args.port), partial(Handler, live=live, projects=projects, builds=builds,
-                                                                 setup=setup, prefabs=prefabs, prefab_tests=prefab_tests,
-                                                                 precache=precache, queue=queue))
+            server = LocalServer(("127.0.0.1", args.port), Handler)
         except OSError as error:
             if error.errno not in (errno.EADDRINUSE,) and getattr(error,"winerror",None) != 10048: raise
             if args.reuse and running_viewer(args.port):
@@ -1134,20 +1154,104 @@ def main():
             ap.error(f"Port {args.port} is already in use, probably by a viewer that is already running (8768 is the "
                      "main one). Restart that one (Ctrl+C in its window) instead of starting a second; tests "
                      "use --port 8790-8799.")
-        # the port is this server's: an earlier server's builds proved gone (or kept as busy until they are) and its
-        # package swaps settled before any request can build (builds.py recover); a server that could not bind has
-        # started nothing
-        builds.recover()
-        if not queue.activate(): print(queue.unavailable, flush=True)
-        url = f"http://127.0.0.1:{server.server_port}/"
-        print(f"{url} (process {os.getpid()}; projects in {projects.root})",flush=True)
-        if not args.no_open: webbrowser.open(url)
-        try: server.serve_forever()
-        except KeyboardInterrupt: pass
+        try:
+            serve_cache(args, ap, server, exact)
         finally:
             server.server_close()
-            # a closing server stops its queue (its build drained, the queue left stopped for Resume)
-            queue.close()
+
+
+def serve_cache(args, ap, server, exact):
+    """The rest of `serve`, once `server` holds the port: the cache pruned and read, the routes set, and served."""
+    # the main server deletes old exports before it picks its own (prune.py; a test server never does)
+    main_server = args.port == MAIN_PORT and not exact
+    if main_server:
+        try:
+            import prune
+            pruned = prune.prune(args.scene)
+            if pruned['removed'] or pruned['failed']:
+                print(f"Old exports: {len(pruned['removed'])} removed ({pruned['bytes'] / 1e9:.1f} GB)"
+                      + (f", {len(pruned['failed'])} could not be removed" if pruned['failed'] else ''), flush=True)
+        except OSError as error:
+            print(f"Old exports were not removed: {error}", flush=True)
+    try: exported=load_catalogue(args.scene, allow_empty=not exact)
+    except (OSError,ValueError) as error:ap.error(str(error))
+    try:
+        settings = load_settings()
+        projects = ProjectStore(args.projects or settings['projects'])
+        prefabs = PrefabStore(args.prefabs or (args.projects.parent / 'prefabs' if args.projects else settings['prefabs']))
+    except (OSError,ValueError) as error:ap.error(f"Settings: {error}")
+    # Build finds a project's export by its map and hash under the cache root (one exact generation's is two up).
+    cache_root = args.scene.parent.parent if exact else args.scene
+    if args.family:
+        import families as family_table
+        family_table.ENABLED.update(args.family)
+    builds = BuildRunner(projects, cache_root, args.builds or settings['output'], enable=args.family)
+    if not (WEB/"vendor/three/three.module.js").is_file():
+        ap.error("Run python tools/viewer/setup_vendor.py once to install the pinned browser library")
+    # Serving a cache root lists every map the game install plays; those not exported yet export on first open.
+    catalogue, exports = (exported, None) if exact else install_catalogue(exported, cache_root, settings, main_server)
+    # Play in game (play.py): in the install setting's game, else the game install.
+    dry = dict(start=lambda argv, cwd=None: None, command=lambda game, name, steam: ([], None, 'dry'), appear=0, cleanup=False) if args.dry_play else {}
+    live = Live(catalogue, exports, Player(settings, builds, catalogue, projects, install=args.install, try_lines=args.try_mission_lines, **dry),
+                None if exact else LibraryRunner(cache_root, settings['game']))
+    # the test squad (squads.py): its file beside the settings, checked against the install Play in game uses
+    from squads import SquadService, SquadStore, store_path
+    live.player.squads = SquadService(SquadStore(args.squad or store_path()), lambda: live.player.target(),
+                                      cache=Path(cache_root) / '.gamedata')
+    prefab_tests = PrefabTests(builds, live)
+    precache = None if exact else PrecacheRunner(live, cache_root)
+    # a new project's map name (outputnames.py): checked against the projects, the builds, the game install the
+    # editor reads and the one Play in game uses (both followed when the page picks another install)
+    import outputnames
+    from settings import game_install
+    projects.names = outputnames.Service(projects, builds.output, lambda: [
+        (game_install(live.player.settings)[0], 'the game install'),
+        (live.player.target()[0], 'the install Play in game uses')])
+
+    def configure(new_settings):
+        """Another game install chosen in the page: its maps listed (the exported ones kept), Play in game
+        pointed at it."""
+        fresh = load_catalogue(cache_root, allow_empty=True) if not exact else exported
+        catalogue, exports = (fresh, None) if exact else install_catalogue(fresh, cache_root, new_settings, main_server)
+        with live.player.lock:
+            live.catalogue, live.exports = catalogue, exports
+            live.player.settings, live.player.catalogue = new_settings, catalogue
+            if live.library: live.library = LibraryRunner(cache_root, new_settings['game'])
+    # the build queue (buildqueue.py): its context is what a build would use now, read from the settings file as
+    # build.py reads it (and the server's own --install); nothing of its store is touched before activate
+    def queue_context():
+        from settings import game_install as read_game, install_game
+        try: current = load_settings()
+        except (OSError, ValueError) as error: raise ProjectError(409, f'The settings can\'t be read: {error}')
+        game, note = read_game(current)
+        if game is None: raise ProjectError(409, note)
+        play = args.install or install_game(current)[0]
+        check = [str(Path(play).resolve())] if play and not outputnames.same(play, game) else []
+        return dict(projects=str(projects.root.resolve()), output=str(builds.output.resolve()),
+                    cache=str(Path(cache_root).resolve()), game=str(Path(game).resolve()),
+                    udk=str(Path(current['udk']).resolve()) if current.get('udk') else None, checkGames=check)
+    queue = BuildQueue(projects, builds, queue_context)
+
+    def settings_guard():
+        queue.settings_guard()
+        install_busy(live, precache)
+    setup = GameSetup(configure, guard=settings_guard)
+    server.RequestHandlerClass = partial(Handler, live=live, projects=projects, builds=builds, setup=setup,
+                                         prefabs=prefabs, prefab_tests=prefab_tests, precache=precache, queue=queue)
+    # the port is this server's: an earlier server's builds proved gone (or kept as busy until they are) and its
+    # package swaps settled before any request can build (builds.py recover); a server that could not bind has
+    # started nothing
+    builds.recover()
+    if not queue.activate(): print(queue.unavailable, flush=True)
+    url = f"http://127.0.0.1:{server.server_port}/"
+    print(f"{url} (process {os.getpid()}; projects in {projects.root})",flush=True)
+    if not args.no_open: webbrowser.open(url)
+    try: server.serve_forever()
+    except KeyboardInterrupt: pass
+    finally:
+        server.server_close()
+        # a closing server stops its queue (its build drained, the queue left stopped for Resume)
+        queue.close()
 
 
 if __name__ == "__main__": main()

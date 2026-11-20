@@ -11,7 +11,9 @@ over the drawn ramp was inside the hull, the game found the ramp, and its tile s
 Each answer is the mesh's own: its hull triangles in the mesh's frame, game axes, for the page to place with the
 piece's matrix as it places the drawn mesh. Only the map's own package is read (meshes of streamed patches are left
 out: the page measures those from the drawn mesh)."""
+from collections import OrderedDict
 import hashlib
+import json
 from pathlib import Path
 import struct
 import threading
@@ -96,38 +98,71 @@ def mesh_export(p, mesh_id):
 
 
 class CollisionCache:
-    """Each exported map's package read once, the first time the page asks, and each mesh's answer kept (a map's
-    export doesn't change under a running server)."""
+    """Each map's package read the first time the page asks, and each mesh's answer kept, by the package's SHA-256 (a
+    re-export of the same file reads nothing again). A decoded package is tens of megabytes, so only the last `limit`
+    stay open; the answers, much smaller, are kept for the last `maps` packages (review finding 19)."""
 
-    def __init__(self):
+    def __init__(self, limit=2, maps=16):
         self.lock = threading.Lock()
-        self.packages = {}
-        self.answers = {}
+        self.limit, self.maps = limit, maps
+        self.packages = OrderedDict()       # SHA-256 (or the export's folder) -> Package
+        self.answers = OrderedDict()        # SHA-256 (or the export's folder) -> {mesh id: answer}
+        self.scenes = OrderedDict()         # scene.json as it is (path, size, time) -> its meshes and source
+
+    def scene(self, root):
+        """What the collision route needs of the export at `root`: dict(meshes: its mesh ids, sorted; source), its
+        scene.json read once as it is (its size and time), not on every request."""
+        path = Path(root) / 'scene.json'
+        stat = path.stat()
+        key = (str(path), stat.st_size, stat.st_mtime_ns)
+        with self.lock:
+            if key in self.scenes:
+                self.scenes.move_to_end(key)
+                return self.scenes[key]
+        data = json.loads(path.read_text(encoding='utf-8'))
+        found = dict(meshes=sorted(data.get('meshes') or {}), source=data.get('source') or {})
+        with self.lock:
+            self.scenes[key] = found
+            while len(self.scenes) > self.maps:
+                self.scenes.popitem(last=False)
+        return found
+
+    @staticmethod
+    def key(root, scene):
+        return (scene.get('source') or {}).get('sha256') or str(root)
 
     def package(self, root, scene, find):
         """The map's package for the export at `root`: `find()` gives its path in the install; it must be the file the
         map was exported from (its SHA-256), since the scene's mesh ids are its export indices."""
-        if root not in self.packages:
+        key = self.key(root, scene)
+        if key not in self.packages:
             path = Path(find())
-            data = path.read_bytes()
+            with open(path, 'rb') as f:
+                digest = hashlib.file_digest(f, 'sha256').hexdigest()
             want = (scene.get('source') or {}).get('sha256')
-            if want and hashlib.sha256(data).hexdigest() != want:
+            if want and digest != want:
                 raise FormatError(f'{path.name} in the install is not the file this map was exported from')
-            self.packages[root] = Package(path)
-        return self.packages[root]
+            self.packages[key] = Package(path)
+            while len(self.packages) > self.limit:
+                self.packages.popitem(last=False)
+        self.packages.move_to_end(key)
+        return self.packages[key]
 
     def get(self, root, scene, find, ids):
         """{mesh id: line_collision() or None} for the scene mesh ids `ids` (None: not one of the map's own meshes)."""
         with self.lock:
-            p = self.package(root, scene, find)
-            out = {}
-            for mesh_id in ids:
-                key = (root, mesh_id)
-                if key not in self.answers:
+            key = self.key(root, scene)
+            answers = self.answers.setdefault(key, {})
+            self.answers.move_to_end(key)
+            while len(self.answers) > self.maps:
+                self.answers.popitem(last=False)
+            missing = [mesh_id for mesh_id in ids if mesh_id not in answers]
+            if missing:
+                p = self.package(root, scene, find)
+                for mesh_id in missing:
                     index = mesh_export(p, mesh_id)
                     try:
-                        self.answers[key] = line_collision(p, index) if index else None
-                    except (FormatError, KeyError, struct.error):
-                        self.answers[key] = None
-                out[mesh_id] = self.answers[key]
-            return out
+                        answers[mesh_id] = line_collision(p, index) if index else None
+                    except (FormatError, ValueError, KeyError, IndexError, struct.error):
+                        answers[mesh_id] = None
+            return {mesh_id: answers[mesh_id] for mesh_id in ids}

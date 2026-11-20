@@ -217,14 +217,19 @@ class BuildQueue:
             else:
                 self.q = empty()
             return
+        data = None
         try:
-            self.q = valid(json.loads(raw.decode('utf-8')))
+            data = json.loads(raw.decode('utf-8'))
+            self.q = valid(data)
             self.q.setdefault('diagnostics', {})
             self.q.setdefault('receipts', {})
             return
         except (UnicodeDecodeError, ValueError) as error:
             reason = str(error)
-            newer = 'schema version' in reason
+            # a queue of a newer editor is left for it, not replaced by the last good copy: told by its version, not by
+            # the error's words, so an older version's file is restored from the copy (review finding 50)
+            version = data.get('schemaVersion') if isinstance(data, dict) and data.get('schema') == SCHEMA else None
+            newer = isinstance(version, int) and not isinstance(version, bool) and version > SCHEMA_VERSION
         kept = self.root / f'build-queue.unreadable-{datetime.datetime.now():%Y%m%d-%H%M%S}.json'
         try:
             shutil.copyfile(self.file, kept)

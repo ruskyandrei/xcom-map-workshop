@@ -726,7 +726,10 @@ class Build:
         # a generation with the light metadata (export 18), where the compiler's find_export takes a minimum
         import inspect
         minimum = {'minimum': EXPORT_MINIMUM} if 'minimum' in inspect.signature(compiler.find_export).parameters else {}
-        self.export, self.scene = compiler.find_export(self.cache, self.doc, **minimum)
+        try:
+            self.export, self.scene = compiler.find_export(self.cache, self.doc, **minimum)
+        except compiler.ExportMissing as error:
+            raise BuildError(str(error))
         self.base = lwr_file(self.lwr, 'CookedPCConsole', '%s.upk' % self.map)
         if not self.base.is_file():
             raise BuildError('the game install has no %s' % self.base)

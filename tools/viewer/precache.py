@@ -19,7 +19,10 @@ fraction, seconds, startedAt, error, options, pieces: {made, kept, failed, failu
 maps: {made, failed, failures} | None}.
 
 The pieces are `viewer.py library precache` in a process of its own (library.precache: a donor map to a worker); it
-reads the library first when it is not there or the install's maps changed. The maps go one after another through
+reads the library first when it is not there or the install's maps changed. It is a contained process tree, as a
+build is (procs.launch; review finding 48): its workers end with it, a kill ends the whole tree by its job (never by a
+process id that may have been reused), and it ends with the server. It writes a donor's pieces under the same lock as
+the server's own piece requests (library.donor_lock), so the two never write the same files at once. The maps go one after another through
 the server's own exporter (ExportRunner), so each takes its place in the map list as it is done, and waits its turn
 when the page is preparing a map itself.
 """
@@ -32,7 +35,8 @@ import sys
 import threading
 import time
 
-from builds import PROGRESS, stop_process
+from builds import PROGRESS
+import procs
 from projects import ProjectError
 
 VIEWER = Path(__file__).resolve().parent / 'viewer.py'
@@ -131,6 +135,11 @@ class PrecacheRunner:
                     fraction=job['fraction'], seconds=seconds, startedAt=job['startedAt'], error=job['error'],
                     options=job['options'], pieces=job['pieces'], maps=job['maps'])
 
+    def running(self):
+        """Whether the job runs."""
+        with self.lock:
+            return bool(self.job and self.job['state'] == 'running')
+
     def status(self, plan=False):
         with self.lock:
             out = self._status()
@@ -165,16 +174,16 @@ class PrecacheRunner:
             if not job or job['state'] != 'running':
                 return self._status()
             job['cancelled'] = True
-            pid = job['pid']
-        if pid:
+            tree = job.get('tree')
+        if tree:
             # asked first; killed if it has not gone by then
             try:
                 self.stop_file.parent.mkdir(parents=True, exist_ok=True)
                 self.stop_file.write_text('stop\n', encoding='utf-8')
             except OSError:
-                stop_process(pid)
+                tree.terminate()
             else:
-                timer = threading.Timer(self.grace, lambda: job['pid'] == pid and stop_process(pid))
+                timer = threading.Timer(self.grace, lambda: job.get('tree') is tree and tree.terminate())
                 timer.daemon = True
                 timer.start()
         if self.live.exports is not None:
@@ -195,7 +204,7 @@ class PrecacheRunner:
         with self.lock:
             job['seconds'] = round(time.monotonic() - job['started'], 1)
             job['error'] = error
-            job['pid'] = None
+            job['pid'], job['tree'] = None, None
             job['state'] = 'cancelled' if job['cancelled'] else 'failed' if error else 'done'
 
     def _pieces(self, job):
@@ -205,10 +214,13 @@ class PrecacheRunner:
             job.update(phase='pieces', what='Reading the library', done=0, total=0, fraction=None)
             if job['cancelled']:
                 return
-            proc = subprocess.Popen(self.command(game), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                    encoding='utf-8', errors='replace', start_new_session=sys.platform != 'win32',
-                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-            job['pid'] = proc.pid
+            try:
+                tree = procs.launch(self.command(game), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                    encoding='utf-8', errors='replace', creationflags=procs.CREATE_NO_WINDOW)
+            except OSError as error:
+                raise ProjectError(500, 'Caching the pieces did not start: %s' % error)
+            job['pid'], job['tree'] = tree.pid, tree
+            proc = tree.proc
         lines, result = [], None
         for raw in proc.stdout:
             line = raw.strip()
@@ -227,9 +239,11 @@ class PrecacheRunner:
                 lines.append(line)
         proc.stdout.close()
         code = proc.wait()
+        tree.drain(timeout=30, kill_after=5)        # its workers too, before the job says it is done
+        tree.close()
         self.stop_file.unlink(missing_ok=True)
         with self.lock:
-            job['pid'] = None
+            job['pid'], job['tree'] = None, None
             if job['cancelled']:
                 if result:      # it stopped by itself: what it had read by then
                     job['pieces'] = dict(made=result.get('made', 0), kept=result.get('kept', 0), failed=0, failures=[],

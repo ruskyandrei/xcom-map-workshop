@@ -17,6 +17,10 @@ takes the new generation, so the page can open it at once, with no restart.
 
 The package is found when the export starts (maplist.package_of in the install settings.resolve_game finds then), since
 switch_install renames the install's folder while the server runs.
+
+An export is a contained process tree, as a build is (procs.launch; review finding 48): Cancel ends it by its job,
+never by a process id that may have been reused, and a server that dies, however it dies, takes it with it, so no
+export goes on writing into the cache with no one following it.
 """
 import datetime
 import json
@@ -26,8 +30,9 @@ import sys
 import threading
 import time
 
-from builds import PROGRESS, stop_process
-from catalogue import generation
+from builds import PROGRESS
+from catalogue import generation, select
+import procs
 from maplist import package_of
 from projects import ProjectError
 from settings import resolve_game
@@ -50,12 +55,14 @@ def result_of(lines):
 
 
 class ExportRunner:
-    def __init__(self, catalogue, cache, lwr, command=None, prune=False):
+    def __init__(self, catalogue, cache, lwr, command=None, prune=False, digests=None):
         """catalogue: the server's (its entries are updated in place); cache: the cache root exports go to; lwr: the
         game setting (a game folder or a folder holding it, or None). command(package) gives the export's command line
         (tests stub it). prune: once a map has its new generation, its older ones are deleted (prune.py; the main
-        server's runner)."""
+        server's runner). digests: the install's packages' SHA-256 (catalogue.PackageDigests), by which recheck sees a
+        package changed in place."""
         self.catalogue, self.cache, self.lwr, self.prune = catalogue, Path(cache), lwr, prune
+        self.digests = digests
         self.command = command or (lambda package: [sys.executable, '-B', '-u', str(VIEWER), 'export', str(package),
                                                     '--scope', 'map', '--cache', str(self.cache)])
         self.lock = threading.Lock()
@@ -88,13 +95,20 @@ class ExportRunner:
             job = dict(map=map_id, label=entry.get('label') or map_id, package=str(package), state='running',
                        startedAt=now(), started=time.monotonic(), seconds=0, lines=[], error=None, folder=None,
                        progress=None, owner=owner)
-            proc = subprocess.Popen(self.command(package), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                    encoding='utf-8', errors='replace', start_new_session=sys.platform != 'win32',
-                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
-            job['pid'] = proc.pid
+            try:
+                tree = procs.launch(self.command(package), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                    encoding='utf-8', errors='replace', creationflags=procs.CREATE_NO_WINDOW)
+            except OSError as error:
+                raise ProjectError(500, f'{job["label"]} could not be prepared: its export did not start ({error}).')
+            job['pid'], job['tree'] = tree.pid, tree
             self.job = job
-            threading.Thread(target=self._follow, args=(job, proc), daemon=True).start()
+            threading.Thread(target=self._follow, args=(job, tree), daemon=True).start()
             return self._status(map_id)
+
+    def running(self):
+        """The label of the map being exported, or None."""
+        with self.lock:
+            return self.job['label'] if self.job and self.job['state'] == 'running' else None
 
     def cancel_owned(self, owner):
         with self.lock:
@@ -102,10 +116,11 @@ class ExportRunner:
             if not job or job['state'] != 'running' or job['owner'] != owner:
                 return
             job['cancelled'] = True
-            pid = job['pid']
-        stop_process(pid)
+            tree = job['tree']
+        tree.terminate()
 
-    def _follow(self, job, proc):
+    def _follow(self, job, tree):
+        proc = tree.proc
         lines = []
         for raw in proc.stdout:
             line = raw.rstrip()
@@ -123,6 +138,8 @@ class ExportRunner:
             with self.lock: job['lines'] = (job['lines'] + [line])[-KEEP:]
         proc.stdout.close()
         code = proc.wait()
+        tree.drain(timeout=30, kill_after=5)        # anything it left running ends before the map takes its result
+        tree.close()
         error, fresh = None, None
         if code:
             error = next((l for l in reversed(lines) if l.strip()), f'the export stopped (exit {code})')
@@ -135,13 +152,23 @@ class ExportRunner:
                     raise ValueError(f'the export made {fresh["id"]} ({fresh["scope"]}), not {job["map"]}')
             except (ValueError, OSError) as problem:
                 error, fresh = str(problem), None
+        stamp = None
+        if fresh and self.digests is not None:
+            try:
+                digest, stamp = self.digests.digest(job['package'])
+                if digest != fresh['sha256']: stamp = None      # the file changed while it was read: rechecked later
+            except OSError:
+                stamp = None
         with self.lock:
             if job.get('cancelled'):
                 fresh, error = None, 'Preparation cancelled.'
             if fresh:
                 entry = self.catalogue['maps'][job['map']]
+                candidates = dict(entry.get('candidates') or {})
+                candidates[fresh['sha256']] = fresh
                 # root before ready: a request that sees ready finds the root
-                entry.update(root=fresh['root'], scope=fresh['scope'], priority=fresh['priority'])
+                entry.update(root=fresh['root'], scope=fresh['scope'], priority=fresh['priority'], sha256=fresh['sha256'],
+                             candidates=candidates, packageDigest=fresh['sha256'], packageStamp=stamp)
                 entry['ready'] = True
                 job['folder'] = str(fresh['root'])
             job['error'] = error
@@ -155,6 +182,29 @@ class ExportRunner:
                 job['pruned'] = prune.prune(self.cache, only=Path(fresh['root']).parent, keep=[fresh['root']])['removed']
             except OSError:
                 pass
+
+    def recheck(self):
+        """Each exported map of the install served from the export of its file as the file is now (review finding 18):
+        a package changed in place since its map was chosen is hashed again and the map takes its newest export of the
+        new file, or is listed unprepared (catalogue.select). Cheap when nothing changed: a stat of each file."""
+        if self.digests is None: return
+        with self.lock:
+            entries = [e for e in self.catalogue['maps'].values() if e.get('packageStamp')]
+        changed = False
+        for entry in entries:
+            stamp = entry['packageStamp']
+            try:
+                if tuple(self.digests.stamp(stamp[0])) == tuple(stamp): continue
+                digest, now = self.digests.digest(stamp[0])
+            except OSError:
+                continue
+            with self.lock:
+                if self.job and self.job['state'] == 'running' and self.job['map'] == entry['id']: continue
+                fresh = select(entry, digest, now)
+                if not fresh['ready']: entry['ready'] = False       # ready off before the root goes
+                entry.update(fresh)
+            changed = True
+        if changed: self.digests.save()
 
     def _status(self, map_id):
         entry = self.catalogue['maps'].get(map_id) or {}

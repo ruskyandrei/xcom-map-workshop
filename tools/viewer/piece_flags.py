@@ -390,14 +390,21 @@ class ScriptDefaults:
 
     @classmethod
     def of(cls, folder):
+        """The folder's script packages, or None when they can't be read now. A failure is not kept (review finding
+        31): a package missing or held open for a moment is read again the next time, not taken as gone for the
+        server's life."""
         folder = Path(folder)
         with cls._lock:
             if folder not in cls._done:
-                cls._done[folder] = cls._read(folder)
+                found = cls._read(folder)
+                if found is None:
+                    return None
+                cls._done[folder] = found
             return cls._done[folder]
 
     @staticmethod
     def _read(folder):
+        import struct
         from package import Package, FormatError
         packages = {}
         for name in SCRIPT_PACKAGES:
@@ -406,7 +413,7 @@ class ScriptDefaults:
                 return None
             try:
                 packages[name] = Package(path)
-            except (OSError, ValueError, FormatError):
+            except (OSError, ValueError, FormatError, struct.error, IndexError, KeyError):
                 return None
         return packages
 

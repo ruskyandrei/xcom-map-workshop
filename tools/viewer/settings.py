@@ -283,6 +283,32 @@ def _sha256(path):
     return digest.hexdigest()
 
 
+_POWERSHELL = {}        # (pwsh's path, its size and time) -> its check: PowerShell starts once, not at every check
+
+
+def _powershell_check(pwsh):
+    """The powershell check of the pwsh at `pwsh`, worked out once for the file as it is (review finding 50: the setup
+    dialog started PowerShell each time it opened). A failed start is not kept: the next check tries again."""
+    try:
+        stat = Path(pwsh).stat()
+        key = (os.path.normcase(str(pwsh)), stat.st_size, stat.st_mtime_ns)
+    except OSError:
+        key = None
+    if key in _POWERSHELL:
+        return dict(_POWERSHELL[key])
+    try:
+        out = subprocess.run([pwsh, '-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], capture_output=True,
+                             text=True, timeout=30).stdout.strip()
+        major = int(out)
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        return _check('powershell', 'warn', f'{pwsh} did not report its version ({error})', 'Optional (only a patch needs it): reinstall PowerShell 7')
+    found = _check('powershell', 'ok' if major >= 7 else 'warn', f'PowerShell {out} ({pwsh})',
+                   '' if major >= 7 else 'Optional (only a patch needs it): install PowerShell 7')
+    if key is not None:
+        _POWERSHELL[key] = found
+    return dict(found)
+
+
 def doctor(settings, sources=()):
     """Each prerequisite as {name, status: ok | missing | wrong | warn, detail, fix}. `sources` are exported maps'
     source records ({name, sha256}), checked against the game install's copies."""
@@ -297,15 +323,7 @@ def doctor(settings, sources=()):
     pwsh = shutil.which('pwsh')
     # PowerShell 7 runs patchtool, which only a patch needs (with UDK): optional, like UDK
     if not pwsh: checks.append(_check('powershell', 'ok', 'pwsh is not on PATH, and not needed: only a patch (with UDK) runs it'))
-    else:
-        try:
-            out = subprocess.run([pwsh, '-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], capture_output=True,
-                                 text=True, timeout=30).stdout.strip()
-            major = int(out)
-            checks.append(_check('powershell', 'ok' if major >= 7 else 'warn', f'PowerShell {out} ({pwsh})',
-                                 '' if major >= 7 else 'Optional (only a patch needs it): install PowerShell 7'))
-        except (OSError, ValueError, subprocess.SubprocessError) as error:
-            checks.append(_check('powershell', 'warn', f'{pwsh} did not report its version ({error})', 'Optional (only a patch needs it): reinstall PowerShell 7'))
+    else: checks.append(_powershell_check(pwsh))
     folder = game_setting(settings)
     found, note = resolve_game(folder) if folder is not None else (None, '')
     if folder is None:

@@ -3,7 +3,6 @@
 The older research CLIs stay independent. Object references remain package-local
 indices; names are for diagnostics, never implicit cross-package substitutions.
 """
-from functools import lru_cache
 from pathlib import Path
 import struct
 import sys
@@ -100,7 +99,15 @@ class Package:
         return upkinfo.objname(index, self.imports, self.exports)
 
     def cls(self, index):
-        return upkinfo.clsname(self.exports[index - 1]["cls"], self.imports, self.exports)
+        """The class name of object `index`: an export's class, an import's own class (a negative index: before, it read
+        an unrelated export's class through the list's wrap; review finding 50), 'None' for no object."""
+        if 0 < index <= len(self.exports):
+            return upkinfo.clsname(self.exports[index - 1]["cls"], self.imports, self.exports)
+        if index == 0:
+            return "None"
+        if -len(self.imports) <= index < 0:
+            return self.imports[-index - 1]["cls"]
+        raise FormatError(f"Invalid object reference {index}")
 
     def fname(self, r):
         i, number = r.unpack("ii")
@@ -143,8 +150,16 @@ class Package:
                 return [red / 255, g / 255, b / 255, a / 255]
         return raw
 
-    @lru_cache(maxsize=None)
     def properties(self, index):
+        """(the export's tagged properties, where its native data starts), read once and kept on the package itself:
+        a cache on the method would hold every package the server ever opened (review finding 19)."""
+        kept = self.__dict__.setdefault('_properties', {})
+        found = kept.get(index)
+        if found is None:
+            found = kept[index] = self._read_properties(index)
+        return found
+
+    def _read_properties(self, index):
         e = self.exports[index - 1]
         if self.cls(index) in LEADING_SHADOW_MAP:
             # The cooked component puts its DominantLightShadowMap (a counted WORD array)
