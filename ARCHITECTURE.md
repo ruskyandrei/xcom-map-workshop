@@ -52,8 +52,14 @@ the selection (or the builder's whole document) as a prefab's records, the Save 
 prefab's picture, and a prefab of the Add panel's Prefabs tab read into a clip and placed as a paste is. A prefab
 document's rules (its size and limits, its records normalized) are
 [`prefab_document.js`](tools/viewer/web/prefab_document.js)'s, and the Prefabs tab is
-[`prefabs.js`](tools/viewer/web/prefabs.js)'s. `window.viewer`, set in `startScene`, is the set of hooks the browser
-checks drive.
+[`prefabs.js`](tools/viewer/web/prefabs.js)'s. The Lights view is [`lights_wiring.js`](tools/viewer/web/lights_wiring.js)'s:
+the map's lights as roots, which are drawn and whether each can be edited, the view on or off, the area lights
+following their glowing pieces, Solo, the selected light's reach, the panel's light section, the drag handles on the
+selected light (and on the picked effect or sound), the Add panel's lights and the project's light records. What it
+draws (markers, shapes, handles, Solo's lights) is made without the page in
+[`lights_view.js`](tools/viewer/web/lights_view.js), and a light value's rules are
+[`light_rules.js`](tools/viewer/web/light_rules.js)'s. `window.viewer`, set in `startScene`, is the set of hooks the
+browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
 page and the editor's JSON routes. Its handler's `handle_<area>` methods hand each route to its area's module:
@@ -193,6 +199,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The prefab builder: the prefab's document as the scene holds it, opened, kept and saved; its size line and the ground under it, Align to grid, missing pieces looked for by recipe, the Problems check | [`builder_session.js`](tools/viewer/web/builder_session.js) (`createBuilderSession`). A prefab document's rules (its size and limits, its records normalized onto its own grid) go in [`prefab_document.js`](tools/viewer/web/prefab_document.js), pure, with its node test, and the server's side in [`prefabs.py`](tools/viewer/prefabs.py). |
 | A prefab saved or placed: the selection as a prefab's records, the Save as prefab dialog, the save, the prefab's picture, a prefab of the Prefabs tab read and placed | [`prefab_place.js`](tools/viewer/web/prefab_place.js) (`createPrefabPlace`). The Add panel's Prefabs tab is [`prefabs.js`](tools/viewer/web/prefabs.js)'s browser; each piece's record is [`piece_records.js`](tools/viewer/web/piece_records.js)'s. |
 | Build and Play in game: Build's panel and its window, Play's dialog, the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the prefab builder's Test in game opened, the build queue's chip | [`build_play.js`](tools/viewer/web/build_play.js) (`createBuildPlay`). What a build status or a play's answer says, in words, goes in [`build_window.js`](tools/viewer/web/build_window.js) or [`play.js`](tools/viewer/web/play.js), pure, with their node tests; Build's panel itself is [`build_options.js`](tools/viewer/web/build_options.js), the test squad's dialog [`squad.js`](tools/viewer/web/squad.js), the prefab test's window [`prefab_test.js`](tools/viewer/web/prefab_test.js) and the queue's controller [`build_queue.js`](tools/viewer/web/build_queue.js). |
+| The Lights view: a light's root, its panel section, Solo, its reach, its drag handles (and the picked effect's or sound's), the area lights following their pieces, a light added from the Add panel or a recipe, the project's light records | [`lights_wiring.js`](tools/viewer/web/lights_wiring.js) (`createLightsWiring`). What it draws (a marker, an emission shape, a handle, Solo's lights) goes in [`lights_view.js`](tools/viewer/web/lights_view.js) (three.js, nothing of the page), and a light value's rule in [`light_rules.js`](tools/viewer/web/light_rules.js), pure, with its node and Python tests (`shared_cases_test.mjs`, `twin_constants_test.mjs`, `test_lights.py`). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
@@ -279,13 +286,23 @@ where there is one.
     the edit hub's memo of one edit event (`eventMemo`: app.js's `editChanged` makes it, and `editState` and the
     builder's document and key keep their answers in it), the map's families, the Add panel's piece list and Prefabs
     tab, the clipboard and the Add panel's choice counter, other maps' pieces and effects as read with their maps'
-    hashes, the meshes loaded, and the saved prefabs' pictures waiting to be drawn.
+    hashes, the meshes loaded, and the saved prefabs' pictures waiting to be drawn;
+  - which view is on (`lightsOn`, `volumesOn`, `zonesOn`, `effectsOn`, `spawnsOn`), the Normal button's Lights switch
+    and whether lights are drawn (`normalLights`, `lightsShown`), which each view's switch, the selection and the keys
+    read; the picked effect, the streams the Mission picker shows, what is being placed, the hint's timer, and the Map
+    lighting mode with its lights' radius;
+  - what of the Lights view app.js's event wiring, keys, pointer handlers, draw loop and test hooks read or set: View
+    options' Area lights and reach outlines, Solo, the lights' sync with the Map lighting mode, the light whose glowing
+    piece is being assigned, the area lights' copies, the drag handles and a drag under way, and the reach worked out.
+
+  A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
+  was (`setAreaShown(recall(AREA_SHOWN) === '1')`), so it is read at the same point as before.
 
   app.js still declares the state of the areas not yet moved out of it; new state never goes there. An assignment to
   an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
   searches for any assignment to the moved names left behind.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
-  `createBuilderSession`, `createPrefabPlace`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
+  `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
   did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers
   stay as they were. app.js makes it after the functions and objects it is given, and before any code that runs as
   the page loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a
@@ -301,6 +318,13 @@ where there is one.
   and placed are made so, after the document session; they call each other (the builder's save opens the Save as
   prefab dialog, whose Save saves the builder), so the first made is given the second's functions as functions that
   call them.
+  When part of an area's run of code stays in app.js (a helper other areas use, as `projector`; another view's
+  function, as `setZonesShown`; a constant of app.js's event wiring), app.js keeps those declarations where they were
+  and makes the factory after them, where the run ended: what the run does as the page loads then still happens at the
+  same point among the page's other code. A function app.js keeps in a `let` (`applyLighting`, set by `startScene`) is
+  given as a function that calls it. The event wiring (a panel's field handlers set further down, the keys, the
+  pointer handlers, the draw loop) stays in app.js and calls what the factory returns; the state it reads of the area
+  is editor_state.js's.
   `moved_code.py` reads the functions a factory declares (`createX.f`) and finds them by their own names.
 - An added thing's record is written only through `piece_records.js`'s `recordOf` and read only through its
   `optionsOf`. A writer gathers what it knows of the thing (a unit: its names, source, components, pose, links,

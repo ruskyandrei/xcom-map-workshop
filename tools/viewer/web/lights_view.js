@@ -1,6 +1,6 @@
 // Lights in the editor (private/plans/done/editor-lights-plan.md, 4.6): their markers, the shape of where a selected light
 // emits, the outline of the pieces it is baked into, and Solo, which lights the selected lights alone with live
-// shadows. The page (app.js) keeps the lights' roots, their edits and the inspector; this module draws.
+// shadows. The page (lights_wiring.js) keeps the lights' roots, their edits and the inspector; this module draws.
 import * as THREE from 'three';
 import { effectiveCone, falloffRadius } from './light_rules.js';
 import { linear, toView } from './lighting.js';

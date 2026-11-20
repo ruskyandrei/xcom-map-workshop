@@ -66,7 +66,7 @@ const SORTS = {
   count: (a, b) => b.count - a.count || a.name.localeCompare(b.name),
 };
 const THUMB = 48;   // thumbnail size, CSS pixels
-// The Lights kind: entries app.js adds for a new point or spot light (editor lights plan 3.3), with `light` set to the
+// The Lights kind: entries lights_wiring.js makes for a new point or spot light (editor lights plan 3.3), with `light` set to the
 // light's kind, `colour` (0 to 1) and `detail`; no sources and no thumbnail scene, an icon drawn instead.
 const LIGHTS = 'Lights';
 /** A light entry's icon: a bulb with its glow for a point light, a lamp head with its cone and pool for a spot light,

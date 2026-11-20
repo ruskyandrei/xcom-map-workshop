@@ -14,7 +14,7 @@ export function setData(next) { data = next; }
 export function setActiveMapId(next) { activeMapId = next; }
 
 // The scene's roots, each a piece's, light's, building box's or effect's group, by id: the pieces; the map's lights,
-// their own roots (editor lights plan 4.6; app.js's lights section); the project's building boxes, their own roots too
+// their own roots (editor lights plan 4.6; lights_wiring.js); the project's building boxes, their own roots too
 // (the Buildings view); each effect, sound and lens flare (effects and sounds plan, FX3).
 export const roots = new Map();
 export const lightRoots = new Map();
@@ -174,3 +174,58 @@ export const libraryRecords = new Map(), effectTemplates = new Map(), foreignEff
 export const geometryCache = new Map();
 // The saved prefabs' pictures waiting to be drawn (prefab_place.js's drawPrefabPictures draws one a frame).
 export const prefabPictures = [];
+
+// Which view is on (the user, 11 November 2026: one at a time; app.js's setNormalView leaves them all), each set by its
+// own switch: the Lights view (lightsOn; lights_wiring.js's setLightsShown), the Buildings view (volumesOn), the
+// Landing zones view (zonesOn), the Effects view (effectsOn) and the Spawns view (spawnsOn). The Normal button's Lights
+// switch (normalLights) draws and picks lights with pieces in the normal view; lightsShown, whether lights are drawn
+// now, follows from them (app.js's syncLights). Each view's switch reads the others', as do the selection and the keys.
+export let lightsOn = false, normalLights = false, lightsShown = false, volumesOn = false, zonesOn = false, effectsOn = false,
+           spawnsOn = false;
+export function setLightsOn(next) { lightsOn = next; }
+export function setNormalLightsValue(next) { normalLights = next; }
+export function setLightsShownValue(next) { lightsShown = next; }
+export function setVolumesOn(next) { volumesOn = next; }
+export function setZonesOn(next) { zonesOn = next; }
+export function setEffectsOn(next) { effectsOn = next; }
+export function setSpawnsOn(next) { spawnsOn = next; }
+// The effect, sound or lens flare picked (app.js's select sets it), whose panel and handles show, or null.
+export let pickedEffect = null;
+export function setPickedEffect(next) { pickedEffect = next; }
+// The streams of the mission the header's Mission picker shows (app.js's chooseMission): their pieces, lights, effects
+// and spawn points are drawn.
+export let streamSet = new Set();
+export function setStreamSet(next) { streamSet = next; }
+// What is being placed (app.js's startPlacing): { clip, entry (from the piece list, or null), ghost }, or null.
+export let placing = null;
+export function setPlacing(next) { placing = next; }
+// The hint's timer (app.js's flashHint): the resting hint comes back when it fires.
+export let hintTimer;
+export function setHintTimer(next) { hintTimer = next; }
+// The Map lighting mode (lighting.js, made with the scene in app.js's startScene) and the radius the view's lights are
+// reckoned within (app.js's frame).
+export let lighting, lightRadius = 700;
+export function setLighting(next) { lighting = next; }
+export function setLightRadius(next) { lightRadius = next; }
+// The Lights view's state that other areas read or set (lights_wiring.js; app.js's keys, pointer handlers, View
+// options and draw loop, and the test hooks):
+// - areaShown, reachShown: View options' Area lights and "Outline the pieces a light reaches" (read from the browser's
+//   storage as the page loads);
+// - soloOn: Solo is on; lightsDirty: the lights changed since the Map lighting mode last had them (lastLightSync, when);
+// - assigning: the light whose glowing piece the next click assigns, by id, or null;
+// - derivedCopies: the area lights a copy of their glowing piece carries ({ root, matrix, owner });
+// - handleDefs: the selected light's (or effect's) drag handles now; lightDrag: the drag of one under way, or null;
+// - reachKey, reachNow: what the selected light's reach was worked out for, and its answer.
+export let areaShown = false, reachShown = false, soloOn = false, lightsDirty = true, lastLightSync = 0, assigning = null;
+export function setAreaShown(next) { areaShown = next; }
+export function setReachShown(next) { reachShown = next; }
+export function setSoloOn(next) { soloOn = next; }
+export function setLightsDirty(next) { lightsDirty = next; }
+export function setLastLightSync(next) { lastLightSync = next; }
+export function setAssigning(next) { assigning = next; }
+export let derivedCopies = [], handleDefs = [], lightDrag = null, reachKey = '', reachNow = null;
+export function setDerivedCopies(next) { derivedCopies = next; }
+export function setHandleDefs(next) { handleDefs = next; }
+export function setLightDrag(next) { lightDrag = next; }
+export function setReachKey(next) { reachKey = next; }
+export function setReachNow(next) { reachNow = next; }

@@ -33,31 +33,35 @@ import { createLibraryBrowser } from './library.js';
 import { api as prefabApi, createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites, PREFAB_MIN_Z, PREFAB_MAX_Z } from './prefab_document.js';
 import { MADE_KINDS, cloneBlasts, optionsOf, recordOf, stateOfRoot } from './piece_records.js';
-import { activeMapId, allRoots, areaBindings, askedPick, builder, builderMode, buildings, buildingsVersion, chooseToken,
-         cleared, clearKeepsOutside, clipboard, copySerial, data, donorHashes, effectIndex, effectRoots,
-         effectTemplates, eventMemo, families, foreignEffects, geometryCache, groupIndex, groups, landingZones,
-         lastBuild, leaving, library, libraryRecords, lightIndex, lightRoots, loadErrorCount, mergedBuildings,
-         missionPickValue, nextChooseToken, nextCopySerial, pickedZone, pieces, playStatus, prefabParameter, prefabTab,
-         project, projectMissions, projectPicture, projectSpawnRules, roots, selected, setActiveMapId, setAreaBindings,
-         setAskedPick, setBuildingsValue, setBuildingsVersion, setCleared, setClearKeepsOutside, setClipboard,
-         setCopySerial, setData, setEventMemo, setFamilies, setGroups, setLandingRead, setLandingZones, setLeaving,
-         setLibrary, setLoadErrorCount, setLooksReady, setMergedBuildings, setMissionPickValue, setPickedZone,
-         setPieces, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setSelected,
-         setStageValue, stage, volumeRoots } from './editor_state.js';
+import { activeMapId, allRoots, areaBindings, areaShown, askedPick, assigning, builder, builderMode, buildings,
+         buildingsVersion, chooseToken, cleared, clearKeepsOutside, clipboard, copySerial, data, derivedCopies,
+         donorHashes, effectIndex, effectRoots, effectsOn, effectTemplates, eventMemo, families, foreignEffects,
+         geometryCache, groupIndex, groups, handleDefs, hintTimer, landingZones, lastBuild, lastLightSync, leaving,
+         library, libraryRecords, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown,
+         loadErrorCount, mergedBuildings, missionPickValue, nextChooseToken, nextCopySerial, normalLights, pickedEffect,
+         pickedZone, pieces, placing, playStatus, prefabParameter, prefabTab, project, projectMissions, projectPicture,
+         projectSpawnRules, reachNow, reachShown, roots, selected, setActiveMapId, setAreaBindings, setAreaShown,
+         setAskedPick, setAssigning, setBuildingsValue, setBuildingsVersion, setCleared, setClearKeepsOutside,
+         setClipboard, setCopySerial, setData, setEffectsOn, setEventMemo, setFamilies, setGroups, setHintTimer,
+         setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLibrary, setLighting, setLightRadius,
+         setLightsDirty, setLightsOn, setLightsShownValue, setLoadErrorCount, setLooksReady, setMergedBuildings,
+         setMissionPickValue, setNormalLightsValue, setPickedEffect, setPickedZone, setPieces, setPlacing, setPrefabTab,
+         setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSelected,
+         setSpawnsOn, setStageValue, setStreamSet, setVolumesOn, setZonesOn, soloOn, spawnsOn, stage, streamSet,
+         volumeRoots, volumesOn, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
 import { createBuilderSession } from './builder_session.js';
 import { createPrefabPlace } from './prefab_place.js';
+import { createLightsWiring } from './lights_wiring.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { forget, recall, remember } from './storage.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
-import { HANDLE_COLOURS, SOLO_MAX, boxInReach, boxLines, createSolo, emissionShape, lightHandles, makeHandle, makeMarker,
-         nearestValue, paintMarker, recordNow, scaleMarker, valuesOf } from './lights_view.js';
-import { effectiveConeDegrees, storableCone, LIGHT_LIMITS } from './light_rules.js';
+import { makeMarker, paintMarker, scaleMarker, valuesOf } from './lights_view.js';
 import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes, tileGridOf, floorTilesOverlay } from './view_layout.js';
 import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverFrame, coverGameWords, coverSightWords, coverTiles, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
@@ -129,7 +133,7 @@ for (let k = 0; k < 2; k++) {
   mark.renderOrder = 10; ladderMarks.add(mark);
 }
 const pickables = [], texturePromises = new Map();
-// The layer of the map's lights' roots (editor_state.js: lightRoots; the lights section below).
+// The layer of the map's lights' roots (editor_state.js: lightRoots; the Lights view: lights_wiring.js, made below).
 const lightLayer = new THREE.Group();
 world.add(lightLayer);
 // The layer of the project's building boxes' roots (editor_state.js: volumeRoots; the Buildings view, further down).
@@ -141,18 +145,18 @@ let pickTool = false, pickBox = null, pickDrag = null, pickHits = [], pickCentre
 // In the Buildings view only boxes are picked, in the Lights view only lights. In the normal view pieces are, and
 // with the Normal button's two switches also lights (normalLights) and the project's floor boxes (boxesShown), a
 // building whole. Both switches are off whenever a map opens.
-let boxesShown = false, lightsOn = false, normalLights = false;
+let boxesShown = false;     // (lightsOn, normalLights: editor_state.js)
 // the Landing zones view (the user, 13 November 2026): the zones over everything, and only they are picked
-let zonesOn = false, zonesHidBefore = false;
+let zonesHidBefore = false;     // (zonesOn: editor_state.js)
 // the Effects view (effects and sounds plan, FX1; below the mission objects): its markers, and only they are picked.
 // Since FX3 each effect, sound and lens flare is a root of its own (effectRoots, an original's also by its key in
 // effectIndex), moved and turned by the gizmo, copied and deleted as pieces are where its family builds; the Normal
 // button's Effects switch (normalEffects) draws and picks them with pieces in the normal view. effectMarkers: the
 // markers drawn now, the roots' and the copies a piece's copy carries.
-let effectsOn = false, pickedEffect = null, effectsDirty = true, effectMarkers = [], normalEffects = false;
+let effectsDirty = true, effectMarkers = [], normalEffects = false;     // (effectsOn, pickedEffect: editor_state.js)
 // the Spawns view (editor spawns plan, SP3; its section is below the landing zones'): only its markers are picked; the
 // Normal button's switch (normalSpawns, remembered) draws and picks them with pieces
-let spawnsOn = false, normalSpawns = false, spawnLayerReady = false;
+let normalSpawns = false, spawnLayerReady = false;     // (spawnsOn: editor_state.js)
 let wavePlayer = null;     // the Wave preview's player: { audio, wave, record (its id), state: loading, playing or failed, why }
 world.add(volumeLayer);
 const cutMaterials = new Map();
@@ -344,9 +348,9 @@ function useMapFamilies(table) {
   landingActors = Array.isArray(table?.landing) ? new Set(table.landing) : null;
   gizmo.regroup();
 }
-let lighting;     // (the pieces that could not be drawn, loadErrorCount: editor_state.js)
+// (the Map lighting mode, lighting, and the pieces that could not be drawn, loadErrorCount: editor_state.js)
 let cachePrefix='/cache/', mapCatalogue=null, mapBrowser=null;
-let lightRadius = 700;
+// (the lights' reach, lightRadius: editor_state.js)
 
 const short = path => path.split('.').at(-1);
 function text(parent, tag, value, className) {
@@ -395,7 +399,7 @@ function select(id, add = false, keep = false) {
   if (id) ownPicked = null;
   if (!add && !keep) ownSet.clear();
   setSelected(id);
-  { const was = pickedEffect; pickedEffect = effectRoots.has(id) ? id : null; if (was !== pickedEffect) effectsDirty = true; }     // (one that starts off is drawn while it is picked)
+  { const was = pickedEffect; setPickedEffect(effectRoots.has(id) ? id : null); if (was !== pickedEffect) effectsDirty = true; }     // (one that starts off is drawn while it is picked)
   const root = roots.get(id) ?? lightRoots.get(id) ?? volumeRoots.get(id) ?? effectRoots.get(id);
   $('inspector').hidden = !root || Boolean(root.userData.volume);
   $('rail').classList.toggle('idle', !root);
@@ -472,7 +476,7 @@ function select(id, add = false, keep = false) {
     const chip = text(chips, 'span', `Glows · ${plural(glows.length, 'light')}`, 'chip');
     chip.title = `${glows.join(', ')}: generated lights the bake made for its glow. They move, copy and go `
       + 'with it; click to see them (Area lights in View options)';
-    chip.onclick = () => { areaShown = true; remember(AREA_SHOWN, '1'); setLightsShown(true); };
+    chip.onclick = () => { setAreaShown(true); remember(AREA_SHOWN, '1'); setLightsShown(true); };
   }
   // the effects it carries (export 23's carriedBy; tools/bake/native_effects.py): the Build moves, copies and deletes
   // them with it. A click shows them in the Effects view.
@@ -488,7 +492,7 @@ function select(id, add = false, keep = false) {
     const chip = text(chips, 'span', `May glow · ${plural(unsettled.length, 'light')} to settle`, 'chip warn');
     chip.title = `${unsettled.map(r => short(r.userData.source.actor)).join(', ')}: generated lights the export couldn't tie to one piece. Before this piece `
       + 'moves, assign each its glowing piece or keep it fixed (select the light: click to show area lights)';
-    chip.onclick = () => { areaShown = true; remember(AREA_SHOWN, '1'); setLightsShown(true); select(unsettled[0].userData.source.id); };
+    chip.onclick = () => { setAreaShown(true); remember(AREA_SHOWN, '1'); setLightsShown(true); select(unsettled[0].userData.source.id); };
   }
   // Hidden helpers are shown for inspection only; they cannot be copied.
   $('editCopy').disabled = !copyable().length;
@@ -1146,13 +1150,13 @@ async function buildRoots(objs, step = null, failed = null) {
   return built;
 }
 // A short notice in the same place (copied, deleted, nothing to paste); it goes after a moment.
-let hintTimer;
+// (its timer, hintTimer: editor_state.js)
 function flashHint(message) {
   if (gizmo.controls.dragging) return;
   const hint = $('dragHint');
   hint.replaceChildren(message); hint.hidden = false;
   clearTimeout(hintTimer);
-  hintTimer = setTimeout(restingHint, 2500);
+  setHintTimer(setTimeout(restingHint, 2500));
 }
 // With nothing else to say: how to place the piece being placed, or nothing.
 function restingHint() {
@@ -1840,7 +1844,7 @@ function paste() {
 
 // Placing, for paste and the piece list: a see-through preview of the clip follows the cursor, a click places a
 // copy there (Shift+click keeps placing), Escape stops. The gizmo is held meanwhile, so a click never grabs a handle.
-let placing = null, ghostDirty = false;   // placing: { clip, entry (from the piece list, or null), ghost } (pieces: editor_state.js)
+let ghostDirty = false;   // (what is being placed, placing, and pieces: editor_state.js)
 // The preview is drawn twice: plainly where it is in view, faintly where walls or roofs hide it.
 const ghostMaterial = new THREE.MeshBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.45, depthWrite: false });
 const ghostHidden = new THREE.MeshBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.15, depthWrite: false, depthTest: false });
@@ -2118,14 +2122,14 @@ function startPlacing(clip, entry = null) {
     ghost.add(line);
   }
   ghost.visible = false; ghost.matrixAutoUpdate = false; world.add(ghost);
-  placing = { clip, entry, ghost, turns: 0 }; ghostDirty = true;
+  setPlacing({ clip, entry, ghost, turns: 0 }); ghostDirty = true;
   gizmo.hold(true); pieces.setChosen(entry); library.setChosen(entry); prefabTab.setChosen(entry); restingHint();
 }
 function stopPlacing() {
   if (!placing) return;
   world.remove(placing.ghost);
   placing.ghost.traverse(part => part.isSkinnedMesh && part.skeleton.dispose());
-  placing = null; gizmo.hold(false); pieces.setChosen(null); library.setChosen(null); prefabTab.setChosen(null);
+  setPlacing(null); gizmo.hold(false); pieces.setChosen(null); library.setChosen(null); prefabTab.setChosen(null);
   clearTimeout(hintTimer); restingHint();
 }
 // The preview sits where a click would place the piece; it hides when the cursor is off the view.
@@ -2231,12 +2235,12 @@ function deleteNow(quiet = false, only = null) {
     redo: () => {
       removeRoots(added); removeLightRoots(addedLights); removeEffectRoots(addedEffects);
       for (const r of [...originals, ...originalLights, ...originalEffects, ...boxes]) r.userData.deleted = true;
-      refreshLightVisibility(); lightsDirty = true; gizmo.setSelection([]); sceneChanged();
+      refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
     },
     undo: () => {
       addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects);
       for (const r of [...originals, ...originalLights, ...originalEffects, ...boxes]) r.userData.deleted = false;
-      refreshLightVisibility(); lightsDirty = true; gizmo.setSelection(before.ids, before.active); sceneChanged();
+      refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection(before.ids, before.active); sceneChanged();
     },
   });
   const what = selectionWords([...targets, ...boxes]);
@@ -2369,7 +2373,7 @@ function resetAll() {
       restore.redo();
       for (const r of ownBoxes) r.userData.deleted = true;
       mapState({ stage: null, zones: null, cleared: false, keeps: false, missions: null, rules: null });
-      setAreaBindings(new Map()); setGroups(new Map()); refreshLightVisibility(); lightsDirty = true; sceneChanged();
+      setAreaBindings(new Map()); setGroups(new Map()); refreshLightVisibility(); setLightsDirty(true); sceneChanged();
     },
     undo: () => {
       flagged.forEach((r, k) => { r.userData.flags = flagsBefore[k]; });
@@ -2381,7 +2385,7 @@ function resetAll() {
       restore.undo();
       for (const r of ownBoxes) r.userData.deleted = false;
       mapState(map);
-      setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore)); refreshLightVisibility(); lightsDirty = true;
+      setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore)); refreshLightVisibility(); setLightsDirty(true);
       gizmo.setSelection(picks.ids, picks.active); sceneChanged();
     },
   });
@@ -2644,129 +2648,11 @@ function align() {
   flashHint(`Aligned ${plural(units.length - 1, 'piece')} with ${unitName(ref)} on ${what} · Ctrl+Z undoes it`);
 }
 
-// Lights (private/plans/done/editor-lights-plan.md, 4.6). Each light with a place (point and spot lights: placed, generated area,
-// toggleable, a streamed level's) is a root of its own in lightRoots: a marker, picked on screen ahead of the piece
-// behind it, moved and turned by the gizmo with pieces (allRoots), and changed in the panel's light section. A root
-// keeps its values in the package's terms (plan 9.1) now (`values`) and as exported or placed (`baseValues`).
-// Generated area lights are never edited: they follow their glowing piece (deriveAreaLights), which the export's
-// matcher found or the project binds (areaBindings). A light that can be edited joins a group as a piece does
-// (groupables); a generated one follows its piece instead.
+// The Lights view's storage keys, and its switches read from them (the view: lights_wiring.js, made below).
 const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
 const PL = 'TheWorld.PersistentLevel.';
-let lightsShown = false, areaShown = recall(AREA_SHOWN) === '1';
-let reachShown = recall(REACH_SHOWN) === '1';   // the selected light's reach outlined (View options; off at first)
-let soloOn = false, lightsDirty = true, lastLightSync = 0, assigning = null, warnedLights = false;
-let fixedLights = [], derivedCopies = [], ownerIndex = null, paintedLights = new Set();
-let handleDefs = [], handleHover = null, lightDrag = null;   // the selected light's drag handles (below commitColour)
-// (an area light's glowing piece as the project sets it, areaBindings: editor_state.js)
-const derivedMarks = new THREE.Group(); world.add(derivedMarks);
-const lightShapes = new THREE.Group(); world.add(lightShapes);
-const solo = createSolo(world);
-// (a light value's limits: light_rules.js LIGHT_LIMITS)
-const LIGHT_LABELS = { brightness: 'Brightness', radius: 'Radius', falloffExponent: 'Falloff', innerConeAngle: 'The inner cone',
-                       outerConeAngle: 'The outer cone' };
-const REACH_WARN = 300;
-const lightKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
-const sameValue = (a, b) => (Array.isArray(a) ? Array.isArray(b) && a.length === b.length && a.every((v, k) => v === b[k]) : a === b);
-function changedValues(values, base) {
-  const out = {};
-  for (const k of Object.keys(values)) if (!sameValue(values[k], base?.[k])) out[k] = Array.isArray(values[k]) ? [...values[k]] : values[k];
-  return out;
-}
-const valuesEdited = root => Object.keys(changedValues(root.userData.values, root.userData.baseValues)).length > 0;
-const lightEdited = root => Boolean(root.userData.edit || root.userData.deleted || root.userData.source.added || valuesEdited(root));
-// Why the map's lights can't be edited at all (an older export or server), or null.
-function lightsBlocked() {
-  if (!families?.lightRules) return 'the editor\'s server is older than its page: restart it (xcom_editor.cmd restart) to edit lights';
-  if (!(data.exporterVersion >= 18) || !data.lightMetadata) return `this map's export predates the light data (export ${families.exportMinimum ?? 18}): prepare it again to edit lights`;
-  return null;
-}
-// Why a light is view only (the compiler's light_rule, families.json), or null when it can be edited.
-function lightViewOnly(o) {
-  if (isStream(o)) return 'it is a light of a streamed level (a patch\'s own)';
-  const blocked = lightsBlocked();
-  if (blocked) return blocked;
-  if (o.added) return o.added.template ? null : families.lightRules[o.added.fromId] ?? null;
-  return o.id in families.lightRules ? families.lightRules[o.id] : 'the server didn\'t list it among the map\'s lights';
-}
-const lightSource = record => ({ ...record, isLight: true, matrix: actorMatrix(record.location, record.rotation).toArray() });
-function makeLightRoot(source, values, baseValues = values) {
-  const root = new THREE.Group();
-  root.matrixAutoUpdate = false; root.matrix.fromArray(source.matrix);
-  const marker = makeMarker(source.role === 'area' ? 'area' : source.kind);
-  root.add(marker);
-  root.userData = { source, light: true, values: { ...values }, baseValues: { ...baseValues }, marker, deleted: false, edit: null, parts: [] };
-  paintMarker(marker, root.userData.values, { viewOnly: Boolean(lightViewOnly(source)) });
-  return root;
-}
-function addLightRoots(list) {
-  for (const root of list) {
-    const o = root.userData.source;
-    lightRoots.set(o.id, root); lightLayer.add(root);
-    if (!o.added) lightIndex.set(lightKey(o), root);
-  }
-  refreshLightVisibility();
-}
-function removeLightRoots(list) {
-  for (const root of list) { lightRoots.delete(root.userData.source.id); lightLayer.remove(root); }
-}
-// A light's actor pose where it is drawn: a point light keeps its rotator (it has no direction to edit).
-function lightPose(root, matrix = root.matrix) {
-  const o = root.userData.source, pose = actorPose(o, matrix);
-  if (o.kind === 'point') pose.rotation = [...o.rotation];
-  return pose;
-}
-const directionOf = matrix => { const e = matrix.elements, d = new THREE.Vector3(e[0], e[2], e[1]).normalize(); return [d.x, d.y, d.z]; };
-// The light as edited, as the Map lighting mode and Solo read it (export terms: colour 0-1, game units).
-function lightRecordOf(root, matrix = root.matrix) {
-  const pose = lightPose(root, matrix);
-  return recordNow(root.userData.source, root.userData.values, pose.location, pose.rotation, directionOf(matrix));
-}
-function paintLight(root) {
-  const selected = gizmo.picks().ids.includes(root.userData.source.id);
-  paintMarker(root.userData.marker, root.userData.values, { viewOnly: Boolean(lightViewOnly(root.userData.source)), selected });
-}
-function setLightValues(root, values) {
-  root.userData.values = { ...values };
-  paintLight(root); lightsDirty = true;
-}
-function refreshLightVisibility() {
-  lightLayer.visible = lightsShown;
-  derivedMarks.visible = lightsShown && areaShown;
-  // Interior shows the lights whose radius reaches the play area (view basis, as playableBounds)
-  const play = data?.scope === 'map' && $('scenery').value === 'interior' ? data.playableBounds : null;
-  const reachesPlay = root => {
-    const e = root.matrix.elements, r = root.userData.values.radius ?? 0;
-    return [0, 1, 2].every(k => e[12 + k] >= play.min[k] - r && e[12 + k] <= play.max[k] + r);
-  };
-  for (const root of lightRoots.values()) {
-    const o = root.userData.source;
-    root.visible = !root.userData.deleted && !root.userData.derivedGone && (o.role !== 'area' || areaShown)
-      && (!isStream(o) || streamSet.has(o.stream)) && (!play || root.userData.source.added || reachesPlay(root))
-      && !(cleared && !o.added && !(o.kind === 'directional' || o.kind === 'sky' || o.role === 'dominant' || o.role === 'sky')
-           && (isStream(o) || o.role === 'area' || lightViewOnly(o))
-           && !(clearKeepsOutside && !isStream(o) && pointOutside(root.matrix.elements[12], root.matrix.elements[14])));
-  }
-}
-// The lights toggle (Shift+L, the rail's bulb, View options): off, the map looks as it did and lights can't be picked.
-// The Lights view on or off: while it is on only lights are picked, and each moves on its own.
-function setLightsShown(on) {
-  on = Boolean(on) && Boolean(data);
-  if (on === lightsOn) { syncLights(); return; }
-  if (on && volumesOn) setVolumesShown(false);
-  if (on && zonesOn) setZonesShown(false);
-  if (on && effectsOn) setEffectsShown(false);
-  if (on && spawnsOn) setSpawnsShown(false);
-  if (on) stopPickBox();
-  lightsOn = on;
-  syncLights();
-  if (on) flashHint('Lights view: only lights are selected · Shift+L leaves it');
-}
-// The Normal button's Lights switch: the lights drawn and picked with pieces in the normal view.
-function setNormalLights(on) {
-  normalLights = Boolean(on) && Boolean(data);
-  syncLights();
-}
+setAreaShown(recall(AREA_SHOWN) === '1');     // (lightsShown, areaShown: editor_state.js)
+setReachShown(recall(REACH_SHOWN) === '1');   // the selected light's reach outlined (View options; off at first)
 // The normal view: out of the Buildings view, the Lights view, the Landing zones view and the Effects view.
 function setNormalView() {
   if (volumesOn) setVolumesShown(false);
@@ -2793,13 +2679,13 @@ function setZonesShown(on) {
     stopZonePlacing();      // a zone asked for from the Add panel and not placed yet goes with its view
     if (zonesHidBefore) landingLayer.visible = false;
   }
-  zonesOn = on;
+  setZonesOn(on);
   refreshLandingZones(); lightButton();
   if (on) flashHint('Landing zones view: only landing zones are selected · Shift+Z leaves it');
 }
 // After a view or a switch changed: whether lights are drawn, what stays selected, the buttons.
 function syncLights() {
-  lightsShown = lightsOn || (normalLights && !volumesOn);
+  setLightsShownValue(lightsOn || (normalLights && !volumesOn));
   if (volumesOn || lightsOn || !boxesShown) { ownSet.clear(); if (!volumesOn) ownPicked = null; }
   const picks = gizmo.picks();
   const keep = picks.ids.filter(id => (lightRoots.has(id) ? lightsShown : volumeRoots.has(id) ? volumesOn || (boxesShown && !lightsOn) : !lightsOn));
@@ -2820,364 +2706,7 @@ function lightButton() {
   $('areaToggle').checked = areaShown; $('reachToggle').checked = reachShown;
   $('areaToggle').disabled = $('reachToggle').disabled = !lightsShown;
 }
-// A light under a screen point: the nearest marker centre within 13 pixels, or null. (A spot's cone hangs from the light
-// along its direction: its centre is half a cone from the light.)
-function pickLight(clientX, clientY) {
-  if (!lightsShown) return null;
-  const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
-  let best = null, bestD = 13;
-  for (const root of lightRoots.values()) {
-    if (!root.visible) continue;
-    const front = root.userData.marker.userData.front;
-    if (!front.geometry.boundingSphere) front.geometry.computeBoundingSphere();
-    front.updateWorldMatrix(true, false);
-    p.copy(front.geometry.boundingSphere.center).applyMatrix4(front.matrixWorld).project(camera);
-    if (p.z > 1 || p.z < -1) continue;
-    const d = Math.hypot(rect.left + (p.x + 1) / 2 * rect.width - clientX, rect.top + (1 - p.y) / 2 * rect.height - clientY);
-    if (d < bestD) { bestD = d; best = root; }
-  }
-  return best;
-}
-// Markers keep one size on screen.
-const markerAt = new THREE.Vector3();
-function scaleMarkers() {
-  if (!lightsShown) return;
-  for (const root of lightRoots.values()) if (root.visible) scaleMarker(root.userData.marker, camera, markerAt.setFromMatrixPosition(root.matrix));
-  for (const holder of derivedMarks.children) scaleMarker(holder.children[0], camera, markerAt.setFromMatrixPosition(holder.matrix));
-}
-
-// Area lights following their glowing pieces (plan 4.8): an area light's glowing piece is the project's binding, else
-// the export's verified association. A moved original carries its light (its edit times the light's pose), a deleted
-// one takes it away, and each copy of it gets a copy of the light at the copy's place (drawn, never picked).
-function areaOwner(o) {
-  if (areaBindings.has(o.actor)) {
-    const b = areaBindings.get(o.actor);
-    return { owner: b ? { actor: b.target.actor, component: b.component } : null, how: b ? 'project' : 'kept' };
-  }
-  const a = o.emitterAttachment;
-  if (a?.status === 'verified' && a.owner) return { owner: { actor: a.owner.target.actor, component: a.owner.component }, how: 'export' };
-  return { owner: null, how: a?.status ?? 'none' };
-}
-function ownerRoot(actor, component) {
-  if (!ownerIndex) {
-    ownerIndex = new Map();
-    for (const r of roots.values()) {
-      const o = r.userData.source;
-      if (o.added || o.layer !== 'base') continue;
-      ownerIndex.set(`${o.actor}|${o.component}`, r);
-      if (!ownerIndex.has(o.actor)) ownerIndex.set(o.actor, r);
-    }
-  }
-  return ownerIndex.get(`${actor}|${component}`) ?? ownerIndex.get(actor) ?? null;
-}
-function deriveAreaLights() {
-  for (const holder of derivedMarks.children) {
-    holder.children[0].userData.solid.dispose();
-    holder.children[0].userData.ghost.dispose();
-  }
-  derivedMarks.clear();
-  derivedCopies = [];
-  function addDerived(root, matrix, owner) {
-    derivedCopies.push({ root, matrix, owner });
-    const holder = new THREE.Group(), marker = makeMarker('area');
-    paintMarker(marker, root.userData.values, { viewOnly: true });
-    holder.matrixAutoUpdate = false; holder.matrix.copy(matrix); holder.add(marker);
-    derivedMarks.add(holder);
-  }
-  const copies = new Map();
-  for (const r of roots.values()) {
-    const o = r.userData.source;
-    if (!o.added) continue;
-    if (o.foreign) {
-      if (!r.userData.deleted && o.foreignAreaLights?.length) {
-        const pose = actorPose(o, r.matrix);
-        const frame = actorMatrix(pose.location, pose.rotation);
-        for (const light of o.foreignAreaLights) addDerived(light.root, frame.clone().multiply(light.relative), r);
-      }
-      continue;
-    }
-    const k = `${o.added.from.actor}|${o.component}`;
-    if (!copies.has(k)) copies.set(k, []);
-    copies.get(k).push(r);
-  }
-  for (const root of lightRoots.values()) {
-    const o = root.userData.source;
-    if (o.role !== 'area' || o.added || o.layer !== 'base') continue;
-    const base = baseMatrix(root), { owner } = areaOwner(o), r = owner && ownerRoot(owner.actor, owner.component);
-    root.userData.derivedGone = Boolean(r?.userData.deleted);
-    root.matrix.copy(r?.userData.edit && !r.userData.deleted ? r.userData.edit.clone().multiply(base) : base);
-    root.matrixWorldNeedsUpdate = true;
-    if (!r) continue;
-    const back = baseMatrix(r).invert();
-    for (const copy of copies.get(`${r.userData.source.actor}|${r.userData.source.component}`) ?? []) {
-      addDerived(root, copy.matrix.clone().multiply(back).multiply(base), copy);
-    }
-  }
-  refreshLightVisibility();
-  lightsDirty = true;
-}
-// The lights as edited, for the Map lighting mode: placed lights moved, changed, added and deleted, the area lights
-// as their pieces take them, and the map's sun and sky as exported. Streamed levels' lights are left out, as before.
-function lightRecords() {
-  const out = [];
-  for (const root of lightRoots.values()) {
-    if (root.userData.deleted || root.userData.derivedGone || isStream(root.userData.source)) continue;
-    out.push(lightRecordOf(root));
-  }
-  for (const d of derivedCopies) out.push(lightRecordOf(d.root, d.matrix));
-  return out.concat(fixedLights);
-}
-// An area light's glowing piece set by the project: owner { target, component }, null to keep it fixed, undefined to
-// take the export's again. One undo step.
-function setBinding(root, owner) {
-  const actor = root.userData.source.actor, had = areaBindings.has(actor), before = areaBindings.get(actor);
-  if (owner === undefined ? !had : had && JSON.stringify(before) === JSON.stringify(owner)) return;
-  gizmo.record({
-    redo: () => { if (owner === undefined) areaBindings.delete(actor); else areaBindings.set(actor, owner); deriveAreaLights(); },
-    undo: () => { if (!had) areaBindings.delete(actor); else areaBindings.set(actor, before); deriveAreaLights(); },
-  });
-  flashHint(owner === undefined ? 'The export\'s glowing piece again' : owner ? `Follows ${short(owner.target.actor)} now` : 'Kept where it is: no piece takes it along');
-}
-// Assign glowing piece: the next piece clicked becomes the light's (an original's own component; a copy's original).
-function assignOwner(hit) {
-  const root = lightRoots.get(assigning), piece = roots.get(hit.object.userData.objectId);
-  assigning = null; $('lightAssign').classList.remove('on');
-  if (!root || !piece) return;
-  const o = piece.userData.source;
-  if (isStream(o) || o.layer === 'inherited') { flashHint('A streamed or patch piece can\'t be a glowing piece: pick one of the map\'s own'); return; }
-  const target = o.added ? o.added.from : { package: o.sourcePackage, level: o.layer, actor: o.actor };
-  setBinding(root, { target, component: o.component });
-}
-
-// Solo (the panel's button, O with a light selected): the map dims to a faint neutral and only the selected lights
-// shine, up to four, with live shadows: the direct light the bake will put down.
-function soloRoots() {
-  return gizmo.picks().ids.map(id => lightRoots.get(id))
-    .filter(r => r && !r.userData.deleted && ['point', 'spot'].includes(r.userData.source.kind)).slice(0, SOLO_MAX);
-}
-function setSolo(on) {
-  soloOn = Boolean(on) && soloRoots().length > 0;
-  if (on && !soloOn) flashHint('Select a light to solo it');
-  updateSolo();
-}
-function updateSolo() {
-  const targets = soloOn ? soloRoots() : [];
-  if (soloOn && !targets.length) soloOn = false;
-  $('lightSolo').classList.toggle('on', soloOn);
-  $('lightSolo').textContent = soloOn ? 'Solo on' : 'Solo';
-  if (!soloOn) { if (solo.count) { solo.clear(); applyLighting(); } return; }
-  solo.show(targets.map(r => lightRecordOf(r)));
-  lighting.dim(sun.target.position, lightRadius);
-}
-
-// Where the selected light emits, and the pieces it lights: for an original as exported, the pieces its bake lists it
-// in (export 18's bakedInto); for one moved, changed or added, the pieces its new reach touches, which a full build
-// relights. Box outlines, not a material change (instances share materials).
-const boxCache = new WeakMap(), floorCache = new Map(), down = new THREE.Vector3(0, -1, 0);
-function rootBox(r) {
-  const key = r.matrix.elements.join(',');
-  const cached = boxCache.get(r);
-  if (cached?.key === key) return cached.box;
-  r.updateWorldMatrix(true, true);
-  const box = new THREE.Box3().setFromObject(r);
-  boxCache.set(r, { key, box });
-  return box;
-}
-function floorBelow(location) {
-  const key = location.map(v => Math.round(v)).join(',');
-  if (!floorCache.has(key)) {
-    const hit = new THREE.Raycaster(new THREE.Vector3(location[0], location[2], location[1]), down).intersectObjects(pickables)
-      .find(h => roots.get(h.object.userData.objectId)?.visible);
-    floorCache.set(key, hit ? hit.point.y : null);
-  }
-  return floorCache.get(key);
-}
-function lightReach(root) {
-  const o = root.userData.source, record = lightRecordOf(root);
-  if (!lightEdited(root) && o.bakedInto) {
-    const boxes = o.bakedInto.map(id => roots.get(id)).filter(r => r?.visible && !r.userData.deleted).map(rootBox);
-    return { changed: false, count: o.bakedInto.length, boxes };
-  }
-  if (!record.radius) return { changed: true, count: 0, boxes: [] };
-  const boxes = [];
-  for (const r of roots.values()) {
-    const s = r.userData.source;
-    if (r.userData.deleted || !r.visible || isStream(s) || s.layer === 'inherited') continue;
-    const box = rootBox(r);
-    if (boxInReach(box, record.location, record.radius)) boxes.push(box);
-  }
-  return { changed: true, count: boxes.length, boxes };
-}
-let shapeKey = '', reachKey = '', reachLines = null, reachNow = null;
-function refreshLightShapes() {
-  const root = lightRoots.get(gizmo.active);
-  const key = root && root.visible ? `${root.userData.source.id}|${root.matrix.elements.join(',')}|${JSON.stringify(root.userData.values)}` : '';
-  const dragging = gizmo.controls.dragging || Boolean(lightDrag);
-  if (key !== shapeKey || (!dragging && key && key !== reachKey)) {
-    for (const child of [...lightShapes.children]) if (child !== reachLines) lightShapes.remove(child);
-    shapeKey = key;
-    if (root && root.visible) {
-      const record = lightRecordOf(root);
-      lightShapes.add(emissionShape(record, root.matrix, floorBelow(record.location)));
-    }
-  }
-  if (dragging && key === shapeKey) return;
-  if (key !== reachKey) {
-    if (reachLines) { lightShapes.remove(reachLines); reachLines.geometry.dispose(); reachLines = null; }
-    reachKey = key; reachNow = null;
-    if (root && root.visible && !dragging) {
-      reachNow = lightReach(root);
-      // the outlines only with View options' "Outline the pieces a light reaches"; the panel gives the count either way
-      if (reachShown && reachNow.boxes.length) { reachLines = boxLines(reachNow.boxes, reachNow.changed ? 0xf0a050 : 0x6fd3c8); lightShapes.add(reachLines); }
-    }
-  }
-}
-
-// The light section of the panel: the selected light's values (a spot light's effective cones, plan 4.2), its reach,
-// and for a generated area light its glowing piece.
-const ROLE_WORDS = { static: 'Placed light', area: 'Made by the bake for a glowing surface', toggleable: 'Lit live',
-                     dominant: 'The sun or moon', sky: 'The sky' };
-const hex2 = v => v.toString(16).padStart(2, '0');
-function lightPanel() {
-  const root = lightRoots.get(selected);
-  $('lightBox').hidden = !root;
-  if (!root) return;
-  const o = root.userData.source, v = root.userData.values, viewOnly = lightViewOnly(o), focused = document.activeElement;
-  const put = (id, value) => { if (focused !== $(id)) $(id).value = value; };
-  put('lightColor', `#${v.color.map(hex2).join('')}`);
-  ['lightR', 'lightG', 'lightB'].forEach((id, k) => put(id, String(v.color[k])));
-  const spot = o.kind === 'spot';
-  put('lightBrightness', String(v.brightness));
-  put('lightRadius', String(v.radius ?? ''));
-  put('lightFalloff', String(v.falloffExponent ?? ''));
-  $('lightInnerRow').hidden = $('lightOuterRow').hidden = !spot;
-  if (spot) {
-    const [inner, outer] = effectiveConeDegrees(v.innerConeAngle, v.outerConeAngle);
-    put('lightInner', String(Number(inner.toFixed(2))));
-    put('lightOuter', String(Number(outer.toFixed(2))));
-  }
-  $('lightOn').checked = v.enabled;
-  $('lightKind').textContent = `${o.kind} light`;
-  for (const id of ['lightColor', 'lightR', 'lightG', 'lightB', 'lightBrightness', 'lightRadius', 'lightFalloff', 'lightInner', 'lightOuter', 'lightOn'])
-    $(id).disabled = Boolean(viewOnly);
-  const note = [];
-  if (viewOnly) note.push(`View only: ${viewOnly}.`);
-  if (spot && !viewOnly && (Math.abs(effectiveConeDegrees(v.innerConeAngle, v.outerConeAngle)[1] - v.outerConeAngle) > 1e-6
-               || Math.abs(effectiveConeDegrees(v.innerConeAngle, v.outerConeAngle)[0] - v.innerConeAngle) > 1e-6))
-    note.push(`Its stored cone (inner ${v.innerConeAngle}°, outer ${v.outerConeAngle}°) is wider than the game draws it: the cones shown are the ones it lights with, and the stored values stay unless you change them.`);
-  $('lightNote').textContent = note.join(' ');
-  const reach = reachNow && reachKey === shapeKey ? reachNow : null;
-  const reachText = $('lightReach');
-  reachText.classList.toggle('warn', Boolean(reach?.changed && reach.count > REACH_WARN));
-  const outlined = reachShown ? ' (outlined)' : '';
-  reachText.textContent = !reach ? '' : !reach.changed
-    ? `Baked into ${plural(reach.count, 'piece')}${outlined}: where the game lights it now.`
-    : `Reaches about ${plural(reach.count, 'piece')}${outlined}: a full build relights them${reach.count > REACH_WARN ? ', which takes a good while' : ''}.`;
-  const area = o.role === 'area' && !isStream(o);
-  for (const id of ['lightAssign', 'lightKeep', 'lightAuto']) $(id).hidden = !area;
-  $('lightSolo').hidden = !['point', 'spot'].includes(o.kind);
-  $('lightArea').hidden = !area;
-  if (area) {
-    const { owner, how } = areaOwner(o), a = o.emitterAttachment;
-    const why = { export: 'found by the export', project: 'set in this project', kept: 'kept fixed in this project',
-                  ambiguous: 'the export found several pieces it may glow from', unmatched: 'the export found no piece it glows from',
-                  unsupported: 'the export couldn\'t tell', none: 'the export has no glowing pieces (prepare the map again)' }[how] ?? how;
-    $('lightArea').textContent = owner
-      ? `Follows ${short(owner.actor)} (${why}): it moves, copies and goes with that piece.`
-      : how === 'kept' ? 'Kept where it is: no piece takes it along (set in this project).'
-        : `It stays where it is: ${why}${a?.candidates?.length ? ` (${a.candidates.map(c => short(c.actor ?? c.objectId)).join(', ')})` : ''}. Assign its glowing piece, or keep it fixed, before moving a piece it may glow from.`;
-    $('lightKeep').disabled = how === 'kept';
-    $('lightAuto').disabled = !areaBindings.has(o.actor);
-    $('lightAssign').classList.toggle('on', assigning === o.id);
-  }
-}
-// A typed value commits on Enter or when the field is left; one undo step. A spot light's cone fields show its
-// effective cones: leaving one unchanged commits nothing, so a stored 580-degree cone stays 580.
-function changeLight(changes) {
-  const root = lightRoots.get(selected);
-  if (!root || lightViewOnly(root.userData.source)) return;
-  const before = { ...root.userData.values }, after = { ...before, ...changes };
-  if (!Object.keys(changedValues(after, before)).length) return;
-  gizmo.record({ redo: () => setLightValues(root, after), undo: () => setLightValues(root, before) });
-}
-function commitLightField(key, input) {
-  const root = lightRoots.get(selected);
-  if (!root) return;
-  const value = Number(input.value), [lo, hi] = LIGHT_LIMITS[key], v = root.userData.values;
-  const back = message => { if (message) flashHint(message); lightPanel(); };
-  // a point light has no cone (its fields are hidden; the compiler refuses cone values on one too)
-  if ((key === 'innerConeAngle' || key === 'outerConeAngle') && root.userData.source.kind !== 'spot') { back(); return; }
-  if (!input.value.trim() || !Number.isFinite(value)) { back(); return; }
-  if (value < lo || value > hi) { back(`${LIGHT_LABELS[key]} must be ${lo} to ${hi}`); return; }
-  if (key === 'innerConeAngle' && value > v.outerConeAngle) { back('The inner cone can\'t be wider than the outer cone'); return; }
-  if (key === 'outerConeAngle' && value < v.innerConeAngle) { back('The outer cone can\'t be narrower than the inner cone'); return; }
-  changeLight({ [key]: value });
-}
-function commitColour(bytes) {
-  if (bytes.every(b => Number.isInteger(b) && b >= 0 && b <= 255)) changeLight({ color: bytes });
-  else { flashHint('Colour values are whole numbers 0 to 255'); lightPanel(); }
-}
-
-// Drag handles on the selected light (lights_view.js lightHandles): its radius (a point light's on the left edge of its
-// sphere, a spot light's at the end of its axis), and a spot light's outer cone (the rim's left) and inner cone (its
-// right). A press on one drags it, ahead of the gizmo and the camera, the light's look following live; the release makes
-// it one undo step, and Escape puts it back. Radii go in whole units, cones in half degrees.
-const handleLayer = new THREE.Group(); world.add(handleLayer);
-const handleMeshes = new Map();
-const handleGuide = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
-                                   new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthTest: false }));
-handleGuide.renderOrder = 8; handleGuide.raycast = () => {}; handleLayer.add(handleGuide);
 const HANDLE_PICK = 10;
-const HANDLE_WORDS = { radius: 'Radius', outer: 'Outer cone', inner: 'Inner cone', size: 'Size',
-                       radiusMin: 'Heard fully within', radiusMax: 'Fades out by' };
-const HANDLE_TITLES = { radius: 'Drag to change the radius', outer: 'Drag to widen or narrow the outer cone',
-                        inner: 'Drag to widen or narrow the inner cone', size: 'Drag to make the effect larger or smaller',
-                        radiusMin: 'Drag to change where the sound is heard at full volume',
-                        radiusMax: 'Drag to change where the sound fades out' };
-// The selected light when its handles show: shown, editable, with a radius, and nothing being placed.
-function handleRoot() {
-  const root = lightRoots.get(selected);
-  if (!root || !lightsShown || !root.visible || root.userData.deleted || placing || root.userData.values.radius == null
-      || lightViewOnly(root.userData.source)) return effectHandleRoot();
-  return root;
-}
-// The picked effect or sound when its handles show (stage FX5): alone in the selection, drawn, its values editable;
-// a sound only where its record gives it spheres.
-function effectHandleRoot() {
-  if (!effectsShown() || placing || gizmo.picks().ids.length !== 1) return null;
-  const root = pickedEffect ? effectRoots.get(pickedEffect) : null;
-  if (!root?.visible || !effectValuesEditable(root)) return null;
-  return root.userData.source.kind === 'effect' || soundReach(effectNow(root)) ? root : null;
-}
-// Its handles: an effect's size on the camera's left at a distance that grows with it (its fixed box, as the map
-// sizes it, else 64 units, at 1), a sound's outer radius on the left and its inner one on the right (game units).
-function effectHandles(root, side) {
-  const origin = new THREE.Vector3().setFromMatrixPosition(root.matrix), out = side.clone().normalize(), now = effectNow(root);
-  if (now.kind === 'sound') {
-    const reach = soundReach(now), back = out.clone().negate(), [, top] = VALUE_LIMITS.radius;
-    return [{ key: 'radiusMax', value: reach.outer, lo: Math.max(1, reach.inner), hi: top, log: true, origin, at: s => origin.clone().addScaledVector(out, s) },
-            { key: 'radiusMin', value: Math.max(1, reach.inner), lo: 1, hi: Math.max(1, reach.outer), log: true, origin, at: s => origin.clone().addScaledVector(back, s) }];
-  }
-  const box = data.effectSystems?.[now.system]?.fixedBox, mapScale = Math.max(...(root.userData.source.added?.base ?? root.userData.source).scale ?? [1]);
-  const unit = box?.used && box.valid ? Math.max(16, Math.max(...box.max.map((v, k) => v - box.min[k])) / 2 * mapScale) : 64;
-  const m = root.userData.values?.scale ?? 1, [lo, hi] = VALUE_LIMITS.scale;
-  return [{ key: 'size', value: m, lo, hi, log: true, origin, at: x => origin.clone().addScaledVector(out, unit * x) }];
-}
-// An effect's or sound's values after a drag of handle `h` to `raw`: a size to three places (1 is the map's own, no
-// value), radii in whole units, the inner never beyond the outer.
-function effectHandleValues(before, h, raw) {
-  const next = structuredClone(before ?? {});
-  if (h.key === 'size') {
-    const value = Math.min(h.hi, Math.max(h.lo, Number(raw.toFixed(3))));
-    if (Math.abs(value - 1) < 1e-3) delete next.scale; else next.scale = value;
-    return { next, value };
-  }
-  const value = Math.min(h.hi, Math.max(h.key === 'radiusMin' ? 0 : h.lo, Math.round(raw)));
-  next[h.key] = value;
-  return { next, value };
-}
-// the camera's left: the panel covers the view's right
-const cameraSide = () => new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize().negate();
 // Screen positions (client pixels) for points in the view, or null behind the camera.
 function projector() {
   const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
@@ -3186,228 +2715,6 @@ function projector() {
     if (p.z < -1 || p.z > 1) return null;
     return [rect.left + (p.x + 1) / 2 * rect.width, rect.top + (1 - p.y) / 2 * rect.height];
   };
-}
-// Each frame: the handles where the selected light's shapes are (they lean to the camera's right).
-function updateLightHandles() {
-  const root = lightDrag?.root ?? handleRoot();
-  handleDefs = !root ? [] : root.userData.effect ? effectHandles(root, lightDrag?.side ?? cameraSide())
-    : lightHandles(root.userData.source.kind, root.userData.values, root.matrix, lightDrag?.side ?? cameraSide());
-  handleLayer.visible = handleDefs.length > 0;
-  if (!handleDefs.length && handleHover) hoverHandle(null);
-  for (const mesh of handleMeshes.values()) mesh.visible = false;
-  const lit = lightDrag?.handle?.h.key ?? handleHover;
-  for (const h of handleDefs) {
-    if (!handleMeshes.has(h.key)) { const mesh = makeHandle(h.key); handleMeshes.set(h.key, mesh); handleLayer.add(mesh); }
-    const mesh = handleMeshes.get(h.key);
-    mesh.visible = true; mesh.position.copy(h.at(h.value));
-    mesh.userData.material.color.setHex(h.key === lit ? HANDLE_COLOURS.hover : HANDLE_COLOURS[h.key]);
-    scaleMarker(mesh, camera, mesh.position);
-  }
-  // a thin line from the light to its radius handle (an effect's to its size handle, a sound's to its outer radius's)
-  const radius = handleDefs.find(h => h.key === 'radius' || h.key === 'size' || h.key === 'radiusMax');
-  if (radius) {
-    const at = handleGuide.geometry.attributes.position;
-    at.setXYZ(0, ...radius.origin.toArray()); at.setXYZ(1, ...radius.at(radius.value).toArray()); at.needsUpdate = true;
-    handleGuide.geometry.computeBoundingSphere();
-  }
-}
-// The handles within reach of a screen point, nearest first.
-function handlesNear(x, y) {
-  const project = projector();
-  return handleDefs.map(h => { const s = project(h.at(h.value)); return s && { h, s, d: Math.hypot(s[0] - x, s[1] - y) }; })
-    .filter(c => c && c.d <= HANDLE_PICK).sort((a, b) => a.d - b.d);
-}
-function hoverHandle(key) {
-  if (key === handleHover) return;
-  handleHover = key;
-  renderer.domElement.style.cursor = key ? 'grab' : '';
-  renderer.domElement.title = key ? HANDLE_TITLES[key] : '';
-}
-// A handle's value in the light's values: a cone kept the right side of the other (a stored inner wider than 89 degrees
-// comes down to the one the game uses), rounded to whole units or half degrees.
-function handleValues(before, h, raw) {
-  const step = h.key === 'radius' ? 1 : 0.5, value = Math.min(h.hi, Math.max(h.lo, Math.round(raw / step) * step));
-  const next = { ...before };
-  if (h.key === 'radius') next.radius = value;
-  else if (h.key === 'outer') { next.outerConeAngle = value; if (before.innerConeAngle > value) next.innerConeAngle = h.lo; }
-  else { next.innerConeAngle = value; if (before.outerConeAngle < value) next.outerConeAngle = value; }
-  return { next, value };
-}
-function lightDragHint(key, value) {
-  const hint = $('dragHint');
-  clearTimeout(hintTimer);
-  hint.hidden = false;
-  hint.replaceChildren(`${HANDLE_WORDS[key]} ${key === 'size' ? `${value} times the map's size` : key === 'radius' || key.startsWith('radius') ? `${value} units` : `${value}°`} · `);
-  text(hint, 'kbd', 'Esc'); hint.append(' cancels the drag');
-}
-function startLightDrag(e) {
-  if (e.button !== 0 || lightDrag || gizmo.controls.dragging) return false;
-  const near = handlesNear(e.clientX, e.clientY), root = handleRoot();
-  if (!near.length || !root) return false;
-  showPop(null);
-  renderer.domElement.setPointerCapture(e.pointerId);
-  // two handles under the press (a spot's inner cone at 0 sits on its radius handle): the first move picks the one
-  // whose way it goes
-  const handle = near.length === 1 || near[1].d - near[0].d > 3 ? near[0] : null;
-  lightDrag = { root, before: root.userData.effect ? structuredClone(root.userData.values ?? {}) : { ...root.userData.values },
-                side: cameraSide(), start: [e.clientX, e.clientY], pointerId: e.pointerId,
-                near, handle, offset: handle ? [handle.s[0] - e.clientX, handle.s[1] - e.clientY] : null };
-  renderer.domElement.style.cursor = 'grabbing';
-  return true;
-}
-function moveLightDrag(e) {
-  const d = lightDrag;
-  if (!d.handle) {
-    const mx = e.clientX - d.start[0], my = e.clientY - d.start[1], moved = Math.hypot(mx, my);
-    if (moved < 3) return;
-    const project = projector(), along = c => {
-      const h = c.h, eps = (h.hi - h.lo) * 1e-3, up = h.value + eps <= h.hi;
-      const a = project(h.at(h.value)), b = project(h.at(up ? h.value + eps : h.value - eps));
-      if (!a || !b) return 0;
-      const tx = b[0] - a[0], ty = b[1] - a[1], len = Math.hypot(tx, ty) || 1;
-      return Math.abs((tx * mx + ty * my) / (len * moved));
-    };
-    d.handle = d.near.reduce((best, c) => (along(c) > along(best) ? c : best));
-    d.offset = [d.handle.s[0] - d.start[0], d.handle.s[1] - d.start[1]];
-  }
-  const h = d.handle.h, raw = nearestValue(h, projector(), [e.clientX + d.offset[0], e.clientY + d.offset[1]]);
-  if (d.root.userData.effect) {
-    // an effect's size or a sound's radius: drawn live, one undo step at the release (endLightDrag)
-    const { next, value } = effectHandleValues(d.before, h, raw);
-    lightDragHint(h.key, value);
-    d.root.userData.values = Object.keys(next).length ? next : null;
-    drawEffectShape();
-    return;
-  }
-  const { next, value } = handleValues(d.before, h, raw);
-  lightDragHint(h.key, value);
-  if (!Object.keys(changedValues(next, d.root.userData.values)).length) return;
-  setLightValues(d.root, next);
-  refreshLightShapes(); lightPanel();
-  if (soloOn) updateSolo();
-}
-// The drag's end: kept as one undo step, or (Escape, a cancelled pointer) put back. True when there was one.
-function endLightDrag(keep) {
-  const d = lightDrag;
-  if (!d) return false;
-  lightDrag = null;
-  try { renderer.domElement.releasePointerCapture(d.pointerId); } catch { /* already released */ }
-  renderer.domElement.style.cursor = handleHover ? 'grab' : '';
-  if (d.root.userData.effect) {
-    const after = d.root.userData.values ? structuredClone(d.root.userData.values) : null, before = Object.keys(d.before).length ? d.before : null;
-    setEffectValues(d.root, before);
-    if (keep && JSON.stringify(after) !== JSON.stringify(before)) {
-      const id = d.root.userData.source.id;
-      gizmo.record({ redo: () => { setEffectValues(d.root, after); select(id, false, true); },
-                     undo: () => { setEffectValues(d.root, before); select(id, false, true); } });
-    }
-    restingHint();
-    return true;
-  }
-  const after = { ...d.root.userData.values };
-  setLightValues(d.root, d.before);
-  if (keep && Object.keys(changedValues(after, d.before)).length)
-    gizmo.record({ redo: () => setLightValues(d.root, after), undo: () => setLightValues(d.root, d.before) });
-  else lightsChanged();
-  restingHint();
-  return true;
-}
-
-// The selected light in the panel.
-function showLight(root) {
-  const o = root.userData.source, viewOnly = lightViewOnly(o), v = root.userData.values;
-  highlight.visible = false; ladderMarks.visible = false;
-  const details = $('details');
-  details.replaceChildren();
-  text(details, 'h2', short(o.actor));
-  text(details, 'div', `${o.actorClass} · ${o.kind} light${o.sourcePackage ? ` · ${o.sourcePackage}` : ''}`, 'sub');
-  const chips = text(details, 'div', '', 'chips');
-  const role = o.role === 'static' && o.bakedInto ? `Placed light, baked into ${plural(o.bakedInto.length, 'piece')}`
-    : o.role === 'area' ? 'Made by the bake for a glowing surface' : o.role === 'toggleable'
-      ? `Lit live${o.referencedBy?.length ? `; switched off when ${o.referencedBy.map(r => r.split(' ')[0]).join(', ')} breaks` : ''}`
-      : ROLE_WORDS[o.role] ?? o.role;
-  if (!o.added) text(chips, 'span', role, 'chip').title = o.role === 'area'
-    ? 'Lightmass made it for a glowing surface when the map was baked; it lights soldiers and other things lit live. It follows the piece it glows from'
-    : role;
-  if (o.added) text(chips, 'span', o.added.template ? `Recipe ${o.kind} light` : 'Added copy', 'chip').title = o.added.template
-    ? `A ${o.kind} light the editor makes from its built-in recipe (version ${o.added.template.version}), for a map with no ${o.kind} light to copy, or placed with a prefab`
-    : `A copy of ${short(o.added.from.actor)}`;
-  if (viewOnly) text(chips, 'span', 'View only', 'chip warn').title = sentence(viewOnly);
-  else if (families?.families?.light && !families.families.light.builds)
-    text(chips, 'span', 'Builds after its game test', 'chip warn').title = families.families.light.note;
-  if (isStream(o)) text(chips, 'span', 'Streamed level', 'chip warn').title = `From ${o.stream}: shown for reference`;
-  $('editCopy').disabled = !copyable().length;
-  const dl = $('sourceFields');
-  dl.replaceChildren();
-  field(dl, 'Actor', short(o.actor));
-  if (o.component) field(dl, 'Component', short(o.component));
-  if (o.added && !o.added.template) field(dl, 'Copied from', short(o.added.from.actor));
-  field(dl, 'Class', o.actorClass);
-  field(dl, 'Role', o.role);
-  if (o.lightGuid) field(dl, 'Light GUID', o.lightGuid);
-  if (o.lightmapGuid) field(dl, 'Lightmap GUID', o.lightmapGuid);
-  if (o.bakedInto) field(dl, 'Baked into', plural(o.bakedInto.length, 'piece'));
-  if (o.shadowMapped?.length) field(dl, 'Shadow maps', plural(o.shadowMapped.length, 'piece'));
-  if (o.channels) field(dl, 'Channels', 'its own lighting channels');
-  if (o.kind === 'spot') {
-    const [i, out] = effectiveConeDegrees(v.innerConeAngle, v.outerConeAngle);
-    field(dl, 'Cones', `stored ${v.innerConeAngle}° / ${v.outerConeAngle}°, drawn ${Number(i.toFixed(2))}° / ${Number(out.toFixed(2))}°`);
-  }
-  if (o.referencedBy?.length) field(dl, 'Named by', o.referencedBy.join('\n'));
-  if (o.saved?.length) field(dl, 'Saved values', o.saved.join(', '));
-  if (o.emitterAttachment) field(dl, 'Glowing piece', `${o.emitterAttachment.status}${o.emitterAttachment.reason ? `: ${o.emitterAttachment.reason}` : ''}`);
-  field(dl, 'Map location', o.location.map(x => x.toFixed(2)).join(', '));
-  $('copyPaths').onclick = () => copyText($('copyPaths'), [`Actor: ${o.actor}`, o.component ? `Component: ${o.component}` : null].filter(Boolean).join('\n'));
-  editChanged();
-}
-
-// The Add panel's lights: Point light and Spot light, from the map's first light of that kind that can be edited, its
-// values to start; a spot light from the built-in recipe where the map has none (plan 3.3, 4.9). Placed as pieces are,
-// at the template's height above the floor.
-function lightClip(kind) {
-  if (lightsBlocked()) { flashHint(sentence(lightsBlocked())); return null; }
-  const template = [...lightRoots.values()].map(r => r.userData.source)
-    .find(o => !o.added && o.kind === kind && o.role === 'static' && !lightViewOnly(o));
-  let source, values, height;
-  if (template) {
-    source = template; values = valuesOf(template);
-    const floor = floorBelow(template.location);
-    height = floor == null ? 200 : Math.max(16, template.location[2] - floor);
-  } else if (families?.lightRecipes?.[kind]) {
-    // a map without one: the editor's own, made from its built-in recipe (a spot light points down)
-    ({ source, values } = recipeLight({ kind, version: families.lightRecipes[kind].latest }, null, [0, 0, 0], kind === 'spot' ? [-QUARTER, 0, 0] : [0, 0, 0]));
-    height = 256;
-  } else { flashHint(`This map has no ${kind} light to copy`); return null; }
-  return { entries: [{ source, matrix: new THREE.Matrix4().fromArray(source.matrix), values }], pivot: [...source.location],
-           pivotIndex: 0, name: `${kind === 'spot' ? 'Spot' : 'Point'} light (${template ? short(template.actor) : 'recipe'})`,
-           light: true, lightHeight: height };
-}
-// The piece list's Lights kind: Point Light and Spot Light, each where lightClip has a light to start from.
-function lightEntries() {
-  if (data.scope !== 'map' || data.preview || lightsBlocked()) return [];
-  const family = families?.families?.light, out = [];
-  for (const kind of ['point', 'spot']) {
-    const template = [...lightRoots.values()].map(r => r.userData.source)
-      .find(o => !o.added && o.kind === kind && o.role === 'static' && !lightViewOnly(o));
-    const recipe = !template ? families?.lightRecipes?.[kind] ?? null : null;
-    if (!template && !recipe) continue;
-    const values = template ? valuesOf(template) : recipe.values, name = kind === 'point' ? 'Point Light' : 'Spot Light';
-    const cone = kind === 'spot' ? ` · cone ${Number(effectiveConeDegrees(values.innerConeAngle, values.outerConeAngle)[1].toFixed(1))}°` : '';
-    out.push({
-      key: `light:${kind}`, id: `light-${kind}`, light: kind, name, kind: 'Lights',
-      pkg: template ? `starts as ${short(template.actor)}` : `the editor's own ${kind} light (recipe ${recipe.latest})`,
-      detail: `radius ${Math.round(values.radius)} · brightness ${Number(values.brightness.toFixed(2))}${cone}`,
-      colour: values.color.map(c => c / 255),
-      count: [...lightRoots.values()].filter(r => !r.userData.source.added && !isStream(r.userData.source) && r.userData.source.kind === kind
-                                              && !['area', 'dominant', 'sky'].includes(r.userData.source.role)).length,
-      builds: Boolean(family?.builds), note: family?.note ?? '',
-      title: `A new ${kind} light, placed as a piece is, at ${template ? `${short(template.actor)}'s` : 'its'} height above the floor. `
-        + `It starts with ${template ? `that light's values` : `the recipe's values (white${kind === 'spot' ? ', pointing down' : ''})`}; select it to change any of them`,
-      sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
-      text: `${name} lights lamp ${kind === 'point' ? 'bulb point' : 'spot spotlight'}`.toLowerCase(),
-    });
-  }
-  return out;
 }
 // The piece list's Landing zones kind: one entry, placed with a click (the one way to add a zone)
 function zoneEntries() {
@@ -3445,142 +2752,23 @@ function spawnAddEntries() {
 }
 // (walls, floors, roofs and ground are drawn from the Build menu on the Add button, no longer listed here: B1)
 const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
-// A light made from a built-in recipe (families.json lightRecipes: spot, and point once the Build makes them), as a
-// source to copy: { source, values }, or null for a kind or version this page doesn't know.
-// A made light's values with its cone (a spot light's) in the ranges the Build takes, lighting as before (storableCone).
-function withStorableCone(values) {
-  if (values.innerConeAngle == null || values.outerConeAngle == null) return values;
-  const [innerConeAngle, outerConeAngle] = storableCone(values.innerConeAngle, values.outerConeAngle);
-  return { ...values, innerConeAngle, outerConeAngle };
-}
-function recipeLight(template, light, location, rotation, actor = null) {
-  const recipe = families?.lightRecipes?.[template?.kind];
-  if (!recipe?.versions?.includes(template.version)) return null;
-  const kind = template.kind, cls = kind === 'point' ? 'PointLight' : 'SpotLight';
-  // (a prefab saved before its cones were capped may hold a map's wide cone: it is made as the cone it lights as)
-  const values = withStorableCone({ ...recipe.values, ...Object.fromEntries(Object.keys(recipe.values).filter(k => light?.[k] !== undefined).map(k => [k, light[k]])) });
-  const direction = directionOf(actorMatrix(location, rotation));
-  const source = lightSource({ id: `recipe:${kind}`, actor: actor ?? `${PL}${cls}`, component: null, actorClass: cls, componentClass: `${cls}Component`,
-                               sourcePackage: data.name, layer: 'base', kind, role: 'static', location: [...location], rotation: [...rotation],
-                               direction, castShadows: true, recipe: { kind, version: template.version },
-                               ...recordNow({}, values, location, rotation, direction) });
-  return { source, values };
-}
-// An added light: a copy of a light (its template the original's: a copy of a copy keeps it), or of a recipe light.
-// `actor`: its output name (a project's record), else a new one with the next serial.
-function addedLight(source, placed, values, actor = null) {
-  const recipe = source.added?.template ?? source.recipe ?? null;
-  const from = recipe ? null : source.added ? source.added.from : { package: source.sourcePackage, level: source.layer, actor: source.actor };
-  actor ??= `${recipe ? `${PL}${recipe.kind === 'point' ? 'PointLight' : 'SpotLight'}` : from.actor}_copy${nextCopySerial()}`;
-  // its pose read against its source's own place (a light's matrix is its actor's); a point light keeps its rotator
-  const pose = actorPose(source, placed);
-  if (source.kind === 'point') pose.rotation = [...source.rotation];
-  const o = { ...source, id: `light-added:${uuid()}`, actor, layer: 'added', isLight: true, matrix: placed.toArray(),
-              location: pose.location, rotation: pose.rotation, direction: directionOf(placed),
-              added: { from, template: recipe, entity: uuid(), component: recipe ? null : source.added?.component ?? source.component,
-                       fromId: recipe ? null : source.added?.fromId ?? source.id,
-                       templateValues: recipe ? null : source.added?.templateValues ?? valuesOf(source) } };
-  delete o.recipe; delete o.emitterAttachment; delete o.bakedInto; delete o.shadowMapped;
-  return makeLightRoot(o, values);
-}
-// The project's light records (plan 3.5): overrides of original lights, added lights, and the area lights' bindings.
-function lightState(overrides, added) {
-  for (const root of lightRoots.values()) {
-    const o = root.userData.source;
-    if (o.added) {
-      const pose = lightPose(root);
-      if (o.added.template) added.set(o.actor, recordOf({ form: 'light', id: o.added.entity, actor: o.actor, template: { ...o.added.template }, ...pose,
-                                                         light: { ...root.userData.values } }));
-      else added.set(o.actor, recordOf({ form: 'light', id: o.added.entity, actor: o.actor, from: o.added.from, component: o.added.component, ...pose,
-                                         light: changedValues(root.userData.values, o.added.templateValues) }));
-      continue;
-    }
-    if (isStream(o) || lightViewOnly(o)) continue;
-    const target = { package: o.sourcePackage, level: o.layer, actor: o.actor };
-    if (root.userData.deleted) { overrides.set(lightKey(o), { target, deleted: true }); continue; }
-    const light = changedValues(root.userData.values, root.userData.baseValues);
-    if (root.userData.edit || Object.keys(light).length)
-      overrides.set(lightKey(o), { target, ...lightPose(root), ...(Object.keys(light).length ? { light } : {}) });
-  }
-  return [...areaBindings].map(([actor, owner]) => ({ target: { package: data.name, level: 'base', actor }, owner }));
-}
-// Back to the lights as exported: added ones go, deleted ones return, moved and changed ones go back, bindings end.
-function clearLightEdits() {
-  removeLightRoots([...lightRoots.values()].filter(r => r.userData.source.added));
-  const moved = [...lightRoots.values()].filter(r => r.userData.edit);
-  gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
-  for (const r of lightRoots.values()) { r.userData.deleted = false; setLightValues(r, r.userData.baseValues); }
-  setAreaBindings(new Map());
-}
-// Light records of a project state put on the map; those naming lights this export lacks are returned to be carried.
-function applyLightRecord(record) {
-  const root = lightIndex.get(targetKey(record.target));
-  if (!root) return false;
-  if (record.deleted) root.userData.deleted = true;
-  else {
-    gizmo.applyMatrices([root], [actorMatrix(record.location, record.rotation)]);
-    if (record.light) setLightValues(root, { ...root.userData.baseValues, ...record.light });
-  }
-  return true;
-}
-function addedLightOf(entity) {
-  const l = optionsOf(entity, 'light');      // (piece_records.js: its names, pose, recipe or original, and values)
-  const serial = Number(/_copy(\d+)$/.exec(l.actor)?.[1]);
-  if (serial > copySerial) setCopySerial(serial);
-  let source, values;
-  if (l.recipe) {
-    const made = recipeLight(l.recipe, l.light, l.location, l.rotation, l.actor);
-    if (!made) return null;
-    ({ source, values } = made);
-  } else {
-    const template = lightIndex.get(targetKey(l.from))?.userData.source;
-    if (!template || l.component !== template.component) return null;
-    source = template; values = { ...valuesOf(template), ...(l.light ?? {}) };
-  }
-  const root = addedLight(source, actorMatrix(l.location, l.rotation), values, l.actor);
-  const o = root.userData.source;
-  Object.assign(o, { location: l.location, rotation: l.rotation });
-  o.added.entity = l.entity;
-  return root;
-}
-// The lights of a map once its pieces are built: placed, area, toggleable and streamed levels' lights with a place; the
-// sun and sky without one (listed in View options).
-function buildLights(streamLights) {
-  const all = [...(data.lights ?? []), ...streamLights];
-  fixedLights = (data.lights ?? []).filter(l => !['point', 'spot'].includes(l.kind));
-  addLightRoots(all.filter(l => ['point', 'spot'].includes(l.kind) && Array.isArray(l.location))
-    .map(l => makeLightRoot(lightSource(l), valuesOf(l))));
-  const sky = $('skyList');
-  sky.replaceChildren();
-  for (const l of fixedLights) text(sky, 'div', `${short(l.actor)} · ${l.kind}${l.role === 'dominant' ? ' (sun or moon)' : ''} · brightness ${Number(l.brightness.toFixed(2))}${l.enabled ? '' : ' · off'}`);
-  if (!fixedLights.length) text(sky, 'div', 'This map has no sun, moon or sky light.');
-  $('skyRow').hidden = !(data.lights ?? []).length;
-  deriveAreaLights();
-}
-// The page's lights after any edit: markers painted for the selection, the panel, the shapes, Solo, the area lights
-// following their pieces and the Map lighting mode (throttled while a drag lasts).
-function lightsChanged() {
-  const picked = new Set(gizmo.picks().ids.filter(id => lightRoots.has(id)));
-  for (const id of new Set([...paintedLights, ...picked])) { const r = lightRoots.get(id); if (r) paintLight(r); }
-  paintedLights = picked;
-  deriveAreaLights();
-  refreshLightShapes();   // first: the panel says what the outlines show
-  lightPanel();
-  if (soloOn) updateSolo();
-}
-// Light edits are drawn and saved; while the family is refused, said once, as warnNotBuilt does for pieces. A glowing
-// piece moved, copied or deleted takes its light along, so it waits for the same test.
-function warnLights() {
-  if (warnedLights || !families?.families?.light || families.families.light.builds) return;
-  const edited = [...lightRoots.values()].some(r => !isStream(r.userData.source) && lightEdited(r));
-  const glowing = derivedCopies.length || [...lightRoots.values()].some(r => r.userData.source.role === 'area'
-    && (r.userData.derivedGone || !r.matrix.equals(baseMatrix(r))));
-  if (!edited && !glowing) return;
-  warnedLights = true;
-  banner(`${edited ? 'Light edits are' : 'A glowing piece moved, copied or deleted takes its generated light along, which is'} drawn and saved, `
-         + 'but not built yet: the Build makes lights once their game test passes, and refuses the project until then.',
-         [['Undo', () => gizmo.undo()]]);
-}
+// The Lights view (lights_wiring.js): the map's lights as roots, the view, the panel's light section, Solo, the
+// area lights following their glowing pieces, the reach, the drag handles (the picked effect's and sound's too),
+// and the project's light records.
+const { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, assignOwner, buildLights, changeLight,
+        clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear, hoverHandle, lightClip, lightEdited,
+        lightEntries, lightPanel, lightPose, lightRecords, lightsBlocked, lightsChanged, lightShapes, lightSource,
+        lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, recipeLight, refreshLightShapes,
+        refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
+        setNormalLights, setSolo, showLight, startLightDrag, updateLightHandles, valuesEdited, warnLights,
+        withStorableCone } = createLightsWiring({
+  $, actorPose, baseMatrix, camera, copyable, copyText, drawEffectShape, editChanged, effectValuesEditable, field,
+  flashHint, gizmo, HANDLE_PICK, highlight, isStream, ladderMarks, lightLayer, pickables, PL, plural, pointOutside,
+  projector, renderer, restingHint, select, setEffectsShown, setEffectValues, setSpawnsShown, setVolumesShown,
+  setZonesShown, short, showPop, sun, syncLights, text, world,
+  // (made further down: called through, since they are not made yet while this runs)
+  applyLighting: () => applyLighting(), banner: (message, actions, options) => banner(message, actions, options),
+  effectNow: (root, r) => effectNow(root, r), effectsShown: () => effectsShown(), stopPickBox: () => stopPickBox() });
 // Prepare: an export older than what lights and builds need (families.json's exportProblem) exported again (POST
 // /maps/<id>/export with prepare), then the page reopened. A dialog in the middle of the window asks: when the map
 // opens, before a build or a play of a project, and from a build that failed for want of it (its Prepare the map
@@ -3960,7 +3148,7 @@ function frame(root = content) {
   camera.near = frameNear = Math.max(0.2, distance / 5000); camera.far = Math.max(100000, distance * 8);
   camera.updateProjectionMatrix(); controls.update();
   if(root===content || root==='playable') {
-    lightRadius=Math.max(700,size.length()*0.55);sun.target.position.copy(center);
+    setLightRadius(Math.max(700,size.length()*0.55));sun.target.position.copy(center);
     Object.assign(sun.shadow.camera,{left:-lightRadius,right:lightRadius,top:lightRadius,bottom:-lightRadius,near:1,far:lightRadius*6});
     sun.shadow.camera.updateProjectionMatrix();applyLighting();
   }
@@ -4835,7 +4023,7 @@ function clearMap(size, keepOutside = false) {
       setCleared(true); setClearKeepsOutside(keepOutside); setMergedBuildings(null); setStage(next); clearedChanged();
       setProjectMissions(missionsCleared.map(e => ({ ...e }))); refreshMissionPicker();
       if (kept) { setLandingZones([{ ...kept }]); setPickedZone(null); refreshLandingZones(); }
-      refreshLightVisibility(); lightsDirty = true; gizmo.setSelection([]); sceneChanged();
+      refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
     },
     undo: () => {
       addRoots(plan.added); addLightRoots(plan.addedLights);
@@ -4845,7 +4033,7 @@ function clearMap(size, keepOutside = false) {
       setCleared(clearedBefore); setClearKeepsOutside(keepsBefore); setMergedBuildings(null); setStage(stageBefore); clearedChanged();
       setProjectMissions(missionsBefore ? missionsBefore.map(e => ({ ...e })) : null); refreshMissionPicker();
       if (kept) { setLandingZones(zonesBefore ? zonesBefore.map(z => ({ ...z })) : null); setPickedZone(null); refreshLandingZones(); }
-      refreshLightVisibility(); lightsDirty = true; gizmo.setSelection(picks.ids, picks.active); sceneChanged();
+      refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection(picks.ids, picks.active); sceneChanged();
     },
   });
   lastClearMs = Math.round(performance.now() - started);
@@ -5679,7 +4867,7 @@ function setSpawnsShown(on) {
     stopSpawnPlacing();     // a spawn point asked for from the Add panel and not placed yet goes with its view
     if (!spawnLandingBefore) landingLayer.visible = false;
   }
-  spawnsOn = on;
+  setSpawnsOn(on);
   refreshSpawnMarkers(); lightButton(); placeMissionGizmo();
   if (on) {
     const shown = shownEntries(spawnEntriesNow, spawnFilters), n = kinds => shown.filter(e => kinds.includes(e.record.kind)).length;
@@ -6549,7 +5737,7 @@ function setEffectsShown(on) {
     $('floorTip').hidden = true;
     stopWave();
   }
-  effectsOn = on;
+  setEffectsOn(on);
   // in or out, the selection goes: the view picks its markers only, and the normal view moves groups whole
   if (!on && gizmo.picks().ids.some(id => effectRoots.has(id))) select(null);
   refreshEffects(); lightButton();
@@ -6972,7 +6160,7 @@ const ownVolumeMaterials = {
   line: new THREE.LineBasicMaterial({ color: 0x9aa7b0, transparent: true, opacity: 0.45, depthWrite: false }) };
 const ownVolumeLayer = new THREE.Group(); world.add(ownVolumeLayer);
 const buildingMeta = new Map();     // building id -> { name, kind }
-let volumesOn = false, volumeSerial = 0, volumesKey = '[]', volumeTool = null, volumeDrag = null, volumeHover = null;
+let volumeSerial = 0, volumesKey = '[]', volumeTool = null, volumeDrag = null, volumeHover = null;     // (volumesOn: editor_state.js)
 let volumeClip = null, lastBuilding = null, aroundIds = [];
 let ownPicked = null;       // one of the map's own boxes, picked to read: its fill mesh (never moved or changed)
 // The map's own buildings selected with pieces in the normal view (the Normal button's Floor boxes): a copy of the
@@ -7136,13 +6324,13 @@ function setVolumesShown(on) {
     aroundIds = gizmo.selection().filter(r => roots.has(r.userData.source.id) && !r.userData.source.cover && !r.userData.deleted).map(r => r.userData.source.id);
     stopPickBox();
     select(null);
-    lightsOn = false;
-    volumesOn = true;
+    setLightsOn(false);
+    setVolumesOn(true);
     if (gizmo.mode === 'rotate') gizmo.setMode('translate');
     if (!ownVolumeLayer.children.length) drawOwnVolumes();
   } else {
     setVolumeTool(null);
-    volumesOn = false; aroundIds = []; ownPicked = null;
+    setVolumesOn(false); aroundIds = []; ownPicked = null;
     if (volumeRoots.has(gizmo.active)) select(null);
   }
   syncLights();
@@ -9841,7 +9029,7 @@ async function fetchJson(url, onProgress) {
 // The map's missions (an export's `missions`: its DefaultMaps.ini records) and the one whose streamed packages show.
 // missionPickValue is the picker's value: a record's index ('0', '1', ...), or 'kind:<kind>' for a kind the project
 // adds (mission types plan, D2), which streams nothing; missionIndex is the record's index, -1 for an added kind.
-let missionIndex = 0, streamSet = new Set();     // (the picker's value, missionPickValue: editor_state.js)
+let missionIndex = 0;     // (the picker's value, missionPickValue, and the streams shown, streamSet: editor_state.js)
 // (an added kind the address asks for, askedPick: editor_state.js)
 // The missions the header's picker lists: the map's records, or the project's missions when it names them (its
 // records kept, then the kinds it adds).
@@ -9879,17 +9067,17 @@ function missionLabels(missions) {
 function chooseMission(value) {
   const missions = data?.preview ? [] : data?.missions ?? [];
   const v = String(value ?? '0');
-  if (v.startsWith('kind:')) { setMissionPickValue(v); missionIndex = -1; streamSet = new Set(); return; }
+  if (v.startsWith('kind:')) { setMissionPickValue(v); missionIndex = -1; setStreamSet(new Set()); return; }
   const index = Number(v);
   missionIndex = Number.isInteger(index) && missions[index] ? index : 0;
   setMissionPickValue(String(missionIndex));
-  streamSet = new Set(missions[missionIndex]?.streams ?? []);
+  setStreamSet(new Set(missions[missionIndex]?.streams ?? []));
 }
 async function open() {
   stopPickBox();
-  boxesShown = false; normalLights = false; lightsOn = false; lightsShown = false; zonesOn = false;
-  effectsOn = false; pickedEffect = null; normalEffects = false; effectLayer.visible = false; effectsDirty = true; stopWave();
-  spawnsOn = false; pickedSpawn = null; spawnZonePick = null; normalSpawns = recall(NORMAL_SPAWNS) === '1'; spawnRulesData = null;
+  boxesShown = false; setNormalLightsValue(false); setLightsOn(false); setLightsShownValue(false); setZonesOn(false);
+  setEffectsOn(false); setPickedEffect(null); normalEffects = false; effectLayer.visible = false; effectsDirty = true; stopWave();
+  setSpawnsOn(false); pickedSpawn = null; spawnZonePick = null; normalSpawns = recall(NORMAL_SPAWNS) === '1'; spawnRulesData = null;
   const parameters=new URLSearchParams(location.search);
   loadingState('Opening the map list…');
   const mapResponse=await fetch('/maps.json');
@@ -9958,7 +9146,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   document.title = `${data.name} · XCOM Map Workshop`;
   $('previewChip').hidden = !data.preview;
   // Configure light data before the first lit material compiles.
-  lighting = createMapLighting({ world, sun, hemisphere, scene: data, maxTextureSize:renderer.capabilities.maxTextureSize });
+  setLighting(createMapLighting({ world, sun, hemisphere, scene: data, maxTextureSize:renderer.capabilities.maxTextureSize }));
   $('scenery').value=data.preview ? 'full' : data.tactical?.recommendedView || 'full';
   $('sceneryGroup').hidden=!data.playableBounds || data.scope!=='map';
   $('projectSize').hidden = !projectsAvailable();     // Map grid: any whole map
@@ -10036,7 +9224,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   applyLighting = () => {
     // the lights as edited (lightRecords), when they changed since
     if (lightsDirty && data.scope === 'map' && !data.preview) {
-      lighting.setLights(lightRecords()); lightsDirty = false; lastLightSync = performance.now();
+      lighting.setLights(lightRecords()); setLightsDirty(false); setLastLightSync(performance.now());
     }
     if (soloOn) { lighting.dim(sun.target.position, lightRadius); return; }
     const result = lighting.apply($('lighting').value, sun.target.position, lightRadius);
@@ -10580,8 +9768,8 @@ for (const id of ['coverHeight']) {
 $('coverFit').onclick = fitFloor;
 $('lightSolo').onclick = () => setSolo(!soloOn);
 $('lightAssign').onclick = () => {
-  if (assigning) { assigning = null; lightPanel(); return; }
-  assigning = selected; lightPanel(); flashHint('Click the piece this light glows from · Esc cancels');
+  if (assigning) { setAssigning(null); lightPanel(); return; }
+  setAssigning(selected); lightPanel(); flashHint('Click the piece this light glows from · Esc cancels');
 };
 $('lightKeep').onclick = () => { const root = lightRoots.get(selected); if (root) setBinding(root, null); };
 $('lightAuto').onclick = () => { const root = lightRoots.get(selected); if (root) setBinding(root, undefined); };
@@ -10591,10 +9779,10 @@ $('editEffects').onclick = () => data && setEffectsShown(!effectsOn);
 $('editSpawns').onclick = () => data && setSpawnsShown(!spawnsOn);
 $('editNormal').onclick = () => data && setNormalView();
 $('normalLights').onchange = e => { setNormalLights(e.target.checked); e.target.blur(); };
-$('areaToggle').onchange = e => { areaShown = e.target.checked; remember(AREA_SHOWN, areaShown ? '1' : '0'); refreshLightVisibility(); e.target.blur(); };
+$('areaToggle').onchange = e => { setAreaShown(e.target.checked); remember(AREA_SHOWN, areaShown ? '1' : '0'); refreshLightVisibility(); e.target.blur(); };
 $('reachToggle').onchange = e => {
-  reachShown = e.target.checked; remember(REACH_SHOWN, reachShown ? '1' : '0'); e.target.blur();
-  reachKey = ''; refreshLightShapes(); lightPanel();   // drawn again with or without the outlines
+  setReachShown(e.target.checked); remember(REACH_SHOWN, reachShown ? '1' : '0'); e.target.blur();
+  setReachKey(''); refreshLightShapes(); lightPanel();   // drawn again with or without the outlines
 };
 $('skyToggle').checked = recall(SKY_SHOWN) === '1';
 $('skyList').hidden = !$('skyToggle').checked;
@@ -10860,7 +10048,7 @@ document.addEventListener('keydown', e => {
     else return;
   } else if (key === 'delete') { if (!selected && !ownSet.size) return; if (!deleteWallOpening()) deleteSelection(); }
   else if (key === 'escape') {
-    if (assigning) { assigning = null; lightPanel(); flashHint('Assigning cancelled'); }
+    if (assigning) { setAssigning(null); lightPanel(); flashHint('Assigning cancelled'); }
     else if (gizmo.cancel()) dragHint(false);
     else if (placing) stopPlacing();
     else if (document.querySelector('.pop:not([hidden])')) showPop(null);
