@@ -126,6 +126,8 @@ from effect_edits import (EFFECT_SCALE, EFFECT_WORDS, PARAMETER_MAX, SOUND_PITCH
 # families and twin constants, the tests)
 from light_edits import (LIGHT_RANGES, LIGHT_RECIPES, light_rule, light_value_problem, rotator_of,  # noqa: E402,F401
                          LightEdits)
+# the pieces' flags family (nothing reads its tables through the compiler)
+from flag_edits import FlagEdits  # noqa: E402
 
 COMPILER_VERSION = 3
 # A fracturing wall made from numbers (custom geometry plan, section 0): its numbers are its tile edges, it is at
@@ -282,11 +284,7 @@ EXPORT_MINIMUM = 18
 # each kind of effect record's object of the spec and of the native edit (its lane); the effects family's own tables
 # are in effect_edits.py
 EFFECT_LANES = (('effect', 'effects'), ('sound', 'sounds'), ('flare', 'flares'))
-# Pieces' flags (piece flags plan, P4): read from the export's pieceFlags (export 27; a piece of another map from its
-# library record), checked with piece_flags.plan, and built by the Build's writer from the package itself (native_copy
-# set_roles). A piece this wide or tall (units) with walking, cover or sight turned off is noted (flags-wall).
-FLAGS_EXPORT = 27
-FLAGS_WALL = 192.0
+# the version of the export's light metadata a project's edits need (light_metadata_problem)
 LIGHT_METADATA = 1
 # Cover blocks (tools/bake/cover_blocks.py): whole tiles across, `width` along the block's X and `length` along its Y
 # from its corner (the record's location, on the floor), and from 12 units below that floor to 96 above it (high
@@ -893,10 +891,9 @@ class Compiler:
         self.donor_buildings = {}
         self.untried_foreign = {}    # (package folded, actor path) of the pieces of other maps built untried
         # pieces' flags (piece flags plan): the map's own pieces whose flags change where they stand (the spec's
-        # `pieceFlags` object), the actors whose floor such an edit takes away or gives, and the report's counts
-        self.flag_edits = []
-        self.floor_off, self.floor_on = set(), {}
-        self.flag_counts = dict(requested=0, applied=0, leftOut=0, roles={r: 0 for r in piece_flags.ROLES}, companions=0)
+        # `pieceFlags` object), the actors whose floor such an edit takes away or gives, and the report's counts:
+        # their own module (review finding 23)
+        self.flag_edits = FlagEdits(self)
         # what run()'s stages work out, in its order (review finding 23): check_document the map's package;
         # cleared_mark the clear; spawn_rules_mark the drop-in rule; stage the larger grid; landing_zones the zones and
         # the map's own landings. Each keeps these values when the stage doesn't run (a document that stops earlier).
@@ -1511,88 +1508,6 @@ class Compiler:
                     self.warn('wall-window-blind', "%s: units can't see through it: it doesn't reach across the "
                               "game's sight line, %g over the floor" % (what, WALL_SWEEPS['sight']), **where)
 
-    def flags_valid(self, rec, where):
-        """Whether a record's `flags` (if any) is well formed: an object of known roles, each strictly true or false,
-        never empty. A malformed one leaves the record out, as any malformed field does."""
-        if 'flags' not in rec:
-            return True
-        f = rec['flags']
-        if isinstance(f, dict) and f and all(k in piece_flags.ROLES for k in f) and all(isinstance(v, bool) for v in f.values()):
-            return True
-        self.error('malformed', 'flags must name walking, cover, sight, floor or mouse, each true or false (it has %r)'
-                   % (f,), **where)
-        return False
-
-    def flag_plan(self, src, flags, name, where, box=None, made=None):
-        """(the request applied, piece_flags.plan) of a piece's flags against its settings as the export has them, or
-        (None, None) with a warning when they can't be checked (the piece is built without them). Roles the class
-        doesn't have are noted and dropped; a request a prop's gate makes ambiguous (a hand-edited file: the page
-        asks) is a warning and nothing of it is built. box: the piece's world box where it ends up (a copy's), else
-        the one where it stands. made: the generated kind of a wall, floor or ground made from numbers, whose flags
-        are planned on what the Build makes of its donor (piece_flags.made: simple collision of its own; a ground
-        shape's class and settings as native_copy.ground_collision leaves them)."""
-        self.flag_counts['requested'] += 1
-        record = src.get('pieceFlags')
-        cls = src.get('actorClass')
-        if not record:
-            why = ('the flags are not a setting of %s %s' % ('an' if str(cls)[:1] in 'AEIOUX' else 'a', cls)
-                   if piece_flags.family_of(cls) is None else
-                   'its export predates pieces\' flags (export %d): open the map in the editor to prepare it again, then '
-                   'build' % FLAGS_EXPORT)
-            self.warn('flags-unavailable', '%s\'s flags are not built: %s' % (name, why), **where)
-            self.flag_counts['leftOut'] += 1
-            return None, None
-        if made:
-            cls, record = piece_flags.made(cls, record, made)
-        raw, assumed = piece_flags.raw_of(record)
-        plan = piece_flags.plan(cls, raw, flags, assumed)
-        for role, why in sorted(plan['unsupported'].items()):
-            self.note('flags-unsupported', '%s: %s is not built (%s)' % (name, piece_flags.LABELS.get(role, role), why),
-                      role=role, **where)
-        if plan['conflicts']:
-            self.warn('flags-conflict', '%s\'s flags are not built: %s' % (name, '; '.join(plan['conflicts'].values())),
-                      **where)
-            self.flag_counts['leftOut'] += 1
-            return None, None
-        for role, why in sorted(plan['unmet'].items()):
-            self.note('flags-limited', '%s: %s' % (name, why), role=role, **where)
-        applied = {k: v for k, v in flags.items() if k not in plan['unsupported']}
-        if not applied:
-            self.flag_counts['leftOut'] += 1
-            return None, None
-        changed = [r for r in piece_flags.ROLES if plan['after'][r] != plan['before'][r]]
-        if record.get('collides') is False and changed:
-            self.note('flags-no-collision', '%s collides with nothing, so no trace of the game meets it: its %s take effect '
-                      'only if it gets collision (the Build\'s floor for low scenery on a grown map gives some)'
-                      % (name, ' and '.join(piece_flags.LABELS[r] for r in changed)), **where)
-        elif record.get('bodySetup') is False and any(r in changed for r in ('walking', 'cover', 'sight')):
-            self.note('flags-limited', '%s\'s mesh has no simple collision (BodySetup): the pathing, cover and sight sweeps '
-                      'pass through it whatever its flags say' % name, **where)
-        opened = [r for r in ('walking', 'sight') if plan['after'][r] == 'off' and plan['before'][r] != 'off']
-        if cls == 'XComInteractiveLevelActor' and opened:
-            self.note('flags-door', '%s is a door with %s off: units %s through it when it is shut too'
-                      % (name, ' and '.join(piece_flags.LABELS[r] for r in opened),
-                         ' and '.join(dict(walking='walk', sight='see')[r] for r in opened)), **where)
-        if box is None:
-            box = self.boxes([src], src['location'], src['rotation']) if src.get('mesh') in self.meshes else None
-        if flags.get('walking') is True and plan['after']['walking'] in ('on', 'partial') and record.get('collides') is not False \
-                and piece_flags.low_piece(box, (tile_corner(self.scene.get('tileGrid')) or [None] * 3)[2]):
-            corner = tile_corner(self.scene.get('tileGrid'))[2]
-            reach = box[5] - (corner + piece_flags.LEVEL * math.floor((box[4] + 8 - corner) / piece_flags.LEVEL))
-            self.warn('flags-low', '%s is too low for Blocks walking to stop anyone: it reaches %d over the bottom of its '
-                      'level, under the %d the game\'s tiles need, so its tiles are only partly occupied and units still '
-                      'walk into them' % (name, round(reach), piece_flags.STOPS_FROM), **where)
-        if box and any(plan['after'][r] == 'off' and plan['before'][r] != 'off' for r in ('walking', 'cover', 'sight')) \
-                and (cls in ('XComFracLevelActor', 'XComDecoFracLevelActor') or max(box[1] - box[0], box[3] - box[2], box[5] - box[4]) > FLAGS_WALL):
-            self.note('flags-wall', '%s is a large piece (or a fracturing wall) that no longer blocks %s: units may walk or see '
-                      'through what looks solid' % (name, ' or '.join(piece_flags.LABELS[r].split()[-1] for r in ('walking', 'cover', 'sight')
-                                                                     if plan['after'][r] == 'off' and plan['before'][r] != 'off')), **where)
-        self.flag_counts['applied'] += 1
-        self.flag_counts['companions'] += len(plan['companions'])
-        for r in changed:
-            self.flag_counts['roles'][r] += 1
-        return applied, plan
-
     def blasts_valid(self, rec, parts, where, name=None):
         """Whether an override's or added copy's `blasts` are well formed (made_blasts.check) and on a fracturing
         piece; else an error and the record (an override) or its blasts (a copy) left out."""
@@ -1607,42 +1522,6 @@ class Compiler:
                 name or short(rec['target']['actor']), error), **where)
             return False
         return True
-
-    def stationary_flags(self, target, parts, flags, where):
-        """An original's flags changed where it stands (no move): the spec's `pieceFlags` entry, written in the map by
-        the Build (native_copy set_roles), with its box for the tiles it rebuilds."""
-        src, name = parts[0], short(target['actor'])
-        applied, plan = self.flag_plan(src, flags, name, where)
-        if applied is None:
-            return
-        box = self.boxes(parts, src['location'], src['rotation'])
-        if plan['after']['floor'] == 'off' and plan['before']['floor'] == 'on':
-            self.floor_off.add(target['actor'])
-            owned = sum(1 for f in ((self.scene.get('tactical') or {}).get('floorTiles') or []) if f.get('actor') == target['actor'])
-            if owned:
-                self.warn('flags-floor', '%s is no floor now: the %d tiles it is the floor of lose it unless another piece '
-                          'gives floor there; the landing, mission and ladder checks count without it' % (name, owned),
-                          tiles=owned, **where)
-        elif plan['after']['floor'] == 'on' and plan['before']['floor'] != 'on':
-            self.floor_on[target['actor']] = (name, box)
-        self.flag_edits.append(dict(name=name, target=target['actor'], flags=applied, box=[tidy(v, 3) for v in box],
-                                    tiles=plan['tiles'], actorClass=src['actorClass']))
-        self.entities.append(dict(kind='flags', target=target['actor'], actorClass=src['actorClass'], flags=applied,
-                                  before=plan['before'], after=plan['after'], writes=[list(w) for w in plan['writes']],
-                                  companions=plan['companions'], tiles=plan['tiles']))
-
-    def copy_flags(self, copy, src, flags, name, where):
-        """A copy's flags (a moved original's, an added piece's): its request goes with the copy, which the Build
-        writes once it is made."""
-        kind = (copy.get('generated') or {}).get('kind')
-        applied, plan = self.flag_plan(src, flags, name, where, copy.get('box'), made=kind)
-        if applied is None:
-            return
-        copy['flags'] = applied
-        collides = kind == 'ground' or src.get('pieceFlags', {}).get('collides') is not False
-        copy['floorAfter'] = plan['after']['floor'] if collides else None
-        copy['flagPlan'] = dict(before=plan['before'], after=plan['after'], companions=plan['companions'],
-                                writes=[list(w) for w in plan['writes']])
 
     # ---------------------------------------------------------------- poses
     def pose(self, rec, where):
@@ -1743,7 +1622,7 @@ class Compiler:
         flat = [c for c in self.copies if c.get('box') and not c.get('ladder') and c.get('actorClass') != 'XComLadder'
                 and id(c) not in waiting and c.get('floorAfter') != 'off']
         # the map's own pieces the project's flags make floor where they stand
-        flat += [dict(box=[b[0], b[1], b[2], b[3], b[4], b[5]], label=name) for name, b in getattr(self, 'floor_on', {}).values()]
+        flat += [dict(box=[b[0], b[1], b[2], b[3], b[4], b[5]], label=name) for name, b in self.flag_edits.floor_on.values()]
         # an invisible floor is made to carry floor (EXP-32): a plate with its top at its place
         flat += [c for c in self.covers if c.get('kind') == 'floor']
         tiles, blocked = {}, {}
@@ -1814,13 +1693,13 @@ class Compiler:
         jobs, self.ladder_jobs = self.ladder_jobs, []
         for copy, name, src, loc, rot, where in jobs:
             copy['ladder'] = self.ladder_ends(name, src, loc, rot, where)
-        if not self.floor_off:
+        if not self.flag_edits.floor_off:
             return
         grid = self.scene.get('tileGrid') or {}
         if not grid.get('origin'):
             return
         lost = {tuple(f['tile']) for f in ((self.scene.get('tactical') or {}).get('floorTiles') or [])
-                if f.get('actor') in self.floor_off}
+                if f.get('actor') in self.flag_edits.floor_off}
         gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')}
         for o in self.scene.get('objects') or []:
             if o.get('actorClass') != 'XComLadder' or o.get('actor') in gone or o.get('layer') != 'base':
@@ -1839,7 +1718,7 @@ class Compiler:
         where it stands (its box with a quarter tile and a tile round it, from the ground to the level over its top):
         the Build rebuilds their top tile first and their foot after, as a moved ladder's, so the climb keeps both its
         links (native_copy.flags_in_place). [{actor, foot, top}], sorted."""
-        edits = [e for e in self.flag_edits if e['tiles']]
+        edits = [e for e in self.flag_edits.edits if e['tiles']]
         grid = self.scene.get('tileGrid') or {}
         if not edits or not self.floors or not grid.get('origin'):
             return []
@@ -1917,7 +1796,7 @@ class Compiler:
                 continue
             for f in sorted(set(rec) - known):
                 self.note('unknown-field', 'field %r is not part of an override and is ignored' % f, **where)
-            if not self.flags_valid(rec, where):
+            if not self.flag_edits.flags_valid(rec, where):
                 continue
             parts = self.piece(target, where, deleting=rec.get('deleted') is True)
             if not parts:
@@ -1946,7 +1825,7 @@ class Compiler:
                 elif not self.pose_moves(rec, parts[0]):
                     # the piece where the map has it (flags alone, or its own pose): its flags written in place, and
                     # nothing else to build for the record (its assembly's move rule doesn't apply to flags)
-                    self.stationary_flags(target, parts, rec['flags'], where)
+                    self.flag_edits.stationary_flags(target, parts, rec['flags'], where)
                     continue
             family, assembly = self.family_of(target['actor'], parts)
             if assembly and family in ASSEMBLY_FAMILIES:
@@ -2117,7 +1996,7 @@ class Compiler:
                                 member=original_key(target), actorClass=src['actorClass'], ladder=None,
                                 **{k: v for k, v in extra.items() if k != 'helpers'}))
         if rec.get('flags'):
-            self.copy_flags(self.copies[-1], src, rec['flags'], name, where)
+            self.flag_edits.copy_flags(self.copies[-1], src, rec['flags'], name, where)
         if rec.get('blasts'):
             # (a moved piece broken: its copy made in the map carries the blasts, in its own frame: E6)
             self.copies[-1]['blasts'] = rec['blasts']
@@ -2323,7 +2202,7 @@ class Compiler:
                 # (as an override's: a copy's breaksFurther goes with its blasts; a made piece's is in `generated`)
                 self.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored' % short(out),
                           **where)
-            if not self.flags_valid(rec, where) or not self.generated_valid(rec, where):
+            if not self.flag_edits.flags_valid(rec, where) or not self.generated_valid(rec, where):
                 continue
             if 'flags' in rec and ('template' in rec or 'cover' in rec or self.light_edits.light_of(rec.get('from')) is not None):
                 self.error('malformed', '%s is a cover block, a floor or a light, whose flags are its own: a record of one '
@@ -2518,7 +2397,7 @@ class Compiler:
                               battle_words(src.get('keepsPieces'), rec['generated'].get('breaksFurther'))),
                           **where)
         if rec.get('flags'):
-            self.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
+            self.flag_edits.copy_flags(self.copies[-1], src, rec['flags'], short(out), where)
         if 'blasts' in rec and not rec.get('generated'):
             # a copy of one of the map's fracturing pieces broken (E6): its clone carries the blasts
             if self.blasts_valid(rec, [src], where, name=short(out)):
@@ -2965,12 +2844,12 @@ class Compiler:
                                 values=sorted(spawn_ops['values'], key=lambda d: d['name']),
                                 deletes=sorted(spawn_ops['deletes'], key=lambda d: d['name']),
                                 copies=sorted(spawn_ops['copies'], key=lambda d: d['name'])))
-        if self.flag_edits:
+        if self.flag_edits.edits:
             # the map's own pieces whose flags change where they stand (piece flags plan): written in the map by the
             # Build's writer (native_split moves them there), each with its box for the tiles it rebuilds
             # (and the map's ladders near them, whose top tiles the Build rebuilds first)
             near = self.flag_ladders()
-            objects.append(dict(type='pieceFlags', pieces=sorted(self.flag_edits, key=lambda e: e['name']),
+            objects.append(dict(type='pieceFlags', pieces=sorted(self.flag_edits.edits, key=lambda e: e['name']),
                                 **({'ladders': near} if near else {})))
         if self.blast_edits:
             # the map's own fracturing pieces broken where they stand (custom geometry editing plan, E6): their
@@ -3909,7 +3788,7 @@ class Compiler:
     def floor_kept_off(self):
         """The map's own pieces whose Floor the project's flags turn off or keep off (explicit Floor off): the Build's
         floor for low scenery on a grown map leaves them as they are (F-100 gives way to the user's flags)."""
-        return {e['target'] for e in self.flag_edits if e['flags'].get('floor') is False}
+        return {e['target'] for e in self.flag_edits.edits if e['flags'].get('floor') is False}
 
     def floor_now(self):
         """The map's saved floor tiles whose piece is still where it was: a deleted or moved piece takes its floor
@@ -3918,7 +3797,7 @@ class Compiler:
 
     def floor_records_now(self):
         """The export's floor tile records (tactical.floorTiles: tile, location, actor) of floor_now."""
-        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')} | getattr(self, 'floor_off', set())
+        gone = {e['target'] for e in self.entities if e['kind'] in ('delete', 'move')} | self.flag_edits.floor_off
         return [f for f in ((self.scene.get('tactical') or {}).get('floorTiles') or []) if f.get('actor') not in gone]
 
     def run(self):
@@ -3968,7 +3847,7 @@ class Compiler:
                                      for kind, key in EFFECT_LANES},
                                   spawns={k: len(self.spawn_edits.ops[op]) for k, op in (
                                       ('moved', 'moves'), ('valued', 'values'), ('added', 'copies'), ('deleted', 'deletes'))},
-                                  flags=dict(self.flag_counts, inPlace=len(self.flag_edits),
+                                  flags=dict(self.flag_edits.counts, inPlace=len(self.flag_edits.edits),
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
                       errors=self.errors, warnings=self.warnings, notes=self.notes, stageGrid=self.stage_grid,
                       cleared=self.cleared, clearKeepsOutside=self.keep_outside, landingZones=self.zones,
