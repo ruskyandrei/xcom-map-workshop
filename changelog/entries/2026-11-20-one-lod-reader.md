@@ -24,7 +24,9 @@ places the relight writes, and by `native_fields` for the transplant's reference
 Checked: every export of URB_Bar and TempleShip read by the old readers and the new (`component_record`,
 `component_fields`, `native_fields.fields`, `measure_common.component_light` over each of the 1,304 and 1,821 mesh
 components; `texture_record`, `texture_fields`, `lightmap_textures.bulk_meta_offsets` and `native_fields.fields` over
-each of the 935 and 603 textures) gives the same answers and the same refusals, word for word. A test on a made-up
+each of the 935 and 603 textures) gives the same answers and the same refusals, word for word; so does
+`native_fields.fields` over every export of both maps (14,051 and 14,137: its other classes' bulk records are
+`bulk_record`'s too, and none of them holds a negative inline size). A test on a made-up
 component, no install needed ([test_native_fields.py](../../tools/upk/tests/test_native_fields.py) `MeshLods`), reads
 it in both licensee branches (EW's swaps and meshes, UDK's end after the LOD array; a texture lightmap and a vertex
 one with its inline payloads) through the reader and the three that take from it, and refuses each broken layout in
