@@ -33,6 +33,14 @@ settled (publication.py). A record of each running attempt (<builds>/.work/write
 the folder it writes) lets a restarted server prove the old one's builds are gone before anything builds again; one
 still running, or one whose state can't be known, keeps the build slot busy with the reason.
 
+What a build reads is captured before it is launched (`capture`; review finding 12): the saved project's bytes, read
+whole under the store's lock (projects.py capture), into a snapshot of its own, <builds>/.work/queue-attempts/
+<attempt>/project.json, and the map picture the project names beside it (project.picture.png, its SHA-256 checked),
+for the editor's Build and the build queue alike. build.py builds the snapshot (--saved-file names the project's own
+file, --projects its folder), so a save, a rename or a new picture after the capture changes nothing of the build,
+and the job (`digest`, `picture`), the manifest (project.sha256, picture.sha256) and a bug report (the snapshot itself)
+name the same bytes. The build queue prunes the folder (buildqueue.py, ATTEMPT_DAYS).
+
 The one build slot is shared: the editor's Build, Play in game's build, prefab tests and the build queue. The queue
 reserves it while it runs (reserve/release), so no other build starts between its projects; a build already running
 finishes first. Readers of packages (Install in the game, the map pack, Play in game) take leases (lease): a project
@@ -47,12 +55,14 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import threading
 from uuid import uuid4
 import zipfile
 
+import pictures
 import procs
 import publication
 from projects import ProjectError
@@ -89,6 +99,39 @@ def stop_process(pid):
         import signal
         try: os.killpg(pid, signal.SIGTERM)
         except ProcessLookupError: pass
+
+
+def _write(path, data):
+    temp = path.with_name(path.name + '.tmp')
+    with open(temp, 'wb') as stream:
+        stream.write(data)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(temp, path)
+
+
+def capture(projects, project_id, folder):
+    """The saved project captured for a build into `folder` (see the module notes): its bytes as project.json, read
+    whole under the store's lock, and the map picture its document names as project.picture.png (pictures.beside),
+    copied only when the kept file's SHA-256 is the one named (else the build says the picture is missing). Returns
+    (document, the bytes' SHA-256, the project's own file, the snapshot, the picture's SHA-256 or None). ProjectError
+    when the project can't be read; OSError when the snapshot can't be written."""
+    document, data, sha, path = projects.capture(project_id)
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    snapshot = folder / 'project.json'
+    _write(snapshot, data)
+    picture, named = None, pictures.named(document)
+    kept = pictures.picture_file(projects, project_id, named) if named else None
+    if kept is not None:
+        try:
+            png = kept.read_bytes()
+        except OSError:
+            png = None
+        if png is not None and pictures.sha256(png) == named:
+            _write(pictures.beside(snapshot), png)
+            picture = named
+    return document, sha, path, snapshot, picture
 
 
 def slot_busy(message, **extra):
@@ -133,10 +176,26 @@ class BuildRunner:
 
     # ------------------------------------------------------------------ starting
 
+    def attempts(self):
+        """The folder of the attempts' snapshots (capture), shared with the build queue."""
+        return self.output / '.work' / 'queue-attempts'
+
     def start(self, project_id, quick=False):
-        """Start building the saved project; `quick`: build.py --quick, the edit without its lighting baked."""
-        document = self.projects.load(project_id)
-        self._start(document, self.command(self.projects.path(project_id)), quick)
+        """Start building the saved project; `quick`: build.py --quick, the edit without its lighting baked. The
+        project is captured first (capture), and build.py builds that snapshot."""
+        attempt_id = str(uuid4())
+        folder = self.attempts() / attempt_id
+        try:
+            document, sha, path, snapshot, picture = capture(self.projects, project_id, folder)
+        except OSError as error:
+            shutil.rmtree(folder, ignore_errors=True)
+            raise ProjectError(500, f'The project could not be captured for its build: {error}')
+        command = self.command(snapshot) + ['--saved-file', str(path), '--projects', str(self.projects.root)]
+        try:
+            self._start(document, command, quick, attempt_id=attempt_id, snapshot=str(snapshot), digest=sha, picture=picture)
+        except BaseException:
+            shutil.rmtree(folder, ignore_errors=True)       # nothing was launched from it
+            raise
         return self.status(project_id)
 
     def pinned_command(self, document, output, game, udk):
@@ -164,13 +223,13 @@ class BuildRunner:
             command += ['--check-game', str(game)]
         return command
 
-    def start_queued(self, document, snapshot, context, saved_file, owner, attempt_id, log):
+    def start_queued(self, document, snapshot, context, saved_file, owner, attempt_id, log, digest=None, picture=None):
         """A full build of the queue's snapshot (buildqueue.py): its Attempt. The queue holds the reservation."""
         return self._start(document, self.queue_command(snapshot, context, saved_file), False, log=log, origin='queue',
-                           owner=owner, attempt_id=attempt_id, snapshot=str(snapshot))
+                           owner=owner, attempt_id=attempt_id, snapshot=str(snapshot), digest=digest, picture=picture)
 
     def _start(self, document, command, quick, log=None, started=None, origin='foreground', owner=None, attempt_id=None,
-               output=None, snapshot=None):
+               output=None, snapshot=None, digest=None, picture=None):
         attempt_id = attempt_id or str(uuid4())
         variant = (document.get('output') or {}).get('shipAs')
         output = Path(output) if output else self.output
@@ -185,7 +244,9 @@ class BuildRunner:
             job = dict(project=document['id'], name=document.get('name'), revision=document.get('revision'),
                        variant=variant, quick=bool(quick), state='running', attempt=attempt_id, origin=origin,
                        stage=None, stages=[], lines=[], startedAt=now(), finishedAt=None, error=None, running=None,
-                       progress=None, **({'snapshot': snapshot} if snapshot else {}))
+                       progress=None, **({'snapshot': snapshot} if snapshot else {}),
+                       # the captured bytes' SHA-256 and the picture's (capture): the manifest names the same
+                       **({'digest': digest} if digest else {}), **({'picture': picture} if picture else {}))
             attempt = Attempt(attempt_id, origin, owner, job, output, variant, snapshot)
             attempt.tree = self.launch(command + ['--attempt', attempt_id] + (['--quick'] if quick else []),
                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8',
@@ -585,7 +646,8 @@ class BuildRunner:
 
     def report(self, project_id):
         """A bug report's zip in the builds folder: what to send when a build goes wrong (or plays wrong). For a
-        build of a snapshot (the build queue's), the snapshot it read, not the project as saved since."""
+        build of a snapshot (the editor's Build and the build queue's: capture), the snapshot it read, not the project
+        as saved since."""
         document = self.projects.load(project_id)
         variant = (document.get('output') or {}).get('shipAs')
         if not variant or not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*', variant): raise ProjectError(409, 'The project has no variant name yet.')
@@ -593,7 +655,7 @@ class BuildRunner:
             job = self.job if self.job and self.job['project'] == project_id else None
             lines = list(job['lines']) if job else []
             summary = {k: job.get(k) for k in ('state', 'name', 'revision', 'startedAt', 'finishedAt', 'exitCode', 'error',
-                                               'attempt', 'origin')} if job else None
+                                               'attempt', 'origin', 'digest', 'picture')} if job else None
             snapshot = Path(job['snapshot']) if job and job.get('snapshot') else None
             token = (job.get('attempt') or '').replace('-', '')[:8] if job else ''
         work = sorted((self.output / '.work').glob(f'{variant}-*'), key=lambda p: p.name) if (self.output / '.work').is_dir() else []

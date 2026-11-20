@@ -21,8 +21,10 @@ Fracturing pieces and physics props were switched on without one (9 November 202
 
 Folders default to the editor's settings (tools/viewer/settings.py: projects, output, lwr, and udk, which only a
 patch needs) and the main viewer cache. Stages, each logged in the build's work folder (<output>/.work/<Variant>-<stamp>/logs):
-1. Snapshot: the project (its saved revision), the viewer export of its source map (by the project's SHA-256), and the
-   base map from the game install, which must have that SHA-256.
+1. Snapshot: the project (its saved revision, read once; the manifest's project.sha256 names its bytes), the viewer
+   export of its source map (by the project's SHA-256), and the base map from the game install, which must have that
+   SHA-256. The server's builds read a snapshot it captured (--saved-file names the project's own file), with the map
+   picture the project names beside it (project.picture.png): Build.find_picture.
 2. Compile: tools/editor/compiler.py with --stream-only, split (compiler.native_split): copies of every class the
    compiler builds (compiler.NATIVE_CLASSES: scenery, props, destructibles, collectibles, fracturing pieces and
    physics props; and every assembly's parts) are
@@ -1705,7 +1707,8 @@ def main(argv=None):
                    help='another game install whose names the build\'s are checked against (repeatable; default: the '
                         'install Play in game uses, from the settings)')
     a.add_argument('--saved-file', type=Path, help='the project\'s own file, written in the manifest, when the build '
-                                                    'reads a snapshot of it')
+                                                    'reads a snapshot of it (its map picture is then the one captured '
+                                                    'beside the snapshot)')
     a.add_argument('--pinned', action='store_true',
                    help='take nothing from the settings: every folder comes from the arguments (no --udk: no UDK)')
     args = a.parse_args(argv)

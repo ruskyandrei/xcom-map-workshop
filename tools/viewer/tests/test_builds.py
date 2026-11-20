@@ -178,6 +178,59 @@ class Builds(unittest.TestCase):
         self.assertEqual((s['package']['foreignPieces'], s['package']['foreignEffects'], s['package']['donors']),
                          (2, 0, [dict(map='URB_PoliceStation', pieces=2, effects=None, bytes=1234)]))
 
+    def test_a_build_reads_the_project_and_its_picture_as_captured(self):
+        """(review finding 12) The editor's Build captures the saved project, and the picture it names, into an attempt
+        folder before build.py starts, as the build queue does: a save under another name and two new pictures after
+        the capture change nothing of the build, and the job, the package and the bug report name the same bytes. A
+        retry after Cancel captures again."""
+        import hashlib
+        import io
+        import zipfile
+        from PIL import Image
+        import pictures
+
+        def png(colour):
+            out = io.BytesIO()
+            Image.new('RGB', (512, 256), colour).save(out, 'PNG')
+            return out.getvalue()
+        first = pictures.save_picture(self.store, ID, png((10, 20, 30)))['sha256']
+        doc = self.store.load(ID)
+        self.store.save(ID, dict(doc, picture=dict(sha256=first)), doc['revision'])
+        job = self.runner.start(ID)['job']
+        snapshot = Path(job['snapshot'])
+        captured = snapshot.read_bytes()
+        self.assertEqual(snapshot.parent.parent, self.output / '.work' / 'queue-attempts')
+        self.assertEqual(snapshot.parent.name, job['attempt'])
+        self.assertEqual((job['revision'], job['digest'], job['picture']), (2, hashlib.sha256(captured).hexdigest(), first))
+        self.assertEqual(pictures.sha256(pictures.beside(snapshot).read_bytes()), first)
+        own = self.store.path(ID)
+        for colour in ((200, 0, 0), (0, 200, 0)):     # the first picture is then kept nowhere but in the snapshot
+            now = self.store.load(ID)
+            digest = pictures.save_picture(self.store, ID, png(colour), saved=(now.get('picture') or {}).get('sha256'))['sha256']
+            self.store.save(ID, dict(now, name='Renamed remix', picture=dict(sha256=digest)), now['revision'])
+        self.assertNotEqual(self.store.path(ID), own)
+        self.assertIsNone(pictures.picture_file(self.store, ID, first))
+        self.go.touch()
+        s = self.wait(ID, 'built')
+        self.assertEqual((snapshot.read_bytes(), s['package']['revision']), (captured, 2))
+        self.assertEqual(pictures.sha256(pictures.beside(snapshot).read_bytes()), first)
+        # the bug report carries the snapshot and names its bytes
+        r = self.runner.report(ID)
+        z = zipfile.ZipFile(r['zip'])
+        self.assertEqual(z.read('project/project.json'), captured)
+        self.assertEqual(json.loads(z.read('report.json'))['build']['digest'], job['digest'])
+        # a retry after a cancel captures the latest save, into a folder of its own
+        self.go.unlink()
+        self.runner.start(ID)
+        self.runner.cancel(ID)
+        self.wait(ID, 'cancelled')
+        self.go.touch()
+        again = self.runner.start(ID)['job']
+        self.assertEqual(again['revision'], 4)
+        self.assertNotEqual(again['snapshot'], job['snapshot'])
+        self.assertEqual(again['picture'], digest)
+        self.wait(ID, 'built')
+
     def test_a_tools_indented_warning_is_a_warning_of_the_build(self):
         """(review finding 15) build.py echoes a tool's lines indented under its command line: the relight's warning
         that its writes changed pieces it didn't relight is found there too, not only at a line's start."""

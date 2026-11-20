@@ -1271,6 +1271,38 @@ class Builds(unittest.TestCase):
         self.assertEqual((q['picture'], q['stages'][-1]['stage']), (dict(sha256=digest, format='DXT1'), 'picture'))
         self.assertTrue(built.read_bytes().endswith(b' +picture ' + digest.encode()))
 
+    def test_a_snapshots_build_takes_the_picture_captured_beside_it(self):
+        """(review finding 12) A build of the server's snapshot (--saved-file) takes the picture captured beside it
+        (project.picture.png) and nothing else: a picture chosen since, kept with the project, is not this build's. The
+        manifest names the bytes it read."""
+        import pictures
+        digest = self.with_picture()
+        attempt = Path(self.tmp.name) / 'attempt'
+        attempt.mkdir()
+        snapshot = attempt / 'project.json'
+        snapshot.write_bytes(self.project.read_bytes())
+        kept = self.project.parent / '.workshop' / PICTURE_PROJECT / 'picture.png'
+        pictures.beside(snapshot).write_bytes(kept.read_bytes())
+        self.with_picture(colour=(200, 10, 10))         # chosen since: the store's now, not the snapshot's
+
+        def make(stamp):
+            import datetime
+            return build.Build(snapshot, self.tmp.name, self.output, self.lwr, self.udk, patch_work=self.work,
+                               now=datetime.datetime(2026, 11, 7, 11, int(stamp), 0), run=self.run_tool, seed=self.seed,
+                               echo=self.said.append, named=self.name_copy, picture=self.picture_copy,
+                               projects=self.project.parent, saved_file=self.project)
+        m = make('0').run()
+        (_, _, png), = self.pictured
+        self.assertEqual(Path(png), pictures.beside(snapshot))
+        self.assertEqual(m['picture']['sha256'], digest)
+        self.assertEqual((m['project']['sha256'], m['project']['file']),
+                         (hashlib.sha256(snapshot.read_bytes()).hexdigest(), str(self.project)))
+        # with no copy beside it, the build says the picture is missing (the store's is another)
+        pictures.beside(snapshot).unlink()
+        m = make('5').run()
+        self.assertNotIn('picture', m)
+        self.assertIn('not on this computer', m['pictureNote'])
+
     def test_a_project_without_a_map_picture_builds_none(self):
         m = self.make().run()
         self.assertNotIn('picture', m)

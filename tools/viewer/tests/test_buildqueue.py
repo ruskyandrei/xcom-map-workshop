@@ -142,6 +142,36 @@ class Queue(unittest.TestCase):
         self.assertTrue((snapshot.parent / 'build.log').is_file())
         self.assertIsNone(self.runner.busy())                  # the slot is free once the queue has finished
 
+    def test_the_snapshot_carries_the_picture_the_project_names(self):
+        """(review finding 12) The queue's capture puts the map picture the saved project names beside its snapshot
+        (project.picture.png), so two new pictures chosen after the capture change nothing of the build, and the row
+        and the job name the picture they build."""
+        import io
+        from PIL import Image
+        import pictures
+
+        def png(colour):
+            out = io.BytesIO()
+            Image.new('RGB', (512, 256), colour).save(out, 'PNG')
+            return out.getvalue()
+        first = pictures.save_picture(self.store, ID, png((10, 20, 30)))['sha256']
+        doc = self.store.load(ID)
+        self.store.save(ID, dict(doc, picture=dict(sha256=first)), doc['revision'])
+        hold = Hold()
+        self.queue.hooks['captured'] = hold
+        self.go.touch()
+        self.call('add', projects=[ID])
+        self.assertTrue(hold.reached.wait(30))
+        for colour in ((200, 0, 0), (0, 200, 0)):
+            pictures.save_picture(self.store, ID, png(colour), saved=first)
+        hold.go.set()
+        view = self.settled()
+        attempt = self.row(ID, view)['attempt']
+        snapshot = self.output / '.work' / 'queue-attempts' / attempt / 'project.json'
+        self.assertEqual(pictures.sha256(pictures.beside(snapshot).read_bytes()), first)
+        self.assertEqual(self.runner.job['picture'], first)
+        self.assertEqual(self.queue.q['items'][0]['attempt']['picture'], first)
+
     def test_a_project_that_fails_fails_alone(self):
         self.outcomes[OTHER] = 'fail'
         self.go.touch()
