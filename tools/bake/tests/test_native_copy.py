@@ -20,6 +20,7 @@ import world_links  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import labpaths  # noqa: E402
+import fixtures  # noqa: E402
 
 # URB_Bar as shipped: XCOM_BAR_UPK, else the LWR install's (tools/viewer/settings.py); without it the tests skip
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
@@ -258,9 +259,67 @@ class RebuildTemplate(unittest.TestCase):
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class NativeCopy(unittest.TestCase):
+    """Copies, moves and deletes on the bar. Most tests' edits are made in three builds the class shares
+    (fixtures.SharedBuild), each test reading back its own part (part): two native_copy builds, and one Grower for the
+    tests of the copy's own steps. A test shares a build when its edit touches actors no other edit of that build
+    touches and changes nothing another reads back (a moved piece's tiles, a deleted piece's links, a piece's
+    columns): each shared edit's records are the ones it gets built alone. A test keeps a build of its own when it
+    reads a count of the whole map, when its edit meets another test's, or when its build is the one that makes its
+    kind of edit alone (a copy, a move, a delete), so that a fault that shows only when an edit is alone is still
+    caught."""
+    # the shared builds' edits, by the names failures show
+    LADDER_PLAIN = 'XComLadder_3 moved two tiles along its wall, with no climb record'
+    CAR_TURNED = 'the police car (body 64, light bar 143, glass 45) copied a quarter turn round'
+    DOOR_MOVED = 'door 6 and its frame moved a tile along the inner wall, door 7 and its frame deleted'
+    CORPSE = 'KAsset_0 copied to a pose off the grid, KAsset_1 deleted'
+    VAN_COPIED = 'the delivery van (cab 527 and its six parts) copied a quarter turn round'
+    STRIP_UP = 'the upstairs floor strip (XComFracLevelActor_17) copied 2 tiles north and 3 levels up'
+    # the shared Grower's
+    PROP_TURNED = 'XComDestructibleActor_100 cloned where it stands at a full rotation'
+    MESHLESS_TURNED = 'XComLevelActor_5 cloned at a full rotation'
+    CAR_ABOUT_CORNER = 'the police car cloned a quarter turn about a tile corner and moved 30 tiles'
+
     @classmethod
     def setUpClass(cls):
-        cls.p = lighting.Package(BAR)
+        cls.p = p = lighting.Package(BAR)
+        folder = Path(cls.enterClassContext(tempfile.TemporaryDirectory()))
+        # two native_copy builds, not one: the van's copy seeds tiles the car's seeds too, and so do the ladder's and
+        # the strip's, and the second to seed them would find them seeded (its tiles record's counts not its own)
+        builds = [fixtures.SharedBuild(folder / 'build', {
+            # first: its copy's rebuild volume is then the first of the level's list, as when it is built alone
+            cls.LADDER_PLAIN: dict(copies=[cls.LADDER], hides=[dict(name='XComLadder_3')]),
+            cls.CAR_TURNED: cls.car_turned(),
+            cls.DOOR_MOVED: cls.door_moved(p),
+            cls.CORPSE: cls.corpse(p)}, fixtures.native_build(BAR, 'URB_BarShared'), fixtures.NativePart),
+            fixtures.SharedBuild(folder / 'build2', {
+                cls.VAN_COPIED: cls.van_copied(),
+                cls.STRIP_UP: cls.strip(p, 192.0)}, fixtures.native_build(BAR, 'URB_BarShared2'), fixtures.NativePart),
+            fixtures.SharedBuild(folder / 'grown', dict(
+                {edit: cls.full_rotation(name, where, rotation) for edit, name, where, rotation, _ in cls.FULL_ROTATIONS},
+                **{cls.CAR_ABOUT_CORNER: cls.car_about_corner}), cls.grow, lambda name, edit, made: (made[0][name], made[1]))]
+        cls.shared = {name: build for build in builds for name in build.edits}
+        cls.addClassCleanup(delattr, cls, 'shared')     # the maps read back go with their folder, not held to the end
+
+    def part(self, name):
+        """This test's part of the shared build that carries the edit `name` (fixtures.SharedBuild.part)."""
+        return self.shared[name].part(self, name)
+
+    @staticmethod
+    def grow(folder, edits):
+        """The shared Grower's make (fixtures.SharedBuild): each edit, a function of the Grower and the source map
+        returning what its test reads and the actors it adds, made in one Grower of the bar; their actors added to
+        the level together; the map written and read again. Returns ({name: what its test reads}, the written map)."""
+        p = lighting.Package(BAR)
+        g = package_grow.Grower(str(BAR))
+        got, actors = {}, []
+        for name, edit in edits.items():
+            got[name], added = edit(g, p)
+            actors += added
+        native_copy.add_to_level(g, p, actors)
+        folder.mkdir(parents=True)
+        out = folder / 'URB_BarNative.upk'
+        g.write(str(out))
+        return got, lighting.Package(out)
 
     def test_a_sky_dome_collides_with_nothing_so_its_copy_seeds_no_tiles(self):
         # F-93: the Bar's two sky domes save no collision; its pieces collide
@@ -301,11 +360,10 @@ class NativeCopy(unittest.TestCase):
         paths = [prop for prop, _ in w.refs(p.data[e['off']:e['off'] + e['size']], start, e['size'])]
         self.assertTrue(any('FloorVolumes' in x for x in paths) and any('ResidentActor' in x for x in paths))
 
-    def test_an_assemblys_parts_are_cloned_together_and_point_at_each_others_copies(self):
-        # the police car: its body names its glass as HidingPartner, the glass's fragment columns name the body and
-        # the light bar; a quarter turn about a tile corner and a move, as the compiler's grid move would make
-        p = self.p
-        w = native_copy.Walker(p)
+    @staticmethod
+    def car_about_corner(g, p):
+        """The shared Grower's edit of the test below: the police car cloned as one assembly, a quarter turn about a
+        tile corner and a move, as the compiler's grid move would make, and a rebuild volume over it."""
         names = ['XComDestructibleActor_64', 'XComFracLevelActor_45', 'XComDestructibleActor_143']
         old = {n: p.by_name[PL + n] for n in names}
         corner = (-2784.0, -1920.0)
@@ -315,18 +373,22 @@ class NativeCopy(unittest.TestCase):
             rot = [int(v) for v in p.own(old[n], 'Rotation', [0, 0, 0])]
             x, y = loc[0] - corner[0], loc[1] - corner[1]
             members.append((old[n], [-y + corner[0] + 30 * 96, x + corner[1], loc[2]], [rot[0], rot[1] + 16384, rot[2]]))
-        g = package_grow.Grower(str(BAR))
         infos = native_copy.clone_assembly(g, p, members)
-        new = {n: info['actor'] for n, info in zip(names, infos)}
         tile = native_copy.add_tiles_box(g, p, native_copy.assembly_box(p, members))
-        native_copy.add_to_level(g, p, list(new.values()) + [tile['volume']['export']])
-        originals = set()
-        for n in names:
-            originals |= set(native_copy.subtree(p, old[n]))
-        with tempfile.TemporaryDirectory() as d:
-            out = Path(d) / 'URB_BarCar.upk'
-            g.write(str(out))
-            q = lighting.Package(out)
+        return (dict(names=names, old=old, members=members, infos=infos, tile=tile),
+                [info['actor'] for info in infos] + [tile['volume']['export']])
+
+    def test_an_assemblys_parts_are_cloned_together_and_point_at_each_others_copies(self):
+        # the police car: its body names its glass as HidingPartner, the glass's fragment columns name the body and
+        # the light bar; a quarter turn about a tile corner and a move, as the compiler's grid move would make (in the
+        # shared Grower: car_about_corner)
+        p = self.p
+        with self.part(self.CAR_ABOUT_CORNER) as (made, q):
+            names, old, members, infos, tile = (made[k] for k in ('names', 'old', 'members', 'infos', 'tile'))
+            new = {n: info['actor'] for n, info in zip(names, infos)}
+            originals = set()
+            for n in names:
+                originals |= set(native_copy.subtree(p, old[n]))
             qw = native_copy.Walker(q)
 
             def refs(i):
@@ -373,18 +435,22 @@ class NativeCopy(unittest.TestCase):
             self.assertEqual(m['nativeCopies']['assemblies'], [move])
             self.assertEqual(m['nativeCopies']['level']['actorsAfter'] - m['nativeCopies']['level']['actorsBefore'], 3 + 1 + 1 + 1)
 
+    # the ladder's copy of the test below
+    LADDER = dict(actor='XComLadder_3', location=[-1680.0, 528.0, 16.0], rotation=[0, 0, 0],
+                  assembly='move:XComLadder_3', family='ladder')
+
     def test_a_ladder_copy_rebuilds_its_top_tile_first(self):
         # EXP-22 run 1's hazard case: XComLadder_3 (facing +X, no saved Rotation) moved two tiles along its wall. Its
         # copy's own volume adds the foot (11, 25, 0) before the top (12, 25, 6), X running outer and Z inner; the
-        # small volume over the top tile, first in the level's list, puts the top first.
+        # small volume over the top tile, first in the level's list, puts the top first. The move without its climb
+        # is in a shared build; with it, a build of its own (the move alone, and it counts the volumes)
         hide = [dict(name='XComLadder_3')]
-        copy = dict(actor='XComLadder_3', location=[-1680.0, 528.0, 16.0], rotation=[0, 0, 0],
-                    assembly='move:XComLadder_3', family='ladder')
-        with tempfile.TemporaryDirectory() as d:
-            plain = native_copy.build(BAR, d, 'URB_BarLadderPlain', [copy], hides=hide)
-            order = native_copy.rebuild_order(lighting.Package(Path(d) / 'URB_BarLadderPlain.upk'))
+        copy = self.LADDER
+        with self.part(self.LADDER_PLAIN) as plain:
+            order = native_copy.rebuild_order(plain.q)
             self.assertLess(order[(11, 25, 0)], order[(12, 25, 6)])
-            self.assertEqual(plain['nativeCopies']['ladders'], [])
+            self.assertEqual(plain.nc['ladders'], [])
+        with tempfile.TemporaryDirectory() as d:
             m = native_copy.build(BAR, d, 'URB_BarLadder', [dict(copy, ladder=dict(foot=[11, 25, 0], top=[12, 25, 6]))],
                                   hides=hide)
             [ladder] = m['nativeCopies']['ladders']
@@ -457,21 +523,29 @@ class NativeCopy(unittest.TestCase):
             self.assertEqual(fresh, list(range(count, count + len(fresh))))
             self.assertEqual(q.header['gens'][0][2], count + len(fresh))
 
+    # the pieces of the test below, each cloned in the shared Grower (full_rotation): its edit's name, the piece, its
+    # place (None: where it stands), its rotation, and whether its mesh is this map's
+    FULL_ROTATIONS = ((PROP_TURNED, 'XComDestructibleActor_100', None, (1024, 8192, -2048), True),
+                      (MESHLESS_TURNED, 'XComLevelActor_5', (64.0, -32.0, 8.0), (0, -16384, 0), False))
+
+    @staticmethod
+    def full_rotation(name, where, rotation):
+        """A shared Grower's edit of the test below: the piece `name` cloned at `where` (None: where it stands) and
+        `rotation`."""
+        def edit(g, p):
+            old = p.by_name[PL + name]
+            info = native_copy.clone_actor(g, p, old, where or p.own(old, 'Location'), rotation)
+            return info, [info['actor']]
+        return edit
+
     def test_a_piece_at_the_default_pose_takes_a_full_rotation(self):
         # a piece standing at rotation 0 saves no Rotation (XComLevelActor_5 no Location either): the copy's are added
         p = self.p
-        for name, where, rotation, has_mesh in (('XComDestructibleActor_100', None, (1024, 8192, -2048), True),
-                                                ('XComLevelActor_5', (64.0, -32.0, 8.0), (0, -16384, 0), False)):
+        for edit, name, where, rotation, has_mesh in self.FULL_ROTATIONS:
             old = p.by_name[PL + name]
             self.assertIsNone(p.own(old, 'Rotation', None))
             where = where or p.own(old, 'Location')
-            g = package_grow.Grower(str(BAR))
-            info = native_copy.clone_actor(g, p, old, where, rotation)
-            native_copy.add_to_level(g, p, [info['actor']])
-            with tempfile.TemporaryDirectory() as d:
-                out = Path(d) / 'URB_BarNative.upk'
-                g.write(str(out))
-                q = lighting.Package(out)
+            with self.part(edit) as (info, q):
                 new = info['actor']
                 self.assertEqual(q.own(new, 'Rotation'), list(rotation))
                 self.assertEqual(q.own(new, 'Location'), [float(np.float32(v)) for v in where])
@@ -543,11 +617,9 @@ class NativeCopy(unittest.TestCase):
         self.assertTrue(native_copy.has_mesh(p, leaf))
         self.assertEqual(native_copy.lighting_textures(p, native_copy.subtree(p, leaf)), [])
 
-    def test_a_door_copy_joins_its_walls_columns_and_its_floors_cutaway(self):
-        # G8 and G7, on the bar's inner wall (XComDecoFracLevelActor_16): door 6 moved one tile along it, door 7
-        # deleted. The copies are listed in the wall's columns as the original was, a tile along (the frame's MinZ
-        # kept), and in floor 0's cutaway of the bar; the hidden doors leave every column
-        p = self.p
+    @staticmethod
+    def door_moved(p):
+        """The shared build's edit of the test below."""
         names = ['XComDestructibleActor_60', 'XComInteractiveLevelActor_6']
         copies = []
         for n in names:
@@ -555,15 +627,23 @@ class NativeCopy(unittest.TestCase):
             loc = list(p.own(i, 'Location'))
             copies.append(dict(actor=n, location=[loc[0] + 96, loc[1], loc[2]], rotation=[0, 0, 0],
                                assembly='move:XComInteractiveLevelActor_6', family='door'))
-        hides = [dict(name=n) for n in names + ['XComDestructibleActor_65', 'XComInteractiveLevelActor_7']]
-        with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(BAR, d, 'URB_BarDoor', copies, hides=hides)
-            nc = m['nativeCopies']
+        return dict(copies=copies,
+                    hides=[dict(name=n) for n in names + ['XComDestructibleActor_65', 'XComInteractiveLevelActor_7']])
+
+    def test_a_door_copy_joins_its_walls_columns_and_its_floors_cutaway(self):
+        # G8 and G7, on the bar's inner wall (XComDecoFracLevelActor_16): door 6 moved one tile along it, door 7
+        # deleted. The copies are listed in the wall's columns as the original was, a tile along (the frame's MinZ
+        # kept), and in floor 0's cutaway of the bar; the hidden doors leave every column (in a shared build: no other
+        # edit of that build is listed in, or lists, the inner wall's columns)
+        p = self.p
+        with self.part(self.DOOR_MOVED) as part:
+            names, hides = [c['actor'] for c in part.edit['copies']], part.edit['hides']
+            nc = part.nc
             new = {c['actor']: c['export'] for c in nc['copies']}
             self.assertEqual(nc['columns']['XComDecoFracLevelActor_16']['dropped'], 36)
             self.assertEqual(len(nc['columns']['XComDecoFracLevelActor_16']['added']), 16)
             self.assertEqual(nc['floorCaches'], [dict(copy=n, building='XComBuildingVolume_0', floor=0) for n in names])
-            q = lighting.Package(Path(d) / 'URB_BarDoor.upk')
+            q = part.q
             level = q.by_name['TheWorld.PersistentLevel']
             listed = {}
             for i in range(1, len(q.exports) + 1):
@@ -585,12 +665,9 @@ class NativeCopy(unittest.TestCase):
             for n in names:
                 self.assertEqual(cached[new[n]], [('XComBuildingVolume_0', 0)])
 
-    def test_a_van_copy_takes_its_building_and_floor_volumes_along(self):
-        # plan section 7.6, EXP-24 run 3's delivery van (cab 527) copied a quarter turn round (the compiler's poses):
-        # its building and two floor volumes are cloned and turned with it; the copied building lists the parts'
-        # copies (the cab with its CutdownFloor) and drops the three pieces under the original van; its floor volumes
-        # and roof group point at the clones; its visibility groups are emptied
-        p = self.p
+    @staticmethod
+    def van_copied():
+        """The shared build's edit of the test below: the compiler's poses."""
         poses = {'XComDestructibleActor_104': ([-1247.21, -957.18, 0.0], [0, 49152, 0]),
                  'XComDestructibleActor_524': ([-1247.21, -957.18, 0.0], [0, 16384, 0]),
                  'XComDestructibleActor_525': ([-1247.21, -955.18, 0.0], [0, 16384, 0]),
@@ -598,18 +675,25 @@ class NativeCopy(unittest.TestCase):
                  'XComFracLevelActor_16': ([-1247.21, -955.18, 0.0], [0, 16384, 0]),
                  'XComLevelActor_217': ([-1247.21, -955.18, 0.0], [0, 16384, 0]),
                  'XComLevelActor_226': ([-1247.21, -957.18, 0.0], [0, 16384, 0])}
-        copies = [dict(actor=n, location=at, rotation=rot, assembly='add:XComDestructibleActor_527_copy4', family='van')
-                  for n, (at, rot) in poses.items()]
-        with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(BAR, d, 'URB_BarVan', copies)
-            (van,) = m['nativeCopies']['vans']
+        return dict(copies=[dict(actor=n, location=at, rotation=rot, assembly='add:XComDestructibleActor_527_copy4',
+                                 family='van') for n, (at, rot) in poses.items()])
+
+    def test_a_van_copy_takes_its_building_and_floor_volumes_along(self):
+        # plan section 7.6, EXP-24 run 3's delivery van (cab 527) copied a quarter turn round (the compiler's poses):
+        # its building and two floor volumes are cloned and turned with it; the copied building lists the parts'
+        # copies (the cab with its CutdownFloor) and drops the three pieces under the original van; its floor volumes
+        # and roof group point at the clones; its visibility groups are emptied (in a shared build: no other edit of
+        # that build stands in the van's building)
+        p = self.p
+        with self.part(self.VAN_COPIED) as part:
+            (van,) = part.nc['vans']
             self.assertEqual(van['building']['original'], 'XComBuildingVolume_3')
             self.assertEqual(sorted(van['dropped']), ['XComLevelActor_151', 'XComLevelActor_205', 'XComLevelActor_274'])
             self.assertEqual(van['outside'], [])
             self.assertEqual(sorted(f['original'] for f in van['floorVolumes']), ['XComFloorVolume_2', 'XComFloorVolume_3'])
-            self.assertEqual(m['nativeCopies']['floorCaches'], [])
-            q = lighting.Package(Path(d) / 'URB_BarVan.upk')
-            sec = {c['actor']: c['export'] for c in m['nativeCopies']['copies']}
+            self.assertEqual(part.nc['floorCaches'], [])
+            q = part.q
+            sec = {c['actor']: c['export'] for c in part.nc['copies']}
             b = van['building']['export']
             # the building turned about the cab as the van turns: (-619, -481) is 50 east of the cab's (-669, -481)
             self.assertEqual(q.own(b, 'Rotation'), [0, 16384, 0])
@@ -659,21 +743,28 @@ class NativeCopy(unittest.TestCase):
             for n in ('XComBuildingVolume_1', 'XComFloorVolume_0', 'XComFloorVolume_1', 'XComBuildingVolume_3'):
                 self.assertEqual(q.by_name[PL + n] in actors, n == 'XComBuildingVolume_3', n)
 
+    # the police car's copy of the test below: the compiler's poses
+    CAR_POSES = {'XComDestructibleActor_64': [-1341.8371, -856.3627, 0.0],
+                 'XComDestructibleActor_143': [-1341.9375, -857.7891, 0.0],
+                 'XComFracLevelActor_45': [-1341.7027, -854.3664, 0.0]}
+
+    @classmethod
+    def car_turned(cls):
+        """The shared build's edit of the test below."""
+        return dict(copies=[dict(actor=n, location=at, rotation=[0, 15656, 0],
+                                 assembly='add:XComDestructibleActor_64_copy1', family='car')
+                            for n, at in cls.CAR_POSES.items()])
+
     def test_a_car_copys_glass_columns_turn_and_move_with_it(self):
         # G8's glass half, EXP-24 run 1's police car: body 64, light bar 143 and glass 45 copied a quarter turn round
         # (the compiler's poses). Each of the copy's columns is the original's box carried by the move, and names the
-        # body's and the light bar's copies with the original's MinZ
+        # body's and the light bar's copies with the original's MinZ (in a shared build)
         p = self.p
-        poses = {'XComDestructibleActor_64': [-1341.8371, -856.3627, 0.0],
-                 'XComDestructibleActor_143': [-1341.9375, -857.7891, 0.0],
-                 'XComFracLevelActor_45': [-1341.7027, -854.3664, 0.0]}
-        copies = [dict(actor=n, location=at, rotation=[0, 15656, 0], assembly='add:XComDestructibleActor_64_copy1',
-                       family='car') for n, at in poses.items()]
-        with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(BAR, d, 'URB_BarCar', copies)
-            sec = {c['actor']: c for c in m['nativeCopies']['copies']}
+        poses = self.CAR_POSES
+        with self.part(self.CAR_TURNED) as part:
+            sec = {c['actor']: c for c in part.nc['copies']}
             self.assertEqual(sec['XComFracLevelActor_45']['columns'], dict(columns=6, dropped=0))
-            q = lighting.Package(Path(d) / 'URB_BarCar.upk')
+            q = part.q
             old = p.by_name[PL + 'XComFracLevelActor_45']
             before = (p.own(old, 'Location'), p.own(old, 'Rotation'))
             after = (poses['XComFracLevelActor_45'], [0, 15656, 0])
@@ -814,43 +905,58 @@ class NativeCopy(unittest.TestCase):
             self.assertEqual(sum(sec[n]['export'] in names for n in door
                                  for _, names, _ in self.wall_columns(q, q.by_name[PL + wall])), 0)
 
+    @staticmethod
+    def strip(p, dz):
+        """The edit of the test below: the upstairs floor strip copied 2 tiles north and `dz` up, turned round."""
+        loc = list(p.own(p.by_name[PL + 'XComFracLevelActor_17'], 'Location'))
+        return dict(copies=[dict(actor='XComFracLevelActor_17', rotation=[0, 32768, 0],
+                                 location=[loc[0], loc[1] + 192.0, loc[2] + dz])])
+
     def test_a_storey_floor_copy_moved_up_takes_its_fragment_heights_along(self):
         # The upstairs floor strip (XComFracLevelActor_17: fragments saved at world z 208..210) copied 2 tiles north
         # and 3 levels up: its component's FragmentBoundsMinZ and MaxZ, its columns' boxes and its fragments' MinZ all
-        # rise by 192. Copied at its own height (EXP-28 run 1), they stay as they are
+        # rise by 192. Copied at its own height (EXP-28 run 1), they stay as they are. Moved up, it is in the class's
+        # shared build; at its own height, a build of its own (a copy alone)
         p = self.p
         old = p.by_name[PL + 'XComFracLevelActor_17']
-        loc = list(p.own(old, 'Location'))
         comp = p.own(old, 'FracturedStaticMeshComponent', 0)
         self.assertEqual((p.own(comp, 'FragmentBoundsMinZ'), p.own(comp, 'FragmentBoundsMaxZ')), (208.0, 210.0))
-        for dz in (192.0, 0.0):
-            with self.subTest(dz=dz), tempfile.TemporaryDirectory() as d:
-                m = native_copy.build(BAR, d, 'URB_BarStrip', [dict(actor='XComFracLevelActor_17', rotation=[0, 32768, 0],
-                                                                    location=[loc[0], loc[1] + 192.0, loc[2] + dz])])
-                sec = m['nativeCopies']['copies'][0]
-                q = lighting.Package(Path(d) / 'URB_BarStrip.upk')
-                new = q.own(sec['export'], 'FracturedStaticMeshComponent', 0)
-                self.assertEqual((q.own(new, 'FragmentBoundsMinZ'), q.own(new, 'FragmentBoundsMaxZ')), (208.0 + dz, 210.0 + dz))
-                # the original's are untouched
-                self.assertEqual((q.own(comp, 'FragmentBoundsMinZ'), q.own(comp, 'FragmentBoundsMaxZ')), (208.0, 210.0))
-                for (box, *_), (moved, *_) in zip(self.wall_columns(p, old), self.wall_columns(q, sec['export'])):
-                    self.assertAlmostEqual(moved[4], box[4] + dz, delta=0.01)
-                    self.assertAlmostEqual(moved[5], box[5] + dz, delta=0.01)
-                    self.assertAlmostEqual(moved[2], box[2] + 192.0, delta=0.01)
+
+        def check(sec, q, dz):
+            new = q.own(sec['export'], 'FracturedStaticMeshComponent', 0)
+            self.assertEqual((q.own(new, 'FragmentBoundsMinZ'), q.own(new, 'FragmentBoundsMaxZ')), (208.0 + dz, 210.0 + dz))
+            # the original's are untouched
+            self.assertEqual((q.own(comp, 'FragmentBoundsMinZ'), q.own(comp, 'FragmentBoundsMaxZ')), (208.0, 210.0))
+            for (box, *_), (moved, *_) in zip(self.wall_columns(p, old), self.wall_columns(q, sec['export'])):
+                self.assertAlmostEqual(moved[4], box[4] + dz, delta=0.01)
+                self.assertAlmostEqual(moved[5], box[5] + dz, delta=0.01)
+                self.assertAlmostEqual(moved[2], box[2] + 192.0, delta=0.01)
+        with self.part(self.STRIP_UP) as part:
+            (sec,) = part.nc['copies']
+            check(sec, part.q, 192.0)
+        with self.subTest(dz=0.0), tempfile.TemporaryDirectory() as d:
+            m = native_copy.build(BAR, d, 'URB_BarStrip', **self.strip(p, 0.0))
+            check(m['nativeCopies']['copies'][0], lighting.Package(Path(d) / 'URB_BarStrip.upk'), 0.0)
+
+    @staticmethod
+    def corpse(p):
+        """The shared build's edit of the test below."""
+        loc = list(p.own(p.by_name[PL + 'KAsset_0'], 'Location'))
+        return dict(copies=[dict(actor='KAsset_0', location=[loc[0] + 187.5, loc[1] + 20.0, loc[2]], rotation=[0, 5000, 0])],
+                    hides=[dict(name='KAsset_1')])
 
     def test_a_physics_prop_is_cloned_with_its_skeletal_mesh(self):
         # A corpse (KAsset_0: a skeletal mesh with a physics asset, lit live) copied to a pose off the grid, and
-        # KAsset_1 deleted: the copy is a KAsset of the level with its own components, and no lighting textures
+        # KAsset_1 deleted: the copy is a KAsset of the level with its own components, and no lighting textures (in a
+        # shared build)
         p = self.p
         old = p.by_name[PL + 'KAsset_0']
-        loc = list(p.own(old, 'Location'))
-        copies = [dict(actor='KAsset_0', location=[loc[0] + 187.5, loc[1] + 20.0, loc[2]], rotation=[0, 5000, 0])]
-        with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(BAR, d, 'URB_BarCorpse', copies, hides=[dict(name='KAsset_1')])
-            sec = m['nativeCopies']['copies'][0]
+        with self.part(self.CORPSE) as part:
+            copies = part.edit['copies']
+            (sec,) = part.nc['copies']
             self.assertEqual((len(sec['exports']), sec['textures']), (3, {}))
             self.assertIsNotNone(sec['tiles'])
-            q = lighting.Package(Path(d) / 'URB_BarCorpse.upk')
+            q = part.q
             new = sec['export']
             actors = self.level_actors(q)
             self.assertEqual(q.cls(new), 'KAsset')
