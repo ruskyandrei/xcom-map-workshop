@@ -4495,6 +4495,7 @@ def check_prepare(browser, url, project_id=None):
                          'the map browser\'s Prepare, or python tools/viewer/viewer.py export "<game>/x.upk" --scope map) and restart the editor')
                 body['state'] = body['job']['state'] = 'failed'
                 body['job']['error'] = error
+                body['job']['errorCode'] = 'export-missing'     # (the page goes by the code: compiler.ExportMissing's, builds.py's errorCode)
             route.fulfill(response=answer, json=body)
         page.reload()
         page.wait_for_function("id => window.viewer && document.querySelector('#loading').hidden && viewer.project()?.id === id",
@@ -4579,12 +4580,15 @@ def check_play(browser, url, project_id=None, screenshot=None):
     if screenshot: page.locator('#playMenu').screenshot(path=str(screenshot.with_stem(screenshot.stem + '-play-menu')))
     if page.evaluate('viewer.data.scope === "map" && !viewer.data.preview && !viewer.project()'):
         page.locator('#projectPlay').click()
+        # a map alone: the play dialog, whether saving is on (and with several missions, which one), never baking
+        page.wait_for_selector('#buildOptions', state='visible')
+        assert page.locator('#buildBakeRow').is_hidden() and page.locator('#buildSavingRow').is_visible()
         if page.evaluate('(viewer.data.missions || []).length > 1'):
             # a map with several missions: the play dialog names the mission (the header's), with its kind's line
-            page.wait_for_selector('#buildOptions', state='visible')
             assert page.locator('#buildMissionRow').is_visible() and page.locator('#buildBakeRow').is_hidden()
             assert 'Enemies:' in page.locator('#buildMissionNote').inner_text() and 'played' not in page.locator('#buildMissionNote').inner_text().lower(),                 page.locator('#buildMissionNote').inner_text()
-            page.locator('#buildOptionsOk').click()
+        else: assert page.locator('#buildMissionRow').is_hidden()
+        page.locator('#buildOptionsOk').click()
         page.wait_for_function("() => { const b = document.querySelector('#projectBanner'); return !b.hidden && b.textContent.startsWith('Starting XCOM'); }",
                                timeout=60000)
         assert '(original map)' in page.locator('#projectBanner').inner_text()
@@ -4624,7 +4628,9 @@ def check_play(browser, url, project_id=None, screenshot=None):
         assert page.locator('#buildModal').is_hidden()
         installed, = status()['game']['installed']
         assert installed['map'] == build['package']['folder'].split('\\')[-1] and installed['project']['id'] == project_id, installed
-        menu()   # shown at once from the play's answer
+        menu()   # the menu asks the server again as it opens (refreshInstalls): its row once that answer is in
+        page.wait_for_function("end => document.querySelectorAll('#installInfo dd')[3].textContent.endsWith(end)",
+                               arg=f"({installed['map']})" + (', lighting not baked' if installed.get('quick') else ''), timeout=30000)
         row = page.locator('#installInfo dd').nth(3).inner_text()
         assert row.endswith(f"({installed['map']})" + (', lighting not baked' if installed.get('quick') else '')), row
         if screenshot: page.locator('#playMenu').screenshot(path=str(screenshot.with_stem(screenshot.stem + '-play-project')))
