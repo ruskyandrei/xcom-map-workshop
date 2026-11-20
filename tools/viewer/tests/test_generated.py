@@ -197,6 +197,14 @@ class FracSlab(unittest.TestCase):
             with self.assertRaises(generated.GeneratedError, msg=text):
                 generated.Meshes().fracslab(text)
 
+    def test_a_slab_its_holes_leave_none_of_is_said_at_any_size(self):
+        # a small one (one piece) and one past 16 tiles (cut into pieces, each of which its holes cover whole)
+        for tiles in (2, 20):
+            side = 96 * tiles
+            text = json.dumps(dict(x0=0, x1=side, y0=0, y1=96, holes=[dict(x0=0, x1=side, y0=0, y1=96)]))
+            with self.assertRaisesRegex(generated.GeneratedError, "holes leave none of it"):
+                generated.slab_numbers(text)
+
 
 class Ground(unittest.TestCase):
     """(M6) a ground shape's mesh file from its numbers: one section, its box the shape's."""

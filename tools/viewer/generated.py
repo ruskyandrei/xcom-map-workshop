@@ -160,6 +160,10 @@ def slab_numbers(text):
     if not all(1 <= round((out[b] - out[a]) / 96.0) <= MAX_TILES for a, b in (('x0', 'x1'), ('y0', 'y1'))):
         raise GeneratedError('a slab drawn here is 1 to %d tiles each way' % MAX_TILES)
     try:
+        # a slab cut into pieces drops the pieces its holes cover whole, so the whole slab is asked first: one its
+        # holes leave none of is said, not drawn as nothing (the compiler leaves it out with the same words)
+        if not made_split.slab_left(out):
+            raise ValueError("the slab's holes leave none of it")
         for _, _, piece in made_split.slab_pieces(with_recipe('slab', out)[0]):
             frac_slab.check(piece)
     except ValueError as error:
