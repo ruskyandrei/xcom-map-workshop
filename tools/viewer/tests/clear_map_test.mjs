@@ -1,6 +1,7 @@
 // Clear map, the ground grid and landing zones (private/plans/done/clear-map-plan.md): the project records
 // (project.js) and the page's plain functions. Run: node tools/viewer/tests/clear_map_test.mjs
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { validLandingZone, tidyLandingZone, sortState, stateKey, validStage, stageMax } from '../web/project.js';
 
 // ---- C1: the records
@@ -15,6 +16,12 @@ for (const bad of [null, [], { ...zone, id: '' }, { ...zone, location: [1, 2] },
                    { ...zone, direction: 'up' }, { ...zone, kind: 'outside' }, { ...zone, alternate: { location: [0, 0, 0] } }, { ...zone, lwr: true }, { ...zone, missionType: 'a b' },
                    { ...zone, alternate: [1] }, { ...zone, other: 3 }, { ...zone, extra: 1 }, { ...zone, ew: 1 }])
   assert.ok(!validLandingZone(bad), JSON.stringify(bad));
+// the cases spawns.py valid_zone passes too (zone_cases.json, test_spawns.py; review finding 27)
+{
+  const { cases } = JSON.parse(readFileSync(new URL('./zone_cases.json', import.meta.url), 'utf8'));
+  assert.ok(cases.length > 30);
+  for (const c of cases) assert.equal(validLandingZone(c.zone), c.valid, c.why);
+}
 assert.deepEqual(tidyLandingZone({ id: 'z2', location: [1.000001, 2, 3], direction: 'west' }),
                  { id: 'z2', location: [1, 2, 3], direction: 'west', kind: 'normal' });
 assert.deepEqual(tidyLandingZone({ ...zone, lwr: false, missionType: '' }), { ...zone, lwr: false });

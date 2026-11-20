@@ -555,7 +555,7 @@ NAME_BASE = 900
 NAME_LIMIT = 30
 # the names Windows keeps for devices (CON, NUL, COM1...): no file can have one, with any extension
 DEVICE_NAMES = {'CON', 'PRN', 'AUX', 'NUL', *('COM%d' % i for i in range(1, 10)), *('LPT%d' % i for i in range(1, 10))}
-ACTOR_NAME = re.compile(r'^[A-Za-z_]\w*$')
+ACTOR_NAME = re.compile(r'^[A-Za-z_]\w*\Z')
 # Pieces that can break in the game and be linked to break together: destructible props (collectibles build as such).
 BREAKABLE = ('XComDestructibleActor', 'XComCollectible')
 # Cover blocks that break with their group (the Build makes them as hidden props), blockers too; an invisible floor

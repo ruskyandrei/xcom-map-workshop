@@ -34,6 +34,15 @@ class Lines(unittest.TestCase):
             with self.assertRaises(ValueError):
                 spawns.write_line('URB_Bar', dict(zone, other=other))
 
+    def test_the_shared_zone_cases(self):
+        # review finding 27: zone_cases.json, which the page's validLandingZone passes too (clear_map_test.mjs); a
+        # mission name ending in a line break is refused (it would split the LZArray line), and so is null for a field
+        import json
+        cases = json.loads((HERE / 'zone_cases.json').read_text(encoding='utf8'))['cases']
+        self.assertGreater(len(cases), 30)
+        for case in cases:
+            self.assertEqual(spawns.valid_zone(case['zone']), case['valid'], case['why'])
+
     def test_fields_it_does_not_know_and_other_orders_are_kept(self):
         line = BAR_1[:-1] + ',Spare=(A=1,B="x,y"))'
         name, zone = spawns.parse_line(line)

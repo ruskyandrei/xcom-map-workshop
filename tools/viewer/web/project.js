@@ -119,11 +119,13 @@ const LANDING_KEYS = ['id', 'location', 'direction', 'kind', 'missionType', 'cou
 const typeName = v => v === undefined || (typeof v === 'string' && /^[A-Za-z0-9_]+$/.test(v));
 // `other` goes into the game's ini as written: it must stay on its line (spawns.py plain_other is the twin)
 const plainOther = v => v === undefined || (typeof v === 'string' && /^[^\x00-\x08\x0a-\x1f\x7f\x85\u2028\u2029]{0,4000}$/.test(v));
+// (spawns.py valid_zone is the twin: tests/zone_cases.json holds the cases both pass; a field given is one of its kind,
+// null is no value of any of them)
 export const validLandingZone = z => Boolean(z) && typeof z === 'object' && !Array.isArray(z) && typeof z.id === 'string' && z.id !== ''
   && Array.isArray(z.location) && z.location.length === 3 && z.location.every(Number.isFinite)
-  && LANDING_DIRECTIONS.includes(z.direction) && LANDING_KINDS.includes(z.kind ?? 'normal')
+  && LANDING_DIRECTIONS.includes(z.direction) && (z.kind === undefined || LANDING_KINDS.includes(z.kind))
   && typeName(z.missionType) && typeName(z.councilType)
-  && (z.alternate === undefined || (z.alternate && typeof z.alternate === 'object' && Object.keys(z.alternate).length === 2
+  && (z.alternate === undefined || (Boolean(z.alternate) && typeof z.alternate === 'object' && Object.keys(z.alternate).length === 2
     && Array.isArray(z.alternate.location) && z.alternate.location.length === 3 && z.alternate.location.every(Number.isFinite)
     && LANDING_DIRECTIONS.includes(z.alternate.direction)))
   && [undefined, false].includes(z.lwr) && [undefined, true].includes(z.ew) && plainOther(z.other)
