@@ -122,7 +122,7 @@ def check_arrow_pan(page):
     check_option(page, 'flyKeys', True)
     page.keyboard.press('Escape')
     page.evaluate('document.activeElement && document.activeElement.blur()')
-    assert page.evaluate("localStorage.getItem('viewer.flyKeys')") == '1'
+    assert page.evaluate("localStorage.getItem('workshop.flyKeys')") == '1'
     try:
         for arrow, letter, sign in keys:
             for key in (arrow, letter):
@@ -196,11 +196,11 @@ def check_camera_speeds(page):
     slide('moveSpeed', 0.5)
     half = page.evaluate(measure, ['w', False])
     assert 0.4 < half['plain']['move'] / base['plain']['move'] < 0.6, (base, half)
-    assert page.evaluate("localStorage.getItem('viewer.moveSpeed')") == '0.5'
+    assert page.evaluate("localStorage.getItem('workshop.moveSpeed')") == '0.5'
     assert page.locator('#moveSpeedValue').text_content() == '×0.50'
     page.locator('#moveSpeed').dispatch_event('dblclick')
     assert page.evaluate("document.getElementById('moveSpeed').value") == '1'
-    assert page.evaluate("localStorage.getItem('viewer.moveSpeed')") == '1'
+    assert page.evaluate("localStorage.getItem('workshop.moveSpeed')") == '1'
     turn = page.evaluate(measure, ['q', False])
     slide('turnSpeed', 2)
     turned = page.evaluate(measure, ['q', False])
@@ -243,7 +243,7 @@ def check_pivot(page):
     at_origin = page.evaluate(middle)
     page.keyboard.press('c')
     assert page.evaluate('viewer.gizmo.pivot') == 'centre'
-    assert page.evaluate("localStorage.getItem('viewer.pivot')") == 'centre'
+    assert page.evaluate("localStorage.getItem('workshop.pivot')") == 'centre'
     assert page.locator('#editPivot').get_attribute('aria-pressed') == 'true'
     at_centre = page.evaluate(middle)
     assert max(abs(a - b) for a, b in zip(at_centre['proxy'], at_centre['box'])) < 0.01, at_centre
@@ -284,7 +284,7 @@ def check_pivot(page):
         assert all(abs(s - round(s)) < 1e-3 for s in steps) and round(steps[0]) % 2 == round(steps[1]) % 2, (p, o)
         page.evaluate('s => viewer.gizmo.setSnap(s)', was)
     page.locator('#editPivot').click()
-    assert page.evaluate('viewer.gizmo.pivot') == 'origin' and page.evaluate("localStorage.getItem('viewer.pivot')") == 'origin'
+    assert page.evaluate('viewer.gizmo.pivot') == 'origin' and page.evaluate("localStorage.getItem('workshop.pivot')") == 'origin'
     back = page.evaluate(middle)
     assert max(abs(a - b) for a, b in zip(back['proxy'], at_origin['proxy'])) < 0.01, (at_origin, back)
     page.evaluate('id => viewer.select(id)', before)

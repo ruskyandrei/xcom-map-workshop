@@ -82,8 +82,9 @@ export function withLocalLights(material) {
 
 // UE3 turns FColor into linear colour with a 2.2 power; its lights carry no 1/pi,
 // three.js's Lambert term does, hence the pi.
-const linear = (rgb, scale = 1) => rgb.map(v => Math.pow(v, 2.2) * scale);
-const toView = v => new THREE.Vector3(v[0], v[2], v[1]);
+export const linear = (rgb, scale = 1) => rgb.map(v => Math.pow(v, 2.2) * scale);
+// a game vector (x, y, z up) in the view's axes (y up)
+export const toView = v => new THREE.Vector3(v[0], v[2], v[1]);
 
 /** Map lighting for one scene. Call before the first material compiles. setLights(records) puts the lights as edited
  *  in place of the scene's (editor lights plan 4.6: moved, changed, added and deleted lights, and the area lights their

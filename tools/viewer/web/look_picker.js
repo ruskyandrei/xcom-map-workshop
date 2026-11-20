@@ -9,6 +9,7 @@
 // look shows (looks.js lookTags). What it gives: the entry chosen (onChoose), or the eyedropper (onPick).
 
 import { lookKey } from './looks.js';
+import { hex16 } from './api.js';
 
 /** The pictures' size in pixels, and the version of their drawing (a better drawing replaces the old pictures). */
 export const PICTURE = { width: 512, height: 384, version: 1 };
@@ -18,15 +19,8 @@ const FAVOURITES = 'workshop.lookFavourites', SIZE = 'workshop.lookPictureSize';
 
 /** The 16 hex digits a sample's picture is kept under (the server's key form): its kind, look, sample shape, size and
  *  the drawing's version. */
-export function pictureKey(kind, entry, sample) {
-  let a = 0x811c9dc5, b = 0x01000193;
-  const text = `look-sample|${PICTURE.version}|${kind}|${lookKey(kind, entry.mesh, entry.material)}|${sample}|${PICTURE.width}x${PICTURE.height}`;
-  for (const c of text) {
-    a = Math.imul(a ^ c.charCodeAt(0), 0x01000193) >>> 0;
-    b = Math.imul(b + c.charCodeAt(0), 0x85ebca6b) >>> 0; b ^= b >>> 13;
-  }
-  return a.toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
-}
+export const pictureKey = (kind, entry, sample) =>
+  hex16(`look-sample|${PICTURE.version}|${kind}|${lookKey(kind, entry.mesh, entry.material)}|${sample}|${PICTURE.width}x${PICTURE.height}`);
 
 // (a catalogue entry's `maps`: { map: times placed })
 const mapsOf = entry => Object.keys(entry.maps ?? {});

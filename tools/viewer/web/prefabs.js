@@ -7,17 +7,10 @@
 // sounds plan, stage FX6a; a lens flare is one more kind since FX6b). 4: a piece made from numbers (`generated`) and a
 // broken copy's `blasts` (review finding 6: piece_records.js). A prefab of schema 1 to 3 opens, and saves as 4.
 import { draftQuery } from './project.js';
+import { call } from './api.js';
 
 export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 4;
-export const TILE = 96, STOREY = 64;
 
-async function call(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body) });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status, detail: value });
-  return value;
-}
 const at = id => `/prefabs/${encodeURIComponent(id)}`;
 export const api = {
   list: () => call('GET', '/prefabs.json'),
@@ -196,13 +189,13 @@ export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, down
       note('');
       hint(taken.replaced ? `Replaced ${taken.name} with the file (revision ${taken.revision})` : `Imported ${taken.name}`);
     } catch (error) {
-      const here = error.detail?.clash;
+      const here = error.body?.clash;
       if (error.status !== 409 || !here) { note(`Not imported. ${error.message}`, dismiss()); return; }
       const replace = el('button', { type: 'button', textContent: 'Replace it' }), both = el('button', { type: 'button', textContent: 'Keep both' });
       replace.title = `The file is saved over revision ${here.revision} of the prefab here, as its next revision (the one before is kept)`;
       both.title = 'The file is stored as a prefab of its own, with "(imported)" after its name';
       replace.onclick = () => importDocument(doc, 'replace', here.revision); both.onclick = () => importDocument(doc, 'copy');
-      const again = error.detail?.changed ? `It was saved again meanwhile. ` : '';
+      const again = error.body?.changed ? `It was saved again meanwhile. ` : '';
       note(`${again}The library already has this prefab, as “${here.name}” (revision ${here.revision}).`, el('div', { className: 'row' }, replace, both, dismiss('Cancel')));
       refresh();
       return;

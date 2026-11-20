@@ -3,6 +3,7 @@
 // shadows. The page (app.js) keeps the lights' roots, their edits and the inspector; this module draws.
 import * as THREE from 'three';
 import { effectiveCone, falloffRadius } from './light_rules.js';
+import { linear, toView } from './lighting.js';
 
 // UE3's local light terms in three.js's own lights, for Solo (lighting.js patches the map's materials the same way):
 // the radial falloff (1 - (d/R)^2)^F, with three.js's decay carrying F and its distance R, and the spot cone
@@ -22,8 +23,6 @@ import { effectiveCone, falloffRadius } from './light_rules.js';
       + '\treturn pow2( saturate( ( angleCosine - coneCosine ) / max( penumbraCosine - coneCosine, 1e-4 ) ) );\n}');
 }
 
-const linear = (rgb, scale = 1) => rgb.map(v => Math.pow(v, 2.2) * scale);
-const toView = v => new THREE.Vector3(v[0], v[2], v[1]);
 
 // The colour a marker takes: a light's own, grey for one that is view only.
 const VIEW_ONLY = new THREE.Color(0x8a959c);

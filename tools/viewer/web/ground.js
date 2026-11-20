@@ -8,7 +8,7 @@
 // yaw don't matter: the mesh is ours), and turns by quarter turns. Locations are game units (x, y, z up), rotations
 // rotator units (pitch, yaw, roll). A rock whose corners were moved (look picker and rock points plan, R1) carries
 // `points`, its ROCK.points points in its frame, and its request is POINTS_VERSION whatever its look (versionedGround).
-import { TILE } from './poserule.js';
+import { TILE } from './constants.js';
 import { wallRotation, wallDirection } from './walls.js';
 import { catalogued } from './looks.js';
 

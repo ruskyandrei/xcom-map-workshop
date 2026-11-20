@@ -13,10 +13,10 @@
 // adding the recipe's heightStep, 96, to the top), and the first ones { width, length, height: 'high' | 'low' } (one tile
 // tall): normalCover reads both. The editor draws a piece as a see-through box with its edges; in the game it is hidden.
 import * as THREE from 'three';
+import { TILE } from './constants.js';
 
 export const COVER_MATERIAL = 'cover:material';
 export const COVER_KIND = 'cover';
-const TILE = 96;
 const COLOURS = { high: 0xe0a040, low: 0x6fc0e0, floor: 0x7fd07f, block: 0xd07ad0 };
 
 export const isFloor = c => c?.type === 'floor';

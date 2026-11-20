@@ -8,7 +8,7 @@
 // longer than WALL.pieceTiles or taller than its look's storeys is drawn whole and made by the Build as pieces of
 // those sizes, joined end to end and stacked (tools/bake/made_split.py; the editing plan's D-3).
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll).
-import { QUARTER, TILE } from './poserule.js';
+import { QUARTER, TILE } from './constants.js';
 import { catalogued } from './looks.js';
 
 // The looks a wall is drawn in: each a donor (one of the game's fracturing walls, placed in a map of the base game), the

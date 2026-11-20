@@ -3,14 +3,8 @@
 // setting, else the game install the editor reads: LWR or plain Enemy Within), and everything the editor installed for
 // that taken back out. The Game menu (the arrow beside Play) also shows the installs the editor works with: the game install it reads, the
 // install it plays in, how the game is started there, and what the editor has installed in it.
+import { call } from './api.js';
 
-async function call(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body) });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status });
-  return value;
-}
 export const playApi = {
   status: () => call('GET', '/play.json'),
   start: request => call('POST', '/play/start', request),   // {project: id} or {map: id}

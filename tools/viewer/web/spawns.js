@@ -2,8 +2,10 @@
 // actors, by the offsets of LWR's landing-zone mutator (XComLZMutator), and the project's starting list made from the
 // map's own landings and the install's lines. tools/viewer/spawns.py has the same rules for the compiler and the
 // Build; game units, x and y across, z up.
+import { QUARTER } from './constants.js';
+
 export const DIRECTIONS = ['north', 'east', 'south', 'west'];
-export const QUARTER = 16384, GROUND = 64, INSIDE_BACK = 288, TILE = 96;
+export const GROUND = 64, INSIDE_BACK = 288;
 export const OFFSETS = { playerStart: [8, 189, 16], volume: [0, -47, 32], frame: [0, 0, -64], point: [-240, 432, -64] };
 export const SOLDIERS = [[192, 384, -16], [0, 480, -16], [192, 192, -16], [0, 288, -16], [-192, 384, -16], [-192, 192, -16]];
 export const EVAC_SIZE = [480, 288, 192];

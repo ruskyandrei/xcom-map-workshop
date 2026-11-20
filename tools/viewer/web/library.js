@@ -14,6 +14,7 @@
 import { pieceKind, inKind, setKindOptions, effectKind, SOFT } from './piece_categories.js';
 import { pieceRow } from './pieces.js';
 import { drawEffectIcon } from './effects_view.js';
+import { call, hex16 } from './api.js';
 
 // What the library only holds back (SOFT, piece_categories.js: compiler.py FOREIGN_SOFT): hidden in its own map,
 // linked to other pieces, of a kind not brought before, waiting for a game test. Such a piece is placed as any other;
@@ -36,21 +37,12 @@ const SORTS = {
 const el = (tag, props = {}, ...children) => { const e = Object.assign(document.createElement(tag), props); e.append(...children); return e; };
 const plural = (n, word) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
 const kb = bytes => (bytes >= 1 << 20 ? `${(bytes / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
-async function json(url, options) {
-  const response = await fetch(url, options), body = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(Error(body.error ?? `The library didn't answer (${response.status})`), { status: response.status, body });
-  return body;
-}
+const json = (url, method = 'GET', body = undefined) => call(method, url, body, { fallback: r => `The library didn't answer (${r.status})` });
 
 // The key an effect's picture is kept under: its entry's and the drawing's version, so a better drawing replaces the
 // pictures made by an older one (the server keeps a picture under 16 hex digits)
 const PICTURE_VERSION = 2;
-function pictureKey(entry) {
-  if (!entry.effect) return entry.key;
-  let a = 0x811c9dc5, b = 0x01000193;
-  for (const c of `${entry.key}|likeness${PICTURE_VERSION}`) { a = Math.imul(a ^ c.charCodeAt(0), 0x01000193) >>> 0; b = Math.imul(b + c.charCodeAt(0), 0x85ebca6b) >>> 0; b ^= b >>> 13; }
-  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
-}
+const pictureKey = entry => (entry.effect ? hex16(`${entry.key}|likeness${PICTURE_VERSION}`) : entry.key);
 /**
  * els: box (the scope's part of the panel), scan (the scan offer), filter, kind, home, sort, placeable, elsewhere,
  * favourites (checkboxes), list, foot.
@@ -159,7 +151,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
           + 'which takes about half a minute, once; nothing in the game is changed.' }), button);
   }
   async function startScan() {
-    try { status = { ...(status ?? {}), scan: await json('/library/scan', { method: 'POST' }) }; offer(); }
+    try { status = { ...(status ?? {}), scan: await json('/library/scan', 'POST') }; offer(); }
     catch (error) { hint(`The maps could not be read: ${error.message}`); }
   }
 
@@ -178,8 +170,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     if (!state) { hint(`The favourites file could not be read (${stateError ?? 'no answer'}), so this is not kept`); return; }
     const document = change({ favourites: [...state.favourites], recent: [...state.recent] });
     try {
-      state = await json('/library/state.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                                                   body: JSON.stringify({ expectedRevision: state.revision, document }) });
+      state = await json('/library/state.json', 'PUT', { expectedRevision: state.revision, document });
     } catch (error) {
       // changed in another window: its state read, and the change made on that
       if (error.status === 409 && again) { stateLoad = null; await loadState(); return saveState(change, false); }

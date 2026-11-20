@@ -38,7 +38,7 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
     catch (error) {
       // the project replaced was saved again since the question showed it (review finding 4): asked again, with
       // its revision now
-      if (request.target && error.status === 409 && Number.isInteger(error.detail?.revision)) {
+      if (request.target && error.status === 409 && Number.isInteger(error.body?.revision)) {
         await refresh();
         const fresh = projects.find(p => p.id === request.target.id && !p.error);
         if (fresh) {
@@ -48,7 +48,7 @@ export function createProjectDialog({ els, api, mapLabel, onLoad, onSave }) {
       }
       say(`Not saved: ${error.message}`);
       // the name shown was taken meanwhile: the one it would get now, for the next Save
-      const proposal = error.detail?.proposal;
+      const proposal = error.body?.proposal;
       if (proposal?.output && !request.target) { preview = { key: previewKey(), result: { fresh: true, notes: [], conflicts: [], ...proposal } }; showOutput(); }
     }
     finally { update(); }

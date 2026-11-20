@@ -3,6 +3,7 @@
 // level and actor; added pieces, each a copy of a source actor's components under its own output name and pose; and
 // the user's groups of pieces, with their lock and options. The viewer's server stores it (tools/viewer/projects.py). Nothing here touches the game.
 import { validFlags } from './piece_flags.js';
+import { call } from './api.js';
 
 // 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (the effects and sounds
 // plan, Part C: an override of an effect or a sound, and an added record with a `kind`); 4: the spawns plan's
@@ -289,13 +290,6 @@ export function newDocument(name, mapId, data, output) {
   };
 }
 
-async function call(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body) });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status, detail: value });
-  return value;
-}
 const at = id => `/projects/${encodeURIComponent(id)}`;
 /** A draft's DELETE query: its owner (blank: the draft kept before drafts had owners) and, for one shown, its time. */
 export const draftQuery = (owner, savedAt = null) => new URLSearchParams({ owner: owner ?? '', ...(savedAt ? { savedAt } : {}) }).toString();

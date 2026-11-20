@@ -13,7 +13,7 @@ import { createProjectDialog, savedWhen } from './project_files.js';
 import { playApi, renderInstalls } from './play.js';
 import { createSquadDialog, squadLine } from './squad.js';
 import { createProjectManager } from './manager.js';
-import { chipWords, createQueueController } from './build_queue.js';
+import { chipWords, clock, createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
 import { createMapBrowser } from './map_browser.js';
 import { createSetupDialog, setupApi } from './setup.js';
@@ -39,6 +39,8 @@ import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREF
 import { createPrefabTest } from './prefab_test.js';
 import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordFields, stateOf, stateOfRoot } from './piece_records.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
+import { call } from './api.js';
+import { forget, recall, remember } from './storage.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
@@ -49,7 +51,8 @@ import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes
 import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverMaterial, coverMeshId, coverMeshRecord, coverScene, coverStart,
          coverWords, floorStart, isBlocker, isFloor, lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
-import { gridMove, nearestGridPose, TILE } from './poserule.js';
+import { gridMove, nearestGridPose } from './poserule.js';
+import { LEVEL, QUARTER, TILE } from './constants.js';
 import { WALL, WALL_LOOKS, OPENING as GAP, drawnWall, flippedWall, movedOpening, openingParts, openingPlay, openingWords, playWords,
          raisedWall, resizedWall, reshuffled, shiftedLocation, sortedOpenings, storeysOf, toolWall, wallTop, wallWords, withOpening,
          withoutOpening, withStoreys, wallJoins, joinWords, drawnRoom, wallSpec, endInsetsOf, storeyWords, storeysInLook, openingsInLook,
@@ -389,9 +392,6 @@ function sectionText(id) {
   box.classList.toggle('showhow', had);
   return words;
 }
-// Settings kept per browser (stats line, source details open). Storage can be missing or blocked.
-const recall = key => { try { return localStorage.getItem(key); } catch { return null; } };
-const remember = (key, value) => { try { localStorage.setItem(key, value); } catch { /* not kept */ } };
 // The selection's group as a chip beside its name; groupPanel keeps it up to date.
 const groupChip = document.createElement('span');
 groupChip.hidden = true;
@@ -941,7 +941,7 @@ function refreshLadder(root) {
   const tiles = [[ends.footTile, ends.footFloor], [ends.linkedTop ?? ends.topTile, Boolean(ends.linkedTop)]];
   tiles.forEach(([tile, ok], k) => {
     const mark = ladderMarks.children[k];
-    mark.position.set(ox + (tile[0] + 0.5) * 96, oz + tile[2] * 64 + 3, oy + (tile[1] + 0.5) * 96);
+    mark.position.set(ox + (tile[0] + 0.5) * TILE, oz + tile[2] * LEVEL + 3, oy + (tile[1] + 0.5) * TILE);
     mark.material.color.set(ok ? 0x5ad17a : 0xe0605a);
   });
 }
@@ -1455,7 +1455,7 @@ const coverVersion = (version, type) => {
 const validCoverValues = c => {
   const r = coverRecipe();
   if (!r || !c || !Object.hasOwn(r.heights, c.type) || !Array.isArray(c.size) || c.size.length !== 2) return false;
-  const across = r.maxTiles * 96, flat = r.flat?.includes(c.type);
+  const across = r.maxTiles * TILE, flat = r.flat?.includes(c.type);
   if (!c.size.every(v => Number.isFinite(v) && v > 0 && v <= across)) return false;
   if (flat) return Object.keys(c).length === 2;
   const span = r.heights.high[1] - r.heights.high[0] + r.heightStep * (r.maxHeight - 1), h = c.heights;
@@ -1669,12 +1669,12 @@ function coverTiles(root) {
     return t1 - t0 > 1e-6;
   };
   // heights against its floor's level (the level its location stands in)
-  const bottom = oz + 64 * Math.floor((z - oz) / 64 + 1e-6), lo = z + h0, hi = z + h1;
+  const bottom = oz + LEVEL * Math.floor((z - oz) / LEVEL + 1e-6), lo = z + h0, hi = z + h1;
   const spans = (a, b) => hi > bottom + a + 1e-6 && lo < bottom + b - 1e-6;
   const thin = Math.min(c.size[0], c.size[1], h1 - h0) < 4 && Math.max(c.size[0], c.size[1]) < 384;
-  const tx0 = Math.floor((Math.min(...xs) - ox) / 96) - 1, tx1 = Math.ceil((Math.max(...xs) - ox) / 96);
-  const ty0 = Math.floor((Math.min(...ys) - oy) / 96) - 1, ty1 = Math.ceil((Math.max(...ys) - oy) / 96);
-  const centre = (tx, ty) => [ox + tx * 96 + 48, oy + ty * 96 + 48];
+  const tx0 = Math.floor((Math.min(...xs) - ox) / TILE) - 1, tx1 = Math.ceil((Math.max(...xs) - ox) / TILE);
+  const ty0 = Math.floor((Math.min(...ys) - oy) / TILE) - 1, ty1 = Math.ceil((Math.max(...ys) - oy) / TILE);
+  const centre = (tx, ty) => [ox + (tx + 0.5) * TILE, oy + (ty + 0.5) * TILE];
   const tile = new Map(), key = (tx, ty) => `${tx},${ty}`;
   for (let tx = tx0; tx <= tx1; tx++) {
     for (let ty = ty0; ty <= ty1; ty++) {
@@ -1898,7 +1898,7 @@ async function pasteSnapshot(clip, delta, step = null, { whole = false, first = 
       names.add(name);
       twins.set(v.building, { id: newBuildingId(), meta: { name, kind: meta.kind ?? 'building' } });
     }
-    const root = makeVolume([0, 0, 0, 96, 96, 64], twins.get(v.building).id, v.floor);
+    const root = makeVolume([0, 0, 0, TILE, TILE, LEVEL], twins.get(v.building).id, v.floor);
     root.matrix.copy(delta.clone().multiply(v.matrix));
     setVolumeBox(root, volumeBox(root));
     root.userData.deleted = true;
@@ -2007,9 +2007,9 @@ function dropTarget(clip, at) {
   const [px, py] = clip.pivot;
   // a prefab with a building or a piece that keeps the pose rule goes by whole tiles and levels, whatever the snap:
   // its pivot is a tile corner at ground level
-  if (clip.gridLocked) return [px + Math.round((x - px) / 96) * 96, py + Math.round((y - py) / 96) * 96, clip.pivot[2] + Math.round((z - clip.pivot[2]) / 64) * 64];
+  if (clip.gridLocked) return [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE, clip.pivot[2] + Math.round((z - clip.pivot[2]) / LEVEL) * LEVEL];
   if (snapMode === 'fine') [x, y] = [Math.round(x / 24) * 24, Math.round(y / 24) * 24];
-  else if (snapMode === 'tile') [x, y] = [px + Math.round((x - px) / 96) * 96, py + Math.round((y - py) / 96) * 96];
+  else if (snapMode === 'tile') [x, y] = [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE];
   if (clip.floor != null && levelSnap)
     z = levelHeight(clip.pivot[2], clip.floor, chosenStorey(x, y)?.z ?? floorUnder(liveFloorIndex(), { ...tileGridOf(data), origin: tileCorner() ?? tileGridOf(data).origin }, [x, y, z]).z);
   // a light from the Add panel: at its template's height above what is under the cursor
@@ -2018,7 +2018,7 @@ function dropTarget(clip, at) {
   // first tile's), where the game looks for that tile's floor and the panel measures (floorCentres), whatever the snap:
   // with snap off the pivot stands anywhere in that tile, and the ground there can be a kerb's height off
   if (clip.groundFloor) {
-    const o = gridOrigin(), at = o ? [0, 1].map(k => o[k] + 96 * Math.floor(([x, y][k] - o[k]) / 96) + 48) : [x, y];
+    const o = gridOrigin(), at = o ? [0, 1].map(k => o[k] + TILE * Math.floor(([x, y][k] - o[k]) / TILE) + TILE / 2) : [x, y];
     const g = groundAt(at[0], at[1], z + 96); if (g != null) z = g + FLOOR_CLEARANCE;
   }
   return [x, y, z];
@@ -2026,7 +2026,7 @@ function dropTarget(clip, at) {
 // The move (viewer space) that takes the clip's pivot to a game location, turned by quarter turns about the pivot
 // (R while placing). Game (x, y, z up) is viewer (x, z, y).
 const moveTo = (clip, [x, y, z], turns = 0) => new THREE.Matrix4().makeTranslation(x, z, y)
-  .multiply(actorMatrix([0, 0, 0], [0, turns * 16384, 0]))
+  .multiply(actorMatrix([0, 0, 0], [0, turns * QUARTER, 0]))
   .multiply(new THREE.Matrix4().makeTranslation(-clip.pivot[0], -clip.pivot[2], -clip.pivot[1]));
 // A move (viewer space) of pieces ({ source, matrix } each), kept under tile snap to the pose rule of the first of them
 // that is a ladder, door, car, van or fracturing piece (the recipe snap, as the gizmo keeps it); any other move as it is.
@@ -2459,8 +2459,8 @@ function prefabRecords({ complete = false } = {}) {
   // map's bottom level stands on the builder's drawn grid, and what lies under the grid goes below 0. Builder ground
   // stays zero.
   const down = (v, o, step) => o + Math.floor((v - o + 0.5) / step) * step;
-  const origin = [down(low[0], grid[0], 96), down(low[1], grid[1], 96), grid[2]];
-  const tiles = [0, 1].map(k => Math.max(1, Math.ceil((high[k] - origin[k]) / 96 - 1e-4)));
+  const origin = [down(low[0], grid[0], TILE), down(low[1], grid[1], TILE), grid[2]];
+  const tiles = [0, 1].map(k => Math.max(1, Math.ceil((high[k] - origin[k]) / TILE - 1e-4)));
   const shift = new THREE.Matrix4().makeTranslation(-origin[0], -origin[2], -origin[1]);
   const pieces = [], left = [], donors = new Map(), names = new Map(), copied = [];
   let n = 0;
@@ -2621,7 +2621,7 @@ async function prefabClip(doc, step = null) {
   return { entries, volumes, buildingMeta: meta, left, name: doc.name, prefab: mark, wrap: mark, pivotIndex: 0,
            groups: (doc.groups ?? []).map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: g.members.map(memberKey) })),
            // held by the middle of its footprint, on a tile corner
-           pivot: [base[0] + Math.round(tiles[0] / 2) * 96, base[1] + Math.round(tiles[1] / 2) * 96, base[2]],
+           pivot: [base[0] + Math.round(tiles[0] / 2) * TILE, base[1] + Math.round(tiles[1] / 2) * TILE, base[2]],
            gridLocked: volumes.length > 0 || entries.some(e => !e.source.isLight && !e.source.isEffect && pieceGrid(e.source)) };
 }
 function canRecoverPrefabSources(doc, missing) {
@@ -3994,7 +3994,7 @@ function lightClip(kind) {
     height = floor == null ? 200 : Math.max(16, template.location[2] - floor);
   } else if (families?.lightRecipes?.[kind]) {
     // a map without one: the editor's own, made from its built-in recipe (a spot light points down)
-    ({ source, values } = recipeLight({ kind, version: families.lightRecipes[kind].latest }, null, [0, 0, 0], kind === 'spot' ? [-16384, 0, 0] : [0, 0, 0]));
+    ({ source, values } = recipeLight({ kind, version: families.lightRecipes[kind].latest }, null, [0, 0, 0], kind === 'spot' ? [-QUARTER, 0, 0] : [0, 0, 0]));
     height = 256;
   } else { flashHint(`This map has no ${kind} light to copy`); return null; }
   return { entries: [{ source, matrix: new THREE.Matrix4().fromArray(source.matrix), values }], pivot: [...source.location],
@@ -4423,8 +4423,8 @@ function refreshBuilder() {
     size.outside.length ? `Out of the grid: ${size.outside.slice(0, 8).join(', ')}${size.outside.length > 8 ? ' …' : ''}.` : ''].filter(Boolean).join('\n');
   $('builderSize').classList.toggle('warn', size.warnings.length > 0 || !size.verified);
   gridWarning();
-  const lo = [0, 1].map(k => Math.floor((Math.min(-576, b[k], controls.target[k ? 'z' : 'x'] - 576) - 192) / 96) * 96);
-  const hi = [0, 1].map(k => Math.ceil((Math.max(576, b[k + 3], controls.target[k ? 'z' : 'x'] + 576) + 192) / 96) * 96);
+  const lo = [0, 1].map(k => Math.floor((Math.min(-576, b[k], controls.target[k ? 'z' : 'x'] - 576) - 192) / TILE) * TILE);
+  const hi = [0, 1].map(k => Math.ceil((Math.max(576, b[k + 3], controls.target[k ? 'z' : 'x'] + 576) + 192) / TILE) * TILE);
   const key = [...lo, ...hi, ...size.origin, ...size.tiles, size.warnings.length].join(',');
   if (key === builderGroundKey) return;
   builderGroundKey = key;
@@ -4434,13 +4434,13 @@ function refreshBuilder() {
   plane.position.set((hi[0] + lo[0]) / 2, -0.2, (hi[1] + lo[1]) / 2); builderGround.add(plane);
   const lines = [], line = (x, y, X, Y) => lines.push(x, 0, y, X, 0, Y);
   // Bound drawing cost even when repairing a very large legacy prefab.
-  const step = Math.max(96, Math.ceil(Math.max(hi[0] - lo[0], hi[1] - lo[1]) / (256 * 96)) * 96);
+  const step = Math.max(TILE, Math.ceil(Math.max(hi[0] - lo[0], hi[1] - lo[1]) / (256 * TILE)) * TILE);
   for (let x = lo[0]; x <= hi[0]; x += step) line(x, lo[1], x, hi[1]);
   for (let y = lo[1]; y <= hi[1]; y += step) line(lo[0], y, hi[0], y);
   builderGround.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(lines, 3)),
     new THREE.LineBasicMaterial({ color: 0x91a9ac, transparent: true, opacity: 0.14 })));
   const [x, y] = size.origin, [nx, ny] = size.tiles;
-  const outline = [x, 0.4, y, x + nx * 96, 0.4, y, x + nx * 96, 0.4, y + ny * 96, x, 0.4, y + ny * 96, x, 0.4, y];
+  const outline = [x, 0.4, y, x + nx * TILE, 0.4, y, x + nx * TILE, 0.4, y + ny * TILE, x, 0.4, y + ny * TILE, x, 0.4, y];
   builderGround.add(new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(outline, 3)),
     new THREE.LineBasicMaterial({ color: size.warnings.length ? 0xef9979 : 0x82d5ce })));
   for (const child of builderGround.children) child.raycast = () => {};
@@ -4457,7 +4457,7 @@ async function applyPrefabDocument(doc, { envelope = null, nextSerial = 0 } = {}
   try { carried = await applyState({ overrides: [], added: doc.pieces.map(p => ({ ...p, id: p.actor })), groups: doc.groups ?? [], buildings: doc.buildings ?? [], nextSerial }, progress); }
   finally { builder.loading = false; }
   builder.kept = carried.added.map(({ id, ...p }) => p);
-  builder.envelope = builder.kept.length ? envelope ?? [0, 0, 0, doc.floor.tiles[0] * 96, doc.floor.tiles[1] * 96, 0] : null;
+  builder.envelope = builder.kept.length ? envelope ?? [0, 0, 0, doc.floor.tiles[0] * TILE, doc.floor.tiles[1] * TILE, 0] : null;
   refreshBuilder(); editChanged();
 }
 async function openPrefabDocument(id) {
@@ -4600,10 +4600,10 @@ async function saveBuilder({ name = null, replace = null } = {}) {
     flashHint(`Saved ${doc.name} · revision ${result.revision}${!result.size?.verified ? ' · size unverified: missing pieces kept' : ''}`);
     return true;
   } catch (error) {
-    if (error.status === 409 && Number.isInteger(error.detail?.revision) && !name) {
+    if (error.status === 409 && Number.isInteger(error.body?.revision) && !name) {
       recoveryTrouble = 'stale';      // (told here: the drafts kept meanwhile say nothing more of it)
-      banner(`${builder.doc.name} was saved elsewhere (revision ${error.detail.revision}).`, [
-        ['Overwrite it with this', () => { builder.doc.revision = error.detail.revision; saveBuilder(); }],
+      banner(`${builder.doc.name} was saved elsewhere (revision ${error.body.revision}).`, [
+        ['Overwrite it with this', () => { builder.doc.revision = error.body.revision; saveBuilder(); }],
         ['Open the saved one', () => discardAndGo({ prefab: builder.doc.id })],
       ]);
     }
@@ -5206,13 +5206,13 @@ async function saveProject({ name = null, replace = null, rename = null, output 
     return true;
   } catch (e) {
     // the map name shown was taken meanwhile: the dialog shows the one it would get now, and nothing is lost
-    if (fresh && e.status === 409 && e.detail?.proposal) throw e;
+    if (fresh && e.status === 409 && e.body?.proposal) throw e;
     // the project replaced was saved again since the dialog showed it: the dialog asks again
-    if (replace && e.status === 409 && Number.isInteger(e.detail?.revision)) throw e;
-    if (e.status === 409 && Number.isInteger(e.detail?.revision) && !name && !replace) {
+    if (replace && e.status === 409 && Number.isInteger(e.body?.revision)) throw e;
+    if (e.status === 409 && Number.isInteger(e.body?.revision) && !name && !replace) {
       recoveryTrouble = 'stale';      // (told here: the drafts kept meanwhile say nothing more of it)
-      banner(`${project.doc.name} was saved elsewhere since you opened it (revision ${e.detail.revision}).`, [
-        ['Overwrite it with this', () => { project.revision = e.detail.revision; saveProject(); }],
+      banner(`${project.doc.name} was saved elsewhere since you opened it (revision ${e.body.revision}).`, [
+        ['Overwrite it with this', () => { project.revision = e.body.revision; saveProject(); }],
         ['Open the saved one', () => discardAndGo({ map: activeMapId, project: project.doc.id, scene: null })],
       ]);
     } else banner(`Not saved: ${e.message}`);
@@ -5232,7 +5232,6 @@ let buildTimer = null, buildTicker = null, lastBuild = null, buildView = null;
 const BUILD_ROWS = [['snapshot', 'Read the project and its base map'], ['compile', 'Compile the edit'],
                     ['patch', 'Build and cook the patch in UDK'], ['transplant', 'Bring the pieces from other maps'], ['light', 'Make the edit in the map and bake its lighting'],
                     ['package', 'Write the variant folder']];
-const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const secondsBetween = (a, b) => Math.max(0, ((b ? new Date(b).getTime() : Date.now()) - new Date(a).getTime()) / 1000);
 const sentence = s => s.charAt(0).toUpperCase() + s.slice(1);
 // Whether Build can start now: false (with a hint) without a saved project or while a build runs.
@@ -5877,9 +5876,7 @@ async function checkPrefab() {
   if (!doc.pieces.length && !doc.buildings.length) { Object.assign(problems, { result: null, error: null, key }); problemsPaint(); return; }
   problems.running = true; problemsPaint();
   try {
-    const response = await fetch('/prefab-tests/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ snapshot: doc }) });
-    const value = await response.json().catch(() => ({}));
-    if (!response.ok) throw Error(value.error ?? `the server said ${response.status}`);
+    const value = await call('POST', '/prefab-tests/check', { snapshot: doc }, { fallback: r => `the server said ${r.status}` });
     Object.assign(problems, { result: value, error: null, key });
   } catch (error) { Object.assign(problems, { result: null, error: error.message, key }); }
   finally { problems.running = false; problemsPaint(); }
@@ -5965,13 +5962,7 @@ const fileDialog = createProjectDialog({
 // for the project manager and for the chip in the top bar, which says where the queue is (and its results, until
 // Clear or the next Build) and opens the manager. A row of the open project's that starts or ends refreshes its
 // build state (its package), even when the server has gone on to the next row.
-async function queueCall(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status, body: value });
-  return value;
-}
+const queueCall = (method, url, body) => call(method, url, body, { init: { cache: 'no-store' } });
 const buildQueue = createQueueController({
   get: () => queueCall('GET', '/manager/queue.json'),
   post: (action, body) => queueCall('POST', action === 'add' ? '/manager/queue' : `/manager/queue/${action}`, body),
@@ -6147,8 +6138,8 @@ function plainMaterial() {
     local?.(shader, r);
     shader.uniforms.plainTileOrigin = { value: new THREE.Vector2(origin[0], origin[1]) };
     shader.fragmentShader = `uniform vec2 plainTileOrigin;\n${shader.fragmentShader}`.replace('#include <dithering_fragment>', `#include <dithering_fragment>
-      vec2 plainTile = (vLocalWorld.xz - plainTileOrigin) / 96.0;
-      vec2 plainDist = abs(fract(plainTile + 0.5) - 0.5) * 96.0;
+      vec2 plainTile = (vLocalWorld.xz - plainTileOrigin) / ${TILE.toFixed(1)};
+      vec2 plainDist = abs(fract(plainTile + 0.5) - 0.5) * ${TILE.toFixed(1)};
       float plainWidth = max(0.6, length(fwidth(vLocalWorld.xz)) * 0.8);
       gl_FragColor.rgb *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, plainWidth, min(plainDist.x, plainDist.y)));`);
   };
@@ -6577,7 +6568,7 @@ function stageDims(next, own = ownSize()) {
 function showGrid(dims) {
   const own = ownSize();
   if (!own) return;
-  const [nx, ny, nz] = dims ?? own.dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [96, 96, 64];
+  const [nx, ny, nz] = dims ?? own.dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [TILE, TILE, LEVEL];
   data.tileGrid.dimensions[0] = nx; data.tileGrid.dimensions[1] = ny; data.tileGrid.dimensions[2] = nz;
   data.playableBounds.max[0] = dims ? ox + nx * sx : own.max[0];
   data.playableBounds.max[2] = dims ? oy + ny * sy : own.max[2];
@@ -6596,7 +6587,7 @@ function setStage(next) {
   // a map grown as it is: the new area as a faint sheet, green where the Build lays the map's ground (where it is laid
   // as planes), grey where the project asked for none
   if (!dims || cleared) return;
-  const [nx, ny] = dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy] = data.tileGrid.size ?? [96, 96];
+  const [nx, ny] = dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy] = data.tileGrid.size ?? [TILE, TILE];
   const x1 = ox + own.dims[0] * sx, x2 = ox + nx * sx, y1 = oy + own.dims[1] * sy, y2 = oy + ny * sy;
   for (const [ax, ay, bx, by] of [[x1, oy, x2, y2], [ox, y1, x1, y2]]) {
     if (bx - ax < 1 || by - ay < 1) continue;
@@ -6731,7 +6722,7 @@ function startGridDrag(e) {
 function moveGridDrag(e) {
   const d = gridDrag, t = alongLine(e.clientX, e.clientY, d.origin, d.dir);
   if (t === null) return;
-  const step = (data.tileGrid.size ?? [96, 96, 64])[d.axis], rule = gridRule();
+  const step = (data.tileGrid.size ?? [TILE, TILE, LEVEL])[d.axis], rule = gridRule();
   const n = Math.min(rule.max[d.axis], Math.max(rule.min[d.axis], d.from[d.axis] + Math.round((t - d.t0) / step)));
   if (n === d.dims[d.axis]) return;
   d.dims[d.axis] = n;
@@ -6792,7 +6783,7 @@ function groundHeight() {
 }
 const LEVEL_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six'];
 function groundWords(levels) {
-  const oz = data.tileGrid.origin[2], sz = data.tileGrid.size?.[2] ?? 64, ground = groundHeight();
+  const oz = data.tileGrid.origin[2], sz = data.tileGrid.size?.[2] ?? LEVEL, ground = groundHeight();
   const under = Math.max(0, Math.floor((ground - oz + 2) / sz));
   if (under >= levels) return `The ground is at ${Math.round(ground)}, above the grid's top: the grid needs ${under + 1} levels or more.`;
   return `The ground is at level ${under + 1} of ${levels}: ${under ? `${LEVEL_WORDS[under] ?? under} level${under === 1 ? '' : 's'} of the grid ${under === 1 ? 'is' : 'are'}` : 'no level of the grid is'} under it.`;
@@ -6800,7 +6791,7 @@ function groundWords(levels) {
 // The notes under a size, none of which blocks (warn, don't block): zones outside the grid, no room for LWR's pods
 // (F-90), the ground above the grid
 function sizeNotes([nx, ny, nz], zoneList = null) {
-  const notes = [], [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [96, 96, 64];
+  const notes = [], [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [TILE, TILE, LEVEL];
   const box = [ox, oy, oz, ox + nx * sx, oy + ny * sy, oz + nz * sz];
   const zones = zoneList ?? zonesNow();
   const inside = p => p[0] >= box[0] && p[0] <= box[3] && p[1] >= box[1] && p[1] <= box[4] && p[2] >= box[2] && p[2] <= box[5];
@@ -6817,7 +6808,7 @@ function sizeNotes([nx, ny, nz], zoneList = null) {
 // The play area a clear that keeps the scenery outside goes by, across, in game units [x0, y0, x1, y1]: the map's level
 // volume as exported and the grid of `dims` tiles together (the compiler's outside_box)
 function outsideBox(dims = data.tileGrid.dimensions) {
-  const own = ownSize(), b = data.playableBounds, [ox, oy] = data.tileGrid.origin, [sx, sy] = data.tileGrid.size ?? [96, 96, 64];
+  const own = ownSize(), b = data.playableBounds, [ox, oy] = data.tileGrid.origin, [sx, sy] = data.tileGrid.size ?? [TILE, TILE, LEVEL];
   return [Math.min(b.min[0], ox), Math.min(b.min[2], oy), Math.max(own?.max[0] ?? b.max[0], ox + dims[0] * sx),
           Math.max(own?.max[2] ?? b.max[2], oy + dims[1] * sy)];
 }
@@ -7176,7 +7167,7 @@ function refreshGroundGrid(force = true) {
   if (!force && key === groundGridKey) return;
   groundGridKey = key;
   for (const child of [...groundGrid.children]) { child.geometry.dispose(); groundGrid.remove(child); }
-  const [ox, oy] = data.tileGrid.origin, [nx, ny] = data.tileGrid.dimensions, [sx, sy, sz] = data.tileGrid.size ?? [96, 96, 64];
+  const [ox, oy] = data.tileGrid.origin, [nx, ny] = data.tileGrid.dimensions, [sx, sy, sz] = data.tileGrid.size ?? [TILE, TILE, LEVEL];
   const covered = new Set();
   for (const f of data.tactical?.floorTiles ?? []) {
     if (f.location[2] <= ground + sz / 2 && floorStays(f.actor)) covered.add(`${f.tile[0]},${f.tile[1]}`);
@@ -7230,7 +7221,7 @@ const NORMAL_SPAWNS = 'workshop.normalSpawns', SPAWN_FILTERS = 'workshop.spawnFi
 {
   const old = recall('workshop.missionObjects');
   if (old !== null && recall(NORMAL_SPAWNS) === null) remember(NORMAL_SPAWNS, old === '0' ? '0' : '1');
-  try { localStorage.removeItem('workshop.missionObjects'); } catch { /* not kept */ }
+  forget('workshop.missionObjects');
 }
 normalSpawns = recall(NORMAL_SPAWNS) === '1';
 const spawnLayer = new THREE.Group(); world.add(spawnLayer);
@@ -7364,7 +7355,7 @@ function copySpawn(key) {
   if (!o || copyTemplateWhy(o) || missionMoves.get(key)?.deleted) return null;
   const at = spawnAt(e), now = missionMoves.get(key);
   const actor = copyName(o), k = spawnKey('copy', actor), box = o.kind === 'noSpawn' ? spawnBoxNow(e) : null;
-  const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + 96, at[1], at[2]], box: box && [box[0] + 96, box[1], box[2], box[3] + 96, box[4], box[5]],
+  const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + TILE, at[1], at[2]], box: box && [box[0] + TILE, box[1], box[2], box[3] + TILE, box[4], box[5]],
                                rotation: now?.rotation ?? (o.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: now?.spawn ?? {} });
   const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
   gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
@@ -7413,7 +7404,7 @@ function placeSpawn(clientX, clientY) {
   let entry;
   if (kind === 'noSpawn') {
     // a volume: its box over whole tiles round the click, its bottom on the level of the surface under it
-    const grid = { origin: data?.tileGrid?.origin ?? [0, 0, 0], size: data?.tileGrid?.size ?? [96, 96, 64] };
+    const grid = { origin: data?.tileGrid?.origin ?? [0, 0, 0], size: data?.tileGrid?.size ?? [TILE, TILE, LEVEL] };
     const box = volumePlace(template, [hit.x, hit.z, hit.y], groundAt(hit.x, hit.z, hit.y + 64), grid);
     entry = copyEntry(template, { id: uuid(), actor, box, spawn: {} });
   } else {
@@ -7581,8 +7572,8 @@ function spawnPanel() {
   else if (!moved) line('', e.layer === 'donor' ? `It stands where ${e.stream} has it on its own map: Long War moves it when it finds places, else it plays there.` : 'It stands where the original map has it.');
   else {
     const d = moved.location.map((v, i) => v - o.location[i]);
-    const levels = Math.abs(Math.round(d[2] / 64));
-    line('', `Moved ${Math.round(Math.hypot(d[0], d[1]) / 96)} tiles across${levels ? ` and ${levels} ${levels === 1 ? 'level' : 'levels'} ${d[2] > 0 ? 'up' : 'down'}` : ''} from where ${e.layer === 'donor' ? 'its stream' : 'the original map'} has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${e.stream}.`);
+    const levels = Math.abs(Math.round(d[2] / LEVEL));
+    line('', `Moved ${Math.round(Math.hypot(d[0], d[1]) / TILE)} tiles across${levels ? ` and ${levels} ${levels === 1 ? 'level' : 'levels'} ${d[2] > 0 ? 'up' : 'down'}` : ''} from where ${e.layer === 'donor' ? 'its stream' : 'the original map'} has it${n > 1 ? ', with its group' : ''}: the Build moves ${n > 1 ? 'them' : 'it'} in the variant's copy of ${e.stream}.`);
   }
   if (movable) {
     // a stream's copy replaces it in every record that streams it (keyed by the source package): name them all
@@ -7618,7 +7609,7 @@ function spawnEditControls(e, entry) {
   const now = key => (entry && key in entry.spawn ? entry.spawn[key] : base.values?.[key]?.value);
   const set = (key, value, hint) => edit({ spawn: { [key]: value } }, hint);
   if (TURNED_KINDS.includes(base.kind)) {
-    for (const [label, turn, title] of [['Turn left', -16384, 'A quarter turn to the left ([)'], ['Turn right', 16384, 'A quarter turn to the right (])']]) {
+    for (const [label, turn, title] of [['Turn left', -QUARTER, 'A quarter turn to the left ([)'], ['Turn right', QUARTER, 'A quarter turn to the right (])']]) {
       button(label, `${title}: its units drop in from a tile behind it (high up, for a wave's) and land facing its way`, () => edit({ turn }, `Turned the drop-in point a quarter ${turn > 0 ? 'right' : 'left'}`));
     }
   }
@@ -7701,7 +7692,7 @@ const missionReached = o => ['capturePoint', 'radar', 'bomb', 'powerNode', 'use'
 function missionFloorLost(o) {
   const grid = data?.tileGrid, tiles = data?.tactical?.floorTiles;
   if (!grid?.origin || !tiles?.length) return false;
-  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [96, 96, 64];
+  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [TILE, TILE, LEVEL];
   const tx = Math.floor((o.location[0] - ox) / sx), ty = Math.floor((o.location[1] - oy) / sy), tz = Math.floor((o.location[2] - oz) / sz);
   const under = tiles.filter(f => f.tile[0] === tx && f.tile[1] === ty && (f.tile[2] === tz || f.tile[2] === tz - 1));
   return under.length > 0 && under.every(f => f.actor && !floorStays(f.actor));
@@ -7740,8 +7731,8 @@ missionGizmo.addEventListener('mouseDown', () => {
 missionGizmo.addEventListener('objectChange', () => {
   const d = missionDrag;
   if (!d || d.cancelled) return;
-  const p = missionProxy.position, dx = Math.round((p.x - d.at.x) / 96) * 96, dz = Math.round((p.z - d.at.z) / 96) * 96,
-        dy = Math.round((p.y - d.at.y) / 64) * 64;
+  const p = missionProxy.position, dx = Math.round((p.x - d.at.x) / TILE) * TILE, dz = Math.round((p.z - d.at.z) / TILE) * TILE,
+        dy = Math.round((p.y - d.at.y) / LEVEL) * LEVEL;
   p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
   d.delta = [dx, dz, dy];                 // the view's basis is x, up, y
   const key = d.delta.join(',');
@@ -8426,7 +8417,7 @@ async function waveFailed(player, url, error) {
   if (wavePlayer === player) paintWaves();
 }
 function paintWaves() {
-  const clock = t => (Number.isFinite(t) ? `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '');
+  const time = t => (Number.isFinite(t) ? clock(t) : '');
   for (const el of $('effectWaves').querySelectorAll('[data-wave]')) {
     const p = wavePlayer?.wave === el.dataset.wave && wavePlayer.record === pickedEffect ? wavePlayer : null;
     if (el.tagName === 'BUTTON') {
@@ -8435,7 +8426,7 @@ function paintWaves() {
       el.classList.toggle('on', Boolean(p && p.state !== 'failed'));
     } else {
       el.textContent = !p ? '' : p.state === 'loading' ? 'loading…' : p.state === 'failed' ? (p.why ? `Not played: ${p.why}` : 'Not played…')
-        : `${clock(p.audio.currentTime)} / ${clock(p.audio.duration)}`;
+        : `${time(p.audio.currentTime)} / ${time(p.audio.duration)}`;
       el.classList.toggle('bad', p?.state === 'failed');
     }
   }
@@ -8762,7 +8753,7 @@ function floorTop(x, y, ground) {
   }
   // the spot's tile as the game counts it; its ground's level takes a ground up to a unit under a level's start (the
   // maps' floors are a unit over the game's corner: 2 over the origin, as before)
-  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [96, 96, 64];
+  const [ox, oy, oz] = tileCorner(), [sx, sy, sz] = grid.size ?? [TILE, TILE, LEVEL];
   const key = [Math.floor((x - ox) / sx), Math.floor((y - oy) / sy), Math.floor((ground + 1 - oz) / sz)].join(',');
   const top = floorTopIndex.tops.get(key);
   return top !== undefined && top >= ground - 8 && top <= ground + sz ? top : null;
@@ -8924,13 +8915,13 @@ zoneGizmo.addEventListener('objectChange', () => {
   const d = zoneGizmoDrag;
   if (!d || d.cancelled) return;
   if (zoneGizmo.mode === 'translate') {
-    const p = zoneProxy.position, dx = Math.round((p.x - d.at.x) / 96) * 96, dz = Math.round((p.z - d.at.z) / 96) * 96,
-          dy = Math.round((p.y - d.at.y) / 64) * 64;
+    const p = zoneProxy.position, dx = Math.round((p.x - d.at.x) / TILE) * TILE, dz = Math.round((p.z - d.at.z) / TILE) * TILE,
+          dy = Math.round((p.y - d.at.y) / LEVEL) * LEVEL;
     p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
     // the zone's ground lands on a level of the grid: a zone saved off the levels (the tutorial's, fitted before the
     // ground was snapped: 16 under the grid) comes onto one with its first move
     const l = d.from.location, oz = data.tileGrid?.origin?.[2] ?? 0, ground = l[2] - ZONE_GROUND + dy;
-    const level = Math.round(oz + Math.round((ground - oz) / 64) * 64) + ZONE_GROUND;
+    const level = Math.round(oz + Math.round((ground - oz) / LEVEL) * LEVEL) + ZONE_GROUND;
     const z = data.tileGrid && Math.abs(level - (l[2] + dy)) >= 1 ? level : l[2] + dy;
     d.change = dx || dy || dz ? { location: [l[0] + dx, l[1] + dz, z] } : null;
   } else {
@@ -8991,7 +8982,7 @@ function landingPanel() {
 // Notes while editing, none of which blocks: outside the grid, a soldier point over no floor, a piece on one, played
 // under LWR only, played nowhere
 function zoneNotes(z, k, { zones, own, slots }) {
-  const notes = [], grid = data.tileGrid, [ox, oy, oz] = grid.origin, [nx, ny, nz] = grid.dimensions, [sx, sy, sz] = grid.size ?? [96, 96, 64];
+  const notes = [], grid = data.tileGrid, [ox, oy, oz] = grid.origin, [nx, ny, nz] = grid.dimensions, [sx, sy, sz] = grid.size ?? [TILE, TILE, LEVEL];
   const soldiers = zoneSoldiers(z, { zones, own, slots }), ground = groundOf(z);
   if (soldiers.some(s => s.location[0] < ox || s.location[0] > ox + nx * sx || s.location[1] < oy || s.location[1] > oy + ny * sy
                              || ground < oz - 1 || ground > oz + nz * sz)) notes.push('It is outside the tile grid: its soldiers would stand where there are no tiles.');
@@ -9094,7 +9085,7 @@ function placeZone(clientX, clientY) {
   if (!at) return;
   const [ox, oy] = data.tileGrid.origin, first = zonesNow()[0];
   // a zone's StartLoc sits a unit off a tile's corner, as LWR's lines do (Bar's first: 719, -1681)
-  const x = ox + Math.round((at.x - ox) / 96) * 96 - 1, y = oy + Math.round((at.z - oy) / 96) * 96 - 1, id = uuid();
+  const x = ox + Math.round((at.x - ox) / TILE) * TILE - 1, y = oy + Math.round((at.z - oy) / TILE) * TILE - 1, id = uuid();
   const zones = explicitZones(), ew = !zones.some(z => z.ew) && ownLandings(data).length > 0;
   setZones([...zones, { id, location: [x, y, ground + 64], direction: 'north', kind: first?.kind === 'inside' ? 'inside' : 'normal', ...(ew ? { ew: true } : {}) }], 'Added a landing zone');
   pickZone(id);
@@ -9143,7 +9134,7 @@ let ownPicked = null;       // one of the map's own boxes, picked to read: its f
 // Build leaves the map's own volumes as they are (the user, 11 November 2026, after copying the Bar).
 const ownSet = new Set();
 const volumeGrid = () => (data?.tileGrid?.origin && data.tileGrid.dimensions
-  ? { origin: data.tileGrid.origin, dimensions: data.tileGrid.dimensions, size: data.tileGrid.size ?? [96, 96, 64], unbounded: builderMode,
+  ? { origin: data.tileGrid.origin, dimensions: data.tileGrid.dimensions, size: data.tileGrid.size ?? [TILE, TILE, LEVEL], unbounded: builderMode,
       ...(builderMode ? { heights: [PREFAB_MIN_Z, PREFAB_MAX_Z] } : {}) } : null);
 const newBuildingId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 const boxCount = n => `${n} ${n === 1 ? 'box' : 'boxes'}`;
@@ -9582,7 +9573,7 @@ function volumeHint(message) {
   hint.hidden = false; hint.replaceChildren(`${message} · `);
   text(hint, 'kbd', 'Esc'); hint.append(' cancels');
 }
-const tilesOf = box => { const g = volumeGrid(), s = g?.size ?? [96, 96, 64]; return [(box[3] - box[0]) / s[0], (box[4] - box[1]) / s[1]].map(v => Number(v.toFixed(2)) + 0); };
+const tilesOf = box => { const g = volumeGrid(), s = g?.size ?? [TILE, TILE, LEVEL]; return [(box[3] - box[0]) / s[0], (box[4] - box[1]) / s[1]].map(v => Number(v.toFixed(2)) + 0); };
 // ---- the pointer in the view while it is on: a face handle stretches, the New box tool draws a footprint
 function startVolumeDrag(e) {
   // a picked no-spawn volume's face handle (the Spawns view, or the Normal button's spawn switch): stretches its box
@@ -10797,7 +10788,7 @@ const MAX_BLASTS = 64;
 const BREAK_ROWS = ['wall', 'slab', 'piece'];     // the panels with a Break row: made walls, made slabs, the map's pieces (E6)
 let breaking = null;      // { id }: the piece Break is on
 let blastTiles = 1;
-try { blastTiles = Math.min(3, Math.max(1, Math.round(Number(localStorage.getItem('workshop.blastTiles')) || 1))); } catch { /* none kept */ }
+blastTiles = Math.min(3, Math.max(1, Math.round(Number(recall('workshop.blastTiles')) || 1)));
 const blastMarker = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16),
   new THREE.MeshBasicMaterial({ color: 0xff7a3d, transparent: true, opacity: 0.25, depthTest: false, depthWrite: false }));
 blastMarker.renderOrder = 9; blastMarker.visible = false; blastMarker.raycast = () => {}; world.add(blastMarker);
@@ -10871,7 +10862,7 @@ for (const k of BREAK_ROWS) {
   $(`${k}Break`).onclick = () => (breaking ? stopBreak() : startBreak());
   $(`${k}BlastSize`).onchange = e => {
     blastTiles = Number(e.target.value) || 1;
-    try { localStorage.setItem('workshop.blastTiles', String(blastTiles)); } catch { /* not kept */ }
+    remember('workshop.blastTiles', String(blastTiles));
     for (const j of BREAK_ROWS) $(`${j}BlastSize`).value = String(blastTiles);
   };
   if (k === 'piece') {
@@ -11384,7 +11375,7 @@ function volumePanel() {
   volumeUi.name.parentElement.firstChild.textContent = readOnly ? 'Floor volume' : 'Name';
   if (readOnly) {
     // one of the map's own boxes: what the map saves of it
-    const b = own.box, g = grid?.size ?? [96, 96, 64], t = k => Number(((b[k + 3] - b[k]) / g[k]).toFixed(2)) + 0;
+    const b = own.box, g = grid?.size ?? [TILE, TILE, LEVEL], t = k => Number(((b[k + 3] - b[k]) / g[k]).toFixed(2)) + 0;
     const floor = own.building.floors[own.floor], members = floor.members ?? [], cut = members.filter(m => m.cutdownFloor).length;
     volumeUi.title.textContent = `The map's box · ${t(0)} by ${t(1)} tiles, ${Math.round(b[5] - b[2])} high`;
     volumeUi.bottom.value = Math.round(b[2] * 100) / 100; volumeUi.top.value = Math.round(b[5] * 100) / 100;
@@ -11781,7 +11772,7 @@ $('boxAdd').onclick = () => takePickBox(true);
 $('boxAgain').onclick = () => setPickTool(true);
 $('boxCancel').onclick = stopPickBox;
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
-const WHOLE_OVERHANG = 4 * 96;    // four tiles
+const WHOLE_OVERHANG = 4 * TILE;    // four tiles
 function cutaway() {
   touchShadows();
   cutKey = editedKey();
@@ -12264,7 +12255,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     // (each [x, y, x', y']: the handle, and where a point `tiles` tiles further out along its face's axis is, in below 0)
     coverHandles: (tiles = 1) => { const r = handleCover(), project = projector();
       return r ? Object.fromEntries(coverFacesNow(r).map(f => { const p = coverHandlePoint(f);
-        return [f.face[0], [...project(p), ...project(p.clone().addScaledVector(f.dir, 96 * tiles))]]; })) : {}; },
+        return [f.face[0], [...project(p), ...project(p.clone().addScaledVector(f.dir, TILE * tiles))]]; })) : {}; },
     setCover: (id, cover) => { const r = roots.get(id); if (r?.userData.source.cover) setCover(r, normalCover(cover, coverRecipe())); },
     // made walls (custom geometry plan, M1): the Build menu's tools (B1), drawing, a game point on the screen, the picked
     // wall's handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
@@ -12283,7 +12274,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, donor: wallDrawing.look.donor ?? null, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
                                         ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
                                         last: wallDrawing.last ? { ...wallDrawing.last } : null },
-    wallHandles: (units = 96) => { const r = handleWall(), project = projector();
+    wallHandles: (units = TILE) => { const r = handleWall(), project = projector();
       return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
         const way = h.dir ?? h.along;      // (a gap's middle, dragged in the wall's plane: along the wall)
         return [h.key, [...project(p), ...project(way ? p.clone().addScaledVector(way, units) : p)]]; })) : {}; },
@@ -12434,14 +12425,14 @@ function showPop(id) {
 }
 for (const button of document.querySelectorAll('[data-pop]')) button.onclick = () => showPop($(button.dataset.pop).hidden ? button.dataset.pop : null);
 document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, [data-pop]')) showPop(null); });
-$('statsToggle').checked = recall('viewer.stats') === '1';
+$('statsToggle').checked = recall('workshop.stats') === '1';
 $('statsLine').hidden = !$('statsToggle').checked;
-$('statsToggle').onchange = e => { $('statsLine').hidden = !e.target.checked; remember('viewer.stats', e.target.checked ? '1' : '0'); };
-$('sourceDetails').open = recall('viewer.sourceDetails') === '1';
+$('statsToggle').onchange = e => { $('statsLine').hidden = !e.target.checked; remember('workshop.stats', e.target.checked ? '1' : '0'); };
+$('sourceDetails').open = recall('workshop.sourceDetails') === '1';
 // The piece panel's folding sections (Group, Align, Flags, Place) keep how they were left; a section's info button
 // shows or hides its how-to text (the .how notes), which is out of sight until asked for.
 for (const fold of document.querySelectorAll('details[data-fold]')) {
-  const key = `viewer.fold.${fold.dataset.fold}`, kept = recall(key);
+  const key = `workshop.fold.${fold.dataset.fold}`, kept = recall(key);
   if (kept) fold.open = kept === '1';
   fold.addEventListener('toggle', () => remember(key, fold.open ? '1' : '0'));
 }
@@ -12453,7 +12444,7 @@ for (const button of document.querySelectorAll('.howbutton')) {
     if (on && box.tagName === 'DETAILS') box.open = true;
   };
 }
-$('sourceDetails').ontoggle = e => remember('viewer.sourceDetails', e.target.open ? '1' : '0');
+$('sourceDetails').ontoggle = e => remember('workshop.sourceDetails', e.target.open ? '1' : '0');
 // Typed pose: a changed field moves the selection there (one undo step); Escape puts the field back.
 poseInputs.forEach((input, i) => {
   input.addEventListener('change', () => {
@@ -12610,7 +12601,7 @@ $('editRotate').onclick = () => gizmo.setMode('rotate');
 $('editOff').onclick = () => gizmo.setMode('off');
 $('editSpace').onclick = () => gizmo.toggleSpace();
 // The pivot (C): each piece's own origin, or the selection's centre (Discord feedback S4); remembered on this computer.
-const PIVOT = 'viewer.pivot';
+const PIVOT = 'workshop.pivot';
 function togglePivot() {
   gizmo.setPivot(gizmo.pivot === 'centre' ? 'origin' : 'centre');
   remember(PIVOT, gizmo.pivot);
@@ -12780,14 +12771,14 @@ const PAN_KEYS = { arrowup: 'forward', w: 'forward', arrowdown: 'back', s: 'back
 const TURN_KEYS = { q: 1, e: -1 };    // a positive turn about +Y swings forward towards the screen's left
 const TURN_SPEED = THREE.MathUtils.degToRad(60);
 const PAN_SPEED = 5000;    // about 52 tiles a second (7,200 at first: the user found it a little fast)
-const FLY_KEYS = 'viewer.flyKeys';
+const FLY_KEYS = 'workshop.flyKeys';
 const panKeys = new Set();
 let panFast = false, flyKeys = recall(FLY_KEYS) === '1';
 // View options' camera speeds (Discord feedback S2, S3): each a factor on its default, remembered on this computer.
 // Move speed scales PAN_SPEED, key turn speed TURN_SPEED, and drag turn speed OrbitControls' orbit and the look-drag
 // along the view (LOOK_PER_SCREEN). A double-click on a slider puts it back to 1; letting go of one gives the keys back
 // to the camera.
-const CAMERA_SPEEDS = { moveSpeed: 'viewer.moveSpeed', turnSpeed: 'viewer.turnSpeed', dragSpeed: 'viewer.dragSpeed' };
+const CAMERA_SPEEDS = { moveSpeed: 'workshop.moveSpeed', turnSpeed: 'workshop.turnSpeed', dragSpeed: 'workshop.dragSpeed' };
 const cameraSpeed = { moveSpeed: 1, turnSpeed: 1, dragSpeed: 1 };
 for (const [id, key] of Object.entries(CAMERA_SPEEDS)) {
   const input = $(id), saved = Number(recall(key));
@@ -13000,7 +12991,7 @@ document.addEventListener('keydown', e => {
       if ((e.ctrlKey || e.metaKey) && key === 'd') { copySpawn(pickedSpawn); e.preventDefault(); return; }
       // (a drop-in point only: a pod's facing aims nothing, the user, 18 November 2026)
       if ((key === '[' || key === ']') && !e.ctrlKey && !e.metaKey && TURNED_KINDS.includes(se.record.kind) && spawnMovable(se)) {
-        const turn = key === '[' ? -16384 : 16384, hint = `Turned a quarter ${turn > 0 ? 'right' : 'left'}`;
+        const turn = key === '[' ? -QUARTER : QUARTER, hint = `Turned a quarter ${turn > 0 ? 'right' : 'left'}`;
         if (se.layer === 'copy') editSpawnCopy(se.record.actor, { turn }, hint); else editBaseSpawn(se.record.actor, { turn }, hint);
         e.preventDefault(); return;
       }
@@ -13078,7 +13069,7 @@ renderer.setAnimationLoop(() => {
   lastFrame = now;
   controls.update();
   if (builderMode && now - builderRefresh > 250) {
-    const at = `${Math.round(controls.target.x / 96)},${Math.round(controls.target.z / 96)}`;
+    const at = `${Math.round(controls.target.x / TILE)},${Math.round(controls.target.z / TILE)}`;
     if (at !== builderTarget || now - builderRefresh > 2000) { builderTarget = at; builderRefresh = now; refreshBuilder(); }
   }
   scaleMarkers();

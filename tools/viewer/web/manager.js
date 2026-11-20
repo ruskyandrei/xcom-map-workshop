@@ -15,14 +15,9 @@
 import { savedWhen } from './project_files.js';
 import { clock, needsFullBuild, requestOrder, rowLine, stripWords } from './build_queue.js';
 import { nextStop, tabOrder } from './modal.js';
+import { call } from './api.js';
+import { recall, remember as keep } from './storage.js';
 
-async function call(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body) });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status });
-  return value;
-}
 export const managerApi = {
   list: () => call('GET', '/manager.json'),
   install: (projects, mode, modes) => call('POST', '/manager/install', { projects, mode, modes }),
@@ -45,9 +40,9 @@ const MODE_TITLES = {
   additional: 'Additional: its records go into the rotation beside its base map\'s, so missions draw from both',
   replace: 'Replace: as well, its base map\'s own records are commented out, so the game no longer uses the original: missions draw this map where they drew it, and a council mission that asks for the original by name gets this map',
 };
-const FILES_KEY = 'xcom-map-workshop.manager.projectFiles';
-const remembered = () => { try { return localStorage.getItem(FILES_KEY) === '1'; } catch { return false; } };
-const remember = on => { try { localStorage.setItem(FILES_KEY, on ? '1' : '0'); } catch { /* not kept: the box still works */ } };
+const FILES_KEY = 'workshop.managerProjectFiles';
+const remembered = () => recall(FILES_KEY) === '1';
+const remember = on => keep(FILES_KEY, on ? '1' : '0');      // (not kept: the box still works)
 const SORTS = {
   name: byName,
   map: (a, b) => (a.mapLabel ?? '').localeCompare(b.mapLabel ?? '') || byName(a, b),

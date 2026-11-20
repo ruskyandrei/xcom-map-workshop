@@ -5,14 +5,8 @@
 // the install Play in game uses; each edit is checked there (POST /squad/check), and the unit list and the lines under
 // it say what a play would do with the squad: errors stop a play, warnings don't. A selection that install doesn't
 // have stays in the squad, shown as not on this install.
+import { call } from './api.js';
 
-async function call(method, url, body) {
-  const response = await fetch(url, { method, headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-                                      body: body === undefined ? undefined : JSON.stringify(body) });
-  const value = await response.json().catch(() => ({}));
-  if (!response.ok) throw Object.assign(new Error(value.error || `The server said ${response.status}`), { status: response.status, value });
-  return value;
-}
 export const squadApi = {
   get: () => call('GET', '/squad.json'),
   save: (expectedRevision, document) => call('PUT', '/squad.json', { expectedRevision, document }),

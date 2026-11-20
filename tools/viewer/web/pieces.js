@@ -159,97 +159,60 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
   return [...byKey.values()];
 }
 
-// Rows for pieces of This map and recipes in either scope.
-export function pieceRow(entry, pixelRatio, choose) {
-  if (entry.spawnAdd) {     // the Spawn points kind (app.js spawnAddEntries): placed with a click in the Spawns view
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
-    const thumb = document.createElement('canvas');
-    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    drawSpawnIcon(thumb, entry.spawnAdd);
-    thumb.dataset.drawn = '1';
-    const label = document.createElement('span');
-    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-      Object.assign(document.createElement('small'), { textContent: `Spawn points · ${entry.pkg}` }),
-      Object.assign(document.createElement('small'), { textContent: entry.detail }));
-    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-    tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
-      title: `${entry.count} on this map` }));
-    button.title = entry.title;
-    button.append(thumb, label, tags);
-    button.onclick = choose;
-    button.thumb = thumb;
-    return button;
-  }
-  if (entry.zone) {     // the Landing zones kind (app.js zoneEntries): placed with a click, as View options' button does
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
-    const thumb = document.createElement('canvas');
-    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    drawZoneIcon(thumb);
-    thumb.dataset.drawn = '1';
-    const label = document.createElement('span');
-    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-      Object.assign(document.createElement('small'), { textContent: `Landing zones · ${entry.pkg}` }),
-      Object.assign(document.createElement('small'), { textContent: entry.detail }));
-    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-    tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
-      title: `${entry.count} landing zone${entry.count === 1 ? '' : 's'} on this map now` }));
-    button.title = entry.title;
-    button.append(thumb, label, tags);
-    button.onclick = choose;
-    button.thumb = thumb;
-    return button;
-  }
-  if (entry.light) {
-    const button = document.createElement('button');
-    button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
-    const thumb = document.createElement('canvas');
-    thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
-    drawLightIcon(thumb, entry.light, entry.colour);
-    thumb.dataset.drawn = '1';
-    const label = document.createElement('span');
-    label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-      Object.assign(document.createElement('small'), { textContent: `${LIGHTS} · ${entry.pkg}` }),
-      Object.assign(document.createElement('small'), { textContent: entry.detail }));
-    const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-    if (entry.count) tags.append(Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
-      title: `${entry.count} ${entry.light} lights in this map` }));
-    if (!entry.builds) tags.append(Object.assign(document.createElement('span'), { className: 'tag test', textContent: 'Test',
-      title: entry.note }));
-    button.title = entry.title;
-    button.append(thumb, label, tags);
-    button.onclick = choose;
-    button.thumb = thumb;
-    return button;
-  }
+// One row of a list: its thumbnail (drawn here by `draw`, else by the list's painter later), the entry's name, two lines
+// under it (`detail`: words, or a small's properties) and its tags (each a tag's properties).
+function listRow(entry, pixelRatio, choose, { draw = null, sub, detail, tags, title }) {
   const button = document.createElement('button');
   button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
   const thumb = document.createElement('canvas');
   thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
+  if (draw) { draw(thumb); thumb.dataset.drawn = '1'; }
   const label = document.createElement('span');
+  label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
+    Object.assign(document.createElement('small'), { textContent: sub }),
+    Object.assign(document.createElement('small'), typeof detail === 'object' ? detail : { textContent: detail }));
+  const box = Object.assign(document.createElement('span'), { className: 'tags' });
+  box.append(...tags.map(tag => Object.assign(document.createElement('span'), { className: 'tag', ...tag })));
+  button.title = title;
+  button.append(thumb, label, box);
+  button.onclick = choose;
+  button.thumb = thumb;
+  return button;
+}
+
+// Rows for pieces of This map and recipes in either scope.
+export function pieceRow(entry, pixelRatio, choose) {
+  if (entry.spawnAdd) {     // the Spawn points kind (app.js spawnAddEntries): placed with a click in the Spawns view
+    return listRow(entry, pixelRatio, choose, { draw: c => drawSpawnIcon(c, entry.spawnAdd), sub: `Spawn points · ${entry.pkg}`,
+      detail: entry.detail, title: entry.title, tags: [{ textContent: `×${entry.count}`, title: `${entry.count} on this map` }] });
+  }
+  if (entry.zone) {     // the Landing zones kind (app.js zoneEntries): placed with a click, as View options' button does
+    return listRow(entry, pixelRatio, choose, { draw: drawZoneIcon, sub: `Landing zones · ${entry.pkg}`, detail: entry.detail,
+      title: entry.title, tags: [{ textContent: `×${entry.count}`,
+                                   title: `${entry.count} landing zone${entry.count === 1 ? '' : 's'} on this map now` }] });
+  }
+  if (entry.light) {
+    return listRow(entry, pixelRatio, choose, { draw: c => drawLightIcon(c, entry.light, entry.colour), sub: `${LIGHTS} · ${entry.pkg}`,
+      detail: entry.detail, title: entry.title, tags: [
+        ...(entry.count ? [{ textContent: `×${entry.count}`, title: `${entry.count} ${entry.light} lights in this map` }] : []),
+        ...(entry.builds ? [] : [{ className: 'tag test', textContent: 'Test', title: entry.note }])] });
+  }
   const parts = entry.sources.length > 1 ? ` · ${entry.sources.length} parts` : '';
   const [w, d, h] = entry.size.map(Math.round);
-  label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
-    Object.assign(document.createElement('small'), { textContent: `${entry.kind} · ${entry.pkg}${parts}` }),
-    Object.assign(document.createElement('small'), entry.cover
+  return listRow(entry, pixelRatio, choose, {
+    sub: `${entry.kind} · ${entry.pkg}${parts}`,
+    detail: entry.cover
       ? (entry.cover.type === 'floor'
         ? { textContent: 'Any size: set once placed', title: 'Placed as one tile; its width and length are set in the piece panel' }
         : { textContent: 'Any size and height, high or low: set once placed',
             title: 'Placed as one tile of high cover; its width, length, height and cover are set in the piece panel' })
       : { textContent: `${w} × ${d} × ${h}${entry.floor ? ` · floor, ${tiles(w)} × ${tiles(d)} tiles` : ''}`,
-          title: 'Width × depth × height in game units (a floor tile is 96 across)' }));
-  const tags = Object.assign(document.createElement('span'), { className: 'tags' });
-  // a cover block or invisible floor (app.js coverEntries) is the editor's own piece: none in the map to count
-  tags.append(entry.cover
-    ? Object.assign(document.createElement('span'), { className: 'tag', textContent: 'Invisible', title: 'Hidden in the game' })
-    : Object.assign(document.createElement('span'), { className: 'tag', textContent: `×${entry.count}`,
-      title: `${entry.count} in this map` }));
-  button.title = entry.title ?? [entry.mesh, ...[...new Set(entry.materials)].map(m => `Material: ${m}`)].join('\n');
-  button.append(thumb, label, tags);
-  button.onclick = choose;
-  button.thumb = thumb;
-  return button;
+          title: 'Width × depth × height in game units (a floor tile is 96 across)' },
+    // a cover block or invisible floor (app.js coverEntries) is the editor's own piece: none in the map to count
+    tags: [entry.cover ? { textContent: 'Invisible', title: 'Hidden in the game' }
+                       : { textContent: `×${entry.count}`, title: `${entry.count} in this map` }],
+    title: entry.title ?? [entry.mesh, ...[...new Set(entry.materials)].map(m => `Material: ${m}`)].join('\n'),
+  });
 }
 
 /** The panel: filter, kind, where and sort; rows with a thumbnail, name, kind, size and count.

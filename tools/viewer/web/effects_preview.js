@@ -139,7 +139,8 @@ const CHARRED = 0.12;
 const blank = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
 blank.needsUpdate = true;
 
-function spriteObject(sim, draw, deps) {
+function spriteObject(first, draw, deps) {
+  let sim = first;
   const n = sim.pos.length / 3, geometry = new THREE.InstancedBufferGeometry();
   geometry.index = quad.index;
   geometry.setAttribute('position', quad.getAttribute('position'));
@@ -162,14 +163,22 @@ function spriteObject(sim, draw, deps) {
     for (const a of Object.values(at)) { a.clearUpdateRanges?.(); a.addUpdateRange?.(0, c * a.itemSize); a.needsUpdate = true; }
     geometry.instanceCount = c;
   };
-  object.userData.dispose = () => { object.userData.gone = true; geometry.dispose(); material.dispose(); };
+  // a new run of the same emitter (a replay: its buffers are the same size) draws into the same objects
+  object.userData.rebind = next => { if (next.pos.length !== sim.pos.length) return false; sim = next; return true; };
+  // (the quad's index and corners are shared by every sprite: taken off first, so disposing this one leaves them)
+  object.userData.dispose = () => {
+    object.userData.gone = true; geometry.setIndex(null); geometry.deleteAttribute('position');
+    geometry.dispose(); material.dispose();
+  };
   return object;
 }
 
 const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v3 = new THREE.Vector3(), s3 = new THREE.Vector3();
-function meshObjects(sim, draw, deps, group) {
+function meshObjects(first, draw, deps, group) {
+  let sim = first;
   const n = sim.pos.length / 3, made = [];
-  const holder = { sync() {}, dispose() { holder.gone = true; for (const o of made) { o.geometry.dispose(); o.material.dispose(); group.remove(o); } } };
+  const holder = { sync() {}, dispose() { holder.gone = true; for (const o of made) { o.geometry.dispose(); o.material.dispose(); o.dispose(); group.remove(o); } } };
+  holder.rebind = next => { if (next.pos.length !== sim.pos.length) return false; sim = next; return true; };
   holder.ready = deps.meshParts(draw).then(async parts => {
     // its own picture and mask where the export picked them (a see-through sheet of vapour), else its material's
     // colour texture as a piece's (a rat, a sheet of paper)
@@ -237,10 +246,13 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
   const limit = Math.max(8, Math.min(LIMITS.emitter, Math.floor(LIMITS.effect / Math.max(1, draws.length))));
   let sims = [], pause = 0;
   const start = () => { sims = draws.map((d, k) => makeEmitter(d, { params, seed: seed * 7919 + k * 104729 + 1, limit })); parts.forEach((p, k) => p.rebind(sims[k])); };
+  // each emitter's drawing: made once, and bound to the emitter's next run when it replays (review finding 56: a
+  // replay used to release and remake every geometry, material and mesh, and hide the sprites until their textures
+  // came back)
   const parts = draws.map(d => {
-    const part = { rebind(sim) { part.release?.(); part.sim = sim; part.make(sim); } };
-    if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.ready = h.ready; part.release = () => h.dispose(); };
-    else part.make = sim => { const o = spriteObject(sim, d, deps); group.add(o); part.sync = o.userData.sync; part.ready = o.userData.ready; part.release = () => { o.userData.dispose(); group.remove(o); }; };
+    const part = { rebind(sim) { if (part.keep?.(sim)) return; part.release?.(); part.make(sim); } };
+    if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.ready = h.ready; part.keep = h.rebind; part.release = () => h.dispose(); };
+    else part.make = sim => { const o = spriteObject(sim, d, deps); group.add(o); part.sync = o.userData.sync; part.ready = o.userData.ready; part.keep = o.userData.rebind; part.release = () => { o.userData.dispose(); group.remove(o); }; };
     return part;
   });
   start();

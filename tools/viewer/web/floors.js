@@ -10,9 +10,9 @@
 // the cursor: a sidewalk dropped on the road or on another sidewalk stands as the map's sidewalks do, and a storey's
 // floor dropped upstairs lands on that storey.
 
-import { QUARTER, POSE_SLACK, turned } from './poserule.js';
+import { POSE_SLACK, turned } from './poserule.js';
+import { LEVEL as STOREY, QUARTER } from './constants.js';
 
-export const TILE = 96, STOREY = 64;
 const FLAT = 48;        // units: a floor piece is at most this tall
 const THIN = 8;         // units: a decoration (rug, plate) is at most this thick
 const RESTS = 12;       // units: a decoration's bottom lies this close to the floor piece under it
