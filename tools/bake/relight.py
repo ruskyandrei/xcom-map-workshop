@@ -1609,6 +1609,41 @@ def main():
     a.add_argument('--base', metavar='SHA',
                    help="with --piece-cache: what names the map before the edit (the base map's SHA-256)")
     args = a.parse_args()
+    add_casters, natives, foreign, moved, ignore, components = edit_arguments(a, args)
+    args.out.mkdir(parents=True, exist_ok=True)
+    started = time.perf_counter()
+    timings = {}
+    p = lighting.Package(args.src)
+    scene_args, states, before_args, scene, after, after_args = edit_scenes(a, args, p, add_casters, natives, foreign,
+                                                                            moved, ignore)
+    edit_boxes, edited, light_boxes, copies, fresh = edit_receivers(a, args, p, scene, after, states, natives,
+                                                                    foreign, ignore, components)
+    arrays, ops, reports, skipped, unchanged, unreached = {}, [], [], [], [], []
+    npz = args.out / f'{args.variant}.relight.npz'
+    timings['scenes'] = round(time.perf_counter() - started, 1)
+    todo, meshes, areas, reaching, quick, keep_pieces = select_components(
+        args, p, scene, after, components, copies, fresh, moved, edit_boxes, edited, skipped, unreached)
+    timings['reach'] = round(time.perf_counter() - started - timings['scenes'], 1)
+    # what an edit's relight does beyond the quick test for each piece (faster-bake plan, 3.5, 5.1, 5.2): the reach
+    # test for each texel, the floor under a change, the scale kept
+    finer = quick
+    options = dict(texelReach=finer, exact=after is not None, edited=edited)
+    floor = args.floor if after is not None else 0.0
+    kept, keys, results, seconds = kept_pieces(args, p, scene, after, scene_args, floor, finer, options, todo, reaching,
+                                               keep_pieces)
+    taken, work, shadow_queue, shadow_seconds, jobs, peak_memory, shadow_reports, shadow_unchanged = run_pieces(
+        args, p, scene, after, scene_args, before_args, after_args, options, floor, todo, copies, fresh, areas,
+        edit_boxes, meshes, kept, keys, results, seconds, arrays, ops, reports, skipped, unchanged, npz, timings)
+    write_record(args, p, states, after, edit_boxes, light_boxes, natives, foreign, components, arrays, ops, reports,
+                 skipped, unchanged, unreached, npz, timings, started, floor, finer, seconds, peak_memory, taken, work,
+                 shadow_queue, shadow_seconds, shadow_reports, shadow_unchanged, jobs, meshes)
+
+
+def edit_arguments(a, args):
+    """The edit the command line gives (the parser `a`, its `args`): (casters the edit spec adds, native copies
+    [(copy, source)], foreign copies [(copy, staged)], pieces moved in place, the staged pieces no scene has, the
+    components asked for). `args.remove_caster` takes the listed and the spec's removed casters. A malformed
+    argument is the parser's error."""
     if args.remove_caster_list:
         listed = [l.strip() for l in args.remove_caster_list.read_text(encoding='utf-8').splitlines() if l.strip()]
         args.remove_caster = sorted(set(args.remove_caster) | set(listed))
@@ -1648,10 +1683,12 @@ def main():
             and not args.fresh_copy):
         a.error('give --component, --component-list, --receivers-near, --native-copy, --foreign-copy, --fresh-copy '
                 'or --moved-in-place')
-    args.out.mkdir(parents=True, exist_ok=True)
-    started = time.perf_counter()
-    timings = {}
-    p = lighting.Package(args.src)
+    return add_casters, natives, foreign, moved, ignore, components
+
+
+def edit_scenes(a, args, p, add_casters, natives, foreign, moved, ignore):
+    """The scenes before and after the edit (Scene), with what each was made from: (scene_args, the light states,
+    before_args, the scene before, the scene after or None, after_args)."""
     scene_args = None if args.direct_only else dict(samples=args.samples, bounce_rays=args.bounce_rays,
                                                     stride=args.stride, emissive=not args.no_emissive,
                                                     source_radius=args.source_radius)
@@ -1693,6 +1730,13 @@ def main():
         print('edit:', json.dumps(after.edit), 'casters', after.counts['casters'], 'of', scene.counts['casters'],
               'lights', len(after.lights), 'of', len(scene.lights),
               'copies', [(c['source'], c['triangles']) for c in after.copies])
+    return scene_args, states, before_args, scene, after, after_args
+
+
+def edit_receivers(a, args, p, scene, after, states, natives, foreign, ignore, components):
+    """Where the edit reaches, and the components it adds to `components` (in place): (the edit's boxes, the edited
+    lights before and after, their boxes, the native copies' components {copy: source}, the components lit from
+    nothing)."""
     # where the edit changes the geometry: its removed casters and posed copies, and the native copies where they
     # stand; apart from them, the radius of every edited light before and after (plan 4.4)
     edit_boxes = (after.edit_boxes + scene.edit_boxes) if after is not None else []
@@ -1721,9 +1765,14 @@ def main():
         print(f'receivers within {args.receivers_near:g} of the edit: {len(near)}')
     components += [c for c in copies if c not in components]
     components += [c for c in fresh if c not in components]
-    arrays, ops, reports, skipped, unchanged, unreached = {}, [], [], [], [], []
-    npz = args.out / f'{args.variant}.relight.npz'
-    timings['scenes'] = round(time.perf_counter() - started, 1)
+    return edit_boxes, edited, light_boxes, copies, fresh
+
+
+def select_components(args, p, scene, after, components, copies, fresh, moved, edit_boxes, edited, skipped, unreached):
+    """The components that go to the relight: those the fixture can write and, in an edit, that the quick test says
+    it reaches. Returns (todo [(n, path)], the meshes read, each piece's texel area, the edits reaching each piece
+    when pieces are kept, whether the quick test ran, whether pieces are kept); `skipped` and `unreached` take the
+    rest."""
     probe = lightmap_writer.Fixture(args.src, args.cache)
     # what goes to the relight: components the fixture can write and, in an edit, that the quick test says it reaches
     todo, meshes, areas, reaching = [], {}, {}, {}
@@ -1773,12 +1822,12 @@ def main():
         todo.append((n, path))
     if after is not None and not args.no_quick:
         print(f'the quick reach test keeps {len(todo)} of {len(todo) + len(unreached)} components')
-    timings['reach'] = round(time.perf_counter() - started - timings['scenes'], 1)
-    # what an edit's relight does beyond the quick test for each piece (faster-bake plan, 3.5, 5.1, 5.2): the reach
-    # test for each texel, the floor under a change, the scale kept
-    finer = quick
-    options = dict(texelReach=finer, exact=after is not None, edited=edited)
-    floor = args.floor if after is not None else 0.0
+    return todo, meshes, areas, reaching, quick, keep_pieces
+
+
+def kept_pieces(args, p, scene, after, scene_args, floor, finer, options, todo, reaching, keep_pieces):
+    """The pieces of the last build kept for this one (PieceCache): (the cache or None, each piece's key, the results
+    taken from it, an empty table of seconds per piece)."""
     kept = None
     keys, results, seconds = {}, {}, {}
     if keep_pieces:
@@ -1799,6 +1848,15 @@ def main():
                     got['report']['model'] = scene.describe()
                     results[path] = (got, None, False)
         print(f'pieces kept from the last build: {len(results)} of {len(todo)}')
+    return kept, keys, results, seconds
+
+
+def run_pieces(args, p, scene, after, scene_args, before_args, after_args, options, floor, todo, copies, fresh, areas,
+               edit_boxes, meshes, kept, keys, results, seconds, arrays, ops, reports, skipped, unchanged, npz, timings):
+    """The relight's run: the pieces not kept, and the dominant light's shadow maps, on the workers; each result put
+    into `arrays` and `ops` in the map's order, its report into `reports`, or the piece into `skipped` or
+    `unchanged`. Returns (the pieces kept, the work done, the shadow-map jobs queued, their seconds, the workers,
+    their peak memory, the shadow maps' reports and those unchanged)."""
     taken = set(results)
     work = [(path, copies.get(path), path in fresh, areas.get(path, 0)) for _, path in todo if path not in taken]
     # the dominant light's shadow maps go to the workers with the pieces, ahead of them
@@ -1889,6 +1947,14 @@ def main():
         print('progress: shadow maps')
         shadow_reports, shadow_unchanged = shadow_map_results(p, shadow_jobs, shadow_results, args, arrays, ops, npz)
     timings['shadowMaps'] = round(time.perf_counter() - shadows_started, 1)
+    return taken, work, shadow_queue, shadow_seconds, jobs, peak_memory, shadow_reports, shadow_unchanged
+
+
+def write_record(args, p, states, after, edit_boxes, light_boxes, natives, foreign, components, arrays, ops, reports,
+                 skipped, unchanged, unreached, npz, timings, started, floor, finer, seconds, peak_memory, taken, work,
+                 shadow_queue, shadow_seconds, shadow_reports, shadow_unchanged, jobs, meshes):
+    """The lighting written (lightmap_writer.run, or the map as it is when nothing changed) and the record:
+    <out>/<variant>.relight.json, and the summary printed."""
     writing_started = time.perf_counter()
     failures = [s for s in skipped + shadow_reports if s.get('failed')]
     if not ops:

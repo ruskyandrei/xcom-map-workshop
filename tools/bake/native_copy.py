@@ -2238,6 +2238,195 @@ def by_assembly(copies):
     return out
 
 
+class BuildState:
+    """What a Build has done so far that its later steps and its record read (review finding 51). gone() is the one
+    answer to what the edit has taken out: the pieces hidden, the slots the building edits emptied, the lights the
+    light edits deleted, the effects, sounds, flares and spawn points the lanes took out (and the carried effects
+    of deleted pieces), and what the clear took. keep() holds the results the manifest (manifest_parts) and the
+    relight command (relight_command) are made from."""
+
+    def __init__(self, p):
+        self.p = p
+        self.hidden = []            # hide_pieces' records
+        self.edit_slots = set()     # the building edits' emptied slots
+        self.lights_gone = set()    # the light edits' deletes
+        self.effects_gone = set()   # the effects', sounds', flares' and spawns' lanes' deletes and the carried effects'
+        self.cleared = None         # clear_level's record
+
+    def gone(self):
+        """Every actor (export index) the edit has taken out so far."""
+        out = {h['export'] for h in self.hidden} | self.edit_slots | self.lights_gone | set(self.effects_gone)
+        if self.cleared:
+            out |= {self.p.by_name[PL + n] for n in self.cleared['taken'] if PL + n in self.p.by_name}
+        return out
+
+    def keep(self, **results):
+        self.__dict__.update(results)
+
+
+def manifest_parts(st, q, bake):
+    """The manifest's nativeCopies section of the Build `st` (BuildState, its results kept) whose map was written and
+    read again as `q`: (the copies' sections, the rest of it, the lights section or None). Kept on `st` too, for the
+    relight command: the sections and the lights listed in the copies by membership."""
+    import native_lights
+    p, made, hidden, cleared_record = st.p, st.made, st.hidden, st.cleared
+    src, level, report, children, groups = st.src, st.level, st.report, st.children, st.groups
+    assemblies, ladders, columns, effect_record = st.assemblies, st.ladders, st.columns, st.effect_record
+    lane_effects, lane_sounds = st.lane_effects, st.lane_sounds
+    lane_flares, lane_spawns = st.lane_flares, st.lane_spawns
+    floor_emitters, floor_caches, hidden_buildings = st.floor_emitters, st.floor_caches, st.hidden_buildings
+    building_records, edit_records, cover_records = st.building_records, st.edit_records, st.cover_records
+    generated_records, door_listings, group_listings = st.generated_records, st.door_listings, st.group_listings
+    made_floors, neighbour_listings, landing_record = st.made_floors, st.neighbour_listings, st.landing_record
+    cursor_record, stream_record = st.cursor_record, st.stream_record
+    flag_copies, flag_record = st.flag_copies, st.flag_record
+    blast_copies, blast_record, vans = st.blast_copies, st.blast_record, st.vans
+    state, light_result, registration = st.lights, st.light_result, st.registration
+    # the copies' components and the lights listed in them by membership
+    copy_members = {q.name(m['info']['mapping'][ci]): [(x['guid'].hex(), x['light']) for x in found
+                                                        if x.get('membership')]
+                    for m in made for ci, found in m['extra'].items()}
+    copy_members = {k: v for k, v in copy_members.items() if v}
+    sections = []
+    for m in made:
+        info, new = m['info'], m['info']['actor']
+        sections.append(dict(actor=m['actor'], label=m.get('label'), copy=q.name(new), export=new, location=m['location'],
+                             rotation=m['rotation'], exports={p.name(o): n for o, n in info['mapping'].items()},
+                             textures={p.name(o): q.name(n) for o, n in info['textures'].items()},
+                             extraLights={p.name(ci): [dict(light=x['light'], peak=x['peak'], kept=x['kept'],
+                                                            **({'membership': True} if x.get('membership') else {}))
+                                                       for x in found] for ci, found in m['extra'].items()},
+                             remapped=info['remapped'], tiles=m['tiles'], breakGroup=m['breakGroup'],
+                             **({'walkable': 'collision turned on: low scenery of the map (F-100)'} if m['walkable'] else {}),
+                             **({'staged': True, 'donor': m['donor'], 'lighting': 'fresh' if bake else 'its home map\'s'}
+                                if m['staged'] else {}),
+                             **({'columns': info['columns']} if info.get('columns') else {}),
+                             **({'generated': m['generated']['kind']} if m.get('generated') else {}),
+                             parts=children[new],
+                             **({'assembly': m['assembly'], 'family': m['family']} if m.get('assembly') else {})))
+    tool = dict(path='tools/bake/native_copy.py', sha256=lighting.digest(__file__))
+    lights_record = None
+    if state:
+        lights_record = native_lights.record(state, light_result, 'baked' if bake else 'unbaked', registration,
+                                             copy_members, names=q.name)
+        lights_record['tool'] = dict(path='tools/bake/native_lights.py', sha256=lighting.digest(native_lights.__file__))
+    common = dict(level=level, writer=report, source=str(src), sourceSha256=lighting.digest(src), tool=tool,
+                  breakGroups={str(k): [q.name(i).split('.')[-1] for i in v] for k, v in groups.items()},
+                  hidden=hidden, assemblies=list(assemblies), ladders=ladders, columns=columns,
+                  carriedEffects=[dict(r, copy=q.name(r['copy']).split('.')[-1]) if 'copy' in r else r
+                                  for r in effect_record],
+                  **{key: [dict({k: v for k, v in r.items() if k not in ('export', 'mapping', 'template')},
+                                **({'copy': q.name(r['export']).split('.')[-1],
+                                    'exports': {p.name(o): q.name(n) for o, n in r['mapping'].items()}}
+                                   if r['how'] == 'copied' else {}))
+                           for r in lane]
+                     for key, lane in (('effects', lane_effects), ('sounds', lane_sounds), ('flares', lane_flares),
+                                       ('spawns', lane_spawns))
+                     if lane},
+                  **({'floorEmitters': [dict(effect=q.name(f['effect']).split('.')[-1],
+                                             building=q.name(f['building']).split('.')[-1], floor=f['floor'],
+                                             how=f['how']) for f in floor_emitters]} if floor_emitters else {}),
+                  floorCaches=floor_caches, hiddenBuildings=hidden_buildings,
+                  buildings=[dict(b, copy=q.name(b['building']).split('.')[-1],
+                                  floors=[dict(f, volumes=[q.name(v).split('.')[-1] for v in f['volumes']],
+                                               members=[dict(m, actor=q.name(m['actor']).split('.')[-1])
+                                                        for m in f['members']]) for f in b['floors']])
+                             for b in building_records],
+                  buildingEdits=[dict(r, **({'volumes': dict(r['volumes'], made=[q.name(v).split('.')[-1] for v in r['volumes']['made']])}
+                                            if not r['deleted'] else {}),
+                                      **({'floors': [dict(f, volumes=[q.name(v).split('.')[-1] for v in f['volumes']])
+                                                     for f in r['floors']]} if not r['deleted'] else {}))
+                                 for r in edit_records],
+                  coverBlocks=[dict(c, copy=q.name(c['actor'])) for c in cover_records],
+                  **({'generatedWalls': [dict(r, copy=q.name(r['copy']).split('.')[-1],
+                                              **({'mesh': q.name(r['mesh'])} if r.get('mesh') else {}))
+                                         for r in generated_records]} if generated_records else {}),
+                  **({'doorListings': [dict(door=p.name(d['original']).split('.')[-1], copy=q.name(d['door']).split('.')[-1],
+                                            wall=q.name(d['wall']).split('.')[-1], columns=d['columns'])
+                                       for d in door_listings]} if door_listings else {}),
+                  **({'groupListings': [dict(piece=q.name(d['piece']).split('.')[-1], wall=q.name(d['wall']).split('.')[-1],
+                                             columns=d['columns']) for d in group_listings]} if group_listings else {}),
+                  **({'madeWallFloors': [dict(wall=q.name(d['wall']).split('.')[-1], building=p.name(d['building']).split('.')[-1],
+                                              floors=d['floors']) for d in made_floors]} if made_floors else {}),
+                  **({'neighbourListings': [dict(wall=q.name(d['wall']).split('.')[-1], other=q.name(d['other']).split('.')[-1],
+                                                 lists=d['lists'], listed=d['listed']) for d in neighbour_listings]}
+                     if neighbour_listings else {}),
+                  **({'cleared': cleared_record} if cleared_record else {}),
+                  **({'landings': landing_record} if landing_record else {}),
+                  **({'madeCursors': dict(cursor_record, added=[dict({k: v for k, v in a.items() if k != 'export'},
+                                                                     copy=q.name(a['export']).split('.')[-1])
+                                                                for a in cursor_record['added']])}
+                     if cursor_record else {}),
+                  **({'streamTiles': stream_record} if stream_record else {}),
+                  **({'pieceFlags': dict(
+                      onCopies=[dict(r, copy=q.name(r['export']).split('.')[-1]) for r in flag_copies],
+                      inPlace=(flag_record or {}).get('pieces') or [], tiles=(flag_record or {}).get('tiles'),
+                      written=sum(len(r['written']) for r in flag_copies + ((flag_record or {}).get('pieces') or [])),
+                      refused=[r['actor'] for r in flag_copies + ((flag_record or {}).get('pieces') or []) if r.get('refused')])}
+                     if flag_copies or flag_record else {}),
+                  **({'pieceBlasts': dict(onCopies=blast_copies, inPlace=(blast_record or {}).get('pieces') or [],
+                                          tiles=(blast_record or {}).get('tiles'))}
+                     if blast_copies or blast_record else {}),
+                  vans=[dict(v, building=dict(v['building'], copy=q.name(v['building']['export'])),
+                             floorVolumes=[dict(f, copy=q.name(f['export'])) for f in v['floorVolumes']]) for v in vans])
+    st.sections, st.copy_members = sections, copy_members
+    return sections, common, lights_record
+
+
+def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, jobs, piece_cache, base):
+    """The relight's command line for the Build `st` (BuildState, its manifest made: manifest_parts) whose grown map is
+    `dst`, and the files it names that a command line can't hold: <out>/<variant>.removed-casters.txt and
+    <out>/<variant>.light-edits.json."""
+    import native_lights
+    p, sections, hidden, landing_record = st.p, st.sections, st.hidden, st.landing_record
+    state, registration, copy_members = st.lights, st.registration, st.copy_members
+    cmd = [sys.executable, '-B', '-u', str(HERE / 'relight.py'), str(dst), str(out), variant, '--cache', cache,
+           '--receivers-near', str(receivers_near)]
+    for sec in sections:
+        if sec.get('generated'):
+            # a generated wall (or its reference beside it): its cloned lightmap holds its donor's bake on another
+            # shape, so it is lit from nothing
+            cmd += ['--fresh-copy', sec['copy'].split('.')[-1]]
+            continue
+        cmd += ['--foreign-copy' if sec.get('staged') else '--native-copy',
+                f"{sec['copy'].split('.')[-1]}={sec['actor']}"]
+    if len(hidden) > CASTER_ARGS:
+        # more than a command line holds (a cleared map hides about a thousand): one file
+        listing = out / f'{variant}.removed-casters.txt'
+        listing.write_text(''.join(h['name'] + '\n' for h in hidden), encoding='utf-8', newline='\n')
+        cmd += ['--remove-caster-list', str(listing)]
+    else:
+        for h in hidden:
+            cmd += ['--remove-caster', h['name']]
+    if edit_spec:
+        cmd += ['--edit-spec', str(edit_spec)]
+    # the map's own landings moved in place (native_spawns.py): each piece with a mesh (the grounded Skyranger)
+    # goes to the relight with its old pose, so its shadow leaves the old place and falls at the new one (F-98)
+    for move in landing_record or []:
+        for a in move['actors']:
+            if a.get('skipped') or a['path'] not in p.by_name or not has_mesh(p, p.by_name[a['path']]):
+                continue
+            (loc0, rot0), _ = a['old'], a['new']
+            cmd += ['--moved-in-place', '%s=%s' % (a['path'].split('.')[-1],
+                                                   ','.join('%r' % float(v) for v in list(loc0) + list(rot0)))]
+    if state:
+        # the resolved light states and the memberships this build added (plan 4.4): the relight never rebuilds
+        # them from the grown map
+        registered = {p.name(ci): [h for h, _ in v] for ci, v in registration['registered'].items()}
+        for path, v in copy_members.items():
+            registered.setdefault(path, []).extend(h for h, _ in v)
+        edits_file = out / f'{variant}.light-edits.json'
+        edits_file.write_text(json.dumps(native_lights.relight_edits(state, registered), indent=1) + '\n',
+                              encoding='utf-8', newline='\n')
+        cmd += ['--light-edits', str(edits_file)]
+    if jobs:
+        cmd += ['--jobs', str(jobs)]
+    if piece_cache and base:
+        # the pieces of this project's last baked build, for those the new edit leaves as they were
+        cmd += ['--piece-cache', str(piece_cache), '--base', base]
+    return cmd
+
+
 def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.0, jobs=None, tiles=True,
           edit_spec=None, break_originals=(), hides=(), assemblies=(), lights=None, covers=(), buildings=(),
           building_edits=(), cleared=None, landing_zones=None, carried_effects=None, piece_cache=None, base=None,
@@ -2333,6 +2522,9 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     # the light edits: resolved against the pristine map, then made in the map (plan 4.3, steps 1 and 2)
     state = None if native_lights.is_empty(lights) else native_lights.prepare(p, lights)
     light_result = native_lights.apply(g, p, state) if state else None
+    # what the edit takes out, added to as each step takes something (BuildState.gone)
+    st = BuildState(p)
+    st.lights_gone = set((light_result or {}).get('gone') or ())
     # the lights a copy's lightmap may list: the after registry (plan 4.3, step 3)
     after_lights = None
     if bake and copies:
@@ -2512,6 +2704,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
                                      [(c['breakGroup'], c['actor']) for c in cover_records if c.get('breakGroup')],
                                      walled=walled)
     hidden, hide_volumes = hide_pieces(g, p, hides, volumes=not cleared) if hides else ([], [])
+    st.hidden = hidden
     # the effects the moved, copied and deleted pieces carry (native_effects.py: a Skyranger's lights go with it)
     import native_effects
     effect_clones, effect_gone, effect_record = native_effects.carry(
@@ -2529,6 +2722,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     spawn_clones, spawn_gone, lane_spawns = native_spawns.apply_lane(g, p, spawns)
     effect_gone = set(effect_gone) | lane_gone | sound_gone | flare_gone | spawn_gone
     effect_clones = list(effect_clones) + lane_clones + sound_clones + flare_clones + spawn_clones
+    st.effects_gone = effect_gone
     if effect_gone:
         empty_slots(g, p, effect_gone)
     effect_moved = ({p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'moved'}
@@ -2638,6 +2832,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
             building_actors += edit_actors
             if edit_slots:
                 empty_slots(g, p, edit_slots)
+    st.edit_slots = set(edit_slots)
     # the added and changed placed lights in the lightmaps of the map's own receivers they reach (baked builds only;
     # plan 4.3, step 4); the copies' are in their clones already
     registration = None
@@ -2648,26 +2843,23 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         empty_slots(g, p, light_result['gone'])
     cleared_record = None
     if cleared:
-        taken = {h['export'] for h in hidden} | set(edit_slots) | set((light_result or {}).get('gone') or ()) | effect_gone
+        taken = st.gone()
         # the map's buildings the edit changes in place keep their volumes
         keep = {p.by_name[PL + n] for e in building_edits if not e.get('deleted')
                 for n in [e['actor']] + [v for f in e.get('floors') or [] for v in f.get('volumes') or [] if v]
                 if PL + n in p.by_name} | effect_moved      # a moved piece's effects stay with it
         cleared_record, clear_volume = clear_level(g, p, taken, keep, cleared.get('keepOutside'))
+        st.cleared = cleared_record
         hide_volumes = hide_volumes + [clear_volume]
     landing_record = None
     if landing_zones:
         import native_spawns
-        gone_now = {h['export'] for h in hidden} | set(edit_slots) | effect_gone
-        landing_record, landing_volumes = native_spawns.apply(g, p, landing_zones, gone_now)
+        landing_record, landing_volumes = native_spawns.apply(g, p, landing_zones, st.gone())
         hide_volumes = hide_volumes + landing_volumes
     # the map's own pieces whose flags change where they stand: after every copy is made from them and the clear
     # has run, so neither a copy nor a piece the clear takes out gets them
     if piece_flags:
-        gone_now = ({h['export'] for h in hidden} | set(edit_slots) | set((light_result or {}).get('gone') or ())
-                    | effect_gone)
-        if cleared_record:
-            gone_now |= {p.by_name[PL + n] for n in cleared_record['taken'] if PL + n in p.by_name}
+        gone_now = st.gone()
         flag_record, flag_volumes, flag_firsts, flag_ladder_records = flags_in_place(
             g, p, piece_flags, flag_ladders, gone_now, tiles=tiles, volumes=not cleared)
         hide_volumes = hide_volumes + flag_volumes
@@ -2675,10 +2867,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
         ladders += flag_ladder_records
     # the map's own fracturing pieces broken where they stand (E6): after every copy is made from them
     if piece_blasts:
-        gone_now = ({h['export'] for h in hidden} | set(edit_slots) | set((light_result or {}).get('gone') or ())
-                    | effect_gone)
-        if cleared_record:
-            gone_now |= {p.by_name[PL + n] for n in cleared_record['taken'] if PL + n in p.by_name}
+        gone_now = st.gone()
         blast_record, blast_volumes = blasts_in_place(g, p, piece_blasts, gone_now, tiles=tiles, volumes=not cleared)
         hide_volumes = hide_volumes + blast_volumes
     # a mission's solid pieces moved in their stream (mission types plan, Part E; stream_copy.tile_boxes): the map's
@@ -2753,93 +2942,18 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     for rec in flag_copies + (flag_record['pieces'] if flag_record else []):
         verify_roles(q, rec)
     ladders = ladder_order(q, [dict(l, copy=q.name(l['export']).split('.')[-1]) for l in ladders]) if ladders else []
-    # the copies' components and the lights listed in them by membership
-    copy_members = {q.name(m['info']['mapping'][ci]): [(x['guid'].hex(), x['light']) for x in found
-                                                        if x.get('membership')]
-                    for m in made for ci, found in m['extra'].items()}
-    copy_members = {k: v for k, v in copy_members.items() if v}
-    sections = []
-    for m in made:
-        info, new = m['info'], m['info']['actor']
-        sections.append(dict(actor=m['actor'], label=m.get('label'), copy=q.name(new), export=new, location=m['location'],
-                             rotation=m['rotation'], exports={p.name(o): n for o, n in info['mapping'].items()},
-                             textures={p.name(o): q.name(n) for o, n in info['textures'].items()},
-                             extraLights={p.name(ci): [dict(light=x['light'], peak=x['peak'], kept=x['kept'],
-                                                            **({'membership': True} if x.get('membership') else {}))
-                                                       for x in found] for ci, found in m['extra'].items()},
-                             remapped=info['remapped'], tiles=m['tiles'], breakGroup=m['breakGroup'],
-                             **({'walkable': 'collision turned on: low scenery of the map (F-100)'} if m['walkable'] else {}),
-                             **({'staged': True, 'donor': m['donor'], 'lighting': 'fresh' if bake else 'its home map\'s'}
-                                if m['staged'] else {}),
-                             **({'columns': info['columns']} if info.get('columns') else {}),
-                             **({'generated': m['generated']['kind']} if m.get('generated') else {}),
-                             parts=children[new],
-                             **({'assembly': m['assembly'], 'family': m['family']} if m.get('assembly') else {})))
-    tool = dict(path='tools/bake/native_copy.py', sha256=lighting.digest(__file__))
-    lights_record = None
-    if state:
-        lights_record = native_lights.record(state, light_result, 'baked' if bake else 'unbaked', registration,
-                                             copy_members, names=q.name)
-        lights_record['tool'] = dict(path='tools/bake/native_lights.py', sha256=lighting.digest(native_lights.__file__))
-    common = dict(level=level, writer=report, source=str(src), sourceSha256=lighting.digest(src), tool=tool,
-                  breakGroups={str(k): [q.name(i).split('.')[-1] for i in v] for k, v in groups.items()},
-                  hidden=hidden, assemblies=list(assemblies), ladders=ladders, columns=columns,
-                  carriedEffects=[dict(r, copy=q.name(r['copy']).split('.')[-1]) if 'copy' in r else r
-                                  for r in effect_record],
-                  **{key: [dict({k: v for k, v in r.items() if k not in ('export', 'mapping', 'template')},
-                                **({'copy': q.name(r['export']).split('.')[-1],
-                                    'exports': {p.name(o): q.name(n) for o, n in r['mapping'].items()}}
-                                   if r['how'] == 'copied' else {}))
-                           for r in lane]
-                     for key, lane in (('effects', lane_effects), ('sounds', lane_sounds), ('flares', lane_flares),
-                                       ('spawns', lane_spawns))
-                     if lane},
-                  **({'floorEmitters': [dict(effect=q.name(f['effect']).split('.')[-1],
-                                             building=q.name(f['building']).split('.')[-1], floor=f['floor'],
-                                             how=f['how']) for f in floor_emitters]} if floor_emitters else {}),
-                  floorCaches=floor_caches, hiddenBuildings=hidden_buildings,
-                  buildings=[dict(b, copy=q.name(b['building']).split('.')[-1],
-                                  floors=[dict(f, volumes=[q.name(v).split('.')[-1] for v in f['volumes']],
-                                               members=[dict(m, actor=q.name(m['actor']).split('.')[-1])
-                                                        for m in f['members']]) for f in b['floors']])
-                             for b in building_records],
-                  buildingEdits=[dict(r, **({'volumes': dict(r['volumes'], made=[q.name(v).split('.')[-1] for v in r['volumes']['made']])}
-                                            if not r['deleted'] else {}),
-                                      **({'floors': [dict(f, volumes=[q.name(v).split('.')[-1] for v in f['volumes']])
-                                                     for f in r['floors']]} if not r['deleted'] else {}))
-                                 for r in edit_records],
-                  coverBlocks=[dict(c, copy=q.name(c['actor'])) for c in cover_records],
-                  **({'generatedWalls': [dict(r, copy=q.name(r['copy']).split('.')[-1],
-                                              **({'mesh': q.name(r['mesh'])} if r.get('mesh') else {}))
-                                         for r in generated_records]} if generated_records else {}),
-                  **({'doorListings': [dict(door=p.name(d['original']).split('.')[-1], copy=q.name(d['door']).split('.')[-1],
-                                            wall=q.name(d['wall']).split('.')[-1], columns=d['columns'])
-                                       for d in door_listings]} if door_listings else {}),
-                  **({'groupListings': [dict(piece=q.name(d['piece']).split('.')[-1], wall=q.name(d['wall']).split('.')[-1],
-                                             columns=d['columns']) for d in group_listings]} if group_listings else {}),
-                  **({'madeWallFloors': [dict(wall=q.name(d['wall']).split('.')[-1], building=p.name(d['building']).split('.')[-1],
-                                              floors=d['floors']) for d in made_floors]} if made_floors else {}),
-                  **({'neighbourListings': [dict(wall=q.name(d['wall']).split('.')[-1], other=q.name(d['other']).split('.')[-1],
-                                                 lists=d['lists'], listed=d['listed']) for d in neighbour_listings]}
-                     if neighbour_listings else {}),
-                  **({'cleared': cleared_record} if cleared_record else {}),
-                  **({'landings': landing_record} if landing_record else {}),
-                  **({'madeCursors': dict(cursor_record, added=[dict({k: v for k, v in a.items() if k != 'export'},
-                                                                     copy=q.name(a['export']).split('.')[-1])
-                                                                for a in cursor_record['added']])}
-                     if cursor_record else {}),
-                  **({'streamTiles': stream_record} if stream_record else {}),
-                  **({'pieceFlags': dict(
-                      onCopies=[dict(r, copy=q.name(r['export']).split('.')[-1]) for r in flag_copies],
-                      inPlace=(flag_record or {}).get('pieces') or [], tiles=(flag_record or {}).get('tiles'),
-                      written=sum(len(r['written']) for r in flag_copies + ((flag_record or {}).get('pieces') or [])),
-                      refused=[r['actor'] for r in flag_copies + ((flag_record or {}).get('pieces') or []) if r.get('refused')])}
-                     if flag_copies or flag_record else {}),
-                  **({'pieceBlasts': dict(onCopies=blast_copies, inPlace=(blast_record or {}).get('pieces') or [],
-                                          tiles=(blast_record or {}).get('tiles'))}
-                     if blast_copies or blast_record else {}),
-                  vans=[dict(v, building=dict(v['building'], copy=q.name(v['building']['export'])),
-                             floorVolumes=[dict(f, copy=q.name(f['export'])) for f in v['floorVolumes']]) for v in vans])
+    # what the record is made from (manifest_parts, relight_command)
+    st.keep(src=src, level=level, report=report, made=made, children=children, groups=groups, assemblies=assemblies,
+            ladders=ladders, columns=columns, effect_record=effect_record, lane_effects=lane_effects,
+            lane_sounds=lane_sounds, lane_flares=lane_flares, lane_spawns=lane_spawns, floor_emitters=floor_emitters,
+            floor_caches=floor_caches, hidden_buildings=hidden_buildings, building_records=building_records,
+            edit_records=edit_records, cover_records=cover_records, generated_records=generated_records,
+            door_listings=door_listings, group_listings=group_listings, made_floors=made_floors,
+            neighbour_listings=neighbour_listings, landing_record=landing_record, cursor_record=cursor_record,
+            stream_record=stream_record, flag_copies=flag_copies, flag_record=flag_record, blast_copies=blast_copies,
+            blast_record=blast_record, vans=vans, lights=state, light_result=light_result, registration=registration)
+    sections, common, lights_record = manifest_parts(st, q, bake)
+    tool = common['tool']
     if not bake:
         files = {str(dst): lightmap_writer.sha256(dst.read_bytes())}
         manifest = dict(source=str(src), sourceSha256=lighting.digest(src), variant=variant, cache=None,
@@ -2847,50 +2961,7 @@ def build(src, out, variant, copies, bake=False, cache=None, receivers_near=600.
     else:
         # the readers find the original's texture caches through tfc-folder.txt beside the grown map (nothing copied)
         lighting.link_caches(dst.parent, src.parent)
-        cmd = [sys.executable, '-B', '-u', str(HERE / 'relight.py'), str(dst), str(out), variant, '--cache', cache,
-               '--receivers-near', str(receivers_near)]
-        for sec in sections:
-            if sec.get('generated'):
-                # a generated wall (or its reference beside it): its cloned lightmap holds its donor's bake on another
-                # shape, so it is lit from nothing
-                cmd += ['--fresh-copy', sec['copy'].split('.')[-1]]
-                continue
-            cmd += ['--foreign-copy' if sec.get('staged') else '--native-copy',
-                    f"{sec['copy'].split('.')[-1]}={sec['actor']}"]
-        if len(hidden) > CASTER_ARGS:
-            # more than a command line holds (a cleared map hides about a thousand): one file
-            listing = out / f'{variant}.removed-casters.txt'
-            listing.write_text(''.join(h['name'] + '\n' for h in hidden), encoding='utf-8', newline='\n')
-            cmd += ['--remove-caster-list', str(listing)]
-        else:
-            for h in hidden:
-                cmd += ['--remove-caster', h['name']]
-        if edit_spec:
-            cmd += ['--edit-spec', str(edit_spec)]
-        # the map's own landings moved in place (native_spawns.py): each piece with a mesh (the grounded Skyranger)
-        # goes to the relight with its old pose, so its shadow leaves the old place and falls at the new one (F-98)
-        for move in landing_record or []:
-            for a in move['actors']:
-                if a.get('skipped') or a['path'] not in p.by_name or not has_mesh(p, p.by_name[a['path']]):
-                    continue
-                (loc0, rot0), _ = a['old'], a['new']
-                cmd += ['--moved-in-place', '%s=%s' % (a['path'].split('.')[-1],
-                                                       ','.join('%r' % float(v) for v in list(loc0) + list(rot0)))]
-        if state:
-            # the resolved light states and the memberships this build added (plan 4.4): the relight never rebuilds
-            # them from the grown map
-            registered = {p.name(ci): [h for h, _ in v] for ci, v in registration['registered'].items()}
-            for path, v in copy_members.items():
-                registered.setdefault(path, []).extend(h for h, _ in v)
-            edits_file = out / f'{variant}.light-edits.json'
-            edits_file.write_text(json.dumps(native_lights.relight_edits(state, registered), indent=1) + '\n',
-                                  encoding='utf-8', newline='\n')
-            cmd += ['--light-edits', str(edits_file)]
-        if jobs:
-            cmd += ['--jobs', str(jobs)]
-        if piece_cache and base:
-            # the pieces of this project's last baked build, for those the new edit leaves as they were
-            cmd += ['--piece-cache', str(piece_cache), '--base', base]
+        cmd = relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, jobs, piece_cache, base)
         print(' '.join(cmd), flush=True)
         subprocess.run(cmd, check=True)
         manifest = json.loads((out / f'{variant}.fixture.json').read_text(encoding='utf-8'))
