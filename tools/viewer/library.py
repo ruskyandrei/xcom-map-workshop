@@ -54,6 +54,7 @@ import sys
 import tempfile
 import threading
 import time
+import uuid
 
 HERE = Path(__file__).resolve().parent
 for folder in (HERE.parent / 'upk', HERE.parent / 'bake', HERE.parent / 'editor'):
@@ -79,6 +80,7 @@ GROUPED = ('car', 'van', 'door')
 STATE_SCHEMA = 'xcom-map-workshop/library-state'
 STATE_VERSION = 1
 RECENT = 30
+STATE_WAIT = 10.0       # seconds a save of the favourites waits for another one to finish
 LEVEL = 'TheWorld.PersistentLevel'
 NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_-]*')
 KEY = re.compile(r'[0-9a-f]{16}')
@@ -1213,21 +1215,34 @@ def save_state(document, expected, path=None):
     """Write the state `document` ({favourites, recent}) when `expected` is the revision on disk (0 for no file);
     else 409 with the revision there. Returns the state as written."""
     path = Path(path) if path else state_path()
-    current = load_state(path)
-    if expected != current['revision']:
-        raise ProjectError(409, 'The favourites were changed in another window.', revision=current['revision'])
     if not isinstance(document, dict):
         raise ProjectError(400, 'Send {expectedRevision, document: {favourites, recent}}.')
     try:
         body = _check_state(document)
     except ValueError as error:
         raise ProjectError(400, 'Not a list of favourites: %s.' % error)
-    out = dict(schema=STATE_SCHEMA, schemaVersion=STATE_VERSION, revision=current['revision'] + 1, **body)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    part = path.with_suffix('.json.part')
-    part.write_text(json.dumps(out, indent=1) + '\n', encoding='utf-8', newline='\n')
-    os.replace(part, path)
-    return out
+    # the revision checked and the file replaced as one step (review finding 21): two windows saving at once each get
+    # their own revision or a 409, never both the same one with the first's change lost. The lock is the operating
+    # system's on a file beside it, so it holds across threads and across servers.
+    from publication import FileLock
+    lock = FileLock(path.with_name(path.name + '.lock'))
+    if not lock.acquire(STATE_WAIT):
+        raise ProjectError(409, 'The favourites are being saved by another window; try again.', code='state-busy')
+    try:
+        current = load_state(path)
+        if expected != current['revision']:
+            raise ProjectError(409, 'The favourites were changed in another window.', revision=current['revision'])
+        out = dict(schema=STATE_SCHEMA, schemaVersion=STATE_VERSION, revision=current['revision'] + 1, **body)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        part = path.with_name('%s.%s.part' % (path.name, uuid.uuid4().hex[:8]))
+        try:
+            part.write_text(json.dumps(out, indent=1) + '\n', encoding='utf-8', newline='\n')
+            os.replace(part, path)
+        finally:
+            part.unlink(missing_ok=True)
+        return out
+    finally:
+        lock.release()
 
 
 # ---------------------------------------------------------------------------------------------------- the server's side
