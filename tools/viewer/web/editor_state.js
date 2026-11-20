@@ -108,8 +108,8 @@ export function setBuildTimer(next) { buildTimer = next; }
 // - playStatus: the play status as the server last gave it (/play.json, or a play's answer: the install plays go to,
 //   how the game is started, the squad, each mission kind's line), null until asked; the Missions panel reads its
 //   kinds too;
-// - pickedZone: the landing zone picked in the Landing zones view, by id, or null (app.js's pickZone); Land here plays
-//   the project landing there;
+// - pickedZone: the landing zone picked in the Landing zones view, by id, or null (zones_wiring.js's pickZone); Land
+//   here plays the project landing there;
 // - missionPickValue: the header's Mission picker's value (app.js's chooseMission), a record's index ('0', '1', ...) or
 //   'kind:<kind>' for a kind the project adds (mission types plan, D2); a play is of that mission unless one is chosen.
 export let playStatus = null, pickedZone = null, missionPickValue = '0';
@@ -294,3 +294,8 @@ export let missionMoves = new Map(), missionDragView = null, spawnPlacing = null
 export function setMissionMovesValue(next) { missionMoves = next; }
 export function setMissionDragView(next) { missionDragView = next; }
 export function setSpawnPlacing(next) { spawnPlacing = next; }
+
+// What other areas read or set of the Landing zones view (zones_wiring.js; app.js's keys and pointer handlers):
+// zonePlacing, whether the next click places a landing zone (the Add panel's Landing zones kind).
+export let zonePlacing = false;
+export function setZonePlacing(next) { zonePlacing = next; }
