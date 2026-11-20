@@ -29,7 +29,9 @@ module, whose `startScene` starts everything. app.js imports the page's other mo
 through the import map (fetched by `setup_vendor.py`, not tracked). The page draws the scene, edits it and keeps the
 project document. It asks the server through [`api.js`](tools/viewer/web/api.js), and keeps what a browser remembers
 through [`storage.js`](tools/viewer/web/storage.js). [`project.js`](tools/viewer/web/project.js) holds the document's
-shape on the page. `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
+shape on the page. What several of the page's areas use (the scene, its roots, the selection, the project open, the
+groups, the buildings and the cleared map's state) lives in [`editor_state.js`](tools/viewer/web/editor_state.js).
+`window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
 page and the editor's JSON routes. Its handler's `handle_<area>` methods hand each route to its area's module:
@@ -109,6 +111,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | Kind of work | Where it goes |
 | --- | --- |
 | An area of the page (a panel, a view, a tool) | A module of its own in `tools/viewer/web`. When it needs many of app.js's functions, it is made by a factory that takes them as one argument object: `createProjectDialog` in [`project_files.js`](tools/viewer/web/project_files.js) and `createQueueController` in [`build_queue.js`](tools/viewer/web/build_queue.js) are the model. |
+| State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
 | The game's grid numbers on the page | [`constants.js`](tools/viewer/web/constants.js). |
 | A call to the server, from the page | [`api.js`](tools/viewer/web/api.js). |
@@ -162,9 +165,21 @@ where there is one.
 
 ### The page
 
-- New state goes in the module that owns its area and is written through that module's setter, as `setGroups` does
-  for the groups. Other modules read it through the import. A module's top level only declares, so the order of
-  imports means nothing. No module imports app.js.
+- Each piece of the page's state (a module-level `let`, or a collection changed in place) has one owner module, which
+  declares and exports it:
+  - other modules read it through the import, a live binding that sees each new value;
+  - they give it a new value only through the owner's setter: `set<Name>` (`setSelected`, `setProject`, `setGroups`),
+    or `set<Name>Value` where app.js has a `set<Name>` of its own that also draws (`setStageValue`, beside app.js's
+    `setStage`);
+  - a collection (a `Map`, an array) is changed in place through the import as it is.
+
+  What one area alone uses lives in that area's module. What several areas use lives in
+  [`editor_state.js`](tools/viewer/web/editor_state.js): the scene (`data`) and its roots, the selection, the project
+  open, the groups, the buildings, the map's size, the cleared map's state and its landing zones, the project's
+  missions, picture and spawn rules. app.js still declares the state of the areas not yet moved out of it; new state
+  never goes there. An assignment to an imported name throws only when its line runs, and no browser check runs every
+  line: a change that moves state searches for any assignment to the moved names left behind.
+- A module's top level only declares, so the order of imports means nothing. No module imports app.js.
 - A rule, a record or a sentence is in a pure module with a node test. The wiring of a panel is beside it and has a
   browser check in the table of checks. A hook a browser check uses is on `window.viewer`.
 - The server is asked through `api.js`, the browser's storage through `storage.js`.
@@ -229,7 +244,7 @@ Listed on 20 November 2026:
 
 | File | Lines | Why it is over |
 | --- | --- | --- |
-| `tools/viewer/web/app.js` | 12,792 | The page's entry. Every area of the page was added to it before the page had modules. |
+| `tools/viewer/web/app.js` | 12,767 | The page's entry. Every area of the page was added to it before the page had modules. |
 | `tools/viewer/tests/browser_smoke.py` | 5,856 | Every browser check and its table in one file. Not shipped. |
 | `tools/editor/compiler.py` | 5,622 | The compiler, its tables and all its edit families but one. |
 | `tools/editor/tests/test_compiler.py` | 3,263 | The compiler's tests, grown with it. Not shipped. |
@@ -272,7 +287,7 @@ is why a factory is measured by its functions.
 
 ### app.js's top level
 
-`app.js` has a ceiling on its module-level `let`s (112) and on its top-level functions (812: function declarations and
+`app.js` has a ceiling on its module-level `let`s (105) and on its top-level functions (811: function declarations and
 functions assigned to a top-level `const`), under `app.js`. New state and new functions go into the module that owns
 their area, so both counts only go down.
 
