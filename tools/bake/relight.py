@@ -136,6 +136,7 @@ import lightmap_encode as codec  # noqa: E402
 import lightmap_fields  # noqa: E402
 import lightmap_texels  # noqa: E402
 from lightmap_textures import top_mip_rect  # noqa: E402
+import props as legacy_props  # noqa: E402
 import bounce  # noqa: E402
 import shadows  # noqa: E402
 from lights import light_record  # noqa: E402
@@ -150,19 +151,14 @@ def guid_hex(value):
 def lightmass_settings(p, component):
     """The light component's explicit LightmassSettings members (a tagged struct), as {name: value}."""
     raw = p.effective(component, 'LightmassSettings')
-    out, pos = {}, 0
-    while isinstance(raw, (bytes, bytearray)) and pos + 24 <= len(raw):
-        name = p.names[struct.unpack_from('<i', raw, pos)[0]]
-        if name == 'None':
-            break
-        kind = p.names[struct.unpack_from('<i', raw, pos + 8)[0]]
-        size = struct.unpack_from('<i', raw, pos + 16)[0]
-        pos += 24 + (8 if kind == 'StructProperty' else 0)
+    out = {}
+    if not isinstance(raw, (bytes, bytearray)):
+        return out
+    for name, kind, _, _, at, size in legacy_props.tags(raw, 0, len(raw), p.names):
+        value = raw[at:at + size]
         if kind == 'BoolProperty':
-            out[name] = bool(raw[pos]); pos += 1
-            continue
-        value = raw[pos:pos + size]; pos += size
-        if kind == 'FloatProperty':
+            out[name] = bool(value[0])
+        elif kind == 'FloatProperty':
             out[name] = struct.unpack('<f', value)[0]
         elif kind == 'IntProperty':
             out[name] = struct.unpack('<i', value)[0]

@@ -24,6 +24,11 @@ walker before and after (names, kinds, sizes, offsets, values, refusals). A diff
   the relight's writes): every export the same, refusals included (a refusal of `props.tags` is still the viewer's
   `FormatError`; the dominant light's component is refused by its class first, as before). Its now unused `Reader`
   import went.
+- **[relight.lightmass_settings](../../tools/bake/relight.py)** (a light's, a piece's or the world's Lightmass
+  settings): its walk read a name without its number, did not skip a byte property's enum name, checked no bound
+  and stopped without a word where the closing None was missing; with `props.tags` such a struct is refused. Every
+  export of both maps reads the same (316 settings on the Bar, 1,446 on TempleShip: no member has a number or is a
+  byte property, and every struct is closed), so no output changes.
 
 Checked: each walker's module's tests after its commit (map_frame's 11, inline_lighting's 5, light_factory's 22 and
-native_lights' 30, the lighting fixture's 18 and native_fields' 12).
+native_lights' 30, the lighting fixture's 18 and native_fields' 12, relight's 28 and the Lightmass settings' 2).
