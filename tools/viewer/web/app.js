@@ -2346,39 +2346,43 @@ async function prefabClip(doc, step = null) {
     const entry = t.foreign?.key ? library?.entry(t.foreign.key) : null;
     if (entry && !entry.placeable && !SOFT.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
   }, error => { failed.set(targetKey(from), `${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`); })));
+  // (each record read through piece_records.js optionsOf: its names, pose, links, state and values; a clip entry's
+  // `unit` is its actor, its `link` and `partner` what the paste names anew)
   const entries = [];
   for (const p of records) {
     const key = memberKey({ added: p.actor });
     if (p.kind && !p.template) {
-      const failure = failed.get(targetKey(p.from));
+      const e = optionsOf(p, 'effect');
+      const failure = failed.get(targetKey(e.from));
       if (failure) { left.push(failure); continue; }
-      const source = isForeignTarget(p.from) ? foreignEffects.get(targetKey(p.from)) : effectIndex.get(targetKey(p.from))?.userData.source;
-      const what = p.kind === 'sound' ? 'sound' : p.kind === 'flare' ? 'lens flare' : 'effect';
-      if (!source || source.kind !== p.kind) { left.push(`${short(p.from.actor)} of ${p.from.package}: this export of the map has no such ${what}`); continue; }
+      const source = isForeignTarget(e.from) ? foreignEffects.get(targetKey(e.from)) : effectIndex.get(targetKey(e.from))?.userData.source;
+      const what = e.kind === 'sound' ? 'sound' : e.kind === 'flare' ? 'lens flare' : 'effect';
+      if (!source || source.kind !== e.kind) { left.push(`${short(e.from.actor)} of ${e.from.package}: this export of the map has no such ${what}`); continue; }
       const why = effectViewOnly(source, 'copy');
       if (why) { left.push(`${recordName(source, data)}: the ${what} isn't copied (${why})`); continue; }
       // its values are placed where their family builds (families.json); the prefab keeps them either way
-      const values = p.kind !== 'flare' && families?.families?.[`${p.kind}-values`]?.builds ? keptValues(p[p.kind]) : null;
-      entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), ...(values ? { values } : {}), unit: p.actor, key });
+      const values = e.kind !== 'flare' && families?.families?.[`${e.kind}-values`]?.builds ? e.values : null;
+      entries.push({ source, matrix: movedMatrix(source, e.location, e.rotation), ...(values ? { values } : {}), unit: e.actor, key });
       continue;
     }
     if (p.template?.kind === COVER_KIND) {
-      const source = coverOf(p);
-      if (!source) { left.push(`${short(p.actor)}: a cover block of a recipe this editor doesn't make`); continue; }
-      entries.push({ source, matrix: new THREE.Matrix4().fromArray(source.matrix), unit: p.actor, key, link: null, partner: null });
+      const source = coverOf(p), c = optionsOf(p, 'cover');
+      if (!source) { left.push(`${short(c.actor)}: a cover block of a recipe this editor doesn't make`); continue; }
+      entries.push({ source, matrix: new THREE.Matrix4().fromArray(source.matrix), unit: c.actor, key, link: c.prefab, partner: c.partner });
     } else if (p.template) {
-      const made = lightsBlocked() ? null : recipeLight(p.template, p.light, p.location, p.rotation);
-      if (!made) { left.push(`${short(p.actor)}: a ${p.template.kind} light${lightsBlocked() ? ` (${lightsBlocked()})` : ', which this editor can\'t make yet'}`); continue; }
-      entries.push({ source: made.source, matrix: new THREE.Matrix4().fromArray(made.source.matrix), values: made.values, unit: p.actor, key });
+      const l = optionsOf(p, 'light'), made = lightsBlocked() ? null : recipeLight(l.recipe, l.light, l.location, l.rotation);
+      if (!made) { left.push(`${short(l.actor)}: a ${l.recipe.kind} light${lightsBlocked() ? ` (${lightsBlocked()})` : ', which this editor can\'t make yet'}`); continue; }
+      entries.push({ source: made.source, matrix: new THREE.Matrix4().fromArray(made.source.matrix), values: made.values, unit: l.actor, key });
     } else {
       const failure = failed.get(targetKey(p.from));
       if (failure) { left.push(failure); continue; }
       const sources = p.components.map(c => templateFor(p.from, c));
       if (sources.some(s => !s)) { left.push(`${short(p.from.actor)} of ${p.from.package} is not in this export of the map`); continue; }
-      // (each made as its record says, made numbers and blasts included, as a project's copy is: piece_records.js)
-      for (const source of sources)
-        entries.push({ source, matrix: movedMatrix(source, p.location, p.rotation), unit: p.actor, key, link: p.prefab ?? null, partner: p.partner ?? null,
-                       state: stateOf(p) });
+      // (each made as its record says, made numbers and blasts included, as a project's copy is)
+      for (const source of sources) {
+        const state = stateOf(p), o = optionsOf(p, 'piece', state);
+        entries.push({ source, matrix: movedMatrix(source, o.location, o.rotation), unit: o.actor, key, link: o.prefab, partner: o.partner, state });
+      }
     }
   }
   // its made pieces' meshes asked for now, so the placing preview draws them as they will stand (previewGroup); one
