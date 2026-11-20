@@ -1,7 +1,8 @@
 """The tables and small helpers the compiler shares with its edit families (review finding 23).
 
-The compiler (compiler.py) and each edit family in a module of its own (spawn_edits.py, effect_edits.py) import this
-module; a family never imports the compiler (tools/repo/structure.json, `compiler families`). The compiler takes every name of __all__
+The compiler (compiler.py) and each edit family in a module of its own (spawn_edits.py, effect_edits.py,
+light_edits.py) import this module; a family never imports the compiler (tools/repo/structure.json, `compiler
+families`). The compiler takes every name of __all__
 with `from compiler_tables import *`, so compiler.FAMILIES and the rest are these same objects: a test that changes
 compiler.FAMILIES['spawn'] in place changes what the spawn family reads too.
 
