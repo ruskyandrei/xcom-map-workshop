@@ -3,13 +3,15 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from browser_builder import listen
+
 
 def check_prefab_test(browser, url, screenshot=None):
     base = url.split('?')[0]
     page = browser.new_page(viewport=dict(width=1440, height=900))
     errors, starts, attempts, cancellations = [], [], [], []
     response = {}
-    page.on('pageerror', lambda error: errors.append(str(error)))
+    listen(page, errors)
     page.on('dialog', lambda dialog: dialog.accept())
 
     def stub(route):
@@ -102,7 +104,7 @@ def check_prefab_test(browser, url, screenshot=None):
     assert starts[-1]['snapshot'] == before and starts[-1]['unsaved']
     assert page.evaluate('id => viewer.prefabApi.recovery(id)', prefab_id) == recovery
     assert page.evaluate('viewer.dirty()')
-    other = browser.new_page()
+    other = browser.new_page(); listen(other, errors)
     other.goto(base + '?prefab=' + prefab_id)
     other.wait_for_function('window.viewer')
     later = other.evaluate('''async id => { const doc = await viewer.prefabApi.load(id);

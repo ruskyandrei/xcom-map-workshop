@@ -96,6 +96,8 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
                 start=(-1344.0, -2208.0, 16.0), end=(-960.0, -2208.0, 16.0)):
     errors = []
     page = open_viewer(browser, url, errors)
+    # (the points above are on the police station's ground: on another map they mean nothing)
+    assert page.evaluate('viewer.mapId') == 'URB_PoliceStation', f"open the police station (?map=URB_PoliceStation), not {page.evaluate('viewer.mapId')}"
     out = dict(map=page.evaluate('viewer.data.name'))
     # (the looks the picker lists first, whatever was chosen before)
     page.evaluate("for (const k of ['workshop.wallLook', 'workshop.slabLook', 'workshop.groundLook']) localStorage.removeItem(k)")

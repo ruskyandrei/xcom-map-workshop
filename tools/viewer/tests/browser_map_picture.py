@@ -16,6 +16,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 import tempfile
+from urllib.parse import urlsplit
 
 from PIL import Image
 from playwright.sync_api import sync_playwright
@@ -251,10 +252,11 @@ def check(page, base, map_id, shots, errors):
 
 def main():
     a = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    a.add_argument('--url', required=True, help='the test server, as http://127.0.0.1:8797')
+    a.add_argument('--url', required=True, help='the test server, as http://127.0.0.1:8797 (never 8768, the main server)')
     a.add_argument('--map', default='URB_Bar')
     a.add_argument('--shots', type=Path, help='a folder for pictures of the dialog (kept out of the repository)')
     args = a.parse_args()
+    if urlsplit(args.url).port == 8768: a.error('8768 is the main server, the one the user keeps open: check a test server (8790-8799)')
     if args.shots: args.shots.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(channel='msedge', headless=True)

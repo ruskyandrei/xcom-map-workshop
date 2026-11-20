@@ -10,7 +10,7 @@ once its second build is under way), but never installs or plays, so run it agai
 with scratch projects, builds and squad, and stop the server after:
 
   python tools/viewer/viewer.py serve --port 8790 --no-open --projects <scratch>/projects --builds <scratch>/builds --squad <scratch>/test-squad.json
-  python tools/release/guide/take_shots.py [--server http://127.0.0.1:8790/] [--only window,header] [--out <folder>]
+  python tools/release/guide/take_shots.py --out <folder> [--server http://127.0.0.1:8790/] [--only window,header]
 
 The scratch projects folder must be empty (the demo project is saved under a fixed name), and so must the prefabs
 folder beside it (the prefabs shot saves two). It needs the Bar exported in the server's cache (the mission objects'
@@ -27,6 +27,7 @@ The server's answers that would name a folder of this computer are replaced by a
 import argparse
 import io
 from pathlib import Path
+from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
 MAP = 'URB_Bar'
@@ -1298,9 +1299,12 @@ ORDER = ('window', 'header', 'rail', 'normal-flyout', 'build-menu', 'dock', 'pro
 def main():
     a = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     a.add_argument('--server', default='http://127.0.0.1:8790/', help='the test server (default: %(default)s)')
-    a.add_argument('--out', type=Path, default=HERE / 'shots', help='where the pictures go (default: shots, beside this script)')
+    a.add_argument('--out', type=Path, required=True, help='where the pictures go: a scratch folder (the guide\'s own shots/ only '
+                   'on purpose: the guide skill copies the chosen pictures there)')
     a.add_argument('--only', default='', help='only these shots, by name, comma-separated (default: all)')
     args = a.parse_args()
+    if urlsplit(args.server).port == 8768:
+        a.error('8768 is the main server, the one the user keeps open: take the shots on a test server (8790-8799); they save a project')
     only = [n for n in args.only.split(',') if n]
     unknown = [n for n in only if n not in ORDER]
     if unknown: a.error('no shot called %s (they are %s)' % (', '.join(unknown), ', '.join(ORDER)))
