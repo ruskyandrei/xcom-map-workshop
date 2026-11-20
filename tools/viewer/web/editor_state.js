@@ -69,9 +69,9 @@ export function setProjectPicture(next) { projectPicture = next; }
 export let projectSpawnRules = null;
 export function setProjectSpawnRules(next) { projectSpawnRules = next; }
 
-// The buildings drawn as boxes and edited (project.js validBuilding; app.js's setBuildings draws them): the project's,
-// made from nothing by the Build, and the map's own that can be edited, each as the project's are (map buildings plan,
-// section 1). buildingsVersion is raised with each new list, for what is worked out from it.
+// The buildings drawn as boxes and edited (project.js validBuilding; buildings_wiring.js's setBuildings draws them):
+// the project's, made from nothing by the Build, and the map's own that can be edited, each as the project's are (map
+// buildings plan, section 1). buildingsVersion is raised with each new list, for what is worked out from it.
 export let buildings = [], buildingsVersion = 0;
 export function setBuildingsValue(next) { buildings = next; }
 export function setBuildingsVersion(next) { buildingsVersion = next; }
@@ -256,8 +256,8 @@ export function setLikenessCount(next) { likenessCount = next; }
 // key -> its roots, or null.
 export let liveCache = null;
 export function setLiveCache(next) { liveCache = next; }
-// Box select's pieces' middles while its box is up (app.js's pickCandidates), or null: worked out again when what is
-// drawn changes.
+// Box select's pieces' middles while its box is up (buildings_wiring.js's pickCandidates), or null: worked out again
+// when what is drawn changes.
 export let pickCentres = null;
 export function setPickCentres(next) { pickCentres = next; }
 // The picked spawn marker's key (spawns_view.js spawnKey; spawns_wiring.js's setPickedSpawn sets it and draws), or null.
@@ -299,3 +299,29 @@ export function setSpawnPlacing(next) { spawnPlacing = next; }
 // zonePlacing, whether the next click places a landing zone (the Add panel's Landing zones kind).
 export let zonePlacing = false;
 export function setZonePlacing(next) { zonePlacing = next; }
+
+// What other areas read or set of the Buildings view and box select (buildings_wiring.js; app.js's selection, the
+// views' switches, the map's buildings' records, the clipboard, Select all of a kind, the keys, the pointer handlers,
+// the draw loop and the test hooks):
+// - boxesShown: the Normal button's Floor boxes switch, the project's boxes drawn and picked in the normal view (off
+//   whenever a map opens; setBoxesShownValue, beside the view's setBoxesShown, which also draws);
+// - buildingMeta: building id -> { name, kind }, and for one of the map's own its record (map); changed in place;
+// - ownSet: the map's own buildings selected with pieces in the normal view (a copy of the selection gets a building
+//   of the project with the same boxes); ownPicked: one of the map's own boxes picked to be read, its fill mesh, or
+//   null (setOwnPickedValue, beside the view's setOwnPicked, which also draws);
+// - volumeTool: the view's tool, 'new' while the next drag draws a box, or null; volumeDrag: a box's face, a new box
+//   or a no-spawn volume's face being dragged, or null (setVolumeToolValue, beside the view's setVolumeTool);
+// - box select's tool waiting for a drag (pickTool; setPickToolValue, beside setPickTool), its box in game units
+//   (pickBox; setPickBoxValue, beside the test hooks' setPickBox, which also draws), its drag (pickDrag) and what the
+//   box would take (pickHits); the pieces' middles while it is up are pickCentres, above.
+export let boxesShown = false, ownPicked = null, volumeTool = null, volumeDrag = null;
+export const buildingMeta = new Map(), ownSet = new Set();
+export function setBoxesShownValue(next) { boxesShown = next; }
+export function setOwnPickedValue(next) { ownPicked = next; }
+export function setVolumeToolValue(next) { volumeTool = next; }
+export function setVolumeDrag(next) { volumeDrag = next; }
+export let pickTool = false, pickBox = null, pickDrag = null, pickHits = [];
+export function setPickToolValue(next) { pickTool = next; }
+export function setPickBoxValue(next) { pickBox = next; }
+export function setPickDrag(next) { pickDrag = next; }
+export function setPickHits(next) { pickHits = next; }
