@@ -164,7 +164,7 @@ class Records(unittest.TestCase):
             self.assertEqual(codes(report), ['effect-view-only'], record)
             self.assertIn(words, (report['errors'] + report['leftOut'])[0]['message'])
         # a lens flare is its own family's (Flares): switched off, it holds a flare's edit back
-        with mock.patch.object(compiler, 'FAMILIES', {k: dict(v, builds=False) if k == 'flare' else v for k, v in compiler.FAMILIES.items()}):
+        with mock.patch.dict(compiler.FAMILIES, {k: dict(v, builds=False) if k == 'flare' else v for k, v in compiler.FAMILIES.items()}):
             _, report = self.compile([moved('LensFlareSource_60', (305, 0, 0))])
         self.assertEqual([(e['code'], e.get('family')) for e in report['leftOut']], [('family', 'flare')])
         _, report = self.compile([], [copied('Emitter_42', 1, (0, 0, 0))])
@@ -181,7 +181,7 @@ class Records(unittest.TestCase):
                  (dict(target=target('Emitter_43')), 'malformed'),
                  (moved('XComLevelActor_1', (0, 96, 0), effect=dict(follow='none')), 'malformed')]
         for record, code in cases:
-            with mock.patch.object(compiler, 'FAMILIES', off):
+            with mock.patch.dict(compiler.FAMILIES, off):
                 _, report = self.compile([record])
             self.assertEqual(codes(report), [code], record)
         added = [(copied('Emitter_43', 1, (0, 0, 0), kind='sound'), 'malformed'),
@@ -331,7 +331,7 @@ class Flares(unittest.TestCase):
             _, report = self.compile(overrides, added, enable=())
             self.assertEqual(codes(report), [])
             # the family switched off holds a flare's edit back, with its sentence
-            with mock.patch.object(compiler, 'FAMILIES', off):
+            with mock.patch.dict(compiler.FAMILIES, off):
                 _, report = self.compile(overrides, added, enable=())
                 self.assertEqual([(e['code'], e.get('family')) for e in report['leftOut']], [('family', 'flare')])
                 self.assertIn('is a lens flare edit. Lens flares are moved, copied and deleted where the flare family builds',
@@ -339,7 +339,7 @@ class Flares(unittest.TestCase):
                 _, report = self.compile(overrides, added)
                 self.assertEqual(codes(report), [])
         # the effect and sound families don't lift it, nor it theirs
-        with mock.patch.object(compiler, 'FAMILIES', off):
+        with mock.patch.dict(compiler.FAMILIES, off):
             _, report = self.compile([moved('LensFlareSource_60', (305, 0, 0))], enable=('effect', 'sound'))
             self.assertEqual(codes(report), ['family'])
 
@@ -427,7 +427,7 @@ class Flares(unittest.TestCase):
             actorClass='LensFlareSource', location=[100.0, 100.0, 0.0], rotation=[0, 0, 0], donor=donor)])
         self.assertEqual(report['donors'], [dict(donor, pieces=['LensFlareSource_0'])])
         # with the family switched off it is the family's refusal, and what the library can't bring is refused
-        with mock.patch.object(compiler, 'FAMILIES', {k: dict(v, builds=False) if k == 'flare' else v for k, v in compiler.FAMILIES.items()}):
+        with mock.patch.dict(compiler.FAMILIES, {k: dict(v, builds=False) if k == 'flare' else v for k, v in compiler.FAMILIES.items()}):
             _, report = self.compile([], added, enable=(), library=library)
         self.assertEqual(codes(report), ['family'])
         _, report = self.compile([], added, library=FakeEffects(entry=dict(blocked='unavailable', reason='It rides on X.')))
@@ -479,7 +479,7 @@ class Values(unittest.TestCase):
         self.assertEqual(codes(report), [])
         # a gate switched off holds its own values back and nothing else
         off = {k: dict(v, builds=False) if k.endswith('-values') else v for k, v in compiler.FAMILIES.items()}
-        with mock.patch.object(compiler, 'FAMILIES', off):
+        with mock.patch.dict(compiler.FAMILIES, off):
             _, report = self.compile(records, enable=('effect', 'sound'))
             self.assertEqual(sorted((e['code'], e.get('family')) for e in report['errors'] + report['leftOut']),
                              [('family', 'effect-values'), ('family', 'sound-values')])
