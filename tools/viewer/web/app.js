@@ -38,7 +38,7 @@ import { api as prefabApi, createPrefabBrowser, newPrefab, prefabWords } from '.
 import { emptyPrefabScene, normalizePrefab, reconcilePrefab, orderedWrites, PREFAB_GRID_TOP, PREFAB_MIN_Z,
          PREFAB_MAX_Z, PREFAB_GRID_LEVELS, PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
-import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, recordOf, stateOf, stateOfRoot } from './piece_records.js';
+import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, optionsOf, recordOf, stateOf, stateOfRoot } from './piece_records.js';
 import { activeMapId, allRoots, builderMode, buildings, buildingsVersion, cleared, clearKeepsOutside, data, effectIndex, effectRoots,
          groupIndex, groups, landingZones, lightIndex, lightRoots, prefabParameter, project, projectMissions, projectPicture,
          projectSpawnRules, roots, selected, setActiveMapId, setBuildingsValue, setBuildingsVersion, setCleared,
@@ -3920,22 +3920,23 @@ function applyLightRecord(record) {
   return true;
 }
 function addedLightOf(entity) {
-  const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
+  const l = optionsOf(entity, 'light');      // (piece_records.js: its names, pose, recipe or original, and values)
+  const serial = Number(/_copy(\d+)$/.exec(l.actor)?.[1]);
   if (serial > copySerial) copySerial = serial;
   let source, values;
-  if (entity.template) {
-    const made = recipeLight(entity.template, entity.light, entity.location, entity.rotation, entity.actor);
+  if (l.recipe) {
+    const made = recipeLight(l.recipe, l.light, l.location, l.rotation, l.actor);
     if (!made) return null;
     ({ source, values } = made);
   } else {
-    const template = lightIndex.get(targetKey(entity.from))?.userData.source;
-    if (!template || entity.components?.[0] !== template.component) return null;
-    source = template; values = { ...valuesOf(template), ...(entity.light ?? {}) };
+    const template = lightIndex.get(targetKey(l.from))?.userData.source;
+    if (!template || l.component !== template.component) return null;
+    source = template; values = { ...valuesOf(template), ...(l.light ?? {}) };
   }
-  const root = addedLight(source, actorMatrix(entity.location, entity.rotation), values, entity.actor);
+  const root = addedLight(source, actorMatrix(l.location, l.rotation), values, l.actor);
   const o = root.userData.source;
-  Object.assign(o, { location: entity.location, rotation: entity.rotation });
-  o.added.entity = entity.id;
+  Object.assign(o, { location: l.location, rotation: l.rotation });
+  o.added.entity = l.entity;
   return root;
 }
 // The lights of a map once its pieces are built: placed, area, toggleable and streamed levels' lights with a place; the
@@ -4612,8 +4613,7 @@ async function applyState(state, progress = null) {
       if (!source) { carried.added.push(entity); continue; }
       const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
       if (serial > copySerial) copySerial = serial;
-      objs.push(addedObject(source, new THREE.Matrix4().fromArray(source.matrix), { actor: entity.actor, entity: entity.id,
-        prefab: null, partner: null, location: entity.location, rotation: entity.rotation, tinted: false }));
+      objs.push(addedObject(source, new THREE.Matrix4().fromArray(source.matrix), optionsOf(entity, 'cover')));
       entityOf.set(objs.at(-1), entity);
       continue;
     }
@@ -4627,10 +4627,10 @@ async function applyState(state, progress = null) {
     if (serial > copySerial) copySerial = serial;
     const sources = entity.components.map(c => templateFor(entity.from, c));
     if (sources.some(t => !t)) { carried.added.push(entity); continue; }
+    // (each part made as its record says: names, links, pose and state)
     for (const source of sources) {
-      objs.push(addedObject(source, movedMatrix(source, entity.location, entity.rotation), { actor: entity.actor, entity: entity.id,
-        prefab: entity.prefab ?? null, partner: entity.partner ?? null, location: entity.location, rotation: entity.rotation,
-        ...stateOf(entity) }));
+      const options = optionsOf(entity);
+      objs.push(addedObject(source, movedMatrix(source, options.location, options.rotation), options));
       entityOf.set(objs.at(-1), entity);
     }
   }
@@ -8327,13 +8327,14 @@ function addedEffect(source, placed, actor = null, entity = null, values = null)
   return root;
 }
 function addedEffectOf(entity) {
+  const e = optionsOf(entity, 'effect');      // (piece_records.js: its names, original, pose and values)
   // the map's own, or one of another map (its template read first: loadForeignTemplates)
-  const template = effectIndex.get(targetKey(entity.from ?? {}))?.userData.source ?? foreignEffects.get(targetKey(entity.from ?? {}));
-  if (!template || template.kind !== entity.kind || !Array.isArray(entity.location) || !Array.isArray(entity.rotation)) return null;
-  const serial = Number(/_copy(\d+)$/.exec(entity.actor)?.[1]);
+  const template = effectIndex.get(targetKey(e.from ?? {}))?.userData.source ?? foreignEffects.get(targetKey(e.from ?? {}));
+  if (!template || template.kind !== e.kind || !Array.isArray(e.location) || !Array.isArray(e.rotation)) return null;
+  const serial = Number(/_copy(\d+)$/.exec(e.actor)?.[1]);
   if (serial > copySerial) copySerial = serial;
-  const root = addedEffect(template, actorMatrix(entity.location, entity.rotation), entity.actor, entity.id, keptValues(entity[entity.kind]));
-  Object.assign(root.userData.source, { location: [...entity.location], rotation: [...entity.rotation] });
+  const root = addedEffect(template, actorMatrix(e.location, e.rotation), e.actor, e.entity, e.values);
+  Object.assign(root.userData.source, { location: [...e.location], rotation: [...e.rotation] });
   return root;
 }
 // The name of the marker under the pointer (the floor tiles' tip)
