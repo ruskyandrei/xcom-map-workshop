@@ -375,6 +375,20 @@ def light_reaches(light, box):
     return float(np.linalg.norm(np.asarray(light['location']) - c)) <= light['radius']
 
 
+def light_source_radius(light):
+    """A point or spot light's source radius: its own, 0 included, else UDK's default (review finding 44: a deliberate
+    0 read as the default)."""
+    r = light.get('lightSourceRadius')
+    return float(codec.UDK_POINT_SOURCE_RADIUS if r is None else r)
+
+
+def light_source_angle(light):
+    """A directional light's source angle (degrees): its own, 0 included (the dominant light's hard shadow), else
+    UDK's default."""
+    a = light.get('lightSourceAngle')
+    return float(codec.UDK_DIRECTIONAL_SOURCE_ANGLE if a is None else a)
+
+
 def shadow_meets(light, edit, box):
     """Whether the light, shining through the edit box, can land on the box: some segment from a point of the box to
     the light crosses the edit box, or some ray from the light through a point of the edit box goes on into the box.
@@ -382,12 +396,12 @@ def shadow_meets(light, edit, box):
     far = 1e6
     if 'location' in light:
         L = np.asarray(light['location'], np.float64)
-        grow = 8 + float(light.get('lightSourceRadius') or codec.UDK_POINT_SOURCE_RADIUS)
+        grow = 8 + light_source_radius(light)
     else:
         to = np.asarray(light['toLight'], np.float64)
         to = to / np.linalg.norm(to)
         gap = max([max(box[2 * k] - edit[2 * k + 1], edit[2 * k] - box[2 * k + 1], 0) for k in range(3)])
-        grow = 8 + gap * np.tan(np.radians(float(light.get('lightSourceAngle') or 3.0)))
+        grow = 8 + gap * np.tan(np.radians(light_source_angle(light)))
     e = [v + (grow if k % 2 else -grow) for k, v in enumerate(edit)]
     pb, pe = grid_points(box), grid_points(e)
     if 'location' in light:
@@ -696,14 +710,14 @@ def texel_reach(world, box, edit_boxes, lights, edited=(), near=REACH_NEAR, budg
         if 'location' in l:
             L = np.asarray(l['location'], np.float64)
             inside = np.linalg.norm(w - L, axis=1) <= l['radius']
-            grow = 8 + float(l.get('lightSourceRadius') or codec.UDK_POINT_SOURCE_RADIUS)
+            grow = 8 + light_source_radius(l)
             rest, w = rest[inside], w[inside]
             ends = np.broadcast_to(L, w.shape)
         else:
             to = np.asarray(l['toLight'], np.float64)
             to = to / np.linalg.norm(to)
             gap = max([max(box[2 * k] - e[2 * k + 1], e[2 * k] - box[2 * k + 1], 0) for k in range(3)])
-            grow = 8 + gap * np.tan(np.radians(float(l.get('lightSourceAngle') or 3.0)))
+            grow = 8 + gap * np.tan(np.radians(light_source_angle(l)))
             ends = w + to * 1e6
         if not len(rest):
             continue
@@ -748,6 +762,9 @@ def prepare_component(p, path, scene=None, checker=None, after=None, source=None
     mesh = lightmap_texels.component_mesh(p, ci)
     matrix = lightmap_texels.world_matrix(p, ci)
     geo = lightmap_texels.rasterise(mesh, matrix, fields, size)
+    if not len(geo['world']):
+        # (whatever the scene: without one, nothing below would catch it, review finding 44)
+        raise Excluded(f'{path} covers no texel of its lightmap')
     geo_b = geo
     if source is not None:
         si = p.by_name.get(source)
@@ -886,7 +903,7 @@ def shadows_meet(lights, edit, box):
             if shadow_meets(l, edit, box):
                 return True
             continue
-        groups.setdefault(8 + float(l.get('lightSourceRadius') or codec.UDK_POINT_SOURCE_RADIUS), []).append(l)
+        groups.setdefault(8 + light_source_radius(l), []).append(l)
     pb = grid_points(box)
     for grow, some in groups.items():
         e = [v + (grow if k % 2 else -grow) for k, v in enumerate(edit)]
@@ -1351,6 +1368,14 @@ def piece_jobs(pieces, jobs, band_texels=BAND_TEXELS):
     return [job for _, job in sorted(out, key=lambda x: -x[0])]
 
 
+def plan_jobs(pieces, shadow_queue, allowed, band_texels=BAND_TEXELS):
+    """(the queue, the worker count): the shadow-map jobs, then the pieces' jobs as `allowed` workers cut them (a large
+    piece in bands when more than one is allowed), and no more workers than the queue has jobs. (Counting the workers
+    by the pieces first gave one large floor one worker and no bands: review finding 41.)"""
+    queue = list(shadow_queue) + piece_jobs(pieces, allowed, band_texels)
+    return queue, max(1, min(allowed, len(queue)))
+
+
 def run_jobs(queue, jobs, start_args, on_piece):
     """Do the jobs (piece_jobs') with `jobs` workers, or here with one. `on_piece(path, result, error, failed,
     seconds, peak memory)` is called as each piece is finished, in whatever order they finish. A piece's bands are put
@@ -1408,7 +1433,14 @@ def run_jobs(queue, jobs, start_args, on_piece):
     return peak
 
 
-TOOL_FILES = ('relight.py', 'bounce.py', 'shadows.py', 'lightmap_encode.py', 'lightmap_texels.py', 'albedo.py')
+# the code a kept piece's images depend on (under tools/): the relight and its models, the decode of the original
+# bake, the readers of the map, its meshes and its materials (review finding 42); the release's version goes into the
+# key too, for whatever this list leaves out
+TOOL_FILES = ('bake/relight.py', 'bake/bounce.py', 'bake/shadows.py', 'bake/lightmap_encode.py',
+              'bake/lightmap_texels.py', 'bake/albedo.py', 'bake/lightmap_stats.py', 'bake/lightmap_fields.py',
+              'bake/dxt1.py', 'upk/audit_lighting.py', 'upk/props.py', 'upk/decomp.py', 'upk/lzo1x.py',
+              'upk/upkinfo.py', 'upk/package_edit.py', 'viewer/mesh.py', 'viewer/export_math.py',
+              'viewer/export.py', 'viewer/lights.py', 'viewer/texture.py', 'viewer/package.py')
 CACHE_BOXES = 64        # with more edit boxes than this, pieces are not kept: each box is tested against each piece
 
 
@@ -1422,10 +1454,11 @@ class PieceCache:
     def __init__(self, folder, base, settings):
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
+        from version import VERSION
         tools = hashlib.sha256()
         for name in TOOL_FILES:
-            tools.update((Path(__file__).resolve().parent / name).read_bytes())
-        self.base = json.dumps([base, tools.hexdigest(), settings], sort_keys=True)
+            tools.update((ROOT / name).read_bytes())
+        self.base = json.dumps([base, tools.hexdigest(), VERSION, settings], sort_keys=True)
         self.used = set()
 
     def key(self, path, fields, before_lights, after_lights, edits):
@@ -1789,8 +1822,7 @@ def main():
         shadow_jobs = shadow_map_jobs(p, after, args, meshes, edit_boxes, copies, set(fresh))
     shadow_queue = [('shadow', ('shadow', k), None, False, job) for k, job in enumerate(shadow_jobs)
                     if 'skipped' not in job]
-    jobs = max(1, min(args.jobs, len(work) + len(shadow_queue)))
-    queue = shadow_queue + piece_jobs(work, jobs, args.band_texels)
+    queue, jobs = plan_jobs(work, shadow_queue, args.jobs, args.band_texels)
     # one `progress:` line per component, for the editor's build window (tools/viewer/builds.py reads them), as each
     # is finished
     print(f'progress: relighting pieces {len(taken)}/{len(todo)}')

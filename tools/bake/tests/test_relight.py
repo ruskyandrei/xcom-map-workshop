@@ -164,6 +164,19 @@ class PoolTableFloor(unittest.TestCase):
         self.assertAlmostEqual(float(imgs['nac'][self.r['covered']].max()), 1.0, places=6)
 
 
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class NoTexel(unittest.TestCase):
+    def test_a_piece_that_covers_no_texel_is_left_out_whatever_the_scene(self):
+        # (review finding 44) a direct-only relight (no scene) of a piece whose charts cover no texel of its lightmap
+        # (the floor here, its rasterising emptied) is an exclusion, not an AttributeError
+        empty = dict(px=np.zeros(0, int), py=np.zeros(0, int), world=np.zeros((0, 3)), frames=np.zeros((0, 3, 3)),
+                     triangle=np.zeros(0, int), rect=(0, 0, 0, 0))
+        p = lighting.Package(BAR)
+        with mock.patch.object(relight.lightmap_texels, 'rasterise', lambda *a, **k: empty):
+            with self.assertRaisesRegex(relight.Excluded, 'covers no texel'):
+                relight.relight_component(p, FLOOR, None)
+
+
 @unittest.skipUnless(BAR and BAR.exists() and (BAR.parent / 'Lighting.tfc').exists(), NO_BAR + ' (with Lighting.tfc)')
 class ComponentList(unittest.TestCase):
     def test_list_relights_what_it_can_and_records_the_rest(self):
