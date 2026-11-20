@@ -315,6 +315,17 @@ behaviour for these proposed edits still need direct observation.
   lists by damage, which the block ignores. Props in such a group are not invincible and went with their wall parts
   in the same run (the ATM's copy cleared by its columns, Health 0).
 - **Left.** A block grouped with a made wall and no prop is an invisible wall once the wall is gone. Not fixed here.
+- **What a fix has to get round** (the game's decompiled script, read the same day). `ApplyDamageToMe` returns for an
+  invincible toughness unless it also sets `bSuccumbsToDamage` and the hit's class is its `SuccumbsToDamageClass`. So
+  the block could succumb to `XComDamageType_DestructibleActorClear`, the columns' damage, and die on their clear (its
+  health is the default 3; the clear class extends flame, which causes fracture). But the same class is sent by other
+  things: a soldier's projectile that touches an object (`XComProjectile`, three places), a dying unit
+  (`XGAction_Death`), a unit pawn pushing through (`XComUnitPawn`), the MEC's kinetic strike, and a destroyed prop's
+  surrounding-area damage (`DestroyedDamageClass`). A block made that way could go under ordinary fire or a nearby
+  death while its wall stands. Only `XComDestructibleActor` carries `AffectedChildren`, so a fracturing wall cannot
+  name the block itself. A way round both: the Build adds a hidden helper prop to such a group with no collision (no
+  projectile or radial damage finds it), low health, listed in the wall's columns like a prop, and naming the block in
+  its `AffectedChildren`; when a column clears it, the game moves the block with it. Not tried.
 
 ### F-137: A made patch on the blank map lay under its floor planes
 **Verified** (19 November 2026, [EXP-79](experiments/EXP-79-looks.md) run D3; fixed the same night, played in run D4).
