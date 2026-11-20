@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'upk'))
 sys.path.insert(0, str(ROOT / 'viewer'))
 import lighting_records as lighting  # noqa: E402
-from package import LEADING_SHADOW_MAP, FormatError, Reader  # noqa: E402
+from package import LEADING_SHADOW_MAP, FormatError  # noqa: E402
 import props as legacy_props  # noqa: E402
 
 COMPONENT_CLASSES = ('StaticMeshComponent', 'FracturedStaticMeshComponent')
@@ -32,25 +32,13 @@ def property_offsets(p, index):
     if p.cls(index) in LEADING_SHADOW_MAP:
         raise FormatError('Dominant-light components are not handled here')
     start = legacy_props.props_start(p.data, e, p.names)
-    r = Reader(p.data, start, e['off'] + e['size'])
-    out = {}
-    while r.pos < r.end:
-        name = p.fname(r)
-        if name == 'None':
-            if r.pos != p.properties(index)[1]:
-                raise FormatError('Property scan disagrees with the package reader')
-            return out
-        kind = p.fname(r)
-        size, slot = r.unpack('ii')
-        if kind == 'BoolProperty':
-            out[(name, slot)] = (r.pos, 1, kind)
-            r.take(1)
-            continue
-        if kind in ('StructProperty', 'ByteProperty'):
-            p.fname(r)
-        out[(name, slot)] = (r.pos, size, kind)
-        r.take(size)
-    raise FormatError('Missing property terminator')
+    try:
+        rows, after = legacy_props.read_tags(p.data, start, e['off'] + e['size'], p.names)
+    except ValueError as error:
+        raise FormatError(str(error)) from None
+    if after != p.properties(index)[1]:
+        raise FormatError('Property scan disagrees with the package reader')
+    return {(name, slot): (at, size, kind) for name, kind, _, slot, at, size in rows}
 
 
 def _lightmap(r, p):

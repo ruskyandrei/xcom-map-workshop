@@ -20,6 +20,10 @@ walker before and after (names, kinds, sizes, offsets, values, refusals). A diff
 - **[light_factory](../../tools/bake/light_factory.py)** (`used_guids`, the GUIDs of the light components a Build
   added): `_walk`, a copy of `props.tags` without its bounds checks, is gone; `used_guids` walks with `props.tags`.
   Every export the same; the dominant light's component refused in `props.tags`' words.
+- **[lightmap_fields.property_offsets](../../tools/bake/lightmap_fields.py)** (where each property's value lies, for
+  the relight's writes): every export the same, refusals included (a refusal of `props.tags` is still the viewer's
+  `FormatError`; the dominant light's component is refused by its class first, as before). Its now unused `Reader`
+  import went.
 
 Checked: each walker's module's tests after its commit (map_frame's 11, inline_lighting's 5, light_factory's 22 and
-native_lights' 30).
+native_lights' 30, the lighting fixture's 18 and native_fields' 12).
