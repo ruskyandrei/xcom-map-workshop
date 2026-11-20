@@ -64,27 +64,25 @@ class _Walk:
         """The tagged properties from `at`, of the class or struct `owner` (a schema path, or None); returns the
         offset after the closing None."""
         b = self.b
-        while at + 8 <= end:
-            pname = self.name(at)
-            if pname == 'None':
-                return at + 8
-            if at + 24 > end:
-                break
-            kind = self.name(at + 8)
-            size, _ = struct.unpack_from('<ii', b, at + 16)
-            at += 24
+        walk = legacy_props.tags(b, at, end, self.names)
+        while True:
+            try:
+                pname, kind, short, _, at, size = next(walk)
+            except StopIteration as done:
+                self.out.fields.append((done.value - 8, NAME))      # the closing None
+                return done.value
+            except ValueError as error:
+                raise WalkError('%s%s' % (path, error)) from None
+            # the tag's names: the property's, its kind's and a struct's or an enum's, which stands before the value
+            tag = at - 24 - (8 if short is not None else 0)
+            self.out.fields += [(tag, NAME), (tag + 8, NAME)] + ([(at - 8, NAME)] if short is not None else [])
             known = self.schema.prop(owner, pname) if owner else None
             if known is not None and known['kind'] != kind:
                 known = None            # another property of the same name (a subclass's): go by the tag
             here = path + pname
             if kind == 'BoolProperty':
-                at += 1
                 continue
-            if size < 0 or at + size > end:
-                raise WalkError('%s: a value of %d bytes runs past its container' % (here, size))
             if kind == 'StructProperty':
-                short = self.name(at)
-                at += 8
                 which = known['struct'] if known else self.schema.struct_named(short)
                 if which is None or which not in self.schema.structs:
                     # a struct the schema lacks: plain bytes unless it reads as tagged properties
@@ -93,8 +91,6 @@ class _Walk:
                 if stop != at + size:
                     raise WalkError('%s: struct %s ends at %d of %d bytes' % (here, short, stop - at, size))
             elif kind == 'ByteProperty':
-                self.name(at)
-                at += 8
                 if size == 8:
                     self.name(at)
                 elif size != 1:
@@ -124,8 +120,6 @@ class _Walk:
                 pass
             else:
                 self.out.untyped.append((here, at, size))
-            at += size
-        raise WalkError('%sno closing None' % path)
 
     def struct(self, at, end, which, path):
         """A struct's value from `at`; returns where it ends."""

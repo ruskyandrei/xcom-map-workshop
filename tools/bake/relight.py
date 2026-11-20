@@ -136,6 +136,7 @@ import lightmap_encode as codec  # noqa: E402
 import lightmap_fields  # noqa: E402
 import lightmap_texels  # noqa: E402
 from lightmap_textures import top_mip_rect  # noqa: E402
+import props as legacy_props  # noqa: E402
 import bounce  # noqa: E402
 import shadows  # noqa: E402
 from lights import light_record  # noqa: E402
@@ -150,19 +151,14 @@ def guid_hex(value):
 def lightmass_settings(p, component):
     """The light component's explicit LightmassSettings members (a tagged struct), as {name: value}."""
     raw = p.effective(component, 'LightmassSettings')
-    out, pos = {}, 0
-    while isinstance(raw, (bytes, bytearray)) and pos + 24 <= len(raw):
-        name = p.names[struct.unpack_from('<i', raw, pos)[0]]
-        if name == 'None':
-            break
-        kind = p.names[struct.unpack_from('<i', raw, pos + 8)[0]]
-        size = struct.unpack_from('<i', raw, pos + 16)[0]
-        pos += 24 + (8 if kind == 'StructProperty' else 0)
+    out = {}
+    if not isinstance(raw, (bytes, bytearray)):
+        return out
+    for name, kind, _, _, at, size in legacy_props.tags(raw, 0, len(raw), p.names):
+        value = raw[at:at + size]
         if kind == 'BoolProperty':
-            out[name] = bool(raw[pos]); pos += 1
-            continue
-        value = raw[pos:pos + size]; pos += size
-        if kind == 'FloatProperty':
+            out[name] = bool(value[0])
+        elif kind == 'FloatProperty':
             out[name] = struct.unpack('<f', value)[0]
         elif kind == 'IntProperty':
             out[name] = struct.unpack('<i', value)[0]
@@ -1428,8 +1424,8 @@ def run_jobs(queue, jobs, start_args, on_piece):
 # key too, for whatever this list leaves out
 TOOL_FILES = ('bake/relight.py', 'bake/bounce.py', 'bake/shadows.py', 'bake/lightmap_encode.py',
               'bake/lightmap_texels.py', 'bake/albedo.py', 'bake/lightmap_textures.py', 'bake/lightmap_fields.py',
-              'bake/dxt1.py', 'upk/lighting_records.py', 'upk/props.py', 'upk/decomp.py', 'upk/lzo1x.py',
-              'upk/upkinfo.py', 'upk/package_edit.py', 'viewer/mesh.py', 'viewer/export_math.py',
+              'bake/dxt1.py', 'upk/lighting_records.py', 'upk/native_fields.py', 'upk/props.py', 'upk/decomp.py',
+              'upk/lzo1x.py', 'upk/upkinfo.py', 'upk/package_edit.py', 'viewer/mesh.py', 'viewer/export_math.py',
               'viewer/export.py', 'viewer/lights.py', 'viewer/texture.py', 'viewer/package.py')
 CACHE_BOXES = 64        # with more edit boxes than this, pieces are not kept: each box is tested against each piece
 

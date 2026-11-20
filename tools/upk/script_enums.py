@@ -21,6 +21,7 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import props as legacy_props  # noqa: E402
 import upkinfo  # noqa: E402
 
 READER_VERSION = 1
@@ -37,19 +38,10 @@ def full_name(names, index, number):
 
 def _skip_properties(raw, at, names, end):
     """The offset after the tagged properties starting at `at` (up to and including None)."""
-    while True:
-        if at + 8 > end: raise EnumError('the properties run past the export')
-        name = full_name(names, *struct.unpack_from('<iI', raw, at))
-        at += 8
-        if name == 'None': return at
-        if at + 16 > end: raise EnumError(f'property {name} runs past the export')
-        kind = full_name(names, *struct.unpack_from('<iI', raw, at))
-        size, _ = struct.unpack_from('<ii', raw, at + 8)
-        at += 16
-        if kind == 'StructProperty' or kind == 'ByteProperty': at += 8     # the struct's or the enum's name
-        elif kind == 'BoolProperty': at += 1
-        if size < 0 or at + size > end: raise EnumError(f'property {name} has a bad size {size}')
-        at += size
+    try:
+        return legacy_props.read_tags(raw, at, end, names)[1]
+    except ValueError as error:
+        raise EnumError(str(error)) from None
 
 
 def entries(raw, names):

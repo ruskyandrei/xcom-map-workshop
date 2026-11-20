@@ -92,22 +92,15 @@ def describe(p, index):
     import props as legacy_props
     e = p.exports[index - 1]
     start = legacy_props.props_start(p.data, e, p.names)
-    r = viewer_package.Reader(p.data, start, e['off'] + e['size'])
+    rows, after = legacy_props.read_tags(p.data, start, e['off'] + e['size'], p.names)
     tags = []
-    while True:
-        name = p.fname(r)
-        if name == 'None':
-            break
-        kind = p.fname(r)
-        size, _slot = r.unpack('ii')
-        subtype = None
+    for name, kind, subtype, _slot, at, size in rows:
         if kind == 'BoolProperty':
-            value = bool(r.take(1)[0])
+            # the size its tag saves (0: a bool's value is its one byte)
+            tags.append([name, kind, None, struct.unpack_from('<i', p.data, at - 8)[0], bool(p.data[at])])
         else:
-            if kind in ('StructProperty', 'ByteProperty'):
-                subtype = p.fname(r)
-            value = p.decode(kind, subtype, r.take(size))
-        tags.append([name, kind, subtype, size, value])
+            tags.append([name, kind, subtype, size, p.decode(kind, subtype, p.data[at:at + size])])
+    r = viewer_package.Reader(p.data, after, e['off'] + e['size'])
 
     def record():
         flags, count, size, offset = r.unpack('4i')

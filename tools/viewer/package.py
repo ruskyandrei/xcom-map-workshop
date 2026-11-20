@@ -116,22 +116,21 @@ class Package:
         return self.names[i] + (f"_{number - 1}" if number else "")
 
     def tagged(self, r):
+        """The tagged properties from the reader's place, walked by props.tags: {(name, array index): {kind, subtype,
+        value}}; the reader is left after the closing None. A refusal of the walk is a FormatError."""
+        try:
+            rows, after = legacy_props.read_tags(r.data, r.pos, r.end, self.names)
+        except ValueError as error:
+            raise FormatError(str(error)) from None
         result = {}
-        while r.pos < r.end:
-            name = self.fname(r)
-            if name == "None": return result
-            kind = self.fname(r)
-            size, slot = r.unpack("ii")
-            subtype = None
+        for name, kind, subtype, slot, at, size in rows:
             if kind == "BoolProperty":
-                value = bool(r.take(1)[0])
+                value = bool(r.data[at])
             else:
-                if kind in ("StructProperty", "ByteProperty"):
-                    subtype = self.fname(r)
-                raw = r.take(size)
-                value = self.decode(kind, subtype, raw)
+                value = self.decode(kind, subtype, r.data[at:at + size])
             result[(name, slot)] = {"kind": kind, "subtype": subtype, "value": value}
-        raise FormatError("Missing property terminator")
+        r.pos = after
+        return result
 
     def decode(self, kind, subtype, raw):
         r = Reader(raw)

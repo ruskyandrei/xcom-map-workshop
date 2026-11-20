@@ -5,31 +5,30 @@ relight reads the light a piece had before the edit from it), and a texture clon
 The top mips read are kept for each package while it is open (RAW_KEPT of them), in a table of this module's keyed
 by the package object, which nothing else holds.
 """
-import io
 from pathlib import Path
 import struct
 import sys
 import weakref
 
 import numpy as np
-from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'upk'))
 sys.path.insert(0, str(ROOT / 'viewer'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import dxt1  # noqa: E402
 import lighting_records as lighting  # noqa: E402
 import lightmap_fields  # noqa: E402
-from texture import decompress_payload, dds_header  # noqa: E402
+from texture import decompress_payload  # noqa: E402
 
 _KEPT = weakref.WeakKeyDictionary()     # package -> {texture export: (DXT1 bytes, width, height)}
 
 
 def top_mip_rgb(p, index):
-    """The largest live mip of a DXT1 texture as float RGB in [0, 1]."""
+    """The largest live mip of a DXT1 texture as float RGB in [0, 1], decoded by dxt1.py (the one DXT1 decoder: a
+    palette's in-between colours exact, where Pillow's decoder rounds them down to whole 255ths)."""
     raw, w, h = top_mip_raw(p, index)
-    image = Image.open(io.BytesIO(dds_header(w, h, 'DXT1', len(raw)) + raw)).convert('RGB')
-    return np.asarray(image, dtype=np.float64) / 255.0
+    return dxt1.decode_image(raw, w, h)
 
 
 def top_mip_rect(p, index, x0, y0, x1, y1):
@@ -40,10 +39,7 @@ def top_mip_rect(p, index, x0, y0, x1, y1):
     bx0, by0, bx1, by1 = max(0, x0 // 4), max(0, y0 // 4), min(bw, -(-x1 // 4)), min(bh, -(-y1 // 4))
     if bx1 <= bx0 or by1 <= by0:
         return np.zeros((0, 0, 3))
-    part = np.frombuffer(raw, np.uint8).reshape(bh, bw, 8)[by0:by1, bx0:bx1].tobytes()
-    rw, rh = (bx1 - bx0) * 4, (by1 - by0) * 4
-    image = Image.open(io.BytesIO(dds_header(rw, rh, 'DXT1', len(part)) + part)).convert('RGB')
-    image = np.asarray(image, dtype=np.float64) / 255.0
+    image = dxt1.decode_region(raw, w, h, bx0, by0, bx1, by1)
     return image[y0 - by0 * 4:y1 - by0 * 4, x0 - bx0 * 4:x1 - bx0 * 4]
 
 
