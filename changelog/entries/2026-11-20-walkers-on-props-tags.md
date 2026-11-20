@@ -74,4 +74,13 @@ Checked: each walker's module's tests after its commit (map_frame's 11, inline_l
 native_lights' 30, the lighting fixture's 18 and native_fields' 12, relight's 28 and the Lightmass settings' 2,
 pack_card's 27 and the card's users' in the lab (20) and viewer suites (pack export 5, damaged inputs 6), script_enums'
 8, typed_props' in the schema's 9, native_fields' 12 and transplant's 34, props' 9 and its callers' (audit_clear 16,
-audit_spawns 2, bad input 5), Package.tagged's in the whole viewer suite (639)).
+audit_spawns 2, bad input 5), Package.tagged's in the whole viewer suite (639)). At the stage's end: the upk suite
+with the checks over every map of the install (172 tests, 3 skipped: no private reference writer), the bake suite
+(694, 1 skipped: XCOM_TRANSPLANT_RING; 494 s with other work running), the repo suite (38); the ten Builds
+(`build_outputs.py`) recorded on the stage's base and head, the same; and two real baked Builds, the relight run, of
+the Bar's pieces and of its made pieces with the code before and after: the variant map, its intro copy, the
+manifest, the relight's record (its folders, worker memory and own code hash aside), the relit map, its texture
+cache and every piece's images the same (98 / 109 s and 151 / 158 s, before / after, other work running).
+
+Known gaps: the research tools' own walkers (`map_inventory`, `audit_cross_map`, `audit_install`) keep their walks,
+as they do not ship.
