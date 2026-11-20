@@ -71,7 +71,7 @@ def js_tokens(text):
     i, n = 0, len(text)
     while i < n:
         c = text[i]
-        if c.isspace() or c == '﻿':
+        if c.isspace() or c == '\ufeff':
             i += 1
             continue
         start = i
