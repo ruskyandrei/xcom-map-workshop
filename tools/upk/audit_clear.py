@@ -57,12 +57,14 @@ SKYRANGER_ROLES = {'PRE_SkyrangerGrounded_4Arc0': 'mesh', 'PRE_SkyrangerGrounded
 # not in either prefab, hidden with the Skyranger by LWR (HideDropShip)
 LANDING_EXTRA_ARCHETYPES = ('ARC_Skyranger_Ground_Periphery',)
 
-# XComLZMutator's defaultproperties: each actor's offset from a line's StartLoc, before StartDir's turn
-OFFSETS = {'frame': (0.0, 0.0, -64.0), 'evac': (0.0, -47.0, 32.0), 'playerStart': (8.0, 189.0, 16.0),
-           'point': (-240.0, 432.0, -64.0)}
-SPAWN_OFFSETS = ((192.0, 384.0, -16.0), (0.0, 480.0, -16.0), (192.0, 192.0, -16.0), (0.0, 288.0, -16.0),
-                 (-192.0, 384.0, -16.0), (-192.0, 192.0, -16.0))
-INSIDE_BACK = 288.0     # AdjustOffsets: ESL_Inside, ESL_Alternate and ESL_NoEvacZone put the points this far back
+# XComLZMutator's defaultproperties: each actor's offset from a line's StartLoc, before StartDir's turn, the soldier
+# points' and how far an inside zone's go back (AdjustOffsets: ESL_Inside, ESL_Alternate and ESL_NoEvacZone), as the
+# editor's own reader has them (tools/viewer/spawns.py, whose 'volume' is the evac zone's here; review finding 55)
+sys.path.insert(0, str(HERE.parent / 'viewer'))
+import spawns as viewer_spawns  # noqa: E402
+OFFSETS = {role: viewer_spawns.OFFSETS['volume' if role == 'evac' else role] for role in ('frame', 'evac', 'playerStart', 'point')}
+SPAWN_OFFSETS = viewer_spawns.SOLDIERS
+INSIDE_BACK = viewer_spawns.INSIDE_BACK
 DIRECTIONS = ('ELZD_North', 'ELZD_East', 'ELZD_South', 'ELZD_West')
 QUARTER = 16384
 LEVEL_HEIGHT = 64.0

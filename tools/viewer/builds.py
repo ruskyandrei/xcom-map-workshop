@@ -375,7 +375,7 @@ class BuildRunner:
                                         'in a moment.', code='package-in-use')
             job = dict(project=document['id'], name=document.get('name'), revision=document.get('revision'),
                        variant=variant, quick=bool(quick), state='running', attempt=attempt_id, origin=origin,
-                       stage=None, stages=[], lines=[], startedAt=now(), finishedAt=None, error=None, running=None,
+                       stage=None, stages=[], lines=[], startedAt=now(), finishedAt=None, error=None, errorCode=None, running=None,
                        progress=None, **({'snapshot': snapshot} if snapshot else {}),
                        # the captured bytes' SHA-256 and the picture's (capture): the manifest names the same
                        **({'digest': digest} if digest else {}), **({'picture': picture} if picture else {}))
@@ -588,6 +588,10 @@ class BuildRunner:
                 job['running'] = job['progress'] = None
             elif line.startswith('build failed: '):
                 job['error'] = line[len('build failed: '):]
+            elif line.startswith('build failed code: '):
+                # which failure it is (build.py BuildError.code: export-missing, the export too old to build from), for
+                # the page's remedy (review finding 55)
+                job['errorCode'] = line[len('build failed code: '):].strip()
             elif line.startswith('built ') and ': ' in line:
                 job['buildId'] = line[6:].split(': ', 1)[0]
             elif line.lstrip().startswith('warning: '):

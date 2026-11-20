@@ -5485,8 +5485,8 @@ function renderBuild() {
   $('buildLogToggle').textContent = buildView.fullLog ? 'Latest lines only' : 'Show the log';
   // the result
   const result = $('buildResult'), pkg = status.package;
-  // the compiler found no export new enough (compiler.py: "... prepare the map ..."): Prepare the map does it from here
-  const wantsPrepare = status.state === 'failed' && /\bno export of\b.*\bprepare the map\b|\bre-export it\b/s.test(job.error ?? '');
+  // the compiler found no export new enough (compiler.ExportMissing's code, the job's errorCode): Prepare the map does it from here
+  const wantsPrepare = status.state === 'failed' && job.errorCode === 'export-missing';
   result.replaceChildren();
   result.hidden = running;
   result.classList.toggle('error', status.state === 'failed');

@@ -182,7 +182,11 @@ EOL = '\r\n'
 
 
 class BuildError(Exception):
-    pass
+    """Why a build failed. `code`, when given, says which failure it is to the editor's build runner (main prints it
+    on a "build failed code:" line before the reason; tools/viewer/builds.py keeps it as the job's errorCode)."""
+    def __init__(self, message, code=None):
+        super().__init__(message)
+        self.code = code
 
 
 def sha256(path):
@@ -753,7 +757,7 @@ class Build:
         try:
             self.export, self.scene = compiler.find_export(self.cache, self.doc, minimum=EXPORT_MINIMUM)
         except compiler.ExportMissing as error:
-            raise BuildError(str(error))
+            raise BuildError(str(error), code=compiler.ExportMissing.code)
         self.base = lwr_file(self.lwr, 'CookedPCConsole', '%s.upk' % self.map)
         if not self.base.is_file():
             raise BuildError('the game install has no %s' % self.base)
@@ -1729,6 +1733,8 @@ def main(argv=None):
               enable=args.family, quick=args.quick, foreign=args.foreign_family, games=games,
               projects=args.projects, attempt=args.attempt, saved_file=args.saved_file).run()
     except BuildError as error:
+        if error.code:
+            print('build failed code: %s' % error.code)
         print('build failed: %s' % error)
         return 1
     return 0

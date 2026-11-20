@@ -1553,15 +1553,15 @@ def rotation_plan(lines, m, note='', mode='additional', cards=False):
             new = new.replace(f'MapName="{was}"'.encode(), f'MapName="{now}"'.encode())
         if new in records: continue
         records.append(new)
-        missions.append(dict(type=kind, label=mission, group=group, inRotation=in_rotation, byName=by_name,
-                             bomb=dep.unquoted(line, 'CouncilType') == 'eFCMType_Bomb', **({'firstMission': True} if first else {})))
+        missions.append(dict(base_mission(line), label=mission))
     how = 'in place of' if mode == 'replace' else 'beside'
     comment = f'; {variant}: {base}\'s records under its own name, {how} {base}\'s ({note})'.encode()
     return dict(block=[comment] + records, missions=missions, standsFor=[l.decode('latin-1') for _, l in found], kept=[])
 
 
-def _base_mission(line):
-    """A base map record's mission, as rotation_plan's missions give it."""
+def base_mission(line):
+    """A base map record's mission: {type, label, group, inRotation, byName, bomb, firstMission (when true)}, as
+    rotation_plan's missions and the project manager's give it (review finding 55: written once)."""
     import deploy_fixture as dep
     import maplist
     group, kind, label = maplist.mission_of(line.decode('latin-1'))
@@ -1607,7 +1607,7 @@ def _rotation_from_build(found, m, note, mode, cards=False):
     what = 'the records of the missions the project is for' if m['config'].get('missionsFromProject') else f'{base}\'s records'
     comment = f'; {variant}: {what} under its own name, {how} {base}\'s ({note})'.encode()
     return dict(block=[comment] + records, missions=out, standsFor=[found[i][1].decode('latin-1') for i in stood],
-                kept=[_base_mission(l) for i, (_, l) in enumerate(found) if i not in stood])
+                kept=[base_mission(l) for i, (_, l) in enumerate(found) if i not in stood])
 
 
 def mission_warnings(missions, base, mode, lwr=True, kept=()):

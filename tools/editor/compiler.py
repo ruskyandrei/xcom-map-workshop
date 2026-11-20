@@ -5539,7 +5539,10 @@ def native_split(spec):
 
 
 class ExportMissing(LookupError):
-    """No usable export of a project's source map in the viewer cache (find_export)."""
+    """No usable export of a project's source map in the viewer cache (find_export). `code` is what a failed Build
+    says for it (build.py's "build failed code:" line, the build job's errorCode), so the page offers Prepare by it,
+    never by the message's words (review finding 55)."""
+    code = 'export-missing'
 
 
 def find_export(cache, doc, minimum=EXPORT_MINIMUM):
