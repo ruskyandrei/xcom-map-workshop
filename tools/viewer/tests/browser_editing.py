@@ -18,7 +18,11 @@ pieces will do (the pieces made here use it as their donor).
   (a failed load is not kept).
 - look-undo (finding 30): a made wall's look changed while its new mesh is slow to come, with another piece deleted
   in that wait: the look change is one undo step of its own (Ctrl+Z puts the old wall back and leaves the other
-  piece deleted, a second Ctrl+Z brings that back), and the wall keeps its flags and blasts in the new look."""
+  piece deleted, a second Ctrl+Z brings that back), and the wall keeps its flags and blasts in the new look.
+- failed-reads (finding 31): a look catalogue whose read fails once is said in the banner and not kept (Try again
+  reads it); a rock's corner points that fail once are said in the hint and asked for again; a map whose landing
+  lines can't be read leaves the game unknown, not Long War: the banner says so, Clear map lists the bomb mission as
+  Long War only, and the Missions panel leaves the council bomb tickable with a note."""
 import json
 import math
 import time
@@ -362,3 +366,69 @@ def check_look_undo(browser, url, open_viewer):
     page.close()
     assert not errors, errors
     return dict(wall=wall, look=made[0]['generated']['kind'])
+
+
+BANNER_SAYS = "words => document.getElementById('projectBanner').textContent.includes(words)"
+
+
+def check_failed_reads(browser, url):
+    errors = []
+
+    def opened(routes):
+        page = browser.new_page(viewport=dict(width=1600, height=1000), device_scale_factor=1)
+        page.on('pageerror', lambda e: errors.append(str(e)))
+        page.on('dialog', lambda d: d.accept())
+        for pattern, handler in routes.items(): page.route(pattern, handler)
+        page.goto(url)
+        page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=120000)
+        return page
+
+    asked = dict(slabs=0, corners=0)
+
+    def slabs(route):
+        asked['slabs'] += 1
+        route.abort() if asked['slabs'] == 1 else route.continue_()
+
+    def corners(route):
+        asked['corners'] += 1
+        if asked['corners'] == 1:
+            route.fulfill(status=400, content_type='application/json', body=json.dumps(dict(error="The rock's corners can't be read: check")))
+        else: route.continue_()
+
+    # the slabs' looks fail once: said, not kept, and Try again reads them
+    page = opened({'**/looks/slabs.json': slabs, '**/generated/ground-corners.json*': corners})
+    page.wait_for_function(BANNER_SAYS, arg="looks couldn't be read", timeout=30000)
+    page.evaluate("async () => { window.looksModule = await import('/looks.js'); }")
+    assert page.evaluate("looksModule.looksLoaded('slab')") is None
+    page.locator('#projectBanner button', has_text='Try again').click()
+    page.wait_for_function("looksModule.looksLoaded('slab') !== null", timeout=30000)
+    assert asked['slabs'] == 2, asked
+    # a rock's corners fail once: said in the hint, not kept, asked for again
+    rock = dict(ROCK, ground={k: v for k, v in ROCK['ground'].items() if k != 'points'})
+    ids = page.evaluate(FIXTURE.replace('entry({ blasts, breaksFurther: true, flags: { walking: false } })', ''), [[rock], BLASTS, 384])
+    page.evaluate('id => viewer.select(id)', ids[0])
+    page.wait_for_function("document.getElementById('dragHint').textContent.includes(\"corner points couldn't be read (The rock's corners can't be read: check)\")",
+                           timeout=30000)
+    assert not any(v != 'asking' for _, v in page.evaluate('viewer.rockCorners()')), page.evaluate('viewer.rockCorners()')
+    page.wait_for_function("viewer.rockCorners().some(([, v]) => v?.points)", timeout=30000)
+    assert asked['corners'] == 2, asked
+    page.close()
+    # the landing lines can't be read: the game is unknown, not Long War
+    page = opened({'**/landing-lines.json': lambda route: route.fulfill(status=500, content_type='application/json',
+                                                                         body=json.dumps(dict(error='check: no answer')))})
+    page.wait_for_function(BANNER_SAYS, arg="landing lines for this map couldn't be read (check: no answer)", timeout=30000)
+    lines = page.evaluate('viewer.landingLines()')
+    assert lines['kind'] is None and lines['failed'] == 'check: no answer', lines
+    page.evaluate('viewer.showClearMap()')
+    page.wait_for_selector('#clearMap:not([hidden])')
+    clear = page.locator('#clearMapMissions').text_content()
+    assert 'a bomb mission (on Long War only)' in clear, clear
+    page.locator('#clearMapCancel').click()
+    page.evaluate('viewer.showMissions()')
+    page.wait_for_selector('#missionsDialog:not([hidden])')
+    bomb = page.evaluate("""() => { const row = [...document.querySelectorAll('#missionsList .missionrow')].find(r => r.textContent.includes('Council bomb (added)'));
+      return row && { disabled: row.querySelector('input').disabled, words: row.querySelector('small').textContent }; }""")
+    assert bomb and not bomb['disabled'] and "Which game is set isn't known (the editor couldn't read it: check: no answer)" in bomb['words'], bomb
+    page.close()
+    assert not errors, errors
+    return dict(asked=asked, bomb=bomb['words'][-90:])

@@ -197,8 +197,19 @@ const isStream = o => o?.layer === 'stream';
 // null from a server without them. assemblyIndex: an original's key (package|level|actor) to its assembly.
 let families = null, assemblyIndex = new Map(), originalIndex = null;
 // The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
-// opens once they are, so its pieces in a donor look are drawn in it
-const looksReady = Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)));
+// opens once they are, so its pieces in a donor look are drawn in it. A read that fails isn't kept (review finding
+// 31): the banner says why, and Try again reads it again.
+let looksReady = readLooks();
+function readLooks() {
+  const ready = Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)));
+  ready.then(lists => {
+    const failed = lists.filter(l => l.error);
+    if (failed.length)
+      banner(`${failed.map(l => l.error).join('; ')}, so pieces made in those looks are drawn as the piece they copy and the look picker lists none of them.`,
+             [['Try again', () => { looksReady = readLooks(); }]]);
+  });
+  return ready;
+}
 // The original a piece is, or was copied from: package, level and actor (a project's key for it).
 const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level: o.layer, actor: o.actor });
 // foreignAssemblies: the same for the assemblies of other maps' pieces, as their records are read (libraryTemplate).
@@ -235,8 +246,10 @@ let stage = null;
 // A cleared map (Clear map plan, section 6): the Build takes out what the editor never showed; the map's size may then
 // be set as on the blank map, smaller too. The landing zones as the project sets them (project.js validLandingZone):
 // null while the project keeps the map's own landings and the install's lines (zonesNow gives those); the install's
-// lines for the map (GET landing-lines.json) and its kind come with the map.
-let cleared = false, landingZones = null, landingLines = { kind: null, lines: [] };
+// lines for the map (GET landing-lines.json) and its kind come with the map: 'lwr' or 'longwar' (Long War), 'ew'
+// (plain Enemy Within), or null, a game the editor doesn't know (none set, or the read failed: `failed` says why), a
+// state of its own and not Long War (review finding 31). landingRead: that read, which a project waits for.
+let cleared = false, landingZones = null, landingLines = { kind: null, lines: [] }, landingRead = Promise.resolve();
 // The clear kept the scenery outside the play area (the Clear map window's tick): the Build's clear_level then leaves
 // the lights, smoke, stains and glints placed out there, and so does the view
 let clearKeepsOutside = false;
@@ -4891,6 +4904,7 @@ async function openProject(id) {
   try { doc = await projectApi.load(id); }
   catch (e) { banner(`The project could not be opened: ${e.message}`); return; }
   await looksReady;
+  await landingRead;      // (the starting landing zones come from it: review finding 31)
   if (doc.source?.map !== activeMapId) { goTo({ map: doc.source?.map, scene: null, project: id }); return new Promise(() => {}); }
   $('loading').hidden = false; loadingState(`Opening ${doc.name}…`, 0);
   const docGroups = Array.isArray(doc.groups) ? doc.groups : [];
@@ -6783,8 +6797,8 @@ function clearWords(v) {
     + (sp.named.length ? ` ${plural(sp.named.length, 'spawn point')} the map's script names ${sp.named.length === 1 ? 'stays' : 'stay'} (${sp.named.slice(0, 4).map(o => short(o.actor)).join(', ')}${sp.named.length > 4 ? ` and ${sp.named.length - 4} more` : ''}).` : '');
   // the kinds a record alone gives the map, and the base map's missions that bring objects in their streams
   const brought = (data.missions ?? []).filter(m => (m.streams ?? []).some(s => data.streams?.[s]?.missionObjects?.length));
-  const words = { Abduction: 'an abduction', TerrorSite: 'a terror site', 'Special/Bomb': 'a bomb mission', Crash: 'a UFO mission (with a UFO placed)' };
-  const added = Object.keys(words).filter(k => !(k === 'Special/Bomb' && (!lwrInstall() || baseHas(k))) && !brought.some(m => kindKey(m) === k)).map(k => words[k]);
+  const words = { Abduction: 'an abduction', TerrorSite: 'a terror site', 'Special/Bomb': lwrInstall() ? 'a bomb mission' : 'a bomb mission (on Long War only)', Crash: 'a UFO mission (with a UFO placed)' };
+  const added = Object.keys(words).filter(k => !(k === 'Special/Bomb' && (plainEw() || baseHas(k))) && !brought.some(m => kindKey(m) === k)).map(k => words[k]);
   const listed = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} or ${list.at(-1)}` : list[0]);
   $('clearMapMissions').hidden = false;
   $('clearMapMissions').textContent = `Then it asks what the cleared map is for: ${listed(added)}`
@@ -6856,7 +6870,11 @@ function clearMap(size, keepOutside = false) {
 const missionsPanel = createMissionsPanel({
   els: { root: $('missionsDialog'), form: $('missionsForm'), title: $('missionsTitle'), note: $('missionsNote'), list: $('missionsList'),
          warn: $('missionsWarn'), ok: $('missionsOk'), close: $('missionsClose'), cancel: $('missionsCancel') } });
-const lwrInstall = () => landingLines?.kind !== 'ew';
+// Which game is set (review finding 31): Long War, plain Enemy Within, or neither known, a state of its own
+const lwrInstall = () => ['lwr', 'longwar'].includes(landingLines?.kind);
+const plainEw = () => landingLines?.kind === 'ew';
+const gameUnknownWhy = () => (landingLines?.kind ? null : landingLines?.failed
+  ? `the editor couldn't read it: ${landingLines.failed}` : 'the settings name no game folder the editor recognises');
 // whether a UFO building stands on the map: one of the project's, or one of the map's own that stays
 const hasUfoBuilding = () => allBuildings().some(b => (b.project ? (b.project.kind ?? 'building') === 'ufo' : b.isUfo));
 const baseHas = kind => (data?.missions ?? []).some(m => kindKey(m) === kind);
@@ -6865,7 +6883,7 @@ const baseHas = kind => (data?.missions ?? []).some(m => kindKey(m) === kind);
 function clearedMissions() {
   const picked = (data?.missions ?? [])[missionIndex], key = picked ? kindKey(picked) : null;
   const addedPick = missionPickValue.startsWith('kind:') ? missionPickValue.slice(5) : null;
-  if (['Abduction', 'TerrorSite', 'Special/Bomb'].includes(addedPick) && (addedPick !== 'Special/Bomb' || lwrInstall())) return [{ kind: addedPick }];
+  if (['Abduction', 'TerrorSite', 'Special/Bomb'].includes(addedPick) && (addedPick !== 'Special/Bomb' || !plainEw())) return [{ kind: addedPick }];
   // (the base map's bomb is its own record, its objects standing where the original map has them until moved)
   if (picked && ['Abduction', 'TerrorSite', 'Special/Bomb'].includes(key)) return [{ record: missionIndex }];
   const abduction = (data?.missions ?? []).findIndex(m => kindKey(m) === 'Abduction');
@@ -6888,8 +6906,10 @@ async function showMissions(asked = false) {
   for (const [kind, k] of Object.entries(ADDED_KINDS)) {
     if (baseHas(kind) && !listed.some(e => e.kind === kind)) continue;     // the base map's own record is the row for it
     const entry = listed.find(e => e.kind === kind) ?? { kind, ...(k.ufo ? { ship: 'eShip_UFOSmallScout' } : {}) };
-    rows.push({ entry, label: `${k.label} (added)`, checked: has({ kind }), words: '', detail: k.needs, ufo: k.ufo,
-                disabled: k.lwr && !lwrInstall() ? 'Long War only: plain Enemy Within would play the bomb where Slaughterhouse has it.'
+    const unknown = k.lwr ? gameUnknownWhy() : null;
+    rows.push({ entry, label: `${k.label} (added)`, checked: has({ kind }), words: '', ufo: k.ufo,
+                detail: unknown ? `${k.needs} Which game is set isn't known (${unknown}), so the editor can't check that it is Long War.` : k.needs,
+                disabled: k.lwr && plainEw() ? 'Long War only: plain Enemy Within would play the bomb where Slaughterhouse has it.'
                   : k.ufo && !hasUfoBuilding() ? 'Place a UFO prefab first: the mission needs a UFO building on the map.' : null });
   }
   missionsPanel.show({
@@ -9731,6 +9751,7 @@ function lookChosen(kind, look) {
  *  eyedropper. `current`: the look key of the piece being given a look (its card ringed and first). */
 async function openLookPicker(kind, { onChoose = null, title = null, sample = null, current = null } = {}) {
   const list = await loadLooks(kind);
+  if (list.error) { flashHint(`${list.error}: the editor asks again when the looks are opened again`); return; }
   stopWallDrawing(); stopPlacing();
   const stored = storedLook(kind)?.donor;
   const used = usedLookKeys(kind);
@@ -9777,7 +9798,8 @@ async function lookPickAt(x, y) {
   const want = lookPicking;
   const hit = pick(x, y), src = hit ? roots.get(hit.object.userData.objectId)?.userData.source : null;
   if (!src) { flashHint('Nothing there: click a wall, a floor or roof, or a ground piece · Esc cancels'); return; }
-  await Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)));
+  const unread = (await Promise.all(['wall', 'slab', 'ground'].map(kind => loadLooks(kind)))).find(l => l.error);
+  if (unread) { flashHint(`${unread.error}: click again to ask again · Esc cancels`); return; }
   const found = pieceLook(src);
   if (found.why) { flashHint(`Not a look: ${found.why} · Esc cancels`); return; }
   stopLookPick();
@@ -10078,7 +10100,16 @@ async function applyWall(root, state) {
   const token = root.userData.wallToken = (root.userData.wallToken ?? 0) + 1;
   track(geometryCache, key, () => gltfLoader.loadAsync(assetUrl(data.meshes[key].url)));
   let base;
-  try { base = await geometryCache.get(key); } catch { geometryCache.delete(key); return; }
+  try { base = await geometryCache.get(key); }
+  catch (error) {
+    // a mesh the server didn't make (review finding 31): the piece keeps the numbers (its panel, handles and the save
+    // have them, and the Build makes them) and its drawing the shape it had, which its mesh key says too; the hint says
+    // why. (track drops the failed load, so the next change asks again.)
+    if (root.userData.wallToken !== token) return;
+    o.mesh = was;
+    flashHint(`${data.meshes[key]?.name ?? 'The piece'}: the editor couldn't draw these numbers (${error?.message ?? error}), so it shows the shape it had; the Build makes the new one`);
+    return;
+  }
   if (root.userData.wallToken !== token) return;
   const old = root.userData.parts, materials = old.map(p => p.userData.baseMaterial);
   const fresh = base.scene.clone(true), parts = [];
@@ -10161,17 +10192,31 @@ function groundHandlesNow(root) {
 }
 // ---- a rock's corners (look picker and rock points plan, R2, R3): its points and which are corners, asked of the
 // server (Python's seeded random isn't the page's) for each rock's numbers; a point picked takes the move gizmo
-const rockCorners = new Map();      // the rock's numbers, look aside (JSON) -> { points, corners }, a promise, or { failed }
+const rockCorners = new Map();      // the rock's numbers, look aside (JSON) -> { points, corners } or a promise
+// A failed answer isn't kept (review finding 31): the hint says why, once, and the corners are asked for again after a
+// pause (the handles are worked out often, so not straight away)
+const rockCornersFailed = new Map();  // the rock's numbers -> performance.now() of its last failed answer
 function rockCornersOf(g) {
   const { look: _, ...shape } = madeGroundNumbers(g), key = JSON.stringify(shape), known = rockCorners.get(key);
-  if (known && !known.then) return known.failed ? null : known;
-  if (!known) {
-    rockCorners.set(key, fetch(`/generated/ground-corners.json?${new URLSearchParams({ ground: key })}`)
-      .then(r => (r.ok ? r.json() : null)).catch(() => null)
+  if (known && !known.then) return known;
+  if (!known && !(performance.now() - (rockCornersFailed.get(key) ?? -Infinity) < 4000)) {
+    const asking = fetch(`/generated/ground-corners.json?${new URLSearchParams({ ground: key })}`)
+      .then(async r => {
+        const answer = await r.json().catch(() => null);
+        if (!r.ok || !answer?.points) throw new Error(answer?.error ?? `the editor's server answered ${r.status}`);
+        return answer;
+      })
       .then(answer => {
-        rockCorners.set(key, answer?.points ? answer : { failed: true });
+        rockCorners.set(key, answer);
+        rockCornersFailed.delete(key);
         if (rockCorners.size > 300) rockCorners.delete(rockCorners.keys().next().value);
-      }));
+      }, error => {
+        if (rockCorners.get(key) === asking) rockCorners.delete(key);
+        if (!rockCornersFailed.has(key))
+          flashHint(`The rock's corner points couldn't be read (${error?.message ?? error}); the editor asks again in a moment`);
+        rockCornersFailed.set(key, performance.now());
+      });
+    rockCorners.set(key, asking);
   }
   return null;
 }
@@ -11909,10 +11954,20 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   $('projectMissions').hidden = !projectsAvailable();
   $('projectPicture').hidden = !projectsAvailable();
   ownGrid = null; startingCache = null; landingLines = { kind: null, lines: [] };
-  // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones
+  // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones. A failed
+  // read leaves the game unknown, with the reason (review finding 31).
   if (data.scope === 'map' && !data.preview && !builderMode && activeMapId)
-    fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`).then(r => (r.ok ? r.json() : null)).catch(() => null)
-      .then(v => { if (v && Array.isArray(v.lines)) { landingLines = v; startingCache = null; refreshGroundGrid(); refreshLandingZones(); } });
+    landingRead = fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`)
+      .then(async r => {
+        const v = await r.json().catch(() => null);
+        if (!r.ok || !v || !Array.isArray(v.lines)) throw new Error(v?.error ?? `the editor's server answered ${r.status}`);
+        return v;
+      })
+      .then(v => { landingLines = v; }, error => {
+        landingLines = { kind: null, lines: [], failed: String(error?.message ?? error) };
+        banner(`The game install's landing lines for this map couldn't be read (${landingLines.failed}), so the editor doesn't know which game is set: the Long War landing lines are missing and Long War only missions aren't checked. Open the map again to ask again.`);
+      })
+      .then(() => { startingCache = null; refreshGroundGrid(); refreshLandingZones(); });
   drawPlayArea();
   for (const button of $('lighting').querySelectorAll('button')) button.disabled = button.dataset.value !== 'neutral' && !lighting.available;
   // Neutral light by default: our map lighting is an approximation (the user's choice, 7 November).

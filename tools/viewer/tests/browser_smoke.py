@@ -5237,6 +5237,9 @@ def main():
             if 'look-undo' in only:
                 from browser_editing import check_look_undo
                 print(json.dumps(dict(lookUndo=check_look_undo(browser, page.url, open_viewer))))
+            if 'failed-reads' in only:
+                from browser_editing import check_failed_reads
+                print(json.dumps(dict(failedReads=check_failed_reads(browser, page.url))))
             if 'output-names' in only:
                 found = []
                 print(json.dumps(dict(outputNames=check_output_names(browser, page.url, found))))

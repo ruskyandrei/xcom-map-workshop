@@ -164,14 +164,18 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   }
 
   // -- favourites and recently used ----------------------------------------------------------------------------------
+  // (a failed read is not kept: the next star or placed piece asks again, and says why if it fails again; review
+  // finding 31)
+  let stateError = null;
   function loadState() {
-    stateLoad ??= json('/library/state.json').then(s => { state = s; render(); }).catch(() => { state = null; });
+    stateLoad ??= json('/library/state.json').then(s => { state = s; stateError = null; render(); })
+      .catch(error => { state = null; stateLoad = null; stateError = error.message; });
     return stateLoad;
   }
   const favourite = key => Boolean(state?.favourites.some(f => f.key === key));
   async function saveState(change, again = true) {
     if (!state) await loadState();
-    if (!state) { hint('The favourites file could not be read, so this is not kept'); return; }
+    if (!state) { hint(`The favourites file could not be read (${stateError ?? 'no answer'}), so this is not kept`); return; }
     const document = change({ favourites: [...state.favourites], recent: [...state.recent] });
     try {
       state = await json('/library/state.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' },

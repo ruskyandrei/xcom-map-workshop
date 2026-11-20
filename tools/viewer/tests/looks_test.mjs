@@ -2,7 +2,7 @@
 // once, a donor look found by its mesh (a ground look by its mesh and material), the look the drawing tools take, and
 // a wall's heights, insets and storeys by its look. Run: node tools/viewer/tests/looks_test.mjs
 import assert from 'node:assert/strict';
-import { catalogued, donorLook, entryForPiece, forgetLooks, loadLooks, lookFromEntry, lookTags, lookWords } from '../web/looks.js';
+import { catalogued, donorLook, entryForPiece, forgetLooks, loadLooks, looksLoaded, lookFromEntry, lookTags, lookWords } from '../web/looks.js';
 import { endInsetsOf, faceTopOf, raisedWall, storeysOf, topMostOf, wallSpec, wallTop, wallWords, withOpening, toolWall,
          openingEdges, storeysInLook, storeyWords, openingsInLook } from '../web/walls.js';
 
@@ -30,6 +30,17 @@ const fetcher = async url => { asked++; return { ok: url in answers, json: async
 forgetLooks();
 await Promise.all([loadLooks('wall', fetcher), loadLooks('wall', fetcher), loadLooks('ground', fetcher), loadLooks('slab', fetcher)]);
 assert.equal(asked, 3);                      // (read once each)
+// (a read that fails isn't kept, review finding 31: its answer says why, and the next call asks again)
+const slabs = await loadLooks('slab', fetcher);
+assert.equal(asked, 4);
+assert.deepEqual([slabs.looks, slabs.byKey.size, slabs.measure], [[], 0, null]);
+assert.match(slabs.error, /^The floors' and roofs' looks couldn't be read \(the editor's server answered/);
+assert.equal(looksLoaded('slab'), null);
+const thrown = await loadLooks('slab', async () => { asked++; throw new Error('offline'); });
+assert.equal(asked, 5);
+assert.match(thrown.error, /\(offline\)$/);
+assert.equal((await loadLooks('wall', fetcher)).error, undefined);
+assert.equal(asked, 5);                      // (a catalogue read is kept)
 assert.equal(catalogued('wall', { mesh: ONE.mesh, measure: 1 }), ONE);
 assert.equal(catalogued('wall', 'bar-inside'), null);
 assert.equal(catalogued('ground', { mesh: GRASS.mesh, material: GRASS.material, measure: 1 }), GRASS);
