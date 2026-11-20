@@ -2938,14 +2938,15 @@ class LightTests(unittest.TestCase):
     def test_find_export_takes_a_new_enough_generation(self):
         import tempfile
         with tempfile.TemporaryDirectory() as root:
-            def make(name, version, sha=BAR_SHA):
+            def make(name, version, sha=BAR_SHA, text=None):
                 folder = Path(root) / 'URB_Bar' / name
                 folder.mkdir(parents=True)
-                (folder / 'scene.json').write_text(json.dumps(dict(exporterVersion=version, source=dict(sha256=sha))),
-                                                   encoding='utf-8')
+                (folder / 'scene.json').write_text(text if text is not None else json.dumps(dict(
+                    schemaVersion=1, name='URB_Bar', scope='map', exporterVersion=version, source=dict(sha256=sha))),
+                    encoding='utf-8')
             doc = dict(source=dict(map='URB_Bar', sha256=BAR_SHA, exporterVersion=17))
             make(BAR_SHA[:16] + '-v17-map', 17)
-            with self.assertRaisesRegex(SystemExit, 'version 18 or newer'):
+            with self.assertRaisesRegex(compiler.ExportMissing, 'version 18 or newer'):
                 compiler.find_export(root, doc)
             make(BAR_SHA[:16] + '-v18-map', 18)
             make('b' * 16 + '-v19-map', 19, 'b' * 64)       # another package's newer export never stands in
@@ -2955,6 +2956,14 @@ class LightTests(unittest.TestCase):
             # a later export at the same version is published beside it with a suffix (export.py): the newest is taken
             make(BAR_SHA[:16] + '-v18-map-x1y2z3', 18)
             os.utime(Path(root) / 'URB_Bar' / (BAR_SHA[:16] + '-v18-map') / 'scene.json', (1_000_000, 1_000_000))
+            self.assertEqual(compiler.find_export(root, doc)[0].parent.name, BAR_SHA[:16] + '-v18-map-x1y2z3')
+            # a newer candidate that can't be used is passed over for the next (review finding 17): truncated, of
+            # another schema, of another package under this one's name, or of another version than its name says
+            make(BAR_SHA[:16] + '-v20-map', 20, text='{"schemaVersion": 1, "name": "URB_B')
+            make(BAR_SHA[:16] + '-v21-map', 21, text=json.dumps(dict(schemaVersion=2, name='URB_Bar', scope='map',
+                                                                     exporterVersion=21, source=dict(sha256=BAR_SHA))))
+            make(BAR_SHA[:16] + '-v22-map', 22, sha=BAR_SHA[:16] + 'f' * 48)
+            make(BAR_SHA[:16] + '-v23-map', 22)
             self.assertEqual(compiler.find_export(root, doc)[0].parent.name, BAR_SHA[:16] + '-v18-map-x1y2z3')
 
 

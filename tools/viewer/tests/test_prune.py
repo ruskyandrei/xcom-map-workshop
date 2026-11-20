@@ -27,7 +27,10 @@ class Prune(unittest.TestCase):
         folder.mkdir(parents=True)
         (folder / 'mesh.glb').write_bytes(b'x' * 1000)
         if scene:
-            (folder / 'scene.json').write_text('{}', encoding='utf-8')
+            import json
+            m = prune.GENERATION.match(name)
+            (folder / 'scene.json').write_text(json.dumps(dict(schemaVersion=1, name=map_name, scope=m.group('scope'),
+                                                               exporterVersion=int(m.group('version')))), encoding='utf-8')
             self.stamp += 10
             os.utime(folder / 'scene.json', (self.stamp, self.stamp))
         return folder
@@ -66,6 +69,100 @@ class Prune(unittest.TestCase):
         result = prune.prune(self.cache, dry_run=True)
         self.assertEqual(len(result['removed']), 2)
         self.assertTrue(old.exists() and farm_old.exists())
+
+
+SHA = A + '1' * 48
+
+
+class OneChoice(unittest.TestCase):
+    """The map list, the pruning and the Build agree on a usable generation (review finding 17): a newer generation
+    whose scene.json is truncated, of another schema, of another package or of another version than its name says is
+    passed over by all three, and the newest readable one is the one they keep and take."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.cache = Path(self.tmp.name)
+        self.stamp = 1_700_000_000
+
+    def generation(self, name, version, text=None, sha=SHA):
+        import json
+        folder = self.cache / 'URB_Bar' / name
+        folder.mkdir(parents=True)
+        (folder / 'scene.json').write_text(text if text is not None else json.dumps(dict(
+            schemaVersion=1, name='URB_Bar', scope='map', exporterVersion=version, source=dict(sha256=sha))),
+            encoding='utf-8')
+        self.stamp += 10
+        os.utime(folder / 'scene.json', (self.stamp, self.stamp))
+        return folder
+
+    def test_catalogue_prune_and_build_pass_over_what_cant_be_used(self):
+        sys.path.insert(0, str(HERE.parents[1] / 'editor'))
+        import compiler
+        from catalogue import load_catalogue
+        old = self.generation(f'{A}-v34-map', 34)
+        good = self.generation(f'{A}-v35-map', 35)
+        twin = self.generation(f'{A}-v35-map-x1y2z3', 35)                  # an equal-version re-export, published beside
+        broken = [self.generation(f'{A}-v36-map', 36, text='{"schemaVersion": 1, "name": "URB_B'),
+                  self.generation(f'{A}-v37-map', 37, text='{"schemaVersion": 2, "name": "URB_Bar", "scope": "map", '
+                                                           '"exporterVersion": 37}'),
+                  self.generation(f'{A}-v38-map', 38, sha=B + '2' * 48),     # another package under this one's name
+                  self.generation(f'{A}-v40-map', 39)]                       # another version than its name says
+        doc = dict(source=dict(map='URB_Bar', sha256=SHA, exporterVersion=35))
+        self.assertEqual(load_catalogue(self.cache)['maps']['URB_Bar']['root'], twin)
+        self.assertEqual(compiler.find_export(self.cache, doc)[0].parent, twin)
+        self.assertEqual(sorted(prune.stale(self.cache)), sorted([old, good]))
+        # a generation a server serves (pinned) stays whatever its age
+        self.assertEqual(prune.stale(self.cache, keep=[good]), [old])
+        prune.prune(self.cache)
+        for kept in [twin] + broken:
+            self.assertTrue(kept.exists(), kept)
+        self.assertEqual(load_catalogue(self.cache)['maps']['URB_Bar']['root'], twin)
+        self.assertEqual(compiler.find_export(self.cache, doc)[0].parent, twin)
+
+
+class ReuseLaunch(unittest.TestCase):
+    """A second start of the main server while one runs (review finding 16) takes the port first: finding it held, it
+    deletes nothing and reads nothing of the cache, so the running server's generation and a newer one both stay."""
+
+    def test_a_reuse_launch_leaves_the_cache_alone(self):
+        import json
+        from functools import partial
+        import threading
+        from unittest import mock
+        from urllib.request import urlopen
+        from catalogue import load_catalogue
+        import viewer
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = Path(tmp)
+            folders = {}
+            for version in (22, 23):
+                folder = folders[version] = cache / 'Alpha' / ('%s-v%d-map' % (A, version))
+                folder.mkdir(parents=True)
+                (folder / 'scene.json').write_text(json.dumps(dict(schemaVersion=1, exporterVersion=version, name='Alpha',
+                                                                   scope='map')), encoding='utf-8')
+            running = viewer.LocalServer(('127.0.0.1', 0), partial(viewer.Handler, catalogue=load_catalogue(folders[22])))
+            thread = threading.Thread(target=running.serve_forever, daemon=True)
+            thread.start()
+            try:
+                port = running.server_port
+                for extra in (['--reuse'], []):
+                    argv = ['viewer.py', 'serve', str(cache), '--port', str(port), '--no-open'] + extra
+                    with mock.patch.object(viewer, 'MAIN_PORT', port), mock.patch.object(sys, 'argv', argv), \
+                            mock.patch.object(prune, 'prune', side_effect=AssertionError('pruned')), \
+                            mock.patch.object(viewer, 'load_catalogue', side_effect=AssertionError('catalogue read')):
+                        if extra:
+                            viewer.main()
+                        else:
+                            with self.assertRaises(SystemExit):
+                                viewer.main()
+                    self.assertTrue(folders[22].exists() and folders[23].exists())
+                with urlopen(f'http://127.0.0.1:{port}/cache/scene.json', timeout=10) as response:
+                    self.assertEqual(json.load(response)['exporterVersion'], 22)
+            finally:
+                running.shutdown()
+                running.server_close()
+                thread.join(timeout=5)
 
 
 FAKE = """import json, pathlib, sys

@@ -409,7 +409,7 @@ def prepare(snapshot, test_id, cache, game):
     binding = dict(source=dict(map=MAP, sha256=sha, exporterVersion=EXPORT_VERSION))
     try:
         _, scene = compiler.find_export(cache, binding, minimum=EXPORT_VERSION)
-    except SystemExit:
+    except compiler.ExportMissing:
         refuse([issue('stage-unprepared', f'{MAP} needs an export before this test can build.')])
     grid = scene.get('tileGrid') or {}
     if grid.get('size') != [TILE, TILE, 64] or grid.get('dimensions') != OWN_GRID:

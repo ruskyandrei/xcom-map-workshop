@@ -11,7 +11,7 @@ import traceback
 import webbrowser
 from urllib.parse import parse_qs, unquote, urlsplit
 from export import export_map, stream_package, EXPORT_VERSION
-from catalogue import load_catalogue, public_catalogue, with_install
+from catalogue import PackageDigests, load_catalogue, public_catalogue, with_install
 from projects import ProjectError, ProjectStore
 from prefabs import MAX_PICTURE, PrefabStore
 from prefab_tests import PrefabTests
@@ -58,8 +58,16 @@ def install_catalogue(catalogue, cache_root, settings, prune=False):
         print(f"Only exported maps are listed: {note}", flush=True)
         return catalogue, None
     try:
-        catalogue = with_install(catalogue, lwr_maps(game))
-        return catalogue, ExportRunner(catalogue, cache_root, settings['game'], prune=prune)
+        # each exported map serves its export of the install's own file of it (review finding 18)
+        from maplist import package_of
+        digests = PackageDigests(cache_root)
+        def digest(name):
+            path = package_of(game, name)
+            try: return digests.digest(path) if path else None
+            except OSError: return None
+        catalogue = with_install(catalogue, lwr_maps(game), digest)
+        digests.save()
+        return catalogue, ExportRunner(catalogue, cache_root, settings['game'], prune=prune, digests=digests)
     except (OSError, ValueError) as error:
         print(f"Only exported maps are listed: {error}", flush=True)
         return catalogue, None
@@ -917,7 +925,9 @@ class Handler(SimpleHTTPRequestHandler):
         return True
 
     def map_catalogue(self, body=True):
-        # a server that exports maps marks the ones exported by an older exporter (the page exports them again)
+        # a server that exports maps marks the ones exported by an older exporter (the page exports them again), and
+        # serves each map from its export of the install's file as the file is now
+        if self.exports: self.exports.recheck()
         payload=json.dumps(public_catalogue(self.catalogue, EXPORT_VERSION if self.exports else None)).encode('utf8')
         self.send_response(200)
         self.send_header('Content-Type','application/json')
@@ -1115,80 +1125,11 @@ def main():
         if not exact:
             try: args.scene.mkdir(parents=True, exist_ok=True)
             except OSError as error: ap.error(f"Cache {args.scene}: {error}")
-        # the main server deletes old exports before it picks its own (prune.py; a test server never does)
-        main_server = args.port == MAIN_PORT and not exact
-        if main_server:
-            try:
-                import prune
-                pruned = prune.prune(args.scene)
-                if pruned['removed'] or pruned['failed']:
-                    print(f"Old exports: {len(pruned['removed'])} removed ({pruned['bytes'] / 1e9:.1f} GB)"
-                          + (f", {len(pruned['failed'])} could not be removed" if pruned['failed'] else ''), flush=True)
-            except OSError as error:
-                print(f"Old exports were not removed: {error}", flush=True)
-        try: exported=load_catalogue(args.scene, allow_empty=not exact)
-        except (OSError,ValueError) as error:ap.error(str(error))
+        # The port first (review finding 16): a second start while the editor runs (the release launcher's --reuse, a
+        # double launch) finds it taken before it deletes or reads anything of the cache the running server serves.
+        # The socket listens from here; requests wait for the routes, set once everything below is ready.
         try:
-            settings = load_settings()
-            projects = ProjectStore(args.projects or settings['projects'])
-            prefabs = PrefabStore(args.prefabs or (args.projects.parent / 'prefabs' if args.projects else settings['prefabs']))
-        except (OSError,ValueError) as error:ap.error(f"Settings: {error}")
-        # Build finds a project's export by its map and hash under the cache root (one exact generation's is two up).
-        cache_root = args.scene.parent.parent if exact else args.scene
-        if args.family:
-            import families as family_table
-            family_table.ENABLED.update(args.family)
-        builds = BuildRunner(projects, cache_root, args.builds or settings['output'], enable=args.family)
-        if not (WEB/"vendor/three/three.module.js").is_file():
-            ap.error("Run python tools/viewer/setup_vendor.py once to install the pinned browser library")
-        # Serving a cache root lists every map the game install plays; those not exported yet export on first open.
-        catalogue, exports = (exported, None) if exact else install_catalogue(exported, cache_root, settings, main_server)
-        # Play in game (play.py): in the install setting's game, else the game install.
-        dry = dict(start=lambda argv, cwd=None: None, command=lambda game, name, steam: ([], None, 'dry'), appear=0, cleanup=False) if args.dry_play else {}
-        live = Live(catalogue, exports, Player(settings, builds, catalogue, projects, install=args.install, try_lines=args.try_mission_lines, **dry),
-                    None if exact else LibraryRunner(cache_root, settings['game']))
-        # the test squad (squads.py): its file beside the settings, checked against the install Play in game uses
-        from squads import SquadService, SquadStore, store_path
-        live.player.squads = SquadService(SquadStore(args.squad or store_path()), lambda: live.player.target(),
-                                          cache=Path(cache_root) / '.gamedata')
-        prefab_tests = PrefabTests(builds, live)
-        precache = None if exact else PrecacheRunner(live, cache_root)
-        # a new project's map name (outputnames.py): checked against the projects, the builds, the game install the
-        # editor reads and the one Play in game uses (both followed when the page picks another install)
-        import outputnames
-        from settings import game_install
-        projects.names = outputnames.Service(projects, builds.output, lambda: [
-            (game_install(live.player.settings)[0], 'the game install'),
-            (live.player.target()[0], 'the install Play in game uses')])
-
-        def configure(new_settings):
-            """Another game install chosen in the page: its maps listed (the exported ones kept), Play in game
-            pointed at it."""
-            fresh = load_catalogue(cache_root, allow_empty=True) if not exact else exported
-            catalogue, exports = (fresh, None) if exact else install_catalogue(fresh, cache_root, new_settings, main_server)
-            with live.player.lock:
-                live.catalogue, live.exports = catalogue, exports
-                live.player.settings, live.player.catalogue = new_settings, catalogue
-                if live.library: live.library = LibraryRunner(cache_root, new_settings['game'])
-        # the build queue (buildqueue.py): its context is what a build would use now, read from the settings file as
-        # build.py reads it (and the server's own --install); nothing of its store is touched before activate
-        def queue_context():
-            from settings import game_install as read_game, install_game
-            try: current = load_settings()
-            except (OSError, ValueError) as error: raise ProjectError(409, f'The settings can\'t be read: {error}')
-            game, note = read_game(current)
-            if game is None: raise ProjectError(409, note)
-            play = args.install or install_game(current)[0]
-            check = [str(Path(play).resolve())] if play and not outputnames.same(play, game) else []
-            return dict(projects=str(projects.root.resolve()), output=str(builds.output.resolve()),
-                        cache=str(Path(cache_root).resolve()), game=str(Path(game).resolve()),
-                        udk=str(Path(current['udk']).resolve()) if current.get('udk') else None, checkGames=check)
-        queue = BuildQueue(projects, builds, queue_context)
-        setup = GameSetup(configure, guard=queue.settings_guard)
-        try:
-            server = LocalServer(("127.0.0.1", args.port), partial(Handler, live=live, projects=projects, builds=builds,
-                                                                 setup=setup, prefabs=prefabs, prefab_tests=prefab_tests,
-                                                                 precache=precache, queue=queue))
+            server = LocalServer(("127.0.0.1", args.port), Handler)
         except OSError as error:
             if error.errno not in (errno.EADDRINUSE,) and getattr(error,"winerror",None) != 10048: raise
             if args.reuse and running_viewer(args.port):
@@ -1198,20 +1139,100 @@ def main():
             ap.error(f"Port {args.port} is already in use, probably by a viewer that is already running (8768 is the "
                      "main one). Restart that one (Ctrl+C in its window) instead of starting a second; tests "
                      "use --port 8790-8799.")
-        # the port is this server's: an earlier server's builds proved gone (or kept as busy until they are) and its
-        # package swaps settled before any request can build (builds.py recover); a server that could not bind has
-        # started nothing
-        builds.recover()
-        if not queue.activate(): print(queue.unavailable, flush=True)
-        url = f"http://127.0.0.1:{server.server_port}/"
-        print(f"{url} (process {os.getpid()}; projects in {projects.root})",flush=True)
-        if not args.no_open: webbrowser.open(url)
-        try: server.serve_forever()
-        except KeyboardInterrupt: pass
+        try:
+            serve_cache(args, ap, server, exact)
         finally:
             server.server_close()
-            # a closing server stops its queue (its build drained, the queue left stopped for Resume)
-            queue.close()
+
+
+def serve_cache(args, ap, server, exact):
+    """The rest of `serve`, once `server` holds the port: the cache pruned and read, the routes set, and served."""
+    # the main server deletes old exports before it picks its own (prune.py; a test server never does)
+    main_server = args.port == MAIN_PORT and not exact
+    if main_server:
+        try:
+            import prune
+            pruned = prune.prune(args.scene)
+            if pruned['removed'] or pruned['failed']:
+                print(f"Old exports: {len(pruned['removed'])} removed ({pruned['bytes'] / 1e9:.1f} GB)"
+                      + (f", {len(pruned['failed'])} could not be removed" if pruned['failed'] else ''), flush=True)
+        except OSError as error:
+            print(f"Old exports were not removed: {error}", flush=True)
+    try: exported=load_catalogue(args.scene, allow_empty=not exact)
+    except (OSError,ValueError) as error:ap.error(str(error))
+    try:
+        settings = load_settings()
+        projects = ProjectStore(args.projects or settings['projects'])
+        prefabs = PrefabStore(args.prefabs or (args.projects.parent / 'prefabs' if args.projects else settings['prefabs']))
+    except (OSError,ValueError) as error:ap.error(f"Settings: {error}")
+    # Build finds a project's export by its map and hash under the cache root (one exact generation's is two up).
+    cache_root = args.scene.parent.parent if exact else args.scene
+    if args.family:
+        import families as family_table
+        family_table.ENABLED.update(args.family)
+    builds = BuildRunner(projects, cache_root, args.builds or settings['output'], enable=args.family)
+    if not (WEB/"vendor/three/three.module.js").is_file():
+        ap.error("Run python tools/viewer/setup_vendor.py once to install the pinned browser library")
+    # Serving a cache root lists every map the game install plays; those not exported yet export on first open.
+    catalogue, exports = (exported, None) if exact else install_catalogue(exported, cache_root, settings, main_server)
+    # Play in game (play.py): in the install setting's game, else the game install.
+    dry = dict(start=lambda argv, cwd=None: None, command=lambda game, name, steam: ([], None, 'dry'), appear=0, cleanup=False) if args.dry_play else {}
+    live = Live(catalogue, exports, Player(settings, builds, catalogue, projects, install=args.install, try_lines=args.try_mission_lines, **dry),
+                None if exact else LibraryRunner(cache_root, settings['game']))
+    # the test squad (squads.py): its file beside the settings, checked against the install Play in game uses
+    from squads import SquadService, SquadStore, store_path
+    live.player.squads = SquadService(SquadStore(args.squad or store_path()), lambda: live.player.target(),
+                                      cache=Path(cache_root) / '.gamedata')
+    prefab_tests = PrefabTests(builds, live)
+    precache = None if exact else PrecacheRunner(live, cache_root)
+    # a new project's map name (outputnames.py): checked against the projects, the builds, the game install the
+    # editor reads and the one Play in game uses (both followed when the page picks another install)
+    import outputnames
+    from settings import game_install
+    projects.names = outputnames.Service(projects, builds.output, lambda: [
+        (game_install(live.player.settings)[0], 'the game install'),
+        (live.player.target()[0], 'the install Play in game uses')])
+
+    def configure(new_settings):
+        """Another game install chosen in the page: its maps listed (the exported ones kept), Play in game
+        pointed at it."""
+        fresh = load_catalogue(cache_root, allow_empty=True) if not exact else exported
+        catalogue, exports = (fresh, None) if exact else install_catalogue(fresh, cache_root, new_settings, main_server)
+        with live.player.lock:
+            live.catalogue, live.exports = catalogue, exports
+            live.player.settings, live.player.catalogue = new_settings, catalogue
+            if live.library: live.library = LibraryRunner(cache_root, new_settings['game'])
+    # the build queue (buildqueue.py): its context is what a build would use now, read from the settings file as
+    # build.py reads it (and the server's own --install); nothing of its store is touched before activate
+    def queue_context():
+        from settings import game_install as read_game, install_game
+        try: current = load_settings()
+        except (OSError, ValueError) as error: raise ProjectError(409, f'The settings can\'t be read: {error}')
+        game, note = read_game(current)
+        if game is None: raise ProjectError(409, note)
+        play = args.install or install_game(current)[0]
+        check = [str(Path(play).resolve())] if play and not outputnames.same(play, game) else []
+        return dict(projects=str(projects.root.resolve()), output=str(builds.output.resolve()),
+                    cache=str(Path(cache_root).resolve()), game=str(Path(game).resolve()),
+                    udk=str(Path(current['udk']).resolve()) if current.get('udk') else None, checkGames=check)
+    queue = BuildQueue(projects, builds, queue_context)
+    setup = GameSetup(configure, guard=queue.settings_guard)
+    server.RequestHandlerClass = partial(Handler, live=live, projects=projects, builds=builds, setup=setup,
+                                         prefabs=prefabs, prefab_tests=prefab_tests, precache=precache, queue=queue)
+    # the port is this server's: an earlier server's builds proved gone (or kept as busy until they are) and its
+    # package swaps settled before any request can build (builds.py recover); a server that could not bind has
+    # started nothing
+    builds.recover()
+    if not queue.activate(): print(queue.unavailable, flush=True)
+    url = f"http://127.0.0.1:{server.server_port}/"
+    print(f"{url} (process {os.getpid()}; projects in {projects.root})",flush=True)
+    if not args.no_open: webbrowser.open(url)
+    try: server.serve_forever()
+    except KeyboardInterrupt: pass
+    finally:
+        server.server_close()
+        # a closing server stops its queue (its build drained, the queue left stopped for Resume)
+        queue.close()
 
 
 if __name__ == "__main__": main()

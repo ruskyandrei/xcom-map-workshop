@@ -78,9 +78,13 @@ class Plans(unittest.TestCase):
         self.assertEqual(library.piece_plan(self.cache, self.game, self.index)[0]['missing'], ['Crate_2'])
 
     def test_every_missing_piece_is_read_the_failed_named_and_old_generations_deleted(self):
-        old = self.folder('URB_Two').parent / ('f' * 16 + '-v1')
+        current = self.folder('URB_Two')
+        old = current.parent / (current.name.split('-v')[0] + '-v1')
         old.mkdir(parents=True)
         (old / 'Wall_1.json').write_text('{}', encoding='utf-8')
+        # another file's generation (the other install's copy of the map) stays as its own (review finding 18)
+        other = current.parent / ('f' * 16 + '-v1')
+        other.mkdir(parents=True)
         steps = []
         result = library.precache(self.game, self.cache, jobs=1, progress=lambda done, total: steps.append((done, total)))
         self.assertEqual(sorted(self.made), ['Crate_1', 'Wall_1'])
@@ -88,6 +92,7 @@ class Plans(unittest.TestCase):
         self.assertEqual(result['failed'], [dict(package='URB_One', actor='Crate_2', error='Crate_2 in URB_One has nothing to draw.')])
         self.assertEqual((steps[0], steps[-1]), ((0, 3), (3, 3)))
         self.assertFalse(old.exists())
+        self.assertTrue(other.exists())
         self.assertFalse(result['stopped'])
         # again: what is cached is left, only the one that failed is tried
         self.made.clear()
@@ -97,7 +102,8 @@ class Plans(unittest.TestCase):
 
 class Stops(Plans):
     def test_a_stop_file_stops_between_pieces_and_nothing_is_deleted(self):
-        old = self.folder('URB_Two').parent / ('f' * 16 + '-v1')
+        current = self.folder('URB_Two')
+        old = current.parent / (current.name.split('-v')[0] + '-v1')
         old.mkdir(parents=True)
         stop = self.root / 'stop'
         plain = self.fake_piece

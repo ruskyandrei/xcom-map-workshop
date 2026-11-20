@@ -718,7 +718,7 @@ def read_pieces(cache, game, sources):
 def donor_area_lights(cache, folder, path, digest):
     """Index verified emitters and unresolved candidates once per donor package and matcher version."""
     from area_light_bindings import MATCHER_VERSION, export_records
-    from compiler import find_export
+    from compiler import ExportMissing, find_export
 
     index = folder / f'area-lights-v{MATCHER_VERSION}.json'
     if index.is_file():
@@ -730,7 +730,7 @@ def donor_area_lights(cache, folder, path, digest):
             pass
     try:
         _, scene = find_export(cache, dict(source=dict(map=path.stem, sha256=digest)))
-    except SystemExit:
+    except ExportMissing:
         scene = {}
     if (scene.get('lightMetadata') or {}).get('areaMatcher') != MATCHER_VERSION:
         with tempfile.TemporaryDirectory(prefix='area-lights-', dir=folder) as scratch:
@@ -1145,9 +1145,15 @@ def precache(game, cache, jobs=None, progress=None, stop=None):
             pool.join()
     stopped = bool(stop and os.path.exists(stop))
     pruned = 0
+    # each donor's older generations of the same file go (prune.py's rule); another file's, such as the other install's
+    # copy of the map, stay as its own (review finding 18: switching installs exported them all again)
+    from prune import PIECES
     for d in ([] if stopped else plan):
+        current = PIECES.match(d['folder'].name)
         for old in (d['folder'].parent.iterdir() if d['folder'].parent.is_dir() else ()):
-            if old.is_dir() and old != d['folder']:
+            m = PIECES.match(old.name)
+            if (old.is_dir() and old != d['folder'] and m and current and m.group('digest') == current.group('digest')
+                    and int(m.group('version')) < int(current.group('version'))):
                 shutil.rmtree(old, ignore_errors=True)
                 pruned += 1
     pieces = sum(len(d['actors']) for d in plan)

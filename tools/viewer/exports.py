@@ -27,7 +27,7 @@ import threading
 import time
 
 from builds import PROGRESS, stop_process
-from catalogue import generation
+from catalogue import generation, select
 from maplist import package_of
 from projects import ProjectError
 from settings import resolve_game
@@ -50,12 +50,14 @@ def result_of(lines):
 
 
 class ExportRunner:
-    def __init__(self, catalogue, cache, lwr, command=None, prune=False):
+    def __init__(self, catalogue, cache, lwr, command=None, prune=False, digests=None):
         """catalogue: the server's (its entries are updated in place); cache: the cache root exports go to; lwr: the
         game setting (a game folder or a folder holding it, or None). command(package) gives the export's command line
         (tests stub it). prune: once a map has its new generation, its older ones are deleted (prune.py; the main
-        server's runner)."""
+        server's runner). digests: the install's packages' SHA-256 (catalogue.PackageDigests), by which recheck sees a
+        package changed in place."""
         self.catalogue, self.cache, self.lwr, self.prune = catalogue, Path(cache), lwr, prune
+        self.digests = digests
         self.command = command or (lambda package: [sys.executable, '-B', '-u', str(VIEWER), 'export', str(package),
                                                     '--scope', 'map', '--cache', str(self.cache)])
         self.lock = threading.Lock()
@@ -135,13 +137,23 @@ class ExportRunner:
                     raise ValueError(f'the export made {fresh["id"]} ({fresh["scope"]}), not {job["map"]}')
             except (ValueError, OSError) as problem:
                 error, fresh = str(problem), None
+        stamp = None
+        if fresh and self.digests is not None:
+            try:
+                digest, stamp = self.digests.digest(job['package'])
+                if digest != fresh['sha256']: stamp = None      # the file changed while it was read: rechecked later
+            except OSError:
+                stamp = None
         with self.lock:
             if job.get('cancelled'):
                 fresh, error = None, 'Preparation cancelled.'
             if fresh:
                 entry = self.catalogue['maps'][job['map']]
+                candidates = dict(entry.get('candidates') or {})
+                candidates[fresh['sha256']] = fresh
                 # root before ready: a request that sees ready finds the root
-                entry.update(root=fresh['root'], scope=fresh['scope'], priority=fresh['priority'])
+                entry.update(root=fresh['root'], scope=fresh['scope'], priority=fresh['priority'], sha256=fresh['sha256'],
+                             candidates=candidates, packageDigest=fresh['sha256'], packageStamp=stamp)
                 entry['ready'] = True
                 job['folder'] = str(fresh['root'])
             job['error'] = error
@@ -155,6 +167,29 @@ class ExportRunner:
                 job['pruned'] = prune.prune(self.cache, only=Path(fresh['root']).parent, keep=[fresh['root']])['removed']
             except OSError:
                 pass
+
+    def recheck(self):
+        """Each exported map of the install served from the export of its file as the file is now (review finding 18):
+        a package changed in place since its map was chosen is hashed again and the map takes its newest export of the
+        new file, or is listed unprepared (catalogue.select). Cheap when nothing changed: a stat of each file."""
+        if self.digests is None: return
+        with self.lock:
+            entries = [e for e in self.catalogue['maps'].values() if e.get('packageStamp')]
+        changed = False
+        for entry in entries:
+            stamp = entry['packageStamp']
+            try:
+                if tuple(self.digests.stamp(stamp[0])) == tuple(stamp): continue
+                digest, now = self.digests.digest(stamp[0])
+            except OSError:
+                continue
+            with self.lock:
+                if self.job and self.job['state'] == 'running' and self.job['map'] == entry['id']: continue
+                fresh = select(entry, digest, now)
+                if not fresh['ready']: entry['ready'] = False       # ready off before the root goes
+                entry.update(fresh)
+            changed = True
+        if changed: self.digests.save()
 
     def _status(self, map_id):
         entry = self.catalogue['maps'].get(map_id) or {}

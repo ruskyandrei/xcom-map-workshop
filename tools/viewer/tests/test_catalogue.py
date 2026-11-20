@@ -1,6 +1,7 @@
 from pathlib import Path
 from functools import partial
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -88,6 +89,51 @@ class CatalogueTests(unittest.TestCase):
         catalogue=with_install(load_catalogue(self.root),installed)
         self.assertEqual(catalogue['maps']['CSmallScout_Farm']['root'],farm)
         self.assertNotIn('CsmallScout_Farm',catalogue['maps'])
+
+    def test_maps_are_chosen_by_the_install_package(self):
+        """Review finding 18: two installs' copies of one map (distinct SHA-256): each install's map list serves the
+        export of its own file, a file with no export of its own is unprepared, switching back takes the first again,
+        and a file changed in place is seen at the next listing."""
+        import hashlib
+        from catalogue import PackageDigests
+        installs = {}
+        for name, data in (('lwr', b'LWR copy of the bar'), ('plain', b'plain EW copy of the bar!'), ('other', b'third')):
+            cooked = self.root / name / 'XEW' / 'XComGame' / 'CookedPCConsole'
+            cooked.mkdir(parents=True)
+            (cooked / 'URB_Bar.upk').write_bytes(data)
+            installs[name] = cooked / 'URB_Bar.upk'
+        sha = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in installs.items()}
+        cache = self.root / 'cache'
+        for name, version in (('lwr', 30), ('plain', 31)):
+            folder = cache / 'URB_Bar' / f'{sha[name][:16]}-v{version}-map'
+            folder.mkdir(parents=True)
+            (folder / 'scene.json').write_text(json.dumps(dict(schemaVersion=1, exporterVersion=version, name='URB_Bar',
+                                                               scope='map', source=dict(sha256=sha[name]))), encoding='utf8')
+        installed = dict(URB_Bar=dict(label='Bar', groups=['abduction'], missions=[]))
+        digests = PackageDigests(cache)
+        def choose(install):
+            return with_install(load_catalogue(cache), installed, lambda name: digests.digest(installs[install]))
+        lwr, plain, other = choose('lwr'), choose('plain'), choose('other')
+        self.assertEqual(lwr['maps']['URB_Bar']['root'].name, f'{sha["lwr"][:16]}-v30-map')
+        self.assertEqual(plain['maps']['URB_Bar']['root'].name, f'{sha["plain"][:16]}-v31-map')
+        self.assertEqual((other['maps']['URB_Bar']['root'], other['maps']['URB_Bar']['ready'], other['defaultMap']),
+                         (None, False, None))
+        self.assertEqual(public_catalogue(other)['maps'][0]['ready'], False)
+        self.assertEqual(choose('lwr')['maps']['URB_Bar']['root'], lwr['maps']['URB_Bar']['root'])   # switching back
+        self.assertEqual(with_install(load_catalogue(cache), installed)['maps']['URB_Bar']['root'].name,
+                         f'{sha["plain"][:16]}-v31-map')                                     # file unknown: the newest
+        digests.save()
+        self.assertEqual(PackageDigests(cache).digest(installs['lwr'])[0], sha['lwr'])        # kept in the cache root
+        # the LWR file changed in place (now the plain copy's bytes): the next listing serves the plain export
+        catalogue = choose('lwr')
+        exports = ExportRunner(catalogue, cache, None, digests=digests)
+        installs['lwr'].write_bytes(installs['plain'].read_bytes())
+        os.utime(installs['lwr'], (2_000_000_000, 2_000_000_000))
+        exports.recheck()
+        self.assertEqual(catalogue['maps']['URB_Bar']['root'].name, f'{sha["plain"][:16]}-v31-map')
+        installs['lwr'].write_bytes(b'something new')
+        exports.recheck()
+        self.assertEqual((catalogue['maps']['URB_Bar']['root'], catalogue['maps']['URB_Bar']['ready']), (None, False))
 
     def test_empty_cache_and_invalid_exact_generation_are_clear_errors(self):
         with self.assertRaisesRegex(ValueError,'No prepared maps'):load_catalogue(self.root)
