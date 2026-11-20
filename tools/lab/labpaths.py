@@ -60,9 +60,21 @@ def configured(key, *parts):
     return None if folder is None else folder.joinpath(*parts)
 
 
+COOKED_ENV = 'XCOM_COOKED'
+COOKED_ALIAS = 'XCOM_LWR_COOKED'      # its old name, still read (review finding 58: one variable for one folder)
+
+
+def cooked_override():
+    """The CookedPCConsole folder XCOM_COOKED (or its old name XCOM_LWR_COOKED) names in place of the settings', or
+    None."""
+    folder = os.environ.get(COOKED_ENV) or os.environ.get(COOKED_ALIAS)
+    return Path(folder) if folder else None
+
+
 def lwr_cooked(name=None):
-    """The LWR install's EW CookedPCConsole (or the file `name` in it), or None when the install is not configured."""
-    folder = settings.lwr_cooked()
+    """The CookedPCConsole the tests and the catalogue builders read (or the file `name` in it): the folder XCOM_COOKED
+    names, else the LWR install's EW one from the settings; None when neither is there."""
+    folder = cooked_override() or settings.lwr_cooked()
     return folder if folder is None or name is None else folder / name
 
 
@@ -83,7 +95,7 @@ def install_map(name):
     """For the unit tests: the package `name` (a map or stream, no extension) of the configured install, as
     test_file gives it: (the file or None, why a test without it skips). XCOM_COOKED names another CookedPCConsole
     folder to take it from."""
-    if os.environ.get('XCOM_COOKED'):
-        path = Path(os.environ['XCOM_COOKED']) / (name + '.upk')
-        return path, f'{name}.upk not found at {path} (from XCOM_COOKED)'
+    if cooked_override():
+        path = cooked_override() / (name + '.upk')
+        return path, f'{name}.upk not found at {path} (from {COOKED_ENV})'
     return test_file('', lwr_cooked(name + '.upk'), name + '.upk')

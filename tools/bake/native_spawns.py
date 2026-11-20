@@ -112,23 +112,6 @@ def plan(landings, zones, bottom=None):
     return out
 
 
-def _set(walker, g, p, index, location=None, rotation=None, relative=None):
-    import native_lights
-    e = p.exports[index - 1]
-    data = bytearray(g.export_data(index))
-    start = legacy_props.props_start(p.data, e, p.names) - e['off']
-    if location is not None:
-        data = native_lights.set_property(walker, g, data, start, 'Location', 'StructProperty', 'Vector',
-                                          struct.pack('<3f', *location))
-    if rotation is not None:
-        data = native_lights.set_property(walker, g, data, start, 'Rotation', 'StructProperty', 'Rotator',
-                                          struct.pack('<3i', *rotation))
-    if relative is not None:
-        data = native_lights.set_property(walker, g, data, start, 'RelativeLocation', 'StructProperty', 'Vector',
-                                          struct.pack('<3f', *relative))
-    g.relocate(index, bytes(data))
-
-
 def apply(g, p, zones, gone=()):
     """The project's own landings moved in the map (`g` the grower of package `p`): returns (the report: the moves,
     each actor's old and new pose, and the tiles; the rebuild volumes to add to the level). `gone`: actors the edit
@@ -153,7 +136,7 @@ def apply(g, p, zones, gone=()):
                     b_loc, b_yaw = p.own(base, 'Location', [0.0, 0.0, 0.0]), (p.own(base, 'Rotation') or [0, 0, 0])[1]
                     relative = spawns.turn([loc1[j] - b_loc[j] for j in range(3)], -b_yaw)
                     a['relative'] = [round(v, 4) for v in relative]
-            _set(walker, g, p, i, loc1, rotation, relative)
+            native_copy.set_pose(walker, g, p, i, loc1, rotation, relative)
             # a piece in the baked tiles (the Skyranger): its old tiles rebuilt, its new ones seeded and rebuilt
             if native_copy.has_mesh(p, i) and native_copy.collides(p, i):
                 old = native_copy.hide_tiles(g, p, native_copy.piece_box(p, i, loc0, rot0))
@@ -295,13 +278,13 @@ def apply_lane(g, p, ops):
         i, (loc, rot) = r['export'], moved[r['export']]
         rotation = rot if (p.own(i, 'Rotation') is not None or rot != r['before']['rotation']) else None
         if 'box' in r:
-            _set(walker, g, p, i, loc, rotation)
+            native_copy.set_pose(walker, g, p, i, loc, rotation)
             _set_scale(walker, g, p, i, r['scale'])
             continue
         relative = _relative(p, i, loc, moved)
         if relative is not None:
             r['relative'] = [round(v, 4) for v in relative]
-        _set(walker, g, p, i, loc, rotation, relative)
+        native_copy.set_pose(walker, g, p, i, loc, rotation, relative)
     valued = set()
     for v in ops.get('values') or []:
         i = lane_actor(p, v['name'], listed)

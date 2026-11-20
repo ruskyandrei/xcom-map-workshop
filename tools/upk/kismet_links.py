@@ -3,13 +3,15 @@ its variable links (link name -> variables, with a named variable's FindVarName 
 
   python tools/upk/kismet_links.py <map.upk or .udk> [op name prefix ...]
 
-Reads tagged properties (UE3 v845 packages, uncompressed, as tools/upk/upkinfo.py does). Written for EXP-08 F-45, the
-dropship intro in CIN_DropshipIntros.
+Reads tagged properties of a v845 package (compressed or not: tools/upk/upkinfo.py's load decodes it) with
+tools/upk/props.py's bounded walk (props.tags). Written for
+EXP-08 F-45, the dropship intro in CIN_DropshipIntros; intro_anchors, where that intro puts its flight for each map, is
+what every Build that makes an intro copy reads (tools/bake/intro_copy.py).
 """
-import os, struct, sys
+import collections, os, struct, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import upkinfo
-from props import props_start
+from props import props_start, read_tags
 
 
 class P:
@@ -27,25 +29,15 @@ class P:
         return upkinfo.objname(ref, s.imps, s.exps).split('.')[-1] if ref > 0 else upkinfo.objname(ref, s.imps, s.exps)
 
     def props(s, o, end):
-        """Tagged properties from o: a dict name -> (type, value offset, size, struct name)."""
+        """Tagged properties from o: a dict name -> (type, value offset, size, struct name), and the offset after the
+        closing None. Read by props.tags, bounded by `end` (review finding 52): a name the package lacks, a size that
+        runs past `end` or a list without its None is refused, never read through."""
         out = {}
-        while o < end:
-            pname, o = s.name(o)
-            if pname == 'None':
-                break
-            ptype, o = s.name(o)
-            size, idx = struct.unpack_from('<ii', s.b, o); o += 8
-            sname = None
-            if ptype == 'BoolProperty':
-                out[pname] = (ptype, o, 1, None); o += 1; continue
-            if ptype == 'StructProperty':
-                sname, o = s.name(o)
-            if ptype == 'ByteProperty':
-                _, o = s.name(o)
-            key = pname if idx == 0 else '%s[%d]' % (pname, idx)
-            out[key] = (ptype, o, size, sname)
-            o += size
-        return out, o
+        rows, after = read_tags(s.b, o, end, s.names)
+        for pname, ptype, sub, idx, at, size in rows:
+            key = pname if idx == 0 or ptype == 'BoolProperty' else '%s[%d]' % (pname, idx)
+            out[key] = (ptype, at, size, sub if ptype == 'StructProperty' else None)
+        return out, after
 
     def array_of_structs(s, val):
         """The elements of an array of structs, each a props dict."""
@@ -71,6 +63,58 @@ class P:
 
     def int_(s, val):
         return struct.unpack_from('<i', s.b, val[1])[0]
+
+
+def intro_anchors(intro_path):
+    """Where CIN_DropshipIntros puts its flight for each map: {map: [{group, location, rotation, action}]}, group None
+    for a map whose switch entry leads straight to a Set Location, else 0, 1 or 2 (a Compare Int of GroupNumber with
+    1: A < B, A == B, A > B)."""
+    b, h = upkinfo.load(intro_path)
+    names, imps, exps = upkinfo.tables(b, h)
+    kp = P(b, names, imps, exps)
+    ops = {}
+    for n, e in enumerate(exps):
+        full = upkinfo.objname(n + 1, imps, exps)
+        if '.Main_Sequence.' not in full:
+            continue
+        d, _ = kp.props(props_start(b, e, names), e['off'] + e['size'])
+        ops[full.split('.')[-1]] = (upkinfo.clsname(e['cls'], imps, exps), d)
+
+    def outputs(d):
+        out = []
+        if 'OutputLinks' in d:
+            for ol in kp.array_of_structs(d['OutputLinks']):
+                desc = kp.str_(ol['LinkDesc']) if 'LinkDesc' in ol else ''
+                links = [kp.objp(l['LinkedOp']) for l in kp.array_of_structs(ol['Links'])
+                         if 'LinkedOp' in l] if 'Links' in ol else []
+                out.append((desc, links))
+        return out
+
+    def setloc(op):
+        cls, d = ops[op]
+        loc = list(struct.unpack_from('<3f', b, d['LocationValue'][1])) if 'LocationValue' in d else [0.0, 0.0, 0.0]
+        rot = list(struct.unpack_from('<3i', b, d['RotationValue'][1])) if 'RotationValue' in d else [0, 0, 0]
+        return dict(location=loc, rotation=rot, action=op)
+
+    anchors = collections.defaultdict(list)
+    for op, (cls, d) in ops.items():
+        if cls != 'SeqCond_SwitchString' or 'StringArray' not in d:
+            continue
+        cases = [kp.str_(e['StringName']) if 'StringName' in e else '' for e in kp.array_of_structs(d['StringArray'])]
+        for k, (_, links) in enumerate(outputs(d)):
+            if k >= len(cases) or not cases[k] or cases[k] == 'Default':
+                continue
+            for target in links:
+                tcls = ops.get(target, (None,))[0]
+                if tcls == 'SeqAct_SetLocation':
+                    anchors[cases[k]].append(dict(group=None, **setloc(target)))
+                elif tcls == 'SeqCond_CompareInt':
+                    for desc, tl in outputs(ops[target][1]):
+                        group = {'A < B': 0, 'A == B': 1, 'A > B': 2}.get(desc.strip())
+                        for t2 in tl:
+                            if ops.get(t2, (None,))[0] == 'SeqAct_SetLocation':
+                                anchors[cases[k]].append(dict(group=group, **setloc(t2)))
+    return dict(anchors)
 
 
 def main():

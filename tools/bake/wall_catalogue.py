@@ -33,6 +33,7 @@ REPO = HERE.parents[1]
 for folder in ('viewer', 'upk', 'lab'):
     sys.path.insert(0, str(REPO / 'tools' / folder))
 sys.path.insert(0, str(HERE))
+import measure_common as mc  # noqa: E402
 import wall_measure  # noqa: E402
 
 AUDIT = REPO / 'research' / 'evidence' / 'wall-look-audit-2026-11-18.json'
@@ -111,10 +112,8 @@ def placing(maps, mesh, wall):
 
 
 def twin_words(result):
-    """'ok', or what the twin check found different, in words."""
-    if result['ok']:
-        return 'ok'
-    return '; '.join('%s: %s' % (r['key'], r['note']) for r in result['rows'] if not r['ok'])
+    """'ok', or what the twin check found different, in words (measure_common.verdict)."""
+    return mc.verdict(result, lambda r: '%s: %s' % (r['key'], r['note']))
 
 
 def look_of(maps, mesh, wall):

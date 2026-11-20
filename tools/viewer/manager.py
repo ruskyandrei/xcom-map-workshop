@@ -616,7 +616,7 @@ def _pack_record(projects, builds, request, parts, game, now, rng=None):
 
 
 def _pack(projects, builds, player, request, chosen, mode, now, work):
-    import deploy_fixture as dep
+    import mapsini as dep
     from settings import game_kind
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'upk'))
     import pack_card

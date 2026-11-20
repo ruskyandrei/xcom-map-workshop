@@ -18,7 +18,7 @@
 #   blank true                             the after panel starts from nothing (EXP-08): none of the map's pieces,
 #                                          only what the plan lays: ground, holes, sidewalks, props (tile rectangles)
 #   ground / holes / sidewalks / props [{"min": [tx, ty], "max": [tx, ty]}]   inclusive tile rectangles
-import sys, csv, json, argparse
+import csv, json, argparse
 
 ap = argparse.ArgumentParser()
 ap.add_argument('tsv'); ap.add_argument('out')

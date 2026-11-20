@@ -174,7 +174,7 @@ PICTURE_FAILED = ('the map picture could not be written into %s (%s): the map is
 STREAM_COPY = TOOLS / 'bake' / 'stream_copy.py'
 # the streamed intros whose Kismet picks its scene by the map's exact name (intro_copy.py): the Skyranger and fast-rope
 # landings (F-45) and the alien bases' entrance (F-76; Temple Ship's arrival names no map). A variant gets its own copy.
-INTROS = ('CIN_DropshipIntros', 'CIN_FastropeIntros', 'CIN_TP05A_EnteringAlienBase')
+INTROS = outputnames.INTROS
 LANDINGS = ('CIN_DropshipIntros', 'CIN_FastropeIntros')   # the Skyranger's landings among them (the README's words)
 RADIUS = 1024.0
 LOG_TAIL = 40       # the lines of a failing tool's log read for the pieces it names (Build.untried_named)
@@ -316,7 +316,7 @@ def light_counts(native):
 
 
 def other_pieces_changed(record):
-    """The relight record's otherPiecesChanged (lighting_fixture.others_changed: the texels its writes changed in the
+    """The relight record's otherPiecesChanged (lightmap_writer.Fixture.others_changed: the texels its writes changed in the
     lightmaps of pieces it was not relighting, a write re-encoding whole 4-texel blocks) as the light stage carries
     it: {texels, largest (the largest change, 0 to 1), count (pieces), pieces (the first OTHER_SHOWN), textures}, or
     None when it changed none."""
@@ -1236,15 +1236,15 @@ class Build:
     def named_base(self):
         """The map the relight alone reads (an edit only the patch makes): a copy of it in the work folder, written by
         the growing writer (package_grow.py) with the variant cache's name added to its name table, so the relight can
-        write that name into the textures it moves there (lighting_fixture.cache_fname). The game install's file is
+        write that name into the textures it moves there (lightmap_writer.cache_fname). The game install's file is
         never written; the copy reads the texture caches where the map does (tfc-folder.txt)."""
         sys.path.insert(0, str(TOOLS / 'bake'))
-        import lighting_fixture
+        import lightmap_writer
         from package import link_caches
         folder = self.work / 'named'
         folder.mkdir(parents=True, exist_ok=True)
         named = folder / Path(self.base).name
-        self.name_tool(self.base, named, lighting_fixture.cache_table_name(self.cache_name))
+        self.name_tool(self.base, named, lightmap_writer.cache_table_name(self.cache_name))
         link_caches(folder, Path(self.base).parent)
         return named
 
@@ -1576,7 +1576,7 @@ class Build:
         tools = {str(p.relative_to(TOOLS.parent)).replace('\\', '/'): sha256(p)
                  for p in (Path(__file__).resolve(), TOOLS / 'editor' / 'compiler.py', PATCHTOOL, RELIGHT,
                            NATIVE_COPY, NATIVE_LIGHTS, LIGHT_FACTORY, INTRO_COPY, STREAM_COPY, TRANSPLANT,
-                           TOOLS / 'bake' / 'lighting_fixture.py', TOOLS / 'upk' / 'package_grow.py',
+                           TOOLS / 'bake' / 'lightmap_writer.py', TOOLS / 'upk' / 'package_grow.py',
                            TOOLS / 'upk' / 'seed_map.py', TOOLS / 'bake' / 'native_effects.py',
                            TOOLS / 'bake' / 'native_sounds.py', TOOLS / 'bake' / 'native_flares.py', MAP_FRAME,
                            INLINE_LIGHTING)

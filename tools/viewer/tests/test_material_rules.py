@@ -14,8 +14,10 @@ from PIL import Image  # noqa: E402
 from package import Package  # noqa: E402
 from settings import lwr_cooked  # noqa: E402
 
-# the LWR install's packages (the lwr setting), or XCOM_LWR_COOKED; without either, those tests skip
-COOKED = Path(os.environ.get('XCOM_LWR_COOKED') or lwr_cooked() or 'no-lwr-install-configured')
+# the LWR install's packages (the lwr setting), or the folder XCOM_COOKED (its old name XCOM_LWR_COOKED) names;
+# without either, those tests skip
+COOKED = Path(os.environ.get('XCOM_COOKED') or os.environ.get('XCOM_LWR_COOKED') or lwr_cooked()
+              or 'no-lwr-install-configured')
 
 
 class Rules(unittest.TestCase):

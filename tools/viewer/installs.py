@@ -263,10 +263,10 @@ def game_running():
 def plan_variant_lz(lz, m, note, zone=None):
     """(where, lines) to add to DefaultLZMutator.ini (lines of bytes) for a package's variant: the project's own
     landing-zone lines when it set them (the manifest's config.landingZonesFromProject; Clear map plan, section 4),
-    after the base map's last line or at the end of the file, else a copy of the base map's (deploy_fixture.plan_lz).
+    after the base map's last line or at the end of the file, else a copy of the base map's (mapsini.plan_lz).
     Nothing when the variant has lines already, or the project's list writes none. `zone` (Land here: a zone's id):
     that zone's line alone."""
-    import deploy_fixture as dep
+    import mapsini as dep
     base, variant, c = m['source']['map'], m['variant'], m.get('config') or {}
     if not c.get('landingZonesFromProject'):
         return dep.plan_lz(lz, base, variant, note)
@@ -305,7 +305,7 @@ def patchtool_record(lines, variant):
     "; <variant>: <base>'s record under its own name, ... (patchtool, <date>)"), else None. The variant's name comes
     from its project, so such a record is an earlier test of the same project: the editor stands in for it while its
     build is installed and puts it back with Remove from game."""
-    import deploy_fixture as dep
+    import mapsini as dep
     at = [i for i, l in enumerate(lines) if dep.is_record(l) and dep.field(l, 'Name') == variant]
     if len(at) != 1 or at[0] == 0: return None
     comment = lines[at[0] - 1]
@@ -331,7 +331,7 @@ def _rotation_out(lines, ledger, variant=None, kept=None):
 def _named(lines, variant):
     """Whether a live record of `lines` names the map `variant` (any case): a record the editor wrote that no longer
     stands as written is still in the game while one does, and is gone once none does (taken out by hand)."""
-    import deploy_fixture as dep
+    import mapsini as dep
     return any(dep.is_record(l) and same_map(dep.field(l, 'Name'), variant) for l in lines)
 
 
@@ -377,7 +377,7 @@ def _strip_rotation(lines, ledger):
 def pristine_lines(game, lines=None):
     """DefaultMaps.ini's lines (bytes, CRLF split) as the install has them: the editor's variant records taken out
     (any record one stood in for put back) and its rotation installs undone."""
-    import deploy_fixture as dep
+    import mapsini as dep
     lines = list(lines if lines is not None else dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes()))
     ledger = read_ledger(game)
     _strip_records(lines, ledger.get('records') or [])
@@ -403,7 +403,7 @@ def ready(game):
     if not config(game, 'DefaultMaps.ini').is_file(): return f'{game} has no XEW\\XComGame\\Config\\DefaultMaps.ini'
     if not cooked(game).is_dir(): return f'{game} has no XEW\\XComGame\\CookedPCConsole'
     try:
-        import deploy_fixture as dep
+        import mapsini as dep
         dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
         read_ledger(game)
     except (OSError, ValueError, InstallError) as error:
@@ -472,7 +472,7 @@ def base_records(lines, base):
     """[(index, record)] of the base map's records in DefaultMaps.ini's lines (bytes): its live records, or, for a map
     whose records are commented out that the editor takes (maplist.SWITCHED_OFF: Act1_IntroLevel), those records
     without the ';'. The name matches whatever its case (same_map)."""
-    import deploy_fixture as dep
+    import mapsini as dep
     import maplist
     live = [(i, l) for i, l in enumerate(lines) if dep.is_record(l) and same_map(dep.field(l, 'Name'), base)]
     if live or not any(same_map(m, base) for m in maplist.SWITCHED_OFF): return live
@@ -487,7 +487,7 @@ def _after_base(lines, ledger, base):
     """The index after the base map's last record in `lines`: its live records, the ones the editor commented out
     (a replaced map's, or switched off in the Game maps window), or, for a map the install comments out that the editor
     takes (maplist.SWITCHED_OFF), those. None when it has none."""
-    import deploy_fixture as dep
+    import mapsini as dep
     off = {c['written'].encode('latin-1') for c in ledger.get('linesOff') or [] if c.get('base') == base}
     at = [i for i, l in enumerate(lines) if (dep.is_record(l) and same_map(dep.field(l, 'Name'), base)) or l in off]
     if not at: at = [i for i, _ in base_records(lines, base)]
@@ -497,14 +497,14 @@ def _after_base(lines, ledger, base):
 def plan_record(lines, base, variant, streams=(), replace=None, note='', mission=None, index=None):
     """(where to insert, [a comment line, the record]): one of the base map's records under the variant's name and
     out of rotation: the one at `index` (the base map's records in file order: the export's `missions` order), else
-    deploy_fixture.slot_record's (its abduction where it has one), streaming `streams` in free slots and each stream in
+    mapsini.slot_record's (its abduction where it has one), streaming `streams` in free slots and each stream in
     `replace` (old name -> new) under its new name (the variant's own copy of the landing intro, F-45; a replacement
     the record doesn't stream is left out, and a `replace` it streams none of is an error). It goes after the base
     map's last record (base_records: a switched-off map's commented-out one, made live in the copy). The DisplayName
     keeps the base record's " |n" ending (LWR's records have one) and the text the game matches in it (missions.py,
     '_Bomb'). The record keeps its kind (a play is the mission's own: mission types plan, A1); `mission` puts another
     in its place (TEST_MISSION: a prefab test, whose map has no mission)."""
-    import deploy_fixture as dep
+    import mapsini as dep
     import missions
     found = base_records(lines, base)
     if not found: raise ValueError(f'no record for {base}')
@@ -551,7 +551,7 @@ def build_record(m, pristine, mission=None):
     before the manifest named them (no recordMissions) takes the record at that index of config.maps when there is one
     per base map record, else (or with no config.maps) the base map's record at that index from the install, as
     plan_record makes it (then the fourth value, own, is False)."""
-    import deploy_fixture as dep
+    import mapsini as dep
     import missions
     c = m.get('config') or {}
     maps, ids = c.get('maps') or [], c.get('recordMissions')
@@ -919,7 +919,7 @@ class _Change:
 
     def config(self, name, path, lines):
         """Noted before a config file is written: its bytes as they were (the first time), its hash after."""
-        import deploy_fixture as dep
+        import mapsini as dep
         entry = self.journal['configs'].get(name)
         if entry is None:
             self.folder.mkdir(parents=True, exist_ok=True)
@@ -970,9 +970,9 @@ def _change(game, what):
 
 
 def _write_config(game, name, lines):
-    """A config file of the install written through a temporary file and a replace (deploy_fixture.write_checked),
+    """A config file of the install written through a temporary file and a replace (mapsini.write_checked),
     noted first in the change under way."""
-    import deploy_fixture as dep
+    import mapsini as dep
     path = config(game, name)
     change = _current(game)
     if change is not None: change.config(name, path, lines)
@@ -1081,7 +1081,7 @@ def _exclusions_out(game, ledger, key, variants=None):
     """The drop-in exclusion lines the ledger notes under `key` taken out of DefaultRandomSpawns.ini (every variant's,
     or these), each only where it stands as written: (how many went, what was left in words). The ledger's list is
     updated, not written."""
-    import deploy_fixture as dep
+    import mapsini as dep
     blocks = [b for b in ledger.get(key) or [] if variants is None or b['variant'] in variants]
     if not blocks or not config(game, RANDOM_SPAWNS).is_file(): return 0, []
     rs = dep.lines_of(config(game, RANDOM_SPAWNS).read_bytes())
@@ -1106,7 +1106,7 @@ def _exclusions_out(game, ledger, key, variants=None):
 def _zones_out(game, ledger, key, variants=None):
     """The landing-zone lines the ledger notes under `key` taken out of DefaultLZMutator.ini (every variant's, or
     these): (how many variants' lines went, what was left in words). The ledger's list is updated, not written."""
-    import deploy_fixture as dep
+    import mapsini as dep
     blocks = [b for b in ledger.get(key) or [] if variants is None or b['variant'] in variants]
     if not blocks or not config(game, LZ).is_file(): return 0, []
     lz = dep.lines_of(config(game, LZ).read_bytes())
@@ -1190,7 +1190,7 @@ def clear_play(game, now=None):
     zones and files a play copied in, and the commands file. The installs for campaigns and the records switched off
     stay. Run once the game has closed (play.py's watch), and before the next play. Returns what it did, or None when
     there was nothing."""
-    import deploy_fixture as dep
+    import mapsini as dep
     game = Path(game)
     recover_change(game)
     ledger = read_ledger(game)
@@ -1250,7 +1250,7 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
     (missions.play_setup), and `mission` its id and label. `zone` (Land here: one of the project's landing
     zones, by id): under LWR that zone's line alone goes in; for a zone that is one of the map's own landings the
     result's `spawnGroup` names its group, for the play's open command (a plain install plays no lines)."""
-    import deploy_fixture as dep
+    import mapsini as dep
     game, folder = Path(game), Path(folder)
     m, files = read_package(folder, game)
     if expected is not None and m != expected:
@@ -1365,7 +1365,7 @@ def map_record(game, name, mission=None):
     """The record a play of a map alone plays for `mission` (an index into the map's records in file order, the
     export's `missions` order; None, the first): its text (bytes), from the install's own lines (the editor's taken
     out), or None for a map with no record. An InstallError for an index the map hasn't."""
-    import deploy_fixture as dep
+    import mapsini as dep
     found = base_records(pristine_lines(game, dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())), name)
     if not found: return None
     index = mission or 0
@@ -1387,7 +1387,7 @@ def install_map_record(game, name, mission=None, now=None):
       commented out (a project's build replaces the map, or it was switched off in the Game maps window) gets a display
       name of its own, so that no mission the game asks for by name finds it.
     Returns what was installed, or None. An earlier play's copy is replaced; Remove from game takes it out."""
-    import deploy_fixture as dep
+    import mapsini as dep
     import maplist
     import missions
     game = Path(game)
@@ -1455,13 +1455,13 @@ def install_map_record(game, name, mission=None, now=None):
 
 
 def _in_rotation(line):
-    import deploy_fixture as dep
+    import mapsini as dep
     return (dep.unquoted(line, 'bInRotation') or '').lower() == 'true'
 
 
 def _first_mission(line):
     """Whether a record of the install is the one a new campaign's first mission asks for by name (FIRST_MISSION)."""
-    import deploy_fixture as dep
+    import mapsini as dep
     return (dep.field(line, 'DisplayName') or '') in FIRST_MISSION
 
 
@@ -1484,7 +1484,7 @@ def rotation_plan(lines, m, note='', mode='additional', cards=False):
     cards: the records as a map pack card holds them (LWR map packs plan, 6.2). A card can't comment a record out;
     LWR puts a pack line in the place of the game's record with the same DisplayName. So in replace mode every record
     that stands for a base map record takes that record's DisplayName, in rotation or not."""
-    import deploy_fixture as dep
+    import mapsini as dep
     import maplist
     import missions as missions_module
     variant, base = m['variant'], m['source']['map']
@@ -1522,7 +1522,7 @@ def rotation_plan(lines, m, note='', mode='additional', cards=False):
 def base_mission(line):
     """A base map record's mission: {type, label, group, inRotation, byName, bomb, firstMission (when true)}, as
     rotation_plan's missions and the project manager's give it (review finding 55: written once)."""
-    import deploy_fixture as dep
+    import mapsini as dep
     import maplist
     group, kind, label = maplist.mission_of(line.decode('latin-1'))
     in_rotation, first = _in_rotation(line), _first_mission(line)
@@ -1536,7 +1536,7 @@ def _rotation_from_build(found, m, note, mode, cards=False):
     or out of rotation as the base map's record is (an added kind as ADDED_KINDS says: a bomb out, the rest in), and
     in replace mode a record the game asks for by name (out of rotation, or the first mission's) with the base map's
     display name. standsFor: the base map's records any of them names; kept: the others' missions."""
-    import deploy_fixture as dep
+    import mapsini as dep
     import maplist
     import missions as missions_module
     variant, base = m['variant'], m['source']['map']
@@ -1611,7 +1611,7 @@ def replaced_records(ledger, lines):
     """{record text: [the rotation entries that replace it]} over the install's own records in `lines` (pristine): an
     entry in replace mode replaces the base map's records it stands for (standsFor: those its build has records for,
     F-118), or, an entry written before standsFor, every record of its base map."""
-    import deploy_fixture as dep
+    import mapsini as dep
     entries = [e for e in ledger.get('rotation') or [] if e['mode'] == 'replace']
     out = {}
     for line in lines:
@@ -1630,7 +1630,7 @@ def _sync_off(lines, ledger, pristine):
     while a variant replaces it (a rotation install with mode 'replace' whose build has a record for its mission:
     replaced_records) or it is switched off by hand (manualOff: the Game maps window). What is commented out is kept in
     the ledger's linesOff ([{base, original, written}])."""
-    import deploy_fixture as dep
+    import mapsini as dep
     replaced = replaced_records(ledger, pristine)
     own = [l for l in pristine if dep.is_record(l)]
     manual = set(ledger.get('manualOff') or []) & {l.decode('latin-1') for l in own}
@@ -1667,7 +1667,7 @@ def _plan_rotation(ledger, new_maps, entries, pristine):
 
 def _write_rotation(game, ledger, maps, new_maps, entries, pristine):
     """DefaultMaps.ini written with the rotation installs `entries` (_plan_rotation)."""
-    import deploy_fixture as dep
+    import mapsini as dep
     _plan_rotation(ledger, new_maps, entries, pristine)
     if new_maps != maps: _write_config(game, 'DefaultMaps.ini', new_maps)
 
@@ -1685,7 +1685,7 @@ def _install_rotation(game, folder, mode, now=None):
     to another project, or a file the editor didn't put there, is never replaced: everything is checked (preflight,
     the planned config lines) before anything is written. The record Play in game adds (install_package) is separate and stays first, so a play still
     opens the variant by it. Returns what was installed, with mission_warnings."""
-    import deploy_fixture as dep
+    import mapsini as dep
     if mode not in ROTATION_MODES: raise InstallError(f'mode must be one of {", ".join(ROTATION_MODES)}')
     game = Path(game)
     m, files = read_package(folder, game)
@@ -1777,7 +1777,7 @@ def remove_rotation(game, variants, now=None, everything=False):
     records once no variant replaces it. everything: also the record Play in game added for each (install_package's,
     or install_map_record's for a map's name) and their landing zones. Their files stay (reset takes everything out).
     Returns the variants something was taken out for."""
-    import deploy_fixture as dep
+    import mapsini as dep
     game = Path(game)
     recover_change(game)
     ledger = read_ledger(game)
@@ -1816,7 +1816,7 @@ def set_records_use(game, originals, use, now=None):
     maps window. originals: the records' lines as the install has them (text). A record a variant replaces
     (replaced_records) stays commented out while it does, whatever is asked here. Returns dict(changed, replaced: the lines that stay off
     because a variant replaces their map)."""
-    import deploy_fixture as dep
+    import mapsini as dep
     game = Path(game)
     _check_ready(game)
     ledger = read_ledger(game)
@@ -1966,7 +1966,7 @@ def restore_saves(game, now=None):
 def reset(game, now=None):
     """Take everything of the editor's back out of the install: the records and landing-zone lines it added, the files
     it copied, the commands file and the config kept aside for a play. Returns what it did."""
-    import deploy_fixture as dep
+    import mapsini as dep
     game = Path(game)
     _check_ready(game)
     ledger = read_ledger(game)

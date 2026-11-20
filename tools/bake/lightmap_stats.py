@@ -12,85 +12,22 @@ support or weaken a reading of the format; they do not establish the decoder.
 """
 import argparse
 import collections
-import io
 import json
 import sys
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'upk'))
 sys.path.insert(0, str(ROOT / 'viewer'))
-import audit_lighting as lighting  # noqa: E402
-from texture import decompress_payload, dds_header  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lighting_records as lighting  # noqa: E402
+from lightmap_textures import top_mip_rgb  # noqa: E402,F401 (the readers the relight uses; udk_calib_read imports them here)
 
 INSET = 2
 DARK = 0.02
 PERCENTILES = [1, 10, 50, 90, 99]
-
-
-def top_mip_rgb(p, index):
-    """The largest live mip of a DXT1 texture as float RGB in [0, 1]."""
-    raw, w, h = top_mip_raw(p, index)
-    image = Image.open(io.BytesIO(dds_header(w, h, 'DXT1', len(raw)) + raw)).convert('RGB')
-    return np.asarray(image, dtype=np.float64) / 255.0
-
-
-def top_mip_rect(p, index, x0, y0, x1, y1):
-    """top_mip_rgb(p, index)[y0:y1, x0:x1], decoding only the 4-texel blocks the rectangle touches: a piece's
-    rectangle is a small part of its atlas, and a relight reads two for every piece."""
-    raw, w, h = top_mip_raw(p, index)
-    bw, bh = max(1, (w + 3) // 4), max(1, (h + 3) // 4)
-    bx0, by0, bx1, by1 = max(0, x0 // 4), max(0, y0 // 4), min(bw, -(-x1 // 4)), min(bh, -(-y1 // 4))
-    if bx1 <= bx0 or by1 <= by0:
-        return np.zeros((0, 0, 3))
-    part = np.frombuffer(raw, np.uint8).reshape(bh, bw, 8)[by0:by1, bx0:bx1].tobytes()
-    rw, rh = (bx1 - bx0) * 4, (by1 - by0) * 4
-    image = Image.open(io.BytesIO(dds_header(rw, rh, 'DXT1', len(part)) + part)).convert('RGB')
-    image = np.asarray(image, dtype=np.float64) / 255.0
-    return image[y0 - by0 * 4:y1 - by0 * 4, x0 - bx0 * 4:x1 - bx0 * 4]
-
-
-RAW_KEPT = 64       # top mips kept for each package (half a megabyte each at 1,024 texels)
-
-
-def top_mip_raw(p, index):
-    """(DXT1 bytes, width, height) of a texture's largest live mip, kept for the package (many pieces share an
-    atlas, and reading one from the texture cache decodes its LZO in Python)."""
-    kept = p.__dict__.setdefault('_top_mip_raw', {})
-    if index in kept:
-        return kept[index]
-    if p.effective(index, 'Format') != 'PF_DXT1':
-        raise ValueError(f'{p.name(index)} is not DXT1')
-    r = p.native(index)
-    lighting.bulk_meta(r)
-    best = None
-    for _ in range(r.count()):
-        start = r.pos
-        m = lighting.bulk_meta(r)
-        m['width'], m['height'] = r.unpack('2i')
-        if m['bytes'] and not m['flags'] & 32 and (best is None or m['width'] > best[0]['width']):
-            best = (m, start)
-    if best is None:
-        raise ValueError(f'{p.name(index)} has no live mip')
-    m, start = best
-    if m['inline']:
-        payload = p.data[start + 16:start + 16 + m['bytes']]
-    else:
-        cache = p.effective(index, 'TextureFileCacheName')
-        with lighting.cache_file(p.path.parent, cache).open('rb') as f:
-            f.seek(m['offset'])
-            payload = f.read(m['bytes'])
-    raw = decompress_payload(payload, m['flags'])
-    w, h = m['width'], m['height']
-    if len(raw) != max(1, (w + 3) // 4) * max(1, (h + 3) // 4) * 8:
-        raise ValueError('DXT1 mip size mismatch')
-    if len(kept) >= RAW_KEPT:
-        kept.pop(next(iter(kept)))
-    kept[index] = (raw, w, h)
-    return kept[index]
 
 
 def rounded(values, digits=4):
@@ -194,7 +131,7 @@ def main():
         scope='Read-only statistics of lightmap scales and texel values; not a decoder or runtime test',
         method=dict(insetTexels=INSET, skipDirectionalMaxBelow=DARK, mip='largest live mip, decoded DXT1 RGB / 255'),
         toolHashes={'tools/bake/lightmap_stats.py': lighting.digest(__file__),
-                    'tools/upk/audit_lighting.py': lighting.digest(lighting.__file__)},
+                    'tools/upk/lighting_records.py': lighting.digest(lighting.__file__)},
         packages=[audit(p, args.pairs) for p in args.packages])
     assert before == {str(p.resolve()): lighting.digest(p) for p in args.packages}, 'Input changed during audit'
     args.out.parent.mkdir(parents=True, exist_ok=True)

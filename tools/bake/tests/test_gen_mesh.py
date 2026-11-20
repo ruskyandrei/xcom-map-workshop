@@ -6,7 +6,6 @@ mesh of URB_Bar and URB_PoliceStation written back from its numbers is its own n
 whole install: research/evidence/frac-wall-audit.py). The collision tree's rules are checked on the same meshes, and
 the tree made for new triangles on its own."""
 from pathlib import Path
-import struct
 import sys
 import unittest
 

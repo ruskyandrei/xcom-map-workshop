@@ -71,8 +71,6 @@ DEFAULT_RECIPE = dict(repeat=256.0, slot=0, sections=1, thickness=8.0, colours=d
 
 
 def _looks():
-    if not LOOKS_FILE.exists():
-        return {'plain': dict(id='plain', name='Plain', recipe=dict(DEFAULT_RECIPE))}
     data = json.loads(LOOKS_FILE.read_text(encoding='utf-8'))
     return {look['id']: dict(look, recipe=dict(DEFAULT_RECIPE, **look.get('recipe', {}))) for look in data['looks']}
 

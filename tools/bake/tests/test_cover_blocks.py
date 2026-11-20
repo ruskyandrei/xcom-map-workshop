@@ -4,6 +4,8 @@ The recipe and geometry checks run anywhere. The map-backed checks read the conf
 and skip without it: URB_Bar, where blocks are built, and LWR's patch_policestation.upk, whose hidden cover helpers
 (XComLevelActor_0 on CoverPatch.highcover, high cover; XComLevelActor_2 on CoverPatch.Cover2x4, low cover) the recipe
 was checked against. Nothing is read from LWR's patch to build a block; the patch is only the reference here."""
+import hashlib
+import json
 from pathlib import Path
 import struct
 import sys
@@ -18,7 +20,7 @@ sys.path.insert(0, str(TOOLS / 'upk'))
 sys.path.insert(0, str(TOOLS / 'viewer'))
 import cover_blocks  # noqa: E402
 import native_copy  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import mesh as viewer_mesh  # noqa: E402
 import package_grow  # noqa: E402
 import props as legacy_props  # noqa: E402
@@ -169,7 +171,7 @@ class Recipe(unittest.TestCase):
         classes = ['SkeletalMesh', 'RB_BodySetup', 'StaticMesh', 'RB_BodySetup']
         package = SimpleNamespace(exports=[dict(outer=i) for i in (0, 1, 0, 3)],
                                   cls=lambda i: classes[i - 1] if i else '')
-        self.assertEqual(cover_blocks._template(None, package, 'RB_BodySetup', outer_class='StaticMesh'), 4)
+        self.assertEqual(cover_blocks.export_template(None, package, 'RB_BodySetup', outer_class='StaticMesh'), 4)
 
     def test_versions(self):
         self.assertEqual(sorted(cover_blocks.RECIPES), [1, 2])
@@ -637,11 +639,18 @@ class BlocksSmallerThanATile(unittest.TestCase):
         self.assertEqual(got, [[-1786.5, -144.0, 39.0], [-1711.5, -144.0, 39.0]])
 
 
+
+def breaking_digest(version):
+    """SHA-256 of a breaking block's recipe, pinned as recipe_digest's is."""
+    text = json.dumps(cover_blocks.breaking_recipe(version), sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
 class BreakingRecipe(unittest.TestCase):
     def test_versions_and_kinds(self):
         self.assertEqual(sorted(cover_blocks.BREAKING), [1, 2])
-        self.assertEqual(cover_blocks.breaking_digest(1), BREAKING_DIGEST_1)
-        self.assertEqual(cover_blocks.breaking_digest(2), BREAKING_DIGEST_2)
+        self.assertEqual(breaking_digest(1), BREAKING_DIGEST_1)
+        self.assertEqual(breaking_digest(2), BREAKING_DIGEST_2)
         self.assertEqual(sorted(cover_blocks.BREAKING[1]['kinds']), ['high', 'low'])
         self.assertEqual(sorted(cover_blocks.BREAKING[2]['kinds']), ['block', 'high', 'low'])
         with self.assertRaises(ValueError):

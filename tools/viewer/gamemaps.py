@@ -40,7 +40,7 @@ def _game(player, what):
 
 
 def _row(line, **more):
-    import deploy_fixture as dep
+    import mapsini as dep
     text = line.decode('latin-1')
     group, kind, label = maplist.mission_of(text)
     return dict(id=record_id(line), name=dep.field(line, 'Name'), display=dep.field(line, 'DisplayName') or '',
@@ -48,7 +48,7 @@ def _row(line, **more):
 
 
 def listing(player):
-    import deploy_fixture as dep
+    import mapsini as dep
     game = _game(player, 'Not known')
     try:
         ledger = installs.read_ledger(game)
@@ -111,7 +111,7 @@ def listing(player):
 
 def use(player, request):
     """The install's own records switched on or off."""
-    import deploy_fixture as dep
+    import mapsini as dep
     # (each id a text: a list or an object in their place made set() raise, review finding 46)
     if not isinstance(request, dict) or not isinstance(request.get('records'), list) or not request['records'] \
             or not all(isinstance(r, str) for r in request['records']) or not isinstance(request.get('use'), bool):

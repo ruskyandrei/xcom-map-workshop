@@ -10,13 +10,13 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import native_copy  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import lightmap_fields  # noqa: E402
 import package_grow  # noqa: E402
 import relight  # noqa: E402
 import seed_map  # noqa: E402
-import seed_tiles  # noqa: E402
 import shadowmaps  # noqa: E402
+import world_links  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import labpaths  # noqa: E402
@@ -950,7 +950,7 @@ class NativeCopy(unittest.TestCase):
                          (-2784, -1920.0, 0.0, 52, 39, 12))
         g = package_grow.Grower(str(BAR))
         info = native_copy.clone_actor(g, p, old, where, rotation)
-        tiles = native_copy.add_tiles(g, p, old, where, rotation)
+        tiles = native_copy.add_tiles_box(g, p, native_copy.piece_box(p, old, where, rotation))
         # the post crosses tiles 16-17 x 0-1 up to level 6; with a ring around and a level above, nothing was marked
         self.assertEqual(tiles['tiles'], [15, 18, 0, 2, 1, 7])
         self.assertEqual((tiles['seeded'], tiles['alreadyMarked']), (84, 0))
@@ -978,7 +978,7 @@ class NativeCopy(unittest.TestCase):
             # the seeds read back; the template is untouched
             e = [i for i in range(1, len(q.exports) + 1) if q.cls(i) == 'XComWorldDataContainer'][0]
             blob = q.data[q.exports[e - 1]['off']:q.exports[e - 1]['off'] + q.exports[e - 1]['size']]
-            _, at, _ = seed_tiles.parse_static_store(blob)
+            _, at, _ = world_links.static_tiles(blob)
             self.assertTrue(all(struct.unpack_from('<I', blob, at[tuple(t)])[0] & 0xFFF == native_copy.SEED
                                 for t in tiles['seededTiles']))
             template = q.by_name[PL + native_copy.REBUILD_TEMPLATE]
@@ -1203,7 +1203,7 @@ class VertexLit(unittest.TestCase):
                 native_copy.check_vertex_lightmaps(lighting.Package(out), info['mapping'])
 
 
-@unittest.skipUnless(BLANK.exists(), NO_BLANK)
+@unittest.skipUnless(BLANK and BLANK.exists(), NO_BLANK)
 class BakedDirectionalLight(unittest.TestCase):
     """(EXP-79 run D) The blank map's only light is a baked DirectionalLight, which its own pieces' lightmaps list. A
     piece of another map, or a ground shape made from one, brought onto it is given that light, as the point and spot
@@ -1229,7 +1229,7 @@ class BakedDirectionalLight(unittest.TestCase):
         self.assertEqual([x for x in native_copy.extra_lights(p, plane, [0.0, 0.0, 4.0], [0, 0, 0])
                           if x['light'] == p.name(light[0])], [])
 
-    @unittest.skipUnless(BAR.exists(), NO_BAR)
+    @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
     def test_a_dominant_light_is_not_listed(self):
         # URB_Bar's moon is a dominant light: it lights by shadow maps, never a lightmap's list
         p = lighting.Package(BAR)

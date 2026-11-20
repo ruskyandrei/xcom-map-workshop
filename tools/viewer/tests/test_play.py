@@ -27,7 +27,7 @@ import missions  # noqa: E402
 from play import Player  # noqa: E402
 import playsaves  # noqa: E402
 from projects import ProjectError, ProjectStore  # noqa: E402
-from test_deploy import record  # noqa: E402
+from fixtures import record  # noqa: E402
 from viewer_fixtures import ID, OTHER, document  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 

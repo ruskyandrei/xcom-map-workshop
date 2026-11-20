@@ -50,7 +50,6 @@ if str(HERE.parent / 'viewer') not in sys.path:
 
 NAME = 'MapPicture'
 WIDTH, HEIGHT = 512, 256
-FORMAT = 'DXT1'
 PIXEL_BYTES = WIDTH * HEIGHT // 2          # DXT1: 8 bytes a block of 16 texels
 EXPORT_BYTES = 65890
 # the game's own map-image packages (the install's CookedPCConsole, <name>_SF.upk), each picture under a package of
@@ -209,7 +208,7 @@ def find(g):
     import light_factory
     for index, e in enumerate(g.entries, 1):
         if e.outer == 0 and g.name_of(e.name_index, e.name_number) == NAME \
-                and light_factory._class_name(g, e.cls) == 'Texture2D':
+                and light_factory.class_of(g, e.cls) == 'Texture2D':
             return index
     return None
 
@@ -225,7 +224,7 @@ def add_picture(g, pixels):
         net = struct.unpack_from('<i', g.export_data(index), 0)[0]
         g.relocate(index, picture_data(g, pixels, net, g.next_offset()))
         return index, 'replaced'
-    found, _made = cover_blocks._imports(g, RECIPE)
+    found, _made = cover_blocks.recipe_imports(g, RECIPE)
     cls = found[RECIPE['class']]
     if cls >= 0:
         raise ValueError('the map holds Engine as a package of its own; no Texture2D class to import')
@@ -255,13 +254,6 @@ def locate(p):
         return dict(export=index, swap=None, pixels=None)
     at = mips[0]['after']
     return dict(export=index, swap=(at, at + PIXEL_BYTES + 8), pixels=d['pixels'])
-
-
-def read_picture(path):
-    """The DXT1 pixels of the map package's own picture, or None when it has none (or one laid out another way)."""
-    import package as viewer_package
-    found = locate(viewer_package.Package(path))
-    return found['pixels'] if found else None
 
 
 def write_picture(src, dst, pixels):

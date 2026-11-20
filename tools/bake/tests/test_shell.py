@@ -26,6 +26,25 @@ POLICE, NO_POLICE = labpaths.install_map('URB_PoliceStation')
 INTRO, NO_INTRO = labpaths.install_map('Act1_IntroLevel')
 FARM, NO_FARM = labpaths.install_map('CsmallScout_Farm')
 
+_EQUIPPED = {}
+
+
+def equipped(**options):
+    """(the equip's report, the written map) of the blank map equipped with `options`, written once for every class
+    of the module that only reads it (review finding 61: a whole-map write each)."""
+    key = tuple(sorted(options.items()))
+    if key not in _EQUIPPED:
+        tmp = tempfile.TemporaryDirectory()
+        report = shell.equip(BLANK, tmp.name, **options)
+        _EQUIPPED[key] = (tmp, report, Package(Path(tmp.name) / Path(BLANK).name))
+    return _EQUIPPED[key][1:]
+
+
+def tearDownModule():
+    for tmp, _, _ in _EQUIPPED.values():
+        tmp.cleanup()
+    _EQUIPPED.clear()
+
 
 class Fit(unittest.TestCase):
     def test_a_long_enough_span_moves_the_least_and_keeps_its_length(self):
@@ -488,16 +507,12 @@ class GrownPoliceStation(unittest.TestCase):
 
 @unittest.skipUnless(BLANK and BLANK.exists() and BAR and BAR.exists(), NO_BLANK)
 class TallerGrid(unittest.TestCase):
-    """The blank map equipped and made 18 levels high, the tallest map's (prefab plan 5.6b): upward from its ground."""
+    """The blank map equipped and made 18 levels high, the tallest map's (prefab plan 5.6b): upward from its ground.
+    Equipped with the runtime fill light too, which AmbientLight reads from the same map (equipped); it changes
+    nothing here."""
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.TemporaryDirectory()
-        cls.report = shell.equip(BLANK, cls.tmp.name, levels=18)
-        cls.p = Package(Path(cls.tmp.name) / Path(BLANK).name)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tmp.cleanup()
+        cls.report, cls.p = equipped(levels=18, ambient=True)
 
     def test_every_part_says_the_new_height(self):
         import struct
@@ -632,33 +647,32 @@ class HiddenGround(unittest.TestCase):
 
 @unittest.skipUnless(BLANK and BLANK.exists() and BAR and BAR.exists(), NO_BLANK)
 class AmbientLight(unittest.TestCase):
+    """The runtime fill light (--ambient), read from TallerGrid's map, equipped with it (equipped)."""
     def test_runtime_fill_is_listed_and_reaches_static_and_dynamic_meshes(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            report = shell.equip(BLANK, tmp, ambient=True)
-            p = Package(Path(tmp) / Path(BLANK).name)
-            actor = p.by_name[report['ambientLight']['actor']]
-            self.assertIn(actor, shell.listed(p))
-            self.assertEqual(p.cls(actor), 'SkyLight')
-            component = p.own(actor, 'LightComponent')
-            self.assertEqual(p.cls(component), 'SkyLightComponent')
-            self.assertIs(p.own(component, 'UseDirectLightMap'), False)
-            self.assertIs(p.own(component, 'CastShadows'), False)
-            self.assertAlmostEqual(p.own(component, 'Brightness'), shell.AMBIENT_UPPER)
-            self.assertAlmostEqual(p.own(component, 'LowerBrightness'), shell.AMBIENT_LOWER)
-            self.assertEqual(p.own(component, 'LightAffectsClassification'), 'LAC_DYNAMIC_AND_STATIC_AFFECTING')
-            raw = p.own(component, 'LightingChannels')
-            channels = {name: raw[at] for name, kind, _, at, _ in native_copy.Walker(p).walk(raw, 0, len(raw))
-                        if kind == 'BoolProperty'}
-            self.assertEqual(channels, {f'{name}[0]': 1 for name in
-                                       ('bInitialized', 'BSP', 'Static', 'Dynamic', 'CompositeDynamic')})
-            sun = p.by_name[report['ambientLight']['directional']]
-            self.assertIn(sun, shell.listed(p))
-            self.assertIs(p.own(sun, 'bMovable'), True)
-            self.assertIs(p.own(sun, 'bStatic'), False)
-            component = p.own(sun, 'LightComponent')
-            self.assertIs(p.own(component, 'bForceDynamicLight'), True)
-            self.assertIs(p.own(component, 'UseDirectLightMap'), False)
-            self.assertAlmostEqual(p.own(component, 'Brightness'), shell.STAGE_SUN_BRIGHTNESS)
+        report, p = equipped(levels=18, ambient=True)
+        actor = p.by_name[report['ambientLight']['actor']]
+        self.assertIn(actor, shell.listed(p))
+        self.assertEqual(p.cls(actor), 'SkyLight')
+        component = p.own(actor, 'LightComponent')
+        self.assertEqual(p.cls(component), 'SkyLightComponent')
+        self.assertIs(p.own(component, 'UseDirectLightMap'), False)
+        self.assertIs(p.own(component, 'CastShadows'), False)
+        self.assertAlmostEqual(p.own(component, 'Brightness'), shell.AMBIENT_UPPER)
+        self.assertAlmostEqual(p.own(component, 'LowerBrightness'), shell.AMBIENT_LOWER)
+        self.assertEqual(p.own(component, 'LightAffectsClassification'), 'LAC_DYNAMIC_AND_STATIC_AFFECTING')
+        raw = p.own(component, 'LightingChannels')
+        channels = {name: raw[at] for name, kind, _, at, _ in native_copy.Walker(p).walk(raw, 0, len(raw))
+                    if kind == 'BoolProperty'}
+        self.assertEqual(channels, {f'{name}[0]': 1 for name in
+                                   ('bInitialized', 'BSP', 'Static', 'Dynamic', 'CompositeDynamic')})
+        sun = p.by_name[report['ambientLight']['directional']]
+        self.assertIn(sun, shell.listed(p))
+        self.assertIs(p.own(sun, 'bMovable'), True)
+        self.assertIs(p.own(sun, 'bStatic'), False)
+        component = p.own(sun, 'LightComponent')
+        self.assertIs(p.own(component, 'bForceDynamicLight'), True)
+        self.assertIs(p.own(component, 'UseDirectLightMap'), False)
+        self.assertAlmostEqual(p.own(component, 'Brightness'), shell.STAGE_SUN_BRIGHTNESS)
 
 
 if __name__ == '__main__':

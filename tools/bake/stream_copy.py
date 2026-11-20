@@ -29,7 +29,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'upk'))
 sys.path.insert(0, str(HERE.parent / 'viewer'))
 sys.path.insert(0, str(HERE))
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import native_copy  # noqa: E402
 import package_grow  # noqa: E402
 
@@ -66,8 +66,8 @@ def move_actors(g, p, moves, src):
             b_loc, b_turn = (b['location'], b['rotation']) if b else pose(p, base)
             b_yaw = b_turn[1]
             relative = spawns.turn([location[k] - b_loc[k] for k in range(3)], -b_yaw)
-        native_spawns._set(walker, g, p, i, location, rotation if list(rotation) != list(old[1]) or p.own(i, 'Rotation') is not None
-                           else None, relative)
+        native_copy.set_pose(walker, g, p, i, location, rotation if list(rotation) != list(old[1]) or p.own(i, 'Rotation') is not None
+                             else None, relative)
         rows.append(dict(actor=m['actor'], export=i, old=dict(location=list(old[0]), rotation=list(old[1])),
                          new=dict(location=location, rotation=rotation),
                          **({'relative': [round(v, 4) for v in relative]} if relative is not None else {})))

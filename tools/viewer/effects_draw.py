@@ -46,10 +46,8 @@ MASK_WORDS = frozenset('MASK MSK ALPHA GRADIENT GRAD OPACITY OPA'.split())
 # a texture whose three channels are three pictures (T_Dust_Grainy_3Channel): one channel is the opacity, no colour
 PACKED_WORDS = frozenset('CHANNEL CHANNELS PACKED 3CHANNEL'.split())
 ALPHA_FORMATS = ('PF_DXT5', 'PF_DXT3', 'PF_A8R8G8B8')
-# Sprite materials whose textures the rule (pick_textures) gets wrong, by material path: {picture: a texture's short
-# name, mask: one or None, opacity: 'alpha' | 'brightness' | 'none', maskFrom: 'brightness' | 'alpha' | 'red',
-# markerOnly: True (not drawn: its marker alone)}.
-# Filled from the comparison with the game's own pictures (plan Part G); a change here needs DRAW_VERSION raised.
+# Still passed to attach() by the exporter and the library: no material's textures are picked by hand (a table of
+# them was planned and never filled; review finding 63), so attach() reads nothing from it.
 RULES = {}
 
 
@@ -344,7 +342,7 @@ def sends_events_only(p, lod):
     return any(p.cls(m) == P + 'EventGenerator' for m in modules)
 
 
-def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
+def emitter_draw(p, defaults, lod, exporter, compiled_textures):
     """An emitter's first LOD level as the page draws it: (draw record or None, why not)."""
     if defaults.value(lod, 'bEnabled', True)[0] is False:
         return None, 'switched off in its system'
@@ -389,41 +387,30 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
     draw['material'] = p.name(material) if material else None
     if material and 'DISTORTION' in words(short(p.name(material))):
         return None, 'it only bends the light behind it'
-    if True:        # (sprites and meshes alike: the textures the material draws with)
-        candidates = []
-        for tex, name in (sprite_textures(p, material, compiled_textures) if material > 0 else []):
-            key = exporter.texture(tex)
-            if key:
-                info = exporter.textures[key]
-                traits = info.get('traits')
-                if traits is None:
-                    try:
-                        traits = info['traits'] = texture_traits(exporter.folder / info['url'])
-                    except (OSError, ValueError, KeyError, AttributeError):
-                        traits = info['traits'] = dict(grey=False, shape=info.get('format') in ALPHA_FORMATS, packed=False, bright=0.5)
-                candidates.append(dict(key=key, name=p.name(tex), parameter=name, alpha=info.get('format') in ALPHA_FORMATS, **traits))
-        rule = (rules or {}).get(draw['material']) or {}
-        if rule.get('markerOnly'):
-            return None, 'not drawn here'
-        grid = draw['subImages'] != [1, 1]
-        solid = draw['blend'] in ('BLEND_Opaque', 'BLEND_Masked')
-        picked = pick_textures(candidates, grid, solid, added=draw['blend'] == 'BLEND_Additive')
-        by_name = {short(c['name']): c['key'] for c in candidates}
-        if rule.get('picture') in by_name:
-            picked['picture'] = by_name[rule['picture']]
-        if 'mask' in rule:
-            picked['mask'] = by_name.get(rule['mask'])
-        for key in ('opacity', 'maskFrom'):
-            if rule.get(key):
-                picked[key] = rule[key]
-        if not candidates and material <= 0 and kind == 'sprite':
-            if material < 0 and p.name(material) == 'EngineMaterials.DefaultParticle' and sends_events_only(p, lod):
-                return None, 'it only sends events: nothing is seen'
-            return None, 'its material is in another package' if material < 0 else 'no material'
-        draw.update(textures=candidates, **picked)
-        colours = material_colours(p, material) if material > 0 else {}
-        if colours:
-            draw['colours'] = colours
+    # sprites and meshes alike: the textures the material draws with
+    candidates = []
+    for tex, name in (sprite_textures(p, material, compiled_textures) if material > 0 else []):
+        key = exporter.texture(tex)
+        if key:
+            info = exporter.textures[key]
+            traits = info.get('traits')
+            if traits is None:
+                try:
+                    traits = info['traits'] = texture_traits(exporter.folder / info['url'])
+                except (OSError, ValueError, KeyError, AttributeError):
+                    traits = info['traits'] = dict(grey=False, shape=info.get('format') in ALPHA_FORMATS, packed=False, bright=0.5)
+            candidates.append(dict(key=key, name=p.name(tex), parameter=name, alpha=info.get('format') in ALPHA_FORMATS, **traits))
+    grid = draw['subImages'] != [1, 1]
+    solid = draw['blend'] in ('BLEND_Opaque', 'BLEND_Masked')
+    picked = pick_textures(candidates, grid, solid, added=draw['blend'] == 'BLEND_Additive')
+    if not candidates and material <= 0 and kind == 'sprite':
+        if material < 0 and p.name(material) == 'EngineMaterials.DefaultParticle' and sends_events_only(p, lod):
+            return None, 'it only sends events: nothing is seen'
+        return None, 'its material is in another package' if material < 0 else 'no material'
+    draw.update(textures=candidates, **picked)
+    colours = material_colours(p, material) if material > 0 else {}
+    if colours:
+        draw['colours'] = colours
     spawn = p.own(lod, 'SpawnModule', 0) or 0
     draw['rate'] = distribution(defaults, p, spawn, 'Rate') if spawn > 0 else None
     draw['rateScale'] = distribution(defaults, p, spawn, 'RateScale') if spawn > 0 else None
@@ -461,7 +448,8 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures, rules=None):
 
 def attach(p, defaults, systems, exporter, compiled_textures, rules=None, warn=None):
     """Each system record of `systems` ({'<package>|<path>': record}) gains `draw` on its emitters (None with `why`
-    where the page can't draw one). The emitters are the system's `Emitters` in order, as system_record lists them."""
+    where the page can't draw one). The emitters are the system's `Emitters` in order, as system_record lists them.
+    `rules` is RULES, which its callers still pass: unused."""
     for key, record in systems.items():
         if not record:
             continue
@@ -477,7 +465,7 @@ def attach(p, defaults, systems, exporter, compiled_textures, rules=None, warn=N
             try:
                 lods = [r for r in p.refs(p.own(em, 'LODLevels')) if r > 0]
                 if lods:
-                    e['draw'], e['why'] = emitter_draw(p, defaults, lods[0], exporter, compiled_textures, rules)
+                    e['draw'], e['why'] = emitter_draw(p, defaults, lods[0], exporter, compiled_textures)
             except (FormatError, ValueError, IndexError, KeyError, struct.error, OSError) as error:
                 e['draw'], e['why'] = None, 'not read'
                 if warn:

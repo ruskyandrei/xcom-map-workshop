@@ -26,7 +26,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import relight  # noqa: E402  (sets up the tool paths)
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import lightmap_fields  # noqa: E402
 import lightmap_texels  # noqa: E402
 import shadows  # noqa: E402

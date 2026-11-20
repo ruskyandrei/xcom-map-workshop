@@ -36,7 +36,7 @@ from projects import RESERVED as DEVICES, SCHEMA as PROJECT_SCHEMA, ProjectError
 LIMIT = 24              # a newly allocated map name: its patch, patch_<name>, keeps to PACKAGE_LIMIT
 PACKAGE_LIMIT = 30      # UDK's Save As refuses longer package names (findings register T-09)
 CACHE_SUFFIX = '_Lighting'
-# the streamed intros a build copies under the variant's name (tools/editor/build.py INTROS)
+# the streamed intros a build copies under the variant's name (tools/editor/build.py and tools/bake/intro_copy.py)
 INTROS = ('CIN_DropshipIntros', 'CIN_FastropeIntros', 'CIN_TP05A_EnteringAlienBase')
 # the beginnings kept for other files: edit patches, a prefab test's map and patch, and the intro copies
 RESERVED_PREFIXES = ('patch_', 'pt_', 'pp_') + tuple(f'{i}_' for i in INTROS)

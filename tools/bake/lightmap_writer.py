@@ -1,0 +1,533 @@
+"""A map's lighting written from fixed-size edits: every baked Build's relight writes its result through this
+(tools/bake/relight.py), and the Build names the variant texture cache by its rules (cache_fname).
+
+Writes <out>/<variant>.upk, a copy of the source map with the chosen edits, and, when a texture is redirected, the
+variant texture cache <out>/<cache>.tfc with the redirected mips. The shared Lighting.tfc is only read. A manifest
+(<out>/<variant>.fixture.json) records the source and output hashes and every edit with its old and new values.
+
+Operations (a JSON list, run's `ops`):
+- {"op": "redirect", "texture": name}: copy the texture's mips stored in Lighting.tfc into the variant cache unchanged
+  and point the texture there.
+- {"op": "setscale", "component": path, "slot": 1, "value": [x, y, z]}: set one LOD-0 slot scale.
+- {"op": "image", "component": path, "slot": 1, "npz": file, "key": name}: write per-texel values into the
+  component's rectangle: the .npz holds <name> (h, w, 3: stored 0-1 values over the rectangle's texel bounds at the
+  top mip) and <name>_mask (h, w: the texels to set). Partly covered blocks are merged; lower mips down to 1/64 of
+  the top mip's width (16 texels for a 1024 atlas, 4 for the small ones) are rebuilt from the edited top mip by box
+  averaging (relight.py writes these).
+- {"op": "gray", "texture": name, "x0": x, "y0": y, "npz": file, "key": name}: write one-byte texels (a G8
+  dominant-light shadow map, `shadowmaps.py`) at [x0, x0 + w) x [y0, y0 + h) of the top mip: the .npz holds <name>
+  (h, w: values 0-1) and <name>_mask; lower mips are rebuilt over the touched texels by box averaging.
+
+A texture whose mips are all inside the map package (the small lightmaps, up to 64 texels wide, uncompressed) is
+written there in place, at the same size; only textures with mips in Lighting.tfc are redirected to the variant
+cache.
+
+The variant cache's name is stored in each redirected texture as an FName (name index, number), so the edit keeps its
+size, and its text must already be in the map's name table (cache_fname): the editor's Build names it
+`<Map>_Lighting`, which a growing write adds to the table first (native_copy.py; the Build's named copy for a relight
+alone); a name ending `_<n>` is `<Name>` numbered n + 1 (`Lighting_7000`, the Build's until 16 November 2026, needs
+only `Lighting`, which every map has).
+
+The stage C0-C2 experiment's fixtures (EXP-17: a no-op re-encode, a scaled slot, painted rectangles) and their command
+line are lighting_fixture.py's, on top of this.
+"""
+import bisect
+import hashlib
+import json
+import math
+import re
+import struct
+import sys
+from pathlib import Path
+
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'upk'))
+sys.path.insert(0, str(ROOT / 'viewer'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lighting_records as lighting  # noqa: E402
+import dxt1  # noqa: E402
+import lightmap_fields  # noqa: E402
+from lightmap_texels import rect_bounds  # noqa: E402
+import package_edit  # noqa: E402
+from texture import decompress_payload  # noqa: E402
+
+BULK_TAG = 0x9E2A83C1
+CACHE_FLAG = 1          # BULKDATA_StoreInSeparateFile
+LZO_FLAG = 16           # BULKDATA_SerializeCompressedLZO
+
+
+def sha256(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def compressed_bulk(raw, block_size):
+    """UE3 compressed bulk payload (LZO flag) holding raw as literal-LZO blocks."""
+    blocks = [raw[k:k + block_size] for k in range(0, len(raw), block_size)]
+    enc = [package_edit.lzo_literals(b) for b in blocks]
+    out = struct.pack('<4I', BULK_TAG, block_size, sum(map(len, enc)), len(raw))
+    out += b''.join(struct.pack('<II', len(e), len(b)) for e, b in zip(enc, blocks)) + b''.join(enc)
+    if decompress_payload(out, LZO_FLAG) != raw:
+        raise ValueError('compressed bulk round trip failed')
+    return out
+
+
+def bulk_block_size(payload):
+    tag, block_size = struct.unpack_from('<II', payload, 0)
+    if tag != BULK_TAG or block_size == 0:
+        raise ValueError('not a compressed bulk payload')
+    return block_size
+
+
+CACHE_NAME = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,62}')
+NUMBERED = re.compile(r'([A-Za-z][A-Za-z0-9_]*?)_(0|[1-9][0-9]*)')     # an FName's number: no leading zero
+FNAME_NUMBER_MAX = 2 ** 31 - 2      # the stored number is n + 1, a signed 32-bit int
+
+
+def cache_fname(cache):
+    """The FName a texture cache's name is stored as: (table text, number). A name ending _<n> (the editor's builds
+    until 16 November 2026: Lighting_7000) is <Name> numbered n + 1, as the engine splits it; any other (the
+    editor's <Map>_Lighting) is itself, number 0. A ValueError for a name that is no file name or whose number is
+    out of range."""
+    if not isinstance(cache, str) or not CACHE_NAME.fullmatch(cache):
+        raise ValueError(f'{cache!r} is not a texture cache name (letters, digits and _, starting with a letter)')
+    m = NUMBERED.fullmatch(cache)
+    if m:
+        n = int(m.group(2))
+        if n > FNAME_NUMBER_MAX:
+            raise ValueError(f'{cache}: the number is too large for a name')
+        return m.group(1), n + 1
+    return cache, 0
+
+
+def cache_table_name(cache):
+    """The text the map's name table must hold for the cache name `cache` (cache_fname): a growing write adds it
+    (native_copy.py, the Build's named copy) before the fixture writes the name."""
+    return cache_fname(cache)[0]
+
+
+def parse_cache_name(p, cache):
+    """The cache name `cache` as (name index, number) in the map `p`'s name table. Refused when its text isn't in the
+    table (a fixed-size edit can't add it), or when <cache>.tfc is beside the map already (never written over)."""
+    text, number = cache_fname(cache)
+    if text not in p.names:
+        raise ValueError(f'{text} is not in the map\'s name table' + (
+            '' if number else ' (a growing write adds it first: package_grow.Grower.name)'))
+    if (p.path.parent / f'{cache}.tfc').exists():
+        raise ValueError(f'{cache}.tfc already exists beside the source map')
+    return p.names.index(text), number
+
+
+class Fixture:
+    def __init__(self, src, cache, tfc=None):
+        """`tfc`: the Lighting.tfc to read cached mips from (default: the source map's, beside it or where its
+        tfc-folder.txt points)."""
+        self.p = lighting.Package(src)
+        self.tfc = Path(tfc) if tfc else lighting.cache_file(self.p.path.parent, 'Lighting')
+        if self.p.header['lic'] != 64:
+            raise ValueError('EW licensee-64 maps only')
+        self.cache = cache
+        self.cache_name = parse_cache_name(self.p, cache) if cache else None
+        self.edits = {}            # logical offset -> bytes
+        self.edit_starts = []      # their offsets in order (an overlap is looked for among neighbours only)
+        self.force = []            # offsets of forced no-op edits (lighting_fixture.py's noop)
+        self.cache_data = bytearray()
+        self.redirected = {}       # texture export -> {mip index: (payload, raw)}
+        self.in_package = {}       # texture export -> its fields, for textures with every mip inline
+        self.imaged = {}           # texture export -> the components whose rectangles were written into it (image)
+        self.log = []
+
+    def edit(self, offset, data, what):
+        old = bytes(self.p.data[offset:offset + len(data)])
+        if not len(data):
+            raise ValueError(f'{what}: an empty edit')       # (the writer refuses one: package_edit.normalise_edits)
+        o = package_edit.overlapping(self.edits, self.edit_starts, offset, len(data))
+        if o is not None:
+            raise ValueError(f'{what}: overlaps an earlier edit at {o}')
+        self.edits[offset] = bytes(data)
+        bisect.insort(self.edit_starts, offset)
+        self.log.append(dict(what=what, offset=offset, old=old.hex(), new=bytes(data).hex()))
+
+    def unedit(self, offset):
+        """The edit at `offset` taken back, when there is one (its log entries are the caller's)."""
+        if self.edits.pop(offset, None) is not None:
+            del self.edit_starts[bisect.bisect_left(self.edit_starts, offset)]
+
+    def component(self, path):
+        index = self.p.by_name.get(path)
+        if index is None:
+            raise ValueError(f'no export {path}')
+        f = lightmap_fields.component_fields(self.p, index)
+        if not f['lods'] or f['lods'][0]['lightmap']['type'] != 2:
+            raise ValueError(f'{path} has no LOD-0 texture lightmap')
+        return f['lods'][0]['lightmap']
+
+    def _texture(self, index):
+        return lightmap_fields.texture_fields(self.p, index)
+
+    def redirect(self, index):
+        """Read the texture's cached mips; the cache retarget is written by finish(). A texture with every mip inside
+        the package has nothing to redirect: its mips are edited in place (empty `mips`)."""
+        if index in self.redirected:
+            return self.redirected[index]
+        if index in self.in_package:
+            return self.in_package[index]
+        if self.cache_name is None:
+            raise ValueError('redirect and paint need --cache')
+        t = self._texture(index)
+        # no cache name: kept wholly inside the map (texture_fields checked every live mip is inline), so no mip is
+        # read below and it is edited in place
+        if t['cache'] is not None and t['cache'] != 'Lighting':
+            raise ValueError(f'{t["path"]} is not in Lighting.tfc')
+        mips = {}
+        tfc = self.tfc
+        with tfc.open('rb') as f:
+            for k, m in enumerate(t['mips']):
+                if not m['flags'] & CACHE_FLAG or not m['bytes'] or m['flags'] & 32:
+                    continue
+                if m['flags'] & ~(CACHE_FLAG | LZO_FLAG):
+                    raise ValueError(f'unexpected bulk flags {m["flags"]}')
+                f.seek(m['offset'])
+                payload = f.read(m['bytes'])
+                raw = decompress_payload(payload, m['flags'])
+                if len(raw) != m['count']:
+                    raise ValueError('cached mip size mismatch')
+                mips[k] = dict(payload=payload, raw=raw, meta=m)
+        if not mips:
+            live = [m for m in t['mips'] if m['bytes'] and not m['flags'] & 32]
+            if not live or any(not m['inline'] or m['flags'] for m in live):
+                raise ValueError(f'{t["path"]} has neither cached mips nor uncompressed inline ones')
+            self.in_package[index] = dict(fields=t, mips={})
+            return self.in_package[index]
+        self.redirected[index] = dict(fields=t, mips=mips)
+        return self.redirected[index]
+
+    def setscale(self, path, slot, value):
+        lm = self.component(path)
+        s = lm['slots'][slot]
+        if len(value) != 3 or not all(math.isfinite(v) and v > 0 for v in value):
+            raise ValueError('a scale is three finite positive values')
+        self.edit(s['scaleOffset'], struct.pack('<3f', *value), f'set scale {path} slot {slot} {s["scale"]} -> {value}')
+
+    def _mip_raw(self, t, k, m):
+        """(raw DXT1 bytes, where) of mip k: the redirected copy for cached mips, else the inline payload."""
+        if k in t['mips']:
+            return t['mips'][k]['raw'], 'cache'
+        if m['inline'] and m['bytes'] and not m['flags']:
+            return self.edits.get(m['payloadOffset'], bytes(self.p.data[m['payloadOffset']:
+                                                                     m['payloadOffset'] + m['bytes']])), 'inline'
+        return None, None
+
+    def image(self, path, slot, texels, mask, min_mip_size=None, only_changed=False, ring=False):
+        """Write per-texel values into the component's atlas rectangle: `texels` (h, w, 3) stored values (0-1) at the
+        top mip, covering the rectangle's texel bounds (x0, y0, x1, y1) as `lightmap_texels.rasterise` gives them,
+        and `mask` (h, w) the texels to set. Blocks the rectangle only partly covers are decoded, merged and
+        re-encoded. Each lower mip (down to `min_mip_size` texels wide; by default 1/64 of the top mip's width and at
+        least 4) is the box average of the edited top mip, re-encoded on the blocks the rectangle touches; smaller
+        mips, and mips under 4 texels high, are left as they are.
+
+        `only_changed`: only the blocks that hold a masked texel are written (in a lower mip, the blocks whose
+        texels average one); every other block keeps its bytes, so what the mask leaves out stays the original's
+        exactly (faster-bake plan, 5.2). Without it every block the rectangle touches is encoded again.
+
+        `ring`: the texels just outside the rectangle are written with it (faster-bake plan, 5.3). A lightmap's
+        coordinates run to the rectangle's very edge, where the game's filtering reads half of its light from the
+        texel beyond: the piece's own padding, which the original bake filled from the border (URB_Bar: no rectangle
+        comes within a texel of another, and the ring differs from the border by 0.05 where texels three further
+        out differ by 0.43). Each ring texel takes the new value of the rectangle's texel nearest it, where that
+        one is written; so the padding follows a border that changed, and a new slot scale.
+
+        Only the part of the top mip the written blocks cover is decoded, not the whole atlas."""
+        lm = self.component(path)
+        s = lm['slots'][slot]
+        if s['index'] <= 0:
+            raise ValueError(f'{path} slot {slot} has no texture')
+        t = self.redirect(s['index'])
+        self.imaged.setdefault(s['index'], set()).add(path)
+        mips = t['fields']['mips']
+        top_raw, _ = self._mip_raw(t, 0, mips[0])
+        width, height = mips[0]['width'], mips[0]['height']
+        if min_mip_size is None:
+            min_mip_size = max(4, width // 64)
+        x0, y0, x1, y1 = rect_bounds(lm, width, height)
+        if texels.shape[:2] != (y1 - y0, x1 - x0) or mask.shape != texels.shape[:2]:
+            raise ValueError('texels and mask must cover the rectangle exactly')
+        rect = (x0, y0, x1, y1)
+        if ring:    # the blocks written are those of the rectangle with its ring
+            x0, y0, x1, y1 = max(0, x0 - 1), max(0, y0 - 1), min(width, x1 + 1), min(height, y1 + 1)
+        # the mips written, each with its block bounds; and the part of the top mip those blocks cover
+        plan = []
+        for k, m in enumerate(mips):
+            f = 1 << k
+            raw = None
+            if not (m['width'] != width >> k or m['height'] != height >> k
+                    or (k and (m['width'] < min_mip_size or m['height'] < 4))):
+                raw, where = self._mip_raw(t, k, m)
+            if raw is None:
+                plan.append(None)
+                continue
+            w_k, h_k = m['width'], m['height']
+            bx0, by0 = (x0 // f) // 4, (y0 // f) // 4
+            bx1, by1 = -(-((x1 + f - 1) // f) // 4), -(-((y1 + f - 1) // f) // 4)
+            bx1, by1 = min(bx1, max(1, w_k // 4)), min(by1, max(1, h_k // 4))
+            plan.append((raw, where, bx0, by0, bx1, by1))
+        live = [(k, q) for k, q in enumerate(plan) if q]
+        pad_w, pad_h = max(1, (width + 3) // 4) * 4, max(1, (height + 3) // 4) * 4
+        X0 = min(q[2] * 4 << k for k, q in live)
+        Y0 = min(q[3] * 4 << k for k, q in live)
+        X1 = min(max(q[4] * 4 << k for k, q in live), pad_w)
+        Y1 = min(max(q[5] * 4 << k for k, q in live), pad_h)
+        original = dxt1.decode_region(top_raw, width, height, X0 // 4, Y0 // 4, X1 // 4, Y1 // 4)
+        original = original[:height - Y0, :width - X0]
+        edited = original.copy()
+        wx0, wy0, wx1, wy1 = x0, y0, x1, y1         # what is written: the rectangle, with its ring if asked
+        x0, y0, x1, y1 = rect
+        region = edited[y0 - Y0:y1 - Y0, x0 - X0:x1 - X0]
+        region[mask] = np.clip(texels[mask], 0, 1)
+        changed = np.zeros(edited.shape[:2], bool)
+        changed[y0 - Y0:y1 - Y0, x0 - X0:x1 - X0] = mask
+        if ring:
+            # each texel of the written area with the rectangle's texel nearest it; the ring's are those outside
+            ny = np.clip(np.arange(wy0, wy1), y0, y1 - 1) - y0
+            nx = np.clip(np.arange(wx0, wx1), x0, x1 - 1) - x0
+            take = mask[np.ix_(ny, nx)]
+            take[y0 - wy0:y1 - wy0, x0 - wx0:x1 - wx0] = False
+            edited[wy0 - Y0:wy1 - Y0, wx0 - X0:wx1 - X0][take] = np.clip(texels[np.ix_(ny, nx)][take], 0, 1)
+            changed[wy0 - Y0:wy1 - Y0, wx0 - X0:wx1 - X0] |= take
+        counts = []
+        outside_change = unmasked_change = 0.0
+        for k, m in enumerate(mips):
+            f = 1 << k
+            if plan[k] is None:
+                counts.append(dict(mip=f'{m["width"]}x{m["height"]}', blocks=0))
+                continue
+            raw, where, bx0, by0, bx1, by1 = plan[k]
+            w_k, h_k = m['width'], m['height']
+            # the block region at mip k, from the edited top mip (box average over f x f texels)
+            ys, xs = slice(by0 * 4 * f - Y0, by1 * 4 * f - Y0), slice(bx0 * 4 * f - X0, bx1 * 4 * f - X0)
+            src = edited[ys, xs]
+            img = src.reshape(src.shape[0] // f, f, src.shape[1] // f, f, 3).mean((1, 3))
+            if k == 0:
+                inside = np.zeros(img.shape[:2], bool)      # (with its ring, which is written on purpose)
+                inside[wy0 - by0 * 4:wy1 - by0 * 4, wx0 - bx0 * 4:wx1 - bx0 * 4] = True
+                masked = np.zeros(img.shape[:2], bool)
+                masked[y0 - by0 * 4:y1 - by0 * 4, x0 - bx0 * 4:x1 - bx0 * 4] = mask
+                before = original[ys, xs]
+            blocks = dxt1.encode_blocks(dxt1.image_blocks(img).reshape(-1, 16, 3))
+            bw, bh = max(1, (w_k + 3) // 4), max(1, (h_k + 3) // 4)
+            new = np.frombuffer(raw, np.uint8).reshape(bh, bw, 8).copy()
+            fresh = np.frombuffer(blocks, np.uint8).reshape(by1 - by0, bx1 - bx0, 8)
+            if only_changed:
+                c = changed[ys, xs]
+                write = c.reshape(c.shape[0] // (4 * f), 4 * f, c.shape[1] // (4 * f), 4 * f).any((1, 3))
+                new[by0:by1, bx0:bx1][write] = fresh[write]
+                n = int(write.sum())
+            else:
+                new[by0:by1, bx0:bx1] = fresh
+                n = (bx1 - bx0) * (by1 - by0)
+            new = new.tobytes()
+            if k == 0:
+                after = dxt1.decode_region(new, w_k, h_k, bx0, by0, bx1, by1)[:before.shape[0], :before.shape[1]]
+                change = np.abs(after - before).max(2)
+                outside_change = float(change[~inside].max()) if (~inside).any() else 0.0
+                unmasked_change = float(change[inside & ~masked].max()) if (inside & ~masked).any() else 0.0
+            if where == 'cache':
+                t['mips'][k]['raw'] = new
+                t['mips'][k]['painted'] = t['mips'][k].get('painted', 0) + n
+            elif n:
+                self.unedit(m['payloadOffset'])
+                self.log = [e for e in self.log if e.get('offset') != m['payloadOffset']]
+                self.edit(m['payloadOffset'], new, f'image inline mip {w_k}x{h_k} of {t["fields"]["path"]}')
+            counts.append(dict(mip=f'{w_k}x{h_k}', blocks=n))
+        self.log.append(dict(what=f'image {path} slot {slot} ({s["texture"]}): {int(mask.sum())} texels in '
+                                  f'[{x0}, {x1}) x [{y0}, {y1})',
+                             blocksPerMip=counts, maxChangeOutsideRect=round(outside_change, 5),
+                             maxChangeUnmaskedInRect=round(unmasked_change, 5)))
+
+    def gray(self, index, x0, y0, values, mask, min_mip_size=None):
+        """Write one-byte-per-texel values (a G8 shadow map) into the texture's top mip: `values` (h, w) in [0, 1]
+        at texels [x0, x0 + w) x [y0, y0 + h), `mask` (h, w) the texels to set. Each lower mip (down to
+        `min_mip_size` texels wide, by default 1/64 of the top mip's width and at least 4) is the box average of the
+        edited top mip over the texels the rectangle touches; smaller mips are left as they are."""
+        t = self.redirect(index)
+        mips = t['fields']['mips']
+        if t['fields']['format'] != 'PF_G8':
+            raise ValueError(f'{t["fields"]["path"]} is {t["fields"]["format"]}, not PF_G8')
+        width, height = mips[0]['width'], mips[0]['height']
+        if min_mip_size is None:
+            min_mip_size = max(4, width // 64)
+        h, w = values.shape
+        if mask.shape != values.shape or x0 < 0 or y0 < 0 or x0 + w > width or y0 + h > height:
+            raise ValueError('values and mask must lie inside the top mip')
+        top_raw, _ = self._mip_raw(t, 0, mips[0])
+        edited = np.frombuffer(top_raw, np.uint8).reshape(height, width).astype(np.float64)
+        region = edited[y0:y0 + h, x0:x0 + w]
+        region[mask] = np.round(np.clip(values[mask], 0, 1) * 255)
+        counts = []
+        for k, m in enumerate(mips):
+            f = 1 << k
+            if m['width'] != width >> k or m['height'] != height >> k or (k and m['width'] < min_mip_size):
+                counts.append(dict(mip=f'{m["width"]}x{m["height"]}', texels=0))
+                continue
+            raw, where = self._mip_raw(t, k, m)
+            if raw is None:
+                counts.append(dict(mip=f'{m["width"]}x{m["height"]}', texels=0))
+                continue
+            # the touched texels at mip k, from the edited top mip (box average over f x f texels)
+            ax0, ay0 = x0 // f, y0 // f
+            ax1, ay1 = min(-(-(x0 + w) // f), m['width']), min(-(-(y0 + h) // f), m['height'])
+            src = edited[ay0 * f:ay1 * f, ax0 * f:ax1 * f]
+            img = src.reshape(ay1 - ay0, f, ax1 - ax0, f).mean((1, 3))
+            new = np.frombuffer(raw, np.uint8).reshape(m['height'], m['width']).copy()
+            new[ay0:ay1, ax0:ax1] = np.round(img).astype(np.uint8)
+            new = new.tobytes()
+            if where == 'cache':
+                t['mips'][k]['raw'] = new
+                t['mips'][k]['painted'] = t['mips'][k].get('painted', 0) + img.size
+            else:
+                self.unedit(m['payloadOffset'])
+                self.log = [e for e in self.log if e.get('offset') != m['payloadOffset']]
+                self.edit(m['payloadOffset'], new, f'gray inline mip {m["width"]}x{m["height"]} of '
+                                                   f'{t["fields"]["path"]}')
+            counts.append(dict(mip=f'{m["width"]}x{m["height"]}', texels=int(img.size)))
+        self.log.append(dict(what=f'gray {t["fields"]["path"]}: {int(mask.sum())} texels in [{x0}, {x0 + w}) x '
+                                  f'[{y0}, {y0 + h})', texelsPerMip=counts))
+
+    def others_changed(self, threshold=0.03):
+        """What the image writes changed in the rectangles of components they were not for (faster-bake plan, 5.3):
+        a write encodes whole 4-texel blocks again, and a rectangle shares its edge blocks with what lies around it.
+        That is padding as a rule; this says when it is another piece's light. Returns dict(textures, pieces: the
+        components touched, texels: how many of their top-mip texels changed by more than `threshold`, largest)."""
+        out = dict(textures=0, pieces=[], texels=0, largest=0.0)
+        if not self.imaged:
+            return out
+        rects = {}
+        for i in range(1, len(self.p.exports) + 1):
+            if not self.p.cls(i).endswith('StaticMeshComponent'):
+                continue
+            try:
+                f = lightmap_fields.component_fields(self.p, i)
+            except Exception:
+                continue
+            if not f['lods'] or f['lods'][0]['lightmap']['type'] != 2:
+                continue
+            for slot in f['lods'][0]['lightmap']['slots'][:2]:
+                if slot['index'] in self.imaged:
+                    rects.setdefault(slot['index'], []).append((self.p.name(i), f['lods'][0]['lightmap']))
+        for index, written in self.imaged.items():
+            t = self.redirected.get(index) or self.in_package.get(index)
+            m = t['fields']['mips'][0]
+            width, height = m['width'], m['height']
+            now, _ = self._mip_raw(t, 0, m)
+            if 0 in t['mips']:
+                before = decompress_payload(t['mips'][0]['payload'], m['flags'])
+            else:
+                before = bytes(self.p.data[m['payloadOffset']:m['payloadOffset'] + m['bytes']])
+            if now == before:
+                continue
+            diff = np.abs(dxt1.decode_image(now, width, height) - dxt1.decode_image(before, width, height)).max(2)
+            ours = np.zeros(diff.shape, bool)
+            for path, lm in rects.get(index, []):
+                if path in written:
+                    x0, y0, x1, y1 = rect_bounds(lm, width, height)
+                    ours[y0:y1, x0:x1] = True
+            diff[ours] = 0.0
+            touched = False
+            for path, lm in rects.get(index, []):
+                if path in written:
+                    continue
+                x0, y0, x1, y1 = rect_bounds(lm, width, height)
+                d = diff[y0:y1, x0:x1]
+                n = int((d > threshold).sum())
+                if n:
+                    touched = True
+                    out['pieces'].append(path)
+                    out['texels'] += n
+                    out['largest'] = max(out['largest'], round(float(d.max()), 5))
+            out['textures'] += touched
+        out['pieces'] = sorted(set(out['pieces']))
+        return out
+
+    def finish(self, out_dir, variant):
+        out_dir = Path(out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        dst = out_dir / f'{variant}.upk'
+        if self.redirected:
+            name_index, number = self.cache_name
+            for index, t in self.redirected.items():
+                f = t['fields']
+                self.edit(f['cacheNameOffset'], struct.pack('<ii', name_index, number),
+                          f'cache name of {f["path"]}: {f["cache"]} -> {self.cache}')
+                for k, mip in sorted(t['mips'].items()):
+                    m = mip['meta']
+                    if mip.get('painted'):
+                        payload = compressed_bulk(mip['raw'], bulk_block_size(mip['payload']))
+                    else:
+                        payload = mip['payload']
+                    offset = len(self.cache_data)
+                    self.cache_data += payload
+                    meta = struct.pack('<4i', m['flags'], m['count'], len(payload), offset)
+                    self.edit(m['metaOffset'], meta, f'mip {m["width"]}x{m["height"]} of {f["path"]} -> '
+                                                     f'{self.cache}.tfc @{offset} ({len(payload)} bytes)')
+        edits = sorted(self.edits.items())
+        report = package_edit.write_edited(str(self.p.path), str(dst), edits, force=bool(self.force))
+        files = {str(dst): sha256(dst.read_bytes())}
+        if self.redirected:
+            tfc = out_dir / f'{self.cache}.tfc'
+            tfc.write_bytes(bytes(self.cache_data))
+            files[str(tfc)] = sha256(bytes(self.cache_data))
+        self.check(dst)
+        manifest = dict(source=str(self.p.path), sourceSha256=lighting.digest(self.p.path), variant=variant,
+                        cache=self.cache if self.redirected else None, outputs=files, writer=report, edits=self.log,
+                        **({'otherPiecesChanged': self.others_changed()} if self.imaged else {}),
+                        tool=dict(path='tools/bake/lightmap_writer.py', sha256=lighting.digest(__file__)))
+        (out_dir / f'{variant}.fixture.json').write_text(json.dumps(manifest, indent=1) + '\n', encoding='utf-8',
+                                                         newline='\n')
+        return manifest
+
+    def check(self, dst):
+        """Re-read the written map: the redirected textures name the variant cache and decode from it."""
+        q = lighting.Package(dst)
+        for index, t in self.redirected.items():
+            f = lightmap_fields.texture_fields(q, index)
+            if f['cache'] != self.cache:
+                raise ValueError(f'{f["path"]} does not name {self.cache} after writing')
+            for k, mip in t['mips'].items():
+                m = f['mips'][k]
+                payload = bytes(self.cache_data[m['offset']:m['offset'] + m['bytes']])
+                if decompress_payload(payload, m['flags']) != mip['raw']:
+                    raise ValueError(f'{f["path"]} mip {k} does not decode to the intended pixels')
+
+
+def apply(fx, op):
+    """One operation of `ops` (the module's list) made on the Fixture `fx`."""
+    kind = op['op']
+    if kind == 'redirect':
+        index = fx.p.by_name.get(op['texture'])
+        if index is None:
+            raise ValueError(f'no texture {op["texture"]}')
+        fx.redirect(index)
+    elif kind == 'setscale':
+        fx.setscale(op['component'], op['slot'], op['value'])
+    elif kind == 'image':
+        with np.load(op['npz']) as data:
+            fx.image(op['component'], op['slot'], data[op['key']], data[op['key'] + '_mask'],
+                     only_changed=bool(op.get('onlyChanged')), ring=bool(op.get('ring')))
+    elif kind == 'gray':
+        index = fx.p.by_name.get(op['texture'])
+        if index is None:
+            raise ValueError(f'no texture {op["texture"]}')
+        with np.load(op['npz']) as data:
+            fx.gray(index, op['x0'], op['y0'], data[op['key']], data[op['key'] + '_mask'])
+    else:
+        raise ValueError(f'unknown operation {kind}')
+
+
+def run(src, out_dir, variant, ops, cache=None, tfc=None, fixture=None):
+    """The map `src` with `ops` made and written to `out_dir` (Fixture.finish): the manifest. `fixture`: a Fixture of
+    `src` and `cache` already opened (relight.py's probe), instead of opening the map again."""
+    fx = fixture or Fixture(src, cache, tfc)
+    for op in ops:
+        apply(fx, op)
+    return fx.finish(out_dir, variant)

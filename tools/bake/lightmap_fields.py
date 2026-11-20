@@ -5,7 +5,7 @@ coordinate scale/bias. For one lightmap/shadow-map texture: its cache name (an F
 mip's bulk record (flags, element count, size on disk, offset in file) and its dimensions.
 
 Offsets are into the package's uncompressed (logical) image, as package_edit.write_edited takes them. Every value read
-here is checked against the audit readers (audit_lighting), so a layout mistake fails instead of producing a wrong
+here is checked against the record readers (lighting_records), so a layout mistake fails instead of producing a wrong
 offset. Read-only.
 
   python -B tools/bake/lightmap_fields.py <map.upk> <component or texture path> [...]
@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'upk'))
 sys.path.insert(0, str(ROOT / 'viewer'))
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 from package import LEADING_SHADOW_MAP, FormatError, Reader  # noqa: E402
 import props as legacy_props  # noqa: E402
 

@@ -9,7 +9,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 sys.path.insert(0, str(HERE.parents[1] / 'upk'))
 import save_tiles  # noqa: E402
-import seed_tiles  # noqa: E402
+import package_edit  # noqa: E402
 
 
 def store(flags, dims=(3, 3, 2)):
@@ -22,7 +22,7 @@ def store(flags, dims=(3, 3, 2)):
 def chunk(payload, block=40):
     """A compressed chunk of the game's: the payload in blocks of `block` bytes, each one LZO1X literal run."""
     parts = [payload[i:i + block] for i in range(0, len(payload), block)]
-    packed = [seed_tiles.lzo_literals(part) for part in parts]
+    packed = [package_edit.lzo_literals(part) for part in parts]
     head = struct.pack('<4I', save_tiles.TAG, block, sum(len(c) for c in packed), len(payload))
     return head + b''.join(struct.pack('<2I', len(c), len(part)) for c, part in zip(packed, parts)) + b''.join(packed)
 

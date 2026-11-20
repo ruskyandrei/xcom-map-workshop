@@ -28,7 +28,7 @@ import pack_card  # noqa: E402
 import maplist  # noqa: E402
 from projects import ProjectError  # noqa: E402
 import test_play  # noqa: E402  (its Play is used by name, so that its tests don't run here again)
-from test_deploy import record  # noqa: E402
+from fixtures import record  # noqa: E402
 from viewer_fixtures import ID, document  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
@@ -444,7 +444,7 @@ class Manager(unittest.TestCase):
     def test_a_packs_maps_hold_their_lighting_inside_and_no_cache_goes_along(self):
         """The game finds a .tfc only in CookedPCConsole itself (F-140): each map of the pack holds its build's baked
         lighting inside it (inline_lighting.py), and the pack has no .tfc. The build itself stays as it is."""
-        import audit_lighting as lighting
+        import lighting_records as lighting
         import lighting_fixture as fx
         self.package()
         cooked = self.output / VARIANT / 'CookedPCConsole'

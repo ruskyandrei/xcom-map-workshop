@@ -6,7 +6,7 @@ map against the next (96 pairs on Long War Rebalance, about a minute on six core
 
 The oracle: an asset two maps both hold, taken from the first and renumbered for the second, must be the second's
 bytes. What may differ is listed here and nothing else may:
-- one cook writes a few values differently from another (transplant.cook_noise);
+- one cook writes a few values differently from another (cook_noise, here);
 - the same path can hold an object of another size, or one that refers to an object the other map lacks: the
   cooker kept different things (490 and 448 objects over the ring);
 - the class defaults of the level volume and its world data carry a net index of the map (12 each);
@@ -17,6 +17,7 @@ bytes. What may differ is listed here and nothing else may:
 
 Skeletal meshes have their layout (the X9 families of doors and physics props): SkeletalPieces brings a door and a
 physics prop of two other maps into URB_Bar and reads them back. So have fracturing meshes: FracturingPiece."""
+import collections
 import json
 import os
 from pathlib import Path
@@ -69,9 +70,104 @@ def game_schema():
     return _SCHEMA
 
 
+# -- the oracle, test code (review finding 63) ------------------------------------------------------------------------
+COOK_GUIDS = ('LightingGuid', 'ParentLightingGuid')
+
+
+def cook_noise(donor, index):
+    """[(start, end)] in export `index`'s data of what one cook of a package writes differently from another: the
+    values of the LightingGuid and ParentLightingGuid properties, and what its native layout marks (native_fields:
+    the last value of a material's compiled resource, a 2D texture's cache GUID)."""
+    p = donor.p
+    data = donor.data(index)
+    spans = [(at, at + native_fields.COOK[kind]) for at, kind in donor.fields(index)[0] if kind in native_fields.COOK]
+    for key in COOK_GUIDS:
+        if key in p.names and 'StructProperty' in p.names:
+            tag = struct.pack('<iiii', p.names.index(key), 0, p.names.index('StructProperty'), 0)
+            at = data.find(tag)
+            while at >= 0:
+                spans.append((at + 32, at + 48))
+                at = data.find(tag, at + 1)
+    return spans
+
+
+def oracle(a, b, examples=3):
+    """Every asset the donors `a` and `b` both hold: a's bytes in b's numbering against b's own. Returns
+    dict(classes {class: counts}, differences [dict(object, cls, why, ...)] (up to `examples` a class and reason)).
+    The counts: objects; equal; cookNoise (equal but for cook_noise); size (another size in b, not compared);
+    differs; refused (a field that can't be found); and for a class with native data and no layout, plainEqual and
+    plainDiffers (compared with the fields of its properties alone)."""
+    names_b = {name: k for k, name in reversed(list(enumerate(b.p.names)))}
+    imports_b = {}
+    for k, i in enumerate(b.p.imports):
+        imports_b.setdefault((i['cls'], b.p.name(-k - 1)), -k - 1)
+    exports_b = {}
+    for i in range(1, len(b.p.exports) + 1):
+        exports_b.setdefault(b.key(i), i)
+
+    def object_of(ref):
+        if ref < 0:
+            return imports_b[(a.p.imports[-ref - 1]['cls'], a.p.name(ref))]
+        return exports_b[a.key(ref)]
+
+    classes = collections.defaultdict(collections.Counter)
+    shown, differences = collections.Counter(), []
+
+    def note(cls, why, **more):
+        classes[cls][why] += 1
+        shown[(cls, why)] += 1
+        if shown[(cls, why)] <= examples:
+            differences.append(dict(cls=cls, why=why, **more))
+
+    for key in sorted(set(a.assets) & set(b.assets)):
+        cls, path = key
+        if cls == 'Package':
+            continue
+        ia, ib = a.assets[key], b.assets[key]
+        row = classes[cls]
+        row['objects'] += 1
+        theirs = b.data(ib)
+        if len(theirs) != a.p.exports[ia - 1]['size']:
+            note(cls, 'size', object=path, sizes=[a.p.exports[ia - 1]['size'], len(theirs)])
+            continue
+        plain = False
+        try:
+            a.fields(ia)
+        except transplant.Refused as error:
+            if 'no layout here' not in str(error):
+                note(cls, 'refused', object=path, error=str(error))
+                continue
+            plain = True
+            f = typed_props.fields(a.p, ia, a.schema)
+            a._fields[ia] = (f.fields, f.net_index)
+        try:
+            mine = transplant.remap(a, ia, names_b.__getitem__, object_of, b.p.exports[ib - 1]['off'])
+        except KeyError as error:
+            note(cls, 'plainDiffers' if plain else 'differs', object=path, missing=repr(error.args[0]))
+            continue
+        finally:
+            noise = cook_noise(a, ia)
+            if plain:
+                del a._fields[ia]
+        if mine == theirs:
+            row['plainEqual' if plain else 'equal'] += 1
+            continue
+        masked, other = bytearray(mine), bytearray(theirs)
+        for lo, hi in noise:
+            masked[lo:hi] = other[lo:hi] = bytes(hi - lo)
+        if masked == other:
+            row['cookNoise'] += 1
+            continue
+        first = next(k for k in range(len(masked)) if masked[k] != other[k])
+        note(cls, 'plainDiffers' if plain else 'differs', object=path, at=first, size=len(mine),
+             bytes=sum(1 for x, y in zip(masked, other) if x != y),
+             here=bytes(masked[first:first + 8]).hex(), there=bytes(other[first:first + 8]).hex())
+    return dict(classes={c: dict(r) for c, r in classes.items()}, differences=differences)
+
+
 def _oracle(pair):
     a, b = (transplant.Donor(labpaths.install_map(name)[0], game_schema()) for name in pair)
-    return pair, transplant.oracle(a, b)
+    return pair, oracle(a, b)
 
 
 def check_oracle(test, pair, result, ring=False):
@@ -916,7 +1012,7 @@ class SkeletalPieces(unittest.TestCase):
                              [d.p.name(s['material']) for s in theirs['sections']])
 
 
-@unittest.skipUnless(BAR and POLICE and CLIFF, NO_BAR or NO_POLICE or NO_CLIFF)
+@unittest.skipUnless(all(m and m.exists() for m in (BAR, POLICE, CLIFF)), NO_BAR or NO_POLICE or NO_CLIFF)
 class FreshLight(unittest.TestCase):
     """A baked build with pieces of other maps (X8; EXP-37's two props where they were played): each is lit from
     nothing where it stands. One real bake, about a minute."""

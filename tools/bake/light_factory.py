@@ -267,7 +267,7 @@ def _guid_values(guids):
     return out
 
 
-def _class_name(g, ref):
+def class_of(g, ref):
     if ref < 0:
         raw = struct.unpack('<iiiiiii', g.imports[-ref - 1])
         return g.name_of(raw[5], raw[6])
@@ -314,7 +314,7 @@ def used_guids(g, p):
                     used.add(bytes(value))
     for i in range(len(p.exports) + 1, len(g.entries) + 1):
         e = g.entries[i - 1]
-        if not _class_name(g, e.cls).endswith('LightComponent'):
+        if not class_of(g, e.cls).endswith('LightComponent'):
             continue
         data = g.export_data(i)
         start = legacy_props.props_start(data, dict(off=0, size=len(data), flags=e.get('<Q', 24)), g.names)
@@ -342,7 +342,7 @@ def _imports(g, rec):
     return found, made
 
 
-def _property(g, name, kind, value):
+def tagged_property(g, name, kind, value):
     def tag(property_type, size, struct_name=None):
         out = struct.pack('<iiiiii', g.name(name), 0, g.name(property_type), 0, size, 0)
         return out + (struct.pack('<ii', g.name(struct_name), 0) if struct_name else b'')
@@ -378,11 +378,11 @@ def _properties(g, specs, values):
     for name, kind, value in specs:
         if isinstance(value, str) and value.startswith('$'):
             value = values[value[1:]]
-        out += _property(g, name, kind, value)
+        out += tagged_property(g, name, kind, value)
     return bytes(out + struct.pack('<ii', g.name('None'), 0))
 
 
-def _preamble(spec, cls, net):
+def preamble(spec, cls, net):
     pre = spec['preamble']
     if pre['kind'] == 'stateFrame':
         return struct.pack('<iiIHiii', cls, cls, pre['probeMask'], pre['latentAction'], pre['stateStack'],
@@ -394,7 +394,7 @@ def _preamble(spec, cls, net):
 
 def add_spot(g, p, location, rotation, light, guids, version=1):
     """A new SpotLight actor and its SpotLightComponent in the persistent level of the growing package `g`
-    (package_grow.Grower) over its read-only source `p` (audit_lighting.Package), made by recipe `version` with no
+    (package_grow.Grower) over its read-only source `p` (lighting_records.Package), made by recipe `version` with no
     local light as a template: at `location` (x, y, z) and `rotation` (pitch, yaw, roll, whole rotator units; None
     for the recipe's, pointing down), with `light` (the seven values of plan 9.1, complete; None for the recipe's
     starting values) and `guids` (dict(LightGuid=16 bytes, LightmapGuid=16 bytes), used by no light of the map).
@@ -432,7 +432,7 @@ def _add(rec, g, p, location, rotation, light, guids):
                   component=component, parentToWorld=cached_parent_to_world(location, rotation), **guids)
     for spec, index, outer in ((rec['actor'], actor, level), (rec['component'], component, actor)):
         cls = found[spec['class']]
-        data = _preamble(spec, cls, g.next_net_index(outer)) + _properties(g, spec['properties'], values)
+        data = preamble(spec, cls, g.next_net_index(outer)) + _properties(g, spec['properties'], values)
         archetype = found[spec['archetype']] if spec['archetype'] else 0
         if g.new_export(cls, outer, spec['name'], data, archetype=archetype, flags=spec['flags']) != index:
             raise RuntimeError('the light exports did not get the planned indices')

@@ -270,11 +270,31 @@ class Gather(unittest.TestCase):
 class BarScene(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        import audit_lighting as lighting
+        import lighting_records as lighting
         import relight
         cls.relight = relight
         cls.p = lighting.Package(BAR)
         cls.scene = relight.Scene(cls.p, samples=16, bounce_rays=16, stride=4)
+        cls._shared = {}
+
+    def shared(self, key, make):
+        """make() worked out once for the class: what several tests only read (review finding 61; the relight is
+        deterministic, Determinism)."""
+        if key not in self._shared:
+            self._shared[key] = make()
+        return self._shared[key]
+
+    def unedited(self):
+        """The floor relit in the scene as it is, with no edit (read by three tests)."""
+        return self.shared('unedited', lambda: self.relight.relight_component(self.p, FLOOR, self.scene))
+
+    def moved_table(self):
+        """(the pool table, where it goes, the scene after it is moved there turned a quarter): read by two tests."""
+        table, at = 'XComDestructibleActor_491', [-48.0, 240.0, 24.0]
+        after = self.shared('moved table', lambda: self.relight.Scene(
+            self.p, samples=16, bounce_rays=16, stride=4, remove_casters=[table],
+            add_casters=[dict(source=table, location=at, rotation=[0, 16384, 0])]))
+        return table, at, after
 
     def test_scene_reads_the_maps_lightmass_settings(self):
         s = self.scene
@@ -310,7 +330,7 @@ class BarScene(unittest.TestCase):
 
     def test_floor_texels_under_the_walls_are_left_out(self):
         # the pool-table floor runs under the room's wall pieces: those texels are buried, not relit
-        r = self.relight.relight_component(self.p, FLOOR, self.scene)
+        r = self.unedited()
         t = r['report']['texels']
         self.assertGreater(t['buried'], 0.05 * (t['covered'] + t['buried']))
         self.assertLess(t['buried'], 0.3 * (t['covered'] + t['buried']))
@@ -347,7 +367,7 @@ class BarScene(unittest.TestCase):
         r = self.relight.relight_component(self.p, FLOOR, self.scene, after=after)
         t = r['report']['texels']
         self.assertGreater(t['opened'], 100)
-        base = self.relight.relight_component(self.p, FLOOR, self.scene)['report']['texels']
+        base = self.unedited()['report']['texels']
         self.assertEqual(t['buried'] + t['opened'], base['buried'])
         # the opened floor was black in the original bake and is lit now
         b, a, cov = r['before'].sum(2), r['after'].sum(2), r['covered']
@@ -369,9 +389,7 @@ class BarScene(unittest.TestCase):
         # the pool table moved into the ceiling spot's pool by the island counter's corner, turned a quarter
         import lightmap_fields
         import lightmap_texels
-        table, at = 'XComDestructibleActor_491', [-48.0, 240.0, 24.0]
-        after = self.relight.Scene(self.p, samples=16, bounce_rays=16, stride=4, remove_casters=[table],
-                                   add_casters=[dict(source=table, location=at, rotation=[0, 16384, 0])])
+        table, at, after = self.moved_table()
         r = self.relight.relight_component(self.p, FLOOR, self.scene, after=after)
         ci = self.p.by_name[FLOOR]
         fields = lightmap_fields.component_fields(self.p, ci)['lods'][0]['lightmap']
@@ -392,9 +410,7 @@ class BarScene(unittest.TestCase):
         self.assertGreater(np.mean(np.abs(a[far] / b[far] - 1) < 0.02), 0.95)
 
     def test_an_edit_knows_where_it_changes_and_which_receivers_are_near(self):
-        table, at = 'XComDestructibleActor_491', [-48.0, 240.0, 24.0]
-        after = self.relight.Scene(self.p, samples=16, bounce_rays=16, stride=4, remove_casters=[table],
-                                   add_casters=[dict(source=table, location=at, rotation=[0, 16384, 0])])
+        table, at, after = self.moved_table()
         old, new = after.edit_boxes
         self.assertTrue(467 < old[0] < 470 and 588 < old[1] < 590 and 560 < old[2] < 562 and 778 < old[3] < 780)
         # the table stands centred on its origin; its copy, turned a quarter, is 218 units along x and 121 along y,
@@ -422,7 +438,7 @@ class BarScene(unittest.TestCase):
         self.assertGreater(np.mean(np.abs(a[lit] / b[lit] - 1) < 0.02), 0.95)
 
     def test_unrelit_texels_keep_the_original_under_the_new_scale(self):
-        r = self.relight.relight_component(self.p, FLOOR, self.scene)
+        r = self.unedited()
         b, a = r['before'].sum(2), r['after'].sum(2)
         self.assertGreater(r['report']['texels']['keptOriginal'], 0)
         self.assertTrue(r['images']['nac_mask'].all())

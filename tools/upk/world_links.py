@@ -27,11 +27,11 @@ link's new tiles and positions instead, as a JSON list of
 A link whose source tile changes leaves the old tile's list and is appended to the new one's. Every other byte is
 kept, and the container keeps its size. The new source tiles must already have floor data (a present tile in a
 saved chunk); the tool refuses otherwise rather than grow the container. A .upk output is the input package with
-only the container's changed 128 KB blocks re-encoded (as literal LZO1X runs, like seed_tiles.py); the container
-must be the package's last compressed chunk and the last thing in the file. Both outputs are read back and checked.
+the container's changed bytes written by tools/upk/package_edit.py (only the changed 128 KB blocks re-encoded, as
+literal LZO1X runs; later chunks move along). Both outputs are read back and checked.
 The default grid is URB_Bar's: origin (-2784, -1920, 0), tiles 96 x 96 x 64.
 """
-import argparse, json, math, os, struct, sys
+import argparse, json, os, struct, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 HEADER = 12          # NetIndex, then the FName None that ends the (empty) property list
@@ -132,6 +132,17 @@ def parse_store(b, o, kind, name=''):
     return dict(kind=kind, name=name, off=start, end=o, nchunks=nchunks, order=order, dims=dims, chunks=chunks)
 
 
+def static_tiles(blob):
+    """The static flags store (the first) of an XComWorldDataContainer's bytes `blob`, read with parse_store's checks:
+    ((NX, NY, NZ), {tile (x, y, z): the offset in `blob` of its flags, a u32 then the present byte}, the store's end).
+    Every chunk of the grid must be saved, as the bake saves them. The one reader of the static flags the seeders and
+    the rebuild's order read (review finding 52)."""
+    s = parse_store(blob, HEADER, KINDS[0], NAMES[0])
+    if len(s['chunks']) != s['nchunks']:
+        raise ValueError('the static flags store saves %d of the grid\'s %d chunks' % (len(s['chunks']), s['nchunks']))
+    return tuple(s['dims']), {t['tile']: t['off'] for c in s['chunks'] for t in c['tiles']}, s['end']
+
+
 def parse_container(blob):
     """The whole XComWorldDataContainer export. Raises unless every store parses and the blob ends exactly."""
     netindex, none_i, none_n = struct.unpack_from('<iii', blob, 0)
@@ -178,9 +189,11 @@ def self_check(blob, wd):
 def read_input(path):
     """(blob, names or None, package info or None). names maps export index -> object name."""
     if not path.lower().endswith('.upk'):
-        return open(path, 'rb').read(), None, None
+        with open(path, 'rb') as f:
+            return f.read(), None, None
     import upkinfo, decomp
-    raw = open(path, 'rb').read()
+    with open(path, 'rb') as f:
+        raw = f.read()
     h = upkinfo.summary(raw)
     full, _ = decomp.decompress_pkg(path)
     _, imps, exps = upkinfo.tables(full, h)
@@ -189,7 +202,7 @@ def read_input(path):
         raise ValueError('expected one XComWorldDataContainer, found %d' % len(conts))
     ce = conts[0]
     names = {i + 1: e['name'] for i, e in enumerate(exps)}
-    return full[ce['off']:ce['off'] + ce['size']], names, dict(raw=raw, h=h, full=full, cont=ce)
+    return full[ce['off']:ce['off'] + ce['size']], names, dict(path=path, raw=raw, h=h, full=full, cont=ce)
 
 
 def resolve_object(spec, names):
@@ -203,55 +216,33 @@ def resolve_object(spec, names):
     return hits[0]
 
 
+def changed_runs(old, new):
+    """[(start, the new bytes)] of each run of bytes that differs between `old` and `new` (of one length)."""
+    out, k, n = [], 0, len(new)
+    while k < n:
+        if old[k] == new[k]:
+            k += 1
+            continue
+        start = k
+        while k < n and old[k] != new[k]:
+            k += 1
+        out.append((start, bytes(new[start:k])))
+    return out
+
+
 def write_package(pkg, dst, newblob):
     """Writes dst: the package pkg (from read_input) with its container replaced by newblob of the same size.
 
-    Only the container chunk's changed blocks are re-encoded; the chunk table entry gets the new compressed size.
-    The written file is decoded again and compared with the intended bytes."""
-    import upkinfo, decomp, lzo1x, seed_tiles
-    raw, h, full, ce = pkg['raw'], pkg['h'], pkg['full'], pkg['cont']
+    The changed bytes are an edit list for package_edit.write_edited (review finding 52): only the changed 128 KB
+    blocks are re-encoded, later chunks move along, and the written file is decoded again and compared with the
+    intended bytes. Returns the file's change in size."""
+    import package_edit
+    ce = pkg['cont']
     if len(newblob) != ce['size']:
         raise ValueError('the container changed size; this writer cannot update the package for that')
-    ci = [i for i, (uo, us, co, cs) in enumerate(h['chunks']) if uo == ce['off'] and us == ce['size']]
-    if not ci:
-        raise ValueError('the container is not a compressed chunk of its own')
-    ci = ci[0]
-    uo, us, co, cs = h['chunks'][ci]
-    if co + cs != len(raw):
-        raise ValueError('the container chunk is not the last thing in the file; offsets would shift')
-    r = upkinfo.R(raw, co)
-    tag, bsz, csum, usum = r.u32(), r.u32(), r.u32(), r.u32()
-    nb = (usum + bsz - 1) // bsz
-    blocks = [(r.u32(), r.u32()) for _ in range(nb)]
-    p, newblocks, payload = r.o, [], b''
-    for k, (c, u) in enumerate(blocks):
-        old = raw[p:p + c]; p += c
-        part = bytes(newblob[k * bsz:k * bsz + u])
-        if part == full[uo + k * bsz:uo + k * bsz + u]:
-            enc = old
-        else:
-            enc = seed_tiles.lzo_literals(part)
-            if lzo1x.decompress(enc, u) != part:
-                raise ValueError('literal LZO round trip failed on block %d' % k)
-        newblocks.append((len(enc), u)); payload += enc
-    newchunk = struct.pack('<IIII', tag, bsz, sum(c for c, u in newblocks), usum)
-    newchunk += b''.join(struct.pack('<II', c, u) for c, u in newblocks) + payload
-    out = bytearray(raw[:co] + newchunk)
-    t = seed_tiles.chunk_table_offset(raw)
-    ent = t + 4 + 16 * ci
-    if struct.unpack_from('<I', raw, t)[0] != len(h['chunks']) or struct.unpack_from('<IIII', raw, ent) != (uo, us, co, cs):
-        raise ValueError('chunk table not where expected')
-    struct.pack_into('<IIII', out, ent, uo, us, co, len(newchunk))
-    open(dst, 'wb').write(out)
-    full2, h2 = decomp.decompress_pkg(dst)
-    expect = bytearray(full)
-    struct.pack_into('<IIII', expect, ent, uo, us, co, len(newchunk))
-    expect[uo:uo + us] = newblob
-    if bytes(full2) != bytes(expect):
-        raise ValueError('verification failed: the written package does not decode to the intended bytes')
-    if [c for i, c in enumerate(h2['chunks']) if i != ci] != [c for i, c in enumerate(h['chunks']) if i != ci]:
-        raise ValueError('verification failed: other chunk table entries changed')
-    return len(newchunk) - cs
+    old = pkg['full'][ce['off']:ce['off'] + ce['size']]
+    edits = [(ce['off'] + at, data) for at, data in changed_runs(old, newblob)]
+    return package_edit.write_edited(pkg['path'], dst, edits)['sizeChange']
 
 
 # ------------------------------------------------------------------------------------------------------ moving

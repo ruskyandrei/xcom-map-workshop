@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'upk'))
 sys.path.insert(0, str(ROOT / 'viewer'))
 sys.path.insert(0, str(ROOT / 'bake'))
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import lightmap_fields  # noqa: E402
 import package_grow  # noqa: E402
 from package import Reader  # noqa: E402

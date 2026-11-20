@@ -97,19 +97,7 @@ def sha256(path):
         return hashlib.file_digest(f, "sha256").hexdigest()
 
 
-def collides(p, actor):
-    """Whether an actor collides: bCollideActors, and CollideActors on one of the mesh components under it (the
-    Build's native_copy.collides, which the export can't import)."""
-    if p.effective(actor, "bCollideActors", True) is False:
-        return False
-    def under(i):
-        for c in p.children.get(i, []):
-            yield c
-            yield from under(c)
-    return any(p.effective(c, "CollideActors", True) is not False for c in under(actor)
-               if (p.cls(c) == "SkeletalMeshComponent" and (p.effective(c, "SkeletalMesh", 0) or 0) > 0)
-               or (p.cls(c) in ("StaticMeshComponent", "FracturedStaticMeshComponent", "XComMapEdMeshComponent")
-                   and (p.effective(c, "StaticMesh", 0) or 0) > 0))
+collides = piece_flags.collides        # one rule with the flags and the Build (review finding 55)
 
 
 def compiled_textures(p, material):

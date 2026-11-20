@@ -9,15 +9,7 @@ import unittest
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import deploy_fixture as dep  # noqa: E402
-
-RECORDS = HERE.parents[1] / 'patch' / 'tests' / 'defaultmaps-records.txt'
-
-
-def record(name):
-    for line in RECORDS.read_bytes().split(b'\n'):
-        if line.startswith(name.encode() + b'\t'):
-            return line.split(b'\t', 1)[1]
-    raise KeyError(name)
+from fixtures import record  # noqa: E402
 
 
 class DeployRestore(unittest.TestCase):
@@ -262,13 +254,14 @@ class DeployRestore(unittest.TestCase):
         """Review finding 2: write_checked writes a temporary file beside the config file, reads it back and only then
         replaces the file, so a stop mid-write or a bad read-back leaves the game's file as it was."""
         from unittest import mock
+        import mapsini      # the config writer's own module (review finding 53)
         path = self.cfg / 'DefaultMaps.ini'
         lines = dep.lines_of(self.maps)
         new = lines[:-1] + [b';added', b'']
-        with mock.patch.object(dep.os, 'replace', side_effect=OSError('stopped')):
+        with mock.patch.object(mapsini.os, 'replace', side_effect=OSError('stopped')):
             with self.assertRaises(OSError): dep.write_checked(path, new)
         self.assertEqual(path.read_bytes(), self.maps)
-        with mock.patch.object(dep, 'lines_of', return_value=[b'not what was written']):
+        with mock.patch.object(mapsini, 'lines_of', return_value=[b'not what was written']):
             with self.assertRaises(ValueError): dep.write_checked(path, new)
         self.assertEqual(path.read_bytes(), self.maps)
         self.assertEqual(sorted(p.name for p in self.cfg.iterdir()), ['DefaultLZMutator.ini', 'DefaultMaps.ini'])

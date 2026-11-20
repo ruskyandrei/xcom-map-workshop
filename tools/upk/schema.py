@@ -28,10 +28,6 @@ SCRIPT_PACKAGES = ('Core', 'Engine', 'GameFramework', 'GFxUI', 'XComGame', 'XCom
 OWNERS = ('Class', 'ScriptStruct')
 # a struct with either flag is saved as its members' plain bytes, in order, with no tags (cooked data)
 STRUCT_IMMUTABLE, STRUCT_IMMUTABLE_WHEN_COOKED = 0x20, 0x80
-REP_OFFSET = 0x20           # CPF_Net: the property's data has 2 more bytes before its own fields
-# classes the maps hold whose script declarations are not exported (none of their tagged properties is an array or a
-# struct of their own); each is checked by the same walk as the rest
-SUPPLEMENT = {}
 
 
 def _read(path):
@@ -133,9 +129,7 @@ def build(cooked, packages=SCRIPT_PACKAGES):
                                          % (full(n + 1), exports[k]['name']))
                     entry['props'][exports[k]['name']] = prop(k)
             structs[full(n + 1)] = entry
-    for path_, entry in SUPPLEMENT.items():
-        structs.setdefault(path_, entry)
-    raw = sorted(p for p, e in structs.items()
+    raw =sorted(p for p, e in structs.items()
                  if e.get('flags', 0) & (STRUCT_IMMUTABLE | STRUCT_IMMUTABLE_WHEN_COOKED))
     return dict(version=VERSION, packages=hashes, structs=structs, raw=raw)
 

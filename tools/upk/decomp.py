@@ -11,6 +11,7 @@ processes. So a decoded image is kept, by the SHA-256 of the compressed file it 
 import collections
 import hashlib
 import os
+import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -24,21 +25,51 @@ _MEMO = collections.OrderedDict()       # sha256 of the compressed file -> the d
 STATS = dict(decoded=0, memo=0, disk=0, seconds=0.0)     # what this process did (the build's timings read it)
 
 
+CHUNK_TAG = 0x9E2A83C1
+
+
+def read_chunk(b, co):
+    """The compressed chunk whose header is at `co` in `b`, checked: (tag, block size, its uncompressed size, its
+    blocks' (packed, unpacked) sizes, where the first block starts). Refused (ValueError): another tag, a block size
+    of 0, a block table that does not add up to the header's two sizes, and a header or blocks running past the end
+    of `b`. The one reader of a chunk header (review finding 52): the map decode here, upkinfo.load's packages
+    compressed whole, and package_edit's writers."""
+    if co + 16 > len(b):
+        raise ValueError(f'chunk header at {co} cut short')
+    tag, bsz, csum, usum = struct.unpack_from('<IIII', b, co)
+    if tag != CHUNK_TAG or bsz == 0:
+        raise ValueError(f'bad chunk header at {co}')
+    nb = (usum + bsz - 1) // bsz
+    at = co + 16 + 8 * nb
+    if at > len(b):
+        raise ValueError(f'chunk at {co}: block table cut short')
+    blocks = [struct.unpack_from('<II', b, co + 16 + 8 * k) for k in range(nb)]
+    if sum(c for c, _ in blocks) != csum or sum(u for _, u in blocks) != usum:
+        raise ValueError(f'chunk at {co}: block table does not add up')
+    if at + csum > len(b):
+        raise ValueError(f'chunk at {co} cut short')
+    return tag, bsz, usum, blocks, at
+
+
+def decode_blocks(b, blocks, at):
+    """The bytes of `blocks` ((packed, unpacked) sizes, from read_chunk) whose first starts at `at` in `b`, each
+    block decoded to the length its table gives (lzo1x raises ValueError otherwise)."""
+    out = bytearray()
+    for c, u in blocks:
+        out += lzo1x.decompress(b[at:at + c], u)
+        at += c
+    return out
+
+
 def _decode(b, h):
     total = max(uo + us for uo, us, co, cs in h['chunks'])
     out = bytearray(total)
     out[:h['chunks'][0][0]] = b[:h['chunks'][0][0]]
     for uo, us, co, cs in h['chunks']:
-        r = upkinfo.R(b, co)
-        tag = r.u32(); bsz = r.u32(); csum = r.u32(); usum = r.u32()
-        nb = (usum + bsz - 1) // bsz
-        blocks = [(r.u32(), r.u32()) for _ in range(nb)]
-        p = r.o; pos = uo
-        for c, u in blocks:
-            d = lzo1x.decompress(b[p:p + c], u)
-            if len(d) != u:
-                raise ValueError('size mismatch %d %d' % (len(d), u))
-            out[pos:pos + u] = d; pos += u; p += c
+        _, _, usum, blocks, at = read_chunk(b, co)
+        if usum != us:
+            raise ValueError(f'the chunk at {co} holds {usum} bytes, the chunk table says {us}')
+        out[uo:uo + us] = decode_blocks(b, blocks, at)
     return bytes(out)
 
 

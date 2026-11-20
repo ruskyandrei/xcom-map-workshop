@@ -1358,9 +1358,13 @@ class Builds(unittest.TestCase):
         out = Path(self.tmp.name) / 'pictured.upk'
         report = build.Build._picture(stream, out, png)
         self.assertEqual(report['how'], 'added')
-        pixels = map_frame.read_picture(out)
-        self.assertEqual(pixels, map_frame.encode_file(png))
-        self.assertIsNone(map_frame.read_picture(stream))
+
+        def read_picture(path):     # the map package's own picture's DXT1 pixels, or None
+            found = map_frame.locate(Package(path))
+            return found['pixels'] if found else None
+        from package import Package
+        self.assertEqual(read_picture(out), map_frame.encode_file(png))
+        self.assertIsNone(read_picture(stream))
 
     def test_a_rebuild_replaces_the_package(self):
         self.make('110000').run()

@@ -71,19 +71,14 @@ def load(path, raw=False):
     command line's --raw). A library function: it reads no command line and adds to sys.path once, when the module
     loads, not at every package (review finding 50)."""
     with open(path,'rb') as f: b=f.read()
-    tag,block,_,total=struct.unpack_from('<IIII',b,0)
+    tag,block=struct.unpack_from('<II',b,0)
     if tag==0x9E2A83C1 and block==131072 and not raw:
-        # a package the cooker compressed whole (the startup and script packages): one run of LZO blocks, each of the
-        # size the table gives (lzo1x raises ValueError on one cut short or of another length)
-        import lzo1x
-        count=(total+block-1)//block
-        at,out=16+8*count,bytearray()
-        for n in range(count):
-            packed,unpacked=struct.unpack_from('<II',b,16+8*n)
-            if at+packed>len(b): raise ValueError('compressed package cut short at block %d' % n)
-            out+=lzo1x.decompress(b[at:at+packed],unpacked); at+=packed
-        if len(out)!=total: raise ValueError('compressed package gives %d bytes, not %d' % (len(out),total))
-        b=bytes(out)
+        # a package the cooker compressed whole (the startup and script packages): one chunk, read and checked as
+        # a map's are (decomp.read_chunk: its tag, block size and block table), each block of the size the table
+        # gives (lzo1x raises ValueError on one cut short or of another length)
+        import decomp
+        _,_,_,blocks,at=decomp.read_chunk(b,0)
+        b=bytes(decomp.decode_blocks(b,blocks,at))
         return b,summary(b)
     h=summary(b)
     if h['chunks'] and not raw:

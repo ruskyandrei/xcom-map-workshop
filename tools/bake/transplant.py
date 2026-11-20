@@ -276,21 +276,10 @@ def closure(donor, roots, dest, shared=None, shells=True):
 def van_volumes(p, members):
     """The building and floor volumes of the van whose parts `members` (export indices of the package `p`'s level)
     are: [building, floor volume, ...] of the level's XComBuildingVolume more than half of whose residents they are
-    (native_copy.van_buildings' rule, which finds the staged building again by it), or []."""
-    level = p.by_name.get(LEVEL)
-    members = set(members)
-    for i in p.children.get(level, []) if level else []:
-        if p.cls(i) != 'XComBuildingVolume':
-            continue
-        residents, volumes = set(), []
-        for floor in p.structs(p.own(i, 'Floors')):
-            cached = floor.get(('m_aCachedActors', 0), {}).get('value')
-            residents |= {e[('ResidentActor', 0)]['value'] for e in p.structs(cached)} if cached else set()
-            listed = floor.get(('FloorVolumes', 0), {}).get('value')
-            volumes += [v for v in (p.refs(listed) if listed else []) if v > 0]
-        if residents and len(residents & members) * 2 > len(residents):
-            return [i] + volumes
-    return []
+    (native_copy.van_buildings' rule, which finds the staged building again by it: the first such), or []."""
+    import native_copy
+    found = native_copy.van_buildings(p, members) if LEVEL in p.by_name else []
+    return [found[0]['building']] + found[0]['volumes'] if found else []
 
 
 def bring(g, dest, donor, roots, shared=None):
@@ -550,102 +539,6 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
         new_edit['lights'] = dict(lights, area=area, stagedAreas=sorted(n for rows in area_names.values() for n in rows.values()))
     (out / 'transplant.json').write_text(json.dumps(report, indent=1) + '\n', encoding='utf-8', newline='\n')
     return target, new_edit, report
-
-
-# -- the oracle ------------------------------------------------------------------------------------------------------
-COOK_GUIDS = ('LightingGuid', 'ParentLightingGuid')
-
-
-def cook_noise(donor, index):
-    """[(start, end)] in export `index`'s data of what one cook of a package writes differently from another: the
-    values of the LightingGuid and ParentLightingGuid properties, and what its native layout marks (native_fields:
-    the last value of a material's compiled resource, a 2D texture's cache GUID)."""
-    p = donor.p
-    data = donor.data(index)
-    spans = [(at, at + native_fields.COOK[kind]) for at, kind in donor.fields(index)[0] if kind in native_fields.COOK]
-    for key in COOK_GUIDS:
-        if key in p.names and 'StructProperty' in p.names:
-            tag = struct.pack('<iiii', p.names.index(key), 0, p.names.index('StructProperty'), 0)
-            at = data.find(tag)
-            while at >= 0:
-                spans.append((at + 32, at + 48))
-                at = data.find(tag, at + 1)
-    return spans
-
-
-def oracle(a, b, examples=3):
-    """Every asset the donors `a` and `b` both hold: a's bytes in b's numbering against b's own. Returns
-    dict(classes {class: counts}, differences [dict(object, cls, why, ...)] (up to `examples` a class and reason)).
-    The counts: objects; equal; cookNoise (equal but for cook_noise); size (another size in b, not compared);
-    differs; refused (a field that can't be found); and for a class with native data and no layout, plainEqual and
-    plainDiffers (compared with the fields of its properties alone)."""
-    import collections
-    names_b = {name: k for k, name in reversed(list(enumerate(b.p.names)))}
-    imports_b = {}
-    for k, i in enumerate(b.p.imports):
-        imports_b.setdefault((i['cls'], b.p.name(-k - 1)), -k - 1)
-    exports_b = {}
-    for i in range(1, len(b.p.exports) + 1):
-        exports_b.setdefault(b.key(i), i)
-
-    def object_of(ref):
-        if ref < 0:
-            return imports_b[(a.p.imports[-ref - 1]['cls'], a.p.name(ref))]
-        return exports_b[a.key(ref)]
-
-    classes = collections.defaultdict(collections.Counter)
-    shown, differences = collections.Counter(), []
-
-    def note(cls, why, **more):
-        classes[cls][why] += 1
-        shown[(cls, why)] += 1
-        if shown[(cls, why)] <= examples:
-            differences.append(dict(cls=cls, why=why, **more))
-
-    for key in sorted(set(a.assets) & set(b.assets)):
-        cls, path = key
-        if cls == 'Package':
-            continue
-        ia, ib = a.assets[key], b.assets[key]
-        row = classes[cls]
-        row['objects'] += 1
-        theirs = b.data(ib)
-        if len(theirs) != a.p.exports[ia - 1]['size']:
-            note(cls, 'size', object=path, sizes=[a.p.exports[ia - 1]['size'], len(theirs)])
-            continue
-        plain = False
-        try:
-            a.fields(ia)
-        except Refused as error:
-            if 'no layout here' not in str(error):
-                note(cls, 'refused', object=path, error=str(error))
-                continue
-            plain = True
-            f = typed_props.fields(a.p, ia, a.schema)
-            a._fields[ia] = (f.fields, f.net_index)
-        try:
-            mine = remap(a, ia, names_b.__getitem__, object_of, b.p.exports[ib - 1]['off'])
-        except KeyError as error:
-            note(cls, 'plainDiffers' if plain else 'differs', object=path, missing=repr(error.args[0]))
-            continue
-        finally:
-            noise = cook_noise(a, ia)
-            if plain:
-                del a._fields[ia]
-        if mine == theirs:
-            row['plainEqual' if plain else 'equal'] += 1
-            continue
-        masked, other = bytearray(mine), bytearray(theirs)
-        for lo, hi in noise:
-            masked[lo:hi] = other[lo:hi] = bytes(hi - lo)
-        if masked == other:
-            row['cookNoise'] += 1
-            continue
-        first = next(k for k in range(len(masked)) if masked[k] != other[k])
-        note(cls, 'plainDiffers' if plain else 'differs', object=path, at=first, size=len(mine),
-             bytes=sum(1 for x, y in zip(masked, other) if x != y),
-             here=bytes(masked[first:first + 8]).hex(), there=bytes(other[first:first + 8]).hex())
-    return dict(classes={c: dict(r) for c, r in classes.items()}, differences=differences)
 
 
 def main():

@@ -1,4 +1,4 @@
-"""The numpy DXT1 encoder and decoder, checked against PIL's DDS decoder (which `lightmap_stats` reads with)."""
+"""The numpy DXT1 encoder and decoder, checked against PIL's DDS decoder (which `lightmap_textures` reads with)."""
 import io
 from pathlib import Path
 import sys

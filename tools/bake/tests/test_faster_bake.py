@@ -1,7 +1,6 @@
 """The faster-bake plan's parts (private/plans/done/faster-bake-plan.md): packages decoded once, the writer's
 changed blocks, the reach test for each texel, pieces relit in bands, the worker pool, the pieces kept for the next
 build. The tests on the bar itself run when the map is here."""
-import json
 import os
 from pathlib import Path
 import sys
@@ -13,9 +12,9 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-import lighting_fixture  # noqa: E402
+import lightmap_writer  # noqa: E402
 import relight  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 import decomp  # noqa: E402
 import lzo1x  # noqa: E402
 
@@ -288,7 +287,7 @@ class KeptPieces(unittest.TestCase):
         loaded = subprocess.run([sys.executable, '-B', '-c', script, str(tools)], capture_output=True, text=True,
                                 check=True).stdout.split()
         self.assertTrue(loaded)
-        self.assertEqual(sorted(set(loaded) - set(relight.TOOL_FILES) - {'bake/lighting_fixture.py'}), [])
+        self.assertEqual(sorted(set(loaded) - set(relight.TOOL_FILES) - {'bake/lightmap_writer.py'}), [])
         with tempfile.TemporaryDirectory() as d:
             args = ('P', self.FIELDS, [self.LAMP], [self.LAMP], [[['box', True]], []])
             key = relight.PieceCache(d, 'base', {}).key(*args)
@@ -357,11 +356,11 @@ class OnTheBar(unittest.TestCase):
         self.assertEqual((r['report']['texels']['inReach'], r['report']['delta']['texelsChanged']), (0, 0))
 
     def test_only_the_blocks_with_a_changed_texel_are_written_and_no_other_piece_is_touched(self):
-        fx = lighting_fixture.Fixture(BAR, 'Lighting_7190')
+        fx = lightmap_writer.Fixture(BAR, 'Lighting_7190')
         lm = fx.component(FLOOR)
         t = fx.redirect(lm['slots'][1]['index'])
         top = t['fields']['mips'][0]
-        x0, y0, x1, y1 = lighting_fixture.rect_bounds(lm, top['width'], top['height'])
+        x0, y0, x1, y1 = lightmap_writer.rect_bounds(lm, top['width'], top['height'])
         before = bytes(t['mips'][0]['raw'])
         texels = np.full((y1 - y0, x1 - x0, 3), 0.5)
         mask = np.zeros((y1 - y0, x1 - x0), bool)
@@ -376,7 +375,7 @@ class OnTheBar(unittest.TestCase):
         self.assertEqual((other['texels'], other['pieces']), (0, []))
         # with the ring, the padding just outside the rectangle takes its border's new value
         import dxt1
-        ringed = lighting_fixture.Fixture(BAR, 'Lighting_7190')
+        ringed = lightmap_writer.Fixture(BAR, 'Lighting_7190')
         t2 = ringed.redirect(lm['slots'][1]['index'])
         ringed.image(FLOOR, 1, np.full((y1 - y0, x1 - x0, 3), 0.75), np.ones((y1 - y0, x1 - x0), bool), ring=True)
         got = dxt1.decode_image(t2['mips'][0]['raw'], top['width'], top['height'])
@@ -386,7 +385,7 @@ class OnTheBar(unittest.TestCase):
         self.assertGreater(float(np.abs(was[y0:y1, x0 - 1] - 0.75).mean()), 0.1)       # (it was something else)
         self.assertEqual(ringed.others_changed()['texels'], 0)
         # without only_changed, every block the rectangle touches is encoded again
-        whole = lighting_fixture.Fixture(BAR, 'Lighting_7190')
+        whole = lightmap_writer.Fixture(BAR, 'Lighting_7190')
         whole.image(FLOOR, 1, texels, mask)
         self.assertGreater(whole.log[-1]['blocksPerMip'][0]['blocks'], 1000)
 

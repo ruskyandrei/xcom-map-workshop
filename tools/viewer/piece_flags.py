@@ -529,8 +529,9 @@ def resolve(p, actor):
 
 
 def collides(p, actor):
-    """Whether an actor collides: bCollideActors, and CollideActors on one of the mesh components under it (as
-    export.collides and the Build's native_copy.collides)."""
+    """Whether an actor collides: bCollideActors, and CollideActors on one of the mesh components under it that draws
+    a mesh. The one rule of the export (its `collides` record), the flags and the Build (tools/bake/native_copy.py:
+    a piece that can't touch the game's tiles, a sky dome, seeds none)."""
     if p.effective(actor, 'bCollideActors', True) is False:
         return False
 
@@ -542,6 +543,14 @@ def collides(p, actor):
                if (p.cls(c) == 'SkeletalMeshComponent' and (p.effective(c, 'SkeletalMesh', 0) or 0) > 0)
                or (p.cls(c) in ('StaticMeshComponent', 'FracturedStaticMeshComponent', 'XComMapEdMeshComponent')
                    and (p.effective(c, 'StaticMesh', 0) or 0) > 0))
+
+
+def van_building(listed, parts):
+    """Whether a building whose floors list `listed` (a set of actors) is the van's own whose parts are `parts`: more
+    than half of what it lists is among them. A van's building lists its parts and whatever else stands in its floor
+    volumes (on Bar, a skid mark under one); a car parked in a building is a small part of that building's pieces.
+    The one rule of the compiler and the Build (tools/bake/native_copy.py van_buildings; review finding 55)."""
+    return bool(listed) and len(listed & set(parts)) * 2 > len(listed)
 
 
 def body_setup(p, actor):

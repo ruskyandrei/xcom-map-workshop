@@ -334,10 +334,16 @@ class Fixtures(unittest.TestCase):
                 self.assertAlmostEqual(got, value, places=5, msg=(cls, prop))
 
     def test_the_landing_rule_is_the_builds(self):
+        # one rule, scene_metadata.landing_archetype, which the Build's clear reads too (review finding 55)
         sys.path.insert(0, str(HERE.parents[1] / 'bake'))
         import native_copy
-        self.assertEqual(em.LANDING_PREFABS, native_copy.LANDING_PREFABS)
-        self.assertEqual(em.LANDING_EXTRA, native_copy.LANDING_EXTRA)
+        import scene_metadata
+        self.assertIs(native_copy.scene_metadata.landing_archetype, scene_metadata.landing_archetype)
+        for path, landing in (('DGN_DropShipSoldierSpawn.Prefabs.SoldierSpawns', True),
+                              ('veh_lv1skyranger_mod.prefabs.Skyranger', True),
+                              ('FX_Pkg.Emitters.ARC_Skyranger_Ground_Periphery', True),
+                              ('URB_Bar.Prefabs.Table', False), ('', False)):
+            self.assertEqual(scene_metadata.landing_archetype(path), landing, path)
 
     def test_the_exporter_carries_them(self):
         import export

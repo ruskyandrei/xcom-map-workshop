@@ -15,7 +15,7 @@ sys.path.insert(0, str(HERE.parent))
 import lighting_fixture as fx  # noqa: E402
 import lightmap_fields  # noqa: E402
 from lighting_fixture import block_range, compressed_bulk, paint_dxt1, solid_block  # noqa: E402
-import audit_lighting as lighting  # noqa: E402
+import lighting_records as lighting  # noqa: E402
 from texture import dds_header, decompress_payload  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
