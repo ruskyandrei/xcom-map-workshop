@@ -1680,8 +1680,6 @@ async function pasteSnapshot(clip, delta, step = null, { whole = false, first = 
     root.userData.deleted = true;
     return root;
   });
-  // (each copy made as a record of it would be read: its new names, its pose, its links named anew and its state;
-  // piece_records.js optionsOf)
   const objs = clip.entries.map(e => {
     const { source, matrix } = e, placed = delta.clone().multiply(matrix), copy = copies.get(unitOf(e));
     return addedObject(source, placed, optionsOf({ actor: copy.name, id: copy.entity, ...actorPose(source, placed),
@@ -2302,8 +2300,7 @@ function prefabRecords({ complete = false } = {}) {
     copied.push([memberOf(e.source), { added: name }]); lights++;
     const value = k => { const v = e.values?.[k] ?? recipe.values[k]; return Array.isArray(v) ? [...v] : v; };
     // (a made light holds only cones in the editor's ranges: a map's stored 100 or 580 goes in as the 89.99 it lights as)
-    pieces.push(recordOf({ form: 'light', actor: name, template: { kind, version: recipe.latest },
-                           light: withStorableCone(Object.fromEntries(Object.keys(recipe.values).map(k => [k, value(k)]))), ...pose }, 'prefab'));
+    pieces.push(recordOf({ form: 'light', actor: name, template: { kind, version: recipe.latest }, light: withStorableCone(Object.fromEntries(Object.keys(recipe.values).map(k => [k, value(k)]))), ...pose }, 'prefab'));
   }
   // its buildings: the project's and the map's own selected with the pieces, each a building of the prefab
   const by = new Map();
@@ -2348,8 +2345,6 @@ async function prefabClip(doc, step = null) {
     const entry = t.foreign?.key ? library?.entry(t.foreign.key) : null;
     if (entry && !entry.placeable && !SOFT.includes(entry.blocked)) failed.set(targetKey(from), `${entry.name} of ${from.package} can't be brought into another map yet (${entry.reason})`);
   }, error => { failed.set(targetKey(from), `${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`); })));
-  // (each record read through piece_records.js optionsOf: its names, pose, links, state and values; a clip entry's
-  // `unit` is its actor, its `link` and `partner` what the paste names anew)
   const entries = [];
   for (const p of records) {
     const key = memberKey({ added: p.actor });
@@ -3889,7 +3884,6 @@ function lightState(overrides, added) {
   for (const root of lightRoots.values()) {
     const o = root.userData.source;
     if (o.added) {
-      // (a recipe light with all its values; a copy of a map's light with those changed from its original's)
       const pose = lightPose(root);
       if (o.added.template) added.set(o.actor, recordOf({ form: 'light', id: o.added.entity, actor: o.actor, template: { ...o.added.template }, ...pose,
                                                          light: { ...root.userData.values } }));
@@ -4466,8 +4460,7 @@ function editState() {
   return eventMemo.state ??= editStateNow();
 }
 function editStateNow() {
-  // (`added`: each added thing's unit while its roots are read, made its record after: piece_records.js recordOf)
-  const overrides = new Map(), added = new Map();
+  const overrides = new Map(), added = new Map();     // (`added`: units while the roots are read, then their records)
   for (const root of roots.values()) {
     const o = root.userData.source;
     if (o.added && o.cover) {      // a cover block: its recipe (a version that makes its type), size and cover, at its corner
@@ -4633,7 +4626,6 @@ async function applyState(state, progress = null) {
     if (serial > copySerial) copySerial = serial;
     const sources = entity.components.map(c => templateFor(entity.from, c));
     if (sources.some(t => !t)) { carried.added.push(entity); continue; }
-    // (each part made as its record says: names, links, pose and state)
     for (const source of sources) {
       const options = optionsOf(entity);
       objs.push(addedObject(source, movedMatrix(source, options.location, options.rotation), options));

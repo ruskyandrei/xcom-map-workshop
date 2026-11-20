@@ -4,6 +4,7 @@
 // (refactor stage P2): recordOf and optionsOf, each form and each writer's path.
 // Run: node tools/viewer/tests/piece_records_test.mjs
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, optionsOf, pieceState, recordFields, recordOf, stateOf, stateOfRoot } from '../web/piece_records.js';
 
 const wall = { kind: 'fracWall', version: 4, wall: { x0: 0, x1: 288, openings: [{ x0: 96, x1: 192, z0: 0, z1: 208 }], seed: 3 },
@@ -97,4 +98,59 @@ assert.deepEqual(optionsOf(recordOf(lamp), 'light'), { actor: 'PointLight_0_copy
                                                       component: 'A.PointLightComponent_0' });
 assert.deepEqual(optionsOf({ ...recordOf(sound), sound: { volume: [0.5, 0.6], follow: 'none', parameters: [{ name: 'P', value: 2 }] } }, 'effect'),
                  { actor: 'AmbientSoundSimple_0_copy6', entity: 'e5', kind: 'sound', from, ...pose, values: { volume: [0.5, 0.6], parameters: { P: 2 } } });
-console.log(`piece records: ${4} made pieces and a broken copy go into their records and come back the same; each form's record written and read`);
+
+// The recorded cases (piece_record_cases.json): one scene on the Bar holding every kind of piece, the records its three
+// writers gave before this module wrote them (a project, a prefab, the builder's document), and what its readers handed
+// on (a project's and the builder's applyState, a prefab's clip, a paste). Each record is recordOf's of its unit, field
+// for field and in the same order (a project's saved key, stateKey, reads a state keyed before as the same).
+const cases = JSON.parse(readFileSync(new URL('./piece_record_cases.json', import.meta.url), 'utf8'));
+const inOrder = (a, b, what) => assert.equal(JSON.stringify(a), JSON.stringify(b), what);
+const kinds = new Set();
+for (const c of cases.writers) {
+  // (a prefab's partner is named by its name in the prefab, and its records moved to its origin, after recordOf: `after`)
+  inOrder({ ...recordOf(c.unit, c.path), ...c.after }, c.record, `${c.writer}'s ${c.kind}`);
+  kinds.add(`${c.writer}: ${c.kind}`);
+}
+for (const writer of ['project', 'prefab', 'builder'])
+  for (const kind of ['copy', 'copy (partner)', 'tinted copy', 'copy of two components', 'copy of another map\'s piece', 'fracWall', 'fracSlab',
+                      'ground ramp', 'ground rock', 'broken copy', 'cover high', 'cover floor', 'cover block', 'spot light (recipe)',
+                      'point light (recipe)', 'effect', 'sound', 'flare', ...(writer === 'project' ? ['light copy'] : [])])
+    assert.ok(kinds.has(`${writer}: ${kind}`), `no recorded ${writer} record of a ${kind}`);
+const absent = v => v === '<undefined>';      // (a clip entry without the field)
+const stateKeys = ['tinted', 'flags', 'generated', 'blasts', 'breaksFurther'];
+const stateIn = o => Object.fromEntries(stateKeys.map(k => [k, o[k]]));
+const sites = new Set();
+for (const c of cases.readers) {
+  const what = `${c.site}, ${c.form} ${c.record.actor}`, got = optionsOf(c.record, c.form, c.state);
+  sites.add(`${c.site}: ${c.form}`);
+  assert.equal(got.actor, c.record.actor, what);
+  assert.equal(got.entity, c.record.id, what);
+  assert.equal(got.location, c.record.location, `${what}: the record's own location`);
+  if (c.options) {
+    // addedObject's options: those applyState gave, in the same order; a paste's in optionsOf's order (it takes them by name)
+    assert.deepEqual(got, c.options, what);
+    if (c.site.startsWith('applyState')) assert.deepEqual(Object.keys(got), Object.keys(c.options), what);
+    if (c.state) assert.equal(got.generated, c.state.generated, `${what}: the state given is handed on`);
+  } else if (c.added && c.form === 'light') {
+    // what addedLight was given: its actor, and among its values every one the record sets (the page adds the rest)
+    assert.equal(c.added.actor, got.actor, what);
+    for (const [k, v] of Object.entries(got.light ?? {})) assert.deepEqual(c.added.values[k], v, `${what}: ${k}`);
+    assert.deepEqual(got.recipe, c.record.template, what);
+  } else if (c.added) {
+    assert.deepEqual({ actor: got.actor, entity: got.entity, values: got.values }, c.added, what);
+  } else {
+    // a prefab's clip entry: its unit, link and partner, state and values
+    const e = c.entry;
+    assert.equal(e.unit, got.actor, what);
+    if (c.form === 'piece') {
+      assert.deepEqual(c.state, stateOf(c.record), `${what}: the record's state`);
+      assert.deepEqual({ link: e.link, partner: e.partner, state: e.state }, { link: got.prefab, partner: got.partner, state: stateIn(got) }, what);
+    } else if (c.form === 'cover') assert.deepEqual([e.link, e.partner], [got.prefab, got.partner], what);
+    else if (c.form === 'light') assert.deepEqual(got.recipe, c.record.template, what);
+    else if (absent(e.values)) assert.equal(c.record.kind, 'flare', `${what}: only a lens flare is placed with no values`);
+    else assert.deepEqual(e.values, got.values, what);
+  }
+}
+assert.equal(sites.size, 14, [...sites].join('; '));
+console.log(`piece records: ${4} made pieces and a broken copy go into their records and come back the same; each form's record written and read; `
+  + `${cases.writers.length} recorded records written and ${cases.readers.length} read as before`);
