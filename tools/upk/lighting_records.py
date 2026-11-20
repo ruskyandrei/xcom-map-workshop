@@ -5,7 +5,9 @@ mips, the properties an object saves itself, and a file's SHA-256. Every Build's
 
 v845 packages, Enemy Within's (licensee 64: two mesh-swap LOD records after the LOD array) and UDK's own (licensee 0).
 The field layouts were checked against pinned XCOM-Uncooker declarations; no upstream implementation is vendored
-here. The research census these were first written for (audit_lighting.py) imports them from here.
+here. The research census these were first written for (audit_lighting.py) imports them from here. A mesh component's
+LOD records and a bulk record are read by native_fields.py's one reader (with their places in the package); these
+give its values in the form the bakers read.
 """
 import hashlib
 from pathlib import Path
@@ -13,6 +15,8 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'viewer'))
 from package import Package, Reader, FormatError, cache_file, link_caches  # noqa: E402,F401 (the bakers read them here)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import native_fields  # noqa: E402
 
 
 def digest(path):
@@ -21,79 +25,68 @@ def digest(path):
 
 
 def refs(r, p):
-    n = r.count()
-    values = list(r.unpack(f'{n}i'))
-    for v in values:
-        p.name(v)
-    return values
+    return native_fields.object_refs(r, p)['refs']
 
 
 def bulk_meta(r):
-    flags, count, size, offset = r.unpack('4i')
-    if count < 0 or size < 0:
+    b = native_fields.bulk_record(r)
+    if b['count'] < 0 or b['bytes'] < 0:
         raise FormatError('Negative bulk count or size')
-    inline = not flags & 1
-    if inline:
-        r.take(size)
-    return dict(flags=flags, count=count, bytes=size, offset=offset, inline=inline)
+    return _bulk(b)
+
+
+def _bulk(b):
+    return dict(flags=b['flags'], count=b['count'], bytes=b['bytes'], offset=b['offset'], inline=b['inline'])
 
 
 def lightmap(r, p):
-    kind = r.i32()
-    result = dict(type=kind)
-    if kind == 0:
+    return _lightmap(native_fields.lightmap_record(r, p), p)
+
+
+def _lightmap(lm, p):
+    result = dict(type=lm['type'])
+    if lm['type'] == 0:
         return result
-    if kind not in (1, 2):
-        raise FormatError(f'Unknown lightmap type {kind}')
-    n = r.count()
-    result['lightGuids'] = [r.take(16).hex() for _ in range(n)]
-    if kind == 1:
-        result['owner'] = p.name(r.i32())
-        result['directionalSamples'] = bulk_meta(r)
-        result['scaleVectors'] = [list(r.unpack('3f')) for _ in range(3)]
-        result['simpleSamples'] = bulk_meta(r)
+    result['lightGuids'] = lm['lightGuids']
+    if lm['type'] == 1:
+        result['owner'] = p.name(lm['owner'])
+        result['directionalSamples'] = _bulk(lm['directionalSamples'])
+        result['scaleVectors'] = lm['scaleVectors']
+        result['simpleSamples'] = _bulk(lm['simpleSamples'])
     else:
-        result['slots'] = []
-        for _ in range(3):
-            ref = r.i32()
-            result['slots'].append(dict(texture=p.name(ref), index=ref, scale=list(r.unpack('3f'))))
-        result['coordinateScale'] = list(r.unpack('2f'))
-        result['coordinateBias'] = list(r.unpack('2f'))
+        result['slots'] = [dict(texture=p.name(s['index']), index=s['index'], scale=s['scale']) for s in lm['slots']]
+        result['coordinateScale'] = lm['coordinateScale']
+        result['coordinateBias'] = lm['coordinateBias']
     return result
 
 
 def lod_record(r, p):
-    result = dict(shadowMaps=refs(r, p), shadowVertexBuffers=refs(r, p), lightmap=lightmap(r, p))
-    color = r.take(1)[0]
-    if color not in (0, 1):
-        raise FormatError('Invalid vertex-color boolean')
-    if color:
-        stride, count = r.unpack('2I')
-        if count:
-            actual_stride, actual_count, _ = r.array_bytes()
-            if actual_stride != stride or actual_count != count:
-                raise FormatError('Vertex-color count/stride mismatch')
-    positions = r.count()
-    r.take(positions * 12)
-    result['overrideVertexColors'] = bool(color)
-    return result
+    return _lod(native_fields.lod_record(r, p), p)
+
+
+def _lod(lod, p):
+    return dict(shadowMaps=lod['shadowMaps']['refs'], shadowVertexBuffers=lod['shadowVertexBuffers']['refs'],
+                lightmap=_lightmap(lod['lightmap'], p), overrideVertexColors=lod['overrideVertexColors'])
+
+
+def component_lods(p, index):
+    """(native_fields.mesh_lods of a static mesh component, the bytes of its native data after them): none in a
+    StaticMeshComponent (a FormatError otherwise); a subclass's are its own."""
+    r = p.native(index)
+    lods = native_fields.mesh_lods(r, p)
+    tail = r.end - r.pos
+    if p.cls(index) == 'StaticMeshComponent' and tail:
+        raise FormatError(f'StaticMeshComponent has {tail} unconsumed bytes')
+    return lods, tail
 
 
 def component_record(p, index):
     """A static mesh component's native LOD lighting records. EW (licensee 64) adds two mesh-swap LOD records and
     their meshes; UDK's own packages (licensee 0, same version 845) end after the LOD array."""
-    r = p.native(index)
-    lods = [lod_record(r, p) for _ in range(r.count())]
-    if p.header['lic'] == 0:
-        swaps, swap_meshes = [], []
-    else:
-        swaps = [lod_record(r, p), lod_record(r, p)]
-        swap_meshes = [p.name(r.i32()), p.name(r.i32())]
-    tail = r.end - r.pos
-    if p.cls(index) == 'StaticMeshComponent' and tail:
-        raise FormatError(f'StaticMeshComponent has {tail} unconsumed bytes')
-    return dict(path=p.name(index), cls=p.cls(index), lods=lods, swaps=swaps,
-                swapMeshes=swap_meshes, unparsedSubclassBytes=tail)
+    lods, tail = component_lods(p, index)
+    return dict(path=p.name(index), cls=p.cls(index), lods=[_lod(x, p) for x in lods['lods']],
+                swaps=[_lod(x, p) for x in lods['swaps']], swapMeshes=[p.name(m['ref']) for m in lods['swapMeshes']],
+                unparsedSubclassBytes=tail)
 
 
 def explicit_properties(p, index, keys):

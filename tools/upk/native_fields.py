@@ -77,17 +77,17 @@ class _Out:
         self.fields.append((self.at(), NAME))
         return self.p.fname(self.r)
 
-    def bulk(self):
-        """A bulk record and, when it is in the export, its payload."""
-        where = self.r.pos
-        flags, count, size, offset = self.r.unpack('4i')
-        self.fields.append((where - self.off, BULK))
-        if flags & STORED_ELSEWHERE:
-            return dict(flags=flags, count=count, size=size, inline=False)
-        if offset != where + 16:
-            raise NativeError('a bulk record at %d points to %d, not past itself' % (where - self.off, offset))
-        self.r.take(max(size, 0))
-        return dict(flags=flags, count=count, size=size, inline=True)
+    def bulk(self, b=None):
+        """A bulk record (bulk_record's: read here, unless given) as a field. One whose payload is in the export must
+        point to it, right after itself."""
+        b = bulk_record(self.r) if b is None else b
+        self.fields.append((b['at'] - self.off, BULK))
+        if b['inline'] and b['offset'] != b['at'] + 16:
+            raise NativeError('a bulk record at %d points to %d, not past itself' % (b['at'] - self.off, b['offset']))
+
+    def objects(self, refs):
+        """object_refs' record as fields: each reference after the count."""
+        self.fields += [(refs['at'] + 4 + 4 * k - self.off, OBJECT) for k in range(len(refs['refs']))]
 
     def fstring(self):
         n = self.r.i32()
@@ -243,49 +243,131 @@ def _material_instance(o):
 
 
 # -- mesh components -----------------------------------------------------------------------------------------------
-def _lightmap(o):
-    r = o.r
-    kind = r.i32()
+# The one reader of a mesh component's LOD records and of a bulk record (review finding 52): lighting_records (the
+# Build's relight and copier, the editor's light records, the research census) and lightmap_fields (the relight's
+# writes) take their values and places from these, and fields() here a component's references and bulk records. Each
+# value comes with its absolute place in the package. A refusal is a FormatError (fields() makes it a NativeError).
+def bulk_record(r):
+    """A bulk-data record at the reader's place: dict(at (its place), flags, count, bytes (its size on disk), offset,
+    inline). An inline payload (bit 0 of the flags clear: not in a separate file) follows the record and is passed
+    over, so its size can't be negative; a record of a separate file can say -1 (a texture's unused mips do)."""
+    at = r.pos
+    flags, count, size, offset = r.unpack('4i')
+    inline = not flags & STORED_ELSEWHERE
+    if inline:
+        r.take(size)
+    return dict(at=at, flags=flags, count=count, bytes=size, offset=offset, inline=inline)
+
+
+def object_refs(r, p):
+    """A counted array of object references at the reader's place: dict(at (the count's place), refs); each names an
+    object of `p`."""
+    at = r.pos
+    refs = list(r.unpack('%di' % r.count()))
+    for ref in refs:
+        p.name(ref)
+    return dict(at=at, refs=refs)
+
+
+def lightmap_record(r, p):
+    """A LOD's lightmap at the reader's place: dict(offset, type: 0 none, 1 per vertex, 2 in textures). Types 1 and 2
+    add lightGuidsOffset and lightGuids (hex): the lights baked into it. A vertex lightmap lies in the component's own
+    data: its ownerOffset and owner (an object index), the bulk records of its directional samples
+    (directionalSamples) and of its simple samples (simpleSamples), neither with a negative count or size, and the
+    three scale vectors between them (scaleVectorsOffset, scaleVectors). A texture lightmap: its three slots
+    [dict(textureOffset, index, scaleOffset, scale)], its coordinateScale and its coordinateBias, each with its
+    offset."""
+    out = dict(offset=r.pos)
+    kind = out['type'] = r.i32()
     if kind == 0:
-        return
+        return out
     if kind not in (1, 2):
-        raise NativeError('lightmap type %d' % kind)
-    r.take(16 * r.count())                      # the lights baked into it
+        raise FormatError(f'Unknown lightmap type {kind}')
+    n = r.count()
+    out['lightGuidsOffset'] = r.pos
+    out['lightGuids'] = [r.take(16).hex() for _ in range(n)]
     if kind == 1:
-        o.obj()                                 # owner
-        o.bulk()
-        r.take(36)
-        o.bulk()
-    else:
-        for _ in range(3):
-            o.obj()
-            r.take(12)
-        r.take(16)
+        out['ownerOffset'] = r.pos
+        out['owner'] = r.i32()
+        p.name(out['owner'])
+        out['directionalSamples'] = _samples(r)
+        out['scaleVectorsOffset'] = r.pos
+        out['scaleVectors'] = [list(r.unpack('3f')) for _ in range(3)]
+        out['simpleSamples'] = _samples(r)
+        return out
+    out['slots'] = []
+    for _ in range(3):
+        at = r.pos
+        ref = r.i32()
+        p.name(ref)
+        out['slots'].append(dict(textureOffset=at, index=ref, scaleOffset=r.pos, scale=list(r.unpack('3f'))))
+    out['coordinateScaleOffset'] = r.pos
+    out['coordinateScale'] = list(r.unpack('2f'))
+    out['coordinateBiasOffset'] = r.pos
+    out['coordinateBias'] = list(r.unpack('2f'))
+    return out
 
 
-def _component_lod(o):
-    r = o.r
-    o.objs()                                    # shadow maps
-    o.objs()                                    # shadow vertex buffers
-    _lightmap(o)
+def _samples(r):
+    b = bulk_record(r)
+    if b['count'] < 0 or b['bytes'] < 0:
+        raise FormatError('Negative bulk count or size')
+    return b
+
+
+def lod_record(r, p):
+    """One LOD's lighting at the reader's place: dict(shadowMaps, shadowVertexBuffers (object_refs'), lightmap
+    (lightmap_record's), overrideVertexColors). Its painted vertex colours (a flag, 0 or 1; when set the colours'
+    stride and count, then with a count the colours as an array of that stride and count) and its positions (12 bytes
+    each) are passed over."""
+    out = dict(shadowMaps=object_refs(r, p), shadowVertexBuffers=object_refs(r, p), lightmap=lightmap_record(r, p))
     colour = r.take(1)[0]
     if colour not in (0, 1):
-        raise NativeError('a vertex-colour flag of %d' % colour)
+        raise FormatError('Invalid vertex-color boolean')
     if colour:
-        _, count = r.unpack('2I')
+        stride, count = r.unpack('2I')
         if count:
-            r.array_bytes()
+            actual_stride, actual_count, _ = r.array_bytes()
+            if actual_stride != stride or actual_count != count:
+                raise FormatError('Vertex-color count/stride mismatch')
     r.take(r.count() * 12)
+    out['overrideVertexColors'] = bool(colour)
+    return out
+
+
+def mesh_lods(r, p):
+    """A static or fractured mesh component's LOD records, from the reader's place (where its native data starts):
+    dict(lods [lod_record's], swaps, swapMeshes [dict(at, ref)]). Enemy Within (licensee 64) saves two mesh-swap LOD
+    records and their two meshes after the LOD array; UDK's own packages (licensee 0, the same version 845) end after
+    it. The reader is left after them."""
+    lods = [lod_record(r, p) for _ in range(r.count())]
+    swaps, meshes = [], []
+    if p.header['lic'] != 0:
+        swaps = [lod_record(r, p), lod_record(r, p)]
+        for _ in range(2):
+            at = r.pos
+            ref = r.i32()
+            p.name(ref)
+            meshes.append(dict(at=at, ref=ref))
+    return dict(lods=lods, swaps=swaps, swapMeshes=meshes)
 
 
 def _mesh_component(o):
-    for _ in range(o.r.count()):
-        _component_lod(o)
-    if o.p.header['lic'] != 0:
-        _component_lod(o)
-        _component_lod(o)
-        o.obj()
-        o.obj()
+    """A mesh component's references and bulk records, in their order: each LOD's (the swaps' after the LOD array's)
+    shadow maps and shadow vertex buffers, then its lightmap's owner and two bulk records, or its three textures;
+    then the swaps' two meshes."""
+    lods = mesh_lods(o.r, o.p)
+    for lod in lods['lods'] + lods['swaps']:
+        o.objects(lod['shadowMaps'])
+        o.objects(lod['shadowVertexBuffers'])
+        lm = lod['lightmap']
+        if lm['type'] == 1:
+            o.fields.append((lm['ownerOffset'] - o.off, OBJECT))
+            o.bulk(lm['directionalSamples'])
+            o.bulk(lm['simpleSamples'])
+        elif lm['type'] == 2:
+            o.fields += [(s['textureOffset'] - o.off, OBJECT) for s in lm['slots']]
+    o.fields += [(m['at'] - o.off, OBJECT) for m in lods['swapMeshes']]
 
 
 def _static_mesh_component(o):

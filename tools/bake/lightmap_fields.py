@@ -4,9 +4,10 @@ For one placed static/fractured mesh component: each LOD's lightmap texture refe
 coordinate scale/bias. For one lightmap/shadow-map texture: its cache name (an FName: name index plus number), each
 mip's bulk record (flags, element count, size on disk, offset in file) and its dimensions.
 
-Offsets are into the package's uncompressed (logical) image, as package_edit.write_edited takes them. Every value read
-here is checked against the record readers (lighting_records), so a layout mistake fails instead of producing a wrong
-offset. Read-only.
+Offsets are into the package's uncompressed (logical) image, as package_edit.write_edited takes them. A component's
+records and their places are those of the one reader of them (tools/upk/native_fields.py mesh_lods); a texture's
+values are checked against lighting_records' reader, so a layout mistake fails instead of producing a wrong offset.
+Read-only.
 
   python -B tools/bake/lightmap_fields.py <map.upk> <component or texture path> [...]
 """
@@ -41,83 +42,28 @@ def property_offsets(p, index):
     return {(name, slot): (at, size, kind) for name, kind, _, slot, at, size in rows}
 
 
-def _lightmap(r, p):
-    start = r.pos
-    kind = r.i32()
-    out = dict(offset=start, type=kind)
-    if kind == 0:
-        return out
-    if kind not in (1, 2):
-        raise FormatError(f'Unknown lightmap type {kind}')
-    n = r.count()
-    out['lightGuidsOffset'] = r.pos
-    out['lightGuids'] = [r.take(16).hex() for _ in range(n)]
-    if kind == 1:
-        # a vertex lightmap lies in the component's own data: its owner (the component), the directional samples'
-        # bulk record, three scale vectors, the simple samples' bulk record. An inline bulk record holds the
-        # absolute offset of its payload, which follows it
-        out['ownerOffset'] = r.pos
-        out['owner'] = r.i32()
-        p.name(out['owner'])
-        out['bulkOffsets'] = [r.pos]
-        lighting.bulk_meta(r)
-        out['scaleVectorsOffset'] = r.pos
-        r.take(36)
-        out['bulkOffsets'].append(r.pos)
-        lighting.bulk_meta(r)
-        return out
-    out['slots'] = []
-    for _ in range(3):
-        at = r.pos
-        ref = r.i32()
-        scale_at = r.pos
-        scale = list(r.unpack('3f'))
-        out['slots'].append(dict(textureOffset=at, index=ref, texture=p.name(ref), scaleOffset=scale_at, scale=scale))
-    out['coordinateScaleOffset'] = r.pos
-    out['coordinateScale'] = list(r.unpack('2f'))
-    out['coordinateBiasOffset'] = r.pos
-    out['coordinateBias'] = list(r.unpack('2f'))
-    return out
-
-
-def _lod(r, p):
-    shadow_at = r.pos
-    shadow = lighting.refs(r, p)
-    lighting.refs(r, p)
-    out = dict(shadowMapsOffset=shadow_at, shadowMaps=shadow, lightmap=_lightmap(r, p))
-    color = r.take(1)[0]
-    if color:
-        stride, count = r.unpack('2I')
-        if count:
-            r.array_bytes()
-    r.take(r.count() * 12)
+def _lightmap(lm, p):
+    """lightmap_fields' form of native_fields.lightmap_record's record: its places, the number of its lights."""
+    out = dict(offset=lm['offset'], type=lm['type'])
+    if lm['type'] == 1:
+        out.update(lightGuidsOffset=lm['lightGuidsOffset'], ownerOffset=lm['ownerOffset'], owner=lm['owner'],
+                   bulkOffsets=[lm['directionalSamples']['at'], lm['simpleSamples']['at']],
+                   scaleVectorsOffset=lm['scaleVectorsOffset'])
+    elif lm['type'] == 2:
+        out.update(lightGuidsOffset=lm['lightGuidsOffset'],
+                   slots=[dict(textureOffset=s['textureOffset'], index=s['index'], texture=p.name(s['index']),
+                               scaleOffset=s['scaleOffset'], scale=s['scale']) for s in lm['slots']],
+                   coordinateScaleOffset=lm['coordinateScaleOffset'], coordinateScale=lm['coordinateScale'],
+                   coordinateBiasOffset=lm['coordinateBiasOffset'], coordinateBias=lm['coordinateBias'])
+    out['lightGuidCount'] = len(lm.get('lightGuids', []))
     return out
 
 
 def component_fields(p, index):
     if p.cls(index) not in COMPONENT_CLASSES:
         raise FormatError(f'{p.name(index)} is a {p.cls(index)}, not a static mesh component')
-    r = p.native(index)
-    lods = [_lod(r, p) for _ in range(r.count())]
-    check = lighting.component_record(p, index)
-    if len(check['lods']) != len(lods):
-        raise FormatError('LOD count disagrees with the audit reader')
-    for mine, theirs in zip(lods, check['lods']):
-        a, b = mine['lightmap'], theirs['lightmap']
-        if a['type'] != b['type'] or mine['shadowMaps'] != theirs['shadowMaps']:
-            raise FormatError('LOD record disagrees with the audit reader')
-        if a['type'] == 2:
-            if ([(s['index'], s['scale']) for s in a['slots']] != [(s['index'], s['scale']) for s in b['slots']]
-                    or a['coordinateScale'] != b['coordinateScale'] or a['coordinateBias'] != b['coordinateBias']
-                    or a['lightGuids'] != b['lightGuids']):
-                raise FormatError('Lightmap fields disagree with the audit reader')
-    for lod in lods:
-        lm = lod['lightmap']
-        if lm['type'] == 2:
-            for s in lm['slots']:
-                if struct.unpack_from('<i', p.data, s['textureOffset'])[0] != s['index']:
-                    raise FormatError('Texture reference offset does not hold the reference')
-        lm['lightGuidCount'] = len(lm.pop('lightGuids', []))
+    lods = [dict(shadowMapsOffset=lod['shadowMaps']['at'], shadowMaps=lod['shadowMaps']['refs'],
+                 lightmap=_lightmap(lod['lightmap'], p)) for lod in lighting.component_lods(p, index)[0]['lods']]
     owner = p.exports[index - 1]['outer']
     return dict(path=p.name(index), cls=p.cls(index), export=index, owner=p.name(owner) if owner > 0 else None,
                 lods=lods)

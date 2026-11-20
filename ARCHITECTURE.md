@@ -171,7 +171,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A table or helper of the compiler that a family reads too | [`compiler_tables.py`](tools/editor/compiler_tables.py), named in its `__all__`. One only the compiler reads stays in `compiler.py`; one only a family reads goes in the family's module (the `SPAWN_*` tables in `spawn_edits.py`, the effects' in `effect_edits.py`, the `LIGHT_*` tables and `light_rule` in `light_edits.py`). |
 | A lane of the native edit | One change across the compiler's spec, `native_split` in [`native_edit.py`](tools/editor/native_edit.py), a maker module in `tools/bake` (as [`native_effects.py`](tools/bake/native_effects.py)) called from `native_copy.build`, and the Build. |
 | A piece lookup (what the compiler asks of the library of other maps' pieces) | [`piece_lookup.py`](tools/editor/piece_lookup.py) (`Library`), raising `LibraryError` (in [`compiler_tables.py`](tools/editor/compiler_tables.py)) with its code for what can't be had. The library's scan and its records are the viewer's [`library.py`](tools/viewer/library.py). |
-| A reader of package bytes | [`tools/upk`](tools/upk): tagged properties through [`props.tags`](tools/upk/props.py), compressed chunks through [`decomp.read_chunk`](tools/upk/decomp.py), a map's objects through the viewer's [`Package`](tools/viewer/package.py). |
+| A reader of package bytes | [`tools/upk`](tools/upk): tagged properties through [`props.tags`](tools/upk/props.py), compressed chunks through [`decomp.read_chunk`](tools/upk/decomp.py), a map's objects through the viewer's [`Package`](tools/viewer/package.py), a mesh component's LOD records and a bulk record through [`native_fields`](tools/upk/native_fields.py)' `mesh_lods` and `bulk_record` (each value with its place in the package; [`lighting_records`](tools/upk/lighting_records.py) and [`lightmap_fields`](tools/bake/lightmap_fields.py) give their values and places in the forms their readers take). |
 | A writer of package bytes | [`package_edit.write_edited`](tools/upk/package_edit.py) for edits in place, [`package_grow.py`](tools/upk/package_grow.py) for new exports. |
 | A line of the game's config | [`mapsini.py`](tools/viewer/mapsini.py). |
 | A tool folder on the import path | [`paths.use()`](tools/paths.py), at the top of the module. |
@@ -275,7 +275,11 @@ where there is one.
   walker keeps only what it does with each property (its values, its rules), and a module whose callers catch an
   error of its own turns the walk's `ValueError` into that error (the viewer's `FormatError`, `pack_card`'s
   `CardError`, `typed_props`' `WalkError`). About sixteen walks once read the bytes each its own way, some with no
-  bounds checked (finding 52). The research tools that do not ship keep walks of their own.
+  bounds checked (finding 52). The research tools that do not ship keep walks of their own. In the same way a mesh
+  component's LOD records and a bulk record have one reader, `native_fields`' (`mesh_lods`, `lod_record`,
+  `lightmap_record`, `bulk_record`), which gives each value with its place; a module that needs another form of
+  them makes it from that reader's record, and keeps any check of its own beside it (`lighting_records.bulk_meta`
+  refuses a negative count). The three readers it replaced wrote Enemy Within's licensee branch three ways.
 - Whatever a piece's relit images depend on is in the piece cache's key. A key that misses an input gives a stale
   piece that looks right (finding 42).
 
