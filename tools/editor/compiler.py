@@ -641,6 +641,47 @@ def target_key(target):
     return key if all(keyable(v) for v in key) else None
 
 
+BUILDING_SHAPE = ('each building is {"id", "name", "kind": "building" or "ufo", "floors": [{"boxes": [[x0, y0, z0, x1, '
+                  'y1, z1]]}]}, each floor with at least one box that has room in it; one of the map\'s has "replaces": '
+                  '{"package", "level", "actor"} and each floor "volumes" as long as its boxes, or is {"id", "replaces", '
+                  '"deleted": true}')
+
+
+def building_well_formed(b):
+    """Whether a `buildings` record has the shape BUILDING_SHAPE says."""
+    def number(v):
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+    if not isinstance(b, dict) or not isinstance(b.get('id'), str) or not b['id'] \
+            or not isinstance(b.get('name', ''), str):
+        return False
+    rep = b.get('replaces')
+    if rep is not None and not (isinstance(rep, dict) and set(rep) == {'package', 'level', 'actor'}
+                                and all(isinstance(v, str) for v in rep.values())):
+        return False
+    if 'deleted' in b:
+        return b['deleted'] is True and rep is not None and 'floors' not in b
+    if not keyable(b.get('kind', 'building')) or b.get('kind', 'building') not in BUILDING_KINDS:
+        return False
+    floors = b.get('floors')
+    if not isinstance(floors, list) or not 1 <= len(floors) <= BUILDING_FLOORS_MAX:
+        return False
+    for f in floors:
+        boxes = f.get('boxes') if isinstance(f, dict) else None
+        if not isinstance(boxes, list) or not boxes:
+            return False
+        for x in boxes:
+            if not (isinstance(x, list) and len(x) == 6 and all(number(v) for v in x)
+                    and all(x[k + 3] - x[k] >= 1 for k in range(3))):
+                return False
+        volumes = f.get('volumes')
+        if rep is None and volumes is not None:
+            return False
+        if rep is not None and not (isinstance(volumes, list) and len(volumes) == len(boxes) and all(
+                v is None or (isinstance(v, str) and v) for v in volumes)):
+            return False
+    return True
+
+
 def valid_zone(zone):
     """spawns.valid_zone, False for a zone one of whose names is a list or an object (spawns.py looks them up)."""
     try:
@@ -1227,6 +1268,13 @@ class Compiler:
     def error(self, code, message, **where):
         row = dict(code=code, message=message, **where)
         (self.left_out if PIECE_RECORD.match(str(where.get('record') or '')) else self.errors).append(row)
+
+    def leave_out(self, code, message, **where):
+        """A part of the document this compiler can't read or build (a binding, a group, a building, the map size, the
+        spawn rule, the cleared mark, a landing zone, the missions list or an entry of it): left out with a row that
+        says what the Build does instead, and the rest of the project builds. Only what leaves nothing to build from
+        is an error (error(): the schema, the source, the names, an export without the data the Build needs)."""
+        self.left_out.append(dict(code=code, message=message, **where))
 
     def warn(self, code, message, **where):
         """Something that can cause a problem in the game: a piece that can't be walked on, climbed or hidden as it
@@ -2646,8 +2694,8 @@ class Compiler:
         self.entities.append(dict(kind='move', target=actor, op='stream', stream=stream))
 
     def added_kinds(self):
-        """The kinds of mission the project adds (its `missions` entries that name a kind)."""
-        listed = self.doc.get('missions')
+        """The kinds of mission the project adds (its `missions` entries that name a kind; missions_kept)."""
+        listed = self.missions_kept()[0]
         return {e['kind'] for e in listed if isinstance(e, dict) and isinstance(e.get('kind'), str)} if isinstance(listed, list) else set()
 
     def stream_info(self, stream):
@@ -2779,8 +2827,8 @@ class Compiler:
         if self.floor_boxes is None or getattr(self, '_floor_boxes_now', None) is not None:
             return self.floor_boxes if self.floor_boxes is None else self._floor_boxes_now
         records = {}
-        for b in self.doc.get('buildings') if isinstance(self.doc.get('buildings'), list) else []:
-            rep = b.get('replaces') if isinstance(b, dict) else None
+        for b in self.building_records()[0]:
+            rep = b.get('replaces')
             if isinstance(rep, dict) and str(rep.get('package')).casefold() == self.map.casefold() and rep.get('level') == 'base' and isinstance(rep.get('actor'), str):
                 records.setdefault(rep['actor'], b)
         usable = self.map_buildings()
@@ -4000,7 +4048,8 @@ class Compiler:
 
     def area_bindings(self):
         """The effective glowing piece of each area light: {light actor path: (owner actor path or None, where it came
-        from)}: the project's areaLightBindings, else the export's verified association. Bad bindings are errors."""
+        from)}: the project's areaLightBindings, else the export's verified association. A binding this compiler can't
+        use is left out (its light follows the export's association), and so is a list that is no list."""
         out = {}
         for light in self.scene.get('lights') or []:
             if light.get('role') != 'area' or light.get('layer') != 'base':
@@ -4012,7 +4061,8 @@ class Compiler:
         if records is None:
             return out
         if not isinstance(records, list):
-            self.error('malformed', '"areaLightBindings" must be a list')
+            self.leave_out('malformed', '"areaLightBindings" must be a list: the bindings are left out, and each '
+                           'generated light follows the glowing piece the export found for it', record='areaLightBindings')
             return out
         seen = set()
         for k, rec in enumerate(records):
@@ -4020,15 +4070,16 @@ class Compiler:
             target = rec.get('target') if isinstance(rec, dict) else None
             light = self.light_of(target)
             if not isinstance(rec, dict) or not isinstance(target, dict) or 'owner' not in rec:
-                self.error('area-binding', 'a binding names an area light (target) and its owner (or null)', **where)
+                self.leave_out('area-binding', 'a binding names an area light (target) and its owner (or null): this one '
+                               'is left out', **where)
                 continue
             where['target'] = str(target.get('actor'))
             if light is None or light.get('role') != 'area' or light.get('layer') != 'base':
-                self.error('area-binding', '%s is not an area light of %s\'s base level in the export'
-                           % (short(str(target.get('actor'))), self.map), **where)
+                self.leave_out('area-binding', '%s is not an area light of %s\'s base level in the export: its binding '
+                               'is left out' % (short(str(target.get('actor'))), self.map), **where)
                 continue
             if light['actor'] in seen:
-                self.error('area-binding', '%s is bound twice' % short(light['actor']), **where)
+                self.leave_out('area-binding', '%s is bound twice: the first binding holds' % short(light['actor']), **where)
                 continue
             seen.add(light['actor'])
             owner = rec['owner']
@@ -4036,11 +4087,12 @@ class Compiler:
                 out[light['actor']] = (None, 'kept')
                 continue
             ot = owner.get('target') if isinstance(owner, dict) else None
-            parts = self.actors.get((ot.get('package'), ot.get('level'), ot.get('actor'))) if isinstance(ot, dict) else None
+            parts = self.actors.get(target_key(ot)) if target_key(ot) else None
             if (not parts or ot.get('level') != 'base' or str(ot.get('package')).casefold() != self.map.casefold()
                     or not any(p.get('component') == owner.get('component') for p in parts)):
-                self.error('area-binding', '%s is bound to a piece that is not a base-level piece of %s in the export'
-                           ' (or not its component)' % (short(light['actor']), self.map), **where)
+                self.leave_out('area-binding', '%s is bound to a piece that is not a base-level piece of %s in the export'
+                               ' (or not its component): the binding is left out, and the light follows the glowing '
+                               'piece the export found for it' % (short(light['actor']), self.map), **where)
                 continue
             out[light['actor']] = (ot['actor'], 'project')
         return out
@@ -4144,9 +4196,10 @@ class Compiler:
         in such a group (custom geometry plan, M3 item 4) lists the group's props and cover blocks in its columns by
         them (wallGroups; tools/bake/frac_walls.group_columns), so they go when that part of the wall breaks: with a
         made wall one prop or cover block is enough, and the group's props are made in the map. A locked group's moving as one
-        is the editor's alone, and so is nesting: a member that is another group ({group}) must name a group of the
-        project that is in no other group and does not hold this one (group-nesting), and takes no part in breaking
-        together, which is over a group's own pieces. Nor do a light or one of the project's buildings ({building};
+        is the editor's alone, and so is nesting: a member that is another group ({group}) names a group of the
+        project that is in no other group and does not hold this one (else a note, group-nesting: nothing of nesting
+        reaches the game), and takes no part in breaking together, which is over a group's own pieces. A group this
+        compiler can't read is left out (it doesn't break together), and so is a list that is no list. Nor do a light or one of the project's buildings ({building};
         prefab plan 5.4a), which only move with their group in the editor; a building named must be the project's
         (group-member, a warning: the member is ignored)."""
         # (`prefab`: the prefab a group was placed from, a label the editor keeps; nothing of it reaches the game)
@@ -4156,8 +4209,7 @@ class Compiler:
         deleted = {original_key(r['target']) for r in self.doc.get('overrides') or []
                    if isinstance(r, dict) and isinstance(r.get('target'), dict) and r.get('deleted') is True}
         linked = {}   # member key -> the group that links it
-        listed = [b for b in self.doc.get('buildings') or [] if isinstance(b, dict) and isinstance(b.get('id'), str)] \
-            if isinstance(self.doc.get('buildings'), list) else []
+        listed = self.building_records()[0]
         made = {b['id'] for b in listed if b.get('deleted') is not True}
         # the map's own buildings that can be edited, by the id made from their actor, record or none (map buildings
         # plan, section 2); a deleted one is no member
@@ -4165,7 +4217,8 @@ class Compiler:
         made |= {map_building_id(b) for b, why in self.map_buildings().values() if why is None} - gone
         records = self.doc.get('groups', [])
         if not isinstance(records, list):
-            self.error('malformed', '"groups" must be a list of groups')
+            self.leave_out('malformed', '"groups" must be a list of groups: the groups are left out, so none of them '
+                           'breaks together', record='groups')
             return
         number = 0
         # nesting: each group named as a member is a group of the project, in one group at most, and in no loop
@@ -4179,10 +4232,10 @@ class Compiler:
                     continue
                 where = dict(record='groups[%d]' % k, group=rec.get('id'))
                 if m['group'] not in ids or m['group'] == rec.get('id'):
-                    self.error('group-nesting', 'a group names the group %s as a member, which is %s'
-                               % (m['group'], 'itself' if m['group'] == rec.get('id') else 'not a group of the project'), **where)
+                    self.note('group-nesting', 'a group names the group %s as a member, which is %s'
+                              % (m['group'], 'itself' if m['group'] == rec.get('id') else 'not a group of the project'), **where)
                 elif m['group'] in holder:
-                    self.error('group-nesting', 'the group %s is a member of two groups; a group is in one at most' % m['group'], **where)
+                    self.note('group-nesting', 'the group %s is a member of two groups; a group is in one at most' % m['group'], **where)
                 else:
                     holder[m['group']] = rec.get('id')
         for start in sorted(holder):
@@ -4191,7 +4244,7 @@ class Compiler:
                 seen.add(at)
                 at = holder[at]
             if at in seen:
-                self.error('group-nesting', 'the group %s is inside itself, through the groups it is in' % start, group=start)
+                self.note('group-nesting', 'the group %s is inside itself, through the groups it is in' % start, group=start)
                 break
         for k, rec in sorted(enumerate(records), key=lambda e: str(e[1].get('id') if isinstance(e[1], dict) else '')):
             where = dict(record='groups[%d]' % k)
@@ -4199,8 +4252,9 @@ class Compiler:
             keys = [member_key(m) for m in members] if isinstance(members, list) else []
             if not isinstance(rec, dict) or not isinstance(rec.get('id'), str) or len(keys) < 2 or not all(keys) \
                     or len(set(keys)) != len(keys) or any(not isinstance(rec.get(f, False), bool) for f in ('locked', 'breakTogether')):
-                self.error('malformed', 'a group needs an id, two or more different members ({added}, {package, level, '
-                           'actor}, {group} or {building}) and true or false for locked and breakTogether', **where)
+                self.leave_out('malformed', 'a group needs an id, two or more different members ({added}, {package, '
+                               'level, actor}, {group} or {building}) and true or false for locked and breakTogether: '
+                               'this one is left out, so its pieces don\'t break together', **where)
                 continue
             where['group'] = rec['id']
             for f in sorted(set(rec) - known):
@@ -4475,6 +4529,26 @@ class Compiler:
         self._map_buildings = out
         return out
 
+    def building_records(self):
+        """The project's `buildings` records this compiler can read: (the records, in order, [(where, why) of each one
+        left out]): one that is malformed (building_well_formed), one whose id an earlier record has, or the whole
+        value when it is no list. The groups, the floors a copy stands in and buildings() all read these."""
+        if getattr(self, '_building_records', None) is None:
+            items, kept, dropped, ids = self.doc.get('buildings'), [], [], set()
+            if items and not isinstance(items, list):
+                dropped.append((dict(record='buildings'), '"buildings" is no list'))
+            for k, b in enumerate(items if isinstance(items, list) else []):
+                where = dict(record='buildings[%d]' % k, **({'building': b['id']} if isinstance(b, dict) and isinstance(b.get('id'), str) else {}))
+                if not building_well_formed(b):
+                    dropped.append((where, 'building record %d can\'t be read' % (k + 1)))
+                elif b['id'] in ids:
+                    dropped.append((where, 'building record %d has the id of an earlier one (%s)' % (k + 1, b['id'])))
+                else:
+                    ids.add(b['id'])
+                    kept.append(b)
+            self._building_records = (kept, dropped)
+        return self._building_records
+
     def buildings(self):
         """The project's `buildings` (optional; prefab plan 5.1; map buildings plan, sections 2 and 3).
         - Buildings made from nothing, each {id, name, kind: 'building' | 'ufo', floors: [{boxes: [[x0, y0, z0, x1,
@@ -4488,53 +4562,15 @@ class Compiler:
           boxes) or deleted (`deleted`): the Build edits them in place (buildings.edit). One the compiler can't use is
           passed over with a warning (building-replaces) and stays as exported; one unchanged (every box within
           BUILDING_SAME of its volume's, the same kind) builds nothing.
-        Nothing here stops a Build but a record that can't be read (building-shape): a box outside the tile grid, two
-        floors that meet, a floor away from the cursor's floors are warnings, and for the map's buildings only where a
-        box changed (the map's own overlaps, as exported, are not reported)."""
-        items = self.doc.get('buildings')
+        Nothing here stops a Build but an export with no tile grid: a record that can't be read, or that names a
+        building an earlier one names, is left out (building-shape, building_records); a box outside the tile grid,
+        two floors that meet, a floor away from the cursor's floors are warnings, and for the map's buildings only
+        where a box changed (the map's own overlaps, as exported, are not reported)."""
+        items, dropped = self.building_records()
+        for where, why in dropped:
+            self.leave_out('building-shape', '%s, so it is left out (a building of the map\'s stays as the map has it): %s'
+                           % (why, BUILDING_SHAPE), **where)
         if not items:
-            return
-        shape = ('each building must be {"id", "name", "kind": "building" or "ufo", "floors": [{"boxes": [[x0, y0, '
-                 'z0, x1, y1, z1]]}]}, each floor with at least one box that has room in it; one of the map\'s has '
-                 '"replaces": {"package", "level", "actor"} and each floor "volumes" as long as its boxes, or is '
-                 '{"id", "replaces", "deleted": true}')
-
-        def number(v):
-            return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
-
-        def well_formed(b):
-            if not isinstance(b, dict) or not isinstance(b.get('id'), str) or not b['id'] \
-                    or not isinstance(b.get('name', ''), str):
-                return False
-            rep = b.get('replaces')
-            if rep is not None and not (isinstance(rep, dict) and set(rep) == {'package', 'level', 'actor'}
-                                        and all(isinstance(v, str) for v in rep.values())):
-                return False
-            if 'deleted' in b:
-                return b['deleted'] is True and rep is not None and 'floors' not in b
-            if b.get('kind', 'building') not in BUILDING_KINDS:
-                return False
-            floors = b.get('floors')
-            if not isinstance(floors, list) or not 1 <= len(floors) <= BUILDING_FLOORS_MAX:
-                return False
-            for f in floors:
-                boxes = f.get('boxes') if isinstance(f, dict) else None
-                if not isinstance(boxes, list) or not boxes:
-                    return False
-                for x in boxes:
-                    if not (isinstance(x, list) and len(x) == 6 and all(number(v) for v in x)
-                            and all(x[k + 3] - x[k] >= 1 for k in range(3))):
-                        return False
-                volumes = f.get('volumes')
-                if rep is None and volumes is not None:
-                    return False
-                if rep is not None and not (isinstance(volumes, list) and len(volumes) == len(boxes) and all(
-                        v is None or (isinstance(v, str) and v) for v in volumes)):
-                    return False
-            return True
-        if not isinstance(items, list) or not all(well_formed(b) for b in items) \
-                or len({b['id'] for b in items}) != len(items):
-            self.error('building-shape', shape)
             return
         if not self.builds('building'):
             self.error('family', 'the project has %s. %s' % (FAMILIES['building']['what'], FAMILIES['building']['note']),
@@ -4701,7 +4737,8 @@ class Compiler:
         lines). A map as it is, the blank map among them, only grows (the user, 13 November 2026: any map, where
         before only the blank map); a cleared project's grid (Clear map plan, section 6) may also be smaller in any of
         the three, from 1 tile or level. Each is at most STAGE_GRID_MAX tiles or STAGE_LEVELS_MAX levels, or the map's
-        own where that is more (stage_max).
+        own where that is more (stage_max). A size this compiler can't build is left out (record `stage`: the map
+        keeps its size, and the Build reads nothing of `stage`); an export with no tile grid is an error.
         Sets self.stage_grid to [nx, ny, nz] when the grid differs from the map's, else None."""
         self.stage_grid = None
         stage = self.doc.get('stage')
@@ -4710,9 +4747,10 @@ class Compiler:
         grid = stage.get('grid') if isinstance(stage, dict) else None
         if not (isinstance(grid, list) and len(grid) in (2, 3) and all(isinstance(v, int) and not isinstance(v, bool) for v in grid)) \
                 or any(stage.get(k) not in (None, True, False) for k in ('ground', 'lines', 'hideGround')):
-            self.error('stage-shape', 'the project\'s map size must be {"grid": [tiles across, tiles deep]} or '
-                                      '{"grid": [tiles across, tiles deep, levels]}, with an optional "ground", '
-                                      '"lines" and "hideGround", each true or false')
+            self.leave_out('stage-shape', 'the project\'s map size must be {"grid": [tiles across, tiles deep]} or '
+                                          '{"grid": [tiles across, tiles deep, levels]}, with an optional "ground", '
+                                          '"lines" and "hideGround", each true or false: it is left out, and the map '
+                                          'keeps its own size', record='stage')
             return
         bare = self.map in STAGE_MAPS
         grows_only = not getattr(self, 'cleared', False)
@@ -4726,19 +4764,21 @@ class Compiler:
             self.note('stage-ground', '"ground" does nothing on a cleared map: it lays no ground')
         grid = list(grid[:2]) + [grid[2] if len(grid) == 3 else own[2]]
         if grows_only and (grid[0] < own[0] or grid[1] < own[1]):
-            self.error('stage-grid', '%s can be made larger, not smaller, until it is cleared: %d by %d tiles against its '
-                       'own %d by %d' % ('the blank map' if bare else self.map, grid[0], grid[1], own[0], own[1]),
-                       grid=grid, own=own[:2])
+            self.leave_out('stage-grid', '%s can be made larger, not smaller, until it is cleared: %d by %d tiles against '
+                           'its own %d by %d; the size is left out, and the map keeps its own'
+                           % ('the blank map' if bare else self.map, grid[0], grid[1], own[0], own[1]),
+                           grid=grid, own=own[:2], record='stage')
             return
         most = stage_max(own)
         if not (1 <= grid[0] <= most[0] and 1 <= grid[1] <= most[1]):
-            self.error('stage-grid', 'the map can be from 1 to %d tiles across and 1 to %d deep (asked: %d by %d)'
-                       % (most[0], most[1], grid[0], grid[1]), grid=grid, own=own[:3])
+            self.leave_out('stage-grid', 'the map can be from 1 to %d tiles across and 1 to %d deep (asked: %d by %d); '
+                           'the size is left out, and the map keeps its own'
+                           % (most[0], most[1], grid[0], grid[1]), grid=grid, own=own[:3], record='stage')
             return
         lowest = own[2] if grows_only else 1
         if not lowest <= grid[2] <= most[2]:
-            self.error('stage-grid', 'the map can be from %d up to %d levels high (asked: %d)'
-                       % (lowest, most[2], grid[2]), grid=grid, own=own[:3])
+            self.leave_out('stage-grid', 'the map can be from %d up to %d levels high (asked: %d); the size is left out, '
+                           'and the map keeps its own' % (lowest, most[2], grid[2]), grid=grid, own=own[:3], record='stage')
             return
         if grid != list(own[:3]):
             self.stage_grid = grid
@@ -4757,15 +4797,16 @@ class Compiler:
     def spawn_rules_mark(self):
         """The project's `spawnRules` (schema 4; spawns plan, SP8): left out or null, scripted drop-ins play as the
         install plays them; {"dropIns": "placed"}, Long War's scripted drop-ins land where placed: the Build adds the
-        variant to its drop-in mutator's ExcludeMaps list (DefaultRandomSpawns.ini). Anything else is refused
-        (spawn-rules): a newer editor's rule this one can't build."""
+        variant to its drop-in mutator's ExcludeMaps list (DefaultRandomSpawns.ini). Anything else (a newer editor's
+        rule this one can't build) is left out (spawn-rules): the drop-ins play as the install plays them."""
         self.spawn_rules = None
         rules = self.doc.get('spawnRules')
         if rules is None:
             return
         if rules != {'dropIns': 'placed'}:
-            self.error('spawn-rules', 'the project\'s spawn rules must be {"dropIns": "placed"} or left out; it has %s, '
-                       'which this editor can\'t build' % json.dumps(rules)[:160])
+            self.leave_out('spawn-rules', 'the project\'s spawn rules must be {"dropIns": "placed"} or left out; it has '
+                           '%s, which this editor can\'t build: the rule is left out, and scripted drop-ins play as the '
+                           'install plays them' % json.dumps(rules)[:160], record='spawnRules')
             return
         self.spawn_rules = dict(dropIns='placed')
 
@@ -4816,8 +4857,9 @@ class Compiler:
         """The project's `cleared` (Clear map plan, section 6): true says the Build takes out what the editor never
         showed and puts one rebuild volume over the whole grid. The pieces themselves go by their delete records."""
         cleared = self.doc.get('cleared', False)
-        if cleared not in (True, False):
-            self.error('cleared-shape', '"cleared" must be true or false')
+        if not isinstance(cleared, bool):
+            self.leave_out('cleared-shape', '"cleared" must be true or false: it is left out, and the map is built as '
+                           'not cleared (its pieces go by their own delete records)', record='cleared')
             cleared = False
         self.cleared = cleared is True
         # `clearKeepsOutside` (the Clear map window's "Keep the scenery outside the play area"): the clear left the
@@ -4825,7 +4867,9 @@ class Compiler:
         # lens flares placed outside it (outside_box). Without `cleared` it says nothing.
         keeps = self.doc.get('clearKeepsOutside', False)
         if not isinstance(keeps, bool):
-            self.error('cleared-shape', '"clearKeepsOutside" must be true or false')
+            self.leave_out('cleared-shape', '"clearKeepsOutside" must be true or false: it is left out%s'
+                           % (', and the clear takes out what lies outside the play area too' if cleared is True else ''),
+                           record='clearKeepsOutside')
             keeps = False
         self.keep_outside = self.cleared and keeps is True
         if self.cleared and not (self.scene.get('tileGrid') or {}).get('dimensions'):
@@ -4890,36 +4934,43 @@ class Compiler:
 
     # ---------------------------------------------------------------- landing zones (Clear map plan, section 4)
     def landing_zones(self):
-        """The project's landing zones (`landingZones`, optional): checked for shape (a malformed list is an error,
-        nothing to build from), then warned of: a soldier point over no floor (landing-floor), a piece the project
-        puts on one (landing-blocked), a zone outside the grid (landing-outside), more zones than the map has landings
-        of its own (landing-lwr-only), a zone that plays nowhere (landing-unused), none (landing-none). Without the
-        list, the map's own landings are checked the same way on a cleared or resized project. Sets self.zones (the
-        list, tidied, or None) and self.own_count."""
+        """The project's landing zones (`landingZones`, optional): checked for shape, then warned of: a soldier point
+        over no floor (landing-floor), a piece the project puts on one (landing-blocked), a zone outside the grid
+        (landing-outside), more zones than the map has landings of its own (landing-lwr-only), a zone that plays
+        nowhere (landing-unused), none (landing-none). A zone this compiler can't read, or whose id an earlier one has,
+        is left out (landing-shape) and the rest are the variant's; a list that is no list, or whose zones are all left
+        out, is as no list: the base map's lines are copied. Without the list, the map's own landings are checked the
+        same way on a cleared or resized project. Sets self.zones (the list, tidied, or None) and self.own_count."""
         self.zones = None
         own = spawns.own_landings(self.scene)
         self.own_landings_found = own
         self.own_count = len(own)
         raw = self.doc.get('landingZones')
+        if raw is not None and not isinstance(raw, list):
+            self.leave_out('landing-shape', '"landingZones" must be a list of landing zones: it is left out, and the '
+                           'variant lands as %s does' % self.map, record='landingZones')
+            raw = None
+        kept, ids = [], set()
+        for k, z in enumerate(raw or []):
+            where = dict(record='landingZones[%d]' % k)
+            if not valid_zone(z):
+                self.leave_out('landing-shape', 'landing zone %d is not {id, location: [x, y, z], direction, kind, ...}: '
+                               'it is left out' % (k + 1), **where)
+            elif z['id'] in ids:
+                self.leave_out('landing-shape', 'landing zone %d has the id of an earlier one (%s): it is left out'
+                               % (k + 1, z['id']), **where)
+            else:
+                ids.add(z['id'])
+                kept.append(z)
+        if raw and not kept:
+            # every zone left out: the variant lands as the map does, not at none
+            self.note('landing-own', 'every landing zone of the project is left out: the variant lands as %s does' % self.map)
+            raw = None
         if raw is None:
             if self.cleared or self.stage_grid:
                 self.check_zones([dict(o['zone'], id='own%d' % (k + 1)) for k, o in enumerate(own)], own=True)
             return
-        if not isinstance(raw, list):
-            self.error('landing-shape', '"landingZones" must be a list of landing zones')
-            return
-        bad = [k for k, z in enumerate(raw) if not valid_zone(z)]
-        for k in bad:
-            self.error('landing-shape', 'landing zone %d is not {id, location: [x, y, z], direction, kind, ...}' % (k + 1),
-                       record='landingZones[%d]' % k)
-        if bad:
-            return
-        ids = [z.get('id') for z in raw if isinstance(z, dict)]
-        if len(set(ids)) != len(ids):
-            self.error('landing-shape', 'two landing zones have the same id')
-        if bad or len(set(ids)) != len(ids):
-            return
-        self.zones = [tidy_zone(z) for z in raw]
+        self.zones = [tidy_zone(z) for z in kept]
         if not self.zones:
             self.warn('landing-none', 'the project has no landing zone: LWR gets no line for the map, and a plain '
                       'install plays the map\'s own landing where it stands')
@@ -4953,11 +5004,33 @@ class Compiler:
                       zones=nowhere)
         self.check_zones(self.zones)
 
+    def missions_kept(self):
+        """The project's `missions` as the Build writes them (mission types plan, D1): (its entries the Build can
+        write, in order, or None for every record of the base map; [(where, why) of each part left out]). An entry the
+        Build can't write is left out, and so is the whole value when it is no list or empty, or when none of its
+        entries can be written: the variant then serves every record of the base map, as with no list. build.py
+        writes the records of this list (the report's `missions`)."""
+        if getattr(self, '_missions_kept', None) is None:
+            listed, dropped = self.doc.get('missions'), []
+            records = len([m for m in self.scene.get('missions') or [] if isinstance(m, dict)])
+            if listed is not None and (not isinstance(listed, list) or not listed):
+                dropped.append((dict(record='missions'), 'the project\'s missions must be a list of at least one'))
+                listed = None
+            kept = [e for e in listed if valid_mission(e, records)] if listed is not None else None
+            for k, e in enumerate(listed or []):
+                if not valid_mission(e, records):
+                    dropped.append((dict(record='missions[%d]' % k), 'mission %d of the project\'s list is neither one of the '
+                                    'base map\'s %d records nor a kind a record alone gives a map (%s)'
+                                    % (k + 1, records, ', '.join(missions.ADDED_KINDS))))
+            self._missions_kept = (kept or None, dropped)
+        return self._missions_kept
+
     def kept_missions(self):
         """The base map's missions the variant keeps (mission types plan, D1): [(index, the export's mission)]: the
-        document's `missions` entries that name a record ({record: i}), else every mission of the export."""
+        entries of the project's `missions` (missions_kept) that name a record ({record: i}), else every mission of
+        the export."""
         found = [m for m in self.scene.get('missions') or [] if isinstance(m, dict)]
-        listed = self.doc.get('missions')
+        listed = self.missions_kept()[0]
         if not isinstance(listed, list):
             return list(enumerate(found))
         return [(e['record'], found[e['record']]) for e in listed
@@ -4996,24 +5069,19 @@ class Compiler:
         self.spawn_rules_notes()
 
     def mission_list(self):
-        """The project's `missions` (D1, optional): an error when it is no list, is empty or has an entry the Build can't
-        write (the package would have no record to play); a warning for a UFO mission on a map with no UFO building
-        (mission-ufo: Long War puts the commander's pod in the UFO's building volume, O-5), a note for a bomb mission
-        added (mission-bomb: Long War's mutator places it; plain Enemy Within plays Slaughterhouse's places)."""
-        listed = self.doc.get('missions')
+        """The project's `missions` (D1, optional): what of it is left out (missions_kept: an entry the Build can't
+        write; the whole list, when it is no list, is empty or keeps nothing, so the variant serves every record of the
+        base map); a warning for a UFO mission on a map with no UFO building (mission-ufo: Long War puts the
+        commander's pod in the UFO's building volume, O-5), a note for a bomb mission added (mission-bomb: Long War's
+        mutator places it; plain Enemy Within plays Slaughterhouse's places)."""
+        listed, dropped = self.missions_kept()
+        for where, why in dropped:
+            self.leave_out('missions', '%s: %s left out' % (why, 'it is' if where['record'] == 'missions' else 'that entry is'),
+                           **where)
+        if dropped and listed is None:
+            self.note('missions-all', 'the project\'s missions list keeps no mission the Build can write: the variant '
+                      'serves every mission of %s' % self.map)
         if listed is None:
-            return
-        records = len([m for m in self.scene.get('missions') or [] if isinstance(m, dict)])
-        if not isinstance(listed, list) or not listed:
-            self.error('missions', 'the project\'s missions must be a list of at least one: with none the Build writes no '
-                       'record to play')
-            return
-        bad = [k + 1 for k, e in enumerate(listed) if not valid_mission(e, records)]
-        if bad:
-            self.error('missions', 'mission%s %s of the project\'s list %s neither one of the base map\'s %d records nor a '
-                       'kind a record alone gives a map (%s)' % ('' if len(bad) == 1 else 's', numbers(bad),
-                                                              'is' if len(bad) == 1 else 'are', records,
-                                                              ', '.join(missions.ADDED_KINDS)))
             return
         kinds = {e['kind'] for e in listed if 'kind' in e}
         if kinds & {'Crash', 'LandedUFO'}:
@@ -5387,6 +5455,7 @@ class Compiler:
                       landingZones=getattr(self, 'zones', None),
                       ownLandings=getattr(self, 'own_count', None),
                       spawnRules=getattr(self, 'spawn_rules', None),
+                      missions=self.missions_kept()[0] if self.map is not None else None,
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']))
                                  for b in self.new_buildings],
                       mapBuildings=[dict(id=e['id'], actor=e['actor'], **({'deleted': True} if e['deleted'] else

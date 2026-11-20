@@ -1150,6 +1150,73 @@ class Builds(unittest.TestCase):
             self.make().run()
         self.assertEqual(self.ran, [])
 
+    def test_a_project_whose_only_change_is_its_missions_builds(self):
+        """(review finding 39) The missions list and the map picture are changes like any other: a project that only
+        narrows its missions, or only gives its map a picture (the LWR 3 map packs' use), builds the map unchanged
+        with them, its lighting kept."""
+        self.spec['objects'] = []
+        self.doc['missions'] = [dict(record=0)]
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        m = self.make().run()
+        self.assertTrue(m['lightingUnchanged'])
+        self.assertEqual((m['config']['missionsFromProject'], m['config']['missions']), (True, ['Abduction']))
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), BASE)
+
+    def test_a_project_whose_only_change_is_its_picture_builds(self):
+        self.spec['objects'] = []
+        digest = self.with_picture()
+        m = self.make('111500').run()
+        self.assertEqual((m['lightingUnchanged'], m['picture']['sha256']), (True, digest))
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(),
+                         BASE + b' +picture ' + digest.encode())
+
+    def test_the_missions_the_compiler_keeps_are_the_records_written(self):
+        """(review finding 39) An entry of the missions list the compiler leaves out is not written either: the
+        records are the report's `missions` (None: every record of the base map)."""
+        self.doc['missions'] = [dict(record=5), dict(record=0)]
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        self.report['missions'] = [dict(record=0)]
+        self.assertEqual(self.make().run()['config']['missions'], ['Abduction'])
+        self.report['missions'] = None          # none of its entries could be written: every record
+        m = self.make('111500').run()
+        self.assertNotIn('missionsFromProject', m['config'])
+
+    def test_a_map_size_the_compiler_left_out_is_not_read(self):
+        """(review finding 39) The compiler leaves out a size it can't build (record `stage`) and the rest builds: the
+        shell stage then reads nothing of `stage`, and the map keeps its own size."""
+        sys.path.insert(0, str(Path(build.__file__).resolve().parents[1] / 'bake'))
+        import package
+        import shell
+        self.doc['stage'] = dict(grid=[20, 10], lines=True)
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        with mock.patch.object(package, 'Package', lambda path: None), \
+                mock.patch.object(shell, 'needs', lambda p, building=False: []):
+            # the same size, kept: the shell stage runs on it
+            self.make().run()
+            self.assertEqual(len(self.tool('shell.py')), 1)
+            self.ran.clear()
+            self.report['leftOut'] = [dict(code='stage-grid', message='the size is left out', record='stage')]
+            m = self.make('111500').run()
+        self.assertEqual(self.tool('shell.py'), [])
+        self.assertNotIn('shell', m)
+        self.assertEqual(m['leftOut'], [dict(actor='', code='stage-grid', message='the size is left out')])
+
+    def test_a_picture_that_cannot_be_written_is_a_note_and_the_bake_is_kept(self):
+        """(review finding 39) A picture the writer fails on no longer fails the build after its whole bake: it is a
+        note, and the map is built without a picture of its own."""
+        self.with_picture()
+
+        def broken(src, dst, png):
+            raise ValueError('not a picture the writer can read')
+        b = self.make()
+        b.picture_tool = broken
+        m = b.run()
+        self.assertNotIn('picture', m)
+        self.assertIn('could not be written', m['pictureNote'])
+        self.assertIn('not a picture the writer can read', m['pictureNote'])
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(),
+                         b'inside relit map 1 seeded with lightmaps')
+
     def test_patchtool_works_in_the_builds_folder_by_default(self):
         import datetime
         b = build.Build(self.project, self.tmp.name, self.output, self.lwr, self.udk, now=datetime.datetime(2026, 11, 7),

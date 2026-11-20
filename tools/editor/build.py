@@ -29,10 +29,11 @@ patch needs) and the main viewer cache. Stages, each logged in the build's work 
    made in the variant map itself (native-copies.json), and so are their groups that break together, linked in the
    map; hidden pieces are taken out of it. So a project the compiler accepts leaves the patch nothing. What would be
    left for it (copies of a class built only by the copier, and the groups they break with) waits for later
-   milestones. Refused on an error of the document's (its schema, its
-   source map, its names, a malformed map size, groups or zones list), or when the project changes nothing; a piece
-   that can't be built is left out and named (the compile stage's leftOutPieces, the manifest's leftOut), and the
-   rest builds.
+   milestones. Refused when there is nothing to build from (the document's schema, its source map, its names, an
+   export without the light data or the tile grid the edit needs), or when the project changes nothing (has_work: its
+   own missions list or a map picture is a change); a piece, or a part of the document, that can't be built is left
+   out and named (the compile stage's leftOutPieces, the manifest's leftOut: a malformed group, building, landing
+   zone, map size, spawn rule or missions entry among them), and the rest builds.
 3. Patch: tools/patch/patchtool.ps1 build (-Force, so a rebuild replaces the project's last authoring package, which
    patchtool backs up) and cook, in UDK from the settings, with patchtool's work folder in the builds folder
    (<output>/.work/patchtool) and the original maps read from the game install (-Lwr). Skipped when the patch has
@@ -164,6 +165,8 @@ MAP_FRAME = TOOLS / 'bake' / 'map_frame.py'
 PICTURE_FORMAT = 'DXT1'
 PICTURE_MISSING = ('the project names a map picture whose file is not on this computer (%s): the map is built '
                    'without a picture of its own. Choose the picture again in Map picture, save and build again')
+PICTURE_FAILED = ('the map picture could not be written into %s (%s): the map is built without a picture of its own. '
+                  'Choose the picture again in Map picture, save and build again')
 STREAM_COPY = TOOLS / 'bake' / 'stream_copy.py'
 # the streamed intros whose Kismet picks its scene by the map's exact name (intro_copy.py): the Skyranger and fast-rope
 # landings (F-45) and the alien bases' entrance (F-76; Temple Ship's arrival names no map). A variant gets its own copy.
@@ -716,7 +719,11 @@ class Build:
             pass        # not a package this can read: the stages after it say so
 
     def snapshot(self):
-        self.doc = json.loads(self.project_path.read_text(encoding='utf-8'))
+        # the bytes read once: the manifest names them by their SHA-256, as the server's job and bug report do
+        data = self.project_path.read_bytes()
+        self.doc = json.loads(data.decode('utf-8'))
+        self.project_sha = hashlib.sha256(data).hexdigest()
+        self.picture_png = self.find_picture()
         out = self.doc.get('output') or {}
         self.variant, self.patch = out.get('shipAs'), out.get('patch')
         src = self.doc.get('source') or {}
@@ -743,6 +750,23 @@ class Build:
         self.stage('snapshot', project=self.doc.get('id'), revision=self.doc.get('revision'), base=str(self.base),
                    export=str(self.export))
 
+    def find_picture(self):
+        """The picture file the project names (pictures.named), or None, looked up once as the build starts. A build
+        of a snapshot (the server's: --saved-file) takes the copy the server captured beside it
+        (pictures.beside: <snapshot>.picture.png) when its SHA-256 is the one named, and nothing else, so its picture
+        is the one saved with the bytes it was handed, whatever was chosen since; any other build takes the one kept
+        with the project (pictures.picture_file)."""
+        named = pictures.named(self.doc)
+        if not named:
+            return None
+        if self.saved_file:
+            beside = pictures.beside(self.project_path)
+            try:
+                return beside if beside.is_file() and pictures.sha256(beside.read_bytes()) == named else None
+            except OSError:
+                return None
+        return pictures.picture_file(self.projects, self.doc.get('id'), named)
+
     def compile(self):
         # pieces of other maps come from the library in the cache, read from this install
         spec, report = compiler.compile_project(self.doc, self.scene, self.enable,
@@ -755,6 +779,11 @@ class Build:
         # Build's window and the manifest name them (the first LEFT_OUT_SHOWN; compile-report.json has them all)
         self.left_out = [dict(actor=e.get('entity') or e.get('target') or '', code=e['code'], message=e['message'])
                          for e in report.get('leftOut') or []]
+        # the parts of the document the compiler left out are not read here either: the map size (shell), and the
+        # missions list, whose entries the Build can write are the compiler's (report `missions`; None: every record)
+        self.stage_kept = not any(e.get('record') == 'stage' for e in report.get('leftOut') or [])
+        listed = self.doc.get('missions')
+        self.missions_listed = report['missions'] if 'missions' in report else listed if isinstance(listed, list) else None
         patch_spec, self.native = compiler.native_split(compiler.stream_only(spec))
         self.natives = self.native['copies']
         self.covers = self.native.get('covers') or []
@@ -797,17 +826,14 @@ class Build:
         if self.stream_moves:
             self.native['streamTiles'] = self.stream_tile_boxes()
         self.stream_tiles = bool(self.native.get('streamTiles'))
-        if not (self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
-                or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
-                or self.stream_moves or self.native.get('streamHides') or self.flags_edit or self.effects_edit
-                or self.spawn_rules):
+        if not self.has_work():
             if self.left_out:
                 raise BuildError('nothing of the project can be built: %s left out (%s)' % (
                     'its one edit is' if len(self.left_out) == 1 else 'its %d edits are' % len(self.left_out),
                     '; '.join(row['message'] for row in self.left_out[:3]) + ('; ...' if len(self.left_out) > 3 else '')))
             raise BuildError('the project changes nothing in the map: no piece, effect, sound, lens flare or spawn point is moved, deleted or '
-                             'added, no light or flag is changed, no building is made, the map keeps its size and no '
-                             'spawn rule is set')
+                             'added, no light or flag is changed, no building is made, the map keeps its size, no '
+                             'spawn rule is set, the missions are the map\'s and it has no map picture')
         self.spec = self.work / ('%s.json' % self.patch)
         compiler.write_json(self.spec, patch_spec)
         self.copies = self.work / 'native-edit.json'
@@ -843,6 +869,17 @@ class Build:
                    # the compiler's own light counts give way to the native edit's (light_counts)
                    **({'lights': self.lights} if self.lights else {}),
                    **{k: v for k, v in report['counts'].items() if k != 'lights'})
+
+    def has_work(self):
+        """Whether the edit leaves the Build something to make: a piece, light, flag, effect, sound, flare or spawn
+        point changed, a building, a size, a clear, landing zones, a mission's objects moved, a spawn rule, the
+        project's own list of missions (the records the variant gets are a change of their own) or a map picture (a
+        project that only gives its map a picture builds: LWR map packs plan). The compile step's test, and the one
+        drop_untried asks again after it drops copies."""
+        return bool(self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
+                    or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
+                    or self.stream_moves or self.native.get('streamHides') or self.flags_edit or self.effects_edit
+                    or self.spawn_rules or self.missions_listed is not None or pictures.named(self.doc))
 
     def claims(self):
         """Who holds which names now (outputnames.Claims), this project's own left out."""
@@ -908,7 +945,8 @@ class Build:
         A project can also ask for a larger tile grid (`stage: {grid: [nx, ny]}`, tiles, from the map's own corner,
         or [nx, ny, nz] with the levels, from its own bottom): the same tool lays ground over the new area and writes
         the map's tile data for it (prefab plan 5.11, 5.6b)."""
-        stage = self.doc.get('stage') or {}
+        # (a size the compiler left out is not read: the map keeps its own)
+        stage = (self.doc.get('stage') if getattr(self, 'stage_kept', True) else None) or {}
         grid = stage.get('grid')    # the compiler has checked it against the map's own
         cleared = bool(self.cleared)
         ambient = self.doc.get('prefabTest') and self.map in compiler.STAGE_MAPS
@@ -1231,13 +1269,15 @@ class Build:
     def picture(self, cooked_dir):
         """The project's map picture written into the variant map, after the seeds (which want nothing written after
         the world data before them; the picture's writer appends, as the edit's own writer does) and before the
-        lightmaps go inside it (lighting_inside, which appends too). The picture is the file the project's document names by its SHA-256, kept with the project
-        (pictures.py); one that is missing is a note, and the map is built without a picture of its own."""
+        lightmaps go inside it (lighting_inside, which appends too). The picture is the file the project's document
+        names by its SHA-256 (find_picture, looked up as the build starts); one that is missing, or that can't be
+        written into the map, is a note, and the map is built without a picture of its own: a picture is no reason to
+        lose a finished bake."""
         self.pictured = self.picture_note = None
         if self.doc.get('picture') is None:
             return
         named = pictures.named(self.doc)
-        png = pictures.picture_file(self.projects, self.doc.get('id'), named) if named else None
+        png = getattr(self, 'picture_png', None) if named else None
         if png is None:
             self.picture_note = PICTURE_MISSING % (named[:12] if named else 'its record is malformed')
             self.echo('note: %s' % self.picture_note)
@@ -1249,7 +1289,10 @@ class Build:
         try:
             report = self.picture_tool(built, out, png) or {}
         except (OSError, ValueError, KeyError, struct.error) as error:
-            raise BuildError('the map picture could not be written into %s: %s' % (built.name, error))
+            self.picture_note = PICTURE_FAILED % (built.name, error)
+            self.echo('note: %s' % self.picture_note)
+            self.stage('picture', written=False, note=self.picture_note)
+            return
         os.replace(out, built)
         self.pictured = dict(sha256=named, format=PICTURE_FORMAT)
         self.stage('picture', written=True, export=report.get('export'), how=report.get('how'), **self.pictured)
@@ -1421,7 +1464,7 @@ class Build:
         name = re.sub(r'[^\x20-\x7E]|"|\|', '', self.doc.get('name') or '').strip() or 'variant'
         # LWR's display names end in " |<n>", plain EW's don't: a record without an ending follows the install's
         tail = ' |0' if any(re.search(r'DisplayName="[^"]*\|\d+"', r) for r in records) else ''
-        listed = self.doc.get('missions') if isinstance(self.doc.get('missions'), list) else None
+        listed = self.missions_listed     # the compiler's: the entries it can write, or None (every record)
         count = len(mission_entries(records, listed))
         display = dict(tail=tail)       # each record keeps its base record's own words (config_lines)
         lines = config_lines(maps, cfg('DefaultLZMutator.ini'), cfg('DefaultMiniMods.ini'), self.map, self.variant,
@@ -1449,7 +1492,8 @@ class Build:
                  builtAt=self.now.isoformat(timespec='seconds'), quick=self.quick,
                  **({'attempt': self.attempt} if self.attempt else {}),
                  project=dict(id=self.doc.get('id'), name=self.doc.get('name'), revision=self.doc.get('revision'),
-                              savedAt=self.doc.get('savedAt'), file=str(self.saved_file or self.project_path)),
+                              savedAt=self.doc.get('savedAt'), file=str(self.saved_file or self.project_path),
+                              sha256=self.project_sha),
                  source=dict(map=self.map, sha256=self.sha, file=str(self.install_base),
                              exporterVersion=self.scene.get('exporterVersion')), variant=self.variant,
                  **({'prefabTest': self.doc['prefabTest']} if 'prefabTest' in self.doc else {}),
