@@ -3,9 +3,9 @@ import nothing uses (refactor plan, decision D9).
 
   python tools/viewer/tests/web_names.py [--scratch <folder>] [<file.js> ...]
 
-ESLint (ESLINT below, an exact version) with two rules only, no-undef and an unused-import rule, over the page's
-modules (not vendor/) as ES modules in the browser; the settings and the known globals, each exception with its
-reason, are in web_names.config.mjs beside this. ESLint and the `globals` package are installed by npm into a scratch
+ESLint (ESLINT below, an exact version) with three rules only, no-undef, no-import-assign and an unused-import
+rule, over the page's modules (not vendor/) as ES modules in the browser; the settings and the known globals, each
+exception with its reason, are in web_names.config.mjs beside this. ESLint and the `globals` package are installed by npm into a scratch
 folder (default <repo>/.scratch/eslint, which Git ignores; never a node_modules in the repository), made on the first
 run (that needs the network), and run from there through npx. A move that leaves a name behind throws only when its
 line runs, and no browser check runs every line: this finds it without running any.

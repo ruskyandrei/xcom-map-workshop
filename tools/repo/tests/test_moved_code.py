@@ -195,6 +195,16 @@ class CommandLine(unittest.TestCase):
             self.assertEqual(bad.returncode, 1)
             self.assertIn('DIFFERS  spec', bad.stdout)
             self.assertIn('+    return dict(effects=self.c.effects, more=True)', bad.stdout)
+            # pairs from a file, for an OLD holding "=" (here the same substitution, written as a pair)
+            (tmp / 'pairs.json').write_text('[["self.", "self.c."]]', encoding='utf-8')
+            paired = run('--subst-file', 'pairs.json', '--names', 'effect_of,helper')
+            self.assertEqual(paired.returncode, 0, paired.stdout + paired.stderr)
+            (tmp / 'eq.json').write_text('[["dict(effects=self.effects)", "dict(effects=self.c.effects, more=True)"]]',
+                                         encoding='utf-8')
+            self.assertEqual(run('--names', 'spec').returncode, 1)
+            self.assertEqual(run('--subst-file', 'eq.json', '--names', 'spec').returncode, 0)
+            (tmp / 'bad.json').write_text('{"self.": "self.c."}', encoding='utf-8')
+            self.assertEqual(run('--subst-file', 'bad.json').returncode, 2)
             self.assertEqual(run('--names', 'nowhere').returncode, 1)
             self.assertEqual(run('--names', 'spec', 'x').returncode, 2)       # argparse: an extra argument
             self.assertEqual(subprocess.run(tool[:3] + ['no-such-commit', 'old.py', 'new.py'], cwd=tmp,

@@ -336,16 +336,18 @@ its own ledger entry. A function that cannot move without a change of behaviour 
 
 The tools that show a move changed nothing:
 - [`tools/repo/moved_code.py`](tools/repo/moved_code.py) `<base commit> <old file> <new file> [--subst OLD=NEW ...]
-  [--names ...]`: each moved Python function's syntax tree, or JavaScript function's tokens, is the old one's. Use it
-  for every move.
+  [--subst-file <json>] [--names ...]`: each moved Python function's syntax tree, or JavaScript function's tokens, is
+  the old one's, after the move's stated substitutions (`--subst-file` holds [OLD, NEW] pairs, for a write moved to its
+  owner's setter). Use it for every move.
 - `tools/editor/tests/build_outputs.py`: the quick and baked Builds of ten project inputs that hold every lane of the
   native edit, compared byte for byte. Record on the commit the change starts from (in a scratch worktree of that
   commit), record on the change, and compare. Use it for a change to the compiler, the Build, the copy tool, the
   package tools or the relight.
 - `tools/editor/tests/compile_record.py`: every compile the editor suite makes (spec, report and native edit),
   recorded and compared. Use it for a change to the compiler.
-- `web_names` in `tools/viewer/tests`: no name in the page's modules left undefined, and no import left unused. A
-  moved function's missing import throws only when its line runs. Use it for a change to the page.
+- `web_names` in `tools/viewer/tests`: no name in the page's modules left undefined, no import left unused, and no
+  assignment to an imported name (a write that must go through its owner's setter). A moved function's missing import,
+  or such a write, throws only when its line runs. Use it for a change to the page.
 - The `api-names` browser check (`browser_smoke.py`, against `tools/viewer/tests/viewer_api_names.json`):
   `window.viewer`'s names unchanged. Use it for a change to the page.
 - `python -B tools/run_tests.py <suite> --times`: the slowest tests and classes. Use it before and after making a

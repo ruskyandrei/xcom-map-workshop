@@ -1,6 +1,7 @@
 """Checks that a move of code changed nothing: each function in the new file is the one it was in the old file.
 
-  python tools/repo/moved_code.py <base commit> <old file> <new file> [--subst OLD=NEW ...] [--names a,b,c ...]
+  python tools/repo/moved_code.py <base commit> <old file> <new file> [--subst OLD=NEW ...] [--subst-file <json>]
+                                 [--names a,b,c ...]
 
 The old file is read as it was at <base commit> (through Git); the new one as it is in the working tree. They can be
 the same path (a function moved inside its file) or two (functions moved out into a new module).
@@ -12,7 +13,10 @@ the same path (a function moved inside its file) or two (functions moved out int
   `const f = (...) =>` or `const f = function`), its tokens compared with whitespace and comments' wrapping aside.
 
 --subst OLD=NEW (repeatable) replaces the text OLD by NEW in each old function before the comparison, in the order
-given; the text before the first `=` is replaced by the text after it (`--subst self.=self.c.`).
+given; the text before the first `=` is replaced by the text after it (`--subst self.=self.c.`). --subst-file names
+a JSON file holding a list of [OLD, NEW] pairs, applied after the --subst ones in the file's order: for substitutions
+whose OLD holds an `=` (a write moved to its setter, `selected = hit` to `setSelected(hit)`) or that are too many for
+the command line.
 
 --names picks the functions (comma-separated, repeatable). A name finds a function or method of that name in any
 class (`effect_of`); a dotted name qualifies it (`Compiler.effect_of`, `Outer.Inner.f`); `OLD=NEW` names it on each
@@ -32,6 +36,7 @@ import ast
 import bisect
 from collections import namedtuple
 import difflib
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -565,6 +570,8 @@ def main(argv=None):
     ap.add_argument('new', help='the new file (read from the working tree)')
     ap.add_argument('--subst', action='append', default=[], metavar='OLD=NEW',
                     help='replace OLD by NEW in each old function before comparing (repeatable, in order)')
+    ap.add_argument('--subst-file', type=Path, metavar='JSON',
+                    help='a JSON list of [OLD, NEW] pairs, applied after --subst (for an OLD holding "=")')
     ap.add_argument('--names', action='append', default=[], metavar='a,b,c',
                     help='the functions to compare (comma-separated, repeatable): name, Class.name, or old=new')
     args = ap.parse_args(argv)
@@ -573,6 +580,15 @@ def main(argv=None):
         if '=' not in s:
             ap.error('--subst %r has no =: write OLD=NEW' % s)
         substs.append(tuple(s.split('=', 1)))
+    if args.subst_file:
+        try:
+            pairs = json.loads(args.subst_file.read_text(encoding='utf-8'))
+        except (OSError, ValueError) as e:
+            ap.error('--subst-file %s: %s' % (args.subst_file, e))
+        if not isinstance(pairs, list) or not all(isinstance(p, list) and len(p) == 2 and all(isinstance(s, str) for s in p)
+                                                  for p in pairs):
+            ap.error('--subst-file %s: write a JSON list of [OLD, NEW] pairs of strings' % args.subst_file)
+        substs += [tuple(p) for p in pairs]
     names = [n.strip() for group in args.names for n in group.split(',') if n.strip()]
     try:
         kind = kind_of(args.new)

@@ -1,6 +1,8 @@
 // ESLint's settings for web_names.py (run it through that script, which names the scratch folder holding ESLint and
 // the `globals` package): the page's modules (tools/viewer/web/*.js, not vendor/) as ES modules in the browser, checked
-// for two things only: a name neither declared, imported nor a known global (no-undef), and an import nothing uses.
+// for three things only: a name neither declared, imported nor a known global (no-undef), an import nothing uses, and
+// an assignment to an imported name (no-import-assign: a write that must go through the owner's setter, which would
+// throw only when its line runs).
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -54,6 +56,7 @@ export default [
     plugins: { 'web-names': { rules: { 'unused-import': unusedImport } } },
     rules: {
       'no-undef': 'error',
+      'no-import-assign': 'error',
       'web-names/unused-import': 'error',
     },
   },
