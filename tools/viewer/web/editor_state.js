@@ -113,3 +113,16 @@ export function nextCopySerial() { return ++copySerial; }
 export let looksReady = null, landingRead = Promise.resolve();
 export function setLooksReady(next) { looksReady = next; }
 export function setLandingRead(next) { landingRead = next; }
+
+// What the scene to and from a document (document_state.js) shares with the areas that own it:
+// - library: the Add panel's All maps, the pieces of every map of the install (library.js's browser), made as the
+//   page loads; the prefab builder's document names a piece of another map by its entry there;
+// - areaBindings: an area light's actor path -> its glowing piece as the project sets it ({ target, component }), or
+//   null: kept fixed (the Lights view);
+// - loadErrorCount: the pieces that could not be drawn, the map's own and a document's (said with the map's issues);
+// - mergedBuildings: app.js's allBuildings, worked out once for each state of the buildings (null: to work out again).
+export let library = null, areaBindings = new Map(), loadErrorCount = 0, mergedBuildings = null;
+export function setLibrary(next) { library = next; }
+export function setAreaBindings(next) { areaBindings = next; }
+export function setLoadErrorCount(next) { loadErrorCount = next; }
+export function setMergedBuildings(next) { mergedBuildings = next; }
