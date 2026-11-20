@@ -1251,10 +1251,9 @@ class Build:
         if not (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
                 or self.moves_landings or self.has_patch or self.resizes or self.flags_edit or self.effects_edit):
             # landing-zone lines alone (Clear map plan, section 4), or a spawn rule (spawns plan, SP8): nothing in the
-            # map changes, so nothing is relit, and the variant reads the map's own lightmaps (lighting unchanged)
-            self.edit_unbaked()
-            self.unchanged = True
-            return
+            # map changes, so nothing is relit, and the variant reads the map's own lightmaps (lighting unchanged; the
+            # stage says so as cover blocks alone do, not as a quick build's)
+            return self.edit_unbaked(unchanged=True)
         if (self.covers or self.any_buildings or self.cleared or self.flags_edit or self.effects_edit) and not (
                 self.natives or self.native['hides'] or self.has_lights or self.has_patch or self.moves_landings):
             # cover blocks alone: hidden pieces change no baked light (a hidden actor casts no baked shadow,
@@ -1399,13 +1398,15 @@ class Build:
                     unregistered=len(lights.get('unregistered') or []),
                     createdImports=sorted({str(i) for e in lights.get('edits') or [] for i in e.get('created') or []}))
 
-    def edit_unbaked(self):
+    def edit_unbaked(self, unchanged=False):
         """A quick build's light stage: the edit made in the map as a full build makes it (the copies as new actors
         in their tiles, the hidden pieces taken out, ladders, doors, columns, floors and vans), by the same
         native_copy.py without --bake. Nothing is relit: the copies read their originals' lightmaps and shadow maps
-        (EXP-20 run 2), and there is no texture cache. Only the lighting differs from a full build's map."""
+        (EXP-20 run 2), and there is no texture cache. Only the lighting differs from a full build's map.
+        `unchanged`: a full build whose edit changes no light (light's first case): the same map, the stage recorded
+        as baked with the lighting unchanged, as a full build of cover blocks alone records it."""
         self.cache_name = None
-        self.unchanged = False
+        self.unchanged = unchanged
         if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
                 or self.moves_landings or self.stream_tiles or self.flags_edit or self.effects_edit):
             # light edits too: the same actor and component changes as a full build's, receivers' lightmap lists left
@@ -1419,7 +1420,8 @@ class Build:
             # an edit only a patch makes: the variant is the base map under its name
             self.lit.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(self.base, self.lit / ('%s.upk' % self.variant))
-        self.stage('light', cache=None, baked=False, nativeCopies=len(self.natives), hidden=len(self.native['hides']),
+        self.stage('light', cache=None, baked=unchanged, nativeCopies=len(self.natives), hidden=len(self.native['hides']),
+                   **({'lightingUnchanged': True} if unchanged else {}),
                    **({'coverBlocks': len(self.covers)} if self.covers else {}), **self.building_record(),
                    **self.flag_record(),
                    **({'lights': dict(self.lights, **self.light_record())} if self.lights else {}))

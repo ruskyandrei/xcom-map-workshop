@@ -574,6 +574,30 @@ class Builds(unittest.TestCase):
         with self.assertRaisesRegex(build.BuildError, 'no spawn rule is set'):
             self.make('112000').run()
 
+    def test_a_baked_build_that_changes_nothing_in_the_map_records_its_lighting_unchanged(self):
+        """A baked Build of landing-zone lines alone, or of a spawn rule alone, relights nothing and keeps the map's
+        own lightmaps: its light stage says so as a baked Build of cover blocks alone does (baked, lighting unchanged,
+        no cache), not as a quick Build's (baked false), so the Build window says lighting unchanged, not lighting not
+        baked. A quick Build of the same is a quick Build's."""
+        self.spec['objects'] = []
+        zones = dict(zones=[dict(id='z1', location=[719, -1681, 64], direction='north', kind='normal')], own=[], ownLandings=0)
+        for stamp, key, value in (('110000', 'landingZones', zones), ('110100', 'spawnRules', dict(dropIns='placed'))):
+            with self.subTest(key):
+                self.spec.pop('landingZones', None)
+                self.spec.pop('spawnRules', None)
+                self.spec[key] = value
+                self.ran.clear()
+                m = self.make(stamp).run()
+                self.assertEqual((self.tool('relight.py'), [r for r in self.tool('native_copy.py') if '--bake' in r]), ([], []))
+                stage = next(s for s in m['stages'] if s['stage'] == 'light')
+                self.assertEqual((stage['baked'], stage['cache'], stage.get('lightingUnchanged'), stage['nativeCopies'], stage['hidden']),
+                                 (True, None, True, 0, 0))
+                self.assertEqual((m['quick'], m['cache'], m['lightingUnchanged']), (False, None, True))
+                q = self.make('11%s30' % stamp[2:4], quick=True).run()
+                stage = next(s for s in q['stages'] if s['stage'] == 'light')
+                self.assertEqual((stage['baked'], stage['cache'], 'lightingUnchanged' in stage), (False, None, False))
+                self.assertEqual((q['quick'], q['lightingUnchanged']), (True, False))
+
     def test_cover_blocks_alone_are_made_in_the_map_with_the_lighting_unchanged(self):
         """A project with nothing but cover blocks: hidden pieces change no baked light, so a full build makes the map
         as a quick build does (native_copy.py without --bake, no relight) and keeps the map's lighting; with another
