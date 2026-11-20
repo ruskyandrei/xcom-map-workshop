@@ -27,10 +27,11 @@ GATHER_OFFSET = 1.5      # gather rays start this far off the surface
 # doubled cones bring that to 0.9-1.6, as for point lights, the excess far away being UDK's extra bounces; EXP-18).
 # Its direct light keeps the real cone.
 SPOT_INDIRECT_CONE_SCALE = 2.0
-# Radiance of rays that leave the scene, per unit of the WorldInfo's EnvironmentColor (sRGB-decoded) times its
-# EnvironmentIntensity. UDK BakeCalib12 (EXP-18), the environment light alone at the bar's colour: UDK's light was
-# 0.263-0.267 of ours at 1.0 on an open floor, on a floor beside a wall and on the wall, so the angular model holds
-# and only the scale differs (near 1/pi = 0.318, but below it). The colour decodes as sRGB.
+# Radiance of rays that leave the scene, per unit of the WorldInfo's EnvironmentColor (decoded with the power the
+# lightmaps' values take, codec.GAMMA: 2.2, not the sRGB curve) times its EnvironmentIntensity. UDK BakeCalib12
+# (EXP-18), the environment light alone at the bar's colour: UDK's light was 0.263-0.267 of ours at 1.0 on an open
+# floor, on a floor beside a wall and on the wall, so the angular model holds and only the scale differs (near 1/pi =
+# 0.318, but below it).
 ENVIRONMENT_SCALE = 0.266
 CULL_MIN = 2000          # direct_irradiance: fewer points than this are not worth a k-d tree
 
@@ -284,8 +285,8 @@ class SourceIrradiance:
 def gather(occluder, triangles, albedo, lights, world, frames, rays=64, seed=0, environment=(0.0, 0.0, 0.0),
            occlusion_distance=None, source=None, groups=None):
     """(n, 3, 3) bounce coefficients at points with frames (rows tangent, binormal, normal). Rays that leave the
-    scene bring back `environment` (linear radiance: the WorldInfo's Lightmass EnvironmentColor, sRGB-decoded, times
-    its EnvironmentIntensity). With `occlusion_distance`, also returns each point's occlusion: the fraction of its rays
+    scene bring back `environment` (linear radiance: the WorldInfo's Lightmass EnvironmentColor, decoded with codec.GAMMA,
+    times its EnvironmentIntensity: environment_radiance). With `occlusion_distance`, also returns each point's occlusion: the fraction of its rays
     that meet a surface nearer than that (Lightmass's ambient occlusion). With `source` (a SourceIrradiance), hits take
     its smoothed direct irradiance instead of their own (and `lights` is not used).
 

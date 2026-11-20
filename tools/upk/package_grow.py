@@ -27,10 +27,11 @@ like the others.
 
 Nothing that was in the package moves, so no export data needs relocating and inline bulk data keeps its absolute
 offsets. A relocated or new export that holds inline bulk data must have those offsets fixed by its caller, from
-`next_offset()` (tools/bake/lighting_fixture.py clone does it for texture mips).
+`next_offset()` (tools/bake/lightmap_textures.py's clone_texture does it for texture mips).
 
-Whether the game accepts tables after the export data, beyond the summary's header size, is what gate C6 tests
-(research/experiments/EXP-20-growing-writer.md).
+The game reads tables after the export data, beyond the summary's header size: gate C6 passed
+(research/experiments/EXP-20-growing-writer.md), and every Build that adds an actor, a name or an import writes its
+map this way.
 
   python -B tools/upk/package_grow.py <in.upk> <out.upk>      (a growing write with no change: the tables move)
 """
