@@ -5,8 +5,8 @@ and copy its pieces, add pieces from the game's other maps, and builds the resul
 its lighting baked, that the game plays like its own. A map can also be cleared and built up again from pieces and
 prefabs, with its own size, buildings and landing zones.
 
-This is a preview. Much of it has been played in the game on one or two maps only (see
-[What builds](#what-builds-in-this-preview)), and projects saved with it may not open in a later version.
+This is a preview: [What builds](#what-builds-in-this-preview) lists what the Build makes, and projects saved with
+it may not open in a later version.
 
 **The user guide** is `User Guide.html`, beside this file: every control explained with pictures, typical tasks,
 and what the editor can't do yet. Setup offers to open it when it finishes; later it is in the Start menu
@@ -27,6 +27,8 @@ connection and no Unreal tools.
 
 1. Run **XCOM-Map-Workshop-<version>-Setup.exe**.
    - The installer isn't signed yet. If Windows says "Windows protected your PC", choose **More info → Run anyway**.
+   - **Upgrading:** close the editor's window first (and wait for a running build to finish). Setup replaces the
+     editor's own files, which a running editor holds open; it asks you to close the editor if it is still running.
 2. Follow its pages:
    1. **Licence:** the MIT licence.
    2. **Destination:** where to install the editor. By default it goes in your own user folder
@@ -162,17 +164,19 @@ Close XCOM first. Then:
   - While you play, the game rewrites its `XComContent.ini` with the test squad in it. The editor keeps that file
     aside and puts it back when the game closes, so leave the editor open until then (if it was closed, the file goes
     back when the editor next starts).
-- **Game maps… → Undo everything** (Project menu) takes it all back out: the config files end as they were, byte for byte.
+- **Game maps… → Undo everything** (the Game menu, on Play's arrow) takes it all back out: the config files end as
+  they were, byte for byte.
 
 With a map open and no project, Play in game plays the original map, without edits, which is handy to compare; nothing
 is installed for it (but a copy of the map record for Basic Training, the tutorial's map, whose records the game
 keeps switched off).
 
-The test battle is the mission the header's **Mission** picker shows (the play window can change it): the map's landing for it, four pods of Sectoids and the test squad. It is
-not a campaign mission, and it can't be saved.
+The test battle is the mission the header's **Mission** picker shows (the play window can change it): the map's
+landing for it, four pods of Sectoids and the test squad. It is not a campaign mission. It can't be saved unless you
+tick **Enable saving** in the play window: XCOM then opens at its main menu and F5 starts the battle, which you can
+save and load.
 
-**Settings → Test squad setup…** (the gear right of the header, before Import notes) sets the squad every Play in
-game lands with: one to eight units, each with its kind (soldier, MEC trooper or SHIV), name, class, rank, look,
+**Test squad setup…** (the Game menu, on Play's arrow) sets the squad every Play in game lands with: one to eight units, each with its kind (soldier, MEC trooper or SHIV), name, class, rank, look,
 armour, weapons, items, perks and base stats, chosen from the install's own lists. Until you save one, it is six
 squaddies. Errors (an armour with no body, a MEC without its gun) stop a play; warnings say what the game will do
 with something odd. **Export…** and **Import…** share a squad as a `.xcomsquad.json` file. On plain Enemy Within and
@@ -208,17 +212,23 @@ records are out of rotation.
   - a cleared map, a larger or taller tile grid, and landing zones moved, turned, added or deleted;
   - lights: moving, turning, recolouring, deleting and copying the map's placed lights, changing their brightness,
     radius and cones, and adding a new point or spot light. A glowing piece (a lit sign, a machine's screen) takes
-    its glow along when moved, copied or deleted.
-- **Shown for reference, not editable:** what a mission streams into the map (LWR's patches, a mission's own
-  objects).
+    its glow along when moved, copied or deleted;
+  - walls, rooms, floors, roofs and ground of your own, drawn from the Build menu on the Add button, with any of the
+    game's looks, openings and holes, and damage to start the battle with (**Break** and **Repair**);
+  - effects, sounds and lens flares: the map's moved, copied, deleted and grouped with pieces, and effects and
+    sounds of other maps added, with their values changed;
+  - spawn points: pods, Meld points and drop-in points moved, added and deleted, and spawn rules;
+  - a project's missions, its own map picture, and a Long War Rebalance 3 map pack of several projects;
+  - a mission's own objects moved (not copied or deleted).
+- **Shown for reference, not editable:** what a mission streams into the map besides its objects (LWR's patches).
 
 ## Known limits
 
 - **Start a fresh mission after installing.** A tactical save from before the install ignores the new pieces' cover.
 - **LWR's invisible cover stays put.** It doesn't move when the piece it covers moves. Untick "Hide patch helpers"
   to see it.
-- **A mission's own objects can be moved, not copied or deleted.** Pick one's marker (View options, Mission
-  objects) and drag its arrows: it moves with its group, in the Build's own copy of the mission's stream. Under Long War the bomb and its power nodes go where its bomb rules put them anyway.
+- **A mission's own objects can be moved, not copied or deleted.** Pick one's marker (hover the Normal view's button
+  and tick **Spawn points and objectives**) and drag its arrows: it moves with its group, in the Build's own copy of the mission's stream. Under Long War the bomb and its power nodes go where its bomb rules put them anyway.
 - **The squad may land on a new piece.** Keep copies off the soldier tiles, or move the landing zone (Shift+Z).
 - **The editor's colours are approximate.** The game's lighting comes from the Build.
 - **Light edits need Bake the lighting.** Without it, a build makes them in the map but doesn't bake them. A deleted
@@ -257,7 +267,8 @@ zip in Windows Explorer. Send that zip, with what you did and what you saw (a sc
 
 ## Removing it
 
-1. Run **Game maps… → Undo everything** (Project menu) first, if you played or installed a project in the game.
+1. Run **Game maps… → Undo everything** (the Game menu, on Play's arrow) first, if you played or installed a project
+   in the game.
 2. Uninstall **XCOM Map Workshop** from Windows' Settings → Apps. It leaves your projects, builds and prefabs in the
    editor folder; delete that folder too if you don't need them. With the zip, delete its folder.
 3. `Documents\XCOM Map Workshop` keeps the settings and the opened maps: delete it if you don't need them.
