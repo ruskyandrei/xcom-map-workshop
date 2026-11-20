@@ -4952,7 +4952,7 @@ async function saveProject({ name = null, replace = null, rename = null, output 
       const target = await projectApi.load(replace.id);
       if (target.source?.map !== activeMapId) throw new Error(`${target.name} is a project of another map.`);
       if (target.revision !== replace.revision)
-        throw Object.assign(new Error(`${target.name} was saved again meanwhile (revision ${target.revision})`), { status: 409, detail: { revision: target.revision } });
+        throw Object.assign(new Error(`${target.name} was saved again meanwhile (revision ${target.revision})`), { status: 409, body: { revision: target.revision } });
       base = { ...target, name, source }; expected = replace.revision;
     } else if (fresh) {
       if (!output) throw new Error('the map name is still being worked out; save again in a moment');

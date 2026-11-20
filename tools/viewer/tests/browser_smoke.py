@@ -5597,7 +5597,11 @@ def run_checks(ctx, names):
         if why:
             skip(check.name, why)
             continue
-        result = check.run(ctx)
+        try:
+            result = check.run(ctx)
+        except BaseException as error:
+            ctx.failed = dict(check=check.name, error=(str(error).strip().splitlines() or [type(error).__name__])[0][:500])
+            raise
         ctx.ran.append(check.name)
         if result is not None: ctx.results[check.name] = result
 
@@ -5633,26 +5637,30 @@ def smoke(args):
             page.locator('#prepareLater').click()
             assert 'Prepare now' in page.locator('#projectBanner').inner_text()
         source = page.evaluate("viewer.data.source.file.toLowerCase()")
-        ctx = SimpleNamespace(page=page, browser=browser, args=args, errors=errors, ran=[], results={}, closed=False, opening=True,
+        ctx = SimpleNamespace(page=page, browser=browser, args=args, errors=errors, ran=[], results={}, closed=False, opening=True, failed=None,
                               is_bar=source.endswith('urb_bar.upk'), is_temple=source.endswith('templeship.upk'),
                               is_police=source.endswith('urb_policestation.upk'),
                               version=page.evaluate('viewer.data.exporterVersion ?? 0'), scope=page.evaluate('viewer.data.scope'),
                               tile_grid=page.evaluate('Boolean(viewer.data.tileGrid)'),
                               report=dict(initialView=value(page,'scenery'), interiorPieces=None),
                               shot=lambda label: args.screenshot.with_stem(args.screenshot.stem + '-' + label))
-        run_checks(ctx, names)              # (temple-interior: the map as it opened)
-        ctx.opening = False
-        if page.locator('#scenery').is_visible(): choose(page,'scenery','full')
-        # the map's pieces, and its missions' streamed packages' (export 13)
-        assert page.evaluate('viewer.roots.size === viewer.data.objects.length + viewer.streamPieces')
-        run_checks(ctx, names)
-        closing(ctx)
-        errors -= EXPECTED
-        asked = [s for s in SKIPPED if s['check'] in names] if args.only else []
-        result = dict(**({'only': sorted(names)} if args.only else {}), **ctx.report, ran=ctx.ran, skipped=SKIPPED,
-                      results=ctx.results, errors=sorted(errors), screenshot=str(args.screenshot))
-        args.screenshot.with_suffix('.json').write_text(json.dumps(result,indent=2),encoding='utf8',newline='\n')
-        print(json.dumps(result,indent=2))
+        try:
+            run_checks(ctx, names)          # (temple-interior: the map as it opened)
+            ctx.opening = False
+            if page.locator('#scenery').is_visible(): choose(page,'scenery','full')
+            # the map's pieces, and its missions' streamed packages' (export 13)
+            assert page.evaluate('viewer.roots.size === viewer.data.objects.length + viewer.streamPieces')
+            run_checks(ctx, names)
+            closing(ctx)
+        finally:
+            # the report, a check's failure too: what ran before it, what was skipped, and which failed and why
+            errors -= EXPECTED
+            asked = [s for s in SKIPPED if s['check'] in names] if args.only else []
+            result = dict(**({'only': sorted(names)} if args.only else {}), **ctx.report, ran=ctx.ran, skipped=SKIPPED,
+                          **({'failed': ctx.failed} if ctx.failed else {}), results=ctx.results, errors=sorted(errors),
+                          screenshot=str(args.screenshot))
+            args.screenshot.with_suffix('.json').write_text(json.dumps(result,indent=2),encoding='utf8',newline='\n')
+            print(json.dumps(result,indent=2))
         browser.close()
     if errors: raise SystemExit(1)
     if asked: raise SystemExit('asked for and skipped: ' + '; '.join(f"{s['check']}: {s['reason']}" for s in asked))
@@ -5701,9 +5709,10 @@ def own_game():
 
 
 def scratch_cache(root, cache):
-    """The cache --all serves: `cache` when given, else <root>/cache with the maps its runs open exported into it and
-    their pieces scanned for the library (viewer.py export and library scan, about half a minute a map). Never the
-    user's cache: a test server writes into the cache it serves (a map exported on first open, or again when outdated)."""
+    """The cache --all serves: `cache` when given, else <root>/cache with the maps its runs open exported into it
+    (viewer.py export, about half a minute a map) and the whole game's library scanned (library scan: the library
+    checks count every map's pieces and effects). Never the user's cache: a test server writes into the cache it
+    serves (a map exported on first open or again when outdated, the library's pieces and pictures)."""
     if cache: return Path(cache)
     cache = root / 'cache'
     sys.path.insert(0, str(REPO / 'tools' / 'viewer'))
@@ -5717,7 +5726,8 @@ def scratch_cache(root, cache):
     for name in maps:
         print(f'exporting {name} into {cache}', flush=True)
         subprocess.run([*viewer, 'export', str(folder / f'{name}.upk'), '--cache', str(cache)], cwd=REPO, check=True, capture_output=True)
-    subprocess.run([*viewer, 'library', 'scan', '--cache', str(cache), '--only', *maps], cwd=REPO, check=True, capture_output=True)
+    print(f'scanning the library into {cache}', flush=True)
+    subprocess.run([*viewer, 'library', 'scan', '--cache', str(cache)], cwd=REPO, check=True, capture_output=True)
     return cache
 
 
@@ -5776,7 +5786,7 @@ def run_all(args):
         folder.mkdir(parents=True, exist_ok=False)
         url = f"http://127.0.0.1:{port}/?map={run['map']}"
         if 'script' in run:
-            command = [sys.executable, '-B', str(Path(__file__).with_name(run['script'])), '--url', url]
+            command = [sys.executable, '-B', str(Path(__file__).with_name(run['script'])), '--url', f'http://127.0.0.1:{port}']     # (the server alone: each script opens its map)
             command += ['--screenshot', str(folder / 'maps.png')] if run['script'] == 'browser_maps_smoke.py' else ['--map', run['map']]
         else:
             command = [sys.executable, '-B', __file__, '--url', url, '--screenshot', str(folder / 'smoke.png'), *run['smoke']]
@@ -5794,13 +5804,14 @@ def run_all(args):
         shown = folder / 'smoke.json'
         if shown.is_file():
             got = json.loads(shown.read_text(encoding='utf-8'))
-            entry.update(ran=got['ran'], skipped=got['skipped'], errors=got['errors'])
+            entry.update(ran=got['ran'], skipped=got['skipped'], errors=got['errors'], **({'failed': got['failed']} if 'failed' in got else {}))
         if code != 0:
             failed = True
             entry['last'] = (out.strip().splitlines() or [''])[-1]
         report.append(entry)
         print(f"{'PASS' if code == 0 else 'FAIL'} {run['name']} ({port}, {entry['seconds']} s): {len(entry.get('ran', []))} ran, "
-              f"{len(entry.get('skipped', []))} skipped" + (f": {entry['last']}" if code != 0 else ''), flush=True)
+              f"{len(entry.get('skipped', []))} skipped" + (f"; {entry['failed']['check']} failed" if entry.get('failed') else '')
+              + (f": {entry['last']}" if code != 0 else ''), flush=True)
         for s in entry.get('skipped', []): print(f"    skipped {s['check']}: {s['reason']}", flush=True)
     (root / 'all.json').write_text(json.dumps(report, indent=2), encoding='utf-8', newline='\n')
     print(f'report: {root / "all.json"}')
@@ -5824,8 +5835,8 @@ def main():
     ap.add_argument("--all",action="store_true",help="Run every check on fresh test servers of its own (ports 8795-8798), one after another")
     ap.add_argument("--scratch",help="With --all: the folder for the servers' scratch folders and the report (default: a new temporary one)")
     ap.add_argument("--play-install",help="With --all: a scratch game folder for the Play check (without it, Play is skipped)")
-    ap.add_argument("--cache",help="With --all: a scratch cache holding exports of URB_Bar, URB_PoliceStation and TempleShip, and their "
-                    "library scan (default: made in the scratch folder); never the user's own")
+    ap.add_argument("--cache",help="With --all: a scratch cache holding exports of URB_Bar, URB_PoliceStation and TempleShip, and the "
+                    "game's library scanned (default: made in the scratch folder); never the user's own")
     args = ap.parse_args()
     if args.all:
         if args.url or args.only: ap.error('--all starts its own servers and runs every check: no --url or --only with it')
