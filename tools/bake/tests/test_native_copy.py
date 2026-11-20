@@ -15,8 +15,8 @@ import lightmap_fields  # noqa: E402
 import package_grow  # noqa: E402
 import relight  # noqa: E402
 import seed_map  # noqa: E402
-import seed_tiles  # noqa: E402
 import shadowmaps  # noqa: E402
+import world_links  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import labpaths  # noqa: E402
@@ -978,7 +978,7 @@ class NativeCopy(unittest.TestCase):
             # the seeds read back; the template is untouched
             e = [i for i in range(1, len(q.exports) + 1) if q.cls(i) == 'XComWorldDataContainer'][0]
             blob = q.data[q.exports[e - 1]['off']:q.exports[e - 1]['off'] + q.exports[e - 1]['size']]
-            _, at, _ = seed_tiles.parse_static_store(blob)
+            _, at, _ = world_links.static_tiles(blob)
             self.assertTrue(all(struct.unpack_from('<I', blob, at[tuple(t)])[0] & 0xFFF == native_copy.SEED
                                 for t in tiles['seededTiles']))
             template = q.by_name[PL + native_copy.REBUILD_TEMPLATE]

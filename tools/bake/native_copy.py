@@ -67,6 +67,7 @@ from pathlib import Path
 import struct
 import subprocess
 import sys
+import weakref
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'upk'))
@@ -81,7 +82,7 @@ import piece_flags  # noqa: E402
 import props as legacy_props  # noqa: E402
 import scene_metadata  # noqa: E402
 import seed_map  # noqa: E402
-import seed_tiles  # noqa: E402
+import world_links  # noqa: E402
 
 PL = 'TheWorld.PersistentLevel.'
 REF_KINDS = ('ObjectProperty', 'ComponentProperty', 'ClassProperty', 'InterfaceProperty')
@@ -142,27 +143,15 @@ class Walker:
 
     def walk(self, b, at, end, path=''):
         """Yields (path, kind, subtype, value offset, size) for each tagged property from `at`; returns the offset
-        after the closing None."""
-        while at + 8 <= end:
-            name = self.name_at(b, at)
-            if name is None:
-                raise ValueError(f'bad property name at {at}')
-            if name == 'None':
-                return at + 8
-            kind = self.name_at(b, at + 8)
-            size, index = struct.unpack_from('<ii', b, at + 16)
-            at += 24
-            sub = None
-            if kind == 'BoolProperty':
-                yield (f'{path}{name}[{index}]', kind, None, at, 1)
-                at += 1
-                continue
-            if kind in ('StructProperty', 'ByteProperty'):
-                sub = self.name_at(b, at)
-                at += 8
-            yield (f'{path}{name}[{index}]', kind, sub, at, size)
-            at += size
-        raise ValueError('no closing None')
+        after the closing None. The walk is props.tags' (bounded by `end`, with this walker's names; review finding
+        52)."""
+        it = legacy_props.tags(b, at, end, self.names)
+        while True:
+            try:
+                name, kind, sub, index, v, size = next(it)
+            except StopIteration as stop:
+                return stop.value
+            yield (f'{path}{name}[{index}]', kind, sub, v, size)
 
     def refs(self, b, at, end, path=''):
         """(path, offset) of every object reference in the tagged properties from `at`, nested structs and arrays
@@ -800,6 +789,24 @@ def piece_box(p, actor, location, rotation):
     return [float(v) for k in range(3) for v in (pts[:, k].min(), pts[:, k].max())]
 
 
+_STATIC = weakref.WeakKeyDictionary()     # package -> its static flags (static_flags)
+
+
+def static_flags(p):
+    """(the map's one XComWorldDataContainer's export entry, its bytes, (NX, NY, NZ), {tile: the offset of its static
+    flags in those bytes}), read once for each open package with world_links.static_tiles' checks (review finding
+    52). They are the map's own bytes: a Build's seeds go into its grower's edits, never into the package."""
+    found = _STATIC.get(p)
+    if found is None:
+        conts = [i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComWorldDataContainer']
+        if len(conts) != 1:
+            raise ValueError(f'expected one XComWorldDataContainer, found {len(conts)}')
+        e = p.exports[conts[0] - 1]
+        blob = p.data[e['off']:e['off'] + e['size']]
+        found = _STATIC[p] = (e, blob) + world_links.static_tiles(blob)[:2]
+    return found
+
+
 def seed_tiles_under(g, p, box, grid, seed=SEED, ring=1, above=1):
     """Seed bit `seed` on the tiles a piece's world `box` crosses, from level 1 up (seed_map.py's copy plan: the
     box plus a quarter tile in x and y), and on `ring` tiles around them and `above` levels over them, where the
@@ -811,12 +818,7 @@ def seed_tiles_under(g, p, box, grid, seed=SEED, ring=1, above=1):
     t = seed_map.clamp((t[0] - ring, t[1] + ring, t[2] - ring, t[3] + ring, t[4], t[5] + above), grid)
     if t is None:
         return dict(tiles=None, seeded=[], already=0)
-    conts = [i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComWorldDataContainer']
-    if len(conts) != 1:
-        raise ValueError(f'expected one XComWorldDataContainer, found {len(conts)}')
-    e = p.exports[conts[0] - 1]
-    blob = p.data[e['off']:e['off'] + e['size']]
-    dims, where, _ = seed_tiles.parse_static_store(blob)
+    e, blob, dims, where = static_flags(p)
     if tuple(dims) != (grid['nx'], grid['ny'], grid['nz']):
         raise ValueError(f'the world data is {dims} tiles, the level volume {grid}')
     seeded, already = [], 0
@@ -1001,12 +1003,7 @@ def rebuild_order(p):
     queues its own first) are not read here."""
     import math
     grid = level_grid(p)
-    conts = [i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComWorldDataContainer']
-    if len(conts) != 1:
-        raise ValueError(f'expected one XComWorldDataContainer, found {len(conts)}')
-    e = p.exports[conts[0] - 1]
-    blob = p.data[e['off']:e['off'] + e['size']]
-    dims, where, _ = seed_tiles.parse_static_store(blob)
+    _, blob, dims, where = static_flags(p)
     size = (seed_map.TILE, seed_map.TILE, seed_map.FLOOR)
     # the game works the boxes' tiles out from its own corner (WorldBounds'), a unit under the level volume's
     lo_of = (grid['tx'], grid['ty'], grid['tz'])

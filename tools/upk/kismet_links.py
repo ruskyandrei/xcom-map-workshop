@@ -3,14 +3,15 @@ its variable links (link name -> variables, with a named variable's FindVarName 
 
   python tools/upk/kismet_links.py <map.upk or .udk> [op name prefix ...]
 
-Reads tagged properties of a v845 package (compressed or not: tools/upk/upkinfo.py's load decodes it). Written for
+Reads tagged properties of a v845 package (compressed or not: tools/upk/upkinfo.py's load decodes it) with
+tools/upk/props.py's bounded walk (props.tags). Written for
 EXP-08 F-45, the dropship intro in CIN_DropshipIntros; intro_anchors, where that intro puts its flight for each map, is
 what every Build that makes an intro copy reads (tools/bake/intro_copy.py).
 """
 import collections, os, struct, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import upkinfo
-from props import props_start
+from props import props_start, read_tags
 
 
 class P:
@@ -28,25 +29,15 @@ class P:
         return upkinfo.objname(ref, s.imps, s.exps).split('.')[-1] if ref > 0 else upkinfo.objname(ref, s.imps, s.exps)
 
     def props(s, o, end):
-        """Tagged properties from o: a dict name -> (type, value offset, size, struct name)."""
+        """Tagged properties from o: a dict name -> (type, value offset, size, struct name), and the offset after the
+        closing None. Read by props.tags, bounded by `end` (review finding 52): a name the package lacks, a size that
+        runs past `end` or a list without its None is refused, never read through."""
         out = {}
-        while o < end:
-            pname, o = s.name(o)
-            if pname == 'None':
-                break
-            ptype, o = s.name(o)
-            size, idx = struct.unpack_from('<ii', s.b, o); o += 8
-            sname = None
-            if ptype == 'BoolProperty':
-                out[pname] = (ptype, o, 1, None); o += 1; continue
-            if ptype == 'StructProperty':
-                sname, o = s.name(o)
-            if ptype == 'ByteProperty':
-                _, o = s.name(o)
-            key = pname if idx == 0 else '%s[%d]' % (pname, idx)
-            out[key] = (ptype, o, size, sname)
-            o += size
-        return out, o
+        rows, after = read_tags(s.b, o, end, s.names)
+        for pname, ptype, sub, idx, at, size in rows:
+            key = pname if idx == 0 or ptype == 'BoolProperty' else '%s[%d]' % (pname, idx)
+            out[key] = (ptype, at, size, sub if ptype == 'StructProperty' else None)
+        return out, after
 
     def array_of_structs(s, val):
         """The elements of an array of structs, each a props dict."""

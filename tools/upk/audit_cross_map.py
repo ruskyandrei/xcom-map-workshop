@@ -64,21 +64,10 @@ CACHE_TAIL = 24 << 20   # the cache's material index is at its end; the whole ca
 
 
 def load_any(path):
-    """A package's logical bytes and summary, also one the cooker compressed whole (the startup packages)."""
+    """A package's logical bytes and summary, also one the cooker compressed whole (the startup packages): upkinfo.load
+    reads both, its whole-file decode the one there is (review finding 52)."""
     sys.path.insert(0, HERE)
-    import lzo1x
     import upkinfo as U
-    raw = Path(path).read_bytes()
-    tag, block, _, total = struct.unpack_from('<IIII', raw, 0)
-    if tag == 0x9E2A83C1 and block == 131072:
-        count = (total + block - 1) // block
-        at, out = 16 + 8 * count, bytearray()
-        for n in range(count):
-            packed, unpacked = struct.unpack_from('<II', raw, 16 + 8 * n)
-            out += lzo1x.decompress(raw[at:at + packed], unpacked)
-            at += packed
-        raw = bytes(out)
-        return raw, U.summary(raw)
     return U.load(str(path))
 
 

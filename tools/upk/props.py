@@ -61,6 +61,63 @@ PROP_TYPES = {'BoolProperty', 'StructProperty', 'ByteProperty', 'IntProperty', '
               'ComponentProperty', 'ClassProperty', 'InterfaceProperty', 'NameProperty', 'StrProperty', 'ArrayProperty',
               'DelegateProperty', 'MapProperty'}
 
+def tags(b, at, end, names):
+    """Each tagged property from `at`, bounded by `end`: yields (name, kind, subtype, array index, value offset,
+    size) and returns the offset after the closing None. A struct's or a byte property's subtype (its struct or enum
+    name) is read before its value, and a bool's value is its one byte (size 1 here, 0 in its tag). Refused
+    (ValueError): a name or kind outside `names` or with a negative number, a negative size, a tag or value running
+    past `end`, and no closing None before `end`.
+
+    `names` is the table the bytes were written with: for bytes a Build has written, its grower's (package_grow.Grower
+    names), whose added names lie past the map's own (review finding 37). The one bounded walk of tagged properties
+    (review finding 52), with the checks of the viewer's Package.tagged; tools/bake/native_copy.py's Walker, the
+    Kismet reader (kismet_links.py) and bake_actor.py walk with it."""
+    count = len(names)
+
+    def name(o, what):
+        i, number = struct.unpack_from('<ii', b, o)
+        if not 0 <= i < count or number < 0:
+            raise ValueError('bad property %s at %d' % (what, o))
+        return names[i] if number == 0 else '%s_%d' % (names[i], number - 1)
+
+    while at + 8 <= end:
+        pname = name(at, 'name')
+        if pname == 'None':
+            return at + 8
+        if at + 24 > end:
+            raise ValueError('property tag at %d runs past %d' % (at, end))
+        kind = name(at + 8, 'kind name')
+        size, index = struct.unpack_from('<ii', b, at + 16)
+        at += 24
+        if kind == 'BoolProperty':
+            if at + 1 > end:
+                raise ValueError('bool %s at %d runs past %d' % (pname, at, end))
+            yield pname, kind, None, index, at, 1
+            at += 1
+            continue
+        sub = None
+        if kind in ('StructProperty', 'ByteProperty'):
+            if at + 8 > end:
+                raise ValueError('%s %s at %d runs past %d' % (kind, pname, at, end))
+            sub = name(at, 'struct or enum name')
+            at += 8
+        if size < 0 or at + size > end:
+            raise ValueError('%s %s at %d: %d bytes run past %d' % (kind, pname, at, size, end))
+        yield pname, kind, sub, index, at, size
+        at += size
+    raise ValueError('no closing None')
+
+
+def read_tags(b, at, end, names):
+    """(tags' rows from `at`, as a list, the offset after the closing None)."""
+    rows, it = [], tags(b, at, end, names)
+    while True:
+        try:
+            rows.append(next(it))
+        except StopIteration as stop:
+            return rows, stop.value
+
+
 def props_start(b, e, names):
     """Offset of an export's first tagged property.
     v845 layout: [FStateFrame if HasStack] NetIndex, then for components TemplateOwnerClass (and TemplateName for

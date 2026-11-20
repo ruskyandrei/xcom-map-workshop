@@ -210,6 +210,20 @@ class SyntheticPackage(unittest.TestCase):
         with self.assertRaises(ValueError):
             write_edited(self.src, self.dst, [(self.entries[1][0], b'ab')])
 
+    def test_the_actor_bakers_edits_are_written_by_it_in_blocks_of_any_size(self):
+        # (review finding 52) bake_actor.rewrite is an edit list for write_edited; its own encoder refused blocks
+        # under 19 bytes, and these are 10
+        import bake_actor
+        uo0, entries = make_package(self.src, self.logical, [1500, 2000, 1500], block=10)
+        off = entries[1][0] + 703
+        chunks, grew = bake_actor.rewrite(self.src, self.dst, [(off, b'\x05\x06\x07')])
+        full, got = self.decoded()
+        expect = bytearray(self.logical)
+        expect[off - uo0:off - uo0 + 3] = b'\x05\x06\x07'
+        self.assertEqual(full[uo0:], bytes(expect))
+        self.assertEqual((chunks, [c[:2] for c in got]), (1, [c[:2] for c in entries]))
+        self.assertEqual(grew, os.path.getsize(self.dst) - os.path.getsize(self.src))
+
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class RealMap(unittest.TestCase):
@@ -283,6 +297,80 @@ class UncompressedMap(unittest.TestCase):
             self.assertEqual(full[start:start + 4], b'XCOM')
             self.assertEqual(full[self.lo:start] + full[start + 4:], self.full[self.lo:start] + self.full[start + 4:])
             self.assertEqual(report['bytesChanged'], sum(a != b for a, b in zip(self.full[start:start + 4], b'XCOM')))
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class PatchWriters(unittest.TestCase):
+    """The tile seeder and the link mover write through write_edited (review finding 52): any chunk, an uncompressed
+    map too, and only the bytes they mean to change."""
+
+    @classmethod
+    def setUpClass(cls):
+        import world_links
+        cls.full, cls.h = decomp.decompress_pkg(str(BAR))
+        cls.blob, cls.names, cls.pkg = world_links.read_input(str(BAR))
+        cls.cont = cls.pkg['cont']
+        cls.dims, cls.static_at, _ = world_links.static_tiles(cls.blob)
+        cls.lo = cls.h['chunks'][0][0]
+
+    def static_flags(self, path):
+        import world_links
+        full, _ = decomp.decompress_pkg(path)
+        blob = full[self.cont['off']:self.cont['off'] + self.cont['size']]
+        dims, where, _ = world_links.static_tiles(blob)
+        return full, {t: struct.unpack_from('<IB', blob, at) for t, at in where.items()}
+
+    def seeded(self, src):
+        import seed_tiles
+        box = [(x, y, z) for x in range(10, 21) for y in range(10, 21) for z in range(0, 4)]
+        with tempfile.TemporaryDirectory() as d:
+            dst = os.path.join(d, 'seeded.upk')
+            changed, already, dims = seed_tiles.seed_package(src, dst, box)
+            full, flags = self.static_flags(dst)
+            note = Path(dst + '.seeded.txt').read_text().splitlines()
+        return changed, already, dims, full, flags, note
+
+    def test_seeds_go_on_the_empty_tiles_and_nowhere_else(self):
+        changed, already, dims, full, flags = self.seeded(str(BAR))[:5]
+        before = self.static_flags(str(BAR))[1]
+        self.assertEqual(dims, self.dims)
+        self.assertTrue(changed and already)
+        for x, y, z, old, new, present in changed:
+            self.assertEqual((before[(x, y, z)], flags[(x, y, z)]), ((old, present), (old | 1, 1)))
+        seeded = {r[:3] for r in changed}
+        self.assertEqual({t: v for t, v in flags.items() if t not in seeded},
+                         {t: v for t, v in before.items() if t not in seeded})
+        # nothing else in the package changed (the summary's chunk table aside)
+        expect = bytearray(self.full)
+        for t in seeded:
+            at = self.cont['off'] + self.static_at[t]
+            expect[at:at + 5] = full[at:at + 5]
+        self.assertEqual(full[self.lo:], bytes(expect[self.lo:]))
+
+    def test_an_uncompressed_map_is_seeded_as_the_compressed_one(self):
+        with tempfile.TemporaryDirectory() as d:
+            flat = os.path.join(d, 'flat.upk')
+            Path(flat).write_bytes(uncompressed(BAR))
+            got = self.seeded(flat)
+        want = self.seeded(str(BAR))
+        self.assertEqual(got[:3], want[:3])
+        self.assertEqual(got[3][self.lo:], want[3][self.lo:])
+        self.assertEqual(got[5], want[5])
+
+    def test_moved_links_are_the_only_change(self):
+        import world_links
+        link = next(l for l in world_links.all_links(world_links.parse_container(self.blob)) if l['obj'])
+        new = bytearray(self.blob)
+        struct.pack_into('<f', new, link['off'] + 12, link['cost'] + 1.0)
+        with tempfile.TemporaryDirectory() as d:
+            dst = os.path.join(d, 'links.upk')
+            grew = world_links.write_package(self.pkg, dst, bytes(new))
+            back, _, _ = world_links.read_input(dst)
+            full, _ = decomp.decompress_pkg(dst)
+            self.assertEqual(grew, os.path.getsize(dst) - BAR.stat().st_size)
+        self.assertEqual(back, bytes(new))
+        o, end = self.cont['off'], self.cont['off'] + self.cont['size']
+        self.assertEqual(full[self.lo:o] + full[end:], self.full[self.lo:o] + self.full[end:])
 
 
 if __name__ == '__main__':

@@ -7,9 +7,10 @@ Nothing else in the summary holds a physical offset. The result is decoded again
 bytes before the function returns.
 
 Refuses: overlapping or empty edits, edits outside the compressed chunks (the uncompressed header is not edited),
-packages whose chunks are not contiguous or do not end the file, and writing over the input. Moving later chunks is
-a format operation the game has not yet been seen to accept (baker design, C0); seed_tiles.py only ever grew the last
-chunk.
+packages whose chunks are not contiguous or do not end the file, and writing over the input. The game reads a map
+whose middle chunks were re-encoded and whose later chunks moved (EXP-17's C0); every Build writes its fixed-size
+edits this way, and the tile seeds, link moves and actor bakes of the patch path (seed_tiles.py, world_links.py,
+bake_actor.py) are edit lists given to it.
 
 A package stored uncompressed (DLC2_3_Furies.upk as Long War Rebalance ships it) is first put in the layout of the
 compressed cooked maps (compressed_layout: the same logical bytes in literal-LZO chunks), so what is written from it
@@ -28,7 +29,7 @@ import decomp  # noqa: E402
 import lzo1x  # noqa: E402
 import upkinfo  # noqa: E402
 
-CHUNK_TAG = 0x9E2A83C1
+CHUNK_TAG = decomp.CHUNK_TAG
 STORE_COMPRESSED = 0x02000000   # PKG_StoreCompressed, in the summary's package flags
 COMPRESS_LZO = 2                # the summary's compression flags, as the cooked maps have them
 BLOCK_SIZE = 1 << 17            # the cooked maps' block size (128 KB)
@@ -153,16 +154,7 @@ def check_layout(raw, chunks):
         raise ValueError('data follows the last chunk; this tool cannot move it')
 
 
-def read_chunk(raw, co):
-    r = upkinfo.R(raw, co)
-    tag, bsz, csum, usum = r.u32(), r.u32(), r.u32(), r.u32()
-    if tag != CHUNK_TAG or bsz == 0:
-        raise ValueError(f'bad chunk header at {co}')
-    nb = (usum + bsz - 1) // bsz
-    blocks = [(r.u32(), r.u32()) for _ in range(nb)]
-    if sum(c for c, _ in blocks) != csum or sum(u for _, u in blocks) != usum:
-        raise ValueError(f'chunk at {co}: block table does not add up')
-    return tag, bsz, usum, blocks, r.o
+read_chunk = decomp.read_chunk     # the one checked reader of a chunk header (review finding 52)
 
 
 def overlapping(edits, starts, offset, size):
