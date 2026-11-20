@@ -28,7 +28,7 @@ sits on the commit it was built from, so main is pushed before the release is cr
 - Keep each file's line endings (`.gitattributes`: `* -text`). The notes, guide and README use LF.
 - The repository is public: the notes, the ledger and the commit hold no name, account or folder of one computer
   (`python tools/run_tests.py repo` checks the files).
-- Keep the change ledger ([CHANGELOG.md](../../../CHANGELOG.md)): one entry for making the release, one for
+- Keep the change ledger ([CHANGELOG.md](../../../CHANGELOG.md)), one file per entry in `changelog/entries/`: one entry for making the release, one for
   publishing it, each committed with its files.
 - Only test servers on ports 8790 to 8799, stopped when done. Never touch 8768.
 - If you're asked to change only the notes after the build, leave the zip and installer as they are: the notes aren't
@@ -41,7 +41,9 @@ sits on the commit it was built from, so main is pushed before the release is cr
    - `git status`, the branch, and how far main is ahead of `origin/main`.
    - The last release: `gh release list --repo ruskyandrei/xcom-map-workshop --limit 3`,
      [version.py](../../../tools/viewer/version.py), and `tools/release/notes/`.
-   - What changed since: the ledger entries above the last "### Release <last> published" entry, and
+   - What changed since: the ledger's entry files in `changelog/entries/` (the last release gathered everything
+     before them; `python tools/release/gather_changelog.py --list` prints them newest first), the
+     "### Release <last> published" entry among them, and
      `git log --oneline origin/main..<branch>`.
 2. **Run every suite on the branch being released**, in the background (about eight minutes):
    `python tools/run_tests.py`. With every suite it also checks the tile grid of every map the editor lists
@@ -90,7 +92,10 @@ sits on the commit it was built from, so main is pushed before the release is cr
    - Add a "### Release <version>: <headline features>" entry. It says what changed in the version, notes, guide and
      README; the files with their sizes and SHA-256s; each suite's count; the smoke results; "Not published (ask
      first)"; and the known gaps.
-   - Commit it on main with the version, notes, guide and README. Don't push.
+   - Gather the ledger: `python tools/release/gather_changelog.py` moves every entry file, this one included, into
+     the month's file under its day. Then `python tools/run_tests.py repo release` (the month file's links must
+     resolve).
+   - Commit it on main with the version, notes, guide, README and the gathered ledger. Don't push.
 9. **Stop and show the notes.**
    - Put the whole notes file in the reply, as it will be published. Under it give the two files with their sizes
      and SHA-256s, the suites and smoke results, and what wasn't checked (the installer, anything not played).

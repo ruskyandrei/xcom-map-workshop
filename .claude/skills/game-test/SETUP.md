@@ -91,7 +91,8 @@ Every `<...>` in a path or a command stands for something you fill in. Never typ
   `EXP-nn` are experiments, written up in `research/experiments/`. The entries this file leans on are **T-43** (the
   game on a hidden desktop), **T-44**, **T-45** (no mouse), **T-46** (DXVK's texture budget), **F-73**, **F-84** and
   **F-89** (saving).
-- **Change ledger.** `CHANGELOG.md`: every change to the tools and documents gets an entry, in the same commit.
+- **Change ledger.** `CHANGELOG.md` is its index: every change to the tools and documents gets an entry file in
+  `changelog/entries/`, in the same commit.
 
 ## 2. What a hidden run can and cannot do
 

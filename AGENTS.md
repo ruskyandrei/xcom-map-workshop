@@ -1,9 +1,11 @@
 # Working in this repository (for any coding agent: Codex, Claude Code)
 
-- **Keep the change ledger.** Add an entry to [CHANGELOG.md](CHANGELOG.md) as each change goes in, in the same
-  commit: newest first under the day's date. Say what changed, where (link the files), how it was checked, and any
-  known gaps. Experiment results still go in `research/experiments/` and the findings register; the ledger records
-  changes to the tools and documents.
+- **Keep the change ledger.** Each change adds one entry file to [changelog/entries](changelog/entries/README.md) in
+  the same commit: `<YYYY-MM-DD>-<what>.md`, starting with a `### <title>` line. Say what changed, where (link the
+  files, relative to the entry file: `../../tools/...`), how it was checked, and any known gaps. Never edit another
+  entry's file or a month file for a new change; each release gathers the entries into the month's file
+  ([CHANGELOG.md](CHANGELOG.md) is the index). Experiment results still go in `research/experiments/` and the
+  findings register; the ledger records changes to the tools and documents.
 - **Commit whenever a piece of work is done**, without waiting to be asked: a fix, a feature or a stage of a plan,
   once its tests pass, on the branch it was done on, with its ledger entry in the same commit. Leave nothing finished
   lying uncommitted at the end of a turn. Push only when the user asks.

@@ -37,8 +37,8 @@ This skill is the guide alone. The guide's and README's "New in" tables belong t
   under a fixed name, so the projects folder must start empty. Start a new folder rather than deleting the old one.
 - Keep each file's line endings (`.gitattributes`: `* -text`): guide.html, take_shots.py and the ledger use LF.
   Python's `read_text`/`write_text` change them unless given `newline=''`.
-- Keep the change ledger ([CHANGELOG.md](../../../CHANGELOG.md)): one entry, committed with the guide, its pictures
-  and take_shots.py.
+- Keep the change ledger ([CHANGELOG.md](../../../CHANGELOG.md)): one entry file in `changelog/entries/`, committed
+  with the guide, its pictures and take_shots.py.
 - **Push only on the user's word.** Pushing main republishes the guide page; "republish" or "push" in the request is
   that word. Without it, commit and say the page isn't updated yet.
 - Follow the user's global rule: `wrap_up` gets a recap only, and questions go in the reply.
@@ -46,7 +46,8 @@ This skill is the guide alone. The guide's and README's "New in" tables belong t
 ## Steps
 
 1. **Find what changed since the guide was last gone over.**
-   - The last ledger entry about the guide (`grep -n "guide" CHANGELOG.md`), and every entry above it: each new or
+   - The last ledger entry about the guide (`grep -rln "guide" changelog/entries changelog/*.md`: the entry files
+     are the newest, then the month files newest first), and every entry after it: each new or
      changed thing a user sees is a candidate.
    - `git log --oneline -- tools/release/guide/` against `git log --oneline -- tools/viewer/web/`: page changes
      since the pictures were taken.
