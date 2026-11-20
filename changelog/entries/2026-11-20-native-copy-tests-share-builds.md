@@ -42,3 +42,5 @@ one is where the time is.
 - Not in this change: `RebuildTemplate`'s two builds of the police station (a door, a car) touch different pieces and
   could share one build. Every package's write decodes the written map again in pure Python to check it (about
   0.6 s a build); that is the writer's, not the tests'.
+
+[ARCHITECTURE.md](../../ARCHITECTURE.md)'s rules for tests state the shared-build pattern.
