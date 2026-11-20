@@ -2239,6 +2239,11 @@ def by_assembly(copies):
     return out
 
 
+def filled(factory=None):
+    """A field of BuildState that build fills, not an input: None, or empty (`factory`), until its step."""
+    return dataclasses.field(init=False, **({'default_factory': factory} if factory else {'default': None}))
+
+
 @dataclasses.dataclass(eq=False)
 class BuildState:
     """A Build of the copy tool: what it is given, and what it has done so far that its later steps and its record
@@ -2281,13 +2286,22 @@ class BuildState:
     spawns: object = None           # spawns
     piece_blasts: tuple = ()        # pieceBlasts
     # what build fills, as it goes
-    p: object = dataclasses.field(default=None, init=False)     # the pristine map read (build, first)
-    hidden: list = dataclasses.field(default_factory=list, init=False)      # hide_pieces' records
-    edit_slots: set = dataclasses.field(default_factory=set, init=False)    # the building edits' emptied slots
-    lights_gone: set = dataclasses.field(default_factory=set, init=False)   # the light edits' deletes
-    # the effects', sounds', flares' and spawns' lanes' deletes and the carried effects'
-    effects_gone: set = dataclasses.field(default_factory=set, init=False)
-    cleared_record: object = dataclasses.field(default=None, init=False)    # clear_level's record
+    p: object = filled()                # the pristine map read (build, first)
+    g: object = filled()                # the variant map's growing writer (build, first)
+    light_state: object = filled()      # the light edits resolved against the pristine map, or None (build)
+    hidden: list = filled(list)         # hide_pieces' records
+    edit_slots: set = filled(set)       # the building edits' emptied slots
+    lights_gone: set = filled(set)      # the light edits' deletes
+    effects_gone: set = filled(set)     # the lanes' deletes (effects, sounds, flares, spawns), the carried effects'
+    cleared_record: object = filled()   # clear_level's record
+    # the copies made (clone_copies)
+    made: list = filled(list)           # each copy's record: its original, clone, pose, extra lights and tiles
+    actors: list = filled(list)         # what the level's list gets: the clones, their volumes (and the cover blocks)
+    firsts: list = filled(list)         # the ladders' top tile volumes, first in the level's list
+    ladders: list = filled(list)        # each ladder's copy: its ends and top tile volume
+    vans: list = filled(list)           # each van's building and floor volumes, carried with it
+    flag_copies: list = filled(list)    # the copies' flags written on their clones (set_roles)
+    blast_copies: list = filled(list)   # the copies broken by their blasts (break_component)
 
     def gone(self):
         """Every actor (export index) the edit has taken out so far."""
@@ -2463,118 +2477,20 @@ def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, job
     return cmd
 
 
-def build(st):
-    """The Build `st` (BuildState), made by its caller with its inputs: the fields named here (src, out, variant,
-    copies, bake...), which build reads once, and the state build fills as it goes.
-
-    The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
-    <out>/grown and the relit variant (relight.py), and the fixture manifest <out>/<variant>.fixture.json, with a
-    `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
-    or yaw alone (the original's pitch and roll); with neither, the original's rotation. `edit_spec`, with `bake`: an
-    editor patch spec whose exact hides (and posed copies) relight models too (relight.py --edit-spec), for an edit
-    whose hidden pieces stay in a patch. A copy's `breakGroup` (a number) and `break_originals` ({name, group}: the
-    map's own pieces left in place) link the editor's groups that break together (link_children). `hides` ({name,
-    box}) are taken out of the map (hide_pieces), after the copies are made (a moved piece is the source of its copy)
-    and before the relight, which leaves them out of the scene after the edit (--remove-caster).
-
-    Copies with the same `assembly` (the compiler's assemblies: a car's parts, a door's leaf and frame) are one copy of
-    it: cloned together, so their references to each other point at each other's clones (clone_assembly), with one
-    rebuild volume over them all (assembly_box), its tiles recorded on the first. `assemblies` (the compiler's moves:
-    id, family, members, turns, translation) go into the manifest.
-
-    `lights` is the native edit's light edits (editor lights plan, 9.5; native_lights.py): resolved against the
-    pristine map once, made in the map before the copies (a light gets no tiles), and recorded in the manifest's
-    `lights` section. With `bake`, the copies' extra lights come from the lights after the edit, each added or changed
-    placed light that emits is listed in the texture lightmaps of the receivers it reaches at their final poses (the
-    copies' too), and the relight gets the resolved before and after lights (relight.py --light-edits,
-    <out>/<variant>.light-edits.json). Without, every receiver's lightmap list stays as it is.
-
-    `covers` are the editor's cover blocks (the compiler's: name, kind, location, rotation, size, heights, box):
-    invisible pieces that give cover, a hidden level actor and a box mesh made from a recipe (cover_blocks.py), each
-    in its tiles as a copy is. The manifest's `coverBlocks` lists them.
-
-    `buildings` are buildings made from nothing (buildings.py: id, name, kind, floors of boxes): a building volume
-    and floor volumes cloned from the map's, each floor listing the pieces that stand in it after the edit (the map's
-    own that are not hidden, and the copies), by the game editor's own rule. The manifest's `buildings` lists them.
-    `building_edits` are the map's own buildings changed or deleted (the compiler's buildingEdits; buildings.edit),
-    edited in place after the copies and hides: the manifest's `buildingEdits` lists what each kept, moved, made and
-    took out.
-
-    A copy with `staged` is a piece of another map, staged in `src` by transplant.py (its `actor` the staged actor,
-    which no level lists). Without `bake` it keeps its home map's lighting. With `bake` it is lit from nothing: its
-    lightmaps list this map's lights alone, its shadow maps name this map's dominant light, and the relight gives
-    it the light of where it stands (relight.py --foreign-copy), with the staged actor left out of both scenes.
-
-    `cleared` (the compiler's: {grid, keepOutside?}) says the map was cleared (Clear map plan, section 7): the hides get no rebuild
-    volume of their own, and clear_level takes out what the editor never showed and puts one volume over the grid,
-    after the hides and the building edits. The manifest's `cleared` section counts what it took by class.
-
-    `carried_effects` (the compiler's `carriedEffects`, {piece: [effect]}: export 23's carriedBy) are the effects
-    that follow their piece's move, copy or delete (native_effects.py).
-
-    `effects` and `sounds` (the compiler's lanes: {moves, deletes, copies}; the effects and sounds plan, stage FX3) are
-    the effects and ambient sounds the project moves in place, takes out of the level's list or copies
-    (native_effects.apply, native_sounds.apply); after every other writer, native_effects.floor_lists lists the moved
-    and new effects (the lanes' and the carried ones) in the building floors whose boxes hold them and takes the moved
-    and deleted ones out of the lists that named them. A directly moved effect stays on a cleared map. The manifest's
-    `effects`, `sounds` and `floorEmitters` sections say what was done, read back (native_effects.verify).
-
-    `flares` is the same lane for the lens flares (LensFlareSource actors; stage FX6b, native_flares.apply): a move in
-    place, a delete off the level's list, a copy cloned with its LensFlareComponent, the flare template shared. A
-    flare is in no floor's list; a clear takes the map's flares out (CLEAR_OUT) but for one the project moves itself,
-    and a copy is made after the clear. The manifest's `flares` section says what was done, read back.
-
-    `spawns` (the compiler's lane: {moves, values}; the editor spawns plan, SP6) moves the base map's pods, Meld points
-    and drop-in points in place and sets their values (native_spawns.apply_lane); the manifest's `spawns` section
-    says what was done, read back (native_spawns.verify).
-
-    `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
-    theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
-
-    Pieces' flags (piece flags plan): a copy's `flags` ({role: bool}) are written on its clone once it is made
-    (set_roles; a copy of low scenery whose Floor is off is not made walkable), and `piece_flags` (the compiler's
-    `pieceFlags`: the map's own pieces whose flags change where they stand) on the map's actors after every copy is
-    made and the clear has run (flags_in_place), their tiles worked out again, with `flag_ladders`' top tiles first.
-    Each is read back from the written map. The manifest's `pieceFlags` section lists what was asked, written and
-    read back.
-
-    Broken pieces (custom geometry editing plan, E6): a copy's `blasts` (a moved piece of the map's) are written on its
-    clone, and `piece_blasts` (the compiler's `pieceBlasts`: the map's own fracturing pieces broken where they stand) on
-    the map's components after every copy is made (blasts_in_place), their tiles worked out again: the fragments each
-    blast reaches saved painted out with those the map paints out. A piece the game keeps whole (most roofs and floors)
-    draws a copy of its mesh with those fragments cut away and stays whole in battle, unless its `breaksFurther` asks
-    it to break further (break_component). The manifest's `pieceBlasts` section lists them."""
-    import cover_blocks
+def clone_copies(st):
+    """The Build `st`'s copies (BuildState) made as new actors, an assembly's together (clone_assembly), each with
+    the lights its lightmap may list, its tiles and rebuild volume, a van's building, a ladder's top tile, its flags
+    and its blasts: build's first step after the light edits. Fills the state's made, actors, firsts, ladders, vans,
+    flag_copies and blast_copies."""
     import native_lights
-    src, out, variant, copies, bake, cache = st.src, st.out, st.variant, st.copies, st.bake, st.cache
-    receivers_near, jobs, tiles, edit_spec = st.receivers_near, st.jobs, st.tiles, st.edit_spec
-    break_originals, hides, assemblies, lights, covers = st.break_originals, st.hides, st.assemblies, st.lights, st.covers
-    buildings, building_edits, cleared, landing_zones = st.buildings, st.building_edits, st.cleared, st.landing_zones
-    carried_effects, piece_cache, base, stream_tiles = st.carried_effects, st.piece_cache, st.base, st.stream_tiles
-    piece_flags, flag_ladders, effects, sounds = st.piece_flags, st.flag_ladders, st.effects, st.sounds
-    flares, spawns, piece_blasts = st.flares, st.spawns, st.piece_blasts
-    src, out = Path(src), Path(out)
-    out.mkdir(parents=True, exist_ok=True)
-    if bake and not cache:
-        raise ValueError('a baked copy needs a variant texture cache name (--cache)')
-    if bake:
-        lightmap_writer.cache_fname(cache)     # a cache name that can be a file and an FName, before any work
-    p = lighting.Package(src)
-    g = package_grow.Grower(str(src))
-    # the light edits: resolved against the pristine map, then made in the map (plan 4.3, steps 1 and 2)
-    state = None if native_lights.is_empty(lights) else native_lights.prepare(p, lights)
-    light_result = native_lights.apply(g, p, state) if state else None
-    # what the edit takes out, added to as each step takes something (BuildState.gone)
-    st.p = p
-    st.lights_gone = set((light_result or {}).get('gone') or ())
+    p, g, copies, bake, tiles, state = st.p, st.g, st.copies, st.bake, st.tiles, st.light_state
     # the lights a copy's lightmap may list: the after registry (plan 4.3, step 3)
     after_lights = None
     if bake and copies:
         after_lights = list(state['after'].values()) if state else list(native_lights.source_registry(p).values())
     meshes = {}
     made, actors, firsts, ladders, vans = [], [], [], [], []
-    flag_copies, flag_record = [], None
-    blast_copies, blast_record = [], None
+    flag_copies, blast_copies = [], []
     scenery_grid = None     # the tile grid, read when a copy of low scenery needs it (F-100)
     for assembly, group in by_assembly(copies):
         members = []
@@ -2692,6 +2608,120 @@ def build(st):
                              tiles=tile_info if k == 0 else None,
                              walkable=ai in walked,
                              **({'assembly': assembly, 'family': c.get('family')} if assembly else {})))
+    st.made, st.actors, st.firsts, st.ladders, st.vans = made, actors, firsts, ladders, vans
+    st.flag_copies, st.blast_copies = flag_copies, blast_copies
+
+
+def build(st):
+    """The Build `st` (BuildState), made by its caller with its inputs: the fields named here (src, out, variant,
+    copies, bake...), which build reads once, and the state build fills as it goes.
+
+    The map `src` with `copies` made as new actors: <out>/<variant>.upk, or with `bake` the grown map in
+    <out>/grown and the relit variant (relight.py), and the fixture manifest <out>/<variant>.fixture.json, with a
+    `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
+    or yaw alone (the original's pitch and roll); with neither, the original's rotation. `edit_spec`, with `bake`: an
+    editor patch spec whose exact hides (and posed copies) relight models too (relight.py --edit-spec), for an edit
+    whose hidden pieces stay in a patch. A copy's `breakGroup` (a number) and `break_originals` ({name, group}: the
+    map's own pieces left in place) link the editor's groups that break together (link_children). `hides` ({name,
+    box}) are taken out of the map (hide_pieces), after the copies are made (a moved piece is the source of its copy)
+    and before the relight, which leaves them out of the scene after the edit (--remove-caster).
+
+    Copies with the same `assembly` (the compiler's assemblies: a car's parts, a door's leaf and frame) are one copy of
+    it: cloned together, so their references to each other point at each other's clones (clone_assembly), with one
+    rebuild volume over them all (assembly_box), its tiles recorded on the first. `assemblies` (the compiler's moves:
+    id, family, members, turns, translation) go into the manifest.
+
+    `lights` is the native edit's light edits (editor lights plan, 9.5; native_lights.py): resolved against the
+    pristine map once, made in the map before the copies (a light gets no tiles), and recorded in the manifest's
+    `lights` section. With `bake`, the copies' extra lights come from the lights after the edit, each added or changed
+    placed light that emits is listed in the texture lightmaps of the receivers it reaches at their final poses (the
+    copies' too), and the relight gets the resolved before and after lights (relight.py --light-edits,
+    <out>/<variant>.light-edits.json). Without, every receiver's lightmap list stays as it is.
+
+    `covers` are the editor's cover blocks (the compiler's: name, kind, location, rotation, size, heights, box):
+    invisible pieces that give cover, a hidden level actor and a box mesh made from a recipe (cover_blocks.py), each
+    in its tiles as a copy is. The manifest's `coverBlocks` lists them.
+
+    `buildings` are buildings made from nothing (buildings.py: id, name, kind, floors of boxes): a building volume
+    and floor volumes cloned from the map's, each floor listing the pieces that stand in it after the edit (the map's
+    own that are not hidden, and the copies), by the game editor's own rule. The manifest's `buildings` lists them.
+    `building_edits` are the map's own buildings changed or deleted (the compiler's buildingEdits; buildings.edit),
+    edited in place after the copies and hides: the manifest's `buildingEdits` lists what each kept, moved, made and
+    took out.
+
+    A copy with `staged` is a piece of another map, staged in `src` by transplant.py (its `actor` the staged actor,
+    which no level lists). Without `bake` it keeps its home map's lighting. With `bake` it is lit from nothing: its
+    lightmaps list this map's lights alone, its shadow maps name this map's dominant light, and the relight gives
+    it the light of where it stands (relight.py --foreign-copy), with the staged actor left out of both scenes.
+
+    `cleared` (the compiler's: {grid, keepOutside?}) says the map was cleared (Clear map plan, section 7): the hides get no rebuild
+    volume of their own, and clear_level takes out what the editor never showed and puts one volume over the grid,
+    after the hides and the building edits. The manifest's `cleared` section counts what it took by class.
+
+    `carried_effects` (the compiler's `carriedEffects`, {piece: [effect]}: export 23's carriedBy) are the effects
+    that follow their piece's move, copy or delete (native_effects.py).
+
+    `effects` and `sounds` (the compiler's lanes: {moves, deletes, copies}; the effects and sounds plan, stage FX3) are
+    the effects and ambient sounds the project moves in place, takes out of the level's list or copies
+    (native_effects.apply, native_sounds.apply); after every other writer, native_effects.floor_lists lists the moved
+    and new effects (the lanes' and the carried ones) in the building floors whose boxes hold them and takes the moved
+    and deleted ones out of the lists that named them. A directly moved effect stays on a cleared map. The manifest's
+    `effects`, `sounds` and `floorEmitters` sections say what was done, read back (native_effects.verify).
+
+    `flares` is the same lane for the lens flares (LensFlareSource actors; stage FX6b, native_flares.apply): a move in
+    place, a delete off the level's list, a copy cloned with its LensFlareComponent, the flare template shared. A
+    flare is in no floor's list; a clear takes the map's flares out (CLEAR_OUT) but for one the project moves itself,
+    and a copy is made after the clear. The manifest's `flares` section says what was done, read back.
+
+    `spawns` (the compiler's lane: {moves, values}; the editor spawns plan, SP6) moves the base map's pods, Meld points
+    and drop-in points in place and sets their values (native_spawns.apply_lane); the manifest's `spawns` section
+    says what was done, read back (native_spawns.verify).
+
+    `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
+    theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
+
+    Pieces' flags (piece flags plan): a copy's `flags` ({role: bool}) are written on its clone once it is made
+    (set_roles; a copy of low scenery whose Floor is off is not made walkable), and `piece_flags` (the compiler's
+    `pieceFlags`: the map's own pieces whose flags change where they stand) on the map's actors after every copy is
+    made and the clear has run (flags_in_place), their tiles worked out again, with `flag_ladders`' top tiles first.
+    Each is read back from the written map. The manifest's `pieceFlags` section lists what was asked, written and
+    read back.
+
+    Broken pieces (custom geometry editing plan, E6): a copy's `blasts` (a moved piece of the map's) are written on its
+    clone, and `piece_blasts` (the compiler's `pieceBlasts`: the map's own fracturing pieces broken where they stand) on
+    the map's components after every copy is made (blasts_in_place), their tiles worked out again: the fragments each
+    blast reaches saved painted out with those the map paints out. A piece the game keeps whole (most roofs and floors)
+    draws a copy of its mesh with those fragments cut away and stays whole in battle, unless its `breaksFurther` asks
+    it to break further (break_component). The manifest's `pieceBlasts` section lists them."""
+    import cover_blocks
+    import native_lights
+    src, out, variant, bake, cache = st.src, st.out, st.variant, st.bake, st.cache
+    receivers_near, jobs, tiles, edit_spec = st.receivers_near, st.jobs, st.tiles, st.edit_spec
+    break_originals, hides, assemblies, lights, covers = st.break_originals, st.hides, st.assemblies, st.lights, st.covers
+    buildings, building_edits, cleared, landing_zones = st.buildings, st.building_edits, st.cleared, st.landing_zones
+    carried_effects, piece_cache, base, stream_tiles = st.carried_effects, st.piece_cache, st.base, st.stream_tiles
+    piece_flags, flag_ladders, effects, sounds = st.piece_flags, st.flag_ladders, st.effects, st.sounds
+    flares, spawns, piece_blasts = st.flares, st.spawns, st.piece_blasts
+    src, out = Path(src), Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    if bake and not cache:
+        raise ValueError('a baked copy needs a variant texture cache name (--cache)')
+    if bake:
+        lightmap_writer.cache_fname(cache)     # a cache name that can be a file and an FName, before any work
+    p = lighting.Package(src)
+    g = package_grow.Grower(str(src))
+    # the light edits: resolved against the pristine map, then made in the map (plan 4.3, steps 1 and 2)
+    state = None if native_lights.is_empty(lights) else native_lights.prepare(p, lights)
+    light_result = native_lights.apply(g, p, state) if state else None
+    # what the edit takes out, added to as each step takes something (BuildState.gone)
+    st.p = p
+    st.lights_gone = set((light_result or {}).get('gone') or ())
+    # the copies (clone_copies)
+    st.g, st.light_state = g, state
+    clone_copies(st)
+    made, actors, firsts, ladders, vans = st.made, st.actors, st.firsts, st.ladders, st.vans
+    flag_copies, blast_copies = st.flag_copies, st.blast_copies
+    flag_record = blast_record = None
     # the cover blocks: hidden level actors on box meshes, made from a recipe (cover_blocks.py), each in its tiles
     cover_actors, cover_records = cover_blocks.add_blocks(g, p, covers) if covers else ([], [])
     actors += cover_actors
