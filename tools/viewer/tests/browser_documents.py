@@ -363,8 +363,9 @@ def check_first_open(browser, url, project_id=None, cold_url=None):
     stage['asked'] = -1000        # (it stays preparing)
     p.goto(base(url) + link)
     p.locator('#mapMessage', has_text='Preparing').wait_for(timeout=60000)
-    other = p.evaluate("[...document.querySelectorAll('.maprow')].map(r => r.dataset.id).find(id => id !== 'URB_Bar' && !id.startsWith('prefab:')"
-                       " && document.querySelector(`.maprow[data-id=\"${id}\"] .mstate.ready, .maprow[data-id=\"${id}\"] .mstate.checked`))")
+    other = p.evaluate("[...document.querySelectorAll('.maprow')].find(r => r.dataset.id !== 'URB_Bar' && !r.dataset.id.startsWith('prefab:')"
+                       " && r.querySelector('.mstate.ready, .mstate.checked'))?.dataset.id")
+    assert other, 'no other prepared map to choose'
     p.locator(f'.maprow[data-id="{other}"]').first.dblclick()
     p.wait_for_url(lambda u: f'map={other}' in str(u), timeout=60000)
     ready(p)
@@ -387,7 +388,7 @@ def check_first_open(browser, url, project_id=None, cold_url=None):
 
 
 CHECKS = {'two-windows': ('twoWindows', check_two_windows), 'replace': ('replace', check_replace_confirmed),
-          'waiting-save': ('waitingSave', check_failed_save_waits)}
+          'waiting-save': ('waitingSave', check_failed_save_waits), 'first-open': ('firstOpen', check_first_open)}
 
 
 def check_all(browser, url, only=None):
@@ -406,9 +407,9 @@ def main():
     only = set(args.only.split(',')) if args.only else None
     with sync_playwright() as pw:
         browser = pw.chromium.launch(channel='msedge', headless=True)
-        out = check_all(browser, args.url, only)
-        if only and 'build-binding' in only: out['buildBinding'] = check_build_binding(browser, args.url)
-        if only and 'first-open' in only: out['firstOpen'] = check_first_open(browser, args.url, cold_url=args.cold_url)
+        wanted = set(CHECKS) if only is None else only
+        out = check_all(browser, args.url, wanted - {'first-open'})
+        if 'first-open' in wanted: out['firstOpen'] = check_first_open(browser, args.url, cold_url=args.cold_url)
         page = browser.new_page(); page.goto(args.url); page.screenshot(path=str(args.screenshot)); browser.close()
     print(json.dumps(out, indent=2))
 

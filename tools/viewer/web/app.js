@@ -11872,14 +11872,22 @@ async function open() {
   }
   activeMapId=builderMode ? null : parameters.get('map') || mapCatalogue.defaultMap;
   const activeMap=mapCatalogue.maps.find(map=>map.id===activeMapId);
+  // (the map the address asks for, when it isn't prepared yet: kept now, as the browser marks its entry ready)
+  const askedUnprepared = !builderMode && activeMap && !activeMap.ready ? activeMapId : null;
   mapBrowser=createMapBrowser({ els: { root: $('mapDialog'), form: $('mapForm'), search: $('mapSearch'), prepared: $('mapPrepared'),
     groups: $('mapGroups'), list: $('mapList'), count: $('mapCount'), message: $('mapMessage'), bar: $('mapBar'), ok: $('mapOk'),
     // On a patch preview the open map counts as not open: choosing it opens its original layout.
     cancel: $('mapCancel'), close: $('mapClose') }, maps: mapCatalogue.maps,
     current: activeMap?.ready && !parameters.get('scene') ? activeMapId : null,
-    // The map asked for but not prepared yet opens as asked (its project too) once it is ready.
     prefabs: async () => (await prefabApi.list()).prefabs, onPrefab: id => goTo({ prefab: id }),
-    onOpen: id => { mapBrowser.close(); goTo({ map: id, scene: null, project: null, mission: null }); } });
+    // The map asked for but not prepared yet opens as asked once it is ready: the address as it was, its project,
+    // mission and layout too (review finding 7; nothing is open meanwhile). Any other map chosen is a switch of map,
+    // which opens it alone.
+    onOpen: id => {
+      mapBrowser.close();
+      if (id === askedUnprepared) { leaving = true; location.reload(); return; }
+      goTo({ map: id, scene: null, project: null, mission: null });
+    } });
   if (builderMode) {
     data = emptyPrefabScene();
     await startScene({ parameters, familiesAsked: fetch('/families.json').then(r => r.json()), mapName: 'Prefab' });
