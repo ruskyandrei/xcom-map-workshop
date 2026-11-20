@@ -140,6 +140,7 @@ import publication  # noqa: E402
 import spawnrules  # noqa: E402
 import spawns  # noqa: E402
 import settings as settings_module  # noqa: E402
+from game_files import lwr_file  # noqa: E402
 from projects import ID as PROJECT_ID, ProjectError, ProjectStore  # noqa: E402
 from version import VERSION  # noqa: E402
 
@@ -280,10 +281,6 @@ def find_project(arg, projects):
     if named:
         raise BuildError('%d projects are called %s in %s; give the file or the id' % (len(named), arg, projects))
     raise BuildError('no project %s in %s' % (arg, projects))
-
-
-def lwr_file(lwr, *parts):
-    return Path(lwr).joinpath('XEW', 'XComGame', *parts)
 
 
 def has_light_edits(native):

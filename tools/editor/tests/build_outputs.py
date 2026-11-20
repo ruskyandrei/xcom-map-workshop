@@ -478,15 +478,15 @@ def prepare_cache(user_cache, install, folder, inputs):
     """The scratch cache: each needed map's export (the generation the cache's newest qualifying one is: its
     scene.json alone) and the library's index. {map: {generation, sha256}} of the exports copied."""
     use_paths()
-    import build
     import compiler
+    import game_files
     folder.mkdir(parents=True, exist_ok=True)
     exports, missing = {}, []
     wanted = [(m, True) for e in inputs for m in e['maps']] + [(m, False) for e in inputs for m in e.get('donors', ())]
     for name, required in wanted:
         if name in exports:
             continue
-        base = build.lwr_file(install, 'CookedPCConsole', '%s.upk' % name)
+        base = game_files.lwr_file(install, 'CookedPCConsole', '%s.upk' % name)
         if not base.is_file():
             if required:
                 missing.append('%s (not in the install)' % name)
