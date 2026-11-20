@@ -1,4 +1,4 @@
-"""A map pack's zip (manager.pack) on the temporary game installs of test_play.py:
+"""A map pack's zip (manager.pack) on the temporary game installs of viewer_fixtures.PlayInstalls:
 - review finding 13: a project left out (a file of another build's name with other bytes, the conflict last in its
   manifest) leaves nothing in the pack: no file, card line, picture or README line;
 - review finding 14: no text in the zip names a folder of this computer, with the editor projects in it or not;
@@ -23,18 +23,15 @@ import manager  # noqa: E402
 sys.path.insert(0, str(HERE.parents[1] / 'upk'))
 import pack_card  # noqa: E402
 from projects import ProjectError  # noqa: E402
-import test_manager  # noqa: E402  (its Manager is used by name, so that its tests don't run here again)
-from test_manager import OTHER, OTHER_ID  # noqa: E402
-import test_play  # noqa: E402
-from viewer_fixtures import ID  # noqa: E402
+from viewer_fixtures import ID, VARIANT, ManagerInstalls, PlayInstalls, record  # noqa: E402
+from viewer_fixtures import SECOND_ID as OTHER_ID, SECOND_VARIANT as OTHER  # noqa: E402
 
-VARIANT = test_play.VARIANT
 TEXT = ('.txt', '.json', '.cmd', '.ps1')
 
 
 class PackExport(unittest.TestCase):
-    setUp = test_play.Play.setUp
-    M = test_manager.Manager
+    setUp = PlayInstalls.setUp
+    M = ManagerInstalls
     player, package, second, more_missions = M.player, M.package, M.second, M.more_missions
     del M
 
@@ -76,7 +73,7 @@ class PackExport(unittest.TestCase):
         self.package()
         self.second()
         path, m = self.manifest(OTHER)
-        line = dep.set_field(test_play.record('bar'), 'Name', OTHER).decode('latin-1')
+        line = dep.set_field(record('bar'), 'Name', OTHER).decode('latin-1')
         line = re.sub(r'InitialChance=[^,)]*', 'InitialChance=abc', line)
         m['config'] = dict(maps=[line], recordMissions=[[0]], missions=['Abduction'])
         path.write_text(json.dumps(m), encoding='utf-8')

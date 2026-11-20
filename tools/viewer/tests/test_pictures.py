@@ -14,33 +14,14 @@ import unittest.mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from PIL import Image, PngImagePlugin
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from catalogue import load_catalogue  # noqa: E402
 import pictures  # noqa: E402
 from projects import ProjectError, ProjectStore  # noqa: E402
-from viewer_fixtures import ID, OTHER, document  # noqa: E402
+from viewer_fixtures import ID, OTHER, document, png  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
-
-
-def png(size=(512, 256), mode='RGB', colour=(40, 90, 160), text=None, alpha=None):
-    """A PNG's bytes: one colour with a lighter block, of any size and mode; `text` adds a text chunk, `alpha` (0 to
-    255) makes it RGBA with that alpha everywhere."""
-    image = Image.new('RGB', size, colour)
-    image.paste((200, 180, 60), (size[0] // 4, size[1] // 4, size[0] // 2, size[1] // 2))
-    if alpha is not None:
-        image = image.convert('RGBA')
-        image.putalpha(alpha)
-    elif mode != 'RGB':
-        image = image.convert(mode)
-    info = None
-    if text:
-        info = PngImagePlugin.PngInfo()
-        info.add_text('Comment', text)
-    out = io.BytesIO()
-    image.save(out, 'PNG', pnginfo=info)
-    return out.getvalue()
 
 
 def sha(data):

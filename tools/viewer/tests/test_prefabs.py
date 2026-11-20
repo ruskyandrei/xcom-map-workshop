@@ -10,47 +10,15 @@ import tempfile
 import threading
 import unittest
 from unittest.mock import patch
-from urllib.error import HTTPError
-from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from catalogue import load_catalogue
-from prefabs import SCHEMA, SCHEMA_VERSION, PrefabStore, recover_sources, validate
+from prefabs import PrefabStore, recover_sources, validate
 from projects import ProjectError
 import settings as settings_module
 from viewer import Handler, LocalServer
+from viewer_fixtures import ID, OTHER, PL, PrefabServer, prefab
 
-ID = '0f8b2c4e-1d2a-4b6c-8e9f-123456789abc'
-OTHER = '1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d'
-PL = 'TheWorld.PersistentLevel.'
-LIGHT = dict(color=[255, 240, 200], brightness=1.5, radius=512.0, falloffExponent=2.0, innerConeAngle=0.0,
-             outerConeAngle=44.0, enabled=True)
 PNG = b'\x89PNG\r\n\x1a\n' + b'\0' * 32
-
-
-def prefab(prefab_id=ID, **changes):
-    doc = dict(
-        schema=SCHEMA, schemaVersion=SCHEMA_VERSION, id=prefab_id, name='Corner shop', floor=dict(tiles=[8, 6]),
-        pieces=[
-            dict(actor=PL + 'Wall_1_copy1', **{'from': dict(package='URB_Bar', level='base', actor=PL + 'Wall_1')},
-                 components=[PL + 'Wall_1.StaticMeshComponent_3'], location=[96, 48, 0], rotation=[0, 16384, 0],
-                 prefab=None, partner=None, recipe=dict(key='ab12cd', name='Core_384FloorB')),
-            dict(actor=PL + 'Car_2_copy2', **{'from': dict(package='URB_Street', level='base', actor=PL + 'Car_2')},
-                 components=[PL + 'Car_2.StaticMeshComponent_0'], location=[288, 96, 0], rotation=[0, 0, 0],
-                 prefab='copy2:Car_2', partner=PL + 'Glass_2_copy3', tinted=True),
-            dict(actor=PL + 'Glass_2_copy3', **{'from': dict(package='URB_Street', level='base', actor=PL + 'Glass_2')},
-                 components=[PL + 'Glass_2.StaticMeshComponent_1'], location=[288, 96, 0], rotation=[0, 0, 0],
-                 prefab='copy2:Car_2', partner=None),
-            dict(actor=PL + 'CoverBlock_copy4', template=dict(kind='cover', version=1),
-                 cover=dict(width=2, length=1, type='high', height=1), location=[0, 0, 12], rotation=[0, 0, 0]),
-            dict(actor=PL + 'SpotLight_copy5', template=dict(kind='spot', version=1), light=dict(LIGHT),
-                 location=[384, 288, 160], rotation=[-16384, 0, 0]),
-        ],
-        groups=[dict(id='g-inner', breakTogether=True, members=[dict(added=PL + 'Car_2_copy2'), dict(added=PL + 'Glass_2_copy3')]),
-                dict(id='g-outer', members=[dict(group='g-inner'), dict(added=PL + 'Wall_1_copy1'), dict(building='b1')])],
-        buildings=[dict(id='b1', name='Corner shop', kind='building', floors=[dict(boxes=[[0, 0, 0, 768, 576, 192]])])],
-        donors=[dict(package='URB_Bar', sha256='a' * 64), dict(package='URB_Street')], mission=None)
-    doc.update(changes)
-    return doc
 
 
 def changed(path, value, base=None):
@@ -373,28 +341,7 @@ class StoreTests(unittest.TestCase):
         with self.assertRaises(ProjectError): self.store.import_file(json.loads(text))
 
 
-class RouteTests(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        scene = root / 'cache' / 'URB_Bar' / 'current'; scene.mkdir(parents=True)
-        (scene / 'scene.json').write_text(json.dumps(dict(schemaVersion=1, exporterVersion=12, name='URB_Bar', scope='map')), encoding='utf8', newline='\n')
-        self.store = PrefabStore(root / 'prefabs')
-        self.server = LocalServer(('127.0.0.1', 0), partial(Handler, catalogue=load_catalogue(root / 'cache'), prefabs=self.store))
-        thread = threading.Thread(target=self.server.serve_forever, daemon=True); thread.start()
-        self.base = f'http://127.0.0.1:{self.server.server_port}'
-        self.addCleanup(lambda: (self.server.shutdown(), self.server.server_close(), thread.join(timeout=5)))
-
-    def call(self, method, path, body=None, headers=None, raw=None):
-        data = raw if raw is not None else None if body is None else json.dumps(body).encode()
-        request = Request(self.base + path, data=data, method=method,
-                          headers={'Content-Type': 'image/png' if raw is not None else 'application/json', **(headers or {})})
-        try:
-            with urlopen(request) as response:
-                payload = response.read()
-                return response.status, (payload if response.headers['Content-Type'] == 'image/png' else json.loads(payload))
-        except HTTPError as error: return error.code, json.load(error)
-
+class RouteTests(PrefabServer, unittest.TestCase):
     def test_save_open_list_picture_delete_and_import_over_http(self):
         self.assertEqual(self.call('GET', '/prefabs.json'), (200, dict(folder=str(self.store.root), prefabs=[])))
         status, saved = self.call('PUT', f'/prefabs/{ID}/prefab.json', dict(expectedRevision=0, document=prefab()))

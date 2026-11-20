@@ -10,6 +10,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import effects_metadata as em  # noqa: E402
+from viewer_fixtures import INSTALL, WHY, records  # noqa: E402
 
 
 class Fake:
@@ -180,35 +181,9 @@ class Capabilities(unittest.TestCase):
         self.assertEqual(em.floats(None), [])
 
 
-# ---------------------------------------------------------------- the configured install
+# ---------------------------------------------------------------- the configured install (viewer_fixtures)
 
-INSTALL, WHY = None, 'no install configured'
-try:
-    sys.path.insert(0, str(HERE.parents[1] / 'lab'))
-    sys.path.insert(0, str(HERE.parents[1] / 'upk'))
-    import labpaths  # noqa: E402
-    INSTALL, WHY = labpaths.install_map('URB_Bar')
-except Exception as error:      # noqa: BLE001
-    WHY = str(error)
 PL = 'TheWorld.PersistentLevel.'
-_CACHE = {}
-
-
-def records(name, stream=None):
-    """effects_metadata.describe on a package of the configured install, as the export calls it."""
-    if (name, stream) not in _CACHE:
-        import scene_metadata
-        from package import Package
-        p = Package(INSTALL.parent / (name + '.upk'))
-        landings = [] if stream else scene_metadata.landing_metadata(p)
-        carried = {} if stream else {e['actor']: dict(by=e['carriedBy'], how=e['carriedHow'])
-                                     for e in scene_metadata.effect_metadata(p) if e['carriedBy']}
-        out = em.describe(p, landings=landings, carried=carried, prefix=('stream-%s-' % stream) if stream else '',
-                          layer='stream' if stream else 'base', stream=stream)
-        out['by'] = {r['actor'].rsplit('.', 1)[-1]: r for r in out['effects'] + out['sounds'] + out['flares']}
-        out['package'] = p
-        _CACHE[(name, stream)] = out
-    return _CACHE[(name, stream)]
 
 
 @unittest.skipUnless(INSTALL and INSTALL.exists(), WHY)

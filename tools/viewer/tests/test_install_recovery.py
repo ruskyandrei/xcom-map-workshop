@@ -2,7 +2,7 @@
 play's clear-up and Remove from game, each stopped after any file copy, config replacement, ledger or journal write
 (a crash or a forced stop: no clean-up runs), then the next operation on the install (Remove from game, or the next
 look at it). The game's files must come back byte for byte, nothing of the change left behind, and a hand edit made
-in between kept and reported. On the temporary game installs of test_play.py."""
+in between kept and reported. On the temporary game installs of viewer_fixtures.PlayInstalls."""
 from pathlib import Path
 import sys
 import unittest
@@ -14,10 +14,7 @@ import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture  # noqa: E402
 import mapsini as dep  # noqa: E402
 import procs  # noqa: E402
-import test_play  # noqa: E402  (its Play is used by name, so that its tests don't run here again)
-import test_manager  # noqa: E402
-
-VARIANT = test_play.VARIANT
+from viewer_fixtures import VARIANT, ManagerInstalls, PlayInstalls, game_folder  # noqa: E402
 
 
 class Killed(BaseException):
@@ -54,14 +51,14 @@ class Stops:
 
 
 class Recovery(unittest.TestCase):
-    setUp = test_play.Play.setUp
-    package = test_play.Play.package
+    setUp = PlayInstalls.setUp
+    package = PlayInstalls.package
 
     def fresh(self, name):
-        """A game install of its own, as test_play makes them, Bar given terror and council records."""
+        """A game install of its own, as viewer_fixtures.game_folder makes them, Bar given terror and council records."""
         game = Path(self.temp.name) / 'games' / name
-        test_play.game_folder(game, self.default)
-        test_manager.Manager.more_missions(self, game)
+        game_folder(game, self.default)
+        ManagerInstalls.more_missions(self, game)
         return game
 
     def state(self, game):
@@ -183,7 +180,7 @@ class Recovery(unittest.TestCase):
 class Pruning(unittest.TestCase):
     """Review finding 49: the install's backups and the ledger's history keep the newest (installs.KEEP_BACKUPS,
     KEEP_HISTORY), never a folder something still needs, and none while a change waits."""
-    setUp = test_play.Play.setUp
+    setUp = PlayInstalls.setUp
 
     def ledger_with(self, game, count):
         backups = game / installs.LEDGER_FOLDER / 'backups'
@@ -230,8 +227,8 @@ class Removal(unittest.TestCase):
     mod manager, a hand edit). The record stays, and so do its variant's files and the ledger's note of what was left:
     a live record naming a package that is gone could be drawn by the game. Once the record is taken out by hand, the
     next removal takes the rest."""
-    setUp = test_play.Play.setUp
-    package = test_play.Play.package
+    setUp = PlayInstalls.setUp
+    package = PlayInstalls.package
     fresh = Recovery.fresh
     state = Recovery.state
 

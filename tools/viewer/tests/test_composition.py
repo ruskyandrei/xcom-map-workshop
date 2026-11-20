@@ -1,6 +1,6 @@
 import copy
 import unittest
-from test_resolver import scene
+from viewer_fixtures import scene
 from composition import compose_scene
 from resolver import resolve_scene
 

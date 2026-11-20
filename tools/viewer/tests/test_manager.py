@@ -1,5 +1,5 @@
 """The project manager and the Game maps window (manager.py, gamemaps.py and their routes; installs.install_rotation,
-remove_rotation and set_records_use), on the temporary game installs of test_play.py: the listing, builds installed
+remove_rotation and set_records_use), on the temporary game installs of viewer_fixtures.PlayInstalls: the listing, builds installed
 for campaigns beside the base map or in its place, records switched off and on, all of it undone byte for byte, and
 the map pack's zip."""
 from functools import partial
@@ -26,80 +26,22 @@ sys.path.insert(0, str(HERE.parents[1] / 'upk'))
 import pack_card  # noqa: E402
 import maplist  # noqa: E402
 from projects import ProjectError  # noqa: E402
-import test_play  # noqa: E402  (its Play is used by name, so that its tests don't run here again)
-from viewer_fixtures import ID, document, record  # noqa: E402
+from viewer_fixtures import (ID, MUTATOR_LOADER, RANDOM_SPAWNS, VARIANT, ManagerInstalls, document,  # noqa: E402
+                             record)
+from viewer_fixtures import SECOND_ID as OTHER_ID, SECOND_VARIANT as OTHER  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import labpaths  # noqa: E402
 
-VARIANT = test_play.VARIANT
 # URB_Bar as shipped, for the pack whose map holds its lighting inside: without it that test skips
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
 # the game's landing intro, for the pack's one copy of it: without it that test skips
 INTRO, NO_INTRO = labpaths.test_file('XCOM_INTRO_UPK', labpaths.lwr_cooked('CIN_DropshipIntros.upk'), 'CIN_DropshipIntros.upk')
-OTHER_ID, OTHER = '1a2b3c4d-1d2a-4b6c-8e9f-123456789abc', 'URB_Bar_Second_1a2b'
 UNBUILT_ID, MISSING_ID = '2b3c4d5e-1d2a-4b6c-8e9f-123456789abc', '3c4d5e6f-1d2a-4b6c-8e9f-123456789abc'
 
 
-def pack_env(extra_modules=None):
-    """The environment a pack's scripts run in when double-clicked (review finding 25): this one without the module
-    path a shell may have set (PowerShell 7's, inherited by a suite started from it), so Windows PowerShell builds its
-    own. `extra_modules`: folders put first on PSModulePath instead (a launch from PowerShell 7)."""
-    import os
-    env = {k: v for k, v in os.environ.items() if k.upper() != 'PSMODULEPATH'}
-    if extra_modules: env['PSModulePath'] = ';'.join(str(m) for m in extra_modules)
-    return env
-
-
-def powershell_report(env=None):
-    """Which Windows PowerShell a pack's scripts get with this environment, its module path and whether it finds
-    Get-FileHash (Microsoft.PowerShell.Utility), for a failure's message."""
-    probe = ('"host: " + [Diagnostics.Process]::GetCurrentProcess().Path + " " + $PSVersionTable.PSVersion; '
-             '"Get-FileHash: " + [bool](Get-Command Get-FileHash -ErrorAction SilentlyContinue); '
-             '"PSModulePath: " + $env:PSModulePath')
-    try:
-        done = subprocess.run(['cmd', '/c', 'powershell', '-NoProfile', '-Command', probe], capture_output=True, text=True,
-                              timeout=60, env=pack_env() if env is None else env)
-        return 'Windows PowerShell as the scripts get it:\n' + done.stdout + done.stderr
-    except (OSError, subprocess.SubprocessError) as error:
-        return f'Windows PowerShell could not be asked ({error})'
-
-
-class Manager(unittest.TestCase):
-    setUp = test_play.Play.setUp
-    player = test_play.Play.player
-    package = test_play.Play.package
-    files = test_play.Play.files
-    records = test_play.Play.records
-    settle = test_play.Play.settle
-
-    def more_missions(self, game):
-        """Bar given a terror record in rotation and a council record out of it, as LWR's maps have."""
-        path = game / 'XEW/XComGame/Config/DefaultMaps.ini'
-        lines = dep.lines_of(path.read_bytes())
-        bar = record('bar')
-        terror = dep.set_field(dep.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False), 'DisplayName', 'URB_Bar_Terror (Terror) |0')
-        council = dep.set_field(dep.set_field(dep.set_field(bar, 'MissionType', 'eMission_Special', quoted=False),
-                                              'CouncilType', 'eFCMType_Bomb', quoted=False), 'DisplayName', 'URB_Bar_Bomb (Bomb) |0')
-        council = dep.set_field(council, 'bInRotation', 'False', quoted=False)
-        at = lines.index(bar) + 1
-        lines[at:at] = [terror, council]
-        path.write_bytes(dep.EOL.join(lines))
-        return terror, council
-
-    def second(self):
-        """Another project on Bar, built."""
-        self.store.save(OTHER_ID, dict(document(output=dict(shipAs=OTHER, patch='patch_' + OTHER.lower())), id=OTHER_ID, name='Second bar'), 0)
-        folder = self.output / OTHER
-        (folder / 'CookedPCConsole').mkdir(parents=True)
-        (folder / 'CookedPCConsole' / f'{OTHER}.upk').write_bytes(b'second map')
-        m = dict(schema=installs.PACKAGE_SCHEMA, schemaVersion=1, buildId=f'{OTHER}-1', builtAt='2026-11-09T12:00:00',
-                 editorVersion='0.4.0', project=dict(id=OTHER_ID, name='Second bar', revision=1),
-                 source=dict(map='URB_Bar', sha256='s' * 64), variant=OTHER, patch=None,
-                 files={f'CookedPCConsole/{OTHER}.upk': hashlib.sha256(b'second map').hexdigest()}, streams=[], replaceStreams={})
-        (folder / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
-
+class Manager(ManagerInstalls, unittest.TestCase):
     def row(self, listed, project_id=ID):
         return next(p for p in listed['projects'] if p['id'] == project_id)
 
@@ -134,7 +76,7 @@ class Manager(unittest.TestCase):
         # the project names one that is kept
         self.assertEqual(row['picture'], 'none')
         import pictures
-        from test_pictures import png
+        from viewer_fixtures import png
         digest = pictures.save_picture(self.store, ID, png())['sha256']
         self.store.save(ID, dict(self.store.load(ID), picture=dict(sha256=digest)), 2)
         self.assertEqual(self.row(manager.listing(self.store, self.builds, player))['picture'], 'own')
@@ -626,10 +568,6 @@ class Manager(unittest.TestCase):
         self.assertEqual((r['folder'], r['version'], r['name']), ('Old_pack', 1, 'Old pack'))
         self.assertEqual(packs.load(self.store.root, 'Old_pack')['card'], r['card'])
 
-    def card_game(self, game):
-        """The made-up game given a script that reads map pack cards, as LWR 3.00.00 beta 15's does."""
-        (game / 'XEW/XComGame/CookedPCConsole/XComMutator.u').write_bytes(b'\0names\0LWRMapPackCard\0more')
-
     @unittest.skipUnless(sys.platform == 'win32' and shutil.which('powershell'), 'the pack\'s scripts run with Windows PowerShell')
     def test_a_packs_scripts_copy_the_folder_where_the_game_reads_cards(self):
         real = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True).stdout
@@ -696,20 +634,6 @@ class Manager(unittest.TestCase):
         self.assertTrue((there / f'{VARIANT}.upk').is_file())
         self.run_script(newer, 'Uninstall.cmd', self.copy)
         self.assertEqual(sorted(str(p.relative_to(cooked)) for p in cooked.rglob('*')), held)
-
-    def run_script_with(self, folder, name, game, *more, env=None, code=0):
-        """A pack's Install.cmd or Uninstall.cmd run on a game folder, with Windows PowerShell's environment as a
-        double-click gives it (pack_env; review finding 25): its output. A failure's message says which PowerShell ran
-        and whether it found the commands the scripts use."""
-        done = subprocess.run(['cmd', '/c', str(folder / name), str(game), *more], capture_output=True, text=True, timeout=120,
-                              env=pack_env() if env is None else env)
-        if done.returncode != code:
-            self.fail(f'{name} ended with {done.returncode}:\n{done.stdout}{done.stderr}\n{powershell_report(env)}')
-        return done.stdout
-
-    def run_script(self, folder, name, game):
-        """A pack's Install.cmd or Uninstall.cmd run on a game folder: its output."""
-        return self.run_script_with(folder, name, game)
 
     @unittest.skipUnless(sys.platform == 'win32' and shutil.which('powershell'), 'the pack\'s scripts run with Windows PowerShell')
     def test_a_packs_scripts_install_it_as_the_editor_does_and_take_it_out_byte_for_byte(self):
@@ -806,8 +730,8 @@ class Manager(unittest.TestCase):
         real = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq XComEW.exe'], capture_output=True, text=True).stdout
         if 'XComEW.exe' in real: self.skipTest('XCOM is running: the scripts refuse, as they should')
         for game in (self.lwr, self.copy):
-            (game / 'XEW/XComGame/Config/DefaultMutatorLoader.ini').write_bytes(test_play.MUTATOR_LOADER)
-            (game / 'XEW/XComGame/Config/DefaultRandomSpawns.ini').write_bytes(test_play.RANDOM_SPAWNS)
+            (game / 'XEW/XComGame/Config/DefaultMutatorLoader.ini').write_bytes(MUTATOR_LOADER)
+            (game / 'XEW/XComGame/Config/DefaultRandomSpawns.ini').write_bytes(RANDOM_SPAWNS)
         spawns = lambda game: (game / 'XEW/XComGame/Config/DefaultRandomSpawns.ini').read_bytes()  # noqa: E731
         before = spawns(self.copy)
         player = self.player()

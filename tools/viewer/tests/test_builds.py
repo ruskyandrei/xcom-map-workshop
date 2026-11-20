@@ -22,63 +22,8 @@ from builds import BuildRunner
 import procs
 import publication
 from projects import ProjectError, ProjectStore
-from viewer_fixtures import ID, OTHER, document
+from viewer_fixtures import ID, OTHER, STANDIN, document
 from viewer import Handler, LocalServer
-
-VIEWER = str(Path(__file__).resolve().parents[1])
-# Stands in for build.py: prints its stage lines (as build.py does), waits for a go file, then writes a package as
-# build.py does (its id unique to the launch, the attempt in its manifest, swapped in with the journal) and prints the
-# real success line. Outcomes: ok; fail; grand (a grandchild that waits, its id printed); linger (a grandchild left
-# running after a good build); die-<step> (the process ends outright after that step of the swap).
-STANDIN = r'''
-import datetime, hashlib, json, os, subprocess, sys, time
-from pathlib import Path
-sys.path.insert(0, %r)
-import publication
-project, output, go, outcome = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), sys.argv[4]
-rest = sys.argv[5:]
-quick = '--quick' in rest
-attempt = rest[rest.index('--attempt') + 1] if '--attempt' in rest else None
-doc = json.loads(project.read_text(encoding='utf-8'))
-print('snapshot: ' + json.dumps(dict(project=doc['id'], revision=doc['revision'])), flush=True)
-print('compile: ' + json.dumps(dict(added=1)), flush=True)
-if outcome in ('grand', 'linger'):
-    grand = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])
-    print('grandchild: %%d' %% grand.pid, flush=True)
-if quick:
-    print('  $ python -B -u native_copy.py URB_Bar.upk lit variant --copies native-edit.json', flush=True)
-else:
-    print('  $ pwsh -File patchtool.ps1 build', flush=True)
-print('    progress: relighting 2/5', flush=True)
-while not go.exists():
-    time.sleep(0.02)
-if outcome == 'fail':
-    print('build failed: patchtool.ps1 failed (exit 1); see the log', flush=True)
-    sys.exit(1)
-for s in ('patch', 'light', 'seeds'):
-    print(s + ': {}', flush=True)
-variant = doc['output']['shipAs']
-stamp = datetime.datetime.now().strftime('%%Y%%m%%d-%%H%%M%%S') + ('-' + attempt.replace('-', '')[:8] if attempt else '')
-build_id = '%%s-%%s' %% (variant, stamp)
-staging = output / '.work' / build_id / 'package'
-(staging / 'CookedPCConsole').mkdir(parents=True)
-content = ('%%s revision %%s' %% (build_id, doc['revision'])).encode()
-(staging / 'CookedPCConsole' / ('%%s.upk' %% variant)).write_bytes(content)
-m = dict(schema='xcom-map-workshop/variant-package', schemaVersion=1, buildId=build_id, builtAt='2026-11-07T12:00:00',
-         seconds=241, project=dict(id=doc['id'], revision=doc['revision']), variant=variant,
-         files={'CookedPCConsole/%%s.upk' %% variant: hashlib.sha256(content).hexdigest()},
-         **({'attempt': attempt} if attempt else {}))
-if quick:       # a full build's manifest is written as before quick builds: no times, no quick
-    m.update(quick=True, seconds=6, times=dict(full=241, quick=6), foreignPieces=2,
-             donors=[dict(map='URB_PoliceStation', sha256='d' * 64, file='somewhere', pieces=2, bytes=1234, cut=[])])
-(staging / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
-die = outcome[4:] if outcome.startswith('die-') else None
-existing = output / variant if (output / variant).is_dir() else None
-with publication.guard(output, variant):
-    publication.publish(output, variant, staging, existing, dict(buildId=build_id, attempt=attempt, project=doc['id']),
-                        boundary=lambda name: os._exit(70) if name == die else None)
-print('built %%s: %%s (%%s.upk %%s)' %% (build_id, output / variant, variant, hashlib.sha256(content).hexdigest()[:12]), flush=True)
-''' % VIEWER
 
 
 class Builds(unittest.TestCase):

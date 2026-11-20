@@ -12,7 +12,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import effects_draw as ed  # noqa: E402
 import effects_metadata as em  # noqa: E402
-from test_effects_metadata import INSTALL, WHY, records  # noqa: E402
+from viewer_fixtures import INSTALL, WHY, records  # noqa: E402
 
 
 def raw(values):

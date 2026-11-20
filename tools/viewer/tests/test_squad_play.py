@@ -1,5 +1,5 @@
 """Plays with the test squad (play.py, squads.SquadService) and its routes, on the play tests' scratch installs
-(test_play.py) with the squad's game files added (squad_fixture.py): one snapshot per play, taken before anything in
+(viewer_fixtures.PlayInstalls) with the squad's game files added (squad_fixture.py): one snapshot per play, taken before anything in
 the install changes; every kind of play writes it; a squad that can't be played stops the play with nothing changed;
 and the page's routes. Every test keeps its squad file in a scratch folder."""
 from functools import partial
@@ -18,27 +18,27 @@ import installs  # noqa: E402
 import squad_fixture  # noqa: E402
 import squadrecords  # noqa: E402
 import squads  # noqa: E402
-import test_play  # noqa: E402
 from projects import ProjectError  # noqa: E402
-from viewer_fixtures import ID  # noqa: E402
+from viewer_fixtures import ID, PlayInstalls, record  # noqa: E402
+import deploy_fixture as dep  # noqa: E402  (tools/bake, which installs put on the path)
 from viewer import Handler, LocalServer  # noqa: E402
 
 
 class SquadPlay(unittest.TestCase):
-    """test_play.Play's scratch installs and helpers, with the squad's game files in the game install."""
-    package = test_play.Play.package
-    settle = test_play.Play.settle
-    files = test_play.Play.files
+    """viewer_fixtures.PlayInstalls' scratch installs and helpers, with the squad's game files in the game install."""
+    package = PlayInstalls.package
+    settle = PlayInstalls.settle
+    files = PlayInstalls.files
 
     def setUp(self):
-        test_play.Play.setUp(self)
+        PlayInstalls.setUp(self)
         squad_fixture.make_game(self.lwr, markers=False)
         patch = squad_fixture.enums()
         patch.__enter__()
         self.addCleanup(patch.__exit__, None, None, None)
 
     def player(self, **more):
-        player = test_play.Play.player(self, **more)
+        player = PlayInstalls.player(self, **more)
         player.squads = squads.SquadService(self.squad_store, player.target)
         return player
 
@@ -133,10 +133,10 @@ class Snapshot(SquadPlay):
         """T-44: the stand-in operative of a data recovery or covert extraction takes the first unit's looks, and a
         SHIV has none (the battle then waits on its loading screen), so a soldier lands first there."""
         import missions
-        exalt = test_play.dep.set_field(test_play.dep.set_field(test_play.record('bar'), 'MissionType', 'eMission_CaptureAndHold',
+        exalt = dep.set_field(dep.set_field(record('bar'), 'MissionType', 'eMission_CaptureAndHold',
                                                                 quoted=False), 'DisplayName', 'URB_Bar (Data recovery) |0')
         maps = self.lwr / 'XEW/XComGame/Config/DefaultMaps.ini'
-        maps.write_bytes(maps.read_bytes().replace(test_play.record('bar'), test_play.record('bar') + test_play.dep.EOL + exalt))
+        maps.write_bytes(maps.read_bytes().replace(record('bar'), record('bar') + dep.EOL + exalt))
         doc = squadrecords.default_document()
         shiv = dict(squadrecords._unit(9, 'Tracks', '', 'eSC_None', 'eItem_SHIVDeck_I', None, ['eItem_ShivMinigun'], [],
                                        None, None, kind='shiv'))
@@ -213,7 +213,7 @@ class Routes(SquadPlay):
             server.shutdown(); server.server_close(); thread.join(timeout=5)
 
     def test_no_squad_service(self):
-        player = test_play.Play.player(self)
+        player = PlayInstalls.player(self)
         server = LocalServer(('127.0.0.1', 0), partial(Handler, catalogue=self.catalogue, projects=self.store,
                                                        builds=self.builds, player=player))
         thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()

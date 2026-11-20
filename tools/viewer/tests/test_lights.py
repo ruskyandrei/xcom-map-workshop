@@ -9,7 +9,7 @@ from package import Package
 from lights import effective_cone, effective_cone_degrees, light_metadata, light_record, light_records, storable_cone, sun_records
 from resolver import resolve_scene
 from scene_metadata import kismet_references
-from test_resolver import scene
+from viewer_fixtures import scene
 import settings
 
 # URB_Bar from the game install (the game setting); without it the package tests skip
