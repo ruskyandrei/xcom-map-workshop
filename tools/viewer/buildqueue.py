@@ -782,8 +782,8 @@ class BuildQueue:
                 self.builds.unclaim(project_id, self.token)
                 return False
         try:
-            handle = self.builds.start_queued(document, snapshot, context, path, self.token, attempt_id, folder / 'build.log',
-                                              digest=sha, picture=picture)
+            handle = self.builds.start_queued(document, snapshot=snapshot, context=context, saved_file=path, owner=self.token,
+                                              attempt_id=attempt_id, log=folder / 'build.log', digest=sha, picture=picture)
         except ProjectError as error:
             self.builds.unclaim(project_id, self.token)
             if error.extra.get('code') == 'build-slot':

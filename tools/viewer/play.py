@@ -72,7 +72,7 @@ from settings import documents, game_kind, game_setting, install_game, kind_labe
 
 
 class Player:
-    def __init__(self, settings, builds=None, catalogue=None, projects=None, install=None, start=gamelaunch.start,
+    def __init__(self, settings, builds=None, catalogue=None, projects=None, *, install=None, start=gamelaunch.start,
                  steam=gamelaunch.steam_exe, command=gamelaunch.command, user_documents=None, appear=300, every=3,
                  cleanup=True, try_lines=False, squads=None):
         """settings: the editor's settings (load_settings); install: a game folder that overrides the install setting

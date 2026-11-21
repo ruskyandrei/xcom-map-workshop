@@ -549,7 +549,7 @@ def capabilities(record, caps):
     return record
 
 
-def describe(p, kismet=None, prefabs=None, landings=None, carried=None, prefix='', layer='base', stream=None,
+def describe(p, *, kismet=None, prefabs=None, landings=None, carried=None, prefix='', layer='base', stream=None,
              defaults=None, warn=None):
     """The package's effects, sounds and flares: dict(effects, sounds, flares, systems, waves), the first three
     sorted by actor. kismet: kismet_references' (computed when None); prefabs: prefab_members'; landings: export 22's

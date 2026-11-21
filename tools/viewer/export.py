@@ -253,8 +253,8 @@ class Exporter:
         if defaults is None:
             return nothing
         found = self.guarded('effects', lambda: effects_metadata.describe(
-            p, self.kismet, self.prefabs, self.landings, carried, prefix=self.prefix, layer='stream' if stream else 'base',
-            stream=stream, defaults=defaults, warn=self.warn), None)
+            p, kismet=self.kismet, prefabs=self.prefabs, landings=self.landings, carried=carried, prefix=self.prefix,
+            layer='stream' if stream else 'base', stream=stream, defaults=defaults, warn=self.warn), None)
         if found is None:
             return nothing
         # export 29: what the page draws each system's likeness from (effects_draw.py; plan Part J1)
