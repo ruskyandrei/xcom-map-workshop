@@ -172,9 +172,17 @@ class LodReaders(unittest.TestCase):
         self.assertEqual(frac_walls._lod_colours(data, at, objects), (where['flag'], where['end']))
         self.assertEqual(frac_walls.lightmap_offsets(data, at, objects),
                          dict(slots=where['slots'], scale=where['scale'], bias=where['bias']))
-        out = frac_walls.add_shadow_ref(data, at, 6, objects)
+        out = frac_walls.set_shadow_refs(data, at, objects, add=6)
         self.assertEqual(frac_walls.lod0(out, at, objects)['shadowMaps']['refs'], [5, 6])
         self.assertEqual(out[where['shadows'] + 12:], data[where['shadows'] + 8:])
+        # (follow-up 2.2) the donor's map taken out, the piece's own added in its place; or none left at all
+        out = frac_walls.set_shadow_refs(data, at, objects, drop=[5], add=6)
+        self.assertEqual(frac_walls.lod0(out, at, objects)['shadowMaps']['refs'], [6])
+        self.assertEqual(out[where['shadows'] + 8:], data[where['shadows'] + 8:])
+        out = frac_walls.set_shadow_refs(data, at, objects, drop=[5])
+        self.assertEqual(frac_walls.lod0(out, at, objects)['shadowMaps']['refs'], [])
+        self.assertEqual(out[where['shadows'] + 4:], data[where['shadows'] + 8:])
+        self.assertEqual(frac_walls.set_shadow_refs(data, at, objects), data)
 
     def test_a_component_that_does_not_read_is_refused_by_each_reader(self):
         objects = MadeUpObjects()
@@ -183,7 +191,7 @@ class LodReaders(unittest.TestCase):
                  'a shadow map count past its end': made_up_component(shadow_maps=1000)}
         readers = {'the painted colours': lambda data, at: frac_walls._lod_colours(data, at, objects),
                    'the lightmap': lambda data, at: frac_walls.lightmap_offsets(data, at, objects),
-                   'a shadow map added': lambda data, at: frac_walls.add_shadow_ref(data, at, 6, objects)}
+                   'a shadow map added': lambda data, at: frac_walls.set_shadow_refs(data, at, objects, add=6)}
         for case, (data, at, _) in cases.items():
             for reader, read in readers.items():
                 with self.subTest(case=case, reader=reader):
@@ -192,7 +200,7 @@ class LodReaders(unittest.TestCase):
         # and a shadow map that is no object of the package
         data, at, _ = made_up_component()
         with self.assertRaises(ValueError):
-            frac_walls.add_shadow_ref(data, at, 99, objects)
+            frac_walls.set_shadow_refs(data, at, objects, add=99)
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
@@ -366,11 +374,15 @@ class BakedLayout(unittest.TestCase):
     """(M2) A baked Build's made walls before the relight fills them (it is left out here): each wall's lightmap its
     own rectangle of its cloned atlas, the wall's size at the donor's density, and a shadow map of the moon of its own
     (a cloned ShadowMap2D and texture, the same rectangle), the moon off its IrrelevantLights; a 2-tile and a 16-tile
-    wall on the Bar."""
+    wall on the Bar. Beside them a block made on the Bar's asphalt (XComLevelActor_131, outdoors: its own shadow map of
+    the moon, laid out for the asphalt plane, is neither cloned nor listed; follow-up 2.2)."""
     WALLS = [dict(actor=DONOR, location=[-576.0, -192.0, 16.0], rotation=[0, 0, 0], label='Two',
                   generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=192.0, openings=[], seed=1))),
              dict(actor=DONOR, location=[-1536.0, 384.0, 16.0], rotation=[0, 0, 0], label='Sixteen',
-                  generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=1536.0, openings=[], seed=2)))]
+                  generated=dict(kind='fracWall', version=1, wall=dict(x0=0.0, x1=1536.0, openings=[], seed=2))),
+             dict(actor='XComLevelActor_131', location=[-1728.0, -1440.0, 0.0], rotation=[0, 0, 0], label='Block',
+                  generated=dict(kind='ground', version=1,
+                                 ground=dict(shape='block', x0=0.0, x1=192.0, y0=0.0, y1=96.0, height=64.0)))]
 
     @classmethod
     def setUpClass(cls):
@@ -386,7 +398,9 @@ class BakedLayout(unittest.TestCase):
             cls.m = native_copy.build(native_copy.BuildState(BAR, out, 'Baked', [dict(c) for c in cls.WALLS], bake=True,
                                                              cache='Baked_Lighting'))
         cls.q = Package(out / 'grown' / BAR.name)
-        cls.walls = cls.m['nativeCopies']['generatedWalls']
+        made = cls.m['nativeCopies']['generatedWalls']
+        cls.walls = [w for w in made if w['kind'] == 'fracWall']
+        (cls.block,) = [w for w in made if w['kind'] == 'ground']
 
     @classmethod
     def tearDownClass(cls):
@@ -436,6 +450,34 @@ class BakedLayout(unittest.TestCase):
             # the relight finds it: a receiver of the moon
             self.assertIn(comp, [ci for _, ci, _, _ in shadowmaps.dominant_receivers(q, shadowmaps.dominant_lights(q))])
         self.assertEqual(len(textures), 2)
+
+    def test_a_block_on_an_outdoor_donor_lists_its_own_shadow_map_of_the_moon_alone(self):
+        # (follow-up 2.2) the asphalt plane lists a shadow map of the moon laid out for its own mesh: the copy clones
+        # neither it nor its texture, and the block lists its own map alone
+        import shadowmaps
+        from package import Package
+        p, q, b = Package(BAR), self.q, self.block
+        moon = frac_walls.dominant_shadow(q)['guid'].hex()
+        donor_maps = [sm for sm in shadowmaps.shadow_maps(p, p.own(p.by_name[PL + 'XComLevelActor_131'], 'StaticMeshComponent'))
+                      if sm['guid'] == moon]
+        self.assertEqual(len(donor_maps), 1)
+        comp = q.own(q.by_name[PL + b['copy']], 'StaticMeshComponent')
+        (sm,) = shadowmaps.shadow_maps(q, comp)
+        self.assertEqual((sm['guid'], sm['factor'], q.exports[sm['export'] - 1]['outer']), (moon, False, comp))
+        size = (q.own(sm['texture'], 'SizeX'), q.own(sm['texture'], 'SizeY'))
+        rw, rh = b['lightmapRect']
+        self.assertEqual((sm['scale'], sm['bias']), ([rw / size[0], rh / size[1]], [0.0, 0.0]))
+        self.assertTrue(b['shadowMap']['own'])
+        self.assertEqual(b['shadowMap']['donorMapsLeftOut'], [donor_maps[0]['path'].split('.')[-1]])
+        # no clone of the donor's map (no other shadow map under the block's component) nor of its texture
+        self.assertEqual([i for i in range(1, len(q.exports) + 1)
+                          if q.cls(i) == 'ShadowMap2D' and q.exports[i - 1]['outer'] == comp], [sm['export']])
+        (copy,) = [c for c in self.m['nativeCopies']['copies'] if c['label'] == 'Block']
+        self.assertNotIn(donor_maps[0]['path'], copy['exports'])
+        self.assertNotIn(p.name(donor_maps[0]['texture']), copy['textures'])
+        self.assertIn(comp, [ci for _, ci, _, _ in shadowmaps.dominant_receivers(q, shadowmaps.dominant_lights(q))])
+        # the walls, on an inside donor that lists no map of the moon, leave none out
+        self.assertTrue(all('donorMapsLeftOut' not in w['shadowMap'] for w in self.walls))
 
 
 class DoorInMadeWall(unittest.TestCase):
@@ -911,6 +953,66 @@ class GroundShapes(unittest.TestCase):
             # the donor's material stays bound by the component
             self.assertEqual(q.effective(comp, 'Materials', None), self.p.effective(self.p.own(self.p.by_name[PL + self.DONOR],
                                                                                               'StaticMeshComponent'), 'Materials', None))
+
+    def relit(self):
+        import json
+        return json.loads((Path(self.tmp.name) / 'Ground.relight.json').read_text(encoding='utf-8'))
+
+    def test_each_lists_its_own_shadow_map_of_the_moon_alone_which_the_relight_fills(self):
+        # (follow-ups 2.2, 4.6b) both donors stand outdoors and list a shadow map of the moon laid out for their own
+        # mesh, which the copy leaves out: each shape lists its own map alone, its lightmap rectangle's size at the
+        # corner of its own cloned texture, and the relight traces that one from nothing (--fresh-copy), and no other
+        import shadowmaps
+        q = self.q
+        moon = frac_walls.dominant_shadow(q)['guid'].hex()
+        traced = {}
+        for s in self.relit()['shadowMaps']:
+            traced.setdefault(s['component'], []).append(s)
+        for r in self.m['nativeCopies']['generatedWalls']:
+            with self.subTest(r['label']):
+                comp = q.own(self.sec[r['label']], 'StaticMeshComponent')
+                (sm,) = shadowmaps.shadow_maps(q, comp)
+                self.assertEqual((sm['guid'], sm['factor'], q.exports[sm['export'] - 1]['outer']), (moon, False, comp))
+                w, h = q.own(sm['texture'], 'SizeX'), q.own(sm['texture'], 'SizeY')
+                rw, rh = r['lightmapRect']
+                self.assertEqual((sm['scale'], sm['bias']), ([rw / w, rh / h], [0.0, 0.0]))
+                self.assertEqual(len(r['shadowMap']['donorMapsLeftOut']), 1)
+                (s,) = traced[q.name(comp)]
+                self.assertEqual((s['shadowMap'], s.get('fresh'), s['rect']), (sm['path'], True, [0, 0, rw, rh]))
+                self.assertGreater(s['texelsWritten'], 0)
+
+    def test_the_relight_writes_each_shapes_lightmap_into_its_own_cloned_atlas(self):
+        # (4.6b: --fresh-copy's writer on cloned atlases) each shape's two lightmap textures are clones of its donor's
+        # atlas, of its size; the relight lit the shape from nothing over its lightmap rectangle and wrote both images
+        # there, into the clones: moved to the variant's texture cache, or kept in the map where the atlas's mips all
+        # lie in it (the plain asphalt's 64 x 32)
+        import json
+        import re
+        import lightmap_fields
+        p, q = self.p, self.q
+        relit = {c['component']: c for c in self.relit()['components']}
+        edits = [e['what'] for e in json.loads((Path(self.tmp.name) / 'Ground.fixture.json').read_text(encoding='utf-8'))['edits']]
+        for r in self.m['nativeCopies']['generatedWalls']:
+            with self.subTest(r['label']):
+                comp = q.own(self.sec[r['label']], 'StaticMeshComponent')
+                lm = lightmap_fields.component_fields(q, comp)['lods'][0]['lightmap']
+                donor = lightmap_fields.component_fields(p, p.own(r['original'], 'StaticMeshComponent'))['lods'][0]['lightmap']
+                c = relit[q.name(comp)]
+                x0, y0, x1, y1 = c['rect']
+                self.assertEqual((c['fresh'], [x1 - x0, y1 - y0]), (True, list(r['lightmapRect'])))
+                self.assertGreater(c['texels']['ours'], 0)
+                for k in (0, 1):
+                    mine, theirs = lm['slots'][k]['index'], donor['slots'][k]['index']
+                    self.assertNotEqual(q.name(mine), p.name(theirs))
+                    t, d = lightmap_fields.texture_fields(q, mine), lightmap_fields.texture_fields(p, theirs)
+                    self.assertEqual((t['mips'][0]['width'], t['mips'][0]['height']),
+                                     (d['mips'][0]['width'], d['mips'][0]['height']))
+                    live = [m for m in t['mips'] if m['bytes'] and not m['flags'] & 32]
+                    self.assertTrue(t['cache'] == 'Ground_Lighting' or all(m['inline'] for m in live), t['cache'])
+                    name = q.name(mine).split('.')[-1]
+                    wrote = [e for e in edits if re.match(r'image %s slot %d \(%s\): \d+ texels in \[%d, %d\) x \[%d, %d\)$'
+                                                         % (re.escape(q.name(comp)), k, re.escape(name), x0, x1, y0, y1), e)]
+                    self.assertEqual(len(wrote), 1, [e for e in edits if name in e])
 
     def test_its_box_light_and_shadow(self):
         rec = {r['label']: r for r in self.m['nativeCopies']['generatedWalls']}

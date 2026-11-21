@@ -20,6 +20,7 @@
   "not shipped": {
     "a research tool": [
       "research/*",
+      "tools/bake/relight_probe.py",
       "tools/re/*",
       "tools/upk/audit_*.py",
       "tools/upk/map_inventory.py",

@@ -25,7 +25,10 @@ columns moved by move_columns), then add_walls changes it:
                      the light taken off the component's IrrelevantLights (the donor, an inside wall, lists the Bar's
                      moon there); without baking, the shadow map of the piece the even light comes from, at the same
                      texel (a scale of 0), or, where that piece has none, the light listed irrelevant, as that piece
-                     and the game's inside pieces have it (dominant_shadow);
+                     and the game's inside pieces have it (dominant_shadow). Either way that map is the only one of
+                     the light the piece lists: a donor outdoors has its own, laid out for its own mesh, which the
+                     copy does not clone (native_copy.made_shadow_maps) and LOD 0 no longer lists (set_shadow_refs;
+                     follow-ups item 2.2);
                    - the actor: its FragmentColumns written by F0's rule: one column for each tile of the game's grid
                      along the wall and each storey it reaches; a column lists the fragments whose box overlaps its
                      box (the tile along the wall, the storey, the wall's thickness), each with its lowest corner's
@@ -287,6 +290,22 @@ def retype_ground_copy(g, p, original, actor, comp):
 def mesh_component(p, actor):
     """The actor's mesh component: its FracturedStaticMeshComponent, or a plain piece's StaticMeshComponent."""
     return p.own(actor, 'FracturedStaticMeshComponent') or p.own(actor, 'StaticMeshComponent')
+
+
+def donor_component(p, actor, kind):
+    """The component of the donor `actor` whose mesh a generated copy of `kind` takes or makes: a ground shape's
+    StaticMeshComponent, the others' FracturedStaticMeshComponent (0 where it saves none)."""
+    return p.own(actor, 'StaticMeshComponent' if kind == 'ground' else 'FracturedStaticMeshComponent') or 0
+
+
+def made_component(p, actor, generated):
+    """The component a copy made from numbers (`generated`: its request) puts its mesh on (donor_component), or None
+    for one that keeps its donor's mesh ('relit') or of no kind this module makes. It gets its own lighting in
+    add_walls, so its donor's shadow map of the dominant light is not cloned (native_copy.made_shadow_maps)."""
+    kind = generated.get('kind') if isinstance(generated, dict) else None
+    if kind not in KINDS or kind == 'relit':
+        return None
+    return donor_component(p, actor, kind) or None
 
 
 # ---------------------------------------------------------------------------------------------------- columns
@@ -693,24 +712,42 @@ def irrelevant(walker, g, data, start, guid, listed):
                                       struct.pack('<i', len(kept)) + b''.join(kept))
 
 
-def add_shadow_ref(data, at, index, objects):
-    """`data` (a component's bytes, its native data from `at`) with shadow map export `index` (one of `objects`'
-    objects: lod0's) added to LOD 0's ShadowMaps."""
-    objects.name(index)
+def set_shadow_refs(data, at, objects, drop=(), add=None):
+    """`data` (a component's bytes, its native data from `at`) with LOD 0's ShadowMaps written again: the exports of
+    `drop` taken out (the donor's maps of the dominant light that were not cloned: native_copy.made_shadow_maps), the
+    shadow map export `add` (one of `objects`' objects: lod0's) added at its end. The others keep their order."""
+    if add is not None:
+        objects.name(add)
     maps = lod0(data, at, objects)['shadowMaps']
+    refs = [r for r in maps['refs'] if r not in set(drop)] + ([add] if add is not None else [])
     count, end = maps['at'], maps['at'] + 4 + 4 * len(maps['refs'])
-    return data[:count] + struct.pack('<i', len(maps['refs']) + 1) + data[count + 4:end] + struct.pack('<i', index) + \
-        data[end:]
+    return data[:count] + struct.pack('<i', len(refs)) + b''.join(struct.pack('<i', r) for r in refs) + data[end:]
+
+
+def shadow_record(p, shadow, sm):
+    """What the Build's record says of a made piece's shadow map of the dominant light (add_walls' `shadow` and the
+    `sm` it was made from): its export, whether its texture is its own (a clone the relight fills), the map it was
+    cloned from, whether the light is listed irrelevant instead, and the donor's maps left out (follow-ups item 2.2:
+    named where there were any). None for a map without a dominant light."""
+    if shadow is None:
+        return None
+    out = dict(export=shadow['export'], own=bool(sm and sm.get('clone')), source=sm['source']['path'] if sm else None,
+               irrelevant=shadow['export'] is None)
+    if shadow.get('uncloned'):
+        out['donorMapsLeftOut'] = [p.name(i).split('.')[-1] for i in shadow['uncloned']]
+    return out
 
 
 def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, light=None, shadow=None, plain=False,
                    gone=()):
     """The clone component's bytes with the generated mesh: StaticMesh, FragmentBoundsMinZ and MaxZ,
     NumResourceIndices, LOD 0's painted colours one for each new vertex (or none, when the donor paints none), and
-    its texture lightmap as `light` says (set_light); `shadow` dict(guid, export (a ShadowMap2D made for it, or None))
-    gives it that shadow map of the dominant light and takes the light off its IrrelevantLights, or with no export
-    lists it there. `gone`: the fragments its blasts knock out (made_blasts.hidden), saved as the game's maps save
-    painted-out fragments: EditorPaintedVisibleFragments and DestroyedChunks."""
+    its texture lightmap as `light` says (set_light); `shadow` dict(guid, export (a ShadowMap2D made for it, or None),
+    uncloned (the donor's maps of that light, not cloned: native_copy.made_shadow_maps)) gives it that shadow map
+    alone for the dominant light and takes the light off its IrrelevantLights, or with no export lists it there and
+    gives it none of that light (follow-ups item 2.2: the donor's map is laid out for the donor's mesh). `gone`: the
+    fragments its blasts knock out (made_blasts.hidden), saved as the game's maps save painted-out fragments:
+    EditorPaintedVisibleFragments and DestroyedChunks."""
     e = p.exports[old - 1]
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
     data = bytearray(g.export_data(new))
@@ -741,8 +778,8 @@ def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, lig
         colours = painted(paint, built)
         block = b'\x01' + struct.pack('<2I', 4, len(colours)) + struct.pack('<2i', 4, len(colours)) + b''.join(colours)
     data = bytes(data[:flag] + block + data[end:])
-    if shadow and shadow['export'] is not None:
-        data = add_shadow_ref(data, end_props, shadow['export'], objects)
+    if shadow:
+        data = set_shadow_refs(data, end_props, objects, drop=shadow.get('uncloned') or (), add=shadow['export'])
     # the donor's painted-out fragments and their boxes (lists of the donor's own) say nothing of the made mesh's:
     # dropped; the made piece's own written (custom geometry editing plan, B5)
     if not gone:
@@ -1136,12 +1173,11 @@ def add_walls(g, p, items, grid, bake=True):
         original = item['original']
         # (a look named by its donor takes its recipe from the catalogue, or from measuring the donor here)
         gen = item['resolved'] = check(looks.resolved(item['generated'], p, p.name(original)))
+        comp_old = donor_component(p, original, gen['kind'])
         if gen['kind'] == 'ground':
-            comp_old = p.own(original, 'StaticMeshComponent')
             if not comp_old or p.cls(original) not in GROUND_CLASSES:
                 raise ValueError('%s is no plain piece: a ground shape copies one (%s)' % (p.name(original), ', '.join(GROUND_CLASSES)))
         else:
-            comp_old = p.own(original, 'FracturedStaticMeshComponent')
             if not comp_old or p.cls(original) not in native_copy.FRACTURING:
                 raise ValueError('%s is no fracturing piece: a generated wall copies one' % p.name(original))
         # (a plain piece placed from an archetype may save no mesh of its own: it has its archetype's)
@@ -1219,7 +1255,8 @@ def add_walls(g, p, items, grid, bake=True):
             if dominant and light:
                 sm = piece_shadow(p, light['piece'], dominant['guid'], light)
         if dominant:
-            shadow = dict(guid=dominant['guid'], export=shadow_map_export(g, p, walker, comp_new, sm) if sm else None)
+            shadow = dict(guid=dominant['guid'], export=shadow_map_export(g, p, walker, comp_new, sm) if sm else None,
+                          uncloned=info.get('uncloned') or [])
         gone = item.get('gone') or []
         g.relocate(comp_new, component_data(g, walker, p, comp_old, comp_new, made[name], out, paint, matrix, light,
                                             shadow, plain=plain, gone=gone))
@@ -1238,10 +1275,7 @@ def add_walls(g, p, items, grid, bake=True):
                                 lightmapRect=out['lightmapRect'],
                                 light=(None if light is None else dict(kind='rect', rect=light['rect']) if light['kind'] == 'rect'
                                        else dict(kind='even', piece=light['piece'], light=round(light['light'], 4))),
-                                shadowMap=(None if shadow is None else
-                                           dict(export=shadow['export'], own=bool(sm and sm.get('clone')),
-                                                source=sm['source']['path'] if sm else None,
-                                                irrelevant=shadow['export'] is None))))
+                                shadowMap=shadow_record(p, shadow, sm)))
             continue
         slab = item['generated']['kind'] == 'fracSlab'
         cols = slab_columns(boxes) if slab else columns(boxes, grid)
@@ -1271,8 +1305,5 @@ def add_walls(g, p, items, grid, bake=True):
                             lightmapRect=out['lightmapRect'],
                             light=(None if light is None else dict(kind='rect', rect=light['rect']) if light['kind'] == 'rect'
                                    else dict(kind='even', piece=light['piece'], light=round(light['light'], 4))),
-                            shadowMap=(None if shadow is None else
-                                       dict(export=shadow['export'], own=bool(sm and sm.get('clone')),
-                                            source=sm['source']['path'] if sm else None,
-                                            irrelevant=shadow['export'] is None))))
+                            shadowMap=shadow_record(p, shadow, sm)))
     return records
