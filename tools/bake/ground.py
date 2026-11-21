@@ -47,9 +47,11 @@ The free form (custom geometry improvements plan, section 10.2): numbers holding
 shape's box whole, finite units in its frame, any size (no whole tiles, no MAX_TILES or MAX_HEIGHT): x0 < x1, y0 < y1
 and z0 < z1, a patch's plate (its top and its underside: PATCH_LIFT and its look's thickness when the editor first
 makes it), a block's bottom and top, a ramp's bottom and its high edge's top (it rises from z0 at x0 to z1 at x1), a
-rock's bottom (its ground ring) and top; `height` is not read. Rock points lie within that box. `mapping` and `plain`
-are taken and not read (stage 4's and the editor's). Each face's texture coordinates are held near 0 in whole repeats
-(free_form.held): one face may span up to about 2,047 repeats of its look's texture, and a larger one is refused with
+rock's bottom (its ground ring) and top; `height` is not read. Rock points lie within that box. `plain` is taken and
+not read (the editor's mark); a texture `mapping` and its `mappingOrigin` (uv_mapping.py) replace the look's texture on
+the top (a ramp's slope, a rock's faces turned more up than aside) and the sides where they list those surfaces, over
+the shape's box (a side's run along the box and its height). Each face's texture coordinates are held near 0 in whole
+repeats (free_form.held): one face may span up to about 2,047 repeats of its texture, and a larger one is refused with
 that reason (the half floats the mesh writes them in keep no place within a repeat past 1,024 from 0). Old numbers
 never hold `free`, and build as they always did."""
 import hashlib
@@ -64,6 +66,7 @@ import free_form
 from free_form import NumbersError
 import hulls
 import measure_common
+import uv_mapping
 
 LOOKS_FILE = Path(__file__).resolve().parent / 'ground_looks.json'
 SHAPES = ('patch', 'block', 'ramp', 'rock')
@@ -305,7 +308,7 @@ def _normal(pts):
 
 def faces_of(shape):
     """The mesh's polygons (frac_wall.Faces): every face but the bottom, world-planar texture coordinates (a free
-    shape's held near 0 in whole repeats, free_form.held)."""
+    shape's in its texture mapping where it gives one, held near 0 in whole repeats, free_form.held)."""
     R = look_of(shape)
     corners, loops = corners_and_faces(shape)
     held = free_form.held if free(shape) else (lambda uv, what: uv)
@@ -315,14 +318,22 @@ def faces_of(shape):
         # the sides' repeats: the top map's, u along each side, v down it
         rep_u = 1.0 / max(math.hypot(top_map[0][0], top_map[0][1]), 1e-9)
         rep_v = 1.0 / max(math.hypot(top_map[1][0], top_map[1][1]), 1e-9)
+    # a free shape's top and sides in its texture mapping where its numbers list them (uv_mapping.py), over its box
+    surfaces = {role: uv_mapping.surface_of(shape, role) for role in ('top', 'sides')} if free(shape) else {}
+    box = [float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1', 'z0', 'z1')] if any(surfaces.values()) else None
+
+    def mapped(role, places, extent, normal, axes=None):
+        return uv_mapping.mapped(surfaces[role], places, extent, uv_mapping.origin_of(shape, role, axes),
+                                 uv_mapping.face_signs(role, normal))
     faces = frac_wall.Faces()
     for k, loop in enumerate(loops[:-1]):
         pts = [corners[i] for i in loop]
         n = _normal(pts)
         if abs(n[2]) > 0.5:
             # the top (or a ramp's slope): projected straight down; its chart its true size up the slope
-            uv = ([(top_map[0][0] * x + top_map[0][1] * y + top_map[0][2],
-                    top_map[1][0] * x + top_map[1][1] * y + top_map[1][2]) for x, y, _ in pts] if top_map
+            uv = (mapped('top', [(x, y) for x, y, _ in pts], box[:4], n) if surfaces.get('top')
+                  else [(top_map[0][0] * x + top_map[0][1] * y + top_map[0][2],
+                         top_map[1][0] * x + top_map[1][1] * y + top_map[1][2]) for x, y, _ in pts] if top_map
                   else [(x / rep, y / rep) for x, y, _ in pts])
             run = max(p[0] for p in pts) - min(p[0] for p in pts)
             rise = max(p[2] for p in pts) - min(p[2] for p in pts)
@@ -335,7 +346,10 @@ def faces_of(shape):
             # a side: u along it (the axis it runs on), v down it
             along = 0 if abs(n[1]) > abs(n[0]) else 1
             sign = 1.0 if (n[1] if along == 0 else -n[0]) < 0 else -1.0
-            uv = ([(sign * p[along] / rep_u, -p[2] / rep_v) for p in pts] if top_map
+            # (a mapping's: a along x or y, b up, over the box's run that way and its height)
+            uv = (mapped('sides', [(p[along], p[2]) for p in pts], box[2 * along:2 * along + 2] + box[4:], n,
+                         'xz' if along == 0 else 'yz') if surfaces.get('sides')
+                  else [(sign * p[along] / rep_u, -p[2] / rep_v) for p in pts] if top_map
                   else [(sign * p[along] / rep, -p[2] / rep) for p in pts])
             a_lo, z_lo = min(p[along] for p in pts), min(p[2] for p in pts)
             cuv = [(p[along] - a_lo, p[2] - z_lo) for p in pts]

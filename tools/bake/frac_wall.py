@@ -63,8 +63,9 @@ How it is made:
 
 The free form (custom geometry improvements plan, stage 2: numbers with `free: 1`; the block "the free form" says what
 they hold) is built by the general path at any size: its look's outline resized to its faces, bottom and top
-(wall_profile.py), its cells' seeds a lattice hashed cell by cell, its ends leaning where it is mitred. Numbers of the
-old form never take it, and build as they always did.
+(wall_profile.py), its cells' seeds a lattice hashed cell by cell, its ends leaning where it is mitred, its two faces
+textured by its numbers' texture mapping where they give one (mapped_faces; uv_mapping.py). Numbers of the old form
+never take it, and build as they always did.
 """
 import hashlib
 import json
@@ -76,6 +77,7 @@ import struct
 import free_form
 from free_form import NumbersError
 import gen_mesh
+import uv_mapping
 import wall_profile
 from wall_profile import STOREY_HEIGHT, lowered, storey_cut
 
@@ -217,7 +219,8 @@ def _shaped(wall):
 # clamped to MAX_LEAN); `whole` [where it starts along from the whole wall's x0, the whole's length, its origin up the
 # whole's frame, the whole's height(, the whole's x0)] for a piece of a split wall (made_split gives all five; the
 # older [start, length] read as before); `seed`, the cells' seed (an int);
-# `mapping` (the texture's, stage 4: taken and not used yet); `look` and `plain` as the request says. `storeys` means
+# `mapping` and `mappingOrigin` (the texture's: its 'faces' surface maps the two faces, mapped_faces; uv_mapping.py says
+# the rest); `look` and `plain` as the request says. `storeys` means
 # nothing there. The cells' seeds are a lattice of the look's cell size counted from the frame's origin (the whole
 # wall's, for a piece), each lattice cell's seed placed in it by a hash of the seed and the cell's place, so a change of
 # size moves only the cells it cuts (free_seeds). A leaning end's cells are a column of bands, so nothing but the end
@@ -525,6 +528,42 @@ def solid_box(wall):
             lo, hi, R['bottom'], R['top']]
 
 
+def face_extent(wall):
+    """The extent (a0, a1, b0, b1) of a free wall's faces as its texture mapping reads them, along it and up it: a piece
+    of a split wall's from its `whole`, in the whole's frame (its x0 to its x0 and length; its bottom, where made_split
+    keeps the whole's, a band's first height for a band, to that and the whole's height); else its own x0..x1 and
+    z0..z1 (the whole stretched wall's, for a band of one)."""
+    look = look_of(wall)
+    x0, x1 = float(wall['x0']), float(wall['x1'])
+    z0, z1 = float(wall.get('z0', look['bottom'])), float(wall.get('z1', look['top']))
+    whole = wall.get('whole')
+    if not whole:
+        return x0, x1, z0, z1
+    if len(whole) == 2:
+        return 0.0, float(whole[1]), z0, z1
+    start = float(whole[4]) if len(whole) == 5 else 0.0
+    bottom = float(wall['band'][0]) if wall.get('band') else z0
+    return start, start + float(whole[1]), bottom, bottom + float(whole[3])
+
+
+def mapped_faces(faces, wall):
+    """A free wall's two faces (the polygons built with role 'faces': its outline's strips on its faces' planes) given
+    the texture of its mapping's 'faces' surface where its numbers `wall` list one (uv_mapping.py): each corner at its
+    place along the whole wall and up it (whole_origin), over the whole's extent (face_extent), from the world origin
+    its numbers give; side B written as the mirror of side A (uv_mapping.face_signs). Called on the faces as built, a
+    leaning end's corners moved; every other face keeps its look's texture."""
+    surface = uv_mapping.surface_of(wall, 'faces')
+    if surface is None:
+        return
+    ox, oz = whole_origin(wall)
+    extent = face_extent(wall)
+    origin = uv_mapping.origin_of(wall, 'faces')
+    for poly in faces.polys:
+        if poly['role'] == 'faces':
+            poly['uv0'] = uv_mapping.mapped(surface, [(x + ox, z + oz) for x, _, z in poly['points']], extent, origin,
+                                            uv_mapping.face_signs('faces', poly['normal']))
+
+
 # ---------------------------------------------------------------------------------------------------- 2D polygons
 def clip(poly, n, d, tag):
     """The convex polygon `poly` ([((x, z), tag of the edge from this corner to the next)]) cut to n . p <= d, the cut
@@ -745,7 +784,8 @@ def classify(wall, p, q, R=None):
 # ---------------------------------------------------------------------------------------------------- 3D faces
 class Faces:
     """The polygons of the mesh: dict(points [(x, y, z)], normal, slot, fragment, uv0 [(u, v)], chart, cuv [(s, t)] (in
-    the chart's own units))."""
+    the chart's own units), role (the texture mapping's surface it is of, uv_mapping.ROLES, or None: a wall's faces
+    are 'faces'))."""
 
     def __init__(self):
         self.polys = []
@@ -755,11 +795,11 @@ class Faces:
         self.charts.setdefault(key, [width, height, density])
         return key
 
-    def add(self, points, normal, slot, fragment, uv0, chart, cuv, interior=False):
+    def add(self, points, normal, slot, fragment, uv0, chart, cuv, interior=False, role=None):
         if len(points) < 3:
             return
         self.polys.append(dict(points=[tuple(map(float, p)) for p in points], normal=tuple(normal), slot=slot,
-                               fragment=fragment, uv0=uv0, chart=chart, cuv=cuv, interior=interior))
+                               fragment=fragment, uv0=uv0, chart=chart, cuv=cuv, interior=interior, role=role))
 
 
 def poly_area3(points):
@@ -1086,6 +1126,7 @@ def fragment_faces_any(wall, faces, f, poly, R, P):
                 seg = math.hypot(yb - ya, zb - za)
                 normal = (0.0, side * (zb - za) / seg, -(yb - ya) / seg)
                 chart = faces.chart((X, k), length, seg)
+                role = 'faces' if R['strips'][X][k].get('face') else None       # (a texture mapping's: mapped_faces)
                 zs = [za] + [z for z in P.cuts if za + EPS < z < zb - EPS] + [zb]
                 for z0, z1 in zip(zs, zs[1:]):
                     part = band(poly, z0, z1)
@@ -1097,7 +1138,7 @@ def fragment_faces_any(wall, faces, f, poly, R, P):
                         t = (z - za) / (zb - za)
                         pts.append((x, side * (ya + t * (yb - ya)), z, t))
                     faces.add([q[:3] for q in pts], normal, slot, f, [tex(q[0], q[2], q[3]) for q in pts], chart,
-                              [(q[0] - x0, q[3] * seg) for q in pts])
+                              [(q[0] - x0, q[3] * seg) for q in pts], role=role)
             elif (X, k) in ledges:
                 # a ledge: the outline steps out (its underside faces down) or in (its top faces up) at one height
                 a, b = ledges[X, k]
@@ -1401,6 +1442,7 @@ def build(wall, template=None):
         check_free(wall)
     R = shaped(wall)
     template = template or default_template()
+    numbers = wall
     wall = solid_wall(wall, R)
     any_look = general(R)
     P = Profile(R) if any_look else None
@@ -1431,6 +1473,7 @@ def build(wall, template=None):
         records.append(dict(seed=seed, neighbours=nb, dims=dims))
     lean_ends(faces, wall)
     if is_free(wall):
+        mapped_faces(faces, numbers)
         for poly in faces.polys:
             poly['uv0'] = free_form.held(poly['uv0'], 'a face of a wall')
     for rec in records:

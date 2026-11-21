@@ -664,11 +664,14 @@ class FreeForm(unittest.TestCase):
         self.assertAlmostEqual(min(xs), box[0], 3)
         self.assertAlmostEqual(max(xs), box[1], 3)
 
-    def test_its_mapping_is_taken_and_not_used_yet(self):
+    def test_its_mapping_changes_its_faces_texture_alone(self):
+        # (the mapping's own checks: test_texture_mapping.py)
         mapping = dict(surfaces=dict(faces=dict(mode='size', u=96.0, v=96.0, turn=30.0)))
         a, b = built(dict(self.BAR_LOOK)), built(dict(self.BAR_LOOK, mapping=mapping))
         self.assertEqual(positions(a), positions(b))
-        self.assertEqual([v[2] for v in a['mesh']['lods'][0]['vertices']], [v[2] for v in b['mesh']['lods'][0]['vertices']])
+        va, vb = a['mesh']['lods'][0]['vertices'], b['mesh']['lods'][0]['vertices']
+        self.assertEqual([v[2][1] for v in va], [v[2][1] for v in vb])         # the lightmap's coordinates
+        self.assertNotEqual([v[2][0] for v in va], [v[2][0] for v in vb])
 
     def test_an_older_whole_is_read(self):
         R = frac_wall.shaped(dict(free=1, x0=0.0, x1=300.0, whole=[100.0, 1000.0]))

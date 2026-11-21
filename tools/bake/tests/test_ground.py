@@ -253,12 +253,19 @@ class FreeShapes(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ground.check(dict(rock, points=bad))
 
-    def test_the_mapping_and_plain_are_taken_and_not_read(self):
+    def test_plain_is_taken_and_not_read_and_a_mapping_changes_the_texture_alone(self):
+        # (the mapping's own checks: test_texture_mapping.py)
         patch = dict(shape='patch', free=1, x0=0.0, x1=200.0, y0=0.0, y1=100.0, z0=-5.0, z1=3.0)
-        mapped = dict(patch, plain=True, mapping=dict(surfaces=dict(top=dict(mode='fit', u=1, v=1))))
-        a, b = ground.build(patch)['mesh']['lods'][0], ground.build(mapped)['mesh']['lods'][0]
+        a = ground.build(patch)['mesh']['lods'][0]
+        b = ground.build(dict(patch, plain=True))['mesh']['lods'][0]
         for key in ('positions', 'vertices', 'indices', 'colours'):
             self.assertEqual(a[key], b[key], key)
+        mapped = dict(patch, plain=True, mapping=dict(surfaces=dict(top=dict(mode='fit', u=1, v=1))))
+        b = ground.build(mapped)['mesh']['lods'][0]
+        for key in ('positions', 'indices', 'colours'):
+            self.assertEqual(a[key], b[key], key)
+        self.assertEqual([v[2][1] for v in a['vertices']], [v[2][1] for v in b['vertices']])
+        self.assertNotEqual([v[2][0] for v in a['vertices']], [v[2][0] for v in b['vertices']])
         self.assertNotEqual(ground.mesh_name(mapped), ground.mesh_name(patch))
 
     def test_bad_free_numbers_are_refused(self):
