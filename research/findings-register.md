@@ -164,6 +164,21 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
+### F-144: A made piece needs only its own moon shadow map; the donor's leftover drew nothing of its own
+**Verified** (21 November 2026, [EXP-89](experiments/EXP-89-made-shadow-maps.md), lab copy, LWR).
+- **What**: a made piece copied from an outdoor donor kept the donor's cloned moon shadow map, listed first, and the
+  piece's own map was added after it, so 14 of the 16 made ground pieces of EXP-77's project listed two. Which one the
+  game draws when a component lists two had never been looked at.
+- **Seen**: the same project built twice, A listing both maps and B only the piece's own, opened in the game at one
+  fixed top-down camera over a made patch with two made walls on it and over a row of made blocks. A and B look the
+  same: each wall's shadow band runs across the patch and on over the map's own asphalt with no step at the patch's
+  edges, and no made piece is darker or lighter in one than in the other (the pictures differ by 0.31 of 255 on
+  average, on swaying trees, a truck's lit edge and edge shimmer, nothing on the made pieces).
+- **Fix**: the copy no longer clones the donor's moon map (`native_copy.made_shadow_maps`, `frac_walls.set_shadow_refs`):
+  each made piece lists one map, its own. A made-ground Build is 14 maps and 12.8 MB smaller and traces its fresh
+  shadow maps in 1.4 s instead of 45.7 s summed. Whether A drew the leftover is not settled (both pictures look right
+  at night); B draws the piece's own map, the only one it lists.
+
 ## Tiles, cover and placement
 ### F-114: Five flags on a piece decide how the game's tiles and mouse use it
 **Open** (16 November 2026: read from the decompiled scripts, the game's script packages and the native reading of
