@@ -4620,10 +4620,18 @@ def check_play(browser, url, project_id=None, screenshot=None):
             assert page.locator('#buildMissionRow').is_visible() and page.locator('#buildBakeRow').is_hidden()
             assert 'Enemies:' in page.locator('#buildMissionNote').inner_text() and 'played' not in page.locator('#buildMissionNote').inner_text().lower(),                 page.locator('#buildMissionNote').inner_text()
         else: assert page.locator('#buildMissionRow').is_hidden()
+        page.evaluate("document.querySelectorAll('#installInfo dd').forEach(dd => { dd.dataset.drawn = 'before the play'; })")
         page.locator('#buildOptionsOk').click()
         page.wait_for_function("() => { const b = document.querySelector('#projectBanner'); return !b.hidden && b.textContent.startsWith('Starting XCOM'); }",
                                timeout=60000)
         assert '(original map)' in page.locator('#projectBanner').inner_text()
+        # the Game menu's Installs drawn again from the play's answer as the message shows, the menu not opened again
+        # (it closed for the play): new rows, the last saying what the play left in the game (nothing, for a map alone)
+        drawn = page.evaluate("[...document.querySelectorAll('#installInfo dd')].map(dd => [dd.dataset.drawn ?? null, dd.textContent])")
+        assert len(drawn) == 4 and not any(before for before, _ in drawn), drawn
+        played = status()['game']
+        if not (played['installed'] or played.get('rotation') or played.get('switchedOff')):
+            assert drawn[3][1] == "Nothing of the editor's", drawn
         # the "Starting XCOM …" message closes itself after 12 s (× closes it sooner; banner() above clicks it)
         page.wait_for_selector('#projectBanner', state='hidden', timeout=16000)
         now = status()['game']
@@ -4660,11 +4668,10 @@ def check_play(browser, url, project_id=None, screenshot=None):
         assert page.locator('#buildModal').is_hidden()
         installed, = status()['game']['installed']
         assert installed['map'] == build['package']['folder'].split('\\')[-1] and installed['project']['id'] == project_id, installed
-        menu()   # the menu asks the server again as it opens (refreshInstalls): its row once that answer is in
-        page.wait_for_function("end => document.querySelectorAll('#installInfo dd')[3].textContent.endsWith(end)",
-                               arg=f"({installed['map']})" + (', lighting not baked' if installed.get('quick') else ''), timeout=30000)
-        row = page.locator('#installInfo dd').nth(3).inner_text()
+        # the Game menu's Installs, drawn from the play's answer: its row names the build at once, the menu not opened
+        row = page.evaluate("document.querySelectorAll('#installInfo dd')[3].textContent")
         assert row.endswith(f"({installed['map']})" + (', lighting not baked' if installed.get('quick') else '')), row
+        menu()
         if screenshot: page.locator('#playMenu').screenshot(path=str(screenshot.with_stem(screenshot.stem + '-play-project')))
         assert '1 map record' in undo_everything()
         # a finished build's window offers Play in game: a quick build (Ctrl+B, Bake the lighting off), then played
@@ -4686,6 +4693,9 @@ def check_play(browser, url, project_id=None, screenshot=None):
         assert page.locator('#buildPlay').is_enabled() and page.locator('#buildModal').is_visible()
         installed, = status()['game']['installed']
         assert installed['project']['id'] == project_id and installed.get('quick'), installed
+        # (the Installs row drawn from that play's answer too)
+        row = page.evaluate("document.querySelectorAll('#installInfo dd')[3].textContent")
+        assert row.endswith(f"({installed['map']}), lighting not baked"), row
         page.locator('#buildClose').click()
         assert '1 map record' in undo_everything()
     page.close()

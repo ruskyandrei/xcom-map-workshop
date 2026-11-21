@@ -357,6 +357,12 @@ export function createBuildPlay({ $, bakeNote, banner, builder, builderDocument,
   async function refreshInstalls() {
     try { setPlayStatus(await playApi.status()); }
     catch (e) { setPlayStatus({ error: e.message, unavailable: e.status === 404 }); }
+    drawInstalls();
+  }
+  // The Game menu's Installs and the header's play items from the play status as it is: the server's answer to a
+  // status read (refreshInstalls) or to a play, which is a whole status too, so the menu says what the play installed
+  // without being opened again.
+  function drawInstalls() {
     renderInstalls($('installInfo'), playStatus, mapLabel);
     renderPlayItems();
   }
@@ -448,7 +454,7 @@ export function createBuildPlay({ $, bakeNote, banner, builder, builderDocument,
   }
   async function sendPlay(request, label) {
     flashHint(`Starting the game on ${label}…`);
-    try { const r = await playApi.start(request); setPlayStatus(r); banner(playedMessage(r, mapLabel), [], playedFor(r)); }
+    try { const r = await playApi.start(request); setPlayStatus(r); drawInstalls(); banner(playedMessage(r, mapLabel), [], playedFor(r)); }
     catch (e) { banner(e.message, [['Try again', playAgain]]); }
   }
   // how long the "Starting XCOM …" message stays: a play with saving on keeps it until dismissed (it says the key)
@@ -472,7 +478,7 @@ export function createBuildPlay({ $, bakeNote, banner, builder, builderDocument,
     buildView.install = { state: 'running' };
     try {
       const r = await playApi.start(withZone({ project: id, ...(attempt ? { attempt } : {}) }));
-      setPlayStatus(r);
+      setPlayStatus(r); drawInstalls();
       buildView.install = { state: 'done', message: playedMessage(r, mapLabel), saving: Boolean(r.played?.saving) };
     }
     catch (e) { buildView.install = { state: 'failed', message: e.message }; }
