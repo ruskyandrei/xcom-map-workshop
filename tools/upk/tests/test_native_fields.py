@@ -360,7 +360,7 @@ class Bytes:
         for k, (ref, scale) in enumerate(((2, 1.0), (3, 2.0), (4, 3.0))):
             self.put(struct.pack('<i', ref), '%sslot%d' % (key, k)).put(struct.pack('<3f', scale, scale, scale))
         self.put(struct.pack('<2f', 0.25, 0.5), key + 'scale').put(struct.pack('<2f', 0.125, 0.75), key + 'bias')
-        return self.put(b'\0' + struct.pack('<i', 0))
+        return self.put(b'\0', key + 'colours').put(struct.pack('<i', 0), key + 'positions')
 
     def vertex_lod(self, key):
         """A LOD lit per vertex: its owner, two bulk records with their payloads inline, three scale vectors; painted
@@ -370,8 +370,8 @@ class Bytes:
         self.bulk(key + 'directional', bytes(range(1, 9)))
         self.put(struct.pack('<9f', *range(9)))
         self.bulk(key + 'simple', bytes(range(9, 13)))
-        self.put(b'\1' + struct.pack('<2I', 4, 2) + struct.pack('<2i', 4, 2) + bytes(8))
-        return self.put(struct.pack('<i', 1) + bytes(12))
+        self.put(b'\1' + struct.pack('<2I', 4, 2) + struct.pack('<2i', 4, 2) + bytes(8), key + 'colours')
+        return self.put(struct.pack('<i', 1) + bytes(12), key + 'positions')
 
     def bulk(self, name, payload):
         at = OFF + len(self.b)
@@ -407,6 +407,9 @@ class MeshLods(unittest.TestCase):
                 self.assertEqual([(s['textureOffset'], s['index'], s['scale'][0]) for s in lm['slots']],
                                  [(at['lod0.slot%d' % k], 2 + k, 1.0 + k) for k in range(3)])
                 self.assertEqual((lm['coordinateScaleOffset'], lm['coordinateBias']), (at['lod0.scale'], [0.125, 0.75]))
+                # the painted colours' places: the flag's, and where they end (none painted: right after the flag)
+                self.assertEqual((lod['overrideVertexColorsOffset'], lod['overrideVertexColorsEnd'],
+                                  lod['overrideVertexColors']), (at['lod0.colours'], at['lod0.positions'], False))
                 if not licensee:
                     self.assertEqual((lods['swaps'], lods['swapMeshes']), ([], []))
                     continue
@@ -416,6 +419,8 @@ class MeshLods(unittest.TestCase):
                                                                               vertex['simpleSamples'])],
                                  [(at['swap0.directional'], 8, True), (at['swap0.simple'], 4, True)])
                 self.assertTrue(lods['swaps'][0]['overrideVertexColors'])
+                self.assertEqual((lods['swaps'][0]['overrideVertexColorsOffset'], lods['swaps'][0]['overrideVertexColorsEnd']),
+                                 (at['swap0.colours'], at['swap0.positions']))
                 self.assertEqual(lods['swaps'][1]['lightmap'], dict(offset=at['swap1.lightmap'], type=0))
                 self.assertEqual(lods['swapMeshes'], [dict(at=at['mesh0'], ref=6), dict(at=at['mesh1'], ref=0)])
 

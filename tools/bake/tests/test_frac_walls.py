@@ -131,6 +131,70 @@ class Columns(unittest.TestCase):
         self.assertEqual(compiler.FRAC_WALL_MIN_LENGTH, frac_walls.MIN_LENGTH)
 
 
+class MadeUpObjects:
+    """What the LOD 0 readers ask of a package (frac_walls.lod0's `objects`): Enemy Within's licensee, objects 0 to 7."""
+    header = dict(lic=64)
+
+    def name(self, ref):
+        from package import FormatError
+        if not 0 <= ref <= 7:
+            raise FormatError('Invalid object reference %d' % ref)
+        return ref
+
+
+def made_up_component(lods=1, shadow_maps=1):
+    """(a mesh component's bytes, where its native data starts, the places of LOD 0's parts): 12 bytes standing for its
+    tagged properties, then `lods` (the count saved) and one LOD record: shadow map 5 (the count saved `shadow_maps`),
+    a texture lightmap of one light (textures 2, 3, 4), two painted colours, no positions; then EW's two empty mesh-swap
+    LOD records and their two meshes (none)."""
+    at = 12
+    b = bytes(at) + struct.pack('<i', lods)
+    where = dict(shadows=len(b))
+    b += struct.pack('<2i', shadow_maps, 5) + struct.pack('<i', 0) + struct.pack('<2i', 2, 1) + bytes(16)
+    where['slots'] = [(len(b) + 16 * k, len(b) + 16 * k + 4) for k in range(3)]
+    b += b''.join(struct.pack('<i3f', ref, 1.0, 1.0, 1.0) for ref in (2, 3, 4))
+    where['scale'], where['bias'], where['flag'] = len(b), len(b) + 8, len(b) + 16
+    b += struct.pack('<4f', 0.25, 0.5, 0.125, 0.75) + b'\1' + struct.pack('<2I', 4, 2) + struct.pack('<2i', 4, 2) + bytes(8)
+    where['end'] = len(b)
+    b += struct.pack('<i', 0)
+    empty = struct.pack('<3i', 0, 0, 0) + b'\0' + struct.pack('<i', 0)
+    return b + empty + empty + struct.pack('<2i', 0, 0), at, where
+
+
+class LodReaders(unittest.TestCase):
+    """(follow-up 3.11) The made pieces' readers of a component's LOD 0 (the painted colours' place, the lightmap's
+    places, a shadow map added) take their places from native_fields' one reader, which holds each count to the bytes:
+    what does not read is a ValueError, not bytes read on past the record."""
+
+    def test_the_places_are_the_records(self):
+        data, at, where = made_up_component()
+        objects = MadeUpObjects()
+        self.assertEqual(frac_walls._lod_colours(data, at, objects), (where['flag'], where['end']))
+        self.assertEqual(frac_walls.lightmap_offsets(data, at, objects),
+                         dict(slots=where['slots'], scale=where['scale'], bias=where['bias']))
+        out = frac_walls.add_shadow_ref(data, at, 6, objects)
+        self.assertEqual(frac_walls.lod0(out, at, objects)['shadowMaps']['refs'], [5, 6])
+        self.assertEqual(out[where['shadows'] + 12:], data[where['shadows'] + 8:])
+
+    def test_a_component_that_does_not_read_is_refused_by_each_reader(self):
+        objects = MadeUpObjects()
+        cases = {'no LOD record': made_up_component(lods=0),
+                 'a LOD count past its end': made_up_component(lods=3),
+                 'a shadow map count past its end': made_up_component(shadow_maps=1000)}
+        readers = {'the painted colours': lambda data, at: frac_walls._lod_colours(data, at, objects),
+                   'the lightmap': lambda data, at: frac_walls.lightmap_offsets(data, at, objects),
+                   'a shadow map added': lambda data, at: frac_walls.add_shadow_ref(data, at, 6, objects)}
+        for case, (data, at, _) in cases.items():
+            for reader, read in readers.items():
+                with self.subTest(case=case, reader=reader):
+                    with self.assertRaises(ValueError):
+                        read(data, at)
+        # and a shadow map that is no object of the package
+        data, at, _ = made_up_component()
+        with self.assertRaises(ValueError):
+            frac_walls.add_shadow_ref(data, at, 99, objects)
+
+
 @unittest.skipUnless(BAR.exists(), NO_BAR)
 class Built(SharedPart, unittest.TestCase):
     BUILD = 'bar_1'
@@ -193,7 +257,7 @@ class Built(SharedPart, unittest.TestCase):
                 self.assertAlmostEqual(q.own(comp, 'FragmentBoundsMinZ'), z.min(), 3)
                 self.assertAlmostEqual(q.own(comp, 'FragmentBoundsMaxZ'), z.max(), 3)
                 # one painted colour for each new vertex
-                flag, _ = frac_walls._lod_colours(q.data, q.properties(comp)[1])
+                flag, _ = frac_walls._lod_colours(q.data, q.properties(comp)[1], q)
                 self.assertEqual(q.data[flag], 1)
                 self.assertEqual(struct.unpack_from('<2I', q.data, flag + 1), (4, len(pos)))
 
@@ -204,7 +268,7 @@ class Built(SharedPart, unittest.TestCase):
             for w in self.made(part):
                 self.assertEqual(w['light']['kind'], 'even')
                 comp = q.own(q.by_name[PL + w['copy']], 'FracturedStaticMeshComponent')
-                lm = frac_walls.lightmap_offsets(q.data, q.properties(comp)[1])
+                lm = frac_walls.lightmap_offsets(q.data, q.properties(comp)[1], q)
                 self.assertEqual(struct.unpack_from('<2f', q.data, lm['scale']), (0.0, 0.0))
                 bias = struct.unpack_from('<2f', q.data, lm['bias'])
                 self.assertTrue(all(0.0 < b < 1.0 for b in bias))
@@ -249,9 +313,9 @@ class Built(SharedPart, unittest.TestCase):
         at = p.properties(comp)[1] - e['off']
         self.assertEqual(frac_walls.atlas_size(p, comp), (1024, 1024))
         for rect, corner in (((80, 208), (192, 192)), ((900, 200), (0, 192))):
-            out = frac_walls.set_light(data, at, dict(kind='rect', rect=rect, atlas=(1024, 1024)))
+            out = frac_walls.set_light(data, at, dict(kind='rect', rect=rect, atlas=(1024, 1024)), p)
             self.assertEqual(len(out), len(data))
-            lm = frac_walls.lightmap_offsets(out, at)
+            lm = frac_walls.lightmap_offsets(out, at, p)
             self.assertEqual(struct.unpack_from('<2f', out, lm['scale']), (rect[0] / 1024, rect[1] / 1024))
             self.assertEqual(struct.unpack_from('<2f', out, lm['bias']), (corner[0] / 1024, corner[1] / 1024))
             self.assertEqual(out[:lm['scale']], data[:lm['scale']])
@@ -615,10 +679,14 @@ class MadeWallInBuilding(SharedPart, unittest.TestCase):
         self.assertEqual(buildings.piece_box(self.p, dict(source=self.p.by_name[PL + DONOR], box=box), {}), box)
 
     def test_a_one_storey_wall_is_in_the_ground_floor_only(self):
+        # its floor and its CutdownFloor (follow-up 4.1): the donor has bCutoutMask, so a wall is listed on the lowest
+        # floor it reaches alone, the highest its CutdownFloor: the ground floor and 1 for a one-storey wall, whose top
+        # meets the upper floor's volume, as the Bar's own three one-storey walls (0 to 214 high) are listed; the
+        # twin, two storeys, has 2 (the donor's [[0, 2]])
         with self.part() as part:
             sec = {c['label']: c['export'] for c in part.m['nativeCopies']['copies']}
             low = self.listings(part.q, sec['Low'])
-            self.assertEqual([[k for k, _ in floors] for floors in low.values()], [[0]])
+            self.assertEqual(list(low.values()), [[[0, 1]]])
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)

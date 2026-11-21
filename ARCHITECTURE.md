@@ -480,7 +480,9 @@ or the path's (`recordOf(unit, 'prefab')` puts a recipe light's values before it
   component's LOD records and a bulk record have one reader, `native_fields`' (`mesh_lods`, `lod_record`,
   `lightmap_record`, `bulk_record`), which gives each value with its place; a module that needs another form of
   them makes it from that reader's record, and keeps any check of its own beside it (`lighting_records.bulk_meta`
-  refuses a negative count). Three readers once wrote Enemy Within's licensee branch three ways.
+  refuses a negative count). Three readers once wrote Enemy Within's licensee branch three ways. Bytes of the map
+  being grown are read by it too, their references held to the grower's objects (`frac_walls.lod0` and
+  `GrownObjects`, follow-up 3.11).
 - Whatever a piece's relit images depend on is in the piece cache's key. A key that misses an input gives a stale
   piece that looks right (finding 42).
 
