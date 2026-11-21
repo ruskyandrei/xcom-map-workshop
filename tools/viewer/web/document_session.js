@@ -245,7 +245,10 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builder, b
       if (builder.loading) return;
       builderTitle(); refreshBuilder(); problemsPaint(); clearTimeout(recoveryTimer);
       // (the status says saved or unsaved: a save changes it with no edit)
-      if (builder.doc?.revision) { $('editCount').hidden = false; $('editCount').textContent = saveState(); $('editCount').classList.toggle('warn', saveState() !== 'saved'); }
+      if (builder.doc?.revision) {
+        $('editCount').hidden = false; $('editCount').textContent = $('editCount').title = saveState();
+        $('editCount').classList.toggle('warn', saveState() !== 'saved');
+      }
       if (!navigating && !saving) setRecoveryTimer(setTimeout(keepRecovery, 1000));
       return;
     }

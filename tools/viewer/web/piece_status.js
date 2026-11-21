@@ -45,6 +45,7 @@ export function createPieceStatus({ $, changes, gizmo, isStream, lightPose, ligh
       count.zones && 'landing zones changed', count.buildings && plural(count.buildings, 'building'),
       count.missions && `${plural(count.missions, 'mission object')} moved`, count.spawns && plural(count.spawns, 'spawn point edit'), count.flags && `${plural(count.flags, 'piece')} with flags changed`, count.broken && `${plural(count.broken, 'piece')} broken`,
       saveState()].filter(Boolean).join(' · ');
+    $('editCount').title = $('editCount').textContent;        // (whole, where a narrow header cuts the chip's words)
     $('editCount').classList.toggle('warn', saveState() !== 'saved');
     $('editUndo').hidden = $('editRedo').hidden = !(count.total || gizmo.canUndo() || gizmo.canRedo());
     $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();

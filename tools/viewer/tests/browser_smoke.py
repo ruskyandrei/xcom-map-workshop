@@ -5287,9 +5287,40 @@ def check_squad_run(ctx):
         ctx.errors.difference_update({e for e in ctx.errors if '409' in e and ('/squad.json' in e or e.startswith('Failed to load resource'))})
 
 
+# the header's parts: how far it overflows, the Project and Map buttons' widths, the edit summary
+HEADER_PARTS = """() => { const h = document.querySelector('header'), chip = document.getElementById('editCount');
+  const width = id => document.getElementById(id).getBoundingClientRect().width;
+  return { over: h.scrollWidth - h.clientWidth, project: width('projectButton'), map: width('mapButton'),
+           chip: chip.hidden ? null : { text: chip.textContent, title: chip.title, cut: chip.scrollWidth > chip.clientWidth,
+                                        ellipsis: getComputedStyle(chip).textOverflow === 'ellipsis' } }; }"""
+
+
+def check_narrow_header(browser, url):
+    """In a window 1024 wide, a long edit summary (a clear's: pieces deleted, lights, landing zones, buildings, spawn
+    points) is cut with an ellipsis and whole in its title, the Project and Map buttons keep their widths, and nothing
+    is pushed out of the header. A page of its own; nothing is saved."""
+    errors = []
+    page = open_viewer(browser, url, errors)
+    answer_prepare(page)
+    if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 22 && !viewer.project()"):
+        return skip('header', 'the narrow header\'s long summary needs a map of export 22 or later to clear, with no project open', page)
+    page.set_viewport_size(dict(width=1024, height=768))
+    rest = page.evaluate(HEADER_PARTS)
+    assert rest['over'] <= 0 and rest['chip'] is None, rest
+    page.evaluate('viewer.clearMap(null)')
+    page.wait_for_function('viewer.changes().total > 0')
+    long = page.evaluate(HEADER_PARTS)
+    assert long['chip'] and long['chip']['cut'] and long['chip']['ellipsis'] and long['chip']['title'] == long['chip']['text'], long
+    assert long['over'] <= 0 and long['project'] == rest['project'] and long['map'] == rest['map'], (rest, long)
+    page.close()
+    assert not errors, errors
+    return dict(rest=rest, long=long)
+
+
 def check_header(ctx):
     """The header's Selected, framing a piece it picks (the button is off with nothing selected, as a check before it
-    may leave things), and Frame, and View options' grid. The selection it found is put back."""
+    may leave things), and Frame, and View options' grid. The selection it found is put back. Then, on a page of its
+    own, the header 1024 wide with a long edit summary (check_narrow_header)."""
     page = ctx.page
     held = page.evaluate('viewer.gizmo.active')
     piece = page.evaluate("""[...viewer.roots.values()].find(r => r.visible && !r.userData.deleted && !r.userData.source.hidden
@@ -5303,6 +5334,8 @@ def check_header(ctx):
     check_option(page,'grid',False)
     check_option(page,'grid',True)
     page.evaluate('id => viewer.select(id)', held)
+    narrow = check_narrow_header(ctx.browser, page.url)
+    return dict(narrow=narrow) if narrow else None
 
 
 def check_floors_cut(ctx):
@@ -5582,7 +5615,7 @@ CHECKS = (
           'Play in game, Game maps\' Undo everything, Installs', needs=('play',)),
     Check('prepare', lambda c: check_prepare(c.browser, c.page.url, c.args.play_project if c.args.play else None),
           'the prepare-again dialog'),
-    Check('header', check_header, 'the header\'s Selected and Frame; View options\' grid'),
+    Check('header', check_header, 'the header\'s Selected and Frame; View options\' grid; a long edit summary 1024 wide'),
     Check('floors-cut', check_floors_cut, 'the floor picker cuts the buildings'),
     Check('dense-lighting', check_dense, 'lights past 128 reach the GPU; the light grid packs 300', when=version(10)),
     Check('light-grid', on_page(check_light_grid), 'the light grid covers only the map\'s pieces'),
