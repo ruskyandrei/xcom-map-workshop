@@ -111,7 +111,12 @@ Cover blocks and invisible floors (invisible pieces the Build makes from a recip
 Invisible kind, the ground under an invisible floor as the game's floor trace finds it (the map's collision asked for
 once, Fit to ground), the piece panel's cover section, a new record put on a piece (one undo step), and the handles on
 a picked cover piece and their drags. What is pure about a cover piece (its box, its tiles, its sizes, its words) is
-[`cover.js`](tools/viewer/web/cover.js)'s.
+[`cover.js`](tools/viewer/web/cover.js)'s. The piece panel's Flags group and its chip are
+[`flags_panel.js`](tools/viewer/web/flags_panel.js)'s: a piece's five flags as the project has them, the group's rows
+over the picked actors, a change of them (one undo step, after asking where a prop's pathing gate would change a half-on
+role) and Reset; the flags' rules are [`piece_flags.js`](tools/viewer/web/piece_flags.js)'s. Select all of a kind is
+[`select_kind.js`](tools/viewer/web/select_kind.js)'s: every drawn piece or effect of a picked one's kind (inside box
+select's box, if one is drawn), so that the Flags group can set them all.
 `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -263,6 +268,8 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The piece panel's sections of a made piece: the Wall section and its openings, the Floor section and its holes, the Ground section, the Room section of a drawn room, an opening taken out by Delete | [`made_panel.js`](tools/viewer/web/made_panel.js) (`createMadePanel`). What an opening, a hole or a room's storeys are and say (`openingPlay`, `playWords`, `withOpening`, `withHole`, `steppedStoreys`, `slopeWords`) goes in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), pure, with their node tests. |
 | Break and Repair: a blast set off on a made piece or on one of the map's fracturing pieces, the Break rows and tool, a broken piece drawn without its knocked-out fragments | [`made_breaking.js`](tools/viewer/web/made_breaking.js) (`createMadeBreaking`). A blast's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`cloneBlasts`), a made piece's blasts in its mesh's request in [`walls.js`](tools/viewer/web/walls.js) (`blastQuery`), and the Build's side in [`made_blasts.py`](tools/bake/made_blasts.py). |
 | A cover block or invisible floor: its recipe and template, the Add panel's Invisible kind, the ground under a floor (the map's collision, Fit to ground), the piece panel's cover section, a new record put on a piece, its handles and their drags | [`cover_wiring.js`](tools/viewer/web/cover_wiring.js) (`createCoverWiring`). What is pure about a cover piece (its box and mesh, the tiles it covers and what the game makes of them, a size changed by a handle, its words) goes in [`cover.js`](tools/viewer/web/cover.js), with its node tests (`cover_test.mjs`, `cover_tiles_test.mjs`), and the Build's side in [`cover_blocks.py`](tools/bake/cover_blocks.py). |
+| The piece panel's Flags group and its chip: a piece's flags as the project has them, a row changed (one undo step), the question about a prop's pathing gate, Reset | [`flags_panel.js`](tools/viewer/web/flags_panel.js) (`createFlagsPanel`). A flag's rule (a piece's roles and their limits, what a request does, its normalized form) goes in [`piece_flags.js`](tools/viewer/web/piece_flags.js), pure, with its node tests (`piece_flags_test.mjs`, `project_flags_test.mjs`), and the compiler's side in [`flag_edits.py`](tools/editor/flag_edits.py). |
+| Select all of a kind: what counts as a piece's or an effect's kind, the pieces and effects that match (inside box select's box), the button | [`select_kind.js`](tools/viewer/web/select_kind.js) (`createSelectKind`). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
@@ -398,19 +405,21 @@ where there is one.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
   `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`,
   `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`,
-  `createMadePanel`, `createMadeBreaking`, `createCoverWiring`) takes them as one argument object and destructures
-  it, so the code moved into it calls them by the names it always did. It returns the functions other areas call, and
-  app.js destructures them under the same names, so their callers stay as they were. app.js makes it after the functions and objects it is given, and before any code that runs as
-  the page loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a
-  `const`, is given as a function that calls it, since it is not made yet: `openingProgress: name => openingProgress(name)`.
+  `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`) takes them
+  as one argument object and destructures it, so the code moved into it calls them by the names it always did. It
+  returns the functions other areas call, and app.js destructures them under the same names, so their callers stay as
+  they were. app.js makes it after the functions and objects it is given, and before any code that runs as the page
+  loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a `const`, is
+  given as a function that calls it, since it is not made yet: `openingProgress: name => openingProgress(name)`.
   That holds for what another factory returns too: the document session is made before Build and Play, which is given
   its `banner` and `saveProject`, so the session is given `followBuild: (status, id) => followBuild(status, id)`.
   What runs as the page loads (a button's handler set, a key listener added, a dialog made) moves into the factory
   with its functions and runs when the factory is made. app.js makes the factory where that code was, so the page
   sets things up in the order it did: the order of listeners on one target is the order they are called in. A factory
-  given a value app.js makes further down that is not a function (a constant, as the page session's `SESSION`) is
-  made after it instead, and what it sets up runs that much later: a change that moves it so checks that no other
-  code sets a handler on, or listens to, the same targets in between. The prefab builder's session and prefabs saved
+  given a value app.js makes further down that is not a function (a constant, as the page session's `SESSION`, or one
+  another factory returns, as box select's `PICK_SLACK`, which Select all of a kind reads) is made after it instead,
+  and what it sets up runs that much later: a change that moves it so checks that no other code sets a handler on, or
+  listens to, the same targets in between. The prefab builder's session and prefabs saved
   and placed are made so, after the document session; they call each other (the builder's save opens the Save as
   prefab dialog, whose Save saves the builder), so the first made is given the second's functions as functions that
   call them.
