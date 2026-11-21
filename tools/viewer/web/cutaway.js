@@ -240,7 +240,7 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     if (data && !gizmo.controls.dragging && editedKey() !== cutKey) { cutaway(); if (selected) return STOP; }   // (cutaway's select ran the hub)
   });
 
-  // The scene's pieces, or the mission picked, changed; a landing zone edited; the cleared mark set, but in the prefab
+  // The scene's pieces, or the mission picked, changed; a landing zone edited; the cleared mark set, outside the prefab
   // builder (the edit hub's scene, mission, zone-edit and cleared runs, edit_hub.js).
   onHub('scene', 'cutaway', () => { cutaway(); });
   onHub('mission', 'cutaway', () => { cutaway(); });
