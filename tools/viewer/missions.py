@@ -29,6 +29,7 @@ The play dialog shows a kind's state, what it goes without and its notes as shor
 import re
 
 import maplist
+import mapsini
 
 # A record's kind: its MissionType without eMission_, and for eMission_Special with a council type the council type
 # (Special/Bomb). Special without one is a story or DLC mission.
@@ -439,10 +440,10 @@ def _set(line, name, value):
     return line[:close].rstrip() + ', %s=%s ' % (name, value) + line[close:]
 
 
-def added_record(template, entry, add_stream):
+def added_record(template, entry):
     """The record of an added kind (ADDED_KINDS), from the base map's template record (text): its mission type,
-    council type and ship type set, and for the bomb Slaughterhouse's bomb stream streamed (add_stream(line, name) ->
-    (line, slot): the Build's). Name, display name and rotation are the caller's."""
+    council type and ship type set, and for the bomb Slaughterhouse's bomb stream streamed (mapsini.add_stream, which
+    refuses with a ValueError: the Build's record_edits says it). Name, display name and rotation are the caller's."""
     k = ADDED_KINDS[entry['kind']]
     line = template
     for name, value in k['fields'].items():
@@ -450,5 +451,5 @@ def added_record(template, entry, add_stream):
     if k.get('ufo'):
         line = _set(line, 'ShipType', entry['ship'])
     if k.get('stream') and ('MapName="%s"' % k['stream']) not in line:
-        line, _ = add_stream(line, k['stream'])
+        line, _ = mapsini.add_stream(line, k['stream'])
     return line

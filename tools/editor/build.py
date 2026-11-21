@@ -137,6 +137,7 @@ import compiler  # noqa: E402
 import decomp  # noqa: E402
 import installs  # noqa: E402
 import maplist  # noqa: E402
+import mapsini  # noqa: E402
 import missions as mission_kinds  # noqa: E402
 import outputnames  # noqa: E402
 import pictures  # noqa: E402
@@ -456,33 +457,25 @@ def config_text(path):
     return data.decode('latin-1').replace('\r\n', '\n').split('\n')
 
 
-def field_re(name, quoted=True):
-    return re.compile(r'(?<![A-Za-z])%s=%s' % (name, r'"[^"]*"' if quoted else r'[A-Za-z_]+'))
-
-
-def set_field(line, name, value, quoted=True):
-    new = '%s="%s"' % (name, value) if quoted else '%s=%s' % (name, value)
-    out, n = field_re(name, quoted).subn(lambda _: new, line, count=1)
-    if n != 1:
-        raise BuildError('the record has no %s' % name)
-    return out
-
-
-def add_stream(line, patch):
-    used = {int(k) for k in re.findall(r'StreamingMaps\[\s*(\d+)\s*\]\s*=', line)}
-    k = min(set(range(len(used) + 1)) - used)
-    close = line.rindex(')')
-    entry = ', StreamingMaps[%d]=( MapName="%s", Loc=( X=0, Y=0, Z=0 ), Rot=( Pitch=0, Yaw=0, Roll=0 ) ) ' % (k, patch)
-    return line[:close].rstrip() + entry + line[close:], k
+@contextlib.contextmanager
+def record_edits():
+    """Records written by mapsini's writers (set_field, add_stream: the one writer of a DefaultMaps.ini record, which
+    takes the Build's lines of text), a refusal of theirs the Build's error in their words: a record without the field
+    to set ('record has no DisplayName'), a patch name it can't write or a stream the record has already (neither of
+    which a Build makes)."""
+    try:
+        yield
+    except ValueError as error:
+        raise BuildError('a DefaultMaps.ini record can\'t be written: %s' % error) from None
 
 
 def base_records(maps, base):
     """The base map's DefaultMaps.ini records, one per mission it serves (most maps have several: an abduction,
     a terror site, a council mission...), in file order: its live records, or the commented-out ones the editor takes
     for a switched-off map (maplist.records: Act1_IntroLevel's abduction). The name matches whatever its case, as the game's
-    does: the farm's file is CsmallScout_Farm.upk, its records name CSmallScout_Farm."""
-    records = [l for l in maplist.records('\n'.join(maps))
-               if re.search(r'(?<![A-Za-z])Name="(?i:%s)"' % re.escape(base), l)]
+    does: the farm's file is CsmallScout_Farm.upk, its records name CSmallScout_Farm (installs.same_map, the record's
+    Name read by mapsini.field, as the install finds the same records: installs.base_records)."""
+    records = [l for l in maplist.records('\n'.join(maps)) if installs.same_map(mapsini.field(l, 'Name'), base)]
     if not records:
         raise BuildError('the game install has no DefaultMaps.ini record for %s' % base)
     return records
@@ -490,7 +483,7 @@ def base_records(maps, base):
 
 def intro_stream(record):
     """The intro a map record streams (one of INTROS: a landing, or the alien bases' entrance), or None."""
-    return next((n for n in re.findall(r'MapName="([^"]+)"', record) if n in INTROS), None)
+    return next((n for n in mapsini.slot_streams(record) if n in INTROS), None)
 
 
 def intro_streams(records):
@@ -507,7 +500,7 @@ def mission_label(record):
 def template_record(records):
     """The base map's record an added kind of mission is made from (mission types plan, D4): its abduction, else its
     first that is no council mission (whose streams a bomb or rescue needs), else its first."""
-    council = lambda r: (field_re('CouncilType', False).search(r) or [''])[0] not in ('', 'CouncilType=eFCMType_None')  # noqa: E731
+    council = lambda r: mapsini.unquoted(r, 'CouncilType') not in (None, 'eFCMType_None')  # noqa: E731
     return next((r for r in records if 'MissionType=eMission_Abduction' in re.sub(r'\s', '', r) and not council(r)),
                 next((r for r in records if not council(r)), records[0]))
 
@@ -547,59 +540,60 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
     found = base_records(maps, base)
     template = template_record(found)
     seen = {}
-    for entry in mission_entries(found, missions_list):
-        if 'record' in entry:
-            index, base_line = entry['record'], found[entry['record']]
-            mission = mission_label(base_line)
-            base_display = (field_re('DisplayName').search(base_line) or [''])[0][len('DisplayName="'):-1]
-        else:
-            index, base_line = entry['kind'], mission_kinds.added_record(template, entry, add_stream)
-            mission = mission_kinds.label(entry['kind'])
-            base_display = '_Bomb' if entry['kind'] == 'Special/Bomb' else ''     # what the game matches for the kind
-        marks = mission_kinds.markers(base_display, variant)
-        # the record's own words (LWR map packs plan, section 3): the base record's, an added kind's after its
-        # template's; the same at every build, whatever the project is called
-        own = None
-        if display is None or isinstance(display, dict):
-            tail = (display or {}).get('tail', '')
-            if 'record' in entry: own = mission_kinds.variant_display(base_display, variant, tail=tail)
+    with record_edits():
+        for entry in mission_entries(found, missions_list):
+            if 'record' in entry:
+                index, base_line = entry['record'], found[entry['record']]
+                mission = mission_label(base_line)
+                base_display = mapsini.field(base_line, 'DisplayName') or ''
             else:
-                shown = (field_re('DisplayName').search(template) or [''])[0][len('DisplayName="'):-1]
-                words, ending = mission_kinds.record_words(shown)
-                own = '%s%s (%s)%s' % (variant, marks, ', '.join(w for w in (words, mission_kinds.added_words(entry)) if w),
-                                       ending or tail)
+                index, base_line = entry['kind'], mission_kinds.added_record(template, entry)
+                mission = mission_kinds.label(entry['kind'])
+                base_display = '_Bomb' if entry['kind'] == 'Special/Bomb' else ''     # what the game matches for the kind
+            marks = mission_kinds.markers(base_display, variant)
+            # the record's own words (LWR map packs plan, section 3): the base record's, an added kind's after its
+            # template's; the same at every build, whatever the project is called
+            own = None
+            if display is None or isinstance(display, dict):
+                tail = (display or {}).get('tail', '')
+                if 'record' in entry: own = mission_kinds.variant_display(base_display, variant, tail=tail)
+                else:
+                    shown = mapsini.field(template, 'DisplayName') or ''
+                    words, ending = mission_kinds.record_words(shown)
+                    own = '%s%s (%s)%s' % (variant, marks, ', '.join(w for w in (words, mission_kinds.added_words(entry)) if w),
+                                           ending or tail)
 
-        def named(label, again=False):
-            if own is not None:       # a second record that would get the same name says its mission too
-                return own if not again else re.sub(r'\)( \|\d+)?$', lambda m: ', %s)%s' % (label, m.group(1) or ''), own, count=1)
-            text = display(label) if callable(display) else display
-            return variant + marks + text[len(variant):] if marks and text.startswith(variant) and not text.startswith(variant + marks) else text
-        text = named(mission)
-        record = set_field(set_field(base_line, 'Name', variant), 'DisplayName', text)
-        if field_re('bInRotation', False).search(record):
-            record = set_field(record, 'bInRotation', 'False', quoted=False)
-        for original, copy in (intros or {}).items():
-            record = record.replace('MapName="%s"' % original, 'MapName="%s"' % copy)
-        record, slot = add_stream(record, patch) if patch else (record, None)
-        if record in records:
-            stands[records.index(record)].append(index)
-            continue    # two records the renaming makes the same
-        # two records of one mission that differ (a landed transport and a landed terror ship) get display names of
-        # their own: the game streams by display name (mission types plan 2.1)
-        seen[mission] = seen.get(mission, 0) + 1
-        again = seen[mission] > 1
-        if again: mission = '%s %d' % (mission, seen[mission])
-        if again and own is None:
+            def named(label, again=False):
+                if own is not None:       # a second record that would get the same name says its mission too
+                    return own if not again else re.sub(r'\)( \|\d+)?$', lambda m: ', %s)%s' % (label, m.group(1) or ''), own, count=1)
+                text = display(label) if callable(display) else display
+                return variant + marks + text[len(variant):] if marks and text.startswith(variant) and not text.startswith(variant + marks) else text
             text = named(mission)
-            record = set_field(record, 'DisplayName', text)
-        elif own is not None and any('DisplayName="%s"' % text in r for r in records):
-            text = named(mission, again=True)
-            record = set_field(record, 'DisplayName', text)
-        records.append(record)
-        missions.append(mission)
-        slots.append(slot)
-        stands.append([index])
-        matched += [dict(record=len(records) - 1, marker=marker, why=why) for marker, why in mission_kinds.matched(text)]
+            record = mapsini.set_field(mapsini.set_field(base_line, 'Name', variant), 'DisplayName', text)
+            if mapsini.unquoted(record, 'bInRotation') is not None:
+                record = mapsini.set_field(record, 'bInRotation', 'False', quoted=False)
+            for original, copy in (intros or {}).items():
+                record = record.replace('MapName="%s"' % original, 'MapName="%s"' % copy)
+            record, slot = mapsini.add_stream(record, patch) if patch else (record, None)
+            if record in records:
+                stands[records.index(record)].append(index)
+                continue    # two records the renaming makes the same
+            # two records of one mission that differ (a landed transport and a landed terror ship) get display names of
+            # their own: the game streams by display name (mission types plan 2.1)
+            seen[mission] = seen.get(mission, 0) + 1
+            again = seen[mission] > 1
+            if again: mission = '%s %d' % (mission, seen[mission])
+            if again and own is None:
+                text = named(mission)
+                record = mapsini.set_field(record, 'DisplayName', text)
+            elif own is not None and any(mapsini.field(r, 'DisplayName') == text for r in records):
+                text = named(mission, again=True)
+                record = mapsini.set_field(record, 'DisplayName', text)
+            records.append(record)
+            missions.append(mission)
+            slots.append(slot)
+            stands.append([index])
+            matched += [dict(record=len(records) - 1, marker=marker, why=why) for marker, why in mission_kinds.matched(text)]
     # (the base map's name in the landing-zone and mini-mod lines matches whatever its case, as in base_records)
     tag = re.compile(re.escape('MapName="%s"' % base), re.IGNORECASE)
     # a map that lands no Skyranger (TempleShip) has no landing zones, and its variant needs none
@@ -1783,7 +1777,7 @@ class Build:
         files = {'CookedPCConsole/%s' % f.name: sha256(f) for f in sorted(cooked_dir.iterdir())}
         name = re.sub(r'[^\x20-\x7E]|"|\|', '', self.doc.get('name') or '').strip() or 'variant'
         # LWR's display names end in " |<n>", plain EW's don't: a record without an ending follows the install's
-        tail = ' |0' if any(re.search(r'DisplayName="[^"]*\|\d+"', r) for r in records) else ''
+        tail = ' |0' if any(re.search(r'\|\d+$', mapsini.field(r, 'DisplayName') or '') for r in records) else ''
         listed = self.missions_listed     # the compiler's: the entries it can write, or None (every record)
         display = dict(tail=tail)       # each record keeps its base record's own words (config_lines)
         lines = config_lines(maps, cfg('DefaultLZMutator.ini'), cfg('DefaultMiniMods.ini'), self.map, self.variant,

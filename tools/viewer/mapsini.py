@@ -4,11 +4,15 @@ first mission plays, a map's landing-zone lines copied under another name, and a
 written through a temporary file.
 
 The files are Windows text in the game's code page: lines end CRLF (a mixed file or one with a byte-order mark is
-refused), and a field's value is read and written as Latin-1. Every function takes and gives lines of bytes, so a
-file written back keeps every byte it had outside the planned change.
+refused), and a field's value is read and written as Latin-1. The files' functions take and give lines of bytes, so
+a file written back keeps every byte it had outside the planned change. A record's readers and writers (field,
+unquoted, set_field, stream_slots, add_stream, slot_streams, slot_record) take a line of bytes or of text (a line
+read as Latin-1, as the Build reads the install's config) and give a line back in the kind they were given; a value
+read is text either way. They are the one reader and writer of a record's fields: every other module reads and
+writes a `Maps=(...)` record through them.
 
-The installer (installs.py), the map browser (gamemaps.py) and the pack export (manager.py) use these, and the lab's
-fixture installer (tools/bake/deploy_fixture.py) too.
+The installer (installs.py), the map browser (gamemaps.py), the pack export (manager.py) and the Build
+(tools/editor/build.py) use these, and the lab's fixture installer (tools/bake/deploy_fixture.py) too.
 """
 import os       # (the writes go through atomic_files; tools/bake/tests/test_deploy.py patches mapsini.os.replace)
 from pathlib import Path
@@ -32,40 +36,53 @@ def is_record(line):
     return line.lstrip().startswith(b'Maps=(')
 
 
+def _text(line):
+    """A record line as text: a line of bytes read as Latin-1 (a character a byte, so it goes back byte for byte)."""
+    return line.decode('latin1') if isinstance(line, bytes) else line
+
+
+def _like(text, line):
+    """`text` in the kind of `line`: bytes again for a line of bytes."""
+    return text.encode('latin1') if isinstance(line, bytes) else text
+
+
+# (re.ASCII: a line of text matches as its bytes would, whatever Latin-1 letters or blanks it holds)
 def field(line, name):
-    m = re.search(rb'(?<![A-Za-z])' + name.encode() + rb'="([^"]*)"', line)
-    return m.group(1).decode('latin1') if m else None
+    m = re.search(r'(?<![A-Za-z])' + name + r'="([^"]*)"', _text(line), re.ASCII)
+    return m.group(1) if m else None
 
 
 def set_field(line, name, value, quoted=True):
-    pat = rb'(?<![A-Za-z])' + name.encode() + (rb'="[^"]*"' if quoted else rb'=[A-Za-z_]+')
-    new = name.encode() + (b'="' + value.encode('latin1') + b'"' if quoted else b'=' + value.encode('latin1'))
-    out, n = re.subn(pat, lambda _: new, line, count=1)
+    pat = r'(?<![A-Za-z])' + name + (r'="[^"]*"' if quoted else r'=[A-Za-z_]+')
+    new = name + ('="' + value + '"' if quoted else '=' + value)
+    out, n = re.subn(pat, lambda _: new, _text(line), count=1, flags=re.ASCII)
     if n != 1:
         raise ValueError(f'record has no {name}')
-    return out
+    return _like(out, line)
 
 
 def unquoted(line, name):
-    m = re.search(rb'(?<![A-Za-z])' + name.encode() + rb'=([A-Za-z_]+)', line)
-    return m.group(1).decode('latin1') if m else None
+    m = re.search(r'(?<![A-Za-z])' + name + r'=([A-Za-z_]+)', _text(line), re.ASCII)
+    return m.group(1) if m else None
 
 
 def stream_slots(line):
-    return [int(k) for k in re.findall(rb'StreamingMaps\[\s*(\d+)\s*\]\s*=', line)]
+    return [int(k) for k in re.findall(r'StreamingMaps\[\s*(\d+)\s*\]\s*=', _text(line), re.ASCII)]
 
 
 def add_stream(line, patch):
     """The record line with `patch` streamed in the lowest slot it does not use, written as patchtool writes one."""
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{2,62}', patch):
         raise ValueError(f'bad patch name {patch!r}')
-    if re.search(rb'MapName="' + patch.encode() + rb'"', line, re.I):
+    text = _text(line)
+    if re.search(r'MapName="' + patch + r'"', text, re.I | re.ASCII):
         raise ValueError(f'the record streams {patch} already')
-    used = set(stream_slots(line))
+    used = set(stream_slots(text))
     k = min(set(range(len(used) + 1)) - used)
-    close = line.rindex(b')')
+    close = text.rindex(')')
     entry = f', StreamingMaps[{k}]=( MapName="{patch}", Loc=( X=0, Y=0, Z=0 ), Rot=( Pitch=0, Yaw=0, Roll=0 ) ) '
-    return line[:close].rstrip() + entry.encode() + line[close:], k
+    # (the blanks a line of bytes strips: str.rstrip would take Latin-1's no-break space too)
+    return _like(text[:close].rstrip(' \t\n\r\x0b\x0c') + entry + text[close:], line), k
 
 
 def slot_record(lines, bases):
@@ -78,7 +95,7 @@ def slot_record(lines, bases):
 
 
 def slot_streams(line):
-    return [s.decode('latin1') for s in re.findall(rb'MapName="([^"]+)"', line)]
+    return re.findall(r'MapName="([^"]+)"', _text(line))
 
 
 def plan_lz(lines, base, variant, note):

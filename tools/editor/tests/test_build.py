@@ -12,6 +12,7 @@ sys.path.insert(0, str(HERE.parent))
 import build  # noqa: E402
 import compiler  # noqa: E402
 import editor_fixtures  # noqa: E402
+import mapsini  # noqa: E402  (the one writer of a DefaultMaps.ini record, on the path through build)
 
 BASE = b'pristine bar'
 VARIANT, PATCH = 'URB_Bar_Test_1234', 'patch_urb_bar_test_1234'
@@ -103,10 +104,10 @@ class ConfigLines(unittest.TestCase):
 
     def test_a_map_with_several_records_gets_one_for_each_mission(self):
         bar = record('bar')
-        terror = build.set_field(bar.replace('CIN_DropshipIntros', 'CIN_FastropeIntros'), 'MissionType',
-                                 'eMission_TerrorSite', quoted=False)
-        bomb = build.set_field(build.set_field(bar, 'MissionType', 'eMission_Special', quoted=False), 'CouncilType',
-                               'eFCMType_Bomb', quoted=False)
+        terror = mapsini.set_field(bar.replace('CIN_DropshipIntros', 'CIN_FastropeIntros'), 'MissionType',
+                                   'eMission_TerrorSite', quoted=False)
+        bomb = mapsini.set_field(mapsini.set_field(bar, 'MissionType', 'eMission_Special', quoted=False), 'CouncilType',
+                                 'eFCMType_Bomb', quoted=False)
         self.assertEqual(build.intro_streams([bar, terror, bomb, record('templeship')]),
                          ['CIN_DropshipIntros', 'CIN_FastropeIntros'])
         copies = {'CIN_DropshipIntros': INTRO, 'CIN_FastropeIntros': 'CIN_FastropeIntros_%s' % VARIANT}
@@ -128,8 +129,8 @@ class ConfigLines(unittest.TestCase):
     def test_the_projects_missions_alone_and_the_kinds_it_adds(self):
         # mission types plan, D4: records for the listed missions only; an added kind made from the base map's abduction
         bar = record('bar')
-        terror = build.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False)
-        bomb = build.set_field(build.set_field(bar, 'MissionType', 'eMission_Special', quoted=False), 'CouncilType', 'eFCMType_Bomb', quoted=False)
+        terror = mapsini.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False)
+        bomb = mapsini.set_field(mapsini.set_field(bar, 'MissionType', 'eMission_Special', quoted=False), 'CouncilType', 'eFCMType_Bomb', quoted=False)
         maps = ['[XComGame.XComMapManager]', bomb, bar, terror]
         named = lambda mission: '%s (Test, %s) |0' % (VARIANT, mission)  # noqa: E731
         c = build.config_lines(maps, [], [], 'URB_Bar', VARIANT, PATCH, named,
@@ -151,7 +152,7 @@ class ConfigLines(unittest.TestCase):
         self.assertEqual(build.config_lines(maps, [], [], 'URB_Bar', VARIANT, PATCH, named)['missions'], ['Council bomb', 'Abduction', 'Terror'])
         self.assertEqual(build.template_record([bomb, terror, bar]), bar)
         # two records of one mission that differ: display names of their own
-        other = build.set_field(bar, 'TimeOfDay', 'eMissionTime_Day', quoted=False)
+        other = mapsini.set_field(bar, 'TimeOfDay', 'eMissionTime_Day', quoted=False)
         c = build.config_lines([bar, other], [], [], 'URB_Bar', VARIANT, None, named)
         self.assertEqual(c['missions'], ['Abduction', 'Abduction 2'])
         self.assertIn('DisplayName="%s (Test, Abduction 2) |0"' % VARIANT, c['maps'][1])
@@ -174,9 +175,9 @@ class ConfigLines(unittest.TestCase):
     def test_a_bomb_records_display_name_keeps_what_long_war_matches(self):
         # Long War throttles a bomb mission's reinforcements by "_Bomb" in the record's display name (plan 2.5)
         bar = record('bar')
-        bomb = build.set_field(build.set_field(build.set_field(bar, 'MissionType', 'eMission_Special', quoted=False),
-                                               'CouncilType', 'eFCMType_Bomb', quoted=False),
-                               'DisplayName', 'URB_Bar_Bomb (Mission Variant Bomb Defusal Bar) |0')
+        bomb = mapsini.set_field(mapsini.set_field(mapsini.set_field(bar, 'MissionType', 'eMission_Special', quoted=False),
+                                                   'CouncilType', 'eFCMType_Bomb', quoted=False),
+                                 'DisplayName', 'URB_Bar_Bomb (Mission Variant Bomb Defusal Bar) |0')
         c = build.config_lines(['[XComGame.XComMapManager]', bar, bomb], [], [], 'URB_Bar', VARIANT, PATCH,
                                lambda mission: '%s (Test, %s) |0' % (VARIANT, mission))
         self.assertIn('DisplayName="%s (Test, Abduction) |0"' % VARIANT, c['maps'][0])
@@ -191,24 +192,24 @@ class ConfigLines(unittest.TestCase):
     def test_a_record_keeps_its_base_records_own_words(self):
         # LWR map packs plan, section 3: LWR reads a UFO's size from words in the display name, and missions on the
         # globe find a map by it, so it holds the base record's words and nothing of the project's name
-        farm = build.set_field(build.set_field(record('bar'), 'Name', 'CSmallScout_Farm'), 'DisplayName',
-                               'CSmallScout_Farm (Crashed Small Scout - Franklin\'s Fancy Farm) |6')
+        farm = mapsini.set_field(mapsini.set_field(record('bar'), 'Name', 'CSmallScout_Farm'), 'DisplayName',
+                                 'CSmallScout_Farm (Crashed Small Scout - Franklin\'s Fancy Farm) |6')
         c = build.config_lines([farm], [], [], 'CSmallScout_Farm', VARIANT, PATCH, None)
         self.assertIn('DisplayName="%s (Crashed Small Scout - Franklin\'s Fancy Farm) |6"' % VARIANT, c['maps'][0])
         # a record without an ending takes the install's; a bomb's keeps what Long War matches
-        plain = build.set_field(record('bar'), 'DisplayName', 'URB_Bar (Urban Bar)')
+        plain = mapsini.set_field(record('bar'), 'DisplayName', 'URB_Bar (Urban Bar)')
         c = build.config_lines([plain], [], [], 'URB_Bar', VARIANT, PATCH, dict(tail=' |0'))
         self.assertIn('DisplayName="%s (Urban Bar) |0"' % VARIANT, c['maps'][0])
-        bomb = build.set_field(record('bar'), 'DisplayName', 'URB_Bar_Bomb (Bomb Defusal Bar) |0')
+        bomb = mapsini.set_field(record('bar'), 'DisplayName', 'URB_Bar_Bomb (Bomb Defusal Bar) |0')
         c = build.config_lines([bomb], [], [], 'URB_Bar', VARIANT, PATCH, None)
         self.assertIn('DisplayName="%s_Bomb (Bomb Defusal Bar) |0"' % VARIANT, c['maps'][0])
 
     def test_two_records_with_the_same_words_say_their_missions(self):
         bar = record('bar')
-        terror = build.set_field(build.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False),
-                                 'DisplayName', 'URB_Bar_T (Beta/Functionality Complete Urban Bar) |0')
+        terror = mapsini.set_field(mapsini.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False),
+                                   'DisplayName', 'URB_Bar_T (Beta/Functionality Complete Urban Bar) |0')
         c = build.config_lines([bar, terror], [], [], 'URB_Bar', VARIANT, PATCH, None)
-        names = [build.field_re('DisplayName').search(line).group(0) for line in c['maps']]
+        names = ['DisplayName="%s"' % mapsini.field(line, 'DisplayName') for line in c['maps']]
         self.assertEqual(names, ['DisplayName="%s (Beta/Functionality Complete Urban Bar) |0"' % VARIANT,
                                  'DisplayName="%s (Beta/Functionality Complete Urban Bar, Terror) |0"' % VARIANT])
 
@@ -216,7 +217,7 @@ class ConfigLines(unittest.TestCase):
         bar = record('bar')
         listed = [dict(record=0), dict(kind='Crash', ship='eShip_UFOAbductor'), dict(kind='LandedUFO', ship='eShip_UFOSupply')]
         c = build.config_lines([bar], [], [], 'URB_Bar', VARIANT, PATCH, None, missions_list=listed)
-        names = [build.field_re('DisplayName').search(line).group(0)[len('DisplayName="'):-1] for line in c['maps']]
+        names = [mapsini.field(line, 'DisplayName') for line in c['maps']]
         self.assertEqual(names[0], '%s (Beta/Functionality Complete Urban Bar) |0' % VARIANT)
         self.assertIn(' Abductor ', names[1])
         self.assertTrue(names[1].endswith('Urban Bar, Crashed Abductor UFO) |0'), names[1])
@@ -934,7 +935,7 @@ class Builds(unittest.TestCase):
         # switches naming the variant), ships it, streams it in the data recovery's record alone, and hands the base
         # map's tiles under the moved solid piece to native_copy.py (streamTiles)
         bar = record('bar')
-        cnh = build.set_field(build.add_stream(bar, 'URB_Bar_CNH')[0], 'MissionType', 'eMission_CaptureAndHold', quoted=False)
+        cnh = mapsini.set_field(mapsini.add_stream(bar, 'URB_Bar_CNH')[0], 'MissionType', 'eMission_CaptureAndHold', quoted=False)
         cfg = self.lwr / 'XEW/XComGame/Config'
         (cfg / 'DefaultMaps.ini').write_bytes(('[XComGame.XComMapManager]\r\n%s\r\n%s\r\n' % (bar, cnh)).encode('latin-1'))
         (self.lwr / 'XEW/XComGame/CookedPCConsole/URB_Bar_CNH.upk').write_bytes(b'the data recovery stream')
@@ -1081,8 +1082,8 @@ class Builds(unittest.TestCase):
 
     def test_a_map_with_missions_that_land_differently_gets_an_intro_copy_for_each(self):
         bar = record('bar')
-        terror = build.set_field(bar.replace('CIN_DropshipIntros', 'CIN_FastropeIntros'), 'MissionType',
-                                 'eMission_TerrorSite', quoted=False)
+        terror = mapsini.set_field(bar.replace('CIN_DropshipIntros', 'CIN_FastropeIntros'), 'MissionType',
+                                   'eMission_TerrorSite', quoted=False)
         cfg = self.lwr / 'XEW/XComGame/Config'
         (cfg / 'DefaultMaps.ini').write_bytes(('[XComGame.XComMapManager]\r\n%s\r\n%s\r\n' % (bar, terror)).encode('latin-1'))
         (self.lwr / 'XEW/XComGame/CookedPCConsole/CIN_FastropeIntros.upk').write_bytes(b'the fast-rope intros')
