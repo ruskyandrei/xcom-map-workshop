@@ -9,7 +9,7 @@
 // rotator units (pitch, yaw, roll). A rock whose corners were moved (look picker and rock points plan, R1) carries
 // `points`, its ROCK.points points in its frame, and its request is POINTS_VERSION whatever its look (versionedGround).
 import { TILE } from './constants.js';
-import { wallRotation, wallDirection, spelledLook } from './walls.js';
+import { drawnRect, wallRotation, wallDirection, spelledLook } from './walls.js';
 import { catalogued } from './looks.js';
 import { plural } from './dom_words.js';
 
@@ -165,6 +165,23 @@ export function movedPoint(g, points, index, to) {
   out.height = tidy(Math.max(GROUND.minHeight, ...pts.map(p => p[2])));
   out.points = pts.map(p => p.map(tidy));
   return { ground: out, shift };
+}
+/** The ground shape a drag draws under the snap setting (drawnGround's form; tile snap is drawnGround's own): its
+ *  footprint walls.js drawnRect's, a ramp rising along the drag's longer way, level and square to the world. */
+export function drawnGroundAt(start, end, { origin, z, shape, look = GROUND_LOOKS[0], height = null, seed = 1, snap = 'tile' }) {
+  if (snap === 'tile') return drawnGround(start, end, { origin, z, shape, look, height, seed });
+  const [x0, x1, y0, y1] = drawnRect(start, end, origin, snap), d = [end[0] - start[0], end[1] - start[1]];
+  const axis = shape === 'ramp' && Math.abs(d[1]) > Math.abs(d[0]) ? 1 : 0, direction = shape === 'ramp' ? sign(d[axis]) : 1;
+  const rotation = wallRotation([0, 0, 0], axis, direction);
+  const [dx, dy] = wallDirection(rotation[1]), px = -dy, py = dx;
+  const corners = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]];
+  const at = corners.reduce((best, c) => (c[0] * dx + c[1] * dy <= best[0] * dx + best[1] * dy + 1e-6
+                                         && c[0] * px + c[1] * py <= best[0] * px + best[1] * py + 1e-6 ? c : best));
+  const run = axis === 0 ? x1 - x0 : y1 - y0, across = axis === 0 ? y1 - y0 : x1 - x0;
+  const g = { shape, x0: 0, x1: tidy(run), y0: 0, y1: tidy(across), ...(shape === 'patch' ? {} : { height: height ?? GROUND[shape] }),
+              ...(shape === 'rock' ? { seed } : {}),
+              ...(look.donor ? { look: { ...look.donor } } : look.id !== GROUND_LOOKS[0].id ? { look: look.id } : {}) };
+  return { location: [tidy(at[0]), tidy(at[1]), tidy(z)], rotation, ground: g, tiles: [(x1 - x0) / TILE, (y1 - y0) / TILE] };
 }
 /** A made ground piece's request with the version its numbers need: POINTS_VERSION while a rock has moved points (its
  *  look then written out: none for a plain one, the first look's id rather than left out), and back to its look's

@@ -138,6 +138,21 @@ export function pivotedToCorner(kind, n, blasts = null) {
   return { numbers: out, blasts: moved, shift };
 }
 
+/** A free-form slab with its hole `index` changed by a drag of `delta` units: 'x' or 'y' slides it along that axis, a
+ *  side ('x0', 'x1', 'y0', 'y1') moves that side; the distance in steps of `step` (0: smoothly), kept inside the slab
+ *  and FREE.leastCut wide at least. */
+export function movedFreeHole(slab, index, part, delta, step = 0) {
+  const holes = [...(slab.holes ?? [])], h = { ...holes[index] }, k = part[0], d = step > 0 ? Math.round(delta / step) * step : delta;
+  const lo = slab[`${k}0`], hi = slab[`${k}1`];
+  if (part === 'x' || part === 'y') {
+    const s = Math.max(lo - h[`${k}0`], Math.min(hi - h[`${k}1`], d));
+    h[`${k}0`] = tidy(h[`${k}0`] + s); h[`${k}1`] = tidy(h[`${k}1`] + s);
+  } else if (part[1] === '0') h[part] = tidy(Math.max(lo, Math.min(h[`${k}1`] - FREE.leastCut, h[part] + d)));
+  else h[part] = tidy(Math.min(hi, Math.max(h[`${k}0`] + FREE.leastCut, h[part] + d)));
+  holes[index] = h;
+  return { ...slab, holes };
+}
+
 /** A free-form piece's box in its frame [x0, x1, y0, y1, z0, z1]. */
 export const freeBox = n => [n.x0, n.x1, n.y0, n.y1, n.z0, n.z1];
 /** Its size in words: "143.5 × 24 × 217.25" (along, across, up), to two places. */

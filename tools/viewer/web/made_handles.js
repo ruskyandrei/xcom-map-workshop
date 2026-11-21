@@ -27,15 +27,14 @@ import { coverDrag, data, effectsOn, geometryCache, lightsOn, placing, rockPoint
          setWallDrag, setWallFocus, snapMode, spawnsOn, volumeDrag, volumesOn, wallDrag, wallDrawing, wallFocus,
          zonesOn } from './editor_state.js';
 import { groundBounds, groundBox as groundShapeBox, groundWords as groundShapeWords, madeGroundNumbers, movedPoint,
-         raisedGround, resizedGround, ROCK, slopeWords, toolGround, versionedGround } from './ground.js';
+         ROCK, toolGround, versionedGround } from './ground.js';
 import { scaleMarker } from './lights_view.js';
-import { freeMesh, isFree } from './made_free.js';
-import { moveWords, stepsOf } from './snap_steps.js';
+import { freeBox, freeMesh, freeRequest, freeSizeWords, isFree, movedFreeHole, resizedFace, toolFree } from './made_free.js';
+import { moveWords, stepped, stepsOf, stepWords } from './snap_steps.js';
 import { targetKey } from './project.js';
-import { blastQuery, holeWords, madeBounds, madeSlabNumbers, madeWallNumbers, movedHole, movedOpening, OPENING as GAP,
-         openingParts, openingWords, raisedWall, resizedSlab, resizedWall, shiftedLocation, slabBounds, slabLookOf,
-         slabWords, sortedOpenings, storeysOf, storeyWords, toolSlab, toolWall, WALL, WALL_LOOKS, madeWallJoins, wallSpec,
-         wallTop, wallWords } from './walls.js';
+import { blastQuery, madeBounds, madeSlabNumbers, madeWallNumbers, movedOpening, OPENING as GAP, openingParts,
+         openingWords, slabBounds, slabLookOf, sortedOpenings, storeysOf, storeyWords, toolSlab, toolWall, WALL,
+         WALL_LOOKS, madeWallJoins, wallSpec, wallTop } from './walls.js';
 import { plural, short } from './dom_words.js';
 
 export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo,
@@ -209,18 +208,19 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     if (!root || root.userData.deleted || !root.visible || placing || wallDrawing || volumesOn || lightsOn || zonesOn || effectsOn || spawnsOn
         || gizmo.picks().ids.length !== 1) return null;
     const g = root.userData.source.added.generated;
+    if (isFree(g)) return toolFree(g.kind, g[{ fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[g.kind]]) ? root : null;
     return (g.kind === 'ground' ? toolGround(g.ground) : g.kind === 'fracSlab' ? toolSlab(g.slab) : toolWall(g.wall)) ? root : null;
   }
   // A ground shape's handles: a white one out of each edge ('side') at its top's middle height, and one on top ('top': a
   // block's top, a ramp's high edge) that raises it.
   function groundHandlesNow(root) {
-    const g = root.userData.source.added.generated.ground, b = groundShapeBox(g);
+    const g = root.userData.source.added.generated.ground, b = g.free === 1 ? freeBox(g) : groundShapeBox(g);
     root.updateMatrixWorld(true);
     const toView = (x, y, h) => new THREE.Vector3(x, h, y).applyMatrix4(root.matrixWorld);
     const axis = (x, y, z = 0) => toView(x, y, z).sub(toView(0, 0, 0)).normalize();
-    const mid = g.shape === 'ramp' ? b[5] / 2 : b[5], cx = (b[0] + b[1]) / 2, cy = (b[2] + b[3]) / 2;
+    const mid = g.shape === 'ramp' ? (b[4] + b[5]) / 2 : b[5], cx = (b[0] + b[1]) / 2, cy = (b[2] + b[3]) / 2;
     const out = [
-      { key: 'side:x0', kind: 'side', part: 'x0', at: toView(b[0], cy, g.shape === 'ramp' ? 0 : mid), dir: axis(-1, 0) },
+      { key: 'side:x0', kind: 'side', part: 'x0', at: toView(b[0], cy, g.shape === 'ramp' ? b[4] : mid), dir: axis(-1, 0) },
       { key: 'side:x1', kind: 'side', part: 'x1', at: toView(b[1], cy, mid), dir: axis(1, 0) },
       { key: 'side:y0', kind: 'side', part: 'y0', at: toView(cx, b[2], mid), dir: axis(0, -1) },
       { key: 'side:y1', kind: 'side', part: 'y1', at: toView(cx, b[3], mid), dir: axis(0, 1) }];
@@ -354,15 +354,16 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   // A slab's handles: a white one out of the middle of each edge ('side', its part the side), at its top; on each hole a
   // blue one at each side and one in its middle ('hole'; the middle slides it on the slab, `dir` null).
   function slabHandlesNow(root) {
-    const s = root.userData.source.added.generated.slab, look = slabLookOf(s), z = look.top + 1;
+    const s = root.userData.source.added.generated.slab, z = (s.free === 1 ? s.z1 : slabLookOf(s).top) + 1;
     root.updateMatrixWorld(true);
     const toView = (x, y, h) => new THREE.Vector3(x, h, y).applyMatrix4(root.matrixWorld);
     const axis = (x, y) => toView(x, y, 0).sub(toView(0, 0, 0)).normalize();
+    const [x0, y0] = s.free === 1 ? [s.x0, s.y0] : [0, 0], mx = (x0 + s.x1) / 2, my = (y0 + s.y1) / 2;
     const out = [
-      { key: 'side:x0', kind: 'side', part: 'x0', at: toView(0, s.y1 / 2, z), dir: axis(-1, 0) },
-      { key: 'side:x1', kind: 'side', part: 'x1', at: toView(s.x1, s.y1 / 2, z), dir: axis(1, 0) },
-      { key: 'side:y0', kind: 'side', part: 'y0', at: toView(s.x1 / 2, 0, z), dir: axis(0, -1) },
-      { key: 'side:y1', kind: 'side', part: 'y1', at: toView(s.x1 / 2, s.y1, z), dir: axis(0, 1) }];
+      { key: 'side:x0', kind: 'side', part: 'x0', at: toView(x0, my, z), dir: axis(-1, 0) },
+      { key: 'side:x1', kind: 'side', part: 'x1', at: toView(s.x1, my, z), dir: axis(1, 0) },
+      { key: 'side:y0', kind: 'side', part: 'y0', at: toView(mx, y0, z), dir: axis(0, -1) },
+      { key: 'side:y1', kind: 'side', part: 'y1', at: toView(mx, s.y1, z), dir: axis(0, 1) }];
     (s.holes ?? []).forEach((h, index) => {
       const cx = (h.x0 + h.x1) / 2, cy = (h.y0 + h.y1) / 2;
       out.push({ key: `hole:${index}:middle`, kind: 'hole', part: 'middle', index, at: toView(cx, cy, z), dir: null });
@@ -376,21 +377,25 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   function wallHandlesNow(root) {
     if (isMadeGround(root.userData.source)) return groundHandlesNow(root);
     if (isMadeSlab(root.userData.source)) return slabHandlesNow(root);
-    const w = root.userData.source.added.generated.wall;
+    const w = root.userData.source.added.generated.wall, free = w.free === 1;
     root.updateMatrixWorld(true);
     const toView = (x, y, z) => new THREE.Vector3(x, z, y).applyMatrix4(root.matrixWorld);
     const axis = (x, y, z) => toView(x, y, z).sub(toView(0, 0, 0)).normalize();
+    // (a free-form wall's own extents; an older one's from 0, its look's bottom and its storeys' top)
+    const spec = wallSpec(w), x0 = free ? w.x0 : 0, bottom0 = free ? w.z0 : spec.bottom, top0 = free ? w.z1 : wallTop(w);
     // the openings' handles on the face toward the camera
-    const toCamera = camera.position.clone().sub(toView(w.x1 / 2, 0, 184));
-    const spec = wallSpec(w), side = toCamera.dot(axis(0, 1, 0)) >= 0 ? spec.half + 1 : -spec.half - 1;
-    const mid = (wallTop(w) + spec.bottom) / 2, out = [];
-    out.push({ key: 'end:x0', kind: 'end', part: 'x0', at: toView(0, 0, mid), dir: axis(-1, 0, 0) });
+    const toCamera = camera.position.clone().sub(toView((x0 + w.x1) / 2, 0, 184));
+    const front = free ? w.y1 + 1 : spec.half + 1, back = free ? w.y0 - 1 : -spec.half - 1;
+    const side = toCamera.dot(axis(0, 1, 0)) >= 0 ? front : back;
+    const mid = (top0 + bottom0) / 2, out = [];
+    out.push({ key: 'end:x0', kind: 'end', part: 'x0', at: toView(x0, 0, mid), dir: axis(-1, 0, 0) });
     out.push({ key: 'end:x1', kind: 'end', part: 'x1', at: toView(w.x1, 0, mid), dir: axis(1, 0, 0) });
-    // the top: up or down a storey (M2)
-    out.push({ key: 'end:top', kind: 'end', part: 'top', at: toView(w.x1 / 2, 0, wallTop(w)), dir: axis(0, 0, 1) });
+    // the top: up or down (M2; any height in the free form)
+    out.push({ key: 'end:top', kind: 'end', part: 'top', at: toView((x0 + w.x1) / 2, 0, top0), dir: axis(0, 0, 1) });
+    const floor = free ? Math.max(0, w.z0) : 0;
     sortedOpenings(w.openings ?? []).forEach((o, index) => {
       // (a gap cut to the wall's bottom has its bottom handle on the floor)
-      const cx = (o.x0 + o.x1) / 2, bottom = Math.max(0, o.z0), cz = (bottom + o.z1) / 2;
+      const cx = (o.x0 + o.x1) / 2, bottom = Math.max(floor, o.z0), cz = (bottom + o.z1) / 2;
       const at = { middle: [cx, cz], x0: [o.x0, cz], x1: [o.x1, cz], z1: [cx, o.z1], z0: [cx, bottom] };
       // (the middle drags in the wall's plane: `plane` its normal; the sides and ends along their axis)
       for (const part of openingParts())
@@ -443,18 +448,12 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     wallHover = key;
     renderer.domElement.style.cursor = key ? 'grab' : wallDrawing ? 'crosshair' : '';
     renderer.domElement.title = !h ? '' : h.kind === 'point' ? 'A corner of the rock: click it, then drag its arrows to move it (Shift: steps of 8)'
-      : h.part === 'top' && isMadeGround(handleWall()?.userData.source) ? 'The top: drag to raise or lower it (steps of 8)'
-      : h.kind === 'side' ? 'The edge: drag to grow or shrink it by whole tiles'
-      : h.kind === 'hole' ? (h.part === 'middle' ? 'Hole: drag to slide it (whole tiles)' : 'Hole\'s side: drag to size it (whole tiles)')
-      : h.part === 'top' ? topHandleWords(handleWall()?.userData.source.added.generated.wall)
-      : h.kind === 'end' ? 'The wall\'s end: drag to lengthen or shorten it by whole tiles'
+      : h.part === 'top' && isMadeGround(handleWall()?.userData.source) ? `The top: drag to raise or lower it (${stepWords(snapMode, { up: true })}, as the snap setting)`
+      : h.kind === 'side' ? `The edge: drag to grow or shrink it (${stepWords(snapMode)}, as the snap setting; the other edge stays)`
+      : h.kind === 'hole' ? (h.part === 'middle' ? `Hole: drag to slide it (${stepWords(snapMode)}, as the snap setting)` : `Hole's side: drag to size it (${stepWords(snapMode)}, as the snap setting)`)
+      : h.part === 'top' ? `The wall's top: drag to make it taller or lower (${stepWords(snapMode, { up: true })}, as the snap setting; the bottom stays)`
+      : h.kind === 'end' ? `The wall's end: drag to lengthen or shorten it (${stepWords(snapMode)}, as the snap setting; the other end stays)`
       : `${WALL_PART_WORDS[h.part]} (${openingStepWords(false)}, as the snap setting; Alt: steps of ${GAP.fine})`;
-  }
-  // What the wall's top handle does: adds or takes storeys (B4), its look's storeys at a time where it can't be made
-  // one storey.
-  function topHandleWords(w) {
-    const spec = wallSpec(w);
-    return `The wall's top: drag up or down to add or take storeys${spec.lower ? '' : ` (${storeyWords(spec.storeys)} at a time: its look is made that tall only)`}`;
   }
   // What the Build makes of a wall longer or taller than the game's (B4, D-3: made_split), in words; '' for one piece.
   function wallPiecesWords(w) {
@@ -516,98 +515,76 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   }
   // The drag's queued states dropped (its last state is then applied by setWall, or the one before it put back).
   function dropQueuedWall(root) { if (root?.userData.applyQueue) root.userData.applyQueue.next = null; }
-  function moveSlabDrag(e) {
-    const d = wallDrag, h = d.handle, b = d.before, s = b.generated.slab;
-    let slab = s, location = b.location, words;
-    if (h.part === 'middle') {
-      const at = onLevel(e.clientX, e.clientY, h.at.y);
-      if (!at) return;
-      // the pointer's move in the slab's own frame (its x and y), a hole slid by whole tiles each way
-      const inv = new THREE.Matrix4().copy(d.root.matrixWorld).invert();
-      const a = d.from.clone().applyMatrix4(inv), c = at.clone().applyMatrix4(inv);
-      slab = movedHole(movedHole(s, h.index, 'x', c.x - a.x), h.index, 'y', c.z - a.z);
-      words = holeWords(slab.holes[h.index]);
+  function moveSlabDrag(e) { moveFreeDrag(e); }
+  function moveGroundDrag(e) { moveFreeDrag(e); }
+  // A made piece's face dragged in the free form (the improvements plan, stage 3; decision D1): an older piece is put
+  // into it first (made_free.js freeRequest), the face's number moves by the distance dragged in the snap setting's
+  // steps (across for an end or side, up for a top), the piece's origin stays where it is, and its openings or holes
+  // are clipped to it; a free slab's hole slides or sizes in the same steps. One undo step at the release.
+  function moveFreeDrag(e) {
+    const d = wallDrag, h = d.handle, b = d.before, g = freeRequest(b.generated);
+    const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[g.kind], n = g[key], steps = stepsOf(snapMode);
+    let numbers = n, words;
+    if (h.kind === 'hole') {
+      if (h.part === 'middle') {
+        const at = onLevel(e.clientX, e.clientY, h.at.y);
+        if (!at) return;
+        const inv = new THREE.Matrix4().copy(d.root.matrixWorld).invert();
+        const a = d.from.clone().applyMatrix4(inv), c = at.clone().applyMatrix4(inv);
+        numbers = movedFreeHole(movedFreeHole(n, h.index, 'x', c.x - a.x, steps.across), h.index, 'y', c.z - a.z, steps.across);
+      } else {
+        const t = alongLine(e.clientX, e.clientY, h.at, h.dir);
+        if (t == null) return;
+        numbers = movedFreeHole(n, h.index, h.part, t - d.from, steps.across);
+      }
+      const hole = numbers.holes[h.index];
+      words = `Hole, ${freeSizeWords({ ...hole, z0: 0, z1: 0 }).split(' × ').slice(0, 2).join(' × ')} (${stepWords(snapMode)})`;
     } else {
       const t = alongLine(e.clientX, e.clientY, h.at, h.dir);
       if (t == null) return;
-      if (h.kind === 'side') {
-        const r = resizedSlab(s, h.part, t - d.from);
-        slab = r.slab;
-        const turned = new THREE.Vector3(r.shift[0], 0, r.shift[1]).transformDirection(new THREE.Matrix4().extractRotation(d.root.matrixWorld))
-          .multiplyScalar(Math.hypot(r.shift[0], r.shift[1]));
-        location = [b.location[0] + turned.x, b.location[1] + turned.z, b.location[2]].map(v => Math.round(v * 1000) / 1000);
-        words = `${slabWords(slab)}${r.removed ? ` · ${plural(r.removed, 'hole')} past the edge will go` : ''}`;
-      } else {
-        slab = movedHole(s, h.index, h.part, t - d.from);
-        words = holeWords(slab.holes[h.index]);
-      }
+      // (the handle's axis points out of its face: out of a low face is down its axis)
+      const face = h.part === 'top' ? 'z1' : h.part, up = face[0] === 'z';
+      const delta = stepped(t - d.from, up ? steps.up : steps.across) * (face.endsWith('0') ? -1 : 1);
+      const r = resizedFace(g.kind, n, face, delta);
+      numbers = r.numbers;
+      const cut = g.kind === 'fracWall' ? 'opening' : 'hole';
+      words = `${freeSizeWords(numbers)} (${stepWords(snapMode, { up })})${r.removed ? ` · ${plural(r.removed, cut)} past the ${up ? 'top' : 'edge'} will go` : ''}`;
     }
-    const key = JSON.stringify([slab, location]);
-    if (key === d.shown) return;
-    d.shown = key;
-    d.after = { generated: { ...b.generated, slab }, location, rotation: b.rotation };
+    if (!toolFree(g.kind, numbers)) return;
+    const shown = JSON.stringify(numbers);
+    if (shown === d.shown) return;
+    d.shown = shown;
+    d.after = { generated: { ...g, [key]: numbers }, location: b.location, rotation: b.rotation };
     applyWallSoon(d.root, d.after);
     volumeHint(words);
-  }
-  function moveGroundDrag(e) {
-    const d = wallDrag, h = d.handle, b = d.before, g0 = b.generated.ground;
-    const t = alongLine(e.clientX, e.clientY, h.at, h.dir);
-    if (t == null) return;
-    let g = g0, location = b.location;
-    if (h.part === 'top') g = raisedGround(g0, t - d.from);
-    else {
-      const r = resizedGround(g0, h.part, t - d.from);
-      g = r.ground;
-      const turned = new THREE.Vector3(r.shift[0], 0, r.shift[1]).transformDirection(new THREE.Matrix4().extractRotation(d.root.matrixWorld))
-        .multiplyScalar(Math.hypot(r.shift[0], r.shift[1]));
-      location = [b.location[0] + turned.x, b.location[1] + turned.z, b.location[2]].map(v => Math.round(v * 1000) / 1000);
-    }
-    const key = JSON.stringify([g, location]);
-    if (key === d.shown) return;
-    d.shown = key;
-    d.after = { generated: { ...b.generated, ground: g }, location, rotation: b.rotation };
-    applyWallSoon(d.root, d.after);
-    volumeHint(`${groundShapeWords(g)}${g.shape === 'ramp' ? ` · ${slopeWords(g)}` : ''}`);
   }
   function moveWallDrag(e) {
     if (isMadeGround(wallDrag.root.userData.source)) { moveGroundDrag(e); return; }
     if (isMadeSlab(wallDrag.root.userData.source)) { moveSlabDrag(e); return; }
+    if (wallDrag.handle.kind === 'end') { moveFreeDrag(e); return; }
+    // a gap's handle: its middle in the wall's plane, its sides along the wall, its top and bottom up
     const d = wallDrag, h = d.handle, b = d.before, w = b.generated.wall;
-    let wall = w, location = b.location, words, delta = 0;
+    let wall;
+    const [along, up] = openingSteps(e.altKey);
     if (h.plane) {
       // (the gap's middle: the pointer's move in the wall's plane, in its frame: along it and up)
       const at = onPlane(e.clientX, e.clientY, h.at, h.plane);
       if (!at) return;
       const a = d.from.clone().applyMatrix4(d.inverse), c = at.clone().applyMatrix4(d.inverse);
-      const [along, up] = openingSteps(e.altKey);
       wall = movedOpening(w, h.index, 'middle', [c.x - a.x, c.y - a.y], { along, up });
-      words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${openingStepWords(e.altKey)})`;
     } else {
       const t = alongLine(e.clientX, e.clientY, h.at, h.dir);
       if (t == null) return;
-      delta = t - d.from;
+      wall = movedOpening(w, h.index, h.part, t - d.from, { along, up });
     }
-    if (h.plane) { /* moved above */ } else if (h.part === 'top') {
-      const r = raisedWall(w, delta);
-      wall = r.wall;
-      words = `${wallWords(wall)}${r.cut ? ` · ${plural(r.cut, 'opening')} brought under the top` : ''}${r.removed ? ` · ${plural(r.removed, 'opening')} in the upper storey will go` : ''}`;
-    } else if (h.kind === 'end') {
-      // (out of the start end is back along the wall)
-      const r = resizedWall(w, h.part, h.part === 'x0' ? -delta : delta);
-      wall = r.wall; location = shiftedLocation(b.location, b.rotation, r.shift);
-      words = `${wallWords(wall)}${r.removed ? ` · ${plural(r.removed, 'opening')} past the end will go` : ''}`;
-    } else {
-      const [along, up] = openingSteps(e.altKey);
-      wall = movedOpening(w, h.index, h.part, delta, { along, up });
-      words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${openingStepWords(e.altKey)})`;
-    }
+    const words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${openingStepWords(e.altKey)})`;
     // (numbers the tool doesn't make, which the mesh server and the Build would refuse, aren't applied: the drag stays
     // at its last state the tool makes; review finding 32)
-    if (!toolWall(wall)) return;
-    const key = JSON.stringify([wall, location]);
+    if (!(wall.free === 1 ? toolFree('fracWall', wall) : toolWall(wall))) return;
+    const key = JSON.stringify(wall);
     if (key === d.shown) return;
     d.shown = key;
-    d.after = { generated: { ...b.generated, wall }, location, rotation: b.rotation };
+    d.after = { generated: { ...b.generated, wall }, location: b.location, rotation: b.rotation };
     applyWallSoon(d.root, d.after);
     volumeHint(words);
   }

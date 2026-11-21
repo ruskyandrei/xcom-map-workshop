@@ -14,7 +14,10 @@ import { SLAB_LOOKS, slabLookOf, WALL_LOOKS } from './walls.js';
 // that default look and says so (compiler made-no-look).
 const PLAIN_VERSION = { fracWall: 4, fracSlab: 3, ground: 3 };
 // (MADE_KINDS, the kinds of made piece, one piece each made from numbers: piece_records.js)
-export const isPlain = g => Boolean(g) && (g.version === PLAIN_VERSION[g.kind] || (g.kind === 'ground' && g.version === POINTS_VERSION && g.ground?.look === undefined));
+// (a free-form piece says so in its numbers: `plain`, made_free.js)
+const FREE_VERSION = { fracWall: 5, fracSlab: 4, ground: 5 }, KEY = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' };
+export const isPlain = g => Boolean(g) && (g.version === FREE_VERSION[g.kind] ? g[KEY[g.kind]]?.plain === true
+  : g.version === PLAIN_VERSION[g.kind] || (g.kind === 'ground' && g.version === POINTS_VERSION && g.ground?.look === undefined));
 export const madeRequest = (kind, look, numbers, plain = false) => {
   const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[kind];
   // (a rock with moved points: POINTS_VERSION whatever its look, versionedGround)

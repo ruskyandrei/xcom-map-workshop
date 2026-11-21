@@ -3,7 +3,7 @@
 // does at an opening by its sweeps. Run: node tools/viewer/tests/walls_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { drawnWall, flippedWall, freeWallJoins, gridCrossings, joinedEnds, movedOpening, openingEdges, openingParts, openingPlay, openingWords, playWords,
+import { drawnPoint, drawnRect, drawnRoomAt, drawnSlabAt, drawnWall, drawnWallAt, flippedWall, freeWallJoins, gridCrossings, joinedEnds, movedOpening, openingEdges, openingParts, openingPlay, openingWords, playWords,
          PRESETS, raisedWall, resizedWall, reshuffled, shiftedLocation, storeysOf, toolWall, topMostOf, wallDirection, wallRotation,
          levelsOf, storeyCounts, steppedStoreys,
          wallTop, wallWords, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
@@ -356,5 +356,31 @@ assert.deepEqual([PRESETS.doorway.z0, PRESETS.doorway.z1], [8, 160]);
   assert.deepEqual([la.x1, lb.x0], [385, -5]);
   // alongside apart: none
   assert.equal(joinedEnds(free([0, 0, 0], 0, 0, 380), free([0, 50, 0], 0, 0, 380)), null);
+}
+// ---- drawing as the snap setting says (the improvements plan, 3.1)
+{
+  const template = { rotation: [0, 0, 0] }, origin = [-48, 0];
+  // tile snap: drawnWall's own
+  assert.deepEqual(drawnWallAt([10, 5], [300, 20], { origin, template, floor: 0, snap: 'tile' }), drawnWall([10, 5], [300, 20], { origin, template, floor: 0 }));
+  // snap off: the exact start, bearing and length
+  const off = drawnWallAt([10.5, 5.25], [110.5, 105.25], { origin, template, floor: 16, snap: 'off' });
+  assert.deepEqual(off.location, [10.5, 5.25, 16]);
+  assert.equal(off.rotation[1], 8192);                                       // 45 degrees
+  assert.ok(Math.abs(off.wall.x1 - 100 * Math.SQRT2) < 1e-3);
+  // fine: the start on 24s from the grid's corner, 15-degree bearings, lengths of 24
+  const fine = drawnWallAt([10, 5], [110, 70], { origin, template, floor: 0, snap: 'fine' });
+  assert.deepEqual(fine.location.slice(0, 2), [0, 0]);
+  assert.equal(fine.rotation[1], Math.round(30 * 65536 / 360));
+  assert.equal(fine.wall.x1 % 24, 0);
+  assert.deepEqual(drawnPoint([37, -13], origin, 'fine'), [48, -24]);
+  // a rectangle: its corners on the steps; a click a step each way (a tile with snap off)
+  assert.deepEqual(drawnRect([10, 10], [10, 10], origin, 'off'), [10, 106, 10, 106]);
+  assert.deepEqual(drawnRect([10, 10], [100, 61], origin, 'fine'), [0, 96, 0, 72]);
+  const slab = drawnSlabAt([10.5, 0], [150, 70.25], { origin, template, z: 0, snap: 'off' });
+  assert.deepEqual([slab.location, slab.slab.x1, slab.slab.y1], [[10.5, 0, 0], 139.5, 70.25]);
+  // a room off the tiles: four walls round it, a doorway in the side nearest the camera where it is a tile long
+  const room = drawnRoomAt([0, 0], [250, 150], { origin, template, floor: 0, snap: 'off', camera: [125, -500] });
+  assert.deepEqual(room.walls.map(w => w.wall.x1), [250, 150, 250, 150]);
+  assert.deepEqual(room.walls[0].wall.openings, [{ x0: 77, x1: 173, z0: 8, z1: 160 }]);
 }
 console.log('walls: ok');

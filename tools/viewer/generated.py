@@ -113,7 +113,18 @@ def free_numbers(kind, text):
     if not hasattr(generator, 'check_free'):
         raise GeneratedError('this editor makes no free-form %s yet' % kind)
     try:
-        generator.check_free(with_recipe(kind, numbers)[0])
+        built = with_recipe(kind, numbers)[0]
+        # (a wall or slab is checked piece by piece, as the Build cuts it: one piece is at most the splitter's chunk)
+        if kind == 'wall':
+            pieces = [n for _, _, n in made_split.wall_pieces(built, wall_look_storeys, wall_heights)]
+        elif kind == 'slab':
+            if not made_split.slab_left(built):
+                raise ValueError("the slab's holes leave none of it")
+            pieces = [n for _, _, n in made_split.slab_pieces(built)]
+        else:
+            pieces = [built]
+        for piece in pieces:
+            generator.check_free(piece)
     except (ValueError, TypeError, KeyError) as error:
         raise GeneratedError(str(error))
     return numbers

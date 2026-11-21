@@ -10,7 +10,7 @@
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll).
 import { QUARTER, TILE } from './constants.js';
 import { catalogued } from './looks.js';
-import { stepped } from './snap_steps.js';
+import { stepped, stepsOf } from './snap_steps.js';
 import { plural } from './dom_words.js';
 
 // The looks a wall is drawn in: each a donor (one of the game's fracturing walls, placed in a map of the base game), the
@@ -97,6 +97,12 @@ export const wallTop = wall => {
 };
 export const faceTopOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - (spec.top - spec.faceTop); };
 export const topMostOf = wall => { const spec = wallSpec(wall); return wallTop(wall) - Math.max(WALL.top - OPENING.topMost, spec.top - spec.faceTop); };
+/** A wall's own extents for its gaps: [start, end, bottom, top] (a free-form wall's numbers, an older one's 0, its
+ *  length, its look's bottom and its storeys' top). */
+const wallSpan = wall => (wall.free === 1 ? [wall.x0, wall.x1, wall.z0, wall.z1] : [0, wall.x1, wallSpec(wall).bottom, wallTop(wall)]);
+/** The highest a gap's top goes under the cornice before it is cut through (a free-form wall's: its top less its
+ *  look's cornice). */
+const gapTopMost = wall => (wall.free === 1 ? wall.z1 - Math.max(WALL.top - OPENING.topMost, wallSpec(wall).top - wallSpec(wall).faceTop) : topMostOf(wall));
 /** The wall at `storeys` (its look's own leaves the number out). A gap cut through the wall's top stays cut through the
  *  new top; another the lower wall can't hold has its top brought down to the highest a top goes under the cornice;
  *  one left smaller than OPENING.height (a window in the upper storey) goes. Gives { wall, cut (gaps brought down),
@@ -165,7 +171,8 @@ export const sortedOpenings = list => [...list].sort((a, b) => a.x0 - b.x0 || a.
 /** Which of the wall's edges a gap reaches: { bottom (cut to the wall's bottom, through the floor), top (cut through
  *  the wall's top), start, end (cut away to that end) }. */
 export function openingEdges(wall, o) {
-  return { bottom: o.z0 <= wallSpec(wall).bottom + 1e-6, top: o.z1 >= wallTop(wall) - 1e-6, start: o.x0 <= 1e-6, end: o.x1 >= wall.x1 - 1e-6 };
+  const [start, end, bottom, top] = wallSpan(wall);
+  return { bottom: o.z0 <= bottom + 1e-6, top: o.z1 >= top - 1e-6, start: o.x0 <= start + 1e-6, end: o.x1 >= end - 1e-6 };
 }
 /** Whether a gap would take the whole wall away (every edge reached). */
 const takesWhole = (wall, o) => Object.values(openingEdges(wall, o)).every(Boolean);
@@ -222,6 +229,65 @@ export function drawnRoom(start, end, { origin, template, floor, seed = 1, camer
   walls[door].wall = withOpening(walls[door].wall, 'doorway').wall;
   return { walls, tiles: [nx, ny], door };
 }
+// ---- drawing as the snap setting says (the improvements plan, 3.1): under tile snap as above (tile edges, quarter
+// turns, whole tiles); under fine snap the first point on the map grid's steps of 24 from its corner, the bearing in
+// steps of 15 degrees and the length in steps of 24; with snap off the exact hit, bearing and length. The numbers are an
+// older wall's or slab's (x0 and y0 0), at any size: the drawing makes them free-form pieces (made_free.js freeRequest).
+/** A point drawn on the ground under the snap setting: on the grid's steps from its corner `origin`, or as it is. */
+export function drawnPoint(p, origin, snap) {
+  const step = stepsOf(snap).across;
+  return step ? [0, 1].map(k => origin[k] + Math.round((p[k] - origin[k]) / step) * step) : [p[0], p[1]];
+}
+/** The wall a drag from `start` to `end` draws under the snap setting (drawnWall's form: { location, rotation, wall,
+ *  axis, direction, tiles }); tile snap is drawnWall's own. The rotation keeps the donor's pitch and roll, its yaw the
+ *  drag's bearing in the angular step; the length at least a step (or 24 with snap off). */
+export function drawnWallAt(start, end, { origin, template, floor, seed = 1, snap = 'tile' }) {
+  if (snap === 'tile') return drawnWall(start, end, { origin, template, floor, seed });
+  const s = stepsOf(snap), a = drawnPoint(start, origin, snap), d = [end[0] - a[0], end[1] - a[1]];
+  let bearing = Math.atan2(d[1], d[0]) * 180 / Math.PI;
+  if (s.turn) bearing = Math.round(bearing / s.turn) * s.turn;
+  const r = bearing * Math.PI / 180, along = d[0] * Math.cos(r) + d[1] * Math.sin(r);
+  const least = s.across || 24, length = Math.max(least, Math.min(WALL.maxTiles * TILE, s.across ? stepped(along, s.across) : along));
+  const yaw = Math.round(bearing * 65536 / 360);
+  return { location: [tidy(a[0]), tidy(a[1]), tidy(floor)], rotation: [Math.trunc(template.rotation[0]), yaw, Math.trunc(template.rotation[2])],
+           wall: { x0: 0, x1: tidy(length), openings: [], seed }, axis: null, direction: null, tiles: length / TILE };
+}
+/** The rectangle a drag draws under the snap setting: [x0, x1, y0, y1] on the ground, its corners drawnPoint's; a click
+ *  with no drag a step (a tile with snap off) each way. */
+export function drawnRect(start, end, origin, snap) {
+  const a = drawnPoint(start, origin, snap), b = drawnPoint(end, origin, snap), least = stepsOf(snap).across || TILE;
+  const span = k => (Math.abs(b[k] - a[k]) < 1e-6 ? [a[k], a[k] + least * sign(end[k] - start[k])] : [a[k], b[k]]).sort((p, q) => p - q);
+  const [x0, x1] = span(0), [y0, y1] = span(1);
+  return [x0, x1, y0, y1].map(tidy);
+}
+/** The slab a drag draws under the snap setting (drawnSlab's form); tile snap is drawnSlab's own. */
+export function drawnSlabAt(start, end, { origin, template, z, seed = 1, look = SLAB_LOOKS[0], snap = 'tile' }) {
+  if (snap === 'tile') return drawnSlab(start, end, { origin, template, z, seed, look });
+  const [x0, x1, y0, y1] = drawnRect(start, end, origin, snap);
+  return { location: [x0, y0, tidy(z)], rotation: wallRotation(template.rotation, 0, 1),
+           slab: { x0: 0, x1: tidy(x1 - x0), y0: 0, y1: tidy(y1 - y0), holes: [], seed,
+                   ...(look.donor ? { look: { ...look.donor } } : look.id !== SLAB_LOOKS[0].id ? { look: look.id } : {}) },
+           tiles: [(x1 - x0) / TILE, (y1 - y0) / TILE] };
+}
+/** The room a drag draws under the snap setting (drawnRoom's form: four walls anticlockwise from the south, a doorway
+ *  in the middle of the side nearest `camera`, where it is a tile long or more); tile snap is drawnRoom's own. */
+export function drawnRoomAt(start, end, { origin, template, floor, seed = 1, camera = null, snap = 'tile' }) {
+  if (snap === 'tile') return drawnRoom(start, end, { origin, template, floor, seed, camera });
+  const [x0, x1, y0, y1] = drawnRect(start, end, origin, snap), z = tidy(floor);
+  const sides = [[0, 1, [x0, y0], x1 - x0], [1, 1, [x1, y0], y1 - y0], [0, -1, [x1, y1], x1 - x0], [1, -1, [x0, y1], y1 - y0]];
+  const walls = sides.map(([axis, direction, at, length], k) => ({
+    location: [tidy(at[0]), tidy(at[1]), z], rotation: wallRotation(template.rotation, axis, direction),
+    wall: { x0: 0, x1: tidy(length), openings: [], seed: seed + k } }));
+  const middles = [[(x0 + x1) / 2, y0], [x1, (y0 + y1) / 2], [(x0 + x1) / 2, y1], [x0, (y0 + y1) / 2]];
+  const c = camera ?? [x0, y0 - 1];
+  const door = middles.map((m, k) => [Math.hypot(m[0] - c[0], m[1] - c[1]), k]).sort((p, q) => p[0] - q[0])[0][1];
+  const w = walls[door].wall;
+  if (w.x1 >= PRESETS.doorway.width) {
+    const mid = w.x1 / 2;
+    w.openings = [{ x0: tidy(mid - PRESETS.doorway.width / 2), x1: tidy(mid + PRESETS.doorway.width / 2), z0: PRESETS.doorway.z0, z1: PRESETS.doorway.z1 }];
+  }
+  return { walls, tiles: [(x1 - x0) / TILE, (y1 - y0) / TILE], door };
+}
 /** The rotation that runs the wall's +x along `axis` in `direction`, a whole number of quarter turns from the donor's. */
 export function wallRotation(templateRotation, axis, direction) {
   const turns = YAWS.find(([x, s]) => x === axis && s === direction)[2];
@@ -260,6 +326,12 @@ export function shiftedLocation(location, rotation, shift) {
 /** The wall turned round (its two faces swapped) where it stands: its start at its old far end, a half turn of yaw, the
  *  openings mirrored so they stay where they were. Gives { wall, location, rotation }. */
 export function flippedWall(wall, location, rotation) {
+  if (wall.free === 1) {
+    // (a free-form wall turned a half turn about its origin, which stays: its numbers mirrored, x and its faces)
+    const openings = sortedOpenings((wall.openings ?? []).map(o => ({ ...o, x0: tidy(-o.x1), x1: tidy(-o.x0) })));
+    return { wall: { ...wall, x0: tidy(-wall.x1), x1: tidy(-wall.x0), y0: tidy(-wall.y1), y1: tidy(-wall.y0), openings },
+             location: [...location], rotation: [rotation[0], rotation[1] + 2 * QUARTER, rotation[2]] };
+  }
   const length = wall.x1;
   const openings = sortedOpenings((wall.openings ?? []).map(o => ({ ...o, x0: tidy(length - o.x1), x1: tidy(length - o.x0) })));
   return { wall: { ...wall, openings }, location: shiftedLocation(location, rotation, length),
@@ -302,8 +374,11 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
   const list = sortedOpenings(wall.openings ?? []);
   if (!list[index]) return wall;
   const o = { ...list[index] };
-  const before = index > 0 ? list[index - 1].x1 : 0, after = index < list.length - 1 ? list[index + 1].x0 : wall.x1;
-  const least = along >= TILE ? TILE : OPENING.width, bottom = wallSpec(wall).bottom, top = wallTop(wall);
+  const [start, end, bottom, top] = wallSpan(wall), topMost = gapTopMost(wall);
+  // (a free-form wall's floor is 0 over its origin, as an older wall's: its bottom z0 may be under or over it)
+  const floor = wall.free === 1 ? Math.max(0, bottom) : 0;
+  const before = index > 0 ? list[index - 1].x1 : start, after = index < list.length - 1 ? list[index + 1].x0 : end;
+  const least = along >= TILE ? TILE : OPENING.width;
   if (part === 'middle') {
     // (`delta` [along, up]: the middle handle drags in the wall's plane, the user, 19 November 2026; a number: along)
     const [dx, dz] = Array.isArray(delta) ? delta : [delta, 0];
@@ -314,10 +389,10 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
     // up and down its height kept, from the floor (a doorway's bottom is the floor) to the highest a gap's top goes
     // under the wall's top; at the floor it is cut to the wall's bottom (a doorway), off it a window. One cut through
     // the wall's top stays where it is up and down.
-    const lo = Math.max(0, o.z0), height = o.z1 - lo, most = topMostOf(wall);
+    const lo = Math.max(floor, o.z0), height = o.z1 - lo, most = topMost;
     if (dz && o.z1 < top - 1e-6 && height <= most + 1e-6) {
-      const z0 = Math.max(0, Math.min(most - height, lo + stepped(dz, up)));
-      o.z0 = z0 <= 1e-6 ? bottom : tidy(z0);
+      const z0 = Math.max(floor, Math.min(most - height, lo + stepped(dz, up)));
+      o.z0 = z0 <= floor + 1e-6 ? bottom : tidy(z0);
       o.z1 = tidy(z0 + height);
     }
   } else if (part === 'x0') {
@@ -325,24 +400,24 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
   } else if (part === 'x1') {
     o.x1 = tidy(Math.min(after, Math.max(o.x0 + least, o.x1 + stepped(delta, along))));
   } else if (part === 'z1') {
-    const v = Math.max(Math.max(0, o.z0) + OPENING.height, o.z1 + stepped(delta, up));
-    o.z1 = v > topMostOf(wall) + 1e-6 ? top : tidy(v);
+    const v = Math.max(Math.max(floor, o.z0) + OPENING.height, o.z1 + stepped(delta, up));
+    o.z1 = v > topMost + 1e-6 ? top : tidy(v);
   } else if (part === 'z0') {
-    const v = Math.min(o.z1 - OPENING.height, Math.max(0, o.z0) + stepped(delta, up));
-    o.z0 = v <= 1e-6 ? bottom : tidy(v);
+    const v = Math.min(o.z1 - OPENING.height, Math.max(floor, o.z0) + stepped(delta, up));
+    o.z0 = v <= floor + 1e-6 ? bottom : tidy(v);
   }
   if (takesWhole(wall, o)) {
     // (a side stops a step in, and the gap keeps at least OPENING.width: on a one-tile wall moved by whole tiles, the
     // side stays where it was rather than the gap closing up; review finding 32)
     const was = list[index];
-    if (part === 'z1') o.z1 = topMostOf(wall);
-    else if (part === 'z0') o.z0 = OPENING.sill;
+    if (part === 'z1') o.z1 = topMost;
+    else if (part === 'z0') o.z0 = floor + OPENING.sill;
     else if (part === 'x0') {
-      const most = Math.min(least, o.x1 - OPENING.width);
-      o.x0 = tidy(was.x0 > 0 ? Math.min(most, was.x0) : most);
+      const most = Math.min(start + least, o.x1 - OPENING.width);
+      o.x0 = tidy(was.x0 > start ? Math.min(most, was.x0) : most);
     } else if (part === 'x1') {
-      const least1 = Math.max(wall.x1 - least, o.x0 + OPENING.width);
-      o.x1 = tidy(was.x1 < wall.x1 ? Math.max(least1, was.x1) : least1);
+      const least1 = Math.max(end - least, o.x0 + OPENING.width);
+      o.x1 = tidy(was.x1 < end ? Math.max(least1, was.x1) : least1);
     } else return wall;
   }
   const openings = list.map((p, i) => (i === index ? o : p));

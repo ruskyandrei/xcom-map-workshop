@@ -20,6 +20,7 @@ import { data, geometryCache, groupIndex, lookPicker, lookPicking, pieces, roots
          setLookPicking } from './editor_state.js';
 import { GROUND_LOOKS, groundLookOf } from './ground.js';
 import { catalogued, entryForPiece, loadLooks, lookFromEntry, lookKey } from './looks.js';
+import { isFree } from './made_free.js';
 import { fromOf, stateOfRoot } from './piece_records.js';
 import { recall, remember } from './storage.js';
 import { openingsInLook, SLAB_LOOKS, slabLookOf, storeysInLook, WALL_LOOKS, withStoreys } from './walls.js';
@@ -215,6 +216,14 @@ export function createMadeLooksWiring({ $, assetUrl, boundsOf, changeGroups, del
       const template = templates.get(l.donor ? JSON.stringify(l.donor) : l.id);
       let numbers = { ...gen[kind] };
       if (l.donor) numbers.look = { ...l.donor }; else if (l.id === defaults[kind]) delete numbers.look; else numbers.look = l.id;
+      if (isFree(gen)) {
+        // (a free-form piece keeps its extents and its form: its look and `plain` change, nothing else)
+        delete numbers.plain;
+        if (look.plain) { numbers.plain = true; delete numbers.look; }
+        const was = stateOfRoot(r.userData), broken = gen.blasts ? { blasts: gen.blasts, ...(gen.breaksFurther ? { breaksFurther: true } : {}) } : {};
+        return { source: template, matrix: movedMatrix(template, state.location, state.rotation),
+                 state: { ...was, generated: { kind: gen.kind, version: gen.version, [kind]: numbers, ...broken } } };
+      }
       if (kind === 'wall') {
         // (a look of another height: one storey if it was and the new look can be, else the look's own, and the openings
         // under its face's top)

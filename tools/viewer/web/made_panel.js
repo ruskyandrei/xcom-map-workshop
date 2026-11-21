@@ -20,6 +20,7 @@ import { anotherRock, GROUND, groundLookOf, groundWords as groundShapeWords, res
          turnedGround } from './ground.js';
 import { catalogued, madeLookName } from './looks.js';
 import { gridOrigin } from './map_grid.js';
+import { freeSizeWords, toolFree } from './made_free.js';
 import { flippedWall, gridCrossings, holeWords, joinWords, openingPlay, openingWords, playWords, reshuffled, reshuffledSlab, SLAB,
          slabLookOf, slabTiles, slabWords, sortedOpenings, steppedStoreys, storeysOf, storeyWords, toolSlab, toolWall,
          WALL, wallSpec, wallTop, wallWords, withHole, withOpening, withoutHole, withoutOpening,
@@ -35,12 +36,14 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
   const wallLookName = o => madeLookName(wallLookOf(o), catalogued('wall', o.added.generated.wall?.look),
                                          data.meshes[originalOf(o)?.mesh]?.name);
   function wallPanel(root) {
-    const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);
+    const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), free = w.free === 1;
+    const tool = free ? toolFree('fracWall', w) : toolWall(w);
     const lookName = wallLookName(o);
     $('wallHead').textContent = `Wall · ${isPlain(g) ? 'plain' : lookName}`;
     lookRow('wall', g, lookName, tool);
-    $('wallState').textContent = tool ? wallWords(w) : `${Math.round(w.x1 - w.x0)} long, made elsewhere: no handles here`;
-    $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles; the one on top adds or takes storeys.${wallPiecesWords(w)}`
+    $('wallState').textContent = free ? freeSizeWords(w) : tool ? wallWords(w) : `${Math.round(w.x1 - w.x0)} long, made elsewhere: no handles here`;
+    $('wallSize').textContent = free ? `${freeSizeWords(w)} (long, thick, tall). Its white handles size it as the snap setting says; the other end or the bottom stays.`
+      : tool ? `${wallWords(w)}. Its white handles size it as the snap setting says; the one on top makes it taller or lower.${wallPiecesWords(w)}`
       : `${Math.round(w.x1 - w.x0)} long: numbers this tool doesn't draw (made elsewhere), so it has no handles here; the Build makes it as it is.`;
     root.userData.joinsShown = root.userData.joins?.joins ?? [];
     const joined = joinWords(root.userData.joinsShown);
@@ -92,14 +95,15 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
   }
   // ---- the piece panel's Floor section (made slabs)
   function slabPanel(root) {
-    const o = root.userData.source, s = o.added.generated.slab, look = slabLookOf(s), tool = toolSlab(s);
+    const o = root.userData.source, s = o.added.generated.slab, look = slabLookOf(s), free = s.free === 1;
+    const tool = free ? toolFree('fracSlab', s) : toolSlab(s);
     $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${isPlain(o.added.generated) ? 'plain' : madeLookName(look)}`;
     lookRow('slab', o.added.generated, madeLookName(look), tool);
     const cut = slabTiles(s).some(n => n > SLAB.pieceTiles)
       ? ` The Build makes it as slabs of at most ${SLAB.pieceTiles} by ${SLAB.pieceTiles} tiles side by side: they break as one.` : '';
     breakRow('slab', o.added.generated, o.keepsPieces);
-    $('slabState').textContent = tool ? slabWords(s) : 'Made elsewhere: no handles here';
-    $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.${cut}`
+    $('slabState').textContent = free ? freeSizeWords(s) : tool ? slabWords(s) : 'Made elsewhere: no handles here';
+    $('slabSize').textContent = tool ? `${free ? freeSizeWords(s) : slabWords(s)}. Its white handles grow or shrink it as the snap setting says.${cut}`
       : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
     const holes = s.holes ?? [];
     $('slabHoles').replaceChildren(...holes.map((h, index) => {
@@ -136,12 +140,13 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
   $('slabShuffle').onclick = () => changeWall(st => ({ ...st, generated: { ...st.generated, slab: reshuffledSlab(st.generated.slab) } }));
   // ---- the piece panel's Ground section (M6)
   function groundPanel(root) {
-    const o = root.userData.source, g = o.added.generated.ground, look = groundLookOf(g), tool = toolGround(g);
+    const o = root.userData.source, g = o.added.generated.ground, look = groundLookOf(g), free = g.free === 1;
+    const tool = free ? toolFree('ground', g) : toolGround(g);
     const plain = isPlain(o.added.generated);
     $('groundHead').textContent = `Ground · ${plain ? 'plain' : madeLookName(look)}`;
     lookRow('ground', o.added.generated, madeLookName(look), tool);
-    $('groundState').textContent = tool ? groundShapeWords(g) : 'Made elsewhere: no handles here';
-    $('groundSize').textContent = tool ? `${groundShapeWords(g)}. Its white handles size it by whole tiles${g.shape === 'patch' ? '' : '; the one on top raises or lowers it'}.`
+    $('groundState').textContent = free ? freeSizeWords(g) : tool ? groundShapeWords(g) : 'Made elsewhere: no handles here';
+    $('groundSize').textContent = tool ? `${free ? freeSizeWords(g) : groundShapeWords(g)}. Its white handles size it as the snap setting says${g.shape === 'patch' ? '' : '; the one on top raises or lowers it'}.`
       : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
     const words = slopeWords(g);
     $('groundSlope').hidden = !words;

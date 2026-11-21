@@ -35,6 +35,7 @@ import { placedPose } from './gizmo.js';
 import { addedFloors, ladderEnds } from './ladders.js';
 import { plan as planFlags, rawOf as flagRaw } from './piece_flags.js';
 import { destructionNote, lootNote } from './pieces.js';
+import { isFree } from './made_free.js';
 import { gridMove } from './poserule.js';
 import { remember } from './storage.js';
 import { focusBounds } from './view_layout.js';
@@ -312,7 +313,8 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
   // A ladder, door, car, van or fracturing piece: whether it stands on the tile grid of its original (poserule.js
   // gridMove, as the compiler checks it), or null for another piece. Off the grid it builds, with a warning.
   function gridNow(root) {
-    const o = root?.userData.source, from = o && !root.userData.light ? recipeOf(o) : null, origin = gridOrigin();
+    // (a free-form made piece stands anywhere: no Off the grid chip)
+    const o = root?.userData.source, from = o && !root.userData.light && !isFree(o.added?.generated) ? recipeOf(o) : null, origin = gridOrigin();
     if (!from || !origin) return null;
     const pose = actorPose(o, root.matrix);
     return gridMove(from.location, from.rotation, pose.location, pose.rotation, origin);

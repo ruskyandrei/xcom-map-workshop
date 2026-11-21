@@ -65,6 +65,12 @@ def look_at(page, at):
     page.wait_for_timeout(300)      # (a frame drawn from where the camera was put: screenOf reads its matrices)
 
 
+# (the checks below draw under tile snap, as they were written: whole tiles and quarter turns; since 21 November 2026 a
+# drawing follows the snap setting, smooth with snap off. build_menu and start_build put tile snap on, and the drag
+# that draws puts snap off again once it lets go)
+DRAWING = {'snap_back': False}
+
+
 def drag(page, a, b, steps=12, alt=False):
     page.mouse.move(*a)
     if alt: page.keyboard.down('Alt')
@@ -72,6 +78,9 @@ def drag(page, a, b, steps=12, alt=False):
     page.mouse.move(*b, steps=steps)
     page.mouse.up()
     if alt: page.keyboard.up('Alt')
+    if DRAWING['snap_back']:
+        DRAWING['snap_back'] = False
+        page.evaluate("viewer.setSnapMode('off')")
 
 
 def mesh_ready(page, wall):
@@ -89,6 +98,7 @@ def state(page, wall):
 def build_menu(page, key):
     """The Build menu's tool `key` picked as the user does: Add hovered, the tool's button clicked; it draws at once,
     its button lit."""
+    page.evaluate("viewer.setSnapMode('tile')"); DRAWING['snap_back'] = True
     page.locator('#editAdd').hover()
     button = page.locator(f'#buildFlyout button[data-build="{key}"]')
     button.click()
@@ -98,6 +108,7 @@ def build_menu(page, key):
 
 def start_build(page, key):
     """The Build menu's tool `key` started by script (as its button does); its template read."""
+    page.evaluate("viewer.setSnapMode('tile')"); DRAWING['snap_back'] = True
     page.evaluate('k => viewer.startBuild(k)', key)
     page.wait_for_function('k => viewer.buildTool() === k && viewer.wallDrawing()?.ready', arg=key, timeout=90000)
 
@@ -189,34 +200,39 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     assert 'the wall under it gives low cover' in text, text
     assert page.locator('#wallBox .walldoorput').count() == 0      # (no Put a door in it: a door from the Add panel)
     mesh_ready(page, wall)
-    # every gap has all five handles; the start's handle a tile out: a tile longer, the gaps where they were in the world
+    # every gap has all five handles; the start's handle a tile out under tile snap: the wall in the free form, its
+    # start a tile back, its origin and gaps where they were (the improvements plan, D1)
     h = page.evaluate('viewer.wallHandles()')
     assert {'end:x0', 'end:x1'} | {f'open:{i}:{p}' for i in (0, 1) for p in PARTS} <= set(h), sorted(h)
+    page.evaluate("viewer.setSnapMode('tile')")
     drag(page, h['end:x0'][:2], h['end:x0'][2:])
+    page.evaluate("viewer.setSnapMode('off')")
     s = state(page, wall)
-    assert s['generated']['wall']['x1'] == 480 and s['location'][0] == start[0] - 96, s
-    assert [o['x0'] for o in s['generated']['wall']['openings']] == [192, 288], s
+    assert s['generated']['version'] == 5 and s['generated']['wall']['free'] == 1, s
+    assert (s['generated']['wall']['x0'], s['generated']['wall']['x1']) == (-96, 384) and s['location'][0] == start[0], s
+    assert [o['x0'] for o in s['generated']['wall']['openings']] == [96, 192], s
     mesh_ready(page, wall)
     # the window's middle a tile on, to the wall's end, with the snap at whole tiles (a gap's handles follow the snap)
     page.evaluate("viewer.setSnapMode('tile')")
     h = page.evaluate('viewer.wallHandles()')
     drag(page, h['open:1:middle'][:2], h['open:1:middle'][2:])
     page.evaluate("viewer.setSnapMode('off')")
-    assert [o['x0'] for o in state(page, wall)['generated']['wall']['openings']] == [192, 384], state(page, wall)
+    assert [o['x0'] for o in state(page, wall)['generated']['wall']['openings']] == [96, 288], state(page, wall)
     assert 'Gap, 1 tile wide, from 72 over the floor to 168, at its end' in page.evaluate('viewer.wallPanelText()'), page.evaluate('viewer.wallPanelText()')
     # flip: the faces swap, the gaps stay in the world
     before_flip = state(page, wall)
     page.locator('#wallFlip').click()
     f = state(page, wall)
-    assert f['rotation'][1] == 32768 and f['location'][0] == before_flip['location'][0] + 480, f
-    assert [(o['x0'], o['z0']) for o in f['generated']['wall']['openings']] == [(0, 72), (192, 8)], f
+    assert f['rotation'][1] == 32768 and f['location'][0] == before_flip['location'][0], f      # (about its origin)
+    # (its numbers mirrored about its origin: the window first now, from -384; the doorway from -192)
+    assert [(o['x0'], o['z0']) for o in f['generated']['wall']['openings']] == [(-384, 72), (-192, 8)], f
     # undo and redo step through: flip, the slide, the end, the window, the doorway
     for expected in (before_flip, None):
         page.evaluate('viewer.gizmo.undo()')
         if expected: assert state(page, wall) == expected, (state(page, wall), expected)
     page.evaluate('viewer.gizmo.redo()'); page.evaluate('viewer.gizmo.redo()')
     assert state(page, wall) == f, (state(page, wall), f)
-    # with the snap off a gap's top moves smoothly (steps of 1, not 8): the doorway's top dragged up about 20; Delete
+    # with the snap off a gap's top moves smoothly (not in steps of 8): the doorway's top dragged up about 20; Delete
     # with its handle last touched takes the gap out, not the wall
     mesh_ready(page, wall)
     h = page.evaluate('viewer.wallHandles(20)')
@@ -235,18 +251,21 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     mesh_ready(page, wall)
     h = page.evaluate('viewer.wallHandles(-150)')
     assert 'end:top' in h, sorted(h)
+    page.evaluate("viewer.setSnapMode('tile')")
     drag(page, h['end:top'][:2], h['end:top'][2:])
     low = state(page, wall)['generated']['wall']
-    assert low.get('storeys') == 1 and max(o['z1'] for o in low['openings']) <= 168, low
-    assert 'one storey (208 tall)' in page.evaluate('viewer.wallPanelText()'), page.evaluate('viewer.wallPanelText()')
+    # (in levels of 64 under tile snap: the top lower by whole levels, its bottom where it was, its gaps under the top)
+    assert low['z1'] < 384 and (384 - low['z1']) % 64 == 0 and low['z0'] == -16, low
+    assert max(o['z1'] for o in low['openings']) <= low['z1'], low
     mesh_ready(page, wall)
-    # the mesh drawn is the one-storey one (its key and request carry the storeys)
+    # the mesh drawn is the free form's (its key and request carry its numbers)
     mesh = page.evaluate("id => [...viewer.roots.values()].find(r => r.userData.source.id === id).userData.source.mesh", wall)
-    assert '"storeys":1' in mesh, mesh
-    out['oneStorey'] = low
+    assert '"free":1' in mesh and f'"z1":{low["z1"]}' in mesh, mesh
+    out['lowered'] = low
     h = page.evaluate('viewer.wallHandles(150)')
     drag(page, h['end:top'][:2], h['end:top'][2:])
-    assert 'storeys' not in state(page, wall)['generated']['wall'], state(page, wall)
+    page.evaluate("viewer.setSnapMode('off')")
+    assert state(page, wall)['generated']['wall']['z1'] > low['z1'], state(page, wall)
     page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
     assert state(page, wall) == kept, (state(page, wall), kept)
     # (M3) grouped with a prop of the map, the group can break together: its props go with the part of the wall they
@@ -284,7 +303,9 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     s2 = state(page, second)
     assert s2['location'][:2] == corner[:2] and s2['rotation'][1] % 65536 == 49152, (s2, kept)
     assert s2['generated']['version'] == PLAIN['fracWall'], s2
-    first_through = kept['generated']['wall']['x1'] >= s2['generated']['wall']['x1']
+    # (a wall's length is x1 less x0: the first is in the free form, its x0 not 0)
+    length = lambda w: w['x1'] - w['x0']    # noqa: E731
+    first_through = length(kept['generated']['wall']) >= length(s2['generated']['wall'])
     mesh_of = "id => [...viewer.roots.values()].find(r => r.userData.source.id === id).userData.source.mesh"
     want = (wall, '"ends":["free","through"]') if first_through else (second, '"ends":["through","free"]')
     page.wait_for_function('([id, key]) => (' + mesh_of + ')(id).includes(key)', arg=list(want), timeout=30000)
@@ -351,8 +372,10 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     assert look_row(page, 'slab') == dict(name='Look: none chosen', plain=False, choose=True), look_row(page, 'slab')
     h = page.evaluate('viewer.wallHandles()')
     assert {'side:x0', 'side:x1', 'side:y0', 'side:y1'} <= set(h), sorted(h)
+    page.evaluate("viewer.setSnapMode('tile')")
     drag(page, h['side:x1'][:2], h['side:x1'][2:])
-    assert state(page, slab)['generated']['slab']['x1'] == 384, state(page, slab)
+    page.evaluate("viewer.setSnapMode('off')")
+    assert state(page, slab)['generated']['slab']['x1'] == 384 and state(page, slab)['generated']['version'] == 4, state(page, slab)
     page.locator('#slabHole').click()
     page.wait_for_function("id => viewer.wallState(id).generated.slab.holes.length === 1", arg=slab)
     assert 'Hole, 1 by 1 tile' in page.evaluate('viewer.slabPanelText()'), page.evaluate('viewer.slabPanelText()')
@@ -404,9 +427,12 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     assert page.locator('#groundSwatches').count() == 0      # (no swatches: its Choose... opens the look picker)
     h = page.evaluate('viewer.wallHandles(40)')
     assert {'side:x0', 'side:x1', 'side:y0', 'side:y1', 'end:top'} <= set(h), sorted(h)
+    page.evaluate("viewer.setSnapMode('fine')")
     drag(page, h['end:top'][:2], h['end:top'][2:])
-    raised = state(page, ramp)['generated']['ground']['height']
-    assert raised > 96 and raised % 8 == 0, raised
+    page.evaluate("viewer.setSnapMode('off')")
+    g = state(page, ramp)['generated']['ground']
+    raised = g['z1'] - g['z0']
+    assert raised > 96 and raised % 24 == 0, g
     page.locator('#groundTurn').click()
     t = state(page, ramp)
     assert t['rotation'][1] == 16384 and t['generated']['ground']['x1'] == 96, t
@@ -419,8 +445,9 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     page.wait_for_function("old => viewer.gizmo.active && viewer.gizmo.active !== old", arg=ramp, timeout=60000)
     (painted,) = made_ids(page, 'ground')
     p = state(page, painted)
-    assert p['generated']['version'] == 2 and isinstance(p['generated']['ground'].get('look'), dict), p
-    assert {k: v for k, v in p['generated']['ground'].items() if k != 'look'} == t['generated']['ground'] and p['location'] == t['location'], (p, t)
+    assert p['generated']['version'] == 5 and isinstance(p['generated']['ground'].get('look'), dict), p     # (still free)
+    same = {k: v for k, v in p['generated']['ground'].items() if k != 'look'} == {k: v for k, v in t['generated']['ground'].items() if k != 'plain'}
+    assert same and p['location'] == t['location'], (p, t)
     page.wait_for_function("n => document.getElementById('groundLookName').textContent === 'Look: ' + n", arg=swatch_name, timeout=30000)
     assert look_row(page, 'ground')['plain'], look_row(page, 'ground')
     for _ in range(4):

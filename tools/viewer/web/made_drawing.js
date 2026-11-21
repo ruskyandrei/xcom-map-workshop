@@ -13,10 +13,11 @@
 // the Buildings view's boxes and the groups' lock. Its own state is the ghosts' meshes; what other areas read or set
 // (the Build menu's tool, the drawing under way) is editor_state.js's.
 import * as THREE from 'three';
-import { builderMode, data, hintTimer, library, pieces, roots, setBuildTool, setWallDrawing,
+import { builderMode, data, hintTimer, library, pieces, roots, setBuildTool, setWallDrawing, snapMode,
          wallDrawing } from './editor_state.js';
-import { drawnGround, groundBox as groundShapeBox, groundWords as groundShapeWords, slopeWords } from './ground.js';
-import { drawnRoom, drawnSlab, drawnWall, roomRoof, SLAB, SLAB_LOOKS, slabLookOf, storeysOf, WALL, wallSpec,
+import { drawnGroundAt, groundBox as groundShapeBox, groundWords as groundShapeWords, slopeWords } from './ground.js';
+import { freeRequest } from './made_free.js';
+import { drawnRoomAt, drawnSlabAt, drawnWallAt, roomRoof, SLAB, SLAB_LOOKS, slabLookOf, storeysOf, WALL, wallSpec,
          wallTop } from './walls.js';
 import { plural, text } from './dom_words.js';
 import { fromOf } from './piece_records.js';
@@ -121,17 +122,19 @@ export function createMadeDrawing({ $, addVolumes, askLineCollision, busyStart, 
     return hit ? [hit.x, hit.z, hit.y] : null;
   }
   function drawnNow(d, at) {
-    const options = { origin: gridOrigin() ?? [0, 0], template: d.template, floor: d.floor, seed: d.seed };
-    if (d.ground) return drawnGround(d.start.slice(0, 2), at.slice(0, 2), { ...options, z: d.floor, shape: d.ground, look: d.look });
+    // (as the snap setting says: tile edges and quarter turns under tile snap, steps of 24 and 15 degrees under fine,
+    // the exact drag with snap off; each made a free-form piece, endWallDraw)
+    const options = { origin: gridOrigin() ?? [0, 0], template: d.template, floor: d.floor, seed: d.seed, snap: snapMode };
+    if (d.ground) return drawnGroundAt(d.start.slice(0, 2), at.slice(0, 2), { ...options, z: d.floor, shape: d.ground, look: d.look });
     if (d.slab) {
-      const flat = drawnSlab(d.start.slice(0, 2), at.slice(0, 2), { ...options, z: d.floor, look: d.look });
+      const flat = drawnSlabAt(d.start.slice(0, 2), at.slice(0, 2), { ...options, z: d.floor, look: d.look });
       if (d.look.role !== 'roof') return flat;
       // a roof: on the tops of the made walls round it, else two storeys over the floor
       const [x, y] = flat.location, top = wallTopsRound([x, x + flat.slab.x1, y, y + flat.slab.y1], d.floor);
       return { ...flat, location: [x, y, Math.round((top ?? d.floor + WALL.top) * 1000) / 1000] };     // (no walls: the Bar's two storeys)
     }
-    if (!d.room) return drawnWall(d.start.slice(0, 2), at.slice(0, 2), options);
-    const room = drawnRoom(d.start.slice(0, 2), at.slice(0, 2), { ...options, camera: [camera.position.x, camera.position.z] });
+    if (!d.room) return drawnWallAt(d.start.slice(0, 2), at.slice(0, 2), options);
+    const room = drawnRoomAt(d.start.slice(0, 2), at.slice(0, 2), { ...options, camera: [camera.position.x, camera.position.z] });
     return d.roof ? { ...room, roof: roomRoof(room, { template: d.roofTemplate, floor: d.floor, seed: d.seed + 4, top: wallTop(lookWall(d.look)) }) } : room;
   }
   // The ghost: the wall's solid at the pose drawn (its box in the donor mesh's frame, at the copy's place); a room's four.
@@ -171,9 +174,12 @@ export function createMadeDrawing({ $, addVolumes, askLineCollision, busyStart, 
       .multiply(new THREE.Matrix4().makeScale(drawn.slab.x1, Math.max(4, look.top - look.bottom), drawn.slab.y1));
     ghost.matrixWorldNeedsUpdate = true;
   }
-  const drawnWords = d => (d.ground ? `${d.last.tiles[0]} by ${d.last.tiles[1]} tiles${d.ground === 'ramp' ? ` · ${slopeWords(d.last.ground)}` : ''}`
-    : d.slab || d.room ? `${d.last.tiles[0]} by ${d.last.tiles[1]} tiles${d.last.tiles.includes(d.slab ? SLAB.maxTiles : WALL.maxTiles) ? ' (the largest)' : ''}`
-    : `${plural(d.last.tiles, 'tile')}${d.last.tiles === WALL.maxTiles ? ' (the longest)' : ''}`);
+  // a size drawn in words: whole tiles as tiles, anything else in units
+  const span = t => (Math.abs(t - Math.round(t)) < 1e-6 ? plural(Math.round(t), 'tile') : `${Math.round(t * 9600) / 100} units`);
+  const spans = ([a, b]) => `${span(a)} by ${span(b)}`;
+  const drawnWords = d => (d.ground ? `${spans(d.last.tiles)}${d.ground === 'ramp' ? ` · ${slopeWords(d.last.ground)}` : ''}`
+    : d.slab || d.room ? `${spans(d.last.tiles)}${d.last.tiles.includes(d.slab ? SLAB.maxTiles : WALL.maxTiles) ? ' (the largest)' : ''}`
+    : `${span(d.last.tiles)}${d.last.tiles === WALL.maxTiles ? ' (the longest)' : ''}`);
   function startWallDraw(e) {
     const d = wallDrawing;
     if (!d?.template || e.button !== 0 || d.start) return false;
@@ -198,6 +204,9 @@ export function createMadeDrawing({ $, addVolumes, askLineCollision, busyStart, 
     showWallGhost(d.template, d.last);
     wallHint(`${drawnWords(d)} · let go to make it · `);
   }
+  // A drawn piece's request: under tile snap its older version, as drawn before (whole tiles, quarter turns); under fine
+  // snap or with snap off the free form, which holds any size and angle (made_free.js freeRequest)
+  const asFree = g => (snapMode === 'tile' ? g : freeRequest(g));
   async function endWallDraw(keep) {
     const d = wallDrawing;
     if (!d?.start) return;
@@ -207,22 +216,22 @@ export function createMadeDrawing({ $, addVolumes, askLineCollision, busyStart, 
     d.start = null; d.pointerId = null; wallGhost.visible = false;
     if (!keep) stopWallDrawing(); else wallHint();
     if (made.ground) {
-      await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest('ground', look, made.ground, plain) } },
+      await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: asFree(madeRequest('ground', look, made.ground, plain)) } },
                                         matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
       flashHint(`Made a ${groundShapeWords(made.ground).toLowerCase()}${plain ? '' : ` of ${look.name.toLowerCase()}`} · its white handles size it${made.ground.shape === 'patch' ? '' : ', the top one raises it'}${chooseWords}`);
       return;
     }
     if (made.slab) {
-      await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: madeRequest('fracSlab', look, made.slab, plain) } },
+      await pasteSnapshot({ entries: [{ source: { ...template, added: { from: fromOf(template), generated: asFree(madeRequest('fracSlab', look, made.slab, plain)) } },
                                         matrix: movedMatrix(template, made.location, made.rotation) }], pivotIndex: 0, name: look.name }, new THREE.Matrix4());
-      flashHint(`Made a ${plain ? (look.role === 'roof' ? 'roof' : 'floor') : look.name.toLowerCase()}, ${made.tiles[0]} by ${made.tiles[1]} tiles · its white handles grow it; Add hole is in the piece panel${chooseWords}`);
+      flashHint(`Made a ${plain ? (look.role === 'roof' ? 'roof' : 'floor') : look.name.toLowerCase()}, ${Math.round(made.slab.x1 * 100) / 100} by ${Math.round(made.slab.y1 * 100) / 100} · its white handles grow it; Add hole is in the piece panel${chooseWords}`);
       return;
     }
     const entries = (made.walls ?? [made]).map(w => ({
-      source: { ...template, added: { from: fromOf(template), generated: madeRequest('fracWall', look, w.wall, plain) } },
+      source: { ...template, added: { from: fromOf(template), generated: asFree(madeRequest('fracWall', look, w.wall, plain)) } },
       matrix: movedMatrix(template, w.location, w.rotation) }));
     if (made.roof)
-      entries.push({ source: { ...roofTemplate, added: { from: fromOf(roofTemplate), generated: madeRequest('fracSlab', SLAB_LOOKS[0], made.roof.slab, plain) } },
+      entries.push({ source: { ...roofTemplate, added: { from: fromOf(roofTemplate), generated: asFree(madeRequest('fracSlab', SLAB_LOOKS[0], made.roof.slab, plain)) } },
                      matrix: movedMatrix(roofTemplate, made.roof.location, made.roof.rotation) });
     await pasteSnapshot({ entries, pivotIndex: 0, name: room ? (plain ? 'room' : `room of ${look.name.toLowerCase()}s`) : plain ? 'wall' : look.name }, new THREE.Matrix4());
     // (a room is one locked group, its building with it when it has one: B3, D-2)
@@ -243,12 +252,12 @@ export function createMadeDrawing({ $, addVolumes, askLineCollision, busyStart, 
       gizmo.setSelection([...pasted, ...boxes.map(r => r.userData.source.id)], pasted[0]);
       lockAsGroup();
       gizmo.joinLast(3);
-      flashHint(`Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles, with a roof and a building round it: picked as one (Ungroup edits its walls one by one); the roof is cut away when the cursor is inside${chooseWords} · Ctrl+Z takes it out`);
+      flashHint(`Made a room, ${spans(made.tiles)}, with a roof and a building round it: picked as one (Ungroup edits its walls one by one); the roof is cut away when the cursor is inside${chooseWords} · Ctrl+Z takes it out`);
       return;
     }
     if (room) { gizmo.setSelection(pasted, pasted[0]); lockAsGroup(); gizmo.joinLast(2); }
-    flashHint(room ? `Made a room, ${made.tiles[0]} by ${made.tiles[1]} tiles: four walls joined at the corners, a doorway in the near side, picked as one (Ungroup edits its walls one by one)${chooseWords}`
-      : `Made a ${plain ? 'wall' : look.name}, ${plural(made.tiles, 'tile')} long · its white handles lengthen it; Add gap is in the piece panel${chooseWords}`);
+    flashHint(room ? `Made a room, ${spans(made.tiles)}: four walls joined at the corners, a doorway in the near side, picked as one (Ungroup edits its walls one by one)${chooseWords}`
+      : `Made a ${plain ? 'wall' : look.name}, ${span(made.tiles)} long · its white handles lengthen it; Add gap is in the piece panel${chooseWords}`);
   }
 
   return { BUILD_TOOLS, endWallDraw, moveWallDraw, startBuild, startWallDraw, startWallDrawing, stopWallDrawing,

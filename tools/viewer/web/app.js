@@ -75,6 +75,7 @@ import { createProjectMenu } from './project_menu.js';
 import { createPieceStatus } from './piece_status.js';
 import { holdModals, releaseAfterChange } from './modal.js';
 import { ask, call } from './api.js';
+import { isFree } from './made_free.js';
 import { moveWords, typedStep } from './snap_steps.js';
 import { recall, remember } from './storage.js';
 import { segButton, segmented } from './dom_words.js';
@@ -202,7 +203,9 @@ const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: cont
                             },
                             fixed: o => isStream(o) || Boolean(o.isLight && lightViewOnly(o)) || Boolean(o.isEffect && effectViewOnly(o, 'move')),
                             assemblyOf: o => (o.isLight || o.isVolume || o.isEffect ? null : assemblyOf(o)?.pivot ?? null),
-                            recipe: root => (root.userData.light || root.userData.volume || root.userData.effect ? null : recipeOf(root.userData.source)), gridOrigin,
+                            // (a free-form made piece stands anywhere: its template's pose rule is not its own)
+                            recipe: root => (root.userData.light || root.userData.volume || root.userData.effect || isFree(root.userData.source.added?.generated)
+                              ? null : recipeOf(root.userData.source)), gridOrigin,
                             // a building's box moves by whole tiles and levels, whatever the snap
                             tiles: root => Boolean(root.userData.volume),
                             // Shift on a move handle drags a copy

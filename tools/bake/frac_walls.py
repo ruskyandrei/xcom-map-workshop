@@ -206,27 +206,12 @@ def donor_look(kind, numbers, version, since):
         raise ValueError('a generated %s of request version %d names its look by its donor ({mesh, measure})' % (kind, version))
 
 
-def free_end_reach(wall, end, R):
-    """How far in from a free-form wall's own end its solid reaches at most along it: a style's inset (a free end's its
-    look's, 'line' 0, 'through' its faces' half thickness past it), or a leaning end's inset less what its lean takes
-    across the faces."""
-    half = (float(wall['y1']) - float(wall['y0'])) / 2
-    if isinstance(end, dict):
-        return float(end['inset']) - abs(float(end['lean'])) * half
-    return {'free': float(R['endInset']), 'line': 0.0, 'through': -half}[end]
-
-
 def local_box(wall):
     """The box the wall's solid stands in, in its mesh's frame (its ends in from its tile edges: frac_wall.solid_wall;
-    across, its look's outline: frac_wall.extent). A free-form wall's from its own numbers: its ends' reach, its faces
-    with its look's trims standing proud of them, its bottom and top."""
+    across, its look's outline: frac_wall.extent). A free-form wall's is the generator's (frac_wall.solid_box)."""
     if wall.get('free') == 1:
-        R = frac_wall.look_of(wall)
-        e0, e1 = (list(wall.get('ends') or ('free', 'free')) + ['free', 'free'])[:2]
-        lo, hi = frac_wall.extent(R)
-        proud = max(0.0, max(-lo, hi) - float(R.get('half', 8.0)))
-        return [float(wall['x0']) + free_end_reach(wall, e0, R), float(wall['x1']) - free_end_reach(wall, e1, R),
-                float(wall['y0']) - proud, float(wall['y1']) + proud, float(wall['z0']), float(wall['z1'])]
+        # (the generator's own box of its solid: its outline with the trims, its ends as they reach, leaning ones too)
+        return [float(v) for v in frac_wall.solid_box(wall)]
     R = frac_wall.shaped(wall)
     lo, hi = frac_wall.extent(R)
     solid = frac_wall.solid_wall(wall)
