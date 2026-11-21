@@ -8,27 +8,37 @@ import hashlib
 import struct
 import zlib
 from PIL import Image
-from package import FormatError, Reader, cache_file
+from package import FormatError, cache_file      # package puts tools/upk on the path: decomp, lzo1x
 from mesh import bulk
+import decomp
 import lzo1x
+
+BULK_LIMIT = 512 * 1024 * 1024      # the largest bulk payload decoded
 
 
 def decompress_payload(data, flags):
+    """A bulk payload's bytes, decoded when its flags say it is compressed (2 zlib, 16 LZO; 128 LZX is refused). Its
+    header and block table are read by decomp.read_chunk, the one reader of a chunk header (its tag, block size and
+    the table's two sums against the header's); what is the payload's own is checked here: a total of at most
+    BULK_LIMIT, the payload ending where its blocks end, each block decoded to its table's size. A damaged payload is a
+    FormatError."""
     if not flags & (2 | 16 | 128): return data
     if flags & 128: raise FormatError("LZX bulk compression is not supported")
-    r = Reader(data)
-    tag, block_size, compressed_total, total = r.unpack("4I")
-    if tag != 0x9E2A83C1 or block_size == 0 or total > 512 * 1024 * 1024:
-        raise FormatError("Invalid compressed bulk header")
-    blocks = [r.unpack("2I") for _ in range((total + block_size - 1)//block_size)]
+    try:
+        _, _, total, blocks, at = decomp.read_chunk(data, 0)
+    except ValueError as error:
+        raise FormatError(f"Invalid compressed bulk header: {error}") from None
+    if total > BULK_LIMIT:
+        raise FormatError(f"Invalid compressed bulk header: {total} bytes, more than {BULK_LIMIT}")
+    if at + sum(c for c, _ in blocks) != len(data):
+        raise FormatError("Bulk total size mismatch: the payload does not end where its blocks end")
     out = bytearray()
     for compressed, expanded in blocks:
-        raw = r.take(compressed)
+        raw = data[at:at + compressed]
+        at += compressed
         part = lzo1x.decompress(raw, expanded) if flags & 16 else zlib.decompress(raw)
         if len(part) != expanded: raise FormatError("Bulk block size mismatch")
         out.extend(part)
-    if len(out) != total or r.pos != r.end or sum(c for c, _ in blocks) != compressed_total:
-        raise FormatError("Bulk total size mismatch")
     return bytes(out)
 
 

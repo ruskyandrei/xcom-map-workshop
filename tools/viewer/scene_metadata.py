@@ -22,11 +22,11 @@ def level_list(p, level=None):
     if level is None:
         return None
     try:
-        _, end = p.properties(level)
-        owner, count = struct.unpack_from("<ii", p.data, end)
+        r = p.native(level)         # bounded by the level's export: a list past its end is not read from the next
+        owner, count = r.unpack("ii")
         if owner != level or not 0 <= count < 1_000_000:
             return None
-        return set(struct.unpack_from("<%di" % count, p.data, end + 8))
+        return set(r.unpack("%di" % count))
     except (ValueError, struct.error, IndexError):
         return None
 
@@ -553,23 +553,23 @@ def plain_box(p, volume):
     polys = next((k for k in p.children.get(model, []) if p.cls(k) == "Polys"), None) if model > 0 else None
     if polys is None: return None
     try:
-        _, end = p.properties(model)
-        origin, extent = struct.unpack_from("<3f", p.data, end), struct.unpack_from("<3f", p.data, end + 12)
-        _, at = p.properties(polys)
-        count, most = struct.unpack_from("<ii", p.data, at)
+        # each read bounded by its export (the model's, the polys'): a damaged count is not read on into the next
+        m = p.native(model)
+        origin, extent = m.unpack("3f"), m.unpack("3f")
+        r = p.native(polys)
+        count, most = r.unpack("ii")
         if not 0 <= count <= most < 100000: return None
-        at += 12
+        r.take(4)
         corners = set()
         for _ in range(count):
-            at += 48
-            n = struct.unpack_from("<i", p.data, at)[0]
-            for k in range(n):
-                v = struct.unpack_from("<3f", p.data, at + 4 + 12 * k)
+            r.take(48)
+            for _ in range(r.count()):
+                v = r.unpack("3f")
                 corner = tuple(0 if abs(v[j] - (origin[j] - extent[j])) <= 0.5 else 1 if abs(v[j] - (origin[j] + extent[j])) <= 0.5
                                else None for j in range(3))
                 if None in corner: return False
                 corners.add(corner)
-            at += 4 + 12 * n + 4 + 4 + 8 + 4 + 16 + 36 + 8
+            r.take(4 + 4 + 8 + 4 + 16 + 36 + 8)
         return count == 6 and len(corners) == 8
     except (ValueError, struct.error):
         return None

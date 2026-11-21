@@ -110,10 +110,12 @@ def compiled_textures(p, material):
     NumUserTexCoords. EW's cooked materials keep this list even where their expressions are stripped (StreetSet's
     Asphalt_Patch: no texture parameter, only Asphalt_Patch_DIFF and _MASK here). [] where it doesn't parse."""
     try:
-        e = p.exports[material - 1]
-        _, at = p.properties(material)
-        stop = e['off'] + e['size']
-        word = lambda o: struct.unpack_from('<i', p.data, o)[0]  # noqa: E731
+        reader = p.native(material)     # bounded by the material's export: nothing is read from the next one
+        at, stop = reader.pos, reader.end
+
+        def word(o):
+            reader.pos = o
+            return reader.i32()
         for _ in range(word(at) if 0 <= word(at) < 64 else 0):      # CompileErrors: FStrings
             at += 4
             n = word(at)

@@ -71,7 +71,12 @@ def build(cooked, packages=SCRIPT_PACKAGES):
             d = body(n)
             if cls[n] == 'Class':
                 return d, 4             # a class has no tagged properties, and no closing None
-            if len(d) < 12 or names[struct.unpack_from('<i', d, 4)[0]] != 'None':
+            if len(d) < 12:
+                raise ValueError('%s: a field with tagged properties of its own' % full(n + 1))
+            i = struct.unpack_from('<i', d, 4)[0]
+            if not 0 <= i < len(names):         # a negative index would wrap to a real name (KB-9)
+                raise ValueError('%s: a name index %d, the package has %d names' % (full(n + 1), i, len(names)))
+            if names[i] != 'None':
                 raise ValueError('%s: a field with tagged properties of its own' % full(n + 1))
             return d, 12
 

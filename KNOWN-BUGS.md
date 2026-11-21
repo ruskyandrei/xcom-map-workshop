@@ -101,18 +101,6 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Finding.** None in the register; found by the browser checks (a check left a piece selected before the Map grid
   check).
 
-### KB-9: A damaged map-picture package in the install stops the Project manager's list
-
-- **What happens.** If one of the game's map-picture packages (`UILibrary_MapImages_SF.upk` and its DLC
-  companions) is damaged or cut short, the Project manager can fail to list the projects, and a project's base
-  picture fails to load, instead of the editor skipping that package.
-- **Since.** 0.6.0, which shows the game's own map pictures (found 21 November 2026 by reading the code; not seen
-  happen).
-- **Workaround.** Verify the game's files in Steam, which puts the package back.
-- **Cause.** The package reader stops on a cut-short or bad header with a kind of error the picture code does not
-  expect, so the error ends the whole listing.
-- **Finding.** None in the register; found by a review of the code the refactor left as it was (21 November 2026).
-
 ### KB-10: A save can fail while another program holds the file for a moment
 
 - **What happens.** Saving a project, a prefab's picture, the library or a build record can stop with "could not be

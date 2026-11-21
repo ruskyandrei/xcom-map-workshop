@@ -22,8 +22,15 @@ import json
 from pathlib import Path
 import random
 import re
+import sys
 import threading
 import zipfile
+
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
+import paths  # noqa: E402
+paths.use('upk')
+import upkinfo  # noqa: E402
 
 SCHEMA = 'xcom-map-workshop/pack'
 FOLDER = 'packs'
@@ -185,18 +192,18 @@ def new_folder(projects_root, zips, name):
     raise PackError(f'no free folder name for {name}')
 
 
+PACKAGE_TAG = hex(0x9E2A83C1)       # upkinfo.summary's 'tag' of a package
+
+
 def package_guid(path):
-    """A package file's GUID (16 bytes), or None when the file can't be read as a package."""
-    import struct
+    """A package file's GUID (16 bytes), or None when the file can't be read as a package. Read by upkinfo.summary
+    from the file's head (its first mebibyte holds any package's summary): a summary that is cut short or damaged is
+    None, as is a file that is no package."""
     try:
-        with open(path, 'rb') as f: head = f.read(4096)
-        if struct.unpack_from('<I', head, 0)[0] != 0x9E2A83C1: return None
-        count = struct.unpack_from('<i', head, 12)[0]
-        at = 16 + (count if count >= 0 else -count * 2)      # after the folder name
-        at += 4 + 7 * 4 + 4 * 4                               # package flags, the tables, the GUID tables and thumbnails
-        guid = head[at:at + 16]
-        return guid if len(guid) == 16 else None
-    except (OSError, struct.error): return None
+        with open(path, 'rb') as f: head = f.read(1 << 20)
+        summary = upkinfo.summary(head)
+    except (OSError, ValueError): return None
+    return bytes.fromhex(summary['guid']) if summary['tag'] == PACKAGE_TAG else None
 
 
 def picture_ending(variant):

@@ -198,7 +198,7 @@ def describe(p, actor, with_box=False):
         overrides = [p.name(m) for m in p.refs(p.effective(c, 'Materials'))]
         parts.append(dict(mesh=p.name(mesh), materials=overrides))
         hidden = hidden or bool(p.effective(c, 'HiddenGame', False))
-        bounds = struct.unpack_from('<7f', p.data, p.properties(mesh)[1])
+        bounds = p.native(mesh).unpack('7f')        # the mesh's bounds, read inside its export
         size = [max(a, abs(2 * e * s)) for a, e, s in zip(size, bounds[3:6], scale)]
         if with_box:
             component_scale = [v * p.effective(c, 'Scale', 1) for v in p.effective(c, 'Scale3D', [1, 1, 1])]

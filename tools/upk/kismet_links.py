@@ -19,8 +19,12 @@ class P:
         s.b, s.names, s.imps, s.exps = b, names, imps, exps
 
     def name(s, o):
+        """The name at `o` and the offset after it; ValueError for an index the name table lacks (KB-9: none of the
+        install's maps has one, so a damaged package is refused rather than read on as '?N')."""
         i, n = struct.unpack_from('<ii', s.b, o)
-        t = s.names[i] if 0 <= i < len(s.names) else '?%d' % i
+        if not 0 <= i < len(s.names):
+            raise ValueError('a name index %d at byte %d: the package has %d names' % (i, o, len(s.names)))
+        t = s.names[i]
         return (t if n == 0 else '%s_%d' % (t, n - 1)), o + 8
 
     def obj(s, ref):
