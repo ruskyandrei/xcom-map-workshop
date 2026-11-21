@@ -395,8 +395,8 @@ export function setAlignTarget(next) { alignTarget = next; }
 //   keys and Level snap ask for it, the draw loop moves it);
 // - libraryScope: the Add panel's tab, 'map' (This map), 'all' (All maps) or 'prefabs' (app.js gives it the one the
 //   browser's storage remembers as the page loads);
-// - levelSnap: Level snap, a floor piece placed or moved keeps to whole levels (app.js's setLevelSnap sets it and
-//   draws its button; app.js gives it the browser's storage's as the page loads).
+// - levelSnap: Level snap, a floor piece placed or moved keeps to whole levels (level_snap.js's setLevelSnap sets it
+//   and draws its button; level_snap.js gives it the browser's storage's as it is made, as the page loads).
 export let ghostDirty = false, libraryScope = 'map', levelSnap = true;
 export function setGhostDirty(next) { ghostDirty = next; }
 export function setLibraryScopeValue(next) { libraryScope = next; }

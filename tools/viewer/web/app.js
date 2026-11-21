@@ -22,28 +22,28 @@ import { api as prefabApi, createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
-         buildingMeta, buildings, buildingsVersion, buildTool, cachePrefix, cleared, clearKeepsOutside, clipboard,
-         copySerial, coverDrag, cutKey, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn,
-         eventMemo, families, floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool,
-         groupIndex, groups, handleDefs, hintTimer, landingLines, landingZones, lastBuild, lastClearMs, lastLightSync,
-         leaving, levelSnap, library, libraryScope, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn,
-         lightsShown, likenessCount, likenessOn, likenessThin, lineCollision, lineCollisionFailed, loadErrorCount,
-         lookPicker, lookPicking, missionIndex, missionMoves, missionPickValue, normalEffects, normalLights,
-         normalSpawns, ownPicked, ownSet, pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool,
-         pieces, placing, prefabParameter, prefabTab, project, projectMissions, projectSpawnRules, reachNow, reachShown,
-         rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaBindings, setAreaShown, setAskedPick,
-         setAssigning, setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty,
-         setEffectsOn, setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors,
-         setLandingLines, setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLevelSnapValue, setLibrary,
-         setLibraryScopeValue, setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue,
-         setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings, setNormalEffectsValue,
-         setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickBoxValue, setPickedEffect,
-         setPickedSpawnValue, setPickedZone, setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
-         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSelected, setSnapModeValue,
-         setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStartingCache, setTileKey, setTipDirty,
-         setWallFocus, setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing,
-         spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
-         volumeTool, wallDrag, wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
+         buildingMeta, buildings, buildTool, cachePrefix, cleared, clearKeepsOutside, clipboard, copySerial, coverDrag,
+         cutKey, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, eventMemo, families,
+         floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups,
+         handleDefs, hintTimer, landingLines, landingZones, lastBuild, lastClearMs, lastLightSync, leaving, levelSnap,
+         library, libraryScope, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown,
+         likenessCount, likenessOn, likenessThin, lineCollision, lineCollisionFailed, loadErrorCount, lookPicker,
+         lookPicking, missionIndex, missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns,
+         ownPicked, ownSet, pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces,
+         placing, prefabParameter, prefabTab, project, projectMissions, projectSpawnRules, reachNow, reachShown,
+         rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
+         setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn,
+         setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors, setLandingLines,
+         setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLibrary, setLibraryScopeValue, setLighting,
+         setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue, setLiveCache, setLoadErrorCount,
+         setLookPicker, setLooksReady, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
+         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickBoxValue, setPickedEffect, setPickedSpawnValue,
+         setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions, setProjectPicture,
+         setProjectSpawnRules, setReachKey, setReachShown, setSelected, setSnapModeValue, setSpawnFilters,
+         setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStartingCache, setTileKey, setTipDirty, setWallFocus,
+         setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData,
+         spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag,
+         wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -71,6 +71,8 @@ import { createClearMap } from './clear_map.js';
 import { createScenePieces } from './scene_pieces.js';
 import { createCutaway } from './cutaway.js';
 import { createFloorListings } from './floor_listings.js';
+import { createLevelSnap } from './level_snap.js';
+import { createDeleteReset } from './delete_reset.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -87,8 +89,6 @@ import { WALL_LOOKS, SLAB_LOOKS, slabLookOf, madeWallShape, madeSlabShape } from
 import { loadLooks, catalogued, lookFromEntry, lookTags, DONOR_VERSION } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 import { GROUND_LOOKS, versionedGround, POINTS_VERSION, madeGroundShape } from './ground.js';
-import { buildingWithFloor, classifyFloors, floorIndex, floorStamps, ownedFloors, stampSignature, storeyHeight,
-         worldBox } from './floors.js';
 
 const $ = id => document.getElementById(id);
 // Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
@@ -966,195 +966,14 @@ const { assetUrl, bakeNote, effectTemplate, foreignCost, foreignNote, isForeignT
 // both.
 const ghostEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
 const ghostLine = new THREE.LineBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.7, depthTest: false });
-// Delete: an added piece goes; an original is hidden (and returns with undo or Reset all).
-// A step that touches many pieces (BUSY_PIECES or more) puts the busy mark up first, so the page says what it is
-// doing instead of standing still (plan "faster editor", L3); a small one runs at once.
-function heavy(message, count, work) {
-  if (count < BUSY_PIECES) return work();
-  return busy(message, async () => { work(); await nextFrame(); }, { now: true });
-}
-// Undo and redo: a large step (a paste or a delete of many pieces says its size) under the busy mark.
-function undoStep(redo = false) {
-  const size = (redo ? gizmo.peekRedo() : gizmo.peekUndo())?.size ?? 0;
-  heavy(`${redo ? 'Redoing' : 'Undoing'} a step of ${plural(size, 'piece')}…`, size, () => (redo ? gizmo.redo() : gizmo.undo()));
-}
-function deleteSelection(quiet = false) {
-  if (volumesOn) { deleteVolumes(); return; }
-  const count = copyable().length;
-  heavy(`Deleting ${plural(count, 'piece')}…`, count, () => deleteNow(quiet));
-}
-// (`only`: those pieces, not the selection, whose locked groups bring their whole groups: a look change's)
-function deleteNow(quiet = false, only = null) {
-  const targets = only ?? copyable(), boxes = only ? [] : selectedBoxes();
-  if (!targets.length && !boxes.length) {
-    const fx = effectRoots.get(pickedEffect);
-    if (ownSet.size) flashHint('The map\'s own building is not deleted: its boxes are the map\'s');
-    else if (fx) flashHint(`It isn't deleted: ${effectViewOnly(fx.userData.source, 'delete') ?? 'it is deleted'}`);
-    return;
-  }
-  const pieces = targets.filter(r => !r.userData.light && !r.userData.effect), lights = targets.filter(r => r.userData.light);
-  const added = pieces.filter(r => r.userData.source.added), originals = pieces.filter(r => !r.userData.source.added);
-  const addedLights = lights.filter(r => r.userData.source.added), originalLights = lights.filter(r => !r.userData.source.added);
-  // effects and sounds (effects and sounds plan, FX3): those the export lets an edit delete
-  const effects = targets.filter(r => r.userData.effect && !effectViewOnly(r.userData.source, 'delete'));
-  const addedEffects = effects.filter(r => r.userData.source.added), originalEffects = effects.filter(r => !r.userData.source.added);
-  const kept = targets.filter(r => r.userData.effect && effectViewOnly(r.userData.source, 'delete'));
-  if (kept.length && kept.length === targets.length && !boxes.length) { flashHint(`It isn't deleted: ${effectViewOnly(kept[0].userData.source, 'delete')}`); return; }
-  const before = gizmo.picks();
-  gizmo.record({
-    size: targets.length,
-    redo: () => {
-      removeRoots(added); removeLightRoots(addedLights); removeEffectRoots(addedEffects);
-      for (const r of [...originals, ...originalLights, ...originalEffects, ...boxes]) r.userData.deleted = true;
-      refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
-    },
-    undo: () => {
-      addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects);
-      for (const r of [...originals, ...originalLights, ...originalEffects, ...boxes]) r.userData.deleted = false;
-      refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection(before.ids, before.active); sceneChanged();
-    },
-  });
-  const what = selectionWords([...targets, ...boxes]);
-  if (!quiet) flashHint(`Deleted ${what} · Ctrl+Z brings ${targets.length + boxes.length === 1 ? 'it' : 'them'} back${ownSet.size ? ' · the map\'s own building stays' : ''}`);
-}
-// Reset piece: the selection back where the map has it; a light's values too. One undo step.
-function resetSelected() {
-  const selection = gizmo.selection(), lights = selection.filter(r => r.userData.light && valuesEdited(r));
-  // an effect kept where it stands (follow none): back to following its piece (effects and sounds plan, Part C)
-  const stays = selection.filter(r => r.userData.effect && r.userData.stays);
-  // an effect's or sound's values (stage FX5): back to the map's
-  const valued = selection.filter(r => r.userData.effect && r.userData.values), fxValues = valued.map(r => r.userData.values);
-  if (!lights.length && !stays.length && !valued.length) { gizmo.resetSelection(); return; }
-  const moved = selection.filter(r => r.userData.edit), before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r));
-  const values = lights.map(r => ({ ...r.userData.values }));
-  gizmo.record({
-    redo: () => { gizmo.applyMatrices(moved, home); for (const r of lights) setLightValues(r, r.userData.baseValues); for (const r of stays) r.userData.stays = false; for (const r of valued) r.userData.values = null; sceneChanged(); },
-    undo: () => { gizmo.applyMatrices(moved, before); lights.forEach((r, k) => setLightValues(r, values[k])); for (const r of stays) r.userData.stays = true; valued.forEach((r, k) => { r.userData.values = fxValues[k]; }); sceneChanged(); },
-  });
-}
 
-// Floor pieces (floors.js has the rules): the pieces that carry the map's saved floor tiles, flat, and not a
-// decoration lying on another floor piece (a rug, a plate). The piece list offers them as Floors; placing one keeps
-// the height it has in the map, moved by whole levels to the saved floor under the cursor, and across it moves freely
-// or by Snap. Worked out on first use (a map is one page).
-let floorInfo = null;
-function floorData() {
-  if (!floorInfo) {
-    const tiles = data.preview ? [] : data.tactical?.floorTiles ?? [];
-    const actors = new Map();
-    for (const o of data.objects) {
-      if (o.layer !== 'base' || o.hidden || o.environment) continue;
-      if (!actors.has(o.actor)) actors.set(o.actor, { actor: o.actor, parts: [], location: o.location });
-      actors.get(o.actor).parts.push(o);
-    }
-    const floors = ownedFloors(tiles);
-    const kinds = classifyFloors([...floors.keys()].filter(a => actors.has(a)).map(a => ({ actor: a, box: worldBox(actors.get(a).parts, data.meshes) })));
-    floorInfo = { kinds, stamps: floorStamps([...actors.values()], kinds, floors), index: floorIndex(tiles) };
-  }
-  return floorInfo;
-}
-// Level snap (L, the tool strip's button under Snap; on unless turned off, and remembered): floor pieces keep to whole
-// levels when placed and when moved with the gizmo. Off, they are placed and moved as any piece is.
-const LEVEL_SNAP = 'workshop.levelSnap';
-setLevelSnapValue(recall(LEVEL_SNAP) !== '0');     // (levelSnap: editor_state.js)
-function setLevelSnap(on) {
-  setLevelSnapValue(Boolean(on)); remember(LEVEL_SNAP, levelSnap ? '1' : '0'); setGhostDirty(true);
-  levelButton(); restingHint();
-}
-function levelButton() {
-  const button = $('editLevels');
-  button.classList.toggle('on', levelSnap); button.setAttribute('aria-pressed', levelSnap);
-  button.title = levelSnap
-    ? 'Level snap on (L): floor pieces keep to whole levels (64 units up). Placed, one takes its height in the map moved to '
-      + 'the level under the cursor, or to the floor chosen in the Floor picker; moved up or down, it steps by whole levels. '
-      + 'Click to turn it off'
-    : 'Level snap off (L): floor pieces are placed and moved as any piece is. Click to turn it on';
-}
-// The floor chosen in the Floor picker under a point: { z (its walking height, floors.js storeyHeight), building, floor }
-// of the building whose floor stands there, else the nearest with that floor; null with All.
-const storeyHeights = new Map();
-function chosenStorey(x, y) {
-  const value = $('floor').value;
-  const every = allBuildings();
-  if (!value || value === 'all' || !every.length) return null;
-  const k = Number(value) - 1, b = buildingWithFloor(every, k, x, y);
-  if (b < 0) return null;
-  const key = `${every[b].id}:${k}:${buildingsVersion}`;
-  if (!storeyHeights.has(key)) storeyHeights.set(key, storeyHeight(every[b].floors[k], data.preview ? [] : data.tactical?.floorTiles));
-  const z = storeyHeights.get(key);
-  return z == null ? null : { z, building: b, floor: k };
-}
-// A floor piece's saved floor height over its pivot, or null for any other piece (several components, a car's part).
-function floorSupportOf(sources) {
-  if (!data || sources.length !== 1 || sources[0].partner) return null;
-  return floorData().stamps.get(stampSignature(sources))?.support ?? null;
-}
+// Floor pieces and Level snap (level_snap.js): the floor pieces and their supports, Level snap and its button,
+// and the Floor picker's floor under a point.
+const { chosenStorey, floorData, floorSupportOf, levelButton, setLevelSnap } = createLevelSnap({
+  $, restingHint,
+  // (made further down: called through, since it is not made yet while this runs)
+  allBuildings: () => allBuildings() });
 
-// Reset all: the map as exported. Added pieces go, deleted ones return, moved ones go home, broken ones are mended,
-// groups end, and the grid, the landing zones and the clear mark are the map's own again; one undo step.
-function resetAll() {
-  const all = [...roots.values()], lights = [...lightRoots.values()];
-  const added = all.filter(r => r.userData.source.added), deleted = [...all, ...lights].filter(r => r.userData.deleted);
-  const flagged = all.filter(r => !r.userData.source.added && r.userData.flags), flagsBefore = flagged.map(r => r.userData.flags);
-  // the map's own pieces broken (Break, E6) are mended: their blasts and Breaks further in battle go (review finding 28)
-  const broken = all.filter(r => !r.userData.source.added && r.userData.blasts?.length);
-  const brokenBefore = broken.map(r => ({ blasts: cloneBlasts(r.userData.blasts), further: Boolean(r.userData.breaksFurther) }));
-  const moved = [...all, ...lights].filter(r => r.userData.edit && !r.userData.source.added);
-  const addedLights = lights.filter(r => r.userData.source.added), changed = lights.filter(r => !r.userData.source.added && valuesEdited(r));
-  // effects and sounds: copies go, deleted ones return, moved ones go home, kept ones follow their piece again
-  const fx = [...effectRoots.values()].filter(r => !isStream(r.userData.source));
-  const addedEffects = fx.filter(r => r.userData.source.added), stays = fx.filter(r => r.userData.stays);
-  const valued = fx.filter(r => !r.userData.source.added && r.userData.values), fxValues = valued.map(r => r.userData.values);
-  deleted.push(...fx.filter(r => r.userData.deleted && !r.userData.source.added));
-  moved.push(...fx.filter(r => r.userData.edit && !r.userData.source.added));
-  // the map's own buildings changed or deleted come back as the map has them too
-  const edits = mapEdits(), restore = mapRestoreChange([...edits.changed, ...edits.gone]);
-  // the project's own buildings go: their boxes, which the buildings are made from
-  const ownBoxes = liveVolumes().filter(r => !buildingMeta.get(r.userData.volume.building)?.map);
-  if (!added.length && !deleted.length && !moved.length && !flagged.length && !broken.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
-      && !addedEffects.length && !stays.length && !valued.length
-      && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size && !projectSpawnRules) return;
-  const before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r)), picks = gizmo.picks();
-  // the map's own grid, landing zones and no clear mark
-  const map = { stage, zones: landingZones ? landingZones.map(z => ({ ...z })) : null, cleared, keeps: clearKeepsOutside,
-                missions: projectMissions ? projectMissions.map(e => ({ ...e })) : null, moves: new Map(missionMoves),
-                rules: projectSpawnRules };
-  const mapState = m => {
-    setCleared(m.cleared); setClearKeepsOutside(m.keeps); setLandingZones(m.zones ? m.zones.map(z => ({ ...z })) : null);
-    setProjectMissions(m.missions ? m.missions.map(e => ({ ...e })) : null);
-    setMissionMoves(new Map(m.moves ?? []));
-    setProjectSpawnRules(m.rules ?? null); syncSpawnRule();
-    setMergedBuildings(null); setPickedZone(null); setStage(m.stage); clearedChanged(); refreshLandingZones(); refreshMissionPicker();
-  };
-  const groupsBefore = cloneGroups(), valuesBefore = changed.map(r => ({ ...r.userData.values })), bindingsBefore = new Map(areaBindings);
-  gizmo.record({
-    redo: () => {
-      for (const r of flagged) r.userData.flags = null;
-      for (const r of broken) { r.userData.blasts = null; r.userData.breaksFurther = false; drawBroken(r); }
-      removeRoots(added); removeLightRoots(addedLights); removeEffectRoots(addedEffects); for (const r of stays) r.userData.stays = false;
-      for (const r of valued) r.userData.values = null;
-      for (const r of deleted) r.userData.deleted = false; gizmo.applyMatrices(moved, home);
-      for (const r of changed) setLightValues(r, r.userData.baseValues);
-      restore.redo();
-      for (const r of ownBoxes) r.userData.deleted = true;
-      mapState({ stage: null, zones: null, cleared: false, keeps: false, missions: null, rules: null });
-      setAreaBindings(new Map()); setGroups(new Map()); refreshLightVisibility(); setLightsDirty(true); sceneChanged();
-    },
-    undo: () => {
-      flagged.forEach((r, k) => { r.userData.flags = flagsBefore[k]; });
-      broken.forEach((r, k) => { r.userData.blasts = cloneBlasts(brokenBefore[k].blasts); r.userData.breaksFurther = brokenBefore[k].further; drawBroken(r); });
-      addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects); for (const r of stays) r.userData.stays = true;
-      valued.forEach((r, k) => { r.userData.values = fxValues[k]; });
-      for (const r of deleted) r.userData.deleted = true; gizmo.applyMatrices(moved, before);
-      changed.forEach((r, k) => setLightValues(r, valuesBefore[k]));
-      restore.undo();
-      for (const r of ownBoxes) r.userData.deleted = false;
-      mapState(map);
-      setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore)); refreshLightVisibility(); setLightsDirty(true);
-      gizmo.setSelection(picks.ids, picks.active); sceneChanged();
-    },
-  });
-}
 // The user's groups (groups.js): a group's pieces on the map now, what the selection is to the groups, the
 // piece panel's group section, and the groups changed (each change one undo step).
 const { addToGroup, changeGroups, groupPanel, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
@@ -1840,14 +1659,16 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
         setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
         syncVolumes, takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint,
         volumePanel } = createBuildingsWiring({
-  $, boxOf, builderBounds, camera, chosenStorey, deleteSelection, editBaseSpawn, editChanged, editedCopies, editedKey,
-  editedSpawns, editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, isStream, lightViewOnly,
-  missionGizmo, pick, plural, projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers, renderer,
-  restingHint, select, selectionWords, setEffectsShown, setZonesShown, short, showPop, spawnBoxNow, spawnEntry,
-  spawnMovable, spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
+  $, boxOf, builderBounds, camera, chosenStorey, editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
+  editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, isStream, lightViewOnly, missionGizmo,
+  pick, plural, projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers, renderer, restingHint,
+  select, selectionWords, setEffectsShown, setZonesShown, short, showPop, spawnBoxNow, spawnEntry, spawnMovable,
+  spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
   // (made with Select all of a kind and the clipboard, below: called through, since they are not made yet while this
   // runs)
   copySelection: cut => copySelection(cut), kindButton: () => kindButton(),
+  // (made with Delete and Reset, below: called through, since it is not made yet while this runs)
+  deleteSelection: quiet => deleteSelection(quiet),
   // (made with the cutaway, below: called through, since it is not made yet while this runs)
   floorOptions: () => floorOptions() });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
@@ -1873,15 +1694,15 @@ const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, 
         stopPlacing } = createClipboard({
   $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots, addRoots, askLineCollision,
   assemblyOf, banner, boundsOf, buildRoots, busy, BUSY_PIECES, busyStart, chosenStorey, cloneGroup, cloneGroups,
-  copyVolumes, deleteSelection, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE,
-  floorSupportOf, fromOf, ghostEdges, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness,
-  isForeignTarget, libraryTemplate, lightClip, lightViewOnly, liveFloorIndex, makeVolume, memberOf, memberRecord,
-  newBuildingId, nextFrame, ownerRoot, ownVolumeLayer, partsOf, pasteVolumes, pick, pieceRecipes, plural,
-  prefabPlacementProblem, previewGroup, rayAt, recipeOf, removeEffectRoots, removeLightRoots, removeRoots, restingHint,
-  sceneChanged, selectionWords, setLightsShown, setNormalLights, setVolumeBox, short, startSpawnPlacing,
-  startZonePlacing, stopSpawnPlacing, stopZonePlacing, text, tileCorner, volumeBox, world,
-  // (made further down: called through, since it is not made yet while this runs)
-  stopWallDrawing: () => stopWallDrawing() });
+  copyVolumes, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE, floorSupportOf, fromOf,
+  ghostEdges, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness, isForeignTarget,
+  libraryTemplate, lightClip, lightViewOnly, liveFloorIndex, makeVolume, memberOf, memberRecord, newBuildingId,
+  nextFrame, ownerRoot, ownVolumeLayer, partsOf, pasteVolumes, pick, pieceRecipes, plural, prefabPlacementProblem,
+  previewGroup, rayAt, recipeOf, removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged,
+  selectionWords, setLightsShown, setNormalLights, setVolumeBox, short, startSpawnPlacing, startZonePlacing,
+  stopSpawnPlacing, stopZonePlacing, text, tileCorner, volumeBox, world,
+  // (made further down: called through, since they are not made yet while this runs)
+  deleteSelection: quiet => deleteSelection(quiet), stopWallDrawing: () => stopWallDrawing() });
 // The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The
 // page"). A made piece: what it is, its look's donor, its state and its changes (each one undo step), and its
 // handles and drags; the modules below are given its functions.
@@ -1899,11 +1720,12 @@ const { cancelPointDrag, changeWall, endWallDrag, handleWall, hoverWallHandle, i
 // the eyedropper, a made piece's look changed and its Look row.
 const { closeLookPicker, lookPickAt, lookRow, openLookPicker, prepareSample, setMadeLook, startLookPick, stopLookPick,
         storedLook } = createMadeLooksWiring({
-  $, assetUrl, boundsOf, changeGroups, deleteNow, flashHint, fromOf, gizmo, gltfLoader, isMadeGround, isMadeSlab,
-  isMadeWall, isPlain, madeRequest, madeRoot, madeShape, material, materialCache, materialKey, memberOf, memberRecord,
-  movedMatrix, pasteSnapshot, pick, plainLook, plural, previewGroup, renderer, short, showPieces, stopPlacing, track,
-  wallState, wallTemplate,
+  $, assetUrl, boundsOf, changeGroups, flashHint, fromOf, gizmo, gltfLoader, isMadeGround, isMadeSlab, isMadeWall,
+  isPlain, madeRequest, madeRoot, madeShape, material, materialCache, materialKey, memberOf, memberRecord, movedMatrix,
+  pasteSnapshot, pick, plainLook, plural, previewGroup, renderer, short, showPieces, stopPlacing, track, wallState,
+  wallTemplate,
   // (made further down: called through, since they are not made yet while this runs)
+  deleteNow: (quiet, only) => deleteNow(quiet, only),
   startWallDrawing: (look, options) => startWallDrawing(look, options), stopWallDrawing: () => stopWallDrawing() });
 // The made pieces' drawing (made_drawing.js): the Build menu, and a wall, room, floor, roof or ground shape drawn.
 const { BUILD_TOOLS, endWallDraw, moveWallDraw, startBuild, startWallDraw, startWallDrawing, stopWallDrawing, wallGhost,
@@ -1926,6 +1748,15 @@ const { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, roomPan
 const { breakAt, breakRow, drawBroken, mapBreakable, startBreak, stopBreak } = createMadeBreaking({
   $, changeWall, flashHint, gizmo, isMadeSlab, isMadeWall, madeRoot, pick, plural, renderer, select, stopLookPick,
   stopPlacing, stopWallDrawing, world });
+// Delete, Reset piece and Reset all (delete_reset.js): a large step under the busy mark, Delete, Reset piece and
+// Reset all, each one undo step; made after the factories whose functions they call (nothing of them runs as
+// the page loads).
+const { deleteNow, deleteSelection, resetAll, resetSelected, undoStep } = createDeleteReset({
+  addEffectRoots, addLightRoots, addRoots, baseMatrix, busy, BUSY_PIECES, clearedChanged, cloneGroups, copyable,
+  deleteVolumes, drawBroken, effectViewOnly, flashHint, gizmo, isStream, liveVolumes, mapEdits, mapRestoreChange,
+  nextFrame, plural, refreshLandingZones, refreshLightVisibility, refreshMissionPicker, removeEffectRoots,
+  removeLightRoots, removeRoots, sceneChanged, selectedBoxes, selectionWords, setLightValues, setMissionMoves, setStage,
+  syncSpawnRule, valuesEdited });
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 // The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
 // the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.

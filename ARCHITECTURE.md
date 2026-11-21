@@ -150,6 +150,10 @@ tiles overlay with its tips and clicks, and the Floor picker's buttons.
 The building floors a piece is listed on are [`floor_listings.js`](tools/viewer/web/floor_listings.js)'s: the project's
 buildings' listings by the game editor's rule from what is drawn of the piece, the map's own unchanged buildings' saved
 or carried listings, and the key of the pieces' edits that the cutaway, the ground grid and Level snap follow.
+Floor pieces and Level snap are [`level_snap.js`](tools/viewer/web/level_snap.js)'s: the pieces that carry the map's
+saved floor tiles and a floor piece's support, Level snap and its button, and the Floor picker's floor under a point.
+Delete, Reset piece and Reset all are [`delete_reset.js`](tools/viewer/web/delete_reset.js)'s, each one undo step,
+with a large step put under the busy mark.
 `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -310,6 +314,8 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The scene's pieces: picking, a texture or material made, the loads of meshes and materials, a piece's root built, added or taken away, its unedited matrix, an original's parts and boxes, a piece's box | [`scene_pieces.js`](tools/viewer/web/scene_pieces.js) (`createScenePieces`). The meshes loaded are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`geometryCache`); what a material record says is the export's ([`export.py`](tools/viewer/export.py)). |
 | The cutaway, the tile grid, the Floor tiles overlay, the Floor picker's buttons | [`cutaway.js`](tools/viewer/web/cutaway.js) (`createCutaway`). What is pure about them (the visible bounds, a footprint, the tiles around it, Interior's planes, the overlay's tiles) goes in [`view_layout.js`](tools/viewer/web/view_layout.js), and a piece's listings in [`floor_listings.js`](tools/viewer/web/floor_listings.js). |
 | The building floors a piece is listed on (the project's buildings', the map's own), the key of the pieces' edits | [`floor_listings.js`](tools/viewer/web/floor_listings.js) (`createFloorListings`). The rules (`touchedFloors`, `ruleListing`, `copyFloors`, `floorAt`, `carriedListing`, `sourceFloorMatch`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests, and the Build's side in [`buildings.py`](tools/bake/buildings.py). |
+| Floor pieces, Level snap and its button, the Floor picker's floor under a point | [`level_snap.js`](tools/viewer/web/level_snap.js) (`createLevelSnap`). The floor rules (`ownedFloors`, `classifyFloors`, `floorStamps`, `buildingWithFloor`, `storeyHeight`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests. |
+| Delete, Reset piece, Reset all, a large step under the busy mark | [`delete_reset.js`](tools/viewer/web/delete_reset.js) (`createDeleteReset`). |
 | Copy, paste and placing: a clip of the selection, a paste, the preview that follows the cursor and where a click places it, the Add panel shown and its tab, an entry of it chosen and placed, a copy dragged off with Shift | [`clipboard.js`](tools/viewer/web/clipboard.js) (`createClipboard`). A copied thing's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`optionsOf`, `stateOfRoot`), a group's in [`project.js`](tools/viewer/web/project.js), the pose rule's snap in [`gizmo.js`](tools/viewer/web/gizmo.js) (`recipeMove`), and a floor's height under a point in [`floors.js`](tools/viewer/web/floors.js) (`levelHeight`, `floorUnder`). |
 | A piece, effect, sound or lens flare of another map read as a template: its record read, its template made, the templates a project's records name, what such a piece costs and says | [`library_templates.js`](tools/viewer/web/library_templates.js) (`createLibraryTemplates`). The records read and the templates made are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`libraryRecords`, `effectTemplates`, `foreignEffects`, `foreignTemplates`, `donorHashes`); the Add panel's All maps is [`library.js`](tools/viewer/web/library.js), and the server's side [`library.py`](tools/viewer/library.py). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
@@ -436,7 +442,7 @@ where there is one.
   - the target Align lines the others up with (`alignTarget`), which app.js's handler of the panel's target list sets;
   - what of placing app.js's pointer handlers, keys and draw loop read or set: the preview's redraw asked
     (`ghostDirty`), the Add panel's tab (`libraryScope`; `setLibraryScopeValue`, beside the clipboard's
-    `setLibraryScope`, which also shows the tab) and Level snap (`levelSnap`; `setLevelSnapValue`, beside app.js's
+    `setLibraryScope`, which also shows the tab) and Level snap (`levelSnap`; `setLevelSnapValue`, beside Level snap's
     `setLevelSnap`, which also remembers it and draws its button); and the url the open map's export is served under
     (`cachePrefix`), which app.js's opening sets and the templates of other maps' pieces read, and the templates made
     of other maps' pieces (`foreignTemplates`), which app.js's recipes, templates and listings read;
@@ -463,7 +469,7 @@ where there is one.
   `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`,
   `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`,
   `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`,
-  `createGroups`, `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`, `createCutaway`, `createFloorListings`) takes them as one argument object and
+  `createGroups`, `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`, `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`) takes them as one argument object and
   destructures it, so the code moved into it calls them by the names it always did. It returns the functions other
   areas call, and app.js destructures them under the same names, so their callers stay as they were. app.js makes it
   after the functions and objects it is given, and before any code that runs as the page
@@ -517,7 +523,8 @@ where there is one.
   is editor_state.js's.
   An area whose code makes nothing the page shows or listens with as it loads (it declares functions, and at most
   makes plain values: a table, a vector) does nothing that its place could change, so app.js makes it where the fewest
-  functions must be called through: the scene's pieces before the gizmo, the first code given their functions. What is
+  functions must be called through: the scene's pieces before the gizmo, the first code given their functions; Delete
+  and Reset after Break and Repair, the last factory whose functions they call. What is
   made on the other side of it is given its functions, or gives it theirs, as functions that call them.
   `moved_code.py` reads the functions a factory declares (`createX.f`) and finds them by their own names.
 - An added thing's record is written only through `piece_records.js`'s `recordOf` and read only through its
