@@ -107,10 +107,13 @@ GROUND_CLASSES = ('XComLevelActor', 'StaticMeshActor', 'XComOpacityFadeLevelActo
 # (`ends`), which the compiler works out from where the project's made walls meet, and its look (`look`, one of
 # frac_wall.LOOKS); version 1 reads as two free ends in the Bar's inside wall; 3 (M4), its look named by its donor
 # (`look: {mesh, measure}`, looks.py), any of the game's fracturing walls
-VERSIONS = (1, 2, 3)
+# 4 (the custom geometry improvements plan, stage 2): the free form, its numbers `free: 1` saying everything in fields
+# at any size (FREE_VERSION)
+VERSIONS = (1, 2, 3, 4)
 # a slab's and a ground shape's: 1, a look id (slab_looks.json, ground_looks.json) or none; 2 (M4), the look named by
-# its donor (a ground shape's also by its material)
-OTHER_VERSIONS = (1, 2)
+# its donor (a ground shape's also by its material); 3, the free form
+OTHER_VERSIONS = (1, 2, 3)
+FREE_VERSION = {'fracWall': 4, 'fracSlab': 3, 'ground': 3}
 TILE, STOREY = 96.0, 192.0
 # the shortest wall (its tile edges' distance): a solid of 24 between its ends' insets
 MIN_LENGTH = 24 + 2 * int(frac_wall.RECIPE['endInset'])
@@ -126,6 +129,8 @@ def check(generated):
                          % (generated.get('version'), ' and '.join(map(str, VERSIONS))))
     if generated['kind'] == 'relit':
         return generated
+    if generated.get('version', 1) == FREE_VERSION[generated['kind']]:
+        return check_free(generated)
     if generated['kind'] in ('fracSlab', 'ground'):
         version = generated.get('version', 1)
         if version not in OTHER_VERSIONS:
@@ -163,6 +168,29 @@ def check(generated):
     return generated
 
 
+def check_free(generated):
+    """A free-form request (FREE_VERSION) checked: its numbers `free: 1`, a look absent, a look id or a donor look
+    resolved (looks.resolved), and what its generator says it can build (each generator's check of the free form)."""
+    kind = generated['kind']
+    key = {'fracWall': 'wall', 'fracSlab': 'slab', 'ground': 'ground'}[kind]
+    numbers = generated.get(key)
+    if not isinstance(numbers, dict) or numbers.get('free') != 1:
+        raise ValueError('a generated %s of request version %d is in the free form (free: 1)' % (kind, FREE_VERSION[kind]))
+    look = numbers.get('look')
+    if isinstance(look, dict):
+        looks.check_look(looks.REQUESTS[kind][0], look)
+        if not isinstance(look.get('recipe'), dict):
+            raise ValueError('the look of %s has not been resolved (looks.resolved)' % look['mesh'])
+    if 'mapping' in numbers:
+        import uv_mapping
+        uv_mapping.check(numbers['mapping'])
+    generator = {'fracWall': frac_wall, 'fracSlab': frac_slab, 'ground': ground}[kind]
+    if not hasattr(generator, 'check_free'):
+        raise ValueError('this Build makes no free-form %s yet' % kind)
+    generator.check_free(numbers)
+    return generated
+
+
 def donor_look(kind, numbers, version, since):
     """A request's look named by its donor (a dict: looks.py) comes with request version `since`, which always names
     one, and has been resolved (its recipe put in by looks.resolved); a look id with an older one. ValueError
@@ -178,9 +206,27 @@ def donor_look(kind, numbers, version, since):
         raise ValueError('a generated %s of request version %d names its look by its donor ({mesh, measure})' % (kind, version))
 
 
+def free_end_reach(wall, end, R):
+    """How far in from a free-form wall's own end its solid reaches at most along it: a style's inset (a free end's its
+    look's, 'line' 0, 'through' its faces' half thickness past it), or a leaning end's inset less what its lean takes
+    across the faces."""
+    half = (float(wall['y1']) - float(wall['y0'])) / 2
+    if isinstance(end, dict):
+        return float(end['inset']) - abs(float(end['lean'])) * half
+    return {'free': float(R['endInset']), 'line': 0.0, 'through': -half}[end]
+
+
 def local_box(wall):
     """The box the wall's solid stands in, in its mesh's frame (its ends in from its tile edges: frac_wall.solid_wall;
-    across, its look's outline: frac_wall.extent)."""
+    across, its look's outline: frac_wall.extent). A free-form wall's from its own numbers: its ends' reach, its faces
+    with its look's trims standing proud of them, its bottom and top."""
+    if wall.get('free') == 1:
+        R = frac_wall.look_of(wall)
+        e0, e1 = (list(wall.get('ends') or ('free', 'free')) + ['free', 'free'])[:2]
+        lo, hi = frac_wall.extent(R)
+        proud = max(0.0, max(-lo, hi) - float(R.get('half', 8.0)))
+        return [float(wall['x0']) + free_end_reach(wall, e0, R), float(wall['x1']) - free_end_reach(wall, e1, R),
+                float(wall['y0']) - proud, float(wall['y1']) + proud, float(wall['z0']), float(wall['z1'])]
     R = frac_wall.shaped(wall)
     lo, hi = frac_wall.extent(R)
     solid = frac_wall.solid_wall(wall)

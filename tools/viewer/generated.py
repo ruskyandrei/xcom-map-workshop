@@ -85,6 +85,40 @@ def with_recipe(kind, numbers):
     return dict(numbers, look=resolved), int(resolved['recipe'].get('sections') or 0) or None
 
 
+def free_text(text):
+    """Whether a request's numbers (JSON `text`) are in the free form (the custom geometry improvements plan, section
+    10.2: `free: 1`); False for anything else, which the older parsers then say what is wrong with."""
+    try:
+        numbers = json.loads(text)
+    except (TypeError, ValueError):
+        return False
+    return isinstance(numbers, dict) and numbers.get('free') == 1
+
+
+def free_numbers(kind, text):
+    """A free-form piece's numbers (`kind` 'wall', 'slab' or 'ground') from the request's JSON, their donor look in
+    one spelling, checked by the generator's own check of the free form (check_free), in one spelling for the cache's
+    key: the numbers as the page sends them (made_free.js freeNumbers). GeneratedError when malformed."""
+    numbers = json.loads(text)
+    if isinstance(numbers.get('look'), dict):
+        numbers = dict(numbers, look=donor_look(kind, numbers['look']))
+    elif 'look' in numbers and numbers['look'] == {'wall': frac_wall.DEFAULT_LOOK, 'slab': frac_slab.DEFAULT_LOOK,
+                                                   'ground': ground_shapes.DEFAULT_LOOK}[kind]:
+        numbers = {k: v for k, v in numbers.items() if k != 'look'}
+    if kind == 'wall':
+        ends = numbers.get('ends')
+        if ends is not None and (not isinstance(ends, list) or len(ends) != 2):
+            raise GeneratedError("a wall's ends are two")
+    generator = {'wall': frac_wall, 'slab': frac_slab, 'ground': ground_shapes}[kind]
+    if not hasattr(generator, 'check_free'):
+        raise GeneratedError('this editor makes no free-form %s yet' % kind)
+    try:
+        generator.check_free(with_recipe(kind, numbers)[0])
+    except (ValueError, TypeError, KeyError) as error:
+        raise GeneratedError(str(error))
+    return numbers
+
+
 def wall_numbers(text):
     """The wall's numbers from the request's JSON, checked, in one spelling (the cache's key): dict(x0, x1, openings,
     seed), storeys when given (1 to MAX_STOREYS; a look id's 2, the default, is left out) and ends when one is joined
@@ -335,7 +369,7 @@ class Meshes:
 
     def fracwall(self, text, blasts=''):
         """The GLB of the wall whose numbers are the JSON `text`, broken by `blasts` (JSON, '' for none)."""
-        wall = wall_numbers(text)
+        wall = free_numbers('wall', text) if free_text(text) else wall_numbers(text)
         blasts = blasts_of(blasts)
         key = json.dumps(wall, sort_keys=True) + ('|' + json.dumps(blasts) if blasts else '')
         with self.lock:
@@ -353,7 +387,7 @@ class Meshes:
 
     def fracslab(self, text, blasts=''):
         """The GLB of the slab whose numbers are the JSON `text`, broken by `blasts` (JSON, '' for none)."""
-        slab = slab_numbers(text)
+        slab = free_numbers('slab', text) if free_text(text) else slab_numbers(text)
         blasts = blasts_of(blasts)
         key = 'slab:' + json.dumps(slab, sort_keys=True) + ('|' + json.dumps(blasts) if blasts else '')
         with self.lock:
@@ -368,7 +402,7 @@ class Meshes:
 
     def ground(self, text):
         """The GLB of the ground shape whose numbers are the JSON `text`."""
-        shape = ground_numbers(text)
+        shape = free_numbers('ground', text) if free_text(text) else ground_numbers(text)
         key = 'ground:' + json.dumps(shape, sort_keys=True)
         with self.lock:
             if key in self.kept:
@@ -381,7 +415,7 @@ class Meshes:
     def ground_corners(self, text):
         """A rock's points and corners (ground.rock_corners) for the editor's blue dots: {points: [[x, y, z]],
         corners: [index]}."""
-        shape = ground_numbers(text)
+        shape = free_numbers('ground', text) if free_text(text) else ground_numbers(text)
         try:
             points, corners = ground_shapes.rock_corners(with_recipe('ground', shape)[0])
         except ValueError as error:
