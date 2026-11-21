@@ -40,6 +40,7 @@ from pathlib import Path
 import re
 import threading
 
+import atomic_files
 import version
 from projects import ProjectError
 
@@ -193,13 +194,9 @@ class SquadStore:
                 # a file that could not be read keeps its bytes under a name of its own; a good one becomes the backup
                 aside = (self.path.with_name(f'test-squad.bad-{datetime.now().strftime("%Y%m%d-%H%M%S")}.json')
                          if problem else self.path.with_name(PREVIOUS))
-                temp = aside.with_name(aside.name + '.tmp')
-                temp.write_bytes(old)
-                os.replace(temp, aside)
+                atomic_files.write_bytes(aside, old)
             data = (json.dumps(document, indent=2, ensure_ascii=False) + '\n').encode('utf-8')
-            temp = self.path.with_name(self.path.name + f'.{os.getpid()}.tmp')
-            temp.write_bytes(data)
-            os.replace(temp, self.path)
+            atomic_files.write_bytes(self.path, data, temp=self.path.with_name(self.path.name + f'.{os.getpid()}.tmp'))
             return revision_of(data)
 
 

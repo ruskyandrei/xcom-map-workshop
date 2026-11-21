@@ -79,9 +79,10 @@ import re
 import shutil
 import sys
 import threading
-import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'bake'))
+
+import atomic_files  # noqa: E402
 
 LEDGER_FOLDER = 'XCOM Map Workshop'
 SCHEMA = 'xcom-map-workshop/installs'
@@ -189,18 +190,9 @@ def read_ledger(game):
 
 def _write_json(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_name(path.name + '.tmp')
     text = json.dumps(data, indent=1) + '\n'
     with _LEDGER_IO:
-        temp.write_text(text, encoding='utf-8', newline='\n')
-        # another process holding the file (a virus scanner, an editor) makes Windows refuse the rename for a moment
-        for attempt in range(50):
-            try:
-                os.replace(temp, path)
-                return
-            except PermissionError:
-                if attempt == 49: raise
-                time.sleep(0.02)
+        atomic_files.write_text(path, text)
 
 
 KEEP_BACKUPS = 20       # the install's newest backup folders kept (review finding 49): about ten plays' worth
@@ -747,7 +739,7 @@ def _copy_files(game, ledger, files, play=False, atomic=None, project=None, keep
                     if sha256(target) != digest: raise InstallError(f'{dst} did not copy intact')
                     if atomic:
                         if dst.exists(): raise InstallError(f'{dst} appeared while the test was installing')
-                        os.replace(target, dst)
+                        atomic_files.replace(target, dst)
                 finally:
                     if atomic: target.unlink(missing_ok=True)
             if play and name not in kept: played[name] = digest
@@ -769,13 +761,11 @@ def test_temp(path, test):
     return path.with_name(f'.{path.name}.{test}.tmp')
 
 
-def replace_bytes(path, data, test):
-    temp = test_temp(path, test)
-    try:
-        temp.write_bytes(data)
-        os.replace(temp, path)
-    finally:
-        temp.unlink(missing_ok=True)
+def replace_bytes(path, data, test=None):
+    """`path` given these bytes through a temporary file beside it and a replace (atomic_files): the temporary file is
+    named for the prefab test `test` (test_temp), where its recovery looks, or else for the change under way
+    (_put_temp), where its roll-back looks."""
+    atomic_files.write_bytes(path, data, temp=test_temp(path, test) if test else _put_temp(path))
 
 
 def begin_test_install(game, test, files, writes):
@@ -855,14 +845,9 @@ def _aside(path):
     return path.with_name(f'.{path.name}.change.tmp')
 
 
-def _put_bytes(path, data):
-    """`path` given these bytes through a temporary file and a replace."""
-    temp = path.with_name(f'.{path.name}.change-put.tmp')
-    try:
-        temp.write_bytes(data)
-        os.replace(temp, path)
-    finally:
-        temp.unlink(missing_ok=True)
+def _put_temp(path):
+    """The temporary file a change puts a file in through (replace_bytes, copy_in, take_out)."""
+    return path.with_name(f'.{path.name}.change-put.tmp')
 
 
 class _Change:
@@ -934,12 +919,12 @@ class _Change:
         there = dst.exists()
         self.journal['files'][dst.name] = dict(digest=digest, aside=_aside(dst).name if there else None)
         self.save()
-        if there: os.replace(dst, _aside(dst))
-        temp = dst.with_name(f'.{dst.name}.change-put.tmp')
+        if there: atomic_files.replace(dst, _aside(dst))
+        temp = _put_temp(dst)
         try:
             shutil.copyfile(src, temp)
             if sha256(temp) != digest: raise InstallError(f'{dst} did not copy intact')
-            os.replace(temp, dst)
+            atomic_files.replace(temp, dst)
         finally:
             temp.unlink(missing_ok=True)
 
@@ -948,12 +933,12 @@ class _Change:
         the editor's replaced it) copied into its place."""
         self.journal['files'][path.name] = dict(aside=_aside(path).name, removed=True)
         self.save()
-        os.replace(path, _aside(path))
+        atomic_files.replace(path, _aside(path))
         if put_back is not None:
-            temp = path.with_name(f'.{path.name}.change-put.tmp')
+            temp = _put_temp(path)
             try:
                 shutil.copy2(put_back, temp)
-                os.replace(temp, path)
+                atomic_files.replace(temp, path)
             finally:
                 temp.unlink(missing_ok=True)
 
@@ -1004,7 +989,7 @@ def _roll_back(game, journal):
         now = sha256(path) if path.is_file() else None
         if now == entry['before'] or not kept.is_file(): continue
         if now == entry.get('after') and sha256(kept) == entry['before']:
-            _put_bytes(path, kept.read_bytes())
+            replace_bytes(path, kept.read_bytes())
             continue
         folder = _backup_folder(game, 'interrupted-' + _now(None)[1])
         shutil.copy2(kept, folder / name)
@@ -1017,14 +1002,14 @@ def _roll_back(game, journal):
         aside = cooked(game) / entry['aside'] if entry.get('aside') else None
         if entry.get('digest') and path.is_file() and sha256(path) == entry['digest'] and (aside is None or aside.is_file()):
             path.unlink()                                       # the file the change copied in
-        if aside is not None and aside.is_file(): os.replace(aside, path)
-        path.with_name(f'.{name}.change-put.tmp').unlink(missing_ok=True)
+        if aside is not None and aside.is_file(): atomic_files.replace(aside, path)
+        _put_temp(path).unlink(missing_ok=True)
     for name, text in (journal.get('ledgers') or {}).items():
         if name not in ('installs.json', 'play.json'): continue
         path = game / LEDGER_FOLDER / name
         if text is None: path.unlink(missing_ok=True)
         else:
-            with _LEDGER_IO: _put_bytes(path, text.encode('utf-8'))
+            with _LEDGER_IO: replace_bytes(path, text.encode('utf-8'))
     ledger = read_ledger(game)
     ledger['backups'] = ledger.get('backups', []) + folders
     ledger.setdefault('history', []).append(dict(at=_now(None)[0].isoformat(timespec='seconds'), interrupted=journal.get('what'),
@@ -1157,7 +1142,7 @@ def _files_out(game, ledger, key, held=None):
         elif earlier is not None and earlier.is_file():
             temp = path.with_name(f'.{name}.lab.tmp')
             shutil.copy2(earlier, temp)
-            os.replace(temp, path)
+            atomic_files.replace(temp, path)
         else:
             path.unlink()
         done.append(name)

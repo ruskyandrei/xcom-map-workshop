@@ -30,6 +30,7 @@ if str(Path(__file__).resolve().parents[1]) not in sys.path:
     sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
 import paths  # noqa: E402
 paths.use('upk')
+import atomic_files  # noqa: E402
 import upkinfo  # noqa: E402
 
 SCHEMA = 'xcom-map-workshop/pack'
@@ -85,10 +86,7 @@ def save(projects_root, record):
     if not valid(record): raise PackError('not a pack record')
     folder = root(projects_root)
     folder.mkdir(parents=True, exist_ok=True)
-    target = folder / f'{record["folder"]}.json'
-    temp = target.with_suffix('.json.tmp')
-    temp.write_text(json.dumps(record, indent=1) + '\n', encoding='utf-8', newline='\n')
-    temp.replace(target)
+    atomic_files.write_text(folder / f'{record["folder"]}.json', json.dumps(record, indent=1) + '\n')
     return record
 
 

@@ -58,7 +58,7 @@ class Faults:
             return self.wrap(real_unlink)(path, missing_ok=missing_ok)
         self.patches = [mock.patch.object(playsaves.shutil, 'copy2', self.wrap(shutil.copy2)),
                         mock.patch.object(playsaves.shutil, 'move', self.wrap(shutil.move)),
-                        mock.patch.object(playsaves.os, 'replace', self.wrap(os.replace)),
+                        mock.patch.object(os, 'replace', self.wrap(os.replace)),     # (atomic_files' replace)
                         mock.patch.object(Path, 'replace', self.wrap(Path.replace)),
                         mock.patch.object(Path, 'unlink', unlink)]
         for p in self.patches: p.start()

@@ -21,6 +21,8 @@ import re
 import threading
 import uuid
 
+import atomic_files
+
 
 # Maps checked in the game (the editor's verified bases), with their labels where no install list names them.
 CHECKED_LABELS = {'URB_Bar': 'Bar', 'TempleShip': 'Temple Ship'}
@@ -245,9 +247,8 @@ class PackageDigests:
         with self.lock:
             if not self.changed or self.path is None: return
             data,self.changed=dict(self.known),False
-        temp=self.path.with_name(f'{self.path.name}.{uuid.uuid4().hex[:8]}.tmp')
         try:
-            temp.write_text(json.dumps(data,separators=(',',':'))+'\n',encoding='utf-8',newline='\n')
-            os.replace(temp,self.path)
+            atomic_files.write_text(self.path,json.dumps(data,separators=(',',':'))+'\n',
+                                    temp=self.path.with_name(f'{self.path.name}.{uuid.uuid4().hex[:8]}.tmp'))
         except OSError:
-            temp.unlink(missing_ok=True)
+            pass        # (not kept: the next start works them out again)

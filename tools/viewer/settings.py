@@ -24,6 +24,8 @@ import subprocess
 import sys
 import tempfile
 
+import atomic_files
+
 APP = 'XCOM Map Workshop'
 # projects/output: where the editor writes projects and builds. cache: exported maps, the viewer's cache (decoded game
 # data, so never in a repository). game: the game install the editor reads (pristine maps and config lines), LWR or
@@ -147,9 +149,7 @@ def save_settings(updates, path=None):
         if value is None: stored.pop(key, None)
         else: stored[key] = str(Path(value).resolve())
     path.parent.mkdir(parents=True, exist_ok=True)
-    temp = path.with_name(path.name + '.tmp')
-    temp.write_text(json.dumps(stored, indent=2) + '\n', encoding='utf8', newline='\n')
-    os.replace(temp, path)
+    atomic_files.write_text(path, json.dumps(stored, indent=2) + '\n')
     return load_settings(path)
 
 

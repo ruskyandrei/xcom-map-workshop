@@ -10,10 +10,11 @@ file written back keeps every byte it had outside the planned change.
 The installer (installs.py), the map browser (gamemaps.py) and the pack export (manager.py) use these, and the lab's
 fixture installer (tools/bake/deploy_fixture.py) too.
 """
-import os
+import os       # (the writes go through atomic_files; tools/bake/tests/test_deploy.py patches mapsini.os.replace)
 from pathlib import Path
 import re
-import time
+
+import atomic_files
 
 EOL = b'\r\n'
 FIRST_MISSION = 'eMission_Abduction'      # the kind of mission a new campaign's first mission (the test slot) plays
@@ -118,14 +119,8 @@ def write_checked(path, new_lines):
         temp.write_bytes(EOL.join(new_lines))
         if lines_of(temp.read_bytes()) != new_lines:
             raise ValueError(f'{path} did not read back as written')
-        # another process holding the file a moment (a virus scanner, an editor) makes Windows refuse the replace
-        for attempt in range(50):
-            try:
-                os.replace(temp, path)
-                break
-            except PermissionError:
-                if attempt == 49:
-                    raise
-                time.sleep(0.02)
+        # (tried again while another process holding the file a moment, a virus scanner or an editor, makes Windows
+        # refuse the replace)
+        atomic_files.replace(temp, path)
     finally:
         temp.unlink(missing_ok=True)
