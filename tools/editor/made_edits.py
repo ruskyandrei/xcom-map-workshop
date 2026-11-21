@@ -68,7 +68,7 @@ GROUND_MAX_TILES = 64       # (one plain piece, not cut: B4; ground.MAX_TILES)
 # the generated request versions each kind takes (tools/bake/frac_walls.py VERSIONS, OTHER_VERSIONS); a look named by
 # its donor (custom geometry plan, M4: {mesh, measure}, looks.py) comes with a wall's version 3 and a slab's or ground
 # shape's version 2, which always name one
-GENERATED_VERSIONS = {'fracWall': (1, 2, 3, 4), 'fracSlab': (1, 2, 3), 'ground': (1, 2, 3, 4), 'relit': (1,)}
+GENERATED_VERSIONS = {'fracWall': (1, 2, 3, 4, 5), 'fracSlab': (1, 2, 3, 4), 'ground': (1, 2, 3, 4, 5), 'relit': (1,)}
 DONOR_LOOK_SINCE = {'fracWall': 3, 'fracSlab': 2, 'ground': 2}
 # a made piece with no look chosen (custom geometry editing plan, B2, 19 November 2026): drawn plain in the editor, its
 # numbers its kind's default look's as version 1 has them; the Build makes it in that look (D-1) and warns made-no-look,
@@ -78,6 +78,18 @@ PLAIN_VERSION = {'fracWall': 4, 'fracSlab': 3, 'ground': 3}
 # its request is this version whatever its look (a look id, one named by its donor, or none: plain), so an editor from
 # before refuses it rather than make the seed's rock; it goes on to the Build as the version its look gives
 POINTS_VERSION = {'ground': 4}
+# the free form (custom geometry improvements plan, stage 2, its section 10.2): one request version of each kind whose
+# numbers carry `free: 1` and say everything in fields: the look (absent the kind's default, a look id, or one named by
+# its donor; `plain` beside it when none was chosen), the extents in the piece's own frame at any size (a wall's x0..x1,
+# its faces y0..y1, its bottom and top z0..z1 and `tall`; a slab's footprint and plate; a ground shape's footprint and
+# z0..z1), openings and holes anywhere inside, a rock's moved points, and the texture mapping (stage 4). It goes on to
+# the Build as the Build's free version of its kind (tools/bake/frac_walls.py), its numbers as they are, less `plain`.
+FREE_VERSION = {'fracWall': 5, 'fracSlab': 4, 'ground': 5}
+BUILD_FREE_VERSION = {'fracWall': 4, 'fracSlab': 3, 'ground': 3}
+WALL_TALL = ('repeat', 'stretch')
+# a texture mapping's surfaces and modes (the plan's section 5; built in its stage 4)
+MAPPING_ROLES = ('faces', 'top', 'underside', 'sides')
+MAPPING_MODES = ('size', 'fit', 'count')
 
 
 def wall_look_storeys(wall):
@@ -93,6 +105,67 @@ def wall_look_storeys(wall):
         return int(wall.get('storeys') or 2), False
     own = frac_wall.storeys_of(frac_wall.look_of(dict(wall, look=resolved)))
     return max(own), max(own) > 1 and 1 in own
+
+
+def mapping_valid(mapping, num):
+    """Whether a free-form piece's texture mapping is well formed: {surfaces: {role: {mode, u, v, turn, flipU, flipV,
+    offsetU, offsetV, world}}}, each surface's fields optional but its mode, u and v (positive) and turn, offsets
+    finite."""
+    if not isinstance(mapping, dict) or set(mapping) - {'surfaces'} or not isinstance(mapping.get('surfaces'), dict):
+        return False
+    for role, s in mapping['surfaces'].items():
+        if role not in MAPPING_ROLES or not isinstance(s, dict) or s.get('mode') not in MAPPING_MODES:
+            return False
+        if set(s) - {'mode', 'u', 'v', 'turn', 'flipU', 'flipV', 'offsetU', 'offsetV', 'world'}:
+            return False
+        if not (num(s.get('u')) and num(s.get('v')) and s['u'] > 0 and s['v'] > 0):
+            return False
+        if not all(num(s.get(k, 0)) for k in ('turn', 'offsetU', 'offsetV')):
+            return False
+        if not all(isinstance(s.get(k, False), bool) for k in ('flipU', 'flipV', 'world')):
+            return False
+    return True
+
+
+def free_valid(kind, n, num):
+    """Whether a free-form piece's numbers (FREE_VERSION) are well formed: `free` 1, finite extents with some size each
+    way, openings or holes inside, a whole seed, a look that is absent, a look id of its kind or one named by its donor,
+    `plain` a boolean, a mapping of mapping_valid's. The generators check what the geometry can hold (the Build's
+    check)."""
+    if not isinstance(n, dict) or n.get('free') != 1 or 'whole' in n or 'ends' in n or 'storeys' in n or 'height' in n:
+        return False
+    keys = ('x0', 'x1', 'y0', 'y1', 'z0', 'z1')
+    if not all(num(n.get(k)) for k in keys) or not (n['x0'] < n['x1'] and n['y0'] < n['y1'] and n['z0'] < n['z1']):
+        return False
+    if not isinstance(n.get('plain', False), bool) or ('mapping' in n and not mapping_valid(n['mapping'], num)):
+        return False
+    seed = n.get('seed', 1)
+    if not isinstance(seed, int) or isinstance(seed, bool):
+        return False
+    ids = {'fracWall': FRAC_WALL_LOOKS, 'fracSlab': FRAC_SLAB_LOOKS, 'ground': GROUND_LOOKS}[kind]
+    look = n.get('look')
+    if look is not None and not (isinstance(look, str) and look in ids):
+        try:
+            looks.check_look(looks.REQUESTS[kind][0], look)
+        except looks.LookError:
+            return False
+    if kind == 'fracWall':
+        return n.get('tall', 'repeat') in WALL_TALL and isinstance(n.get('openings') or [], list) and all(
+            isinstance(o, dict) and all(num(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
+            and n['x0'] <= o['x0'] < o['x1'] <= n['x1'] and o['z0'] < o['z1'] for o in n.get('openings') or [])
+    if kind == 'fracSlab':
+        return isinstance(n.get('holes') or [], list) and all(
+            isinstance(h, dict) and all(num(h.get(k)) for k in ('x0', 'x1', 'y0', 'y1'))
+            and n['x0'] <= h['x0'] < h['x1'] <= n['x1'] and n['y0'] <= h['y0'] < h['y1'] <= n['y1'] for h in n.get('holes') or [])
+    if n.get('shape') not in GROUND_SHAPES or ('points' in n and n['shape'] != 'rock'):
+        return False
+    if n['shape'] == 'rock' and not (isinstance(n.get('seed'), int) and not isinstance(n.get('seed'), bool)
+                                     and 0 <= n['seed'] < GROUND_ROCK_SEEDS):
+        return False
+    points = n.get('points')
+    return points is None or (isinstance(points, list) and all(
+        isinstance(p, list) and len(p) == 3 and all(num(v) for v in p)
+        and n['x0'] - 1e-6 <= p[0] <= n['x1'] + 1e-6 and n['y0'] - 1e-6 <= p[1] <= n['y1'] + 1e-6 for p in points))
 
 
 def look_valid(kind, look, version, since, ids):
@@ -275,6 +348,8 @@ class MadeEdits:
         # version 3 and a slab's or ground shape's version 2 name the look by its donor)
         ok = isinstance(g, dict) and keyable(g.get('kind')) and g.get('kind') in GENERATED_VERSIONS \
             and g.get('version') in GENERATED_VERSIONS[g['kind']]
+        if ok and g['version'] == FREE_VERSION.get(g['kind']):
+            return self.free_generated(rec, g, num, where)
         # (a plain piece's numbers are checked as version 1's; a rock's with points as its look's version)
         points = ok and g['version'] == POINTS_VERSION.get(g['kind'])
         look = (g.get('ground') or {}).get('look') if points and isinstance(g.get('ground'), dict) else None
@@ -346,6 +421,47 @@ class MadeEdits:
                       ', '.join(FRAC_SLAB_LOOKS), GROUND_MAX_TILES, GROUND_MAX_HEIGHT, ', '.join(GROUND_LOOKS), g),
                    **where)
         return False
+
+    def free_generated(self, rec, g, num, where):
+        """A free-form request (FREE_VERSION) checked and put into the Build's free version (BUILD_FREE_VERSION): its
+        numbers as they are, less `plain` (warned of: the Build makes the kind's default look), its blasts checked as
+        any made piece's."""
+        kind = {'fracWall': 'wall', 'fracSlab': 'slab', 'ground': 'ground'}[g['kind']]
+        name = rec.get('label') or short(rec.get('from', {}).get('actor', '?'))
+        n = g.get(kind)
+        if not free_valid(g['kind'], n, num):
+            self.c.error('malformed', '%s: its numbers are not a %s of the free form (custom geometry improvements plan, '
+                         'section 10.2: free 1, x0 < x1, y0 < y1, z0 < z1, openings or holes inside, a whole seed, a look '
+                         'of its kind; it has %r)' % (name, kind, n), **where)
+            return False
+        if g['kind'] == 'fracSlab' and not made_split.slab_left(n):
+            self.c.error('slab-all-holes', '%s: its holes leave none of it, so it is left out of the build' % name, **where)
+            return False
+        if 'blasts' in g:
+            try:
+                if g['kind'] not in MADE_KINDS:
+                    raise ValueError('only a made wall, floor or roof breaks')
+                made_blasts.check(g['blasts'])
+                if g.get('breaksFurther', True) is not True:
+                    raise ValueError('breaksFurther is true or left out')
+            except ValueError as error:
+                self.c.error('malformed', '%s: its blasts are not ones the Build makes: %s' % (name, error), **where)
+                return False
+        elif 'breaksFurther' in g:
+            self.c.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored' % name, **where)
+            g = {k: v for k, v in g.items() if k != 'breaksFurther'}
+        numbers = {k: v for k, v in n.items() if k != 'plain'}
+        if n.get('plain'):
+            default = ("the Bar's inside wall" if g['kind'] == 'fracWall' else 'asphalt' if g['kind'] == 'ground'
+                       else "the Bar's upper floor" if n.get('look') == 'floor' else "the Bar's roof")
+            self.c.warn('made-no-look', "%s has no look chosen (drawn plain in the editor): the Build makes it in %s, its "
+                        "kind's default look; choose its look in its piece panel" % (name, default), **where)
+            numbers.pop('look', None)
+        rec['generated'] = dict(g, version=BUILD_FREE_VERSION[g['kind']], **{kind: numbers})
+        if donor_shape(kind, numbers) is False:
+            self.c.note('look-measured', "%s's look, %s, is in none of this editor's catalogues: the Build measures it "
+                        'from its donor' % (name, numbers['look']['mesh']), **where)
+        return True
 
     @staticmethod
     def ground_valid(s, num, version=1, points=False):

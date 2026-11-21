@@ -75,7 +75,12 @@ def donor_shape(kind, numbers):
 def wall_heights(wall):
     """A made wall's bottom, top, free ends' inset and its faces' half thickness in its frame (an end running through
     reaches that far past its tile edge: frac_wall.end_insets): its look's (donor_shape), or the Bar's inside wall's
-    for a look id or a donor look no catalogue holds."""
+    for a look id or a donor look no catalogue holds; a free-form wall's own bottom, top and thickness (z0, z1, y0..y1)
+    with its look's inset."""
+    if wall.get('free') == 1:
+        R = donor_shape('wall', {k: v for k, v in wall.items() if k not in ('free', 'z0', 'z1', 'y0', 'y1', 'tall')})
+        inset = float(R['endInset']) if R else FRAC_WALL_END_INSET
+        return float(wall['z0']), float(wall['z1']), inset, (float(wall['y1']) - float(wall['y0'])) / 2
     R = donor_shape('wall', wall)
     if R:
         return float(R['bottom']), float(R['top']), float(R['endInset']), float(R['half'])
@@ -90,6 +95,9 @@ def made_wall_along(wall, start=None, end=None):
     bottom, top, inset, half = wall_heights(wall)
     x0 = float(wall['x0']) + (inset if start is None else start)
     x1 = float(wall['x1']) - (inset if end is None else end)
+    if wall.get('free') == 1:
+        # (a free-form wall stands in its own numbers: its faces and heights)
+        return (x0, x1, float(wall['y0']), float(wall['y1']), bottom, top)
     R = donor_shape('wall', wall)
     if not R:
         return (x0, x1)

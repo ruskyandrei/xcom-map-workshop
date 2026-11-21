@@ -174,6 +174,16 @@ prefab and placed again, and Test in game, make those pieces as the project has 
 converts a piece's record one way everywhere (`tools/viewer/web/piece_records.js`: the clipboard, a project, a prefab
 saved and placed, the builder). The server reads prefab schema 1 to 4 and stores 4; it checks a made piece's numbers
 as data only (its kind, and numbers, words and short texts, bounded), and the compiler checks what they mean.
+Since 21 November 2026 a made piece's `generated` may be in the free form: `fracWall` version 5, `fracSlab` version 4,
+`ground` version 5, whose numbers carry `free: 1` and say everything in fields: the extents at any size in the piece's
+own frame (`x0`..`x1`, `y0`..`y1`, `z0`..`z1`: a wall's ends, faces and bottom and top; a slab's footprint and plate; a
+ground shape's footprint and plate or body), a wall's `tall` (`repeat` or `stretch`), openings or holes anywhere
+inside, `look` absent (the kind's default), a look id or a donor look with `plain: true` beside it when none was
+chosen, a rock's `points`, and a texture `mapping` (`{surfaces: {faces | top | underside | sides: {mode: size | fit |
+count, u, v, turn, flipU, flipV, offsetU, offsetV, world}}}`). The compiler checks them (`tools/editor/made_edits.py`
+`free_valid`) and hands them to the Build as its own free version of the kind (walls 4, slabs and ground 3), less
+`plain`. An editor from before refuses these versions by their number; older versions are read and built as they were,
+and the page upgrades a piece to the free form when a size of it is edited (`tools/viewer/web/made_free.js`).
 
 ```json
 {

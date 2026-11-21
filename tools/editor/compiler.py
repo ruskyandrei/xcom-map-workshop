@@ -161,7 +161,9 @@ GROUND_SLOPED, GROUND_STEEP = math.degrees(math.acos(0.9848)), 45.0
 
 
 def slab_heights(slab):
-    """A made slab's bottom and top in its donor's frame: its look's."""
+    """A made slab's bottom and top in its donor's frame: its look's, or a free-form slab's own (z0, z1)."""
+    if slab.get('free') == 1:
+        return float(slab['z0']), float(slab['z1'])
     R = donor_shape('slab', slab)
     if R:
         return float(R['bottom']), float(R['top'])
@@ -182,7 +184,9 @@ def ground_thickness(g):
 
 
 def ground_box(g):
-    """A ground shape's box in its mesh's frame (ground.local_box)."""
+    """A ground shape's box in its mesh's frame (ground.local_box): a free-form shape's its own numbers'."""
+    if g.get('free') == 1:
+        return tuple(float(g[k]) for k in ('x0', 'x1', 'y0', 'y1', 'z0', 'z1'))
     if g['shape'] == 'patch':
         z = (PATCH_LIFT - ground_thickness(g), PATCH_LIFT)     # (a little over the ground it lies on)
     else:
@@ -191,8 +195,11 @@ def ground_box(g):
 
 
 def ground_slope(g):
-    """A ramp's slope in degrees (ground.slope)."""
-    return math.degrees(math.atan2(float(g['height']), float(g['x1']) - float(g['x0']))) if g.get('shape') == 'ramp' else 0.0
+    """A ramp's slope in degrees (ground.slope): its rise (its height, or a free-form ramp's z1 - z0) over its run."""
+    if g.get('shape') != 'ramp':
+        return 0.0
+    rise = float(g['z1']) - float(g['z0']) if g.get('free') == 1 else float(g['height'])
+    return math.degrees(math.atan2(rise, float(g['x1']) - float(g['x0'])))
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (piece flags plan); 3: effects and sounds (overrides and added records of their own: the effects and
 # sounds plan, Part C); 4: the spawns plan's (`spawnRules`, SP8; the base map's spawn points' records, SP6 and SP7).
