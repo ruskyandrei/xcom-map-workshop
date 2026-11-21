@@ -31,7 +31,7 @@
 // hits) is editor_state.js's.
 import * as THREE from 'three';
 import { LEVEL, TILE } from './constants.js';
-import { onHub, STOP } from './edit_hub.js';
+import { onHub, runHub, STOP } from './edit_hub.js';
 import { allRoots, boxesShown, builderMode, buildingMeta, buildings, buildingsVersion, cleared, data, effectRoots,
          effectsOn, hintTimer, lightRoots, lightsOn, lightsShown, mergedBuildings, ownPicked, ownSet, pickBox,
          pickCentres, pickDrag, pickedSpawn, pickHits, pickTool, placing, roots, selected, setBoxesShownValue,
@@ -54,10 +54,10 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
                                         editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
                                         editSpawnCopy, effectsShown, effectViewOnly, flashHint, floorOptions, gizmo,
                                         HANDLE_PICK, kindButton, lightViewOnly, missionGizmo, pick, projectListings,
-                                        projector, projectsAvailable, rayAt, refreshSpawnMarkers, renderer,
-                                        restingHint, select, selectionWords, setEffectsShown, setZonesShown, showPop,
-                                        spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights,
-                                        volumeLayer, world }) {
+                                        projector, projectsAvailable, rayAt, renderer, restingHint, select,
+                                        selectionWords, setEffectsShown, setZonesShown, showPop, spawnBoxNow,
+                                        spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights, volumeLayer,
+                                        world }) {
   // allBuildings is what the floors code reads: the map's as exported where unchanged (their saved listings), the
   // project's and the changed ones of the map by their boxes (worked out once for each state of the buildings:
   // mergedBuildings, editor_state.js).
@@ -648,7 +648,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
       if (box.every((v, k) => v === d.box[k])) return;
       d.box = box;
       setMissionDragView(d.stream === 'copy' ? editedCopies(d.actor, { box }) : editedSpawns(d.actor, { box }));
-      refreshSpawnMarkers();
+      runHub('spawn-box');     // the spawn markers drawn (edit_hub.js)
       volumeHint(`${FACE_WORDS[d.key]} at ${Math.round(value)}: ${boxWords(box)}`);
       return;
     }
@@ -684,7 +684,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
       setMissionDragView(null);
       const changed = d.box.some((v, k) => Math.abs(v - d.before[k]) > 1e-6), hint = `No-spawn volume ${boxWords(d.box)}`;
       if (!(keep && changed && (d.stream === 'copy' ? editSpawnCopy(d.actor, { box: d.box }, hint) : editBaseSpawn(d.actor, { box: d.box }, hint)))) {
-        refreshSpawnMarkers(); restingHint();
+        runHub('spawn-box'); restingHint();
       }
       return true;
     }

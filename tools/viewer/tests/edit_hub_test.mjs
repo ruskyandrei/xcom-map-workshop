@@ -41,9 +41,12 @@ assert.doesNotThrow(() => checkHub());
 
 // the page's modules register each name of each run once, and nothing else (onHub('run', 'name', ...) in their text)
 const web = path.join(path.dirname(url.fileURLToPath(import.meta.url)), '..', 'web');
-const found = [];
-for (const file of fs.readdirSync(web).filter(f => f.endsWith('.js')))
-  for (const m of fs.readFileSync(path.join(web, file), 'utf8').matchAll(/onHub\('([\w-]+)', '([\w-]+)'/g)) found.push(`${m[1]}/${m[2]}`);
+const texts = fs.readdirSync(web).filter(f => f.endsWith('.js')).map(file => fs.readFileSync(path.join(web, file), 'utf8'));
+const found = texts.flatMap(text => [...text.matchAll(/onHub\('([\w-]+)', '([\w-]+)'/g)].map(m => `${m[1]}/${m[2]}`));
 const listed = Object.entries(RUNS).flatMap(([run, names]) => names.map(name => `${run}/${name}`));
 assert.deepEqual([...found].sort(), [...listed].sort(), 'each run\'s names registered once by the page');
+// and each run is started by the page (runHub('run', ...) in a module's text; the edit run by editChangedNow, here): a
+// run nothing starts would leave its refreshes uncalled without a word
+const started = new Set(texts.flatMap(text => [...text.matchAll(/runHub\('([\w-]+)'/g)].map(m => m[1])));
+assert.deepEqual(Object.keys(RUNS).filter(run => !started.has(run)), [], 'each run started by the page');
 console.log('edit hub: ok');

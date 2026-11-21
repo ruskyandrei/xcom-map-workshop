@@ -764,6 +764,8 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
 
   // The mission picked changed (the edit hub's mission run, edit_hub.js): the markers and the picked one's gizmo.
   onHub('mission', 'spawns', () => { refreshSpawnMarkers(); placeMissionGizmo(); });
+  // A no-spawn volume's box dragged by a face handle (the edit hub's spawn-box run): the markers.
+  onHub('spawn-box', 'spawns', () => { refreshSpawnMarkers(); });
 
   return { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
            editedSpawns, editSpawnCopy, loadSpawnRules, missionFloorLost, missionGizmo, missionGizmoWanted, missionKey,

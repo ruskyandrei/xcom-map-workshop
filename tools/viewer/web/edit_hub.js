@@ -48,14 +48,41 @@ export const RUNS = {
     'joins',         // made_handles.js: where made walls meet
   ],
   // The project's landing zones changed or were read (clear_map.js: the install's landing lines read as a map opens,
-  // a clear done or undone).
+  // a clear done or undone; delete_reset.js: Reset all done or undone, after the cleared run).
   'landing-zones': [
     'zones',         // zones_wiring.js: the zones drawn
   ],
-  // A clear done or undone (clear_map.js's clearMap, after the landing zones it keeps, before it asks for the lights'
-  // redraw and sets the selection).
+  // Pieces and lights deleted or brought back by one step, done or undone, before it asks for the lights' redraw and
+  // sets the selection: a clear (clear_map.js's clearMap, after the landing zones it keeps), a Delete or Reset all
+  // (delete_reset.js's deleteNow and resetAll).
   clear: [
-    'lights',        // lights_wiring.js: which lights are drawn (those the clear deleted, or brought back)
+    'lights',        // lights_wiring.js: which lights are drawn (those deleted, or brought back)
+  ],
+  // The cleared mark set (zones_wiring.js's clearedChanged: a clear or Reset all done or undone, a project opened or
+  // closed), after it shows the Map menu's items, lets the merged buildings go and asks for the Effects view's redraw
+  // (whose mark none of these reads).
+  cleared: [
+    'mission-picker', // clear_map.js: the header's Mission picker (a project's missions, or none)
+    'lights',        // lights_wiring.js: which lights are drawn (a cleared map draws no view-only light: the Build
+                     // takes them out)
+    'cutaway',       // cutaway.js: the streamed patches' pieces drawn or not (not in the prefab builder)
+    'ground-grid',   // clear_map.js: the ground grid, drawn again
+    'zones',         // zones_wiring.js: the zones drawn
+  ],
+  // The project's missions set again (delete_reset.js: Reset all done or undone, after the landing-zones run).
+  'project-missions': [
+    'mission-picker', // clear_map.js: the header's Mission picker's choices
+  ],
+  // A landing zone edited in the Landing zones view (zones_wiring.js's setZones, done or undone), after the zones are
+  // drawn, before the project's change and the edit run.
+  'zone-edit': [
+    'ground-grid',   // clear_map.js: the ground grid, drawn again (the ground's height goes by the zones)
+    'cutaway',       // cutaway.js: which pieces are drawn (a moved zone's own landing pieces are not)
+  ],
+  // A no-spawn volume's box dragged by a face handle (buildings_wiring.js, whose handles they are: as the handle moves,
+  // and once it is let go with no change).
+  'spawn-box': [
+    'spawns',        // spawns_wiring.js: the markers and the no-spawn volumes' boxes drawn
   ],
   // The header's mission picked changed: picked in the header (app.js's handler of its select, after it asks for the
   // Effects view's redraw, which none of these reads), or changed with its choices (clear_map.js's

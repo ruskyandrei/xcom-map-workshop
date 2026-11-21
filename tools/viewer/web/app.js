@@ -589,8 +589,8 @@ function grabView() {
 // panel and the header's Mission picker, the Map picture dialog, and the ground grid.
 const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
         headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
-        readLandingLines, refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes,
-        startMissionPicker, zonesNow } = createClearMap({
+        readLandingLines, refreshGroundGrid, showClearMap, showMissions, sizeNotes, startMissionPicker,
+        zonesNow } = createClearMap({
   $, addLightRoots, addRoots, banner, cloneGroups, editedKey, flashHint, gizmo, grabView, lightViewOnly, ownSize,
   projectChanged, projectsAvailable, refreshInstalls, removeLightRoots, removeRoots, sceneChanged, setStage, showPop,
   world,
@@ -650,12 +650,11 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
         stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
         zoneSoldiers, zoneState } = createZonesWiring({
   $, banner, camera, controls, editChanged, flashHint, floorStays, gizmo, groundHeight, headerMission,
-  isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, projectChanged, projectsAvailable, rayAt,
-  refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer, restingHint, setEffectsShown,
-  setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
+  isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, projectChanged, projectsAvailable, rayAt, renderer,
+  restingHint, setEffectsShown, setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
-  cutaway: () => cutaway(), setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
+  setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
 // The Buildings view and box select (buildings_wiring.js): the project's buildings as boxes and the map's own, the
 // view, its handles, drags and panel, the Normal button's Floor boxes, and box select.
 const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag,
@@ -668,9 +667,8 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
         volumePanel } = createBuildingsWiring({
   $, boxOf, builderBounds, camera, chosenStorey, editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
   editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, lightViewOnly, missionGizmo, pick,
-  projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers, renderer, restingHint, selectionWords,
-  setEffectsShown, setZonesShown, showPop, spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, volumeLayer,
-  world,
+  projectListings, projector, projectsAvailable, rayAt, renderer, restingHint, selectionWords, setEffectsShown,
+  setZonesShown, showPop, spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, volumeLayer, world,
   // (made with the selection and the views' switching, just below: called through, since they are not made yet while
   // this runs)
   select: (id, add, keep) => select(id, add, keep), syncLights: () => syncLights(),
@@ -779,9 +777,8 @@ const { breakAt, breakRow, drawBroken, mapBreakable, startBreak, stopBreak } = c
 const { deleteNow, deleteSelection, resetAll, resetSelected, undoStep } = createDeleteReset({
   addEffectRoots, addLightRoots, addRoots, baseMatrix, busy, BUSY_PIECES, clearedChanged, cloneGroups, copyable,
   deleteVolumes, drawBroken, effectViewOnly, flashHint, gizmo, liveVolumes, mapEdits, mapRestoreChange, nextFrame,
-  refreshLandingZones, refreshLightVisibility, refreshMissionPicker, removeEffectRoots, removeLightRoots, removeRoots,
-  restingHint, sceneChanged, selectedBoxes, selectionWords, setLightValues, setMissionMoves, setStage, syncSpawnRule,
-  valuesEdited });
+  removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged, selectedBoxes, selectionWords,
+  setLightValues, setMissionMoves, setStage, syncSpawnRule, valuesEdited });
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 // The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
 // the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.
