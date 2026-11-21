@@ -20,12 +20,13 @@ import { anotherRock, GROUND, groundLookOf, groundWords as groundShapeWords, res
          turnedGround } from './ground.js';
 import { catalogued, madeLookName } from './looks.js';
 import { gridOrigin } from './map_grid.js';
-import { freeSizeWords, toolFree } from './made_free.js';
-import { flippedWall, gridCrossings, holeWords, joinWords, openingPlay, openingWords, playWords, reshuffled, reshuffledSlab, SLAB,
+import { freeRequest, freeSizeWords, pivotedToCorner, toolFree } from './made_free.js';
+import { actorMatrix } from './gizmo.js';
+import { flippedWall, gridCrossings, holeWords, joinedEnds, joinWords, openingPlay, openingWords, playWords, reshuffled, reshuffledSlab, SLAB,
          slabLookOf, slabTiles, slabWords, sortedOpenings, steppedStoreys, storeysOf, storeyWords, toolSlab, toolWall,
          WALL, wallSpec, wallTop, wallWords, withHole, withOpening, withoutHole, withoutOpening,
          withStoreys } from './walls.js';
-import { plural } from './dom_words.js';
+import { plural, segmented } from './dom_words.js';
 
 export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, gizmo, handleWall, isMadeGround,
                                   isMadeSlab, isMadeWall, isPlain, liveKeys, liveMembers, lookRow, madeRoot,
@@ -75,7 +76,14 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
       return row;
     }));
     $('wallGap').disabled = !(tool && withOpening(w, 'doorway'));
-    $('wallFlip').disabled = $('wallShuffle').disabled = !tool;
+    $('wallFlip').disabled = $('wallShuffle').disabled = $('wallPivot').disabled = !tool;
+    // (design A) Taller than its look: where its height passes its look's own, how the rest is made (D3)
+    const spec = wallSpec(w), height = free ? w.z1 - w.z0 : wallTop(w) - spec.bottom;
+    $('wallTallRow').hidden = !(tool && height > spec.top - spec.bottom + 1e-6);
+    $('wallTall').value = free ? w.tall ?? 'repeat' : 'repeat';
+    // Join ends: with two made walls picked
+    const two = pickedWalls();
+    $('wallJoin').hidden = two.length !== 2;
     breakRow('wall', g, o.keepsPieces);
     $('wallNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's walls do, `
       + 'a fragment at a time. Doorways, windows and holes are walked, seen and shot through by the lines between tiles\' centres. '
@@ -281,6 +289,45 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     return { generated: { ...s.generated, wall: f.wall }, location: f.location, rotation: f.rotation };
   });
   $('wallShuffle').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated, wall: reshuffled(s.generated.wall) } }));
+  // ---- the commands of design A (the improvements plan, 10.6): Pivot to corner, Taller than its look, Join ends
+  const KEY = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' };
+  // Pivot to corner (D1): renumbered from its low corner, its pivot moved there, nothing moving in the world: its
+  // numbers, blasts and texture offsets shifted by what its origin moves (made_free.js pivotedToCorner); one undo step
+  function pivotToCorner() {
+    changeWall(s => {
+      const g = freeRequest(s.generated), key = KEY[g.kind], r = pivotedToCorner(g.kind, g[key], g.blasts ?? null);
+      if (!r.shift.some(v => Math.abs(v) > 1e-9)) { flashHint('Its pivot is at its corner already'); return null; }
+      // (the shift in the piece's frame, turned into the world's by its pose)
+      const at = new THREE.Vector3(r.shift[0], r.shift[2], r.shift[1]).applyMatrix4(actorMatrix(s.location, s.rotation));
+      const location = [at.x, at.z, at.y].map(v => Math.round(v * 1e4) / 1e4);
+      flashHint('Its pivot is at its low corner now: nothing moved · Ctrl+Z puts it back');
+      return { generated: { ...g, [key]: r.numbers, ...(r.blasts ? { blasts: r.blasts } : {}) }, location, rotation: s.rotation };
+    });
+  }
+  for (const id of ['wallPivot', 'slabPivot', 'groundPivot']) $(id).onclick = e => { pivotToCorner(); e.currentTarget.blur(); };
+  segmented($('wallTall'), () => changeWall(s => {
+    const g = freeRequest(s.generated);
+    return { ...s, generated: { ...g, wall: { ...g.wall, tall: $('wallTall').value } } };
+  }));
+  // The made walls picked now (their roots), for Join ends.
+  const pickedWalls = () => gizmo.picks().ids.map(id => madeWallRoot(id)).filter(Boolean);
+  $('wallJoin').onclick = e => {
+    e.currentTarget.blur();
+    const [ra, rb] = pickedWalls();
+    if (!ra || !rb) return;
+    const a = wallState(ra), b = wallState(rb), ga = freeRequest(a.generated), gb = freeRequest(b.generated);
+    const joined = joinedEnds({ location: a.location, rotation: a.rotation, wall: ga.wall },
+                              { location: b.location, rotation: b.rotation, wall: gb.wall });
+    if (!joined) { flashHint("These walls run alongside each other: their ends don't meet"); return; }
+    // (only the walls whose numbers change are set: each one an undo step, joined as one)
+    const changes = [[ra, a, { ...a, generated: { ...ga, wall: joined[0] } }], [rb, b, { ...b, generated: { ...gb, wall: joined[1] } }]]
+      .filter(([, before, after]) => JSON.stringify(after.generated) !== JSON.stringify(before.generated));
+    if (!changes.length) { flashHint('Their ends meet already'); return; }
+    for (const [root, before, after] of changes) setWall(root, after, before);
+    gizmo.joinLast(changes.length);
+    gizmo.setSelection([ra.userData.source.id, rb.userData.source.id]);
+    flashHint('Joined their ends where their lines cross: they meet in a mitred corner · Ctrl+Z undoes it');
+  };
   // Delete with an opening's handle last touched takes that opening out (the wall stays): true when it did.
   function deleteWallOpening() {
     const slabRoot = madeRoot(selected);

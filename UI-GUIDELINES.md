@@ -29,6 +29,12 @@ for controls, a new style) writes the pattern here in the same commit.
   - A colour and a shape mean one thing across the editor: a white handle sizes the thing it stands on, and the
     accent colour is what is on. A new marker takes the look of the meaning it shares, or a look nothing else has.
   - What a handle does is said in the hint line while it is held, not in a label standing in the view.
+  - A made piece's size handles (since 21 November 2026): one white handle on a stem out of each face it is sized by
+    (a wall's two ends, its top, its bottom under the floor line and the face toward the camera for its thickness; a
+    floor's, roof's or ground shape's sides, top and bottom), the face's number moving and the opposite face and the
+    piece's pivot staying. Its cut-outs' blue handles a set at a time: the picked gap's or hole's own handles, every
+    other one's middle alone, which picks it. Its commands (Pivot to corner, Join ends, how a wall taller than its
+    look is made) stand in its section of the piece panel.
 - A check that a new handle or marker can be seen and clicked is made with other things around it (a busy map, several
   things picked), not on an empty one.
 

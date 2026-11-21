@@ -295,7 +295,10 @@ canvas { display: block; width: 100%; height: 100%; }
 /* Align: tick any of the game axes, choose what lines up, then Align. */
 .alignbox { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
 .alignrow { display: flex; align-items: center; gap: 5px; }
-/* the Align section's Align to row (Grid, Level, Game pose): a .row whose label stands before its buttons */
+/* the Align section's Align to row (Grid, Level, Game pose), and a made wall's Taller than its look row: a .row whose
+   label stands before its buttons */
+.walltall { align-items: center; margin: 2px 0 0; flex-wrap: wrap; }
+.walltall .alignlabel { font-size: 11px; color: var(--muted); margin-right: 2px; }
 .alignto { align-items: center; margin: 0 0 8px; flex-wrap: wrap; }
 .alignto .alignlabel { font-size: 11px; color: var(--muted); margin-right: 2px; }
 .alignto button kbd { margin-left: 4px; }

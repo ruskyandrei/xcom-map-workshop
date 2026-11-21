@@ -203,7 +203,9 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     # every gap has all five handles; the start's handle a tile out under tile snap: the wall in the free form, its
     # start a tile back, its origin and gaps where they were (the improvements plan, D1)
     h = page.evaluate('viewer.wallHandles()')
-    assert {'end:x0', 'end:x1'} | {f'open:{i}:{p}' for i in (0, 1) for p in PARTS} <= set(h), sorted(h)
+    # (gaps a set at a time, design A: the picked gap's five handles, the others' middle; the first gap picked)
+    assert {'end:x0', 'end:x1', 'open:1:middle'} | {f'open:0:{p}' for p in PARTS} <= set(h), sorted(h)
+    assert 'open:1:x0' not in h, sorted(h)
     page.evaluate("viewer.setSnapMode('tile')")
     drag(page, h['end:x0'][:2], h['end:x0'][2:])
     page.evaluate("viewer.setSnapMode('off')")
@@ -884,3 +886,90 @@ def room_uncatalogued(page):
 
 if __name__ == '__main__':
     print(json.dumps(dict(note='run through browser_smoke.py --only walls --projects')))
+
+
+FREE_WALL = dict(kind='fracWall', version=5, wall=dict(free=1, x0=0, x1=480, y0=-8, y1=8, z0=-16, z1=600, tall='repeat', seed=3,
+                                                       openings=[dict(x0=96, x1=192, z0=8, z1=160), dict(x0=288, x1=384, z0=72, z1=168)]))
+FREE_SLAB = dict(kind='fracSlab', version=4, slab=dict(free=1, x0=0, x1=288, y0=0, y1=192, z0=190, z1=194, holes=[], seed=1, look='floor'))
+
+
+def check_free_handles(browser, url, open_viewer):
+    """The made pieces' handles and commands of the chosen design (the custom geometry improvements plan, 10.6, design
+    A): a wall's thickness and bottom handles, white on stems, under tile snap a tile thicker and a level lower, its
+    origin kept; its gaps a set at a time (the picked one's five handles, the others' middle alone); a floor's top and
+    underside; Pivot to corner keeping it where it is; Taller than its look's Stretch; Join ends on two walls."""
+    errors = []
+    page = open_viewer(browser, url, errors)
+    (wall, slab, off), _ = made_pieces(page, [FREE_WALL, FREE_SLAB, dict(FREE_WALL, wall=dict(FREE_WALL['wall'], x0=-96))])
+    page.evaluate("viewer.setSnapMode('tile')")
+    page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', wall)
+    page.wait_for_timeout(400)
+    mesh_ready(page, wall)
+    h = page.evaluate('viewer.wallHandles()')
+    assert {'end:x0', 'end:x1', 'end:top', 'end:bottom', 'end:face'} <= set(h), sorted(h)
+    # gaps a set at a time: nothing picked, the middles alone
+    assert {k for k in h if k.startswith('open:')} == {'open:0:middle', 'open:1:middle'}, sorted(h)
+    start = state(page, wall)
+    drag(page, h['end:face'][:2], h['end:face'][2:])
+    w = state(page, wall)['generated']['wall']
+    assert w['y1'] - w['y0'] == 16 + 96 and state(page, wall)['location'] == start['location'], w
+    page.keyboard.press('Control+z')
+    h = page.evaluate('viewer.wallHandles(-72)')
+    drag(page, h['end:bottom'][:2], h['end:bottom'][2:])
+    w = state(page, wall)['generated']['wall']
+    assert w['z0'] == -16 + 64 and w['z1'] == 600, w            # (the handle's axis is down: 72 up it is a level, under tile snap)
+    page.keyboard.press('Control+z')
+    # a gap's middle clicked: its five handles
+    h = page.evaluate('viewer.wallHandles()')
+    page.mouse.click(*h['open:1:middle'][:2])
+    h = page.evaluate('viewer.wallHandles()')
+    assert {f'open:1:{p}' for p in PARTS} <= set(h) and 'open:0:x0' not in h, sorted(h)
+    # Taller than its look (600 tall, past the Bar look's 400): Stretch, one undo step
+    page.wait_for_selector('#wallTallRow:not([hidden])')
+    page.locator('#wallTall button[data-value="stretch"]').click()
+    assert generated(page, wall)['wall']['tall'] == 'stretch', generated(page, wall)
+    mesh_ready(page, wall)
+    page.keyboard.press('Control+z')
+    assert generated(page, wall)['wall']['tall'] == 'repeat'
+    # Pivot to corner: an off-corner wall renumbered from 0, its place moved by as much, nothing moving in the world
+    page.evaluate('id => viewer.select(id)', off)
+    page.wait_for_selector('#wallBox:not([hidden]) #wallPivot')
+    before = state(page, off)
+    page.locator('#wallPivot').click()
+    after = state(page, off)
+    assert after['generated']['wall']['x0'] == 0 and after['generated']['wall']['x1'] == 576, after
+    # (its origin moved to where its x0 was: 96 back along its own direction, whatever its yaw)
+    import math
+    yaw = before['rotation'][1] * 2 * math.pi / 65536
+    want = [before['location'][0] - 96 * math.cos(yaw), before['location'][1] - 96 * math.sin(yaw)]
+    assert all(abs(after['location'][k] - want[k]) < 0.01 for k in (0, 1)), (before, after, want)
+    assert [o['x0'] for o in after['generated']['wall']['openings']] == [192, 384], after
+    # a floor's top and underside handles
+    page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', slab)
+    page.wait_for_timeout(400)
+    mesh_ready(page, slab)
+    assert {'end:top', 'end:bottom'} <= set(page.evaluate('viewer.wallHandles()'))
+    # Join ends: two walls picked, their nearer ends brought to where their lines cross
+    (second,), _ = made_pieces(page, [dict(FREE_WALL, wall=dict(FREE_WALL['wall'], openings=[]))])
+    # (the second turned a quarter from the first, alone, so their lines cross)
+    page.evaluate("id => viewer.select(id)", second)
+    yaw = state(page, wall)['rotation'][1] * 360 / 65536
+    page.evaluate("y => viewer.gizmo.setPose(null, [0, y, 0])", yaw + 90)
+    # (and moved off the first's start, so the crossing is along both: (the made pieces paste at one place)
+    import math
+    r = state(page, wall)['rotation'][1] * 2 * math.pi / 65536
+    d, n = (math.cos(r), math.sin(r)), (-math.sin(r), math.cos(r))
+    loc = state(page, second)['location']
+    page.evaluate("p => viewer.gizmo.setPose(p, null)", [loc[0] + d[0] * 240 - n[0] * 200, loc[1] + d[1] * 240 - n[1] * 200, loc[2]])
+    page.evaluate("([a, b]) => { viewer.select(a); viewer.select(b, true); }", [wall, second])
+    was = [state(page, wall)['generated']['wall'], state(page, second)['generated']['wall']]
+    page.wait_for_selector('#wallJoin:not([hidden])')
+    depth = page.evaluate('viewer.gizmo.undoDepth()')
+    page.locator('#wallJoin').click()
+    assert page.evaluate('viewer.gizmo.undoDepth()') == depth + 1, page.locator('#dragHint').inner_text()
+    now = [state(page, wall)['generated']['wall'], state(page, second)['generated']['wall']]
+    assert now != was and 'mitred corner' in page.locator('#dragHint').inner_text(), (was, now)
+    page.evaluate("viewer.setSnapMode('off')")
+    page.close()
+    assert not errors, errors
+    return dict(handles=5)

@@ -226,6 +226,8 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       { key: 'side:y1', kind: 'side', part: 'y1', at: toView(cx, b[3], mid), dir: axis(0, 1) }];
     if (g.shape !== 'patch')
       out.push({ key: 'end:top', kind: 'end', part: 'top', at: toView(g.shape === 'ramp' ? b[1] : cx, cy, b[5]), dir: axis(0, 0, 1) });
+    // (its bottom: a patch's plate thicker or thinner under its top, a block sunk or raised from its top; design A)
+    out.push({ key: 'end:bottom', kind: 'end', part: 'z0', at: toView(cx, cy, b[4]), dir: axis(0, 0, -1) });
     // a rock's corners: a blue point on each (look picker and rock points plan, R3), from the server's answer
     const c = g.shape === 'rock' && !pointGizmo.dragging ? rockCornersOf(g) : null;
     for (const index of c?.corners ?? [])
@@ -364,6 +366,10 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       { key: 'side:x1', kind: 'side', part: 'x1', at: toView(s.x1, my, z), dir: axis(1, 0) },
       { key: 'side:y0', kind: 'side', part: 'y0', at: toView(mx, y0, z), dir: axis(0, -1) },
       { key: 'side:y1', kind: 'side', part: 'y1', at: toView(mx, s.y1, z), dir: axis(0, 1) }];
+    // (its top and its underside, each on a stem: the plate thicker or thinner, the other face staying; design A)
+    const bottom = s.free === 1 ? s.z0 : slabLookOf(s).bottom, up = toView(0, 0, 1).sub(toView(0, 0, 0)).normalize();
+    out.push({ key: 'end:top', kind: 'end', part: 'z1', at: toView(mx, my, z - 1), dir: up },
+             { key: 'end:bottom', kind: 'end', part: 'z0', at: toView(mx, my, bottom), dir: up.clone().negate() });
     (s.holes ?? []).forEach((h, index) => {
       const cx = (h.x0 + h.x1) / 2, cy = (h.y0 + h.y1) / 2;
       out.push({ key: `hole:${index}:middle`, kind: 'hole', part: 'middle', index, at: toView(cx, cy, z), dir: null });
@@ -392,13 +398,21 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     out.push({ key: 'end:x1', kind: 'end', part: 'x1', at: toView(w.x1, 0, mid), dir: axis(1, 0, 0) });
     // the top: up or down (M2; any height in the free form)
     out.push({ key: 'end:top', kind: 'end', part: 'top', at: toView((x0 + w.x1) / 2, 0, top0), dir: axis(0, 0, 1) });
+    // (design A: its bottom, under the floor line, and the face toward the camera for its thickness, each on a stem; a
+    // quarter along, clear of the top's and the gaps' handles)
+    out.push({ key: 'end:bottom', kind: 'end', part: 'z0', at: toView(x0 + (w.x1 - x0) * 0.75, 0, bottom0), dir: axis(0, 0, -1) });
+    const facing = side > 0, faceY = free ? (facing ? w.y1 : w.y0) : (facing ? spec.through : -spec.through);
+    out.push({ key: 'end:face', kind: 'end', part: facing ? 'y1' : 'y0', at: toView(x0 + (w.x1 - x0) * 0.25, faceY, mid),
+               dir: axis(0, facing ? 1 : -1, 0) });
     const floor = free ? Math.max(0, w.z0) : 0;
+    // (its gaps a set at a time: the picked one's five handles, every other one's middle alone, which picks it)
+    const picked = wallFocus?.id === root.userData.source.id ? wallFocus.index : null;
     sortedOpenings(w.openings ?? []).forEach((o, index) => {
       // (a gap cut to the wall's bottom has its bottom handle on the floor)
       const cx = (o.x0 + o.x1) / 2, bottom = Math.max(floor, o.z0), cz = (bottom + o.z1) / 2;
       const at = { middle: [cx, cz], x0: [o.x0, cz], x1: [o.x1, cz], z1: [cx, o.z1], z0: [cx, bottom] };
       // (the middle drags in the wall's plane: `plane` its normal; the sides and ends along their axis)
-      for (const part of openingParts())
+      for (const part of index === picked ? openingParts() : ['middle'])
         out.push({ key: `open:${index}:${part}`, kind: 'opening', part, index, at: toView(at[part][0], side, at[part][1]),
                    dir: part === 'middle' ? null : part === 'z0' || part === 'z1' ? axis(0, 0, 1) : axis(1, 0, 0),
                    plane: part === 'middle' ? axis(0, 1, 0) : null, along: part === 'middle' ? axis(1, 0, 0) : null });
@@ -451,6 +465,9 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       : h.part === 'top' && isMadeGround(handleWall()?.userData.source) ? `The top: drag to raise or lower it (${stepWords(snapMode, { up: true })}, as the snap setting)`
       : h.kind === 'side' ? `The edge: drag to grow or shrink it (${stepWords(snapMode)}, as the snap setting; the other edge stays)`
       : h.kind === 'hole' ? (h.part === 'middle' ? `Hole: drag to slide it (${stepWords(snapMode)}, as the snap setting)` : `Hole's side: drag to size it (${stepWords(snapMode)}, as the snap setting)`)
+      : h.part === 'z0' ? `The bottom: drag to move it down or up (${stepWords(snapMode, { up: true })}, as the snap setting; the top stays)`
+      : h.part === 'z1' ? `The top: drag to make it thicker or thinner (${stepWords(snapMode, { up: true })}, as the snap setting; the underside stays)`
+      : (h.part === 'y0' || h.part === 'y1') && h.kind === 'end' ? `The face: drag to make the wall thicker or thinner (${stepWords(snapMode)}, as the snap setting; the other face stays)`
       : h.part === 'top' ? `The wall's top: drag to make it taller or lower (${stepWords(snapMode, { up: true })}, as the snap setting; the bottom stays)`
       : h.kind === 'end' ? `The wall's end: drag to lengthen or shorten it (${stepWords(snapMode)}, as the snap setting; the other end stays)`
       : `${WALL_PART_WORDS[h.part]} (${openingStepWords(false)}, as the snap setting; Alt: steps of ${GAP.fine})`;
@@ -521,6 +538,28 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   // into it first (made_free.js freeRequest), the face's number moves by the distance dragged in the snap setting's
   // steps (across for an end or side, up for a top), the piece's origin stays where it is, and its openings or holes
   // are clipped to it; a free slab's hole slides or sizes in the same steps. One undo step at the release.
+  // J held while a wall's end is dragged takes the end to the nearest end of another made wall within JOIN_PULL units
+  // (design A; the improvements plan, 4.2): where the two then meet, the joins mitre the corner
+  let joinHeld = false;
+  const JOIN_PULL = 64;
+  window.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'j') joinHeld = true; });
+  window.addEventListener('keyup', e => { if (e.key.toLowerCase() === 'j') joinHeld = false; });
+  window.addEventListener('blur', () => { joinHeld = false; });
+  // The place along the wall (its frame's x) nearest another made wall's end within JOIN_PULL of its end at `x`, or null.
+  function nearestWallEnd(root, state, x) {
+    const yaw = Math.round(state.rotation[1]) * 2 * Math.PI / 65536, d = [Math.cos(yaw), Math.sin(yaw)];
+    const at = [state.location[0] + d[0] * x, state.location[1] + d[1] * x];
+    let best = null;
+    for (const r of roots.values()) {
+      if (r === root || r.userData.deleted || !isMadeWall(r.userData.source)) continue;
+      const s = wallState(r), w = s.generated.wall, ya = Math.round(s.rotation[1]) * 2 * Math.PI / 65536;
+      for (const k of [w.free === 1 ? w.x0 : 0, w.x1]) {
+        const q = [s.location[0] + Math.cos(ya) * k, s.location[1] + Math.sin(ya) * k], gap = Math.hypot(q[0] - at[0], q[1] - at[1]);
+        if (gap <= JOIN_PULL && (!best || gap < best.gap)) best = { gap, t: (q[0] - state.location[0]) * d[0] + (q[1] - state.location[1]) * d[1] };
+      }
+    }
+    return best ? best.t : null;
+  }
   function moveFreeDrag(e) {
     const d = wallDrag, h = d.handle, b = d.before, g = freeRequest(b.generated);
     const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[g.kind], n = g[key], steps = stepsOf(snapMode);
@@ -545,10 +584,14 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       // (the handle's axis points out of its face: out of a low face is down its axis)
       const face = h.part === 'top' ? 'z1' : h.part, up = face[0] === 'z';
       const delta = stepped(t - d.from, up ? steps.up : steps.across) * (face.endsWith('0') ? -1 : 1);
-      const r = resizedFace(g.kind, n, face, delta);
+      let r = resizedFace(g.kind, n, face, delta), pulled = false;
+      if (joinHeld && g.kind === 'fracWall' && (face === 'x0' || face === 'x1')) {
+        const t = nearestWallEnd(d.root, b, r.numbers[face]);
+        if (t != null) { r = resizedFace(g.kind, n, face, t - n[face]); pulled = true; }
+      }
       numbers = r.numbers;
       const cut = g.kind === 'fracWall' ? 'opening' : 'hole';
-      words = `${freeSizeWords(numbers)} (${stepWords(snapMode, { up })})${r.removed ? ` · ${plural(r.removed, cut)} past the ${up ? 'top' : 'edge'} will go` : ''}`;
+      words = `${freeSizeWords(numbers)} (${pulled ? "at another wall's end: J" : stepWords(snapMode, { up })})${r.removed ? ` · ${plural(r.removed, cut)} past the ${up ? 'top' : 'edge'} will go` : ''}`;
     }
     if (!toolFree(g.kind, numbers)) return;
     const shown = JSON.stringify(numbers);
