@@ -149,11 +149,12 @@ def base_streams(game, base):
     from its DefaultMaps.ini as the install has it (the editor's lines taken out). [] for a map with no record."""
     import installs
     import maplist
+    import mapsini
     text = installs.maps_text(game)
     found = []
     for record in maplist.records(text):
-        if (maplist.field(record, 'Name') or '').lower() != base.lower(): continue
-        found += re.findall(r'MapName="([^"]+)"', record)
+        if (mapsini.field(record, 'Name') or '').lower() != base.lower(): continue
+        found += mapsini.slot_streams(record)
     return list(dict.fromkeys(found))
 
 
@@ -251,18 +252,19 @@ class Claims:
         for variant, owner in installs.recorded_variants(ledger).items():
             self.add(variant, f'{variant}, installed by the editor in {game.name}', owner)
         import maplist
+        import mapsini
         lines = text.splitlines()
         for k, line in enumerate(lines):
             # live records, and commented-out ones (they name a map too)
             off = maplist.COMMENTED.match(line)
             record = off.group(1) if off else line.strip() if line.lstrip().startswith('Maps=(') else None
             if record is None: continue
-            name = maplist.field(record, 'Name')
+            name = mapsini.field(record, 'Name')
             # a record of the lab's patchtool deploy (installs.patchtool_record): the editor stands in for it
             lab = bool(name and not off) and installs.patchtool_record(
                 [l.encode('latin-1', 'replace') for l in lines[max(0, k - 1):k + 1]], name) is not None
             self.add(name, f'a map record of {game.name}\'s DefaultMaps.ini', soft=lab)
-            for stream in re.findall(r'MapName="([^"]+)"', record):
+            for stream in mapsini.slot_streams(record):
                 self.add(stream, f'a stream in {game.name}\'s DefaultMaps.ini')
 
     def holders(self, name):

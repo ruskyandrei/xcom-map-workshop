@@ -4,6 +4,8 @@ import tempfile
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import maplist
+import mapsini
+import missions
 
 # Records as LWR's DefaultMaps.ini writes them (cut short): a map with several records in different groups, a council
 # variant, a commented-out record, the strategy map, a DLC record named after its package, and two maps that would
@@ -90,7 +92,22 @@ class MapListTests(unittest.TestCase):
         self.assertEqual(len(records), len(maplist.live_records(INI)) + 1)
         # where the install has a live record for the map (plain EW may), the commented-out ones are not taken
         live = INI + 'Maps=( MapFamily="Act1_IntroLevel",  Name="Act1_IntroLevel",  DisplayName="IntroLevel", MissionType=eMission_Special)\n'
-        self.assertEqual([maplist.field(r, 'DisplayName') for r in maplist.records(live) if 'Act1_IntroLevel' in r], ['IntroLevel'])
+        self.assertEqual([mapsini.field(r, 'DisplayName') for r in maplist.records(live) if 'Act1_IntroLevel' in r], ['IntroLevel'])
+
+    def test_the_mission_kinds_name_each_kind_as_the_map_list_does(self):
+        # one rule for a record's mission (record_kind): the map list's labels and groups (mission_of) and the mission
+        # kinds' (missions.KINDS, which Play in game and the Build say) are the same for every kind, so a label
+        # changed on one side fails here
+        self.assertEqual(set(missions.COUNCIL), set(maplist.COUNCIL_LABEL))
+        self.assertEqual({k for k in missions.KINDS if not k.startswith('Special')}, set(maplist.MISSION_LABEL))
+        for key, kind in missions.KINDS.items():
+            mission, _, council = key.partition('/')
+            line = 'Maps=( Name="X", MissionType=eMission_%s%s )' % (mission, ', CouncilType=eFCMType_%s' % council if council else '')
+            self.assertEqual(missions.kind_key(line), key)
+            self.assertEqual(maplist.mission_of(line)[::2], (kind['group'], kind['label']), key)
+        self.assertEqual(maplist.record_kind(b'Maps=( Name="X", MissionType = eMission_Special, CouncilType=eFCMType_Bomb )'),
+                         ('Special', 'Bomb'))
+        self.assertEqual(maplist.record_kind('Maps=( Name="X" )'), ('', 'None'))
 
     def test_distinct_keeps_a_label_that_names_its_tail(self):
         maps = {'URB_Boulevard': dict(name='URB_Boulevard', label='Urban Boulevard'),

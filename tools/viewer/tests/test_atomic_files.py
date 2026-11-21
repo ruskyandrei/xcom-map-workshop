@@ -26,6 +26,7 @@ import mapsini  # noqa: E402
 import packs  # noqa: E402
 import pictures  # noqa: E402
 import playsaves  # noqa: E402
+import prefab_tests  # noqa: E402
 from prefabs import PrefabStore  # noqa: E402
 from projects import ProjectStore  # noqa: E402
 import publication  # noqa: E402
@@ -274,6 +275,15 @@ class Writers(unittest.TestCase):
         self.assertEqual(playsaves._move_to_next_slot(folder, folder / 'save1', {1, 3}, []), folder / 'save4')
         return [folder / 'save3', folder / 'save4']
 
+    def write_prefab_test(self, root):
+        folder = root / '.prefab-tests' / '0f8b2c4e1d2a'
+        folder.mkdir(parents=True)
+        prefab_tests.write(folder / 'test.json', dict(id=ID, state='preparing'))
+        prefab_tests.write(folder / 'test.json', dict(id=ID, state='building'))
+        self.assertEqual((folder / 'test.json').read_bytes(),
+                         ('{\n "id": "%s",\n "state": "building"\n}\n' % ID).encode())
+        return [folder / 'test.json']
+
     def write_install_ledger(self, root):
         installs.write_ledger(root, dict(history=[dict(at='now')]))
         return [installs.ledger_path(root)]
@@ -307,8 +317,6 @@ ALLOWED = {
                  'onto one that is there (a new generation is named then)',
     'publication.py': 'a package\'s folders swapped (the old one aside, the new one in, back on a failure): folders '
                       'moved, and the journal\'s states rest on Path.rename refusing a folder that is there',
-    'prefab_tests.py': 'track E\'s file (follow-ups): its write() of a prefab test\'s records replaces without the '
-                       'retry; reported by V2 for its own track',
 }
 
 

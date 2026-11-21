@@ -680,6 +680,7 @@ def map_records(package_path):
     mission (maplist.mission_of) and the packages it streams, landing intros and other cinematics (CIN_) left out.
     [] for a package outside an install."""
     import maplist
+    import mapsini
     import installs
     import missions
     path = Path(package_path).resolve()
@@ -690,12 +691,12 @@ def map_records(package_path):
     text = installs.maps_text(game) if game and installs.config(game, 'DefaultMaps.ini') == ini else ini.read_text(encoding='latin-1')
     out = []
     for line in maplist.records(text):
-        if (maplist.field(line, 'Name') or '').casefold() != path.stem.casefold(): continue
+        if (mapsini.field(line, 'Name') or '').casefold() != path.stem.casefold(): continue
         group, mission, label = maplist.mission_of(line)
         if mission in maplist.LEFT_OUT: continue
-        streams = [s for s in re.findall(r'MapName="([^"]+)"', line) if not s.upper().startswith('CIN_')]
+        streams = [s for s in mapsini.slot_streams(line) if not s.upper().startswith('CIN_')]
         out.append(dict(type=mission, label=label, group=group, kind=missions.kind_key(line),
-                        display=maplist.field(line, 'DisplayName') or '', streams=list(dict.fromkeys(streams))))
+                        display=mapsini.field(line, 'DisplayName') or '', streams=list(dict.fromkeys(streams))))
     return out
 
 

@@ -24,6 +24,8 @@ other maps whose records are all commented out are left out: Long War's EU maps,
 from pathlib import Path
 import re
 
+import mapsini
+
 GROUPS = (('abduction', 'Abduction'), ('ufo', 'UFO'), ('terror', 'Terror'), ('council', 'Council'),
           ('exalt', 'EXALT'), ('story', 'Story'), ('other', 'Other'))
 MISSION_GROUP = {'Abduction': 'abduction', 'Crash': 'ufo', 'LandedUFO': 'ufo', 'TerrorSite': 'terror',
@@ -46,7 +48,6 @@ NOTES = re.compile(r'^(?:beta/functionality complete|art placement complete|art 
 # bracketed parts that only name a mission, not the place
 MISSION_ONLY = {'abduction', 'terror', 'capture and hold', 'covert extraction', 'fighter', 'crashed fighter',
                 'landed raider', 'landed transport', 'landed terrorship', 'exalt headquarters assault'}
-FIELD = r'(?<![A-Za-z]){}\s*=\s*"([^"]*)"'
 # Names the records don't give well: the DLC and tutorial missions (their records' display names are the package
 # names), development jokes, typos, and a landed map whose note calls it crashed.
 LABELS = {
@@ -70,16 +71,6 @@ LABELS = {
 }
 
 
-def field(line, name):
-    m = re.search(FIELD.format(name), line)
-    return m.group(1) if m else None
-
-
-def unquoted(line, name):
-    m = re.search(r'(?<![A-Za-z]){}\s*=\s*(\w+)'.format(name), line)
-    return m.group(1) if m else None
-
-
 def live_records(text):
     """The live `Maps=(` lines of a DefaultMaps.ini's text, in file order."""
     return [l.strip() for l in text.splitlines() if l.lstrip().startswith('Maps=(')]
@@ -93,7 +84,7 @@ def switched_off(line, live_names):
     if not m:
         return None
     record = m.group(1)
-    name = field(record, 'Name')
+    name = mapsini.field(record, 'Name')
     if name not in SWITCHED_OFF or name in live_names or mission_of(record)[1] not in SWITCHED_OFF[name]:
         return None
     return record
@@ -102,7 +93,7 @@ def switched_off(line, live_names):
 def records(text):
     """The records the editor works from, in file order, each as the file writes it (trailing blanks included): the live
     ones and the commented-out ones it takes (switched_off), without the ';' and what comes before the record."""
-    live = {field(l, 'Name') for l in live_records(text)}
+    live = {mapsini.field(l, 'Name') for l in live_records(text)}
     out = []
     for line in text.splitlines():
         if line.lstrip().startswith('Maps=('):
@@ -114,10 +105,18 @@ def records(text):
     return out
 
 
+def record_kind(line):
+    """(mission type, council type) of one record (a line of text or bytes), each without its prefix: ('Abduction',
+    'None'), ('Special', 'Bomb'). The one rule that the map list's missions (mission_of) and the mission kinds
+    (missions.kind_key) are read by."""
+    return ((mapsini.unquoted(line, 'MissionType') or '').replace('eMission_', ''),
+            (mapsini.unquoted(line, 'CouncilType') or 'eFCMType_None').replace('eFCMType_', ''))
+
+
 def mission_of(line):
-    """(group, mission type without its prefix, readable mission label) of one record."""
-    mission = (unquoted(line, 'MissionType') or '').replace('eMission_', '')
-    council = (unquoted(line, 'CouncilType') or 'eFCMType_None').replace('eFCMType_', '')
+    """(group, mission type without its prefix, readable mission label) of one record (record_kind; missions.KINDS
+    gives each kind the same label: test_maplist holds the two)."""
+    mission, council = record_kind(line)
     if mission == 'Special':
         if council in COUNCIL_LABEL:
             return 'council', mission, COUNCIL_LABEL[council]
@@ -159,16 +158,16 @@ def lwr_maps(lwr):
     import installs
     maps = {}
     for line in records(installs.maps_text(lwr)):
-        name = field(line, 'Name')
+        name = mapsini.field(line, 'Name')
         if not name or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_-]*', name):
             continue
         group, mission, label = mission_of(line)
         if mission in LEFT_OUT:
             continue
-        entry = maps.setdefault(name, dict(name=name, family=field(line, 'MapFamily') or name, displays=[],
+        entry = maps.setdefault(name, dict(name=name, family=mapsini.field(line, 'MapFamily') or name, displays=[],
                                            missions=[], groups=[]))
-        entry['displays'].append(field(line, 'DisplayName') or '')
-        entry['missions'].append(dict(type=mission, label=label, display=field(line, 'DisplayName') or ''))
+        entry['displays'].append(mapsini.field(line, 'DisplayName') or '')
+        entry['missions'].append(dict(type=mission, label=label, display=mapsini.field(line, 'DisplayName') or ''))
         if group not in entry['groups']:
             entry['groups'].append(group)
     for name, entry in maps.items():
