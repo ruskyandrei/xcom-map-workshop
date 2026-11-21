@@ -14,6 +14,7 @@
 // tall): normalCover reads both. The editor draws a piece as a see-through box with its edges; in the game it is hidden.
 import * as THREE from 'three';
 import { LEVEL, TILE } from './constants.js';
+import { stepped, stepsOf } from './snap_steps.js';
 
 export const COVER_MATERIAL = 'cover:material';
 export const COVER_KIND = 'cover';
@@ -96,25 +97,29 @@ export const MIN_ACROSS = 8, MIN_HIGH = 8;
  *  [key, local game axis 0 | 1 | 2, side -1 | 1]. */
 export const coverFaces = c => [['-x', 0, -1], ['+x', 0, 1], ['-y', 1, -1], ['+y', 1, 1],
                                 ...(isFloor(c) ? [] : [['-z', 2, -1], ['+z', 2, 1]])];
-/** A face moved `delta` units out from the piece (in: below 0), with the snap setting's steps (`snap`: 'off', 'fine' or 'tile'):
- *  { cover, shift }, the new record and how far the corner moves along the face's axis (a low side's drag moves it,
- *  so the opposite side stays where it is).
- *  - Across, the size counts from the opposite side: off to 1 unit, fine in steps of 24, tile in whole tiles.
- *  - Up and down, the face keeps to steps from the type's first top or bottom (the recipe's): off to 1 unit, fine in
- *    steps of 24, tile in steps of 96 (today's tile heights). */
+/** A face moved `delta` units out from the piece (in: below 0), the distance moved in the snap setting's steps (`snap`:
+ *  'off', 'fine' or 'tile'; snap_steps.js): { cover, shift }, the new record and how far the corner moves along the
+ *  face's axis (a low side's drag moves it, so the opposite side stays where it is). Across, off is continuous, fine
+ *  steps of 24 and tile whole tiles; up and down, off continuous, fine 24 and tile levels of 64. A size off the steps
+ *  keeps its offset. A side never comes closer than MIN_ACROSS to the other (the nearest step that stays that far),
+ *  nor a top than MIN_HIGH to the bottom. */
 export function resizedCover(c, recipe, [, axis, side], delta, snap) {
   const out = { ...c, size: [...c.size], ...(c.heights ? { heights: [...c.heights] } : {}) };
+  const steps = stepsOf(snap);
+  // the least a side or height moved in steps can come to: the nearest step that keeps `least` (or `least` itself)
+  const kept = (from, least, step) => (step ? from - Math.floor((from - least) / step + 1e-9) * step : least);
   if (axis < 2) {
-    const step = snap === 'tile' ? TILE : snap === 'fine' ? 24 : 1;
-    const raw = c.size[axis] + delta;
-    const size = Math.min((recipe.maxTiles ?? 16) * TILE, Math.max(snap === 'off' ? MIN_ACROSS : step, Math.round(raw / step) * step));
+    const step = steps.across, max = (recipe.maxTiles ?? 16) * TILE;
+    let size = c.size[axis] + stepped(delta, step);
+    if (size < MIN_ACROSS) size = kept(c.size[axis], MIN_ACROSS, step);
+    if (size > max) size = Math.max(c.size[axis], step ? c.size[axis] + Math.floor((max - c.size[axis]) / step + 1e-9) * step : max);
     out.size[axis] = size;
     return { cover: out, shift: side < 0 ? c.size[axis] - size : 0 };
   }
-  const step = snap === 'tile' ? (recipe.heightStep ?? TILE) : snap === 'fine' ? 24 : 1;
-  const [b0, t0] = typeHeights(recipe, c.type), k = side < 0 ? 0 : 1, anchor = side < 0 ? b0 : t0;
-  let v = anchor + Math.round((c.heights[k] + side * delta - anchor) / step) * step;
-  if (side < 0) v = Math.min(v, c.heights[1] - MIN_HIGH); else v = Math.max(v, c.heights[0] + MIN_HIGH);
+  const step = steps.up, k = side < 0 ? 0 : 1, span = c.heights[1] - c.heights[0];
+  let v = c.heights[k] + stepped(side * delta, step);
+  if (side < 0 && v > c.heights[1] - MIN_HIGH) v = c.heights[1] - kept(span, MIN_HIGH, step);
+  if (side > 0 && v < c.heights[0] + MIN_HIGH) v = c.heights[0] + kept(span, MIN_HIGH, step);
   out.heights[k] = v;
   return { cover: out, shift: 0 };
 }

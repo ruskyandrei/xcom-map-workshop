@@ -10,6 +10,7 @@
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll).
 import { QUARTER, TILE } from './constants.js';
 import { catalogued } from './looks.js';
+import { stepped } from './snap_steps.js';
 import { plural } from './dom_words.js';
 
 // The looks a wall is drawn in: each a donor (one of the game's fracturing walls, placed in a map of the base game), the
@@ -291,24 +292,23 @@ export function withoutOpening(wall, index) {
 /** A gap's handles: its middle (slides it along the wall), its two sides, its top and its bottom. */
 export const openingParts = () => ['middle', 'x0', 'x1', 'z1', 'z0'];
 /** The wall with one part of gap `index` moved `delta` units (along the wall for the middle and sides, up for the top
- *  and bottom), in steps of `along` and `up` (the editor's snap: 1 when it is off, so the handles move smoothly). The
- *  gap stays off its neighbours, at least OPENING.width wide (a tile when it moves by whole tiles) and OPENING.height
- *  tall, and reaches the wall's edges: a side to the wall's end, the bottom at or under the floor to the wall's bottom
- *  (its handle stands on the floor), the top past topMostOf(wall) through the wall's top. One part moved to the last
- *  edge a gap hasn't reached stops short of it (topMostOf, OPENING.sill, a side a step in, the gap at least
- *  OPENING.width wide): a gap never takes the whole wall. Gives the wall. */
+ *  and bottom), the distance moved in steps of `along` and `up` (the editor's snap, snap_steps.js: 0 when it is off, so
+ *  the handles move smoothly). The gap stays off its neighbours, at least OPENING.width wide (a tile when it moves by
+ *  whole tiles) and OPENING.height tall, and reaches the wall's edges: a side to the wall's end, the bottom at or under
+ *  the floor to the wall's bottom (its handle stands on the floor), the top past topMostOf(wall) through the wall's
+ *  top. One part moved to the last edge a gap hasn't reached stops short of it (topMostOf, OPENING.sill, a side a step
+ *  in, the gap at least OPENING.width wide): a gap never takes the whole wall. Gives the wall. */
 export function movedOpening(wall, index, part, delta, { along = TILE, up = OPENING.fine } = {}) {
   const list = sortedOpenings(wall.openings ?? []);
   if (!list[index]) return wall;
   const o = { ...list[index] };
   const before = index > 0 ? list[index - 1].x1 : 0, after = index < list.length - 1 ? list[index + 1].x0 : wall.x1;
   const least = along >= TILE ? TILE : OPENING.width, bottom = wallSpec(wall).bottom, top = wallTop(wall);
-  const at = v => round(v, along);
   if (part === 'middle') {
     // (`delta` [along, up]: the middle handle drags in the wall's plane, the user, 19 November 2026; a number: along)
     const [dx, dz] = Array.isArray(delta) ? delta : [delta, 0];
     const width = o.x1 - o.x0;
-    let x0 = o.x0 + round(dx, along);
+    let x0 = o.x0 + stepped(dx, along);
     x0 = Math.max(before, Math.min(after - width, x0));
     o.x0 = tidy(x0); o.x1 = tidy(x0 + width);
     // up and down its height kept, from the floor (a doorway's bottom is the floor) to the highest a gap's top goes
@@ -316,19 +316,19 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
     // the wall's top stays where it is up and down.
     const lo = Math.max(0, o.z0), height = o.z1 - lo, most = topMostOf(wall);
     if (dz && o.z1 < top - 1e-6 && height <= most + 1e-6) {
-      const z0 = Math.max(0, Math.min(most - height, round(lo + dz, up)));
+      const z0 = Math.max(0, Math.min(most - height, lo + stepped(dz, up)));
       o.z0 = z0 <= 1e-6 ? bottom : tidy(z0);
       o.z1 = tidy(z0 + height);
     }
   } else if (part === 'x0') {
-    o.x0 = tidy(Math.max(before, Math.min(o.x1 - least, at(o.x0 + delta))));
+    o.x0 = tidy(Math.max(before, Math.min(o.x1 - least, o.x0 + stepped(delta, along))));
   } else if (part === 'x1') {
-    o.x1 = tidy(Math.min(after, Math.max(o.x0 + least, at(o.x1 + delta))));
+    o.x1 = tidy(Math.min(after, Math.max(o.x0 + least, o.x1 + stepped(delta, along))));
   } else if (part === 'z1') {
-    const v = Math.max(Math.max(0, o.z0) + OPENING.height, round(o.z1 + delta, up));
+    const v = Math.max(Math.max(0, o.z0) + OPENING.height, o.z1 + stepped(delta, up));
     o.z1 = v > topMostOf(wall) + 1e-6 ? top : tidy(v);
   } else if (part === 'z0') {
-    const v = Math.min(o.z1 - OPENING.height, round(Math.max(0, o.z0) + delta, up));
+    const v = Math.min(o.z1 - OPENING.height, Math.max(0, o.z0) + stepped(delta, up));
     o.z0 = v <= 1e-6 ? bottom : tidy(v);
   }
   if (takesWhole(wall, o)) {

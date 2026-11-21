@@ -36,24 +36,26 @@ assert.deepEqual(resizedCover(block, recipe, face('+x'), 130, 'tile'), { cover: 
 assert.deepEqual(resizedCover(block, recipe, face('+x'), 40, 'tile').cover.size, [96, 96]);       // under half a tile: none
 // out on a low side: the corner moves back by what was added, so the far side stays
 assert.deepEqual(resizedCover(block, recipe, face('-y'), 110, 'tile'), { cover: { ...block, size: [96, 192] }, shift: -96 });
-assert.deepEqual(resizedCover(block, recipe, face('-x'), -48.4, 'off'), { cover: { ...block, size: [48, 96] }, shift: 48 });
+assert.deepEqual(resizedCover(block, recipe, face('-x'), -48.4, 'off'), { cover: { ...block, size: [47.6, 96] }, shift: 48.4 });   // snap off: no rounding
 assert.deepEqual(resizedCover(block, recipe, face('+y'), 30, 'fine').cover.size, [96, 120]);
 assert.deepEqual(resizedCover(block, recipe, face('+y'), -80, 'fine').cover.size, [96, 24]);      // a step of 24 at least
 assert.deepEqual(resizedCover(block, recipe, face('+x'), -500, 'tile').cover.size, [96, 96]);     // a tile at least
 assert.deepEqual(resizedCover(block, recipe, face('+x'), -500, 'off').cover.size, [MIN_ACROSS, 96]);
 assert.deepEqual(resizedCover(block, recipe, face('+x'), 5000, 'tile').cover.size, [16 * 96, 96]); // the recipe's most
-// a size off the steps snaps to them from the opposite side
-assert.deepEqual(resizedCover({ ...block, size: [50, 96] }, recipe, face('+x'), 30, 'fine').cover.size, [72, 96]);
+// the distance moved is stepped (the custom geometry improvements plan, 3.2): a size off the steps keeps its offset
+assert.deepEqual(resizedCover({ ...block, size: [50, 96] }, recipe, face('+x'), 30, 'fine').cover.size, [74, 96]);
+assert.deepEqual(resizedCover({ ...block, size: [50, 96] }, recipe, face('+x'), -40, 'fine').cover.size, [26, 96]);
+assert.deepEqual(resizedCover({ ...block, size: [50, 96] }, recipe, face('+x'), -100, 'fine').cover.size, [26, 96]);   // (the last step that keeps 8)
 
-// ---- up and down: steps from the type's first top or bottom
-assert.deepEqual(resizedCover(block, recipe, face('+z'), 100, 'tile').cover.heights, [-12, 192]);
+// ---- up and down: the distance moved in the snap's up steps (tile: levels of 64)
+assert.deepEqual(resizedCover(block, recipe, face('+z'), 100, 'tile').cover.heights, [-12, 224]);
 assert.deepEqual(resizedCover(block, recipe, face('+z'), 30, 'fine').cover.heights, [-12, 120]);
-assert.deepEqual(resizedCover(block, recipe, face('+z'), -55.6, 'off').cover.heights, [-12, 40]);
+assert.deepEqual(resizedCover(block, recipe, face('+z'), -55.6, 'off').cover.heights, [-12, 40.4]);
 const low = { ...block, type: 'low', heights: [-12, 84] };
-assert.deepEqual(resizedCover(low, recipe, face('+z'), 90, 'tile').cover.heights, [-12, 180]);   // low's tile heights
+assert.deepEqual(resizedCover(low, recipe, face('+z'), 90, 'tile').cover.heights, [-12, 148]);
 assert.deepEqual(resizedCover(low, recipe, face('+z'), 20, 'fine').cover.heights, [-12, 108]);
 // the bottom: out is down, in is up
-assert.deepEqual(resizedCover(block, recipe, face('-z'), -100, 'tile').cover.heights, [84, 96]);       // up a tile
+assert.deepEqual(resizedCover(block, recipe, face('-z'), -100, 'tile').cover.heights, [52, 96]);       // up a level: two would pass the top
 assert.deepEqual(resizedCover(block, recipe, face('-z'), 30, 'fine').cover.heights, [-36, 96]);
 assert.deepEqual(resizedCover(block, recipe, face('-z'), -200, 'off').cover.heights, [96 - MIN_HIGH, 96]);   // never past the top
 assert.deepEqual(resizedCover(block, recipe, face('+z'), -200, 'off').cover.heights, [-12, -12 + MIN_HIGH]);

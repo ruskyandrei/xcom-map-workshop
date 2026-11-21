@@ -29,7 +29,7 @@ import { modalOpen } from './modal.js';
 // such a pose. Snap off or fine, such a piece moves as any piece does, and off the grid the Build warns (refreshGrid).
 const SNAPS = {
   off: ['fine', '', 'Snap off. Click for steps of 24 units and 15°'],
-  fine: ['tile', '24', 'Snap: steps of 24 units and 15°. Click for whole tiles'],
+  fine: ['tile', '24', 'Snap: steps of 24 units from where the piece stood, and 15°. Click for whole tiles'],
   tile: ['off', '96', 'Snap: whole tiles (96 across, 64 up) from where the piece stood, and 90° turns. Click to turn snap off'],
 };
 export const RECIPE_NOTE = 'Recipe snap: under tile snap, ladders, doors, cars, vans and fracturing pieces (walls, storey floors) move by whole tiles (96 across) and storeys (64 up) and '

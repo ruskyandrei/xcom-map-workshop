@@ -59,6 +59,10 @@ assert.equal(movedOpening(wall, 0, 'x0', 500, { along: 8 }).openings[0].x0, 176)
 assert.equal(movedOpening(wall, 0, 'x0', 13.4, { along: 1 }).openings[0].x0, 109);
 assert.equal(movedOpening(wall, 1, 'x1', 41, { along: 1 }).openings[1].x1, 329);
 assert.equal(movedOpening(wall, 1, 'x1', 1000, { along: 1 }).openings[1].x1, 384);
+// with snap off (steps of 0) the handles move to fractions of a unit (the custom geometry improvements plan, 3.1)
+assert.equal(movedOpening(wall, 0, 'x0', 13.4, { along: 0 }).openings[0].x0, 109.4);
+assert.equal(movedOpening(wall, 0, 'z1', -0.375, { up: 0 }).openings[0].z1, 159.625);
+assert.deepEqual(movedOpening(wall, 1, 'middle', [7.25, 10.5], { along: 0, up: 0 }).openings[1], { x0: 199.25, x1: 295.25, z0: 82.5, z1: 178.5 });
 // the middle slides the gap along, never past its neighbours or the ends
 assert.deepEqual(movedOpening(wall, 0, 'middle', -500).openings[0], { x0: 0, x1: 96, z0: 8, z1: 160 });
 assert.deepEqual(movedOpening(wall, 1, 'middle', 500).openings[1], { x0: 288, x1: 384, z0: 72, z1: 168 });
@@ -69,7 +73,8 @@ assert.deepEqual(movedOpening(wall, 1, 'middle', [0, 100], { along: 96, up: 24 }
 assert.deepEqual(movedOpening(wall, 1, 'middle', [0, 1000], { along: 96, up: 24 }).openings[1], { x0: 192, x1: 288, z0: 264, z1: 360 });
 assert.deepEqual(movedOpening(wall, 1, 'middle', [0, -1000], { along: 96, up: 24 }).openings[1], { x0: 192, x1: 288, z0: -16, z1: 96 });
 assert.deepEqual(movedOpening(wall, 1, 'middle', [96, 24], { along: 96, up: 24 }).openings[1], { x0: 288, x1: 384, z0: 96, z1: 192 });
-assert.deepEqual(movedOpening(wall, 0, 'middle', [0, 48], { along: 96, up: 24 }).openings[0], { x0: 96, x1: 192, z0: 48, z1: 200 });
+// (the distance moved is stepped, so a gap off the steps keeps its offset: 8 over the floor, 48 up, is 56)
+assert.deepEqual(movedOpening(wall, 0, 'middle', [0, 48], { along: 96, up: 24 }).openings[0], { x0: 96, x1: 192, z0: 56, z1: 208 });
 const through = { ...wall, openings: [{ x0: 96, x1: 192, z0: 100, z1: 384 }] };
 assert.deepEqual(movedOpening(through, 0, 'middle', [96, 50], { along: 96, up: 24 }).openings[0], { x0: 192, x1: 288, z0: 100, z1: 384 });
 // the top: under the cornice, or past it cut through the wall's top; the bottom: over the floor, or at it cut to the
@@ -206,7 +211,8 @@ assert.equal(wallWords(wall), '4 tiles long, two storeys (400 tall)');
   // a gap's top stops 24 under the wall's top, or past that is cut through it
   assert.equal(movedOpening(low.wall, 1, 'z1', -8).openings[1].z1, 160);
   assert.equal(movedOpening(low.wall, 1, 'z1', 200).openings[1].z1, 192);
-  assert.equal(movedOpening(tall, 1, 'z1', 60).openings[1].z1, 360);
+  assert.equal(movedOpening(tall, 1, 'z1', 56).openings[1].z1, 356);   // (from 300 in eights: 356 is under it, 364 past it)
+  assert.equal(movedOpening(tall, 1, 'z1', 60).openings[1].z1, 384);
   assert.equal(movedOpening(tall, 1, 'z1', 200).openings[1].z1, 384);
 }
 assert.deepEqual([PRESETS.doorway.z0, PRESETS.doorway.z1], [8, 160]);

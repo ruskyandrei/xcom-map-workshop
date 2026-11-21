@@ -29,6 +29,7 @@ import { activeMapId, builderMode, coverDrag, data, families, geometryCache, lig
          snapMode, volumeDrag, volumesOn, zonesOn } from './editor_state.js';
 import { actorMatrix } from './gizmo.js';
 import { scaleMarker } from './lights_view.js';
+import { stepWords } from './snap_steps.js';
 
 export function createCoverWiring({ $, alongLine, camera, editChanged, gizmo, gridOrigin, HANDLE_PICK, materialCache,
                                     pickables, projector, renderer, restingHint, sceneChanged, select, showPop, track,
@@ -307,7 +308,8 @@ export function createCoverWiring({ $, alongLine, camera, editChanged, gizmo, gr
   // (cover.js resizedCover): a low side's drag moves the corner too, so the opposite side stays; Esc puts it back, and
   // the drag is one undo step.
   const COVER_FACE_WORDS = { '-x': 'Side −X', '+x': 'Side +X', '-y': 'Side −Y', '+y': 'Side +Y', '-z': 'Bottom', '+z': 'Top' };
-  const SNAP_STEPS = { off: 'steps of 1 unit', fine: 'steps of 24', tile: 'whole tiles' };
+  // (the hint's words for a face's steps: snap_steps.js's for the snap setting, a top or bottom's up)
+  const faceStepWords = key => stepWords(snapMode, { up: key === '-z' || key === '+z' });
   const coverHandleLayer = new THREE.Group(); world.add(coverHandleLayer);
   const coverHandles = new Map(Object.keys(COVER_FACE_WORDS).map(key => {
     const material = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true });
@@ -377,7 +379,7 @@ export function createCoverWiring({ $, alongLine, camera, editChanged, gizmo, gr
     if (key === coverHover) return;
     coverHover = key;
     renderer.domElement.style.cursor = key ? 'grab' : '';
-    renderer.domElement.title = key ? `${COVER_FACE_WORDS[key]}: drag to size it (${SNAP_STEPS[snapMode]}, as the snap setting)` : '';
+    renderer.domElement.title = key ? `${COVER_FACE_WORDS[key]}: drag to size it (${faceStepWords(key)}, as the snap setting)` : '';
   }
   function startCoverDrag(e) {
     if (e.button !== 0 || coverDrag || volumeDrag || gizmo.controls.dragging) return false;
@@ -403,7 +405,7 @@ export function createCoverWiring({ $, alongLine, camera, editChanged, gizmo, gr
     applyCover(d.root, cover, matrix);
     coverPanel(d.root);
     const [h0, h1] = cover.heights ?? [];
-    volumeHint(`${COVER_FACE_WORDS[d.face[0]]}: ${sizeWords(cover.size)}${cover.heights ? `, from ${Math.round(h0 * 100) / 100} to ${Math.round(h1 * 100) / 100}` : ''} (${SNAP_STEPS[snapMode]})`);
+    volumeHint(`${COVER_FACE_WORDS[d.face[0]]}: ${sizeWords(cover.size)}${cover.heights ? `, from ${Math.round(h0 * 100) / 100} to ${Math.round(h1 * 100) / 100}` : ''} (${faceStepWords(d.face[0])})`);
   }
   function endCoverDrag(keep) {
     const d = coverDrag;

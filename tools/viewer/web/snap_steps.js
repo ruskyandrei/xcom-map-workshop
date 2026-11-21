@@ -20,3 +20,32 @@ export function steppedMove(move, snap) {
   const s = stepsOf(snap);
   return [stepped(move[0], s.across), stepped(move[1], s.across), stepped(move[2], s.up)];
 }
+/** A move in the viewer's axes [dx, dy up, dz] in the snap setting's steps. */
+export function steppedViewMove(move, snap) {
+  const s = stepsOf(snap);
+  return [stepped(move[0], s.across), stepped(move[1], s.up), stepped(move[2], s.across)];
+}
+/** How a move goes under the snap setting, for a hint: "smoothly", "in steps of 24 units", "by whole tiles across and
+ *  levels (64) up"; `across` alone (a move on the floor) leaves up out. */
+export function moveWords(snap, { across = false } = {}) {
+  const s = stepsOf(snap);
+  if (!s.across) return 'smoothly';
+  if (s.across === s.up || across) return s.across === SNAP_STEPS.tile.across ? 'by whole tiles' : `in steps of ${s.across} units`;
+  return `by whole tiles across and levels (${s.up}) up`;
+}
+/** How a size or a handle's move goes along one axis (`up`: the vertical), for a hint: "smoothly", "in steps of 24
+ *  units", "by whole tiles", "in levels of 64". */
+export function stepWords(snap, { up = false } = {}) {
+  const s = stepsOf(snap), step = up ? s.up : s.across;
+  if (!step) return 'smoothly';
+  if (!up && step === SNAP_STEPS.tile.across) return 'by whole tiles';
+  if (up && snap === 'tile') return `in levels of ${step}`;
+  return `in steps of ${step} units`;
+}
+/** Where a piece placed or pasted stands across the floor: the point [x, y] under the cursor, as a move from `from`
+ *  (where the piece stands in the map) in the snap setting's steps across, so a piece keeps its offset from the grid;
+ *  with snap off, the point itself. */
+export function droppedAcross([x, y], from, snap) {
+  const step = stepsOf(snap).across;
+  return step ? [from[0] + stepped(x - from[0], step), from[1] + stepped(y - from[1], step)] : [x, y];
+}

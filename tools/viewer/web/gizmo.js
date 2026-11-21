@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { nearestGridPose } from './poserule.js';
+import { SNAP_STEPS, stepped, stepsOf } from './snap_steps.js';
 
 const TURN = 65536;   // native rotator units per turn
 // Game space (X, Y, Z up) and the viewer's (X, Y up, Z) differ by a Y/Z swap, its own inverse.
@@ -150,11 +151,13 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
     const s = sourceOf(root);
     return root.matrix.clone().multiply(new THREE.Matrix4().fromArray(s.matrix).invert()).multiply(actorMatrix(s.location, s.rotation));
   };
-  // The controls' own steps: tile snap turns by quarter turns and does its own moves (the recipe snap's for a piece with
-  // a pose rule).
+  // The controls' own steps: turns only (the snap setting's angle, counted from where the drag started; a building's box
+  // by quarter turns). Moves are stepped here, from where the drag started (snap_steps.js), so a piece off the grid
+  // keeps its offset: the controls' own move snap would round the pivot to absolute multiples.
   function applySnap() {
-    controls.setTranslationSnap(snap === 'fine' ? 24 : null);
-    controls.setRotationSnap(snap === 'tile' || boxed() ? Math.PI / 2 : snap === 'fine' ? THREE.MathUtils.degToRad(15) : null);
+    controls.setTranslationSnap(null);
+    const turn = boxed() ? 90 : stepsOf(snap).turn;
+    controls.setRotationSnap(turn ? THREE.MathUtils.degToRad(turn) : null);
     show();
   }
   // After a command added or removed pieces: drop picks that are gone or deleted.
@@ -243,17 +246,25 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
       proxy.updateMatrixWorld(true);
       return;
     }
-    // Tile snap moves by whole tiles from where the drag started (96 across, 64 up), so a piece keeps its offset
-    // within its tile; the controls' own snap would round the pivot to absolute multiples instead.
+    // A move goes in the snap setting's steps from where the drag started (fine 24, tile 96 across and 64 up), so a
+    // piece keeps its offset from the grid; along the piece's own axes when the gizmo shows them (local space). A
+    // building's box moves by whole tiles and levels of the world, whatever the snap.
     // The recipe snap puts the rule's piece at the nearest pose its rule allows, and the rest of the group with it.
     if (drag.rule) {
       proxy.updateMatrix();
       const delta = recipeMove(proxy.matrix.clone().multiply(drag.proxy.clone().invert()), drag.rule.actor, drag.rule.from, drag.rule.origin);
       delta.multiply(drag.proxy).decompose(proxy.position, proxy.quaternion, new THREE.Vector3());
-    } else if ((snap === 'tile' || drag.tiles) && controls.mode === 'translate') {
-      const d = proxy.position.clone().sub(drag.position);
-      proxy.position.set(drag.position.x + Math.round(d.x / 96) * 96, drag.position.y + Math.round(d.y / 64) * 64,
-                         drag.position.z + Math.round(d.z / 96) * 96);
+    } else if (controls.mode === 'translate') {
+      const steps = drag.tiles ? SNAP_STEPS.tile : stepsOf(snap);
+      if (steps.across || steps.up) {
+        const d = proxy.position.clone().sub(drag.position);
+        const own = controls.space === 'local' && !drag.tiles ? drag.quaternion : null;
+        if (own) d.applyQuaternion(own.clone().invert());
+        // (the viewer's y is up, in the world's axes and the piece's own alike)
+        d.set(stepped(d.x, steps.across), stepped(d.y, steps.up), stepped(d.z, steps.across));
+        if (own) d.applyQuaternion(own);
+        proxy.position.copy(drag.position).add(d);
+      }
     }
     // Level snap: a floor piece moves up and down by whole levels (64 units) from where the drag started; across, as set
     if (!drag.rule && drag.levels && controls.mode === 'translate')

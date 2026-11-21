@@ -36,6 +36,7 @@ import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
 import { fromOf, MADE_KINDS, optionsOf, stateOfRoot } from './piece_records.js';
 import { collectPieces } from './pieces.js';
 import { buildingKey, groupKey, memberKey, pruneGroups, targetKey, uuid } from './project.js';
+import { droppedAcross } from './snap_steps.js';
 import { remember } from './storage.js';
 import { tileGridOf } from './view_layout.js';
 import { plural, short, text } from './dom_words.js';
@@ -256,8 +257,9 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     flashHint(`${cut ? 'Cut' : 'Copied'} ${clip.words}${made ? ` and ${plural(made, 'building')}` : ''} · Ctrl+V to place a copy`);
   }
   // Where a paste or placement puts the pivot piece: the point under the screen point `at` (on a piece, or else
-  // level with where it was copied from), in game units, or null. Fine snap rounds it to 24 units across the floor.
-  // Tile snap moves it whole tiles from where the piece stands in the map, so a piece aligned to the tiles stays so.
+  // level with where it was copied from), in game units, or null. Across the floor it moves from where the piece
+  // stands in the map in the snap setting's steps (snap_steps.js: fine 24, tile whole tiles), so a piece keeps its
+  // offset from the grid; with snap off it goes where the cursor is.
   // With Level snap on, a floor piece's height snaps by levels: the height it has in the map, moved by whole levels
   // (64 units) to the saved floor under that point (floors.js levelHeight), so it never stacks on the floor it is
   // dropped on; with a floor chosen in the Floor picker, to that floor's height in the building there (chosenStorey).
@@ -273,8 +275,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     // a prefab with a building or a piece that keeps the pose rule goes by whole tiles and levels, whatever the snap:
     // its pivot is a tile corner at ground level
     if (clip.gridLocked) return [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE, clip.pivot[2] + Math.round((z - clip.pivot[2]) / LEVEL) * LEVEL];
-    if (snapMode === 'fine') [x, y] = [Math.round(x / 24) * 24, Math.round(y / 24) * 24];
-    else if (snapMode === 'tile') [x, y] = [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE];
+    [x, y] = droppedAcross([x, y], [px, py], snapMode);
     if (clip.floor != null && levelSnap)
       z = levelHeight(clip.pivot[2], clip.floor, chosenStorey(x, y)?.z ?? floorUnder(liveFloorIndex(), { ...tileGridOf(data), origin: tileCorner() ?? tileGridOf(data).origin }, [x, y, z]).z);
     // a light from the Add panel: at its template's height above what is under the cursor

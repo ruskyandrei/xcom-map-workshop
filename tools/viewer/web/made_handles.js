@@ -29,6 +29,7 @@ import { coverDrag, data, effectsOn, geometryCache, lightsOn, placing, rockPoint
 import { groundBounds, groundBox as groundShapeBox, groundWords as groundShapeWords, madeGroundNumbers, movedPoint,
          raisedGround, resizedGround, ROCK, slopeWords, toolGround, versionedGround } from './ground.js';
 import { scaleMarker } from './lights_view.js';
+import { moveWords, stepsOf } from './snap_steps.js';
 import { targetKey } from './project.js';
 import { blastQuery, holeWords, madeBounds, madeSlabNumbers, madeWallNumbers, movedHole, movedOpening, OPENING as GAP,
          openingParts, openingWords, raisedWall, resizedSlab, resizedWall, shiftedLocation, slabBounds, slabLookOf,
@@ -45,7 +46,7 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   // stops). The wall is an added copy of the look's donor (a fracturing wall of the game's, this map's own or brought
   // from its map) that carries the numbers the Build makes its mesh from. A picked made wall has white handles at its
   // ends (whole tiles) and blue ones on each opening (its middle slides it, its sides, its top, a window's sill; in the
-  // snap setting's steps, OPENING_STEPS, with Alt in steps of 8); the piece panel's Wall section adds, lists and
+  // snap setting's steps, snap_steps.js, with Alt in steps of 8); the piece panel's Wall section adds, lists and
   // removes openings, flips it and reshuffles its break pattern. Each change is one undo step; the view draws the wall
   // as the Build makes it (generated.py), the last drawing kept until the next arrives.
   const isMadeWall = o => o?.added?.generated?.kind === 'fracWall';
@@ -191,10 +192,10 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
                             x1: 'Gap\'s side: drag it to the wall\'s end to cut the wall away to there',
                             z1: 'Gap\'s top: drag it up to the wall\'s top to cut through it',
                             z0: 'Gap\'s bottom: drag it down to the floor to cut to the wall\'s bottom' };
-  // A gap's handles move by the snap setting (the user, 19 November 2026: smoothly unless the snap is on), [along the
-  // wall, up]; Alt: steps of GAP.fine
-  const OPENING_STEPS = { off: [1, 1], fine: [24, 24], tile: [TILE, 24] };
-  const OPENING_STEP_WORDS = { off: 'steps of 1 unit', fine: 'steps of 24', tile: 'whole tiles along the wall, steps of 24 up' };
+  // A gap's handles move by the snap setting (the user, 19 November 2026: smoothly unless the snap is on; snap_steps.js,
+  // the distance moved along the wall and up in its steps); Alt: steps of GAP.fine, a preset the hint names
+  const openingSteps = alt => (alt ? [GAP.fine, GAP.fine] : [stepsOf(snapMode).across, stepsOf(snapMode).up]);
+  const openingStepWords = alt => (alt ? `steps of ${GAP.fine}` : moveWords(snapMode));
   function handleWall() {
     const root = madeRoot(selected);
     if (!root || root.userData.deleted || !root.visible || placing || wallDrawing || volumesOn || lightsOn || zonesOn || effectsOn || spawnsOn
@@ -439,7 +440,7 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       : h.kind === 'hole' ? (h.part === 'middle' ? 'Hole: drag to slide it (whole tiles)' : 'Hole\'s side: drag to size it (whole tiles)')
       : h.part === 'top' ? topHandleWords(handleWall()?.userData.source.added.generated.wall)
       : h.kind === 'end' ? 'The wall\'s end: drag to lengthen or shorten it by whole tiles'
-      : `${WALL_PART_WORDS[h.part]} (${OPENING_STEP_WORDS[snapMode]}, as the snap setting; Alt: steps of ${GAP.fine})`;
+      : `${WALL_PART_WORDS[h.part]} (${openingStepWords(false)}, as the snap setting; Alt: steps of ${GAP.fine})`;
   }
   // What the wall's top handle does: adds or takes storeys (B4), its look's storeys at a time where it can't be made
   // one storey.
@@ -570,9 +571,9 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       const at = onPlane(e.clientX, e.clientY, h.at, h.plane);
       if (!at) return;
       const a = d.from.clone().applyMatrix4(d.inverse), c = at.clone().applyMatrix4(d.inverse);
-      const [along, up] = e.altKey ? [GAP.fine, GAP.fine] : OPENING_STEPS[snapMode];
+      const [along, up] = openingSteps(e.altKey);
       wall = movedOpening(w, h.index, 'middle', [c.x - a.x, c.y - a.y], { along, up });
-      words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${e.altKey ? `steps of ${GAP.fine}` : OPENING_STEP_WORDS[snapMode]})`;
+      words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${openingStepWords(e.altKey)})`;
     } else {
       const t = alongLine(e.clientX, e.clientY, h.at, h.dir);
       if (t == null) return;
@@ -588,9 +589,9 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       wall = r.wall; location = shiftedLocation(b.location, b.rotation, r.shift);
       words = `${wallWords(wall)}${r.removed ? ` · ${plural(r.removed, 'opening')} past the end will go` : ''}`;
     } else {
-      const [along, up] = e.altKey ? [GAP.fine, GAP.fine] : OPENING_STEPS[snapMode];
+      const [along, up] = openingSteps(e.altKey);
       wall = movedOpening(w, h.index, h.part, delta, { along, up });
-      words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${e.altKey ? `steps of ${GAP.fine}` : OPENING_STEP_WORDS[snapMode]})`;
+      words = `${openingWords(sortedOpenings(wall.openings)[h.index], wall)} (${openingStepWords(e.altKey)})`;
     }
     // (numbers the tool doesn't make, which the mesh server and the Build would refuse, aren't applied: the drag stays
     // at its last state the tool makes; review finding 32)
