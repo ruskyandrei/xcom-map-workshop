@@ -97,7 +97,9 @@ which of the map's own can be edited, which the project changed or deleted (`map
 of them (`savedBuildings`).
 Switching between the views (the normal view; after a view or a Normal button's switch changed, whether lights are
 drawn and what stays selected; the views' buttons) is [`views.js`](tools/viewer/web/views.js)'s; each view's own
-switch is its module's.
+switch is its module's. What every area's drag handles share (how near the mouse a handle is picked, a game point as a
+point of the view, screen positions of points in the view, how far along a line the mouse's ray passes) is
+[`handles.js`](tools/viewer/web/handles.js)'s.
 The made pieces (walls, floors, roofs and ground shapes made from numbers on a look's donor) are
 [`made_handles.js`](tools/viewer/web/made_handles.js)'s at their base: what a made piece is, its look's donor as a
 template, its state and its changes (a state put on it with its mesh drawn anew, each change one undo step), where made
@@ -354,6 +356,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The Landing zones view: a zone drawn, picked, moved and turned with its gizmo, its panel and controls, a zone changed, copied, deleted or added, what follows the cleared mark | [`zones_wiring.js`](tools/viewer/web/zones_wiring.js) (`createZonesWiring`). A zone's rules go in [`spawns.js`](tools/viewer/web/spawns.js), pure, with its node tests (`clear_map_test.mjs`, `twin_constants_test.mjs`). |
 | The Buildings view and box select: the buildings' records (every building the floors code reads, the map's own changed or deleted, what the project saves of them), a floor box (made, stretched, moved, copied, deleted), a building's name, kind and floors, the map's own buildings edited or read, the face handles and their drags, the cursor's floors round a box, the view's panel, the Normal button's Floor boxes, box select | [`buildings_wiring.js`](tools/viewer/web/buildings_wiring.js) (`createBuildingsWiring`). A building's or a floor's rule (the floors around pieces, the cursor's floors, a building's problems, the pieces a box lists) goes in [`floors.js`](tools/viewer/web/floors.js), pure, with its node tests (`floor_rules_test.mjs`, `map_buildings_test.mjs`, `source_floor_match_test.mjs`); a building's record in [`project.js`](tools/viewer/web/project.js) (`validBuilding`, `tidyBuilding`). |
 | Switching the views: the normal view, what follows a view or a Normal button's switch changing, the views' buttons | [`views.js`](tools/viewer/web/views.js) (`createViews`). A view's own switch (`setLightsShown`, `setVolumesShown`, ...) is its module's. |
+| What every area's drag handles share: the pick distance, a game point as a view point, screen positions of view points, a drag along a line | [`handles.js`](tools/viewer/web/handles.js) (`createHandles`; `HANDLE_PICK` and `gameToView` plain exports). An area's own handles (their meshes, stems and drags) are its module's. |
 | A made piece (a wall, floor, roof or ground shape made from numbers): whether a piece is one, its look's donor, its state and changes (each one undo step), its mesh's record, where made walls meet, the picked piece's handles and their drags, a rock's corners | [`made_handles.js`](tools/viewer/web/made_handles.js) (`createMadeHandles`). What is pure about a made piece's numbers and their changes (`resizedWall`, `movedOpening`, `raisedWall`, `resizedSlab`, `movedHole`, `resizedGround`, `movedPoint`, `wallJoins`, the mesh's numbers) goes in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), with their node tests (`walls_test.mjs`, `ground_test.mjs`, `made_shapes_test.mjs`); its request and a plain piece's look (`madeRequest`, `isPlain`, `plainLook`) in [`made_requests.js`](tools/viewer/web/made_requests.js) (`made_requests_test.mjs`). |
 | The made pieces' looks: the look a tool draws in, the look picker's samples and what choosing a look does, the eyedropper, a made piece's look changed (with the pieces the change takes), its Look row | [`made_looks_wiring.js`](tools/viewer/web/made_looks_wiring.js) (`createMadeLooksWiring`). A look's catalogue and entries go in [`looks.js`](tools/viewer/web/looks.js), the picker's panel in [`look_picker.js`](tools/viewer/web/look_picker.js), with their node tests (`looks_test.mjs`, `look_picker_test.mjs`). |
 | Drawing a made piece: the Build menu's tools, a wall, room, floor, roof or ground shape dragged out with its ghost and made | [`made_drawing.js`](tools/viewer/web/made_drawing.js) (`createMadeDrawing`). Where a drawn piece stands and what its numbers are (`drawnWall`, `drawnRoom`, `drawnSlab`, `roomRoof`, `drawnGround`) go in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), pure, with their node tests (`walls_test.mjs`, `ground_test.mjs`). |
@@ -546,7 +549,8 @@ where there is one.
   `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`,
   `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`, `createPrepare`, `createSelection`,
   `createNavigation`, `createTestApi`, `createPopups`, `createMapMenu`, `createLoading`, `createMapFamilies`,
-  `createHints`, `createBusy`, `createProjectMenu`, `createViews`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
+  `createHints`, `createBusy`, `createProjectMenu`, `createViews`,
+  `createHandles`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
   functions other areas call, and app.js destructures them under the same names, so their callers stay as they were.
   app.js makes it after the functions and objects it is given, and before any code that runs as the page
   loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a `const`, is
@@ -566,11 +570,10 @@ where there is one.
   builder's session and prefabs saved and placed are made so, after the document session; they call each other (the
   builder's save opens the Save as prefab dialog, whose Save saves the builder), so the first made is given the
   second's functions as functions that call them.
-  When part of an area's run of code stays in app.js (a helper other areas use, as `projector`, `gameToView` or
-  `alongLine`; a constant of app.js's event wiring; a pointer listener that is app.js's pointer handlers', as the Map
-  grid's, which write its `pointerStart`; a function that reads a value app.js makes further down that is not a
-  function, as `grabView` (the Effects view's likeness layer)),
-  app.js keeps those declarations where they were and makes the factory after them, where the run ended: what the run
+  When part of an area's run of code stays in app.js (a helper other areas use, as `isStream` or `fromOf`; a constant
+  of app.js's event wiring; a pointer listener that is app.js's pointer handlers', as the Map grid's, which write its
+  `pointerStart`; a function that reads a value app.js makes further down that is not a function, as `grabView` (the
+  Effects view's likeness layer)), app.js keeps those declarations where they were and makes the factory after them, where the run ended: what the run
   does as the page loads then still happens at the same point among the page's other code. An object a view makes as
   the page loads that a view made before it also uses (the landing zones' layer, which the Spawns view shows too; the
   floor boxes' outline of a clip, which prefabs saved and placed draw too; the group chip, which the groups and the

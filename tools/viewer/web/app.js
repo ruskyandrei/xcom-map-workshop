@@ -62,6 +62,7 @@ import { createPrepare } from './prepare.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
 import { createSelection, selectionWords } from './selection.js';
 import { createViews } from './views.js';
+import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { createTestApi } from './test_api.js';
 import { createNavigation, RECIPE_NOTE } from './navigation.js';
@@ -380,16 +381,12 @@ const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_S
 const PL = 'TheWorld.PersistentLevel.';
 setAreaShown(recall(AREA_SHOWN) === '1');     // (lightsShown, areaShown: editor_state.js)
 setReachShown(recall(REACH_SHOWN) === '1');   // the selected light's reach outlined (View options; off at first)
-const HANDLE_PICK = 10;
-// Screen positions (client pixels) for points in the view, or null behind the camera.
-function projector() {
-  const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
-  return v => {
-    p.copy(v).project(camera);
-    if (p.z < -1 || p.z > 1) return null;
-    return [rect.left + (p.x + 1) / 2 * rect.width, rect.top + (1 - p.y) / 2 * rect.height];
-  };
-}
+// The drag handles' helpers (handles.js): screen positions of points in the view (projector) and how far along a line
+// the mouse's ray passes (alongLine); made before the areas whose handles use them (nothing of it runs as the page
+// loads). The handles' pick distance (HANDLE_PICK) and a game point as a point of the view (gameToView) are its plain
+// exports.
+const { alongLine, projector } = createHandles({
+  camera, rayAt, renderer });
 // The header's menus (popups.js): one open at a time, a press elsewhere closing it; made before the first area
 // that is given showPop.
 const { showPop } = createPopups({
@@ -624,13 +621,6 @@ const { editedKey, listingsNow, projectListings } = createFloorListings({
   boxOf, movedBox, originalOf, short, vertexBox,
   // (made further down: called through, since they are not made yet while this runs)
   allBuildings: () => allBuildings(), mapEdits: () => mapEdits(), mapIdOf: b => mapIdOf(b) });
-// How far along a line (origin, unit dir) the mouse's ray passes closest: the handle's drag
-function alongLine(clientX, clientY, origin, dir) {
-  const ray = rayAt(clientX, clientY).ray, w = origin.clone().sub(ray.origin);
-  const b = dir.dot(ray.direction), c = ray.direction.dot(ray.direction), d = dir.dot(w), e = ray.direction.dot(w);
-  const den = c - b * b;
-  return Math.abs(den) < 1e-9 ? null : (b * e - c * d) / den;
-}
 // The Map grid's handles (map_grid.js, made just below) take the press first.
 renderer.domElement.addEventListener('pointerdown', e => {
   if (!startGridDrag(e)) return;
@@ -711,12 +701,12 @@ const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, 
         spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnMovable, spawnPanel,
         spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects, syncSpawnFilters,
         syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
-  $, camera, controls, flashHint, floorStays, gizmo, groundHeight, headerMission, headerMissions, isStream,
+  $, camera, controls, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission, headerMissions, isStream,
   landingLayer, movedMatrix, pick, plural, projectsAvailable, rayAt, renderer, restingHint,
   setLightsShown, short, text, tileCorner, world,
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
-  gameToView: p => gameToView(p), groundAt: (x, y, fromZ) => groundAt(x, y, fromZ),
+  groundAt: (x, y, fromZ) => groundAt(x, y, fromZ),
   numberField: (parent, label, value, options) => numberField(parent, label, value, options),
   pickZone: id => pickZone(id), setEffectsShown: on => setEffectsShown(on), setVolumesShown: on => setVolumesShown(on),
   setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(),
@@ -738,9 +728,6 @@ const { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffe
   select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   carried: (point, from, to) => carried(point, from, to), setVolumesShown: on => setVolumesShown(on),
   setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(), zoneState: () => zoneState() });
-// A game point (x, y, z) as a point of the view, whose basis is x, up, y (the Spawns and Landing zones views and the
-// test hooks)
-const gameToView = p => new THREE.Vector3(p[0], p[2], p[1]);
 // The Landing zones view (zones_wiring.js): the zones drawn, the view, a zone picked with its gizmo and panel, the
 // zones changed and added, and what follows a change of the cleared mark.
 const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
