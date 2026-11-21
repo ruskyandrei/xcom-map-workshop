@@ -531,9 +531,12 @@ class Scene:
         self.light_boxes = [light_box(l) for l in every if not self.keeps(l)]
         self.area_lights = [l for l in self.lights if l['role'] == 'area']
         self.settings = settings
+        # albedoSources over sorted keys: a set's order changes with each process's string hashing, and a piece's
+        # report (kept in the piece cache's .npz) is written in its keys' order
+        notes = list(alb.notes.values())
         self.counts = dict(casters=len(set(self.owners.tolist())), triangles=int(len(self.triangles)),
                            transmittingTriangles=int((~solid).sum()), materials=int(len(unique)),
-                           albedoSources={k: list(alb.notes.values()).count(k) for k in set(alb.notes.values())},
+                           albedoSources={k: notes.count(k) for k in sorted(set(notes))},
                            bakedLights=len(self.lights), areaLights=len(self.area_lights))
 
     def keeps(self, light):
