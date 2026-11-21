@@ -15,18 +15,18 @@ import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, buildingMeta, cachePrefix,
-         cleared, coverDrag, data, effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool,
-         groupIndex, groups, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots,
-         lightsDirty, lightsOn, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue,
-         normalEffects, pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots,
-         selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue,
-         setCachePrefix, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary,
-         setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
-         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
-         setNormalSpawnsValue, setOwnGrid, setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab,
-         setReachKey, setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty,
-         setZonesOn, soloOn, spawnPlacing, spawnsOn, streamSet, tipDirty, volumeDrag, volumesOn, wallDrag, wallDrawing,
-         zonePlacing, zonesOn } from './editor_state.js';
+         coverDrag, data, effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool,
+         groupIndex, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty,
+         lightsOn, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects,
+         pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots, selected,
+         setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix,
+         setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue,
+         setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue,
+         setMergedBuildings, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid,
+         setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setReachKey, setReachShown,
+         setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnPlacing,
+         spawnsOn, streamSet, tipDirty, volumeDrag, volumesOn, wallDrag, wallDrawing, zonePlacing,
+         zonesOn } from './editor_state.js';
 import { createDocumentSession, projectsAvailable } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -59,7 +59,7 @@ import { createFloorListings } from './floor_listings.js';
 import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
-import { editChangedNow, onHub, runHub, STOP } from './edit_hub.js';
+import { editChangedNow } from './edit_hub.js';
 import { createSelection, selectionWords } from './selection.js';
 import { createViews } from './views.js';
 import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
@@ -72,6 +72,7 @@ import { createBusy } from './busy.js';
 import { createPopups } from './popups.js';
 import { createMapMenu } from './map_menu.js';
 import { createProjectMenu } from './project_menu.js';
+import { createPieceStatus } from './piece_status.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -249,44 +250,6 @@ function editChanged() {
   setEventMemo({});
   try { return editChangedNow(); } finally { setEventMemo(null); }
 }
-// app.js's own refreshes of the edit hub's run (edit_hub.js lists them with the other areas' and calls them in
-// order):
-onHub('edit', 'piece-status', () => {
-  const pose = gizmo.pose(), count = changes();
-  if (pose) [...pose.location, ...pose.rotation].forEach((v, i) => {
-    if (document.activeElement !== poseInputs[i]) poseInputs[i].value = (Math.abs(v) < 0.005 ? 0 : v).toFixed(2);
-  });
-  // while a handle is held, only what is seen to move is kept up: the pieces, the highlight, the pose fields, the
-  // grid chip. The status, the save state, the panels, the size line and the warnings wait for the drag's end, which
-  // runs this again in full (the gizmo's dragging-changed).
-  if (gizmo.controls.dragging) { runHub('drag'); return STOP; }
-  // a streamed piece, or a view-only light, is shown, not edited: its place, read only
-  const pickedRoot = allRoots.get(selected), pickedSource = pickedRoot?.userData.source;
-  const fixedPick = isStream(pickedSource) || Boolean(pickedRoot?.userData.light && lightViewOnly(pickedSource));
-  if (fixedPick && !pose) {
-    const at = pickedRoot.userData.light ? lightPose(pickedRoot) : pickedSource;
-    [...at.location, ...at.rotation.map(r => r * 360 / 65536)].forEach((v, i) => { poseInputs[i].value = (Math.abs(v) < 0.005 ? 0 : v).toFixed(2); });
-  }
-  { const n = i => Math.round(Number(poseInputs[i].value) || 0);
-    $('poseSum').textContent = `${n(0)}, ${n(1)}, ${n(2)} · ${n(4)}°`;
-    $('sourceSum').textContent = pickedSource?.actorClass ?? ''; }
-  poseInputs.forEach((input, i) => { input.disabled = fixedPick || (i >= 3 && pickedRoot?.userData.light && pickedSource.kind === 'point'); });
-  $('editDelete').disabled = fixedPick;
-  // (in the builder every piece is the prefab's own, so only whether it is saved is said)
-  $('editCount').hidden = builderMode ? !count.total && !builder.doc?.revision : !count.total;
-  $('editCount').textContent = builderMode ? saveState() : [count.moved && `${count.moved} moved`, count.added && `${count.added} added`,
-    count.deleted && `${count.deleted} deleted`, count.lights && plural(count.lights, 'light edit'),
-    count.effects && plural(count.effects, 'effect or sound edit'),
-    count.grid && `grid ${data.tileGrid.dimensions[0]} × ${data.tileGrid.dimensions[1]}${cleared ? ` × ${data.tileGrid.dimensions[2]}` : ''}`,
-    count.zones && 'landing zones changed', count.buildings && plural(count.buildings, 'building'),
-    count.missions && `${plural(count.missions, 'mission object')} moved`, count.spawns && plural(count.spawns, 'spawn point edit'), count.flags && `${plural(count.flags, 'piece')} with flags changed`, count.broken && `${plural(count.broken, 'piece')} broken`,
-    saveState()].filter(Boolean).join(' · ');
-  $('editCount').classList.toggle('warn', saveState() !== 'saved');
-  $('editUndo').hidden = $('editRedo').hidden = !(count.total || gizmo.canUndo() || gizmo.canRedo());
-  $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();
-  $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)) || (r.userData.effect && r.userData.values));
-  $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !cleared);
-});
 // The hint line under the view (hints.js): while a gizmo handle is held, a short notice, and with nothing else to say
 // what is being placed; and the busy mark for slow steps (busy.js), the page giving way in a long loop and many pieces
 // built a few at a time, whose listeners hold the view's clicks and keys while a mark put up at once is shown. Made
@@ -456,6 +419,10 @@ const { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensu
   // (made with Build and Play just below, which is given the session's banner and save: called through)
   followBuild: (status, id) => followBuild(status, id), renderPlayItems: () => renderPlayItems(),
   setLastBuild: (id, status) => setLastBuild(id, status) });
+// The pose fields and the edit status (piece_status.js): the edit hub's piece-status refresh, registered as it is made,
+// after the document session, whose save state it shows (nothing of it runs as the page loads but the registration).
+createPieceStatus({
+  $, changes, gizmo, isStream, lightPose, lightViewOnly, poseInputs, saveState, valuesEdited });
 // The prefab builder's session (builder_session.js): the prefab's document opened, kept and saved, its size line and
 // ground, Align to grid, the missing pieces looked for by recipe, and the Problems check.
 const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderPage, builderRecords, builderTitle,

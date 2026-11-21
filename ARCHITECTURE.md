@@ -34,6 +34,8 @@ groups, the buildings, the cleared map's state, what the document session shares
 game goes by, the prefab builder's document, the clipboard and the Add panel's lists) lives in
 [`editor_state.js`](tools/viewer/web/editor_state.js). After an edit, an undo or a selection, each area keeps its own
 panels up through the edit hub, [`edit_hub.js`](tools/viewer/web/edit_hub.js), with which its module registers them.
+The piece panel's pose fields and the edit status (what has changed, counted by `changes` in the document's state,
+and whether it is saved) are kept up by [`piece_status.js`](tools/viewer/web/piece_status.js)'s refresh of the hub.
 The open document's life is
 [`document_session.js`](tools/viewer/web/document_session.js)'s: a project opened, saved and left, its unsaved state
 kept on the server as a draft against a lost tab and offered back, whether it has changes not saved (`dirty`,
@@ -42,8 +44,9 @@ kept on the server as a draft against a lost tab and offered back, whether it ha
 from a document's state is [`document_state.js`](tools/viewer/web/document_state.js)'s: `editStateNow` reads the edits
 on screen as a project records them (`editState` keeps its answer for one edit event), and `applyState` puts such a
 state back on the map, after taking the scene back to the map as exported (`clearEdits`) and noting what it could not
-put back (`projectNote`). A project's file, its drafts and the prefab builder's document all go through these two. An added thing's record (a copy of a piece, a made piece,
-a cover block, a light, an effect, a sound or a lens flare), as a project, a prefab and the prefab builder's document
+put back (`projectNote`). A project's file, its drafts and the prefab builder's document all go through these two.
+An added thing's record (a copy of a piece, a made piece, a cover block, a light, an effect, a sound or a lens flare),
+as a project, a prefab and the prefab builder's document
 keep it, is written and read in one place, [`piece_records.js`](tools/viewer/web/piece_records.js). Build and Play in
 game are [`build_play.js`](tools/viewer/web/build_play.js)'s: Build's panel and the window that follows a build to its
 end, Play's dialog and the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the
@@ -165,7 +168,8 @@ away, an original's parts and its box of mesh vertices, a piece's box from what 
 from its template (a made piece's mesh from its numbers), the template a record's piece is copied from and the pose an
 original's rule keeps under tile snap; an actor's pose at a render matrix, and the matrix of a pose, are plain exports
 at its top. The map's families and assemblies (the families set as the map's arrive, each original's assembly with
-its link tag, a piece's assembly, its own map's or another's) are [`map_families.js`](tools/viewer/web/map_families.js)'s.
+its link tag, a piece's assembly, its own map's or another's) are
+[`map_families.js`](tools/viewer/web/map_families.js)'s.
 The cutaway and the tile views are [`cutaway.js`](tools/viewer/web/cutaway.js)'s: which pieces are drawn and how each is
 cut (the Floor picker, Interior, the streams shown, the clear), the tile grid round the selection, View options' Floor
 tiles overlay with its tips and clicks, and the Floor picker's buttons.
@@ -376,6 +380,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The building floors a piece is listed on (the project's buildings', the map's own), the key of the pieces' edits | [`floor_listings.js`](tools/viewer/web/floor_listings.js) (`createFloorListings`). The rules (`touchedFloors`, `ruleListing`, `copyFloors`, `floorAt`, `carriedListing`, `sourceFloorMatch`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests, and the Build's side in [`buildings.py`](tools/bake/buildings.py). |
 | Floor pieces, Level snap and its button, the Floor picker's floor under a point | [`level_snap.js`](tools/viewer/web/level_snap.js) (`createLevelSnap`). The floor rules (`ownedFloors`, `classifyFloors`, `floorStamps`, `buildingWithFloor`, `storeyHeight`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests. |
 | The selection: a piece, light, building's box or effect picked (or nothing), the views stepping aside for it, the piece panel filled for it (a cover block's or invisible floor's too), the selected piece's highlight, a ladder's ends and its chip, the grid chip of a piece the recipe snap holds, what some roots are in words, the pieces an actor name stands for selected and framed | [`selection.js`](tools/viewer/web/selection.js) (`createSelection`; `selectionWords` a plain export). An area's own part of the piece panel (its section shown or hidden for what is picked, its panel, a chip) is the area's module's, registered with one of the edit hub's select runs ([`edit_hub.js`](tools/viewer/web/edit_hub.js)), never called by name from `select`. |
+| The piece panel's pose fields and the edit status (what has changed and whether it is saved, Undo, Redo, Reset, Reset all) after an edit | [`piece_status.js`](tools/viewer/web/piece_status.js) (`createPieceStatus`), the edit hub's `piece-status` refresh. The count of changes is [`document_state.js`](tools/viewer/web/document_state.js)'s (`changes`). |
 | The camera (framing, the keys that move and turn it, the look-drag, the wheel, the speeds), the gizmo's mode buttons, the pivot and snap, a key of the editor | [`navigation.js`](tools/viewer/web/navigation.js) (`createNavigation`). A key calls the function of the area that owns what it does, given to the factory; the help panel in `index.html` lists the keys for users. |
 | Delete, Reset piece, Reset all, a large step under the busy mark | [`delete_reset.js`](tools/viewer/web/delete_reset.js) (`createDeleteReset`). |
 | A header menu (a button with `data-pop` and its menu) | `index.html`; [`popups.js`](tools/viewer/web/popups.js) (`createPopups`) opens and closes it, and draws a menu afresh as it opens where the menu needs it. |
@@ -550,9 +555,9 @@ where there is one.
   `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`,
   `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`, `createPrepare`, `createSelection`,
   `createNavigation`, `createTestApi`, `createPopups`, `createMapMenu`, `createLoading`, `createMapFamilies`,
-  `createHints`, `createBusy`, `createProjectMenu`, `createViews`,
-  `createHandles`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
-  functions other areas call, and app.js destructures them under the same names, so their callers stay as they were.
+  `createHints`, `createBusy`, `createProjectMenu`, `createViews`, `createHandles`, `createPieceStatus`) takes them as
+  one argument object and destructures it, so the code moved into it calls them by the names it always did. It returns
+  the functions other areas call, and app.js destructures them under the same names, so their callers stay as they were.
   app.js makes it after the functions and objects it is given, and before any code that runs as the page
   loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a `const`, is
   given as a function that calls it, since it is not made yet: `openingProgress: name => openingProgress(name)`.
@@ -574,7 +579,8 @@ where there is one.
   When part of an area's run of code stays in app.js (a helper other areas use, as `isStream` or `fromOf`; a constant
   of app.js's event wiring; a pointer listener that is app.js's pointer handlers', as the Map grid's, which write its
   `pointerStart`; a function that reads a value app.js makes further down that is not a function, as `grabView` (the
-  Effects view's likeness layer)), app.js keeps those declarations where they were and makes the factory after them, where the run ended: what the run
+  Effects view's likeness layer)), app.js keeps those declarations where they were and makes the factory after them,
+  where the run ended: what the run
   does as the page loads then still happens at the same point among the page's other code. An object a view makes as
   the page loads that a view made before it also uses (the landing zones' layer, which the Spawns view shows too; the
   floor boxes' outline of a clip, which prefabs saved and placed draw too; the group chip, which the groups and the
@@ -613,7 +619,8 @@ where there is one.
   and Reset after Break and Repair, the last factory whose functions they call; the selection after the Buildings
   view, the last factory whose functions it calls, so the eight factories made before it that are given `select`
   (and the two given `gridNow`) are given functions that call them; the views' switching after the selection, so the
-  five views made before it are given `syncLights` or `lightButton` as functions that call them; the loading overlay as soon as the words it takes
+  five views made before it are given `syncLights` or `lightButton` as functions that call them; the loading overlay
+  as soon as the words it takes
   are made, so that only the scene's pieces, made before, are given `loadingState` as a function that calls it. What is
   made on the other side of it is given its functions, or gives it theirs, as functions that call them.
   An area whose run sets a handler or a listener as the page loads may be made earlier than the run, before the
@@ -639,8 +646,9 @@ where there is one.
   refresh is a name put in `RUNS` where it must be called and one `onHub(run, name, refresh)` in its module's factory.
   A refresh that returns `STOP` ends its run, and those after it wait for the next (the selection followed the gizmo
   and ran the hub itself; a box can't be turned; the cutaway's select ran it). A refresh that needs what another
-  worked out in the same run is one refresh with it (app.js's `piece-status`: the pose fields and the edit status share
-  the pose and the count of changes). Where another area's refresh must be called in the middle of one, it is a run
+  worked out in the same run is one refresh with it (piece_status.js's `piece-status`: the pose fields and the edit
+  status share the pose and the count of changes). Where another area's refresh must be called in the middle of one, it
+  is a run
   of its own that the one runs: `drag`, the lights following a gizmo handle held, between the pose fields and the end
   of the edit's run; and `select` (selection.js) runs one at each place it fills the piece panel for what is picked
   (`select-sections`: each area's section shown or hidden; `select-none`, `select-light`, `select-cover`,

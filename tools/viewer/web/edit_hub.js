@@ -24,7 +24,7 @@ export const RUNS = {
                      // run, which the cutaway's select ran
     'marks',         // selection.js: the selected piece's highlight, its ladder's ends and its grid chip
     'floor-note',    // cover_wiring.js: an invisible floor's height over the ground, once a drag ends
-    'piece-status',  // app.js: the pose fields; while a gizmo handle is held, the drag's run and the end of this one;
+    'piece-status',  // piece_status.js: the pose fields; while a gizmo handle is held, the drag's run and the end of this one;
                      // then the edit status, Delete, Undo, Redo, Reset and Reset all
     'flags',         // flags_panel.js: the piece panel's Flags group
     'kind',          // select_kind.js: Select all of a kind
@@ -35,8 +35,8 @@ export const RUNS = {
     'project',       // document_session.js: the project's title, its save state and its draft
     'lights',        // lights_wiring.js: the lights drawn follow, and their warnings
   ],
-  // While a gizmo handle is held, what is seen to move besides the pieces, the highlight and the pose fields (app.js's
-  // piece-status runs it, then ends the edit's run: the rest waits for the drag's end).
+  // While a gizmo handle is held, what is seen to move besides the pieces, the highlight and the pose fields
+  // (piece_status.js's piece-status runs it, then ends the edit's run: the rest waits for the drag's end).
   drag: [
     'lights',        // lights_wiring.js: the lights drawn follow
   ],
