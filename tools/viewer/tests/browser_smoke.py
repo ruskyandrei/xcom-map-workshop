@@ -1553,12 +1553,25 @@ def check_clear_map(page):
     px = page.evaluate('p => viewer.screenOf([p[0] + 100, p[1], p[2]])', at)
     n = ((px[0] - p0[0]) ** 2 + (px[1] - p0[1]) ** 2) ** 0.5
     d = [(px[0] - p0[0]) / n, (px[1] - p0[1]) / n]
-    pt = grab('X', [[p0[0] + d[0] * r, p0[1] + d[1] * r] for r in range(20, 200, 5)])
-    page.mouse.down(); page.mouse.move(pt[0] + d[0] * 160, pt[1] + d[1] * 160, steps=10); page.mouse.up()
-    moved = page.evaluate('viewer.zones()[0]')
+    # its moves follow the snap setting (the user, 21 November 2026): whole tiles under tile snap, and smoothly with snap
+    # off; either keeps its height (the police station's zone stands 48 over its grid's first level)
+    snap_was = page.evaluate('viewer.gizmo.snap')
+
+    def drag_x(snap, length):
+        page.evaluate('s => viewer.setSnapMode(s)', snap)
+        pt = grab('X', [[p0[0] + d[0] * r, p0[1] + d[1] * r] for r in range(20, 200, 5)])
+        page.mouse.down(); page.mouse.move(pt[0] + d[0] * length, pt[1] + d[1] * length, steps=10); page.mouse.up()
+        return page.evaluate('viewer.zones()[0]')
+    moved = drag_x('tile', 160)
     dx = moved['location'][0] - z0['location'][0]
     assert dx > 0 and dx % 96 == 0 and moved['location'][1:] == z0['location'][1:], (moved, z0)
     assert page.evaluate('viewer.pickedZone()') == z0['id']           # the drag did not let the zone go
+    page.keyboard.press('Control+z')
+    assert page.evaluate('viewer.zones()[0]')['location'] == z0['location']
+    moved = drag_x('off', 70)
+    dx = moved['location'][0] - z0['location'][0]
+    assert dx > 0 and dx % 24 and moved['location'][1:] == z0['location'][1:], (moved, z0)
+    page.evaluate('s => viewer.setSnapMode(s)', snap_was)
     # R: the ring, quarter turns about the vertical only
     page.keyboard.press('r'); page.wait_for_timeout(100)    # (a frame drawn: the ring's handles are placed by a render)
     g = page.evaluate('viewer.zoneGizmo()')

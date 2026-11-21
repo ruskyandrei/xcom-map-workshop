@@ -23,13 +23,13 @@ import { projectsAvailable } from './document_session.js';
 import { onHub, runHub } from './edit_hub.js';
 import { builderMode, cleared, data, effectsOn, landingZones, lightsOn, pickedZone, pieces, placing, project, roots,
          selected, setEffectsDirty, setLandingZones, setMergedBuildings, setPickedZone, setZonePlacing, setZonesOn,
-         spawnsOn, stage, volumesOn, zonePlacing, zonesOn } from './editor_state.js';
+         snapMode, spawnsOn, stage, volumesOn, zonePlacing, zonesOn } from './editor_state.js';
 import { tileCorner } from './map_grid.js';
 import { zoneServes } from './missions.js';
 import { uuid } from './project.js';
 import { showMapMenu } from './scene_start.js';
 import { DIRECTIONS as ZONE_DIRECTIONS, draggedHeight, evacBox, explicitEw, groundOf, landingUnmoved, ownLandings,
-         ownSlots, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
+         ownSlots, placedZone, snapZoneMove, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
 import { remember } from './storage.js';
 import { plural } from './dom_words.js';
 import { gameToView } from './handles.js';
@@ -236,9 +236,10 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     refreshLandingZones();
   }
   // The picked zone's gizmo (the user, 13 November: a gizmo in place of the panel's buttons). Its handle stands on the
-  // drop zone's frame (StartLoc), on the ground. It moves the zone by whole tiles across and whole levels (64 units) up,
-  // and turns it by quarter turns about the vertical: the only steps a zone takes (an LZArray line faces one of four
-  // ways). G shows the arrows, R the ring; each drag is one undo step, Escape during one puts it back.
+  // drop zone's frame (StartLoc), on the ground. It moves the zone as the snap setting says (the user, 21 November:
+  // smoothly with snap off, as everything else; spawns.js snapZoneMove), and turns it by quarter turns about the
+  // vertical, whatever the snap: a zone faces one of four ways, all an LZArray line or the game's landing can take.
+  // G shows the arrows, R the ring; each drag is one undo step, Escape during one puts it back.
   const zoneProxy = new THREE.Object3D(); world.add(zoneProxy);
   const zoneGizmo = new TransformControls(camera, renderer.domElement);
   zoneGizmo.attach(zoneProxy); zoneGizmo.enabled = false; zoneGizmo.setRotationSnap(Math.PI / 2);
@@ -254,9 +255,14 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     zoneGizmo.setMode(zoneGizmoMode);
     zoneGizmo.showX = zoneGizmo.showZ = zoneGizmoMode !== 'rotate';
   }
+  // the hints' words for the snap setting's steps (spawns.js ZONE_STEPS, placedZone)
+  const ZONE_MOVE_WORDS = { off: 'smoothly', fine: 'in steps of 24 units', tile: 'by whole tiles across and storeys up' };
+  const ZONE_PLACE_WORDS = { off: 'anywhere', fine: 'on steps of 24 units', tile: 'on a tile' };
   function setZoneGizmoMode(mode) {
     zoneGizmoMode = mode; placeZoneGizmo();
-    flashHint(mode === 'rotate' ? 'Turn the landing zone by quarter turns (G moves it)' : 'Move the landing zone by whole tiles and levels (R turns it)');
+    flashHint(mode === 'rotate'
+      ? 'Turn the landing zone by quarter turns: a zone faces north, east, south or west, the only ways LWR\'s lines and the game\'s landing take (G moves it)'
+      : `Move the landing zone ${ZONE_MOVE_WORDS[snapMode]}, as the snap setting (R turns it)`);
   }
   zoneGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
   zoneGizmo.addEventListener('mouseDown', () => {
@@ -267,10 +273,9 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     const d = zoneGizmoDrag;
     if (!d || d.cancelled) return;
     if (zoneGizmo.mode === 'translate') {
-      const p = zoneProxy.position, dx = Math.round((p.x - d.at.x) / TILE) * TILE, dz = Math.round((p.z - d.at.z) / TILE) * TILE,
-            dy = Math.round((p.y - d.at.y) / LEVEL) * LEVEL;
+      const p = zoneProxy.position, [dx, dz, dy] = snapZoneMove([p.x - d.at.x, p.z - d.at.z, p.y - d.at.y], snapMode);
       p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
-      // the zone keeps its own height, moved by whole storeys; one saved under the grid comes onto it (draggedHeight)
+      // the zone keeps its own height, moved by dy; one saved under the grid comes onto it (draggedHeight)
       const l = d.from.location, z = draggedHeight(l[2], dy, data.tileGrid?.origin?.[2] ?? null);
       d.change = dx || dy || dz ? { location: [l[0] + dx, l[1] + dz, z] } : null;
     } else {
@@ -422,7 +427,7 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     setZonesShown(true);
     if (!landingLayer.visible) { landingLayer.visible = true; $('landingToggle').checked = true; remember(LANDING_SHOWN, '1'); refreshLandingZones(); }
     setZonePlacing(true); renderer.domElement.style.cursor = 'crosshair';
-    flashHint('Click the tile the new landing zone is to stand on · Esc cancels');
+    flashHint(`Click where the new landing zone is to stand (${ZONE_PLACE_WORDS[snapMode]}, as the snap setting) · Esc cancels`);
   }
   function stopZonePlacing() {
     if (!zonePlacing) return;
@@ -432,9 +437,7 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     setZonePlacing(false); renderer.domElement.style.cursor = ''; pieces.setChosen?.(null);
     const ground = groundHeight(), at = rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -ground), new THREE.Vector3());
     if (!at) return;
-    const [ox, oy] = data.tileGrid.origin, first = zonesNow()[0];
-    // a zone's StartLoc sits a unit off a tile's corner, as LWR's lines do (Bar's first: 719, -1681)
-    const x = ox + Math.round((at.x - ox) / TILE) * TILE - 1, y = oy + Math.round((at.z - oy) / TILE) * TILE - 1, id = uuid();
+    const first = zonesNow()[0], [x, y] = placedZone(at.x, at.z, data.tileGrid.origin, snapMode), id = uuid();
     const zones = explicitZones(), ew = !zones.some(z => z.ew) && ownLandings(data).length > 0;
     setZones([...zones, { id, location: [x, y, ground + 64], direction: 'north', kind: first?.kind === 'inside' ? 'inside' : 'normal', ...(ew ? { ew: true } : {}) }], 'Added a landing zone');
     pickZone(id);

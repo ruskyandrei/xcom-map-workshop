@@ -414,7 +414,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3>Move where the squad lands</h3>
 <ol class="steps">
   <li>Press <kbd>Shift</kbd>+<kbd>Z</kbd> for the Landing zones view, and click the zone.</li>
-  <li>Drag its arrows to move it by whole tiles. <kbd>[</kbd> and <kbd>]</kbd> turn it a quarter turn.</li>
+  <li>Drag its arrows to move it, freely or in the snap setting's steps. <kbd>[</kbd> and <kbd>]</kbd> turn it a
+    quarter turn.</li>
   <li>Read the panel: it says when a soldier tile is outside the grid, over no floor, or has a piece on it.</li>
   <li>For a second landing, press <kbd>Ctrl</kbd>+<kbd>D</kbd> and move the copy. Under
     <b class="ui">Used by</b>, say which game lands there.</li>
@@ -1965,17 +1966,21 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Click a zone</b> in that view to pick it. A gizmo appears on its drop zone, and its panel opens: <b class="ui">Kind</b> (normal, or inside: the squad stands further back, inside the evac zone),
     <b class="ui">Used by</b>, <b class="ui">Copy</b> (<kbd>Ctrl</kbd>+<kbd>D</kbd>) and <b class="ui">Delete</b>
     (<kbd>Delete</kbd>).</li>
-  <li><b>The gizmo moves and turns the zone</b> only in the steps a landing zone takes:
+  <li><b>The gizmo moves and turns the zone:</b>
     <ul>
-      <li>its arrows (<kbd>G</kbd>) move it by whole tiles across and whole levels up;</li>
-      <li><kbd>R</kbd> shows its ring, which turns it by quarter turns. <kbd>[</kbd> and <kbd>]</kbd> turn it too.</li>
+      <li>its arrows (<kbd>G</kbd>) move it as the snap setting says: freely with snap off, in steps of 24 units, or
+        by whole tiles across and storeys up. The zone keeps its height until you drag it up or down;</li>
+      <li><kbd>R</kbd> shows its ring, which turns it by quarter turns whatever the snap: a landing zone faces north,
+        east, south or west, the only ways Long War's lines and the game's landing take. <kbd>[</kbd> and
+        <kbd>]</kbd> turn it too.</li>
     </ul>
     The zone and its Skyranger follow as you drag. <kbd>Esc</kbd> during a drag puts the zone back, and every drag
     is one undo step. A build with <b class="ui">Bake the lighting</b> moves the Skyranger's shadow with it. Under
     Long War the map's grounded Skyranger is taken away when the battle starts (the tutorial's stays), so there only
     its shadow shows.</li>
   <li><b>To add one</b>, choose <b class="ui">Landing zones</b> under Kind in the <a href="#add">Add panel</a>
-    (<kbd>P</kbd>), then click the tile it is to stand on. The Landing zones view comes on.</li>
+    (<kbd>P</kbd>), then click where it is to stand: where you click with snap off, on steps of 24 units, or on a
+    tile with tile snap. The Landing zones view comes on.</li>
   <li><b>Maps whose landing has no drop zone</b> (Basic Training, the Temple Ship, the alien bases) show it as a zone
     too, on the map's own soldier tiles. Moved, the squad stands in the usual six-tile layout at the new place.</li>
   <li><b>Used by</b> says which game lands at the zone:
@@ -2556,7 +2561,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Lights</td><td>Placed point and spot lights</td><td>Freely</td><td>Yes; baked builds only show them right</td></tr>
   <tr><td>Effects, sounds, lens flares</td><td><a href="#effects">Fires, smoke, an idle engine, a lamp's glint</a></td><td>Freely; a carried effect with its piece</td><td>Yes, in a quick build too</td></tr>
   <tr><td>Floor boxes</td><td><a href="#buildings">Buildings</a>, yours and the map's</td><td>Whole tiles and levels, never turned alone</td><td>Yes</td></tr>
-  <tr><td>Landing zones</td><td><a href="#landingzones">Where the squad lands</a></td><td>Whole tiles and levels, quarter turns</td><td>Yes</td></tr>
+  <tr><td>Landing zones</td><td><a href="#landingzones">Where the squad lands</a></td><td>Freely; in the snap's steps with snap on; quarter turns</td><td>Yes</td></tr>
   <tr><td>Spawn points</td><td><a href="#spawns">Pods, Meld points, drop-in points</a>, <a href="#nospawn">no-spawn volumes</a></td><td>One at a time, whole tiles and levels, quarter turns (drop-in points); a volume's sides by its handles</td><td>Yes</td></tr>
   <tr><td>A mission's objects</td><td><a href="#mission-objects">The bomb and its power nodes, capture points</a></td><td>With their group, whole tiles and levels</td><td>Yes</td></tr>
   <tr><td>Patch helpers</td><td>Long War Rebalance's invisible cover and blockers</td><td>Not at all</td><td>Left as they are</td></tr>

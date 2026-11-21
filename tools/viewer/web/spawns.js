@@ -2,7 +2,7 @@
 // actors, by the offsets of LWR's landing-zone mutator (XComLZMutator), and the project's starting list made from the
 // map's own landings and the install's lines. tools/viewer/spawns.py has the same rules for the compiler and the
 // Build; game units, x and y across, z up.
-import { LEVEL, QUARTER } from './constants.js';
+import { LEVEL, QUARTER, TILE } from './constants.js';
 
 export const DIRECTIONS = ['north', 'east', 'south', 'west'];
 export const GROUND = 64, INSIDE_BACK = 288;
@@ -33,15 +33,31 @@ export function place(zone) {
   return out;
 }
 export const groundOf = zone => Number(zone.location[2]) - GROUND;
-/** A zone's height after the gizmo moves it `dy` up (whole storeys) on a grid whose box starts at `bottom` (null
- *  without a grid): its own height moved by dy, so a zone keeps the ground the map or LWR's line gives it (the police
- *  station's floors and lines stand 48 over its grid's first level); only a zone saved under the grid (the
- *  tutorial's, fitted before fitZone put a fitted ground on the grid: 16 under it) comes onto the grid's nearest
- *  level. */
+/** A zone's height after the gizmo moves it `dy` up on a grid whose box starts at `bottom` (null without a grid): its
+ *  own height moved by dy, so a zone keeps the ground the map or LWR's line gives it (the police station's floors and
+ *  lines stand 48 over its grid's first level); only a zone saved under the grid (the tutorial's, fitted before
+ *  fitZone put a fitted ground on the grid: 16 under it) comes onto the grid's nearest level with its first move. A
+ *  zone moved under the grid stays there (the compiler warns: landing-outside). */
 export function draggedHeight(z, dy, bottom = null) {
-  const moved = Number(z) + dy, ground = moved - GROUND;
-  if (bottom === null || bottom === undefined || ground >= bottom - 1) return moved;
-  return Math.round(bottom + Math.round((ground - bottom) / LEVEL) * LEVEL) + GROUND;
+  const moved = Number(z) + dy;
+  if (bottom === null || bottom === undefined || Number(z) - GROUND >= bottom - 1) return moved;
+  return Math.round(bottom + Math.round((moved - GROUND - bottom) / LEVEL) * LEVEL) + GROUND;
+}
+/** The landing zone gizmo's steps by the editor's snap setting (navigation.js): [across, up] in units, or null with
+ *  snap off, which moves a zone smoothly, as everything else. */
+export const ZONE_STEPS = { off: null, fine: [24, 24], tile: [TILE, LEVEL] };
+/** A move of the zone gizmo [dx, dy, dz] (game axes: x and y across, z up) in the snap setting's steps. */
+export function snapZoneMove(move, snap) {
+  const steps = ZONE_STEPS[snap], by = (v, s) => Math.round(v / s) * s;
+  return steps ? [by(move[0], steps[0]), by(move[1], steps[0]), by(move[2], steps[1])] : [...move];
+}
+/** Where a zone placed at (x, y) stands across, by the snap setting: under tile snap a unit off a tile corner of the
+ *  grid whose box starts at `origin`, as LWR's lines stand (the Bar's first: 719, -1681); under fine snap on steps of
+ *  24; with snap off where it was put. */
+export function placedZone(x, y, origin, snap) {
+  if (snap === 'tile') return [0, 1].map(k => origin[k] + Math.round(([x, y][k] - origin[k]) / TILE) * TILE - 1);
+  if (snap === 'fine') return [Math.round(x / 24) * 24, Math.round(y / 24) * 24];
+  return [x, y];
 }
 /** The evac zone's box [x0, y0, z0, x1, y1, z1], about the volume's place, turned by the zone. */
 export function evacBox(zone) {
