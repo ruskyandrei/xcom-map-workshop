@@ -8,6 +8,7 @@ import struct
 import sys
 import tempfile
 import unittest
+import zlib
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
@@ -17,6 +18,7 @@ from package import FormatError, Package  # noqa: E402
 import packs  # noqa: E402
 import pictures  # noqa: E402
 import scene_metadata  # noqa: E402
+import texture  # noqa: E402
 from viewer_fixtures import ID, ManagerInstalls  # noqa: E402
 sys.path.insert(0, str(HERE.parents[1] / 'upk' / 'tests'))
 from upk_fixtures import made_up_package  # noqa: E402
@@ -141,6 +143,52 @@ class PackageGuid(unittest.TestCase):
         self.assertIsNone(self.guid(b'bar'))
         self.assertIsNone(self.guid(b'not a package at all, but long enough to hold a summary\r\n' * 8))
         self.assertIsNone(packs.package_guid(Path(self.enterContext(tempfile.TemporaryDirectory())) / 'missing.upk'))
+
+
+def bulk(blocks, flags=16, block=8, tag=0x9E2A83C1, total=None, packed=None, table=None):
+    """A compressed bulk payload of `blocks` (each block's bytes), LZO (16, literal runs) or zlib (2)."""
+    import package_edit
+    encoded = [package_edit.lzo_literals(b) if flags & 16 else zlib.compress(b) for b in blocks]
+    table = table if table is not None else [(len(e), len(b)) for e, b in zip(encoded, blocks)]
+    head = struct.pack('<4I', tag, block, sum(len(e) for e in encoded) if packed is None else packed,
+                       sum(len(b) for b in blocks) if total is None else total)
+    return head + b''.join(struct.pack('<2I', *t) for t in table) + b''.join(encoded)
+
+
+class BulkPayload(unittest.TestCase):
+    """texture.decompress_payload reads its header and block table through decomp.read_chunk (item 6.6) and keeps its
+    own checks: LZX refused, the 512 MB limit, the payload ending where its blocks end. Each refusal a FormatError."""
+    BLOCKS = [b'abcdefgh', b'ijklmnop', b'qrs']
+
+    def test_lzo_and_zlib_payloads_decode_and_an_uncompressed_one_is_as_it_is(self):
+        self.assertEqual(texture.decompress_payload(bulk(self.BLOCKS), 16), b''.join(self.BLOCKS))
+        self.assertEqual(texture.decompress_payload(bulk(self.BLOCKS, flags=2), 2), b''.join(self.BLOCKS))
+        self.assertEqual(texture.decompress_payload(b'plain bytes', 0), b'plain bytes')
+
+    def test_a_damaged_payload_is_a_format_error(self):
+        good = bulk(self.BLOCKS)
+        damaged = {
+            'packed sizes that do not add up': bulk(self.BLOCKS, packed=len(good) - 30),
+            'unpacked sizes that do not add up': bulk(self.BLOCKS, total=18),
+            'another tag': bulk(self.BLOCKS, tag=0x12345678),
+            'a block size of 0': bulk(self.BLOCKS, block=0),
+            'a header cut short': good[:12],
+            'a block table cut short': good[:24],
+            'blocks cut short': good[:-1],
+            'bytes after its blocks': good + b'\0',
+            'a total past the limit': bulk([b'x'], block=1 << 30, total=texture.BULK_LIMIT + 1,
+                                           table=[(len(bulk([b'x'])) - 24, texture.BULK_LIMIT + 1)]),
+        }
+        for what, data in damaged.items():
+            with self.assertRaises(FormatError, msg=what):
+                texture.decompress_payload(data, 16)
+        with self.assertRaisesRegex(FormatError, 'LZX'):
+            texture.decompress_payload(good, 128)
+        # sums that add up, but a block that decodes to another size than its entry: lzo1x's ValueError, as before
+        sizes = [(c, u) for c, u in struct.iter_unpack('<2I', good[16:40])]
+        shifted = bulk(self.BLOCKS, table=[(sizes[0][0], 7), (sizes[1][0], 9), sizes[2]])
+        with self.assertRaisesRegex(ValueError, 'not 7'):
+            texture.decompress_payload(shifted, 16)
 
 
 if __name__ == '__main__':

@@ -467,8 +467,10 @@ or the path's (`recordOf(unit, 'prefab')` puts a recipe light's values before it
 - The native edit is the contract between the compiler and the Build. A new lane is added in one change to the
   compiler's spec, `native_split` (`native_edit.py`), the copy tool and the Build.
 - A reader of package bytes checks its bounds and refuses (a `ValueError` saying what it met). It never reads on: a
-  damaged or modded package then fails in one place with a reason. A writer goes through `write_edited` and reads
-  back what it wrote (finding 52).
+  damaged or modded package then fails in one place with a reason. A package's summary and tables are read by
+  `upkinfo`, which refuses a count, a string or a reference that does not fit; an export's native data is read through
+  `Package.native`, which stops at the export's end; a chunk header, a map's or a bulk payload's, by
+  `decomp.read_chunk` (KB-9). A writer goes through `write_edited` and reads back what it wrote (finding 52).
 - Tagged properties are walked by `props.tags` (`props.read_tags` for a list) and by nothing else in what ships: a
   walker keeps only what it does with each property (its values, its rules), and a module whose callers catch an
   error of its own turns the walk's `ValueError` into that error (the viewer's `FormatError`, `pack_card`'s
