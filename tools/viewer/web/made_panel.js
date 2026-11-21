@@ -30,7 +30,7 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
                                   madeWallRoot, openLookPicker, originalOf, plainLook, selectionGroup, setMadeLook,
                                   setWall, wallLookOf, wallPiecesWords, wallState }) {
   // ---- the piece panel's Wall section
-  // A made wall's look name, in its Wall section and its room's: its look's, its catalogue entry's or its donor's mesh's
+  // A made wall's look name, for its Wall section and its room: its look's, its catalogue entry's or its donor's mesh
   const wallLookName = o => madeLookName(wallLookOf(o), catalogued('wall', o.added.generated.wall?.look),
                                          data.meshes[originalOf(o)?.mesh]?.name);
   function wallPanel(root) {
