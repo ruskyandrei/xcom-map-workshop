@@ -11,7 +11,8 @@ pieces will do (the pieces made here use it as their donor).
   and Shift+Tab from the first to the last; Delete, M and W don't reach the scene behind; Escape closes and the focus
   goes back to the control the dialog was opened from. Missions with no row ticked puts the focus on a row's tick.
 - reset-all (finding 28): one of the map's fracturing pieces broken with Break (B and a click on it) is the only
-  change: Reset all mends it, and Ctrl+Z breaks it again; broken with another piece deleted, Reset all puts both back.
+  change: Reset all mends it, leaving the edit chip hidden and empty, and Ctrl+Z breaks it again; broken with another
+  piece deleted, Reset all puts both back.
 - draw-errors (finding 29, needs --projects): a project holding a copy of a piece whose mesh the browser can't load
   opens all the same, with the copy counted as a display error and its record kept and saved back; a paste of that
   piece says it could not be drawn and places nothing, and once the mesh can be had again the next paste places it
@@ -252,6 +253,10 @@ def check_reset_all(browser, url, open_viewer):
     page.locator('#editResetAll').click()
     assert page.evaluate('viewer.changes().total') == 0, page.evaluate('viewer.changes()')
     assert page.evaluate('id => viewer.roots.get(id).userData.blasts', piece) is None
+    # nothing changed, no project open: the edit chip is hidden and keeps no words, as before any edit (it kept "not
+    # saved", which a test reading the page's text took for shown)
+    chip = page.evaluate("(() => { const c = document.getElementById('editCount'); return [c.hidden, c.textContent, c.title]; })()")
+    assert chip == [True, '', ''], chip
     page.keyboard.press('Control+z')
     assert page.evaluate('id => viewer.roots.get(id).userData.blasts', piece) == blasts
     assert page.evaluate('viewer.changes().broken') == 1
