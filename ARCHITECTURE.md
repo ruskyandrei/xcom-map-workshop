@@ -282,7 +282,7 @@ its rules, records and words go in, with their node tests in `tools/viewer/tests
 | A piece lookup (what the compiler asks of the library of other maps' pieces) | [`piece_lookup.py`](tools/editor/piece_lookup.py) (`Library`), raising `LibraryError` (in [`compiler_tables.py`](tools/editor/compiler_tables.py)) with its code for what can't be had. The library's scan and its records are the viewer's [`library.py`](tools/viewer/library.py). |
 | A reader of package bytes | [`tools/upk`](tools/upk): tagged properties through [`props.tags`](tools/upk/props.py), compressed chunks through [`decomp.read_chunk`](tools/upk/decomp.py), a map's objects through the viewer's [`Package`](tools/viewer/package.py), a mesh component's LOD records and a bulk record through [`native_fields`](tools/upk/native_fields.py)' `mesh_lods` and `bulk_record` (each value with its place in the package; [`lighting_records`](tools/upk/lighting_records.py) and [`lightmap_fields`](tools/bake/lightmap_fields.py) give their values and places in the forms their readers take). |
 | A writer of package bytes | [`package_edit.write_edited`](tools/upk/package_edit.py) for edits in place, [`package_grow.py`](tools/upk/package_grow.py) for new exports. |
-| A line of the game's config | [`mapsini.py`](tools/viewer/mapsini.py). |
+| A line of the game's config, and a field of a `DefaultMaps.ini` record | [`mapsini.py`](tools/viewer/mapsini.py): a record's fields and streams read and written by `field`, `unquoted`, `set_field`, `slot_streams` and `add_stream`, on a line of bytes (the install) or of text (the Build, the map list, the export), blanks around `=` read as the game reads them (KB-11); a record's mission by [`maplist.record_kind`](tools/viewer/maplist.py). No other module writes a pattern for a record's field. |
 | A file replaced whole: a project, a record, a picture, an index | [`atomic_files.py`](tools/viewer/atomic_files.py): `write_bytes` or `write_text` (a temporary file beside it, then a replace tried again while another program holds the file a moment), or `replace` for a temporary file the writer filled itself or a file it moves aside. The writer keeps its own lock, flush (`sync`), read-back and error words. No other module of `tools/viewer` calls `os.replace` (`test_atomic_files.py` scans for it; KB-10). |
 | A tool folder on the import path | [`paths.use()`](tools/paths.py), at the top of the module. |
 | A test's shared records and helpers | Its suite's fixtures module: [`viewer_fixtures.py`](tools/viewer/tests/viewer_fixtures.py), [`tools/bake/tests/fixtures.py`](tools/bake/tests/fixtures.py), [`editor_fixtures.py`](tools/editor/tests/editor_fixtures.py), [`upk_fixtures.py`](tools/upk/tests/upk_fixtures.py) (a suite without one makes one, named for the suite). One more than one suite needs: [`tools/tests/shared_fixtures.py`](tools/tests/shared_fixtures.py) (the DefaultMaps records, a made-up mesh), which each suite's fixtures module imports it from. |
@@ -570,8 +570,8 @@ What is over them today, and why (app.js: 5 `let` statements, 11 top-level funct
   moved and the added pieces (`overrides`, `added`, with the assemblies and the grid rule: about 650 lines) are the
   next family if it grows.
 - `tools/editor/tests/test_build.py` (1,933): a test file of many cases.
-- `tools/editor/build.py` (1,842): the Build's stages, its config lines and its README; its config-line writer repeats
-  `mapsini.py`'s and belongs there.
+- `tools/editor/build.py` (1,842): the Build's stages, its config lines and its README (its records written through
+  `mapsini.py` since 21 November 2026).
 - `tools/bake/wall_measure.py` (1,619): the walls' look measurer, one format read whole: a fracturing mesh's LOD 0
   measured into a look.
 - `tools/bake/buildings.py::edit` (210 lines): the map's own buildings edited in place, one pass over a building's
