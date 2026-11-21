@@ -60,7 +60,8 @@ document's rules (its size and limits, its records normalized) are
 [`prefabs.js`](tools/viewer/web/prefabs.js)'s. The Lights view is [`lights_wiring.js`](tools/viewer/web/lights_wiring.js)'s:
 the map's lights as roots, which are drawn and whether each can be edited, the view on or off, the area lights
 following their glowing pieces, Solo, the selected light's reach, the panel's light section, the drag handles on the
-selected light (and on the picked effect or sound), the Add panel's lights and the project's light records. What it
+selected light (and on the picked effect or sound), the Add panel's lights and the project's light records; its storage
+keys are plain exports of it. What it
 draws (markers, shapes, handles, Solo's lights) is made without the page in
 [`lights_view.js`](tools/viewer/web/lights_view.js), and a light value's rules are
 [`light_rules.js`](tools/viewer/web/light_rules.js)'s. The Effects view is

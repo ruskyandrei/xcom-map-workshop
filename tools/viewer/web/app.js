@@ -32,7 +32,7 @@ import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
 import { createBuilderSession } from './builder_session.js';
 import { createPrefabPlace } from './prefab_place.js';
-import { createLightsWiring } from './lights_wiring.js';
+import { AREA_SHOWN, createLightsWiring, REACH_SHOWN, SKY_SHOWN } from './lights_wiring.js';
 import { createEffectsWiring } from './effects_wiring.js';
 import { createSpawnsWiring } from './spawns_wiring.js';
 import { createZonesWiring } from './zones_wiring.js';
@@ -376,8 +376,7 @@ const { align, alignPanel, saveAlignPrefs } = createAlign({
   // (made with the clipboard, further down: called through, since it is not made yet while this runs)
   keepRecipe: (move, parts) => keepRecipe(move, parts) });
 
-// The Lights view's storage keys, and its switches read from them (the view: lights_wiring.js, made below).
-const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
+// The Lights view's switches read from its storage keys (lights_wiring.js's; the view is made below).
 const PL = 'TheWorld.PersistentLevel.';
 setAreaShown(recall(AREA_SHOWN) === '1');     // (lightsShown, areaShown: editor_state.js)
 setReachShown(recall(REACH_SHOWN) === '1');   // the selected light's reach outlined (View options; off at first)
