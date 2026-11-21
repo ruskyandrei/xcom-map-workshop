@@ -358,6 +358,33 @@ class Tests(unittest.TestCase):
         self.assertNotIn(test, restarted.jobs)              # nothing holds it now: pruned by its age
         self.assertFalse(self.tests.folder(test).exists())
 
+    def test_a_tests_folder_is_named_short_and_a_test_of_before_is_still_read(self):
+        """KB-12: a test's folder and its map (prefab_stage.package_code: pt_<name>) are named by the first 12
+        hexadecimal characters of its id, so its paths stay short under a long builds folder (the Build works in the
+        test's folder: test_build); a test made before, its folder named by its whole id, is still recovered and
+        read. (The id stays a UUID: the install's journal of a test's files names it, installs.py.)"""
+        import shutil
+        ready = self.ready()
+        test = ready['id']
+        name = test.replace('-', '')[:12]
+        self.assertEqual(self.tests.folder(test), self.tests.root / name)
+        self.assertEqual([p.name for p in self.tests.root.iterdir()], [name])
+        self.assertEqual(stage.package_code(test), name)
+        old = uuid()
+        shutil.copytree(self.tests.folder(test), self.tests.root / old)
+        job = read(self.tests.root / old / 'test.json')
+        job.update(id=old, requestId=uuid())
+        write(self.tests.root / old / 'test.json', job)
+        self.assertEqual(self.tests.folder(old), self.tests.root / old)
+        for bad in (name, test.upper(), '../' + test):
+            self.assert_code('test-id', lambda: self.tests.folder(bad))
+        restarted = PrefabTests(self.builds, self.live, process_active=lambda _: False)
+        self.assertEqual((restarted.status(old)['phase'], restarted.status(test)['phase']), ('ready', 'ready'))
+        # a folder whose test.json names another test is left alone
+        shutil.copytree(self.tests.root / name, self.tests.root / ('f' * 12))
+        restarted = PrefabTests(self.builds, self.live, process_active=lambda _: False)
+        self.assertEqual(sorted(restarted.jobs), sorted([test, old]))
+
     def test_restart_follows_an_installed_game_and_keeps_its_files_until_exit(self):
         self.player.cleanup = True
         ready = self.ready()

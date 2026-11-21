@@ -4,7 +4,6 @@ The test follows the Build's rules (plan "sturdier prefabs, faster editor", part
 test warns about, and a piece that can't be built is left out and named, not the test refused. What still stops a
 test is the stage's own: the blank map missing or changed, a prefab that leaves the squad no room on the 256 by 256
 stage (MAX_TILES), a document the compiler can't read, or nothing left to build."""
-from base64 import b32encode
 from copy import deepcopy
 import math
 from pathlib import Path
@@ -261,9 +260,16 @@ def stock_overrides(scene):
     return [dict(target=dict(package=package, level='base', actor=actor), deleted=True) for actor in sorted(actors)]
 
 
+def package_code(test_id):
+    """What a test's map and patch are named after (pt_<code>, pp_<code>): the first 12 hexadecimal characters of its
+    id, as its folder is (prefab_tests.short_name), which keeps a test's paths short (KB-12). Until 21 November 2026
+    it was the whole id in base 32 (26 characters)."""
+    return UUID(test_id).hex[:12]
+
+
 def make_project(snapshot, scene, placement, targets, test_id, levels=PLAYED_LEVELS):
     namespace = UUID(test_id)
-    package_code = b32encode(namespace.bytes).decode('ascii').rstrip('=').lower()
+    code = package_code(test_id)
     actors = {p['actor']: LEVEL + f'.PrefabTest_copy{k}' for k, p in enumerate(snapshot['pieces'], 1)}
     ids = dict(added=actors,
                group={g['id']: str(uuid5(namespace, 'group:' + g['id'])) for g in snapshot.get('groups', [])},
@@ -305,7 +311,7 @@ def make_project(snapshot, scene, placement, targets, test_id, levels=PLAYED_LEV
                    revision=1, savedAt=now(), mode='edit', nextSerial=len(added) + 1,
                    source=dict(map=MAP, package=MAP + '.upk', sha256=scene['source']['sha256'],
                                exporterVersion=scene['exporterVersion']),
-                   output=dict(shipAs='pt_' + package_code, patch='pp_' + package_code),
+                   output=dict(shipAs='pt_' + code, patch='pp_' + code),
                    overrides=stock_overrides(scene), added=added, groups=groups, buildings=buildings)
     # the stage is as tall as the prefab needs (stage_levels: the tallest map's 18 levels, more for a taller prefab),
     # upward from its own ground (prefab plan 5.6b), its ground planes hidden: stood on, not drawn (5.11; the game

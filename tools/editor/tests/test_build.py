@@ -333,6 +333,36 @@ class ToolRunner(unittest.TestCase):
             self.assertIn('work folder: %s' % (folder / '.work'), (folder / 'tool.log').read_text(encoding='utf-8'))
 
 
+class Generators(unittest.TestCase):
+    def test_the_exp26_generator_compiles_as_it_was_made_and_saves_at_the_stores_schema(self):
+        """tools/editor/examples/exp26_projects.py (build_outputs.py's bar-pieces input takes its compile) made its
+        document at project schema 1, which the store refuses to write: it compiles it so and saves it at the
+        store's schema (follow-ups 3.6). The map's export is a stand-in here."""
+        import runpy
+        import projects
+        script = HERE.parent / 'examples' / 'exp26_projects.py'
+        pl = 'TheWorld.PersistentLevel.'
+        lights = [dict(actor=pl + n, layer='base', location=[0.0, 0.0, 300.0], rotation=[-16384, 0, 0],
+                       component=pl + n + '.SpotLightComponent_0')
+                  for n in ('SpotLight_3', 'PointLight_4', 'SpotLight_53', 'SpotLight_32', 'PointLight_15')]
+        objects = [dict(actor=pl + n, layer='base', location=[96.0, 0.0, 0.0], rotation=[0, 0, 0],
+                        component=pl + n + '.StaticMeshComponent_0')
+                   for n in ('XComLevelActor_37', 'XComDestructibleActor_2')]
+        compiled = []
+        with tempfile.TemporaryDirectory() as temp, \
+                mock.patch.object(compiler, 'find_export', return_value=('scene.json', dict(lights=lights, objects=objects))), \
+                mock.patch.object(compiler, 'light_rule', return_value=None), \
+                mock.patch.object(compiler, 'compile_project', side_effect=lambda doc, scene, enable=(): (
+                    compiled.append(dict(doc)), ({}, dict(ok=True, counts={}, warnings=[])))[1]), \
+                mock.patch('sys.argv', [str(script), '--cache', temp]), \
+                mock.patch('settings.load_settings', return_value=dict(projects=Path(temp) / 'projects', cache=Path(temp))):
+            runpy.run_path(str(script), run_name='__main__')
+            saved = projects.ProjectStore(Path(temp) / 'projects').load('26a0a0b1-2626-4d0a-8e26-3c4d5e6f7a26')
+        self.assertEqual([d['schemaVersion'] for d in compiled], [1])
+        self.assertEqual((saved['schemaVersion'], saved['revision'], saved['name']),
+                         (projects.SCHEMA_VERSION, 1, 'EXP-26 lights'))
+
+
 class Builds(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -1023,6 +1053,25 @@ class Builds(unittest.TestCase):
         for k in named:
             self.assertEqual(m['tools'][k], build.sha256(editor.parents[1] / k))
 
+    def test_the_manifest_names_the_modules_of_the_tools_the_build_runs(self):
+        """The manifest's tools record names the modules of tools/bake and tools/upk found from the imports of the
+        tools the Build runs and of build.py itself (follow-ups 3.5: a hand list left out the shell, the copy tool's
+        makers and the relight's own modules), each with its SHA-256; not a module none of them imports (the lab's
+        deploy fixture)."""
+        m = self.make().run()
+        root = Path(build.__file__).resolve().parents[2]
+        named = set(m['tools'])
+        for module in ('shell', 'cover_blocks', 'buildings', 'native_spawns', 'frac_walls', 'shadowmaps', 'shadows',
+                       'bounce', 'lightmap_encode', 'relight', 'native_copy', 'native_lights', 'light_factory',
+                       'native_effects', 'native_sounds', 'native_flares', 'lightmap_writer', 'intro_copy',
+                       'stream_copy', 'transplant', 'map_frame', 'inline_lighting'):
+            self.assertIn('tools/bake/%s.py' % module, named)
+        for module in ('decomp', 'upkinfo', 'package_grow', 'seed_map', 'seed_tiles'):
+            self.assertIn('tools/upk/%s.py' % module, named)
+        self.assertNotIn('tools/bake/deploy_fixture.py', named)
+        for k in named:
+            self.assertEqual(m['tools'][k], build.sha256(root / k))
+
     def test_an_intro_without_a_landing_for_the_map_is_streamed_as_it_is(self):
         self.landing = False
         m = self.make().run()
@@ -1538,6 +1587,108 @@ class Builds(unittest.TestCase):
         self.assertTrue((self.output / '.work' / m['buildId'] / 'logs').is_dir())
         self.assertEqual(json.loads((self.output / VARIANT / 'manifest.json').read_text())['attempt'], attempt)
 
+    TEST_ID, TEST_NAME = '01234567-89ab-4cde-8f01-23456789abcd', '0123456789ab'   # a prefab test's id, its folder's name
+
+    def prefab_test(self, depth, quick=True):
+        """A prefab test's Build as prefab_tests.py starts it: the test's project in its own folder
+        (<builds>/.prefab-tests/<name>/project.json, carrying prefabTest), the package into its artifacts folder; the
+        builds folder padded to `depth` characters. (builds, the test's folder, the Build)."""
+        import datetime
+        root = Path(self.tmp.name)
+        builds = Path(str(root / 'b') + 'x' * (depth - len(str(root / 'b'))))
+        folder = builds / '.prefab-tests' / self.TEST_NAME
+        (folder / 'artifacts').mkdir(parents=True)
+        doc = dict(self.doc, id=self.TEST_ID, prefabTest=dict(id=self.TEST_ID, snapshotHash='0' * 64),
+                   output=dict(shipAs='pt_' + self.TEST_NAME, patch='pp_' + self.TEST_NAME))
+        (folder / 'project.json').write_text(json.dumps(doc), encoding='utf-8')
+        self.spec['objects'] = [COPY, HIDE]       # (a test makes no patch)
+        return builds, folder, build.Build(build.BuildInputs(
+            folder / 'project.json', self.tmp.name, folder / 'artifacts', self.lwr, self.udk, patch_work=self.work,
+            now=datetime.datetime(2026, 11, 7, 11, 0, 0), run=self.run_tool, seed=self.seed, echo=self.said.append,
+            quick=quick, named=self.name_copy, picture=self.picture_copy))
+
+    def test_a_prefab_tests_build_works_in_the_tests_folder_and_fits_a_deep_builds_folder(self):
+        """KB-12: a prefab test's Build worked in <artifacts>/.work/<Variant>-<stamp> under the test's folder, which
+        with a long builds folder passed Windows' 260 characters (the package's intro copy in the work folder, here
+        140 characters past the builds folder). It works in the test's own folder, `w`: the deepest file it writes
+        is 108 characters past the builds folder (the package's intro copy in place), and the Build passes under a
+        builds folder of 140 characters, where the old layout's deepest would be 280."""
+        builds, folder, b = self.prefab_test(140)
+        variant = 'pt_' + self.TEST_NAME
+        old = (folder / 'artifacts' / '.work' / ('%s-20261107-110000' % variant) / 'package' / 'CookedPCConsole'
+               / ('CIN_DropshipIntros_%s.upk' % variant))
+        self.assertGreater(len(str(old)), 259)
+        m = b.run()
+        self.assertEqual(m['work'], str(folder / 'w'))
+        self.assertTrue((folder / 'w' / 'logs').is_dir())
+        self.assertEqual([p.name for p in (folder / 'artifacts' / '.work').glob('%s-*' % variant)], [])
+        deepest = max(len(str(p)) - len(str(builds)) for p in builds.rglob('*'))
+        self.assertEqual(deepest, 108)
+        self.assertLessEqual(len(str(builds)) + deepest, 259)
+        self.assertEqual(sorted(m['files']), ['CookedPCConsole/CIN_DropshipIntros_%s.upk' % variant,
+                                              'CookedPCConsole/%s.upk' % variant])
+
+    def test_a_build_whose_files_would_pass_windows_path_limit_stops_before_its_first_stage(self):
+        """KB-12, decision D4: where long paths are off, a build whose deepest file would pass Windows' 259
+        characters stops before the snapshot stage with the code path-too-long, saying by how many characters and that
+        the builds folder should be on a shorter path; nothing is run or made. Here a prefab test under a builds folder
+        of 160 characters (its package's intro copy would be 268). One of 145 builds, its decoded maps not kept (a
+        note: decoding them again is slower and stops nothing). With long paths on there is no limit to keep to."""
+        with mock.patch.object(build, 'long_paths', return_value=False):
+            _, folder, b = self.prefab_test(145)
+            m = b.run()
+            self.assertIn('CookedPCConsole/CIN_DropshipIntros_pt_%s.upk' % self.TEST_NAME, m['files'])
+            self.assertTrue(any(s.startswith('note: the decoded maps can\'t be kept in the work folder') for s in self.said))
+            self.ran.clear()
+            builds, folder, b = self.prefab_test(160)
+            with self.assertRaises(build.BuildError) as refused:
+                b.run()
+        self.assertEqual(refused.exception.code, 'path-too-long')
+        words = str(refused.exception)
+        self.assertIn('too long for this build by 9 characters', words)
+        self.assertIn('the package\'s CIN_DropshipIntros_pt_%s.upk would be written at %s (268 characters)'
+                      % (self.TEST_NAME, folder / 'artifacts' / ('pt_' + self.TEST_NAME) / 'CookedPCConsole'
+                         / ('CIN_DropshipIntros_pt_%s.upk' % self.TEST_NAME)), words)
+        self.assertIn('Put the builds folder on a path at least 9 characters shorter', words)
+        self.assertEqual((b.stages, self.ran), ([], []))
+        self.assertFalse((folder / 'w').exists())
+        with mock.patch.object(build, 'long_paths', return_value=True):
+            b.check_paths([b.variant] + b.intro_names())       # (the same build: nothing to keep to)
+
+    def test_a_projects_build_whose_stream_copy_would_pass_the_limit_stops_after_its_compile(self):
+        """The names the compile adds (a copy of a stream the edit changes) are checked in preflight, before the costly
+        stages: a project's Build (not a test's) whose stream copy would pass the limit stops there, path-too-long."""
+        import datetime
+        stream = 'URB_Bar_a_long_mission_stream_name'
+        (self.lwr / 'XEW/XComGame/CookedPCConsole' / ('%s.upk' % stream)).write_bytes(b'a stream')
+        self.spec = dict(self.spec, objects=[COPY], streamHides={stream: ['XComLadder_11']})
+        root = Path(self.tmp.name)
+        output = Path(str(root / 'o') + 'x' * (145 - len(str(root / 'o'))))
+        b = build.Build(build.BuildInputs(
+            self.project, self.tmp.name, output, self.lwr, self.udk, patch_work=self.work,
+            now=datetime.datetime(2026, 11, 7, 11, 0, 0), run=self.run_tool, seed=self.seed, echo=self.said.append,
+            named=self.name_copy, picture=self.picture_copy))
+        with mock.patch.object(build, 'long_paths', return_value=False), self.assertRaises(build.BuildError) as refused:
+            b.run()
+        self.assertEqual(refused.exception.code, 'path-too-long')
+        self.assertIn('too long for this build by 7 characters: the package\'s %s_%s.upk' % (stream, VARIANT),
+                      str(refused.exception))
+        self.assertEqual([s['stage'] for s in b.stages], ['snapshot', 'compile'])
+        self.assertEqual(self.ran, [])
+
+    def test_a_given_work_folder_is_the_builds(self):
+        """BuildInputs.work (--work): the build works there, whatever the project."""
+        import datetime
+        self.spec['objects'] = [COPY, HIDE]
+        work = Path(self.tmp.name) / 'elsewhere'
+        m = build.Build(build.BuildInputs(
+            self.project, self.tmp.name, self.output, self.lwr, self.udk, patch_work=self.work,
+            now=datetime.datetime(2026, 11, 7, 11, 0, 0), run=self.run_tool, seed=self.seed, echo=self.said.append,
+            quick=True, named=self.name_copy, picture=self.picture_copy, work=work)).run()
+        self.assertEqual(m['work'], str(work))
+        self.assertTrue((work / 'logs' / 'native-copy.log').is_file())
+        self.assertFalse((self.output / '.work' / m['buildId']).exists())
+
     def test_a_pinned_command_line_reads_nothing_from_the_settings(self):
         """Build queue plan, 9.1: the server's queue passes every folder, and the installs the names are checked
         against, so a setting saved after the capture changes nothing of the build."""
@@ -1553,12 +1704,14 @@ class Builds(unittest.TestCase):
         with mock.patch.object(build.settings_module, 'load_settings', side_effect=AssertionError('settings read')), \
                 mock.patch.object(build, 'Build', Recorder):
             code = build.main([str(self.project), '--pinned', '--game', str(self.lwr), '--cache', 'C', '--output', 'O',
-                               '--projects', 'P', '--check-game', 'I', '--attempt', attempt, '--saved-file', 'S'])
+                               '--projects', 'P', '--check-game', 'I', '--attempt', attempt, '--saved-file', 'S',
+                               '--work', 'W'])
         self.assertEqual(code, 0)
         i = seen['inputs']
         self.assertEqual((i.project, i.cache, i.output, i.lwr, i.udk),
                          (self.project, Path('C'), Path('O'), self.lwr, None))      # no --udk: no UDK
-        self.assertEqual((i.games, i.projects, i.attempt, i.saved_file), ([Path('I')], Path('P'), attempt, Path('S')))
+        self.assertEqual((i.games, i.projects, i.attempt, i.saved_file, i.work),
+                         ([Path('I')], Path('P'), attempt, Path('S'), Path('W')))
         with self.assertRaises(SystemExit):
             build.main([str(self.project), '--pinned', '--game', str(self.lwr)])         # a folder missing
         with self.assertRaises(SystemExit):

@@ -5,7 +5,7 @@ in game, installs.py, or a modder's own, from the package's README). The install
 has it: what the editor installed into it is taken out (installs.maps_text).
 
   python -B tools/editor/build.py <project file | project id or name> [--cache <viewer cache>] [--output <builds folder>]
-      [--radius 1024] [--lwr <install>] [--udk <UDK 2011-09>] [--family other ...] [--quick]
+      [--radius 1024] [--lwr <install>] [--udk <UDK 2011-09>] [--family other ...] [--quick] [--work <folder>]
 
 --quick is the editor's Build with Bake the lighting off (its default): the edit made in the map exactly as a full
 build makes it, but its lighting not baked (stage 4 without the relight), in seconds instead of minutes. Pathing, cover
@@ -20,7 +20,10 @@ and --family van and EXP-26 run 1 lights with --family light, before each family
 Fracturing pieces and physics props were switched on without one (9 November 2026; EXP-28 has their game runs).
 
 Folders default to the editor's settings (tools/viewer/settings.py: projects, output, lwr, and udk, which only a
-patch needs) and the main viewer cache. Stages, each logged in the build's work folder (<output>/.work/<Variant>-<stamp>/logs):
+patch needs) and the main viewer cache. Where Windows' long paths are off (the usual), a build whose files would
+pass its 260 characters stops before its first stage, saying by how many (Build.check_paths, error code
+path-too-long). Stages, each logged in the build's work folder (<output>/.work/<Variant>-<stamp>/logs;
+--work gives another, and a prefab test's Build works in the test's own folder: Build.work_folder):
 1. Snapshot: the project (its saved revision, read once; the manifest's project.sha256 names its bytes), the viewer
    export of its source map (by the project's SHA-256), and the base map from the game install, which must have that
    SHA-256. The server's builds read a snapshot it captured (--saved-file names the project's own file), with the map
@@ -108,6 +111,7 @@ import ast
 import contextlib
 import dataclasses
 import datetime
+import functools
 import hashlib
 import io
 import json
@@ -156,8 +160,6 @@ RELIGHT = TOOLS / 'bake' / 'relight.py'
 NATIVE_COPY = TOOLS / 'bake' / 'native_copy.py'
 TRANSPLANT = TOOLS / 'bake' / 'transplant.py'
 SHELL = TOOLS / 'bake' / 'shell.py'
-NATIVE_LIGHTS = TOOLS / 'bake' / 'native_lights.py'
-LIGHT_FACTORY = TOOLS / 'bake' / 'light_factory.py'
 # the export generation a Build needs: one with the light and generated-light metadata (editor lights plan, 4.1 and
 # 9.3), the compiler's own minimum
 EXPORT_MINIMUM = compiler.EXPORT_MINIMUM
@@ -174,20 +176,29 @@ QUICK_LIGHTS = ('Its light edits are made in the map but not baked: a deleted li
                 'that follow their glowing pieces light soldiers and aliens at the new place, but the old glow stays '
                 'baked where it was and the new place gets none.')
 INTRO_COPY = TOOLS / 'bake' / 'intro_copy.py'
-INLINE_LIGHTING = TOOLS / 'bake' / 'inline_lighting.py'
-MAP_FRAME = TOOLS / 'bake' / 'map_frame.py'
 PICTURE_FORMAT = 'DXT1'
 PICTURE_MISSING = ('the project names a map picture whose file is not on this computer (%s): the map is built '
                    'without a picture of its own. Choose the picture again in Map picture, save and build again')
 PICTURE_FAILED = ('the map picture could not be written into %s (%s): the map is built without a picture of its own. '
                   'Choose the picture again in Map picture, save and build again')
 STREAM_COPY = TOOLS / 'bake' / 'stream_copy.py'
+# the tools the Build runs, each as a process of its own (the modules it imports itself are found from build.py's
+# imports: tool_modules)
+RUN_TOOLS = (NATIVE_COPY, RELIGHT, INTRO_COPY, STREAM_COPY, TRANSPLANT, SHELL)
 # the streamed intros whose Kismet picks its scene by the map's exact name (intro_copy.py): the Skyranger and fast-rope
 # landings (F-45) and the alien bases' entrance (F-76; Temple Ship's arrival names no map). A variant gets its own copy.
 INTROS = outputnames.INTROS
 LANDINGS = ('CIN_DropshipIntros', 'CIN_FastropeIntros')   # the Skyranger's landings among them (the README's words)
 RADIUS = 1024.0
 LOG_TAIL = 40       # the lines of a failing tool's log read for the pieces it names (Build.untried_named)
+PREFAB_TEST_WORK = 'w'      # a prefab test's work folder, in the test's own folder (Build.work_folder)
+# Windows' path limit (MAX_PATH, 260 with the closing nul) for a file, and for a folder, which is made only when an 8.3
+# name (12 characters) still fits after it: what the Build's files must keep to where long paths are off (long_paths;
+# Build.check_paths, KB-12)
+PATH_LIMIT, FOLDER_LIMIT = 259, 247
+PREVIEW_ACTOR = 32          # the longest actor name a relight preview is named by (28 in the game's maps)
+# a decoded map the Build keeps in its work folder (decomp.py: <SHA-256>.unpacked, written as <name>.<pid>.tmp)
+UNPACKED_NAME = '%s.unpacked.%s.tmp' % ('0' * 64, '0' * 6)
 EOL = '\r\n'
 
 
@@ -207,23 +218,71 @@ def sha256(path):
     return h.hexdigest()
 
 
-def editor_modules():
-    """build.py and the modules of tools/editor it imports, and theirs: the compiler, the modules split off it and
-    game_files. The manifest's `tools` names each (with its SHA-256), so they are found from their import statements
-    (as the release finds its modules), and a module split off the compiler later is named with no list to keep.
-    build.py first, the rest by name."""
-    own = HERE / 'build.py'
-    found, todo = set(), [own]
+def imported_names(path):
+    """The modules the Python file `path` imports by absolute name (`import x.y` gives x, `from x import y` gives x),
+    wherever the statement stands (a stage's late import in a function too): its syntax tree's statements, read
+    without walking every expression."""
+    def statements(body):
+        for s in body:
+            yield s
+            for field in ('body', 'orelse', 'finalbody'):
+                yield from statements(getattr(s, field, None) or [])
+            for part in (getattr(s, 'handlers', None) or []) + (getattr(s, 'cases', None) or []):
+                yield from statements(part.body)
+    for s in statements(ast.parse(Path(path).read_text(encoding='utf-8')).body):
+        if isinstance(s, ast.Import):
+            yield from (a.name.split('.')[0] for a in s.names)
+        elif isinstance(s, ast.ImportFrom) and s.level == 0 and s.module:
+            yield s.module.split('.')[0]
+
+
+@functools.lru_cache(maxsize=None)
+def imported_modules(roots, folders):
+    """The files of `folders` (a tuple) that the files `roots` (a tuple) import, and theirs, found from their import
+    statements (imported_names; a module is the first of `folders` holding <name>.py), as the release finds its
+    modules: a sorted tuple, the roots that lie in `folders` among them. Worked out once a process (a Build is a
+    process of its own; the tests run a hundred Builds in one)."""
+    seen, todo = set(), list(roots)
     while todo:
         path = todo.pop()
-        if path in found:
+        if path in seen:
             continue
-        found.add(path)
-        for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
-            names = ([a.name for a in node.names] if isinstance(node, ast.Import)
-                     else [node.module] if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module else [])
-            todo += [p for p in (HERE / ('%s.py' % n.split('.')[0]) for n in names) if p.is_file()]
-    return [own] + sorted(found - {own})
+        seen.add(path)
+        for name in imported_names(path):
+            todo += [p for p in (f / ('%s.py' % name) for f in folders) if p.is_file()][:1]
+    return tuple(sorted(p for p in seen if p.parent in folders))
+
+
+def editor_modules():
+    """build.py and the modules of tools/editor it imports, and theirs: the compiler, the modules split off it and
+    game_files (imported_modules). The manifest's `tools` names each (with its SHA-256), so a module split off the
+    compiler later is named with no list to keep. build.py first, the rest by name."""
+    own = HERE / 'build.py'
+    return [own] + [p for p in imported_modules((own,), (HERE,)) if p != own]
+
+
+def tool_modules():
+    """The modules of tools/bake and tools/upk that make a package: the tools the Build runs (RUN_TOOLS), what
+    build.py imports of the two folders itself (the seeder, the named copy's growing writer, the map picture's writer,
+    the inline lighting...), and everything they import of the two (imported_modules), sorted. The manifest's
+    `tools` names each with its SHA-256, so a module a tool takes on later is named with no list to keep (a hand list
+    did until 21 November 2026, and left out the shell, the copy tool's makers and the relight's own modules)."""
+    return imported_modules((HERE / 'build.py',) + RUN_TOOLS, (TOOLS / 'bake', TOOLS / 'upk'))
+
+
+def long_paths():
+    """Whether this process can open paths past Windows' 260 characters (Windows 10's LongPathsEnabled, which this
+    Python honours; the Build's tools run on the same Python): then the Build has no path limit to keep to. True off
+    Windows."""
+    if sys.platform != 'win32':
+        return True
+    try:
+        import ctypes
+        enabled = ctypes.windll.ntdll.RtlAreLongPathsEnabled
+        enabled.restype = ctypes.c_ubyte
+        return bool(enabled())
+    except (AttributeError, OSError):
+        return False
 
 
 def cache_name(variant):
@@ -712,6 +771,9 @@ class BuildInputs:
     saved_file: object = None   # the project's own file when the build reads a snapshot of it (the build queue's)
     boundary: object = None     # publication.publish's step hook (tests)
     picture: object = None  # the map picture's writer (None: Build._picture; tests give a stand-in)
+    # the build's work folder (--work; None: a prefab test's is `w` beside its project file, any other build's
+    # <output>/.work/<Variant>-<stamp>: Build.work_folder)
+    work: object = None
 
 
 class Build:
@@ -741,6 +803,7 @@ class Build:
         self.seed_tool = inputs.seed or self._seed
         self.name_tool = inputs.named or self._name_copy
         self.picture_tool = inputs.picture or self._picture
+        self.work_given = Path(inputs.work) if inputs.work else None
         self.echo = inputs.echo
         self.stages = []
         self.started = self.stage_started = time.monotonic()
@@ -761,7 +824,7 @@ class Build:
         self.piece_flags = self.piece_blasts = self.flags_edit = self.spawn_edits = self.effects_edit = None
         self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = None
         self.has_lights, self.lights, self.moves_landings = False, None, False
-        self.stream_moves = self.stream_tiles = self.spec = self.copies = self.compiled = None
+        self.stream_moves = self.stream_tiles = self.spec = self.copies = None
         self.untried_dropped = []
         # patch_and_cook: the cooked patch and its seed plan; shell: what the equipped map brought
         self.cooked = self.seed_plan = self.shelled = None
@@ -816,6 +879,10 @@ class Build:
         for the tools after it and the relight's workers; the pristine base map's image in the viewer cache, for
         the next build of the map too (faster-bake plan, 3.1). The work folder's go when the build ends."""
         self.unpacked_work = self.work / 'unpacked'
+        if not long_paths() and len(os.path.abspath(self.unpacked_work / UNPACKED_NAME)) > PATH_LIMIT:
+            self.echo('note: the decoded maps can\'t be kept in the work folder (%s): its path is too long for their '
+                      'names, so each tool decodes the maps it reads again, which is slower. A builds folder on a '
+                      'shorter path avoids it' % self.unpacked_work)
         os.environ[decomp.WORK_ENV] = str(self.unpacked_work)
         keep = self.cache / '.unpacked'
         os.environ[decomp.KEEP_ENV] = str(keep)
@@ -836,6 +903,10 @@ class Build:
         self.map, self.sha = src.get('map'), src.get('sha256')
         if not (self.variant and self.patch and self.map and self.sha):
             raise BuildError('the project has no output names or source binding')
+        # the files it writes must fit Windows' path limit, checked before anything else (and again with the names
+        # the compile adds: preflight)
+        self.work = self.work_folder()
+        self.check_paths([self.variant] + self.intro_names())
         # the builds folder's package of this name must be this project's, checked before any costly work (and again
         # as the new one goes in: package)
         owned_folder(self.output, self.variant, self.doc.get('id'))
@@ -851,11 +922,75 @@ class Build:
             raise BuildError('%s is not the map the project was made on (SHA-256 %s)' % (self.base, self.sha))
         # the install's own file and folder: `base` becomes the equipped map where the shell stage makes one
         self.install_base, self.install_cooked = self.base, self.base.parent
-        self.work = self.output / '.work' / ('%s-%s' % (self.variant, self.stamp))
         (self.work / 'logs').mkdir(parents=True, exist_ok=True)
         self.unpacked()
         self.stage('snapshot', project=self.doc.get('id'), revision=self.doc.get('revision'), base=str(self.base),
                    export=str(self.export))
+
+    def work_folder(self):
+        """Where the build works (its logs, records, the lit map, the package before it goes in place): the folder
+        it is given (BuildInputs.work), else a prefab test's own folder's `w` (PREFAB_TEST_WORK, beside the test's
+        project file, which the test writes in its folder: prefab_tests.py), else <output>/.work/<Variant>-<stamp>. A
+        prefab test's builds folder is <builds>/.prefab-tests/<test>/artifacts: a work folder under it as any build's
+        added about 60 characters to each path, which with a long builds folder passed Windows' 260 (KB-12)."""
+        if self.work_given:
+            return self.work_given
+        if 'prefabTest' in self.doc:
+            return self.project_path.parent / PREFAB_TEST_WORK
+        return self.output / '.work' / ('%s-%s' % (self.variant, self.stamp))
+
+    def intro_names(self):
+        """The variant's copies of the intros its base map's records stream (as output_names names them), read from
+        the install before the snapshot stage for check_paths; [] where the records can't be read (the stages after
+        say why)."""
+        try:
+            maps = installs.maps_text(self.lwr).replace('\r\n', '\n').split('\n')
+            return ['%s_%s' % (s, self.variant) for s in intro_streams(base_records(maps, self.map))]
+        except (BuildError, OSError, ValueError, installs.InstallError):
+            return []
+
+    def deepest_files(self, names):
+        """The files of the build that lie deepest, each (path, what it is): in the work folder, its compile report,
+        the edited map's temporary file (package_grow.py writes <map>.grow-tmp beside the map it writes), the map
+        with the pieces of other maps staged in it (transplant.py), and in a full build the relight's previews
+        (<variant>-<actor>-shadow.png, the actor's name up to PREVIEW_ACTOR characters); and each of `names` (the
+        package's maps: the variant, its patch, its intro and stream copies) in the package as it is made in the work
+        folder and where it goes."""
+        w, v = self.work, self.variant
+        files = [(w / 'compile-report.json', 'the compile report'),
+                 (w / 'lit' / ('%s.upk.grow-tmp' % v), 'the edited map\'s temporary file'),
+                 (w / 'transplant' / 'staged' / ('%s.upk.grow-tmp' % self.map), 'the staged map\'s temporary file')]
+        if not self.quick:
+            files.append((w / 'lit' / ('%s-%s-shadow.png' % (v, 'X' * PREVIEW_ACTOR)), 'a preview of the relight'))
+        for name in names:
+            files += [(w / 'package' / 'CookedPCConsole' / ('%s.upk' % name), 'the package\'s %s.upk' % name),
+                      (self.output / v / 'CookedPCConsole' / ('%s.upk' % name), 'the package\'s %s.upk' % name)]
+        return files
+
+    def check_paths(self, names):
+        """Before the costly stages (the snapshot's first step, and preflight with the names the compile adds): a
+        BuildError with the code path-too-long when a file the build writes (deepest_files, `names` its package's
+        maps) would pass Windows' path limit (PATH_LIMIT, FOLDER_LIMIT for its folder), saying by how many characters,
+        on a system where long paths are off (long_paths). It replaces a FileNotFoundError in the middle of the build
+        (KB-12); it is no limit of the editor's own. The decoded maps the build keeps in its work folder (decomp.py)
+        are not counted: one that can't be written is decoded again by each tool that reads it, which is slower and
+        stops nothing (the snapshot stage says so: unpacked)."""
+        if long_paths():
+            return
+        worst = None
+        for path, what in self.deepest_files(names):
+            full = os.path.abspath(path)
+            over = max(len(full) - PATH_LIMIT, len(os.path.dirname(full)) - FOLDER_LIMIT)
+            if over > 0 and (worst is None or over > worst[0]):
+                worst = (over, full, what)
+        if worst:
+            over, full, what = worst
+            raise BuildError('the builds folder\'s path is too long for this build by %d character%s: %s would be '
+                             'written at %s (%d characters), and Windows takes paths of at most %d characters (%d for a '
+                             'folder). Put the builds folder on a path at least %d characters shorter: install the editor '
+                             'in a shorter folder (Setup), or set the output folder (viewer.py settings --output <folder>)'
+                             % (over, '' if over == 1 else 's', what, full, len(full), PATH_LIMIT, FOLDER_LIMIT, over),
+                             code='path-too-long')
 
     def find_picture(self):
         """The picture file the project names (pictures.named), or None, looked up once as the build starts. A build
@@ -946,7 +1081,6 @@ class Build:
         compiler.write_json(self.spec, patch_spec)
         self.copies = self.work / 'native-edit.json'
         compiler.write_json(self.copies, self.native)
-        self.compiled = report['counts']
         # pieces, effects and sounds of other maps (the effects and sounds plan, FX4): the transplant stage's step
         foreign = sum(1 for c in self.natives if c.get('donor')) + sum(
             1 for k in EFFECT_LANES for c in (self.native.get(k) or {}).get('copies') or [] if c.get('donor'))
@@ -1020,8 +1154,11 @@ class Build:
                              % '; '.join('%s (%s)' % (n, what) for n, what in clash))
 
     def preflight(self):
-        """Before the costly stages: every name the build may write is free for this project (check_names)."""
-        self.check_names(self.output_names())
+        """Before the costly stages: every name the build may write is free for this project (check_names), and its
+        files with those names fit Windows' path limit (check_paths: the stream copies are known from the compile)."""
+        names = self.output_names()
+        self.check_names(names)
+        self.check_paths(names)
 
     def patch_and_cook(self):
         if not self.has_patch:
@@ -1659,14 +1796,9 @@ class Build:
         if self.landing_zones and self.landing_zones.get('own'):
             # Land here on a plain install (Play in game with one zone): the spawn group each own zone's landing is
             lines['ownLandingGroups'] = self.own_landing_groups()
+        # the code that made the package: tools/editor's modules, patchtool, and tools/bake's and tools/upk's
         tools = {str(p.relative_to(TOOLS.parent)).replace('\\', '/'): sha256(p)
-                 for p in (*editor_modules(), PATCHTOOL, RELIGHT,
-                           NATIVE_COPY, NATIVE_LIGHTS, LIGHT_FACTORY, INTRO_COPY, STREAM_COPY, TRANSPLANT,
-                           TOOLS / 'bake' / 'lightmap_writer.py', TOOLS / 'upk' / 'package_grow.py',
-                           TOOLS / 'upk' / 'seed_map.py', TOOLS / 'bake' / 'native_effects.py',
-                           TOOLS / 'bake' / 'native_sounds.py', TOOLS / 'bake' / 'native_flares.py', MAP_FRAME,
-                           INLINE_LIGHTING)
-                 if p.is_file()}
+                 for p in (*editor_modules(), PATCHTOOL, *tool_modules()) if p.is_file()}
         final = self.output / self.variant
         seconds = round(time.monotonic() - self.started)
         times = dict(last_times(final / 'manifest.json', self.doc.get('id')), **{'quick' if self.quick else 'full': seconds})
@@ -1802,6 +1934,8 @@ def main(argv=None):
                                                     'beside the snapshot)')
     a.add_argument('--pinned', action='store_true',
                    help='take nothing from the settings: every folder comes from the arguments (no --udk: no UDK)')
+    a.add_argument('--work', type=Path, help='the build\'s work folder (default: <output>/.work/<Variant>-<stamp>; a '
+                                              'prefab test\'s, w beside its project file)')
     args = a.parse_args(argv)
     if args.attempt and not PROJECT_ID.fullmatch(args.attempt):
         a.error('--attempt takes a UUID')
@@ -1829,7 +1963,8 @@ def main(argv=None):
             games = [play] if play else []
         Build(BuildInputs(project, args.cache or s['cache'], args.output or s['output'], lwr, udk, radius=args.radius,
                           enable=args.family, quick=args.quick, foreign=args.foreign_family, games=games,
-                          projects=args.projects, attempt=args.attempt, saved_file=args.saved_file)).run()
+                          projects=args.projects, attempt=args.attempt, saved_file=args.saved_file,
+                          work=args.work)).run()
     except BuildError as error:
         if error.code:
             print('build failed code: %s' % error.code)

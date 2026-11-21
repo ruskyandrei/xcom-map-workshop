@@ -16,6 +16,11 @@ the light family being off then; it builds for every project since 9 November:
   python -B tools/editor/examples/exp26_projects.py [--cache <viewer cache>]
   python -B tools/editor/build.py "EXP-26 lights"            (run 1)
   python -B tools/editor/build.py "EXP-26 lights" --quick    (run 2)
+
+The generator is historical: it makes the document as the editor wrote it then (project schema 1, an export of
+generation 18), and compiles it so (tools/editor/tests/build_outputs.py takes that compile for its bar-pieces input).
+It saves it at the schema the projects store writes now, which its fields still meet; if the store ever refuses it,
+the generator stops after the compile, saying so.
 """
 import argparse
 from pathlib import Path
@@ -26,7 +31,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'viewer'))
 import compiler  # noqa: E402
 import settings  # noqa: E402
-from projects import ProjectStore  # noqa: E402
+from projects import SCHEMA_VERSION, ProjectError, ProjectStore  # noqa: E402
 from settings import load_settings  # noqa: E402
 
 PL = 'TheWorld.PersistentLevel.'
@@ -85,6 +90,9 @@ def main():
     spec, report = compiler.compile_project(doc, scene, enable=['light'])
     if not report['ok']:
         raise SystemExit('the project does not compile: %s' % report['errors'])
+    # the document is compiled as it was made (schema 1, as build_outputs.py takes it) and saved at the schema the store
+    # writes now; one the store refuses even so stops here, the generator being historical (its docstring)
+    doc = dict(doc, schemaVersion=SCHEMA_VERSION)
     store = ProjectStore(load_settings()['projects'])
     try:
         current = store.load(ID)
@@ -93,7 +101,11 @@ def main():
         expected = current['revision']
     except Exception:
         expected = 0
-    saved = store.save(ID, doc, expected)
+    try:
+        saved = store.save(ID, doc, expected)
+    except ProjectError as error:
+        raise SystemExit('the project compiles but is not saved: this generator is historical (EXP-26, schema 1), and '
+                         'the projects store refuses its document at schema %d: %s' % (SCHEMA_VERSION, error.message))
     print('saved %s (%s) revision %d in %s as %s: %s; %d warnings' % (
         doc['name'], ID, saved['revision'], store.path(ID), ship, report['counts'], len(report['warnings'])))
     for w in report['warnings']:
