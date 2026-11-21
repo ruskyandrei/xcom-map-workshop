@@ -14,21 +14,19 @@ import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
-import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
-         buildingMeta, cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo,
-         floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, groups, landingZones, lastLightSync, leaving,
-         levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, lightsShown, likenessOn,
-         lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves, missionPickValue, normalEffects, normalLights,
-         normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project, reachShown,
-         roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue,
-         setCachePrefix, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary,
-         setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
-         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
-         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
+import { activeMapId, allRoots, areaBindings, areaShown, assigning, breaking, builder, builderMode, buildingMeta,
+         cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo, floorTileLayer,
+         ghostDirty, gridDrag, gridTool, groupIndex, groups, landingZones, lastLightSync, leaving, levelSnap, library,
+         libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn, lookPicker, lookPicking, mapBrowser,
+         mapCatalogue, missionMoves, missionPickValue, normalEffects, pickBox, pickDrag, pickedSpawn, pieces, placing,
+         prefabParameter, project, reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown,
+         setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setData, setEffectsDirty, setEffectsOn,
+         setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue,
+         setLiveCache, setLookPicker, setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue,
+         setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setPickedEffect, setPickedSpawnValue, setPieces,
          setPointer, setPrefabTab, setReachKey, setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick,
-         setTileKey, setTipDirty, setZonesOn, soloOn, spawnLayerReady, spawnPlacing, spawnsOn, stage, streamSet,
-         tipDirty, volumeDrag, volumeRoots, volumesOn, wallDrag, wallDrawing, zonePlacing,
-         zonesOn } from './editor_state.js';
+         setTileKey, setTipDirty, setZonesOn, soloOn, spawnPlacing, spawnsOn, stage, streamSet, tipDirty, volumeDrag,
+         volumesOn, wallDrag, wallDrawing, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession, projectsAvailable } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -63,6 +61,7 @@ import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
 import { createSelection, selectionWords } from './selection.js';
+import { createViews } from './views.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { createTestApi } from './test_api.js';
 import { createNavigation, RECIPE_NOTE } from './navigation.js';
@@ -381,37 +380,6 @@ const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_S
 const PL = 'TheWorld.PersistentLevel.';
 setAreaShown(recall(AREA_SHOWN) === '1');     // (lightsShown, areaShown: editor_state.js)
 setReachShown(recall(REACH_SHOWN) === '1');   // the selected light's reach outlined (View options; off at first)
-// The normal view: out of the Buildings view, the Lights view, the Landing zones view and the Effects view.
-function setNormalView() {
-  if (volumesOn) setVolumesShown(false);
-  if (lightsOn) setLightsShown(false);
-  if (zonesOn) setZonesShown(false);
-  if (effectsOn) setEffectsShown(false);
-  if (spawnsOn) setSpawnsShown(false);
-}
-// After a view or a switch changed: whether lights are drawn, what stays selected, the buttons.
-function syncLights() {
-  setLightsShownValue(lightsOn || (normalLights && !volumesOn));
-  if (volumesOn || lightsOn || !boxesShown) { ownSet.clear(); if (!volumesOn) setOwnPickedValue(null); }
-  const picks = gizmo.picks();
-  const keep = picks.ids.filter(id => (lightRoots.has(id) ? lightsShown : volumeRoots.has(id) ? volumesOn || (boxesShown && !lightsOn) : !lightsOn));
-  if (keep.length !== picks.ids.length) gizmo.setSelection(keep, picks.active); else gizmo.regroup();
-  refreshLightVisibility(); lightButton(); refreshLightShapes(); refreshVolumes();
-  if (pickBox) refreshPickBox(true);
-  if (data) select(gizmo.active, false, true);
-}
-function lightButton() {
-  for (const [id, on] of [['editNormal', !volumesOn && !lightsOn && !zonesOn && !effectsOn && !spawnsOn], ['editBuildings', volumesOn], ['editLights', lightsOn],
-                          ['editZones', zonesOn], ['editEffects', effectsOn], ['editSpawns', spawnsOn]]) {
-    $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on);
-  }
-  $('normalLights').checked = normalLights; $('boxesToggle').checked = boxesShown; $('normalEffects').checked = normalEffects;
-  $('normalSpawns').checked = normalSpawns;
-  // (the spawn markers show with the view, or with the switch in the normal view)
-  if (spawnLayerReady) { spawnLayer.visible = spawnsShown(); spawnPanel(); }
-  $('areaToggle').checked = areaShown; $('reachToggle').checked = reachShown;
-  $('areaToggle').disabled = $('reachToggle').disabled = !lightsShown;
-}
 const HANDLE_PICK = 10;
 // Screen positions (client pixels) for points in the view, or null behind the camera.
 function projector() {
@@ -442,9 +410,11 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         withStorableCone } = createLightsWiring({
   $, actorPose, baseMatrix, camera, copyable, copyText, editChanged, field, flashHint, gizmo, HANDLE_PICK, highlight,
   isStream, ladderMarks, lightLayer, pickables, PL, plural, projector, renderer, restingHint, short, showPop,
-  sun, syncLights, text, world,
+  sun, text, world,
   // (made further down: called through, since they are not made yet while this runs)
   applyLighting: () => applyLighting(), banner: (message, actions, options) => banner(message, actions, options),
+  // (made with the views' switching, further down: called through)
+  syncLights: () => syncLights(),
   // (made with Clear map, further down: called through)
   pointOutside: (x, y) => pointOutside(x, y),
   // (made with the selection, further down: called through)
@@ -742,10 +712,10 @@ const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, 
         spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects, syncSpawnFilters,
         syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
   $, camera, controls, flashHint, floorStays, gizmo, groundHeight, headerMission, headerMissions, isStream,
-  landingLayer, lightButton, movedMatrix, pick, plural, projectsAvailable, rayAt, renderer, restingHint,
+  landingLayer, movedMatrix, pick, plural, projectsAvailable, rayAt, renderer, restingHint,
   setLightsShown, short, text, tileCorner, world,
   // (made further down: called through, since they are not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep),
+  select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   gameToView: p => gameToView(p), groundAt: (x, y, fromZ) => groundAt(x, y, fromZ),
   numberField: (parent, label, value, options) => numberField(parent, label, value, options),
   pickZone: id => pickZone(id), setEffectsShown: on => setEffectsShown(on), setVolumesShown: on => setVolumesShown(on),
@@ -762,10 +732,10 @@ const { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffe
         setEffectsShown, setEffectStays, setEffectValues, setLikeness, setNormalEffects, stepGhostLikenesses,
         stepLikenesses, stopWave } = createEffectsWiring({
   $, actorPose, assetUrl, baseMatrix, camera, controls, effectTemplate, flashHint, gizmo, gltfLoader, isForeignTarget,
-  isStream, lightButton, ownerRoot, plural, pointOutside, renderer, sceneChanged, setLightsShown,
+  isStream, ownerRoot, plural, pointOutside, renderer, sceneChanged, setLightsShown,
   setPickedSpawn, setSpawnsShown, short, text, texture, track, viewport, world,
   // (made further down: called through, since they are not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep),
+  select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   carried: (point, from, to) => carried(point, from, to), setVolumesShown: on => setVolumesShown(on),
   setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(), zoneState: () => zoneState() });
 // A game point (x, y, z) as a point of the view, whose basis is x, up, y (the Spawns and Landing zones views and the
@@ -778,11 +748,11 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
         stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
         zoneSoldiers, zoneState } = createZonesWiring({
   $, banner, camera, controls, editChanged, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission,
-  isLanding, landHere, LANDING_SHOWN, landingLayer, lightButton, ownSize, plural, projectChanged, projectsAvailable,
+  isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, plural, projectChanged, projectsAvailable,
   rayAt, refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer, restingHint,
   setEffectsShown, setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
   // (made further down: called through, since they are not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep),
+  select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   cutaway: () => cutaway(), setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
 // The Buildings view and box select (buildings_wiring.js): the project's buildings as boxes and the map's own, the
 // view, its handles, drags and panel, the Normal button's Floor boxes, and box select.
@@ -798,9 +768,10 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
   editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, isStream, lightViewOnly, missionGizmo,
   pick, plural, projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers, renderer, restingHint,
   selectionWords, setEffectsShown, setZonesShown, short, showPop, spawnBoxNow, spawnEntry, spawnMovable,
-  spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
-  // (made with the selection, just below: called through, since it is not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep),
+  spawnsShown, storeysNow, text, volumeLayer, world,
+  // (made with the selection and the views' switching, just below: called through, since they are not made yet while
+  // this runs)
+  select: (id, add, keep) => select(id, add, keep), syncLights: () => syncLights(),
   // (made with Select all of a kind and the clipboard, below: called through, since they are not made yet while this
   // runs)
   copySelection: cut => copySelection(cut), kindButton: () => kindButton(),
@@ -818,6 +789,12 @@ const { gridNow, ladderNow, refreshGrid, refreshHighlight, select, selectActors 
   setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text, tileCorner,
   // (made with the camera, further down: called through, since it is not made yet while this runs)
   frame: root => frame(root) });
+// Switching the views (views.js): the normal view, whether lights are drawn and what stays selected after a view or a
+// switch changed, and the views' buttons; after the selection, the last factory whose functions it calls (nothing of
+// it runs as the page loads), so the five views made before it are given its functions as functions that call them.
+const { lightButton, setNormalView, syncLights } = createViews({
+  $, gizmo, refreshLightShapes, refreshLightVisibility, refreshPickBox, refreshVolumes, select, setEffectsShown,
+  setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnPanel, spawnsShown });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
 const { kindButton, selectKind } = createSelectKind({
