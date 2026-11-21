@@ -1,5 +1,5 @@
-"""The ten Builds, byte for byte: what a refactor step of the compiler, the Build, the copy tool, the package tools or
-the relight must leave as it was (the editor refactor plan, stage 0.1).
+"""The ten Builds, byte for byte: the check that a change to the compiler, the Build, the copy tool, the package tools
+or the relight leaves a Build's output as it was where it should, and names every file and record it changed.
 
 Ten project inputs (INPUTS), chosen so that together their native edits (compiler.native_split, which
 tools/bake/native_copy.py reads) hold every lane the native edit has. Each is the document of a generator in
