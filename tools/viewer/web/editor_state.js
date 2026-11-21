@@ -1,6 +1,7 @@
 // The page's state that several of its areas use (ARCHITECTURE.md, "The page"): this module is its one owner. Other
 // modules read a name through the import (a live binding: the reader sees each new value) and give it a new value only
-// through its setter here, set<Name> (set<Name>Value where app.js has a set<Name> of its own that also draws).
+// through its setter here, set<Name> (set<Name>Value where the area that owns it has a set<Name> of its own that also
+// draws: map_grid.js's setStage, build_play.js's setLastBuild, navigation.js's setSnapMode, and the like).
 // A collection is changed in place through the import as it is. The top level only declares.
 
 // The prefab builder (?prefab=<id>, or new) or a map.
@@ -161,7 +162,7 @@ export const builder = { doc: null, kept: [], envelope: null, metadata: new Map(
 export let eventMemo = null;
 export function setEventMemo(next) { eventMemo = next; }
 // The map's families of pieces and its assemblies (families.json, tools/viewer/families.py: the compiler's own), or
-// null from a server without them (app.js's useMapFamilies sets them).
+// null from a server without them (map_families.js's useMapFamilies sets them).
 export let families = null;
 export function setFamilies(next) { families = next; }
 // The Add panel's piece list (pieces.js's browser) and its Prefabs tab (prefabs.js's), made as the page loads.
@@ -179,8 +180,8 @@ export function nextChooseToken() { return ++chooseToken; }
 // sources, by their target; donorHashes, a map's package, lower case -> its SHA-256, as its pieces' records give it.
 export const libraryRecords = new Map(), effectTemplates = new Map(), foreignEffects = new Map(), donorHashes = new Map();
 // The components of the pieces of other maps read, as templates a copy is made of (library_templates.js's
-// libraryTemplate adds them; app.js's recipeOf, templateFor and projectListings read them): `<target key>|<component>`
-// -> its source.
+// libraryTemplate adds them; scene_pieces.js's recipeOf and templateFor and floor_listings.js's projectListings read
+// them): `<target key>|<component>` -> its source.
 export const foreignTemplates = new Map();
 // The url the open map's export is served under (app.js's open sets it): an asset's url in the export is under it
 // (library_templates.js's assetUrl); a piece of another map gives its own.
@@ -191,11 +192,12 @@ export const geometryCache = new Map();
 // The saved prefabs' pictures waiting to be drawn (prefab_place.js's drawPrefabPictures draws one a frame).
 export const prefabPictures = [];
 
-// Which view is on (the user, 11 November 2026: one at a time; app.js's setNormalView leaves them all), each set by its
-// own switch: the Lights view (lightsOn; lights_wiring.js's setLightsShown), the Buildings view (volumesOn), the
+// Which view is on (the user, 11 November 2026: one at a time; views.js's setNormalView leaves them all), each set by
+// its own switch: the Lights view (lightsOn; lights_wiring.js's setLightsShown), the Buildings view (volumesOn), the
 // Landing zones view (zonesOn), the Effects view (effectsOn) and the Spawns view (spawnsOn). The Normal button's Lights
 // switch (normalLights) draws and picks lights with pieces in the normal view; lightsShown, whether lights are drawn
-// now, follows from them (app.js's syncLights). Each view's switch reads the others', as do the selection and the keys.
+// now, follows from them (views.js's syncLights). Each view's switch reads the others', as do the selection and the
+// keys.
 export let lightsOn = false, normalLights = false, lightsShown = false, volumesOn = false, zonesOn = false, effectsOn = false,
            spawnsOn = false;
 export function setLightsOn(next) { lightsOn = next; }
@@ -219,7 +221,7 @@ export function setMissionIndex(next) { missionIndex = next; }
 // What is being placed (clipboard.js's startPlacing): { clip, entry (from the piece list, or null), ghost }, or null.
 export let placing = null;
 export function setPlacing(next) { placing = next; }
-// The hint's timer (app.js's flashHint): the resting hint comes back when it fires.
+// The hint's timer (hints.js's flashHint): the resting hint comes back when it fires.
 export let hintTimer;
 export function setHintTimer(next) { hintTimer = next; }
 // The Map lighting mode (lighting.js, made with the scene in app.js's startScene) and the radius the view's lights are
@@ -315,8 +317,8 @@ export let zonePlacing = false;
 export function setZonePlacing(next) { zonePlacing = next; }
 
 // What other areas read or set of the Buildings view and box select (buildings_wiring.js; the selection,
-// selection.js; app.js's views' switches, the map's buildings' records, the clipboard, Select all of a kind, the keys,
-// the pointer handlers, the draw loop and the test hooks):
+// selection.js; the views' switching, views.js; the map's buildings' records, the clipboard, Select all of a kind, the
+// keys, app.js's pointer handlers and draw loop, and the test hooks):
 // - boxesShown: the Normal button's Floor boxes switch, the project's boxes drawn and picked in the normal view (off
 //   whenever a map opens; setBoxesShownValue, beside the view's setBoxesShown, which also draws);
 // - buildingMeta: building id -> { name, kind }, and for one of the map's own its record (map); changed in place;
@@ -340,8 +342,8 @@ export function setPickBoxValue(next) { pickBox = next; }
 export function setPickDrag(next) { pickDrag = next; }
 export function setPickHits(next) { pickHits = next; }
 
-// What other areas read or set of the made pieces' looks (made_looks_wiring.js; app.js's dialogs' check, the Add
-// panel's browsers, the keys, the pointer handlers, the draw loop and the test hooks):
+// What other areas read or set of the made pieces' looks (made_looks_wiring.js; the dialogs' check, modal.js's
+// modalOpen; the Add panel's browsers, the keys, app.js's pointer handlers and draw loop, and the test hooks):
 // - lookPicker: the look picker (look_picker.js), made with the Add panel's piece browser (it paints);
 // - lookPicking: the eyedropper, { kind, onChoose }, while the next click in the view takes the look of the piece under
 //   it, or null.
@@ -378,9 +380,9 @@ export function setSnapModeValue(next) { snapMode = next; }
 export let coverDrag = null;
 export function setCoverDrag(next) { coverDrag = next; }
 // The game's collision for line checks by mesh (collision.json), which the invisible floors measure the ground by
-// (cover_wiring.js's askLineCollision asks for the map's once): mesh id -> { simple: false } or
-// { simple: true, solids }, or null until it comes; a piece of another map read adds its meshes' (app.js's
-// libraryTemplate). lineCollisionFailed: the map's could not be read (the test hooks read both).
+// (cover_wiring.js's askLineCollision asks for the map's once): mesh id -> { simple: false } or { simple: true, solids
+// }, or null until it comes; a piece of another map read adds its meshes' (library_templates.js's libraryTemplate).
+// lineCollisionFailed: the map's could not be read (the test hooks read both).
 export let lineCollision = null, lineCollisionFailed = false;
 export function setLineCollision(next) { lineCollision = next; }
 export function setLineCollisionFailed(next) { lineCollisionFailed = next; }
@@ -417,8 +419,8 @@ export function setOwnGrid(next) { ownGrid = next; }
 export function setGridToolValue(next) { gridTool = next; }
 export function setGridDrag(next) { gridDrag = next; }
 
-// Clear map and the landings (clear_map.js), and what of them app.js's scene start, its map families and the test hooks
-// read or set:
+// Clear map and the landings (clear_map.js), and what of them app.js's scene start, the map's families
+// (map_families.js) and the test hooks read or set:
 // - landingLines: the install's landing lines for the map (GET landing-lines.json) and its kind, which come with the
 //   map: 'lwr' or 'longwar' (Long War), 'ew' (plain Enemy Within), or null, a game the editor doesn't know (none set,
 //   or the read failed: `failed` says why), a state of its own and not Long War (review finding 31) (the read a
@@ -426,15 +428,15 @@ export function setGridDrag(next) { gridDrag = next; }
 // - startingCache: the landing zones the map's own landings and those lines give (zonesNow), worked out once a scene,
 //   or null;
 // - lastClearMs: how long the last clear took, in milliseconds (the test hooks), or null;
-// - landingActors: the landing zone's pieces as the server's families name them (app.js's useMapFamilies), or null:
-//   then by their archetype (isLanding).
+// - landingActors: the landing zone's pieces as the server's families name them (map_families.js's useMapFamilies), or
+//   null: then by their archetype (isLanding).
 export let landingLines = { kind: null, lines: [] }, startingCache = null, lastClearMs = null, landingActors = null;
 export function setLandingLines(next) { landingLines = next; }
 export function setStartingCache(next) { startingCache = next; }
 export function setLastClearMs(next) { lastClearMs = next; }
 export function setLandingActors(next) { landingActors = next; }
 
-// The cutaway (cutaway.js), and what of it app.js's View options, draw loop and test hooks read or set:
+// The cutaway (cutaway.js), and what of it app.js's View options and draw loop and the test hooks read or set:
 // - tileKey: what the tile grid was last drawn round, or null to draw it again (View options' grid drops it);
 // - floorTileLayer: View options' Floor tiles overlay as drawn (view_layout.js floorTilesOverlay), or null.
 export let tileKey = '', floorTileLayer = null;
@@ -442,6 +444,7 @@ export function setTileKey(next) { tileKey = next; }
 export function setFloorTileLayer(next) { floorTileLayer = next; }
 
 // Prepare (prepare.js): what is wrong with the open map's export for lights and builds (families.json's exportProblem;
-// app.js's scene start sets it as the map opens), or null: a build or a play then asks for the map to be prepared.
+// prepare.js's prepareOpened sets it as the map opens), or null: a build or a play then asks for the map to be
+// prepared.
 export let exportProblem = null;
 export function setExportProblem(next) { exportProblem = next; }

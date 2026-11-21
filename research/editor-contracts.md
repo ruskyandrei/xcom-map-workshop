@@ -89,7 +89,7 @@ together in the editor and saved in the project (`groups`, section 4).
   (destructible props and collectibles), and the copier links its copies and the base map's own pieces of it left in
   place (`breakGroups`, `breakOriginals`; tools/patch/README.md). The editor's Build makes a group's copies in the
   map itself and links them there with that same `AffectedChildren`, each member listing every other, the map's own
-  pieces left in place included (`compiler.native_split`, `native_copy.link_children`). A group with a collectible's
+  pieces left in place included (`native_edit.native_split`, `native_copy.link_children`). A group with a collectible's
   copy stays the copier's whole. In the game a copy that is damaged or destroyed puts
   the rest of its group in the same state. A base-map piece left in place does it through the game's own one-way link,
   `AffectedChildren`. A group whose breakable pieces are all the map's own, left in place, isn't linked yet (the
@@ -631,8 +631,8 @@ counts them among its `effects`), and the compiler's foreign gate (`FOREIGN_FAMI
 check.
 
 **Edited** (stage FX3, 17 November 2026). The project records of section 4 (schema 3) name the effects and sounds by
-their actors. The compiler ([compiler.py](../tools/editor/compiler.py) `effect_override`, `effect_add`) checks each
-against the export (`can`, `why`: an edit the export says no to is an error with its reason; a stream's
+their actors. The compiler ([effect_edits.py](../tools/editor/effect_edits.py) `effect_override`, `effect_add`) checks
+each against the export (`can`, `why`: an edit the export says no to is an error with its reason; a stream's
 too) and the family table (`effect`, `sound`: on since EXP-68 passed, 17 November 2026; held back, the Build takes them
 only with `--family`, which `serve --family` passes on), and writes the spec's `effects` and `sounds`
 objects: `moves` (`name`, `actorClass`, `location`, `rotation`, `before`), `deletes` (`name`, `actorClass`, `location`)

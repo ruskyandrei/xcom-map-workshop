@@ -1,7 +1,9 @@
 """The names, references and bulk records of native data (native_fields.py), against the readers each layout was
 taken from, on three maps of the configured install (tools/viewer/settings.py, or the folder XCOM_COOKED names).
 Without the install those tests skip. The one reader of a mesh component's LOD records (native_fields.mesh_lods), and
-the three readers that take from it, are also tested on a made-up component that needs no install."""
+three of the four readers that take from it (the bakers' lighting_records, the relight's lightmap_fields and the
+transplant's native_fields.fields), are also tested on a made-up component that needs no install; the fourth, the made
+pieces' frac_walls.lod0, is tested in tools/bake/tests/test_frac_walls.py."""
 from pathlib import Path
 import struct
 import sys

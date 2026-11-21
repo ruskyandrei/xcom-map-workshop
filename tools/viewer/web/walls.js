@@ -18,12 +18,13 @@ export const WALL_LOOKS = [{ id: 'bar-inside', name: 'Bar inside wall', package:
   mesh: 'URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED', lwrOnly: false,
   words: 'one or two storeys: diamond tiles under dark panelling on one side, brick over panelling on the other, with a skirting and a cornice' }];
 // The one look of M1, the Bar's inside wall (frac_wall.RECIPE): its heights over the floor (a two-storey wall's top and
-// face), and the tool's limits: any length and height up to these (the compiler's MADE_MAX_TILES, MADE_MAX_STOREYS),
-// the Build cutting it into pieces of at most pieceTiles and its look's storeys.
+// face), and the tool's limits: any length and height up to these (the compiler's made_edits.py MADE_MAX_TILES,
+// MADE_MAX_STOREYS), the Build cutting it into pieces of at most pieceTiles and its look's storeys.
 export const WALL = { endInset: 8, bottom: -16, top: 384, faceTop: 372, storey: 192, half: 12, minTiles: 1, maxTiles: 128,
                       maxStoreys: 12, pieceTiles: 16 };
-// The lengths of made wall the editor's server draws a mesh for (app.js madeShapeOf; generated.py's MIN_LENGTH and
-// MAX_LENGTH, pinned in tests/twin_constants.json, review finding 55); the mesh's other numbers are WALL's
+// The lengths of made wall the editor's server draws a mesh for (scene_pieces.js madeShapeOf; generated.py's
+// MIN_LENGTH and MAX_LENGTH, pinned in tests/twin_constants.json, review finding 55); the mesh's other numbers are
+// WALL's
 export const FRAC_WALL = { minLength: 40, maxLength: WALL.maxTiles * TILE };
 // A wall's tops by its storeys (frac_wall.shaped: one storey stands to 192, as the game's one-storey inside walls do;
 // its cornice is the top 12 and an opening's top stays 24 under the top, as on a tall wall)
@@ -384,7 +385,7 @@ export function playWords(wall, o, { door = false } = {}) {
   if (p.walk && p.cover === 'none' && !door) words += ' A unit in a gap with no door has cover toward its sides: put a door in it (a door from the Add panel), as the game\'s doorways have.';
   return words[0].toUpperCase() + words.slice(1);
 }
-// ---- joints (custom geometry plan, M3 item 2; compiler.py wall_joins is the twin)
+// ---- joints (custom geometry plan, M3 item 2; made_edits.py wall_joins is the twin)
 // An end's style for its solid (frac_wall.END_INSETS: how far in from its tile edge it stops) and how it meets: the
 // game's inside walls stop square 8 short of a wall they meet (a T's stem, as a free end); at an L one runs through to
 // the other's far face and the other butts on its face; end to end both reach the line (research/evidence/wall-joints.py).

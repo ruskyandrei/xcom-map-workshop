@@ -34,6 +34,11 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
                                     readEffectRecords, readLibraryRecords, recipeLight, recordId, rootName, saveBuilder,
                                     selectionGroup, snapshot, startPlacing, stopPlacing, templateFor, track,
                                     withStorableCone }) {
+  // ---- Prefabs (prefab plan 5.6 and 5.7; prefabs.js, tools/viewer/prefabs.py). A prefab is what a paste makes, saved:
+  // added records in a space of its own (the tile grid: the origin a tile corner at ground level), with the groups and
+  // buildings among them. Saving a selection writes those records; placing reads them into a clip and pastes it, as one
+  // group marked with the prefab (a stamp: nothing ties it to the file afterwards).
+  // What a clip placed by the matrix `delta` reaches outside this map's tile grid, as a sentence, or null.
   function prefabPlacementProblem(clip, delta) {
     if (!builderMode && clip.bounds && data.tileGrid) {
       const b = clip.bounds, box = new THREE.Box3(new THREE.Vector3(b[0], b[2], b[1]), new THREE.Vector3(b[3], b[5], b[4])).applyMatrix4(delta);
@@ -49,10 +54,6 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
     }
     return null;
   }
-  // ---- Prefabs (prefab plan 5.6 and 5.7; prefabs.js, tools/viewer/prefabs.py). A prefab is what a paste makes, saved:
-  // added records in a space of its own (the tile grid: the origin a tile corner at ground level), with the groups and
-  // buildings among them. Saving a selection writes those records; placing reads them into a clip and pastes it, as one
-  // group marked with the prefab (a stamp: nothing ties it to the file afterwards).
   // (the Add panel's Prefabs tab, prefabTab: editor_state.js)
   // (a map's package -> its SHA-256, donorHashes: editor_state.js)
   const gridBase = () => (data?.tileGrid?.origin?.length === 3 ? data.tileGrid.origin : [0, 0, 0]);

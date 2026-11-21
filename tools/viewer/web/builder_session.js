@@ -56,6 +56,9 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
       const original = builder.metadata.get(p.actor);
       // (a field of a newer editor's, which this one doesn't know, is carried as the file had it: prefabs.py `carried`)
       const carried = original ? Object.fromEntries(Object.entries(original).filter(([k]) => !PIECE_FIELDS.has(k))) : {};
+      // (the recipe a copied light, effect, sound or lens flare was opened with, kept: editStateNow gives a piece its
+      // recipe from builder.metadata already, but the lights' and effects' records, lightState's and effectState's,
+      // carry none; review item 3.3)
       return { ...carried, ...p, ...(p.from && original?.recipe && !p.recipe ? { recipe: original.recipe } : {}) };
     });
     const pieces = [...known, ...builder.kept].sort((a, b) => a.actor.localeCompare(b.actor));

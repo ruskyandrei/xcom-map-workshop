@@ -11,9 +11,9 @@ if (!scratch) throw new Error('run this through tools/viewer/tests/web_names.py:
 const browser = JSON.parse(readFileSync(join(scratch, 'node_modules', 'globals', 'globals.json'), 'utf8')).browser;
 
 // Window properties whose names read as a variable of the page's own (the list of the confusing-browser-globals
-// package, and `viewport`): app.js declares `open`, `moveTo` and `viewport` itself, and many functions take a `name`,
-// `status`, `parent` or `top`. A function moved out of its module without its import would read the window's instead
-// and not throw, so these are not known globals here: a bare use of one is reported.
+// package, and `viewport`): app.js declares `open` and `viewport`, clipboard.js `moveTo`, and many functions take a
+// `name`, `status`, `parent` or `top`. A function moved out of its module without its import would read the window's
+// instead and not throw, so these are not known globals here: a bare use of one is reported.
 const CONFUSING = ['addEventListener', 'blur', 'close', 'closed', 'confirm', 'defaultStatus', 'defaultstatus', 'event',
   'external', 'find', 'focus', 'frameElement', 'frames', 'history', 'innerHeight', 'innerWidth', 'length', 'location',
   'locationbar', 'menubar', 'moveBy', 'moveTo', 'name', 'onblur', 'onerror', 'onfocus', 'onload', 'onresize', 'onunload',
@@ -23,8 +23,9 @@ const CONFUSING = ['addEventListener', 'blur', 'close', 'closed', 'confirm', 'de
   'viewport'];
 const known = Object.fromEntries(Object.entries(browser).filter(([n]) => !CONFUSING.includes(n)));
 // The page's own uses of those, by the window's name on purpose (no module declares them):
-known.location = 'readonly';    // app.js: the address's map, project or prefab read, set, and the page reloaded
-known.history = 'readonly';     // app.js: the address changed without a reload (replaceState)
+// (app.js, the document and builder sessions, the Map menu, Prepare and the shared state's prefab parameter)
+known.location = 'readonly';    // the address's map, project or prefab read, set, and the page reloaded
+known.history = 'readonly';     // the address changed without a reload (replaceState: app.js and the two sessions)
 
 // An import binding no code of its module reads (ESLint's no-unused-vars covers every name; this is its import part).
 // `export { name }` of an imported name counts as a use.

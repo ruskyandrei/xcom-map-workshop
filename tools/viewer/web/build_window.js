@@ -1,6 +1,6 @@
-// The build window's words (review finding 22: moved out of app.js, which draws them): what a build status from the
-// server (tools/viewer/builds.py, tools/editor/build.py's stages) says, worked out without the page, so the node tests
-// read it. app.js renderBuild puts these in the window's elements.
+// The build window's words (review finding 22: moved out of app.js; build_play.js draws them): what a build status
+// from the server (tools/viewer/builds.py, tools/editor/build.py's stages) says, worked out without the page, so the
+// node tests read it. build_play.js renderBuild puts these in the window's elements.
 import { clock } from './build_queue.js';
 import { plural, sentence } from './dom_words.js';
 

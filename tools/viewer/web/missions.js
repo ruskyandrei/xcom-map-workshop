@@ -1,5 +1,6 @@
 // The kinds of mission (tools/viewer/missions.py, private/plans/done/mission-types-plan.md): which kind an export's
-// mission is (the twin of missions.kind_of_export), and what the play dialog says of it from the server's table
+// mission is (its `kind`, which the export writes by missions.kind_key since export 37; an older export's from its
+// type and council label, by the same rule), and what the play dialog says of it from the server's table
 // (/play.json's missionKinds: its state on this path and what a play of it goes without).
 
 const COUNCIL = { 'Council bomb': 'Bomb', 'Council assault': 'Assault', 'Council rescue': 'Rescue', 'Council extraction': 'Extraction' };

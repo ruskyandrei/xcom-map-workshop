@@ -77,8 +77,9 @@ PNG = b'\x89PNG\r\n\x1a\n'
 LIGHT_KINDS = ('spot', 'point')
 BUILDING_KINDS = ('building', 'ufo')
 # A piece made from numbers (`generated`): its kind, and the most its numbers hold. What they mean is the compiler's to
-# check (compiler.generated_valid, which the Build and Test in game run): here they are numbers, words and short texts
-# in records and lists, at most MADE_DEPTH deep and MADE_VALUES in all. A blast list is made_blasts.py's shape.
+# check (made_edits.MadeEdits.generated_valid, which the Build and Test in game run): here they are numbers, words and
+# short texts in records and lists, at most MADE_DEPTH deep and MADE_VALUES in all. A blast list is made_blasts.py's
+# shape.
 MADE_KINDS = ('fracWall', 'fracSlab', 'ground')
 MADE_DEPTH, MADE_VALUES, MAX_BLASTS = 6, 4096, 64
 
@@ -214,8 +215,8 @@ def check_schema(document, writing=False):
 
 
 def check_values(values, kind, what):
-    """An effect's or a sound's values, as a project's record carries them (compiler.effect_values judges them
-    against the effect they are set on; here only their shape)."""
+    """An effect's or a sound's values, as a project's record carries them (effect_edits.EffectEdits.effect_values
+    judges them against the effect they are set on; here only their shape)."""
     record(values, (), EFFECT_VALUE_KEYS[kind], what, True)
     if not isinstance(values.get('startsOn', True), bool): raise bad(f'{what}: startsOn is not true or false.')
     if values.get('follow', 'auto') not in ('none', 'auto'): raise bad(f'{what}: follow is not none or auto.')

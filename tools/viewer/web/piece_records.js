@@ -21,8 +21,9 @@
 // it stands for, plain exports at the top: whether it is a streamed piece (isStream), the original it is or was
 // copied from (fromOf) and a map's own piece's key in a project (sourceKey: its overrides').
 //
-// Nothing here knows three.js or the page: app.js reads a state from a root (stateOfRoot), writes it into a record
-// (recordFields, through recordOf) and makes a piece of a record's (stateOf, through optionsOf).
+// Nothing here knows three.js or the page: the page's modules (clipboard.js, document_state.js, prefab_place.js,
+// made_looks_wiring.js) read a state from a root (stateOfRoot), write it into a record (recordFields, through
+// recordOf) and make a piece of a record's (stateOf, through optionsOf).
 import { keptValues } from './effects_rules.js';
 import { targetKey } from './project.js';
 

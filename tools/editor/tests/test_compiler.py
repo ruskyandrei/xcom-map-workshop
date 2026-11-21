@@ -2283,7 +2283,7 @@ class FamilyTests(unittest.TestCase):
 
     def test_a_ladder_does_not_climb_to_the_floor_of_a_piece_the_project_deletes(self):
         # a deleted or moved piece takes its floor with it (floor_now), as the compiler's other floor checks count it,
-        # whether or not a piece's flags take a floor away too (app.js ladderNow is the twin)
+        # whether or not a piece's flags take a floor away too (selection.js ladderNow is the twin)
         s = assembly_scene()
         for f in s['tactical']['floorTiles']:
             if f['tile'][2] == 6:

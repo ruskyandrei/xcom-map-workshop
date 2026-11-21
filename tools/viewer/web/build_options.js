@@ -1,9 +1,9 @@
-// Build's panel (app.js): whether to bake the lighting, before a build of the open project. Build… (Ctrl+B) opens it to
-// build; Play in game opens it to build and then play, and, when the project's last build is of what is on
-// screen, offers to play that as it is instead (then the default, so a baked build isn't replaced unasked).
+// Build's panel (build_play.js opens it): whether to bake the lighting, before a build of the open project. Build…
+// (Ctrl+B) opens it to build; Play in game opens it to build and then play, and, when the project's last build is of
+// what is on screen, offers to play that as it is instead (then the default, so a baked build isn't replaced unasked).
 // Baking is off each time the panel opens: without it a build takes seconds and suits checking pathing, cover and line
 // of sight in the game, which are the same either way (findings register T-20); with it, minutes, and the lighting is
-// right too. The build itself is app.js buildProject (build.py, --quick when not baking).
+// right too. The build itself is build_play.js buildProject (build.py, --quick when not baking).
 // Play in game also names the mission it plays (private/plans/done/mission-types-plan.md, A4): the header's Mission
 // picker's, with a select to change it here and a line on what is known of that kind of mission when played this way.
 // A map alone opens the panel for that choice only (no build, nothing to bake).

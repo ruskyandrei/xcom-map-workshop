@@ -11,7 +11,7 @@
 // createMadeBreaking takes what it needs of app.js as one argument object, when app.js makes it: the gizmo, the
 // renderer and the scene, the picking, the made pieces' changes, the other tools it stops, the selection and the
 // hints. Its own state is inside it (the blast's size, its marker, the fragments' middles by mesh); whether Break is on
-// (breaking) is editor_state.js's, since app.js's keys and pointer handlers read it.
+// (breaking) is editor_state.js's, since the keys (navigation.js) and app.js's pointer handlers read it.
 import * as THREE from 'three';
 import { TILE } from './constants.js';
 import { onHub } from './edit_hub.js';
