@@ -3,6 +3,10 @@
 // lists). The project's buildings are drawn as boxes, one for each box of each floor, each a root as a piece or a
 // light is (volumeRoots); the map's own buildings that can be edited come with them, and the others show in grey, to
 // be read. Here:
+// - the map's buildings' records: every building the floors code reads (allBuildings: the map's as exported where
+//   unchanged, the project's and the map's changed ones by their boxes), which of the map's own can be edited
+//   (mapEditable), which the project changed or deleted (mapChanged, mapEdits), what the project saves of them
+//   (savedBuildings) and whether a box is new or changed (freshBox);
 // - the boxes made, put and painted (makeVolume, setVolumeBox, paintVolume), the project's buildings worked out from
 //   them after every edit (buildingsFromVolumes, syncVolumes) and put back from a project (setBuildings), what is drawn
 //   (refreshVolumes, drawOwnVolumes);
@@ -19,35 +23,101 @@
 //   endPickDrag), what it would take (refreshPickBox) and Select (takePickBox).
 //
 // createBuildingsWiring takes what it needs of app.js as one argument object, when app.js makes it: the gizmo, the
-// camera, the renderer and the scene, the boxes' layer, the map's buildings' records and floors, the Spawns view's
-// no-spawn volumes, the other views' switches and the selection. Its own state is inside it (the boxes' serial and
-// key, the hovered handle, the boxes copied, the last building, the pieces to put boxes around, the panel's counts,
-// the cursor rings' key); what other areas read or set (the Normal button's switch, the buildings' names and kinds,
-// the map's own selected or picked, the tool, a drag, box select's tool, box, drag and hits) is editor_state.js's.
+// camera, the renderer and the scene, the boxes' layer, the floors' listings and the cursor's floors, the Spawns view's
+// no-spawn volumes, the other views' switches and the selection. Its own state is inside it (the map's edits worked
+// out, the boxes' serial and key, the hovered handle, the boxes copied, the last building, the pieces to put boxes
+// around, the panel's counts, the cursor rings' key); what other areas read or set (the Normal button's switch, the
+// buildings' names and kinds, the map's own selected or picked, the tool, a drag, box select's tool, box, drag and
+// hits) is editor_state.js's.
 import * as THREE from 'three';
 import { LEVEL, TILE } from './constants.js';
-import { allRoots, boxesShown, builderMode, buildingMeta, buildings, buildingsVersion, data, effectRoots, effectsOn,
-         hintTimer, lightRoots, lightsOn, lightsShown, ownPicked, ownSet, pickBox, pickCentres, pickDrag, pickedSpawn,
-         pickHits, pickTool, placing, roots, selected, setBoxesShownValue, setBuildingsValue, setBuildingsVersion,
-         setLightsOn, setLiveCache, setMergedBuildings, setMissionDragView, setOwnPickedValue, setPickBoxValue,
-         setPickCentres, setPickDrag, setPickHits, setPickToolValue, setVolumeDrag, setVolumesOn, setVolumeToolValue,
-         spawnPlacing, volumeDrag, volumeRoots, volumesOn, volumeTool, zonesOn } from './editor_state.js';
-import { buildingProblems, CURSOR_NEAR, cursorMiss, floorsAround, LISTED_CLASSES, STOREY_HEIGHT, storeysOver,
-         touchedFloors } from './floors.js';
+import { allRoots, boxesShown, builderMode, buildingMeta, buildings, buildingsVersion, cleared, data, effectRoots,
+         effectsOn, hintTimer, lightRoots, lightsOn, lightsShown, mergedBuildings, ownPicked, ownSet, pickBox,
+         pickCentres, pickDrag, pickedSpawn, pickHits, pickTool, placing, roots, selected, setBoxesShownValue,
+         setBuildingsValue, setBuildingsVersion, setLightsOn, setLiveCache, setMergedBuildings, setMissionDragView,
+         setOwnPickedValue, setPickBoxValue, setPickCentres, setPickDrag, setPickHits, setPickToolValue, setVolumeDrag,
+         setVolumesOn, setVolumeToolValue, spawnPlacing, volumeDrag, volumeRoots, volumesOn, volumeTool,
+         zonesOn } from './editor_state.js';
+import { buildingProblems, CURSOR_NEAR, cursorMiss, floorsAround, floorsOf, LISTED_CLASSES, STOREY_HEIGHT,
+         storeysOver, touchedFloors } from './floors.js';
 import { scaleMarker } from './lights_view.js';
 import { PREFAB_MAX_Z, PREFAB_MIN_Z } from './prefab_document.js';
-import { BUILDING_FLOORS_MAX, targetKey, tidyBuilding, validBuilding } from './project.js';
+import { BUILDING_FLOORS_MAX, BUILDING_SAME, mapBuildingId, targetKey, tidyBuilding,
+         validBuilding } from './project.js';
 import { boxWords } from './spawns_view.js';
 
-export function createBuildingsWiring({ $, allBuildings, boxOf, builderBounds, camera, chosenStorey, copySelection,
-                                       deleteSelection, editBaseSpawn, editChanged, editedCopies, editedKey,
-                                       editedSpawns, editSpawnCopy, effectsShown, effectViewOnly, flashHint,
-                                       floorOptions, freshBox, gizmo, HANDLE_PICK, isStream, kindButton, lightViewOnly,
-                                       mapEditable, mapEdits, mapFloors, mapIdOf, mapKind, mapTarget, missionGizmo,
-                                       pick, plural, PROJECT_BUILDING, projectListings, projector, projectsAvailable,
-                                       rayAt, refreshSpawnMarkers, renderer, restingHint, select, selectionWords,
-                                       setEffectsShown, setZonesShown, short, showPop, spawnBoxNow, spawnEntry,
-                                       spawnMovable, spawnsShown, storeysNow, syncLights, text, volumeLayer, world }) {
+export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenStorey, copySelection, deleteSelection,
+                                        editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
+                                        editSpawnCopy, effectsShown, effectViewOnly, flashHint, floorOptions, gizmo,
+                                        HANDLE_PICK, isStream, kindButton, lightViewOnly, missionGizmo, pick, plural,
+                                        projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers,
+                                        renderer, restingHint, select, selectionWords, setEffectsShown, setZonesShown,
+                                        short, showPop, spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow,
+                                        syncLights, text, volumeLayer, world }) {
+  // allBuildings is what the floors code reads: the map's as exported where unchanged (their saved listings), the
+  // project's and the changed ones of the map by their boxes (worked out once for each state of the buildings:
+  // mergedBuildings, editor_state.js).
+  const PROJECT_BUILDING = 'project:';
+  function allBuildings() {
+    if (!mergedBuildings) {
+      const edits = mapEdits();
+      setMergedBuildings([...(data?.buildings ?? []).filter(b => !edits.exportIds.has(b.id) && !(cleared && !mapEditable(b))),
+        ...buildings.filter(b => !buildingMeta.get(b.id)?.map || edits.changed.has(b.id))
+          .map(b => ({ id: PROJECT_BUILDING + b.id, name: b.name || 'Building', project: b, floors: floorsOf(b), map: buildingMeta.get(b.id)?.map ?? null }))]);
+    }
+    return mergedBuildings;
+  }
+  // The map's own buildings (export 21): one that can be edited is drawn and edited as the project's are, under the id
+  // made from its actor; a van's (it goes with the van), one with a floor that has no floor volume, a patch's, and every
+  // one of an older export, a preview or the prefab builder stays fixed, drawn grey to be read.
+  const mapEditable = b => data?.scope === 'map' && !data.preview && !builderMode && data.exporterVersion >= 21 && Boolean(b.actor)
+    && !b.van && /^\d+$/.test(String(b.id)) && (b.floors ?? []).length > 0
+    && b.floors.every(f => (f.volumes ?? []).length > 0 && (f.boxes ?? []).length === f.volumes.length);
+  const mapIdOf = b => mapBuildingId(b.level ?? 'PersistentLevel', b.actor);
+  const mapTarget = b => ({ package: data.name, level: 'base', actor: b.name });
+  const mapKind = b => (b.isUfo ? 'ufo' : 'building');
+  // a map building's floors as the map has them, as a record's: boxes and the floor volume each is
+  const mapFloors = b => b.floors.map(f => ({ boxes: f.boxes.map(x => [...x.min, ...x.max]), volumes: f.volumes.map(short) }));
+  // Whether a live record of a map building differs from the map's: its name, kind or a floor (every box within
+  // BUILDING_SAME of its own volume's, each volume once: the compiler's rule).
+  function mapChanged(b) {
+    const e = buildingMeta.get(b.id)?.map;
+    if (!e) return true;
+    if ((b.name || '') !== short(e.actor) || (b.kind ?? 'building') !== mapKind(e) || b.floors.length !== e.floors.length) return true;
+    const own = mapFloors(e);
+    return b.floors.some((f, k) => {
+      const boxes = new Map(own[k].volumes.map((v, n) => [v, own[k].boxes[n]]));
+      return f.volumes.length !== boxes.size || new Set(f.volumes).size !== f.volumes.length
+        || f.volumes.some((v, n) => !boxes.has(v) || boxes.get(v).some((x, j) => Math.abs(x - f.boxes[n][j]) > BUILDING_SAME));
+    });
+  }
+  // Which map buildings the project changed (by their boxes, name or kind) and deleted (no box left), worked out once
+  // for each state of the buildings: changed, gone (ids), exportIds (the export's ids of both).
+  let mapEditsCache = null;
+  function mapEdits() {
+    if (mapEditsCache?.version === buildingsVersion) return mapEditsCache;
+    const live = new Map(buildings.map(b => [b.id, b])), changed = new Set(), gone = new Set(), exportIds = new Set();
+    for (const [id, m] of buildingMeta) if (m.map) {
+      const b = live.get(id);
+      if (!b) { gone.add(id); exportIds.add(m.map.id); }
+      else if (mapChanged(b)) { changed.add(id); exportIds.add(m.map.id); }
+    }
+    return (mapEditsCache = { version: buildingsVersion, changed, gone, exportIds });
+  }
+  // What the project saves of the buildings: its own, and the map's changed or deleted (an unchanged one is the map's).
+  function savedBuildings() {
+    const edits = mapEdits();
+    return [...buildings.filter(b => !buildingMeta.get(b.id)?.map || edits.changed.has(b.id)),
+            ...[...edits.gone].map(id => ({ id, replaces: mapTarget(buildingMeta.get(id).map), deleted: true }))];
+  }
+  // Whether a box of a building is new or changed (the compiler's warnings are said for those only): a box of the
+  // project's own is; one of the map's is when it has no volume of the map's or stands away from its volume's box.
+  function freshBox(b, k, n) {
+    const e = buildingMeta.get(b.id)?.map;
+    if (!e) return true;
+    const v = b.floors[k]?.volumes?.[n], own = mapFloors(e).flatMap(f => f.volumes.map((name, i) => [name, f.boxes[i]])).find(x => x[0] === v);
+    return !own || own[1].some((x, j) => Math.abs(x - b.floors[k].boxes[n][j]) > BUILDING_SAME);
+  }
   // The Buildings view (prefab plan 5.3a): the project's buildings as boxes in the view, one for each box of each floor,
   // made, stretched and moved there. A box is a root as a piece or a light is (volumeRoots; the gizmo moves it, by whole
   // tiles and levels), drawn see-through in its floor's colour; the map's own floor volumes show in grey, never picked.
@@ -1096,11 +1166,12 @@ export function createBuildingsWiring({ $, allBuildings, boxOf, builderBounds, c
   $('boxAgain').onclick = () => setPickTool(true);
   $('boxCancel').onclick = stopPickBox;
 
-  return { addVolumes, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag, endVolumeDrag,
-           FACES, handlePoint, hoverVolumeHandle, liveVolumes, makeVolume, mapRestoreChange, movePickDrag,
-           moveVolumeDrag, newBuilding, newBuildingId, ownVolumeLayer, pasteVolumes, PICK_SLACK, pickBoxEdge,
-           pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox, refreshVolumes,
-           restoreMapBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool, setVolumeBox, setVolumesShown,
-           setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox, syncVolumes, takePickBox,
-           updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint, volumePanel };
+  return { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag,
+           endVolumeDrag, FACES, handlePoint, hoverVolumeHandle, liveVolumes, makeVolume, mapEdits, mapIdOf,
+           mapRestoreChange, movePickDrag, moveVolumeDrag, newBuilding, newBuildingId, ownVolumeLayer, pasteVolumes,
+           PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
+           refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
+           setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
+           syncVolumes, takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear,
+           volumeHint, volumePanel };
 }

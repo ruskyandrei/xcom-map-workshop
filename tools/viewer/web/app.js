@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo, placedPose, actorMatrix } from './gizmo.js';
 import { createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
-import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid, groupKey, mapBuildingId,
-         BUILDING_SAME } from './project.js';
+import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
+         groupKey } from './project.js';
 import { plan as planFlags, rawOf as flagRaw } from './piece_flags.js';
 import { ownLandings } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
@@ -28,23 +28,22 @@ import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, 
          hintTimer, landingLines, landingZones, lastBuild, lastClearMs, lastLightSync, leaving, levelSnap, library,
          libraryScope, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown, likenessCount,
          likenessOn, likenessThin, lineCollision, lineCollisionFailed, loadErrorCount, lookPicker, lookPicking,
-         mergedBuildings, missionIndex, missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns,
-         ownPicked, ownSet, pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces,
-         placing, pointer, prefabParameter, prefabTab, project, projectMissions, projectSpawnRules, reachNow,
-         reachShown, rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaBindings, setAreaShown,
-         setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData,
-         setEffectsDirty, setEffectsOn, setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer,
-         setLandingActors, setLandingLines, setLandingRead, setLandingZones, setLastLightSync, setLeaving,
-         setLevelSnapValue, setLibrary, setLibraryScopeValue, setLighting, setLightRadius, setLightsDirty, setLightsOn,
-         setLightsShownValue, setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings,
-         setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue,
-         setPickBoxValue, setPickedEffect, setPickedSpawnValue, setPickedZone, setPickToolValue, setPieces, setPointer,
-         setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown,
-         setSelected, setSnapModeValue, setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick,
-         setStartingCache, setTipDirty, setWallFocus, setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters,
-         spawnLayerReady, spawnPlacing, spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag,
-         volumeRoots, volumesOn, volumeTool, wallDrag, wallDrawing, wallFocus, wavePlayer, zonePlacing,
-         zonesOn } from './editor_state.js';
+         missionIndex, missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet,
+         pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, pointer,
+         prefabParameter, prefabTab, project, projectMissions, projectSpawnRules, reachNow, reachShown, rockPoint,
+         roots, selected, setActiveMapId, setAlignTarget, setAreaBindings, setAreaShown, setAskedPick, setAssigning,
+         setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn,
+         setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors, setLandingLines,
+         setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLevelSnapValue, setLibrary,
+         setLibraryScopeValue, setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue,
+         setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings, setNormalEffectsValue,
+         setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickBoxValue, setPickedEffect,
+         setPickedSpawnValue, setPickedZone, setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
+         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSelected, setSnapModeValue,
+         setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStartingCache, setTipDirty, setWallFocus,
+         setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData,
+         spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag,
+         wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -253,70 +252,6 @@ const gridOrigin = () => data?.tileGrid?.origin?.slice(0, 2) ?? null;
 const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v => v - 1) ?? null;
 // (The map's size as the project sets it, the cleared map, its landing zones, missions, picture and spawn rules, the
 // buildings, and the install's landing lines for the map with the read a project waits for: editor_state.js.)
-// allBuildings is what the floors code reads: the map's as exported where unchanged (their saved listings), the
-// project's and the changed ones of the map by their boxes (worked out once for each state of the buildings:
-// mergedBuildings, editor_state.js).
-const PROJECT_BUILDING = 'project:';
-function allBuildings() {
-  if (!mergedBuildings) {
-    const edits = mapEdits();
-    setMergedBuildings([...(data?.buildings ?? []).filter(b => !edits.exportIds.has(b.id) && !(cleared && !mapEditable(b))),
-      ...buildings.filter(b => !buildingMeta.get(b.id)?.map || edits.changed.has(b.id))
-        .map(b => ({ id: PROJECT_BUILDING + b.id, name: b.name || 'Building', project: b, floors: floorsOf(b), map: buildingMeta.get(b.id)?.map ?? null }))]);
-  }
-  return mergedBuildings;
-}
-// The map's own buildings (export 21): one that can be edited is drawn and edited as the project's are, under the id
-// made from its actor; a van's (it goes with the van), one with a floor that has no floor volume, a patch's, and every
-// one of an older export, a preview or the prefab builder stays fixed, drawn grey to be read.
-const mapEditable = b => data?.scope === 'map' && !data.preview && !builderMode && data.exporterVersion >= 21 && Boolean(b.actor)
-  && !b.van && /^\d+$/.test(String(b.id)) && (b.floors ?? []).length > 0
-  && b.floors.every(f => (f.volumes ?? []).length > 0 && (f.boxes ?? []).length === f.volumes.length);
-const mapIdOf = b => mapBuildingId(b.level ?? 'PersistentLevel', b.actor);
-const mapTarget = b => ({ package: data.name, level: 'base', actor: b.name });
-const mapKind = b => (b.isUfo ? 'ufo' : 'building');
-// a map building's floors as the map has them, as a record's: boxes and the floor volume each is
-const mapFloors = b => b.floors.map(f => ({ boxes: f.boxes.map(x => [...x.min, ...x.max]), volumes: f.volumes.map(short) }));
-// Whether a live record of a map building differs from the map's: its name, kind or a floor (every box within
-// BUILDING_SAME of its own volume's, each volume once: the compiler's rule).
-function mapChanged(b) {
-  const e = buildingMeta.get(b.id)?.map;
-  if (!e) return true;
-  if ((b.name || '') !== short(e.actor) || (b.kind ?? 'building') !== mapKind(e) || b.floors.length !== e.floors.length) return true;
-  const own = mapFloors(e);
-  return b.floors.some((f, k) => {
-    const boxes = new Map(own[k].volumes.map((v, n) => [v, own[k].boxes[n]]));
-    return f.volumes.length !== boxes.size || new Set(f.volumes).size !== f.volumes.length
-      || f.volumes.some((v, n) => !boxes.has(v) || boxes.get(v).some((x, j) => Math.abs(x - f.boxes[n][j]) > BUILDING_SAME));
-  });
-}
-// Which map buildings the project changed (by their boxes, name or kind) and deleted (no box left), worked out once
-// for each state of the buildings: changed, gone (ids), exportIds (the export's ids of both).
-let mapEditsCache = null;
-function mapEdits() {
-  if (mapEditsCache?.version === buildingsVersion) return mapEditsCache;
-  const live = new Map(buildings.map(b => [b.id, b])), changed = new Set(), gone = new Set(), exportIds = new Set();
-  for (const [id, m] of buildingMeta) if (m.map) {
-    const b = live.get(id);
-    if (!b) { gone.add(id); exportIds.add(m.map.id); }
-    else if (mapChanged(b)) { changed.add(id); exportIds.add(m.map.id); }
-  }
-  return (mapEditsCache = { version: buildingsVersion, changed, gone, exportIds });
-}
-// What the project saves of the buildings: its own, and the map's changed or deleted (an unchanged one is the map's).
-function savedBuildings() {
-  const edits = mapEdits();
-  return [...buildings.filter(b => !buildingMeta.get(b.id)?.map || edits.changed.has(b.id)),
-          ...[...edits.gone].map(id => ({ id, replaces: mapTarget(buildingMeta.get(id).map), deleted: true }))];
-}
-// Whether a box of a building is new or changed (the compiler's warnings are said for those only): a box of the
-// project's own is; one of the map's is when it has no volume of the map's or stands away from its volume's box.
-function freshBox(b, k, n) {
-  const e = buildingMeta.get(b.id)?.map;
-  if (!e) return true;
-  const v = b.floors[k]?.volumes?.[n], own = mapFloors(e).flatMap(f => f.volumes.map((name, i) => [name, f.boxes[i]])).find(x => x[0] === v);
-  return !own || own[1].some((x, j) => Math.abs(x - b.floors[k].boxes[n][j]) > BUILDING_SAME);
-}
 const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: controls, roots: allRoots, baseMatrix, onEdit: editChanged,
                             // a group's lights and buildings move with it, drawn or not; a building is whole (all its boxes)
                             // outside the Buildings view, where each box is on its own
@@ -1430,7 +1365,7 @@ function projectNote(message) { text($('diagnostics'), 'div', message, 'note'); 
 const { editStateNow, applyState } = createDocumentState({
   actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, buildRoots, builder, clearEdits,
   cloneGroups, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates, memberOf, movedMatrix, plural,
-  projectNote, savedBuildings, sceneChanged, short, sourceKey, templateFor,
+  projectNote, sceneChanged, short, sourceKey, templateFor,
   // (made with the map grid, further down: called through, since they are not made yet while this runs)
   ownSize: () => ownSize(), setStage: next => setStage(next),
   // (made with the cover blocks, further down: called through, since they are not made yet while this runs)
@@ -1445,7 +1380,8 @@ const { editStateNow, applyState } = createDocumentState({
   syncSpawnRule: () => syncSpawnRule(),
   // (made with the Landing zones and Buildings views, further down: called through, since they are not made yet while
   // this runs)
-  clearedChanged: () => clearedChanged(), setBuildings: next => setBuildings(next),
+  clearedChanged: () => clearedChanged(), savedBuildings: () => savedBuildings(),
+  setBuildings: next => setBuildings(next),
   // (made with Break and Repair, further down: called through, since they are not made yet while this runs)
   drawBroken: root => drawBroken(root), mapBreakable: o => mapBreakable(o) });
 // The document session (document_session.js): opening, saving and leaving a project, its drafts kept for recovery
@@ -2144,11 +2080,12 @@ function grabView() {
 const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
         headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
         refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes, zonesNow } = createClearMap({
-  $, addLightRoots, addRoots, allBuildings, banner, cloneGroups, cutaway, editedKey, flashHint, fromOf, gizmo, grabView,
-  isStream, lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, refreshLightVisibility,
+  $, addLightRoots, addRoots, banner, cloneGroups, cutaway, editedKey, flashHint, fromOf, gizmo, grabView, isStream,
+  lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, refreshLightVisibility,
   removeLightRoots, removeRoots, sceneChanged, setStage, short, showPop, world,
   // (made further down: called through, since they are not made yet while this runs)
-  clearedChanged: () => clearedChanged(), explicitZones: () => explicitZones(), liveVolumes: () => liveVolumes(),
+  allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(), explicitZones: () => explicitZones(),
+  liveVolumes: () => liveVolumes(),
   missionFloorLost: o => missionFloorLost(o), missionReached: o => missionReached(o),
   placeMissionGizmo: () => placeMissionGizmo(), refreshLandingZones: () => refreshLandingZones(),
   refreshSpawnMarkers: () => refreshSpawnMarkers(), setMissionMoves: next => setMissionMoves(next),
@@ -2212,19 +2149,19 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
   setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
 // The Buildings view and box select (buildings_wiring.js): the project's buildings as boxes and the map's own, the
 // view, its handles, drags and panel, the Normal button's Floor boxes, and box select.
-const { addVolumes, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag, endVolumeDrag,
-        FACES, handlePoint, hoverVolumeHandle, liveVolumes, makeVolume, mapRestoreChange, movePickDrag, moveVolumeDrag,
-        newBuilding, newBuildingId, ownVolumeLayer, pasteVolumes, PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint,
-        pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox, refreshVolumes, restoreMapBuildings, setBoxesShown,
-        setBuildings, setOwnPicked, setPickTool, setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle,
-        startPickDrag, startVolumeDrag, stopPickBox, syncVolumes, takePickBox, updateVolumeHandles, viewPoint,
-        volumeBox, volumeClick, volumeHandleNear, volumeHint, volumePanel } = createBuildingsWiring({
-  $, allBuildings, boxOf, builderBounds, camera, chosenStorey, deleteSelection, editBaseSpawn, editChanged,
-  editedCopies, editedKey, editedSpawns, editSpawnCopy, effectsShown, effectViewOnly, flashHint, floorOptions,
-  freshBox, gizmo, HANDLE_PICK, isStream, lightViewOnly, mapEditable, mapEdits, mapFloors, mapIdOf, mapKind, mapTarget,
-  missionGizmo, pick, plural, PROJECT_BUILDING, projectListings, projector, projectsAvailable, rayAt,
-  refreshSpawnMarkers, renderer, restingHint, select, selectionWords, setEffectsShown, setZonesShown, short, showPop,
-  spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
+const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag,
+        endVolumeDrag, FACES, handlePoint, hoverVolumeHandle, liveVolumes, makeVolume, mapEdits, mapIdOf,
+        mapRestoreChange, movePickDrag, moveVolumeDrag, newBuilding, newBuildingId, ownVolumeLayer, pasteVolumes,
+        PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
+        refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
+        setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
+        syncVolumes, takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint,
+        volumePanel } = createBuildingsWiring({
+  $, boxOf, builderBounds, camera, chosenStorey, deleteSelection, editBaseSpawn, editChanged, editedCopies, editedKey,
+  editedSpawns, editSpawnCopy, effectsShown, effectViewOnly, flashHint, floorOptions, gizmo, HANDLE_PICK, isStream,
+  lightViewOnly, missionGizmo, pick, plural, projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers,
+  renderer, restingHint, select, selectionWords, setEffectsShown, setZonesShown, short, showPop, spawnBoxNow,
+  spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
   // (made with Select all of a kind and the clipboard, below: called through, since they are not made yet while this
   // runs)
   copySelection: cut => copySelection(cut), kindButton: () => kindButton() });

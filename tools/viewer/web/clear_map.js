@@ -13,9 +13,9 @@
 // - the ground grid: a faint grid on the ground's plane where the map has no floor (refreshGroundGrid, setGroundGrid),
 //   the pieces still where the map has them (floorStays) and the saved floor index of their tiles (liveFloorIndex).
 //
-// createClearMap takes what it needs of app.js as one argument object, when app.js makes it: the scene, the camera
-// and the renderer, the gizmo, the pieces' and lights' roots added and taken away, the map's size, the Spawns, Landing
-// zones and Buildings views' functions, the cutaway, Play's installs, the project's change, the popups and the hints.
+// createClearMap takes what it needs of app.js as one argument object, when app.js makes it: the scene, the gizmo, the
+// pieces' and lights' roots added and taken away, the map's size, the Spawns, Landing zones and Buildings views'
+// functions, the cutaway, Play's installs, the project's change, the view taken (grabView), the popups and the hints.
 // Its own state is inside it (the caches of what it works out, the window, the panels); the install's landing lines,
 // the starting zones worked out, the last clear's time and the landing pieces as the server names them (app.js's scene
 // start and families, and the test hooks, read or set them) are editor_state.js's.

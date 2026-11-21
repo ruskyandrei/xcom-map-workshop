@@ -134,7 +134,8 @@ export function setLandingRead(next) { landingRead = next; }
 // - areaBindings: an area light's actor path -> its glowing piece as the project sets it ({ target, component }), or
 //   null: kept fixed (the Lights view);
 // - loadErrorCount: the pieces that could not be drawn, the map's own and a document's (said with the map's issues);
-// - mergedBuildings: app.js's allBuildings, worked out once for each state of the buildings (null: to work out again).
+// - mergedBuildings: buildings_wiring.js's allBuildings, worked out once for each state of the buildings (null: to work
+//   out again).
 export let library = null, areaBindings = new Map(), loadErrorCount = 0, mergedBuildings = null;
 export function setLibrary(next) { library = next; }
 export function setAreaBindings(next) { areaBindings = next; }
