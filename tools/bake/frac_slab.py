@@ -39,12 +39,14 @@ tools/bake/looks/slabs.json or measured on the donor: tools/bake/looks.py resolv
 
 The free form (custom geometry improvements plan, section 10.2): numbers holding `free: 1` (free_form.py) are any
 finite footprint x0 < x1, y0 < y1 (a part of a tile, off the tile edges), the plate's underside and top z0 < z1, holes
-anywhere inside it, a look as above (`plain` and `mapping` taken and not read: the editor's mark and stage 4's), seed,
-and a split piece's `whole` (slab_cells' words). Their fragments, cut cells and hashed patterns on a lattice counted
-from the frame's origin, and their collision are slab_cells.py's; the faces are made as above from the fragments'
-convex polygons (a fragment may have several), with each face's texture coordinates held near 0 in whole repeats
-(free_form.held). One piece is at most CHUNK tiles each way: made_split cuts a larger slab first. Old numbers never
-hold `free`, and build as they always did.
+anywhere inside it, a look as above (`plain` taken and not read: the editor's mark), seed, a texture `mapping` and
+its `mappingOrigin` (uv_mapping.py: its 'top' and 'underside' surfaces replace the look's texture on those faces, read
+in the whole slab's frame over its whole footprint; the edges keep the look's), and a split piece's `whole`
+(slab_cells' words). Their fragments, cut cells and hashed patterns on a lattice counted from the frame's origin, and
+their collision are slab_cells.py's; the faces are made as above from the fragments' convex polygons (a fragment may
+have several), with each face's texture coordinates held near 0 in whole repeats (free_form.held). One piece is at
+most CHUNK tiles each way: made_split cuts a larger slab first. Old numbers never hold `free`, and build as they always
+did.
 
 build(slab, template) gives frac_wall.build's form: dict(mesh, fragments (their boxes), solids, lightmapRect, counts)."""
 import hashlib
@@ -57,6 +59,7 @@ import frac_wall
 import free_form
 from free_form import NumbersError
 import slab_cells
+import uv_mapping
 
 LOOKS_FILE = Path(__file__).resolve().parent / 'slab_looks.json'
 DEFAULT_LOOK = 'roof'
@@ -337,6 +340,15 @@ def build(slab, template=None):
     outlines = layout.fragments() if layout else [[poly] for poly in fragments(slab)]
     # (a free face's texture coordinates held near 0 in whole repeats, as the half floats they are written in keep them)
     held = free_form.held if layout else (lambda uv, what: uv)
+    # a free slab's top and underside in its texture mapping where its numbers list them (uv_mapping.py): each corner at
+    # its place in the whole slab's frame, over the whole's footprint, the underside the mirror of the top
+    surfaces = {role: uv_mapping.surface_of(slab, role) for role in ('top', 'underside')} if layout else {}
+    if any(surfaces.values()):
+        whole_extent = slab_cells.extent(slab)
+
+        def mapped(role, pts):
+            return uv_mapping.mapped(surfaces[role], [(x + ux, y + uy) for x, y, _ in pts], whole_extent,
+                                     uv_mapping.origin_of(slab, role), uv_mapping.face_signs(role))
     # every edge's owners: an edge two fragments share is inside (no face: the game's slabs have none, but for a look
     # whose donor draws them), one two of a fragment's own polygons share is inside it (nothing), else outside
     owners = {}
@@ -357,13 +369,15 @@ def build(slab, template=None):
         outside, across = 0, []
         for pi, poly in enumerate(polys):
             top = [(x, y, zt) for x, y in poly]
-            uv = ([_map(top_map, x + shift[0], y + shift[1]) for x, y, _ in top] if measured
+            uv = (mapped('top', top) if surfaces.get('top')
+                  else [_map(top_map, x + shift[0], y + shift[1]) for x, y, _ in top] if measured
                   else [(su * (x + ux) / rep + du, sv * (y + uy) / rep + dv) for x, y, _ in top])
             faces.add(top, (0, 0, 1), top_slot, f, held(uv, "a slab's top"), 'top',
                       [(x - slab['x0'], y - slab['y0']) for x, y, _ in top])
             faces.polys[-1]['colours'] = [paint.colour('top', x + ux, y + uy, default) for x, y, _ in top]
             under = [(x, y, zb) for x, y in reversed(poly)]
-            uv = ([_map(under_map, x + shift[0], y + shift[1]) for x, y, _ in under] if measured
+            uv = (mapped('underside', under) if surfaces.get('underside')
+                  else [_map(under_map, x + shift[0], y + shift[1]) for x, y, _ in under] if measured
                   else [(bu * (x + ux) / rep + eu, bv * (y + uy) / rep + ev) for x, y, _ in under])
             faces.add(under, (0, 0, -1), under_slot, f, held(uv, "a slab's underside"), 'underside',
                       [(x - slab['x0'], y - slab['y0']) for x, y, _ in under])

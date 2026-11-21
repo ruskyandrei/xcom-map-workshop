@@ -5,7 +5,8 @@ inside where the donor has them; its mesh's name follows the look, not the spell
 
 The free form (custom geometry improvements plan, section 10.2): old numbers build byte for byte as on the commit it
 started from; free numbers build a slab of any footprint, holes anywhere, the plate between z0 and z1, its texture
-coordinates held near 0, its mapping taken and not read; a piece past the splitter's chunk is refused."""
+coordinates held near 0, `plain` taken and not read (a texture mapping's checks are test_texture_mapping.py's); a
+piece past the splitter's chunk is refused."""
 import hashlib
 import json
 import math
@@ -255,13 +256,20 @@ class FreeSlabs(unittest.TestCase):
             xy = {(round(p[0], 3), round(p[1], 3)) for p in pts}
             self.assertFalse(xy <= {(round(x, 3), round(y, 3)) for x, y in shared}, xy)
 
-    def test_the_mapping_and_plain_are_taken_and_not_read(self):
+    def test_plain_is_taken_and_not_read_and_a_mapping_changes_the_texture_alone(self):
+        # (the mapping's own checks: test_texture_mapping.py)
         plain = frac_slab.build(PARTIAL)
-        mapped = dict(PARTIAL, plain=True, mapping=dict(surfaces=dict(top=dict(mode='size', u=96.0, v=96.0))))
-        out = frac_slab.build(mapped)
-        a, b = plain['mesh']['lods'][0], out['mesh']['lods'][0]
+        a = plain['mesh']['lods'][0]
+        b = frac_slab.build(dict(PARTIAL, plain=True))['mesh']['lods'][0]
         for key in ('positions', 'vertices', 'indices', 'colours'):
             self.assertEqual(a[key], b[key], key)
+        mapped = dict(PARTIAL, plain=True, mapping=dict(surfaces=dict(top=dict(mode='size', u=96.0, v=96.0))))
+        out = frac_slab.build(mapped)
+        b = out['mesh']['lods'][0]
+        for key in ('positions', 'indices', 'colours'):
+            self.assertEqual(a[key], b[key], key)
+        self.assertEqual([v[2][1] for v in a['vertices']], [v[2][1] for v in b['vertices']])
+        self.assertNotEqual([v[2][0] for v in a['vertices']], [v[2][0] for v in b['vertices']])
         self.assertEqual(plain['solids'], out['solids'])
         self.assertNotEqual(frac_slab.mesh_name(mapped), frac_slab.mesh_name(PARTIAL))
 

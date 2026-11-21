@@ -7,8 +7,9 @@ the free form a piece's extents are finite game units in its own frame, any size
   is_free     whether numbers are in the free form (NumbersError for a `free` of another value)
   extents     x0 < x1, y0 < y1, z0 < z1 checked: finite numbers, each pair in order and at least MIN_SIZE apart; a size
               is never changed to fit
-  mapping     the texture mapping (section 5): a dict when it is given; its use is stage 4's, the generators take it
-              and build as without it
+  mapping     the texture mapping (section 5) and its world origin checked: `mapping` {surfaces: {role: surface}} and
+              `mappingOrigin` {role: place} as uv_mapping.py says, which each generator applies to its own surfaces'
+              faces (a wall's 'faces', a slab's 'top' and 'underside', a ground shape's 'top' and 'sides')
   held        a face's texture coordinates as the mesh writer's half floats hold them (gen_mesh writes them so): whole
               repeats taken off each axis so they stay near 0, which keeps their place in the pattern (the phase); a
               face spanning so many repeats that no such shift keeps it under HALF_PHASE is refused, the error naming
@@ -19,6 +20,8 @@ of another value), 'number' (not a finite number), 'extent' (a pair out of order
 'left' (nothing of the piece left), 'chunk' (a piece larger than the splitter's chunk), 'points' (a rock's moved
 points), 'whole' (a split piece's place) and 'half-floats' (texture coordinates no shift holds)."""
 import math
+
+import uv_mapping
 
 # a half float's steps: 1/1024 of a repeat under 1, 1/32 from 32, half a repeat from 512, a whole repeat from 1,024 and
 # none past 65,504 (struct's 'e' format refuses it). From HALF_PHASE out it holds whole numbers only, so a vertex there
@@ -65,9 +68,17 @@ def extents(numbers, what, axes='xyz'):
 
 
 def mapping(numbers, what):
-    """The numbers' texture mapping checked: absent, or a dict (its shape is section 10.2's; stage 4 reads it)."""
+    """The numbers' texture mapping and its world origin checked (uv_mapping.check, check_origin): `mapping` absent or
+    {surfaces: {role: surface}}, `mappingOrigin` absent or {role: place}. NumbersError ('mapping') saying what is
+    wrong."""
     if 'mapping' in numbers and not isinstance(numbers['mapping'], dict):
         raise NumbersError('mapping', "%s's texture mapping is a dict of its surfaces (it has %r)" % (what, numbers['mapping']))
+    try:
+        if 'mapping' in numbers:
+            uv_mapping.check(numbers['mapping'])
+        uv_mapping.check_origin(numbers.get('mappingOrigin'))
+    except uv_mapping.MappingError as error:
+        raise NumbersError('mapping', "%s's texture mapping: %s" % (what, error)) from None
 
 
 def held(uvs, what):

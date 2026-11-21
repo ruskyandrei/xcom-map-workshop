@@ -5,7 +5,8 @@ The numbers: x0 < x1, y0 < y1 (the footprint: any finite values in the piece's f
 top), holes [dict(x0, x1, y0, y1)] (rectangles anywhere inside the footprint, overlapping or not), seed, look, and for
 a piece of a split slab `whole` [dx, dy, W, D] (as made_split gives it: where the piece's frame starts from the whole's
 corner, the whole's width and depth), with the whole's corner in its own frame as two more numbers, [dx, dy, W, D, cx,
-cy], where that corner is not the frame's origin.
+cy], where that corner is not the frame's origin (origin and extent read it: where the piece's frame starts in the
+whole's, and the whole's footprint, which a texture mapping's top and underside read).
 
   lattice      cells of the look's tile t counted from the frame's origin: cell (i, j) is [i t, (i + 1) t] by
                [j t, (j + 1) t] of the whole slab's frame (a piece of a split slab reads it from its `whole` place, so
@@ -60,6 +61,18 @@ def origin(slab):
                            "numbers, W and D over 0 (it has %r)" % (whole,))
     corner = (float(whole[4]), float(whole[5])) if len(whole) == 6 else (0.0, 0.0)
     return (float(whole[0]) + corner[0], float(whole[1]) + corner[1])
+
+
+def extent(slab):
+    """The whole slab's footprint (x0, x1, y0, y1) in the whole's frame, as a texture mapping reads its top and
+    underside: a piece of a split slab's from its `whole` (its corner, to that and its width and depth), else its own
+    numbers' (checked as origin checks them)."""
+    whole = slab.get('whole')
+    if whole is None:
+        return (float(slab['x0']), float(slab['x1']), float(slab['y0']), float(slab['y1']))
+    origin(slab)
+    cx, cy = (float(whole[4]), float(whole[5])) if len(whole) == 6 else (0.0, 0.0)
+    return (cx, cx + float(whole[2]), cy, cy + float(whole[3]))
 
 
 class Snapped:
