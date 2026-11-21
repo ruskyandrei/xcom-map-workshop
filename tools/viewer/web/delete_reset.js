@@ -9,9 +9,9 @@
 // selection's pieces and boxes, the busy mark, the pieces', lights', effects' and boxes' roots added and taken away,
 // the map's buildings changed and restored, the map's size, the landing zones, the spawn moves and rule, the mission
 // picker, a broken piece drawn and the hints. It keeps no state of its own.
-import { areaBindings, buildingMeta, cleared, clearKeepsOutside, effectRoots, groups, landingZones, lightRoots,
-         missionMoves, ownSet, pickedEffect, projectMissions, projectSpawnRules, roots, setAreaBindings, setCleared,
-         setClearKeepsOutside, setGroups, setLandingZones, setLightsDirty, setMergedBuildings, setPickedZone,
+import { areaBindings, buildingMeta, cleared, clearKeepsOutside, effectRoots, groups, hintTimer, landingZones,
+         lightRoots, missionMoves, ownSet, pickedEffect, projectMissions, projectSpawnRules, roots, setAreaBindings,
+         setCleared, setClearKeepsOutside, setGroups, setLandingZones, setLightsDirty, setMergedBuildings, setPickedZone,
          setProjectMissions, setProjectSpawnRules, stage, volumesOn } from './editor_state.js';
 import { cloneBlasts } from './piece_records.js';
 
@@ -19,9 +19,9 @@ export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, bas
                                     clearedChanged, cloneGroups, copyable, deleteVolumes, drawBroken, effectViewOnly,
                                     flashHint, gizmo, isStream, liveVolumes, mapEdits, mapRestoreChange, nextFrame,
                                     plural, refreshLandingZones, refreshLightVisibility, refreshMissionPicker,
-                                    removeEffectRoots, removeLightRoots, removeRoots, sceneChanged, selectedBoxes,
-                                    selectionWords, setLightValues, setMissionMoves, setStage, syncSpawnRule,
-                                    valuesEdited }) {
+                                    removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged,
+                                    selectedBoxes, selectionWords, setLightValues, setMissionMoves, setStage,
+                                    syncSpawnRule, valuesEdited }) {
   // Delete: an added piece goes; an original is hidden (and returns with undo or Reset all).
   // A step that touches many pieces (BUSY_PIECES or more) puts the busy mark up first, so the page says what it is
   // doing instead of standing still (plan "faster editor", L3); a small one runs at once.
@@ -29,10 +29,14 @@ export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, bas
     if (count < BUSY_PIECES) return work();
     return busy(message, async () => { work(); await nextFrame(); }, { now: true });
   }
-  // Undo and redo: a large step (a paste or a delete of many pieces says its size) under the busy mark.
+  // Undo and redo: a large step (a paste or a delete of many pieces says its size) under the busy mark. Once it is done,
+  // the resting hint takes the place of a notice about what was undone ("Deleted 402 pieces · Ctrl+Z brings them back").
   function undoStep(redo = false) {
     const size = (redo ? gizmo.peekRedo() : gizmo.peekUndo())?.size ?? 0;
-    heavy(`${redo ? 'Redoing' : 'Undoing'} a step of ${plural(size, 'piece')}…`, size, () => (redo ? gizmo.redo() : gizmo.undo()));
+    heavy(`${redo ? 'Redoing' : 'Undoing'} a step of ${plural(size, 'piece')}…`, size, () => {
+      if (redo) gizmo.redo(); else gizmo.undo();
+      clearTimeout(hintTimer); restingHint();
+    });
   }
   function deleteSelection(quiet = false) {
     if (volumesOn) { deleteVolumes(); return; }

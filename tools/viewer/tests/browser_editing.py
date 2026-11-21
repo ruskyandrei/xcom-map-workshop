@@ -36,7 +36,8 @@ pieces will do (the pieces made here use it as their donor).
 - ladder-floor (finding 34): one of the map's ladders climbing to a roof: that roof's Floor turned off by its flags,
   the ladder's chip says it won't climb (as the Build warns); undone, it climbs.
 - small-defects (finding 34): a warning note in the warning colour, the Floor field to 10, and a UFO mission whose
-  ship type the editor doesn't know shown as it is with OK off until a ship is chosen.
+  ship type the editor doesn't know shown as it is with OK off until a ship is chosen; after a delete of 402 pieces
+  and of one, Ctrl+Z, Ctrl+Y and Ctrl+Z each take the "Deleted ... · Ctrl+Z brings them back" hint away.
 - grid-panel (the Map grid's panel once opened under the Selected piece panel): at 1280 and at 1024 pixels wide, with
   a piece picked before the rail's Map grid is opened and with one picked while it is on, the two panels stand apart,
   clear of the rail, and a click at the middle of the grid panel's Done puts the tool away and keeps the selection."""
@@ -660,14 +661,33 @@ def check_small_defects(browser, url, open_viewer):
     assert page.locator('#missionsOk').is_enabled() and page.locator('#missionsWarn').is_hidden()
     page.locator('#missionsOk').click()
     assert page.evaluate('window.missionsChosen') == [dict(kind='Crash', ship='eShip_UFOAbductor')]
+    # an undo or a redo puts the resting hint back (nothing to say here: none) in place of "Deleted 402 pieces · Ctrl+Z
+    # brings them back", for a delete of many pieces (a step under the busy mark) and of one
+    ids = page.evaluate(DRAWN_PIECES)
+    assert len(ids) >= 60, len(ids)
+    settled = "() => document.getElementById('busyMark').hidden"
+    hints = []
+    for count in (402, 1):
+        page.evaluate('ids => { viewer.select(ids[0]); viewer.gizmo.setSelection(ids); }', ids[:count])     # (Delete needs a pick)
+        page.evaluate('document.activeElement?.blur?.()')
+        page.keyboard.press('Delete')
+        page.wait_for_function(f"() => viewer.changes().deleted > 0 && ({settled})()")
+        hints.append(page.locator('#dragHint').inner_text())
+        assert hints[-1].startswith('Deleted '), hints
+        for key, deleted in (('Control+z', False), ('Control+y', True), ('Control+z', False)):
+            page.keyboard.press(key)
+            page.wait_for_function(f"d => (viewer.changes().deleted > 0) === d && ({settled})()", arg=deleted)
+            assert page.locator('#dragHint').is_hidden(), (count, key, page.locator('#dragHint').inner_text())
     page.close()
     assert not errors, errors
-    return colours
+    return dict(colours=colours, hints=hints)
 
 
-# one of the map's own pieces, drawn and pickable
+# one of the map's own pieces, drawn and pickable; and all of them
 DRAWN_PIECE = """[...viewer.roots.values()].find(r => r.visible && !r.userData.deleted && !r.userData.source.added
   && !r.userData.source.hidden && !r.userData.source.environment)?.userData.source.id ?? null"""
+DRAWN_PIECES = """[...viewer.roots.values()].filter(r => r.visible && !r.userData.deleted && !r.userData.source.added
+  && !r.userData.source.hidden && !r.userData.source.environment).map(r => r.userData.source.id)"""
 
 
 def apart(a, b):
