@@ -3,12 +3,12 @@
 // terror site, say) is listed under each. A map not exported yet is prepared the first time it is opened: the server
 // exports it in the background (tools/viewer/exports.py, about half a minute), and the page then opens it.
 import { nextStop, tabOrder } from './modal.js';
-import { call as ask } from './api.js';
+import { call as callServer } from './api.js';
 
 const GROUPS = [['prefabs', 'Prefabs'], ['abduction', 'Abduction'], ['ufo', 'UFO'], ['terror', 'Terror'], ['council', 'Council'],
   ['exalt', 'EXALT'], ['story', 'Story'], ['other', 'Other']];
 
-const call = (url, post = false) => ask(post ? 'POST' : 'GET', url, undefined, { fallback: r => `${r.status} ${r.statusText}` });
+const call = (url, post = false) => callServer(post ? 'POST' : 'GET', url, undefined, { fallback: r => `${r.status} ${r.statusText}` });
 
 /**
  * els: the dialog's elements (root, form, search, prepared, groups, list, count, message, bar, ok, cancel, close).

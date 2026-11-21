@@ -1,4 +1,4 @@
-import { call as ask } from './api.js';
+import { call as callServer } from './api.js';
 import { forgetSession, recallSession, rememberSession } from './storage.js';
 
 // This tab authorizes the first launch only while following the build it submitted.
@@ -11,7 +11,7 @@ const LABEL = {
 };
 
 // (a refusal's own fields are on its body: code and test, for one)
-const call = (path, body) => ask(body === undefined ? 'GET' : 'POST', `/prefab-tests${path}`, body, { fallback: r => r.statusText });
+const call = (path, body) => callServer(body === undefined ? 'GET' : 'POST', `/prefab-tests${path}`, body, { fallback: r => r.statusText });
 
 function keep(id) {
   if (id) rememberSession(SESSION, id); else forgetSession(SESSION);
