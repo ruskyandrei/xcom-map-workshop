@@ -20,7 +20,9 @@ and --family van and EXP-26 run 1 lights with --family light, before each family
 Fracturing pieces and physics props were switched on without one (9 November 2026; EXP-28 has their game runs).
 
 Folders default to the editor's settings (tools/viewer/settings.py: projects, output, lwr, and udk, which only a
-patch needs) and the main viewer cache. Stages, each logged in the build's work folder (<output>/.work/<Variant>-<stamp>/logs;
+patch needs) and the main viewer cache. Where Windows' long paths are off (the usual), a build whose files would
+pass its 260 characters stops before its first stage, saying by how many (Build.check_paths, error code
+path-too-long). Stages, each logged in the build's work folder (<output>/.work/<Variant>-<stamp>/logs;
 --work gives another, and a prefab test's Build works in the test's own folder: Build.work_folder):
 1. Snapshot: the project (its saved revision, read once; the manifest's project.sha256 names its bytes), the viewer
    export of its source map (by the project's SHA-256), and the base map from the game install, which must have that
@@ -190,6 +192,13 @@ LANDINGS = ('CIN_DropshipIntros', 'CIN_FastropeIntros')   # the Skyranger's land
 RADIUS = 1024.0
 LOG_TAIL = 40       # the lines of a failing tool's log read for the pieces it names (Build.untried_named)
 PREFAB_TEST_WORK = 'w'      # a prefab test's work folder, in the test's own folder (Build.work_folder)
+# Windows' path limit (MAX_PATH, 260 with the closing nul) for a file, and for a folder, which is made only when an 8.3
+# name (12 characters) still fits after it: what the Build's files must keep to where long paths are off (long_paths;
+# Build.check_paths, KB-12)
+PATH_LIMIT, FOLDER_LIMIT = 259, 247
+PREVIEW_ACTOR = 32          # the longest actor name a relight preview is named by (28 in the game's maps)
+# a decoded map the Build keeps in its work folder (decomp.py: <SHA-256>.unpacked, written as <name>.<pid>.tmp)
+UNPACKED_NAME = '%s.unpacked.%s.tmp' % ('0' * 64, '0' * 6)
 EOL = '\r\n'
 
 
@@ -226,6 +235,21 @@ def editor_modules():
                      else [node.module] if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module else [])
             todo += [p for p in (HERE / ('%s.py' % n.split('.')[0]) for n in names) if p.is_file()]
     return [own] + sorted(found - {own})
+
+
+def long_paths():
+    """Whether this process can open paths past Windows' 260 characters (Windows 10's LongPathsEnabled, which this
+    Python honours; the Build's tools run on the same Python): then the Build has no path limit to keep to. True off
+    Windows."""
+    if sys.platform != 'win32':
+        return True
+    try:
+        import ctypes
+        enabled = ctypes.windll.ntdll.RtlAreLongPathsEnabled
+        enabled.restype = ctypes.c_ubyte
+        return bool(enabled())
+    except (AttributeError, OSError):
+        return False
 
 
 def cache_name(variant):
@@ -822,6 +846,10 @@ class Build:
         for the tools after it and the relight's workers; the pristine base map's image in the viewer cache, for
         the next build of the map too (faster-bake plan, 3.1). The work folder's go when the build ends."""
         self.unpacked_work = self.work / 'unpacked'
+        if not long_paths() and len(os.path.abspath(self.unpacked_work / UNPACKED_NAME)) > PATH_LIMIT:
+            self.echo('note: the decoded maps can\'t be kept in the work folder (%s): its path is too long for their '
+                      'names, so each tool decodes the maps it reads again, which is slower. A builds folder on a '
+                      'shorter path avoids it' % self.unpacked_work)
         os.environ[decomp.WORK_ENV] = str(self.unpacked_work)
         keep = self.cache / '.unpacked'
         os.environ[decomp.KEEP_ENV] = str(keep)
@@ -842,6 +870,10 @@ class Build:
         self.map, self.sha = src.get('map'), src.get('sha256')
         if not (self.variant and self.patch and self.map and self.sha):
             raise BuildError('the project has no output names or source binding')
+        # the files it writes must fit Windows' path limit, checked before anything else (and again with the names
+        # the compile adds: preflight)
+        self.work = self.work_folder()
+        self.check_paths([self.variant] + self.intro_names())
         # the builds folder's package of this name must be this project's, checked before any costly work (and again
         # as the new one goes in: package)
         owned_folder(self.output, self.variant, self.doc.get('id'))
@@ -857,7 +889,6 @@ class Build:
             raise BuildError('%s is not the map the project was made on (SHA-256 %s)' % (self.base, self.sha))
         # the install's own file and folder: `base` becomes the equipped map where the shell stage makes one
         self.install_base, self.install_cooked = self.base, self.base.parent
-        self.work = self.work_folder()
         (self.work / 'logs').mkdir(parents=True, exist_ok=True)
         self.unpacked()
         self.stage('snapshot', project=self.doc.get('id'), revision=self.doc.get('revision'), base=str(self.base),
@@ -874,6 +905,59 @@ class Build:
         if 'prefabTest' in self.doc:
             return self.project_path.parent / PREFAB_TEST_WORK
         return self.output / '.work' / ('%s-%s' % (self.variant, self.stamp))
+
+    def intro_names(self):
+        """The variant's copies of the intros its base map's records stream (as output_names names them), read from
+        the install before the snapshot stage for check_paths; [] where the records can't be read (the stages after
+        say why)."""
+        try:
+            maps = installs.maps_text(self.lwr).replace('\r\n', '\n').split('\n')
+            return ['%s_%s' % (s, self.variant) for s in intro_streams(base_records(maps, self.map))]
+        except (BuildError, OSError, ValueError, installs.InstallError):
+            return []
+
+    def deepest_files(self, names):
+        """The files of the build that lie deepest, each (path, what it is): in the work folder, its compile report,
+        the edited map's temporary file (package_grow.py writes <map>.grow-tmp beside the map it writes), the map
+        with the pieces of other maps staged in it (transplant.py), and in a full build the relight's previews
+        (<variant>-<actor>-shadow.png, the actor's name up to PREVIEW_ACTOR characters); and each of `names` (the
+        package's maps: the variant, its patch, its intro and stream copies) in the package as it is made in the work
+        folder and where it goes."""
+        w, v = self.work, self.variant
+        files = [(w / 'compile-report.json', 'the compile report'),
+                 (w / 'lit' / ('%s.upk.grow-tmp' % v), 'the edited map\'s temporary file'),
+                 (w / 'transplant' / 'staged' / ('%s.upk.grow-tmp' % self.map), 'the staged map\'s temporary file')]
+        if not self.quick:
+            files.append((w / 'lit' / ('%s-%s-shadow.png' % (v, 'X' * PREVIEW_ACTOR)), 'a preview of the relight'))
+        for name in names:
+            files += [(w / 'package' / 'CookedPCConsole' / ('%s.upk' % name), 'the package\'s %s.upk' % name),
+                      (self.output / v / 'CookedPCConsole' / ('%s.upk' % name), 'the package\'s %s.upk' % name)]
+        return files
+
+    def check_paths(self, names):
+        """Before the costly stages (the snapshot's first step, and preflight with the names the compile adds): a
+        BuildError with the code path-too-long when a file the build writes (deepest_files, `names` its package's
+        maps) would pass Windows' path limit (PATH_LIMIT, FOLDER_LIMIT for its folder), saying by how many characters,
+        on a system where long paths are off (long_paths). It replaces a FileNotFoundError in the middle of the build
+        (KB-12); it is no limit of the editor's own. The decoded maps the build keeps in its work folder (decomp.py)
+        are not counted: one that can't be written is decoded again by each tool that reads it, which is slower and
+        stops nothing (the snapshot stage says so: unpacked)."""
+        if long_paths():
+            return
+        worst = None
+        for path, what in self.deepest_files(names):
+            full = os.path.abspath(path)
+            over = max(len(full) - PATH_LIMIT, len(os.path.dirname(full)) - FOLDER_LIMIT)
+            if over > 0 and (worst is None or over > worst[0]):
+                worst = (over, full, what)
+        if worst:
+            over, full, what = worst
+            raise BuildError('the builds folder\'s path is too long for this build by %d character%s: %s would be '
+                             'written at %s (%d characters), and Windows takes paths of at most %d characters (%d for a '
+                             'folder). Put the builds folder on a path at least %d characters shorter: install the editor '
+                             'in a shorter folder (Setup), or set the output folder (viewer.py settings --output <folder>)'
+                             % (over, '' if over == 1 else 's', what, full, len(full), PATH_LIMIT, FOLDER_LIMIT, over),
+                             code='path-too-long')
 
     def find_picture(self):
         """The picture file the project names (pictures.named), or None, looked up once as the build starts. A build
@@ -1038,8 +1122,11 @@ class Build:
                              % '; '.join('%s (%s)' % (n, what) for n, what in clash))
 
     def preflight(self):
-        """Before the costly stages: every name the build may write is free for this project (check_names)."""
-        self.check_names(self.output_names())
+        """Before the costly stages: every name the build may write is free for this project (check_names), and its
+        files with those names fit Windows' path limit (check_paths: the stream copies are known from the compile)."""
+        names = self.output_names()
+        self.check_names(names)
+        self.check_paths(names)
 
     def patch_and_cook(self):
         if not self.has_patch:

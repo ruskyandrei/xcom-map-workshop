@@ -1579,6 +1579,54 @@ class Builds(unittest.TestCase):
         self.assertEqual(sorted(m['files']), ['CookedPCConsole/CIN_DropshipIntros_%s.upk' % variant,
                                               'CookedPCConsole/%s.upk' % variant])
 
+    def test_a_build_whose_files_would_pass_windows_path_limit_stops_before_its_first_stage(self):
+        """KB-12, decision D4: where long paths are off, a build whose deepest file would pass Windows' 259
+        characters stops before the snapshot stage with the code path-too-long, saying by how many characters and that
+        the builds folder should be on a shorter path; nothing is run or made. Here a prefab test under a builds folder
+        of 160 characters (its package's intro copy would be 268). One of 145 builds, its decoded maps not kept (a
+        note: decoding them again is slower and stops nothing). With long paths on there is no limit to keep to."""
+        with mock.patch.object(build, 'long_paths', return_value=False):
+            _, folder, b = self.prefab_test(145)
+            m = b.run()
+            self.assertIn('CookedPCConsole/CIN_DropshipIntros_pt_%s.upk' % self.TEST_NAME, m['files'])
+            self.assertTrue(any(s.startswith('note: the decoded maps can\'t be kept in the work folder') for s in self.said))
+            self.ran.clear()
+            builds, folder, b = self.prefab_test(160)
+            with self.assertRaises(build.BuildError) as refused:
+                b.run()
+        self.assertEqual(refused.exception.code, 'path-too-long')
+        words = str(refused.exception)
+        self.assertIn('too long for this build by 9 characters', words)
+        self.assertIn('the package\'s CIN_DropshipIntros_pt_%s.upk would be written at %s (268 characters)'
+                      % (self.TEST_NAME, folder / 'artifacts' / ('pt_' + self.TEST_NAME) / 'CookedPCConsole'
+                         / ('CIN_DropshipIntros_pt_%s.upk' % self.TEST_NAME)), words)
+        self.assertIn('Put the builds folder on a path at least 9 characters shorter', words)
+        self.assertEqual((b.stages, self.ran), ([], []))
+        self.assertFalse((folder / 'w').exists())
+        with mock.patch.object(build, 'long_paths', return_value=True):
+            b.check_paths([b.variant] + b.intro_names())       # (the same build: nothing to keep to)
+
+    def test_a_projects_build_whose_stream_copy_would_pass_the_limit_stops_after_its_compile(self):
+        """The names the compile adds (a copy of a stream the edit changes) are checked in preflight, before the costly
+        stages: a project's Build (not a test's) whose stream copy would pass the limit stops there, path-too-long."""
+        import datetime
+        stream = 'URB_Bar_a_long_mission_stream_name'
+        (self.lwr / 'XEW/XComGame/CookedPCConsole' / ('%s.upk' % stream)).write_bytes(b'a stream')
+        self.spec = dict(self.spec, objects=[COPY], streamHides={stream: ['XComLadder_11']})
+        root = Path(self.tmp.name)
+        output = Path(str(root / 'o') + 'x' * (145 - len(str(root / 'o'))))
+        b = build.Build(build.BuildInputs(
+            self.project, self.tmp.name, output, self.lwr, self.udk, patch_work=self.work,
+            now=datetime.datetime(2026, 11, 7, 11, 0, 0), run=self.run_tool, seed=self.seed, echo=self.said.append,
+            named=self.name_copy, picture=self.picture_copy))
+        with mock.patch.object(build, 'long_paths', return_value=False), self.assertRaises(build.BuildError) as refused:
+            b.run()
+        self.assertEqual(refused.exception.code, 'path-too-long')
+        self.assertIn('too long for this build by 7 characters: the package\'s %s_%s.upk' % (stream, VARIANT),
+                      str(refused.exception))
+        self.assertEqual([s['stage'] for s in b.stages], ['snapshot', 'compile'])
+        self.assertEqual(self.ran, [])
+
     def test_a_given_work_folder_is_the_builds(self):
         """BuildInputs.work (--work): the build works there, whatever the project."""
         import datetime
