@@ -156,7 +156,7 @@ export function sortState(state) {
            // Malformed groups are carried as they are.
            groups: (state.groups ?? []).map(g => (validGroup(g) ? tidyGroup(g) : g)).sort((a, b) => String(a?.id).localeCompare(String(b?.id))),
            areaLightBindings: [...(state.areaLightBindings ?? [])].sort(byBinding),
-           // the size was checked against the map when the stage was set (app.js setStage): only its shape here, so a
+           // the size was checked against the map when the stage was set (map_grid.js setStage): only its shape here, so a
            // map past the plain limits at its own size keeps its larger grid
            stage: state.stage != null && stageShape(state.stage) ? tidyStage(state.stage) : null,
            // Malformed buildings are carried as they are.

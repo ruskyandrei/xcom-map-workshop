@@ -45,7 +45,7 @@ export function setGroups(next) {
 }
 
 // The map's size as the project sets it (project.js validStage): { grid: [nx, ny], ground } or null for the map's own
-// (app.js's setStage sets it and draws it).
+// (map_grid.js's setStage sets it and draws it).
 export let stage = null;
 export function setStageValue(next) { stage = next; }
 // A cleared map (Clear map plan, section 6): the Build takes out what the editor never showed; the map's size may then
@@ -399,3 +399,12 @@ export let ghostDirty = false, libraryScope = 'map', levelSnap = true;
 export function setGhostDirty(next) { ghostDirty = next; }
 export function setLibraryScopeValue(next) { libraryScope = next; }
 export function setLevelSnapValue(next) { levelSnap = next; }
+
+// The map grid (map_grid.js), and what of it app.js's scene start, pointer handlers, keys and test hooks read or set:
+// - ownGrid: the map's own size as exported, { dims, max }, kept before the first change (the scene start drops it);
+// - gridTool: the rail's Map grid is on, its handles shown (setGridToolValue, beside the grid's setGridTool, which also
+//   draws); gridDrag: a handle's drag under way, or null.
+export let ownGrid = null, gridTool = false, gridDrag = null;
+export function setOwnGrid(next) { ownGrid = next; }
+export function setGridToolValue(next) { gridTool = next; }
+export function setGridDrag(next) { gridDrag = next; }

@@ -130,6 +130,10 @@ effects of other maps read as templates are [`library_templates.js`](tools/viewe
 records read in a few requests, a piece's or an effect's template (its meshes, materials and textures joining the
 page's tables), the templates a project's or a prefab's records name, and what such a piece costs and says; the Add
 panel's All maps browser is [`library.js`](tools/viewer/web/library.js)'s.
+The play area, the map's size as the project sets it and the rail's Map grid are
+[`map_grid.js`](tools/viewer/web/map_grid.js)'s: the play area drawn, the map's own size kept and a size set (the grid
+drawn at it, a grown map's new area as a faint sheet), and the Map grid's handles, drags and panel, each new size one
+undo step.
 `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -285,6 +289,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | Select all of a kind: what counts as a piece's or an effect's kind, the pieces and effects that match (inside box select's box), the button | [`select_kind.js`](tools/viewer/web/select_kind.js) (`createSelectKind`). |
 | The user's groups: a group's pieces on the map now, what the selection is to the groups, the group section and chip, a group made, added to or ended (one undo step) | [`groups.js`](tools/viewer/web/groups.js) (`createGroups`). A group's record (`groupKey`, `pruneGroups`) goes in [`project.js`](tools/viewer/web/project.js), and the compiler's side in [`group_edits.py`](tools/editor/group_edits.py). |
 | Align: the others of the selection lined up with a target, the Align section and its white box | [`align.js`](tools/viewer/web/align.js) (`createAlign`). |
+| The play area, the map's size as the project sets it, the rail's Map grid (its handles, drags and panel, a new size as one undo step) | [`map_grid.js`](tools/viewer/web/map_grid.js) (`createMapGrid`). A stage's record (its shape and limits) goes in [`project.js`](tools/viewer/web/project.js) (`validStage`, `tidyStage`, `stageMax`), the cursor's floors in [`floors.js`](tools/viewer/web/floors.js) (`cursorStoreys`), and the compiler's side in [`mission_edits.py`](tools/editor/mission_edits.py). |
 | Copy, paste and placing: a clip of the selection, a paste, the preview that follows the cursor and where a click places it, the Add panel shown and its tab, an entry of it chosen and placed, a copy dragged off with Shift | [`clipboard.js`](tools/viewer/web/clipboard.js) (`createClipboard`). A copied thing's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`optionsOf`, `stateOfRoot`), a group's in [`project.js`](tools/viewer/web/project.js), the pose rule's snap in [`gizmo.js`](tools/viewer/web/gizmo.js) (`recipeMove`), and a floor's height under a point in [`floors.js`](tools/viewer/web/floors.js) (`levelHeight`, `floorUnder`). |
 | A piece, effect, sound or lens flare of another map read as a template: its record read, its template made, the templates a project's records name, what such a piece costs and says | [`library_templates.js`](tools/viewer/web/library_templates.js) (`createLibraryTemplates`). The records read and the templates made are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`libraryRecords`, `effectTemplates`, `foreignEffects`, `foreignTemplates`, `donorHashes`); the Add panel's All maps is [`library.js`](tools/viewer/web/library.js), and the server's side [`library.py`](tools/viewer/library.py). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
@@ -414,7 +419,10 @@ where there is one.
     `setLibraryScope`, which also shows the tab) and Level snap (`levelSnap`; `setLevelSnapValue`, beside app.js's
     `setLevelSnap`, which also remembers it and draws its button); and the url the open map's export is served under
     (`cachePrefix`), which app.js's opening sets and the templates of other maps' pieces read, and the templates made
-    of other maps' pieces (`foreignTemplates`), which app.js's recipes, templates and listings read.
+    of other maps' pieces (`foreignTemplates`), which app.js's recipes, templates and listings read;
+  - the map's own size as exported (`ownGrid`), whether the rail's Map grid is on (`gridTool`; `setGridToolValue`,
+    beside the map grid's `setGridTool`, which also draws) and a handle's drag (`gridDrag`), which app.js's scene start,
+    pointer handlers, keys and test hooks read or set.
 
   A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
   was (`setAreaShown(recall(AREA_SHOWN) === '1')`, `setLikenessOn(...)` inside the Effects view's factory), so it is
@@ -430,7 +438,7 @@ where there is one.
   `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`,
   `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`,
   `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`,
-  `createGroups`, `createAlign`, `createLibraryTemplates`, `createClipboard`) takes them as one argument object and
+  `createGroups`, `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`) takes them as one argument object and
   destructures it, so the code moved into it calls them by the names it always did. It returns the functions other
   areas call, and app.js destructures them under the same names, so their callers stay as they were. app.js makes it
   after the functions and objects it is given, and before any code that runs as the page
@@ -451,8 +459,9 @@ where there is one.
   builder's session and prefabs saved and placed are made so, after the document session; they call each other (the
   builder's save opens the Save as prefab dialog, whose Save saves the builder), so the first made is given the
   second's functions as functions that call them.
-  When part of an area's run of code stays in app.js (a helper other areas use, as `projector` or `gameToView`; a
-  constant of app.js's event wiring), app.js keeps those declarations where they were and makes the factory after
+  When part of an area's run of code stays in app.js (a helper other areas use, as `projector`, `gameToView` or
+  `alongLine`; a constant of app.js's event wiring; a pointer listener that is app.js's pointer handlers', as the Map
+  grid's, which write its `pointerStart`), app.js keeps those declarations where they were and makes the factory after
   them, where the run ended: what the run does as the page loads then still happens at the same point among the
   page's other code. An object a view makes as the page loads that a view made before it also uses (the landing
   zones' layer, which the Spawns view shows too; the floor boxes' outline of a clip, which prefabs saved and placed

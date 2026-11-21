@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo, placedPose, actorMatrix } from './gizmo.js';
 import { createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
-import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid, validStage, tidyStage,
-         stageMax, STAGE_MAPS, groupKey, mapBuildingId, BUILDING_SAME, validLandingZone } from './project.js';
+import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid, groupKey, mapBuildingId,
+         BUILDING_SAME, validLandingZone } from './project.js';
 import { plan as planFlags, rawOf as flagRaw } from './piece_flags.js';
 import { ownLandings, startingZones, groundOf } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
@@ -27,26 +27,27 @@ import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, askedPick, assigning, boxesShown, breaking, builder,
          builderMode, buildingMeta, buildings, buildingsVersion, buildTool, cachePrefix, cleared, clearKeepsOutside,
          clipboard, copySerial, coverDrag, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn,
-         eventMemo, families, foreignTemplates, geometryCache, ghostDirty, groupIndex, groups, handleDefs, hintTimer,
-         landingZones, lastBuild, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lighting,
-         lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown, likenessCount, likenessOn, likenessThin,
-         lineCollision, lineCollisionFailed, loadErrorCount, lookPicker, lookPicking, mergedBuildings, missionIndex,
-         missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet, pickBox,
-         pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, playStatus, pointer,
-         prefabParameter, prefabTab, project, projectMissions, projectPicture, projectSpawnRules, reachNow, reachShown,
-         rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaBindings, setAreaShown, setAskedPick,
-         setAssigning, setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty,
-         setEffectsOn, setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingRead,
-         setLandingZones, setLastLightSync, setLeaving, setLevelSnapValue, setLibrary, setLibraryScopeValue,
-         setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue, setLiveCache, setLoadErrorCount,
-         setLookPicker, setLooksReady, setMergedBuildings, setMissionIndex, setMissionPickValue, setNormalEffectsValue,
-         setNormalLightsValue, setNormalSpawnsValue, setOwnPickedValue, setPickBoxValue, setPickedEffect,
-         setPickedSpawnValue, setPickedZone, setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
-         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSelected, setSnapModeValue,
-         setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStageValue, setStreamSet, setTipDirty,
-         setWallFocus, setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing,
-         spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
-         volumeTool, wallDrag, wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
+         eventMemo, families, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups,
+         handleDefs, hintTimer, landingZones, lastBuild, lastLightSync, leaving, levelSnap, library, libraryScope,
+         lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown, likenessCount, likenessOn,
+         likenessThin, lineCollision, lineCollisionFailed, loadErrorCount, lookPicker, lookPicking, mergedBuildings,
+         missionIndex, missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet,
+         pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, playStatus,
+         pointer, prefabParameter, prefabTab, project, projectMissions, projectPicture, projectSpawnRules, reachNow,
+         reachShown, rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaBindings, setAreaShown,
+         setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData,
+         setEffectsDirty, setEffectsOn, setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer,
+         setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLevelSnapValue, setLibrary,
+         setLibraryScopeValue, setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue,
+         setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings, setMissionIndex,
+         setMissionPickValue, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid,
+         setOwnPickedValue, setPickBoxValue, setPickedEffect, setPickedSpawnValue, setPickedZone, setPickToolValue,
+         setPieces, setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey,
+         setReachShown, setSelected, setSnapModeValue, setSpawnFilters, setSpawnRulesData, setSpawnsOn,
+         setSpawnZonePick, setStreamSet, setTipDirty, setWallFocus, setZonesOn, snapMode, soloOn, spawnEntriesNow,
+         spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet,
+         tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag, wallDrawing, wallFocus, wavePlayer,
+         zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -69,6 +70,7 @@ import { createMadeDrawing } from './made_drawing.js';
 import { createMadeHandles } from './made_handles.js';
 import { createMadePanel } from './made_panel.js';
 import { createMadeBreaking } from './made_breaking.js';
+import { createMapGrid } from './map_grid.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -87,8 +89,8 @@ import { loadLooks, catalogued, lookFromEntry, lookTags, DONOR_VERSION } from '.
 import { createLookPicker } from './look_picker.js';
 import { GROUND_LOOKS, versionedGround, POINTS_VERSION, madeGroundShape } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, ownedFloors, stampSignature,
-         storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, sourceFloorMatch, cursorStoreys, carriedListing,
-         floorMapOf, LISTED_CLASSES } from './floors.js';
+         storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, sourceFloorMatch, carriedListing, floorMapOf,
+         LISTED_CLASSES } from './floors.js';
 
 const $ = id => document.getElementById(id);
 // Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
@@ -1437,8 +1439,10 @@ function projectNote(message) { text($('diagnostics'), 'div', message, 'note'); 
 // project's state put on the map.
 const { editStateNow, applyState } = createDocumentState({
   actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, buildRoots, builder, clearEdits,
-  cloneGroups, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates, memberOf, movedMatrix, ownSize,
-  plural, projectNote, savedBuildings, sceneChanged, setStage, short, sourceKey, templateFor,
+  cloneGroups, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates, memberOf, movedMatrix, plural,
+  projectNote, savedBuildings, sceneChanged, short, sourceKey, templateFor,
+  // (made with the map grid, further down: called through, since they are not made yet while this runs)
+  ownSize: () => ownSize(), setStage: next => setStage(next),
   // (made with the cover blocks, further down: called through, since they are not made yet while this runs)
   coverOf: entity => coverOf(entity), coverVersion: (version, type) => coverVersion(version, type),
   // (made with the Effects view, further down: called through, since they are not made yet while this runs)
@@ -1459,8 +1463,9 @@ const { editStateNow, applyState } = createDocumentState({
 const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
         openProject, projectChanged, saveProject } = createDocumentSession({
   $, SESSION, applyState, builder, camera, controls, dirty, documentWrites, editChanged, editState, flashHint, gizmo,
-  loadingState, ownSize, plural, projectNote, projectsAvailable, saveState, showFileDialog, text, touchRecent,
-  unsavedDocument,
+  loadingState, plural, projectNote, projectsAvailable, saveState, showFileDialog, text, touchRecent, unsavedDocument,
+  // (made with the map grid, further down: called through, since it is not made yet while this runs)
+  ownSize: () => ownSize(),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
   bombHelperFix: moves => bombHelperFix(moves), setMissionMoves: next => setMissionMoves(next),
   // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
@@ -2089,172 +2094,6 @@ function editedKey() {
   for (const r of roots.values()) if (r.userData.edit || r.userData.deleted) key += `${r.userData.source.id}:${r.userData.deleted ? 'x' : r.matrix.elements.join(',')}|`;
   return key;
 }
-// The play area: the map's level volume (playableBounds), the box the game's tile grid fills, which units can't leave.
-// Drawn light: its edges as lines and its four sides as faint see-through walls, from the lowest tile level up to the
-// top of the highest, never picked and never cut by Interior or the floor cutaway. View options' Play area, or B,
-// turns it off and on (remembered in the browser).
-const PLAY_AREA_SHOWN = 'workshop.playArea', PLAY_AREA_COLOR = 0xffb347;
-const playArea = new THREE.Group(); world.add(playArea);
-playArea.visible = recall(PLAY_AREA_SHOWN) !== '0';
-const playAreaMaterials = {
-  line: new THREE.LineBasicMaterial({ color: PLAY_AREA_COLOR, transparent: true, opacity: 0.75, depthWrite: false }),
-  // the same edges faintly through whatever stands in front, so Full's tall buildings don't hide it
-  through: new THREE.LineBasicMaterial({ color: PLAY_AREA_COLOR, transparent: true, opacity: 0.22, depthWrite: false, depthTest: false }),
-  wall: new THREE.MeshBasicMaterial({ color: PLAY_AREA_COLOR, transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false }),
-  none: new THREE.MeshBasicMaterial({ visible: false }),
-};
-function drawPlayArea() {
-  for (const child of [...playArea.children]) { child.geometry.dispose(); playArea.remove(child); }
-  const bounds = data?.scope === 'map' && data.playableBounds;
-  $('playAreaRow').hidden = !bounds;
-  if (!bounds) return;
-  const min = new THREE.Vector3(...bounds.min), max = new THREE.Vector3(...bounds.max);
-  const size = new THREE.Vector3().subVectors(max, min), centre = new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5);
-  const box = new THREE.BoxGeometry(size.x, size.y, size.z);
-  const edgeGeometry = new THREE.EdgesGeometry(box);
-  const edges = new THREE.LineSegments(edgeGeometry, playAreaMaterials.line);
-  const through = new THREE.LineSegments(edgeGeometry.clone(), playAreaMaterials.through);
-  // a box's faces in order +x, -x, +y, -y, +z, -z: the sides only, no lid or floor
-  const walls = new THREE.Mesh(box, [playAreaMaterials.wall, playAreaMaterials.wall, playAreaMaterials.none, playAreaMaterials.none, playAreaMaterials.wall, playAreaMaterials.wall]);
-  for (const part of [edges, through, walls]) { part.position.copy(centre); part.renderOrder = 2; playArea.add(part); }
-  edges.name = 'playAreaEdges'; walls.name = 'playAreaWalls';
-}
-function setPlayArea(on) {
-  playArea.visible = Boolean(on); $('playAreaToggle').checked = playArea.visible;
-  remember(PLAY_AREA_SHOWN, playArea.visible ? '1' : '0');
-}
-$('playAreaToggle').checked = playArea.visible;
-// The map's size as the project sets it (Map menu, Map grid; prefab plan 5.11). The Build makes the map's tile
-// grid that many tiles from its own corner, so it grows along +X and +Y. Here the scene's grid and play area take the
-// size, so everything that reads them (the play area's box, the tile grid, Interior) follows, and the new area is
-// drawn as a faint sheet at the grid's bottom: green where the Build is to lay the map's ground, grey where the
-// project lays its own.
-const stageArea = new THREE.Group(); world.add(stageArea);
-const stageMaterials = {
-  ground: new THREE.MeshBasicMaterial({ color: 0x5f8a3a, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }),
-  bare: new THREE.MeshBasicMaterial({ color: 0x8a97a0, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false }),
-  line: new THREE.LineBasicMaterial({ color: PLAY_AREA_COLOR, transparent: true, opacity: 0.45, depthWrite: false }),
-};
-let ownGrid = null;     // the map's own: { dims, max } as exported, kept before the first change
-function ownSize() {
-  if (!ownGrid && !builderMode && data?.scope === 'map' && !data.preview && data.tileGrid?.dimensions && data.tileGrid.origin && data.playableBounds)
-    ownGrid = { dims: [...data.tileGrid.dimensions], max: [...data.playableBounds.max] };
-  return ownGrid;
-}
-// The map's size can be set on any whole map (13 November), growing only while it is as it is, and any way, in any of
-// the three, once it is cleared (Clear map plan, section 6). Whether this is the bare map a new map starts from
-// (project.js STAGE_MAPS): the Build lays its ground over the new area.
-const bareMap = () => STAGE_MAPS.includes(activeMapId);
-// The grid a stage asks for, as [nx, ny, nz], when this map can take it; else null (the map's own size)
-function stageDims(next, own = ownSize()) {
-  if (!own || !next || !validStage(next, own.dims)) return null;
-  const want = [next.grid[0], next.grid[1], next.grid[2] ?? own.dims[2]];
-  // a map as it is only grows (the user, 13 November: the blank map's rule for every map); a cleared map any way
-  if (!cleared && (want[0] < own.dims[0] || want[1] < own.dims[1] || want[2] < own.dims[2])) return null;
-  return want.some((v, k) => v !== own.dims[k]) ? want : null;
-}
-// The grid drawn at `dims` (the play area's box and everything that reads the scene's grid), without changing the
-// project: the Clear map dialog's numbers while they are typed, and setStage
-function showGrid(dims) {
-  const own = ownSize();
-  if (!own) return;
-  const [nx, ny, nz] = dims ?? own.dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy, sz] = data.tileGrid.size ?? [TILE, TILE, LEVEL];
-  data.tileGrid.dimensions[0] = nx; data.tileGrid.dimensions[1] = ny; data.tileGrid.dimensions[2] = nz;
-  data.playableBounds.max[0] = dims ? ox + nx * sx : own.max[0];
-  data.playableBounds.max[2] = dims ? oy + ny * sy : own.max[2];
-  data.playableBounds.max[1] = dims ? oz + nz * sz : own.max[1];
-  drawPlayArea(); refreshGroundGrid();
-  placeGridHandles(); if (gridTool && !gridDrag) gridPanel();
-}
-function setStage(next) {
-  const own = ownSize();
-  for (const child of [...stageArea.children]) { child.geometry.dispose(); stageArea.remove(child); }
-  const dims = stageDims(next, own);
-  // a size this map can't take (smaller than the map's own, not cleared) is kept as the project has it, not drawn
-  setStageValue(dims ? tidyStage(next) : (next && validStage(next, own?.dims) && !cleared ? tidyStage(next) : null));
-  if (!own) return;
-  showGrid(dims);
-  // a map grown as it is: the new area as a faint sheet, green where the Build lays the map's ground (where it is laid
-  // as planes), grey where the project asked for none
-  if (!dims || cleared) return;
-  const [nx, ny] = dims, [ox, oy, oz] = data.tileGrid.origin, [sx, sy] = data.tileGrid.size ?? [TILE, TILE];
-  const x1 = ox + own.dims[0] * sx, x2 = ox + nx * sx, y1 = oy + own.dims[1] * sy, y2 = oy + ny * sy;
-  for (const [ax, ay, bx, by] of [[x1, oy, x2, y2], [ox, y1, x1, y2]]) {
-    if (bx - ax < 1 || by - ay < 1) continue;
-    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(bx - ax, by - ay), stage.ground === false ? stageMaterials.bare : stageMaterials.ground);
-    sheet.rotation.x = -Math.PI / 2; sheet.position.set((ax + bx) / 2, oz + 0.5, (ay + by) / 2);
-    sheet.renderOrder = 1; sheet.name = 'stageGround'; stageArea.add(sheet);
-    const edge = new THREE.LineSegments(new THREE.EdgesGeometry(sheet.geometry), stageMaterials.line);
-    edge.rotation.copy(sheet.rotation); edge.position.copy(sheet.position); stageArea.add(edge);
-  }
-}
-// ---------------------------------------------------------------- Map grid (the user, 13 November)
-// The rail's Map grid: the play area's box with a handle on each side the grid can move: its far X and Y sides and its
-// top. The corner and the bottom never move (the Build grows and shrinks the grid there). A handle drags along its
-// axis by whole tiles (96 across) or levels (64 up), and each drag is one undo step. A map as it is, the blank map
-// included, only grows, across and up; a cleared map also shrinks and gets lower. The panel reads out
-// the size and the notes (sizeNotes: zones outside, no room for LWR's pods, the ground above the grid).
-let gridTool = false, gridDrag = null, gridForcedPlay = false;
-const gridHandles = new THREE.Group(); world.add(gridHandles); gridHandles.visible = false;
-// game axis -> the view's (x, up, y basis): 0 is view x, 1 (game y) view z, 2 (up) view y
-const GRID_AXES = [{ axis: 0, view: [1, 0, 0], color: 0xff5a5a }, { axis: 1, view: [0, 0, 1], color: 0x4a9cff }, { axis: 2, view: [0, 1, 0], color: 0x5ad17a }];
-const gridHandleMaterials = new Map(GRID_AXES.map(a => [a.axis, new THREE.MeshBasicMaterial({ color: a.color, depthTest: false, transparent: true, opacity: 0.95 })]));
-const gridHandleLine = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthTest: false });
-// What the grid can be here: the axes with a handle and each one's bounds, in tiles and levels
-function gridRule() {
-  const own = ownSize();
-  if (!own) return null;
-  // a map as it is grows across and up (the user, 13 November: up too); a cleared map any way. Up to 256 tiles and 30
-  // levels, or the map's own where more (stageMax)
-  return { axes: [0, 1, 2], min: cleared ? [1, 1, 1] : [...own.dims], max: stageMax(own.dims) };
-}
-// The cursor's floors on the grid as the project has it (floors.js cursorStoreys; the Build's shell.py), with the made
-// floors' and roofs' own over their footprints (floors.js madeStoreys; the Build's made_cursors.py)
-const madeSlabBoxes = () => [...roots.values()].filter(r => !r.userData.deleted && isMadeSlab(r.userData.source))
-  .map(r => boxOf(r)).filter(Boolean).map(b => ({ box: [b[0], b[2], b[4], b[1], b[3], b[5]] }));
-let storeysKept = null;
-const storeysNow = () => {
-  const own = ownSize()?.dims ?? null, slabs = madeSlabBoxes();
-  const key = JSON.stringify([cleared, own, data?.tileGrid?.dimensions ?? null, slabs]);
-  if (storeysKept?.data !== data || storeysKept.key !== key) storeysKept = { data, key, value: cursorStoreys(data, { cleared, own, slabs }) };
-  return storeysKept.value;
-};
-// The stage a grid of `dims` asks for (null: the map's own)
-function stageFor(dims) {
-  const own = ownSize();
-  if (dims.every((v, k) => v === own.dims[k])) return null;
-  if (cleared) return { grid: [...dims] };
-  return { grid: dims[2] === own.dims[2] ? [dims[0], dims[1]] : [...dims], ...(stage?.ground === false ? { ground: false } : {}) };
-}
-// Where a handle stands (the view's basis): the middle of its side of the play area's box
-function gridHandleAt(axis) {
-  const b = data.playableBounds, mid = [0, 1, 2].map(k => (b.min[k] + b.max[k]) / 2);
-  return axis === 0 ? new THREE.Vector3(b.max[0], mid[1], mid[2]) : axis === 1 ? new THREE.Vector3(mid[0], mid[1], b.max[2])
-    : new THREE.Vector3(mid[0], b.max[1], mid[2]);
-}
-function placeGridHandles() {
-  for (const c of [...gridHandles.children]) { c.traverse(o => o.geometry?.dispose()); gridHandles.remove(c); }
-  const rule = gridTool && data?.playableBounds ? gridRule() : null;
-  gridHandles.visible = Boolean(rule);
-  if (!rule) return;
-  const b = data.playableBounds, span = Math.max(b.max[0] - b.min[0], b.max[2] - b.min[2]), size = Math.max(90, span * 0.032);
-  for (const a of GRID_AXES.filter(g => rule.axes.includes(g.axis))) {
-    const at = gridHandleAt(a.axis), dir = new THREE.Vector3(...a.view), handle = new THREE.Group();
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(size * 0.45, size * 1.2, 20), gridHandleMaterials.get(a.axis));
-    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); cone.position.copy(dir.clone().multiplyScalar(size * 1.6));
-    const grip = new THREE.Mesh(new THREE.SphereGeometry(size * 0.42, 18, 12), gridHandleMaterials.get(a.axis));
-    const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), dir.clone().multiplyScalar(size * 1.1)]), gridHandleLine);
-    for (const part of [cone, grip, stem]) { part.renderOrder = 12; part.userData.gridAxis = a.axis; handle.add(part); }
-    stem.raycast = () => {};
-    handle.position.copy(at);
-    gridHandles.add(handle);
-  }
-}
-function gridHit(clientX, clientY) {
-  if (!gridHandles.visible) return null;
-  const hit = rayAt(clientX, clientY).intersectObjects(gridHandles.children, true).find(h => h.object.userData.gridAxis !== undefined);
-  return hit ? hit.object.userData.gridAxis : null;
-}
 // How far along a line (origin, unit dir) the mouse's ray passes closest: the handle's drag
 function alongLine(clientX, clientY, origin, dir) {
   const ray = rayAt(clientX, clientY).ray, w = origin.clone().sub(ray.origin);
@@ -2262,69 +2101,7 @@ function alongLine(clientX, clientY, origin, dir) {
   const den = c - b * b;
   return Math.abs(den) < 1e-9 ? null : (b * e - c * d) / den;
 }
-function gridPanel(dims = [...data.tileGrid.dimensions]) {
-  const panel = $('gridPanel');
-  panel.hidden = !gridTool;
-  if (!gridTool) return;
-  const own = ownSize(), rule = gridRule();
-  if (!own || !rule) { $('gridSize').textContent = 'This view has no map grid to change.'; $('gridHow').textContent = ''; $('gridGroundRow').hidden = true; $('gridNotes').hidden = true; return; }
-  const [nx, ny, nz] = dims, same = dims.every((v, k) => v === own.dims[k]);
-  $('gridSize').textContent = `${nx} × ${ny} tiles, ${nz} level${nz === 1 ? '' : 's'}${same ? ': the map\'s own' : ` (the map's own: ${own.dims[0]} × ${own.dims[1]} × ${own.dims[2]})`}.`;
-  $('gridHow').textContent = cleared
-    ? 'Drag a handle: red moves the far X side, blue the far Y side and green the top, by whole tiles and levels, larger or smaller. The corner and the bottom stay where they are.'
-    : 'Drag a handle to make the map larger: red along X and blue along Y by whole tiles, green higher by whole levels. It can\'t be smaller or lower than the map\'s own: clear the map for that.';
-  const grows = !cleared && (nx > own.dims[0] || ny > own.dims[1]);
-  $('gridGroundRow').hidden = cleared;
-  $('gridGround').checked = stage?.ground !== false; $('gridGround').disabled = !grows;
-  $('gridOwn').disabled = !stage;
-  const notes = sizeNotes(dims);
-  if (cleared) notes.push(groundWords(nz));
-  if (!cleared && !bareMap() && grows) notes.push('The Build lays more of the map\'s ground over the new area only where the map\'s ground is laid as planes (Bar\'s is), and makes the map\'s own low scenery there (its ground and pavements) walkable; elsewhere lay floors.');
-  if (!cleared && nz > own.dims[2]) notes.push('The cursor reaches the new levels by storeys the Build adds over the whole grid, above the map\'s own.');
-  $('gridNotes').hidden = !notes.length; $('gridNotes').textContent = notes.join(' ');
-}
-function setGridTool(on) {
-  gridTool = Boolean(on) && Boolean(data) && data.scope === 'map' && !data.preview && !builderMode;
-  $('editGrid').classList.toggle('on', gridTool); $('editGrid').setAttribute('aria-pressed', String(gridTool));
-  // the play area is shown while the handles are, and put back as it was after
-  if (gridTool && !playArea.visible) { playArea.visible = true; gridForcedPlay = true; }
-  else if (!gridTool && gridForcedPlay) { playArea.visible = false; gridForcedPlay = false; }
-  placeGridHandles(); gridPanel();
-  if (gridTool) flashHint(cleared ? 'Drag the play area\'s handles to resize the grid' : 'Drag the play area\'s handles to make the grid larger or higher');
-}
-// One undo step for a new size
-function commitStage(next, words) {
-  const before = stage;
-  if (JSON.stringify(before ?? null) === JSON.stringify(next ?? null)) { setStage(stage); return; }
-  gizmo.record({ redo: () => { setStage(next); projectChanged(); }, undo: () => { setStage(before); projectChanged(); } });
-  if (words) flashHint(`${words} · Ctrl+Z undoes`);
-}
-function startGridDrag(e) {
-  if (!gridTool || e.button !== 0) return false;
-  const axis = gridHit(e.clientX, e.clientY);
-  if (axis === null) return false;
-  const origin = gridHandleAt(axis), dir = new THREE.Vector3(...GRID_AXES[axis].view), t0 = alongLine(e.clientX, e.clientY, origin, dir);
-  if (t0 === null) return false;
-  gridDrag = { axis, origin, dir, t0, from: [...data.tileGrid.dimensions], dims: [...data.tileGrid.dimensions], pointerId: e.pointerId };
-  controls.enabled = false; renderer.domElement.style.cursor = 'grabbing';
-  return true;
-}
-function moveGridDrag(e) {
-  const d = gridDrag, t = alongLine(e.clientX, e.clientY, d.origin, d.dir);
-  if (t === null) return;
-  const step = (data.tileGrid.size ?? [TILE, TILE, LEVEL])[d.axis], rule = gridRule();
-  const n = Math.min(rule.max[d.axis], Math.max(rule.min[d.axis], d.from[d.axis] + Math.round((t - d.t0) / step)));
-  if (n === d.dims[d.axis]) return;
-  d.dims[d.axis] = n;
-  showGrid(d.dims); gridPanel(d.dims);
-}
-function endGridDrag(keep) {
-  const d = gridDrag;
-  gridDrag = null; controls.enabled = true; renderer.domElement.style.cursor = '';
-  if (!d) return;
-  if (keep && d.dims.some((v, k) => v !== d.from[k])) commitStage(stageFor(d.dims), `The map grid is ${d.dims[0]} × ${d.dims[1]} × ${d.dims[2]}`);
-  else setStage(stage);
-}
+// The Map grid's handles (map_grid.js, made just below) take the press first.
 renderer.domElement.addEventListener('pointerdown', e => {
   if (!startGridDrag(e)) return;
   pointerStart = null; e.stopImmediatePropagation(); e.preventDefault();
@@ -2338,15 +2115,15 @@ renderer.domElement.addEventListener('pointerup', e => {
   e.stopImmediatePropagation(); endGridDrag(true);
 }, { capture: true });
 renderer.domElement.addEventListener('pointercancel', () => endGridDrag(false));
-$('editGrid').onclick = () => setGridTool(!gridTool);
-$('projectSize').onclick = () => { showPop(null); setGridTool(true); };
-$('gridDone').onclick = () => setGridTool(false);
-$('gridOwn').onclick = () => commitStage(null, 'The map grid is the map\'s own');
-$('gridGround').onchange = e => {
-  if (!stage) return;
-  const { ground, ...rest } = stage;
-  commitStage(e.target.checked ? rest : { ...rest, ground: false }, e.target.checked ? 'The Build lays ground over the new area' : 'The new area gets no ground');
-};
+// The play area, the map's size as the project sets it and the rail's Map grid (map_grid.js): the play area
+// drawn, the grid of a size drawn with its new area, and the Map grid's handles, drags and panel (its pointer
+// listeners just above call the drags).
+const { drawPlayArea, endGridDrag, gridHandleAt, gridHandles, gridHit, moveGridDrag, ownSize, playArea, setGridTool,
+        setPlayArea, setStage, startGridDrag, storeysNow } = createMapGrid({
+  $, alongLine, boxOf, controls, flashHint, gizmo, groundWords, projectChanged, rayAt, refreshGroundGrid, renderer,
+  showPop, sizeNotes, world,
+  // (made further down: called through, since it is not made yet while this runs)
+  isMadeSlab: o => isMadeSlab(o) });
 
 // ---------------------------------------------------------------- Clear map (private/plans/done/clear-map-plan.md)
 // The landing zones as the project has them: its own list, or the map's own landings joined with the install's lines
@@ -3288,7 +3065,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   $('projectClear').hidden = !projectsAvailable();
   $('projectMissions').hidden = !projectsAvailable();
   $('projectPicture').hidden = !projectsAvailable();
-  ownGrid = null; startingCache = null; landingLines = { kind: null, lines: [] };
+  setOwnGrid(null); startingCache = null; landingLines = { kind: null, lines: [] };
   // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones. A failed
   // read leaves the game unknown, with the reason (review finding 31).
   if (data.scope === 'map' && !data.preview && !builderMode && activeMapId)
