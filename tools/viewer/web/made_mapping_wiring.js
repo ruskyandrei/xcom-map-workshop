@@ -6,8 +6,8 @@
 //   change one undo step (made_handles.js changeWall), an older piece put into the free form first (made_free.js
 //   freeRequest);
 // - while the fold is open, the surface picked: by a click on the picked piece, by the hit's normal (pickSurface), or
-//   Tab (stepSurface), outlined in the accent colour; editor_state.js's texturePicked says which, and made_handles.js
-//   hides the piece's size handles meanwhile;
+//   Tab (stepSurface), outlined in the accent colour; editor_state.js's texturePicked says which, and every other
+//   handle steps aside meanwhile: the piece's size handles (made_handles.js) and the move and turn gizmo (held here);
 // - its handles in the view (updateTextureHandles, textureHandleNear, hoverTextureHandle): a blue dot at the pattern's
 //   corner that slides it, a ring round the dot that turns it, a white dot along u that sizes a repeat (u and v in
 //   proportion), dragged in the snap setting's steps on the surface (startTextureDrag, moveTextureDrag,
@@ -71,12 +71,14 @@ export function createMadeMapping({ $, applyWall, applyWallSoon, camera, changeW
     if (!surface || surface.id !== id || !MAPPING_ROLES[kind].includes(surface.role)) surface = { id, ...firstSurface(root, kind, n) };
     return surface;
   }
-  // texturePicked follows the fold: the surface while the fold is open on the made piece handled, else null. Gives the
-  // piece, or null.
+  // texturePicked follows the fold: the surface while the fold is open on the made piece handled, else null; the move
+  // and turn gizmo held aside while there is one (the texture handles show alone). Gives the piece, or null.
   function syncPicked() {
     const root = fold.open ? handleWall() : null, want = root ? surfaceOf(root) : null;
     const same = want ? texturePicked?.id === want.id && texturePicked.role === want.role && texturePicked.side === want.side : !texturePicked;
-    if (!same) setTexturePicked(want ? { ...want } : null);
+    if (same) return root;
+    if (Boolean(want) !== Boolean(texturePicked)) gizmo.hold(Boolean(want), 'texture');
+    setTexturePicked(want ? { ...want } : null);
     return root;
   }
   // Where the piece's frame stands on a world-aligned surface's axes (made_mapping.js mappingOrigin, as its mesh's

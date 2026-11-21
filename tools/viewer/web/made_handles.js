@@ -297,7 +297,9 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   function placePointGizmo() {
     if (!rockPoint) return;
     const root = roots.get(rockPoint.id);
-    if (!root || (handleWall() !== root && !pointDrag) || root.userData.source.added?.generated?.ground?.shape !== 'rock') { releaseRockPoint(); return; }
+    // (and let go when its Texture mapping fold opens: the texture handles show alone)
+    if (!root || (handleWall() !== root && !pointDrag) || root.userData.source.added?.generated?.ground?.shape !== 'rock'
+        || (texturing(root) && !pointDrag)) { releaseRockPoint(); return; }
     if (pointGizmo.dragging) return;
     const p = rockPointsOf(root.userData.source.added.generated.ground)?.[rockPoint.index];
     pointGizmo.enabled = pointGizmoHelper.visible = Boolean(p);

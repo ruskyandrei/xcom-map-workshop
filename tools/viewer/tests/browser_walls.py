@@ -998,13 +998,14 @@ def alone_click(page, piece, at):
 
 def check_texture_mapping(browser, url, open_viewer):
     """A made piece's texture mapping as chosen (the custom geometry improvements plan, 10.6, design B): the Texture
-    mapping fold opened on a made wall puts its size handles aside and picks the face toward the camera; Tab picks the
-    other face and a click the one clicked; Size takes the look's repeat (one undo step); the blue dot slides the
-    pattern a tile under tile snap, Esc during a drag puts it back, the ring turns it in steps of 15 under fine snap
-    about its corner, the white dot sizes a repeat in tiles under tile snap and smoothly with snap off (u and v alike),
-    each one undo step; the fields set a value exactly; Aligned to the world puts the piece's place in its mesh's
-    request; Original and Reset surface take the surface's mapping out; a floor's top and underside picked by clicking
-    them, Tab back to the top; the fold shut, the size handles back."""
+    mapping fold opened on a made wall puts its size handles and the move gizmo aside and picks the face toward the
+    camera; Tab picks the other face and a click the one clicked; Size takes the look's repeat (one undo step); the
+    blue dot slides the pattern a tile under tile snap, Esc during a drag puts it back, the ring turns it in steps of
+    15 under fine snap about its corner, the white dot sizes a repeat in tiles under tile snap and smoothly with snap
+    off (u and v alike), each one undo step; the fields set a value exactly; Aligned to the world puts the piece's
+    place in its mesh's request; Original and Reset surface take the surface's mapping out; a floor's top and
+    underside picked by clicking them, Tab back to the top, the gizmo still aside; the fold shut, the size handles and
+    the gizmo back."""
     errors = []
     page = open_viewer(browser, url, errors)
     (wall, slab), _ = made_pieces(page, [TEX_WALL, FREE_SLAB])
@@ -1013,12 +1014,19 @@ def check_texture_mapping(browser, url, open_viewer):
     page.wait_for_timeout(400)
     mesh_ready(page, wall)
     assert page.evaluate('viewer.wallHandles()'), 'the size handles show while the fold is shut'
-    # the fold opened: the size handles step aside, the face toward the camera picked, no handles while Original
+    assert page.evaluate('viewer.gizmo.controls.enabled'), 'the move gizmo shows while the fold is shut'
+    # the fold opened: the size handles and the gizmo step aside, the face toward the camera picked, no handles while
+    # Original
     page.locator('#texFold > summary').click()
     page.wait_for_function('viewer.texturePicked()')          # (a fold's toggle comes after the click)
     picked = page.evaluate('viewer.texturePicked()')
     assert picked and picked['id'] == wall and picked['role'] == 'faces' and picked['side'] in ('y0', 'y1'), picked
     assert page.evaluate('viewer.wallHandles()') == {}, page.evaluate('viewer.wallHandles()')
+    assert not page.evaluate('viewer.gizmo.controls.enabled'), 'the move gizmo steps aside while the fold is open'
+    # (the turn gizmo too: R changes its mode, not whether it shows)
+    key(page, 'r')
+    assert not page.evaluate('viewer.gizmo.controls.enabled'), 'the turn gizmo stays aside while the fold is open'
+    key(page, 'g')
     assert page.locator('#texFoldVal').inner_text() == 'faces: original', page.locator('#texFoldVal').inner_text()
     assert page.evaluate('viewer.textureHandles()')['slide'] is None
     side = picked['side']
@@ -1126,10 +1134,12 @@ def check_texture_mapping(browser, url, open_viewer):
     assert page.evaluate('viewer.texturePicked()')['role'] == 'underside', page.evaluate('viewer.texturePicked()')
     key(page, 'Tab')
     assert page.evaluate('viewer.texturePicked()')['role'] == 'top', page.evaluate('viewer.texturePicked()')
-    # the fold shut: no surface picked, the size handles back
+    assert not page.evaluate('viewer.gizmo.controls.enabled'), 'the gizmo still aside on the floor picked with the fold open'
+    # the fold shut: no surface picked, the size handles and the gizmo back
     page.locator('#texFold > summary').click()
     page.wait_for_function('viewer.texturePicked() === null')
     assert page.evaluate('viewer.wallHandles()'), 'the size handles back once the fold is shut'
+    assert page.evaluate('viewer.gizmo.controls.enabled'), 'the gizmo back once the fold is shut'
     page.close()
     assert not errors, errors
     return dict(surfaces=3, turn=45)

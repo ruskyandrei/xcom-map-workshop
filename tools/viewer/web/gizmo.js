@@ -82,7 +82,8 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
   helper.visible = false;
   world.add(helper);
 
-  let group = [], picked = [], active = null, linked = true, mode = 'translate', drag = null, cancelled = false, held = false;
+  let group = [], picked = [], active = null, linked = true, mode = 'translate', drag = null, cancelled = false;
+  const holds = new Set();     // who holds the handles aside now (hold)
   let snap = 'off', rule = null, pivot = 'origin';
   const undo = [], redo = [];
 
@@ -224,7 +225,7 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
     return true;
   }
   function show() {
-    const on = group.length > 0 && mode !== 'off' && !held;
+    const on = group.length > 0 && mode !== 'off' && !holds.size;
     controls.enabled = on;
     helper.visible = on;
     // A building's box turns about the vertical only: no pitch or roll rings.
@@ -318,8 +319,9 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
       regroup();
     },
     setLinked(on) { linked = on; regroup(); },
-    /** Hide the handles and ignore them, keeping the selection (while the viewer places pieces). */
-    hold(on) { held = on; show(); },
+    /** Hide the handles and ignore them, keeping the selection (while the viewer places pieces, a rock's corner is
+     * moved, or a made piece's Texture mapping fold is open). Each `who` holds apart: they show again once none does. */
+    hold(on, who = 'tool') { if (on) holds.add(who); else holds.delete(who); show(); },
     /** The picked ids (before linked pieces are added) and the one holding the pivot. */
     picks() { return { ids: [...picked], active }; },
     /** Replace the selection, for commands that add or remove pieces. */
