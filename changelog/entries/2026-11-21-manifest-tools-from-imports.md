@@ -14,6 +14,7 @@
   (`NATIVE_LIGHTS`, `LIGHT_FACTORY`, `INLINE_LIGHTING`, `MAP_FRAME`) go. Nothing reads the record (a map pack copies
   it), so only the record changes.
 - **`Build.compiled`,** set in the compile stage and never read, goes (follow-ups 3.2).
+- [ARCHITECTURE.md](../../ARCHITECTURE.md)'s paragraph on the manifest says how its `tools` are found.
 
 Checked: a new test in [test_build.py](../../tools/editor/tests/test_build.py), failing before, holds that the
 manifest names the shell, the copy tool's makers, the relight's modules and the package tools' (decomp, upkinfo, the
