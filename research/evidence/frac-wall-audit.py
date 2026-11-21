@@ -18,6 +18,9 @@ mesh's triangle collision tree:
               fragment's lowest corner
   component   the fracturing component's saved numbers: FragmentBoundsMinZ and MaxZ against the fragments' world
               heights, NumResourceIndices against the index count, the lightmap resolution
+  turned      (21 November 2026, the custom geometry improvements plan, 4.6) each placed wall's yaw, and for the walls
+              turned off the quarter turns their columns' world boxes: the game's own rule for a wall at a free angle,
+              if its maps hold any
 
 Prints a summary; --output writes the JSON. No game file is written.
 
@@ -134,7 +137,7 @@ def wall_audit(p, actor, comp, mesh, m, stats, column_rows):
     fpts = {f: wpos[sorted({i for t in per[f] for i in t})] for f in range(frags) if per.get(f)}
     fbox = {f: [v for k in range(3) for v in (pts[:, k].min(), pts[:, k].max())] for f, pts in fpts.items()}
     cols = p.structs(p.own(actor, 'FragmentColumns'))
-    record = dict(columns=len(cols), boxRule=0, shapeRule=0, tileColumns=0, tileBoxRule=0, minZ=[])
+    record = dict(columns=len(cols), boxRule=0, shapeRule=0, tileColumns=0, tileBoxRule=0, minZ=[], columnBoxes=[])
     for c in cols:
         b = struct.unpack('<6fB', c[('Bounds', 0)]['value'])
         box = [b[0], b[3], b[1], b[4], b[2], b[5]]
@@ -146,6 +149,7 @@ def wall_audit(p, actor, comp, mesh, m, stats, column_rows):
         for f in by_box:
             if overlap_volume(fpts[f], box) > SLIVER:
                 by_shape.add(f)
+        record['columnBoxes'].append([round(v, 1) for v in box])
         record['boxRule'] += by_box == listed
         record['shapeRule'] += by_shape == listed
         # a column a tile long (or less, at a wall's end) and a storey tall, as the inner walls' are
@@ -256,7 +260,11 @@ def audit(maps, verbose=False):
                 if verbose:
                     print('  skipped', p.name(i), err)
                 continue
-            placed.append(dict(map=name, actor=p.name(i).split('.')[-1], mesh=key, **rec))
+            rot = p.own(i, 'Rotation') or [0, 0, 0]
+            boxes = rec.pop('columnBoxes')
+            turned = int(rot[1]) % 16384 != 0
+            placed.append(dict(map=name, actor=p.name(i).split('.')[-1], mesh=key, yaw=int(rot[1]),
+                               **({'columnBoxes': boxes} if turned else {}), **rec))
         if verbose:
             print('%-28s %5.1fs  walls so far %d' % (name, time.time() - t0, len(placed)), flush=True)
     return trees, wall_meshes, placed, stats, column_rows, oracle
@@ -290,6 +298,9 @@ def summary(trees, wall_meshes, placed, stats, oracle):
                              maxMatches=sum(abs(b - d) <= 0.01 for a, b, c, d in rows)),
         numResourceIndices=dict(count=len(res), equalIndexCount=sum(a == b for a, b in res)),
         wallAuditSkipped=stats['wall audit skipped'],
+        turnedWalls=dict(count=sum(1 for r in placed if r['yaw'] % 16384), maps=sorted({r['map'] for r in placed if r['yaw'] % 16384}),
+                         columns=sum(r['columns'] for r in placed if r['yaw'] % 16384),
+                         boxRule=sum(r['boxRule'] for r in placed if r['yaw'] % 16384)),
     )
 
 

@@ -12,6 +12,9 @@ Statuses:
 
 ## Open now
 
+- F-145 (21 November, offline): the game's 644 placed fracturing walls all stand on quarter turns, so no rule of its
+  own says how a made wall at a free angle should break in columns; a run decides.
+
 - F-143 (20 November, EXP-88): a cover block grouped with a made wall keeps its cover when the wall's columns break
   (the block is invincible and the columns reach it only by damage); a prop in the same kind of group goes.
 - T-49 (20 November): Furies (`DLC2_3_Furies`, which LWR stores uncompressed) didn't build in 0.6.0; fixed offline
@@ -163,6 +166,19 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-145: The game has no wall turned off the quarter turns, so no rule of its own for a turned wall's columns
+**Open** (21 November 2026, offline: the wall audit, `research/evidence/frac-wall-audit.py`, over every map the
+install lists).
+- **What**: a made wall can now stand at any angle (the custom geometry improvements plan, stage 2), and its fracture
+  columns are made by the rule measured on the game's walls (`frac_walls.columns`: a tile along the wall's longer world
+  axis, a storey up, the wall's whole reach across). The plan asked first whether the game's own maps hold walls at a
+  free angle whose columns show a rule for one.
+- **Seen**: the audit read 644 placed fracturing walls (13,392 columns) and recorded each one's yaw: every one stands
+  on a quarter turn; none is turned off them.
+- **So**: the game gives no rule for a turned wall's columns; the measured rule is a guess for one. A game run decides
+  (a wall at a free angle broken where it is hit: does it break there and nowhere else); until then a turned made wall
+  builds with the measured rule.
 
 ### F-144: A made piece needs only its own moon shadow map; the donor's leftover drew nothing of its own
 **Verified** (21 November 2026, [EXP-89](experiments/EXP-89-made-shadow-maps.md), lab copy, LWR).
