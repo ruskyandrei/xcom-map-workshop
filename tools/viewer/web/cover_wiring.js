@@ -19,7 +19,7 @@
 // of other maps add theirs, the test hooks read it) and a handle's drag (coverDrag) are editor_state.js's.
 import * as THREE from 'three';
 import { ask } from './api.js';
-import { TILE } from './constants.js';
+import { PL, TILE } from './constants.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverFrame, coverGameWords, coverMaterial, coverMeshId,
          coverMeshRecord, coverScene, coverSightWords, coverStart, coverTiles, floorStart, isBlocker, isFloor,
          lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
@@ -31,8 +31,8 @@ import { actorMatrix } from './gizmo.js';
 import { scaleMarker } from './lights_view.js';
 
 export function createCoverWiring({ $, alongLine, camera, editChanged, gizmo, gridOrigin, HANDLE_PICK, materialCache,
-                                    pickables, PL, projector, renderer, restingHint, sceneChanged, select, showPop,
-                                    track, volumeHint, world }) {
+                                    pickables, projector, renderer, restingHint, sceneChanged, select, showPop, track,
+                                    volumeHint, world }) {
   // Cover blocks (cover.js): invisible pieces that give cover, made by the Build from a recipe (compiler.COVER_RECIPES,
   // served in families.json). A block is a piece like any other here, drawn from a box the page makes itself (its
   // synthetic mesh and material in data.meshes and data.materials, and in the caches as if loaded), at its corner.

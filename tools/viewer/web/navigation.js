@@ -21,6 +21,7 @@ import { allRoots, assigning, breaking, builder, builderMode, coverDrag, data, e
          zonesOn } from './editor_state.js';
 import { recall, remember } from './storage.js';
 import { focusBounds, visibleBounds } from './view_layout.js';
+import { modalOpen } from './modal.js';
 
 // (snapMode, the snap setting, 'off', 'fine' or 'tile': editor_state.js)
 // Snap cycles off, fine steps, whole tiles. Under tile snap a selection with a ladder, door, car, van or fracturing piece
@@ -40,16 +41,16 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
                                    deleteSelection, deleteSpawn, deleteWallOpening, deleteZone, dragHint, editBaseSpawn,
                                    editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endVolumeDrag,
                                    endWallDrag, flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall,
-                                   lightPanel, madeRoot, mapBreakable, missionGizmo, modalOpen, openBuild, paste, pick,
-                                   pickEffect, pickZone, playArea, projectsAvailable, rayAt, refreshVolumes,
-                                   releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
-                                   setGridTool, setLevelSnap, setLightsShown, setNormalView, setOwnPicked,
-                                   setPickedSpawn, setPickTool, setPlayArea, setSolo, setSpawnsShown, setVolumesShown,
-                                   setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog, showMapBrowser,
-                                   showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak,
-                                   startLookPick, stopBreak, stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing,
-                                   stopWallDrawing, stopZonePlacing, sun, takePickBox, TURNED_KINDS, turnZone, undoStep,
-                                   volumePanel, wallGhost, wallHint, zoneGizmo }) {
+                                   lightPanel, madeRoot, mapBreakable, missionGizmo, openBuild, paste, pick, pickEffect,
+                                   pickZone, playArea, projectsAvailable, rayAt, refreshVolumes, releaseRockPoint,
+                                   renderer, restingHint, saveProject, select, setEffectsShown, setGridTool,
+                                   setLevelSnap, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn,
+                                   setPickTool, setPlayArea, setSolo, setSpawnsShown, setVolumesShown, setVolumeTool,
+                                   setZoneGizmoMode, setZonesShown, showFileDialog, showMapBrowser, showPieces, showPop,
+                                   spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stopBreak,
+                                   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing,
+                                   stopZonePlacing, sun, takePickBox, TURNED_KINDS, turnZone, undoStep, volumePanel,
+                                   wallGhost, wallHint, zoneGizmo }) {
   onHub('edit', 'tools', () => {
     for (const [id, m] of [['editMove','translate'],['editRotate','rotate'],['editOff','off']]) $(id).classList.toggle('on', gizmo.mode === m);
     snapButton();

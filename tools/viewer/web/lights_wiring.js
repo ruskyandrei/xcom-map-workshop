@@ -21,7 +21,7 @@
 // list: AREA_SHOWN, REACH_SHOWN, SKY_SHOWN) are plain exports at the top, before the factory: app.js reads the
 // switches from them as the page loads and its View options' handlers write them.
 import * as THREE from 'three';
-import { QUARTER } from './constants.js';
+import { PL, QUARTER } from './constants.js';
 import { copyText, field, plural, sentence, short, text } from './dom_words.js';
 import { onHub } from './edit_hub.js';
 import { areaBindings, areaShown, assigning, cleared, clearKeepsOutside, copySerial, data, derivedCopies, effectRoots,
@@ -41,12 +41,11 @@ import { targetKey, uuid } from './project.js';
 // The Lights view's storage keys.
 export const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
 
-export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMatrix, camera, copyable,
-                                    drawEffectShape, editChanged, effectNow, effectsShown, effectValuesEditable,
-                                    flashHint, gizmo, HANDLE_PICK, highlight, ladderMarks, lightLayer, pickables, PL,
-                                    pointOutside, projector, renderer, restingHint, select, setEffectsShown,
-                                    setEffectValues, setSpawnsShown, setVolumesShown, setZonesShown, showPop,
-                                    stopPickBox, sun, syncLights, world }) {
+export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMatrix, camera, copyable, drawEffectShape,
+                                    editChanged, effectNow, effectsShown, effectValuesEditable, flashHint, gizmo,
+                                    HANDLE_PICK, highlight, ladderMarks, lightLayer, pickables, pointOutside, projector,
+                                    renderer, restingHint, select, setEffectsShown, setEffectValues, setSpawnsShown,
+                                    setVolumesShown, setZonesShown, showPop, stopPickBox, sun, syncLights, world }) {
   // Lights (private/plans/done/editor-lights-plan.md, 4.6). Each light with a place (point and spot lights: placed, generated area,
   // toggleable, a streamed level's) is a root of its own in lightRoots: a marker, picked on screen ahead of the piece
   // behind it, moved and turned by the gizmo with pieces (allRoots), and changed in the panel's light section. A root

@@ -73,14 +73,14 @@ import { createPopups } from './popups.js';
 import { createMapMenu } from './map_menu.js';
 import { createProjectMenu } from './project_menu.js';
 import { createPieceStatus } from './piece_status.js';
-import { holdModals, modalOpen, releaseAfterChange } from './modal.js';
+import { holdModals, releaseAfterChange } from './modal.js';
 import { ask, call } from './api.js';
 import { recall, remember } from './storage.js';
 import { segButton, segmented } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createMapLighting } from './lighting.js';
 import { COVER_KIND } from './cover.js';
-import { PL, TILE } from './constants.js';
+import { TILE } from './constants.js';
 import { loadLooks, lookTags } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 
@@ -323,7 +323,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
         withStorableCone } = createLightsWiring({
   $, actorPose, baseMatrix, camera, editChanged, flashHint, gizmo, HANDLE_PICK, highlight, ladderMarks, lightLayer,
-  pickables, PL, projector, renderer, restingHint, showPop, sun, world,
+  pickables, projector, renderer, restingHint, showPop, sun, world,
   // (made further down: called through, since they are not made yet while this runs)
   applyLighting: () => applyLighting(), banner: (message, actions, options) => banner(message, actions, options),
   // (made with the views' switching, further down: called through)
@@ -426,7 +426,7 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
 // Prefabs tab placed as a paste is.
 const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, prefabRecords, savePrefab,
         showPrefabDialog } = createPrefabPlace({
-  $, BUSY_PIECES, PL, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, effectTemplate,
+  $, BUSY_PIECES, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, effectTemplate,
   flashHint, ghostEdges, ghostLine, gltfLoader, isForeignTarget, libraryTemplate, lightPose, lightsBlocked, madeShape,
   memberOf, movedMatrix, nextFrame, physicalBox, readEffectRecords, readLibraryRecords, recipeLight, recordId,
   rootName, saveBuilder, selectionGroup, templateFor, track, withStorableCone,
@@ -443,7 +443,7 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
 // The map browser's wiring (map_menu.js): a map's name, the list brought up to the server's, the browser made as the
 // page opens, and the Map menu's button and Change map.
 const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMenu({
-  $, goTo, modalOpen, projectsAvailable, showPop,
+  $, goTo, projectsAvailable, showPop,
   // (made further down: called through, since it is not made yet while this runs)
   stopPlacing: () => stopPlacing() });
 // Build and Play in game (build_play.js): Build's panel and the window that follows a build, Play in game with its
@@ -526,7 +526,7 @@ const precache = createPrecache({
 // windows, which it is given (nothing of it runs as the page loads).
 const { renderProjectMenu, showFileDialog, showGameMaps, showPrecache, showProjectManager,
         touchRecent } = createProjectMenu({
-  $, dirty, fileDialog, gameMaps, loadProject, mapLabel, modalOpen, precache, projectManager, renderPlayItems, showPop,
+  $, dirty, fileDialog, gameMaps, loadProject, mapLabel, precache, projectManager, renderPlayItems, showPop,
   showPrefabDialog,
   // (made with the clipboard, further down: called through, since it is not made yet while this runs)
   stopPlacing: () => stopPlacing() });
@@ -710,7 +710,7 @@ const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNo
         coverOf, coverPanel, coverRecipe, coverVersion, endCoverDrag, fitFloor, FLOOR_CLEARANCE, groundAt,
         handleCover, hoverCoverHandle, moveCoverDrag, setCover, startCoverDrag,
         updateCoverHandles } = createCoverWiring({
-  $, alongLine, camera, editChanged, gizmo, gridOrigin, HANDLE_PICK, materialCache, pickables, PL, projector, renderer,
+  $, alongLine, camera, editChanged, gizmo, gridOrigin, HANDLE_PICK, materialCache, pickables, projector, renderer,
   restingHint, sceneChanged, select, showPop, track, volumeHint, world });
 // Copy, paste and placing (clipboard.js): a clip of the selection, a paste, the preview placed with a click,
 // the Add panel shown and an entry of it placed, and a copy dragged off with Shift; after the cover blocks,
@@ -1226,7 +1226,7 @@ const { frame, panCamera, setSnapMode } = createNavigation({
   copySelection, copySpawn, copyZone, deleteSelection, deleteSpawn, deleteWallOpening, deleteZone, dragHint,
   editBaseSpawn, editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endVolumeDrag, endWallDrag,
   flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
-  missionGizmo, modalOpen, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
+  missionGizmo, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
   setGridTool, setLevelSnap, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,

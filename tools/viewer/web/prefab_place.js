@@ -13,7 +13,7 @@
 // the Prefabs tab, the donor maps' hashes, the pictures waiting, the clipboard and the other maps' pieces read are
 // editor_state.js's.
 import * as THREE from 'three';
-import { TILE } from './constants.js';
+import { PL, TILE } from './constants.js';
 import { COVER_KIND } from './cover.js';
 import { builder, builderMode, chooseToken, data, donorHashes, effectIndex, effectTemplates, families, foreignEffects,
          geometryCache, library, libraryRecords, nextChooseToken, pieces, prefabPictures, prefabTab, setClipboard } from './editor_state.js';
@@ -26,14 +26,14 @@ import { api as prefabApi, newPrefab, prefabWords } from './prefabs.js';
 import { BUILDING_FLOORS_MAX, buildingKey, memberKey, targetKey, tidyBuilding, uuid, validBuilding } from './project.js';
 import { plural, short, text } from './dom_words.js';
 
-export function createPrefabPlace({ $, BUSY_PIECES, PL, actorPose, assetUrl, banner, boxMatrix, builderRecords, busy,
+export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner, boxMatrix, builderRecords, busy,
                                     busyPaint, busyStart, copyable, coverOf, coverVersion, effectTemplate,
                                     effectViewOnly, flashHint, ghostEdges, ghostLine, gltfLoader, gridNow, groupTree,
                                     isForeignTarget, libraryTemplate, lightPose, lightsBlocked, linkOf, madeShape,
                                     mapChain, matrixBox, memberOf, movedMatrix, nextFrame, physicalBox, previewGroup,
-                                    readEffectRecords, readLibraryRecords, recipeLight, recordId, rootName,
-                                    saveBuilder, selectionGroup, snapshot, startPlacing, stopPlacing, templateFor,
-                                    track, withStorableCone }) {
+                                    readEffectRecords, readLibraryRecords, recipeLight, recordId, rootName, saveBuilder,
+                                    selectionGroup, snapshot, startPlacing, stopPlacing, templateFor, track,
+                                    withStorableCone }) {
   function prefabPlacementProblem(clip, delta) {
     if (!builderMode && clip.bounds && data.tileGrid) {
       const b = clip.bounds, box = new THREE.Box3(new THREE.Vector3(b[0], b[2], b[1]), new THREE.Vector3(b[3], b[5], b[4])).applyMatrix4(delta);
