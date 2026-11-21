@@ -1,15 +1,18 @@
 """Growing edits by appending (package_grow.py; UDK-removal U2, baker L4 gate C6), on the bar."""
+import os
 from pathlib import Path
 import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'viewer'))
 sys.path.insert(0, str(HERE.parents[1] / 'bake'))
 import decomp  # noqa: E402
+import package_edit  # noqa: E402
 import package_grow  # noqa: E402
 import upkinfo  # noqa: E402
 
@@ -20,6 +23,9 @@ import labpaths  # noqa: E402
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
 # DLC2_3_Furies as the install has it (LWR's is stored uncompressed): XCOM_FURIES_UPK, else the LWR install's
 FURIES, NO_FURIES = labpaths.test_file('XCOM_FURIES_UPK', labpaths.lwr_cooked('DLC2_3_Furies.upk'), 'DLC2_3_Furies.upk')
+# a third map for the read-back's decode (another size, another chunk layout)
+POLICE, NO_POLICE = labpaths.test_file('XCOM_POLICE_UPK', labpaths.lwr_cooked('URB_PoliceStation.upk'),
+                                       'URB_PoliceStation.upk')
 FLOOR = 'TheWorld.PersistentLevel.XComLevelActor_302.StaticMeshComponent_7'
 
 
@@ -68,6 +74,51 @@ class ChunkCuts(unittest.TestCase):
         # an item bigger than the limit gets a chunk to itself
         self.assertEqual(cut([0, 100, 900], 1000, limit=500), [(0, 100), (100, 900), (900, 1000)])
         self.assertEqual(cut([], 1000, limit=500), [(0, 1000)])
+
+
+def compressed(head, parts, at=None, bsz=1000):
+    """A made-up compressed package for decomp's chunk readers: `head` (its bytes before the first chunk), then each
+    of `parts` ((logical offset, bytes)) as a literal-LZO chunk of blocks of `bsz`. Returns (the bytes, a summary
+    holding the chunk table alone, which is all the decoders read)."""
+    b, chunks = bytearray(head), []
+    for uo, part in parts:
+        body = package_edit.literal_chunk(part, bsz)
+        chunks.append((uo, len(part), len(b), len(body)))
+        b += body
+    return bytes(b), dict(chunks=chunks)
+
+
+class WrittenDecode(unittest.TestCase):
+    """The growing writer's read-back (decomp.decode_written): a block whose packed bytes are the source's at the
+    same logical offset is the source's decoded bytes, every other block is decoded, and the image is the one a whole
+    decode gives. No game file needed."""
+
+    def test_only_the_blocks_the_write_made_or_moved_are_decoded(self):
+        head = bytes(range(100))
+        data = bytes((k * 7) % 251 for k in range(6000))
+        raw, src_h = compressed(head, [(100, data[:2000]), (2100, data[2000:4000]), (4100, data[4000:])])
+        full = decomp._decode(raw, src_h)
+        self.assertEqual(full, head + data)
+        changed = bytearray(data[2000:4000])
+        changed[1500] ^= 0xFF                       # the chunk's second block changes, its first is kept
+        tail = data[:2000]                          # the source's first two blocks again, at another place
+        b, h = compressed(b'H' * 100, [(100, data[:2000]), (2100, bytes(changed)), (4100, data[4000:]),
+                                       (6100, tail)])
+        image, taken, decoded = decomp.decode_written(b, h, raw, src_h, full)
+        self.assertEqual(image, decomp._decode(b, h))
+        self.assertEqual(image[:100], b'H' * 100)
+        # kept: the first and third chunks' blocks and the second's first; decoded: the changed block, and the moved
+        # pair (packed bytes of the source's, but at another offset)
+        self.assertEqual((taken, decoded), (5, 3))
+
+    def test_a_chunk_whose_size_disagrees_with_the_table_is_refused(self):
+        data = bytes(3000)
+        raw, src_h = compressed(bytes(100), [(100, data)])
+        full = decomp._decode(raw, src_h)
+        b, h = compressed(bytes(100), [(100, data)])
+        uo, us, co, cs = h['chunks'][0]
+        with self.assertRaisesRegex(ValueError, 'chunk table says'):
+            decomp.decode_written(b, dict(chunks=[(uo, us - 1, co, cs)]), raw, src_h, full)
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
@@ -267,6 +318,119 @@ class GrowBar(unittest.TestCase):
             self.assertEqual(names[-1], 'XComMapWorkshopTestName')
             self.assertEqual(full[exps[victim - 1]['off']:exps[victim - 1]['off'] + len(data)], data)
             self.assertEqual(report['sizeChange'], out.stat().st_size - src.stat().st_size)
+
+
+def first_literal(block):
+    """Where the first literal byte of an LZO1X block lies: a block starts with a literal run, so a byte changed there
+    changes what it decodes to and leaves it decodable."""
+    t = block[0]
+    if t > 17:
+        return 1
+    if t >= 16:
+        raise AssertionError('the block does not start with a literal run')
+    k = 1
+    if t == 0:
+        while block[k] == 0:
+            k += 1
+        k += 1
+    return k
+
+
+def planted(chunk):
+    """A stand-in for decomp.decompress_written that first changes, in the file on disk, the first literal byte of the
+    first block of the written file's chunk `chunk` (an index of its chunk table), then reads it as the writer does."""
+    real = decomp.decompress_written
+
+    def read(path, *args):
+        b = bytearray(Path(path).read_bytes())
+        uo, us, co, cs = upkinfo.summary(bytes(b))['chunks'][chunk]
+        _, _, _, blocks, at = decomp.read_chunk(b, co)
+        b[at + first_literal(b[at:at + blocks[0][0]])] ^= 0xFF
+        Path(path).write_bytes(b)
+        return real(path, *args)
+    return read
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class ReadBack(unittest.TestCase):
+    """The growing writer's read-back (Grower.write's check, follow-ups item 1.1): the file on disk decoded with the
+    blocks it keeps from the source taken from the source's image is the image a whole decode gives, a fault in a
+    chunk the write made or in one it kept fails the check, and the written map is not decoded whole again."""
+
+    def setUp(self):
+        decomp._MEMO.clear()
+        env = mock.patch.dict(os.environ)
+        env.start()
+        self.addCleanup(env.stop)
+        self.addCleanup(decomp._MEMO.clear)
+        for name in (decomp.WORK_ENV, decomp.KEEP_ENV):
+            os.environ.pop(name, None)
+
+    @staticmethod
+    def edited(src):
+        """A Grower of `src` with a fixed-size edit in its third chunk, a new name and a relocated export."""
+        g = package_grow.Grower(str(src))
+        g.edit(g.chunks[2][0] + 64, b'XCOM')
+        g.name('XComMapWorkshopTestName')
+        g.relocate(5, g.export_data(5) + b'grown')
+        return g
+
+    def test_the_read_back_is_the_whole_decode_on_three_maps(self):
+        # the bar and the police station as shipped, Furies stored uncompressed (read in the compressed layout)
+        for path, why in ((BAR, NO_BAR), (POLICE, NO_POLICE), (FURIES, NO_FURIES)):
+            with self.subTest(map=path.name if path else why):
+                if not (path and path.exists()):
+                    self.skipTest(why)
+                g = self.edited(path)
+                with tempfile.TemporaryDirectory() as d:
+                    out = Path(d) / path.name
+                    g.write(str(out))
+                    b = out.read_bytes()
+                    h = upkinfo.summary(b)
+                    image, taken, decoded = decomp.decode_written(b, h, g.raw, g.h, g.full)
+                    self.assertEqual(image, decomp._decode(b, h))
+                    self.assertEqual(decomp.decompress_pkg(str(out))[0], image)     # what the writer kept
+                    # the edited block and the new chunks' are decoded; every other block is the source's
+                    blocks = sum(len(decomp.read_chunk(b, co)[3]) for _, _, co, _ in h['chunks'])
+                    self.assertEqual(taken + decoded, blocks)
+                    self.assertLess(decoded, blocks // 10)
+
+    def test_a_fault_in_a_chunk_the_write_made_fails_the_check(self):
+        g = self.edited(BAR)
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(decomp, 'decompress_written', planted(-1)):
+            with self.assertRaisesRegex(ValueError, 'does not decode to the intended bytes'):
+                g.write(str(Path(d) / 'URB_Bar.upk'))
+
+    def test_a_fault_in_a_chunk_kept_from_the_source_fails_the_check(self):
+        # a byte changed on disk in a block the write kept (its packed bytes no longer the source's: decoded, and
+        # wrong), and a writer that left an edited block as the source had it (its packed bytes the source's: taken
+        # from the source's image, which is not what was meant)
+        g = self.edited(BAR)
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(decomp, 'decompress_written', planted(4)):
+            with self.assertRaisesRegex(ValueError, 'does not decode to the intended bytes'):
+                g.write(str(Path(d) / 'URB_Bar.upk'))
+        g = self.edited(BAR)
+        real = package_edit.write_edited
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(
+                package_edit, 'write_edited', lambda src, dst, edits, **k: real(src, dst, [], **k)):
+            with self.assertRaisesRegex(ValueError, 'does not decode to the intended bytes'):
+                g.write(str(Path(d) / 'URB_Bar.upk'))
+
+    def test_the_written_map_is_not_decoded_whole(self):
+        # the source is decoded once; the written map is read back from the source's blocks, and kept, so the next
+        # reader takes it from the memo, and another process from the work folder's kept image
+        with tempfile.TemporaryDirectory() as d:
+            os.environ[decomp.WORK_ENV] = str(Path(d) / 'unpacked')
+            before = dict(decomp.STATS)
+            g = self.edited(BAR)
+            out = Path(d) / 'URB_Bar.upk'
+            g.write(str(out))
+            image, _ = decomp.decompress_pkg(str(out))
+            got = {k: decomp.STATS[k] - before[k] for k in ('decoded', 'written', 'memo', 'disk')}
+            self.assertEqual(got, dict(decoded=1, written=1, memo=2, disk=0))
+            decomp._MEMO.clear()
+            self.assertEqual(decomp.decompress_pkg(str(out))[0], image)
+            self.assertEqual(decomp.STATS['disk'] - before['disk'], 1)
 
 
 @unittest.skipUnless(FURIES and FURIES.exists(), NO_FURIES)

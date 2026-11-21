@@ -468,7 +468,9 @@ or the path's (`recordOf(unit, 'prefab')` puts a recipe light's values before it
   compiler's spec, `native_split` (`native_edit.py`), the copy tool and the Build.
 - A reader of package bytes checks its bounds and refuses (a `ValueError` saying what it met). It never reads on: a
   damaged or modded package then fails in one place with a reason. A writer goes through `write_edited` and reads
-  back what it wrote (finding 52).
+  back what it wrote (finding 52). A read-back may take the blocks the file keeps from its source (their packed bytes
+  the source's at the same place) from the source's decode and decode only the rest: the growing writer's does
+  (`decomp.decompress_written`, follow-up 1.1).
 - Tagged properties are walked by `props.tags` (`props.read_tags` for a list) and by nothing else in what ships: a
   walker keeps only what it does with each property (its values, its rules), and a module whose callers catch an
   error of its own turns the walk's `ValueError` into that error (the viewer's `FormatError`, `pack_card`'s
