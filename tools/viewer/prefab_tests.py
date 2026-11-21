@@ -19,6 +19,7 @@ import threading
 import time
 from uuid import uuid4
 
+import atomic_files
 import installs
 from library import digest_of
 from maplist import package_of
@@ -53,9 +54,10 @@ def token(value):
 
 
 def write(path, data):
-    temp = path.with_suffix('.tmp')
-    temp.write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8', newline='\n')
-    temp.replace(path)
+    """A test's record (test.json, its snapshot, its project, its compile report) written whole: through a temporary
+    file beside it with its own name (<stem>.tmp), put in its place by atomic_files, which tries the replace again
+    while another program holds the file a moment (KB-10) and leaves no temporary file when it fails."""
+    atomic_files.write_text(path, json.dumps(data, indent=1) + '\n', temp=path.with_suffix('.tmp'))
 
 
 def read(path):
