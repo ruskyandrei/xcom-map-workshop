@@ -12,6 +12,9 @@ import { QUARTER } from '../web/constants.js';
 import { SHIPS } from '../web/missions_panel.js';
 import { SOFT } from '../web/piece_categories.js';
 import { LISTED_CLASSES } from '../web/floors.js';
+import { END_LIFT, FLOOR_THICK, FOOT_BACK, HEADROOM, TOP_REACH, TURN } from '../web/ladders.js';
+import { SCHEMA_VERSION as PROJECT_VERSION } from '../web/project.js';
+import { SCHEMA_VERSION as PREFAB_VERSION } from '../web/prefabs.js';
 
 const twin = JSON.parse(readFileSync(new URL('./twin_constants.json', import.meta.url), 'utf8'));
 
@@ -30,4 +33,9 @@ assert.deepEqual({ quarter: QUARTER, ground: LANDING_GROUND, insideBack: INSIDE_
 assert.deepEqual(SHIPS.map(([value]) => value), twin.ships);
 assert.deepEqual(SOFT, twin.softFamilies);
 assert.deepEqual([...LISTED_CLASSES], twin.listedClasses);
+// a ladder's climb ends (ladders.py ends) and the floor the project's flat pieces give (compiler_tables.py)
+assert.deepEqual({ topReach: TOP_REACH, footBack: FOOT_BACK, endLift: END_LIFT, turn: TURN, floorThick: FLOOR_THICK,
+                   headroom: HEADROOM }, twin.ladders);
+// the document versions the page saves (projects.py and prefabs.py read and save the same)
+assert.deepEqual({ project: PROJECT_VERSION, prefab: PREFAB_VERSION }, twin.schemaVersions);
 console.log('twin_constants_test: ok');

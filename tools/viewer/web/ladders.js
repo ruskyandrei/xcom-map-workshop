@@ -2,10 +2,11 @@
 // 5.2): the foot tile (the tile of B = L − 16·fwd + (0, 0, 8)) must have floor, and the top tile (of T = L + 76·fwd +
 // (0, 0, h + 8), h = 2 × (the mesh's bounds extent z + 1)) or the tile below it must have floor too: that one, T′,
 // gets the down link. The compiler warns of a ladder copy that fails (ladder-climb); the inspector marks both ends.
-const TOP_REACH = 76, FOOT_BACK = 16, END_LIFT = 8, TURN = 65536;
+// (exported for tests/twin_constants_test.mjs, which holds them to tests/twin_constants.json as ladders.py's)
+export const TOP_REACH = 76, FOOT_BACK = 16, END_LIFT = 8, TURN = 65536;
 // A flat piece the project adds is expected to give floor, as the compiler has it (compiler.py added_floors; EXP-45):
 // no more than FLOOR_THICK high, with HEADROOM clear over a tile (F-71).
-const FLOOR_THICK = 40, HEADROOM = 150;
+export const FLOOR_THICK = 40, HEADROOM = 150;
 
 /** The floor the project's own pieces are expected to give: a Set of 'x,y,z' tiles. `boxes`: the world boxes
  *  [x0, x1, y0, y1, z0, z1] of the pieces the project adds or moves (no ladders). A flat one gives each tile whose
