@@ -75,6 +75,7 @@ import { createMapMenu } from './map_menu.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
+import { copyText, field, plural, segButton, segmented, short, text } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting } from './lighting.js';
@@ -297,26 +298,10 @@ function useMapFamilies(table) {
 // (the server's map list, mapCatalogue, the map browser, mapBrowser, and cachePrefix: editor_state.js)
 // (the lights' reach, lightRadius: editor_state.js)
 
-const short = path => path.split('.').at(-1);
-function text(parent, tag, value, className) {
-  const el = document.createElement(tag); el.textContent = value;
-  if (className) el.className = className;
-  parent.append(el); return el;
-}
-function field(parent, name, value) {
-  text(parent, 'dt', name); return text(parent, 'dd', value);
-}
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 // The loading overlay (loading.js): its message, bar and detail line, an opening document's steps on it, and a
 // JSON file read with its progress; made as soon as the words it needs are (nothing of it runs as the page loads).
 const { fetchJson, loadingState, openingProgress } = createLoading({
   $, plural });
-async function copyText(button, value) {
-  const label = button.textContent;
-  try { await navigator.clipboard.writeText(value); button.textContent = 'Copied'; }
-  catch { button.textContent = 'Copy failed'; }
-  setTimeout(() => { button.textContent = label; }, 1500);
-}
 // The selection's group as a chip beside its name; groupPanel keeps it up to date. (The selection, selection.js,
 // puts it in the piece panel; both it and the groups are given it.)
 const groupChip = document.createElement('span');
@@ -1073,24 +1058,6 @@ function previewGroup(parts, override, frame) {
     group.add(root);
   }
   return group;
-}
-// A row of buttons used like a select: .value, buttons with data-value, onChange after a click.
-function segmented(el, onChange) {
-  Object.defineProperty(el, 'value', {
-    get: () => (el.querySelector('button.on') || el.querySelector('button'))?.dataset.value,
-    set: v => { for (const b of el.querySelectorAll('button')) { b.classList.toggle('on', b.dataset.value === v); b.setAttribute('aria-pressed', b.dataset.value === v); } },
-  });
-  el.addEventListener('click', e => {
-    const button = e.target.closest('button');
-    if (!button || button.disabled || button.classList.contains('on')) return;
-    el.value = button.dataset.value; onChange();
-  });
-}
-function segButton(value, label, title) {
-  const button = document.createElement('button');
-  Object.assign(button, { type: 'button', textContent: label, title });
-  button.dataset.value = value;
-  return button;
 }
 // The building floors a piece is listed on (floor_listings.js): the project's buildings' and the map's own,
 // as the Build lists them, and the key of the pieces' edits.

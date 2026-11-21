@@ -19,8 +19,8 @@
 // areas read or set (the views' switches, Solo, the drag, the handles, the reach, the area lights' copies, the lights'
 // sync) is editor_state.js's.
 import * as THREE from 'three';
-import { sentence } from './build_queue.js';
 import { QUARTER } from './constants.js';
+import { sentence } from './dom_words.js';
 import { onHub } from './edit_hub.js';
 import { areaBindings, areaShown, assigning, cleared, clearKeepsOutside, copySerial, data, derivedCopies, effectRoots,
          effectsOn, families, handleDefs, hintTimer, lightDrag, lightIndex, lighting, lightRadius, lightRoots,
