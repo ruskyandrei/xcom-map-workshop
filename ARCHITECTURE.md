@@ -106,6 +106,12 @@ storeys); Delete with an opening's handle last touched takes that opening out. B
 floor or roof or on one of the map's own fracturing pieces, and a broken piece drawn without the fragments its blasts
 knock out, as the Build does. What is pure about the wall, slab and ground tools is
 [`walls.js`](tools/viewer/web/walls.js)'s and [`ground.js`](tools/viewer/web/ground.js)'s.
+Cover blocks and invisible floors (invisible pieces the Build makes from a recipe) are
+[`cover_wiring.js`](tools/viewer/web/cover_wiring.js)'s: a cover piece's recipe, mesh and template, the Add panel's
+Invisible kind, the ground under an invisible floor as the game's floor trace finds it (the map's collision asked for
+once, Fit to ground), the piece panel's cover section, a new record put on a piece (one undo step), and the handles on
+a picked cover piece and their drags. What is pure about a cover piece (its box, its tiles, its sizes, its words) is
+[`cover.js`](tools/viewer/web/cover.js)'s.
 `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -256,6 +262,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | Drawing a made piece: the Build menu's tools, a wall, room, floor, roof or ground shape dragged out with its ghost and made | [`made_drawing.js`](tools/viewer/web/made_drawing.js) (`createMadeDrawing`). Where a drawn piece stands and what its numbers are (`drawnWall`, `drawnRoom`, `drawnSlab`, `roomRoof`, `drawnGround`) go in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), pure, with their node tests (`walls_test.mjs`, `ground_test.mjs`). |
 | The piece panel's sections of a made piece: the Wall section and its openings, the Floor section and its holes, the Ground section, the Room section of a drawn room, an opening taken out by Delete | [`made_panel.js`](tools/viewer/web/made_panel.js) (`createMadePanel`). What an opening, a hole or a room's storeys are and say (`openingPlay`, `playWords`, `withOpening`, `withHole`, `steppedStoreys`, `slopeWords`) goes in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), pure, with their node tests. |
 | Break and Repair: a blast set off on a made piece or on one of the map's fracturing pieces, the Break rows and tool, a broken piece drawn without its knocked-out fragments | [`made_breaking.js`](tools/viewer/web/made_breaking.js) (`createMadeBreaking`). A blast's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`cloneBlasts`), a made piece's blasts in its mesh's request in [`walls.js`](tools/viewer/web/walls.js) (`blastQuery`), and the Build's side in [`made_blasts.py`](tools/bake/made_blasts.py). |
+| A cover block or invisible floor: its recipe and template, the Add panel's Invisible kind, the ground under a floor (the map's collision, Fit to ground), the piece panel's cover section, a new record put on a piece, its handles and their drags | [`cover_wiring.js`](tools/viewer/web/cover_wiring.js) (`createCoverWiring`). What is pure about a cover piece (its box and mesh, the tiles it covers and what the game makes of them, a size changed by a handle, its words) goes in [`cover.js`](tools/viewer/web/cover.js), with its node tests (`cover_test.mjs`, `cover_tiles_test.mjs`), and the Build's side in [`cover_blocks.py`](tools/bake/cover_blocks.py). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
@@ -372,13 +379,18 @@ where there is one.
     selection lets it go, the made pieces' panel rings it and Delete takes it out) and the rock point picked
     (`rockPoint`), which app.js's selection, keys, pointer handlers and test hooks read or set; the snap setting
     (`snapMode`; `setSnapModeValue`, beside app.js's `setSnapMode`, which also sets the gizmo's and draws its button)
-    and a cover handle's drag (`coverDrag`), which the made pieces' handles read;
-  - whether Break is on (`breaking`), which app.js's keys and pointer handlers read.
+    and a cover handle's drag (`coverDrag`: the cover blocks' handles set it), which the made pieces' handles read;
+  - whether Break is on (`breaking`), which app.js's keys and pointer handlers read;
+  - the game's collision by mesh that the invisible floors measure the ground by (`lineCollision`, with
+    `lineCollisionFailed`): the cover blocks' module asks for the map's, a piece of another map read adds its own, and
+    the test hooks read both.
 
   A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
   was (`setAreaShown(recall(AREA_SHOWN) === '1')`, `setLikenessOn(...)` inside the Effects view's factory), so it is
   read at the same point as before. A setter whose write sat inside an expression gives back what it set
-  (`setWavePlayer`: `player = setWavePlayer({ ... })`).
+  (`setWavePlayer`: `player = setWavePlayer({ ... })`). A logical assignment becomes the same test with the setter's
+  call: `lineCollision ??= new Map()` is `lineCollision ?? setLineCollision(new Map())`, which sets it only when it is
+  null, as before.
 
   app.js still declares the state of the areas not yet moved out of it; new state never goes there. An assignment to
   an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
@@ -386,9 +398,9 @@ where there is one.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
   `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`,
   `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`,
-  `createMadePanel`, `createMadeBreaking`) takes them as one argument object and destructures it, so the code moved
-  into it calls them by the names it always did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers
-  stay as they were. app.js makes it after the functions and objects it is given, and before any code that runs as
+  `createMadePanel`, `createMadeBreaking`, `createCoverWiring`) takes them as one argument object and destructures
+  it, so the code moved into it calls them by the names it always did. It returns the functions other areas call, and
+  app.js destructures them under the same names, so their callers stay as they were. app.js makes it after the functions and objects it is given, and before any code that runs as
   the page loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a
   `const`, is given as a function that calls it, since it is not made yet: `openingProgress: name => openingProgress(name)`.
   That holds for what another factory returns too: the document session is made before Build and Play, which is given
@@ -413,7 +425,12 @@ where there is one.
   was, so what the second run did as the page loads (the panel's handlers, box select's layer) now happens there,
   earlier: a change that does so checks that no code between sets a handler on, or listens to, the same targets, and
   that what moves earlier makes only objects three.js draws by render order and depth (it consults the order objects
-  were made only where both are equal), so nothing is drawn differently. An area that is several modules (the made
+  were made only where both are equal), so nothing is drawn differently. When the first run needs a value app.js
+  makes between the runs that is not a function (the cover blocks' run reads the handles' pick distance, `HANDLE_PICK`,
+  and the meshes' caches), the area is made where its last run was instead, and what the first run did as the page
+  loads now happens there, later: a change that does so checks that the first run only made values there (no handler
+  set, nothing added to the scene; the cover blocks' collision material, made later, is never drawn), and gives the
+  factories made between that read its functions as the page loads functions that call them. An area that is several modules (the made
   pieces: their base, `made_handles.js`, then their looks, drawing, panel sections and Break) has each made where its
   own first run was, so in the order of its code; each is given the functions of those made before it directly, and
   those of the ones made after it as functions that call them. A function app.js keeps in a `let` (`applyLighting`,

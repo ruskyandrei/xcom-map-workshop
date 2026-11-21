@@ -359,10 +359,17 @@ export function setRockPoint(next) { rockPoint = next; }
 // 15 degrees) or 'tile' (whole tiles, 90 degrees); the placing, the cover blocks' and the made pieces' handles read it.
 export let snapMode = 'off';
 export function setSnapModeValue(next) { snapMode = next; }
-// A cover block's or invisible floor's handle being dragged (app.js's cover handles), or null: the made pieces'
+// A cover block's or invisible floor's handle being dragged (cover_wiring.js's handles), or null: the made pieces'
 // handles take no press meanwhile.
 export let coverDrag = null;
 export function setCoverDrag(next) { coverDrag = next; }
+// The game's collision for line checks by mesh (collision.json), which the invisible floors measure the ground by
+// (cover_wiring.js's askLineCollision asks for the map's once): mesh id -> { simple: false } or
+// { simple: true, solids }, or null until it comes; a piece of another map read adds its meshes' (app.js's
+// libraryTemplate). lineCollisionFailed: the map's could not be read (the test hooks read both).
+export let lineCollision = null, lineCollisionFailed = false;
+export function setLineCollision(next) { lineCollision = next; }
+export function setLineCollisionFailed(next) { lineCollisionFailed = next; }
 
 // Break and Repair (made_breaking.js): the piece Break is on, { id }, or null; app.js's keys and pointer handlers read
 // it.

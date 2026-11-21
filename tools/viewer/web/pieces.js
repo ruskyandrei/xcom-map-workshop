@@ -208,7 +208,8 @@ export function pieceRow(entry, pixelRatio, choose) {
             title: 'Placed as one tile of high cover; its width, length, height and cover are set in the piece panel' })
       : { textContent: `${w} × ${d} × ${h}${entry.floor ? ` · floor, ${tiles(w)} × ${tiles(d)} tiles` : ''}`,
           title: 'Width × depth × height in game units (a floor tile is 96 across)' },
-    // a cover block or invisible floor (app.js coverEntries) is the editor's own piece: none in the map to count
+    // a cover block or invisible floor (cover_wiring.js coverEntries) is the editor's own piece: none in the map to
+    // count
     tags: [entry.cover ? { textContent: 'Invisible', title: 'Hidden in the game' }
                        : { textContent: `×${entry.count}`, title: `${entry.count} in this map` }],
     title: entry.title ?? [entry.mesh, ...[...new Set(entry.materials)].map(m => `Material: ${m}`)].join('\n'),
