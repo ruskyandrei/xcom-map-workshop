@@ -1117,11 +1117,15 @@ def check_copy_drag(page):
     assert page.evaluate('viewer.gizmo.controls.axis') == 'X', ends
     hx, hy = x0 + ux * d, y0 + uy * d
     # Escape during a Shift drag: nothing is copied or moved
+    serial = page.evaluate('viewer.copySerial()')
     page.keyboard.down('Shift'); page.mouse.down(); page.mouse.move(hx + ux * 60, hy + uy * 60, steps=5)
     assert 'copy' in page.locator('#dragHint').inner_text()
     assert page.evaluate('viewer.roots.size') == count
     page.keyboard.press('Escape'); page.mouse.up(); page.keyboard.up('Shift')
-    page.wait_for_timeout(200)
+    # the release handled (the gizmo's mouseUp, which hands the copy on), and no paste begun: a paste numbers its copies
+    # before anything it waits for, so one begun would show in the serial at once
+    page.wait_for_function('!viewer.gizmo.controls.dragging')
+    assert page.evaluate('viewer.copySerial()') == serial, (serial, page.evaluate('viewer.copySerial()'))
     assert page.evaluate('viewer.roots.size') == count and page.evaluate(matrix, a) == before
     assert page.evaluate('viewer.changes().total') == 0 and page.evaluate('viewer.gizmo.undoDepth()') == steps
     # the drag itself: the copy along X only, the original where it was
@@ -1333,9 +1337,10 @@ def check_clear_map(page):
         p0 = page.evaluate('p => viewer.screenOf(p)', at)
         p1 = page.evaluate('p => viewer.screenOf(p)', [at[k] + (100 if k == axis else 0) for k in range(3)])
         n = math.hypot(p1[0] - p0[0], p1[1] - p0[1]); d = [(p1[0] - p0[0]) / n, (p1[1] - p0[1]) / n]
-        page.mouse.move(*p0); page.wait_for_timeout(30)
+        # (the press takes the handle under its own point and the release sets the size, in their listeners, which
+        # the mouse calls wait for)
+        page.mouse.move(*p0)
         page.mouse.down(); page.mouse.move(p0[0] + d[0] * pixels, p0[1] + d[1] * pixels, steps=12); page.mouse.up()
-        page.wait_for_timeout(50)
         return page.evaluate('viewer.gridTool().dims')
     page.evaluate("""() => { const b = viewer.data.playableBounds, c = [0, 1, 2].map(k => (b.min[k] + b.max[k]) / 2),
                              s = Math.max(b.max[0] - b.min[0], b.max[2] - b.min[2]);
@@ -1512,7 +1517,7 @@ def check_clear_map(page):
 
     def grab(axis, points):
         for pt in points:
-            page.mouse.move(*pt); page.wait_for_timeout(25)
+            page.mouse.move(*pt)        # (the gizmo takes its hovered axis in its pointermove listener, as copy-drag's does)
             if page.evaluate('viewer.zoneGizmo().axis') == axis: return pt
         raise AssertionError("the zone gizmo's %s handle not found" % axis)
     at = g['at']
@@ -1527,7 +1532,7 @@ def check_clear_map(page):
     assert dx > 0 and dx % 96 == 0 and moved['location'][1:] == z0['location'][1:], (moved, z0)
     assert page.evaluate('viewer.pickedZone()') == z0['id']           # the drag did not let the zone go
     # R: the ring, quarter turns about the vertical only
-    page.keyboard.press('r'); page.wait_for_timeout(100)
+    page.keyboard.press('r'); page.wait_for_timeout(100)    # (a frame drawn: the ring's handles are placed by a render)
     g = page.evaluate('viewer.zoneGizmo()')
     assert g['mode'] == 'rotate', g
     import math
@@ -2242,8 +2247,11 @@ def check_library_effects(browser, url):
     page.locator('#libAllKind').select_option('sounds')
     page.wait_for_function("document.querySelector('#libAllList .libitem canvas')?.dataset.drawn")
     assert page.evaluate("![...document.querySelectorAll('#libAllList .libitem canvas')].some(c => c.dataset.likeness)")
-    page.locator('#libAllList .libitem').first.hover()
-    page.wait_for_timeout(600)
+    first = page.locator('#libAllList .libitem').first
+    first.hover()
+    # (a row whose likeness the pane is to show takes the row's tip at once, on the pointer's arrival, the pane coming
+    # after: a sound's row has taken none)
+    assert first.evaluate('row => row.dataset.tip === undefined'), first.evaluate('row => [row.dataset.tip, row.title]')
     assert page.evaluate('viewer.likenessPane().hidden')
     page.mouse.move(900, 500)
     page.locator('#libAllPlaceable').uncheck()
@@ -2720,7 +2728,7 @@ def check_floor_placing(page, is_bar):
         if hit is not None and abs(hit - loc[2]) < 4: spot = (loc, at); break
     assert spot, 'no saved floor tile clear under the cursor'
     loc, at = spot
-    page.mouse.move(*at); page.wait_for_timeout(100)
+    page.mouse.move(*at); page.wait_for_function('viewer.placing()?.ghost.visible')
     page.mouse.click(*at)
     page.wait_for_function('viewer.editState().added.length === 1')
     z = page.evaluate("""() => [...viewer.roots.values()].find(r => r.userData.source.added).userData.source.location[2]""")
@@ -2740,7 +2748,7 @@ def check_floor_placing(page, is_bar):
         side_entry.click()
         assert 'a floor piece' not in page.locator('#dragHint').inner_text()
         look_down(page, loc, 2200)
-        page.mouse.move(*at); page.wait_for_timeout(100); page.mouse.click(*at)
+        page.mouse.move(*at); page.wait_for_function('viewer.placing()?.ghost.visible'); page.mouse.click(*at)
         page.wait_for_function('viewer.editState().added.length === 1')
         assert added_z() > 10, added_z()
         page.keyboard.press('Control+z')
@@ -2762,7 +2770,7 @@ def check_floor_placing(page, is_bar):
             if hit is not None and abs(hit - rl[2]) < 4: spot2 = (rl, at2); break
         assert spot2, 'no road tile clear under the cursor'
         rl, at2 = spot2
-        page.mouse.move(*at2); page.wait_for_timeout(100); page.mouse.click(*at2)
+        page.mouse.move(*at2); page.wait_for_function('viewer.placing()?.ghost.visible'); page.mouse.click(*at2)
         page.wait_for_function('viewer.editState().added.length === 1')
         chosen = page.evaluate('([x, y]) => viewer.chosenStorey(x, y)', rl[:2])
         assert chosen and chosen['floor'] == 1, chosen
@@ -2794,7 +2802,7 @@ def check_floor_placing(page, is_bar):
             page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', side)
             page.evaluate('document.activeElement && document.activeElement.blur()')
             page.keyboard.press('g')
-            page.wait_for_timeout(200)
+            page.wait_for_timeout(200)      # (a frame drawn where it was framed, before the screen points)
             z0 = page.evaluate('viewer.gizmo.pose().location[2]')
             p0 = page.evaluate('viewer.screenOf(viewer.gizmo.pose().location)')
             up = page.evaluate('p => viewer.screenOf([p[0], p[1], p[2] + 100])', page.evaluate('viewer.gizmo.pose().location'))
@@ -2803,7 +2811,7 @@ def check_floor_placing(page, is_bar):
             grab = None
             for r in range(20, 160, 6):
                 pt = [p0[0] + d[0] * r, p0[1] + d[1] * r]
-                page.mouse.move(*pt); page.wait_for_timeout(30)
+                page.mouse.move(*pt)    # (the gizmo takes its hovered axis in its pointermove listener)
                 if page.evaluate('viewer.gizmo.controls.axis') == 'Y': grab = pt; break
             assert grab, 'the gizmo\'s up arrow not found'
             page.mouse.down(); page.mouse.move(grab[0] + d[0] * pixels, grab[1] + d[1] * pixels, steps=8); page.mouse.up()
@@ -2820,6 +2828,10 @@ def check_floor_placing(page, is_bar):
         page.keyboard.press('v')
     assert page.evaluate('viewer.changes().total') == 0 and page.evaluate('viewer.roots.size') == count
     page.evaluate('id => viewer.select(id)', original)
+
+
+# The floor tile tip shown and saying `arg` (the draw loop writes it once the pointer has moved)
+TIP_SAYS = "t => !document.getElementById('floorTip').hidden && document.getElementById('floorTip').textContent.includes(t)"
 
 
 def check_floor_tiles(page, is_bar):
@@ -2844,13 +2856,15 @@ def check_floor_tiles(page, is_bar):
         look_down(page, t['tile']['location'], 2400)
         if page.evaluate("""f => { const h = viewer.pick(...viewer.screenOf(f.location)); return h && viewer.roots.get(h.object.userData.objectId).userData.source.actor === f.actor; }""", t['tile']): break
     else: raise AssertionError('no clear floor tile')
-    page.mouse.move(*page.evaluate('p => viewer.screenOf(p)', t['tile']['location'])); page.wait_for_timeout(200)
+    page.mouse.move(*page.evaluate('p => viewer.screenOf(p)', t['tile']['location']))
+    page.wait_for_function(TIP_SAYS, arg=t['tile']['actor'].split('.')[-1])
     assert page.locator('#floorTip').is_visible() and t['tile']['actor'].split('.')[-1] in page.locator('#floorTip').inner_text()
     page.evaluate('id => viewer.select(id)', t['id'])
     page.keyboard.press('Delete')
     assert page.evaluate('viewer.floorTiles()') == drawn
     assert page.evaluate("viewer.world.children.some(g => g.userData.tiles && g.children.some(c => c.isLineSegments))")
-    page.mouse.move(10, 10); page.mouse.move(*page.evaluate('p => viewer.screenOf(p)', t['tile']['location'])); page.wait_for_timeout(200)
+    page.mouse.move(10, 10); page.mouse.move(*page.evaluate('p => viewer.screenOf(p)', t['tile']['location']))
+    page.wait_for_function(TIP_SAYS, arg='deleted since')
     assert 'deleted since' in page.locator('#floorTip').inner_text()
     page.keyboard.press('Control+z')
     page.evaluate('viewer.select(null)')
@@ -2963,7 +2977,7 @@ def check_lights(page, is_bar):
     page.keyboard.press('Control+z')
     assert page.evaluate('viewer.lightRoots.size') == base + 1
     # the Map lighting mode takes the lights as edited
-    choose(page, 'lighting', 'map'); page.wait_for_timeout(300)
+    choose(page, 'lighting', 'map'); page.wait_for_function('viewer.lighting.counts.all === viewer.lightRecords().length')
     assert page.evaluate('viewer.lighting.counts.all === viewer.lightRecords().length')
     assert page.evaluate('id => viewer.lightRecords().some(l => l.actor === viewer.lightRoots.get(id).userData.source.actor)', copy)
     choose(page, 'lighting', 'neutral')
@@ -3182,13 +3196,13 @@ def check_output_names(browser, url, errors):
     stamp = page.evaluate('Date.now() % 100000')
     name, word = f'Names smoke {stamp}', f'NamesSmoke{stamp}'
     # the server's answer held back: Save stays disabled and no name is shown meanwhile
-    page.evaluate("""() => { const f = window.fetch; window.slowNames = true;
+    page.evaluate("""() => { const f = window.fetch; window.slowNames = true; window.namesAsked = null;
       window.fetch = (u, o) => String(u).includes('output-names') && window.slowNames
-        ? new Promise(r => setTimeout(() => r(f(u, o)), 1500)) : f(u, o); }""")
+        ? (window.namesAsked = JSON.parse(o.body).name, new Promise(r => setTimeout(() => r(f(u, o)), 1500))) : f(u, o); }""")
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
     page.locator('#fileName').fill(name)
-    page.wait_for_timeout(400)
+    page.wait_for_function('n => window.namesAsked === n', arg=name)     # (the name typed asked for, its answer held back)
     assert page.locator('#fileOk').is_disabled() and page.locator('#fileOutput').inner_text() == 'Builds as …'
     page.wait_for_function("() => !document.getElementById('fileOk').disabled")
     page.evaluate('window.slowNames = false')
@@ -3700,7 +3714,7 @@ def check_likeness(page):
     page.evaluate('viewer.select(null); viewer.setEffectsShown(false); viewer.setNormalEffects(false); viewer.setLikeness(true)')
     if page.locator('#scenery').is_visible(): choose(page, 'scenery', 'full')
     page.evaluate('viewer.frame()')
-    page.wait_for_timeout(1500)
+    page.wait_for_timeout(1500)     # (the likenesses drawn a while, their textures read, before the frame time)
     like = lambda: page.evaluate('viewer.likenessState()')
     can = page.evaluate("""[...viewer.effectRoots.values()].filter(r => r.userData.source.kind === 'effect' && !r.userData.source.stream
         && r.userData.source.startsOn !== false && viewer.data.effectSystems[r.userData.source.system]?.emitters.some(e => e.draw)).map(r => r.userData.source.id)""")
@@ -3727,12 +3741,12 @@ def check_likeness(page):
         page.evaluate('viewer.setLikeness(true)')
         page.evaluate('id => { viewer.setEffectsShown(true); viewer.pickEffect(id); }', target)
         page.keyboard.press('f')
-        page.wait_for_timeout(300)
+        page.wait_for_timeout(300)      # (the camera framed on it drawn, before its pictures)
         page.evaluate('viewer.setEffectsShown(false)')
-        page.wait_for_timeout(700)
+        page.wait_for_function('id => viewer.likenessState().drawn.includes(id)', arg=target)     # (stepped in the picture)
         assert target in like()['drawn'], like()
         page.evaluate('viewer.setLikeness(false)')
-        page.wait_for_timeout(300)
+        page.wait_for_function('() => { const s = viewer.likenessState(); return !s.on && s.effects === 0 && s.particles === 0; }')
         off = like()
         assert not off['on'] and off['effects'] == 0 and off['particles'] == 0, off
         assert not page.locator('#likenessToggle').is_checked() and page.evaluate("localStorage.getItem('workshop.likeness')") == '0'
@@ -3744,7 +3758,7 @@ def check_likeness(page):
         assert page.screenshot(clip=clip) == hidden          # (a still picture without it)
         without = without or frame_time()
         page.evaluate('viewer.setLikeness(true)')
-        page.wait_for_timeout(300)
+        page.wait_for_function('n => viewer.likenessState().effects >= n', arg=len(can))
         assert like()['effects'] >= len(can) and page.evaluate("localStorage.getItem('workshop.likeness')") == '1'
         for _ in range(12):                                  # (its textures and meshes are read first)
             if page.screenshot(clip=clip) != hidden: seen = target; break
@@ -3756,10 +3770,11 @@ def check_likeness(page):
     if not page.evaluate('id => viewer.effectState(id).viewOnly', target):
         page.evaluate('document.activeElement?.blur()')
         page.keyboard.press('Delete')
-        page.wait_for_timeout(200)
+        page.wait_for_function('([id, n]) => { const s = viewer.likenessState(); return !s.drawn.includes(id) && s.effects < n; }',
+                               arg=[target, now['effects']])
         assert target not in like()['drawn'] and like()['effects'] < now['effects'], like()      # (its linked effects go with it)
         page.keyboard.press('Control+z')
-        page.wait_for_timeout(200)
+        page.wait_for_function('n => viewer.likenessState().effects === n', arg=now['effects'])
         assert like()['effects'] == now['effects']
     page.evaluate('viewer.select(null); viewer.setEffectsShown(false)')
     assert page.evaluate('viewer.projectState()') == state
@@ -3899,7 +3914,7 @@ def check_spawns_view(page):
     pod = page.evaluate("(viewer.spawns().find(s => s.kind === 'pod' && s.layer === 'base') ?? null)")
     if pod:
         page.evaluate('k => { const s = viewer.spawns().find(x => x.key === k); viewer.showSpawn(s.actor, null); viewer.pickSpawn(null); viewer.setNormalSpawns(false); }', pod['key'])
-        page.wait_for_timeout(200)
+        page.wait_for_timeout(200)      # (a frame drawn where showSpawn put the camera, before the screen point)
         pod = page.evaluate('k => viewer.spawns().find(x => x.key === k)', pod['key'])
         x, y = pod['screen']
         page.evaluate('document.activeElement && document.activeElement.blur()')
@@ -4043,7 +4058,7 @@ def check_spawn_edits(page):
         page.evaluate('a => viewer.showSpawn(a, null)', vol['actor'])
         page.evaluate("document.activeElement && document.activeElement.blur(); viewer.setNormalSpawns(false); viewer.setSpawnsShown(true)")
         page.evaluate('k => viewer.pickSpawn(k)', vol['key'])
-        page.wait_for_timeout(100)
+        page.wait_for_timeout(100)      # (a frame drawn where showSpawn put the camera, before the handles' screen points)
         handles = page.evaluate('viewer.spawnVolumeHandles()')
         assert handles and sorted(handles) == ['x0', 'x1', 'y0', 'y1', 'z0', 'z1'], handles
         b0 = vol['box']
@@ -4051,9 +4066,10 @@ def check_spawn_edits(page):
         a = page.evaluate('p => viewer.screenOf(p)', [b0[3], *mid])
         b = page.evaluate('p => viewer.screenOf(p)', [b0[3] + 192, *mid])
         h = handles['x1']
-        page.mouse.move(*h); page.wait_for_timeout(30)
+        # (the press takes the handle under its own point and the release keeps the box, in their listeners, which the
+        # mouse calls wait for)
+        page.mouse.move(*h)
         page.mouse.down(); page.mouse.move(h[0] + b[0] - a[0], h[1] + b[1] - a[1], steps=12); page.mouse.up()
-        page.wait_for_timeout(50)
         now = next(s for s in spawns() if s['key'] == vol['key'])['box']
         # (an edited box is kept to a thousandth of a unit: the map's -863.9998 is -864)
         assert all(abs(now[k] - b0[k] - (192 if k == 3 else 0)) < 1e-2 for k in range(6)), (b0, now)
