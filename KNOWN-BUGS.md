@@ -135,3 +135,17 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Cause.** The editor reads the records' fields in two ways: the one that finds the map allows the spaces, the one
   that lists what a Replace takes out does not.
 - **Finding.** None in the register; found by a review of the code the refactor left as it was (21 November 2026).
+
+### KB-12: A prefab's Test in game fails when the builds folder's path is long
+
+- **What happens.** **Test in game** in the prefab builder stops in its Build with a `FileNotFoundError` naming a
+  file that ends in `.upk.grow-tmp`, when the builds folder sits deep in folders. A project's own Build from the same
+  folder works.
+- **Since.** 0.5.3, which added Test in game (found 21 November 2026).
+- **Workaround.** Keep the builds folder (Setup, the output folder) on a short path, such as the default in
+  Documents.
+- **Cause.** A prefab test's Build works in folders of its own under the builds folder (a test's id, its artifacts,
+  the Build's work folder, the lit copy), which add about 190 characters, so the grown map's temporary file passes
+  Windows' 260-character path limit.
+- **Finding.** None in the register; found by the exploratory test after the refactor (old: the version before it
+  does the same).
