@@ -18,8 +18,8 @@ its building, a ramp (its look then chosen in the look picker, its cards ramps; 
 numbers, plain, in its kind's default look brought from URB_Bar."""
 import json
 
-# the Build menu's tools (app.js BUILD_TOOLS), each kind's plain version (PLAIN_VERSION), a gap's handles (walls.js
-# openingParts)
+# the Build menu's tools (made_drawing.js BUILD_TOOLS), each kind's plain version (PLAIN_VERSION), a gap's handles
+# (walls.js openingParts)
 BUILD_TOOLS = ['wall', 'room', 'roomroof', 'floor', 'roof', 'patch', 'block', 'ramp', 'rock']
 PLAIN = {'fracWall': 4, 'fracSlab': 3, 'ground': 3}
 PARTS = ['middle', 'x0', 'x1', 'z1', 'z0']

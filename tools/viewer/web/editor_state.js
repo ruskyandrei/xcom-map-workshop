@@ -334,3 +334,13 @@ export function setPickHits(next) { pickHits = next; }
 export let lookPicker = null, lookPicking = null;
 export function setLookPicker(next) { lookPicker = next; }
 export function setLookPicking(next) { lookPicking = next; }
+
+// What other areas read or set of the made pieces' drawing (made_drawing.js; the made pieces' handles, app.js's keys,
+// pointer handlers and test hooks):
+// - buildTool: the Build menu's tool being drawn (its button is lit), or null;
+// - wallDrawing: the made piece being drawn, or null: { look, room (a room's four walls), slab, roof (a room's roof:
+//   roofTemplate), template (once read), start, floor, pointerId, last } (setWallDrawing gives back what it set:
+//   startWallDrawing names it in the same statement).
+export let buildTool = null, wallDrawing = null;
+export function setBuildTool(next) { buildTool = next; }
+export function setWallDrawing(next) { wallDrawing = next; return next; }
