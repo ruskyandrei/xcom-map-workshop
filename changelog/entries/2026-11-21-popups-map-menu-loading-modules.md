@@ -49,5 +49,10 @@ Checked:
   the Map menu, its groups, a map chosen and opened) and the `map-picture` run (`browser_map_picture.py`) pass; and
   `api-names`, `project-menu`, `prepare`, `typed-pose`, `header`, `builder`, `modals`, `draw-errors`, `failed-reads`,
   `let-go` and `small-defects` pass (`previews` skips: the scratch export has no patch previews). Under `--only`,
-  `header` run with nothing selected before it fails clicking the disabled Selected button, on the stage's start commit
-  too; it passes after a check that selects.
+  `header` run straight after `project-menu` and `prepare` fails clicking the Selected button, disabled with nothing
+  selected, on the stage's start commit too; it passes alone, after a check that selects and in the whole run.
+- **The stage's end** (stage P9's second part, its four commits together): `browser_smoke.py --all` on fresh scratch
+  servers, with a scratch game folder for Play (`--play-install`), passes, all ten runs (whole 44 checks, named 7,
+  builder 2, editing 11, documents, police 3, temple 2, map picture, maps, Play), in 9 min 42 s (other work on the
+  computer); [moved_code.py](../../tools/repo/moved_code.py) against the stage's start: app.js's 88 functions the same
+  but `startScene` and `open`, the 18 that left it the same in their new modules.
