@@ -111,6 +111,7 @@ import ast
 import contextlib
 import dataclasses
 import datetime
+import functools
 import hashlib
 import io
 import json
@@ -159,8 +160,6 @@ RELIGHT = TOOLS / 'bake' / 'relight.py'
 NATIVE_COPY = TOOLS / 'bake' / 'native_copy.py'
 TRANSPLANT = TOOLS / 'bake' / 'transplant.py'
 SHELL = TOOLS / 'bake' / 'shell.py'
-NATIVE_LIGHTS = TOOLS / 'bake' / 'native_lights.py'
-LIGHT_FACTORY = TOOLS / 'bake' / 'light_factory.py'
 # the export generation a Build needs: one with the light and generated-light metadata (editor lights plan, 4.1 and
 # 9.3), the compiler's own minimum
 EXPORT_MINIMUM = compiler.EXPORT_MINIMUM
@@ -177,14 +176,15 @@ QUICK_LIGHTS = ('Its light edits are made in the map but not baked: a deleted li
                 'that follow their glowing pieces light soldiers and aliens at the new place, but the old glow stays '
                 'baked where it was and the new place gets none.')
 INTRO_COPY = TOOLS / 'bake' / 'intro_copy.py'
-INLINE_LIGHTING = TOOLS / 'bake' / 'inline_lighting.py'
-MAP_FRAME = TOOLS / 'bake' / 'map_frame.py'
 PICTURE_FORMAT = 'DXT1'
 PICTURE_MISSING = ('the project names a map picture whose file is not on this computer (%s): the map is built '
                    'without a picture of its own. Choose the picture again in Map picture, save and build again')
 PICTURE_FAILED = ('the map picture could not be written into %s (%s): the map is built without a picture of its own. '
                   'Choose the picture again in Map picture, save and build again')
 STREAM_COPY = TOOLS / 'bake' / 'stream_copy.py'
+# the tools the Build runs, each as a process of its own (the modules it imports itself are found from build.py's
+# imports: tool_modules)
+RUN_TOOLS = (NATIVE_COPY, RELIGHT, INTRO_COPY, STREAM_COPY, TRANSPLANT, SHELL)
 # the streamed intros whose Kismet picks its scene by the map's exact name (intro_copy.py): the Skyranger and fast-rope
 # landings (F-45) and the alien bases' entrance (F-76; Temple Ship's arrival names no map). A variant gets its own copy.
 INTROS = outputnames.INTROS
@@ -218,23 +218,56 @@ def sha256(path):
     return h.hexdigest()
 
 
-def editor_modules():
-    """build.py and the modules of tools/editor it imports, and theirs: the compiler, the modules split off it and
-    game_files. The manifest's `tools` names each (with its SHA-256), so they are found from their import statements
-    (as the release finds its modules), and a module split off the compiler later is named with no list to keep.
-    build.py first, the rest by name."""
-    own = HERE / 'build.py'
-    found, todo = set(), [own]
+def imported_names(path):
+    """The modules the Python file `path` imports by absolute name (`import x.y` gives x, `from x import y` gives x),
+    wherever the statement stands (a stage's late import in a function too): its syntax tree's statements, read
+    without walking every expression."""
+    def statements(body):
+        for s in body:
+            yield s
+            for field in ('body', 'orelse', 'finalbody'):
+                yield from statements(getattr(s, field, None) or [])
+            for part in (getattr(s, 'handlers', None) or []) + (getattr(s, 'cases', None) or []):
+                yield from statements(part.body)
+    for s in statements(ast.parse(Path(path).read_text(encoding='utf-8')).body):
+        if isinstance(s, ast.Import):
+            yield from (a.name.split('.')[0] for a in s.names)
+        elif isinstance(s, ast.ImportFrom) and s.level == 0 and s.module:
+            yield s.module.split('.')[0]
+
+
+@functools.lru_cache(maxsize=None)
+def imported_modules(roots, folders):
+    """The files of `folders` (a tuple) that the files `roots` (a tuple) import, and theirs, found from their import
+    statements (imported_names; a module is the first of `folders` holding <name>.py), as the release finds its
+    modules: a sorted tuple, the roots that lie in `folders` among them. Worked out once a process (a Build is a
+    process of its own; the tests run a hundred Builds in one)."""
+    seen, todo = set(), list(roots)
     while todo:
         path = todo.pop()
-        if path in found:
+        if path in seen:
             continue
-        found.add(path)
-        for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
-            names = ([a.name for a in node.names] if isinstance(node, ast.Import)
-                     else [node.module] if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module else [])
-            todo += [p for p in (HERE / ('%s.py' % n.split('.')[0]) for n in names) if p.is_file()]
-    return [own] + sorted(found - {own})
+        seen.add(path)
+        for name in imported_names(path):
+            todo += [p for p in (f / ('%s.py' % name) for f in folders) if p.is_file()][:1]
+    return tuple(sorted(p for p in seen if p.parent in folders))
+
+
+def editor_modules():
+    """build.py and the modules of tools/editor it imports, and theirs: the compiler, the modules split off it and
+    game_files (imported_modules). The manifest's `tools` names each (with its SHA-256), so a module split off the
+    compiler later is named with no list to keep. build.py first, the rest by name."""
+    own = HERE / 'build.py'
+    return [own] + [p for p in imported_modules((own,), (HERE,)) if p != own]
+
+
+def tool_modules():
+    """The modules of tools/bake and tools/upk that make a package: the tools the Build runs (RUN_TOOLS), what
+    build.py imports of the two folders itself (the seeder, the named copy's growing writer, the map picture's writer,
+    the inline lighting...), and everything they import of the two (imported_modules), sorted. The manifest's
+    `tools` names each with its SHA-256, so a module a tool takes on later is named with no list to keep (a hand list
+    did until 21 November 2026, and left out the shell, the copy tool's makers and the relight's own modules)."""
+    return imported_modules((HERE / 'build.py',) + RUN_TOOLS, (TOOLS / 'bake', TOOLS / 'upk'))
 
 
 def long_paths():
@@ -791,7 +824,7 @@ class Build:
         self.piece_flags = self.piece_blasts = self.flags_edit = self.spawn_edits = self.effects_edit = None
         self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = None
         self.has_lights, self.lights, self.moves_landings = False, None, False
-        self.stream_moves = self.stream_tiles = self.spec = self.copies = self.compiled = None
+        self.stream_moves = self.stream_tiles = self.spec = self.copies = None
         self.untried_dropped = []
         # patch_and_cook: the cooked patch and its seed plan; shell: what the equipped map brought
         self.cooked = self.seed_plan = self.shelled = None
@@ -1048,7 +1081,6 @@ class Build:
         compiler.write_json(self.spec, patch_spec)
         self.copies = self.work / 'native-edit.json'
         compiler.write_json(self.copies, self.native)
-        self.compiled = report['counts']
         # pieces, effects and sounds of other maps (the effects and sounds plan, FX4): the transplant stage's step
         foreign = sum(1 for c in self.natives if c.get('donor')) + sum(
             1 for k in EFFECT_LANES for c in (self.native.get(k) or {}).get('copies') or [] if c.get('donor'))
@@ -1764,14 +1796,9 @@ class Build:
         if self.landing_zones and self.landing_zones.get('own'):
             # Land here on a plain install (Play in game with one zone): the spawn group each own zone's landing is
             lines['ownLandingGroups'] = self.own_landing_groups()
+        # the code that made the package: tools/editor's modules, patchtool, and tools/bake's and tools/upk's
         tools = {str(p.relative_to(TOOLS.parent)).replace('\\', '/'): sha256(p)
-                 for p in (*editor_modules(), PATCHTOOL, RELIGHT,
-                           NATIVE_COPY, NATIVE_LIGHTS, LIGHT_FACTORY, INTRO_COPY, STREAM_COPY, TRANSPLANT,
-                           TOOLS / 'bake' / 'lightmap_writer.py', TOOLS / 'upk' / 'package_grow.py',
-                           TOOLS / 'upk' / 'seed_map.py', TOOLS / 'bake' / 'native_effects.py',
-                           TOOLS / 'bake' / 'native_sounds.py', TOOLS / 'bake' / 'native_flares.py', MAP_FRAME,
-                           INLINE_LIGHTING)
-                 if p.is_file()}
+                 for p in (*editor_modules(), PATCHTOOL, *tool_modules()) if p.is_file()}
         final = self.output / self.variant
         seconds = round(time.monotonic() - self.started)
         times = dict(last_times(final / 'manifest.json', self.doc.get('id')), **{'quick' if self.quick else 'full': seconds})

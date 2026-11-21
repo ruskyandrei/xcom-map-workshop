@@ -1023,6 +1023,25 @@ class Builds(unittest.TestCase):
         for k in named:
             self.assertEqual(m['tools'][k], build.sha256(editor.parents[1] / k))
 
+    def test_the_manifest_names_the_modules_of_the_tools_the_build_runs(self):
+        """The manifest's tools record names the modules of tools/bake and tools/upk found from the imports of the
+        tools the Build runs and of build.py itself (follow-ups 3.5: a hand list left out the shell, the copy tool's
+        makers and the relight's own modules), each with its SHA-256; not a module none of them imports (the lab's
+        deploy fixture)."""
+        m = self.make().run()
+        root = Path(build.__file__).resolve().parents[2]
+        named = set(m['tools'])
+        for module in ('shell', 'cover_blocks', 'buildings', 'native_spawns', 'frac_walls', 'shadowmaps', 'shadows',
+                       'bounce', 'lightmap_encode', 'relight', 'native_copy', 'native_lights', 'light_factory',
+                       'native_effects', 'native_sounds', 'native_flares', 'lightmap_writer', 'intro_copy',
+                       'stream_copy', 'transplant', 'map_frame', 'inline_lighting'):
+            self.assertIn('tools/bake/%s.py' % module, named)
+        for module in ('decomp', 'upkinfo', 'package_grow', 'seed_map', 'seed_tiles'):
+            self.assertIn('tools/upk/%s.py' % module, named)
+        self.assertNotIn('tools/bake/deploy_fixture.py', named)
+        for k in named:
+            self.assertEqual(m['tools'][k], build.sha256(root / k))
+
     def test_an_intro_without_a_landing_for_the_map_is_streamed_as_it_is(self):
         self.landing = False
         m = self.make().run()
