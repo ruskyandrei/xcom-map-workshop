@@ -135,7 +135,7 @@ canvas { display: block; width: 100%; height: 100%; }
 /* The piece list (Add): beside the rail and clear of the dock. */
 #library { left: 66px; top: 12px; width: 330px; max-height: calc(100% - 80px); display: flex; flex-direction: column; padding-top: 8px; box-shadow: 0 8px 24px #0006; }
 .libhead { display: flex; align-items: center; padding: 0 6px 0 14px; }
-/* the look picker's head (library.js setLookMode): what it chooses, the eyedropper and the way back */
+/* the Add panel's head: its title and its close button (the look picker is a panel of its own, look_picker.js) */
 .libhead h3 { flex: 1; margin: 0; color: #9fb0bb; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 .libhead .icon { width: 26px; height: 26px; }
 .libhead .icon .i { width: 15px; height: 15px; }
@@ -947,7 +947,7 @@ canvas { display: block; width: 100%; height: 100%; }
 .prefab-builder #libScope [data-value="map"], .prefab-builder label:has(#libAllElsewhere),
 .prefab-builder label:has(#areaToggle), .prefab-builder #skyRow { display: none !important; }
 .builder-size { position: fixed; bottom: 12px; left: 76px; max-width: 55vw; padding: 7px 12px; font-size: 12px; pointer-events: none; z-index: 5; }
-/* the builder's off-grid warning, over the size (app.js gridWarning) */
+/* the builder's off-grid warning, over the size (builder_session.js gridWarning) */
 .grid-warning { position: fixed; bottom: 96px; left: 76px; max-width: 55vw; display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px;
   font-size: 12px; z-index: 5; border-color: var(--warn, #d9a441); }
 .builder-problems { position: fixed; bottom: 54px; left: 76px; max-width: 55vw; padding: 4px 6px; font-size: 12px; z-index: 6; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }

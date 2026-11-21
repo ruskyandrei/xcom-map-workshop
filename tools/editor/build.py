@@ -28,8 +28,8 @@ path-too-long). Stages, each logged in the build's work folder (<output>/.work/<
    export of its source map (by the project's SHA-256), and the base map from the game install, which must have that
    SHA-256. The server's builds read a snapshot it captured (--saved-file names the project's own file), with the map
    picture the project names beside it (project.picture.png): Build.find_picture.
-2. Compile: tools/editor/compiler.py with --stream-only, split (compiler.native_split): copies of every class the
-   compiler builds (compiler.NATIVE_CLASSES: scenery, props, destructibles, collectibles, fracturing pieces and
+2. Compile: tools/editor/compiler.py with --stream-only, split (native_edit.native_split): copies of every class the
+   compiler builds (native_edit.NATIVE_CLASSES: scenery, props, destructibles, collectibles, fracturing pieces and
    physics props; and every assembly's parts) are
    made in the variant map itself (native-copies.json), and so are their groups that break together, linked in the
    map; hidden pieces are taken out of it. So a project the compiler accepts leaves the patch nothing. What would be

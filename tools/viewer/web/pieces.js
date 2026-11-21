@@ -105,8 +105,8 @@ function drawZoneIcon(canvas) {
   g.beginPath(); g.moveTo(24, 6); g.lineTo(20, 2); g.moveTo(24, 6); g.lineTo(28, 2); g.stroke();
   g.restore();
 }
-// A new spawn point's icon (app.js spawnAddEntries): the Spawns view's marker, an orange ring for a pod, a green dot
-// for a Meld point and a grey box for a no-spawn volume, in its halo
+// A new spawn point's icon (spawns_wiring.js spawnAddEntries): the Spawns view's marker, an orange ring for a pod, a
+// green dot for a Meld point and a grey box for a no-spawn volume, in its halo
 function drawSpawnIcon(canvas, kind) {
   const g = canvas.getContext('2d'), s = canvas.width, colour = { pod: '#ff9f43', noSpawn: '#8a94a6' }[kind] ?? '#20bf6b';
   g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
@@ -182,11 +182,13 @@ function listRow(entry, pixelRatio, choose, { draw = null, sub, detail, tags, ti
 
 // Rows for pieces of This map and recipes in either scope.
 export function pieceRow(entry, pixelRatio, choose) {
-  if (entry.spawnAdd) {     // the Spawn points kind (app.js spawnAddEntries): placed with a click in the Spawns view
+  if (entry.spawnAdd) {     // the Spawn points kind (spawns_wiring.js spawnAddEntries): placed with a click in the
+                            // Spawns view
     return listRow(entry, pixelRatio, choose, { draw: c => drawSpawnIcon(c, entry.spawnAdd), sub: `Spawn points · ${entry.pkg}`,
       detail: entry.detail, title: entry.title, tags: [{ textContent: `×${entry.count}`, title: `${entry.count} on this map` }] });
   }
-  if (entry.zone) {     // the Landing zones kind (app.js zoneEntries): placed with a click, as View options' button does
+  if (entry.zone) {     // the Landing zones kind (zones_wiring.js zoneEntries): placed with a click, as View options'
+                        // button does
     return listRow(entry, pixelRatio, choose, { draw: drawZoneIcon, sub: `Landing zones · ${entry.pkg}`, detail: entry.detail,
       title: entry.title, tags: [{ textContent: `×${entry.count}`,
                                    title: `${entry.count} landing zone${entry.count === 1 ? '' : 's'} on this map now` }] });

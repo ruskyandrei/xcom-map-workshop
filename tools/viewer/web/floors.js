@@ -88,7 +88,7 @@ export function floorStamps(actors, kinds, floors) {
 
 // ---------------------------------------------------------------- the map's tiles and levels
 /** A point's tile [x, y] on a grid { origin: [x, y, z], size: [96, 96, 64], dims } in game axes: for the game's tiles
- *  (the floor under a point), origin is the corner the game counts them from (app.js tileCorner). */
+ *  (the floor under a point), origin is the corner the game counts them from (map_grid.js tileCorner). */
 export const tileOf = (grid, x, y) => [Math.floor((x - grid.origin[0]) / grid.size[0]), Math.floor((y - grid.origin[1]) / grid.size[1])];
 /** The saved floor tiles by "x,y" key, each a list of the tile's floors (one per level). */
 export function floorIndex(floorTiles) {
@@ -185,7 +185,7 @@ export const LISTED_CLASSES = new Set(['XComLevelActor', 'XComOpacityFadeLevelAc
 // The game editor's own rule for which floors of a building list a piece (findings register F-87), as the Build
 // applies it to a project's buildings (tools/bake/buildings.py, audit_buildings.touched and listing).
 // The cursor's floors (the map's cursor volumes, export 20): which floor a height is to the cursor, and so where the
-// mouse wheel stops. A building's storeys should start where they do (compiler.py cursor_storeys is the twin).
+// mouse wheel stops. A building's storeys should start where they do (floor_edits.py cursor_storeys is the twin).
 export const CURSOR_NEAR = 32, CURSOR_STOREY = 192, CURSOR_STOREYS = 4;
 
 /** The cursor's floors of an exported map: [{ floor, box: [x0, y0, z0, x1, y1, z1], made }], or null when the export
@@ -195,7 +195,7 @@ export const CURSOR_NEAR = 32, CURSOR_STOREY = 192, CURSOR_STOREYS = 4;
  *  shell.py grow_cursors leaves them: those reaching the old far X or Y side stretched to the new one, and with more
  *  levels even storeys over the whole grid from the top of its own to the new top. Stair volumes are left out.
  *  The made floors and roofs `slabs` ([{ box: [x0, y0, z0, x1, y1, z1] }]) bring floors of their own over their
- *  footprints (madeStoreys). compiler.py cursor_storeys is the twin. */
+ *  footprints (madeStoreys). floor_edits.py cursor_storeys is the twin. */
 export function cursorStoreys(data, { cleared = false, own: ownDims = null, slabs = null } = {}) {
   if (!(data?.exporterVersion >= 20)) return null;
   const grid = data.tileGrid;
@@ -211,7 +211,7 @@ function cursorStoreysOf(data, cleared, ownDims) {
   const size = grid.size ?? [96, 96, 64];
   if ((own.length || (data.cursorVolumes ?? []).length) && !cleared) {
     // a map as it is on a larger grid (shell.py grow_cursors): `ownDims` is the map's own size, data.tileGrid the
-    // project's (app.js showGrid draws it there)
+    // project's (map_grid.js showGrid draws it there)
     if (!ownDims || ownDims.every((v, k) => v === grid.dimensions[k])) return own;
     const old = [0, 1, 2].map(k => grid.origin[k] + ownDims[k] * size[k]);
     const now = [0, 1, 2].map(k => grid.origin[k] + grid.dimensions[k] * size[k]);
@@ -483,12 +483,12 @@ export function floorsAround(boxes, grid, storey = STOREY_HEIGHT) {
   while (count > 1 && !used.has(count - 1)) count--;
   return stackedFloors(footprint, base, count, storey);
 }
-/** What the compiler warns of in a building (compiler.py Compiler.buildings), as sentences: a box that overlaps a
- *  floor of another building or another floor of its own. (A box reaching outside the tile grid is only a note
- *  there: it covers a place with no tiles, which harms nothing; the user, 14 November 2026.) others: the map's and
- *  the project's other buildings, [{ name, floors: [{ boxes: [{min, max}] }] }]. fresh(floor, box index): whether a
- *  box is changed or new (a map building's boxes as the map has them are not said; default: every box). `grid` is
- *  kept for the callers. */
+/** What the compiler warns of in a building (building_edits.py BuildingEdits.buildings), as sentences: a box that
+ *  overlaps a floor of another building or another floor of its own. (A box reaching outside the tile grid is only a
+ *  note there: it covers a place with no tiles, which harms nothing; the user, 14 November 2026.) others: the map's and
+ *  the project's other buildings, [{ name, floors: [{ boxes: [{min, max}] }] }]. fresh(floor, box index): whether a box
+ *  is changed or new (a map building's boxes as the map has them are not said; default: every box). `grid` is kept for
+ *  the callers. */
 export function buildingProblems(building, grid, others, authored = false, fresh = () => true) {
   const out = new Set();
   const meet = (a, b) => [0, 1, 2].every(j => Math.min(a.max[j], b.max[j]) - Math.max(a.min[j], b.min[j]) > 0.5);

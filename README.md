@@ -105,10 +105,10 @@ the tools read, what it does and what skips without it; these are the ones for r
 | Variable | What it does | Without it |
 | --- | --- | --- |
 | `XCOM_MAP_WORKSHOP_SETTINGS` | Another settings file: every folder at once. | The settings file in Documents. |
-| `XCOM_COOKED` | Another CookedPCConsole folder, for the tests that read the install's packages through `tools/lab/labpaths.py` (most of the bake and upk suites). | The configured install's; those tests skip without one. |
+| `XCOM_COOKED` | Another CookedPCConsole folder, for the tests that read the install's packages through `tools/lab/labpaths.py` (most of the bake and upk suites, and the viewer suite's tests of a map), and the default of each `XCOM_<MAP>_UPK`. | The configured install's; those tests skip without one. |
 | `XCOM_GAME` | Another game folder, for the checks of every map the editor lists and the patch tool's config test. | The configured install; those tests skip without one. |
 | `XCOM_VIEWER_CACHE` | Another viewer cache, for the compiler tests on the export of URB_Bar they pin. | The cache setting's folder; those tests skip without the export. |
-| `XCOM_<MAP>_UPK` (22 of them, `--help` names each with its file) | One package of the install at a path of its own. | The configured install's; the tests that read it skip without the file. |
+| `XCOM_<MAP>_UPK` (22 of them, `--help` names each with its file) | One package of the install at a path of its own. | The file in the folder `XCOM_COOKED` names, or the configured install's; the tests that read it skip without the file. |
 | `XCOM_INSTALL_TESTS` | The checks over every map of the install: `run_tests.py` sets it with `--install`, and when every suite runs. | Those checks skip. |
 | `XCOM_TRANSPLANT_RING` | Set to 1: the transplant oracle over every base map. | That test skips. |
 

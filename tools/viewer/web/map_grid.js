@@ -29,8 +29,9 @@ import { recall, remember } from './storage.js';
 export const gridOrigin = () => data?.tileGrid?.origin?.slice(0, 2) ?? null;
 // The corner the game counts its tiles from (export 26's tileGrid.tiles, its world data's WorldBounds; for an older
 // export a unit under the origin, as on every installed map), [x, y, z]: a point's tile (a ladder's ends, a mission
-// object's, a soldier's spot, the floor under a piece placed) is counted from it, as compiler.py tile_corner has it.
-// Placing (snap, the lines, the grid rule) keeps the origin, the level volume's corner, where the maps' pieces stand.
+// object's, a soldier's spot, the floor under a piece placed) is counted from it, as compiler_tables.py tile_corner has
+// it. Placing (snap, the lines, the grid rule) keeps the origin, the level volume's corner, where the maps' pieces
+// stand.
 export const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v => v - 1) ?? null;
 
 export function createMapGrid({ $, alongLine, boxOf, controls, flashHint, gizmo, groundWords, isMadeSlab,

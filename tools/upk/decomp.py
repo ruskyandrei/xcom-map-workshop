@@ -38,7 +38,8 @@ def read_chunk(b, co):
     blocks' (packed, unpacked) sizes, where the first block starts). Refused (ValueError): another tag, a block size
     of 0, a block table that does not add up to the header's two sizes, and a header or blocks running past the end
     of `b`. The one reader of a chunk header (review finding 52): the map decode here, upkinfo.load's packages
-    compressed whole, and package_edit's writers."""
+    compressed whole, package_edit's writers (package_grow's through them) and texture.decompress_payload's bulk
+    data."""
     if co + 16 > len(b):
         raise ValueError(f'chunk header at {co} cut short')
     tag, bsz, csum, usum = struct.unpack_from('<IIII', b, co)

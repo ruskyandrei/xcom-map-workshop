@@ -40,14 +40,14 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
                                     gltfLoader, groundPanel, HANDLE_PICK, libraryTemplate, movedMatrix, partsOf,
                                     pickables, projector, rayAt, refreshHighlight, renderer, restingHint, sceneChanged,
                                     select, showPop, slabPanel, startWallDraw, track, volumeHint, wallPanel, world }) {
-  // ---- made walls (custom geometry plan, stage M1; walls.js is the pure part). A look's entry in the Add panel draws a
-  // wall: press on the ground at one end, drag along a tile line, release (Shift keeps drawing, Esc stops). The wall is
-  // an added copy of the look's donor (a fracturing wall of the game's, this map's own or brought from its map) that
-  // carries the numbers the Build makes its mesh from. A picked made wall has white handles at its ends (whole tiles)
-  // and blue ones on each opening (its middle slides it, its sides, its top, a window's sill; sides in whole tiles, with
-  // Alt in steps of 8); the piece panel's Wall section adds, lists and removes openings, flips it and reshuffles its
-  // break pattern. Each change is one undo step; the view draws the wall as the Build makes it (generated.py), the last
-  // drawing kept until the next arrives.
+  // ---- made walls (custom geometry plan, stage M1; walls.js is the pure part). The Build menu's Wall draws a wall
+  // (made_drawing.js): press on the ground at one end, drag along a tile line, release (Shift keeps drawing, Esc
+  // stops). The wall is an added copy of the look's donor (a fracturing wall of the game's, this map's own or brought
+  // from its map) that carries the numbers the Build makes its mesh from. A picked made wall has white handles at its
+  // ends (whole tiles) and blue ones on each opening (its middle slides it, its sides, its top, a window's sill; in the
+  // snap setting's steps, OPENING_STEPS, with Alt in steps of 8); the piece panel's Wall section adds, lists and
+  // removes openings, flips it and reshuffles its break pattern. Each change is one undo step; the view draws the wall
+  // as the Build makes it (generated.py), the last drawing kept until the next arrives.
   const isMadeWall = o => o?.added?.generated?.kind === 'fracWall';
   const madeWallRoot = id => { const r = roots.get(id); return r && isMadeWall(r.userData.source) ? r : null; };
   // floor and roof slabs (custom geometry plan, M5): drawn by dragging a rectangle (the floor under the start, an upper

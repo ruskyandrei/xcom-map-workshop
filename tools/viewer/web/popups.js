@@ -1,7 +1,7 @@
 // The header's menus (refactor stage P9): the Project, Map and Game menus, Settings, the import notes, View options and
 // the help, each opened by its button (data-pop), one at a time, a press elsewhere (or Escape, the keys) closing it
-// (showPop). Opening the Project menu draws it afresh (app.js's renderProjectMenu), the Game menu the test squad's line
-// and the installs (build_play.js).
+// (showPop). Opening the Project menu draws it afresh (project_menu.js renderProjectMenu), the Game menu the test
+// squad's line and the installs (build_play.js).
 //
 // createPopups takes what it needs of app.js as one argument object, when app.js makes it, before the first area that
 // is given showPop: its buttons' handlers and the press that closes a menu are set then (the Map menu's button is given

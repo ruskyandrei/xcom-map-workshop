@@ -46,7 +46,7 @@ assert.ok(!validStage({ grid: [20, 30, 31] }));
 assert.deepEqual(stageMax(), [256, 256, 30]);
 assert.ok(validStage({ grid: [256, 256] }) && !validStage({ grid: [257, 39] }));
 assert.ok(validStage({ grid: [45, 256] }, [45, 203, 15]) && !validStage({ grid: [45, 257] }, [45, 203, 15]));   // TempleShip
-// a map past the limits at its own size keeps its own as its limit on that axis (stageMax, compiler.py stage_max's
+// a map past the limits at its own size keeps its own as its limit on that axis (stageMax, mission_edits.py stage_max's
 // twin; T-41: TempleShip, 45 by 203 by 15, snapped back while the limit was 128), and the project keeps it. A
 // stand-in map 45 by 300 by 15 keeps the case.
 const past = [45, 300, 15];
@@ -85,7 +85,8 @@ assert.deepEqual(ownSlots([{}, {}], 1), [0]);
 assert.ok(validLandingZone({ ...zone, ew: true }) && !validLandingZone({ ...zone, ew: false }));
 assert.deepEqual(tidyLandingZone({ ...zone, ew: true }), { ...zone, ew: true });
 
-// The cursor's floors on a grown grid (floors.js cursorStoreys, compiler.py cursor_storeys' twin; shell.py grow_cursors)
+// The cursor's floors on a grown grid (floors.js cursorStoreys, floor_edits.py cursor_storeys' twin; shell.py
+// grow_cursors)
 const { cursorStoreys } = await import('../web/floors.js');
 const map = { exporterVersion: 22, tileGrid: { origin: [0, 0, 0], dimensions: [60, 45, 18], size: [96, 96, 64] },
               cursorVolumes: [{ floor: 1, box: { min: [-10, -10, 0], max: [52 * 96 + 5, 39 * 96, 192] } },

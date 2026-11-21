@@ -957,10 +957,10 @@ ZOOM_STATE = """p => { const c = viewer.camera, t = viewer.controls.target, v = 
 
 
 def check_zoom(page):
-    """The wheel zooms towards what is under the cursor (app.js wheelZoom), all the way in: framed on the whole map, a
-    piece off to the side, far from the orbit target, is zoomed to from 40 notches until the camera is a few units
-    from it, the point staying under the cursor; OrbitControls' own zoom stalled at the target's distance. Zoomed back
-    out as far, the camera returns to about where it was."""
+    """The wheel zooms towards what is under the cursor (navigation.js wheelZoom), all the way in: framed on the whole
+    map, a piece off to the side, far from the orbit target, is zoomed to from 40 notches until the camera is a few
+    units from it, the point staying under the cursor; OrbitControls' own zoom stalled at the target's distance. Zoomed
+    back out as far, the camera returns to about where it was."""
     page.evaluate('viewer.select(null); viewer.frame()')
     settled(page, CAMERA)
     box = page.locator('#viewport > canvas').bounding_box()

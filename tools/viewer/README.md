@@ -381,7 +381,7 @@ Projects). Nothing is built into the game yet.
   cursor with the snaps of any drag, a drawn-only stand-in keeps its place, and on release the selection is back where
   it was and the copy is pasted where it was dragged to (one undo step, the copy selected). Escape, or a drag that
   went nowhere, makes no copy. In the Buildings view Shift is a plain move. The gizmo's `copyDrag` option
-  ([gizmo.js](web/gizmo.js)); `copyDragBegin` and `copyDragEnd` in [app.js](web/app.js).
+  ([gizmo.js](web/gizmo.js)); `copyDragBegin` and `copyDragEnd` in [clipboard.js](web/clipboard.js).
 - **Copy** (Ctrl+C) takes the selection as it is now, linked pieces included; **Cut** (Ctrl+X) copies and deletes.
   **Paste** (Ctrl+V) shows the copy as a see-through preview that follows the cursor, as the piece list does, with
   the gizmo hidden meanwhile. A click (or Ctrl+V again) adds the new pieces with the copied piece's pivot on the point
@@ -576,19 +576,19 @@ The plan; the guide's "Clear map and landing zones".
     - A map as it is, the blank map included, only grows, across and up (since 13 November any map, where the
       compiler refused all but the blank map before).
     - Each axis goes up to 256 tiles or 30 levels, or the map's own where that is more (`project.js stageMax`,
-      `compiler.py stage_max`). The limit was 128 until 16 November, and TempleShip (45 by 203) snapped back
+      `mission_edits.py stage_max`). The limit was 128 until 16 November, and TempleShip (45 by 203) snapped back
       (T-41); no map of the game's is past 256.
     - On a map that keeps its own cursor volumes, the Build's `shell.py grow_cursors` stretches those that reach the
       old far X or Y side to the new one, and with more levels clones the topmost plain one into even storeys of 192
       over the whole grid, from the top of its own up to the new top. `floors.js cursorStoreys` (given the map's own
-      size; `storeysNow` in app.js) and `compiler.py cursor_storeys` draw and check the same storeys.
+      size; `storeysNow` in map_grid.js) and `floor_edits.py cursor_storeys` draw and check the same storeys.
     - A cleared map goes from 1 tile or level up to the same limits.
   - Each drag is one undo step (`commitStage`). The panel gives the size, the notes (`sizeNotes`, the ground's level
     on a cleared map), **Lay the map's ground over the new area** (`stage.ground`, on a map as it is), **The map's
     own size** and Done (Esc).
   - The Build's shell stage lays more of the map's ground where it is laid as planes (Bar: 6 planes for 60 by 45,
     built in 8 s). Elsewhere the new area is open air for the project's floors.
-  - **The map's own scenery in the new area is made walkable** (F-100; `shell.py walk_scenery`,
+  - **The map's own scenery in the new area is made walkable** (F-100; `shell.py scenery_to_walk`,
     `native_copy.make_walkable`). The ground planes and pavements a map is seen against beyond its play area save
     their collision off (`bCollideActors`, `bPathColliding`, the mesh's `CollideActors` and `BlockRigidBody`), so
     the battle finds no floor on them. The shell stage (`scenery_to_walk`) takes each level actor that meets all
@@ -1332,11 +1332,37 @@ serving the project's projects folder:
 python tools/viewer/mark_shots.py "<experiment folder>\EXP-nn-shots.json" --server http://127.0.0.1:8790/
 ```
 
-Optional development-only browser smoke test (requires Playwright's Python package and installed Microsoft Edge):
+The browser checks (they need Playwright's Python package and an installed Microsoft Edge) open the page against a
+test server, never the main one; `--only <checks>` runs some of them by name, from the table `--help` lists:
 
 ```powershell
-python tools/viewer/tests/browser_smoke.py --screenshot "<a checks folder>\viewer.png"
+python tools/viewer/tests/browser_smoke.py --url http://127.0.0.1:8790/?map=URB_Bar --screenshot "<a checks folder>\viewer.png"
 ```
+
+A change to the page runs, besides `python -B tools/run_tests.py node`:
+
+```powershell
+python -B tools/viewer/tests/web_names.py
+python tools/viewer/tests/browser_smoke.py --all --scratch "<scratch>"
+```
+
+- [web_names.py](tests/web_names.py) finds a name in the page's modules that is neither declared, imported nor a
+  known global, and an import nothing uses, without running a line: a move that leaves a name behind throws only
+  when its line runs. It prints each as `file:line: name` and exits 1. ESLint is installed by npm into
+  `.scratch/eslint` (which Git ignores) on the first run, which needs the network; its known globals and exceptions,
+  each with its reason, are in `web_names.config.mjs`. `run_tests.py` does not run it.
+- `--all` runs every check of the table, those run only when named included, in ten runs (`ALL_RUNS`), each on a
+  fresh test server of its own with scratch projects, builds, squad and settings and `--dry-play`, stopped after its
+  run. The servers take ports 8795 to 8798 in turn; `--ports a,b,c,d` gives others in 8790-8799 (two whole runs at
+  once from two worktrees), and a port already taken stops it. `--scratch` is the folder for the servers' folders
+  and the report, `all.json` (default: a new temporary folder). `--cache` names a scratch cache holding exports of
+  URB_Bar, URB_PoliceStation, TempleShip and CB2_MP_Blank with the library scanned; without it `--all` makes one in
+  the scratch folder from the settings' game install (about half a minute a map), never the user's cache.
+  `--play-install` is the Play run's scratch game folder (below).
+- The `api-names` check, in the whole run and so in `--all`, compares `window.viewer`'s names (the test hooks) on the
+  Bar, the blank map and in the builder with [viewer_api_names.json](tests/viewer_api_names.json) and names each one
+  missing or added ([api_names.py](tests/api_names.py)). A hook added or taken out on purpose goes into the file in
+  the same commit: `browser_smoke.py --url http://127.0.0.1:8790/ --write-api-names` writes it from a test server.
 
 `--projects` adds the projects check. It saves projects, so run it only against a test server started with
 `serve --projects <scratch folder>`, never the main one, and give each run an empty folder (its saves would find the
@@ -1354,9 +1380,10 @@ last run's projects). It covers:
 `--play-project <id>` that project's build installed and played (its build must be of its saved revision, so nothing
 builds: Build's panel is answered with its default there, Play last build), then removed. It changes the server's
 install and would start the game, so it refuses any server not started with `serve --install <scratch game folder>
---dry-play`. `browser_smoke.py --all --play-install <scratch game folder>` runs it on a server of its own the same way
-(without `--play-install`, `--all` skips Play). The scratch game folder holds copies of an LWR install's files at the
-same places:
+--dry-play`. `browser_smoke.py --all --play-install <scratch game folder>` runs it on a server of its own the same way;
+without `--play-install`, `--all` copies those files from the settings' game install (only read) into its scratch
+folder when they come to less than 300 MB, and skips Play otherwise. The scratch game folder holds copies of an LWR
+install's files at the same places:
 
 - `XEW\XComGame\Config\Default*.ini` (`DefaultMaps.ini` and `DefaultLZMutator.ini` take the play's record; the test
   squad reads `DefaultGameCore.ini` and `DefaultEngine.ini`);

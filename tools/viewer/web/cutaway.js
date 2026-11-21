@@ -11,8 +11,8 @@
 // group, the cut materials and the patch helpers' wireframe, the gizmo, the pieces' listings, the buildings, the
 // landing a moved zone takes along, box select's box, picking, the floor buttons and the hints. Its own state is inside
 // it (the actors shown and their ceilings, the tiles' owners, what it last followed); the tile grid's key and the
-// overlay's layer (tileKey, floorTileLayer: app.js's View options, draw loop and test hooks read or set them) are
-// editor_state.js's. After an edit it follows the pieces through the edit hub (edit_hub.js).
+// overlay's layer (tileKey, floorTileLayer: app.js's View options and draw loop and the test hooks, test_api.js, read
+// or set them) are editor_state.js's. After an edit it follows the pieces through the edit hub (edit_hub.js).
 import * as THREE from 'three';
 import { TILE } from './constants.js';
 import { onHub, STOP } from './edit_hub.js';

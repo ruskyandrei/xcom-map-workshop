@@ -241,8 +241,8 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
   // The ladder's ends where the selected ladder stands now (ladders.js against the export's original floor tiles and the
   // floor the project's own flat pieces are expected to give, as the compiler counts it), or null. `newFloor` says an
   // end has floor only by a piece of the project. The floor is counted as the compiler's ladder check counts it
-  // (compiler.py added_floors, ladder_ends; review finding 34): a piece whose flags make it no floor gives none, and the
-  // tiles of the map's own pieces made no floor, moved or deleted are taken out (compiler floor_now);
+  // (floor_edits.py added_floors, ladder_ends; review finding 34): a piece whose flags make it no floor gives none, and
+  // the tiles of the map's own pieces made no floor, moved or deleted are taken out (floor_edits.py floor_now);
   // one of the map's own pieces made floor where it stands gives floor; a grown grid's new levels count.
   let floorSet = null, ladderChip = null, gridChip = null;
   function ladderNow(root) {

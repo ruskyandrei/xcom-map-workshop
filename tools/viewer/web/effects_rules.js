@@ -139,7 +139,7 @@ export function recordLines(r, data) {
 }
 
 // ---------------------------------------------------------------- values (the effects and sounds plan, stage FX5)
-// What a value may be, as the compiler checks it (compiler.py EFFECT_SCALE, SOUND_RADIUS_MAX, SOUND_VOLUME_MAX,
+// What a value may be, as the compiler checks it (effect_edits.py EFFECT_SCALE, SOUND_RADIUS_MAX, SOUND_VOLUME_MAX,
 // SOUND_PITCH, PARAMETER_MAX)
 export const VALUE_LIMITS = { scale: [1 / 64, 64], radius: [0, 65536], volume: [0, 16], pitch: [1 / 16, 16], parameter: 1e6 };
 const PARAMETER_TYPES = { PSPT_Scalar: 'scalar', PSPT_Vector: 'vector', PSPT_Color: 'colour' };

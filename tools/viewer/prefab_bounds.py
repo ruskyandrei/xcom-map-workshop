@@ -17,8 +17,8 @@ import numpy as np
 from export_math import transform, view_matrix
 from projects import ProjectError
 
-# MAX_TILES: the largest map the editor makes (compiler.py STAGE_GRID_MAX: 256 tiles a side since 16 November 2026,
-# 128 before)
+# MAX_TILES: the largest map the editor makes (mission_edits.py STAGE_GRID_MAX: 256 tiles a side since 16 November
+# 2026, 128 before)
 TILE, MAX_TILES, SLACK = 96, 256, 0.5
 # Heights (prefab plan 5.6b; 30 levels since 14 November 2026): the grid is 30 levels of 64 from the prefab's ground
 # (the game's own maps go to 18, PLAYED_LEVELS: the test stage's least height), and anything may stick out 192 units

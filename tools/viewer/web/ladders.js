@@ -4,8 +4,8 @@
 // gets the down link. The compiler warns of a ladder copy that fails (ladder-climb); the inspector marks both ends.
 // (exported for tests/twin_constants_test.mjs, which holds them to tests/twin_constants.json as ladders.py's)
 export const TOP_REACH = 76, FOOT_BACK = 16, END_LIFT = 8, TURN = 65536;
-// A flat piece the project adds is expected to give floor, as the compiler has it (compiler.py added_floors; EXP-45):
-// no more than FLOOR_THICK high, with HEADROOM clear over a tile (F-71).
+// A flat piece the project adds is expected to give floor, as the compiler has it (floor_edits.py added_floors;
+// EXP-45): no more than FLOOR_THICK high, with HEADROOM clear over a tile (F-71).
 export const FLOOR_THICK = 40, HEADROOM = 150;
 
 /** The floor the project's own pieces are expected to give: a Set of 'x,y,z' tiles. `boxes`: the world boxes
@@ -38,7 +38,7 @@ function ladderPoints(location, rotation, extentZ) {
 export const tileOf = (point, origin, size = [96, 96, 64]) => point.map((v, k) => Math.floor((v - origin[k]) / size[k]));
 
 /** The ends against `floors` (a Set of 'x,y,z' tiles with floor), their tiles counted from `origin`, the corner the
- *  game counts its tiles from (app.js tileCorner): { top, foot, topTile, footTile, linkedTop (or null), footFloor,
+ *  game counts its tiles from (map_grid.js tileCorner): { top, foot, topTile, footTile, linkedTop (or null), footFloor,
  *  climbs, why }. */
 export function ladderEnds(location, rotation, extentZ, origin, floors) {
   const { top, foot } = ladderPoints(location, rotation, extentZ);

@@ -431,7 +431,7 @@ def schedule(walls, workers):
 def second_maps(relit):
     """{(piece, shadow map)} of the relight record `relit`'s fresh shadow maps where a piece lists more than one of
     one light: all but the last listed (the record lists them in the piece's own order, and a made piece's own map
-    was added after the donor's it kept: frac_walls.add_shadow_ref)."""
+    was added after the donor's it kept: frac_walls.set_shadow_refs)."""
     by = collections.defaultdict(list)
     for s in relit.get('shadowMaps') or []:
         if s.get('fresh'):

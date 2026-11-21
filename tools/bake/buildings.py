@@ -22,8 +22,8 @@ bCutoutMask on its main mesh component is listed on the lowest of them only, wit
 other piece on each. A piece's box is its main mesh's, at its pose, and comes within SLACK units of a box to touch it
 (the game goes by collision, a little larger than the mesh); a piece that collides with nothing touches no floor (rule).
 `pieces` are the candidates: the map's own placed pieces that are not hidden, and the copies. The compiler supplies a
-`carry` by copy label for the copies whose source building a building comes from (compiler.source_floor_match): such a
-copy keeps what its map saved, the map's hand-made inclusion and exclusion lists with it, where the rule agrees
+`carry` by copy label for the copies whose source building a building comes from (building_edits.source_floor_match):
+such a copy keeps what its map saved, the map's hand-made inclusion and exclusion lists with it, where the rule agrees
 (carried; members).
 """
 import struct
@@ -39,7 +39,8 @@ import props as legacy_props  # noqa: E402
 
 PL = native_copy.PL
 SLACK = 2.0
-# a box of a map building is unchanged when every coordinate is within this of its volume's (compiler.BUILDING_SAME)
+# a box of a map building is unchanged when every coordinate is within this of its volume's
+# (building_edits.BUILDING_SAME)
 SAME = 0.01
 # the classes the game's buildings list (F-86); a StaticMeshActor has no floor component and never hides
 LISTED = ('XComLevelActor', 'XComOpacityFadeLevelActor', 'XComDestructibleActor', 'XComFracLevelActor', 'XComDecoFracLevelActor',

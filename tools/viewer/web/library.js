@@ -7,8 +7,8 @@
 // they are the same in every browser; the panel's own view choices stay in this browser.
 // The base maps' effects and ambient sounds are listed too (the effects and sounds plan, Part E, stage FX4): a row
 // with the Effects view's spark or speaker for its picture, sorted into the panel's effect and sound kinds; placing
-// one is app.js's (an effect's template, /library/effect.json). Their lens flares too (stage FX6b): a row with the
-// view's star.
+// one is clipboard.js's (chooseLibraryEffect, with library_templates.js's effectTemplate: /library/effect.json). Their
+// lens flares too (stage FX6b): a row with the view's star.
 // (The look picker, which was a mode of this list, is a panel of its own: look_picker.js.)
 
 import { pieceKind, inKind, setKindOptions, effectKind, SOFT } from './piece_categories.js';
@@ -48,10 +48,10 @@ const pictureKey = entry => (entry.effect ? hex16(`${entry.key}|likeness${PICTUR
 /**
  * els: box (the scope's part of the panel), scan (the scan offer), filter, kind, home, sort, placeable, elsewhere,
  * favourites (checkboxes), list, foot.
- * mapName(): the open map's package; pixelRatio(); template(source): a promise of what draws the piece (app.js
- * libraryTemplate); paint(template, canvas): draw it into a row's canvas, called while a frame is drawn;
- * recipesForScene(): the map's or builder's light and cover rows; paintRecipe(entry, canvas): draw a cover thumbnail;
- * onChoose(entry or null); onChooseRecipe(entry or null); hint(message).
+ * mapName(): the open map's package; pixelRatio(); template(source): a promise of what draws the piece
+ * (library_templates.js libraryTemplate); paint(template, canvas): draw it into a row's canvas, called while a frame is
+ * drawn; recipesForScene(): the map's or builder's light and cover rows; paintRecipe(entry, canvas): draw a cover
+ * thumbnail; onChoose(entry or null); onChooseRecipe(entry or null); hint(message).
  */
 export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint, recipesForScene, paintRecipe,
                                        onChoose, onChooseRecipe, hint, recall, remember, effectPicture = null, paintObject = null, onHover = null }) {

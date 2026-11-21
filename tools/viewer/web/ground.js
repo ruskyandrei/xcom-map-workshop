@@ -129,7 +129,7 @@ export const resetRock = g => { const { points: _, ...rest } = g; return rest; }
 // ---- a rock's moved points (look picker and rock points plan, R1)
 /** A rock's points (ground.py ROCK_POINTS: rings of 7, 8, 6 and 3), the first `ring` its ground ring, on the ground. */
 export const ROCK = { points: 24, ring: 7 };
-/** The request version of a rock with moved points, whatever its look (tools/editor/compiler.py POINTS_VERSION). */
+/** The request version of a rock with moved points, whatever its look (tools/editor/made_edits.py POINTS_VERSION). */
 export const POINTS_VERSION = 4;
 const PLAIN_GROUND = 3, DONOR_GROUND = 2;
 /** Whether a rock's moved points are ones it can be made of (ground.py check_points): ROCK.points of [x, y, z], each

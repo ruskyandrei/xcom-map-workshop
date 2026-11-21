@@ -6,7 +6,7 @@
 //
 // createPrepare takes what it needs of app.js as one argument object, when app.js makes it: the banner, the map's
 // label and the popups. Its own state is inside it (whether a prepare is under way); the export's problem
-// (exportProblem: app.js's scene start sets it) is editor_state.js's.
+// (exportProblem: prepareOpened sets it as the map opens) is editor_state.js's.
 import { call } from './api.js';
 import { activeMapId, data, exportProblem, setExportProblem } from './editor_state.js';
 import { recallSession, rememberSession } from './storage.js';

@@ -63,9 +63,9 @@ export const validPicture = p => Boolean(p) && typeof p === 'object' && !Array.i
 // The project's spawn rules (spawns plan, SP8): null (the install's behaviour) or { dropIns: 'placed' } (Long War's
 // scripted drop-ins land where placed: the Build excludes the variant from its drop-in mutator). Nothing else is read.
 export const validSpawnRules = r => r && typeof r === 'object' && !Array.isArray(r) && Object.keys(r).length === 1 && r.dropIns === 'placed';
-// A building the Build makes from nothing (prefab plan 5.1; compiler.py Compiler.buildings): { id, name, kind:
-// 'building' | 'ufo', floors: [{ boxes: [[x0, y0, z0, x1, y1, z1]] }] }, floor 0 first, game units, unturned. Which
-// pieces each floor lists is not saved: the Build works it out from where the pieces stand.
+// A building the Build makes from nothing (prefab plan 5.1; building_edits.py BuildingEdits.buildings): { id, name,
+// kind: 'building' | 'ufo', floors: [{ boxes: [[x0, y0, z0, x1, y1, z1]] }] }, floor 0 first, game units, unturned.
+// Which pieces each floor lists is not saved: the Build works it out from where the pieces stand.
 // One of the map's own buildings that the project changed (map buildings plan, section 2) has `replaces`, the map's
 // building volume as a piece's target ({ package, level: 'base', actor: its path }), and its id is mapBuildingId's;
 // each floor then has `volumes` beside `boxes`, as long: the floor volume (its short name) each box came from, null
@@ -105,7 +105,7 @@ export const tidyBuilding = b => (b.deleted ? { id: b.id, ...(b.name ? { name: b
 // (256 tiles a side since 16 November 2026, at the user's word; 128 before)
 export const STAGE_GRID_MAX = 256, STAGE_LEVELS_MAX = 30;
 // The maps whose size can be set without clearing them: the bare map a new prefab or a new map starts from
-// (compiler.py STAGE_MAPS). Any map as it is may grow (13 November 2026); a cleared one may also shrink.
+// (compiler_tables.py STAGE_MAPS). Any map as it is may grow (13 November 2026); a cleared one may also shrink.
 export const STAGE_MAPS = ['CB2_MP_Blank'];
 // The landing zones the project sets (Clear map plan, section 4): the whole list, in order, written as LWR's LZArray
 // lines and, for the first zones that name no mission, as the map's own landings moved in place. Each is { id,
