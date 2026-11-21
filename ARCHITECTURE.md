@@ -224,6 +224,17 @@ with the view's clicks and keys held meanwhile), a long loop giving way and many
 [`busy.js`](tools/viewer/web/busy.js)'s.
 app.js's `open` starts the page: the map list read, the first run's install asked for, the map browser made, the map
 the address asks for opened (or the browser shown on it, to prepare it), and `startScene`.
+app.js itself holds only what joins the modules: the imports; the renderer, the camera and its controls, the world's
+layers and the gizmo; each module's factory made, in the order the page sets things up, given the others' functions; the
+dialogs made with their elements (the first run's setup, the file dialog, the project manager, Game maps, Cache
+everything) and the build queue's controller, given its calls to the server (`queueCall`); `open` and `startScene`; and
+the event wiring (the panels' field handlers, the pointer handlers, the draw loop). Beside them it keeps a few helpers
+that join the page's own objects to the modules: the sun's shadows asked again (`touchShadows`), the edit event's memo
+around the hub's edit run (`editChanged`, the gizmo's `onEdit`), the hub's `scene` run with the state a scene change
+sets (`sceneChanged`), the view taken without the editor's helpers for the Map picture (`grabView`, which reads the
+Effects view's likeness layer, made further down) and the made pieces' looks read as the page loads (`readLooks`, whose
+failure is told by the document session's banner, made after it); and only the state its own wiring reads (section 3,
+"The page").
 `window.viewer`, the set of hooks the browser checks drive, is made by [`test_api.js`](tools/viewer/web/test_api.js)
 (`createTestApi`) and set by `startScene` once the scene has opened.
 
@@ -560,7 +571,9 @@ where there is one.
   call: `lineCollision ??= new Map()` is `lineCollision ?? setLineCollision(new Map())`, which sets it only when it is
   null, as before.
 
-  app.js still declares the state of the areas not yet moved out of it; new state never goes there. An assignment to
+  app.js declares only the state its own wiring reads: the sun's shadows' timer, the draw loop's clocks, the press
+  the pointer handlers share (`pointerStart`) and the Map lighting mode's `applyLighting`, which `startScene` sets; new
+  state never goes there. An assignment to
   an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
   searches for any assignment to the moved names left behind.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
@@ -777,8 +790,9 @@ app.js's counts of `let`s and top-level functions; the two numbers are `guidelin
 - functions only in what the release ships (the modules and page files `tools/release/make_release.py` lists), and
   files among every tracked Python file and page module.
 
-The largest today are what the refactor is taking apart: app.js (every area of the page was added to it before the
-page had modules), the compiler, the copy tool's `build`, and the browser checks in one file.
+The largest today are what the refactor is taking apart: the compiler, the copy tool's `build`, and the browser checks
+in one file. app.js, which every area of the page was added to before the page had modules, is no longer among them:
+the areas have left it for modules of their own.
 
 ### What the structure test holds
 
