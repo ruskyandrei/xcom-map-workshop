@@ -37,6 +37,15 @@ tools/bake/looks/slabs.json or measured on the donor: tools/bake/looks.py resolv
               interior density, as a wall's (frac_wall.interior_face)
   heights     bottom and top as measured (a pitched or thick roof's plate made flat: D13)
 
+The free form (custom geometry improvements plan, section 10.2): numbers holding `free: 1` (free_form.py) are any
+finite footprint x0 < x1, y0 < y1 (a part of a tile, off the tile edges), the plate's underside and top z0 < z1, holes
+anywhere inside it, a look as above (`plain` and `mapping` taken and not read: the editor's mark and stage 4's), seed,
+and a split piece's `whole` (slab_cells' words). Their fragments, cut cells and hashed patterns on a lattice counted
+from the frame's origin, and their collision are slab_cells.py's; the faces are made as above from the fragments'
+convex polygons (a fragment may have several), with each face's texture coordinates held near 0 in whole repeats
+(free_form.held). One piece is at most CHUNK tiles each way: made_split cuts a larger slab first. Old numbers never
+hold `free`, and build as they always did.
+
 build(slab, template) gives frac_wall.build's form: dict(mesh, fragments (their boxes), solids, lightmapRect, counts)."""
 import hashlib
 import json
@@ -45,10 +54,16 @@ from pathlib import Path
 import random
 
 import frac_wall
+import free_form
+from free_form import NumbersError
+import slab_cells
 
 LOOKS_FILE = Path(__file__).resolve().parent / 'slab_looks.json'
 DEFAULT_LOOK = 'roof'
 MAX_TILES = 16
+# a free piece's most along each axis, in its look's tiles: the splitter's chunk and a tail of up to a tile it may keep
+# on the last piece rather than make a sliver of its own
+CHUNK = MAX_TILES + 1
 EPS = 1e-4
 
 
@@ -78,9 +93,39 @@ def look_of(slab):
     return LOOKS[name]['recipe']
 
 
+def free(slab):
+    """Whether the slab's numbers are in the free form (free_form.is_free)."""
+    return free_form.is_free(slab)
+
+
+def free_layout(slab):
+    """A free slab's numbers checked and laid out (slab_cells.FreeSlab), at most CHUNK of its look's tiles each way
+    (NumbersError 'chunk' past that: made_split cuts a larger slab into pieces first)."""
+    R = look_of(slab)
+    layout = slab_cells.FreeSlab(slab, R)
+    most = CHUNK * float(R['tile'])
+    w, h = layout.x1 - layout.x0, layout.y1 - layout.y0
+    if w > most + EPS or h > most + EPS:
+        raise NumbersError('chunk', 'one piece of a slab is at most %g units each way (%d of its look\'s tiles; a larger '
+                           'slab is cut into pieces first): it has %g by %g' % (most, CHUNK, w, h))
+    return layout
+
+
+def check_free(slab):
+    """Free numbers checked (the free form's request: a NumbersError, a ValueError with its code and reason, for
+    numbers without `free: 1` too): their box [x0, x1, y0, y1, z0, z1]."""
+    if not free(slab):
+        raise NumbersError('free', "a slab of the free form's request holds free: 1 (it has %r)"
+                           % (sorted(slab) if isinstance(slab, dict) else slab,))
+    return free_layout(slab).box
+
+
 def check(slab):
     """The slab's numbers checked (ValueError): a footprint of whole tiles, 1 to MAX_TILES each way; holes of whole
-    tiles inside it, leaving some of it; a whole seed; a listed look. Returns its tiles (nx, ny)."""
+    tiles inside it, leaving some of it; a whole seed; a listed look. Returns its tiles (nx, ny). Free numbers are
+    checked by check_free, and give their box [x0, x1, y0, y1, z0, z1]."""
+    if free(slab):
+        return check_free(slab)
     R = look_of(slab)
     t = R['tile']
     if not isinstance(slab, dict) or not all(isinstance(slab.get(k), (int, float)) for k in ('x0', 'x1', 'y0', 'y1')):
@@ -106,7 +151,10 @@ def check(slab):
 
 
 def tiles(slab):
-    """The slab's solid tiles: {(i, j)} counted from its (x0, y0) corner, the holes' left out."""
+    """The slab's solid tiles: {(i, j)} counted from its (x0, y0) corner, the holes' left out (old numbers: a free
+    slab has cells, slab_cells.FreeSlab.cells)."""
+    if free(slab):
+        raise ValueError('a free slab has no whole tiles to count: its cells are slab_cells.FreeSlab.cells')
     R = look_of(slab)
     return _solid(slab, R['tile'], *check(slab))
 
@@ -126,7 +174,10 @@ def fragments(slab):
     """The fragments' outlines: [[(x, y)] anticlockwise], from the seed: tiles in a shuffled order, each still free
     becomes two halves cut on a diagonal (the look's `split` share), or one of two tiles side by side with a free
     neighbour (its `long` share), else a whole tile. Every outline carries a corner at each tile corner on its sides, so
-    neighbours' edges meet exactly."""
+    neighbours' edges meet exactly. A free slab's are slab_cells.FreeSlab.fragments': [[convex polygon, ...]], a
+    fragment of one or more polygons."""
+    if free(slab):
+        return free_layout(slab).fragments()
     R = look_of(slab)
     t = R['tile']
     solid = tiles(slab)
@@ -173,7 +224,10 @@ def _key(p):
 
 def solids(slab):
     """The collision boxes [(lo, hi)]: the footprint cut into strips at the holes' x sides, each strip's runs clear of
-    holes one box, neighbouring strips with the same runs joined; between the look's collision heights."""
+    holes one box, neighbouring strips with the same runs joined; between the look's collision heights (a free slab's
+    moved with its plate: slab_cells.FreeSlab.solids)."""
+    if free(slab):
+        return free_layout(slab).solids()
     R = look_of(slab)
     z0, z1 = R['collision']
     holes = slab.get('holes') or []
@@ -249,10 +303,12 @@ def build(slab, template=None):
     """The mesh of `slab` (gen_mesh's form) on the donor's decoded mesh `template` (default_template() when None), with
     dict(fragments, solids, lightmapRect, counts)."""
     R = look_of(slab)
-    check(slab)
+    layout = free_layout(slab) if free(slab) else None
+    if layout is None:
+        check(slab)
     template = two_channels(template or default_template())
     paint = Paint(template)
-    zb, zt = R['bottom'], R['top']
+    zb, zt = (layout.z0, layout.z1) if layout else (R['bottom'], R['top'])
     top_slot, under_slot = R['slots']['top'], R['slots']['underside']
     measured = 'uv' in R
     if measured:
@@ -272,16 +328,23 @@ def build(slab, template=None):
     ux, uy = (float(whole[0]), float(whole[1])) if whole else (0.0, 0.0)
     mid = ((float(whole[2]) / 2 - ux, float(whole[3]) / 2 - uy) if whole
            else ((slab['x0'] + slab['x1']) / 2, (slab['y0'] + slab['y1']) / 2))
+    if layout:
+        # (a free piece reads its maps at its places in the whole slab's frame: slab_cells.origin)
+        ux, uy = layout.origin
     shift = (centre[0] - mid[0], centre[1] - mid[1]) if centre else (ux, uy)
     default = bytes.fromhex(R['colours']['outside'])
-    outlines = fragments(slab)
+    # each fragment's polygons: an old slab's one outline each, a free one's convex polygons
+    outlines = layout.fragments() if layout else [[poly] for poly in fragments(slab)]
+    # (a free face's texture coordinates held near 0 in whole repeats, as the half floats they are written in keep them)
+    held = free_form.held if layout else (lambda uv, what: uv)
     # every edge's owners: an edge two fragments share is inside (no face: the game's slabs have none, but for a look
-    # whose donor draws them), else outside
+    # whose donor draws them), one two of a fragment's own polygons share is inside it (nothing), else outside
     owners = {}
-    for f, poly in enumerate(outlines):
-        for k in range(len(poly)):
-            a, b = _key(poly[k]), _key(poly[(k + 1) % len(poly)])
-            owners.setdefault(frozenset((a, b)), []).append(f)
+    for f, polys in enumerate(outlines):
+        for poly in polys:
+            for k in range(len(poly)):
+                a, b = _key(poly[k]), _key(poly[(k + 1) % len(poly)])
+                owners.setdefault(frozenset((a, b)), []).append(f)
     faces = frac_wall.Faces()
     w, h = slab['x1'] - slab['x0'], slab['y1'] - slab['y0']
     faces.chart('top', w, h)
@@ -290,53 +353,64 @@ def build(slab, template=None):
         su, sv, du, dv = R['topUV']
         bu, bv, eu, ev = R['undersideUV']
     records = []
-    for f, poly in enumerate(outlines):
-        top = [(x, y, zt) for x, y in poly]
-        uv = ([_map(top_map, x + shift[0], y + shift[1]) for x, y, _ in top] if measured
-              else [(su * (x + ux) / rep + du, sv * (y + uy) / rep + dv) for x, y, _ in top])
-        faces.add(top, (0, 0, 1), top_slot, f, uv, 'top', [(x - slab['x0'], y - slab['y0']) for x, y, _ in top])
-        faces.polys[-1]['colours'] = [paint.colour('top', x + ux, y + uy, default) for x, y, _ in top]
-        under = [(x, y, zb) for x, y in reversed(poly)]
-        uv = ([_map(under_map, x + shift[0], y + shift[1]) for x, y, _ in under] if measured
-              else [(bu * (x + ux) / rep + eu, bv * (y + uy) / rep + ev) for x, y, _ in under])
-        faces.add(under, (0, 0, -1), under_slot, f, uv, 'underside',
-                  [(x - slab['x0'], y - slab['y0']) for x, y, _ in under])
-        faces.polys[-1]['colours'] = [paint.colour('underside', x + ux, y + uy, default) for x, y, _ in under]
+    for f, polys in enumerate(outlines):
         outside, across = 0, []
-        for k in range(len(poly)):
-            p, q = poly[k], poly[(k + 1) % len(poly)]
-            shared = [g for g in owners[frozenset((_key(p), _key(q)))] if g != f]
-            if shared:
-                across += shared
-                if inside:
-                    dx, dy = q[0] - p[0], q[1] - p[1]
-                    ln = math.hypot(dx, dy)
-                    quad = [(p[0], p[1], zb), (q[0], q[1], zb), (q[0], q[1], zt), (p[0], p[1], zt)]
-                    chart = faces.chart(('in', f, k), ln, zt - zb, R['lightmap']['interiorDensity'])
-                    faces.add(quad, (dy / ln, -dx / ln, 0.0), inner_slot, f,
-                              [(0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)], chart,
-                              [(0.0, 0.0), (ln, 0.0), (ln, zt - zb), (0.0, zt - zb)], interior=True)
-                continue
-            outside += 1
-            dx, dy = q[0] - p[0], q[1] - p[1]
-            ln = math.hypot(dx, dy)
-            n = (dy / ln, -dx / ln, 0.0)
-            along = 0 if abs(dx) >= abs(dy) else 1
-            line = round(p[1 - along], 3)
-            chart = faces.chart(('edge', along, line, n[1 - along] > 0), (w, h)[along], zt - zb)
-            start = (slab['x0'], slab['y0'])[along]
-            quad = [(p[0], p[1], zb), (q[0], q[1], zb), (q[0], q[1], zt), (p[0], p[1], zt)]
-            uv = ([_map(edge_map['xy'[along]], pt[along] + shift[along], pt[2]) for pt in quad] if measured
-                  else [((pt[along] + (ux, uy)[along]) / rep, pt[2] / rep) for pt in quad])
-            faces.add(quad, n, edge_slot, f, uv, chart, [(pt[along] - start, pt[2] - zb) for pt in quad])
-            faces.polys[-1]['colours'] = [paint.colour('edge', pt[0] + ux, pt[1] + uy, default) for pt in quad]
-        cx = sum(x for x, _ in poly) / len(poly)
-        cy = sum(y for _, y in poly) / len(poly)
+        for pi, poly in enumerate(polys):
+            top = [(x, y, zt) for x, y in poly]
+            uv = ([_map(top_map, x + shift[0], y + shift[1]) for x, y, _ in top] if measured
+                  else [(su * (x + ux) / rep + du, sv * (y + uy) / rep + dv) for x, y, _ in top])
+            faces.add(top, (0, 0, 1), top_slot, f, held(uv, "a slab's top"), 'top',
+                      [(x - slab['x0'], y - slab['y0']) for x, y, _ in top])
+            faces.polys[-1]['colours'] = [paint.colour('top', x + ux, y + uy, default) for x, y, _ in top]
+            under = [(x, y, zb) for x, y in reversed(poly)]
+            uv = ([_map(under_map, x + shift[0], y + shift[1]) for x, y, _ in under] if measured
+                  else [(bu * (x + ux) / rep + eu, bv * (y + uy) / rep + ev) for x, y, _ in under])
+            faces.add(under, (0, 0, -1), under_slot, f, held(uv, "a slab's underside"), 'underside',
+                      [(x - slab['x0'], y - slab['y0']) for x, y, _ in under])
+            faces.polys[-1]['colours'] = [paint.colour('underside', x + ux, y + uy, default) for x, y, _ in under]
+            for k in range(len(poly)):
+                p, q = poly[k], poly[(k + 1) % len(poly)]
+                own = owners[frozenset((_key(p), _key(q)))]
+                shared = [g for g in own if g != f]
+                if not shared and len(own) > 1:
+                    continue
+                if shared:
+                    across += shared
+                    if inside:
+                        dx, dy = q[0] - p[0], q[1] - p[1]
+                        ln = math.hypot(dx, dy)
+                        quad = [(p[0], p[1], zb), (q[0], q[1], zb), (q[0], q[1], zt), (p[0], p[1], zt)]
+                        chart = faces.chart(('in', f, pi, k) if layout else ('in', f, k), ln, zt - zb,
+                                            R['lightmap']['interiorDensity'])
+                        faces.add(quad, (dy / ln, -dx / ln, 0.0), inner_slot, f,
+                                  [(0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)], chart,
+                                  [(0.0, 0.0), (ln, 0.0), (ln, zt - zb), (0.0, zt - zb)], interior=True)
+                    continue
+                outside += 1
+                dx, dy = q[0] - p[0], q[1] - p[1]
+                ln = math.hypot(dx, dy)
+                n = (dy / ln, -dx / ln, 0.0)
+                along = 0 if abs(dx) >= abs(dy) else 1
+                line = round(p[1 - along], 3)
+                chart = faces.chart(('edge', along, line, n[1 - along] > 0), (w, h)[along], zt - zb)
+                start = (slab['x0'], slab['y0'])[along]
+                quad = [(p[0], p[1], zb), (q[0], q[1], zb), (q[0], q[1], zt), (p[0], p[1], zt)]
+                uv = ([_map(edge_map['xy'[along]], pt[along] + shift[along], pt[2]) for pt in quad] if measured
+                      else [((pt[along] + (ux, uy)[along]) / rep, pt[2] / rep) for pt in quad])
+                faces.add(quad, n, edge_slot, f, held(uv, "a slab's edge"), chart,
+                          [(pt[along] - start, pt[2] - zb) for pt in quad])
+                faces.polys[-1]['colours'] = [paint.colour('edge', pt[0] + ux, pt[1] + uy, default) for pt in quad]
+        if layout:
+            cx, cy = slab_cells.centre(polys)
+        else:
+            (poly,) = polys
+            cx = sum(x for x, _ in poly) / len(poly)
+            cy = sum(y for _, y in poly) / len(poly)
         nb = [-1] * (2 + outside) + sorted(set(across))
         records.append(dict(centre=(cx, cy, (zb + zt) / 2), neighbours=nb, dims=[1.0] * len(nb)))
     guid = hashlib.md5(('frac_slab|%r' % (sorted(_named(slab).items(), key=str),)).encode()).digest()
     out = frac_wall.assemble(faces, records, template, R, guid, slots=R['sections'], what='a slab')
-    return dict(out, solids=solids(slab))
+    return dict(out, solids=layout.solids() if layout else solids(slab))
 
 
 def _named(slab):
@@ -350,7 +424,9 @@ def _named(slab):
 
 
 def local_box(slab):
-    """The box the slab stands in, in its mesh's frame."""
+    """The box the slab stands in, in its mesh's frame (a free slab's own: its footprint, its underside and top)."""
+    if free(slab):
+        return list(free_layout(slab).box)
     R = look_of(slab)
     return [float(slab['x0']), float(slab['x1']), float(slab['y0']), float(slab['y1']), R['bottom'], R['top']]
 

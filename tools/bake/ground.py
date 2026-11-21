@@ -41,7 +41,17 @@ A measured recipe (it has `uv`, ground_measure's) gives the top its own planar m
 f, in the piece's frame, offsets modulo 1: turned, mirrored or of two repeats) and the sides the same repeats (u along
 each side, v down it); its faces go in the donor's slot of its material, among the donor's sections (the others
 empty), and its vertices take its colour (the one its donor mostly draws the material with,
-measure_common.main_colour) unless the Build gives one."""
+measure_common.main_colour) unless the Build gives one.
+
+The free form (custom geometry improvements plan, section 10.2): numbers holding `free: 1` (free_form.py) give the
+shape's box whole, finite units in its frame, any size (no whole tiles, no MAX_TILES or MAX_HEIGHT): x0 < x1, y0 < y1
+and z0 < z1, a patch's plate (its top and its underside: PATCH_LIFT and its look's thickness when the editor first
+makes it), a block's bottom and top, a ramp's bottom and its high edge's top (it rises from z0 at x0 to z1 at x1), a
+rock's bottom (its ground ring) and top; `height` is not read. Rock points lie within that box. `mapping` and `plain`
+are taken and not read (stage 4's and the editor's). Each face's texture coordinates are held near 0 in whole repeats
+(free_form.held): one face may span up to about 2,047 repeats of its look's texture, and a larger one is refused with
+that reason (the half floats the mesh writes them in keep no place within a repeat past 1,024 from 0). Old numbers
+never hold `free`, and build as they always did."""
 import hashlib
 import json
 import math
@@ -50,6 +60,8 @@ import random
 
 import frac_slab
 import frac_wall
+import free_form
+from free_form import NumbersError
 import hulls
 import measure_common
 
@@ -105,10 +117,36 @@ def _named(shape):
                                             json.dumps(look.get('recipe'), sort_keys=True)))
 
 
+def free(shape):
+    """Whether the shape's numbers are in the free form (free_form.is_free)."""
+    return free_form.is_free(shape)
+
+
+def check_free(shape):
+    """Free numbers checked (the free form's request: a NumbersError, a ValueError with its code and reason, for
+    numbers without `free: 1` too): their box [x0, x1, y0, y1, z0, z1]."""
+    if not free(shape):
+        raise NumbersError('free', "a ground shape of the free form's request holds free: 1 (it has %r)"
+                           % (sorted(shape) if isinstance(shape, dict) else shape,))
+    return check(shape)
+
+
 def check(shape):
-    """The shape's numbers checked (ValueError). Returns its tiles (nx, ny)."""
+    """The shape's numbers checked (ValueError). Returns its tiles (nx, ny); a free shape's box [x0, x1, y0, y1, z0,
+    z1] (its refusals NumbersErrors, ValueErrors with their codes)."""
     if not isinstance(shape, dict) or shape.get('shape') not in SHAPES:
         raise ValueError('a ground shape is one of %s' % ', '.join(SHAPES))
+    if free(shape):
+        what = 'a ground %s' % shape['shape']
+        box = free_form.extents(shape, what)
+        free_form.mapping(shape, what)
+        look_of(shape)
+        _check_seed(shape)
+        if 'points' in shape:
+            if shape['shape'] != 'rock':
+                raise NumbersError('points', 'only a rock has points')
+            check_points(shape)
+        return box
     if not all(isinstance(shape.get(k), (int, float)) and not isinstance(shape.get(k), bool) and math.isfinite(shape[k])
                for k in ('x0', 'x1', 'y0', 'y1')):
         raise ValueError('a ground shape needs its footprint, x0, x1, y0 and y1')
@@ -120,10 +158,7 @@ def check(shape):
         h = shape.get('height')
         if not (isinstance(h, (int, float)) and not isinstance(h, bool) and math.isfinite(h) and 1 <= h <= MAX_HEIGHT):
             raise ValueError("a block's, ramp's or rock's height is 1 to %g (it has %r)" % (MAX_HEIGHT, h))
-    if shape['shape'] == 'rock':
-        seed = shape.get('seed')
-        if not (isinstance(seed, int) and not isinstance(seed, bool) and 0 <= seed < ROCK_SEEDS):
-            raise ValueError("a rock's seed is a whole number, 0 to %d (it has %r)" % (ROCK_SEEDS - 1, seed))
+    _check_seed(shape)
     if 'points' in shape:
         if shape['shape'] != 'rock':
             raise ValueError('only a rock has points')
@@ -131,33 +166,55 @@ def check(shape):
     return int(round(nx)), int(round(ny))
 
 
+def _check_seed(shape):
+    """A rock's seed checked (ValueError)."""
+    if shape['shape'] == 'rock':
+        seed = shape.get('seed')
+        if not (isinstance(seed, int) and not isinstance(seed, bool) and 0 <= seed < ROCK_SEEDS):
+            raise ValueError("a rock's seed is a whole number, 0 to %d (it has %r)" % (ROCK_SEEDS - 1, seed))
+
+
 def check_points(shape):
     """A rock's moved points checked (ValueError): ROCK_POINTS of them, each [x, y, z] within its footprint and between
-    0 and its height, the first ROCK_RING on the ground."""
+    0 and its height (a free rock's between z0 and z1), the first ROCK_RING on the ground (z 0; a free rock's z0)."""
     pts = shape['points']
     number = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)  # noqa: E731
     if not (isinstance(pts, list) and len(pts) == ROCK_POINTS
             and all(isinstance(p, (list, tuple)) and len(p) == 3 and all(number(v) for v in p) for p in pts)):
         raise ValueError("a rock's points are %d of [x, y, z]" % ROCK_POINTS)
-    x0, x1, y0, y1, h = (float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1', 'height'))
+    if free(shape):
+        x0, x1, y0, y1, bottom, top = (float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1', 'z0', 'z1'))
+    else:
+        x0, x1, y0, y1, h = (float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1', 'height'))
+        bottom, top = 0.0, h
     slack = 1e-3
     for i, (x, y, z) in enumerate(pts):
         if not (x0 - slack <= x <= x1 + slack and y0 - slack <= y <= y1 + slack):
             raise ValueError("a rock's point %d (%g, %g) is outside its footprint" % (i, x, y))
-        if not -slack <= z <= h + slack:
-            raise ValueError("a rock's point %d is %g up: 0 to its height, %g" % (i, z, h))
-        if i < ROCK_RING and abs(z) > slack:
-            raise ValueError("a rock's point %d is of its ground ring: it stays on the ground (it is %g up)" % (i, z))
+        if not bottom - slack <= z <= top + slack:
+            raise ValueError("a rock's point %d is %g up: 0 to its height, %g" % (i, z, top) if not free(shape)
+                             else "a rock's point %d is %g up: its bottom %g to its top %g" % (i, z, bottom, top))
+        if i < ROCK_RING and abs(z - bottom) > slack:
+            raise ValueError("a rock's point %d is of its ground ring: it stays on the ground (it is %g up)" % (i, z)
+                             if not free(shape) else "a rock's point %d is of its ground ring: it stays on its bottom, "
+                             "%g (it is %g up)" % (i, bottom, z))
 
 
 def rock_points(shape):
     """The points a rock is the hull of: its moved `points` when it has them, else from its seed: rings round its
-    footprint's middle, every point within the footprint and between 0 and its height, the highest at its height."""
+    footprint's middle, every point within the footprint and between 0 and its height, the highest at its height (a
+    free rock's between its bottom z0, where its ground ring is, and its top z1)."""
     if shape.get('points') is not None:
         return [tuple(float(v) for v in p) for p in shape['points']]
     rng = random.Random(int(shape['seed']))
     x0, x1, y0, y1 = (float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1'))
-    cx, cy, ax, ay, h = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, float(shape['height'])
+    if free(shape):
+        base, top_z = float(shape['z0']), float(shape['z1'])
+        h = top_z - base
+    else:
+        base, h = 0.0, float(shape['height'])
+        top_z = h
+    cx, cy, ax, ay = (x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2
     pts = []
     # (points, heights as shares of the height (None: on the ground), reach as shares of the half footprint)
     for n, z, reach in ((7, None, (0.72, 0.92)), (8, (0.25, 0.55), (0.86, 1.0)), (6, (0.62, 0.85), (0.48, 0.74)),
@@ -166,9 +223,10 @@ def rock_points(shape):
         for k in range(n):
             t = start + 2 * math.pi * (k + rng.uniform(-0.3, 0.3)) / n
             r = rng.uniform(*reach)
-            pts.append((cx + ax * r * math.cos(t), cy + ay * r * math.sin(t), 0.0 if z is None else h * rng.uniform(*z)))
+            pts.append((cx + ax * r * math.cos(t), cy + ay * r * math.sin(t),
+                        base if z is None else base + h * rng.uniform(*z)))
     top = max(range(len(pts)), key=lambda i: pts[i][2])
-    pts[top] = (pts[top][0], pts[top][1], h)
+    pts[top] = (pts[top][0], pts[top][1], top_z)
     return pts
 
 
@@ -215,6 +273,14 @@ def corners_and_faces(shape):
     x0, x1, y0, y1 = (float(shape[k]) for k in ('x0', 'x1', 'y0', 'y1'))
     if shape['shape'] == 'rock':
         return _rock(shape)
+    if free(shape):
+        # (the box whole: a patch's plate, a block's bottom and top, a ramp from z0 at x0 up to z1 at x1)
+        z0, z1 = float(shape['z0']), float(shape['z1'])
+        if shape['shape'] == 'ramp':
+            c = [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x1, y0, z1), (x1, y1, z1)]
+            return c, [[0, 4, 5, 3], [1, 2, 5, 4], [0, 1, 4], [3, 5, 2], [0, 3, 2, 1]]
+        c = [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
+        return c, [[4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7], [0, 3, 2, 1]]
     if shape['shape'] == 'ramp':
         h = float(shape['height'])
         c = [(x0, y0, 0.0), (x1, y0, 0.0), (x1, y1, 0.0), (x0, y1, 0.0), (x1, y0, h), (x1, y1, h)]
@@ -238,9 +304,11 @@ def _normal(pts):
 
 
 def faces_of(shape):
-    """The mesh's polygons (frac_wall.Faces): every face but the bottom, world-planar texture coordinates."""
+    """The mesh's polygons (frac_wall.Faces): every face but the bottom, world-planar texture coordinates (a free
+    shape's held near 0 in whole repeats, free_form.held)."""
     R = look_of(shape)
     corners, loops = corners_and_faces(shape)
+    held = free_form.held if free(shape) else (lambda uv, what: uv)
     rep, slot = R['repeat'], R['slot']
     top_map = R['uv']['top'] if 'uv' in R else None
     if top_map:
@@ -272,7 +340,8 @@ def faces_of(shape):
             a_lo, z_lo = min(p[along] for p in pts), min(p[2] for p in pts)
             cuv = [(p[along] - a_lo, p[2] - z_lo) for p in pts]
             chart = faces.chart(('side', k), max(p[along] for p in pts) - a_lo, max(p[2] for p in pts) - z_lo)
-        faces.add(pts, n, slot, 0, uv, chart, cuv)
+        faces.add(pts, n, slot, 0, held(uv, 'the %s of a ground %s' % ('top' if abs(n[2]) > 0.5 else 'side',
+                                                                       shape['shape'])), chart, cuv)
     return faces
 
 
@@ -339,7 +408,10 @@ def build(shape, template=None, colour=None):
 
 
 def local_box(shape):
-    """The box the shape stands in, in its mesh's frame."""
+    """The box the shape stands in, in its mesh's frame (a free shape's from its numbers: [x0, x1, y0, y1, z0, z1],
+    which a rock's hull stands within)."""
+    if free(shape):
+        return check_free(shape)
     corners, _ = corners_and_faces(shape)
     return [v for k in range(3) for v in (min(c[k] for c in corners), max(c[k] for c in corners))]
 
@@ -358,7 +430,8 @@ def slope(shape):
     """A ramp's slope in degrees (0 for a patch or block)."""
     if shape.get('shape') != 'ramp':
         return 0.0
-    return math.degrees(math.atan2(float(shape['height']), float(shape['x1']) - float(shape['x0'])))
+    rise = float(shape['z1']) - float(shape['z0']) if free(shape) else float(shape['height'])
+    return math.degrees(math.atan2(rise, float(shape['x1']) - float(shape['x0'])))
 
 
 def slope_words(shape):
