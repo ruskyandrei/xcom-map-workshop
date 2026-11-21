@@ -184,6 +184,10 @@ class Handler(SimpleHTTPRequestHandler):
         self.builds = builds
         self.queue = queue
         self.game_setup = setup
+        # whether the request has its answer started (send_response): a failure after that closes the connection
+        # instead of answering twice (answer). Each request a kept-alive connection brings starts unanswered
+        # (parse_request); the handler serves its requests inside the base class's __init__, so it is set first.
+        self.answered = False
         super().__init__(*args, directory=str(WEB), **kwargs)
 
     catalogue = property(lambda self: self.live.catalogue)
@@ -274,7 +278,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.close_connection = True
         except Exception as error:      # noqa: BLE001 (whatever failed, the page is told why)
             traceback.print_exc()
-            if getattr(self, 'answered', False):
+            if self.answered:
                 self.close_connection = True
                 return
             try:

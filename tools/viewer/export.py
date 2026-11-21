@@ -220,6 +220,8 @@ class Exporter:
         self.diagnostics = []
         self.progress = progress
         self.flags = {}     # actor -> its piece flags (piece_flags.describe), worked out once for its components
+        self.landings = []          # the map's own landings (export 22): effects() reads them, run() writes them
+        self.area_matcher = None    # what matches area lights to their glowing pieces: run() works it out and writes it
 
     def piece_flags(self, actor):
         """The actor's flags as the export carries them, or None (a class they don't apply to, a streamed or inherited
