@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo } from './gizmo.js';
 import { createPieceBrowser } from './pieces.js';
-import { api as projectApi, stateKey, targetKey, uuid } from './project.js';
+import { api as projectApi, targetKey, uuid } from './project.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
@@ -20,16 +20,16 @@ import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, 
          leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, lightsShown,
          likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves, missionPickValue, normalEffects,
          normalLights, normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project,
-         projectMissions, projectSpawnRules, reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown,
-         setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setData, setEffectsDirty, setEffectsOn,
-         setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue,
-         setLiveCache, setLookPicker, setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue,
-         setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect,
-         setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setReachKey, setReachShown, setSpawnRulesData,
-         setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnLayerReady, spawnPlacing,
-         spawnsOn, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, wallDrag, wallDrawing, zonePlacing,
+         reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
+         setBoxesShownValue, setCachePrefix, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty,
+         setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
+         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
+         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
+         setPointer, setPrefabTab, setReachKey, setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick,
+         setTileKey, setTipDirty, setZonesOn, soloOn, spawnLayerReady, spawnPlacing, spawnsOn, stage, streamSet,
+         tipDirty, volumeDrag, volumeRoots, volumesOn, wallDrag, wallDrawing, zonePlacing,
          zonesOn } from './editor_state.js';
-import { createDocumentSession } from './document_session.js';
+import { createDocumentSession, projectsAvailable } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
 import { createBuilderSession } from './builder_session.js';
@@ -457,9 +457,9 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
 // Prepare (prepare.js): the dialog that exports the map again, and a build or a play waiting for it.
 const { needsPrepare, prepareOpened, showPrepare } = createPrepare({
   $, showPop,
+  projectsAvailable,
   // (made further down: called through, since they are not made yet while this runs)
-  banner: (message, actions, options) => banner(message, actions, options), mapLabel: id => mapLabel(id),
-  projectsAvailable: () => projectsAvailable() });
+  banner: (message, actions, options) => banner(message, actions, options), mapLabel: id => mapLabel(id) });
 
 // Projects: the edits saved, reopened and recovered (first-editor plan E1; project.js, research/editor-contracts.md).
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
@@ -469,12 +469,6 @@ const { needsPrepare, prepareOpened, showPrepare } = createPrepare({
 // user restored or discarded (the drafts' state: editor_state.js).
 const SESSION = uuid();
 const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
-// Projects edit a full map's original layout: not a patch preview.
-const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 'map' && !data.preview;
-const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
-const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
-  || cleared || landingZones || projectMissions || projectSpawnRules);
-function saveState() { return builderMode ? !builder.doc?.revision ? 'not saved' : dirty() ? 'unsaved' : 'saved' : !project ? 'not saved' : dirty() ? 'unsaved' : 'saved'; }
 // Recent projects: when this browser last opened or saved each, beside when it was saved anywhere.
 const RECENT = 'workshop.recentProjects';
 function recentTimes() { try { return JSON.parse(recall(RECENT)) ?? {}; } catch { return {}; } }
@@ -509,18 +503,19 @@ const { applyState, editState, projectNote } = createDocumentState({
   drawBroken: root => drawBroken(root), mapBreakable: o => mapBreakable(o) });
 // The document session (document_session.js): opening, saving and leaving a project, its drafts kept for recovery
 // and offered back, and the banner under the header.
-const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
-        openProject, projectChanged, saveProject } = createDocumentSession({
-  $, SESSION, applyState, builder, camera, controls, dirty, documentWrites, editChanged, editState, flashHint, gizmo,
-  loadingState, openingProgress, plural, projectNote, projectsAvailable, saveState, showFileDialog, text, touchRecent,
-  unsavedDocument,
+const { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery,
+        loadProject, openProject, projectChanged, saveProject, saveState, unsavedDocument } = createDocumentSession({
+  $, SESSION, applyState, builder, camera, changes, controls, documentWrites, editChanged, editState, flashHint, gizmo,
+  loadingState, openingProgress, plural, projectNote, showFileDialog, text, touchRecent,
   // (made with the map grid, further down: called through, since it is not made yet while this runs)
   ownSize: () => ownSize(),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
   bombHelperFix: moves => bombHelperFix(moves), setMissionMoves: next => setMissionMoves(next),
+  // (made with the Buildings view, further down: called through, since it is not made yet while this runs)
+  savedBuildings: () => savedBuildings(),
   // (made with the prefab builder just below, which is given the session's banner and drafts: called through)
-  builderDocument: () => builderDocument(), builderTitle: () => builderTitle(), problemsPaint: () => problemsPaint(),
-  refreshBuilder: () => refreshBuilder(), saveBuilder: options => saveBuilder(options),
+  builderDocument: () => builderDocument(), builderKey: () => builderKey(), builderTitle: () => builderTitle(),
+  problemsPaint: () => problemsPaint(), refreshBuilder: () => refreshBuilder(), saveBuilder: options => saveBuilder(options),
   // (made with Build and Play just below, which is given the session's banner and save: called through)
   followBuild: (status, id) => followBuild(status, id), renderPlayItems: () => renderPlayItems(),
   setLastBuild: (id, status) => setLastBuild(id, status) });

@@ -3,27 +3,34 @@
 // Save as, Replace) and left (asked first whether to save); its unsaved state is kept on the server as a draft against
 // a lost tab, and offered back when it opens (a draft belongs to the page session that keeps it: review finding 3);
 // the banner under the header says what happened. The prefab builder's document (builder_session.js) shares the
-// drafts, the leaving and the banner.
+// drafts, the leaving and the banner. Whether the document has changes not saved (dirty, saveState in words, and
+// unsavedDocument, a trial's edits counting) is worked out here; whether projects can be had on the scene open
+// (projectsAvailable: not in the builder, not on a patch preview) is a plain export at the top, before the factory.
 //
 // createDocumentSession takes what it needs of app.js as one argument object, when app.js makes it: the scene to and
-// from a document (applyState, editState), the gizmo, the camera, the dialogs and panels it opens or paints, and the
-// page session's id (SESSION). Its own state is inside it (navigating, the banner's timer); what other areas share
+// from a document (applyState, editState), the gizmo, the camera, the dialogs and panels it opens or paints, the
+// changes counted, the builder's key, and the page session's id (SESSION). Its own state is inside it (navigating, the banner's timer); what other areas share
 // with it (leaving, saving, the drafts' timer, owner and trouble, the build status, the copies' serial) is
 // editor_state.js's.
 import { onHub } from './edit_hub.js';
-import { activeMapId, adoptedDraft, buildTimer, builderMode, copySerial, data, landingRead, looksReady, project, recoveryKept,
-         recoveryTimer, recoveryTrouble, saving, setAdoptedDraft, setAskedPick, setLastBuildValue, setLeaving, setProject,
-         setRecoveryKept, setRecoveryTimer, setRecoveryTrouble, setSaving } from './editor_state.js';
+import { activeMapId, adoptedDraft, areaBindings, builderMode, buildTimer, cleared, copySerial, data, groups,
+         landingRead, landingZones, looksReady, project, projectMissions, projectSpawnRules, recoveryKept,
+         recoveryTimer, recoveryTrouble, saving, setAdoptedDraft, setAskedPick, setLastBuildValue, setLeaving,
+         setProject, setRecoveryKept, setRecoveryTimer, setRecoveryTrouble, setSaving, stage } from './editor_state.js';
 import { api as projectApi, newDocument, sortState, sourceOf, stateKey, validAdded, validBinding, validBuilding, validGroup,
          validOverride, validStage, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
 import { api as prefabApi } from './prefabs.js';
 import { setParagraphs } from './missions.js';
 
-export function createDocumentSession({ $, SESSION, applyState, bombHelperFix, builder, builderDocument, builderTitle, camera, controls,
-                                        dirty, documentWrites, editChanged, editState, flashHint, followBuild, gizmo, loadingState,
-                                        openingProgress, ownSize, plural, problemsPaint, projectNote, projectsAvailable,
-                                        refreshBuilder, renderPlayItems, saveBuilder, saveState, setLastBuild, setMissionMoves,
-                                        showFileDialog, text, touchRecent, unsavedDocument }) {
+// Projects edit a full map's original layout: not a patch preview.
+export const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 'map' && !data.preview;
+
+export function createDocumentSession({ $, applyState, bombHelperFix, builder, builderDocument, builderKey,
+                                        builderTitle, camera, changes, controls, documentWrites, editChanged, editState,
+                                        flashHint, followBuild, gizmo, loadingState, openingProgress, ownSize, plural,
+                                        problemsPaint, projectNote, refreshBuilder, renderPlayItems, saveBuilder,
+                                        savedBuildings, SESSION, setLastBuild, setMissionMoves, showFileDialog, text,
+                                        touchRecent }) {
   // a switch of document under way (asking, saving, leaving): no other starts, and no draft is kept meanwhile
   let navigating = false;
   // Discarding the changes on screen: this page's own draft goes, and a draft it restored; other pages' stay.
@@ -399,6 +406,11 @@ export function createDocumentSession({ $, SESSION, applyState, bombHelperFix, b
   // After an edit (the edit hub, edit_hub.js).
   onHub('edit', 'project', () => { projectChanged(); });
 
-  return { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
-           openProject, projectChanged, saveProject };
+  const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
+  const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
+    || cleared || landingZones || projectMissions || projectSpawnRules);
+  function saveState() { return builderMode ? !builder.doc?.revision ? 'not saved' : dirty() ? 'unsaved' : 'saved' : !project ? 'not saved' : dirty() ? 'unsaved' : 'saved'; }
+
+  return { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery,
+           loadProject, openProject, projectChanged, saveProject, saveState, unsavedDocument };
 }
