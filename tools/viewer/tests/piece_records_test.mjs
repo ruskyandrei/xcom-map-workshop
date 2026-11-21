@@ -1,11 +1,13 @@
 // A copied piece's record (web/piece_records.js, review finding 6): a piece's state goes into its record and comes back
 // the same, for made pieces (a wall with an opening, a floor, a shaped ground piece) and a broken copy of a map's
 // fracturing piece, so a prefab saved from a selection and placed again keeps what each piece is. The whole record
-// (refactor stage P2): recordOf and optionsOf, each form and each writer's path.
+// (refactor stage P2): recordOf and optionsOf, each form and each writer's path. A piece's original and key
+// (refactor stage P9): isStream, fromOf and sourceKey.
 // Run: node tools/viewer/tests/piece_records_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, optionsOf, pieceState, recordFields, recordOf, stateOf, stateOfRoot } from '../web/piece_records.js';
+import { MADE_KINDS, PIECE_FIELDS, cloneBlasts, fromOf, isStream, optionsOf, pieceState, recordFields, recordOf, sourceKey, stateOf,
+         stateOfRoot } from '../web/piece_records.js';
 
 const wall = { kind: 'fracWall', version: 4, wall: { x0: 0, x1: 288, openings: [{ x0: 96, x1: 192, z0: 0, z1: 208 }], seed: 3 },
                blasts: [{ at: [48, 0, 96], radius: 96 }], breaksFurther: true };
@@ -14,6 +16,20 @@ const ramp = { kind: 'ground', version: 1, ground: { shape: 'ramp', x0: 0, x1: 1
 const rock = { kind: 'ground', version: 2, ground: { shape: 'rock', x0: 0, x1: 192, y0: 0, y1: 192, height: 96, seed: 7,
                                                     points: [[0, 0, 0], [192, 0, 10], [192, 192, 96], [0, 192, 40]] } };
 const blasts = [{ at: [10, 20, 30], radius: 96 }, { at: [-5, 0, 64], radius: 48 }];
+
+// a piece's original and key: a map's own piece is its own original, by its package, level and actor; a copy's original
+// is the one it was copied from (its key is still its own names'); a streamed piece is a stream's, and nothing is not
+{
+  const own = { sourcePackage: 'URB_Bar', layer: 'base', actor: 'TheWorld.PersistentLevel.KAsset_0', component: 'C' };
+  assert.deepEqual(fromOf(own), { package: 'URB_Bar', level: 'base', actor: 'TheWorld.PersistentLevel.KAsset_0' });
+  assert.equal(sourceKey(own), 'URB_Bar|base|TheWorld.PersistentLevel.KAsset_0');
+  const from = { package: 'URB_Bar', level: 'base', actor: 'TheWorld.PersistentLevel.KAsset_0' };
+  const copy = { sourcePackage: 'URB_Bar', layer: 'base', actor: 'TheWorld.PersistentLevel.KAsset_0_copy1', added: { from } };
+  assert.equal(fromOf(copy), from, 'a copy gives the record of its original itself');
+  assert.equal(sourceKey(copy), 'URB_Bar|base|TheWorld.PersistentLevel.KAsset_0_copy1');
+  assert.equal(isStream({ ...own, layer: 'stream' }), true);
+  for (const o of [own, copy, null, undefined]) assert.equal(isStream(o), false);
+}
 
 // a made piece: its numbers (with its own blasts inside) and flags go into the record and come back; no outer blasts
 for (const generated of [wall, floor, ramp, rock]) {

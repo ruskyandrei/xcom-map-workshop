@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo } from './gizmo.js';
 import { createPieceBrowser } from './pieces.js';
-import { api as projectApi, targetKey, uuid } from './project.js';
+import { api as projectApi, uuid } from './project.js';
 import { createProjectDialog } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
@@ -14,6 +14,7 @@ import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
+import { fromOf, isStream, sourceKey } from './piece_records.js';
 import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, buildingMeta, cachePrefix,
          coverDrag, data, effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool,
          groupIndex, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty,
@@ -163,9 +164,8 @@ const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:tru
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
 // Edits: the gizmo moves whole actors (all their components); a project keeps the edits (Ctrl+S) and the Build makes them.
-// Pieces of the packages a mission streams into the map (LWR's patches, mission objects): shown for reference, never
-// edited (a project edits the map's own pieces; the Build makes nothing of theirs).
-const isStream = o => o?.layer === 'stream';
+// (A streamed piece, isStream, the original a piece is, fromOf, and a map's own piece's key in a project, sourceKey:
+// piece_records.js.)
 // The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
 // opens once they are, so its pieces in a donor look are drawn in it. A read that fails isn't kept (review finding
 // 31): the banner says why, and Try again reads it again.
@@ -180,8 +180,6 @@ function readLooks() {
   });
   return ready;
 }
-// The original a piece is, or was copied from: package, level and actor (a project's key for it).
-const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level: o.layer, actor: o.actor });
 // (The map's size as the project sets it, the cleared map, its landing zones, missions, picture and spawn rules, the
 // buildings, and the install's landing lines for the map with the read a project waits for: editor_state.js.)
 // The scene's pieces (scene_pieces.js): picking, textures and materials, the meshes' and materials' loads, a
@@ -191,12 +189,13 @@ const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level:
 const { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
         materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, rayAt, recipeOf, removeRoots,
         templateFor, texture, track, unscaled, vertexBox } = createScenePieces({
-  camera, content, fromOf, gltfLoader, gridOrigin, isStream, pickables, renderer, textureLoader, texturePromises,
+  camera, content, fromOf, gltfLoader, gridOrigin, isStream, pickables, renderer, sourceKey, textureLoader,
+  texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
   loadingState: (message, fraction, detail) => loadingState(message, fraction, detail),
   assetUrl: url => assetUrl(url), coverVersion: (version, type) => coverVersion(version, type),
   drawBroken: root => drawBroken(root), flashHint: message => flashHint(message), isMade: o => isMade(o),
-  select: (id, add, keep) => select(id, add, keep), sourceKey: o => sourceKey(o) });
+  select: (id, add, keep) => select(id, add, keep) });
 const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: controls, roots: allRoots, baseMatrix, onEdit: editChanged,
                             // a group's lights and buildings move with it, drawn or not; a building is whole (all its boxes)
                             // outside the Buildings view, where each box is on its own
@@ -234,9 +233,9 @@ groupChip.hidden = true;
 // The Flags group of the piece panel and its chip (flags_panel.js): a piece's flags as the project has them,
 // the chip, the group's rows and a change of them (one undo step).
 const { flagContract, flagKey, flagSource, resetFlags } = createFlagsPanel({
-  $, boxOf, gizmo, isStream, plural, text, tileCorner,
-  // (made further down: called through, since they are not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep), sourceKey: o => sourceKey(o) });
+  $, boxOf, gizmo, isStream, plural, sourceKey, text, tileCorner,
+  // (made further down: called through, since it is not made yet while this runs)
+  select: (id, add, keep) => select(id, add, keep) });
 const poseInputs = ['posX','posY','posZ','rotP','rotY','rotR'].map($);
 // After any trial edit, undo or selection: the highlight, the pose fields, the tool states and the edit status.
 // Undo, redo and the "not saved" chip appear only once something has changed.
@@ -373,7 +372,6 @@ const { needsPrepare, prepareOpened, showPrepare } = createPrepare({
 // made as it loads, names its own draft, and the page deletes only that one, or a draft it showed the user and the
 // user restored or discarded (the drafts' state: editor_state.js).
 const SESSION = uuid();
-const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
 // The scene to and from a document (document_state.js): the edits on screen as a project records them, and a
 // project's state put on the map.
 const { applyState, changes, editState, projectNote } = createDocumentState({

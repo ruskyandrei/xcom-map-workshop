@@ -17,9 +17,22 @@
 // - generated: a piece made from numbers (a drawn wall, floor or roof, or ground shape: custom geometry plan); a made
 //   piece's own blasts are inside it (generated.blasts, generated.breaksFurther).
 // - blasts, breaksFurther: a copy of one of the map's fracturing pieces, broken (custom geometry editing plan, E6).
+// A piece as the page holds it (its source: the export's record of a map's piece, or an added piece's) and the original
+// it stands for, plain exports at the top: whether it is a streamed piece (isStream), the original it is or was
+// copied from (fromOf) and a map's own piece's key in a project (sourceKey: its overrides').
+//
 // Nothing here knows three.js or the page: app.js reads a state from a root (stateOfRoot), writes it into a record
 // (recordFields, through recordOf) and makes a piece of a record's (stateOf, through optionsOf).
 import { keptValues } from './effects_rules.js';
+import { targetKey } from './project.js';
+
+// Pieces of the packages a mission streams into the map (LWR's patches, mission objects): shown for reference, never
+// edited (a project edits the map's own pieces; the Build makes nothing of theirs).
+export const isStream = o => o?.layer === 'stream';
+// The original a piece is, or was copied from: package, level and actor (a project's key for it).
+export const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level: o.layer, actor: o.actor });
+// A map's own piece's key in a project (an override's target): its package, level and actor.
+export const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
 
 /** The fields of a copied piece's record (a project's added record, a prefab's piece) this editor reads and writes;
  * any other is a newer editor's, carried as the file has it (the builder's document, prefabs.py `carried`). */
