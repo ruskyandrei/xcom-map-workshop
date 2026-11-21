@@ -594,11 +594,11 @@ class BuildRunner:
                 # build.py's own at the line's start, a tool's indented under its command line (relight.py's writes
                 # reaching pieces it didn't relight)
                 job.setdefault('warnings', []).append(line.lstrip()[len('warning: '):])
-            elif line.startswith('  $ '):
-                tool = next((t for t in ('patchtool.ps1', 'native_copy.py', 'relight.py') if t in line), None)
-                if tool: job['running'] = dict(patchtool='patch and cook',
-                                               native_copy='copying and relighting' if '--bake' in line else 'making the edit in the map',
-                                               relight='relighting')[tool.split('.')[0]]
+            elif line.startswith('running:'):
+                # build.py's line before each tool it starts (Build.tool): what the step shows while the tool runs; an
+                # empty one (a tool whose step says enough in its own words) leaves the label as it is
+                label = line[len('running:'):].strip()
+                if label: job['running'] = label
                 job['progress'] = None
 
     @staticmethod

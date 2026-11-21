@@ -748,6 +748,47 @@ class Builds(unittest.TestCase):
         shelled = next(s for s in m['stages'] if s['stage'] == 'shell')
         self.assertEqual(shelled['grid']['floorKeptOff'], ['XComLevelActor_13'])
 
+    def test_each_tool_the_build_starts_is_named_first(self):
+        """build.py says what runs before each tool it starts, in a `running: <label>` line (Build.tool), which the
+        server shows on the build's step (tools/viewer/builds.py reads that line, not the tool's command line): each
+        tool of a patched baked build, a quick build and a relight alone comes just after its line, labelled; and
+        build.py starts a tool nowhere but in Build.tool, so the Build's other tools (the shell, the transplant, the
+        stream copies) say theirs too."""
+        events = []
+
+        class Said(list):
+            def append(self, line):
+                super().append(line)
+                events.append(line)
+        self.said = Said()
+        record = self.run_tool
+
+        def run(args, log):
+            events.append(('ran', next(Path(str(a)).name for a in args if str(a).endswith(('.py', '.ps1')))))
+            record(args, log)
+        self.run_tool = run
+
+        def started():
+            pairs = [(events[i - 1], e[1]) if i and isinstance(events[i - 1], str) and events[i - 1].startswith('running:')
+                     else ('(no running line)', e[1]) for i, e in enumerate(events) if isinstance(e, tuple)]
+            events.clear()
+            return pairs
+        self.make().run()
+        self.assertEqual(started(), [('running: patch and cook', 'patchtool.ps1'), ('running: patch and cook', 'patchtool.ps1'),
+                                     ('running: copying and relighting', 'native_copy.py'), ('running:', 'intro_copy.py')])
+        self.make('110100', quick=True).run()
+        self.assertEqual(started(), [('running: patch and cook', 'patchtool.ps1'), ('running: patch and cook', 'patchtool.ps1'),
+                                     ('running: making the edit in the map', 'native_copy.py'), ('running:', 'intro_copy.py')])
+        self.spec['objects'] = [DOOR]
+        self.make('110200').run()
+        self.assertEqual(started(), [('running: patch and cook', 'patchtool.ps1'), ('running: patch and cook', 'patchtool.ps1'),
+                                     ('running: relighting', 'relight.py'), ('running:', 'intro_copy.py')])
+        import ast
+        tree = ast.parse(Path(build.__file__).read_text(encoding='utf-8'))
+        starts = [(f.name, n.lineno) for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) for n in ast.walk(f)
+                  if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr in ('run_tool', '_run')]
+        self.assertEqual([name for name, _ in starts], ['tool'], 'a tool started outside Build.tool: %s' % starts)
+
     def test_a_quick_build_makes_the_edit_in_the_map_without_baking_its_lighting(self):
         self.spec['objects'] = [COPY, HIDE]
         m = self.make(quick=True).run()

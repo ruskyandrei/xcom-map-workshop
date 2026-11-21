@@ -256,8 +256,10 @@ if outcome in ('grand', 'linger'):
     grand = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])
     print('grandchild: %%d' %% grand.pid, flush=True)
 if quick:
+    print('running: making the edit in the map', flush=True)
     print('  $ python -B -u native_copy.py URB_Bar.upk lit variant --copies native-edit.json', flush=True)
 else:
+    print('running: patch and cook', flush=True)
     print('  $ pwsh -File patchtool.ps1 build', flush=True)
 print('    progress: relighting 2/5', flush=True)
 while not go.exists():
