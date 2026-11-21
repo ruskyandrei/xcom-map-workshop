@@ -132,6 +132,7 @@ sys.path.insert(0, str(TOOLS / 'upk'))
 if str(Path(__file__).resolve().parents[1]) not in sys.path:
     sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
 import paths  # noqa: E402
+import atomic_files  # noqa: E402
 import builds as build_runs  # noqa: E402
 import compiler  # noqa: E402
 import decomp  # noqa: E402
@@ -1606,7 +1607,7 @@ class Build:
             self.echo('note: %s' % self.picture_note)
             self.stage('picture', written=False, note=self.picture_note)
             return
-        os.replace(out, built)
+        atomic_files.replace(out, built)        # (tried again while another program holds the map a moment)
         self.pictured = dict(sha256=named, format=PICTURE_FORMAT)
         self.stage('picture', written=True, export=report.get('export'), how=report.get('how'), **self.pictured)
 
@@ -1747,7 +1748,7 @@ class Build:
             self.echo('note: %s' % note)
             self.stage('inside', cache=self.cache_name, note=note)
             return
-        os.replace(out, target)
+        atomic_files.replace(out, target)       # (tried again while another program holds the map a moment)
         self.inside = {k: done[k] for k in ('cache', 'textures', 'mips', 'bytes')}
         self.stage('inside', **self.inside)
 

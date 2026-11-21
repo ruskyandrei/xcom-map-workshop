@@ -1,6 +1,8 @@
 """The editor's Build (tools/editor/build.py): a saved project to a variant package, with the tools it runs stubbed."""
+import collections
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -1381,6 +1383,26 @@ class Builds(unittest.TestCase):
         q = self.make('111000', quick=True).run()
         self.assertEqual((q['picture'], q['stages'][-1]['stage']), (dict(sha256=digest, format='DXT1'), 'picture'))
         self.assertTrue(built.read_bytes().endswith(b' +picture ' + digest.encode()))
+
+    def test_a_map_held_a_moment_by_another_program_is_still_put_in_place(self):
+        # the map with its picture and the map with its lightmaps inside are put in place through atomic_files.replace,
+        # which tries again while Windows refuses (a virus scanner or an indexer holding the map a moment, KB-10)
+        digest = self.with_picture()
+        real, refused = os.replace, collections.Counter()
+
+        def replace(src, dst, *args, **kwargs):
+            stage = Path(src).parent.name
+            if stage in ('pictured', 'inside') and refused[stage] < 2:
+                refused[stage] += 1
+                raise PermissionError(13, 'The process cannot access the file because it is being used by another process', str(dst))
+            return real(src, dst, *args, **kwargs)
+        with mock.patch('os.replace', replace):
+            m = self.make().run()
+        self.assertEqual(dict(refused), dict(pictured=2, inside=2))
+        built = self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)
+        self.assertEqual(built.read_bytes(), b'inside relit map 1 seeded +picture ' + digest.encode() + b' with lightmaps')
+        self.assertEqual((m['picture'], m['lightingInside']['cache']), (dict(sha256=digest, format='DXT1'), VARIANT + '_Lighting'))
+        self.assertEqual(m['files']['CookedPCConsole/%s.upk' % VARIANT], build.sha256(built))
 
     def test_a_snapshots_build_takes_the_picture_captured_beside_it(self):
         """(review finding 12) A build of the server's snapshot (--saved-file) takes the picture captured beside it
