@@ -38,8 +38,9 @@ The open document's life is
 [`document_session.js`](tools/viewer/web/document_session.js)'s: a project opened, saved and left, its unsaved state
 kept on the server as a draft against a lost tab and offered back, and the banner under the header. The scene to and
 from a document's state is [`document_state.js`](tools/viewer/web/document_state.js)'s: `editStateNow` reads the edits
-on screen as a project records them, and `applyState` puts such a state back on the map. A project's file, its drafts
-and the prefab builder's document all go through these two. An added thing's record (a copy of a piece, a made piece,
+on screen as a project records them (`editState` keeps its answer for one edit event), and `applyState` puts such a
+state back on the map, after taking the scene back to the map as exported (`clearEdits`) and noting what it could not
+put back (`projectNote`). A project's file, its drafts and the prefab builder's document all go through these two. An added thing's record (a copy of a piece, a made piece,
 a cover block, a light, an effect, a sound or a lens flare), as a project, a prefab and the prefab builder's document
 keep it, is written and read in one place, [`piece_records.js`](tools/viewer/web/piece_records.js). Build and Play in
 game are [`build_play.js`](tools/viewer/web/build_play.js)'s: Build's panel and the window that follows a build to its

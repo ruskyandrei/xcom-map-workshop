@@ -21,15 +21,14 @@ import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, 
          likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves, missionPickValue, normalEffects,
          normalLights, normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project,
          projectMissions, projectSpawnRules, reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown,
-         setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData,
-         setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setGroups, setLandingZones, setLibrary,
-         setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
-         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
-         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
-         setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey,
-         setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn,
-         spawnLayerReady, spawnPlacing, spawnsOn, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
-         wallDrag, wallDrawing, zonePlacing, zonesOn } from './editor_state.js';
+         setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setData, setEffectsDirty, setEffectsOn,
+         setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue,
+         setLiveCache, setLookPicker, setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue,
+         setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect,
+         setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setReachKey, setReachShown, setSpawnRulesData,
+         setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnLayerReady, spawnPlacing,
+         spawnsOn, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, wallDrag, wallDrawing, zonePlacing,
+         zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -472,36 +471,10 @@ const SESSION = uuid();
 const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
 // Projects edit a full map's original layout: not a patch preview.
 const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 'map' && !data.preview;
-// The edits on screen, as a project records them: overrides of original actors and added actors, sorted.
-function editState() {
-  if (!eventMemo) return editStateNow();
-  return eventMemo.state ??= editStateNow();
-}
 const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
 const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
   || cleared || landingZones || projectMissions || projectSpawnRules);
 function saveState() { return builderMode ? !builder.doc?.revision ? 'not saved' : dirty() ? 'unsaved' : 'saved' : !project ? 'not saved' : dirty() ? 'unsaved' : 'saved'; }
-// Back to the map as exported, with no history: before a project's state is applied.
-function clearEdits() {
-  const all = [...roots.values()];
-  removeRoots(all.filter(r => r.userData.source.added));
-  const moved = all.filter(r => r.userData.edit && !r.userData.source.added);
-  gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
-  for (const r of all) {
-    r.userData.deleted = false; r.userData.flags = null; r.userData.breaksFurther = false;
-    if (r.userData.blasts) { r.userData.blasts = null; drawBroken(r); }
-  }
-  setGroups(new Map()); setLiveCache(null);
-  clearLightEdits();
-  clearEffectEdits();
-  setCleared(false); setClearKeepsOutside(false); setLandingZones(null); setMergedBuildings(null); setProjectMissions(null);
-  setProjectPicture(null);
-  setProjectSpawnRules(null); syncSpawnRule();
-  setMissionMoves(new Map());
-  setStage(null);
-  setBuildings([]);
-  clearedChanged();
-}
 // Recent projects: when this browser last opened or saved each, beside when it was saved anywhere.
 const RECENT = 'workshop.recentProjects';
 function recentTimes() { try { return JSON.parse(recall(RECENT)) ?? {}; } catch { return {}; } }
@@ -509,20 +482,20 @@ function touchRecent(id) {
   const times = { ...recentTimes(), [id]: new Date().toISOString() };
   remember(RECENT, JSON.stringify(Object.fromEntries(Object.entries(times).sort((a, b) => b[1].localeCompare(a[1])).slice(0, 20))));
 }
-function projectNote(message) { text($('diagnostics'), 'div', message, 'note'); $('issueCount').textContent = String(Number($('issueCount').textContent || 0) + 1); }
 // The scene to and from a document (document_state.js): the edits on screen as a project records them, and a
 // project's state put on the map.
-const { editStateNow, applyState } = createDocumentState({
-  actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, buildRoots, builder, clearEdits,
-  cloneGroups, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates, memberOf, movedMatrix, plural,
-  projectNote, sceneChanged, short, sourceKey, templateFor,
+const { applyState, editState, projectNote } = createDocumentState({
+  $, actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, baseMatrix, buildRoots, builder,
+  clearLightEdits, cloneGroups, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates, memberOf, movedMatrix,
+  plural, removeRoots, sceneChanged, short, sourceKey, templateFor, text,
   // (made with the map grid, further down: called through, since they are not made yet while this runs)
   ownSize: () => ownSize(), setStage: next => setStage(next),
   // (made with the cover blocks, further down: called through, since they are not made yet while this runs)
   coverOf: entity => coverOf(entity), coverVersion: (version, type) => coverVersion(version, type),
   // (made with the Effects view, further down: called through, since they are not made yet while this runs)
   addEffectRoots: list => addEffectRoots(list), addedEffectOf: entity => addedEffectOf(entity),
-  applyEffectRecord: record => applyEffectRecord(record), effectState: (overrides, added) => effectState(overrides, added),
+  applyEffectRecord: record => applyEffectRecord(record), clearEffectEdits: () => clearEffectEdits(),
+  effectState: (overrides, added) => effectState(overrides, added),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
   baseSpawnOf: actor => baseSpawnOf(actor), missionKey: (stream, actor) => missionKey(stream, actor),
   missionOverrides: () => missionOverrides(), setMissionMoves: next => setMissionMoves(next),
