@@ -5,7 +5,7 @@ in game, installs.py, or a modder's own, from the package's README). The install
 has it: what the editor installed into it is taken out (installs.maps_text).
 
   python -B tools/editor/build.py <project file | project id or name> [--cache <viewer cache>] [--output <builds folder>]
-      [--radius 1024] [--lwr <install>] [--udk <UDK 2011-09>] [--family other ...] [--quick]
+      [--radius 1024] [--lwr <install>] [--udk <UDK 2011-09>] [--family other ...] [--quick] [--work <folder>]
 
 --quick is the editor's Build with Bake the lighting off (its default): the edit made in the map exactly as a full
 build makes it, but its lighting not baked (stage 4 without the relight), in seconds instead of minutes. Pathing, cover
@@ -20,7 +20,8 @@ and --family van and EXP-26 run 1 lights with --family light, before each family
 Fracturing pieces and physics props were switched on without one (9 November 2026; EXP-28 has their game runs).
 
 Folders default to the editor's settings (tools/viewer/settings.py: projects, output, lwr, and udk, which only a
-patch needs) and the main viewer cache. Stages, each logged in the build's work folder (<output>/.work/<Variant>-<stamp>/logs):
+patch needs) and the main viewer cache. Stages, each logged in the build's work folder (<output>/.work/<Variant>-<stamp>/logs;
+--work gives another, and a prefab test's Build works in the test's own folder: Build.work_folder):
 1. Snapshot: the project (its saved revision, read once; the manifest's project.sha256 names its bytes), the viewer
    export of its source map (by the project's SHA-256), and the base map from the game install, which must have that
    SHA-256. The server's builds read a snapshot it captured (--saved-file names the project's own file), with the map
@@ -188,6 +189,7 @@ INTROS = outputnames.INTROS
 LANDINGS = ('CIN_DropshipIntros', 'CIN_FastropeIntros')   # the Skyranger's landings among them (the README's words)
 RADIUS = 1024.0
 LOG_TAIL = 40       # the lines of a failing tool's log read for the pieces it names (Build.untried_named)
+PREFAB_TEST_WORK = 'w'      # a prefab test's work folder, in the test's own folder (Build.work_folder)
 EOL = '\r\n'
 
 
@@ -712,6 +714,9 @@ class BuildInputs:
     saved_file: object = None   # the project's own file when the build reads a snapshot of it (the build queue's)
     boundary: object = None     # publication.publish's step hook (tests)
     picture: object = None  # the map picture's writer (None: Build._picture; tests give a stand-in)
+    # the build's work folder (--work; None: a prefab test's is `w` beside its project file, any other build's
+    # <output>/.work/<Variant>-<stamp>: Build.work_folder)
+    work: object = None
 
 
 class Build:
@@ -741,6 +746,7 @@ class Build:
         self.seed_tool = inputs.seed or self._seed
         self.name_tool = inputs.named or self._name_copy
         self.picture_tool = inputs.picture or self._picture
+        self.work_given = Path(inputs.work) if inputs.work else None
         self.echo = inputs.echo
         self.stages = []
         self.started = self.stage_started = time.monotonic()
@@ -851,11 +857,23 @@ class Build:
             raise BuildError('%s is not the map the project was made on (SHA-256 %s)' % (self.base, self.sha))
         # the install's own file and folder: `base` becomes the equipped map where the shell stage makes one
         self.install_base, self.install_cooked = self.base, self.base.parent
-        self.work = self.output / '.work' / ('%s-%s' % (self.variant, self.stamp))
+        self.work = self.work_folder()
         (self.work / 'logs').mkdir(parents=True, exist_ok=True)
         self.unpacked()
         self.stage('snapshot', project=self.doc.get('id'), revision=self.doc.get('revision'), base=str(self.base),
                    export=str(self.export))
+
+    def work_folder(self):
+        """Where the build works (its logs, records, the lit map, the package before it goes in place): the folder
+        it is given (BuildInputs.work), else a prefab test's own folder's `w` (PREFAB_TEST_WORK, beside the test's
+        project file, which the test writes in its folder: prefab_tests.py), else <output>/.work/<Variant>-<stamp>. A
+        prefab test's builds folder is <builds>/.prefab-tests/<test>/artifacts: a work folder under it as any build's
+        added about 60 characters to each path, which with a long builds folder passed Windows' 260 (KB-12)."""
+        if self.work_given:
+            return self.work_given
+        if 'prefabTest' in self.doc:
+            return self.project_path.parent / PREFAB_TEST_WORK
+        return self.output / '.work' / ('%s-%s' % (self.variant, self.stamp))
 
     def find_picture(self):
         """The picture file the project names (pictures.named), or None, looked up once as the build starts. A build
@@ -1802,6 +1820,8 @@ def main(argv=None):
                                                     'beside the snapshot)')
     a.add_argument('--pinned', action='store_true',
                    help='take nothing from the settings: every folder comes from the arguments (no --udk: no UDK)')
+    a.add_argument('--work', type=Path, help='the build\'s work folder (default: <output>/.work/<Variant>-<stamp>; a '
+                                              'prefab test\'s, w beside its project file)')
     args = a.parse_args(argv)
     if args.attempt and not PROJECT_ID.fullmatch(args.attempt):
         a.error('--attempt takes a UUID')
@@ -1829,7 +1849,8 @@ def main(argv=None):
             games = [play] if play else []
         Build(BuildInputs(project, args.cache or s['cache'], args.output or s['output'], lwr, udk, radius=args.radius,
                           enable=args.family, quick=args.quick, foreign=args.foreign_family, games=games,
-                          projects=args.projects, attempt=args.attempt, saved_file=args.saved_file)).run()
+                          projects=args.projects, attempt=args.attempt, saved_file=args.saved_file,
+                          work=args.work)).run()
     except BuildError as error:
         if error.code:
             print('build failed code: %s' % error.code)

@@ -1538,6 +1538,60 @@ class Builds(unittest.TestCase):
         self.assertTrue((self.output / '.work' / m['buildId'] / 'logs').is_dir())
         self.assertEqual(json.loads((self.output / VARIANT / 'manifest.json').read_text())['attempt'], attempt)
 
+    TEST_ID, TEST_NAME = '01234567-89ab-4cde-8f01-23456789abcd', '0123456789ab'   # a prefab test's id, its folder's name
+
+    def prefab_test(self, depth, quick=True):
+        """A prefab test's Build as prefab_tests.py starts it: the test's project in its own folder
+        (<builds>/.prefab-tests/<name>/project.json, carrying prefabTest), the package into its artifacts folder; the
+        builds folder padded to `depth` characters. (builds, the test's folder, the Build)."""
+        import datetime
+        root = Path(self.tmp.name)
+        builds = Path(str(root / 'b') + 'x' * (depth - len(str(root / 'b'))))
+        folder = builds / '.prefab-tests' / self.TEST_NAME
+        (folder / 'artifacts').mkdir(parents=True)
+        doc = dict(self.doc, id=self.TEST_ID, prefabTest=dict(id=self.TEST_ID, snapshotHash='0' * 64),
+                   output=dict(shipAs='pt_' + self.TEST_NAME, patch='pp_' + self.TEST_NAME))
+        (folder / 'project.json').write_text(json.dumps(doc), encoding='utf-8')
+        self.spec['objects'] = [COPY, HIDE]       # (a test makes no patch)
+        return builds, folder, build.Build(build.BuildInputs(
+            folder / 'project.json', self.tmp.name, folder / 'artifacts', self.lwr, self.udk, patch_work=self.work,
+            now=datetime.datetime(2026, 11, 7, 11, 0, 0), run=self.run_tool, seed=self.seed, echo=self.said.append,
+            quick=quick, named=self.name_copy, picture=self.picture_copy))
+
+    def test_a_prefab_tests_build_works_in_the_tests_folder_and_fits_a_deep_builds_folder(self):
+        """KB-12: a prefab test's Build worked in <artifacts>/.work/<Variant>-<stamp> under the test's folder, which
+        with a long builds folder passed Windows' 260 characters (the package's intro copy in the work folder, here
+        140 characters past the builds folder). It works in the test's own folder, `w`: the deepest file it writes
+        is 108 characters past the builds folder (the package's intro copy in place), and the Build passes under a
+        builds folder of 140 characters, where the old layout's deepest would be 280."""
+        builds, folder, b = self.prefab_test(140)
+        variant = 'pt_' + self.TEST_NAME
+        old = (folder / 'artifacts' / '.work' / ('%s-20261107-110000' % variant) / 'package' / 'CookedPCConsole'
+               / ('CIN_DropshipIntros_%s.upk' % variant))
+        self.assertGreater(len(str(old)), 259)
+        m = b.run()
+        self.assertEqual(m['work'], str(folder / 'w'))
+        self.assertTrue((folder / 'w' / 'logs').is_dir())
+        self.assertEqual([p.name for p in (folder / 'artifacts' / '.work').glob('%s-*' % variant)], [])
+        deepest = max(len(str(p)) - len(str(builds)) for p in builds.rglob('*'))
+        self.assertEqual(deepest, 108)
+        self.assertLessEqual(len(str(builds)) + deepest, 259)
+        self.assertEqual(sorted(m['files']), ['CookedPCConsole/CIN_DropshipIntros_%s.upk' % variant,
+                                              'CookedPCConsole/%s.upk' % variant])
+
+    def test_a_given_work_folder_is_the_builds(self):
+        """BuildInputs.work (--work): the build works there, whatever the project."""
+        import datetime
+        self.spec['objects'] = [COPY, HIDE]
+        work = Path(self.tmp.name) / 'elsewhere'
+        m = build.Build(build.BuildInputs(
+            self.project, self.tmp.name, self.output, self.lwr, self.udk, patch_work=self.work,
+            now=datetime.datetime(2026, 11, 7, 11, 0, 0), run=self.run_tool, seed=self.seed, echo=self.said.append,
+            quick=True, named=self.name_copy, picture=self.picture_copy, work=work)).run()
+        self.assertEqual(m['work'], str(work))
+        self.assertTrue((work / 'logs' / 'native-copy.log').is_file())
+        self.assertFalse((self.output / '.work' / m['buildId']).exists())
+
     def test_a_pinned_command_line_reads_nothing_from_the_settings(self):
         """Build queue plan, 9.1: the server's queue passes every folder, and the installs the names are checked
         against, so a setting saved after the capture changes nothing of the build."""
@@ -1553,12 +1607,14 @@ class Builds(unittest.TestCase):
         with mock.patch.object(build.settings_module, 'load_settings', side_effect=AssertionError('settings read')), \
                 mock.patch.object(build, 'Build', Recorder):
             code = build.main([str(self.project), '--pinned', '--game', str(self.lwr), '--cache', 'C', '--output', 'O',
-                               '--projects', 'P', '--check-game', 'I', '--attempt', attempt, '--saved-file', 'S'])
+                               '--projects', 'P', '--check-game', 'I', '--attempt', attempt, '--saved-file', 'S',
+                               '--work', 'W'])
         self.assertEqual(code, 0)
         i = seen['inputs']
         self.assertEqual((i.project, i.cache, i.output, i.lwr, i.udk),
                          (self.project, Path('C'), Path('O'), self.lwr, None))      # no --udk: no UDK
-        self.assertEqual((i.games, i.projects, i.attempt, i.saved_file), ([Path('I')], Path('P'), attempt, Path('S')))
+        self.assertEqual((i.games, i.projects, i.attempt, i.saved_file, i.work),
+                         ([Path('I')], Path('P'), attempt, Path('S'), Path('W')))
         with self.assertRaises(SystemExit):
             build.main([str(self.project), '--pinned', '--game', str(self.lwr)])         # a folder missing
         with self.assertRaises(SystemExit):

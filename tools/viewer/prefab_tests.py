@@ -1,10 +1,17 @@
-"""Private prefab test snapshots, build/launch authorization and recovery."""
+"""Private prefab test snapshots, build/launch authorization and recovery.
+
+Each test has a folder of its own, <builds>/.prefab-tests/<name>: the snapshot, the project made of it, the Build's
+artifacts (the package) and the Build's work folder, `w` (build.py works in a prefab test's folder). A test's id is a
+UUID; its folder and its map (prefab_stage.package_code: pt_<name>) are named by the first 12 hexadecimal characters
+of it (short_name), so that the paths stay short under a long builds folder (KB-12). A test made before 21 November
+2026 has its folder named by its whole id, and is read, played from and pruned as before."""
 from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -24,6 +31,13 @@ import prefab_stage as stage  # noqa: E402
 ACTIVE = {'preparing', 'building', 'launching', 'playing'}
 KEEP_SECONDS = 7 * 86400
 KEEP_TESTS = 20
+SHORT = re.compile(r'[0-9a-f]{12}')     # a test folder's name (short_name)
+
+
+def short_name(test):
+    """The name of a test's folder: the first 12 hexadecimal characters of its id (48 random bits of a UUID 4), as
+    its map's name is (prefab_stage.package_code)."""
+    return test.replace('-', '')[:12]
 
 
 def sha(document):
@@ -82,9 +96,12 @@ class PrefabTests:
         self._recover()
 
     def folder(self, test):
+        """The test's folder: <root>/<short_name>, or <root>/<id> for a test made before 21 November 2026."""
         if not token(test):
             raise problem('test-id', 'Invalid prefab test ID.', 404)
         path = self.root / test
+        if not path.is_dir():
+            path = self.root / short_name(test)
         if path.resolve().parent != self.root or path.is_symlink():
             raise problem('test-id', 'Invalid prefab test folder.', 404)
         return path
@@ -483,19 +500,20 @@ class PrefabTests:
         if not self.root.is_dir():
             return
         for path in self.root.iterdir():
-            if not token(path.name) or path.is_symlink() or not path.is_dir():
+            # (a folder named by a test's short name, or by its whole id: a test made before 21 November 2026)
+            if not (SHORT.fullmatch(path.name) or token(path.name)) or path.is_symlink() or not path.is_dir():
                 continue
             try:
-                job = read(self.folder(path.name) / 'test.json')
+                job = read(path / 'test.json')
             except (OSError, ValueError):
                 try:
                     if time.time() - path.stat().st_mtime >= KEEP_SECONDS and not self.process_active(path):
-                        shutil.rmtree(self.folder(path.name))
+                        shutil.rmtree(path)
                 except OSError:
                     pass    # held or gone meanwhile: the server starts all the same, and the next start tries again
                 continue
-            if (not isinstance(job, dict) or job.get('id') != path.name or not token(job.get('requestId'))
-                    or 'phase' not in job or 'updatedAt' not in job):
+            if (not isinstance(job, dict) or not token(job.get('id')) or path.name not in (job['id'], short_name(job['id']))
+                    or not token(job.get('requestId')) or 'phase' not in job or 'updatedAt' not in job):
                 continue
             test = job['id']
             self.jobs[test] = job
