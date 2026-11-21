@@ -90,3 +90,17 @@ line, and its finding in the [findings register](research/findings-register.md) 
   Play in game.
 - **Cause.** The editor looks for `XComEW.exe` in the process list.
 - **Finding.** [F-84](research/findings-register.md).
+
+### KB-8: A made wall turned off the quarter turns breaks away from where it is hit
+
+- **What happens.** A made wall drawn at a free angle (30 degrees in the check) and hit by a grenade near one end
+  breaks in its middle: the part nearest the blast stands and a part further along it goes. A wall on a quarter turn
+  breaks where it is hit.
+- **Since.** The custom geometry branch (`custom-geometry`, 21 November 2026), which lets a made wall stand at any
+  angle; no release has it yet.
+- **Workaround.** Draw walls that should break where they are hit on a quarter turn; a turned wall stands and
+  blocks as drawn, only its breaking is off.
+- **Cause.** Likely, not checked: the fracture columns are cut a tile wide along the wall's longer world axis, each
+  boxed over the wall's whole reach across, so on a slant a column's box does not sit on its own fragments.
+- **Finding.** [F-145](research/findings-register.md) ([EXP-90](research/experiments/EXP-90-free-form-pieces.md)
+  run 1, check 3).
