@@ -5,15 +5,15 @@
 // switch (setLightsShown, setVolumesShown and the others) is its module's.
 //
 // createViews takes what it needs of app.js as one argument object, when app.js makes it, after the selection: the
-// gizmo, the views' switches and refreshes, the Spawns view's layer, whether it is made, and its panel. It keeps no
-// state: which view is on and the switches are editor_state.js's.
+// gizmo, the views' switches and refreshes, the Spawns view's layer and its panel (made before it: follow-up 3.24). It
+// keeps no state: which view is on and the switches are editor_state.js's.
 import { areaShown, boxesShown, data, effectsOn, lightRoots, lightsOn, lightsShown, normalEffects, normalLights,
          normalSpawns, ownSet, pickBox, reachShown, setLightsShownValue, setOwnPickedValue, spawnsOn, volumeRoots,
          volumesOn, zonesOn } from './editor_state.js';
 
 export function createViews({ $, gizmo, refreshLightShapes, refreshLightVisibility, refreshPickBox, refreshVolumes,
                               select, setEffectsShown, setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown,
-                              spawnLayer, spawnLayerReady, spawnPanel, spawnsShown }) {
+                              spawnLayer, spawnPanel, spawnsShown }) {
   // The normal view: out of the Buildings view, the Lights view, the Landing zones view and the Effects view.
   function setNormalView() {
     if (volumesOn) setVolumesShown(false);
@@ -41,7 +41,7 @@ export function createViews({ $, gizmo, refreshLightShapes, refreshLightVisibili
     $('normalLights').checked = normalLights; $('boxesToggle').checked = boxesShown; $('normalEffects').checked = normalEffects;
     $('normalSpawns').checked = normalSpawns;
     // (the spawn markers show with the view, or with the switch in the normal view)
-    if (spawnLayerReady()) { spawnLayer.visible = spawnsShown(); spawnPanel(); }
+    spawnLayer.visible = spawnsShown(); spawnPanel();
     $('areaToggle').checked = areaShown; $('reachToggle').checked = reachShown;
     $('areaToggle').disabled = $('reachToggle').disabled = !lightsShown;
   }

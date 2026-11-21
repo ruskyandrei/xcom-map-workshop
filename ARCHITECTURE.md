@@ -340,8 +340,8 @@ value goes stale, so:
 - a collection (a `Map`, an array) is changed in place through the import as it is.
 
 What one area alone uses lives in that area's module, inside its factory (the document session's `navigating`); a
-module made after it that reads it is given a getter the factory returns (the Spawns view's `spawnLayerReady`), never
-a copy of the value. What several areas use lives in [`editor_state.js`](tools/viewer/web/editor_state.js), grouped by
+module made after it that reads it is given a getter the factory returns (the build queue's controller's `state`,
+which the project manager reads), never a copy of the value. What several areas use lives in [`editor_state.js`](tools/viewer/web/editor_state.js), grouped by
 the area that owns it, each group's comment saying who reads or sets it: the scene and its roots, the selection, the
 project open and what it keeps (groups, buildings, the map's size, the clear and its landing zones, missions, picture,
 spawn rules), the document session's state and drafts, Play in game's, the prefab builder's document, the edit hub's

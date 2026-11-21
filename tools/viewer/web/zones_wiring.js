@@ -8,7 +8,8 @@
 //   panel (landingPanel, its notes and its controls);
 // - the zones changed, each change one undo step (setZones, changeZone): copied, deleted, a kind or a game's mark
 //   changed; a zone added with a click (startZonePlacing, placeZone);
-// - what follows a change of the cleared mark (clearedChanged).
+// - what follows a change of the cleared mark (clearedChanged), the Map menu's items among it (scene_start.js'
+//   showMapMenu).
 //
 // createZonesWiring takes what it needs of app.js as one argument object, when app.js makes it: the camera, the
 // renderer and the scene, the landing zones' layer and its storage key, the other views' switches, the header's
@@ -24,6 +25,7 @@ import { builderMode, cleared, data, effectsOn, landingZones, lightsOn, pickedZo
          spawnsOn, stage, volumesOn, zonePlacing, zonesOn } from './editor_state.js';
 import { zoneServes } from './missions.js';
 import { uuid } from './project.js';
+import { showMapMenu } from './scene_start.js';
 import { DIRECTIONS as ZONE_DIRECTIONS, evacBox, explicitEw, GROUND as ZONE_GROUND, groundOf, landingUnmoved,
          ownLandings, ownSlots, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
 import { remember } from './storage.js';
@@ -441,10 +443,7 @@ export function createZonesWiring({ $, banner, camera, controls, cutaway, editCh
   // draws none: the Build takes them out), the ground grid
   function clearedChanged() {
     if (!data) return;
-    $('projectSize').hidden = !projectsAvailable();
-    $('projectClear').hidden = !projectsAvailable();
-    $('projectMissions').hidden = !projectsAvailable();
-    $('projectPicture').hidden = !projectsAvailable();
+    showMapMenu($);
     setMergedBuildings(null);
     refreshMissionPicker();     // a project's missions, or none
     refreshLightVisibility();

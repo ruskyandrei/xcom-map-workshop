@@ -614,9 +614,9 @@ const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, 
         missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker,
         placeMissionGizmo, placeSpawn, refreshSpawnMarkers, resetBaseSpawn, scaleSpawnMarkers, setMissionMoves,
         setNormalSpawns, setPickedSpawn, setSpawnRule, setSpawnsShown, showSpawn, spawnAddEntries, spawnAt, spawnBoxNow,
-        spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnLayerReady,
-        spawnMovable, spawnPanel, spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects,
-        syncSpawnFilters, syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
+        spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnMovable,
+        spawnPanel, spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects, syncSpawnFilters,
+        syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
   $, camera, controls, flashHint, floorStays, gizmo, groundHeight, headerMission, headerMissions,
   landingLayer, movedMatrix, pick, projectsAvailable, rayAt, renderer, restingHint, setLightsShown, tileCorner, world,
   // (made further down: called through, since they are not made yet while this runs)
@@ -697,8 +697,7 @@ const { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshHighlig
 // it runs as the page loads), so the five views made before it are given its functions as functions that call them.
 const { lightButton, setNormalView, syncLights } = createViews({
   $, gizmo, refreshLightShapes, refreshLightVisibility, refreshPickBox, refreshVolumes, select, setEffectsShown,
-  setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnLayerReady, spawnPanel,
-  spawnsShown });
+  setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnPanel, spawnsShown });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
 const { kindButton, selectKind } = createSelectKind({
@@ -849,7 +848,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   showSceneTitle($);
   // Configure light data before the first lit material compiles.
   setLighting(createMapLighting({ world, sun, hemisphere, scene: data, maxTextureSize:renderer.capabilities.maxTextureSize }));
-  showSceneMenus($, projectsAvailable);
+  showSceneMenus($);
   setOwnGrid(null);
   readLandingLines();
   drawPlayArea();
