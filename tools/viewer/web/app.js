@@ -788,8 +788,8 @@ const { deleteNow, deleteSelection, resetAll, resetSelected, undoStep } = create
   addEffectRoots, addLightRoots, addRoots, baseMatrix, busy, BUSY_PIECES, clearedChanged, cloneGroups, copyable,
   deleteVolumes, drawBroken, effectViewOnly, flashHint, gizmo, isStream, liveVolumes, mapEdits, mapRestoreChange,
   nextFrame, plural, refreshLandingZones, refreshLightVisibility, refreshMissionPicker, removeEffectRoots,
-  removeLightRoots, removeRoots, sceneChanged, selectedBoxes, selectionWords, setLightValues, setMissionMoves, setStage,
-  syncSpawnRule, valuesEdited });
+  removeLightRoots, removeRoots, restingHint, sceneChanged, selectedBoxes, selectionWords, setLightValues,
+  setMissionMoves, setStage, syncSpawnRule, valuesEdited });
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 // The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
 // the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.

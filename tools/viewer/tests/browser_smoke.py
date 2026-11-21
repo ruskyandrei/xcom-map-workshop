@@ -1317,8 +1317,8 @@ def check_clear_map(page):
     redone. Nothing is saved."""
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 22"):
         return skip('clear-map', 'needs a map (not a preview) of export 22 or later', whole=True)
-    # nothing selected: a piece left selected by a check before (typed-pose's) opens its panel over the Map grid's Done
-    page.evaluate('viewer.select(null)')
+    # (a piece a check before left selected, typed-pose's, stays selected: the Map grid's panel opens beside its panel,
+    # and its Done is clicked below)
     page.wait_for_function("viewer.zones().length > 0 || viewer.landingLines().lines.length === 0", timeout=10000)
     plan = page.evaluate('viewer.clearPlan()')
     # the landing's pieces the clear keeps: its frame and grounded Skyranger, none on a landing with no frame (the
@@ -4620,10 +4620,18 @@ def check_play(browser, url, project_id=None, screenshot=None):
             assert page.locator('#buildMissionRow').is_visible() and page.locator('#buildBakeRow').is_hidden()
             assert 'Enemies:' in page.locator('#buildMissionNote').inner_text() and 'played' not in page.locator('#buildMissionNote').inner_text().lower(),                 page.locator('#buildMissionNote').inner_text()
         else: assert page.locator('#buildMissionRow').is_hidden()
+        page.evaluate("document.querySelectorAll('#installInfo dd').forEach(dd => { dd.dataset.drawn = 'before the play'; })")
         page.locator('#buildOptionsOk').click()
         page.wait_for_function("() => { const b = document.querySelector('#projectBanner'); return !b.hidden && b.textContent.startsWith('Starting XCOM'); }",
                                timeout=60000)
         assert '(original map)' in page.locator('#projectBanner').inner_text()
+        # the Game menu's Installs drawn again from the play's answer as the message shows, the menu not opened again
+        # (it closed for the play): new rows, the last saying what the play left in the game (nothing, for a map alone)
+        drawn = page.evaluate("[...document.querySelectorAll('#installInfo dd')].map(dd => [dd.dataset.drawn ?? null, dd.textContent])")
+        assert len(drawn) == 4 and not any(before for before, _ in drawn), drawn
+        played = status()['game']
+        if not (played['installed'] or played.get('rotation') or played.get('switchedOff')):
+            assert drawn[3][1] == "Nothing of the editor's", drawn
         # the "Starting XCOM …" message closes itself after 12 s (× closes it sooner; banner() above clicks it)
         page.wait_for_selector('#projectBanner', state='hidden', timeout=16000)
         now = status()['game']
@@ -4660,11 +4668,10 @@ def check_play(browser, url, project_id=None, screenshot=None):
         assert page.locator('#buildModal').is_hidden()
         installed, = status()['game']['installed']
         assert installed['map'] == build['package']['folder'].split('\\')[-1] and installed['project']['id'] == project_id, installed
-        menu()   # the menu asks the server again as it opens (refreshInstalls): its row once that answer is in
-        page.wait_for_function("end => document.querySelectorAll('#installInfo dd')[3].textContent.endsWith(end)",
-                               arg=f"({installed['map']})" + (', lighting not baked' if installed.get('quick') else ''), timeout=30000)
-        row = page.locator('#installInfo dd').nth(3).inner_text()
+        # the Game menu's Installs, drawn from the play's answer: its row names the build at once, the menu not opened
+        row = page.evaluate("document.querySelectorAll('#installInfo dd')[3].textContent")
         assert row.endswith(f"({installed['map']})" + (', lighting not baked' if installed.get('quick') else '')), row
+        menu()
         if screenshot: page.locator('#playMenu').screenshot(path=str(screenshot.with_stem(screenshot.stem + '-play-project')))
         assert '1 map record' in undo_everything()
         # a finished build's window offers Play in game: a quick build (Ctrl+B, Bake the lighting off), then played
@@ -4686,6 +4693,9 @@ def check_play(browser, url, project_id=None, screenshot=None):
         assert page.locator('#buildPlay').is_enabled() and page.locator('#buildModal').is_visible()
         installed, = status()['game']['installed']
         assert installed['project']['id'] == project_id and installed.get('quick'), installed
+        # (the Installs row drawn from that play's answer too)
+        row = page.evaluate("document.querySelectorAll('#installInfo dd')[3].textContent")
+        assert row.endswith(f"({installed['map']}), lighting not baked"), row
         page.locator('#buildClose').click()
         assert '1 map record' in undo_everything()
     page.close()
@@ -5277,9 +5287,40 @@ def check_squad_run(ctx):
         ctx.errors.difference_update({e for e in ctx.errors if '409' in e and ('/squad.json' in e or e.startswith('Failed to load resource'))})
 
 
+# the header's parts: how far it overflows, the Project and Map buttons' widths, the edit summary
+HEADER_PARTS = """() => { const h = document.querySelector('header'), chip = document.getElementById('editCount');
+  const width = id => document.getElementById(id).getBoundingClientRect().width;
+  return { over: h.scrollWidth - h.clientWidth, project: width('projectButton'), map: width('mapButton'),
+           chip: chip.hidden ? null : { text: chip.textContent, title: chip.title, cut: chip.scrollWidth > chip.clientWidth,
+                                        ellipsis: getComputedStyle(chip).textOverflow === 'ellipsis' } }; }"""
+
+
+def check_narrow_header(browser, url):
+    """In a window 1024 wide, a long edit summary (a clear's: pieces deleted, lights, landing zones, buildings, spawn
+    points) is cut with an ellipsis and whole in its title, the Project and Map buttons keep their widths, and nothing
+    is pushed out of the header. A page of its own; nothing is saved."""
+    errors = []
+    page = open_viewer(browser, url, errors)
+    answer_prepare(page)
+    if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 22 && !viewer.project()"):
+        return skip('header', 'the narrow header\'s long summary needs a map of export 22 or later to clear, with no project open', page)
+    page.set_viewport_size(dict(width=1024, height=768))
+    rest = page.evaluate(HEADER_PARTS)
+    assert rest['over'] <= 0 and rest['chip'] is None, rest
+    page.evaluate('viewer.clearMap(null)')
+    page.wait_for_function('viewer.changes().total > 0')
+    long = page.evaluate(HEADER_PARTS)
+    assert long['chip'] and long['chip']['cut'] and long['chip']['ellipsis'] and long['chip']['title'] == long['chip']['text'], long
+    assert long['over'] <= 0 and long['project'] == rest['project'] and long['map'] == rest['map'], (rest, long)
+    page.close()
+    assert not errors, errors
+    return dict(rest=rest, long=long)
+
+
 def check_header(ctx):
     """The header's Selected, framing a piece it picks (the button is off with nothing selected, as a check before it
-    may leave things), and Frame, and View options' grid. The selection it found is put back."""
+    may leave things), and Frame, and View options' grid. The selection it found is put back. Then, on a page of its
+    own, the header 1024 wide with a long edit summary (check_narrow_header)."""
     page = ctx.page
     held = page.evaluate('viewer.gizmo.active')
     piece = page.evaluate("""[...viewer.roots.values()].find(r => r.visible && !r.userData.deleted && !r.userData.source.hidden
@@ -5293,6 +5334,8 @@ def check_header(ctx):
     check_option(page,'grid',False)
     check_option(page,'grid',True)
     page.evaluate('id => viewer.select(id)', held)
+    narrow = check_narrow_header(ctx.browser, page.url)
+    return dict(narrow=narrow) if narrow else None
 
 
 def check_floors_cut(ctx):
@@ -5572,7 +5615,7 @@ CHECKS = (
           'Play in game, Game maps\' Undo everything, Installs', needs=('play',)),
     Check('prepare', lambda c: check_prepare(c.browser, c.page.url, c.args.play_project if c.args.play else None),
           'the prepare-again dialog'),
-    Check('header', check_header, 'the header\'s Selected and Frame; View options\' grid'),
+    Check('header', check_header, 'the header\'s Selected and Frame; View options\' grid; a long edit summary 1024 wide'),
     Check('floors-cut', check_floors_cut, 'the floor picker cuts the buildings'),
     Check('dense-lighting', check_dense, 'lights past 128 reach the GPU; the light grid packs 300', when=version(10)),
     Check('light-grid', on_page(check_light_grid), 'the light grid covers only the map\'s pieces'),
@@ -5614,6 +5657,7 @@ CHECKS = (
     Check('squad-read', editing('squad_read'), 'the squad read again', full=False),
     Check('ladder-floor', editing('ladder_floor'), 'a ladder\'s floor count', full=False),
     Check('small-defects', editing('small_defects'), 'small page defects', full=False),
+    Check('grid-panel', editing('grid_panel'), 'the Map grid\'s panel beside the Selected piece panel (1280 and 1024 wide)', full=False),
     Check('documents', lambda c: __import__('browser_documents').check_all(c.browser, c.page.url),
           'two windows, replacing, failed saves, builds and first opens', needs=('projects',), full=False),
 )
@@ -5741,7 +5785,8 @@ ALL_RUNS = (
                                                                       'library-assembly,output-names']),
     dict(name='builder', map='URB_Bar', smoke=['--projects', '--only', 'builder,prefab-test']),
     dict(name='editing', map='URB_Bar', smoke=['--projects', '--only', 'made-prefab,modals,reset-all,draw-errors,look-undo,failed-reads,'
-                                                                        'let-go,paste-buildings,squad-read,ladder-floor,small-defects']),
+                                                                        'let-go,paste-buildings,squad-read,ladder-floor,small-defects,'
+                                                                        'grid-panel']),
     dict(name='documents', map='URB_Bar', smoke=['--projects', '--only', 'documents']),
     dict(name='police', map='URB_PoliceStation', smoke=['--projects', '--only', 'walls,looks,light-bar']),
     dict(name='temple', map='TempleShip', smoke=['--only', 'temple-interior,temple-look']),

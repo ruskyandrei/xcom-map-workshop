@@ -11,7 +11,8 @@ pieces will do (the pieces made here use it as their donor).
   and Shift+Tab from the first to the last; Delete, M and W don't reach the scene behind; Escape closes and the focus
   goes back to the control the dialog was opened from. Missions with no row ticked puts the focus on a row's tick.
 - reset-all (finding 28): one of the map's fracturing pieces broken with Break (B and a click on it) is the only
-  change: Reset all mends it, and Ctrl+Z breaks it again; broken with another piece deleted, Reset all puts both back.
+  change: Reset all mends it, leaving the edit chip hidden and empty, and Ctrl+Z breaks it again; broken with another
+  piece deleted, Reset all puts both back.
 - draw-errors (finding 29, needs --projects): a project holding a copy of a piece whose mesh the browser can't load
   opens all the same, with the copy counted as a display error and its record kept and saved back; a paste of that
   piece says it could not be drawn and places nothing, and once the mesh can be had again the next paste places it
@@ -35,7 +36,11 @@ pieces will do (the pieces made here use it as their donor).
 - ladder-floor (finding 34): one of the map's ladders climbing to a roof: that roof's Floor turned off by its flags,
   the ladder's chip says it won't climb (as the Build warns); undone, it climbs.
 - small-defects (finding 34): a warning note in the warning colour, the Floor field to 10, and a UFO mission whose
-  ship type the editor doesn't know shown as it is with OK off until a ship is chosen."""
+  ship type the editor doesn't know shown as it is with OK off until a ship is chosen; after a delete of 402 pieces
+  and of one, Ctrl+Z, Ctrl+Y and Ctrl+Z each take the "Deleted ... · Ctrl+Z brings them back" hint away.
+- grid-panel (the Map grid's panel once opened under the Selected piece panel): at 1280 and at 1024 pixels wide, with
+  a piece picked before the rail's Map grid is opened and with one picked while it is on, the two panels stand apart,
+  clear of the rail, and a click at the middle of the grid panel's Done puts the tool away and keeps the selection."""
 import json
 import math
 import time
@@ -249,6 +254,10 @@ def check_reset_all(browser, url, open_viewer):
     page.locator('#editResetAll').click()
     assert page.evaluate('viewer.changes().total') == 0, page.evaluate('viewer.changes()')
     assert page.evaluate('id => viewer.roots.get(id).userData.blasts', piece) is None
+    # nothing changed, no project open: the edit chip is hidden and keeps no words, as before any edit (it kept "not
+    # saved", which a test reading the page's text took for shown)
+    chip = page.evaluate("(() => { const c = document.getElementById('editCount'); return [c.hidden, c.textContent, c.title]; })()")
+    assert chip == [True, '', ''], chip
     page.keyboard.press('Control+z')
     assert page.evaluate('id => viewer.roots.get(id).userData.blasts', piece) == blasts
     assert page.evaluate('viewer.changes().broken') == 1
@@ -652,6 +661,68 @@ def check_small_defects(browser, url, open_viewer):
     assert page.locator('#missionsOk').is_enabled() and page.locator('#missionsWarn').is_hidden()
     page.locator('#missionsOk').click()
     assert page.evaluate('window.missionsChosen') == [dict(kind='Crash', ship='eShip_UFOAbductor')]
+    # an undo or a redo puts the resting hint back (nothing to say here: none) in place of "Deleted 402 pieces · Ctrl+Z
+    # brings them back", for a delete of many pieces (a step under the busy mark) and of one
+    ids = page.evaluate(DRAWN_PIECES)
+    assert len(ids) >= 60, len(ids)
+    settled = "() => document.getElementById('busyMark').hidden"
+    hints = []
+    for count in (402, 1):
+        page.evaluate('ids => { viewer.select(ids[0]); viewer.gizmo.setSelection(ids); }', ids[:count])     # (Delete needs a pick)
+        page.evaluate('document.activeElement?.blur?.()')
+        page.keyboard.press('Delete')
+        page.wait_for_function(f"() => viewer.changes().deleted > 0 && ({settled})()")
+        hints.append(page.locator('#dragHint').inner_text())
+        assert hints[-1].startswith('Deleted '), hints
+        for key, deleted in (('Control+z', False), ('Control+y', True), ('Control+z', False)):
+            page.keyboard.press(key)
+            page.wait_for_function(f"d => (viewer.changes().deleted > 0) === d && ({settled})()", arg=deleted)
+            assert page.locator('#dragHint').is_hidden(), (count, key, page.locator('#dragHint').inner_text())
     page.close()
     assert not errors, errors
-    return colours
+    return dict(colours=colours, hints=hints)
+
+
+# one of the map's own pieces, drawn and pickable; and all of them
+DRAWN_PIECE = """[...viewer.roots.values()].find(r => r.visible && !r.userData.deleted && !r.userData.source.added
+  && !r.userData.source.hidden && !r.userData.source.environment)?.userData.source.id ?? null"""
+DRAWN_PIECES = """[...viewer.roots.values()].filter(r => r.visible && !r.userData.deleted && !r.userData.source.added
+  && !r.userData.source.hidden && !r.userData.source.environment).map(r => r.userData.source.id)"""
+
+
+def apart(a, b):
+    """Whether two boxes (Playwright's bounding boxes) share no point."""
+    return (a['x'] + a['width'] <= b['x'] or b['x'] + b['width'] <= a['x']
+            or a['y'] + a['height'] <= b['y'] or b['y'] + b['height'] <= a['y'])
+
+
+def check_grid_panel(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    piece = page.evaluate(DRAWN_PIECE)
+    assert piece and page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview"), 'needs a map with a piece of its own'
+    out = {}
+    for width, height in ((1280, 800), (1024, 768)):
+        page.set_viewport_size(dict(width=width, height=height))
+        for first in ('piece', 'tool'):
+            if first == 'piece': page.evaluate('id => viewer.select(id)', piece)
+            page.locator('#editGrid').click()
+            if first == 'tool': page.evaluate('id => viewer.select(id)', piece)
+            assert page.evaluate('viewer.gridTool().on') and page.locator('#gridPanel').is_visible() \
+                and page.locator('#inspector').is_visible(), (width, first)
+            grid, inspector, rail = (page.locator(f'#{id}').bounding_box() for id in ('gridPanel', 'inspector', 'rail'))
+            assert apart(grid, inspector) and apart(grid, rail), (width, first, grid, inspector, rail)
+            done = page.locator('#gridDone').bounding_box()
+            at = [done['x'] + done['width'] / 2, done['y'] + done['height'] / 2]
+            hit = page.evaluate("p => { const e = document.elementFromPoint(p[0], p[1]); "
+                                "return e?.closest('#gridDone') ? 'gridDone' : e?.closest('[id]')?.id ?? null; }", at)
+            assert hit == 'gridDone', (width, first, hit, grid, inspector)
+            page.mouse.click(*at)
+            assert not page.evaluate('viewer.gridTool().on') and page.locator('#gridPanel').is_hidden(), (width, first)
+            # the selection is kept: the tool only adds its panel
+            assert page.evaluate('viewer.gizmo.active') == piece and page.locator('#inspector').is_visible(), (width, first)
+            page.evaluate('viewer.select(null)')
+        out[width] = dict(grid=[round(grid['x']), round(grid['width'])], inspector=[round(inspector['x']), round(inspector['width'])])
+    page.close()
+    assert not errors, errors
+    return out

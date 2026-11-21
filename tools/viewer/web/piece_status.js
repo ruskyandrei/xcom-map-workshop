@@ -38,13 +38,16 @@ export function createPieceStatus({ $, changes, gizmo, isStream, lightPose, ligh
     $('editDelete').disabled = fixedPick;
     // (in the builder every piece is the prefab's own, so only whether it is saved is said)
     $('editCount').hidden = builderMode ? !count.total && !builder.doc?.revision : !count.total;
-    $('editCount').textContent = builderMode ? saveState() : [count.moved && `${count.moved} moved`, count.added && `${count.added} added`,
+    // a hidden chip keeps no words: with nothing changed it kept "not saved", which a test reading the page's text
+    // took for shown
+    $('editCount').textContent = $('editCount').hidden ? '' : builderMode ? saveState() : [count.moved && `${count.moved} moved`, count.added && `${count.added} added`,
       count.deleted && `${count.deleted} deleted`, count.lights && plural(count.lights, 'light edit'),
       count.effects && plural(count.effects, 'effect or sound edit'),
       count.grid && `grid ${data.tileGrid.dimensions[0]} × ${data.tileGrid.dimensions[1]}${cleared ? ` × ${data.tileGrid.dimensions[2]}` : ''}`,
       count.zones && 'landing zones changed', count.buildings && plural(count.buildings, 'building'),
       count.missions && `${plural(count.missions, 'mission object')} moved`, count.spawns && plural(count.spawns, 'spawn point edit'), count.flags && `${plural(count.flags, 'piece')} with flags changed`, count.broken && `${plural(count.broken, 'piece')} broken`,
       saveState()].filter(Boolean).join(' · ');
+    $('editCount').title = $('editCount').textContent;        // (whole, where a narrow header cuts the chip's words)
     $('editCount').classList.toggle('warn', saveState() !== 'saved');
     $('editUndo').hidden = $('editRedo').hidden = !(count.total || gizmo.canUndo() || gizmo.canRedo());
     $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();
