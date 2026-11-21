@@ -10,26 +10,30 @@
 //   original's box of its meshes' vertices (vertexBox) carried to a new pose (movedBox), and a piece's world box from
 //   what is drawn of it (boxOf);
 // - an added piece made from its template (addedObject: its own id, newId; a made piece's mesh and materials from its
-//   numbers, madeShape and madeShapeOf, standing at scale 1, unscaled).
+//   numbers, madeShape and madeShapeOf, standing at scale 1, unscaled);
+// - the template a record's piece is copied from (templateFor: the map's own original, else another map's piece read)
+//   and the exported pose of the original whose pose rule a piece keeps under tile snap (recipeOf).
 // An actor's pose at a render matrix, and the matrix of a pose (actorPose, movedMatrix), are plain exports at the top,
 // before the factory: they read only their arguments.
 //
 // createScenePieces takes what it needs of app.js as one argument object, when app.js makes it: the renderer, the
 // camera and the scene's content, the pickables, the texture and mesh loaders and the textures' loads, the grid's
-// origin, a piece's original, an asset's url, a cover piece's template version, a broken piece drawn, the selection
-// and the hints. Its own state is inside it (the loads settled, the materials' cache, the originals' parts and vertex
-// boxes); the meshes loaded are editor_state.js's (geometryCache).
+// origin, a piece's original and key, whether it is streamed or made, an asset's url, a cover piece's template
+// version, a broken piece drawn, the selection and the hints. Its own state is inside it (the loads settled, the
+// materials' cache, the originals' parts and vertex boxes, the originals by key for templates and recipes); the meshes
+// loaded are editor_state.js's (geometryCache).
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { TILE } from './constants.js';
 import { COVER_KIND } from './cover.js';
-import { builderMode, cachePrefix, data, geometryCache, loadErrorCount, roots, selected, setLiveCache,
+import { builderMode, cachePrefix, data, foreignTemplates, geometryCache, loadErrorCount, roots, selected, setLiveCache,
          setLoadErrorCount } from './editor_state.js';
 import { actorMatrix, placedPose } from './gizmo.js';
 import { madeGroundShape } from './ground.js';
 import { withLocalLights } from './lighting.js';
 import { isPlain } from './made_requests.js';
 import { cloneBlasts } from './piece_records.js';
+import { pieceGrid } from './pieces.js';
 import { targetKey, tidyLocation, tidyRotator } from './project.js';
 import { madeSlabShape, madeWallShape } from './walls.js';
 
@@ -46,8 +50,8 @@ export const movedMatrix = (source, location, rotation) => actorMatrix(location,
   .multiply(actorMatrix(source.location, source.rotation).invert()).multiply(new THREE.Matrix4().fromArray(source.matrix));
 
 export function createScenePieces({ assetUrl, camera, content, coverVersion, drawBroken, flashHint, fromOf, gltfLoader,
-                                    gridOrigin, loadingState, pickables, renderer, select, textureLoader,
-                                    texturePromises }) {
+                                    gridOrigin, isMade, isStream, loadingState, pickables, renderer, select, sourceKey,
+                                    textureLoader, texturePromises }) {
   // Picking: the first visible, unclipped piece under a screen point, or null.
   function rayAt(clientX, clientY) {
     const rect = renderer.domElement.getBoundingClientRect(), ray = new THREE.Raycaster();
@@ -352,8 +356,33 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
       added: { from: fromOf(template), entity, tinted, ...(generated ? { generated } : {}),
                ...(template.cover ? { template: { kind: COVER_KIND, version: coverVersion(template.added?.template?.version, template.cover.type) } } : {}) } };
   }
+  // The originals by key (recipeOf) and by key and component (templateFor), made at their first use.
+  let originalIndex = null;
+  // The exported pose of the original whose pose rule a piece keeps under tile snap (a ladder, door, car, van or
+  // fracturing piece: the recipe snap), or null.
+  function recipeOf(o) {
+    if (!o || o.isLight || o.isEffect || isStream(o) || !pieceGrid(o)) return null;
+    if (!o.added) return { location: o.location, rotation: o.rotation };
+    if (!originalIndex) {
+      originalIndex = new Map();
+      for (const r of roots.values()) if (!r.userData.source.added) originalIndex.set(targetKey(fromOf(r.userData.source)), r.userData.source);
+    }
+    const original = originalIndex.get(targetKey(o.added.from)) ?? foreignTemplates.get(`${targetKey(o.added.from)}|${o.component}`);
+    if (!original) return null;
+    // a made wall's height is free (its columns are made for where it stands): it moves by storeys from its own
+    return isMade(o) ? { location: [original.location[0], original.location[1], o.location[2]], rotation: original.rotation }
+      : { location: original.location, rotation: original.rotation };
+  }
+  let templates = null;
+  function templateFor(from, component) {
+    if (!templates) {
+      templates = new Map();
+      for (const r of roots.values()) if (!r.userData.source.added) templates.set(`${sourceKey(r.userData.source)}|${r.userData.source.component}`, r.userData.source);
+    }
+    return templates.get(`${targetKey(from)}|${component}`) ?? foreignTemplates.get(`${targetKey(from)}|${component}`);
+  }
 
   return { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
            materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt,
-           removeRoots, texture, track, unscaled, vertexBox };
+           recipeOf, removeRoots, templateFor, texture, track, unscaled, vertexBox };
 }

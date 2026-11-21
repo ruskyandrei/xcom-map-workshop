@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo } from './gizmo.js';
-import { createPieceBrowser, pieceGrid, useFamilies } from './pieces.js';
+import { createPieceBrowser } from './pieces.js';
 import { api as projectApi, stateKey, targetKey, uuid } from './project.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { createProjectManager } from './manager.js';
@@ -17,21 +17,21 @@ import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo,
-         floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, hintTimer,
-         landingZones, lastBuild, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots,
-         lightsDirty, lightsOn, lightsShown, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue,
-         missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns, ownSet, pickBox, pickDrag,
-         pickedSpawn, pickTool, pieces, placing, prefabParameter, project, projectMissions, projectSpawnRules,
-         reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
-         setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn,
-         setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors, setLandingZones,
-         setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
-         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
-         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
-         setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey,
-         setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn,
-         spawnLayerReady, spawnPlacing, spawnsOn, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
-         wallDrag, wallDrawing, zonePlacing, zonesOn } from './editor_state.js';
+         floorTileLayer, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, hintTimer, landingZones,
+         lastBuild, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty,
+         lightsOn, lightsShown, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves,
+         missionPickValue, normalEffects, normalLights, normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pickTool,
+         pieces, placing, prefabParameter, project, projectMissions, projectSpawnRules, reachShown, roots, selected,
+         setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix,
+         setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty,
+         setGroups, setHintTimer, setLandingZones, setLibrary, setLibraryScopeValue, setLighting, setLightsOn,
+         setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue, setMergedBuildings,
+         setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue,
+         setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
+         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSpawnRulesData, setSpawnsOn,
+         setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnLayerReady, spawnPlacing, spawnsOn, stage,
+         streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, wallDrag, wallDrawing, zonePlacing,
+         zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -54,7 +54,8 @@ import { createMadeDrawing } from './made_drawing.js';
 import { createMadeHandles } from './made_handles.js';
 import { createMadePanel } from './made_panel.js';
 import { createMadeBreaking } from './made_breaking.js';
-import { createMapGrid } from './map_grid.js';
+import { createMapGrid, gridOrigin, tileCorner } from './map_grid.js';
+import { createMapFamilies } from './map_families.js';
 import { createClearMap } from './clear_map.js';
 import { actorPose, createScenePieces, movedMatrix } from './scene_pieces.js';
 import { isPlain, madeRequest, plainLook } from './made_requests.js';
@@ -166,9 +167,6 @@ const gltfLoader = new GLTFLoader();
 // Pieces of the packages a mission streams into the map (LWR's patches, mission objects): shown for reference, never
 // edited (a project edits the map's own pieces; the Build makes nothing of theirs).
 const isStream = o => o?.layer === 'stream';
-// The families of pieces and the map's assemblies (families.json, tools/viewer/families.py: the compiler's own), or
-// null from a server without them. assemblyIndex: an original's key (package|level|actor) to its assembly.
-let assemblyIndex = new Map(), originalIndex = null;     // (the families, families: editor_state.js)
 // The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
 // opens once they are, so its pieces in a donor look are drawn in it. A read that fails isn't kept (review finding
 // 31): the banner says why, and Try again reads it again.
@@ -185,34 +183,6 @@ function readLooks() {
 }
 // The original a piece is, or was copied from: package, level and actor (a project's key for it).
 const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level: o.layer, actor: o.actor });
-// foreignAssemblies: the same for the assemblies of other maps' pieces, as their records are read (libraryTemplate).
-const foreignAssemblies = new Map();
-const assemblyOf = o => {
-  if (!o) return null;
-  const key = targetKey(fromOf(o));
-  return assemblyIndex.get(key) ?? foreignAssemblies.get(key) ?? null;
-};
-// The exported pose of the original whose pose rule a piece keeps under tile snap (a ladder, door, car, van or
-// fracturing piece: the recipe snap), or null.
-function recipeOf(o) {
-  if (!o || o.isLight || o.isEffect || isStream(o) || !pieceGrid(o)) return null;
-  if (!o.added) return { location: o.location, rotation: o.rotation };
-  if (!originalIndex) {
-    originalIndex = new Map();
-    for (const r of roots.values()) if (!r.userData.source.added) originalIndex.set(targetKey(fromOf(r.userData.source)), r.userData.source);
-  }
-  const original = originalIndex.get(targetKey(o.added.from)) ?? foreignTemplates.get(`${targetKey(o.added.from)}|${o.component}`);
-  if (!original) return null;
-  // a made wall's height is free (its columns are made for where it stands): it moves by storeys from its own
-  return isMade(o) ? { location: [original.location[0], original.location[1], o.location[2]], rotation: original.rotation }
-    : { location: original.location, rotation: original.rotation };
-}
-const gridOrigin = () => data?.tileGrid?.origin?.slice(0, 2) ?? null;
-// The corner the game counts its tiles from (export 26's tileGrid.tiles, its world data's WorldBounds; for an older
-// export a unit under the origin, as on every installed map), [x, y, z]: a point's tile (a ladder's ends, a mission
-// object's, a soldier's spot, the floor under a piece placed) is counted from it, as compiler.py tile_corner has it.
-// Placing (snap, the lines, the grid rule) keeps the origin, the level volume's corner, where the maps' pieces stand.
-const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v => v - 1) ?? null;
 // (The map's size as the project sets it, the cleared map, its landing zones, missions, picture and spawn rules, the
 // buildings, and the install's landing lines for the map with the read a project waits for: editor_state.js.)
 // The scene's pieces (scene_pieces.js): picking, textures and materials, the meshes' and materials' loads, a
@@ -220,13 +190,15 @@ const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v 
 // the gizmo, which is given baseMatrix (nothing of it runs as the page loads but a few tables and vectors
 // made).
 const { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
-        materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, rayAt, removeRoots, texture,
-        track, unscaled, vertexBox } = createScenePieces({
-  camera, content, flashHint, fromOf, gltfLoader, gridOrigin, pickables, renderer, textureLoader, texturePromises,
+        materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, rayAt, recipeOf, removeRoots,
+        templateFor, texture, track, unscaled, vertexBox } = createScenePieces({
+  camera, content, flashHint, fromOf, gltfLoader, gridOrigin, isStream, pickables, renderer, textureLoader,
+  texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
   loadingState: (message, fraction, detail) => loadingState(message, fraction, detail),
   assetUrl: url => assetUrl(url), coverVersion: (version, type) => coverVersion(version, type),
-  drawBroken: root => drawBroken(root), select: (id, add, keep) => select(id, add, keep) });
+  drawBroken: root => drawBroken(root), isMade: o => isMade(o), select: (id, add, keep) => select(id, add, keep),
+  sourceKey: o => sourceKey(o) });
 const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: controls, roots: allRoots, baseMatrix, onEdit: editChanged,
                             // a group's lights and buildings move with it, drawn or not; a building is whole (all its boxes)
                             // outside the Buildings view, where each box is on its own
@@ -244,21 +216,11 @@ const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: cont
                             copyDrag: { begin: () => copyDragBegin(), end: (token, delta) => copyDragEnd(token, delta) },
                             // Level snap: a floor piece moved up or down keeps to whole levels (64 units)
                             levels: root => !root.userData.light && !root.userData.volume && !root.userData.effect && levelSnap && floorSupportOf([root.userData.source]) != null });
-// The map's families arrived: an assembly also knows the link tag its copies' pieces share where a piece has no prefab
-// of its own (pasteSnapshot): its members' prefab (Police Station's standalone light bar joins its sedan's), else its
-// pivot (a door's leaf and frame share no prefab).
-function useMapFamilies(table) {
-  setFamilies(table); assemblyIndex = new Map();
-  const prefabOf = new Map(data.objects.filter(o => o.prefab && o.layer === 'base').map(o => [o.actor, o.prefab]));
-  for (const a of table?.assemblies ?? []) {
-    const tag = a.members.length > 1 ? (a.members.map(m => prefabOf.get(m)).find(Boolean) ?? short(a.pivot)) : null;
-    const assembly = { ...a, tag };
-    for (const m of a.members) assemblyIndex.set(targetKey({ package: table.map, level: 'base', actor: m }), assembly);
-  }
-  useFamilies(table, o => assemblyOf(o)?.family ?? null);
-  setLandingActors(Array.isArray(table?.landing) ? new Set(table.landing) : null);
-  gizmo.regroup();
-}
+// The map's families and assemblies (map_families.js): the families set as the map's arrive, each original's assembly
+// with its link tag, and a piece's assembly (the map's own, or another map's as its records are read); made where the
+// families' use was, after the gizmo, which it regroups (nothing of it runs as the page loads but its two tables made).
+const { assemblyOf, foreignAssemblies, useMapFamilies } = createMapFamilies({
+  fromOf, gizmo });
 // (the Map lighting mode, lighting, and the pieces that could not be drawn, loadErrorCount: editor_state.js)
 // (the server's map list, mapCatalogue, the map browser, mapBrowser, and cachePrefix: editor_state.js)
 // (the lights' reach, lightRadius: editor_state.js)
@@ -614,7 +576,6 @@ const { needsPrepare, prepareOpened, showPrepare } = createPrepare({
 // Projects: the edits saved, reopened and recovered (first-editor plan E1; project.js, research/editor-contracts.md).
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
 // (The project open, `project`: editor_state.js.)
-let templates = null;
 // Drafts for recovery belong to the page session that keeps them (review finding 3; projects.py): this page's id,
 // made as it loads, names its own draft, and the page deletes only that one, or a draft it showed the user and the
 // user restored or discarded (the drafts' state: editor_state.js).
@@ -651,13 +612,6 @@ function clearEdits() {
   setStage(null);
   setBuildings([]);
   clearedChanged();
-}
-function templateFor(from, component) {
-  if (!templates) {
-    templates = new Map();
-    for (const r of roots.values()) if (!r.userData.source.added) templates.set(`${sourceKey(r.userData.source)}|${r.userData.source.component}`, r.userData.source);
-  }
-  return templates.get(`${targetKey(from)}|${component}`) ?? foreignTemplates.get(`${targetKey(from)}|${component}`);
 }
 // Recent projects: when this browser last opened or saved each, beside when it was saved anywhere.
 const RECENT = 'workshop.recentProjects';

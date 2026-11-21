@@ -9,6 +9,9 @@
 //   a new size as one undo step (commitStage) and a handle's drag (startGridDrag, moveGridDrag, endGridDrag), with the
 //   panel's buttons.
 //
+// The grid's origin (gridOrigin) and the corner the game counts its tiles from (tileCorner) are plain exports at the
+// top, before the factory: they read only the scene (editor_state.js's data).
+//
 // createMapGrid takes what it needs of app.js as one argument object, when app.js makes it: the camera's controls,
 // the renderer and the scene, the gizmo, picking and the handles' line (alongLine), a piece's box, the made slabs, the
 // Clear map's notes and the ground grid, the project's change, the popups and the hints. Its own state is inside it
@@ -22,6 +25,13 @@ import { activeMapId, builderMode, cleared, data, gridDrag, gridTool, ownGrid, r
 import { cursorStoreys } from './floors.js';
 import { STAGE_MAPS, stageMax, tidyStage, validStage } from './project.js';
 import { recall, remember } from './storage.js';
+
+export const gridOrigin = () => data?.tileGrid?.origin?.slice(0, 2) ?? null;
+// The corner the game counts its tiles from (export 26's tileGrid.tiles, its world data's WorldBounds; for an older
+// export a unit under the origin, as on every installed map), [x, y, z]: a point's tile (a ladder's ends, a mission
+// object's, a soldier's spot, the floor under a piece placed) is counted from it, as compiler.py tile_corner has it.
+// Placing (snap, the lines, the grid rule) keeps the origin, the level volume's corner, where the maps' pieces stand.
+export const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v => v - 1) ?? null;
 
 export function createMapGrid({ $, alongLine, boxOf, controls, flashHint, gizmo, groundWords, isMadeSlab,
                                 projectChanged, rayAt, refreshGroundGrid, renderer, showPop, sizeNotes, world }) {
