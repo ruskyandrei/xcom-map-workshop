@@ -5,7 +5,9 @@
 //   its panel, the flags chip) is run through the edit hub's select runs, where the area registers it (edit_hub.js);
 // - the selected piece's marks: its highlight (refreshHighlight), a ladder's ends and its chip (ladderNow, floorPlan,
 //   refreshLadder) and the grid chip of a piece the recipe snap holds (gridNow, refreshGrid), which the edit hub's
-//   edit run keeps up, with the selection following the gizmo when a command changed it.
+//   edit run keeps up, with the selection following the gizmo when a command changed it;
+// - what some roots are, by kind, in words (selectionWords: "12 pieces, 2 lights and 1 building"), a plain export at
+//   the top, before the factory: it reads only its arguments.
 //
 // createSelection takes what it needs of app.js as one argument object, when app.js makes it: the gizmo, the
 // selection's highlight and ladder marks, the group chip (app.js makes it, and gives it to the groups too), the panel's
@@ -16,6 +18,7 @@
 // and grid chips); the selection itself (selected) is editor_state.js's.
 import { LEVEL, TILE } from './constants.js';
 import { coverWords, isBlocker, isFloor, lengthWords, sizeWords } from './cover.js';
+import { plural } from './dom_words.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
 import { data, effectRoots, effectsOn, families, lightRoots, lightsOn, lightsShown, normalEffects, ownSet, pickedEffect,
          roots, selected, setAreaShown, setEffectsDirty, setOwnPickedValue, setPickedEffect, setSelected, setWallFocus,
@@ -28,12 +31,24 @@ import { gridMove } from './poserule.js';
 import { remember } from './storage.js';
 import { focusBounds } from './view_layout.js';
 
+// "12 pieces, 2 lights and 1 building": what these roots are, by kind.
+export function selectionWords(list, other = '') {
+  const lights = list.filter(r => r.userData.light).length, boxes = list.filter(r => r.userData.volume);
+  const fx = kind => list.filter(r => r.userData.effect && r.userData.source.kind === kind).length;
+  const effects = fx('effect'), sounds = fx('sound'), flares = fx('flare');
+  const made = new Set(boxes.map(r => r.userData.volume.building)).size, n = list.length - lights - boxes.length - effects - sounds - flares;
+  const parts = [n && plural(n, `${other}piece`), lights && plural(lights, `${n ? '' : other}light`), effects && plural(effects, 'effect'),
+                 sounds && plural(sounds, 'sound'), flares && plural(flares, 'lens flare'),
+                 made && plural(made, `${n || lights ? '' : other}building`)].filter(Boolean);
+  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? `0 ${other}pieces`;
+}
+
 export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyable, copyText,
                                   editChanged, field, flagContract, flagSource, foreignCost, foreignNote, gizmo,
                                   gridOrigin, groupChip, highlight, isLanding, isStream, ladderMarks, listingsNow,
                                   missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName,
-                                  selectionWords, setEffectsShown, setLightsShown, setVolumesShown, setZonesShown,
-                                  short, text, tileCorner }) {
+                                  setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text,
+                                  tileCorner }) {
   // add: Ctrl/Shift-click toggles the piece in the selection. keep: only refresh the panel and highlight.
   // The piece panel shows only with a selection: name and what moves with it first, source paths folded away.
   function select(id, add = false, keep = false) {

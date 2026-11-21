@@ -63,7 +63,7 @@ import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
-import { createSelection } from './selection.js';
+import { createSelection, selectionWords } from './selection.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { createTestApi } from './test_api.js';
 import { createNavigation, RECIPE_NOTE } from './navigation.js';
@@ -326,17 +326,6 @@ const { BUSY_PIECES, buildRoots, busy, busyPaint, busyStart, nextFrame } = creat
 const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
   : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
   : short(data.meshes[r.userData.source.mesh].name));
-// "12 pieces, 2 lights and 1 building": what these roots are, by kind.
-function selectionWords(list, other = '') {
-  const lights = list.filter(r => r.userData.light).length, boxes = list.filter(r => r.userData.volume);
-  const fx = kind => list.filter(r => r.userData.effect && r.userData.source.kind === kind).length;
-  const effects = fx('effect'), sounds = fx('sound'), flares = fx('flare');
-  const made = new Set(boxes.map(r => r.userData.volume.building)).size, n = list.length - lights - boxes.length - effects - sounds - flares;
-  const parts = [n && plural(n, `${other}piece`), lights && plural(lights, `${n ? '' : other}light`), effects && plural(effects, 'effect'),
-                 sounds && plural(sounds, 'sound'), flares && plural(flares, 'lens flare'),
-                 made && plural(made, `${n || lights ? '' : other}building`)].filter(Boolean);
-  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? `0 ${other}pieces`;
-}
 // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
 const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
 // The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
@@ -923,7 +912,7 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
 const { gridNow, ladderNow, refreshGrid, refreshHighlight, select } = createSelection({
   $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyable, copyText, editChanged, field, flagContract,
   flagSource, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream, ladderMarks,
-  listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName, selectionWords,
+  listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName,
   setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text, tileCorner });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
