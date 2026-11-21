@@ -40,7 +40,14 @@ pieces will do (the pieces made here use it as their donor).
   and of one, Ctrl+Z, Ctrl+Y and Ctrl+Z each take the "Deleted ... · Ctrl+Z brings them back" hint away.
 - grid-panel (the Map grid's panel once opened under the Selected piece panel): at 1280 and at 1024 pixels wide, with
   a piece picked before the rail's Map grid is opened and with one picked while it is on, the two panels stand apart,
-  clear of the rail, and a click at the middle of the grid panel's Done puts the tool away and keeps the selection."""
+  clear of the rail, and a click at the middle of the grid panel's Done puts the tool away and keeps the selection.
+- select-kind (the refactor's follow-ups, item 4.7; any map with a mesh three drawn pieces share, the Bar's dumpsters
+  first): Select all on a picked piece (#editKind) picks every drawn piece of its mesh, its words and count saying how
+  many, as no edit; the Flags group then sets them all as one undo step (undone, redone, Reset); a light picked beside
+  the piece is dropped by a click and kept by Shift+click.
+- flags-gate (item 4.7; a map with a prop whose pathing gate is open and a role half on, as the Bar's): a Flags row
+  that would open the gate asks first and changes nothing; Cancel closes the question; an answer makes the change,
+  the half-on role set as answered, one undo step; picking another piece closes an open question."""
 import json
 import math
 import time
@@ -694,6 +701,153 @@ def apart(a, b):
     """Whether two boxes (Playwright's bounding boxes) share no point."""
     return (a['x'] + a['width'] <= b['x'] or b['x'] + b['width'] <= a['x']
             or a['y'] + a['height'] <= b['y'] or b['y'] + b['height'] <= a['y'])
+
+
+# Meshes at least three drawn pieces of the map share, the Bar's dumpsters first: [{ name, ids (their roots), actors }]
+SHARED_MESHES = """() => { const by = new Map();
+  for (const r of viewer.roots.values()) { const o = r.userData.source, name = viewer.data.meshes[o.mesh]?.name;
+    if (r.userData.deleted || !r.visible || o.added || o.cover || o.hidden || o.environment || o.layer === 'stream' || typeof name !== 'string') continue;
+    if (!by.has(name)) by.set(name, { name, ids: [], actors: new Set() });
+    by.get(name).ids.push(o.id); by.get(name).actors.add(o.actor); }
+  return [...by.values()].filter(k => k.actors.size >= 3)
+    .sort((a, b) => b.name.endsWith('Dumpster_A') - a.name.endsWith('Dumpster_A') || a.name.localeCompare(b.name))
+    .map(k => ({ name: k.name, ids: k.ids, actors: k.actors.size })); }"""
+KIND_NOW = """() => { const b = document.getElementById('editKind');
+  return { picks: viewer.gizmo.picks().ids, text: b.textContent, count: document.getElementById('editKindCount').textContent, disabled: b.disabled,
+           title: b.title, depth: viewer.gizmo.undoDepth(), changes: viewer.changes().total, hint: document.getElementById('dragHint').textContent,
+           flagsCount: document.getElementById('flagsCount').textContent, reset: document.getElementById('flagsReset').disabled }; }"""
+# The Flags group's rows: [label, ticked, half (indeterminate), greyed]; the project's flag records: {actor: flags}
+FLAG_ROWS = """() => [...document.querySelectorAll('#flagsRows .flagrow')].map(l => { const i = l.querySelector('input');
+  return [l.dataset.name, i.checked, i.indeterminate, i.disabled]; })"""
+FLAG_RECORDS = """() => Object.fromEntries((viewer.editState().overrides ?? []).filter(o => o.flags).map(o => [o.target.actor, o.flags]))"""
+
+
+def flag_row(page, label):
+    return page.locator('#flagsRows .flagrow', has=page.locator('.flagname', has_text=label)).first.locator('input')
+
+
+def check_select_kind(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    kinds = page.evaluate(SHARED_MESHES)
+    assert kinds, 'no mesh of this map is shared by three drawn pieces'
+    kind = kinds[0]
+    word = page.evaluate("async n => (await import('/dom_words.js')).short(n)", kind['name'])
+    n = kind['actors']
+    page.evaluate('id => viewer.select(id)', kind['ids'][0])
+    one = page.evaluate(KIND_NOW)
+    assert one['count'] == str(n) and not one['disabled'], one
+    assert one['title'].startswith(f'Select all {word}: every drawn piece with this mesh in the map: {n} pieces'), one['title']
+    # every drawn piece of its mesh picked, said in the hint; no edit (no undo step, nothing to save); the button off
+    page.locator('#editKind').click()
+    picked = page.evaluate(KIND_NOW)
+    assert sorted(picked['picks']) == sorted(kind['ids']), (picked['picks'], kind['ids'])
+    assert picked['hint'] == f'{n} pieces of {word} selected' and picked['disabled'], picked
+    assert picked['depth'] == one['depth'] and picked['changes'] == 0, picked
+    assert picked['flagsCount'] == f'as the map has them · {n} pieces', picked['flagsCount']
+    # the Flags group sets them all: a row on for all of them (Blocks sight on the Bar's dumpsters) turned off, one undo
+    # step; undone, redone; Reset takes it back, one undo step
+    page.evaluate("document.getElementById('flagsBox').open = true")
+    rows = page.evaluate(FLAG_ROWS)
+    label = next((r[0] for r in rows if r[0] == 'Blocks sight' and r[1] and not r[2] and not r[3]),
+                 next((r[0] for r in rows if r[1] and not r[2] and not r[3]), None))
+    assert label, rows
+    flag_row(page, label).click()
+    page.wait_for_function("() => !document.getElementById('flagsReset').disabled")
+    records = page.evaluate(FLAG_RECORDS)
+    assert len(records) == n and len({json.dumps(f, sort_keys=True) for f in records.values()}) == 1, records
+    assert page.evaluate(KIND_NOW)['flagsCount'] == f'1 changed · {n} pieces' and page.evaluate(KIND_NOW)['depth'] == one['depth'] + 1
+    assert {r[0]: r for r in page.evaluate(FLAG_ROWS)}[label][1:3] == [False, False], page.evaluate(FLAG_ROWS)
+    page.evaluate('document.activeElement?.blur?.()')
+    page.keyboard.press('Control+z')
+    assert page.evaluate(FLAG_RECORDS) == {} and page.evaluate(KIND_NOW)['flagsCount'] == f'as the map has them · {n} pieces'
+    page.keyboard.press('Control+y')
+    assert page.evaluate(FLAG_RECORDS) == records
+    page.locator('#flagsReset').click()
+    assert page.evaluate(FLAG_RECORDS) == {} and page.evaluate(KIND_NOW)['depth'] == one['depth'] + 2
+    # a light picked beside one of the pieces: a click picks the kind alone, Shift+click adds the kind to the light
+    page.evaluate('viewer.setNormalLights(true)')
+    light = page.evaluate("[...viewer.lightRoots.values()].find(r => r.visible && !r.userData.source.added && r.userData.source.layer === 'base')?.userData.source.id ?? null")
+    assert light, 'the map has no light to pick beside the piece'
+    for shift in (False, True):
+        page.evaluate('([a, b]) => { viewer.select(a); viewer.select(b, true); }', [kind['ids'][0], light])
+        assert sorted(page.evaluate(KIND_NOW)['picks']) == sorted([kind['ids'][0], light])
+        page.locator('#editKind').click(modifiers=['Shift'] if shift else [])
+        assert sorted(page.evaluate(KIND_NOW)['picks']) == sorted(kind['ids'] + ([light] if shift else [])), (shift, page.evaluate(KIND_NOW)['picks'])
+    page.evaluate('viewer.setNormalLights(false)')
+    # nothing picked: nothing to match
+    page.evaluate('viewer.select(null)')
+    assert page.evaluate(KIND_NOW)['disabled'] and page.evaluate(KIND_NOW)['count'] == '', page.evaluate(KIND_NOW)
+    page.close()
+    assert not errors, errors
+    return dict(mesh=kind['name'], pieces=n, flag=label)
+
+
+# A prop of the map for which a click on one Flags row asks first (piece_flags.js plan: the row opens its pathing gate
+# and another role is half on): its id, the row's label and role, and the half-on role's label
+GATED = """async () => {
+  const pf = await import('/piece_flags.js'), c = viewer.families().pieceFlags;
+  for (const r of viewer.roots.values()) {
+    const o = r.userData.source;
+    if (!r.visible || r.userData.deleted || !o.pieceFlags || o.added || o.hidden || o.environment || o.cover || o.layer === 'stream') continue;
+    if (!c.gated.includes(c.classes[o.actorClass])) continue;
+    if ([...viewer.roots.values()].filter(x => x.userData.source.actor === o.actor).length !== 1) continue;
+    const { raw, assumed } = pf.rawOf(o.pieceFlags), before = pf.states(c, o.actorClass, raw);
+    for (const role of pf.ROLES) {
+      if (before[role] === 'n/a') continue;
+      const p = pf.plan(c, o.actorClass, raw, { [role]: before[role] !== 'on' }, assumed), open = Object.keys(p.conflicts);
+      if (open.length === 1) return { id: o.id, actor: o.actor, role, label: c.labels[role], on: before[role] !== 'on', half: open[0], halfLabel: c.labels[open[0]] };
+    }
+  }
+  return null; }"""
+ASK = """() => { const a = document.getElementById('flagsAsk');
+  return { hidden: a.hidden, text: a.querySelector('div')?.textContent ?? '', buttons: [...a.querySelectorAll('button')].map(b => b.textContent),
+           focused: a.contains(document.activeElement) ? document.activeElement.textContent : null }; }"""
+
+
+def check_flags_gate(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    gated = page.evaluate(GATED)
+    assert gated, 'no prop of this map asks about its pathing gate'
+    page.evaluate('id => viewer.select(id)', gated['id'])
+    page.evaluate("document.getElementById('flagsBox').open = true")
+    depth = page.evaluate('viewer.gizmo.undoDepth()')
+    state = lambda: (page.evaluate(FLAG_RECORDS).get(gated['actor']), page.evaluate('viewer.gizmo.undoDepth()') - depth)   # noqa: E731
+    # the row clicked: the question, and nothing changed yet
+    flag_row(page, gated['label']).click()
+    asked = page.evaluate(ASK)
+    want = f"{gated['label']} {'on' if gated['on'] else 'off'} opens the pathing gate (bIgnoreForPathing) of this prop. "
+    assert not asked['hidden'] and asked['text'].startswith(want) and f"{gated['halfLabel']} is partly on there and can't stay so" in asked['text'], asked
+    assert asked['buttons'] == [f"{gated['halfLabel']} on", f"{gated['halfLabel']} off", 'Cancel'] and asked['focused'] == asked['buttons'][0], asked
+    assert state() == (None, 0) and page.locator('#flagsReset').is_disabled(), state()
+    # Cancel: the question closes, nothing changed
+    page.locator('#flagsAsk button', has_text='Cancel').click()
+    assert page.evaluate(ASK)['hidden'] and state() == (None, 0)
+    # asked again and answered: the change made with the half-on role as answered, one undo step
+    flag_row(page, gated['label']).click()
+    page.locator('#flagsAsk button', has_text=f"{gated['halfLabel']} on").click()
+    flags, steps = state()
+    assert page.evaluate(ASK)['hidden'] and steps == 1 and flags and flags.get(gated['role']) == gated['on'] and flags.get(gated['half']) is True, (flags, steps)
+    rows = {r[0]: r for r in page.evaluate(FLAG_ROWS)}
+    assert rows[gated['halfLabel']][1:3] == [True, False] and rows[gated['label']][1:3] == [gated['on'], False], rows
+    page.evaluate('document.activeElement?.blur?.()')
+    page.keyboard.press('Control+z')
+    assert state() == (None, 0), state()
+    page.keyboard.press('Control+y')
+    assert state() == (flags, 1), state()
+    page.locator('#flagsReset').click()
+    assert state()[0] is None
+    # an open question closes when another piece is picked, nothing changed
+    flag_row(page, gated['label']).click()
+    assert not page.evaluate(ASK)['hidden']
+    other = page.evaluate("id => [...viewer.roots.values()].find(r => r.visible && !r.userData.source.added && r.userData.source.pieceFlags && r.userData.source.id !== id)?.userData.source.id", gated['id'])
+    page.evaluate('id => viewer.select(id)', other)
+    page.evaluate('id => viewer.select(id)', gated['id'])
+    assert page.evaluate(ASK)['hidden'] and state()[0] is None, page.evaluate(ASK)
+    page.close()
+    assert not errors, errors
+    return dict(prop=gated['actor'], row=gated['label'], half=gated['halfLabel'], flags=flags)
 
 
 def check_grid_panel(browser, url, open_viewer):

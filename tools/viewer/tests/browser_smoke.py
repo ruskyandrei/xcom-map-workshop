@@ -4500,16 +4500,10 @@ def check_projects(browser, url):
     assert not errors, errors
 
 
-def check_prepare(browser, url, project_id=None):
-    """The prepare-again dialog, with the server's answers stood in for (no map is exported): a map whose export is
-    older than building needs opens with the dialog in the middle of the window; Later (or Esc) leaves a banner that
-    opens it again; Prepare now shows the export's progress and reopens the map. With project_id (a saved project on
-    this map, on a test server with scratch builds: a quick build of it really runs): Build asks to prepare instead
-    of building; and a build that failed for want of a newer export offers Prepare the map, which starts it."""
-    errors = []
-    old = dict(on=True)
-    asked = dict(count=0)
-
+def stand_in_export(page, old, asked):
+    """The server's answers about the map's export stood in for on `page` (no map is exported): while old['on'], the
+    families say the export is older than building needs; a prepare's export starts at once and reports 40% until its
+    third status read (asked['count']), then ready."""
     def families(route):
         answer = route.fetch()
         body = answer.json()
@@ -4524,16 +4518,25 @@ def check_prepare(browser, url, project_id=None):
         asked['count'] += 1
         route.fulfill(json=dict(state='running', progress=dict(fraction=0.4)) if asked['count'] < 3 else dict(state='ready'))
 
-    def routed(page):
-        page.route('**/maps/*/families.json', families)
-        page.route('**/maps/*/export', export)
-        page.route('**/maps/*/export.json', export_status)
+    page.route('**/maps/*/families.json', families)
+    page.route('**/maps/*/export', export)
+    page.route('**/maps/*/export.json', export_status)
 
+
+def check_prepare(browser, url, project_id=None):
+    """The prepare-again dialog, with the server's answers stood in for (no map is exported): a map whose export is
+    older than building needs opens with the dialog in the middle of the window; Later (or Esc) leaves a banner that
+    opens it again; Prepare now shows the export's progress and reopens the map. With project_id (a saved project on
+    this map, on a test server with scratch builds: a quick build of it really runs): Build asks to prepare instead
+    of building; and a build that failed for want of a newer export offers Prepare the map, which starts it."""
+    errors = []
+    old = dict(on=True)
+    asked = dict(count=0)
     page = browser.new_page(viewport=dict(width=1600, height=1000), device_scale_factor=1)
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
     page.on('dialog', lambda d: d.accept())
-    routed(page)
+    stand_in_export(page, old, asked)
     page.goto(url)
     page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=120000)
     modal = page.locator('#prepareModal')
@@ -4611,6 +4614,101 @@ def check_prepare(browser, url, project_id=None):
                                timeout=120000)
     page.close()
     assert not errors, errors
+
+
+def check_prepare_routes(browser, url):
+    """Build's routes into Prepare (the refactor's follow-ups, item 4.8), for a project saved here (named after the run)
+    with the server's answers stood in for, so that no Build runs and no map is exported: while the export is older
+    than building needs, Build (Ctrl+B) asks to prepare the map instead of opening its panel (needsPrepare); and a
+    build that stopped for want of a newer export (the build's status answered: failed, code export-missing) offers
+    Prepare the map in its window, which starts the prepare at once and opens the map again when it is ready."""
+    errors = []
+    page = open_viewer(browser, url, errors)
+    piece = page.evaluate("[...viewer.roots.values()].find(r => r.visible && !r.userData.source.added && !r.userData.source.hidden"
+                          " && !r.userData.source.environment)?.userData.source.id")
+    page.evaluate('id => viewer.select(id)', piece)
+    type_pose(page, 'posX', 96)
+    page.keyboard.press('Control+s')
+    page.wait_for_selector('#fileDialog:not([hidden])')
+    type_project_name(page, f'Prepare routes check {RUN}')
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function('viewer.project()?.revision === 1')
+    project = page.evaluate('viewer.project()')
+    page.close()
+    old, asked, started = dict(on=True), dict(count=0), dict(count=0)
+    page = browser.new_page(viewport=dict(width=1600, height=1000), device_scale_factor=1)
+    page.on('pageerror', lambda e: errors.append(str(e)))
+    page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
+    page.on('dialog', lambda d: d.accept())
+    stand_in_export(page, old, asked)
+    job = dict(project=project['id'], name=project['name'], revision=1, variant=project['doc']['output']['shipAs'], quick=True,
+               state='running', attempt='prepare-routes-check', origin='page', stage=None, stages=[], lines=[],
+               startedAt='2026-11-21T00:00:00Z', finishedAt=None, error=None, errorCode=None, running=None, progress=None)
+
+    def build(route):
+        # a build asked for: answered as started, nothing run
+        if route.request.method != 'POST': return route.continue_()
+        started['count'] += 1
+        status = json.loads(urllib.request.urlopen(url.split('?')[0] + f"projects/{project['id']}/build.json", timeout=30).read())
+        route.fulfill(json=dict(status, state='running', job=job))
+
+    def build_status(route):
+        # its status: stopped for want of a newer export (compiler.ExportMissing's code, builds.py's errorCode)
+        answer = route.fetch()
+        error = ('no export of URB_Bar with SHA-256 0123 at version 18 or newer in <cache>: prepare the map (re-export it: '
+                 'the map browser\'s Prepare, or python tools/viewer/viewer.py export "<game>/x.upk" --scope map) and restart the editor')
+        route.fulfill(response=answer, json=dict(answer.json(), state='failed', job=dict(job, state='failed', error=error, errorCode='export-missing',
+                                                                                          finishedAt='2026-11-21T00:00:05Z')))
+
+    modal = page.locator('#prepareModal')
+    page.goto(url.split('?')[0] + f"?map={project['doc']['source']['map']}&project={project['id']}")
+    page.wait_for_function("id => window.viewer && document.querySelector('#loading').hidden && viewer.project()?.id === id", arg=project['id'], timeout=120000)
+    # the map opens with the dialog (the export too old); Later
+    modal.wait_for(state='visible')
+    page.locator('#prepareLater').click()
+    modal.wait_for(state='hidden')
+    # Build asks to prepare the map instead of opening its panel; Later again
+    page.evaluate('document.activeElement?.blur?.()')
+    page.keyboard.press('Control+b')
+    modal.wait_for(state='visible')
+    assert 'can\'t be built yet' in page.locator('#prepareNote').inner_text(), page.locator('#prepareNote').inner_text()
+    assert page.locator('#buildOptions').is_hidden() and started['count'] == 0
+    page.locator('#prepareLater').click()
+    modal.wait_for(state='hidden')
+    # the export new enough as far as the page knows: Build's panel opens, and the build it starts stops for want of a
+    # newer export; its window offers Prepare the map (the button that matters), which starts the prepare at once
+    old['on'] = False
+    page.route('**/projects/*/build', build)
+    page.route('**/projects/*/build.json', build_status)
+    page.reload()
+    page.wait_for_function("id => window.viewer && document.querySelector('#loading').hidden && viewer.project()?.id === id", arg=project['id'], timeout=120000)
+    assert modal.is_hidden()
+    page.evaluate('document.activeElement?.blur?.()')
+    page.keyboard.press('Control+b')
+    page.wait_for_selector('#buildOptions:not([hidden])')
+    page.wait_for_function("document.activeElement?.id === 'buildOptionsOk'")
+    page.keyboard.press('Enter')
+    page.locator('#buildModal').wait_for(state='visible')
+    page.locator('#buildPrepare').wait_for(state='visible', timeout=60000)
+    assert started['count'] == 1
+    assert 'Prepare the map again, then build' in page.locator('#buildResult').inner_text(), page.locator('#buildResult').inner_text()
+    assert 'primary' not in (page.locator('#buildClose').get_attribute('class') or '').split()
+    asked['count'] = 0
+    page.locator('#buildPrepare').click()
+    page.locator('#buildModal').wait_for(state='hidden')
+    modal.wait_for(state='visible')
+    assert 'why it stopped' in page.locator('#prepareNote').inner_text(), page.locator('#prepareNote').inner_text()
+    assert page.locator('#prepareLater').is_hidden() and page.locator('#prepareOk').is_disabled()
+    page.wait_for_function("document.querySelector('#prepareStatus').textContent.includes('40%')", timeout=20000)
+    # prepared: the page opens again on the project
+    page.wait_for_function("id => window.viewer && document.querySelector('#loading').hidden && viewer.project()?.id === id && "
+                           "document.querySelector('#prepareModal').hidden", arg=project['id'], timeout=120000)
+    page.close()
+    # nothing was built: the server's own status of the project has no job
+    status = json.loads(urllib.request.urlopen(url.split('?')[0] + f"projects/{project['id']}/build.json", timeout=30).read())
+    assert status['state'] == 'idle' and not status['job'], status
+    assert not errors, errors
+    return dict(project=project['id'], builds=started['count'])
 
 
 def check_play(browser, url, project_id=None, screenshot=None):
@@ -5711,6 +5809,14 @@ CHECKS = (
           'made walls, floors and ground drawn, edited, saved and built (on the police station)', needs=('projects',), full=False),
     Check('looks', lambda c: __import__('browser_looks').check_looks(c.browser, c.page.url, open_viewer),
           'the look picker (on the police station)', full=False),
+    Check('made-break', lambda c: __import__('browser_walls').check_made_break(c.browser, c.page.url, open_viewer, skip),
+          'Break, Breaks further and Repair on a made wall, floor and roof', when=ON_MAP, full=False),
+    Check('made-openings', lambda c: __import__('browser_walls').check_made_openings(c.browser, c.page.url, open_viewer),
+          'Delete takes out the gap or hole last touched', when=ON_MAP, full=False),
+    Check('rock-corner', lambda c: __import__('browser_walls').check_rock_corner(c.browser, c.page.url, open_viewer),
+          'a rock\'s corner moved with the point gizmo', when=ON_MAP, full=False),
+    Check('room-buttons', lambda c: __import__('browser_walls').check_room_buttons(c.browser, c.page.url, open_viewer),
+          'a room\'s Lower, Taller, Choose... and Plain (on the police station)', when=ON_POLICE, full=False),
     Check('made-prefab', editing('made_prefab'), 'made pieces kept through a prefab', needs=('projects',), full=False),
     Check('modals', editing('modals'), 'dialogs keep the focus and the keys', full=False),
     Check('reset-all', editing('reset_all'), 'Reset all mends a broken piece', full=False),
@@ -5723,6 +5829,10 @@ CHECKS = (
     Check('ladder-floor', editing('ladder_floor'), 'a ladder\'s floor count', full=False),
     Check('small-defects', editing('small_defects'), 'small page defects', full=False),
     Check('grid-panel', editing('grid_panel'), 'the Map grid\'s panel beside the Selected piece panel (1280 and 1024 wide)', full=False),
+    Check('select-kind', editing('select_kind'), 'Select all of a kind on pieces, and their flags set together', when=ON_MAP, full=False),
+    Check('flags-gate', editing('flags_gate'), 'the Flags group asks before opening a prop\'s pathing gate', when=ON_MAP, full=False),
+    Check('prepare-routes', lambda c: check_prepare_routes(c.browser, c.page.url), 'Build\'s routes into Prepare, the build\'s '
+          'status answered by the check (no Build runs)', needs=('projects',), when=ON_MAP, full=False),
     Check('documents', lambda c: __import__('browser_documents').check_all(c.browser, c.page.url),
           'two windows, replacing, failed saves, builds and first opens', needs=('projects',), full=False),
 )
@@ -5866,9 +5976,10 @@ ALL_RUNS = (
     dict(name='builder', map='URB_Bar', smoke=['--projects', '--only', 'builder,prefab-test']),
     dict(name='editing', map='URB_Bar', smoke=['--projects', '--only', 'made-prefab,modals,reset-all,draw-errors,look-undo,failed-reads,'
                                                                         'let-go,paste-buildings,squad-read,ladder-floor,small-defects,'
-                                                                        'grid-panel']),
+                                                                        'grid-panel,made-break,made-openings,rock-corner,select-kind,'
+                                                                        'flags-gate,prepare-routes']),
     dict(name='documents', map='URB_Bar', smoke=['--projects', '--only', 'documents']),
-    dict(name='police', map='URB_PoliceStation', smoke=['--projects', '--only', 'walls,looks,light-bar']),
+    dict(name='police', map='URB_PoliceStation', smoke=['--projects', '--only', 'walls,looks,room-buttons,light-bar']),
     dict(name='temple', map='TempleShip', smoke=['--only', 'temple-interior,temple-look']),
     dict(name='map-picture', map='URB_Bar', script='browser_map_picture.py'),
     dict(name='maps', map='URB_Bar', script='browser_maps_smoke.py'),
