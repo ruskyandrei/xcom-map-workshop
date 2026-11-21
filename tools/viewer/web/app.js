@@ -23,27 +23,27 @@ import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, buildings, buildingsVersion, buildTool, cachePrefix, cleared, clearKeepsOutside, clipboard,
-         copySerial, coverDrag, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, eventMemo,
-         families, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, handleDefs,
-         hintTimer, landingLines, landingZones, lastBuild, lastClearMs, lastLightSync, leaving, levelSnap, library,
-         libraryScope, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown, likenessCount,
-         likenessOn, likenessThin, lineCollision, lineCollisionFailed, loadErrorCount, lookPicker, lookPicking,
-         missionIndex, missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet,
-         pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, pointer,
-         prefabParameter, prefabTab, project, projectMissions, projectSpawnRules, reachNow, reachShown, rockPoint,
-         roots, selected, setActiveMapId, setAlignTarget, setAreaBindings, setAreaShown, setAskedPick, setAssigning,
-         setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn,
-         setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors, setLandingLines,
-         setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLevelSnapValue, setLibrary,
+         copySerial, coverDrag, cutKey, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn,
+         eventMemo, families, floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool,
+         groupIndex, groups, handleDefs, hintTimer, landingLines, landingZones, lastBuild, lastClearMs, lastLightSync,
+         leaving, levelSnap, library, libraryScope, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn,
+         lightsShown, likenessCount, likenessOn, likenessThin, lineCollision, lineCollisionFailed, loadErrorCount,
+         lookPicker, lookPicking, missionIndex, missionMoves, missionPickValue, normalEffects, normalLights,
+         normalSpawns, ownPicked, ownSet, pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool,
+         pieces, placing, prefabParameter, prefabTab, project, projectMissions, projectSpawnRules, reachNow, reachShown,
+         rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaBindings, setAreaShown, setAskedPick,
+         setAssigning, setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty,
+         setEffectsOn, setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors,
+         setLandingLines, setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLevelSnapValue, setLibrary,
          setLibraryScopeValue, setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue,
          setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings, setNormalEffectsValue,
          setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickBoxValue, setPickedEffect,
          setPickedSpawnValue, setPickedZone, setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
          setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSelected, setSnapModeValue,
-         setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStartingCache, setTipDirty, setWallFocus,
-         setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData,
-         spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag,
-         wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
+         setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStartingCache, setTileKey, setTipDirty,
+         setWallFocus, setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing,
+         spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
+         volumeTool, wallDrag, wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -69,15 +69,15 @@ import { createMadeBreaking } from './made_breaking.js';
 import { createMapGrid } from './map_grid.js';
 import { createClearMap } from './clear_map.js';
 import { createScenePieces } from './scene_pieces.js';
+import { createCutaway } from './cutaway.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
-import { createMapLighting, withLocalLights } from './lighting.js';
+import { createMapLighting } from './lighting.js';
 import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
-import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes,
-         floorTilesOverlay } from './view_layout.js';
+import { visibleBounds, focusBounds } from './view_layout.js';
 import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, coverWords, isBlocker, isFloor, lengthWords, normalCover, sizeWords } from './cover.js';
 import { gridMove } from './poserule.js';
@@ -1788,7 +1788,7 @@ function mapListings(root) {
 }
 // After an edit ends (a drag let go, an undo): copies and moved pieces may stand in other floors now, and the Floor
 // tiles overlay hatches moved and deleted pieces' tiles. The cutaway follows when what it depends on changed.
-let cutKey = '';
+// (cutKey, the edits the cutaway last followed: editor_state.js)
 function editedKey() {
   let key = '';
   for (const r of roots.values()) if (r.userData.edit || r.userData.deleted) key += `${r.userData.source.id}:${r.userData.deleted ? 'x' : r.matrix.elements.join(',')}|`;
@@ -1853,12 +1853,12 @@ function grabView() {
 const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
         headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
         refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes, zonesNow } = createClearMap({
-  $, addLightRoots, addRoots, banner, cloneGroups, cutaway, editedKey, flashHint, fromOf, gizmo, grabView, isStream,
+  $, addLightRoots, addRoots, banner, cloneGroups, editedKey, flashHint, fromOf, gizmo, grabView, isStream,
   lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, refreshLightVisibility,
   removeLightRoots, removeRoots, sceneChanged, setStage, short, showPop, world,
   // (made further down: called through, since they are not made yet while this runs)
-  allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(), explicitZones: () => explicitZones(),
-  liveVolumes: () => liveVolumes(),
+  allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(), cutaway: () => cutaway(),
+  explicitZones: () => explicitZones(), liveVolumes: () => liveVolumes(),
   missionFloorLost: o => missionFloorLost(o), missionReached: o => missionReached(o),
   placeMissionGizmo: () => placeMissionGizmo(), refreshLandingZones: () => refreshLandingZones(),
   refreshSpawnMarkers: () => refreshSpawnMarkers(), setMissionMoves: next => setMissionMoves(next),
@@ -1914,12 +1914,12 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
         placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,
         stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
         zoneSoldiers, zoneState } = createZonesWiring({
-  $, banner, camera, controls, cutaway, editChanged, flashHint, floorStays, gameToView, gizmo, groundHeight,
-  headerMission, isLanding, landHere, LANDING_SHOWN, landingLayer, lightButton, ownSize, plural, projectChanged,
-  projectsAvailable, rayAt, refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer, restingHint,
-  select, setEffectsShown, setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
+  $, banner, camera, controls, editChanged, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission,
+  isLanding, landHere, LANDING_SHOWN, landingLayer, lightButton, ownSize, plural, projectChanged, projectsAvailable,
+  rayAt, refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer, restingHint, select,
+  setEffectsShown, setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
   // (made further down: called through, since they are not made yet while this runs)
-  setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
+  cutaway: () => cutaway(), setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
 // The Buildings view and box select (buildings_wiring.js): the project's buildings as boxes and the map's own, the
 // view, its handles, drags and panel, the Normal button's Floor boxes, and box select.
 const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag,
@@ -1931,13 +1931,15 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
         syncVolumes, takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint,
         volumePanel } = createBuildingsWiring({
   $, boxOf, builderBounds, camera, chosenStorey, deleteSelection, editBaseSpawn, editChanged, editedCopies, editedKey,
-  editedSpawns, editSpawnCopy, effectsShown, effectViewOnly, flashHint, floorOptions, gizmo, HANDLE_PICK, isStream,
-  lightViewOnly, missionGizmo, pick, plural, projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers,
-  renderer, restingHint, select, selectionWords, setEffectsShown, setZonesShown, short, showPop, spawnBoxNow,
-  spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
+  editedSpawns, editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, isStream, lightViewOnly,
+  missionGizmo, pick, plural, projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers, renderer,
+  restingHint, select, selectionWords, setEffectsShown, setZonesShown, short, showPop, spawnBoxNow, spawnEntry,
+  spawnMovable, spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
   // (made with Select all of a kind and the clipboard, below: called through, since they are not made yet while this
   // runs)
-  copySelection: cut => copySelection(cut), kindButton: () => kindButton() });
+  copySelection: cut => copySelection(cut), kindButton: () => kindButton(),
+  // (made with the cutaway, below: called through, since it is not made yet while this runs)
+  floorOptions: () => floorOptions() });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
 const { kindButton, selectKind } = createSelectKind({
@@ -2015,196 +2017,11 @@ const { breakAt, breakRow, drawBroken, mapBreakable, startBreak, stopBreak } = c
   $, changeWall, flashHint, gizmo, isMadeSlab, isMadeWall, madeRoot, pick, plural, renderer, select, stopLookPick,
   stopPlacing, stopWallDrawing, world });
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
-const WHOLE_OVERHANG = 4 * TILE;    // four tiles
-function cutaway() {
-  touchShadows();
-  cutKey = editedKey();
-  // The floor cut applies to every building at once (the user's choice, 7 November: no building list).
-  const requested = $('floor').value ?? 'all';
-  const interior=$('scenery').value==='interior';
-  const allFloors = $('floor').querySelector('[data-value=all]');
-  if (allFloors) allFloors.title = interior ? 'All interior floors' : 'All floors · roof closed';
-  const scenePlanes=interior ? interiorPlanes(data) : [];
-  // Interior draws a piece that reaches into its area whole across the map (only the height cut stays), unless it
-  // reaches more than WHOLE_OVERHANG past the area's sides: big ground and long walls stay cut there, so the outside
-  // doesn't come back with them. (interiorPlanes: x min/max, then the height's two, then z min/max.)
-  const focus=interior ? focusBounds(data) : null, heightPlanes=scenePlanes.slice(2, 4);
-  const actors=new Map();
-  const movedLanding = landingZones && !builderMode ? movedLandingActors() : null;
-  for (const root of roots.values()) {
-    const obj = root.userData.source;
-    // a streamed package's pieces show with the chosen mission's streams
-    const shownStream = !isStream(obj) || streamSet.has(obj.stream);
-    const helper = (obj.layer === 'inherited' || isStream(obj)) && shownStream && obj.hidden && obj.hiddenBy == null && !$('hideHelpers').checked;
-    root.visible = (!obj.hidden || helper) && !obj.environment && !root.userData.deleted && shownStream
-      && !(cleared && isStream(obj) && data.streams?.[obj.stream]?.kind === 'lwr') && !(movedLanding?.has(obj.actor));
-    // Pieces the user added always count as part of the playable scene, whatever their source's layer.
-    root.userData.tacticalExcluded=interior && !obj.provenance && !obj.added && ['backdrop','roof','helper'].includes(obj.sceneryRole);
-    root.visible &&= !root.userData.tacticalExcluded;
-    let height = Infinity;
-    if (requested !== 'all') {
-      const idx = Number(requested)-1;
-      const groups = new Map();
-      for (const entry of listingsNow(root)) {
-        const old = groups.get(entry.building);
-        // The game's floor pass runs top to bottom: the lowest cache entry wins.
-        if (!old || entry.floor < old.floor) groups.set(entry.building,entry);
-      }
-      if (groups.size) {
-        const entries = [...groups.values()];
-        root.visible &&= entries.some(f => f.floor <= idx);
-        for (const f of entries) {
-          if (obj.cutout && f.floor <= idx && f.cutdownFloor > idx) {
-            const building = allBuildings().find(b => b.id === f.building);
-            const top = building?.floors[idx]?.top;
-            if (top != null) height = Math.min(height,top);
-          }
-        }
-      }
-    }
-    root.userData.cutHeight = height;
-    let whole = false;
-    if (focus && root.visible) {
-      const box = new THREE.Box3().setFromObject(root);
-      whole = !box.isEmpty() && box.intersectsBox(focus)
-        && Math.max(focus.min.x - box.min.x, box.max.x - focus.max.x, focus.min.z - box.min.z, box.max.z - focus.max.z) <= WHOLE_OVERHANG;
-    }
-    root.userData.interiorWhole = whole;
-    const planes=whole ? [...heightPlanes] : [...scenePlanes];
-    if(Number.isFinite(height))planes.push(new THREE.Plane(new THREE.Vector3(0,-1,0),height));
-    root.userData.clippingPlanes=planes;
-    const actor=actors.get(obj.actor) || {visible:false,ceiling:-Infinity};
-    actor.visible ||= root.visible;if(root.visible)actor.ceiling=Math.max(actor.ceiling,height);
-    actors.set(obj.actor,actor);
-    root.traverse(part => {
-      if (!part.isMesh || !part.userData.baseMaterial) return;
-      const base = part.userData.baseMaterial;
-      if (helper) {part.material=helperMaterial;part.castShadow=false;}
-      else if (planes.length) {
-        const key = `${base.uuid}:${height}:${interior}:${whole}`;
-        if (!cutMaterials.has(key)) {
-          const mat = withLocalLights(base.clone());
-          mat.clippingPlanes = planes;
-          mat.clipShadows = true; cutMaterials.set(key,mat);
-        }
-        part.material = cutMaterials.get(key);
-      } else part.material = base;
-    });
-  }
-  // The tile grid follows the saved floors whose actors are shown: draw it again; and the Floor tiles overlay.
-  floorActors=actors;tileKey=null;
-  drawFloorTiles();
-  if (selected) select(selected, false, true);
-  const count=[...roots.values()].filter(r=>r.visible).length;
-  $('status').textContent=`${count} visible pieces · ${data.counts.meshes} meshes · ${data.counts.textures} textures${loadErrorCount ? ` · ${loadErrorCount} display errors` : ''}`;
-  if (pickBox && !pickDrag) refreshPickBox(true);
-}
-// The tile grid (first-editor plan, section 2): only the tiles around the selection, or around the piece being placed,
-// with the tiles its bounds cover filled (view_layout.js tileGridAround). It is drawn again whenever what it follows
-// moves or turns, or the cutaway changes.
-let floorActors = null, tileKey = '';
-function tileTargets() {
-  if (!$('grid').checked || !data) return [];
-  if (placing) return placing.ghost.visible ? [placing.ghost.children[1]] : [];
-  return gizmo.selection().filter(root => root.visible && !root.userData.light && !root.userData.volume && !root.userData.effect);
-}
-function updateTileGrid() {
-  const targets = tileTargets();
-  // Children too: the footprint is read from each mesh's own world matrix.
-  for (const t of targets) t.updateWorldMatrix(true, true);
-  const key = targets.map(t => t.uuid + ':' + t.matrixWorld.elements.map(v => v.toFixed(2)).join(',')).join('|');
-  if (key === tileKey) return;
-  tileKey = key;
-  for (const child of [...grid.children]) {
-    grid.remove(child);
-    child.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
-  }
-  const note = $('tileNote'), foot = targets.length ? footprintOf(targets, data) : null;
-  note.hidden = !foot;
-  if (!foot) return;
-  const local = tileGridAround(foot, data, floorActors);
-  grid.add(local);
-  const { tiles, edges, level, gap, floating } = local.userData;
-  note.textContent = `${plural(tiles.length, 'tile')}${edges.length ? ` + ${edges.length} at the edge` : ''} · level ${level}`
-    + (floating ? ` · ${Math.round(gap)} above the floor: may give no cover` : '');
-  note.classList.toggle('floating', floating);
-}
-// The Floor tiles overlay (View options; view_layout.js floorTilesOverlay): the map's saved floor tiles, coloured by the
-// piece that carries each (one colour per kind of piece: copies of one piece share it), hatched grey where
-// that piece was moved or deleted since. The tiles of pieces hidden or cut away in the view are left out. Hovering a
-// tile names its piece; a click selects it. Drawn again with the cutaway.
-let floorTileLayer = null, tileOwners = null;     // (tipDirty: editor_state.js)
-function signatureColor(signature) {
-  let h = 2166136261;
-  for (let i = 0; i < signature.length; i++) { h ^= signature.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return new THREE.Color().setHSL(((h >>> 0) % 360) / 360, 0.62, 0.56).getHex();
-}
-function drawFloorTiles() {
-  if (floorTileLayer) {
-    world.remove(floorTileLayer);
-    floorTileLayer.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
-    floorTileLayer = null;
-  }
-  $('floorTip').hidden = true;
-  if (!data || !$('floorTiles').checked) return;
-  const owners = new Map();     // an original's actor -> { roots, sources, gone, color }
-  for (const r of roots.values()) {
-    const o = r.userData.source;
-    if (o.added || o.layer !== 'base') continue;
-    if (!owners.has(o.actor)) owners.set(o.actor, { roots: [], sources: [] });
-    owners.get(o.actor).roots.push(r); owners.get(o.actor).sources.push(o);
-  }
-  for (const s of owners.values()) {
-    s.gone = s.roots.some(r => r.userData.deleted || r.userData.edit);
-    s.color = signatureColor(stampSignature(s.sources));
-  }
-  tileOwners = owners;
-  floorTileLayer = floorTilesOverlay(data, {
-    shown: f => { const s = owners.get(f.actor), a = floorActors?.get(f.actor);
-      if (cleared && s?.gone) return false;     // a cleared map: the gone pieces' tiles are left out, not hatched
-      return !s || s.gone || !a || (a.visible && f.location[2] <= a.ceiling + 1); },
-    colorOf: a => owners.get(a)?.color ?? 0x82d5ce, gone: a => Boolean(owners.get(a)?.gone) });
-  world.add(floorTileLayer);
-}
-function floorTileHit(clientX, clientY) {
-  const mesh = floorTileLayer?.getObjectByName('floorTiles');
-  const hit = mesh && rayAt(clientX, clientY).intersectObject(mesh)[0];
-  return hit ? { tile: floorTileLayer.userData.tiles[Math.floor(hit.faceIndex / 2)], distance: hit.distance } : null;
-}
-function floorTip() {
-  setTipDirty(false);
-  const tip = $('floorTip'), hit = pointer && !gizmo.controls.dragging ? floorTileHit(...pointer) : null;
-  tip.hidden = !hit;
-  if (!hit) return;
-  const f = hit.tile, s = tileOwners?.get(f.actor), mesh = s ? data.meshes[s.sources[0].mesh]?.name : null;
-  tip.replaceChildren();
-  text(tip, 'strong', short(mesh ?? f.actor));
-  text(tip, 'small', `${short(f.actor)} · tile ${f.tile[0]}, ${f.tile[1]} · level ${f.tile[2]}`);
-  if (s?.gone) text(tip, 'small', s.roots.some(r => r.userData.deleted) ? 'deleted since: the Build\'s rebuild checks this tile again'
-                                                                          : 'moved since: the Build\'s rebuild checks this tile again');
-  const rect = viewport.getBoundingClientRect();
-  tip.style.left = `${pointer[0] - rect.left}px`; tip.style.top = `${pointer[1] - rect.top}px`;
-}
-// A click on a saved floor tile selects its piece, unless another piece stands nearer in front of it.
-function floorTileSelect(e, hit) {
-  const tile = floorTileLayer && floorTileHit(e.clientX, e.clientY);
-  if (!tile || (hit && hit.distance < tile.distance - 1)) return false;
-  const s = tileOwners?.get(tile.tile.actor), live = s?.roots.filter(r => !r.userData.deleted) ?? [];
-  if (live.length) { select((live.find(r => r.visible) ?? live[0]).userData.source.id, e.ctrlKey || e.shiftKey || e.metaKey); return true; }
-  if (s) { flashHint(`${short(tile.tile.actor)}, which carries that tile, is deleted: Ctrl+Z or Reset all brings it back`); return true; }
-  return false;
-}
-// Floor buttons up to the tallest building's floors. The chosen floor stays if there still is one.
-function floorOptions() {
-  const previous = $('floor').value;
-  const count = Math.max(0,...allBuildings().map(b => b.floors.length));
-  $('floorGroup').hidden = !count;
-  const buttons = [segButton('all', 'All', 'All floors · roof closed')];
-  for (let i=1;i<=count;i++) buttons.push(segButton(String(i), String(i), i === 1 ? 'Up to the ground floor' : `Up to floor ${i}`));
-  $('floor').replaceChildren(...buttons);
-  $('floor').value = buttons.some(b => b.dataset.value === previous) ? previous : 'all';
-  cutaway();
-}
+// The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
+// the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.
+const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, updateTileGrid } = createCutaway({
+  $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial, isStream, listingsNow,
+  movedLandingActors, plural, rayAt, refreshPickBox, segButton, select, short, text, touchShadows, viewport, world });
 // The loading overlay: what is happening, a progress bar when the share done is known, and a detail line.
 // What an opening document's steps say on the loading overlay: the pieces of other maps read (the first 40% of the
 // bar), loaded with their meshes (to 70%) and the document's own pieces made (the rest).
@@ -2681,7 +2498,7 @@ $('hideHelpers').onchange = () => cutaway();
 segmented($('scenery'), () => {cutaway();frame();refreshLightVisibility();setEffectsDirty(true);});
 $('frame').onclick = () => frame();
 $('selected').onclick = () => selected && frame(allRoots.get(selected));
-$('grid').onchange = e => { grid.visible = e.target.checked; tileKey = null; };
+$('grid').onchange = e => { grid.visible = e.target.checked; setTileKey(null); };
 let applyLighting = () => {};
 segmented($('lighting'), () => applyLighting());
 // Update every base and cutaway material, not only those currently assigned, so
