@@ -632,9 +632,10 @@ The tools that show a move changed nothing:
   [--subst-file <json>] [--names ...]`: each moved Python function's syntax tree, or JavaScript function's tokens (a
   page factory's functions included, as `createX.f`), is the old one's, after the move's stated substitutions
   (`--subst-file` holds [OLD, NEW] pairs, for an OLD holding `=`). Use it for every move.
-- `tools/editor/tests/build_outputs.py`: the quick and baked Builds of ten project inputs that hold every lane of the
-  native edit, compared byte for byte. Record on the commit the change starts from (in a scratch worktree of that
-  commit), record on the change, and compare. Use it for a change to the compiler, the Build, the copy tool, the
+- `tools/editor/tests/build_outputs.py`: the quick and baked Builds of its project inputs (its `INPUTS`), which
+  together hold every lane of the native edit and take the Build's routes into the relight, compared byte for byte.
+  Record on the commit the change starts from (in a scratch worktree of that commit), record on the change, and
+  compare. Use it for a change to the compiler, the Build, the copy tool, the
   package tools or the relight.
 - `tools/editor/tests/compile_record.py`: every compile the editor suite makes (spec, report and native edit),
   recorded and compared. Use it for a change to the compiler.
