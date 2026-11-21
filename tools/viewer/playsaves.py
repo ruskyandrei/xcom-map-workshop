@@ -28,11 +28,12 @@ so a campaign saved after that would have gone on at save1000. A save999 it made
 The save folders are the user's (Documents\\My Games\\XCOM - Enemy Within\\XComGame\\SaveData) and the install's own
 (XEW\\XComGame\\SaveData, where a game started with -nohomedir or a lab copy keeps them): each one that is there."""
 import hashlib
-import os
 from pathlib import Path
 import re
 import shutil
 import struct
+
+import atomic_files
 
 SAVE = re.compile(r'save(\d+)', re.I)
 LOW = range(1, 10)                      # the slots a play writes without asking: copied aside before it
@@ -122,7 +123,7 @@ def _move_to_next_slot(folder, path, taken, moved):
     n = max(taken | {0}) + 1
     while (Path(folder) / f'save{n}').exists(): n += 1
     target = Path(folder) / f'save{n}'
-    path.replace(target)
+    atomic_files.replace(path, target)
     taken.add(n)
     moved.append(dict(folder=str(folder), name=path.name, to=target.name))
     return target
@@ -136,7 +137,7 @@ def _put_back(copy, path):
     try:
         shutil.copy2(kept, temp)
         if _sha256(temp) != copy['sha256']: return f'its copy ({kept}) is not the save that was copied; it is kept'
-        os.replace(temp, path)
+        atomic_files.replace(temp, path)
     finally:
         temp.unlink(missing_ok=True)
     if _sha256(path) != copy['sha256']: return f'it did not read back as its copy ({kept}); the copy is kept'

@@ -73,6 +73,7 @@ import zipfile
 if str(Path(__file__).resolve().parents[1]) not in sys.path:
     sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
 import paths  # noqa: E402
+import atomic_files
 import installs
 import packs
 import spawnrules
@@ -796,7 +797,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
                                json.dumps(public_manifest(json.loads(manifest.read_text(encoding='utf-8')), scrub), indent=1) + '\n')
             for n, data in sorted(project_data.items()):
                 z.writestr(f'projects/{n}', data)
-        temp.replace(target)
+        atomic_files.replace(temp, target)
     except OSError as error:
         raise ProjectError(500, f'Not made: the zip could not be written ({error}).')
     finally:

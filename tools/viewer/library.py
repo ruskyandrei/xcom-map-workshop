@@ -62,6 +62,7 @@ for folder in (HERE.parent / 'upk', HERE.parent / 'bake', HERE.parent / 'editor'
     if str(folder) not in sys.path:
         sys.path.append(str(folder))
 
+import atomic_files  # noqa: E402
 from export_math import multiply, transform  # noqa: E402
 from projects import ProjectError  # noqa: E402
 from settings import resolve_game, settings_path  # noqa: E402
@@ -617,9 +618,8 @@ def scan(game, cache, jobs=None, progress=None, only=None):
     index = build_index(results, round(time.monotonic() - started, 1))
     path = index_path(cache)
     path.parent.mkdir(parents=True, exist_ok=True)
-    part = part_of(path)        # (two scans, the server's and the cache job's, never share one)
-    part.write_text(json.dumps(index, separators=(',', ':')) + '\n', encoding='utf-8', newline='\n')
-    os.replace(part, path)
+    # (a temporary file of its own: two scans, the server's and the cache job's, never share one)
+    atomic_files.write_text(path, json.dumps(index, separators=(',', ':')) + '\n', temp=part_of(path))
     return index
 
 
@@ -755,13 +755,7 @@ def donor_area_lights(cache, folder, path, digest):
             for actor in {c['actor'] for c in att.get('candidates', [])}:
                 info = owners.setdefault(actor, dict(lights=[], unresolved=[]))
                 info['unresolved'].append(light['actor'])
-    with tempfile.NamedTemporaryFile(dir=folder, suffix='.part', delete=False, mode='w', encoding='utf-8', newline='\n') as f:
-        temp = Path(f.name)
-        json.dump(dict(sha256=digest, owners=owners), f)
-    try:
-        os.replace(temp, index)
-    finally:
-        temp.unlink(missing_ok=True)
+    atomic_files.write_text(index, json.dumps(dict(sha256=digest, owners=owners)), temp=part_of(index))
     return owners
 
 
@@ -920,9 +914,7 @@ def _make_piece(cache, actor, shared, path, digest, generation, folder, record):
                base='/cache-library/%s/%s/' % (path.stem, generation), objects=objects, meshes=exporter.meshes,
                materials=exporter.materials, textures={k: v for k, v in exporter.textures.items() if v},
                diagnostics=exporter.diagnostics, collision=collision, buildings=source_buildings, areaLights=area)
-    part = part_of(record)
-    part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
-    os.replace(part, record)
+    atomic_files.write_text(record, json.dumps(out) + '\n', temp=part_of(record))
     return out
 
 
@@ -970,9 +962,7 @@ def effect_records(cache, game, package, shared=None):
                source=dict(kind='map', package=path.stem, level='base', sha256=digest), **effects_metadata.describe(p))
     with donor_lock(cache, path.stem):
         folder.mkdir(parents=True, exist_ok=True)
-        part = part_of(record)
-        part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
-        os.replace(part, record)
+        atomic_files.write_text(record, json.dumps(out) + '\n', temp=part_of(record))
     known[str(record)] = out
     return out
 
@@ -1015,9 +1005,7 @@ def effect_draw(cache, game, package, system, shared=None):
         out = dict(version=effects_draw.DRAW_VERSION, system=drawn, base='/cache-library/%s/%s/' % (path.stem, generation),
                    meshes=exporter.meshes, materials=exporter.materials,
                    textures={k: v for k, v in exporter.textures.items() if v})
-        part = part_of(record)
-        part.write_text(json.dumps(out) + '\n', encoding='utf-8', newline='\n')
-        os.replace(part, record)
+        atomic_files.write_text(record, json.dumps(out) + '\n', temp=part_of(record))
     return out
 
 
@@ -1277,12 +1265,7 @@ def save_state(document, expected, path=None):
             raise ProjectError(409, 'The favourites were changed in another window.', revision=current['revision'])
         out = dict(schema=STATE_SCHEMA, schemaVersion=STATE_VERSION, revision=current['revision'] + 1, **body)
         path.parent.mkdir(parents=True, exist_ok=True)
-        part = path.with_name('%s.%s.part' % (path.name, uuid.uuid4().hex[:8]))
-        try:
-            part.write_text(json.dumps(out, indent=1) + '\n', encoding='utf-8', newline='\n')
-            os.replace(part, path)
-        finally:
-            part.unlink(missing_ok=True)
+        atomic_files.write_text(path, json.dumps(out, indent=1) + '\n', temp=part_of(path))
         return out
     finally:
         lock.release()
@@ -1454,9 +1437,7 @@ class LibraryRunner:
             raise ProjectError(400, 'A picture is a PNG of at most %d KB.' % (limit >> 10))
         path = self.thumb(key, folder)
         path.parent.mkdir(parents=True, exist_ok=True)
-        part = part_of(path)
-        part.write_bytes(data)
-        os.replace(part, path)
+        atomic_files.write_bytes(path, data, temp=part_of(path))
         return dict(ok=True)
 
     def load_state(self):

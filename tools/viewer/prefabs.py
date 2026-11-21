@@ -28,12 +28,12 @@ only. Every later editor reads schema 1 (plan D11).
 Prefab space is the tile grid: the origin is a tile corner at ground level, x and y across, z up, game units.
 """
 import math
-import os
 import re
 import threading
 import time
 import uuid
 
+import atomic_files
 from projects import ID, SHA256, ProjectError, ProjectStore, file_stem
 
 SCHEMA = 'xcom-map-workshop/prefab'
@@ -587,9 +587,7 @@ class PrefabStore(ProjectStore):
         with self.lock:
             if self._find(prefab_id) is None: raise ProjectError(404, 'No such prefab.')
             path = self._state_folder(prefab_id) / 'picture.png'
-            temp = path.with_name(path.name + '.tmp')
-            temp.write_bytes(data)
-            os.replace(temp, path)
+            atomic_files.write_bytes(path, data)
         return dict(ok=True)
 
     # ------------------------------------------------------------------ deleting, and files from elsewhere
@@ -605,7 +603,7 @@ class PrefabStore(ProjectStore):
             for n in range(2, 100):
                 if not target.exists(): break
                 target = kept / f'{path.stem} {time.strftime("%Y-%m-%d %H%M%S")} ({n}){path.suffix}'
-            os.replace(path, target)
+            atomic_files.replace(path, target)
             state = self.state(prefab_id)
             for draft, _ in self._drafts(prefab_id): draft.unlink(missing_ok=True)
             for name in ('picture.png', self.prev): (state / name).unlink(missing_ok=True)

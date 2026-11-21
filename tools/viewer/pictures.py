@@ -30,6 +30,7 @@ import sys
 if str(Path(__file__).resolve().parents[1]) not in sys.path:
     sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
 import paths  # noqa: E402
+import atomic_files  # noqa: E402
 from projects import ID, SHA256, STATE, ProjectError, hide
 
 HERE = Path(__file__).resolve().parent
@@ -108,12 +109,7 @@ def clean(data):
 
 
 def _replace(path, data):
-    temp = path.with_name(path.name + '.tmp')
-    with open(temp, 'wb') as stream:
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.replace(temp, path)
+    atomic_files.write_bytes(path, data, sync=True)
 
 
 def _state_folder(projects, project_id):
@@ -134,7 +130,7 @@ def _keep_previous(folder, saved=None):
     if saved and file_sha256(current) != saved and previous.is_file() and file_sha256(previous) == saved:
         current.unlink()
     else:
-        os.replace(current, previous)
+        atomic_files.replace(current, previous)
 
 
 def save_picture(projects, project_id, data, saved=None):

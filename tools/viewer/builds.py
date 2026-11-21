@@ -69,6 +69,7 @@ import time
 from uuid import uuid4
 import zipfile
 
+import atomic_files
 import pictures
 import procs
 import publication
@@ -104,12 +105,7 @@ def explorer(command):
 
 
 def _write(path, data):
-    temp = path.with_name(path.name + '.tmp')
-    with open(temp, 'wb') as stream:
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.replace(temp, path)
+    atomic_files.write_bytes(path, data, sync=True)
 
 
 def capture(projects, project_id, folder):
@@ -656,9 +652,7 @@ class BuildRunner:
             record = dict(attempt=attempt.id, origin=attempt.origin, project=attempt.job['project'],
                           name=attempt.job.get('name'), variant=attempt.variant, output=str(attempt.output),
                           pid=attempt.tree.pid, created=attempt.tree.created, startedAt=attempt.job['startedAt'])
-            temp = folder / f'{attempt.id}.json.tmp'
-            temp.write_text(json.dumps(record) + '\n', encoding='utf-8', newline='\n')
-            os.replace(temp, folder / f'{attempt.id}.json')
+            atomic_files.write_text(folder / f'{attempt.id}.json', json.dumps(record) + '\n')
         except OSError:
             pass        # its processes are contained all the same: the server's death ends them
 
@@ -845,7 +839,7 @@ class BuildRunner:
                                                           build=summary, work=[w.name for w in work[-3:]],
                                                           **({'leftOut': skipped} if skipped else {})), indent=1))
                 if lines: z.writestr('build-output.txt', '\n'.join(lines) + '\n')
-            temp.replace(target)
+            atomic_files.replace(temp, target)
         finally:
             temp.unlink(missing_ok=True)
         return dict(zip=str(target), files=written + ['report.json'] + (['build-output.txt'] if lines else []),

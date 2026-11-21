@@ -101,17 +101,6 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Finding.** None in the register; found by the browser checks (a check left a piece selected before the Map grid
   check).
 
-### KB-10: A save can fail while another program holds the file for a moment
-
-- **What happens.** Saving a project, a prefab's picture, the library or a build record can stop with "could not be
-  written" if another program (a virus scanner, a backup or search indexer) holds the file at that moment. Saving
-  again a moment later works.
-- **Since.** Every version (found 21 November 2026 by reading the code; not reported).
-- **Workaround.** Save again.
-- **Cause.** Only the game install's records retry when Windows refuses a file that is briefly held; the project and
-  library writers try once.
-- **Finding.** None in the register; found by a review of the code the refactor left as it was (21 November 2026).
-
 ### KB-11: A hand-edited map record with spaces around "=" is not replaced by a Replace build
 
 - **What happens.** If the game's `DefaultMaps.ini` holds a map record written by hand with spaces around `=`

@@ -27,6 +27,8 @@ import re
 import shutil
 import threading
 
+import atomic_files
+
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (records of their own:
 # the effects and sounds plan, Part C); 4: the spawns plan's records (`spawnRules`, SP8; the base map's spawn points'
@@ -257,19 +259,12 @@ class ProjectStore:
 
     @staticmethod
     def _write(path, value):
-        """`value` written to `path` through a temporary file; a failure (a full disk, a locked file, a read-only
+        """`value` written to `path` through a temporary file and flushed to the disk (atomic_files, which tries a
+        replace that another program's hold refuses again); a failure (a full disk, a file held too long, a read-only
         folder) is a ProjectError that says why, the temporary file gone (review finding 46)."""
-        temp = path.with_name(path.name + '.tmp')
         try:
-            with open(temp, 'w', encoding='utf8', newline='\n') as stream:
-                json.dump(value, stream, indent=1, ensure_ascii=False)
-                stream.write('\n')
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temp, path)
+            atomic_files.write_text(path, json.dumps(value, indent=1, ensure_ascii=False) + '\n', sync=True)
         except OSError as error:
-            try: temp.unlink(missing_ok=True)
-            except OSError: pass
             raise ProjectError(500, f'{path.name} could not be written: {os_reason(error)}.') from None
 
     def _state_folder(self, project_id):
@@ -494,9 +489,10 @@ class ProjectStore:
                     # Keep the previous revision, itself written atomically, before replacing the project.
                     state = self._state_folder(project_id)
                     shutil.copyfile(current_path, state / (self.prev + '.tmp'))
-                    os.replace(state / (self.prev + '.tmp'), state / self.prev)
+                    atomic_files.replace(state / (self.prev + '.tmp'), state / self.prev)
                     # Only the case of the name changed: rename the file first, so it shows the new case.
-                    if same_path(target, current_path) and target.name != current_path.name: os.replace(current_path, target)
+                    if same_path(target, current_path) and target.name != current_path.name:
+                        atomic_files.replace(current_path, target)
             except OSError as error:
                 raise ProjectError(500, f'Nothing was written in {self.root}: {os_reason(error)}.') from None
             self._write(target, document)

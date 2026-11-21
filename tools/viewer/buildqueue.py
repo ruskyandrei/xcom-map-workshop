@@ -65,6 +65,7 @@ import threading
 import time
 import uuid
 
+import atomic_files
 from builds import capture as capture_project
 import publication
 from projects import ID, ProjectError
@@ -280,12 +281,11 @@ class BuildQueue:
                 current = self.file.read_bytes()
                 try:
                     valid(json.loads(current.decode('utf-8')))
-                    spare = self.backup.with_name(f'{self.backup.name}.{uuid.uuid4().hex[:10]}.tmp')
-                    spare.write_bytes(current)
-                    os.replace(spare, self.backup)
+                    atomic_files.write_bytes(self.backup, current,
+                                             temp=self.backup.with_name(f'{self.backup.name}.{uuid.uuid4().hex[:10]}.tmp'))
                 except (UnicodeDecodeError, ValueError):
                     pass
-            os.replace(temp, self.file)
+            atomic_files.replace(temp, self.file)
         finally:
             temp.unlink(missing_ok=True)
 
@@ -549,7 +549,7 @@ class BuildQueue:
             archived = self.root / f'build-queue.reset-{datetime.datetime.now():%Y%m%d-%H%M%S}.json'
             try:
                 if self.file.is_file():
-                    os.replace(self.file, archived)
+                    atomic_files.replace(self.file, archived)
                 self.q, self.error = empty(), None
                 self._save()
             except OSError as error:

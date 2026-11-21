@@ -283,6 +283,7 @@ its rules, records and words go in, with their node tests in `tools/viewer/tests
 | A reader of package bytes | [`tools/upk`](tools/upk): tagged properties through [`props.tags`](tools/upk/props.py), compressed chunks through [`decomp.read_chunk`](tools/upk/decomp.py), a map's objects through the viewer's [`Package`](tools/viewer/package.py), a mesh component's LOD records and a bulk record through [`native_fields`](tools/upk/native_fields.py)' `mesh_lods` and `bulk_record` (each value with its place in the package; [`lighting_records`](tools/upk/lighting_records.py) and [`lightmap_fields`](tools/bake/lightmap_fields.py) give their values and places in the forms their readers take). |
 | A writer of package bytes | [`package_edit.write_edited`](tools/upk/package_edit.py) for edits in place, [`package_grow.py`](tools/upk/package_grow.py) for new exports. |
 | A line of the game's config | [`mapsini.py`](tools/viewer/mapsini.py). |
+| A file replaced whole: a project, a record, a picture, an index | [`atomic_files.py`](tools/viewer/atomic_files.py): `write_bytes` or `write_text` (a temporary file beside it, then a replace tried again while another program holds the file a moment), or `replace` for a temporary file the writer filled itself or a file it moves aside. The writer keeps its own lock, flush (`sync`), read-back and error words. No other module of `tools/viewer` calls `os.replace` (`test_atomic_files.py` scans for it; KB-10). |
 | A tool folder on the import path | [`paths.use()`](tools/paths.py), at the top of the module. |
 | A test's shared records and helpers | Its suite's fixtures module: [`viewer_fixtures.py`](tools/viewer/tests/viewer_fixtures.py), [`tools/bake/tests/fixtures.py`](tools/bake/tests/fixtures.py), [`editor_fixtures.py`](tools/editor/tests/editor_fixtures.py), [`upk_fixtures.py`](tools/upk/tests/upk_fixtures.py) (a suite without one makes one, named for the suite). One more than one suite needs: [`tools/tests/shared_fixtures.py`](tools/tests/shared_fixtures.py) (the DefaultMaps records, a made-up mesh), which each suite's fixtures module imports it from. |
 | An environment variable a test or a tool reads | `ENVIRONMENT` in [`run_tests.py`](tools/run_tests.py), with what it does and what happens without it (`run_tests.py --help` prints it), in the commit that reads it. |
@@ -315,9 +316,10 @@ where there is one.
 ### One home
 
 - A rule, a constant or a reader of a format is written once. Before writing a reader, a walker or a writer, look for
-  the one there is: `props.tags`, `decomp.read_chunk`, `package_edit.write_edited`, `mapsini`; on the page `api.js`,
-  `storage.js`, `constants.js`, `dom_words.js` and `piece_records.js`. Copies drift apart and each fails differently
-  (findings 52, 55 and 56).
+  the one there is: `props.tags`, `decomp.read_chunk`, `package_edit.write_edited`, `mapsini`, `atomic_files`; on the
+  page `api.js`, `storage.js`, `constants.js`, `dom_words.js` and `piece_records.js`. Copies drift apart and each fails
+  differently (findings 52, 55 and 56; of the writers of whole files only the install's ledger and config writers
+  tried a refused replace again, KB-10).
 - A rule both the page and Python need lives in a JSON file both read, or has a case file both sides' tests read. It
   is never copied by hand with no test (finding 55).
 - Code never decides by the words of a message. An error that code reads carries a code: words get rewritten

@@ -33,6 +33,8 @@ import shutil
 import time
 import uuid
 
+import atomic_files
+
 SCHEMA = 'xcom-map-workshop/publication'
 SCHEMA_VERSION = 1
 PUBLISH_WAIT = 1800.0       # a build waits this long for readers copying the package it replaces
@@ -137,13 +139,8 @@ def journal_path(output, variant):
 
 
 def _write(path, data):
-    temp = path.with_name('%s.%s.tmp' % (path.name, uuid.uuid4().hex[:8]))
-    with open(temp, 'w', encoding='utf-8', newline='\n') as stream:
-        json.dump(data, stream, indent=1)
-        stream.write('\n')
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.replace(temp, path)
+    atomic_files.write_text(path, json.dumps(data, indent=1) + '\n', sync=True,
+                            temp=path.with_name('%s.%s.tmp' % (path.name, uuid.uuid4().hex[:8])))
 
 
 def _same(a, b):
