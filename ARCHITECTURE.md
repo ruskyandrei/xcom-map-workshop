@@ -274,6 +274,7 @@ its rules, records and words go in, with their node tests in `tools/viewer/tests
 | A browser check | The table of checks (`CHECKS`) in [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py). |
 | A route of the server | A `handle_<area>` method of `viewer.py`'s handler that hands the request to its area's module (`handle_play` and [`play.py`](tools/viewer/play.py) are the model). |
 | A setting (a folder, an install) | [`settings.py`](tools/viewer/settings.py). |
+| A folder of the game install (its packages, its config, the base game's packages) | [`settings.py`](tools/viewer/settings.py): `game_cooked`, `game_config`, `cooked_folders` (the EW packages, then the base game's), `ew_folder`; `COOKED` for the folder of the same name a Build's package and a map pack hold. No other module the release ships spells `CookedPCConsole` in its code ([`test_game_layout.py`](tools/viewer/tests/test_game_layout.py) scans them; the few spellings left in the Build's own files are counted there). |
 | A record of the map's export | [`export.py`](tools/viewer/export.py) or [`scene_metadata.py`](tools/viewer/scene_metadata.py), with `EXPORT_VERSION` raised. |
 | A field of the project document | [`projects.py`](tools/viewer/projects.py) and [`project.js`](tools/viewer/web/project.js), with the compiler's reading of it, and the contract in [`research/editor-contracts.md`](research/editor-contracts.md). |
 | An edit family of the compiler | A class in a module of its own in `tools/editor`, made with the `Compiler` it works for (`self.c`), with its own tables and state. It takes what it shares with the compiler from [`compiler_tables.py`](tools/editor/compiler_tables.py), never imports the compiler, and reports through the compiler's `error`, `warn` and `note`. The compiler imports it at the top and names again the tables of it that others read through the compiler. The compiler holds it as an attribute named as its module (`self.effect_edits`), and reads the family's state through it (`self.effect_edits.ops`): the state has one home. A method of the family stays on the compiler only as a one-line forwarder, and only when a test or a tool calls it there by name (`Compiler.stage`). [`spawn_edits.py`](tools/editor/spawn_edits.py) is the model; section 1 lists the others, and the family is listed under `compiler families` in `structure.json` (section 4). |
@@ -323,7 +324,8 @@ where there is one.
 - A rule both the page and Python need lives in a JSON file both read, or has a case file both sides' tests read. It
   is never copied by hand with no test (finding 55).
 - Code never decides by the words of a message. An error that code reads carries a code: words get rewritten
-  (finding 55).
+  (finding 55). The server shows what a Build runs from the Build's own `running: <label>` line (`Build.tool`), not
+  from the command line it echoes.
 
 ### The page
 
