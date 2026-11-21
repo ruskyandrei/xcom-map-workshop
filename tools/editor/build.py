@@ -499,10 +499,9 @@ def mission_label(record):
 
 def template_record(records):
     """The base map's record an added kind of mission is made from (mission types plan, D4): its abduction, else its
-    first that is no council mission (whose streams a bomb or rescue needs), else its first."""
-    council = lambda r: mapsini.unquoted(r, 'CouncilType') not in (None, 'eFCMType_None')  # noqa: E731
-    return next((r for r in records if 'MissionType=eMission_Abduction' in re.sub(r'\s', '', r) and not council(r)),
-                next((r for r in records if not council(r)), records[0]))
+    first that is no council mission (whose streams a bomb or rescue needs), else its first: by the rule the
+    install picks a play's record by when no mission is named (mapsini.slot_record, installs.plan_record)."""
+    return records[mapsini.slot_record(records, range(len(records)))]
 
 
 def mission_entries(records, listed):

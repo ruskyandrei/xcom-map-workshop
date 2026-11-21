@@ -154,9 +154,8 @@ OPTION, VALUE = re.compile(r'[A-Za-z][A-Za-z0-9]{0,31}'), re.compile(r'[A-Za-z0-
 
 
 def kind_key(record):
-    """A record's kind (a KINDS key) from its text (str or bytes: mapsini reads either)."""
-    mission = (mapsini.unquoted(record, 'MissionType') or '').replace('eMission_', '')
-    council = (mapsini.unquoted(record, 'CouncilType') or 'eFCMType_None').replace('eFCMType_', '')
+    """A record's kind (a KINDS key) from its text (str or bytes), by the map list's rule (maplist.record_kind)."""
+    mission, council = maplist.record_kind(record)
     if mission == 'Special':
         return f'Special/{council}' if council in COUNCIL else 'Special'
     return mission

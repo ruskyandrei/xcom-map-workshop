@@ -105,10 +105,18 @@ def records(text):
     return out
 
 
+def record_kind(line):
+    """(mission type, council type) of one record (a line of text or bytes), each without its prefix: ('Abduction',
+    'None'), ('Special', 'Bomb'). The one rule that the map list's missions (mission_of) and the mission kinds
+    (missions.kind_key) are read by."""
+    return ((mapsini.unquoted(line, 'MissionType') or '').replace('eMission_', ''),
+            (mapsini.unquoted(line, 'CouncilType') or 'eFCMType_None').replace('eFCMType_', ''))
+
+
 def mission_of(line):
-    """(group, mission type without its prefix, readable mission label) of one record."""
-    mission = (mapsini.unquoted(line, 'MissionType') or '').replace('eMission_', '')
-    council = (mapsini.unquoted(line, 'CouncilType') or 'eFCMType_None').replace('eFCMType_', '')
+    """(group, mission type without its prefix, readable mission label) of one record (record_kind; missions.KINDS
+    gives each kind the same label: test_maplist holds the two)."""
+    mission, council = record_kind(line)
     if mission == 'Special':
         if council in COUNCIL_LABEL:
             return 'council', mission, COUNCIL_LABEL[council]
