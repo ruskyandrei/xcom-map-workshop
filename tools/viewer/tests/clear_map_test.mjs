@@ -129,6 +129,21 @@ assert.ok(!landingUnmoved({ ...bar1, location: [815, -1681, 64] }, barOwn));
 assert.ok(!landingUnmoved({ ...bar1, direction: 'east' }, barOwn));
 assert.ok(!landingUnmoved(bar1, null));
 assert.ok(landingUnmoved(intro.zone, intro) && !landingUnmoved({ ...intro.zone, location: [-352, -240, 64] }, intro));
+// A landing whose soldier points stand off the mutator's layout for its frame is unmoved by its own zone (KB-13,
+// T-51): the police station's stand on raised ground, 3 to 5 units across and 38 to 70 higher, and many maps' a third
+// of a tile off. Only the zone's layout is compared with the own zone's; a zone moved, turned or of another kind at
+// the same place still moves it.
+for (const off of [[3, -5, 38], [-4, 5, 70], [32, 0, 0], [0, -384, 16]]) {
+  const ownZone = zoneOfFrame(barFrame.location, 0);
+  const actors = [barFrame, ...place(ownZone).soldiers.map((s, k) => ({ role: `soldier${k + 1}`, rotation: [0, s.yaw, 0],
+    location: s.location.map((v, j) => v + (k % 2 ? off[j] : 0)) }))];
+  const [own] = own2({ landings: [{ group: 'XComSpawnPoint', actors }] });
+  assert.ok(landingUnmoved(own.zone, own), JSON.stringify(off));
+  assert.ok(landingUnmoved(bar1, own), JSON.stringify(off));
+  assert.ok(!landingUnmoved({ ...own.zone, location: [own.zone.location[0] + 96, own.zone.location[1], 64] }, own));
+  assert.ok(!landingUnmoved({ ...own.zone, direction: 'east' }, own));
+  assert.ok(!landingUnmoved({ ...own.zone, kind: 'inside' }, own));
+}
 const shifted = { ...intro.zone, location: [intro.zone.location[0] + 96, intro.zone.location[1], intro.zone.location[2]] };
 assert.deepEqual(soldierSpots(shifted, intro), place2(shifted).soldiers);
 

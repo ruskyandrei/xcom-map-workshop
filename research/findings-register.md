@@ -3166,21 +3166,36 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
 - **Known gap**: with the budget off the game's textures all stay mapped in its 32-bit address space; a long
   session might run out of it. Not seen in runs of a few minutes.
 
-### T-51: The police station's own landing reads as moved in the editor with nothing changed
-**Open** (21 November 2026; found by the editor follow-ups' stage P5, seen on main before the refactor too). Known bug
-[KB-13](../KNOWN-BUGS.md).
-- **What**: URB_PoliceStation opened in the editor (no project change) hides its Skyranger, drop zone frame, dust and
-  sound. The page's `movedLandingActors()` lists six pieces of the landing (XComLevelActor_2, Emitter_43,
-  Emitter_477, XComLevelActor_664, PointInSpace_254, AmbientSoundSimpleToggleable_4). The same on main's code and the
-  follow-ups' tip, served the same scratch cache.
-- **Cause**: `landingUnmoved` (`tools/viewer/web/spawns.js`) takes a landing with a frame as unmoved only when the
-  frame and each of the six soldier points stand within 4 units of where `place()` puts them for the zone. The map's
-  own soldier points stand on raised ground, 86 and 118 high where `place()` gives 48, and 3 to 5 units off its layout
-  in x and y (soldier1 at 1870, -1392 against 1867, -1397). The frame and the zone match, so the zone has not moved.
-  The map's other zone start-2 stands 5 units from start-1 (2255, -1585 against 2251.27, -1589.08).
-- **Fix to try**: compare the zone with the landing's own zone (place and direction) and leave the soldier points
-  out, or compare them on x and y with the map's own points as the reference. Check the Build's own rule for a
-  moved landing the same way.
+### T-51: Most maps' own landings read as moved with nothing changed: the soldier points stand off the mutator's layout
+**Fixed** (21 November 2026, verified offline and in the page; found by the editor follow-ups' stage P5 on the police
+station, there since 18 November 2026). Was known bug KB-13.
+- **What**: URB_PoliceStation opened in the editor (no project change) hid its Skyranger, drop zone frame, dust and
+  sound: the page's `movedLandingActors()` listed six pieces of the landing (XComLevelActor_2, Emitter_43,
+  Emitter_477, XComLevelActor_664, PointInSpace_254, AmbientSoundSimpleToggleable_4), on main's code as on the
+  follow-ups'.
+- **Cause**: the page (`tools/viewer/web/spawns.js` `landingUnmoved`) and the Build (`tools/bake/native_spawns.py`
+  `unmoved`, which `plan` asks for each of the map's own landings) took a landing with a frame as unmoved only when
+  its frame and each of its six soldier points stood within 4 units of where LWR's mutator lays them out for the
+  zone. The map's own points are often not at that layout. On the police station they stand on raised ground, 86 and
+  118 high where the layout gives 48, and 3 to 5 units across (soldier1 at 1870, -1392 against 1867, -1397).
+- **How far it went**: over the install's 96 base maps, 89 of the 141 own landings with a frame read as moved by
+  their own zone (71 maps): 24 with points a third of a tile (32 units) off, 18 4 to 10 off, 14 just over 4 (4.0 to
+  4.01, rounding), 12 at 300 units or more (a layout of their own), 11 higher or lower than the layout, 10 10 to 100
+  off. The Bar's first landing passed, so the checks on the Bar never saw it. In the view such a landing's pieces
+  were hidden as moved (seen on the police station as it opened); in a Build of a project that changes its landing
+  zones, `plan` moved each such landing's soldier points, evac volume, player start and PointInSpace onto the layout
+  (the points up to 384 units across, or down from raised ground); its frame and Skyranger stayed where they were.
+- **Fix**: both rules compare the zone's layout with the layout of the landing's own zone (the one its frame gives,
+  `zone_of_frame`): the same direction, and the frame and six soldier points within 4 units. The map's own soldier
+  points are not compared, so an unmoved landing keeps them as the map has them; a zone moved, turned or of another
+  kind (an inside landing at the same place) still moves them. A landing with no frame keeps its fitted-zone rule.
+- **Verified**: the same survey after the fix: 0 of 141 read as moved. New tests failed before the fix:
+  `clear_map_test.mjs` and `test_native_spawns.py` (points 3 to 5 off and 38 to 70 higher, 32 off, 384 off: unmoved
+  by their own zone and by a line a unit off; moved by a tile, a turn or another kind), and the police station's and
+  the Boulevard's own landings read from the install, each unmoved by its own zone. In the page on a test server the
+  police station opens with nothing listed as moved and its Skyranger and frame drawn.
+- **Not changed**: where the squad's spots are drawn and checked for a landing with a frame (`soldier_spots`) stays
+  the mutator's layout, as LWR plays it; plain Enemy Within plays the map's own points.
 
 ### T-50: Two near-black made ground blocks' relight previews moved up to 29/255 with the DXT1 reading; no stored texel did
 **Accepted** (21 November 2026, measured offline; no code change, by the editor follow-ups' decision D2).

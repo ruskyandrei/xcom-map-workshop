@@ -71,17 +71,19 @@ export function fitZone(actors, bottom = null) {
 const atOwnPlace = (zone, own) => Boolean(own) && zone.direction === own.zone.direction
   && [0, 1, 2].every(k => Math.abs(Number(zone.location[k]) - Number(own.zone.location[k])) < 0.5);
 /** Whether a zone leaves the map's own landing `own` where the map has it, as the Build reckons it
- *  (tools/bake/native_spawns.py unmoved): the same direction, and the frame and the six soldier points within
- *  SAME_PLACE units of the landing's own; a landing with no frame, its fitted zone within half a unit (atOwnPlace).
- *  (The install's line a landing is joined with can stand a unit off its frame: the Bar's, 719 against 719.9998.) */
+ *  (tools/bake/native_spawns.py unmoved): the same direction as the landing's own zone, and the frame and the six
+ *  soldier points laid out within SAME_PLACE units of where that zone lays them; a landing with no frame, its fitted
+ *  zone within half a unit (atOwnPlace). The map's own soldier points are not compared: on many maps they stand off
+ *  the mutator's layout (the police station's on raised ground; KB-13, T-51). (The install's line a landing is joined
+ *  with can stand a unit off its frame: the Bar's, 719 against 719.9998.) */
 export function landingUnmoved(zone, own) {
   if (!own) return false;
   if (own.fitted) return atOwnPlace(zone, own);
   if (zone.direction !== own.zone.direction) return false;
-  const at = place(zone), mine = place(own.zone), by = Object.fromEntries((own.landing?.actors ?? []).map(a => [a.role, a]));
+  const at = place(zone), mine = place(own.zone);
   const near = (a, b) => a.every((v, j) => Math.abs(Number(v) - b[j]) <= SAME_PLACE);
-  return near(by.frame?.location ?? mine.frame.location, at.frame.location)
-    && at.soldiers.every((p, k) => near(by[`soldier${k + 1}`]?.location ?? mine.soldiers[k].location, p.location));
+  return near(mine.frame.location, at.frame.location)
+    && at.soldiers.every((p, k) => near(mine.soldiers[k].location, p.location));
 }
 /** Where the squad stands for a zone: [{ location, yaw }], place()'s six, or for a landing with no frame whose zone
  *  has not moved, the landing's own points (spawns.py soldier_spots). */

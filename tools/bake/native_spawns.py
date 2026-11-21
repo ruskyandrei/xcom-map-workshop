@@ -41,7 +41,7 @@ import scene_metadata  # noqa: E402
 import spawns  # noqa: E402
 
 TURN = 65536
-SAME = 4.0     # a zone whose frame and soldiers are this near the landing's own is the landing unmoved
+SAME = 4.0     # a zone that lays the landing out this near its own zone's layout leaves the landing unmoved
 
 
 def norm(yaw):
@@ -51,18 +51,21 @@ def norm(yaw):
 
 
 def unmoved(landing, zone, bottom=None):
-    """Whether the zone puts the landing where the map has it: its frame and six soldier points within SAME units,
-    the frame's turn the zone's."""
+    """Whether the zone leaves the landing where the map has it: the zone faces as the landing's own zone (the one its
+    frame gives, spawns.zone_of_frame) and lays the frame and the six soldier points out within SAME units of where
+    that zone lays them. The map's own soldier points are not compared: on 89 of the install's 141 landings with a
+    frame they stand off the mutator's layout (the police station's on raised ground, many a third of a tile off), and
+    an unmoved landing keeps them as the map has them (KB-13, T-51). web/spawns.js landingUnmoved is the twin."""
     by = {a['role']: a for a in landing['actors']}
-    at = spawns.place(zone)
     frame = by.get('frame')
     if frame is None:
         fitted = spawns.fit_zone(landing['actors'], bottom)
         return fitted is not None and spawns.at_own_place(zone, dict(zone=fitted))
-    if norm(frame['rotation'][1] - at['frame'][1]) != 0:
+    own = spawns.zone_of_frame(frame['location'], frame['rotation'][1])
+    if zone['direction'] != own['direction']:
         return False
-    pairs = [(frame['location'], at['frame'][0])] + [(by['soldier%d' % (k + 1)]['location'], at['soldiers'][k][0])
-                                                     for k in range(6) if 'soldier%d' % (k + 1) in by]
+    at, mine = spawns.place(zone), spawns.place(own)
+    pairs = [(mine['frame'][0], at['frame'][0])] + [(mine['soldiers'][k][0], at['soldiers'][k][0]) for k in range(6)]
     return all(all(abs(a[j] - b[j]) <= SAME for j in range(3)) for a, b in pairs)
 
 

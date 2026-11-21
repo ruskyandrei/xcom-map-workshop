@@ -70,6 +70,23 @@ class Plan(unittest.TestCase):
         self.assertEqual([round(v) for v in mesh[0]], [1103 + 1290, -1681 - 160, 0])
         self.assertEqual(mesh[1], [0, 192 + 16384, 0])
 
+    def test_soldier_points_off_the_layout_are_kept_by_their_own_zone(self):
+        # KB-13 (T-51): 89 of the install's 141 landings with a frame have soldier points off the mutator's layout for
+        # it (the police station's on raised ground, 3 to 5 units across and 38 to 70 higher; many a third of a tile
+        # off): the zone at the landing's own place moves nothing, a zone moved or of another kind moves them
+        for off in ([3, -5, 38], [-4, 5, 70], [32, 0, 0], [0, -384, 16]):
+            landing = landing_at(OWN)
+            for a in landing['actors']:
+                if a['role'] in ('soldier2', 'soldier4', 'soldier6'):
+                    a['location'] = [a['location'][j] + off[j] for j in range(3)]
+            self.assertEqual(native_spawns.plan([landing], dict(zones=[OWN], own=[0])), [], off)
+            self.assertEqual(native_spawns.plan([landing], dict(zones=[dict(OWN, location=[720, -1680, 64])], own=[0])), [])
+            inside, = native_spawns.plan([landing], dict(zones=[dict(OWN, kind='inside')], own=[0]))
+            at = spawns.place(dict(OWN, kind='inside'))
+            by = {a['role']: a for a in inside['actors']}
+            self.assertEqual(by['soldier2']['new'][0], [round(v, 4) for v in at['soldiers'][1][0]])
+            self.assertEqual(len(native_spawns.plan([landing], dict(zones=[MOVED], own=[0]))), 1)
+
     def test_landings_by_slot(self):
         first, second = landing_at(OWN), landing_at(dict(OWN, location=[0, 0, 64]))
         moves = native_spawns.plan([first, second], dict(zones=[dict(MOVED, missionType='eMission_Abduction'), OWN, MOVED],
@@ -388,6 +405,24 @@ class BarNoSpawnVolumes(unittest.TestCase):
                     dict(values=[dict(name='XComNoSpawnVolume_0', spawn=dict(use=True))])):
             with self.assertRaises(ValueError, msg=ops):
                 native_spawns.apply_lane(g, self.p, ops)
+
+
+class OwnZonesOfRealMaps(unittest.TestCase):
+    """KB-13 (T-51): each landing with a frame of two maps whose soldier points stand off the mutator's layout (the
+    police station's on raised ground, the Boulevard's a third of a tile off) is unmoved by the zone its frame gives."""
+    def test_each_landing_is_unmoved_by_its_own_zone(self):
+        for name in ('URB_PoliceStation', 'URB_Boulevard'):
+            path, why = labpaths.install_map(name)
+            if not (path and Path(path).exists()):
+                self.skipTest(why)
+            framed = 0
+            for landing in scene_metadata.landing_metadata(Package(path)):
+                frame = next((a for a in landing['actors'] if a['role'] == 'frame'), None)
+                if frame:
+                    framed += 1
+                    zone = spawns.zone_of_frame(frame['location'], frame['rotation'][1])
+                    self.assertTrue(native_spawns.unmoved(landing, zone), (name, landing['prefab']))
+            self.assertGreater(framed, 0, name)
 
 
 class FramelessPlan(unittest.TestCase):
