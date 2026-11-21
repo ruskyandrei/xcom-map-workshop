@@ -673,9 +673,9 @@ where there is one.
   `select-chips`: the flags chip), given what it has there (the root picked, its source, the chips' row). Where an
   area's change must keep other areas up, it runs a run of its own rather than calling them by name: `scene` (app.js's
   `sceneChanged`: the cutaway, the ground grid and where made walls meet), `landing-zones` (Clear map's changes of the
-  landing zones: the zones drawn), `mission` (the header's mission picked changed with its choices: the lights drawn,
-  the spawn markers and their gizmo, the cutaway) and `snap` (navigation.js's snap setting: the selected piece's grid
-  chip). What is state (the sun's shadows asked for, the groups' pieces to be worked out again, the Effects view's
+  landing zones: the zones drawn), `clear` (a clear done or undone: the lights drawn), `mission` (the header's mission
+  picked changed with its choices: the lights drawn, the spawn markers and their gizmo, the cutaway) and `snap`
+  (navigation.js's snap setting: the selected piece's grid chip). What is state (the sun's shadows asked for, the groups' pieces to be worked out again, the Effects view's
   redraw asked) is set directly. Every name `RUNS` lists has its refresh registered: app.js's `startScene` ends with
   the hub's `checkHub`, which throws (the page says it could not open, and the browser checks see the error) when one
   has none, and the hub's node test reads the page's modules for one `onHub` of each name. The hub is its own module,

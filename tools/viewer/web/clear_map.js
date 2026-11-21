@@ -41,9 +41,9 @@ import { recall, remember } from './storage.js';
 export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banner, clearedChanged, cloneGroups,
                                  editedKey, explicitZones, flashHint, fromOf, gizmo, grabView, isStream, lightViewOnly,
                                  liveVolumes, missionFloorLost, missionReached, ownSize, plural, projectChanged,
-                                 projectsAvailable, refreshInstalls, refreshLightVisibility, removeLightRoots,
-                                 removeRoots, sceneChanged, setMissionMoves, setStage, short, showPop,
-                                 spawnFamilyBuilds, spawnsAvailable, world, zoneSoldiers, zoneState }) {
+                                 projectsAvailable, refreshInstalls, removeLightRoots, removeRoots, sceneChanged,
+                                 setMissionMoves, setStage, short, showPop, spawnFamilyBuilds, spawnsAvailable, world,
+                                 zoneSoldiers, zoneState }) {
   // The landing zone's pieces (compiler.LANDING_PREFIXES, F-45): from the server's families, else by their archetype.
   const LANDING_PREFIXES = ['dgn_dropshipsoldierspawn.', 'veh_lv1skyranger_mod.prefabs.'];
   // (landingActors, as the server names them: editor_state.js)
@@ -301,7 +301,7 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
         setCleared(true); setClearKeepsOutside(keepOutside); setMergedBuildings(null); setStage(next); clearedChanged();
         setProjectMissions(missionsCleared.map(e => ({ ...e }))); refreshMissionPicker();
         if (kept) { setLandingZones([{ ...kept }]); setPickedZone(null); runHub('landing-zones'); }
-        refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
+        runHub('clear'); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
       },
       undo: () => {
         addRoots(plan.added); addLightRoots(plan.addedLights);
@@ -311,7 +311,7 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
         setCleared(clearedBefore); setClearKeepsOutside(keepsBefore); setMergedBuildings(null); setStage(stageBefore); clearedChanged();
         setProjectMissions(missionsBefore ? missionsBefore.map(e => ({ ...e })) : null); refreshMissionPicker();
         if (kept) { setLandingZones(zonesBefore ? zonesBefore.map(z => ({ ...z })) : null); setPickedZone(null); runHub('landing-zones'); }
-        refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection(picks.ids, picks.active); sceneChanged();
+        runHub('clear'); setLightsDirty(true); gizmo.setSelection(picks.ids, picks.active); sceneChanged();
       },
     });
     setLastClearMs(Math.round(performance.now() - started));

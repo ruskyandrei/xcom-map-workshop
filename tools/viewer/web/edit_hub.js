@@ -52,6 +52,11 @@ export const RUNS = {
   'landing-zones': [
     'zones',         // zones_wiring.js: the zones drawn
   ],
+  // A clear done or undone (clear_map.js's clearMap, after the landing zones it keeps, before it asks for the lights'
+  // redraw and sets the selection).
+  clear: [
+    'lights',        // lights_wiring.js: which lights are drawn (those the clear deleted, or brought back)
+  ],
   // The header's mission picked changed with its choices (clear_map.js's refreshMissionPicker).
   mission: [
     'lights',        // lights_wiring.js: which lights are drawn (the streams' among them)

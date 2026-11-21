@@ -595,8 +595,8 @@ const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight
         readLandingLines, refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes,
         startMissionPicker, zonesNow } = createClearMap({
   $, addLightRoots, addRoots, banner, cloneGroups, editedKey, flashHint, fromOf, gizmo, grabView, isStream,
-  lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, refreshLightVisibility,
-  removeLightRoots, removeRoots, sceneChanged, setStage, short, showPop, world,
+  lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, removeLightRoots,
+  removeRoots, sceneChanged, setStage, short, showPop, world,
   // (made further down: called through, since they are not made yet while this runs)
   allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(),
   explicitZones: () => explicitZones(), liveVolumes: () => liveVolumes(),
