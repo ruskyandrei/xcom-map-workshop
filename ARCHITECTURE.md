@@ -98,8 +98,14 @@ look with the pieces the change takes, and its Look row in the piece panel. The 
 Drawing a made piece is
 [`made_drawing.js`](tools/viewer/web/made_drawing.js)'s: the Build menu, and a wall, a room (with a roof and its
 building), a floor or roof, or a ground shape dragged out over the ground with its ghost and made as an added copy of
-its look's donor. What is pure about the wall, slab and ground tools is [`walls.js`](tools/viewer/web/walls.js)'s and
-[`ground.js`](tools/viewer/web/ground.js)'s.
+its look's donor. The piece panel's sections of a made piece are [`made_panel.js`](tools/viewer/web/made_panel.js)'s:
+the Wall section with its openings (how each plays, a doorway wanting a door) and its buttons, the Floor section with
+its holes, the Ground section, and the Room section of a drawn room picked whole (its walls' and roof's looks, its
+storeys); Delete with an opening's handle last touched takes that opening out. Break and Repair are
+[`made_breaking.js`](tools/viewer/web/made_breaking.js)'s: the Break rows, the Break tool's blasts on a made wall,
+floor or roof or on one of the map's own fracturing pieces, and a broken piece drawn without the fragments its blasts
+knock out, as the Build does. What is pure about the wall, slab and ground tools is
+[`walls.js`](tools/viewer/web/walls.js)'s and [`ground.js`](tools/viewer/web/ground.js)'s.
 `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -248,6 +254,8 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A made piece (a wall, floor, roof or ground shape made from numbers): whether a piece is one, its look's donor, its state and changes (each one undo step), its mesh's record, where made walls meet, the picked piece's handles and their drags, a rock's corners | [`made_handles.js`](tools/viewer/web/made_handles.js) (`createMadeHandles`). What is pure about a made piece's numbers and their changes (`resizedWall`, `movedOpening`, `raisedWall`, `resizedSlab`, `movedHole`, `resizedGround`, `movedPoint`, `wallJoins`, the mesh's numbers) goes in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), with their node tests (`walls_test.mjs`, `ground_test.mjs`, `made_shapes_test.mjs`). |
 | The made pieces' looks: the look a tool draws in, the look picker's samples and what choosing a look does, the eyedropper, a made piece's look changed (with the pieces the change takes), its Look row | [`made_looks_wiring.js`](tools/viewer/web/made_looks_wiring.js) (`createMadeLooksWiring`). A look's catalogue and entries go in [`looks.js`](tools/viewer/web/looks.js), the picker's panel in [`look_picker.js`](tools/viewer/web/look_picker.js), with their node tests (`looks_test.mjs`, `look_picker_test.mjs`). |
 | Drawing a made piece: the Build menu's tools, a wall, room, floor, roof or ground shape dragged out with its ghost and made | [`made_drawing.js`](tools/viewer/web/made_drawing.js) (`createMadeDrawing`). Where a drawn piece stands and what its numbers are (`drawnWall`, `drawnRoom`, `drawnSlab`, `roomRoof`, `drawnGround`) go in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), pure, with their node tests (`walls_test.mjs`, `ground_test.mjs`). |
+| The piece panel's sections of a made piece: the Wall section and its openings, the Floor section and its holes, the Ground section, the Room section of a drawn room, an opening taken out by Delete | [`made_panel.js`](tools/viewer/web/made_panel.js) (`createMadePanel`). What an opening, a hole or a room's storeys are and say (`openingPlay`, `playWords`, `withOpening`, `withHole`, `steppedStoreys`, `slopeWords`) goes in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), pure, with their node tests. |
+| Break and Repair: a blast set off on a made piece or on one of the map's fracturing pieces, the Break rows and tool, a broken piece drawn without its knocked-out fragments | [`made_breaking.js`](tools/viewer/web/made_breaking.js) (`createMadeBreaking`). A blast's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`cloneBlasts`), a made piece's blasts in its mesh's request in [`walls.js`](tools/viewer/web/walls.js) (`blastQuery`), and the Build's side in [`made_blasts.py`](tools/bake/made_blasts.py). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
@@ -364,7 +372,8 @@ where there is one.
     selection lets it go, the made pieces' panel rings it and Delete takes it out) and the rock point picked
     (`rockPoint`), which app.js's selection, keys, pointer handlers and test hooks read or set; the snap setting
     (`snapMode`; `setSnapModeValue`, beside app.js's `setSnapMode`, which also sets the gizmo's and draws its button)
-    and a cover handle's drag (`coverDrag`), which the made pieces' handles read.
+    and a cover handle's drag (`coverDrag`), which the made pieces' handles read;
+  - whether Break is on (`breaking`), which app.js's keys and pointer handlers read.
 
   A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
   was (`setAreaShown(recall(AREA_SHOWN) === '1')`, `setLikenessOn(...)` inside the Effects view's factory), so it is
@@ -375,8 +384,10 @@ where there is one.
   an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
   searches for any assignment to the moved names left behind.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
-  `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`, `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
-  did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers
+  `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`,
+  `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`,
+  `createMadePanel`, `createMadeBreaking`) takes them as one argument object and destructures it, so the code moved
+  into it calls them by the names it always did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers
   stay as they were. app.js makes it after the functions and objects it is given, and before any code that runs as
   the page loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a
   `const`, is given as a function that calls it, since it is not made yet: `openingProgress: name => openingProgress(name)`.
@@ -402,8 +413,11 @@ where there is one.
   was, so what the second run did as the page loads (the panel's handlers, box select's layer) now happens there,
   earlier: a change that does so checks that no code between sets a handler on, or listens to, the same targets, and
   that what moves earlier makes only objects three.js draws by render order and depth (it consults the order objects
-  were made only where both are equal), so nothing is drawn differently. A function app.js keeps in a `let` (`applyLighting`, set by `startScene`) is
-  given as a function that calls it. The event wiring (a panel's field handlers set further down, the keys, the
+  were made only where both are equal), so nothing is drawn differently. An area that is several modules (the made
+  pieces: their base, `made_handles.js`, then their looks, drawing, panel sections and Break) has each made where its
+  own first run was, so in the order of its code; each is given the functions of those made before it directly, and
+  those of the ones made after it as functions that call them. A function app.js keeps in a `let` (`applyLighting`,
+  set by `startScene`) is given as a function that calls it. The event wiring (a panel's field handlers set further down, the keys, the
   pointer handlers, the draw loop) stays in app.js and calls what the factory returns; the state it reads of the area
   is editor_state.js's.
   `moved_code.py` reads the functions a factory declares (`createX.f`) and finds them by their own names.

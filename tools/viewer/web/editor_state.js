@@ -363,3 +363,8 @@ export function setSnapModeValue(next) { snapMode = next; }
 // handles take no press meanwhile.
 export let coverDrag = null;
 export function setCoverDrag(next) { coverDrag = next; }
+
+// Break and Repair (made_breaking.js): the piece Break is on, { id }, or null; app.js's keys and pointer handlers read
+// it.
+export let breaking = null;
+export function setBreaking(next) { breaking = next; }

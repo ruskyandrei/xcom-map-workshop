@@ -24,29 +24,29 @@ import { createLibraryBrowser } from './library.js';
 import { api as prefabApi, createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { MADE_KINDS, cloneBlasts, optionsOf, stateOfRoot } from './piece_records.js';
-import { activeMapId, allRoots, areaBindings, areaShown, askedPick, assigning, boxesShown, builder, builderMode,
-         buildingMeta, buildings, buildingsVersion, buildTool, chooseToken, cleared, clearKeepsOutside, clipboard,
-         copySerial, coverDrag, data, derivedCopies, donorHashes, effectMarkers, effectRoots, effectsDirty, effectsOn,
-         effectTemplates, eventMemo, families, foreignEffects, geometryCache, groupIndex, groups, handleDefs, hintTimer,
-         landingZones, lastBuild, lastLightSync, leaving, library, libraryRecords, lightDrag, lighting, lightRadius,
-         lightRoots, lightsDirty, lightsOn, lightsShown, likenessCount, likenessOn, likenessThin, liveCache,
-         loadErrorCount, lookPicker, lookPicking, mergedBuildings, missionIndex, missionMoves, missionPickValue,
-         nextChooseToken, nextCopySerial, normalEffects, normalLights, normalSpawns, ownPicked, ownSet, pickBox,
-         pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, playStatus, pointer,
-         prefabParameter, prefabTab, project, projectMissions, projectPicture, projectSpawnRules, reachNow, reachShown,
-         rockPoint, roots, selected, setActiveMapId, setAreaBindings, setAreaShown, setAskedPick, setAssigning,
-         setBoxesShownValue, setCleared, setClearKeepsOutside, setClipboard, setCoverDrag, setData, setEffectsDirty,
-         setEffectsOn, setEventMemo, setFamilies, setGroups, setHintTimer, setLandingRead, setLandingZones,
-         setLastLightSync, setLeaving, setLibrary, setLighting, setLightRadius, setLightsDirty, setLightsOn,
-         setLightsShownValue, setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings,
-         setMissionIndex, setMissionPickValue, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue,
-         setOwnPickedValue, setPickBoxValue, setPickedEffect, setPickedSpawnValue, setPickedZone, setPickToolValue,
-         setPieces, setPlacing, setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules,
-         setReachKey, setReachShown, setSelected, setSnapModeValue, setSpawnFilters, setSpawnRulesData, setSpawnsOn,
-         setSpawnZonePick, setStageValue, setStreamSet, setTipDirty, setWallFocus, setZonesOn, snapMode, soloOn,
-         spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData, spawnsOn, spawnZonePick, stage,
-         streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag, wallDrawing, wallFocus,
-         wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
+import { activeMapId, allRoots, areaBindings, areaShown, askedPick, assigning, boxesShown, breaking, builder,
+         builderMode, buildingMeta, buildings, buildingsVersion, buildTool, chooseToken, cleared, clearKeepsOutside,
+         clipboard, copySerial, coverDrag, data, derivedCopies, donorHashes, effectMarkers, effectRoots, effectsDirty,
+         effectsOn, effectTemplates, eventMemo, families, foreignEffects, geometryCache, groupIndex, groups, handleDefs,
+         hintTimer, landingZones, lastBuild, lastLightSync, leaving, library, libraryRecords, lightDrag, lighting,
+         lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown, likenessCount, likenessOn, likenessThin,
+         liveCache, loadErrorCount, lookPicker, lookPicking, mergedBuildings, missionIndex, missionMoves,
+         missionPickValue, nextChooseToken, nextCopySerial, normalEffects, normalLights, normalSpawns, ownPicked,
+         ownSet, pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing,
+         playStatus, pointer, prefabParameter, prefabTab, project, projectMissions, projectPicture, projectSpawnRules,
+         reachNow, reachShown, rockPoint, roots, selected, setActiveMapId, setAreaBindings, setAreaShown, setAskedPick,
+         setAssigning, setBoxesShownValue, setCleared, setClearKeepsOutside, setClipboard, setCoverDrag, setData,
+         setEffectsDirty, setEffectsOn, setEventMemo, setFamilies, setGroups, setHintTimer, setLandingRead,
+         setLandingZones, setLastLightSync, setLeaving, setLibrary, setLighting, setLightRadius, setLightsDirty,
+         setLightsOn, setLightsShownValue, setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady,
+         setMergedBuildings, setMissionIndex, setMissionPickValue, setNormalEffectsValue, setNormalLightsValue,
+         setNormalSpawnsValue, setOwnPickedValue, setPickBoxValue, setPickedEffect, setPickedSpawnValue, setPickedZone,
+         setPickToolValue, setPieces, setPlacing, setPointer, setPrefabTab, setProjectMissions, setProjectPicture,
+         setProjectSpawnRules, setReachKey, setReachShown, setSelected, setSnapModeValue, setSpawnFilters,
+         setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStageValue, setStreamSet, setTipDirty, setWallFocus,
+         setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData,
+         spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag,
+         wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -60,6 +60,8 @@ import { createBuildingsWiring } from './buildings_wiring.js';
 import { createMadeLooksWiring } from './made_looks_wiring.js';
 import { createMadeDrawing } from './made_drawing.js';
 import { createMadeHandles } from './made_handles.js';
+import { createMadePanel } from './made_panel.js';
+import { createMadeBreaking } from './made_breaking.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -73,14 +75,10 @@ import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverFrame, coverGame
          coverWords, floorStart, isBlocker, isFloor, lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
 import { gridMove } from './poserule.js';
 import { LEVEL, QUARTER, TILE } from './constants.js';
-import { WALL, WALL_LOOKS, flippedWall, openingPlay, openingWords, playWords, reshuffled, sortedOpenings, storeysOf,
-         toolWall, wallTop, wallWords, withOpening, withoutOpening, withStoreys, joinWords, wallSpec, storeyWords,
-         steppedStoreys, SLAB_LOOKS, SLAB, slabTiles, withHole, withoutHole, reshuffledSlab, holeWords, slabWords,
-         toolSlab, slabLookOf, madeWallShape, madeSlabShape } from './walls.js';
+import { WALL_LOOKS, SLAB_LOOKS, slabLookOf, madeWallShape, madeSlabShape } from './walls.js';
 import { loadLooks, catalogued, lookFromEntry, lookTags, DONOR_VERSION } from './looks.js';
 import { createLookPicker } from './look_picker.js';
-import { GROUND, GROUND_LOOKS, anotherRock, groundLookOf, groundWords as groundShapeWords, slopeOf, slopeWords,
-         toolGround, turnedGround, versionedGround, POINTS_VERSION, resetRock, madeGroundShape } from './ground.js';
+import { GROUND_LOOKS, versionedGround, POINTS_VERSION, madeGroundShape } from './ground.js';
 import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight,
          ownedFloors, stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, sourceFloorMatch,
          cursorStoreys, carriedListing, floorMapOf, LISTED_CLASSES } from './floors.js';
@@ -2853,9 +2851,8 @@ function projectNote(message) { text($('diagnostics'), 'div', message, 'note'); 
 // project's state put on the map.
 const { editStateNow, applyState } = createDocumentState({
   actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, buildRoots, builder, clearEdits,
-  cloneGroups, coverOf, coverVersion, drawBroken, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates,
-  mapBreakable, memberOf, movedMatrix, ownSize, plural, projectNote, savedBuildings, sceneChanged, setStage, short,
-  sourceKey, templateFor,
+  cloneGroups, coverOf, coverVersion, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates, memberOf,
+  movedMatrix, ownSize, plural, projectNote, savedBuildings, sceneChanged, setStage, short, sourceKey, templateFor,
   // (made with the Effects view, further down: called through, since they are not made yet while this runs)
   addEffectRoots: list => addEffectRoots(list), addedEffectOf: entity => addedEffectOf(entity),
   applyEffectRecord: record => applyEffectRecord(record), effectState: (overrides, added) => effectState(overrides, added),
@@ -2866,7 +2863,9 @@ const { editStateNow, applyState } = createDocumentState({
   syncSpawnRule: () => syncSpawnRule(),
   // (made with the Landing zones and Buildings views, further down: called through, since they are not made yet while
   // this runs)
-  clearedChanged: () => clearedChanged(), setBuildings: next => setBuildings(next) });
+  clearedChanged: () => clearedChanged(), setBuildings: next => setBuildings(next),
+  // (made with Break and Repair, further down: called through, since they are not made yet while this runs)
+  drawBroken: root => drawBroken(root), mapBreakable: o => mapBreakable(o) });
 // The document session (document_session.js): opening, saving and leaving a project, its drafts kept for recovery
 // and offered back, and the banner under the header.
 const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
@@ -4384,20 +4383,21 @@ function endCoverDrag(keep) {
   restingHint(); editChanged();
   return true;
 }
-// A made piece (made_handles.js): what it is, its look's donor, its state and its changes (each one undo
-// step), and its handles and drags. (The looks' and the drawing's modules, made below, are given its
-// functions.)
+// The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The
+// page"). A made piece: what it is, its look's donor, its state and its changes (each one undo step), and its
+// handles and drags; the modules below are given its functions.
 const { cancelPointDrag, changeWall, endWallDrag, handleWall, hoverWallHandle, isMade, isMadeGround, isMadeSlab,
         isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo, pointGizmo, refreshJoins,
         releaseRockPoint, rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint,
         wallHandlesNow, wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
-  actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo, gltfLoader, groundPanel, HANDLE_PICK,
+  actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo, gltfLoader, HANDLE_PICK,
   libraryTemplate, movedMatrix, partsOf, pickables, plural, projector, rayAt, refreshHighlight, renderer, restingHint,
-  sceneChanged, select, short, showPop, slabPanel, track, volumeHint, wallPanel, world,
+  sceneChanged, select, short, showPop, track, volumeHint, world,
   // (made further down: called through, since they are not made yet while this runs)
-  startWallDraw: e => startWallDraw(e) });
-// The made pieces' looks (made_looks_wiring.js): the look each tool draws in, the look picker's samples
-// and choice, the eyedropper, a made piece's look changed and its Look row.
+  groundPanel: root => groundPanel(root), slabPanel: root => slabPanel(root), startWallDraw: e => startWallDraw(e),
+  wallPanel: root => wallPanel(root) });
+// The made pieces' looks (made_looks_wiring.js): the look each tool draws in, the look picker's samples and choice,
+// the eyedropper, a made piece's look changed and its Look row.
 const { closeLookPicker, lookPickAt, lookRow, openLookPicker, prepareSample, setMadeLook, startLookPick, stopLookPick,
         storedLook } = createMadeLooksWiring({
   $, assetUrl, boundsOf, changeGroups, deleteNow, flashHint, fromOf, gizmo, gltfLoader, isMadeGround, isMadeSlab,
@@ -4406,471 +4406,26 @@ const { closeLookPicker, lookPickAt, lookRow, openLookPicker, prepareSample, set
   wallState, wallTemplate,
   // (made further down: called through, since they are not made yet while this runs)
   startWallDrawing: (look, options) => startWallDrawing(look, options), stopWallDrawing: () => stopWallDrawing() });
-// The made pieces' drawing (made_drawing.js): the Build menu, and a wall, room, floor, roof or ground shape
-// drawn.
+// The made pieces' drawing (made_drawing.js): the Build menu, and a wall, room, floor, roof or ground shape drawn.
 const { BUILD_TOOLS, endWallDraw, moveWallDraw, startBuild, startWallDraw, startWallDrawing, stopWallDrawing, wallGhost,
         wallHint } = createMadeDrawing({
   $, addVolumes, askLineCollision, busyStart, camera, flashHint, fromOf, gizmo, gridOrigin, groundAt, groundHeight,
   isMadeWall, lockAsGroup, lookWall, madeRequest, movedMatrix, newBuilding, pasteSnapshot, pick, plainLook, plural,
   rayAt, renderer, restingHint, showPieces, stopPlacing, stopSpawnPlacing, stopZonePlacing, text, wallTemplate, world });
-// ---- the piece panel's Wall section
-function wallPanel(root) {
-  const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);
-  const lookName = look?.name ?? catalogued('wall', w?.look)?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers');
-  $('wallHead').textContent = `Wall · ${isPlain(g) ? 'plain' : lookName}`;
-  lookRow('wall', g, lookName, tool);
-  $('wallState').textContent = tool ? wallWords(w) : `${Math.round(w.x1 - w.x0)} long, made elsewhere: no handles here`;
-  $('wallSize').textContent = tool ? `${wallWords(w)}. Its white handles lengthen or shorten it by whole tiles; the one on top adds or takes storeys.${wallPiecesWords(w)}`
-    : `${Math.round(w.x1 - w.x0)} long: numbers this tool doesn't draw (made elsewhere), so it has no handles here; the Build makes it as it is.`;
-  root.userData.joinsShown = root.userData.joins?.joins ?? [];
-  const joined = joinWords(root.userData.joinsShown);
-  if (joined) $('wallSize').textContent += ` ${joined}`;
-  const list = $('wallOpenings'), openings = sortedOpenings(w.openings ?? []);
-  const doors = doorBoxes(root);
-  list.replaceChildren(...openings.map((p, index) => {
-    const row = document.createElement('div');
-    row.className = 'wallopening';
-    row.classList.toggle('on', wallFocus?.id === o.id && wallFocus.index === index);
-    // (a gap units walk through, with no wall under it to give cover, is a doorway: it wants a door; one they walk
-    // through over a wall that gives cover, or one they neither walk through nor see through, plays oddly)
-    const play = openingPlay(w, p), door = play.walk && doors.some(b => boxesMeet(openingWorldBox(root, p), b, 8));
-    const words = playWords(w, p, { door });
-    const warn = !play.tiles || (play.walk ? play.cover !== 'none' || !door : play.cover === 'none' || !play.sight);
-    row.append(Object.assign(document.createElement('strong'), { textContent: openingWords(p, w) }),
-               Object.assign(document.createElement('small'), { textContent: words, className: warn ? 'warn' : '' }));
-    row.title = words;
-    if (warn) row.insertAdjacentHTML('beforeend', '<svg class="i warnmark" role="img" aria-label="Plays oddly"><use href="#i-warn"/></svg>');
-    const remove = Object.assign(document.createElement('button'), { type: 'button', textContent: '\u00d7', title: 'Remove: take this gap out of the wall' });
-    remove.setAttribute('aria-label', 'Remove this gap');
-    remove.disabled = !tool;
-    remove.onclick = () => { setWallFocus(null); changeWall(s => ({ ...s, generated: { ...s.generated, wall: withoutOpening(s.generated.wall, index) } })); };
-    row.append(remove);
-    row.onmouseenter = () => { setWallFocus({ id: o.id, index }); };
-    return row;
-  }));
-  $('wallGap').disabled = !(tool && withOpening(w, 'doorway'));
-  $('wallFlip').disabled = $('wallShuffle').disabled = !tool;
-  breakRow('wall', g, o.keepsPieces);
-  $('wallNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's walls do, `
-    + 'a fragment at a time. Doorways, windows and holes are walked, seen and shot through by the lines between tiles\' centres. '
-    + 'A break passes to the walls, floors and other fracturing pieces it touches, and from them to it, as between the game\'s.';
-}
-// ---- Break and Repair (custom geometry editing plan, B5): blasts set off on a made wall, floor or roof, each knocking
-// out the fragments within its reach as the Build does (tools/bake/made_blasts.py), saved on the piece as blasts (D-4)
-// so they stay where they are when it is made longer, taller or in another look.
-const MAX_BLASTS = 64;
-const BREAK_ROWS = ['wall', 'slab', 'piece'];     // the panels with a Break row: made walls, made slabs, the map's pieces (E6)
-let breaking = null;      // { id }: the piece Break is on
-let blastTiles = 1;
-blastTiles = Math.min(3, Math.max(1, Math.round(Number(recall('workshop.blastTiles')) || 1)));
-const blastMarker = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16),
-  new THREE.MeshBasicMaterial({ color: 0xff7a3d, transparent: true, opacity: 0.25, depthTest: false, depthWrite: false }));
-blastMarker.renderOrder = 9; blastMarker.visible = false; blastMarker.raycast = () => {}; world.add(blastMarker);
-// The Break row of the wall, floor or piece panel (`kind`) for the piece's request `g` (its blasts, breaksFurther):
-// Breaks further in battle shows on a broken piece the game keeps whole (`keeps`: the export's keepsPieces, its
-// donor's for a copy or a made piece), most roofs and floors (F-139).
-function breakRow(kind, g, keeps) {
-  const n = g.blasts?.length ?? 0;
-  $(`${kind}Break`).classList.toggle('on', Boolean(breaking));
-  $(`${kind}BlastSize`).value = String(blastTiles);
-  $(`${kind}Repair`).disabled = !n;
-  $(`${kind}Broken`).textContent = n ? `Broken by ${plural(n, 'blast')}` : '';
-  $(`${kind}FurtherRow`).hidden = !(keeps && n);
-  $(`${kind}Further`).checked = Boolean(g.breaksFurther);
-}
-function startBreak() {
-  const root = madeRoot(selected) ?? roots.get(selected), o = root?.userData.source;
-  if (!root || !(isMadeWall(o) || isMadeSlab(o) || mapBreakable(o))) {
-    flashHint('Pick a wall, floor or roof to break it: a made one, or one of the map\'s fracturing pieces'); return;
-  }
-  stopLookPick(); stopWallDrawing(); stopPlacing();
-  breaking = { id: o.id };
-  gizmo.hold(true);
-  renderer.domElement.style.cursor = 'crosshair';
-  for (const k of BREAK_ROWS) $(`${k}Break`).classList.add('on');
-  flashHint(`Click the ${isMadeSlab(o) ? 'floor' : isMadeWall(o) ? 'wall' : 'piece'} where a blast goes off: it knocks out the fragments within ${plural(blastTiles, 'tile')} · Esc stops`);
-}
-function stopBreak() {
-  if (!breaking) return;
-  breaking = null;
-  gizmo.hold(false);
-  renderer.domElement.style.cursor = '';
-  blastMarker.visible = false;
-  for (const k of BREAK_ROWS) $(`${k}Break`).classList.remove('on');
-}
-// Where a blast at the pointer goes off on the piece being broken: { point (the view's), at (its frame's: x, y, z) }.
-function blastAt(x, y) {
-  const root = breaking && roots.get(breaking.id), hit = root ? pick(x, y) : null;
-  if (!hit || roots.get(hit.object.userData.objectId) !== root) return null;
-  // (in its mesh's frame, the made numbers' frame: x along, y across, z up)
-  hit.object.updateMatrixWorld();
-  const p = hit.object.worldToLocal(hit.point.clone());
-  return { point: hit.point, at: [p.x, p.z, p.y].map(v => Math.round(v * 10) / 10) };
-}
-function breakAt(x, y) {
-  if (selected !== breaking.id) { stopBreak(); return; }
-  const b = blastAt(x, y);
-  if (!b) { flashHint('Click on the piece itself · Esc stops'); return; }
-  const piece = roots.get(breaking.id);
-  if (mapBreakable(piece?.userData.source)) {
-    changeBlasts(piece, blasts => {
-      if (blasts.length < MAX_BLASTS) return [...blasts, { at: b.at, radius: blastTiles * TILE }];
-      flashHint(`It has the most blasts a piece takes (${MAX_BLASTS}): Repair mends it as the map has it`);
-      return undefined;
-    });
-    return;
-  }
-  changeWall(s => {
-    const blasts = s.generated.blasts ?? [];
-    if (blasts.length >= MAX_BLASTS) { flashHint(`It has the most blasts a piece takes (${MAX_BLASTS}): Repair mends it whole`); return null; }
-    return { ...s, generated: { ...s.generated, blasts: [...blasts, { at: b.at, radius: blastTiles * TILE }] } };
-  });
-}
-renderer.domElement.addEventListener('pointermove', e => {
-  if (!breaking) return;
-  const b = blastAt(e.clientX, e.clientY);
-  blastMarker.visible = Boolean(b);
-  if (b) { blastMarker.position.copy(world.worldToLocal(b.point.clone())); blastMarker.scale.setScalar(blastTiles * TILE); }
-});
-for (const k of BREAK_ROWS) {
-  $(`${k}Break`).onclick = () => (breaking ? stopBreak() : startBreak());
-  $(`${k}BlastSize`).onchange = e => {
-    blastTiles = Number(e.target.value) || 1;
-    remember('workshop.blastTiles', String(blastTiles));
-    for (const j of BREAK_ROWS) $(`${j}BlastSize`).value = String(blastTiles);
-  };
-  if (k === 'piece') {
-    $('pieceRepair').onclick = () => { const r = roots.get(selected); if (mapBreakable(r?.userData.source)) changeBlasts(r, () => null); };
-    $('pieceFurther').onchange = e => {
-      const r = roots.get(selected);
-      if (mapBreakable(r?.userData.source) && r.userData.blasts?.length) setBroken(r, { blasts: r.userData.blasts, further: e.target.checked });
-    };
-    continue;
-  }
-  $(`${k}Repair`).onclick = () => changeWall(s => {
-    if (!s.generated.blasts) return null;
-    const { blasts: _, breaksFurther: __, ...generated } = s.generated;
-    return { ...s, generated };
-  });
-  $(`${k}Further`).onchange = e => changeWall(s => {
-    if (!s.generated.blasts) return null;
-    const { breaksFurther: _, ...generated } = s.generated;
-    return { ...s, generated: e.target.checked ? { ...generated, breaksFurther: true } : generated };
-  });
-}
-// ---- Break on the map's own fracturing pieces (custom geometry editing plan, E6, decision D-5): the same blasts on
-// any of the map's fracturing pieces or a copy of one, saved on its record (an override's or added copy's `blasts`,
-// in its mesh's frame). The Build paints out the fragments whose middle (that of their vertices' box) a blast
-// reaches, with those the map paints out (tools/bake/made_blasts.py fragment_centres, hidden_at); the page works the
-// middles out the same way from the mesh it draws and draws the piece without those fragments.
-const FRACTURING_CLASSES = new Set(['XComFracLevelActor', 'XComDecoFracLevelActor']);
-function mapBreakable(o) {
-  return Boolean(o && !o.cover && !o.added?.generated && FRACTURING_CLASSES.has(o.actorClass)
-    && data?.meshes[o.mesh]?.sections?.some(s => s.fragments?.length));
-}
-// A root's parts with the sections they draw: [{ section, part }] (the glb has a primitive for each section with
-// triangles, in order); none when they don't match.
-function sectionParts(root) {
-  const parts = root.userData.parts ?? [], sections = (data.meshes[root.userData.source.mesh].sections ?? []).filter(s => s.count);
-  return sections.length === parts.length ? sections.map((section, k) => ({ section, part: parts[k] })) : [];
-}
-// Where each fragment's triangles lie in a section's primitive: [start, count] in its indices (null: none drawn), as
-// the export wrote them (its fragments' ranges, packed in order where the map paints fragments out: export.py).
-function fragmentSpans(mesh, section) {
-  const mask = mesh.fragmentMask;
-  let packed = 0;
-  return section.fragments.map(([first, triangles], i) => {
-    if (!mask) return triangles ? [first - section.first, 3 * triangles] : null;
-    if (!mask[i]) return null;
-    const at = packed;
-    packed += 3 * triangles;
-    return triangles ? [at, 3 * triangles] : null;
-  });
-}
-const fragmentMiddles = new Map();     // mesh key -> [[x, y, z] | null]: each fragment's middle in its mesh's frame
-function middlesOf(root) {
-  const key = root.userData.source.mesh, mesh = data.meshes[key];
-  if (fragmentMiddles.has(key)) return fragmentMiddles.get(key);
-  const lo = [], hi = [];
-  for (const { section, part } of sectionParts(root)) {
-    const g = part.userData.baseGeometry ?? part.geometry, idx = g.index.array, pos = g.attributes.position;
-    fragmentSpans(mesh, section).forEach((span, i) => {
-      if (!span) return;
-      for (let k = span[0]; k < span[0] + span[1]; ++k) {
-        const v = idx[k], p = [pos.getX(v), pos.getZ(v), pos.getY(v)];     // (the mesh's frame: z up)
-        if (!lo[i]) { lo[i] = [...p]; hi[i] = [...p]; continue; }
-        for (let a = 0; a < 3; ++a) { lo[i][a] = Math.min(lo[i][a], p[a]); hi[i][a] = Math.max(hi[i][a], p[a]); }
-      }
-    });
-  }
-  const n = Math.max(0, ...(mesh.sections ?? []).map(s => s.fragments?.length ?? 0));
-  const out = Array.from({ length: n }, (_, i) => (lo[i] ? lo[i].map((v, a) => (v + hi[i][a]) / 2) : null));
-  fragmentMiddles.set(key, out);
-  return out;
-}
-// The fragments a root's blasts knock out (made_blasts.hidden_at), in order.
-function knockedOut(root) {
-  const blasts = root.userData.blasts ?? [];
-  if (!blasts.length) return [];
-  return middlesOf(root).flatMap((c, i) => (c && blasts.some(b => Math.hypot(c[0] - b.at[0], c[1] - b.at[1], c[2] - b.at[2]) <= b.radius) ? [i] : []));
-}
-// A root drawn without the fragments its blasts knock out (each part a geometry of its own then, with the mesh's
-// attributes and the kept triangles), or with its mesh's own again. (The old geometry isn't disposed: it shares the
-// mesh's attributes, which other pieces draw.)
-function drawBroken(root) {
-  const mesh = data.meshes[root.userData.source.mesh], gone = new Set(knockedOut(root));
-  for (const { section, part } of sectionParts(root)) {
-    const base = part.userData.baseGeometry ?? part.geometry;
-    if (!gone.size) { part.geometry = base; delete part.userData.baseGeometry; continue; }
-    part.userData.baseGeometry = base;
-    const idx = base.index.array, kept = [];
-    fragmentSpans(mesh, section).forEach((span, i) => {
-      if (span && !gone.has(i)) for (let k = span[0]; k < span[0] + span[1]; ++k) kept.push(idx[k]);
-    });
-    const g = new THREE.BufferGeometry();
-    for (const [name, attribute] of Object.entries(base.attributes)) g.setAttribute(name, attribute);
-    g.setIndex(kept);
-    g.boundingBox = base.boundingBox?.clone() ?? null;
-    g.boundingSphere = base.boundingSphere?.clone() ?? null;
-    part.geometry = g;
-  }
-}
-// One of the map's pieces given other blasts (`change` from its blasts to the new ones; null mends it, and takes
-// Breaks further in battle off with them; undefined changes nothing), as one undo step.
-function changeBlasts(root, change) {
-  const before = root.userData.blasts ?? null, next = change(before ? cloneBlasts(before) : []);
-  if (next === undefined) return;
-  const after = next?.length ? next : null;
-  if (JSON.stringify(after) === JSON.stringify(before)) return;
-  setBroken(root, { blasts: after, further: Boolean(after && root.userData.breaksFurther) });
-}
-// One of the map's pieces broken as `after` says ({ blasts, further: Breaks further in battle }), as one undo step.
-function setBroken(root, after) {
-  const before = { blasts: root.userData.blasts ?? null, further: Boolean(root.userData.breaksFurther) };
-  const id = root.userData.source.id;
-  const set = v => {
-    root.userData.blasts = v.blasts ? cloneBlasts(v.blasts) : null; root.userData.breaksFurther = v.further;
-    drawBroken(root); select(id, false, true);
-  };
-  gizmo.record({ redo: () => set(after), undo: () => set(before) });
-}
-// The Lower and Taller buttons of the room panel (`kind` 'room': a picked wall's own top handle does it) for the wall
-// `w` (null: neither).
-function storeyButtons(kind, w) {
-  const down = w && steppedStoreys(w, -1), up = w && steppedStoreys(w, 1), spec = w ? wallSpec(w) : null;
-  const tall = x => `${storeyWords(storeysOf(x.wall))} (${Math.round(wallTop(x.wall) - spec.bottom)} tall)`;
-  $(`${kind}Shorter`).disabled = !down;
-  $(`${kind}Storeys`).disabled = !up;
-  $(`${kind}Shorter`).title = down ? `Lower: ${tall(down)}${down.removed ? '; openings over its top go' : ''}`
-    : w ? 'As low as its look is made' : '';
-  $(`${kind}Storeys`).title = up ? `Taller: ${tall(up)}${storeysOf(up.wall) > spec.storeys ? `; the Build stacks walls of its look's ${storeyWords(spec.storeys)}` : ''}`
-    : w ? `As tall as a wall is drawn here (${storeyWords(WALL.maxStoreys)})` : '';
-}
-// ---- the piece panel's Floor section (made slabs)
-function slabPanel(root) {
-  const o = root.userData.source, s = o.added.generated.slab, look = slabLookOf(s), tool = toolSlab(s);
-  $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${isPlain(o.added.generated) ? 'plain' : look?.name ?? 'made from numbers'}`;
-  lookRow('slab', o.added.generated, look?.name ?? 'made from numbers', tool);
-  const cut = slabTiles(s).some(n => n > SLAB.pieceTiles)
-    ? ` The Build makes it as slabs of at most ${SLAB.pieceTiles} by ${SLAB.pieceTiles} tiles side by side: they break as one.` : '';
-  breakRow('slab', o.added.generated, o.keepsPieces);
-  $('slabState').textContent = tool ? slabWords(s) : 'Made elsewhere: no handles here';
-  $('slabSize').textContent = tool ? `${slabWords(s)}. Its white handles grow or shrink it by whole tiles.${cut}`
-    : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
-  const holes = s.holes ?? [];
-  $('slabHoles').replaceChildren(...holes.map((h, index) => {
-    const row = document.createElement('div');
-    row.className = 'wallopening';
-    row.classList.toggle('on', wallFocus?.id === o.id && wallFocus.index === index);
-    row.append(Object.assign(document.createElement('strong'), { textContent: holeWords(h) }),
-               Object.assign(document.createElement('small'), { textContent: 'Open: units fall through it only as the game lets them (they don\'t); a ladder or stairs of the game\'s go in it' }));
-    row.title = row.querySelector('small').textContent;
-    const remove = Object.assign(document.createElement('button'), { type: 'button', textContent: '\u00d7', title: 'Remove: fill this hole' });
-    remove.setAttribute('aria-label', 'Remove this hole');
-    remove.disabled = !tool;
-    remove.onclick = () => { setWallFocus(null); changeWall(st => ({ ...st, generated: { ...st.generated, slab: withoutHole(st.generated.slab, index) } })); };
-    row.append(remove);
-    row.onmouseenter = () => { setWallFocus({ id: o.id, index }); };
-    return row;
-  }));
-  $('slabHole').disabled = !tool || !withHole(s);
-  $('slabShuffle').disabled = !tool;
-  $('slabNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's `
-    + `${look?.role === 'roof' ? 'roofs do' : 'floors do'}, a piece at a time, and a break passes to the walls and pieces it touches. `
-    + (look?.role === 'roof' ? 'It is cut away with its building\'s top floor when the cursor is inside, and takes no clicks.'
-      : 'Units walk on it where there is standing room over it; a hole in it is no floor.');
-}
-$('slabHole').onclick = () => {
-  const root = madeRoot(selected);
-  if (!root || !isMadeSlab(root.userData.source)) return;
-  const r = withHole(root.userData.source.added.generated.slab);
-  if (!r) { flashHint('Every tile of it is a hole'); return; }
-  setWallFocus({ id: root.userData.source.id, index: r.index });
-  changeWall(st => ({ ...st, generated: { ...st.generated, slab: r.slab } }));
-  flashHint('Added a hole, one tile · its blue handles move and size it');
-};
-$('slabShuffle').onclick = () => changeWall(st => ({ ...st, generated: { ...st.generated, slab: reshuffledSlab(st.generated.slab) } }));
-// ---- the piece panel's Ground section (M6)
-function groundPanel(root) {
-  const o = root.userData.source, g = o.added.generated.ground, look = groundLookOf(g), tool = toolGround(g);
-  const plain = isPlain(o.added.generated);
-  $('groundHead').textContent = `Ground · ${plain ? 'plain' : look?.name ?? 'made from numbers'}`;
-  lookRow('ground', o.added.generated, look?.name ?? 'made from numbers', tool);
-  $('groundState').textContent = tool ? groundShapeWords(g) : 'Made elsewhere: no handles here';
-  $('groundSize').textContent = tool ? `${groundShapeWords(g)}. Its white handles size it by whole tiles${g.shape === 'patch' ? '' : '; the one on top raises or lowers it'}.`
-    : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
-  const words = slopeWords(g);
-  $('groundSlope').hidden = !words;
-  $('groundSlope').textContent = words ? words[0].toUpperCase() + words.slice(1) + '.' : '';
-  $('groundSlope').classList.toggle('warn', slopeOf(g) > GROUND.sloped);
-  $('groundTurn').hidden = g.shape !== 'ramp';
-  $('groundTurn').disabled = !tool;
-  $('groundAnother').hidden = $('groundResetPoints').hidden = g.shape !== 'rock';
-  $('groundAnother').disabled = !tool;
-  $('groundResetPoints').disabled = !tool || !g.points;
-  if (g.shape === 'rock' && tool)
-    $('groundSize').textContent += g.points ? ' Its corners have been moved: its blue points move them again (click one, then drag its arrows).'
-      : ' Its blue points are its corners: click one, then drag its arrows to move it.';
-  $('groundNote').textContent = `Made from numbers on ${look ? `${look.package}'s ${look.name.toLowerCase()}` : 'its donor\'s material'}: `
-    + (g.shape === 'rock' ? 'it stands in the way and gives cover by its height, as the game\'s rocks do, and it doesn\'t break.'
-      : 'units walk on it and it doesn\'t break.')
-    + (g.shape === 'patch' ? ' Its top lies level with the ground it covers, its plate under it.' : '');
-}
-$('groundAnother').onclick = () => changeWall(st => ({ ...st, generated: { ...st.generated, ground: anotherRock(st.generated.ground) } }));
-$('groundResetPoints').onclick = () => changeWall(st => ({ ...st, generated: { ...st.generated, ground: resetRock(st.generated.ground) } }));
-$('groundTurn').onclick = () => changeWall(st => {
-  const t = turnedGround(st.generated.ground, st.location, st.rotation);
-  return { generated: { ...st.generated, ground: t.ground }, location: t.location, rotation: t.rotation };
-});
-// ---- a room (custom geometry editing plan, B3): a drawn room is one locked group; picked whole, the panel is the
-// room's, its walls' and roof's own sections hidden (Ungroup edits them one by one)
-function madeLookName(root) {
-  const o = root.userData.source, g = o.added.generated;
-  if (isPlain(g)) return null;
-  if (g.kind === 'fracWall') return wallLookOf(o)?.name ?? catalogued('wall', g.wall?.look)?.name ?? 'made from numbers';
-  if (g.kind === 'fracSlab') return slabLookOf(g.slab)?.name ?? 'made from numbers';
-  return groundLookOf(g.ground)?.name ?? 'made from numbers';
-}
-// The picked group as a room: its made walls (three or more, each joined at both ends to another of them) and the
-// made slab on them (its roof), with nothing else but its building; or null.
-function roomOfSelection() {
-  const { kind, group: g } = selectionGroup();
-  if (kind !== 'whole' || !g) return null;
-  const keys = liveKeys(g), rs = keys.filter(k => !k.startsWith('building|')).map(k => liveMembers().get(k)?.[0]).filter(Boolean);
-  const walls = rs.filter(r => isMadeWall(r.userData.source)), slabs = rs.filter(r => isMadeSlab(r.userData.source));
-  if (walls.length < 3 || slabs.length > 1 || walls.length + slabs.length !== rs.length) return null;
-  const ids = new Set(walls.map(r => r.userData.source.id));
-  if (!walls.every(r => new Set((r.userData.joins?.joins ?? []).filter(j => ids.has(j.other)).map(j => j.end)).size === 2)) return null;
-  return { group: g, walls, roof: slabs[0] ?? null };
-}
-let roomShown = null;
-function roomPanel() {
-  const room = roomShown = volumeRoots.has(selected) ? null : roomOfSelection();
-  $('roomBox').hidden = !room;
-  if (!room) return;
-  $('wallBox').hidden = $('slabBox').hidden = true;
-  const box = new THREE.Box3();
-  for (const r of room.walls) box.expandByObject(r);
-  const tiles = [Math.round((box.max.x - box.min.x) / TILE), Math.round((box.max.z - box.min.z) / TILE)];
-  const w = room.walls[0].userData.source.added.generated.wall, names = new Set(room.walls.map(madeLookName));
-  const tool = room.walls.every(r => toolWall(r.userData.source.added.generated.wall));
-  $('roomHead').textContent = `Room · ${tiles[0]} by ${tiles[1]} tiles`;
-  $('roomState').textContent = `${plural(room.walls.length, 'wall')}, ${storeyWords(storeysOf(w))}${room.roof ? ', a roof' : ''} · picked as one`;
-  $('roomSize').textContent = `${plural(room.walls.length, 'wall')}, ${storeyWords(storeysOf(w))}${room.roof ? ', a roof' : ''}. Picked as one: it moves, turns and copies whole. Ungroup it to edit its walls one by one: their gaps, doors and own looks.`;
-  const wallWord = names.size > 1 ? 'Walls: mixed looks' : names.has(null) ? 'Walls: no look chosen' : `Walls: ${[...names][0]}`;
-  $('roomWallsLook').textContent = wallWord;
-  $('roomWallsLook').classList.toggle('warn', names.has(null));
-  $('roomWallsChoose').disabled = !tool;
-  $('roomWallsPlain').disabled = !tool || (names.size === 1 && names.has(null));
-  $('roomRoofRow').hidden = !room.roof;
-  if (room.roof) {
-    const name = madeLookName(room.roof);
-    $('roomRoofLook').textContent = name ? `Roof: ${name}` : 'Roof: no look chosen';
-    $('roomRoofLook').classList.toggle('warn', !name);
-    $('roomRoofPlain').disabled = !name;
-  }
-  // (a room with a roof keeps its height: its roof and building stand on its walls' tops)
-  $('roomStoreysRow').hidden = Boolean(room.roof);
-  storeyButtons('room', tool && !room.roof ? w : null);
-}
-$('roomWallsChoose').onclick = () => { const r = roomShown; if (r) openLookPicker('wall', { onChoose: look => setMadeLook(r.walls[0], 'wall', look) }); };
-$('roomWallsPlain').onclick = () => { const r = roomShown; if (r) setMadeLook(r.walls[0], 'wall', plainLook('wall')); };
-$('roomRoofChoose').onclick = () => { const r = roomShown; if (r?.roof) openLookPicker('slab', { onChoose: look => setMadeLook(r.roof, 'slab', look) }); };
-$('roomRoofPlain').onclick = () => { const r = roomShown; if (r?.roof) setMadeLook(r.roof, 'slab', plainLook('slab', r.roof.userData.source.added.generated.slab)); };
-// (a room with no roof: its walls a storey lower or taller, in one undo step)
-function roomStoreys(step) {
-  const r = roomShown;
-  if (!r) return;
-  const stepped = steppedStoreys(r.walls[0].userData.source.added.generated.wall, step);
-  if (!stepped) return;
-  const next = storeysOf(stepped.wall), before = r.walls.map(wallState);
-  r.walls.forEach((root, k) => setWall(root, { ...before[k], generated: { ...before[k].generated, wall: withStoreys(before[k].generated.wall, next).wall } }, before[k]));
-  gizmo.joinLast(r.walls.length);
-  flashHint(`Its walls now ${storeyWords(next)} · Ctrl+Z puts them back`);
-}
-$('roomStoreys').onclick = () => roomStoreys(1);
-$('roomShorter').onclick = () => roomStoreys(-1);
-// The boxes of the doors drawn now (copies, and the map's own where they stand), game units [x0, x1, y0, y1, z0, z1].
-function doorBoxes(except) {
-  const out = [];
-  for (const r of roots.values()) {
-    if (r === except || r.userData.deleted || !r.visible || r.userData.source.actorClass !== 'XComInteractiveLevelActor') continue;
-    const b = boxOf(r);
-    if (b) out.push(b);
-  }
-  return out;
-}
-function openingWorldBox(root, p) {
-  root.updateMatrixWorld(true);
-  const pts = [], half = wallSpec(root.userData.source.added?.generated?.wall).half;
-  for (const x of [p.x0, p.x1]) for (const y of [-half, half]) for (const z of [p.z0, p.z1]) {
-    const v = new THREE.Vector3(x, z, y).applyMatrix4(root.matrixWorld);
-    pts.push([v.x, v.z, v.y]);
-  }
-  return [0, 1, 2].flatMap(k => [Math.min(...pts.map(q => q[k])), Math.max(...pts.map(q => q[k]))]);
-}
-// (as the compiler's overlaps_by: across at all, along and up by more than `least`)
-function boxesMeet(a, b, least) {
-  const along = a[1] - a[0] >= a[3] - a[2] ? 0 : 1, over = [0, 1, 2].map(k => Math.min(a[2 * k + 1], b[2 * k + 1]) - Math.max(a[2 * k], b[2 * k]));
-  return over[along] > least && over[2] > least && over[1 - along] > 0;
-}
-// Add gap (the user, 19 November 2026: one button for the doorway's and the window's, as gaps are one kind): a gap
-// shaped as the game's doorways, which its middle handle takes up to make a window. (`kind` 'window': the tests'.)
-$('wallGap').onclick = () => addWallOpening('doorway');
-function addWallOpening(kind = 'doorway') {
-  const root = madeWallRoot(selected);
-  if (!root) return;
-  const r = withOpening(root.userData.source.added.generated.wall, kind);
-  if (!r) { flashHint('Every tile of the wall has an opening'); return; }
-  setWallFocus({ id: root.userData.source.id, index: r.index });
-  changeWall(s => ({ ...s, generated: { ...s.generated, wall: r.wall } }));
-  flashHint('Added a gap · its blue handles move and size it, and cut the wall to its edges; drag its middle up to make a window');
-}
-$('wallFlip').onclick = () => changeWall(s => {
-  const f = flippedWall(s.generated.wall, s.location, s.rotation);
-  return { generated: { ...s.generated, wall: f.wall }, location: f.location, rotation: f.rotation };
-});
-$('wallShuffle').onclick = () => changeWall(s => ({ ...s, generated: { ...s.generated, wall: reshuffled(s.generated.wall) } }));
-// Delete with an opening's handle last touched takes that opening out (the wall stays): true when it did.
-function deleteWallOpening() {
-  const slabRoot = madeRoot(selected);
-  if (slabRoot && isMadeSlab(slabRoot.userData.source) && wallFocus?.id === slabRoot.userData.source.id && handleWall()) {
-    const index = wallFocus.index;
-    if (index >= (slabRoot.userData.source.added.generated.slab.holes ?? []).length) return false;
-    setWallFocus(null);
-    changeWall(st => ({ ...st, generated: { ...st.generated, slab: withoutHole(st.generated.slab, index) } }));
-    flashHint('Filled the hole · Ctrl+Z opens it again');
-    return true;
-  }
-  const root = madeWallRoot(selected);
-  if (!root || wallFocus?.id !== root.userData.source.id || !handleWall()) return false;
-  const index = wallFocus.index;
-  if (index >= (root.userData.source.added.generated.wall.openings ?? []).length) return false;
-  setWallFocus(null);
-  changeWall(s => ({ ...s, generated: { ...s.generated, wall: withoutOpening(s.generated.wall, index) } }));
-  flashHint('Removed the opening · Ctrl+Z puts it back');
-  return true;
-}
+// The piece panel's sections of a made piece (made_panel.js): the Wall, Floor, Ground and Room sections, with the
+// openings and holes, and what their buttons do.
+const { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, roomPanel, slabPanel,
+        wallPanel } = createMadePanel({
+  $, boxOf, changeWall, flashHint, gizmo, handleWall, isMadeSlab, isMadeWall, isPlain, liveKeys, liveMembers, lookRow,
+  madeRoot, madeWallRoot, openLookPicker, originalOf, plainLook, plural, selectionGroup, setMadeLook, setWall, short,
+  wallLookOf, wallPiecesWords, wallState,
+  // (made further down: called through, since it is not made yet while this runs)
+  breakRow: (kind, g, keeps) => breakRow(kind, g, keeps) });
+// Break and Repair (made_breaking.js): blasts set off on a made wall, floor or roof, or on one of the map's own
+// fracturing pieces, the Break rows and tool, and a broken piece drawn.
+const { breakAt, breakRow, drawBroken, mapBreakable, startBreak, stopBreak } = createMadeBreaking({
+  $, changeWall, flashHint, gizmo, isMadeSlab, isMadeWall, madeRoot, pick, plural, renderer, select, stopLookPick,
+  stopPlacing, stopWallDrawing, world });
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 const WHOLE_OVERHANG = 4 * TILE;    // four tiles
 function cutaway() {

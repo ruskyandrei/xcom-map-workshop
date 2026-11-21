@@ -201,7 +201,7 @@ def check_modals(browser, url, open_viewer):
     return out
 
 
-# one of the map's own fracturing pieces, standing and drawn (Break works on it: app.js mapBreakable)
+# one of the map's own fracturing pieces, standing and drawn (Break works on it: made_breaking.js mapBreakable)
 BREAKABLE = """[...viewer.roots.values()].filter(r => !r.userData.source.added && !r.userData.deleted && r.visible && !r.userData.source.hidden
   && ['XComFracLevelActor', 'XComDecoFracLevelActor'].includes(r.userData.source.actorClass)
   && viewer.data.meshes[r.userData.source.mesh]?.sections?.some(s => s.fragments?.length)).map(r => r.userData.source.id)"""
