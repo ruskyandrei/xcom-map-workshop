@@ -99,6 +99,27 @@ class CutTests(unittest.TestCase):
         self.assertFalse(made_split.slab_pieces(dict(slab, holes=holes + [dict(x0=8 * T, x1=17 * T, y0=0.0, y1=T)])))
 
 
+class OldNumbersTests(unittest.TestCase):
+    """Numbers before the free form (no `free`) are cut as they were: the pieces of a tall wall, a long wall and a
+    large slab hashed on the commit the free form started from (495bd26, custom geometry improvements plan, stage 2)."""
+
+    def test_old_cuts_are_byte_for_byte(self):
+        import hashlib
+        gap = dict(x0=12 * T, x1=20 * T, z0=300.0, z1=500.0)
+        tall = dict(x0=0.0, x1=20 * T, openings=[gap], seed=7, storeys=3, ends=['free', 'through'])
+        long = dict(x0=96.0, x1=96.0 + 37 * T, openings=[dict(x0=1500.0, x1=1700.0, z0=-16.0, z1=160.0)], seed=9)
+        slab = dict(x0=0.0, x1=30 * T, y0=0.0, y1=20 * T, holes=[dict(x0=15 * T, x1=17 * T, y0=0.0, y1=T)], seed=4,
+                    look='floor')
+        for name, pieces, want in (
+                ('tall', made_split.wall_pieces(tall, bar_storeys, bar_heights, ends=True),
+                 '0be2701b06a1233a84f320f1c7979b0efcc7193c7e0a1cab926caca76c155527'),
+                ('long', made_split.wall_pieces(long, bar_storeys, bar_heights),
+                 'fb30580c5ba808533ab827a27a0a4ef7a5a7420ad574463d9d9a510e3cd6613d'),
+                ('slab', made_split.slab_pieces(slab), '17a33ab9552493c79016825383dc68de77db21b85e2eae923cbadfb6673736cf')):
+            with self.subTest(name):
+                self.assertEqual(hashlib.sha256(repr(pieces).encode()).hexdigest(), want)
+
+
 class TextureTests(unittest.TestCase):
     """A piece's texture goes on from where it sits in the whole (`whole`): its faces read as the whole's would at
     the same place."""

@@ -437,6 +437,52 @@ class Gaps(unittest.TestCase):
             frac_wall.build(dict(CUSTOM, openings=[dict(x0=0.0, x1=384.0, z0=-16.0, z1=384.0)]))
 
 
+class OldNumbers(unittest.TestCase):
+    """Walls of the numbers before the free form (no `free`) build byte for byte as they did: each one's written mesh,
+    collision, fragment boxes, lightmap rectangle and counts hashed on the commit the free form started from (495bd26,
+    custom geometry improvements plan, stage 2), in the Bar's look and in two measured looks of the catalogue."""
+    HASHES = {
+        'twin': '5819ef1245bddb5d302e3202a5c429ce2537ee15d7001c84006e70f68a174bca',
+        'door-joined': '96d5bf1d4bec89827de3cabb57ac514a66a4c2fb5a6abb12f588e1509e02e42b',
+        'one-storey': 'edd2ea41b211cfd36e88bb9cd78b9a7b78e15ea625680a08a4a211547d14871b',
+        'piece': 'a0fee819192d95d73a1ca8ca6fb78e45251ec5ebaa72e839a8fa559631ae9e84',
+        'measured': 'e8043db4e103b8c4ac1954a519a9e5acf125ed8f22e84b10aae6d96948dec7d3',
+        'measured-low': '8b01039a1d508e158b91679aa2dca27c756b91007804916bbb237e4d4eda5453',
+        'measured-piece': '68d5ba3e0685397cf2a85dcdb4fd0ec11c9b68958bf08ade1974bf278f7f4e74',
+    }
+    NAMES = {
+        'twin': 'FracWall_576_3150237b59', 'door-joined': 'FracWall_384_05325f00b0', 'one-storey': 'FracWall_384_234bb844af',
+        'piece': 'FracWall_384_ebb231afea', 'measured': 'FracWall_480_6edf0d8ebf', 'measured-low': 'FracWall_288_ace7ede1ff',
+        'measured-piece': 'FracWall_384_8470f2f96b',
+    }
+
+    @staticmethod
+    def walls():
+        import looks
+        T = 96.0
+        look = looks.resolve('wall', dict(mesh='AbductorExtWall.Meshes.AbductorExtWallA_FRACTURED', measure=1))
+        low = looks.resolve('wall', dict(mesh='BLDG_RoadHouse.Meshes.RHWallEast_FRACTURED', measure=1))
+        return {
+            'twin': TWIN,
+            'door-joined': dict(CUSTOM, ends=['through', 'line']),
+            'one-storey': dict(x0=0.0, x1=384.0, openings=[DOOR], seed=4, storeys=1),
+            'piece': dict(x0=0.0, x1=4 * T, openings=[], seed=2, whole=[7 * T, 20 * T]),
+            'measured': dict(x0=0.0, x1=5 * T, openings=[dict(x0=T, x1=2 * T, z0=0.0, z1=200.0)], seed=3, look=look),
+            'measured-low': dict(x0=0.0, x1=3 * T, openings=[], seed=5, look=low, storeys=1, ends=['free', 'through']),
+            'measured-piece': dict(x0=0.0, x1=4 * T, look=look, seed=3, whole=[5 * T, 12 * T]),
+        }
+
+    def test_old_walls_build_byte_for_byte(self):
+        import hashlib
+        for name, wall in self.walls().items():
+            with self.subTest(name):
+                out = built(wall)
+                mesh = gen_mesh.write(dict(out['mesh'], bodySetup=0), 0)
+                rest = repr((out['solids'], out['fragments'], out['lightmapRect'], out['counts'], out.get('whole')))
+                self.assertEqual(hashlib.sha256(mesh + rest.encode()).hexdigest(), self.HASHES[name])
+                self.assertEqual(frac_wall.mesh_name(wall), self.NAMES[name])
+
+
 class Donor(unittest.TestCase):
     """The recipe and the default template against the donor itself."""
 
