@@ -51,8 +51,8 @@ does changes.
   as the page loaded now happens later: the preview's two materials, see-through, which three.js sorts by render
   order and depth (it consults the order materials were made only for opaque objects; the preview's meshes are made
   when placing starts, as before), a unit box and the tabs' table. No other code sets a handler between. Each
-  assignment to a moved name is its setter's call, with the same value (13 writes). app.js: 4,853 lines to 4,271; its `let` statements 34 to
-  31 (48 names to 44); its top-level functions 262 to 224. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the two
+  assignment to a moved name is its setter's call, with the same value (13 writes). app.js: 4,853 lines to 4,271; its
+  `let` statements 34 to 31 (48 names to 44); its top-level functions 262 to 224. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the two
   modules, their rows in where new code goes, the state added to editor_state.js, and the object two modules share.
 
 Checked:
@@ -70,3 +70,17 @@ Checked:
   among them); then `api-names`, `library-all`, `library-effects`, `library-flares` and `library-assembly` (pieces,
   effects, lens flares and assemblies of All maps read and placed), `lights`, `effects` and `flares`; then `builder`,
   `prefab-test` and `documents`. All passed, none skipped.
+
+The stage's end (its four parts together), checked after this entry's first commit:
+- **The whole stage against the commit it started from:** the 119 functions moved into the seven modules (32 into
+  cover_wiring.js, 17 flags_panel.js, 8 select_kind.js, 16 groups.js, 8 align.js, 13 library_templates.js and 25
+  clipboard.js) are the old ones with the 10 substitutions of a write by its setter's call, and app.js's 224 functions
+  are the same. app.js: 5,758 lines to 4,271; its `let` statements 38 to 31 (54 names to 44); its top-level functions
+  343 to 224.
+- **`browser_smoke.py --all`** on fresh test servers, with a scratch cache and `--play-install <scratch game>`, 12 min
+  with other work on the computer: the whole run (44 checks ran, 6 skipped, each for its map or its run), the named,
+  builder, documents, police, temple, map picture and maps runs pass. The editing run failed before its first check:
+  the page `made-prefab` opens did not finish loading within its 120 s wait (no page error, nothing ran); its eleven
+  checks, run again alone on a fresh test server, passed twice (78 s each). The Play run was refused before it played:
+  the server's play status said "XCOM is running", since the game was open on the computer. Nothing of Play moved in
+  this stage.
