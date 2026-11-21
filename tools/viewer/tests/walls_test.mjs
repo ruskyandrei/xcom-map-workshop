@@ -3,7 +3,7 @@
 // does at an opening by its sweeps. Run: node tools/viewer/tests/walls_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { drawnWall, flippedWall, movedOpening, openingEdges, openingParts, openingPlay, openingWords, playWords,
+import { drawnWall, flippedWall, freeWallJoins, gridCrossings, joinedEnds, movedOpening, openingEdges, openingParts, openingPlay, openingWords, playWords,
          PRESETS, raisedWall, resizedWall, reshuffled, shiftedLocation, storeysOf, toolWall, topMostOf, wallDirection, wallRotation,
          levelsOf, storeyCounts, steppedStoreys,
          wallTop, wallWords, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
@@ -326,5 +326,35 @@ assert.deepEqual([PRESETS.doorway.z0, PRESETS.doorway.z1], [8, 160]);
   const room = drawnRoom([-180, -200], [210, 130], { origin, template, floor: 16 });
   const roof = roomRoof(room, { template, floor: 16 });
   assert.deepEqual([roof.location, roof.slab.x1, roof.slab.y1], [[-192, -192, 400], 384, 288]);
+}
+// ---- a free-form wall's gaps read on the map's grid (the improvements plan, 4.6)
+{
+  const w = { free: 1, x0: 0, x1: 300, y0: -8, y1: 8, z0: -16, z1: 384 };
+  // along x from a tile edge: the tile centres as an older wall's
+  assert.deepEqual(gridCrossings([0, 0, 0], [0, 0, 0], w, [0, 0]), [48, 144, 240]);
+  // off the tile lines by 30: crossings 30 sooner
+  assert.deepEqual(gridCrossings([30, 0, 0], [0, 0, 0], w, [0, 0]), [18, 114, 210]);
+  // at 45 degrees it crosses both families of lines
+  const diag = gridCrossings([0, 0, 0], [0, 8192, 0], w, [0, 0]);
+  assert.equal(diag.length, 4);      // (to (212, 212): two lines of each family, crossing at the same places)
+  assert.ok(Math.abs(diag[0] - 48 * Math.SQRT2) < 1e-3);
+  // a gap between two crossings holds none
+  assert.equal(openingPlay(w, { x0: 60, x1: 130, z0: -16, z1: 160 }, [48, 144, 240]).tiles, 0);
+  assert.equal(openingPlay(w, { x0: 100, x1: 200, z0: -16, z1: 160 }, [48, 144, 240]).tiles, 1);
+}
+// ---- Join ends (the improvements plan, 4.2): each wall's nearer end to where their lines cross, the origins kept
+{
+  const free = (at, yaw, x0, x1) => ({ location: at, rotation: [0, yaw, 0], wall: { free: 1, x0, x1, y0: -8, y1: 8, z0: -16, z1: 384 } });
+  // a ends 3.5 short of the corner, b starts 2.25 past it: both come to (384, 0)
+  const a = free([0, 0, 0], 0, 0, 380.5), b = free([384, -2.25, 0], 16384, 0, 300);
+  const [na, nb] = joinedEnds(a, b);
+  assert.deepEqual([na.x0, na.x1, nb.x0, nb.x1], [0, 384, 2.25, 300]);
+  const found = freeWallJoins([{ key: 'a', ...a, wall: na }, { key: 'b', ...b, wall: nb }]);
+  assert.deepEqual(found.a.ends[1], { inset: 0, lean: -1 });                 // then mitred
+  // in line: the nearest ends to the middle between them
+  const [la, lb] = joinedEnds(free([0, 0, 0], 0, 0, 380), free([390, 0, 0], 0, 0, 200));
+  assert.deepEqual([la.x1, lb.x0], [385, -5]);
+  // alongside apart: none
+  assert.equal(joinedEnds(free([0, 0, 0], 0, 0, 380), free([0, 50, 0], 0, 0, 380)), null);
 }
 console.log('walls: ok');

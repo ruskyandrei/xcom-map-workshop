@@ -350,15 +350,30 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
 }
 
 // ---- what an opening does in play
-/** The centres along the wall (in its frame) of the tiles whose centre line passes through the opening. */
-const centresThrough = (wall, o) => [...Array(tilesOf(wall)).keys()].map(k => (k + 0.5) * TILE)
+/** Where the game's lines between tiles' centres cross a made wall (the improvements plan, 4.6; made_edits.py
+ *  grid_crossings is the twin): the places along it in its frame where it crosses a line x = origin x + 96 (i + 0.5)
+ *  or y = origin y + 96 (j + 0.5) of the map's tile grid (its corner `origin`), between its ends, sorted; the rounded
+ *  rotator's yaw. */
+export function gridCrossings(location, rotation, wall, origin) {
+  const yaw = Math.round(rotation[1]) * 2 * Math.PI / 65536, d = [Math.cos(yaw), Math.sin(yaw)], out = [];
+  for (const k of [0, 1]) {
+    if (Math.abs(d[k]) < 1e-9) continue;
+    const [a, b] = [location[k] + d[k] * wall.x0, location[k] + d[k] * wall.x1].sort((p, q) => p - q);
+    const first = Math.ceil((a - origin[k]) / TILE - 0.5 - 1e-9), last = Math.floor((b - origin[k]) / TILE - 0.5 + 1e-9);
+    for (let i = first; i <= last; i++) out.push(Math.round((origin[k] + TILE * (i + 0.5) - location[k]) / d[k] * 1e6) / 1e6);
+  }
+  return out.filter(x => wall.x0 - 1e-6 <= x && x <= wall.x1 + 1e-6).sort((p, q) => p - q);
+}
+/** The centres along the wall (in its frame) of the tiles whose centre line passes through the opening: `centres`
+ *  where the lines cross it (gridCrossings, a free-form wall's), or a tile's middle every 96 from 0 (an older wall). */
+const centresThrough = (wall, o, centres = null) => (centres ?? [...Array(tilesOf(wall)).keys()].map(k => (k + 0.5) * TILE))
   .filter(c => c > o.x0 + 1 && c < o.x1 - 1);
 /** What the game does at an opening, by its sweeps at the tile centres it spans: { tiles, walk, climb, sight, cover
  *  ('none' | 'low' | 'high' | 'whole': the wall's own cover at those tiles) }. `climb`: units vault through it, as
  *  through the game's windows: the wall under it is low cover, and the game gives a low-cover tile its ClimbOver
- *  (EXP-73, F-126). */
-export function openingPlay(wall, o) {
-  const tiles = centresThrough(wall, o).length;
+ *  (EXP-73, F-126). `centres`: as centresThrough's. */
+export function openingPlay(wall, o, centres = null) {
+  const tiles = centresThrough(wall, o, centres).length;
   const spans = (a, b) => o.z0 < a && o.z1 > b;
   if (!tiles) return { tiles, walk: false, climb: false, sight: false, cover: 'whole' };
   const coverHit = !spans(SWEEP.cover[0], SWEEP.cover[1]), highHit = !spans(SWEEP.high[0], SWEEP.high[1]);
@@ -374,8 +389,8 @@ export function openingWords(o, wall) {
   return `Gap, ${size(o.x1 - o.x0)}, ${from} to ${e.top ? 'its top' : Math.round(o.z1)}${ends.length ? `, at ${ends.join(' and ')}` : ''}`;
 }
 /** What the game does there, in a sentence or two (`door`: a door stands in it). */
-export function playWords(wall, o, { door = false } = {}) {
-  const p = openingPlay(wall, o);
+export function playWords(wall, o, { door = false, centres = null } = {}) {
+  const p = openingPlay(wall, o, centres);
   if (!p.tiles) return 'No tile\'s centre line passes through it: units can\'t walk or see through it, and the wall gives cover there as if whole.';
   const out = [];
   out.push(p.walk ? 'units walk through it' : p.climb ? 'units climb through it' : 'units can\'t walk through it');
@@ -549,6 +564,37 @@ export function freeWallJoins(walls) {
     }
   });
   return out;
+}
+/** Join ends (the improvements plan, 4.2): two free-form walls ({ location, rotation, wall }) with each the end nearer
+ *  where their lines cross brought there, so they meet in a corner (freeWallJoins then mitres it). Each wall's origin
+ *  stays where it is (D1): only that end's number changes. Walls in line have their two nearest ends brought to the
+ *  middle between them. null when they run alongside apart, or a wall would be left shorter than a unit. Gives
+ *  [wall a's numbers, wall b's]. */
+export function joinedEnds(a, b) {
+  const fa = freeFrame(a), fb = freeFrame(b);
+  const along = (f, p) => (p[0] - f.o[0]) * f.d[0] + (p[1] - f.o[1]) * f.d[1];
+  const at = (f, x) => [f.o[0] + f.d[0] * x, f.o[1] + f.d[1] * x];
+  let xa, xb;
+  const cross = meet(fa.o, fa.d, fb.o, fb.d);
+  if (cross) { xa = along(fa, cross); xb = along(fb, cross); }
+  else {
+    // in line (or alongside): the nearest two ends to the middle between them, if on one line
+    const off = Math.abs((fb.o[0] - fa.o[0]) * fa.n[0] + (fb.o[1] - fa.o[1]) * fa.n[1]);
+    if (off > JOIN_REACH) return null;
+    let best = null;
+    for (const ka of [0, 1]) for (const kb of [0, 1]) {
+      const pa = at(fa, a.wall[`x${ka}`]), pb = at(fb, b.wall[`x${kb}`]), d = Math.hypot(pa[0] - pb[0], pa[1] - pb[1]);
+      if (!best || d < best.d) best = { d, mid: [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2] };
+    }
+    xa = along(fa, best.mid); xb = along(fb, best.mid);
+  }
+  const moved = (w, x) => {
+    const n = w.wall, k = Math.abs(n.x0 - x) <= Math.abs(n.x1 - x) ? 'x0' : 'x1';
+    const out = { ...n, [k]: tidy6(x) };
+    return out.x1 - out.x0 >= 1 - 1e-9 ? out : null;
+  };
+  const na = moved(a, xa), nb = moved(b, xb);
+  return na && nb ? [na, nb] : null;
 }
 /** Where made walls meet, older and free-form alike (made_edits.py made_wall_joins): the free-form walls' ends among
  *  themselves by freeWallJoins, every other end by wallJoins (a corner with a wall of an older version keeps it). */

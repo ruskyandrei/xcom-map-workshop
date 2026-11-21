@@ -188,13 +188,36 @@ def look_valid(kind, look, version, since, ids):
 WALL_SWEEPS = dict(cover=(44.0, 60.0), high=(88.0, 104.0), walk=64.0, sight=96.0, half=0.5)
 
 
-def opening_play(wall, o):
+def grid_crossings(location, rotation, wall, origin):
+    """Where the game's lines between tiles' centres cross a made wall (the improvements plan, 4.6; walls.js
+    gridCrossings is the twin): the places along it, in its frame, where it crosses a line x = origin x + 96 (i + 0.5)
+    or y = origin y + 96 (j + 0.5) of the map's tile grid (its corner `origin`), between its ends, sorted. The rounded
+    rotator's yaw, as the package holds it."""
+    yaw = round(rotation[1]) * 2 * math.pi / 65536
+    d = (math.cos(yaw), math.sin(yaw))
+    x0, x1 = float(wall['x0']), float(wall['x1'])
+    out = []
+    for k in (0, 1):
+        if abs(d[k]) < 1e-9:
+            continue
+        a, b = sorted((location[k] + d[k] * x0, location[k] + d[k] * x1))
+        first = math.ceil((a - origin[k]) / 96.0 - 0.5 - 1e-9)
+        last = math.floor((b - origin[k]) / 96.0 - 0.5 + 1e-9)
+        for i in range(first, last + 1):
+            c = origin[k] + 96.0 * (i + 0.5)
+            out.append(round((c - location[k]) / d[k], 6))
+    return sorted(x for x in out if x0 - 1e-6 <= x <= x1 + 1e-6)
+
+
+def opening_play(wall, o, centres=None):
     """What the game does at an opening of a made wall (walls.js openingPlay is the twin): dict(tiles (how many tiles'
     centre lines pass through it), walk, climb (units vault through it: low cover under it, which the game's tile
     rebuild gives its ClimbOver, F-126), sight, cover: 'none', 'low', 'high' or 'whole' (the wall's own cover at those
-    tiles))."""
+    tiles)). `centres`: where those lines cross the wall in its frame (grid_crossings: a free-form wall's, on the map's
+    grid); left out, a tile's middle every 96 from its start, as an older wall stands on the tile lines."""
     length = float(wall['x1']) - float(wall['x0'])
-    centres = [float(wall['x0']) + 96.0 * (k + 0.5) for k in range(int(round(length / 96.0)))]
+    if centres is None:
+        centres = [float(wall['x0']) + 96.0 * (k + 0.5) for k in range(int(round(length / 96.0)))]
     tiles = sum(1 for c in centres if o['x0'] + 1 < c < o['x1'] - 1)
     if not tiles:
         return dict(tiles=0, walk=False, climb=False, sight=False, cover='whole')
@@ -858,11 +881,14 @@ class MadeEdits:
             if (obj.get('layer') == 'base' and obj.get('actorClass') == 'XComInteractiveLevelActor'
                     and short(obj['actor']) not in hidden and obj.get('mesh') in self.c.meshes):
                 doors.append(world_box(obj, self.c.meshes, obj['location'], obj['rotation']))
+        origin = self.c.grid_origin or self.c.origin
         for copy, where in self.wholes:
             wall = copy['generated']['wall']
             name = copy['label']
+            # (a free-form wall's gaps are read on the map's grid, where the game's lines cross it)
+            centres = grid_crossings(copy['location'], copy['rotation'], wall, origin) if wall.get('free') == 1 else None
             for o in wall.get('openings') or []:
-                play = opening_play(wall, o)
+                play = opening_play(wall, o, centres)
                 low = o['z0'] < WALL_SWEEPS['cover'][0]
                 what = "%s's gap at %g to %g along it" % (name, o['x0'], o['x1'])
                 if not play['tiles']:
