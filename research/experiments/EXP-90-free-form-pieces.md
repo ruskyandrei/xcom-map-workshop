@@ -129,3 +129,14 @@ report and the shots were read against each other.
 Side notes: the A grenade's alien turn ran at once when every soldier had acted; a `SAVING...` badge showed for a while
 in turn 2 (no save was asked for). The parked lab copy was used (`--game`, and the test server's `--install`): the
 folder Steam runs held the LWR3 copy.
+
+## Afterwards, offline: the relight with two mappings (the plan's 5.8)
+
+The project built baked twice, F1 with its mapping and with it taken out (21 November 2026): of 199 relit pictures one
+differs, F1's lightmap (`XComDecoFracLevelActor_19`, 9,358 of 32,160 texels, mean 0.78 of 255, at most 25); the same
+project built twice gives the same 199 pictures, so the relight is repeatable. The cause is the lightmap's form, not a
+texture read: a texel's light is stored in its tangent frame (`lightmap_texels.rasterise` frames, `codec.coefficients`),
+and a mesh's tangents follow its texture coordinates, so a turned mapping turns the frame and the stored numbers with it.
+The game reads them back in that frame: F1 and F2 look lit alike in check 6. The albedo is one value per material
+(`albedo.Albedo`: a diffuse texture's mean), and a made piece is relit in every build, never taken from the piece cache
+(`relight.PieceCache`: copies are always relit), so the mapping needs no place in the cache's key.
