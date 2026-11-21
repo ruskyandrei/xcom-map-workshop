@@ -1,8 +1,11 @@
-"""The ten Builds, byte for byte: what a refactor step of the compiler, the Build, the copy tool, the package tools or
-the relight must leave as it was (the editor refactor plan, stage 0.1).
+"""The Builds of the project inputs, byte for byte: the check that a change to the compiler, the Build, the copy tool,
+the package tools or the relight leaves a Build's output as it was where it should, and names every file and record
+it changed.
 
-Ten project inputs (INPUTS), chosen so that together their native edits (compiler.native_split, which
-tools/bake/native_copy.py reads) hold every lane the native edit has. Each is the document of a generator in
+The project inputs (INPUTS) are chosen so that together their native edits (compiler.native_split, which
+tools/bake/native_copy.py reads) hold every lane the native edit has, and their Builds take the Build's routes into
+the relight: bar-grid, whose only edit is a larger grid, sends its baked Build to the relight alone, on the copy of
+the map the growing writer names (build.py named_base, tools/upk/package_grow.py). Each is the document of a generator in
 tools/editor/examples, or the documents of two or three generators on one map merged into one project (merged), with
 at most a field or a piece added in code (EXTRAS: a spawn rule, an invisible floor); every generator runs in a process
 of its own on scratch settings, its compile recorded and its own Build refused (capture_main). The documents are made
@@ -21,9 +24,9 @@ the compile's whole spec, report and native edit (the compiler's boundary), and 
   python -B tools/editor/tests/build_outputs.py compare <before folder> <after folder>
   python -B tools/editor/tests/build_outputs.py --list [--game <install>] [--cache <cache>]
 
-`compare` lists the differing files and records by input, and exits 1 if anything differs. `--list` makes and
-compiles the ten inputs (no Build) and prints the lanes each one's native edit holds. `record` fails when a lane of
-the native edit is in none of the ten.
+`compare` lists the differing files and records by input, and exits 1 if anything differs; an input recorded on one
+side only is named as such. `--list` makes and compiles the inputs (no Build) and prints the lanes each one's native
+edit holds. `record` fails when a lane of the native edit is in none of the inputs.
 
 The install and the cache come from the settings (tools/viewer/viewer.py settings) or --game and --cache; without
 them the tool says so and exits 2. The cache is only read: the scene.json of the exports the inputs need and the
@@ -74,7 +77,7 @@ OPS = ('moves', 'deletes', 'copies', 'values')
 LIGHT_OPS = ('deletes', 'changes', 'adds', 'area')
 COPY_PARTS = ('breakGroup', 'wallGroup', 'donor', 'untried', 'flags', 'generated', 'blasts', 'breaksFurther', 'ladder')
 
-# The ten inputs: `parts`, the generators of tools/editor/examples whose documents make it (merged when there are
+# The inputs: `parts`, the generators of tools/editor/examples whose documents make it (merged when there are
 # several), each with its arguments ({out}, {store}, {builds} and {cache} are scratch folders of the input) and the
 # document picked from the compiles it makes (its name; None: the last); `extras`, what is added in code (EXTRAS);
 # `maps`, the maps whose exports it reads, and `donors`, maps whose exports help it (copied when the cache has them).
@@ -118,6 +121,9 @@ INPUTS = [
     dict(name='police-streams', maps=POLICE, parts=[part('exp55_project.py', *OUT)],
          what='URB_PoliceStation\'s data recovery: a capture point of its mission stream moved (a mission\'s objects '
               'moved in their stream)'),
+    dict(name='bar-grid', maps=BAR, parts=[part('grid_bar_project.py', '{out}', '--grid', '56', '43', '--compile')],
+         what='URB_Bar on a larger grid (56 by 43) and nothing else: its baked Build relights a copy of the map the '
+              'growing writer names (KB-2: a real one stops in the relight)'),
 ]
 
 
@@ -856,7 +862,7 @@ def main(argv=None):
     a = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     a.add_argument('--list', action='store_true', help='make and compile the inputs, and print the lanes of each')
     sub = a.add_subparsers(dest='command')
-    r = sub.add_parser('record', help='the ten Builds recorded into <out>/outputs.json')
+    r = sub.add_parser('record', help='the inputs\' Builds recorded into <out>/outputs.json')
     r.add_argument('--out', required=True, help='the folder to record into (outputs.json; a scratch folder under it)')
     r.add_argument('--plant', help=argparse.SUPPRESS)       # the tool's own check: one byte changed in an input
     c = sub.add_parser('compare', help='two records compared; exit 1 if they differ')

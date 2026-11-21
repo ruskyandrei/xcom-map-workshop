@@ -1,5 +1,6 @@
 """The page's names: a name in tools/viewer/web/*.js that is neither declared, imported nor a known global, and an
-import nothing uses (refactor plan, decision D9).
+import nothing uses. The check for every change to the page, a move above all: it finds what a browser check finds
+only on the line that throws.
 
   python tools/viewer/tests/web_names.py [--scratch <folder>] [<file.js> ...]
 
@@ -11,7 +12,7 @@ run (that needs the network), and run from there through npx. A move that leaves
 line runs, and no browser check runs every line: this finds it without running any.
 
 Prints each finding as file:line: name, and exits 1 if there is any; 2 if node, npm or npx is missing or ESLint could
-not be installed or run. Run by hand and by the page's refactor stages; run_tests.py does not run it.
+not be installed or run. Run by hand for a change to the page; run_tests.py does not run it.
 """
 import argparse
 import json

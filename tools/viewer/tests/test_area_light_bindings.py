@@ -13,10 +13,11 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import area_light_bindings as alb  # noqa: E402
 from export_math import forward, multiply, transform  # noqa: E402
-import settings  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
+import labpaths  # noqa: E402
 
-COOKED = settings.lwr_cooked()
-BAR = COOKED / 'URB_Bar.upk' if COOKED else None
+# URB_Bar of the configured install, or of the folder XCOM_COOKED names; without it the package tests skip
+BAR, NO_BAR = labpaths.install_map('URB_Bar')
 EMITTER = dict(bUseEmissiveForStaticLighting=True, EmissiveLightFalloffExponent=3.0,
                EmissiveLightExplicitInfluenceRadius=256.0)
 
@@ -344,7 +345,7 @@ class EvidenceTests(unittest.TestCase):
         self.assertIsNone(alb.material_evidence(None))
 
 
-@unittest.skipUnless(BAR and BAR.exists(), 'URB_Bar.upk of the game install (the game setting) not found')
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class OnTheBar(unittest.TestCase):
     """URB_Bar's 137 area lights, from records the export makes (its textures skipped), read from the install."""
 

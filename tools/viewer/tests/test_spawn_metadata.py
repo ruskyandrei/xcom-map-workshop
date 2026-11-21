@@ -8,12 +8,14 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
 import export  # noqa: E402
 import scene_metadata  # noqa: E402
 from package import Package  # noqa: E402
-from settings import lwr_cooked  # noqa: E402
+import labpaths  # noqa: E402
 
-COOKED = Path(lwr_cooked() or 'no-install-configured')
+# the configured install's packages, or the folder XCOM_COOKED names
+COOKED = Path(labpaths.lwr_cooked() or 'no-install-configured')
 
 
 def package(name):

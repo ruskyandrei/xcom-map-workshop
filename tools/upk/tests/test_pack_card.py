@@ -246,7 +246,8 @@ class Install(unittest.TestCase):
 REFERENCE = HERE.parents[2] / 'private' / 'research' / 'lwr-make_card-reference-2026-11-18.py'
 
 
-@unittest.skipUnless(REFERENCE.is_file(), 'no private copy of the reference writer')
+@unittest.skipUnless(REFERENCE.is_file(), 'no private copy of the reference writer: %s is not in this checkout (a '
+                                          'worktree has no private/)' % REFERENCE.relative_to(HERE.parents[2]).as_posix())
 class Reference(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

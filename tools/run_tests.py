@@ -11,6 +11,7 @@ counted by reason under their suite, so a run on a computer with no game install
   python -B tools/run_tests.py                     every suite: viewer, editor, upk, bake, lab, release, repo, node
   python -B tools/run_tests.py viewer editor       only these
   python -B tools/run_tests.py bake -k shell       only the tests whose names hold "shell" (unittest's -k)
+  python -B tools/run_tests.py bake -k shell -k relight   the tests whose names hold either
   python -B tools/run_tests.py --log <folder>      where the logs go (default .scratch/tests/<date-time>)
   python -B tools/run_tests.py upk --install       with the checks over every map of the install too
   python -B tools/run_tests.py editor --times      and then the twenty slowest tests and classes of each suite
@@ -74,10 +75,12 @@ ENVIRONMENT = (
             'naming a scratch file.',
             'the settings file in Documents. With neither, the tests that read the game skip, each saying what it lacks.'),
         Var('XCOM_COOKED',
-            "A CookedPCConsole folder read in place of the configured install's by the tests that take its packages "
-            'through tools/lab/labpaths.py (most of the bake and upk suites, and the default of each XCOM_<MAP>_UPK '
-            'below), and by test_material_rules.py. The other viewer tests that read the install take the settings\' '
-            'folder only: to point every test at another install, name a settings file.',
+            "A CookedPCConsole folder read in place of the configured install's by the tests that read the install's "
+            'maps from it: they take them through tools/lab/labpaths.py (its install_map, test_file and lwr_cooked), '
+            "and it is the default of each XCOM_<MAP>_UPK below. Naming another install's folder (plain Enemy "
+            "Within's, say) points those tests at it; a test whose package is not there skips, saying where it looked. "
+            "The tests that read the game folder as a whole (its config files, its script package) take the settings' "
+            'game folder, or XCOM_GAME where it names them.',
             "the configured LWR install's CookedPCConsole (the lwr setting). With neither, those tests skip."),
         Var('XCOM_GAME',
             "A game folder read in place of the configured install's by test_game_grid.py (the upk suite: every map "
@@ -121,8 +124,7 @@ ENVIRONMENT = (
         Package('XCOM_PATCH_BAR_UPK', 'patch_bar.upk', 'test_stream_copy.py'),
         Package('XCOM_POLICE_PATCH_UPK', 'patch_policestation.upk', 'test_cover_blocks.py'),
         Package('XCOM_POLICE_UPK', 'URB_PoliceStation.upk', 'test_cover_blocks.py, test_gen_mesh.py, '
-                "test_light_factory.py, test_native_copy.py, test_streams.py (which takes the settings' folder, not "
-                "XCOM_COOKED's)"),
+                'test_light_factory.py, test_native_copy.py, test_streams.py'),
         Package('XCOM_STONEWALL_UPK', 'CLrgScout_Stonewall.upk', 'test_native_copy.py'),
         Package('XCOM_TEMPLE_UPK', 'TempleShip.upk', 'test_light_factory.py, test_native_lights.py'),
         Package('XCOM_TRUCKSTOP_STREAM_UPK', 'URB_TruckStop_Stream.upk', 'test_light_factory.py, test_map_frame.py, '
@@ -279,10 +281,17 @@ def run(cmd, log, since=None):
     return ''.join(line + '\n' for _, _, line in lines), code, time.monotonic() - started, marked
 
 
-def python_suite(name, pattern, logs):
+def selection_words(patterns):
+    """The -k patterns as a failure line names them: `-k a -k b`."""
+    return ' '.join(f'-k {p}' for p in patterns)
+
+
+def python_suite(name, patterns, logs):
+    """One Python suite run; `patterns` the -k patterns (a test whose name holds any of them runs; None or none:
+    every test)."""
     cmd = [sys.executable, '-B', '-m', 'unittest', 'discover', '-s', f'tools/{name}/tests', '-p', 'test_*.py', '-v']
-    if pattern:
-        cmd += ['-k', pattern]
+    for pattern in patterns or ():
+        cmd += ['-k', pattern]       # unittest takes -k again and again, a test matching any of them
     output, code, took, _ = run(cmd, logs / f'{name}.log')
     ran = next((m for m in map(SUMMARY.match, output.splitlines()) if m), None)
     count = int(ran.group(1)) if ran else 0
@@ -291,17 +300,21 @@ def python_suite(name, pattern, logs):
     passed = code == 0 and line.startswith('OK')
     if count == 0 and not failures and (code == 5 or 'NO TESTS RAN' in output):
         # Python 3.12's unittest exits 5 when nothing ran: a selection that runs nothing checked nothing
-        line, passed = (f'no test matched -k {pattern}' if pattern else 'no tests ran'), False
+        line, passed = (f'no test matched {selection_words(patterns)}' if patterns else 'no tests ran'), False
     return dict(name=name, passed=passed, line=line, count=count, took=took,
                 failures=failures, log=logs / f'{name}.log', skips=skip_reasons(output))
 
 
-def node_suite(pattern, logs):
+def node_files(patterns):
+    """The node test files to run: those whose names hold any of `patterns` (None or none: every one)."""
     files = sorted((REPO / 'tools/viewer/tests').glob('*_test.mjs'))
-    if pattern:
-        files = [f for f in files if pattern in f.name]
+    return [f for f in files if any(p in f.name for p in patterns)] if patterns else files
+
+
+def node_suite(patterns, logs):
+    files = node_files(patterns)
     if not files or not shutil.which('node'):
-        line = (f'no test file matched -k {pattern}' if pattern else 'no test files') if not files else \
+        line = (f'no test file matched {selection_words(patterns)}' if patterns else 'no test files') if not files else \
             'node is not installed (or not on the path): the node tests need Node.js'
         (logs / 'node.log').write_text(line + '\n', encoding='utf-8', newline='\n')
         return dict(name='node', passed=False, line=line, count=0, took=0.0, failures=[], log=logs / 'node.log')
@@ -393,7 +406,9 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('suites', nargs='*', metavar='suite',
                     help=f'which to run (default all: {", ".join(SUITES)})')
-    ap.add_argument('-k', dest='pattern', help="only tests whose names hold this (unittest's -k; for node, file names)")
+    ap.add_argument('-k', dest='patterns', action='append', metavar='PATTERN',
+                    help="only tests whose names hold this (unittest's -k; for node, file names); given again, those "
+                         'that hold any of them')
     ap.add_argument('--log', type=Path, help='folder for the logs (default .scratch/tests/<date-time>)')
     ap.add_argument('--install', action='store_true',
                     help='run the checks over every map of the install too (on when every suite runs)')
@@ -419,7 +434,7 @@ def main(argv=None):
     results = []
     for name in suites:
         print(f'\n== {name} ...', flush=True)
-        r = node_suite(args.pattern, logs) if name == 'node' else python_suite(name, args.pattern, logs)
+        r = node_suite(args.patterns, logs) if name == 'node' else python_suite(name, args.patterns, logs)
         results.append(r)
         print(f'== {name}: {r["line"]}, {r["count"]} {"files" if name == "node" else "tests"}, {r["took"]:.0f} s', flush=True)
         for reason, n in r.get('skips', []):

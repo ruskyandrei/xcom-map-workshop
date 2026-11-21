@@ -1,5 +1,5 @@
-"""Every compile of the editor suite, recorded: what a refactor step of the compiler must leave as it was (the editor
-refactor plan, stage 0.2).
+"""Every compile of the editor suite, recorded and compared: the check that a change to the compiler which should
+change nothing (a move, a one-home change) leaves every compile the suite makes as it was.
 
 `record` runs the editor suite's test files (tools/editor/tests/test_*.py, as run_tests.py finds them) in one process
 with compiler.compile_project and compiler.native_split wrapped, and writes, for each call in order: the test that
@@ -8,7 +8,9 @@ of library) and its outputs whole as sorted JSON (a compile: its spec, its repor
 native split a test or the Build makes itself: the patch spec and the native edit). The wrappers are put in place
 before any test file is imported, so the test files that import the names themselves (from compiler import
 compile_project) reach them too; a test that puts a stand-in of its own in their place (test_build's) makes no call
-to record while it does.
+to record while it does. Only the suite's own process is recorded: a compile made in a process a test starts (a tool
+or an example's generator run as a script) is not, so a change reaching only such a compile shows in that test's own
+checks, not here.
 
   python -B tools/editor/tests/compile_record.py record --out <file> [-k PATTERN]
   python -B tools/editor/tests/compile_record.py compare <before file> <after file>
@@ -225,7 +227,11 @@ def main(argv=None):
     sys.stdout.reconfigure(errors='replace')
     a = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     sub = a.add_subparsers(dest='command', required=True)
-    r = sub.add_parser('record', help='run the editor suite and record every compile')
+    r = sub.add_parser('record', help='run the editor suite and record every compile made in its process (a compile '
+                                      'in a process a test starts is not recorded)',
+                       description='Runs the editor suite in this process and records every compile it makes. A '
+                                   'compile made in a process a test starts (a tool or an example\'s generator run as '
+                                   'a script) is not recorded.')
     r.add_argument('--out', required=True, help='the record to write (JSON; the suite\'s output goes beside it, .log)')
     r.add_argument('-k', dest='pattern', help='only the tests whose names hold this (unittest\'s -k)')
     r.add_argument('--keep-inputs', action='store_true', help=argparse.SUPPRESS)

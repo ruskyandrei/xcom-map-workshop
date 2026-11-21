@@ -1,22 +1,24 @@
 """What a map's missions stream into it (export 13), and textures from compiled shaders: on the LWR install's
 URB_PoliceStation, which has three missions, an LWR patch, a mission stream and a material with no texture
 parameter."""
-import os
 from pathlib import Path
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
 import export  # noqa: E402
 from package import Package  # noqa: E402
-from settings import lwr_cooked  # noqa: E402
+import labpaths  # noqa: E402
 
-# the LWR install's (the lwr setting), or XCOM_POLICE_UPK; without either, the tests skip
-POLICE = Path(os.environ.get('XCOM_POLICE_UPK') or Path(lwr_cooked() or 'no-lwr-install-configured') / 'URB_PoliceStation.upk')
+# XCOM_POLICE_UPK, else the LWR install's (the lwr setting) or the one in the folder XCOM_COOKED names; without it the
+# tests skip
+POLICE, NO_POLICE = labpaths.test_file('XCOM_POLICE_UPK', labpaths.lwr_cooked('URB_PoliceStation.upk'),
+                                       'URB_PoliceStation.upk')
 
 
-@unittest.skipUnless(POLICE.exists(), 'URB_PoliceStation not available')
+@unittest.skipUnless(POLICE and POLICE.exists(), NO_POLICE)
 class Streams(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

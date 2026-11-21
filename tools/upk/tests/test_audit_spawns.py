@@ -7,10 +7,12 @@ import unittest
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'viewer'))
+sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import audit_spawns  # noqa: E402
-from settings import lwr_cooked  # noqa: E402
+import labpaths  # noqa: E402
 
-COOKED = Path(lwr_cooked() or 'no-install-configured')
+# the configured install's packages, or the folder XCOM_COOKED names
+COOKED = Path(labpaths.lwr_cooked() or 'no-install-configured')
 
 
 def survey(name):

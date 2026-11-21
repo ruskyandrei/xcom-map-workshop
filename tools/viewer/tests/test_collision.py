@@ -8,10 +8,11 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import collision
 from package import FormatError, Package
-import settings
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
+import labpaths
 
-COOKED = settings.lwr_cooked()
-FARM = COOKED / 'CsmallScout_Farm.upk' if COOKED else None
+# the farm of the configured install, or of the folder XCOM_COOKED names; without it the package tests skip
+FARM, NO_FARM = labpaths.install_map('CsmallScout_Farm')
 
 
 def plane(w, x, y, z):
@@ -77,7 +78,7 @@ class Cache(unittest.TestCase):
                 collision.CollisionCache().get('root', {'source': {'sha256': '0' * 64}}, lambda: path, ['1'])
 
 
-@unittest.skipUnless(FARM and FARM.exists(), 'CsmallScout_Farm.upk of the LWR install (the lwr setting) not found')
+@unittest.skipUnless(FARM and FARM.exists(), NO_FARM)
 class Farm(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

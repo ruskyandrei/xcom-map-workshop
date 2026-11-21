@@ -12,5 +12,7 @@
  "ships": ["eShip_UFOSmallScout", "eShip_UFOLargeScout", "eShip_UFOAbductor", "eShip_UFOSupply", "eShip_UFOBattle", "eShip_UFOEthereal"],
  "softFamilies": ["hidden", "assembly", "family", "check"],
  "listedClasses": ["XComLevelActor", "XComOpacityFadeLevelActor", "XComDestructibleActor", "XComFracLevelActor", "XComDecoFracLevelActor",
-                   "XComInteractiveLevelActor", "XComLadder", "XComCollectible", "KAsset"]
+                   "XComInteractiveLevelActor", "XComLadder", "XComCollectible", "KAsset"],
+ "ladders": {"topReach": 76, "footBack": 16, "endLift": 8, "turn": 65536, "floorThick": 40, "headroom": 150},
+ "schemaVersions": {"project": 4, "prefab": 4}
 }

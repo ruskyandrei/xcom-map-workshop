@@ -41,6 +41,23 @@ class TwinConstants(unittest.TestCase):
         self.assertEqual(list(missions.UFO_TYPES), TWIN['ships'])
         self.assertEqual(list(buildings.LISTED), TWIN['listedClasses'])
 
+    def test_ladders(self):
+        # a ladder's climb ends (web/ladders.js ladderEnds) and the floor the project's flat pieces give (its
+        # addedFloors)
+        import compiler_tables
+        import ladders
+        self.assertEqual(dict(topReach=ladders.TOP_REACH, footBack=ladders.FOOT_BACK, endLift=ladders.END_LIFT,
+                              turn=ladders.TURN, floorThick=compiler_tables.FLOOR_THICK,
+                              headroom=compiler_tables.HEADROOM), TWIN['ladders'])
+
+    def test_schema_versions(self):
+        # the document versions the server's stores save (web/project.js and web/prefabs.js save the same)
+        import prefabs
+        import projects
+        self.assertEqual(dict(project=projects.SCHEMA_VERSION, prefab=prefabs.SCHEMA_VERSION), TWIN['schemaVersions'])
+        self.assertIn(projects.SCHEMA_VERSION, projects.READ_VERSIONS)
+        self.assertIn(prefabs.SCHEMA_VERSION, prefabs.READ_VERSIONS)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -38,6 +38,28 @@ class ReleaseTests(unittest.TestCase):
         for extra in make_release.EXTRAS:
             self.assertTrue((make_release.TOOLS / extra).is_file(), extra)
 
+    def test_the_path_file_names_only_folders_that_ship(self):
+        # follow-up 3.7: the release's ._pth named tools/lab, which holds nothing the release ships
+        names = {p.relative_to(make_release.TOOLS).as_posix() for p in make_release.modules()}
+        for folder in make_release.FOLDERS:
+            self.assertTrue(any(n.startswith(folder + '/') for n in names), folder)
+        self.assertNotIn('lab', make_release.FOLDERS)
+
+    def test_a_shipped_import_of_a_lab_tool_stops_the_release(self):
+        # the lab is still searched: an entry that imports one of its tools is refused, not left out of the zip
+        with tempfile.TemporaryDirectory() as folder:
+            entry = Path(folder) / 'entry.py'
+            entry.write_text('import labpaths\n', encoding='utf-8')
+            saved = make_release.ENTRIES
+            make_release.ENTRIES = (str(entry),)
+            try:
+                with self.assertRaises(SystemExit) as stop:
+                    make_release.modules()
+            finally:
+                make_release.ENTRIES = saved
+        self.assertIn('labpaths', str(stop.exception))
+        self.assertIn('tools/lab', str(stop.exception))
+
     def test_the_look_measurers_ship(self):
         # the Build measures a donor afresh when the catalogue lacks its look (looks.measurer): each measurer the
         # looks name must be in the zip, though it is reached only through that one function

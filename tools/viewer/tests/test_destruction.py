@@ -4,11 +4,11 @@ import sys
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scene_metadata import DEFAULT_TOUGHNESS_HEALTH, destruction
-import settings
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
+import labpaths
 
-# URB_Bar from the game install (the game setting); without it the package test skips
-COOKED = settings.lwr_cooked()
-BAR = COOKED / 'URB_Bar.upk' if COOKED else None
+# URB_Bar of the configured install, or of the folder XCOM_COOKED names; without it the package test skips
+BAR, NO_BAR = labpaths.install_map('URB_Bar')
 
 
 class ToughnessPackage:
@@ -71,7 +71,7 @@ class DestructionTests(unittest.TestCase):
         # a toughness whose own Health is unset takes its archetype's (Toughness_METAL's)
         self.assertEqual(destruction(PACKAGE, 13)['health'], 90)
 
-    @unittest.skipUnless(BAR and BAR.exists(), 'URB_Bar.upk of the game install (the game setting) not found')
+    @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
     def test_the_bars_pieces(self):
         from package import Package
         p = Package(BAR)

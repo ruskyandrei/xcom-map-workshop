@@ -245,8 +245,9 @@ class Kept(unittest.TestCase):
 class GamePictures(unittest.TestCase):
     """The base map's picture, from the configured install's map-image packages (skipped without the game)."""
     def test_the_game_s_picture_of_a_map_is_found_by_the_map_s_name(self):
-        import settings
-        cooked = settings.lwr_cooked()
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
+        import labpaths
+        cooked = labpaths.lwr_cooked()      # the configured install's, or the folder XCOM_COOKED names
         if cooked is None or not (cooked / 'UILibrary_MapImages_SF.upk').is_file():
             self.skipTest('no game install with UILibrary_MapImages_SF.upk configured')
         self.assertEqual(pictures.base_library(cooked, 'URB_Bar'), 'UILibrary_MapImages')

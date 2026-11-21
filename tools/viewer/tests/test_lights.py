@@ -10,11 +10,11 @@ from lights import effective_cone, effective_cone_degrees, light_metadata, light
 from resolver import resolve_scene
 from scene_metadata import kismet_references
 from viewer_fixtures import scene
-import settings
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'lab'))
+import labpaths
 
-# URB_Bar from the game install (the game setting); without it the package tests skip
-COOKED=settings.lwr_cooked()
-BAR=COOKED/'URB_Bar.upk' if COOKED else None
+# URB_Bar of the configured install, or of the folder XCOM_COOKED names; without it the package tests skip
+BAR,NO_BAR=labpaths.install_map('URB_Bar')
 
 
 class LightPackage:
@@ -189,7 +189,7 @@ class StorableConeTests(unittest.TestCase):
         self.check(got)
 
 
-@unittest.skipUnless(BAR and BAR.exists(),'URB_Bar.upk of the game install (the game setting) not found')
+@unittest.skipUnless(BAR and BAR.exists(),NO_BAR)
 class LightMetadataTests(unittest.TestCase):
     """Export 18's light fields on the bar (editor lights plan 4.1, 9.3)."""
     @classmethod
