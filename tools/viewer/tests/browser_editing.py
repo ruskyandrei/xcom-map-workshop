@@ -38,9 +38,12 @@ pieces will do (the pieces made here use it as their donor).
 - small-defects (finding 34): a warning note in the warning colour, the Floor field to 10, and a UFO mission whose
   ship type the editor doesn't know shown as it is with OK off until a ship is chosen; after a delete of 402 pieces
   and of one, Ctrl+Z, Ctrl+Y and Ctrl+Z each take the "Deleted ... · Ctrl+Z brings them back" hint away.
-- grid-panel (the Map grid's panel once opened under the Selected piece panel): at 1280 and at 1024 pixels wide, with
-  a piece picked before the rail's Map grid is opened and with one picked while it is on, the two panels stand apart,
-  clear of the rail, and a click at the middle of the grid panel's Done puts the tool away and keeps the selection.
+- grid-panel (the Map grid's panel once opened under the Selected piece panel, KB-8, and under the other right-hand
+  panels; any map with a landing zone, a spawn point and an effect of its own): at 1280, 1024 and 800 pixels wide,
+  for each right-hand panel that can show while the tool is on (the Selected piece, the Buildings view's, a landing
+  zone's, a spawn point's, an effect's), shown before the rail's Map grid is opened and shown while it is on, the
+  grid's panel and that panel stand apart, clear of the rail, and a click at the middle of the grid panel's Done puts
+  the tool away and keeps what is picked.
 - select-kind (the refactor's follow-ups, item 4.7; any map with a mesh three drawn pieces share, the Bar's dumpsters
   first): Select all on a picked piece (#editKind) picks every drawn piece of its mesh, its words and count saying how
   many, as no edit; the Flags group then sets them all as one undo step (undone, redone, Reset); a light picked beside
@@ -850,33 +853,52 @@ def check_flags_gate(browser, url, open_viewer):
     return dict(prop=gated['actor'], row=gated['label'], half=gated['halfLabel'], flags=flags)
 
 
+# The right-hand panels that can show while the Map grid is on (they stand where its panel does): each panel's id, how
+# a check shows it (given the map's thing it shows, or nothing) and what it is given.
+GRID_NEIGHBOURS = (
+    ('inspector', 'id => viewer.select(id)', 'piece'),
+    ('volumePanel', '() => viewer.setVolumesShown(true)', None),
+    ('landingPanel', 'id => { viewer.setZonesShown(true); viewer.pickZone(id); }', 'zone'),
+    ('spawnPanel', 'key => { viewer.setSpawnsShown(true); viewer.pickSpawn(key); }', 'spawn'),
+    ('effectPanel', 'id => { viewer.setEffectsShown(true); viewer.pickEffect(id); }', 'effect'),
+)
+
+
 def check_grid_panel(browser, url, open_viewer):
     errors = []
     page = open_viewer(browser, url, errors)
-    piece = page.evaluate(DRAWN_PIECE)
-    assert piece and page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview"), 'needs a map with a piece of its own'
+    things = dict(piece=page.evaluate(DRAWN_PIECE), zone=page.evaluate('viewer.zones()[0]?.id ?? null'),
+                  spawn=page.evaluate('viewer.spawns().find(e => !e.readOnly)?.key ?? viewer.spawns()[0]?.key ?? null'),
+                  effect=page.evaluate('[...viewer.effectRoots.keys()][0] ?? null'))
+    assert all(things.values()) and page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview"), \
+        ('needs a map with a piece, a landing zone, a spawn point and an effect of its own', things)
     out = {}
-    for width, height in ((1280, 800), (1024, 768)):
+    for width, height in ((1280, 800), (1024, 768), (800, 700)):
         page.set_viewport_size(dict(width=width, height=height))
-        for first in ('piece', 'tool'):
-            if first == 'piece': page.evaluate('id => viewer.select(id)', piece)
-            page.locator('#editGrid').click()
-            if first == 'tool': page.evaluate('id => viewer.select(id)', piece)
-            assert page.evaluate('viewer.gridTool().on') and page.locator('#gridPanel').is_visible() \
-                and page.locator('#inspector').is_visible(), (width, first)
-            grid, inspector, rail = (page.locator(f'#{id}').bounding_box() for id in ('gridPanel', 'inspector', 'rail'))
-            assert apart(grid, inspector) and apart(grid, rail), (width, first, grid, inspector, rail)
-            done = page.locator('#gridDone').bounding_box()
-            at = [done['x'] + done['width'] / 2, done['y'] + done['height'] / 2]
-            hit = page.evaluate("p => { const e = document.elementFromPoint(p[0], p[1]); "
-                                "return e?.closest('#gridDone') ? 'gridDone' : e?.closest('[id]')?.id ?? null; }", at)
-            assert hit == 'gridDone', (width, first, hit, grid, inspector)
-            page.mouse.click(*at)
-            assert not page.evaluate('viewer.gridTool().on') and page.locator('#gridPanel').is_hidden(), (width, first)
-            # the selection is kept: the tool only adds its panel
-            assert page.evaluate('viewer.gizmo.active') == piece and page.locator('#inspector').is_visible(), (width, first)
-            page.evaluate('viewer.select(null)')
-        out[width] = dict(grid=[round(grid['x']), round(grid['width'])], inspector=[round(inspector['x']), round(inspector['width'])])
+        for panel, show, given in GRID_NEIGHBOURS:
+            for first in ('panel', 'tool'):
+                where = (width, panel, first)
+                if first == 'panel': page.evaluate(show, things.get(given))
+                page.locator('#editGrid').click()
+                if first == 'tool': page.evaluate(show, things.get(given))
+                assert page.evaluate('viewer.gridTool().on') and page.locator('#gridPanel').is_visible() \
+                    and page.locator(f'#{panel}').is_visible(), where
+                grid, beside, rail = (page.locator(f'#{id}').bounding_box() for id in ('gridPanel', panel, 'rail'))
+                assert apart(grid, beside) and apart(grid, rail), (where, grid, beside, rail)
+                done = page.locator('#gridDone').bounding_box()
+                at = [done['x'] + done['width'] / 2, done['y'] + done['height'] / 2]
+                hit = page.evaluate("p => { const e = document.elementFromPoint(p[0], p[1]); "
+                                    "return e?.closest('#gridDone') ? 'gridDone' : e?.closest('[id]')?.id ?? null; }", at)
+                assert hit == 'gridDone', (where, hit, grid, beside)
+                page.mouse.click(*at)
+                assert not page.evaluate('viewer.gridTool().on') and page.locator('#gridPanel').is_hidden(), where
+                # what is picked is kept: the tool only adds its panel
+                assert page.locator(f'#{panel}').is_visible(), where
+                if panel == 'inspector': assert page.evaluate('viewer.gizmo.active') == things['piece'], where
+                page.locator('#editNormal').click()
+                page.evaluate('viewer.select(null)')
+                assert page.locator(f'#{panel}').is_hidden(), where
+            out[f'{width} {panel}'] = dict(grid=[round(grid['x']), round(grid['width'])], panel=[round(beside['x']), round(beside['width'])])
     page.close()
     assert not errors, errors
     return out
