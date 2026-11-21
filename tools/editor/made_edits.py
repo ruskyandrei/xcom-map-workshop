@@ -168,6 +168,20 @@ def free_valid(kind, n, num):
         and n['x0'] - 1e-6 <= p[0] <= n['x1'] + 1e-6 and n['y0'] - 1e-6 <= p[1] <= n['y1'] + 1e-6 for p in points))
 
 
+def free_slab_left(n):
+    """Whether a free-form slab's holes leave some of it: a cell of the grid its footprint's and holes' sides make is in
+    no hole (tile centres, made_split.slab_left's test, say nothing of a slab off the tiles)."""
+    holes = n.get('holes') or []
+    xs = sorted({n['x0'], n['x1']} | {h[k] for h in holes for k in ('x0', 'x1') if n['x0'] < h[k] < n['x1']})
+    ys = sorted({n['y0'], n['y1']} | {h[k] for h in holes for k in ('y0', 'y1') if n['y0'] < h[k] < n['y1']})
+    for a, b in zip(xs, xs[1:]):
+        for c, d in zip(ys, ys[1:]):
+            mx, my = (a + b) / 2, (c + d) / 2
+            if not any(h['x0'] <= mx <= h['x1'] and h['y0'] <= my <= h['y1'] for h in holes):
+                return True
+    return False
+
+
 def look_valid(kind, look, version, since, ids):
     """Whether a made piece's look fits its request version: named by its donor from version `since` on (always), a
     look id of `ids` (or none) before it."""
@@ -636,7 +650,7 @@ class MadeEdits:
                          'section 10.2: free 1, x0 < x1, y0 < y1, z0 < z1, openings or holes inside, a whole seed, a look '
                          'of its kind; it has %r)' % (name, kind, n), **where)
             return False
-        if g['kind'] == 'fracSlab' and not made_split.slab_left(n):
+        if g['kind'] == 'fracSlab' and not free_slab_left(n):
             self.c.error('slab-all-holes', '%s: its holes leave none of it, so it is left out of the build' % name, **where)
             return False
         if 'blasts' in g:

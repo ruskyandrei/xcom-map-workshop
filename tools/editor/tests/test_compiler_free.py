@@ -72,6 +72,10 @@ class FreeFormTests(unittest.TestCase):
             self.assertIn('malformed', codes(report), bad)
         _, report = compiled([made(dict(SLAB, slab=dict(s, holes=[dict(x0=0.0, x1=150.5, y0=-10.0, y1=96.0)])))])
         self.assertIn('slab-all-holes', codes(report))
+        # (two holes leaving a strip 0.5 wide between them leave some of it; tile centres would say none)
+        strip = dict(s, holes=[dict(x0=0.0, x1=75.0, y0=-10.0, y1=96.0), dict(x0=75.5, x1=150.5, y0=-10.0, y1=96.0)])
+        self.assertTrue(made_edits.free_slab_left(strip))
+        self.assertFalse(made_edits.free_slab_left(dict(strip, holes=strip['holes'] + [dict(x0=74.0, x1=76.0, y0=-10.0, y1=96.0)])))
         g = BLOCK['ground']
         for bad in (dict(g, shape='dome'), dict(g, height=64.0), dict(g, points=[[0, 0, 0]]),
                     dict(g, shape='rock', seed=-1)):
