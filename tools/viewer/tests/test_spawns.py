@@ -8,6 +8,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import spawns  # noqa: E402
 import settings  # noqa: E402
+from viewer_fixtures import same_place  # noqa: E402
 
 BAR_1 = 'LZArray=(MapName="URB_Bar",ESpawnLoc=ESL_Normal,StartLoc=(X=719,Y=-1681,Z=64),StartDir=ELZD_North)'
 ABDUCTION = ('LZArray=(MapName="EWI_MeldTutorial",MissionType=eMission_Abduction,ESpawnLoc=ESL_Normal,'
@@ -89,8 +90,8 @@ class Places(unittest.TestCase):
         self.assertEqual(yaw, 0)
         self.assertTrue(all(abs(a - b) <= 2 for a, b in zip(frame, (720, -1680, 0))))
         own = spawns.zone_of_frame((720, -1680, 0), 0)
-        self.assertTrue(spawns.same_place(own, zone))
-        self.assertFalse(spawns.same_place(own, dict(zone, direction='east')))
+        self.assertTrue(same_place(own, zone))
+        self.assertFalse(same_place(own, dict(zone, direction='east')))
         self.assertEqual(spawns.ground(zone), 0)
 
     def test_offsets_turn_with_the_direction(self):
@@ -146,7 +147,7 @@ class Export22(unittest.TestCase):
             want = at['soldiers'][int(a['role'][-1]) - 1][0] if a['role'].startswith('soldier') else at[a['role']][0]
             self.assertTrue(all(abs(x - y) <= 2.5 for x, y in zip(a['location'], want)), (a['role'], a['location'], want))
         own = spawns.own_landings(dict(landings=landings))
-        self.assertTrue(spawns.same_place(own[0]['zone'], zone))
+        self.assertTrue(same_place(own[0]['zone'], zone))
 
     def test_the_farms_three_landings_in_the_games_order(self):
         import scene_metadata
