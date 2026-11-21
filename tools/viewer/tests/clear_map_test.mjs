@@ -144,6 +144,18 @@ for (const off of [[3, -5, 38], [-4, 5, 70], [32, 0, 0], [0, -384, 16]]) {
   assert.ok(!landingUnmoved({ ...own.zone, direction: 'east' }, own));
   assert.ok(!landingUnmoved({ ...own.zone, kind: 'inside' }, own));
 }
+// A zone dragged keeps its own height, moved by whole storeys (the police station's lines and own landing stand at 64,
+// their ground 48 over the grid's first level, -48): only a zone saved under the grid comes onto its nearest level
+const { draggedHeight } = await import('../web/spawns.js');
+assert.equal(draggedHeight(63.99999141531498, 0, -48), 63.99999141531498);
+assert.equal(draggedHeight(64, 64, -48), 128);
+assert.equal(draggedHeight(64, -64, -48), 16);      // (a storey down is under the grid: onto its first level)
+assert.equal(draggedHeight(128, -64, -48), 64);
+assert.equal(draggedHeight(79, 0, -48), 79);
+assert.equal(draggedHeight(64, 0, null), 64);
+assert.equal(draggedHeight(48, 0, 0), 64);          // the tutorial's old zone, 16 under the grid
+assert.equal(draggedHeight(48, 64, 0), 112);        // (moved up a storey: in the grid, its own height kept)
+assert.equal(draggedHeight(63.5, 0, 0), 63.5);      // a unit's slack under the bottom
 const shifted = { ...intro.zone, location: [intro.zone.location[0] + 96, intro.zone.location[1], intro.zone.location[2]] };
 assert.deepEqual(soldierSpots(shifted, intro), place2(shifted).soldiers);
 

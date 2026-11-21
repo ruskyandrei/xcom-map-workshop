@@ -28,8 +28,8 @@ import { tileCorner } from './map_grid.js';
 import { zoneServes } from './missions.js';
 import { uuid } from './project.js';
 import { showMapMenu } from './scene_start.js';
-import { DIRECTIONS as ZONE_DIRECTIONS, evacBox, explicitEw, GROUND as ZONE_GROUND, groundOf, landingUnmoved,
-         ownLandings, ownSlots, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
+import { DIRECTIONS as ZONE_DIRECTIONS, draggedHeight, evacBox, explicitEw, groundOf, landingUnmoved, ownLandings,
+         ownSlots, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
 import { remember } from './storage.js';
 import { plural } from './dom_words.js';
 import { gameToView } from './handles.js';
@@ -270,11 +270,8 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
       const p = zoneProxy.position, dx = Math.round((p.x - d.at.x) / TILE) * TILE, dz = Math.round((p.z - d.at.z) / TILE) * TILE,
             dy = Math.round((p.y - d.at.y) / LEVEL) * LEVEL;
       p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
-      // the zone's ground lands on a level of the grid: a zone saved off the levels (the tutorial's, fitted before the
-      // ground was snapped: 16 under the grid) comes onto one with its first move
-      const l = d.from.location, oz = data.tileGrid?.origin?.[2] ?? 0, ground = l[2] - ZONE_GROUND + dy;
-      const level = Math.round(oz + Math.round((ground - oz) / LEVEL) * LEVEL) + ZONE_GROUND;
-      const z = data.tileGrid && Math.abs(level - (l[2] + dy)) >= 1 ? level : l[2] + dy;
+      // the zone keeps its own height, moved by whole storeys; one saved under the grid comes onto it (draggedHeight)
+      const l = d.from.location, z = draggedHeight(l[2], dy, data.tileGrid?.origin?.[2] ?? null);
       d.change = dx || dy || dz ? { location: [l[0] + dx, l[1] + dz, z] } : null;
     } else {
       // a turn about the view's up is the opposite turn of the game's yaw (the view's basis is x, up, y)

@@ -2,7 +2,7 @@
 // actors, by the offsets of LWR's landing-zone mutator (XComLZMutator), and the project's starting list made from the
 // map's own landings and the install's lines. tools/viewer/spawns.py has the same rules for the compiler and the
 // Build; game units, x and y across, z up.
-import { QUARTER } from './constants.js';
+import { LEVEL, QUARTER } from './constants.js';
 
 export const DIRECTIONS = ['north', 'east', 'south', 'west'];
 export const GROUND = 64, INSIDE_BACK = 288;
@@ -33,6 +33,16 @@ export function place(zone) {
   return out;
 }
 export const groundOf = zone => Number(zone.location[2]) - GROUND;
+/** A zone's height after the gizmo moves it `dy` up (whole storeys) on a grid whose box starts at `bottom` (null
+ *  without a grid): its own height moved by dy, so a zone keeps the ground the map or LWR's line gives it (the police
+ *  station's floors and lines stand 48 over its grid's first level); only a zone saved under the grid (the
+ *  tutorial's, fitted before fitZone put a fitted ground on the grid: 16 under it) comes onto the grid's nearest
+ *  level. */
+export function draggedHeight(z, dy, bottom = null) {
+  const moved = Number(z) + dy, ground = moved - GROUND;
+  if (bottom === null || bottom === undefined || ground >= bottom - 1) return moved;
+  return Math.round(bottom + Math.round((ground - bottom) / LEVEL) * LEVEL) + GROUND;
+}
 /** The evac zone's box [x0, y0, z0, x1, y1, z1], about the volume's place, turned by the zone. */
 export function evacBox(zone) {
   const { location: [x, y, z], yaw } = place(zone).volume;
