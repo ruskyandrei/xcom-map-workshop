@@ -29,7 +29,9 @@ The made pieces' other paths (the refactor's follow-ups, item 4.6), each a check
   along it (the snap off: by what was dragged), one undo step; Escape lets it go.
 - room-buttons (the police station, its ground): a room drawn from the Build menu and picked whole: Lower and Taller
   step all its walls a storey, the walls' Choose... gives them a look from the picker and Plain takes it back; a room
-  with a roof has no Lower or Taller, and its roof's Choose... and Plain do the same; each one undo step."""
+  with a roof has no Lower or Taller, and its roof's Choose... and Plain do the same; each one undo step. Its walls
+  given the look of one of the map's walls, with the walls' catalogue then forgotten and its read refused, the Room
+  section names the look by the donor's mesh, as a wall's own Wall section does once the room is ungrouped."""
 import json
 import math
 
@@ -809,9 +811,48 @@ def check_room_buttons(browser, url, open_viewer):
     assert page.evaluate('viewer.roomPicked().roof'), page.evaluate('viewer.roomPicked()')
     assert page.locator('#roomRoofLook').text_content() == 'Roof: no look chosen' and page.locator('#roomRoofPlain').is_disabled()
     out['roof'] = room_look(page, 'roomRoofChoose', 'roomRoofLook', 'slab', 'roomRoofPlain')
+    out['uncatalogued'] = room_uncatalogued(page)
     page.close()
     assert not errors, errors
     return out
+
+
+def room_uncatalogued(page):
+    """The picked room's walls given the look of a police station wall the walls' catalogue holds, then the catalogue
+    forgotten and its read refused: the Room section names the look by its donor's mesh, as a wall's own Wall section
+    does once the room is ungrouped (decision D6 of the follow-ups; it said "made from numbers" before)."""
+    found = page.evaluate("""async () => {
+      window.looksModule = await import('/looks.js');
+      await looksModule.loadLooks('wall');
+      for (const o of viewer.data.objects) {
+        const name = viewer.data.meshes[o.mesh]?.name, entry = name && looksModule.entryForPiece('wall', name);
+        if (entry) return { actor: o.actor, mesh: name, name: entry.name };
+      }
+      return null; }""")
+    assert found, 'no wall of the map in the walls\' catalogue'
+    old = page.evaluate('viewer.roomPicked()')
+    page.evaluate("""([id, f]) => viewer.setMadeLook(id, 'wall', looksModule.lookFromEntry('wall', looksModule.entryForPiece('wall', f.mesh),
+                                                                                      { package: viewer.mapId, actor: f.actor }))""",
+                  [old['walls'][0], found])
+    page.wait_for_function("([o, want]) => { const r = viewer.roomPicked(); return r && JSON.stringify(r) !== JSON.stringify(o)"
+                           " && document.getElementById('roomWallsLook').textContent === want; }",
+                           arg=[old, f"Walls: {found['name']}"], timeout=90000)
+    walls = page.evaluate('viewer.roomPicked()')['walls']
+    page.route('**/looks/walls.json', lambda route: route.abort())
+    page.evaluate('looksModule.forgetLooks()')
+    page.evaluate('viewer.select(null)')
+    page.evaluate('id => viewer.select(id)', walls[0])
+    page.wait_for_selector('#roomBox:not([hidden])')
+    mesh = found['mesh'].split('.')[-1]
+    words = page.locator('#roomWallsLook').text_content()
+    key(page, 'Control+Shift+g')
+    page.wait_for_function('!viewer.roomPicked()', timeout=30000)
+    page.evaluate('id => viewer.select(id)', walls[0])
+    page.wait_for_selector('#wallBox:not([hidden])')
+    head = page.locator('#wallHead').text_content()
+    page.unroute('**/looks/walls.json')
+    assert (words, head) == (f'Walls: {mesh}', f'Wall {DOT} {mesh}'), (words, head)
+    return dict(mesh=found['mesh'], room=words, wall=head)
 
 
 if __name__ == '__main__':

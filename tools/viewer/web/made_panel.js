@@ -30,9 +30,12 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
                                   madeWallRoot, openLookPicker, originalOf, plainLook, selectionGroup, setMadeLook,
                                   setWall, wallLookOf, wallPiecesWords, wallState }) {
   // ---- the piece panel's Wall section
+  // A made wall's look name, in its Wall section and its room's: its look's, its catalogue entry's or its donor's mesh's
+  const wallLookName = o => madeLookName(wallLookOf(o), catalogued('wall', o.added.generated.wall?.look),
+                                         data.meshes[originalOf(o)?.mesh]?.name);
   function wallPanel(root) {
     const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);
-    const lookName = madeLookName(look, catalogued('wall', w?.look), data.meshes[originalOf(o)?.mesh]?.name);
+    const lookName = wallLookName(o);
     $('wallHead').textContent = `Wall · ${isPlain(g) ? 'plain' : lookName}`;
     lookRow('wall', g, lookName, tool);
     $('wallState').textContent = tool ? wallWords(w) : `${Math.round(w.x1 - w.x0)} long, made elsewhere: no handles here`;
@@ -165,7 +168,7 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
   function rootLookName(root) {
     const o = root.userData.source, g = o.added.generated;
     if (isPlain(g)) return null;
-    if (g.kind === 'fracWall') return madeLookName(wallLookOf(o), catalogued('wall', g.wall?.look));
+    if (g.kind === 'fracWall') return wallLookName(o);
     if (g.kind === 'fracSlab') return madeLookName(slabLookOf(g.slab));
     return madeLookName(groundLookOf(g.ground));
   }
