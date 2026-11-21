@@ -323,6 +323,50 @@ def stub_scene(calls):
     return Stub
 
 
+class SceneCounts(unittest.TestCase):
+    """A Scene's counts go into every piece's report, which the piece cache keeps as JSON text in its .npz: the same
+    materials give the same text (follow-ups item 3.10: `albedoSources` was built over a set, whose order changes
+    with each process's string hashing, so two identical Builds kept different .npz bytes)."""
+    NOTES = ['fallback', 'diffuse texture', 'constant colour', 'BLEND_Translucent', 'BLEND_Additive',
+             'fallback (KeyError)', 'fallback (ValueError)', 'fallback (IndexError)']
+
+    def scene(self, notes):
+        class Albedo:
+            def __init__(self, p):
+                self.notes = dict(notes)
+
+            def transmits(self, material):
+                return False
+
+            def __call__(self, material):
+                return np.full(3, 0.5)
+
+        class Package:
+            exports = [None]
+
+            def name(self, i):
+                return 'TheWorld.PersistentLevel.Floor_1.StaticMeshComponent_0'
+
+        tris = np.zeros((len(notes), 3, 3))
+        owners = np.ones(len(notes), np.int32)
+        mats = np.array([m for m, _ in notes], np.int32)
+        with mock.patch.object(relight, 'world_lightmass_settings', return_value={}), \
+                mock.patch.object(relight.shadows, 'caster_triangles', return_value=(tris, owners, mats)), \
+                mock.patch.object(relight.shadows, 'Occluder', lambda triangles: None), \
+                mock.patch('albedo.Albedo', Albedo):
+            return relight.Scene(Package(), lights=[])
+
+    def test_the_albedo_sources_are_written_in_one_order_whatever_the_notes_order(self):
+        notes = [(m + 1, note) for m, note in enumerate(self.NOTES * 2)]
+        texts = set()
+        for order in (notes, notes[::-1], notes[1::2] + notes[::2]):
+            counts = self.scene(order).describe()['albedoSources']
+            self.assertEqual(list(counts), sorted(self.NOTES))
+            self.assertEqual(set(counts.values()), {2})
+            texts.add(json.dumps(self.scene(order).describe()))
+        self.assertEqual(len(texts), 1)
+
+
 @unittest.skipUnless(BAR and BAR.exists() and (BAR.parent / 'Lighting.tfc').exists(), NO_BAR + ' (with Lighting.tfc)')
 class RelightLightEdits(unittest.TestCase):
     """relight.py --light-edits on the bar itself standing in for a grown map (a change of a light the map has),
