@@ -80,7 +80,7 @@ import { copyText, field, plural, segButton, segmented, short, text } from './do
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createMapLighting } from './lighting.js';
 import { COVER_KIND } from './cover.js';
-import { TILE } from './constants.js';
+import { PL, TILE } from './constants.js';
 import { loadLooks, lookTags } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 
@@ -296,7 +296,6 @@ const { align, alignPanel, saveAlignPrefs } = createAlign({
   keepRecipe: (move, parts) => keepRecipe(move, parts) });
 
 // The Lights view's switches read from its storage keys (lights_wiring.js's; the view is made below).
-const PL = 'TheWorld.PersistentLevel.';
 setAreaShown(recall(AREA_SHOWN) === '1');     // (lightsShown, areaShown: editor_state.js)
 setReachShown(recall(REACH_SHOWN) === '1');   // the selected light's reach outlined (View options; off at first)
 // The drag handles' helpers (handles.js): screen positions of points in the view (projector) and how far along a line
