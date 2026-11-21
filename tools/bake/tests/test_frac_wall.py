@@ -437,6 +437,320 @@ class Gaps(unittest.TestCase):
             frac_wall.build(dict(CUSTOM, openings=[dict(x0=0.0, x1=384.0, z0=-16.0, z1=384.0)]))
 
 
+def sound(test, out):
+    """The checks every wall's mesh passes, on a built wall `out`: each fragment closed, the neighbours mutual, every
+    triangle facing out, the lightmap coordinates in the square, the mesh written and read back."""
+    m = out['mesh']
+    edges = {}
+    for _, f, tri, _ in triangles(m):
+        tri = [tuple(round(c, 3) for c in p) for p in tri]
+        e = edges.setdefault(f, Counter())
+        for a, b in ((0, 1), (1, 2), (2, 0)):
+            e[tri[a], tri[b]] += 1
+    test.assertEqual(len(edges), len(m['fractured']['fragments']))
+    for f, e in edges.items():
+        test.assertEqual([k for k, c in e.items() if e.get((k[1], k[0]), 0) != c], [], 'fragment %d' % f)
+    nb = [g['neighbours'] for g in m['fractured']['fragments']]
+    for f, row in enumerate(nb):
+        for g in row:
+            if g >= 0:
+                test.assertIn(f, nb[g])
+    vertices = m['lods'][0]['vertices']
+    for slot, f, (a, b, c), first in triangles(m):
+        n = [(x - 127.5) / 127.5 for x in vertices[first][1][:3]]
+        test.assertLess(sum(x * y for x, y in zip(cross(sub(b, a), sub(c, a)), n)), 1e-6, (slot, f))
+    test.assertTrue(all(0.0 <= u <= 1.0 and 0.0 <= v <= 1.0 for u, v in (v[2][1] for v in vertices)))
+    b = gen_mesh.write(dict(m, bodySetup=0), 4000)
+    again = gen_mesh.read_native(bytes(4000) + b, 4000, 4000 + len(b), fractured=True)
+    test.assertEqual(gen_mesh.write(again, 4000), b)
+
+
+def positions(out):
+    return out['mesh']['lods'][0]['positions']
+
+
+class FreeForm(unittest.TestCase):
+    """(Custom geometry improvements plan, stage 2) Walls in the free form (`free: 1`): any extents, faces, bottom and
+    top, a band of a tall stretched wall, cells from a hashed lattice, leaning (mitred) ends, gaps anywhere."""
+    BAR_LOOK = dict(free=1, x0=13.25, x1=157.5, y0=-20.0, y1=5.0, z0=0.0, z1=217.25, seed=3,
+                    openings=[dict(x0=50.75, x1=88.5, z0=0.0, z1=150.0)])
+
+    @classmethod
+    def setUpClass(cls):
+        import looks
+        cls.look = looks.resolve('wall', dict(mesh='AbductorExtWall.Meshes.AbductorExtWallA_FRACTURED', measure=1))
+
+    def walls(self):
+        return {
+            'fractional': self.BAR_LOOK,
+            'own size': dict(free=1, x0=0.0, x1=384.0, seed=2),
+            'taller': dict(free=1, x0=0.0, x1=500.0, z0=-16.0, z1=700.0, seed=4),
+            'lower': dict(free=1, x0=-100.0, x1=300.0, z0=-16.0, z1=300.0, seed=4),
+            'band': dict(free=1, x0=0.0, x1=500.0, z0=-16.0, z1=1184.0, band=[384.0, 784.0], seed=4, tall='stretch'),
+            'measured lower': dict(free=1, x0=0.0, x1=480.0, z0=0.0, z1=300.0, look=self.look, seed=5),
+            'measured thick': dict(free=1, x0=0.0, x1=480.0, z0=0.0, z1=500.0, y0=-30.0, y1=12.0, look=self.look, seed=5),
+            'mitre 90': dict(free=1, x0=0.0, x1=384.0, seed=6, ends=[dict(inset=0.0, lean=-1.0), dict(inset=8.0, lean=1.0)]),
+            'mitre 45': dict(free=1, x0=0.0, x1=600.0, seed=6, ends=['free', dict(inset=0.0, lean=2.4142)],
+                             openings=[dict(x0=200.0, x1=300.0, z0=-16.0, z1=160.0)]),
+            'mitre cut through': dict(free=1, x0=0.0, x1=600.0, seed=6, ends=['line', dict(inset=0.0, lean=1.0)],
+                                      openings=[dict(x0=450.0, x1=600.0, z0=-16.0, z1=160.0)]),
+            'short mitred both ends': dict(free=1, x0=0.0, x1=120.0, seed=6,
+                                           ends=[dict(inset=0.0, lean=1.0), dict(inset=0.0, lean=-1.0)]),
+            'measured mitre': dict(free=1, x0=0.0, x1=480.0, look=self.look, seed=5, ends=[dict(inset=-3.0, lean=0.4142),
+                                                                                          'line']),
+        }
+
+    def test_free_walls_are_sound(self):
+        for name, wall in self.walls().items():
+            with self.subTest(name):
+                sound(self, built(wall))
+
+    def test_its_extents_are_its_numbers(self):
+        out = built(self.BAR_LOOK)
+        xs, ys, zs = zip(*positions(out))
+        inset = frac_wall.RECIPE['endInset']
+        self.assertAlmostEqual(min(xs), 13.25 + inset, 3)
+        self.assertAlmostEqual(max(xs), 157.5 - inset, 3)
+        self.assertEqual((min(zs), max(zs)), (0.0, 217.25))
+        # the faces at y0 and y1, the trims as proud of them as the look's (3 at the skirting, 4 at the cornice)
+        self.assertEqual((min(ys), max(ys)), (-24.0, 9.0))
+        lod = out['mesh']['lods'][0]
+        R = frac_wall.RECIPE
+        for slots, y in ((R['slots']['sideA'], 5.0), (R['slots']['sideB'], -20.0)):
+            face = [pos for _, _, tri, _ in triangles(out['mesh']) for pos in tri
+                    if all(abs(p[1] - y) < 1e-3 for p in tri)]
+            self.assertTrue(face, y)
+        self.assertEqual({(lo[1], hi[1]) for lo, hi in out['solids']}, {(-20.0, 5.0)})
+        self.assertEqual(frac_wall.solid_box(self.BAR_LOOK), [21.25, 149.5, -24.0, 9.0, 0.0, 217.25])
+        # the gap: nothing stands in it
+        for _, _, tri, _ in triangles(out['mesh']):
+            cx, cz = sum(p[0] for p in tri) / 3, sum(p[2] for p in tri) / 3
+            self.assertFalse(51.25 < cx < 88.0 and cz < 149.5)
+        self.assertEqual(len(lod['sections']), 6)
+
+    def test_a_height_between_storeys_keeps_the_looks_bands(self):
+        for z1 in (300.0, 450.0, 700.0):
+            out = built(dict(free=1, x0=0.0, x1=384.0, z0=-16.0, z1=z1, seed=4))
+            zs = {round(p[2], 3) for p in positions(out)}
+            self.assertEqual((min(zs), max(zs)), (-16.0, z1))
+            # the cornice still 12 tall at the top (its foot 12 under it), the skirting 28 at the bottom
+            self.assertTrue({z1 - 12.0, z1 - 10.0, 12.0, 9.0, 0.0} <= zs, z1)
+        for z1 in (250.0, 500.0):
+            out = built(dict(free=1, x0=0.0, x1=480.0, z0=0.0, z1=z1, look=self.look, seed=5))
+            zs = [p[2] for p in positions(out)]
+            self.assertAlmostEqual(max(zs), z1, 3)
+            self.assertEqual(min(zs), 0.0)
+
+    def test_a_band_is_a_window_of_the_stretched_wall(self):
+        R = frac_wall.RECIPE
+        tall = dict(free=1, x0=0.0, x1=500.0, z0=-16.0, z1=1184.0, seed=4, tall='stretch')
+        for band, skirting, cornice in (([-16.0, 384.0], True, False), ([384.0, 784.0], False, False),
+                                        ([784.0, 1184.0], False, True)):
+            out = built(dict(tall, band=band))
+            zs = [p[2] for p in positions(out)]
+            self.assertEqual((min(zs), max(zs)), tuple(band))
+            # a trim strip (a trim triangle not level) only where the band holds the skirting or the cornice
+            strips = [tri for slot, _, tri, _ in triangles(out['mesh'])
+                      if slot == R['slots']['trim'] and max(p[2] for p in tri) - min(p[2] for p in tri) > 1e-3]
+            self.assertEqual(any(max(p[2] for p in t) < 20 for t in strips), skirting, band)
+            self.assertEqual(any(min(p[2] for p in t) > 1100 for t in strips), cornice, band)
+
+    def test_cells_stay_put_when_an_end_moves(self):
+        # the seeds come from a lattice counted from the frame's origin: dragging an end changes the cells near it only
+        def boxes(wall, keep):
+            return {tuple(round(v, 3) for v in f['box']) for f in built(wall)['fragments'] if keep(f['box'])}
+        base = dict(free=1, x0=0.0, x1=1000.0, seed=7)
+        far = boxes(base, lambda b: b[1] < 800.0)
+        self.assertGreater(len(far), 20)
+        self.assertEqual(boxes(dict(base, x1=1062.5), lambda b: b[1] < 800.0), far)
+        self.assertEqual(boxes(dict(base, x1=937.25), lambda b: b[1] < 800.0), far)
+        near = boxes(base, lambda b: b[0] > 200.0)
+        self.assertEqual(boxes(dict(base, x0=-71.5), lambda b: b[0] > 200.0), near)
+        self.assertEqual(boxes(dict(base, z1=500.0), lambda b: b[5] < 300.0), boxes(base, lambda b: b[5] < 300.0))
+        self.assertNotEqual(boxes(dict(base, seed=8), lambda b: b[1] < 800.0), far)
+
+    def test_a_piece_reads_the_wholes_lattice(self):
+        # a piece of a split wall (its origin along the whole 400, up it 0) has the whole's cells where it is
+        whole = {tuple(round(v, 3) for v in f['box']) for f in built(dict(free=1, x0=0.0, x1=1000.0, seed=7))['fragments']}
+        # (the place along from the whole's x0, its x0 the fifth number: -50 + 450 is the same origin, 400)
+        for place in ([400.0, 1000.0, 0.0, 400.0], [450.0, 1050.0, 0.0, 400.0, -50.0]):
+            piece = built(dict(free=1, x0=0.0, x1=500.0, seed=7, whole=place))['fragments']
+            inner = [f['box'] for f in piece if f['box'][0] > 150.0 and f['box'][1] < 350.0]
+            self.assertGreater(len(inner), 3)
+            for b in inner:
+                self.assertIn(tuple(round(v, 3) for v in (b[0] + 400.0, b[1] + 400.0) + tuple(b[2:])), whole)
+
+    def check_mitre(self, wall, end, lean):
+        """The end `end` of `wall` leans `lean`: every corner on its plane or clear of its reach, the faces' texture read
+        at the moved place, its collision a hull leaning as it does."""
+        out = built(wall)
+        R = frac_wall.shaped(wall)
+        solid = frac_wall.solid_wall(wall, R)
+        xe = solid['x1' if end else 'x0']
+        reach = abs(lean) * frac_wall.reach_of(R)
+        sign = 1 if end else -1
+        on = 0
+        for x, y, z in positions(out):
+            d = sign * (x - (xe + lean * y))
+            self.assertLess(d, 1e-3, (x, y, z))             # nothing past the plane
+            if abs(d) < 1e-3:
+                on += 1
+            else:
+                # a corner not on the end is where it was built: further in from the end than the end's reach
+                self.assertGreater(-sign * (x - xe), reach, (x, y, z))
+        self.assertGreater(on, 10)
+        # side A's face corners on the plane: u = x / 192 + 0.5 at the moved x (the look's face texture), whole repeats
+        # aside (each face's held near 0)
+        lod = out['mesh']['lods'][0]
+        Rl = frac_wall.RECIPE
+        checked = 0
+        for (x, y, z), v in zip(lod['positions'], lod['vertices']):
+            if abs(y - Rl['half']) < 1e-3 and v[1][1] > 250 and 13 < z < 371 and abs(x - (xe + lean * y)) < 1e-3:
+                d = v[2][0][0] - (x / Rl['faceRepeat'] + Rl['faceU'])
+                self.assertLess(abs(d - round(d)), 0.01, (x, y, z))
+                checked += 1
+        self.assertGreater(checked, 1)
+        hulls = [s for s in out['solids'] if isinstance(s, dict)]
+        self.assertEqual(len(hulls), 1)
+        lo, hi = R['collisionY']
+        xs = sorted({round(v[0], 3) for v in hulls[0]['VertexData']})
+        for y in (lo, hi):
+            self.assertTrue(any(abs(x - (xe + lean * y)) < 0.01 for x in xs), (y, xs))
+
+    def test_a_mitred_end_leans_on_its_plane(self):
+        # a right angle's mitre (45 degrees across the wall), a 45-degree corner's and a 135-degree corner's
+        for lean in (1.0, -1.0, 1.0 / math.tan(math.radians(22.5)), math.tan(math.radians(22.5))):
+            with self.subTest(lean=lean):
+                wall = dict(free=1, x0=0.0, x1=600.0, seed=6, ends=['free', dict(inset=0.0, lean=lean)],
+                            openings=[dict(x0=200.0, x1=300.0, z0=-16.0, z1=160.0)])
+                sound(self, built(wall))
+                self.check_mitre(wall, 1, lean)
+                wall = dict(free=1, x0=-50.0, x1=500.0, seed=9, ends=[dict(inset=4.0, lean=lean), 'line'])
+                sound(self, built(wall))
+                self.check_mitre(wall, 0, lean)
+
+    def test_a_lean_is_clamped_at_the_sharpest_corner(self):
+        wall = dict(free=1, x0=0.0, x1=800.0, seed=6, ends=['free', dict(inset=0.0, lean=20.0)])
+        self.assertEqual(frac_wall.solid_wall(wall)['lean'], [0.0, frac_wall.MAX_LEAN])
+        self.check_mitre(wall, 1, frac_wall.MAX_LEAN)
+
+    def test_a_gap_keeps_clear_of_a_leaning_end_unless_cut_through(self):
+        end = dict(inset=0.0, lean=1.0)
+        for gap in (dict(x0=500.0, x1=590.0, z0=-16.0, z1=160.0), dict(x0=590.0, x1=600.0, z0=-16.0, z1=160.0)):
+            with self.assertRaisesRegex(ValueError, 'leaning end'):
+                frac_wall.build(dict(free=1, x0=0.0, x1=600.0, seed=6, ends=['free', end], openings=[gap]))
+        # cut through to the end, from clear of its reach: built
+        wall = dict(free=1, x0=0.0, x1=600.0, seed=6, ends=['free', end], openings=[dict(x0=450.0, x1=600.0, z0=-16.0, z1=160.0)])
+        sound(self, built(wall))
+        self.check_mitre(wall, 1, 1.0)
+
+    def test_a_gap_may_reach_a_free_end(self):
+        out = built(dict(free=1, x0=0.0, x1=384.0, seed=6, openings=[dict(x0=0.0, x1=100.0, z0=-16.0, z1=160.0)]))
+        for _, _, tri, _ in triangles(out['mesh']):
+            self.assertFalse(sum(p[0] for p in tri) / 3 < 99.5 and sum(p[2] for p in tri) / 3 < 159.5)
+
+    def test_a_far_pieces_texture_is_held_near_0(self):
+        # a piece 11,000 along a long wall: its faces' coordinates are the whole's less whole repeats, near 0 where the
+        # mesh's half floats keep them sharp (unheld, they would be over 100)
+        out = built(dict(free=1, x0=0.0, x1=1536.0, seed=3, whole=[11000.0, 12536.0, 0.0, 400.0, 0.0]))
+        uvs = [v[2][0] for v in out['mesh']['lods'][0]['vertices']]
+        self.assertLess(max(abs(c) for uv in uvs for c in uv), 10.0)
+
+    def test_the_box_holds_a_leaning_end(self):
+        wall = dict(free=1, x0=0.0, x1=600.0, seed=6, ends=[dict(inset=3.0, lean=-0.5), dict(inset=-2.0, lean=2.0)])
+        box = frac_wall.solid_box(wall)
+        self.assertEqual(box, [3.0 - 0.5 * 12.0, 602.0 + 2.0 * 12.0, -12.0, 12.0, -16.0, 384.0])
+        xs = [p[0] for p in positions(built(wall))]
+        self.assertAlmostEqual(min(xs), box[0], 3)
+        self.assertAlmostEqual(max(xs), box[1], 3)
+
+    def test_its_mapping_is_taken_and_not_used_yet(self):
+        mapping = dict(surfaces=dict(faces=dict(mode='size', u=96.0, v=96.0, turn=30.0)))
+        a, b = built(dict(self.BAR_LOOK)), built(dict(self.BAR_LOOK, mapping=mapping))
+        self.assertEqual(positions(a), positions(b))
+        self.assertEqual([v[2] for v in a['mesh']['lods'][0]['vertices']], [v[2] for v in b['mesh']['lods'][0]['vertices']])
+
+    def test_an_older_whole_is_read(self):
+        R = frac_wall.shaped(dict(free=1, x0=0.0, x1=300.0, whole=[100.0, 1000.0]))
+        self.assertEqual((R['uvShift'], frac_wall.whole_origin(dict(whole=[100.0, 1000.0]))), (100.0, (100.0, 0.0)))
+        self.assertEqual(frac_wall.whole_origin(dict(whole=[100.0, 1000.0, 400.0, 1200.0])), (100.0, 400.0))
+        sound(self, built(dict(free=1, x0=0.0, x1=300.0, whole=[100.0, 1000.0])))
+
+    def test_bad_free_numbers_are_refused_with_their_codes(self):
+        import free_form
+        base = dict(free=1, x0=0.0, x1=384.0, seed=2)
+        for bad, code in ((dict(base, x1=0.0), 'extent'), (dict(base, x1=float('nan')), 'number'),
+                          (dict(base, y0=8.0, y1=-8.0), 'extent'), (dict(base, z0=100.0, z1=100.0), 'extent'),
+                          (dict(base, x1='384'), 'number'), (dict(base, seed=True), 'number'),
+                          (dict(base, seed=1.5), 'number'), (dict(base, tall='grow'), 'tall'),
+                          (dict(base, band=[300.0, 500.0]), 'band'), (dict(base, band=[300.0]), 'band'),
+                          (dict(base, whole=[1.0, 2.0, 3.0]), 'whole'), (dict(base, whole=[1.0, 0.0, 3.0, 4.0]), 'whole'),
+                          (dict(base, mapping=[]), 'mapping'),
+                          (dict(base, openings=[dict(x0=300.0, x1=400.0, z0=0.0, z1=100.0)]), 'opening'),
+                          (dict(base, openings=[dict(x0=30.0, x1=40.0, z0=100.0, z1=100.0)]), 'opening'),
+                          (dict(base, ends=['free']), 'ends'), (dict(base, ends=['free', 'mitre']), 'ends'),
+                          (dict(base, ends=['free', dict(inset=0.0, lean=float('inf'))]), 'ends'),
+                          (dict(base, x1=10.0), 'ends'),
+                          (dict(base, ends=[dict(inset=0.0, lean=3.0), dict(inset=0.0, lean=-3.0)], x1=40.0), 'ends'),
+                          (dict(base, look=self.look, y0=-1.0, y1=1.0), 'thickness'),
+                          (dict(base, ends=['free', dict(inset=0.0, lean=1.0)],
+                                openings=[dict(x0=300.0, x1=375.0, z0=0.0, z1=100.0)]), 'lean'),
+                          (dict(base, free=0), 'free'), (dict(x0=0.0, x1=384.0), 'free')):
+            with self.subTest(bad=bad):
+                with self.assertRaises(free_form.NumbersError) as caught:
+                    frac_wall.check_free(bad)
+                self.assertEqual(caught.exception.code, code, caught.exception)
+        with self.assertRaisesRegex(ValueError, 'not listed'):
+            frac_wall.check_free(dict(base, look='marble'))
+        self.assertIs(frac_wall.check_free(base), base)
+
+
+class OldNumbers(unittest.TestCase):
+    """Walls of the numbers before the free form (no `free`) build byte for byte as they did: each one's written mesh,
+    collision, fragment boxes, lightmap rectangle and counts hashed on the commit the free form started from (495bd26,
+    custom geometry improvements plan, stage 2), in the Bar's look and in two measured looks of the catalogue."""
+    HASHES = {
+        'twin': '5819ef1245bddb5d302e3202a5c429ce2537ee15d7001c84006e70f68a174bca',
+        'door-joined': '96d5bf1d4bec89827de3cabb57ac514a66a4c2fb5a6abb12f588e1509e02e42b',
+        'one-storey': 'edd2ea41b211cfd36e88bb9cd78b9a7b78e15ea625680a08a4a211547d14871b',
+        'piece': 'a0fee819192d95d73a1ca8ca6fb78e45251ec5ebaa72e839a8fa559631ae9e84',
+        'measured': 'e8043db4e103b8c4ac1954a519a9e5acf125ed8f22e84b10aae6d96948dec7d3',
+        'measured-low': '8b01039a1d508e158b91679aa2dca27c756b91007804916bbb237e4d4eda5453',
+        'measured-piece': '68d5ba3e0685397cf2a85dcdb4fd0ec11c9b68958bf08ade1974bf278f7f4e74',
+    }
+    NAMES = {
+        'twin': 'FracWall_576_3150237b59', 'door-joined': 'FracWall_384_05325f00b0', 'one-storey': 'FracWall_384_234bb844af',
+        'piece': 'FracWall_384_ebb231afea', 'measured': 'FracWall_480_6edf0d8ebf', 'measured-low': 'FracWall_288_ace7ede1ff',
+        'measured-piece': 'FracWall_384_8470f2f96b',
+    }
+
+    @staticmethod
+    def walls():
+        import looks
+        T = 96.0
+        look = looks.resolve('wall', dict(mesh='AbductorExtWall.Meshes.AbductorExtWallA_FRACTURED', measure=1))
+        low = looks.resolve('wall', dict(mesh='BLDG_RoadHouse.Meshes.RHWallEast_FRACTURED', measure=1))
+        return {
+            'twin': TWIN,
+            'door-joined': dict(CUSTOM, ends=['through', 'line']),
+            'one-storey': dict(x0=0.0, x1=384.0, openings=[DOOR], seed=4, storeys=1),
+            'piece': dict(x0=0.0, x1=4 * T, openings=[], seed=2, whole=[7 * T, 20 * T]),
+            'measured': dict(x0=0.0, x1=5 * T, openings=[dict(x0=T, x1=2 * T, z0=0.0, z1=200.0)], seed=3, look=look),
+            'measured-low': dict(x0=0.0, x1=3 * T, openings=[], seed=5, look=low, storeys=1, ends=['free', 'through']),
+            'measured-piece': dict(x0=0.0, x1=4 * T, look=look, seed=3, whole=[5 * T, 12 * T]),
+        }
+
+    def test_old_walls_build_byte_for_byte(self):
+        import hashlib
+        for name, wall in self.walls().items():
+            with self.subTest(name):
+                out = built(wall)
+                mesh = gen_mesh.write(dict(out['mesh'], bodySetup=0), 0)
+                rest = repr((out['solids'], out['fragments'], out['lightmapRect'], out['counts'], out.get('whole')))
+                self.assertEqual(hashlib.sha256(mesh + rest.encode()).hexdigest(), self.HASHES[name])
+                self.assertEqual(frac_wall.mesh_name(wall), self.NAMES[name])
+
+
 class Donor(unittest.TestCase):
     """The recipe and the default template against the donor itself."""
 
