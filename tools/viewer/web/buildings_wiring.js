@@ -48,6 +48,7 @@ import { BUILDING_FLOORS_MAX, BUILDING_SAME, mapBuildingId, targetKey, tidyBuild
 import { boxWords } from './spawns_view.js';
 import { plural, short, text } from './dom_words.js';
 import { isStream } from './piece_records.js';
+import { gameToView } from './handles.js';
 
 export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenStorey, copySelection, deleteSelection,
                                         editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
@@ -459,8 +460,6 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     if (e) return spawnBoxNow(e);
     return pickBox && !volumesOn && !placing && pickDrag?.kind !== 'new' ? pickBox : null;
   };
-  // game point -> the view's
-  const viewPoint = ([x, y, z]) => new THREE.Vector3(x, z, y);
   function facePoint(box, key) {
     const [, axis, side] = FACES.find(f => f[0] === key), p = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2];
     p[axis] = side < 0 ? box[axis] : box[axis + 3];
@@ -470,7 +469,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   // an eighth of the camera's distance from the box's middle whatever the box's size.
   function handlePoint(box, key) {
     const [, axis, side] = FACES.find(f => f[0] === key), p = facePoint(box, key);
-    const centre = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2], d = camera.position.distanceTo(viewPoint(centre));
+    const centre = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2], d = camera.position.distanceTo(gameToView(centre));
     p[axis] = centre[axis] + side * Math.max((box[axis + 3] - box[axis]) / 2 + d * 0.035, d * 0.2);
     return p;
   }
@@ -481,16 +480,16 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     if (!volumeHandleLayer.visible) { if (volumeHover) hoverVolumeHandle(null); return; }
     const lit = volumeDrag?.key ?? pickDrag?.key ?? (pickDrag?.kind === 'move' ? 'move' : volumeHover), stems = volumeStems.geometry.attributes.position;
     if (pickBoxParts.move.visible) {
-      pickBoxParts.move.position.copy(viewPoint(pickMovePoint()));
+      pickBoxParts.move.position.copy(gameToView(pickMovePoint()));
       pickBoxParts.moveMaterial.color.setHex(lit === 'move' ? 0xffe27a : 0x96e5d7);
       scaleMarker(pickBoxParts.move, camera, pickBoxParts.move.position);
     }
     let n = 0;
     for (const [key, mesh] of volumeHandles) {
-      mesh.position.copy(viewPoint(handlePoint(box, key)));
+      mesh.position.copy(gameToView(handlePoint(box, key)));
       mesh.userData.material.color.setHex(key === lit ? 0xffe27a : 0xffffff);
       scaleMarker(mesh, camera, mesh.position);
-      const from = viewPoint(facePoint(box, key));
+      const from = gameToView(facePoint(box, key));
       stems.setXYZ(n++, from.x, from.y, from.z); stems.setXYZ(n++, mesh.position.x, mesh.position.y, mesh.position.z);
     }
     stems.needsUpdate = true;
@@ -499,7 +498,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     const box = handleBox();
     if (!box) return null;
     const project = projector();
-    return FACES.map(([key]) => { const s = project(viewPoint(handlePoint(box, key))); return s && { key, d: Math.hypot(s[0] - x, s[1] - y) }; })
+    return FACES.map(([key]) => { const s = project(gameToView(handlePoint(box, key))); return s && { key, d: Math.hypot(s[0] - x, s[1] - y) }; })
       .filter(c => c && c.d <= HANDLE_PICK + 2).sort((a, b) => a.d - b.d)[0]?.key ?? null;
   }
   function hoverVolumeHandle(key) {
@@ -512,7 +511,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   }
   // Where the pointer's ray comes nearest a line through `origin` along game axis `axis`: the coordinate on that axis.
   function alongAxis(clientX, clientY, origin, axis) {
-    const ray = rayAt(clientX, clientY).ray, o = viewPoint(origin), d = viewPoint([axis === 0 ? 1 : 0, axis === 1 ? 1 : 0, axis === 2 ? 1 : 0]);
+    const ray = rayAt(clientX, clientY).ray, o = gameToView(origin), d = gameToView([axis === 0 ? 1 : 0, axis === 1 ? 1 : 0, axis === 2 ? 1 : 0]);
     const w = o.clone().sub(ray.origin), b = d.dot(ray.direction), e = d.dot(w), f = ray.direction.dot(w), den = 1 - b * b;
     if (Math.abs(den) < 1e-6) return null;
     return origin[axis] + (b * f - e) / den;
@@ -557,11 +556,11 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
         if (seen.has(at)) continue;
         seen.add(at);
         const ring = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(
-          [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => viewPoint([x, y, s.z]))), near ? ringMaterials.near : ringMaterials.far);
+          [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => gameToView([x, y, s.z]))), near ? ringMaterials.near : ringMaterials.far);
         ring.raycast = () => {}; ring.renderOrder = 3; cursorRingLayer.add(ring);
         if (!near) continue;
         const label = new THREE.Sprite(ringLabel(`${s.floor} · ${Math.round(s.z)}`));
-        label.position.copy(viewPoint([x0, y0, s.z + 14])); label.scale.set(76, 38, 1); label.renderOrder = 4; label.raycast = () => {};
+        label.position.copy(gameToView([x0, y0, s.z + 14])); label.scale.set(76, 38, 1); label.renderOrder = 4; label.raycast = () => {};
         cursorRingLayer.add(label);
       }
     }
@@ -941,7 +940,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     const project = projector();
     let best = null;
     const near = (b, hit) => {
-      const corner = ([i, j, k]) => project(viewPoint([b[i * 3], b[1 + j * 3], b[2 + k * 3]]));
+      const corner = ([i, j, k]) => project(gameToView([b[i * 3], b[1 + j * 3], b[2 + k * 3]]));
       for (const [lo, hi] of BOX_EDGES) {
         const p = corner(lo), q = corner(hi);
         if (!p || !q) continue;
@@ -1070,7 +1069,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   const pickMovePoint = () => [(pickBox[0] + pickBox[3]) / 2, (pickBox[1] + pickBox[4]) / 2, (pickBox[2] + pickBox[5]) / 2];
   function pickMoveNear(x, y) {
     if (!pickBox || volumesOn || placing) return false;
-    const s = projector()(viewPoint(pickMovePoint()));
+    const s = projector()(gameToView(pickMovePoint()));
     return Boolean(s) && Math.hypot(s[0] - x, s[1] - y) <= HANDLE_PICK + 4;
   }
   // where the pointer's ray meets the level at height z (a point of the view: x, the height, y)
@@ -1184,6 +1183,6 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
            PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
            refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
            setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
-           takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint,
+           takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint,
            volumePanel };
 }

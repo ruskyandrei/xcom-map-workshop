@@ -62,7 +62,7 @@ import { createPrepare } from './prepare.js';
 import { checkHub, editChangedNow, runHub } from './edit_hub.js';
 import { createSelection, rootName, selectionWords } from './selection.js';
 import { createViews } from './views.js';
-import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
+import { createHandles, HANDLE_PICK } from './handles.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { createTestApi } from './test_api.js';
 import { createNavigation, RECIPE_NOTE } from './navigation.js';
@@ -617,7 +617,7 @@ const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, 
         spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnLayerReady,
         spawnMovable, spawnPanel, spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects,
         syncSpawnFilters, syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
-  $, camera, controls, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission, headerMissions,
+  $, camera, controls, flashHint, floorStays, gizmo, groundHeight, headerMission, headerMissions,
   landingLayer, movedMatrix, pick, projectsAvailable, rayAt, renderer, restingHint, setLightsShown, tileCorner, world,
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
@@ -649,7 +649,7 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
         placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,
         stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
         zoneSoldiers, zoneState } = createZonesWiring({
-  $, banner, camera, controls, editChanged, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission,
+  $, banner, camera, controls, editChanged, flashHint, floorStays, gizmo, groundHeight, headerMission,
   isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, projectChanged, projectsAvailable, rayAt,
   refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer, restingHint, setEffectsShown,
   setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
@@ -664,7 +664,7 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
         PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
         refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
         setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
-        takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint,
+        takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint,
         volumePanel } = createBuildingsWiring({
   $, boxOf, builderBounds, camera, chosenStorey, editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
   editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, lightViewOnly, missionGizmo, pick,
@@ -894,7 +894,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
     clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
     deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn, editSpawnCopy, editState, effectNow, effectShapes,
-    effectViewOnly, FACES, fileDialog, floorData, frame, gameToView, ghostLikenesses, gizmo, goTo, grid, gridHandleAt,
+    effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grid, gridHandleAt,
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
@@ -910,7 +910,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     setVolumeTool, setZones, setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
     spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer, spawnVolumeHandle, startBuild,
     startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, streamObjects, sun,
-    syncSpawnFilters, takePickBox, updateTileGrid, viewPoint, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
+    syncSpawnFilters, takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
     world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
   // every refresh the edit hub's runs list is registered by now (edit_hub.js): a lost one fails here, not silently
   checkHub();

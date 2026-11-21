@@ -10,8 +10,8 @@
 import * as THREE from 'three';
 
 export const HANDLE_PICK = 10;
-// A game point (x, y, z) as a point of the view, whose basis is x, up, y (the Spawns and Landing zones views and the
-// test hooks)
+// A game point (x, y, z) as a point of the view, whose basis is x, up, y (the Buildings, Spawns and Landing zones views
+// and the test hooks)
 export const gameToView = p => new THREE.Vector3(p[0], p[2], p[1]);
 
 export function createHandles({ camera, rayAt, renderer }) {

@@ -23,6 +23,7 @@ import { api as prefabApi } from './prefabs.js';
 import { stateKey } from './project.js';
 import { ownLandings } from './spawns.js';
 import { spawnKey } from './spawns_view.js';
+import { gameToView } from './handles.js';
 
 export function createTestApi({ $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState,
                                 bombHelperFix, boxOf, BUILD_TOOLS, builderDocument, builderRecords,
@@ -30,30 +31,36 @@ export function createTestApi({ $, addVolumes, addWallOpening, allBuildings, app
                                 closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint,
                                 coverRecipe, deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn,
                                 editSpawnCopy, editState, effectNow, effectShapes, effectViewOnly, FACES, fileDialog,
-                                floorData, frame, gameToView, ghostLikenesses, gizmo, goTo, grid, gridHandleAt,
-                                gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint,
-                                handleWall, headerMissions, hemisphere, highlight, isPlain, keepRecovery, ladderMarks,
-                                ladderNow, landingLayer, libraryTemplate, lightPanel, lightRecords, lightShapes,
-                                likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
-                                memberOf, missionGizmo, missionProxy, missionsPanel, movedLandingActors,
-                                moveMissionGroup, newBuilding, openLookPicker, openPrefabDocument, outsideBox,
-                                ownVolumeLayer, pasteSnapshot, pasteVolumes, pick, pickables, pickBoxEdge, pickEffect,
-                                pickLight, pickMovePoint, pickVolumeEdge, pickZone, placeMove, placeSpawn, plainLook,
-                                playArea, playWave, pointGizmo, prefabClip, prefabPlacementProblem, prefabRecords,
-                                projector, recipeOf, recordVolumes, refreshEffects, refreshPickBox, refreshSpawnMarkers,
-                                renderer, resetBaseSpawn, restoreMapBuildings, rockCorners, roomOfSelection,
-                                saveBuilder, savedBuildings, savePrefab, saveProject, select, SESSION, setBinding,
-                                setBoxesShown, setCover, setEffectsShown, setEffectStays, setGridTool, setLevelSnap,
-                                setLibraryScope, setLightsShown, setLikeness, setMadeLook, setNormalEffects,
-                                setNormalLights, setNormalSpawns, setNormalView, setPickedSpawn, setPickTool,
-                                setSnapMode, setSolo, setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown,
-                                setVolumeTool, setZones, setZonesShown, showClearMap, showMissions, showPieces,
-                                showPrepare, showSpawn, snapshot, spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted,
-                                spawnEntry, spawnLayer, spawnVolumeHandle, startBuild, startLookPick, startSpawnPlacing,
-                                startWallDrawing, stopWallDrawing, stopWave, storedLook, streamObjects, sun,
-                                syncSpawnFilters, takePickBox, updateTileGrid, viewPoint, volumeBox, wallHandlePoint,
-                                wallHandlesNow, wallState, world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy,
-                                zonesNow }) {
+                                floorData, frame, ghostLikenesses, gizmo, goTo, grid, gridHandleAt, gridHandles,
+                                gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall,
+                                headerMissions, hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow,
+                                landingLayer, libraryTemplate, lightPanel, lightRecords, lightShapes, likenesses,
+                                likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture, memberOf,
+                                missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup,
+                                newBuilding, openLookPicker, openPrefabDocument, outsideBox, ownVolumeLayer,
+                                pasteSnapshot, pasteVolumes, pick, pickables, pickBoxEdge, pickEffect, pickLight,
+                                pickMovePoint, pickVolumeEdge, pickZone, placeMove, placeSpawn, plainLook, playArea,
+                                playWave, pointGizmo, prefabClip, prefabPlacementProblem, prefabRecords, projector,
+                                recipeOf, recordVolumes, refreshEffects, refreshPickBox, refreshSpawnMarkers, renderer,
+                                resetBaseSpawn, restoreMapBuildings, rockCorners, roomOfSelection, saveBuilder,
+                                savedBuildings, savePrefab, saveProject, select, SESSION, setBinding, setBoxesShown,
+                                setCover, setEffectsShown, setEffectStays, setGridTool, setLevelSnap, setLibraryScope,
+                                setLightsShown, setLikeness, setMadeLook, setNormalEffects, setNormalLights,
+                                setNormalSpawns, setNormalView, setPickedSpawn, setPickTool, setSnapMode, setSolo,
+                                setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown, setVolumeTool, setZones,
+                                setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
+                                spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer,
+                                spawnVolumeHandle, startBuild, startLookPick, startSpawnPlacing, startWallDrawing,
+                                stopWallDrawing, stopWave, storedLook, streamObjects, sun, syncSpawnFilters,
+                                takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow,
+                                wallState, world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow }) {
+  // Where a game point is drawn in the view's canvas, in client pixels (clientAt and screenOf). Not the handles'
+  // projector, which gives null for a point outside the camera's depth range: a check clicks at, or reads, the point
+  // it asked for wherever it is.
+  function clientAt(point) {
+    const p = gameToView(point).project(camera), r = renderer.domElement.getBoundingClientRect();
+    return [r.left + (p.x + 1) / 2 * r.width, r.top + (1 - p.y) / 2 * r.height];
+  }
   // a panel section's text with its how-to notes shown (the test hooks read it)
   function sectionText(id) {
     const box = $(id);
@@ -110,8 +117,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, allBuildings, app
     editBaseSpawn, resetBaseSpawn, spawnEditShown: () => !$('spawnEdit').hidden, copySpawn, deleteSpawn, editSpawnCopy,
     spawnAddEntries, startSpawnPlacing, placeSpawn, spawnPlacing: () => spawnPlacing,
     // where a game point is drawn in the view's canvas (client pixels), for clicks at a tile
-    clientAt: ([x, y, z]) => { const p = gameToView([x, y, z]).project(camera), r = renderer.domElement.getBoundingClientRect();
-                               return [r.left + (p.x + 1) / 2 * r.width, r.top + (1 - p.y) / 2 * r.height]; },
+    clientAt,
     // (the mission objects' hooks before the Spawns view: a stream object picked by its stream and actor)
     setPickedMission: o => setPickedSpawn(o ? spawnKey(o.stream, o.actor) : null),
     pickedMission: () => { const e = spawnEntry(pickedSpawn); return e && e.layer !== 'base' ? { stream: e.stream, actor: e.record.actor } : null; },
@@ -168,7 +174,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, allBuildings, app
         deleted: spawnDeleted(e), box: e.record.kind === 'noSpawn' ? spawnBoxNow(e) : null })); },
     // a no-spawn volume's face handles (the Buildings view's six): where each is on screen, null when none show
     spawnVolumeHandles: () => { const e = spawnVolumeHandle(), b = e && spawnBoxNow(e), project = projector();
-      return b ? Object.fromEntries(FACES.map(([key]) => [key, project(viewPoint(handlePoint(b, key)))])) : null; },
+      return b ? Object.fromEntries(FACES.map(([key]) => [key, project(gameToView(handlePoint(b, key)))])) : null; },
     spawnEdits: () => [...missionMoves.values()].map(m => structuredClone(m)),
     spawnPanelText: () => ($('spawnPanel').hidden ? null : { title: $('spawnTitle').textContent, info: $('spawnInfo').textContent }),
     setSpawnFilter: (family, on) => { setSpawnFilters({ ...spawnFilters, [family]: on }); syncSpawnFilters(); refreshSpawnMarkers(); },
@@ -201,8 +207,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, allBuildings, app
     // for the browser smoke test: floor pieces (each carrying actor's kind, and the floor stamps' supports), the
     // screen point of a game point, building-floor listings and the overlay
     floorPieces: () => { const f = floorData(); return { kinds: Object.fromEntries(f.kinds), supports: [...f.stamps.values()].map(v => [v.actor, v.support]) }; },
-    screenOf: ([x, y, z]) => { const v = new THREE.Vector3(x, z, y).project(camera), r = renderer.domElement.getBoundingClientRect();
-      return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; },
+    screenOf: clientAt,
     // box select, for the browser smoke test
     boxesShown: () => boxesShown, setBoxesShown, pickVolumeEdge,
     ownSelected: () => [...ownSet].map(b => b.name), ownEdge: (x, y) => pickBoxEdge(x, y)?.own?.userData.own.building.name ?? null,
@@ -211,11 +216,11 @@ export function createTestApi({ $, addVolumes, addWallOpening, allBuildings, app
     pickBox: () => pickBox && [...pickBox], pickTool: () => pickTool, setPickTool, takePickBox, pickHits: () => pickHits.map(c => c.id),
     setPickBox: box => { setPickBoxValue([...box]); setPickToolValue(false); refreshPickBox(true); },
     pieceBox: id => (roots.get(id) ? boxOf(roots.get(id))?.slice() ?? null : null),
-    pickMoveHandle: () => (pickBox ? projector()(viewPoint(pickMovePoint())) : null),
-    pickFaceHandle: key => (pickBox ? projector()(viewPoint(handlePoint(pickBox, key))) : null),
+    pickMoveHandle: () => (pickBox ? projector()(gameToView(pickMovePoint())) : null),
+    pickFaceHandle: key => (pickBox ? projector()(gameToView(handlePoint(pickBox, key))) : null),
     // the Buildings view, for the browser smoke test
     buildings: () => buildings, allBuildings, volumeRoots, volumesOn: () => volumesOn, setVolumesShown, volumeBox, addVolumes, newBuilding, setVolumeTool,
-    volumeHandle: key => { const r = volumeRoots.get(selected); return r ? projector()(viewPoint(handlePoint(volumeBox(r), key))) : null; },
+    volumeHandle: key => { const r = volumeRoots.get(selected); return r ? projector()(gameToView(handlePoint(volumeBox(r), key))) : null; },
     ownPicked: () => ownPicked?.userData.own ?? null,
     // the map's own buildings made editable (map buildings plan), for the browser smoke test
     savedBuildings, restoreMapBuildings, copyVolumes, pasteVolumes, deleteVolumes, clipboard: () => clipboard,
