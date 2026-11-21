@@ -168,6 +168,16 @@ class StoreTests(unittest.TestCase):
         self.assertEqual((out['document']['pieces'], out['repaired'], out['unresolved']), ([steam, hum], [], []))
         self.assertEqual([d['package'] for d in out['document']['donors']], ['URB_Bar', 'URB_Street'])
 
+    def test_a_records_values_are_the_compiler_families_own(self):
+        """Which values an effect's, a sound's and a light's record carries is the compiler's families' rule
+        (effect_edits.EFFECT_VALUE_KEYS, light_edits.LIGHT_KEYS), which the Build checks a placed prefab against: the
+        prefab's check reads the same tables, so a value a family takes on is taken in a prefab too."""
+        import effect_edits
+        import light_edits
+        import prefabs
+        self.assertIs(prefabs.EFFECT_VALUE_KEYS, effect_edits.EFFECT_VALUE_KEYS)
+        self.assertIs(prefabs.LIGHT_KEYS, light_edits.LIGHT_KEYS)
+
     def test_a_lens_flare_is_a_piece_of_its_own_kind_without_values(self):
         # effects and sounds plan, stage FX6b: a copy of a map's lens flare, in schema 3 still; never a values object
         glare = dict(actor=PL + 'LensFlareSource_7_copy8', kind='flare', location=[48, 144, 300], rotation=[0, 8192, 0],
