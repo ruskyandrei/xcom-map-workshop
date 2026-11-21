@@ -2,7 +2,8 @@
 // once, a donor look found by its mesh (a ground look by its mesh and material), the look the drawing tools take, and
 // a wall's heights, insets and storeys by its look. Run: node tools/viewer/tests/looks_test.mjs
 import assert from 'node:assert/strict';
-import { catalogued, donorLook, entryForPiece, forgetLooks, loadLooks, looksLoaded, lookFromEntry, lookTags, lookWords } from '../web/looks.js';
+import { catalogued, donorLook, entryForPiece, forgetLooks, loadLooks, looksLoaded, lookFromEntry, lookTags, lookWords,
+         madeLookName } from '../web/looks.js';
 import { endInsetsOf, faceTopOf, raisedWall, storeysOf, topMostOf, wallSpec, wallTop, wallWords, withOpening, toolWall,
          openingEdges, storeysInLook, storeyWords, openingsInLook } from '../web/walls.js';
 
@@ -115,4 +116,10 @@ assert.ok(toolWall(withOpening(one, 'doorway').wall));
 // a donor look whose catalogue holds nothing is drawn as the Bar's
 const unknown = { ...one, look: { mesh: 'Nowhere.Meshes.Wall', measure: 1 } };
 assert.deepEqual([wallTop(unknown), endInsetsOf(unknown).free], [384, 8]);
+// a made piece's look name in its panel section: its look's, the catalogue's, its donor mesh's last part, or none
+assert.equal(madeLookName({ name: 'Bar inside' }, ONE, 'URB_Bar.Meshes.Wall'), 'Bar inside');
+assert.equal(madeLookName(null, ONE, 'URB_Bar.Meshes.Wall'), ONE.name);
+assert.equal(madeLookName(null, catalogued('wall', unknown.look), 'Nowhere.Meshes.Wall_A'), 'Wall_A');
+assert.equal(madeLookName(null, null, undefined), 'made from numbers');
+assert.equal(madeLookName(undefined, undefined, null), 'made from numbers');
 console.log('looks: ok');

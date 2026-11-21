@@ -8,6 +8,7 @@
 // version 3, a slab's or ground shape's version 2); the copy it is made on is of the donor placing chosen (the
 // catalogue's, a library row's, or a piece picked in the view), which the Build clones.
 import { call } from './api.js';
+import { short } from './dom_words.js';
 
 const LOOK_FILES = { wall: 'walls', slab: 'slabs', ground: 'ground' };
 // a made piece's request version once its look is named by its donor
@@ -72,6 +73,12 @@ export function lookFromEntry(kind, entry, source = null) {
            words: lookWords(kind, entry), donor: donorLook(kind, entry), recipe: { ...entry.recipe },
            warnings: [...(entry.warnings ?? [])], setting: entry.setting ?? '', facts: { ...(entry.facts ?? {}) } };
 }
+
+/** The name a made piece's look goes by in its panel section (the Wall, Floor, Roof, Ground and Room sections): the
+ *  look's own (`look`, the drawing tools' look or null), else the catalogue entry's (`entry`, or null), else the last
+ *  part of the donor's mesh name (`meshName`, when the section knows it), else "made from numbers". */
+export const madeLookName = (look, entry, meshName) =>
+  look?.name ?? entry?.name ?? (meshName != null ? short(meshName) : 'made from numbers');
 
 /** A look's words for a row's tooltip: its setting, its size and what the made piece lacks. */
 export function lookWords(kind, entry) {
