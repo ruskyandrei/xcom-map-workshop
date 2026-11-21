@@ -9,10 +9,11 @@
 // Here: a request in the free form from any older one (freeRequest, from the old numbers' heights: walls.js wallSpec
 // and wallTop, slabLookOf, ground.js groundBox), a face dragged with the piece's origin staying where it is (decision
 // D1: resizedFace, with the openings or holes it no longer holds clipped or gone), the piece renumbered from its low
-// corner (Pivot to corner: pivotedToCorner, its blasts and points shifted with it), and whether numbers are a free
-// form's the editor makes (toolFree). Locations are game units; a piece's frame has x and y across, z up.
-import { groundBox, POINTS_VERSION } from './ground.js';
-import { slabLookOf, wallSpec, wallTop } from './walls.js';
+// corner (Pivot to corner: pivotedToCorner, its blasts and points shifted with it), whether numbers are a free form's
+// the editor makes (toolFree), and its mesh as the editor's server draws it (freeNumbers, freeBounds, freeMesh,
+// freeShape: the same endpoints as the older numbers', which the server reads by their `free`). Locations are game units; a piece's frame has x and y across, z up.
+import { GROUND_LOOKS, groundBox, POINTS_VERSION } from './ground.js';
+import { blastQuery, madeRecord, SLAB_LOOKS, slabLookOf, spelledLook, WALL_LOOKS, wallSpec, wallTop } from './walls.js';
 
 /** The free form's request version of each kind (made_edits.py FREE_VERSION). */
 export const FREE_VERSION = { fracWall: 5, fracSlab: 4, ground: 5 };
@@ -141,3 +142,56 @@ export function pivotedToCorner(kind, n, blasts = null) {
 export const freeBox = n => [n.x0, n.x1, n.y0, n.y1, n.z0, n.z1];
 /** Its size in words: "143.5 × 24 × 217.25" (along, across, up), to two places. */
 export const freeSizeWords = n => [n.x1 - n.x0, n.y1 - n.y0, n.z1 - n.z0].map(v => `${Math.round(v * 100) / 100}`).join(' × ');
+
+// ---- a free-form piece's mesh, drawn by the editor's server (generated.py) from the same endpoints as the older
+// numbers' (it reads them by their `free`)
+const ENDPOINT = { fracWall: ['fracwall', 'wall'], fracSlab: ['fracslab', 'slab'], ground: ['ground', 'ground'] };
+const DEFAULT_LOOK = { fracWall: WALL_LOOKS[0].id, fracSlab: SLAB_LOOKS[0].id, ground: GROUND_LOOKS[0].id };
+/** Free-form numbers in the one spelling their mesh's key and request use: the extents, the kind's own fields, a look
+ *  other than the default (spelled as generated.py donor_look), the mapping, and a wall's end styles where it is
+ *  joined (`ends`: madeWallJoins', two free ends left out). */
+export function freeNumbers(kind, n, ends = null) {
+  const out = { free: 1, x0: n.x0, x1: n.x1, y0: n.y0, y1: n.y1, z0: n.z0, z1: n.z1, seed: n.seed ?? 1 };
+  if (kind === 'fracWall') {
+    out.tall = n.tall ?? 'repeat';
+    out.openings = (n.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 }));
+    if (ends && (ends[0] !== 'free' || ends[1] !== 'free')) out.ends = ends.map(e => (typeof e === 'string' ? e : { inset: e.inset, lean: e.lean }));
+  } else if (kind === 'fracSlab') out.holes = (n.holes ?? []).map(h => ({ x0: h.x0, x1: h.x1, y0: h.y0, y1: h.y1 }));
+  else {
+    out.shape = n.shape;
+    if (n.points) out.points = n.points.map(p => [...p]);
+  }
+  if (n.look !== undefined && n.look !== DEFAULT_LOOK[kind] && !n.plain) out.look = spelledLook(n.look);
+  if (n.mapping) out.mapping = structuredClone(n.mapping);
+  return out;
+}
+/** A free-form piece's mesh bounds (the mesh form's [centre, half sizes, radius]): its box, a wall's x in from its ends
+ *  as they reach (a free end its look's inset, 'line' 0, 'through' its half thickness past it, a leaning end its inset
+ *  less its lean across the faces) and its faces widened by its look's trims. */
+export function freeBounds(kind, n, ends = null) {
+  let b = freeBox(n);
+  if (kind === 'fracWall') {
+    const spec = wallSpec(n), half = (n.y1 - n.y0) / 2, proud = Math.max(0, spec.half - spec.through);
+    const reach = e => (typeof e === 'object' && e ? e.inset - Math.abs(e.lean) * half : e === 'line' ? 0 : e === 'through' ? -half : spec.endInset);
+    const [e0, e1] = ends ?? ['free', 'free'];
+    b = [n.x0 + reach(e0), n.x1 - reach(e1), n.y0 - proud, n.y1 + proud, n.z0, n.z1];
+  }
+  const h = [0, 1, 2].map(k => (b[2 * k + 1] - b[2 * k]) / 2);
+  return [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2, ...h, Math.hypot(...h)];
+}
+/** A free-form piece's mesh: { key, url, bounds, sections } (its blasts, a wall's or slab's, in its key and request). */
+export function freeMesh(kind, n, ends = null, blasts = null) {
+  const [path, param] = ENDPOINT[kind], numbers = freeNumbers(kind, n, ends), broken = kind === 'ground' ? { key: '', query: {} } : blastQuery(blasts);
+  const sections = kind === 'fracWall' ? wallSpec(n).sections : kind === 'fracSlab' ? slabLookOf(n)?.sections ?? 2 : 1;
+  return { key: `made:${path}:${JSON.stringify(numbers)}${broken.key}`, sections, bounds: freeBounds(kind, n, ends),
+           url: `/generated/${path}.glb?${new URLSearchParams({ [param]: JSON.stringify(numbers), ...broken.query })}` };
+}
+/** A free-form piece's { mesh, materials } on its template's materials by slot (walls.js madeRecord), or {} when the
+ *  editor would not draw its numbers. */
+export function freeShape(template, generated, meshes) {
+  const n = generated[KEY[generated.kind]];
+  if (!toolFree(generated.kind, n)) return {};
+  const m = freeMesh(generated.kind, n, null, generated.blasts);
+  return madeRecord(template, meshes, m.key, { noun: { fracWall: 'a wall', fracSlab: 'a slab', ground: 'ground' }[generated.kind],
+                                               url: m.url, sections: m.sections, bounds: m.bounds });
+}

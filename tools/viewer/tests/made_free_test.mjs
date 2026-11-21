@@ -1,7 +1,8 @@
 // Made pieces in the free form (made_free.js; the custom geometry improvements plan, stage 2). Run: node
 // tools/viewer/tests/made_free_test.mjs
 import assert from 'node:assert/strict';
-import { FREE, FREE_VERSION, freeRequest, freeSizeWords, isFree, pivotedToCorner, resizedFace, toolFree } from '../web/made_free.js';
+import { FREE, FREE_VERSION, freeBounds, freeMesh, freeNumbers, freeRequest, freeSizeWords, isFree, pivotedToCorner, resizedFace,
+         toolFree } from '../web/made_free.js';
 
 // ---- an older request in the free form: its extents as its look made them
 const wall = { kind: 'fracWall', version: 1, wall: { x0: 0, x1: 384, openings: [{ x0: 96, x1: 192, z0: -16, z1: 160 }], seed: 3 } };
@@ -77,5 +78,23 @@ assert.ok(!toolFree('fracWall', { ...w, openings: [{ x0: -10, x1: 50, z0: 0, z1:
 assert.ok(toolFree('fracSlab', s) && !toolFree('fracSlab', { ...s, holes: [{ x0: 0, x1: 500, y0: 0, y1: 10 }] }));
 assert.ok(!toolFree('ground', { ...rock, z1: Infinity }));
 assert.equal(freeSizeWords({ ...w, x1: 143.5, z1: 201.25 }), '143.5 × 16 × 217.25');
+
+// ---- its mesh: one spelling for the key and the request, the same endpoints, bounds from its own numbers
+{
+  const n = { ...w, x1: 143.5, z1: 201.25, plain: true, extra: 'dropped' };
+  const spelt = freeNumbers('fracWall', n, ['free', { inset: 0, lean: -1, other: 'x' }]);
+  assert.deepEqual(Object.keys(spelt), ['free', 'x0', 'x1', 'y0', 'y1', 'z0', 'z1', 'seed', 'tall', 'openings', 'ends']);
+  assert.deepEqual(spelt.ends, ['free', { inset: 0, lean: -1 }]);                     // (a plain one names no look)
+  assert.ok(!('ends' in freeNumbers('fracWall', n, ['free', 'free'])));
+  // bounds: a free end 8 in, a mitred end reaching its lean across the faces past its end; trims 4 proud of the faces
+  const b = freeBounds('fracWall', { ...w, x1: 300 }, ['free', { inset: 0, lean: -1 }]);
+  assert.deepEqual(b.slice(0, 6), [(8 + 308) / 2, 0, (-16 + 384) / 2, 150, 12, 200]);
+  const m = freeMesh('fracWall', n, null, [{ at: [10, 0, 50], radius: 96 }]);
+  assert.ok(m.key.startsWith('made:fracwall:{"free":1') && m.key.includes('|[{"at"'));
+  assert.ok(m.url.startsWith('/generated/fracwall.glb?wall=') && m.url.includes('blasts='));
+  assert.equal(m.sections, 6);
+  const g = freeMesh('ground', rock);
+  assert.ok(g.url.startsWith('/generated/ground.glb?ground=') && JSON.parse(new URLSearchParams(g.url.split('?')[1]).get('ground')).points.length === 2);
+}
 
 console.log('made free tests passed');

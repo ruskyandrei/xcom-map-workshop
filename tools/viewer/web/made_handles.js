@@ -29,6 +29,7 @@ import { coverDrag, data, effectsOn, geometryCache, lightsOn, placing, rockPoint
 import { groundBounds, groundBox as groundShapeBox, groundWords as groundShapeWords, madeGroundNumbers, movedPoint,
          raisedGround, resizedGround, ROCK, slopeWords, toolGround, versionedGround } from './ground.js';
 import { scaleMarker } from './lights_view.js';
+import { freeMesh, isFree } from './made_free.js';
 import { moveWords, stepsOf } from './snap_steps.js';
 import { targetKey } from './project.js';
 import { blastQuery, holeWords, madeBounds, madeSlabNumbers, madeWallNumbers, movedHole, movedOpening, OPENING as GAP,
@@ -77,6 +78,12 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
   // The mesh record for a made wall's numbers (as madeShape makes it) and end styles, its key.
   function madeMesh(o, generated, ends = null) {
+    if (isFree(generated)) {
+      // (a free-form piece: made_free.js's spelling and bounds, the same endpoints)
+      const m = freeMesh(generated.kind, generated[{ fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[generated.kind]], ends, generated.blasts);
+      if (!data.meshes[m.key]) data.meshes[m.key] = { ...data.meshes[o.mesh], url: m.url, bounds: m.bounds };
+      return m.key;
+    }
     if (generated.kind === 'ground') {
       const numbers = madeGroundNumbers(generated.ground), key = `made:ground:${JSON.stringify(numbers)}`;
       if (!data.meshes[key])

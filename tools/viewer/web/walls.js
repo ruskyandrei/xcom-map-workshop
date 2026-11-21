@@ -750,8 +750,8 @@ export const spelledLook = look => (typeof look === 'object' && look
 /** A made piece's blasts (B5) in its mesh's key and request (generated.py: ?blasts=), none when it has none. */
 export const blastQuery = blasts => (blasts?.length ? { key: `|${JSON.stringify(blasts)}`, query: { blasts: JSON.stringify(blasts) } } : { key: '', query: {} });
 // the mesh record of a made piece over its template's (the mesh form: name, sections by slot, bounds), and its
-// materials: the template's by slot
-function madeRecord(template, meshes, key, { noun, url, sections, bounds }) {
+// materials: the template's by slot (made_free.js draws a free-form piece with it too)
+export function madeRecord(template, meshes, key, { noun, url, sections, bounds }) {
   if (!meshes[key]) {
     // (`look`: the template's mesh, which Select all of a kind counts it as)
     meshes[key] = { name: `${meshes[template.mesh]?.name ?? noun}, made from numbers`, kind: 'static', made: true,

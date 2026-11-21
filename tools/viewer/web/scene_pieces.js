@@ -30,6 +30,7 @@ import { builderMode, cachePrefix, data, foreignTemplates, geometryCache, loadEr
          setLoadErrorCount } from './editor_state.js';
 import { actorMatrix, placedPose } from './gizmo.js';
 import { madeGroundShape } from './ground.js';
+import { freeShape, isFree } from './made_free.js';
 import { withLocalLights } from './lighting.js';
 import { isPlain } from './made_requests.js';
 import { cloneBlasts, fromOf, isStream, sourceKey } from './piece_records.js';
@@ -326,6 +327,7 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
   // A made piece's mesh and materials from its numbers (walls.js madeWallShape and madeSlabShape, ground.js
   // madeGroundShape: the mesh record goes into the scene's meshes), or {} when the server can't draw them.
   function madeShapeOf(template, generated) {
+    if (isFree(generated)) return freeShape(template, generated, data.meshes);
     if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab, generated.blasts, data.meshes);
     if (generated?.kind === 'ground') return madeGroundShape(template, generated.ground, data.meshes);
     return generated?.kind === 'fracWall' ? madeWallShape(template, generated.wall, generated.blasts, data.meshes) : {};
