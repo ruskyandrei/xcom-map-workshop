@@ -20,7 +20,6 @@ import { builder, builderMode, chooseToken, data, donorHashes, effectIndex, effe
 import { recordName, savedValues } from './effects_rules.js';
 import { SOFT } from './library.js';
 import { fromOf, isStream, optionsOf, recordOf, stateOf, stateOfRoot } from './piece_records.js';
-import { pieceGrid } from './pieces.js';
 import { normalizePrefab } from './prefab_document.js';
 import { api as prefabApi, newPrefab, prefabWords } from './prefabs.js';
 import { BUILDING_FLOORS_MAX, buildingKey, memberKey, targetKey, tidyBuilding, uuid, validBuilding } from './project.js';
@@ -247,7 +246,7 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
              groups: (doc.groups ?? []).map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: g.members.map(memberKey) })),
              // held by the middle of its footprint, on a tile corner
              pivot: [base[0] + Math.round(tiles[0] / 2) * TILE, base[1] + Math.round(tiles[1] / 2) * TILE, base[2]],
-             gridLocked: volumes.length > 0 || entries.some(e => !e.source.isLight && !e.source.isEffect && pieceGrid(e.source)) };
+             gridLocked: volumes.length > 0 };
   }
   function canRecoverPrefabSources(doc, missing) {
     const actors = new Set(missing);

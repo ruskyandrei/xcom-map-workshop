@@ -3,7 +3,7 @@
 // delta against a map; the pieces that can't be made here stay members of it, carried as the file had them.
 // - The document: the scene as the prefab's records (builderDocument), what Save compares (builderKey), the records
 //   with their size (builderRecords), opened with a draft offered back (openPrefabDocument) and saved (saveBuilder).
-// - The size line and the ground drawn under the prefab (refreshBuilder), Align to grid, the missing pieces looked
+// - The size line and the ground drawn under the prefab (refreshBuilder), Align prefab to grid, the missing pieces looked
 //   for by recipe, and the Problems check: what Test in game would say of the prefab, asked of the server without
 //   building anything.
 //
@@ -100,7 +100,8 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
       counts: { pieces: records.pieces.length - lights - effects - sounds - flares, lights, effects, sounds, flares, buildings: records.buildings.length, tiles: records.tiles },
       box: new THREE.Box3(new THREE.Vector3(b[0], b[2], b[1]), new THREE.Vector3(b[3], b[5], b[4])) };
   }
-  // Align to grid (the builder's warning, prefab plan 5.6b): the pieces keeping the pose rule (doors, ladders, cars, vans,
+  // Align prefab to grid (the builder's warning, prefab plan 5.6b; named so beside the piece panel's Align to grid,
+  // the custom geometry improvements plan's D11): the pieces keeping the pose rule (doors, ladders, cars, vans,
   // fracturing pieces) that stand off their grid, and the one smallest shift of the whole prefab that puts every such
   // piece on it: each off piece's nearest whole tile and level (poserule.js nearestGridPose), the least of those that
   // suits them all. { off: [{ root, name }], delta, pivot (a root id) } or, with no such shift, turned (pieces a shift
@@ -144,7 +145,7 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
   const shiftWords = d => [['east', 'west'], ['south', 'north'], ['up', 'down']]
     .map(([plus, minus], k) => Math.abs(d[k]) > 0.005 ? `${Math.abs(Number(d[k].toFixed(2)))} ${d[k] > 0 ? plus : minus}` : '')
     .filter(Boolean).join(', ') || 'nowhere';
-  // The warning over the size: what stands off the grid, Show (select those pieces) and Align to grid.
+  // The warning over the size: what stands off the grid, Show (select those pieces) and Align prefab to grid.
   function gridWarning() {
     const plan = gridAlignment(), box = $('gridWarning');
     box.hidden = !plan.off.length;
@@ -155,7 +156,7 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
     const why = builder.kept.length ? 'Some pieces could not be read: align once they can, so they move too.'
       : plan.turned ? `${plan.turned.map(n => n.name).join(', ')} ${plan.turned.length === 1 ? 'is' : 'are'} turned off quarter turns or tilted: turn ${plan.turned.length === 1 ? 'it' : 'them'} first (Show selects ${plan.turned.length === 1 ? 'it' : 'them'}).`
       : plan.clash ? 'No single shift puts them all on the grid: move them apart from each other first (Show selects them).'
-      : `Align to grid moves the whole prefab ${shiftWords(plan.delta)}, the nearest place where they all are.`;
+      : `Align prefab to grid moves the whole prefab ${shiftWords(plan.delta)}, the nearest place where they all are.`;
     box.title = 'Doors, ladders, cars, vans and fracturing pieces keep to the tile grid: whole tiles (96) and levels (64) from '
       + 'where their originals stand. Off it they build where they stand, and the Build and Test in game say so. ' + why;
     $('gridAlign').disabled = !plan.delta || builder.kept.length > 0;

@@ -1,21 +1,30 @@
-// Align (refactor stage P8): with two or more pieces or groups selected, the others lined up with one of them, the
-// target, along the chosen game axes (any of X, Y and Z), their boxes' centres, low edges or high edges meeting. What
-// moves as one stays together (a locked group, and with linked pieces on, linked pieces), and the move is one undo
-// step. Here: the choices remembered in the browser (alignPrefs, saveAlignPrefs), the units moved and their names
-// (alignUnits, unitBox, unitName, unitLabel), the piece panel's Align section with the white box on the target
-// (alignPanel, targetHelper: the edit hub runs it after an edit, edit_hub.js) and the move (align).
+// Align (refactor stage P8; the custom geometry improvements plan, 3.1 and 3.3, decisions D4, D5 and D12): the piece
+// panel's Align section. With two or more pieces or groups selected, the others lined up with one of them, the target,
+// along the chosen game axes (any of X, Y and Z), their boxes' centres, low edges or high edges meeting. With one or
+// more, its Align to row: Grid (L) puts the selection's pivot on the nearest multiple of the snap setting's steps
+// (gizmo.js alignToGrid), Level puts a floor piece's height on its map height's levels (alignToLevel), Game pose puts
+// a ladder, door, car, van or fracturing piece on its pose rule (gizmo.js alignToGamePose). What moves as one stays
+// together (a locked group, and with linked pieces on, linked pieces), and each is one undo step. Here: the choices
+// remembered in the browser (alignPrefs, saveAlignPrefs), the units moved and their names (alignUnits, unitBox,
+// unitName, unitLabel), the section with the white box on the target (alignPanel, targetHelper: the edit hub runs it
+// after an edit, edit_hub.js) and the moves (align, alignToGrid, alignToLevel, alignToGamePose).
 //
 // createAlign takes what it needs of app.js as one argument object, when app.js makes it: the gizmo, the scene, the
-// pieces that can be copied, a piece's member key and its group (groups.js), the recipe snap's move, and the hints. Its
-// own state is inside it (the white box); the target chosen in the panel (alignTarget) is editor_state.js's, since
-// app.js's handler of the target list sets it.
+// pieces that can be copied, a piece's member key and its group (groups.js), a floor piece's support and levels
+// (level_snap.js),
+// the tile grid's corner and lowest level, and the hints. Its own state is inside it (the white box); the target chosen
+// in the panel (alignTarget) is editor_state.js's, since app.js's handler of the target list sets it.
 import * as THREE from 'three';
 import { onHub } from './edit_hub.js';
-import { alignTarget, data, groupIndex, selected, setAlignTarget, volumeRoots } from './editor_state.js';
+import { alignTarget, data, groupIndex, selected, setAlignTarget, snapMode, volumeRoots } from './editor_state.js';
+import { nearestLevel } from './floors.js';
+import { actorMatrix } from './gizmo.js';
+import { stepsOf } from './snap_steps.js';
 import { recall, remember } from './storage.js';
 import { plural, short } from './dom_words.js';
 
-export function createAlign({ $, copyablePieces, flashHint, gizmo, keepRecipe, liveGroup, memberOf, world }) {
+export function createAlign({ $, copyablePieces, flashHint, floorBaseOf, floorSupportOf, gizmo, gridBase, liveGroup, memberOf,
+                              world }) {
   // Align (the piece panel, with two or more pieces or groups selected): lines the others up with one of them, the
   // target, along the chosen game axes, any of X, Y and Z: their boxes' centres, low edges or high edges meet. The
   // target is the last one picked (the one the gizmo sits on) unless another is chosen in the panel; a white box marks
@@ -45,11 +54,22 @@ export function createAlign({ $, copyablePieces, flashHint, gizmo, keepRecipe, l
     const c = unitBox(u).getCenter(new THREE.Vector3()), name = unitName(u);
     return `${name[0].toUpperCase()}${name.slice(1)} · X ${Math.round(c.x)}, Y ${Math.round(c.z)}${u === last ? ' (last picked)' : ''}`;
   }
+  // The units holding a floor piece (one component, the map's saved floor on it), each with that piece's root.
+  const floorUnits = units => units.map(u => [u, u.find(r => floorSupportOf([r.userData.source]) != null)]).filter(([, r]) => r);
   function alignPanel() {
     const box = $('alignBox'), { units, last, ref } = alignUnits();
-    box.hidden = units.length < 2;
-    targetHelper.visible = !box.hidden;
-    if (box.hidden) { setAlignTarget(null); return; }   // a chosen target lasts while two or more stay selected
+    box.hidden = units.length < 1;
+    if (box.hidden) { targetHelper.visible = false; setAlignTarget(null); return; }
+    // the Align to row, for one piece or more: Level and Game pose where the selection has such a piece
+    const s = stepsOf(snapMode);
+    $('alignGrid').title = `Move the selection's pivot onto the grid: the nearest ${s.across ? `multiple of ${s.across} across and ${s.up} up, turned to whole steps of ${s.turn}°` : 'tile corner and level, turned to quarter turns (snap is off)'}; one undo step (L)`;
+    $('alignLevel').hidden = !floorUnits(units).length;
+    $('alignPose').hidden = !gizmo.gridPiece;
+    const pair = units.length >= 2;
+    $('alignPair').hidden = !pair;
+    $('alignFold').textContent = pair ? 'to the target' : '';
+    targetHelper.visible = pair;
+    if (!pair) { setAlignTarget(null); return; }   // a chosen target lasts while two or more stay selected
     targetHelper.box.copy(unitBox(ref));
     const prefs = alignPrefs();
     for (const a of ['x', 'y', 'z']) $(`align${a.toUpperCase()}`).checked = prefs.axes.includes(a);
@@ -80,8 +100,7 @@ export function createAlign({ $, copyablePieces, flashHint, gizmo, keepRecipe, l
       const b = unitBox(u), d = new THREE.Vector3();
       for (const a of axes) d[AXES[a]] = at(goal, AXES[a]) - at(b, AXES[a]);
       if (d.lengthSq() < 1e-8) continue;
-      // under tile snap, a ladder, door, car or van lines up as near as its pose rule lets it
-      const move = keepRecipe(new THREE.Matrix4().makeTranslation(d.x, d.y, d.z), u.map(r => ({ source: r.userData.source, matrix: r.matrix })));
+      const move = new THREE.Matrix4().makeTranslation(d.x, d.y, d.z);
       for (const r of u) { targets.push(r); before.push(r.matrix.clone()); after.push(move.clone().multiply(r.matrix)); }
     }
     const what = `${axes.map(a => a.toUpperCase()).join(', ')} (${by === 'centre' ? 'centres' : by === 'min' ? 'low edges' : 'high edges'})`;
@@ -89,11 +108,43 @@ export function createAlign({ $, copyablePieces, flashHint, gizmo, keepRecipe, l
     gizmo.record({ redo: () => gizmo.applyMatrices(targets, after), undo: () => gizmo.applyMatrices(targets, before) });
     flashHint(`Aligned ${plural(units.length - 1, 'piece')} with ${unitName(ref)} on ${what} · Ctrl+Z undoes it`);
   }
+  // Align to grid (L): the selection's pivot on the nearest multiple of the snap setting's steps from the tile grid's
+  // corner and lowest level (the world's middle without a grid).
+  function alignToGrid() {
+    if (!gizmo.selection().length) { flashHint('Select a piece to align to the grid (L)'); return; }
+    const s = stepsOf(snapMode);
+    const moved = gizmo.alignToGrid(gridBase());
+    flashHint(moved ? `Aligned to the grid (${s.across ? `steps of ${s.across} across, ${s.up} up and ${s.turn}°` : 'whole tiles, levels and quarter turns: snap is off'}) · Ctrl+Z undoes it`
+                    : 'Already on the grid');
+  }
+  // Align to level (decision D5, in Level snap's place): each piece or group holding a floor piece moved up or down so
+  // that the floor piece stands at its height in its map moved by whole levels (64), the nearest such height; one undo
+  // step.
+  function alignToLevel() {
+    const targets = [], before = [], after = [];
+    for (const [u, r] of floorUnits(alignUnits().units)) {
+      const s = r.userData.source;
+      const actor = r.matrix.clone().multiply(new THREE.Matrix4().fromArray(s.matrix).invert()).multiply(actorMatrix(s.location, s.rotation));
+      const z = new THREE.Vector3().setFromMatrixPosition(actor).y, dz = nearestLevel(z, floorBaseOf([s])) - z;
+      if (Math.abs(dz) < 1e-6) continue;
+      const move = new THREE.Matrix4().makeTranslation(0, dz, 0);
+      for (const p of u) { targets.push(p); before.push(p.matrix.clone()); after.push(move.clone().multiply(p.matrix)); }
+    }
+    if (!targets.length) { flashHint('Already on its levels'); return; }
+    gizmo.record({ redo: () => gizmo.applyMatrices(targets, after), undo: () => gizmo.applyMatrices(targets, before) });
+    flashHint('Aligned to its levels: its height in its map moved by whole levels (64 units) · Ctrl+Z undoes it');
+  }
+  // Align to game pose (decision D4, in the recipe snap's place)
+  function alignToGamePose() {
+    flashHint(gizmo.alignToGamePose()
+      ? 'Aligned to its game pose: whole tiles and storeys and quarter turns from where its original stands, so the Build maps its tiles exactly · Ctrl+Z undoes it'
+      : 'Already at a game pose');
+  }
 
   // After an edit (the edit hub, edit_hub.js). (a building's box is not aligned)
   onHub('edit', 'align', () => {
     if (volumeRoots.has(selected)) { $('alignBox').hidden = true; targetHelper.visible = false; } else alignPanel();
   });
 
-  return { align, alignPanel, saveAlignPrefs };
+  return { align, alignPanel, alignToGamePose, alignToGrid, alignToLevel, saveAlignPrefs };
 }

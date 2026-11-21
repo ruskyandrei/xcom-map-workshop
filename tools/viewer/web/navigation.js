@@ -3,8 +3,7 @@
 //   turning it (panCamera, which the draw loop runs each frame), the look-drag along the view, the wheel's zoom to the
 //   point under the cursor, and View options' camera speeds and "Keys move along the view";
 // - the gizmo's buttons: Move, Rotate, Select and the axes, the pivot (remembered), and snap (setSnapMode and its
-//   button; SNAPS and RECIPE_NOTE, which the selection's grid chip says too), kept up after each edit by the edit hub's
-//   `tools` refresh;
+//   button; SNAPS, the steps of snap_steps.js in words), kept up after each edit by the edit hub's `tools` refresh;
 // - the editor's keys (index.html's help panel lists them), each calling the area that owns what it does.
 //
 // createNavigation takes what it needs of app.js as one argument object, when app.js makes it, where the camera's keys
@@ -14,7 +13,7 @@ import * as THREE from 'three';
 import { QUARTER } from './constants.js';
 import { onHub, runHub } from './edit_hub.js';
 import { allRoots, assigning, breaking, builder, builderMode, coverDrag, data, effectsOn, gridDrag, gridTool, hintTimer,
-         levelSnap, lightDrag, lightRadius, lightRoots, lightsOn, lookPicking, ownPicked, ownSet, pickBox, pickDrag,
+         lightDrag, lightRadius, lightRoots, lightsOn, lookPicking, ownPicked, ownSet, pickBox, pickDrag,
          pickedEffect, pickedSpawn, pickedZone, pickTool, pieces, placing, rockPoint, roots, selected, setAssigning,
          setGhostDirty, setLightRadius, setOwnPickedValue, setSnapModeValue, snapMode, soloOn, spawnPlacing, spawnsOn,
          spawnZonePick, volumeDrag, volumesOn, volumeTool, wallDrag, wallDrawing, zonePlacing,
@@ -23,18 +22,15 @@ import { recall, remember } from './storage.js';
 import { focusBounds, visibleBounds } from './view_layout.js';
 import { modalOpen } from './modal.js';
 
-// (snapMode, the snap setting, 'off', 'fine' or 'tile': editor_state.js)
-// Snap cycles off, fine steps, whole tiles. Under tile snap a selection with a ladder, door, car, van or fracturing piece
-// takes the recipe snap (gizmo.js recipeMove, poserule.js): the Build maps what the map saves per tile exactly only for
-// such a pose. Snap off or fine, such a piece moves as any piece does, and off the grid the Build warns (refreshGrid).
+// (snapMode, the snap setting, 'off', 'fine' or 'tile': editor_state.js; its steps snap_steps.js's)
+// Snap cycles off, fine steps, whole tiles. A ladder, door, car, van or fracturing piece moves as any piece does under
+// each (the Build maps what the map saves per tile exactly only for a pose on its rule, and warns of one off it:
+// selection.js refreshGrid); Align to game pose puts it on its rule (align.js).
 const SNAPS = {
   off: ['fine', '', 'Snap off. Click for steps of 24 units and 15°'],
   fine: ['tile', '24', 'Snap: steps of 24 units from where the piece stood, and 15°. Click for whole tiles'],
   tile: ['off', '96', 'Snap: whole tiles (96 across, 64 up) from where the piece stood, and 90° turns. Click to turn snap off'],
 };
-export const RECIPE_NOTE = 'Recipe snap: under tile snap, ladders, doors, cars, vans and fracturing pieces (walls, storey floors) move by whole tiles (96 across) and storeys (64 up) and '
-  + 'turn by quarter turns about the vertical, from where the original stands, so the Build maps what the map '
-  + 'saves for their tiles exactly. Click to turn snap off: they then move freely';
 
 export function createNavigation({ $, applyLighting, builderRecords, camera, cancelMissionGizmo, cancelPointDrag,
                                    cancelZoneGizmo, content, controls, copySelection, copySpawn, copyZone,
@@ -44,7 +40,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
                                    lightPanel, madeRoot, mapBreakable, missionGizmo, openBuild, paste, pick, pickEffect,
                                    pickZone, playArea, projectsAvailable, rayAt, refreshVolumes, releaseRockPoint,
                                    renderer, restingHint, saveProject, select, setEffectsShown, setGridTool,
-                                   setLevelSnap, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn,
+                                   alignToGrid, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn,
                                    setPickTool, setPlayArea, setSolo, setSpawnsShown, setVolumesShown, setVolumeTool,
                                    setZoneGizmoMode, setZonesShown, showFileDialog, showMapBrowser, showPieces, showPop,
                                    spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stopBreak,
@@ -67,10 +63,10 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
     $('selected').disabled = !selected;
   });
   function snapButton() {
-    const button = $('editSnap'), recipe = gizmo.recipe;
+    const button = $('editSnap');
     button.classList.toggle('on', snapMode !== 'off'); button.setAttribute('aria-pressed', snapMode !== 'off');
-    button.title = recipe ? `${RECIPE_NOTE}.` : SNAPS[snapMode][2];
-    $('snapBadge').textContent = recipe ? 'R' : SNAPS[snapMode][1];
+    button.title = SNAPS[snapMode][2];
+    $('snapBadge').textContent = SNAPS[snapMode][1];
   }
   let frameNear = 2;    // the near plane the last framing set (the wheel zoom brings it in close up)
   function frame(root = content) {
@@ -280,7 +276,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
   window.addEventListener('blur', () => { panKeys.clear(); panFast = false; });
   // The editor's keys (index.html's help panel lists them for users): V select, T box select, G move, R rotate (while
   // placing, R and Shift+R turn the piece), P the Add panel, M the map browser, X world or local axes, C the pivot
-  // (origin or centre), F frame, L level snap, O solo the selected lights, B Break on a picked wall, floor or roof that
+  // (origin or centre), F frame, L Align to grid, O solo the selected lights, B Break on a picked wall, floor or roof that
   // breaks (else the play area), I the eyedropper while drawing; Shift+N, B, L, Z, U and X the six views (in the
   // Buildings view N draws a new box); arrow keys and WASD move the camera and Q and E turn it; Escape cancels a drag,
   // stops placing, drawing or a pick, closes a menu or, when there is none of those, clears the selection; Ctrl+Z /
@@ -407,7 +403,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       if (e.shiftKey) { if (data) setVolumesShown(!volumesOn); }
       else { if (!playArea.children.length) return; setPlayArea(!playArea.visible); }
     }
-    else if (key === 'l') { if (e.shiftKey) { if (data) setLightsShown(!lightsOn); } else setLevelSnap(!levelSnap); }
+    else if (key === 'l') { if (e.shiftKey) { if (data) setLightsShown(!lightsOn); } else if (!e.repeat) alignToGrid(); }
     else if (key === 'n') { if (!e.shiftKey || !data) return; setNormalView(); }
     else if (key === 'z') { if (!e.shiftKey || !data) return; setZonesShown(!zonesOn); }
     else if (key === 'u') { if (!e.shiftKey || !data) return; setSpawnsShown(!spawnsOn); }

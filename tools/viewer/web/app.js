@@ -16,9 +16,9 @@ import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { isStream } from './piece_records.js';
 import { activeMapId, allRoots, areaShown, assigning, breaking, builderMode, cachePrefix, coverDrag, data,
          effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, lastLightSync,
-         leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
+         leaving, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
          lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects, pickBox, pickDrag,
-         pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots, selected, setActiveMapId,
+         pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots, selected, setActiveMapId, snapMode,
          setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setData,
          setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue, setLighting,
          setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue,
@@ -65,7 +65,7 @@ import { createViews } from './views.js';
 import { createHandles, HANDLE_PICK } from './handles.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { createTestApi } from './test_api.js';
-import { createNavigation, RECIPE_NOTE } from './navigation.js';
+import { createNavigation } from './navigation.js';
 import { createLoading } from './loading.js';
 import { createHints } from './hints.js';
 import { createBusy } from './busy.js';
@@ -75,6 +75,7 @@ import { createProjectMenu } from './project_menu.js';
 import { createPieceStatus } from './piece_status.js';
 import { holdModals, releaseAfterChange } from './modal.js';
 import { ask, call } from './api.js';
+import { moveWords, typedStep } from './snap_steps.js';
 import { recall, remember } from './storage.js';
 import { segButton, segmented } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -205,9 +206,7 @@ const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: cont
                             // a building's box moves by whole tiles and levels, whatever the snap
                             tiles: root => Boolean(root.userData.volume),
                             // Shift on a move handle drags a copy
-                            copyDrag: { begin: () => copyDragBegin(), end: (token, delta) => copyDragEnd(token, delta) },
-                            // Level snap: a floor piece moved up or down keeps to whole levels (64 units)
-                            levels: root => !root.userData.light && !root.userData.volume && !root.userData.effect && levelSnap && floorSupportOf([root.userData.source]) != null });
+                            copyDrag: { begin: () => copyDragBegin(), end: (token, delta) => copyDragEnd(token, delta) } });
 // The map's families and assemblies (map_families.js): the families set as the map's arrive, each original's assembly
 // with its link tag, and a piece's assembly (the map's own, or another map's as its records are read); made where the
 // families' use was, after the gizmo, which it regroups (nothing of it runs as the page loads but its two tables made).
@@ -270,10 +269,9 @@ const { assetUrl, bakeNote, effectTemplate, foreignCost, foreignNote, isForeignT
 const ghostEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
 const ghostLine = new THREE.LineBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.7, depthTest: false });
 
-// Floor pieces and Level snap (level_snap.js): the floor pieces and their supports, Level snap and its button,
-// and the Floor picker's floor under a point.
-const { chosenStorey, floorData, floorSupportOf, levelButton, setLevelSnap } = createLevelSnap({
-  $, restingHint,
+// Floor pieces (level_snap.js): the floor pieces and their supports, and the Floor picker's floor under a point.
+const { chosenStorey, floorBaseOf, floorData, floorSupportOf } = createLevelSnap({
+  $,
   // (made further down: called through, since it is not made yet while this runs)
   allBuildings: () => allBuildings() });
 
@@ -285,14 +283,14 @@ const { addToGroup, changeGroups, groupShortcut, liveGroup, liveKeys, liveMember
   // (made with the selection, further down: called through, since they are not made yet while this runs)
   groupables: () => groupables(), select: (id, add, keep) => select(id, add, keep) });
 
-// Align (align.js): the others of the selection lined up with a target, the piece panel's Align section and
-// its white box on the target.
-const { align, alignPanel, saveAlignPrefs } = createAlign({
-  $, flashHint, gizmo, liveGroup, memberOf, world,
+// Align (align.js): the others of the selection lined up with a target, the selection aligned to the grid, its
+// levels or its game pose, the piece panel's Align section and its white box on the target.
+const { align, alignPanel, alignToGamePose, alignToGrid, alignToLevel, saveAlignPrefs } = createAlign({
+  $, flashHint, floorBaseOf, floorSupportOf, gizmo, liveGroup, memberOf, world,
+  // the tile grid's corner and lowest level (the world's middle without one): where Align to grid counts from
+  gridBase: () => { const o = gridOrigin(); return o ? [o[0], o[1], data?.tileGrid?.origin?.[2] ?? 0] : [0, 0, 0]; },
   // (made with the selection, further down: called through, since it is not made yet while this runs)
-  copyablePieces: () => copyablePieces(),
-  // (made with the clipboard, further down: called through, since it is not made yet while this runs)
-  keepRecipe: (move, parts) => keepRecipe(move, parts) });
+  copyablePieces: () => copyablePieces() });
 
 // The Lights view's switches read from its storage keys (lights_wiring.js's; the view is made below).
 setAreaShown(recall(AREA_SHOWN) === '1');     // (lightsShown, areaShown: editor_state.js)
@@ -402,7 +400,7 @@ const { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensu
 createPieceStatus({
   $, changes, gizmo, lightPose, lightViewOnly, poseInputs, saveState, valuesEdited });
 // The prefab builder's session (builder_session.js): the prefab's document opened, kept and saved, its size line and
-// ground, Align to grid, the missing pieces looked for by recipe, and the Problems check.
+// ground, Align prefab to grid, the missing pieces looked for by recipe, and the Problems check.
 const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderPage, builderRecords, builderTitle,
         openPrefabDocument, physicalBox, problemsPaint, recoverPrefabSources, refreshBuilder,
         saveBuilder } = createBuilderSession({
@@ -587,7 +585,7 @@ function grabView() {
 // has them and the landing's pieces, the ground's height, the Clear map window and the clear, the Missions
 // panel and the header's Mission picker, the Map picture dialog, and the ground grid.
 const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
-        headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
+        headerMissions, isLanding, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
         readLandingLines, refreshGroundGrid, showClearMap, showMissions, sizeNotes, startMissionPicker,
         zonesNow } = createClearMap({
   $, addLightRoots, addRoots, banner, cloneGroups, editedKey, flashHint, gizmo, grabView, lightViewOnly, ownSize,
@@ -685,7 +683,7 @@ const { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshHighlig
         selectedBoxes } = createSelection({
   $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, editChanged, effectViewOnly, flagContract, flagSource,
   flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, ladderMarks, lightViewOnly,
-  listingsNow, missionName, ownSize, pickEffect, RECIPE_NOTE, recipeOf, setEffectsShown, setLightsShown,
+  listingsNow, missionName, ownSize, pickEffect, recipeOf, setEffectsShown, setLightsShown,
   setVolumesShown, setZonesShown, tileCorner,
   // (made with the camera, further down: called through, since it is not made yet while this runs)
   frame: root => frame(root) });
@@ -712,18 +710,18 @@ const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNo
 // the Add panel shown and an entry of it placed, and a copy dragged off with Shift; after the cover blocks,
 // whose floor's clearance it reads, and the Buildings view, whose own buildings' layer it reads.
 const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
-        groupTree, keepRecipe, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste, pasteSnapshot,
+        groupTree, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste, pasteSnapshot,
         pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot, startPlacing,
         stopPlacing } = createClipboard({
   $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots, addRoots, askLineCollision,
-  assemblyOf, banner, boundsOf, buildRoots, busy, BUSY_PIECES, busyStart, chosenStorey, cloneGroup, cloneGroups,
+  assemblyOf, banner, boundsOf, buildRoots, busy, BUSY_PIECES, busyStart, cloneGroup, cloneGroups,
   copyVolumes, coverEntries, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE, floorSupportOf,
   ghostEdges, ghostLikeness, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness,
-  isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly, liveFloorIndex, loaded, madeShape,
+  isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly, loaded, madeShape,
   makeVolume, materialCache, materialKey, memberOf, memberRecord, newBuildingId, nextFrame, ownerRoot, ownVolumeLayer,
-  partsOf, pasteVolumes, pick, prefabPlacementProblem, rayAt, recipeOf, removeEffectRoots, removeLightRoots,
+  partsOf, pasteVolumes, pick, prefabPlacementProblem, rayAt, removeEffectRoots, removeLightRoots,
   removeRoots, restingHint, sceneChanged, selectionWords, setLightsShown, setNormalLights, setVolumeBox,
-  spawnAddEntries, startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopZonePlacing, tileCorner, unscaled,
+  spawnAddEntries, startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopZonePlacing, unscaled,
   volumeBox, world, zoneEntries,
   // (made further down: called through, since they are not made yet while this runs)
   deleteSelection: quiet => deleteSelection(quiet), stopWallDrawing: () => stopWallDrawing() });
@@ -893,13 +891,13 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
-    memberOf, missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup, newBuilding,
+    alignToGamePose, alignToGrid, alignToLevel, memberOf, missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup, newBuilding,
     openLookPicker, openPrefabDocument, outsideBox, ownVolumeLayer, pasteSnapshot, pasteVolumes, pick, pickables,
     pickBoxEdge, pickEffect, pickLight, pickMovePoint, pickVolumeEdge, pickZone, placeMove, placeSpawn, plainLook,
     playArea, playWave, pointGizmo, prefabClip, prefabPlacementProblem, prefabRecords, projector, recipeOf,
     recordVolumes, refreshEffects, refreshPickBox, refreshSpawnMarkers, renderer, resetBaseSpawn, restoreMapBuildings,
     rockCorners, roomOfSelection, saveBuilder, savedBuildings, savePrefab, saveProject, select, SESSION, setBinding,
-    setBoxesShown, setCover, setEffectsShown, setEffectStays, setGridTool, setLevelSnap, setLibraryScope,
+    setBoxesShown, setCover, setEffectsShown, setEffectStays, setGridTool, setLibraryScope,
     setLightsShown, setLikeness, setMadeLook, setNormalEffects, setNormalLights, setNormalSpawns, setNormalView,
     setPickedSpawn, setPickTool, setSnapMode, setSolo, setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown,
     setVolumeTool, setZones, setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
@@ -931,11 +929,21 @@ for (const button of document.querySelectorAll('.howbutton')) {
   };
 }
 $('sourceDetails').ontoggle = e => remember('workshop.sourceDetails', e.target.open ? '1' : '0');
-// Typed pose: a changed field moves the selection there (one undo step); Escape puts the field back.
+// Typed pose: a changed field moves the selection there (one undo step); Escape puts the field back. With snap on the
+// value is taken as a move or turn from where the piece stands in the snap setting's steps (snap_steps.js typedStep),
+// said in the hint line while it is typed; with snap off, as typed.
+const POSE_KINDS = ['across', 'across', 'up', 'turn', 'turn', 'turn'];
+const typedPose = (i, value) => { const pose = gizmo.pose(); return pose && typedStep(value, [...pose.location, ...pose.rotation][i], snapMode, POSE_KINDS[i]); };
 poseInputs.forEach((input, i) => {
+  input.addEventListener('input', () => {
+    const value = Number(input.value), taken = input.value.trim() === '' || !Number.isFinite(value) ? null : typedPose(i, value);
+    if (taken != null && Math.abs(taken - value) > 1e-6)
+      flashHint(`${input.value.trim()} goes to ${Math.round(taken * 100) / 100}: a move ${moveWords(snapMode)} from where it stands, as the snap setting (snap off takes a value as typed)`);
+  });
   input.addEventListener('change', () => {
-    const pose = gizmo.pose(), value = Number(input.value);
-    if (!pose || input.value.trim() === '' || !Number.isFinite(value)) { editChanged(); return; }
+    const pose = gizmo.pose(), raw = Number(input.value);
+    if (!pose || input.value.trim() === '' || !Number.isFinite(raw)) { editChanged(); return; }
+    const value = typedPose(i, raw);
     if (i < 3) { const location = [...pose.location]; location[i] = value; gizmo.setPose(location, null); }
     else { const rotation = [...pose.rotation]; rotation[i - 3] = value; gizmo.setPose(null, rotation); }
   });
@@ -1076,8 +1084,6 @@ function toggleButton(button, onChange) {
     onChange(on);
   };
 }
-$('editLevels').onclick = () => setLevelSnap(!levelSnap);
-levelButton();
 setPieces(createPieceBrowser({
   els: { panel: $('library'), list: $('libList'), filter: $('libFilter'), kind: $('libKind'), where: $('libWhere'),
          sort: $('libSort'), foot: $('libFoot') },
@@ -1149,6 +1155,9 @@ $('editCopy').onclick = () => copySelection();
 $('editDelete').onclick = () => deleteSelection();
 for (const id of ['alignX', 'alignY', 'alignZ', 'alignBy']) $(id).onchange = e => { saveAlignPrefs(); e.target.blur(); };
 $('alignGo').onclick = () => align();
+$('alignGrid').onclick = e => { alignToGrid(); e.currentTarget.blur(); };
+$('alignLevel').onclick = e => { alignToLevel(); e.currentTarget.blur(); };
+$('alignPose').onclick = e => { alignToGamePose(); e.currentTarget.blur(); };
 $('alignTarget').onchange = e => { setAlignTarget(e.target.value); e.target.blur(); alignPanel(); };
 $('groupMake').onclick = () => lockAsGroup();
 $('groupAdd').onclick = () => addToGroup();
@@ -1223,7 +1232,7 @@ const { frame, panCamera, setSnapMode } = createNavigation({
   flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
   missionGizmo, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
-  setGridTool, setLevelSnap, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
+  alignToGrid, setGridTool, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,
   showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stopBreak,
   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,

@@ -7,7 +7,7 @@
 // it runs as the page loads). The notice's timer (hintTimer) is editor_state.js's: the keys and the areas' tools clear
 // it too.
 import { plural, text } from './dom_words.js';
-import { hintTimer, levelSnap, ownSet, pickTool, placing, setHintTimer } from './editor_state.js';
+import { hintTimer, ownSet, pickTool, placing, setHintTimer } from './editor_state.js';
 
 export function createHints({ $, gizmo }) {
   // While a gizmo handle is held: one short line on what is moving and how to back out.
@@ -40,8 +40,7 @@ export function createHints({ $, gizmo }) {
     hint.hidden = !placing;
     if (!placing) return;
     const turned = placing.turns ? ` (turned ${placing.turns * 90}°)` : '';
-    const storey = $('floor').value !== 'all' ? `floor ${$('floor').value}'s height (the Floor picker)` : 'the level under the cursor';
-    const floor = placing.clip.floor != null && levelSnap ? ` · a floor piece: its height snaps to ${storey}` : '';
+    const floor = placing.clip.floor != null ? ' · a floor piece: Align to level (the piece panel) puts it on its levels' : '';
     hint.replaceChildren(`Placing ${placing.clip.name}${turned}${floor} · click to place · R turns · Shift+click places more · `);
     text(hint, 'kbd', 'Esc'); hint.append(' stops');
   }

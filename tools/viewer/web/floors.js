@@ -74,14 +74,15 @@ export function classifyFloors(carriers) {
 }
 
 /** The floor pieces by stamp signature: Map signature -> { support (the saved floor's height over the pivot), actor
- *  (one carrying it) }. actors: [{ actor, parts, location }] (the base map's, as exported); kinds: classifyFloors;
- *  floors: ownedFloors. Pieces of more than one component (a van, a car) are never floor pieces. */
+ *  (one carrying it), z (that one's pivot height in the map: its levels, Align to level's) }. actors: [{ actor, parts,
+ *  location }] (the base map's, as exported); kinds: classifyFloors; floors: ownedFloors. Pieces of more than one
+ *  component (a van, a car) are never floor pieces. */
 export function floorStamps(actors, kinds, floors) {
   const out = new Map();
   for (const a of actors) {
     if (kinds.get(a.actor) !== 'floor' || a.parts.length !== 1) continue;
     const signature = stampSignature(a.parts);
-    if (!out.has(signature)) out.set(signature, { support: floors.get(a.actor).z - a.location[2], actor: a.actor });
+    if (!out.has(signature)) out.set(signature, { support: floors.get(a.actor).z - a.location[2], actor: a.actor, z: a.location[2] });
   }
   return out;
 }
@@ -114,6 +115,9 @@ export function floorUnder(index, grid, point) {
 /** The pivot height for a floor piece placed on floor z: its own pivot height (pivotZ, its saved floor `support`
  *  over it), moved by whole levels to the level of z. */
 export const levelHeight = (pivotZ, support, z) => pivotZ + Math.round((z - pivotZ - support) / STOREY) * STOREY;
+/** A floor piece's height on its levels (Align to level, align.js): the height `z` its pivot stands at taken to the
+ *  nearest of its height in its map (`mapZ`) moved by whole levels. */
+export const nearestLevel = (z, mapZ) => mapZ + Math.round((z - mapZ) / STOREY) * STOREY + 0;
 
 // ---------------------------------------------------------------- building floors' heights (the Floor picker)
 const inPlan = (v, x, y) => v.min[0] <= x && x <= v.max[0] && v.min[1] <= y && y <= v.max[1];

@@ -11,7 +11,7 @@
 //   (headerMissions, headerMission, refreshMissionPicker, chooseMission);
 // - the Map picture dialog and its Map menu item (the view taken by app.js's grabView);
 // - the ground grid: a faint grid on the ground's plane where the map has no floor (refreshGroundGrid, setGroundGrid),
-//   the pieces still where the map has them (floorStays) and the saved floor index of their tiles (liveFloorIndex).
+//   and the pieces still where the map has them (floorStays).
 //
 // createClearMap takes what it needs of app.js as one argument object, when app.js makes it: the scene, the gizmo, the
 // pieces' and lights' roots added and taken away, the map's size, the Spawns, Landing zones and Buildings views'
@@ -31,7 +31,6 @@ import { activeMapId, areaBindings, askedPick, builderMode, cleared, clearKeepsO
          setLightsDirty, setMergedBuildings, setMissionIndex, setMissionPickValue, setPickedZone, setProjectMissions,
          setProjectPicture, setStartingCache, setStreamSet, stage, startingCache } from './editor_state.js';
 import { survivesClear } from './effects_rules.js';
-import { floorIndex } from './floors.js';
 import { createMapPicture } from './map_picture.js';
 import { ADDED_KINDS, addedMission, kindKey } from './missions.js';
 import { createMissionsPanel } from './missions_panel.js';
@@ -440,17 +439,6 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     }
     return floorRootsCache;
   }
-  // The saved floor index (floors.js floorIndex) of the tiles whose piece is still where the map has it: what Level snap
-  // goes by, so a deleted piece's floor no longer guides placement
-  let liveFloorCache = null;
-  function liveFloorIndex() {
-    const key = editedKey();
-    if (!liveFloorCache || liveFloorCache.key !== key) {
-      const tiles = data.preview ? [] : (data.tactical?.floorTiles ?? []).filter(f => floorStays(f.actor));
-      liveFloorCache = { key, index: floorIndex(tiles) };
-    }
-    return liveFloorCache.index;
-  }
   let groundGridKey = null;
   function refreshGroundGrid(force = true) {
     if (!data || builderMode || data.scope !== 'map' || data.preview || !data.tileGrid?.origin || !data.tileGrid.dimensions) {
@@ -563,6 +551,6 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
   onHub('project-missions', 'mission-picker', () => { refreshMissionPicker(); });
 
   return { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
-           headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
+           headerMissions, isLanding, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
            readLandingLines, refreshGroundGrid, showClearMap, showMissions, sizeNotes, startMissionPicker, zonesNow };
 }

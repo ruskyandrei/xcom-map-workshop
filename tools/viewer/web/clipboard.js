@@ -5,8 +5,8 @@
 // - a clip pasted (pasteSnapshot, with its links' tags and groups: linkOf, groupTree, mapChain), Copy and Cut
 //   (copySelection) and Paste (paste);
 // - placing: a see-through preview of the clip following the cursor (startPlacing, moveGhost, its materials) until a
-//   click puts a copy down where it points (dropTarget, with the snaps and Level snap; placeMove, moveTo, keepRecipe,
-//   the recipe snap kept), and stopping (stopPlacing);
+//   click puts a copy down where it points (dropTarget, with the snap setting's steps; placeMove, moveTo), and stopping
+//   (stopPlacing);
 // - the Add panel shown and its tab (showPieces, setLibraryScope), and an entry of it chosen and placed: one of this
 //   map's pieces, a light, a cover block or a recipe (chooseEntry, entryParts), or one of All maps (chooseLibraryEntry,
 //   chooseLibraryEffect);
@@ -18,42 +18,40 @@
 // the pieces' roots made and taken out, the Lights, Effects, Spawns, Landing zones and Buildings views' adding and
 // placing, the cover blocks' ground, the templates of other maps' pieces (library_templates.js), the floor boxes'
 // outline, the busy mark and the hints. Its own state is inside it (the preview's materials); what other areas read or
-// set (the clip, what is being placed, the preview's redraw asked, the Add panel's tab, Level snap) is
+// set (the clip, what is being placed, the preview's redraw asked, the Add panel's tab) is
 // editor_state.js's.
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { LEVEL, PL, QUARTER, TILE } from './constants.js';
 import { isFloor } from './cover.js';
 import { allRoots, boxesShown, builderMode, buildingMeta, chooseToken, clipboard, copySerial, data, effectRoots,
-         geometryCache, groupIndex, hintTimer, levelSnap, library, libraryScope, lightsShown, nextChooseToken,
+         geometryCache, groupIndex, hintTimer, library, libraryScope, lightsShown, nextChooseToken,
          nextCopySerial, ownSet, pickedEffect, pieces, placing, pointer, prefabTab, roots, setClipboard, setGhostDirty,
          setGroups, setLibraryScopeValue, setPlacing, snapMode, volumesOn } from './editor_state.js';
 import { recordName } from './effects_rules.js';
 import { makeEffectMarker } from './effects_view.js';
-import { floorUnder, levelHeight } from './floors.js';
-import { actorMatrix, placedPose, recipeMove } from './gizmo.js';
+import { actorMatrix, placedPose } from './gizmo.js';
 import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
 import { fromOf, MADE_KINDS, optionsOf, stateOfRoot } from './piece_records.js';
 import { collectPieces } from './pieces.js';
 import { buildingKey, groupKey, memberKey, pruneGroups, targetKey, uuid } from './project.js';
 import { droppedAcross } from './snap_steps.js';
 import { remember } from './storage.js';
-import { tileGridOf } from './view_layout.js';
 import { plural, short, text } from './dom_words.js';
 
 export function createClipboard({ $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots,
                                   addRoots, askLineCollision, assemblyOf, banner, boundsOf, buildRoots, busy,
-                                  BUSY_PIECES, busyStart, chosenStorey, cloneGroup, cloneGroups, copyVolumes,
+                                  BUSY_PIECES, busyStart, cloneGroup, cloneGroups, copyVolumes,
                                   coverEntries, deleteSelection, effectFollows, effectTemplate, effectViewOnly,
                                   flashHint, FLOOR_CLEARANCE, floorSupportOf, ghostEdges, ghostLikeness, ghostLine,
                                   gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness,
                                   isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly,
-                                  liveFloorIndex, loaded, madeShape, makeVolume, materialCache, materialKey, memberOf,
+                                  loaded, madeShape, makeVolume, materialCache, materialKey, memberOf,
                                   memberRecord, newBuildingId, nextFrame, ownerRoot, ownVolumeLayer, partsOf,
-                                  pasteVolumes, pick, prefabPlacementProblem, rayAt, recipeOf, removeEffectRoots,
+                                  pasteVolumes, pick, prefabPlacementProblem, rayAt, removeEffectRoots,
                                   removeLightRoots, removeRoots, restingHint, sceneChanged, selectionWords,
                                   setLightsShown, setNormalLights, setVolumeBox, spawnAddEntries, startSpawnPlacing,
-                                  startZonePlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, tileCorner,
+                                  startZonePlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing,
                                   unscaled, volumeBox, world, zoneEntries }) {
   // What the selection is now (moved pieces at their moved pose), with the pivot piece's game location and a name
   // for hints.
@@ -259,10 +257,8 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   // Where a paste or placement puts the pivot piece: the point under the screen point `at` (on a piece, or else
   // level with where it was copied from), in game units, or null. Across the floor it moves from where the piece
   // stands in the map in the snap setting's steps (snap_steps.js: fine 24, tile whole tiles), so a piece keeps its
-  // offset from the grid; with snap off it goes where the cursor is.
-  // With Level snap on, a floor piece's height snaps by levels: the height it has in the map, moved by whole levels
-  // (64 units) to the saved floor under that point (floors.js levelHeight), so it never stacks on the floor it is
-  // dropped on; with a floor chosen in the Floor picker, to that floor's height in the building there (chosenStorey).
+  // offset from the grid; with snap off it goes where the cursor is. A floor piece is placed as any piece is (Align to
+  // level puts it on its levels: align.js).
   function dropTarget(clip, at) {
     if (!at) return null;
     let point = pick(...at)?.point;
@@ -272,12 +268,10 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     if (!point) return null;
     let [x, y, z] = [point.x, point.z, point.y];
     const [px, py] = clip.pivot;
-    // a prefab with a building or a piece that keeps the pose rule goes by whole tiles and levels, whatever the snap:
-    // its pivot is a tile corner at ground level
+    // a prefab with a building goes by whole tiles and levels, whatever the snap (a building's box is one of the tile
+    // grid): its pivot is a tile corner at ground level
     if (clip.gridLocked) return [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE, clip.pivot[2] + Math.round((z - clip.pivot[2]) / LEVEL) * LEVEL];
     [x, y] = droppedAcross([x, y], [px, py], snapMode);
-    if (clip.floor != null && levelSnap)
-      z = levelHeight(clip.pivot[2], clip.floor, chosenStorey(x, y)?.z ?? floorUnder(liveFloorIndex(), { ...tileGridOf(data), origin: tileCorner() ?? tileGridOf(data).origin }, [x, y, z]).z);
     // a light from the Add panel: at its template's height above what is under the cursor
     if (clip.lightHeight != null) z += clip.lightHeight;
     // an invisible floor from the Add panel: its top just over the ground at the centre of the tile under its pivot (its
@@ -294,22 +288,9 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   const moveTo = (clip, [x, y, z], turns = 0) => new THREE.Matrix4().makeTranslation(x, z, y)
     .multiply(actorMatrix([0, 0, 0], [0, turns * QUARTER, 0]))
     .multiply(new THREE.Matrix4().makeTranslation(-clip.pivot[0], -clip.pivot[2], -clip.pivot[1]));
-  // A move (viewer space) of pieces ({ source, matrix } each), kept under tile snap to the pose rule of the first of them
-  // that is a ladder, door, car, van or fracturing piece (the recipe snap, as the gizmo keeps it); any other move as it is.
-  function keepRecipe(move, parts) {
-    const origin = gridOrigin();
-    if (!origin || snapMode !== 'tile') return move;
-    for (const { source, matrix } of parts) {
-      const from = recipeOf(source);
-      if (!from) continue;
-      const actor = matrix.clone().multiply(new THREE.Matrix4().fromArray(source.matrix).invert())
-        .multiply(actorMatrix(source.location, source.rotation));
-      return recipeMove(move, actor, from, origin);
-    }
-    return move;
-  }
-  // The move that places a clip: moveTo, kept to the pivot piece's pose rule if it has one, else the first piece's.
-  const placeMove = (clip, target, turns) => keepRecipe(moveTo(clip, target, turns), [clip.entries[clip.pivotIndex], ...clip.entries].filter(Boolean));
+  // The move that places a clip: moveTo. (A ladder, door, car, van or fracturing piece placed under tile snap from a
+  // pose on its rule stays on it; Align to game pose puts one on it: the custom geometry improvements plan, D4.)
+  const placeMove = (clip, target, turns) => moveTo(clip, target, turns);
   // Paste (Ctrl+V) places what was copied: a preview follows the cursor until a click puts it down. While placing,
   // Ctrl+V puts it down under the cursor, as a click does.
   function paste() {
@@ -559,7 +540,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   }
 
   return { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget,
-           entryParts, groupTree, keepRecipe, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,
+           entryParts, groupTree, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,
            pasteSnapshot, pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot,
            startPlacing, stopPlacing };
 }

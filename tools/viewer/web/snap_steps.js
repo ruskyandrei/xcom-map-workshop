@@ -49,3 +49,10 @@ export function droppedAcross([x, y], from, snap) {
   const step = stepsOf(snap).across;
   return step ? [from[0] + stepped(x - from[0], step), from[1] + stepped(y - from[1], step)] : [x, y];
 }
+/** A value typed into a field with snap on (a pose's place or turn: `kind` 'across', 'up' or 'turn'): taken as a move
+ *  or turn from `current` in the snap setting's steps, as a drag is, so the piece keeps its offset from the grid; with
+ *  snap off, the value as typed. */
+export function typedStep(typed, current, snap, kind) {
+  const step = stepsOf(snap)[kind] ?? 0;
+  return step ? current + stepped(typed - current, step) : typed;
+}

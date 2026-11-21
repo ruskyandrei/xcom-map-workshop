@@ -1,8 +1,8 @@
 // The pose rule of ladders, doors, cars and vans (private/plans/done/cars-doors-ladders-plan.md, section 3.2), as the compiler
 // has it (tools/editor/compiler.py grid_move and nearest_grid_pose). Such a piece moves by whole tiles (96 across) and
 // storeys (64 up) and turns by quarter turns of yaw from where its original stands, about tile corners, with pitch and
-// roll as they were: everything the map saves per tile then maps exactly. The editor's recipe snap puts a piece at
-// nearestGridPose. Both pass the cases in tools/editor/tests/pose_rule_cases.json.
+// roll as they were: everything the map saves per tile then maps exactly. The editor's Align to game pose puts a piece
+// at nearestGridPose. Both pass the cases in tools/editor/tests/pose_rule_cases.json.
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll), the origin the tile grid's corner.
 import { LEVEL as STOREY, QUARTER, TILE } from './constants.js';
 export const POSE_SLACK = 0.5;

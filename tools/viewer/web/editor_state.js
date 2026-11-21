@@ -399,15 +399,12 @@ export function setAlignTarget(next) { alignTarget = next; }
 
 // Placing (clipboard.js), and what of it app.js's pointer handlers and draw loop and the keys read or set:
 // - ghostDirty: the preview of what is being placed is to be moved to the pointer again (the pointer handlers, the
-//   keys and Level snap ask for it, the draw loop moves it);
+//   keys ask for it, the draw loop moves it);
 // - libraryScope: the Add panel's tab, 'map' (This map), 'all' (All maps) or 'prefabs' (app.js gives it the one the
 //   browser's storage remembers as the page loads);
-// - levelSnap: Level snap, a floor piece placed or moved keeps to whole levels (level_snap.js's setLevelSnap sets it
-//   and draws its button; level_snap.js gives it the browser's storage's as it is made, as the page loads).
-export let ghostDirty = false, libraryScope = 'map', levelSnap = true;
+export let ghostDirty = false, libraryScope = 'map';
 export function setGhostDirty(next) { ghostDirty = next; }
 export function setLibraryScopeValue(next) { libraryScope = next; }
-export function setLevelSnapValue(next) { levelSnap = next; }
 
 // The map grid (map_grid.js), and what of it app.js's scene start and pointer handlers, the keys and the test hooks
 // read or set:

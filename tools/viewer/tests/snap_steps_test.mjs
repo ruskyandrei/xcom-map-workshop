@@ -1,7 +1,7 @@
 // The one snap policy (snap_steps.js; the custom geometry improvements plan, section 3). Run: node
 // tools/viewer/tests/snap_steps_test.mjs
 import assert from 'node:assert/strict';
-import { droppedAcross, moveWords, SNAP_STEPS, stepped, steppedMove, steppedViewMove, stepsOf, stepWords } from '../web/snap_steps.js';
+import { droppedAcross, moveWords, SNAP_STEPS, stepped, steppedMove, steppedViewMove, stepsOf, stepWords, typedStep } from '../web/snap_steps.js';
 
 // the table: off continuous, fine 24 and 15°, tile 96 across, 64 up and 90°
 assert.deepEqual(SNAP_STEPS.off, { across: 0, up: 0, turn: 0 });
@@ -42,5 +42,12 @@ assert.equal(stepWords('tile'), 'by whole tiles');
 assert.equal(stepWords('tile', { up: true }), 'in levels of 64');
 assert.equal(stepWords('fine', { up: true }), 'in steps of 24 units');
 assert.equal(stepWords('off', { up: true }), 'smoothly');
+
+// a typed place or turn: a move from where it stands in the steps (the offset kept); snap off, as typed
+assert.equal(typedStep(150, 7.5, 'fine', 'across'), 151.5);
+assert.equal(typedStep(150, 7.5, 'tile', 'across'), 103.5);
+assert.equal(typedStep(40, 0, 'tile', 'up'), 64);
+assert.equal(typedStep(50, 3, 'fine', 'turn'), 48);
+assert.equal(typedStep(150.25, 7.5, 'off', 'across'), 150.25);
 
 console.log('snap steps tests passed');

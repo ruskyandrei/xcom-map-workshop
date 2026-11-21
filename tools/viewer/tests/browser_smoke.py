@@ -783,8 +783,8 @@ def check_adding(page, is_bar):
         page.evaluate('id => viewer.select(id)', ufo_door)
         assert 'Builds from' not in page.locator('#details').inner_text()
     # Fracturing pieces (walls, storey floors) and physics props build since 9 November 2026: no milestone chip. A
-    # fracturing piece of its own has a pose rule, as the assemblies do, kept under tile snap only (since 10 November:
-    # snap off, it moves freely); a physics prop has none.
+    # fracturing piece of its own has a pose rule, as the assemblies do: Align to game pose puts it on it (since
+    # 21 November 2026; it moves as any piece under every snap); a physics prop has none.
     single = ("cls => [...viewer.roots.keys()].find(id => { const r = viewer.roots.get(id), o = r.userData.source;"
               " return r.visible && !o.added && o.layer === 'base' && o.actorClass === cls"
               " && !(viewer.families()?.assemblies ?? []).some(a => a.members.includes(o.actor)); })")
@@ -793,10 +793,10 @@ def check_adding(page, is_bar):
         page.evaluate('id => viewer.select(id)', wall)
         details = page.locator('#details').inner_text()
         assert 'Builds from' not in details and 'Recipe snap' not in details, details
-        assert page.evaluate('viewer.gizmo.gridPiece && !viewer.gizmo.recipe')
+        assert page.evaluate('viewer.gizmo.gridPiece')
+        assert page.locator('#alignPose').is_visible()
         page.evaluate("viewer.setSnapMode('tile')")
-        assert 'Recipe snap' in page.locator('#details').inner_text()
-        assert page.locator('#snapBadge').inner_text() == 'R' and page.evaluate('viewer.gizmo.recipe')
+        assert page.locator('#snapBadge').inner_text() == '96'
         page.evaluate("viewer.setSnapMode('off')")
     if physics_prop:
         page.evaluate('id => viewer.select(id)', physics_prop)
@@ -832,12 +832,14 @@ GRID_EDITS = """async () => {
 
 
 def check_recipe(page):
-    """The recipe snap (private/plans/done/cars-doors-ladders-plan.md, sections 3.2 and 8), on Bar (the page's pose rule on
-    the compiler's cases is shared_cases_test.mjs's): the map's assemblies are served; a door selects with its frame, linked pieces on or off, and
-    its copy keeps them together; a ladder, a car and a van move by whole tiles and storeys and turn by quarter turns
-    from where their originals stand under tile snap, typed into the fields or pasted (turned while placing too); the
-    rotate handles turn about the vertical only; the snap button says so while such a piece is selected. With snap
-    off (since 10 November 2026) such a piece moves freely, and its chip says when it stands off the grid."""
+    """The pose rule of ladders, doors, cars and vans (private/plans/done/cars-doors-ladders-plan.md, sections 3.2 and
+    8), on Bar (the page's pose rule on the compiler's cases is shared_cases_test.mjs's): the map's assemblies are
+    served; a door selects with its frame, linked pieces on or off, and its copy keeps them together. Such a piece moves
+    as any piece does under every snap (the recipe snap went on 21 November 2026: the custom geometry improvements
+    plan, D4): with snap off a typed move takes it off the grid, its chip says so, and the piece panel's Align to Game
+    pose puts it back on its rule; under tile snap a typed move and turn step whole tiles, levels and quarter turns
+    from where it stands, so a piece on its rule stays on it; copies pasted and turned while placing are put on the
+    rule by Game pose."""
     original = page.evaluate('viewer.gizmo.active')
     families = page.evaluate('viewer.families()')
     assert families and Counter(a['family'] for a in families['assemblies']) == {'car': 13, 'door': 7, 'van': 4, 'ladder': 2}, families
@@ -871,7 +873,7 @@ def check_recipe(page):
     ladder = pl + 'XComLadder_3'
     page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', root_of(ladder))
     assert page.evaluate('viewer.gizmo.snap') == 'off'
-    assert page.locator('#snapBadge').inner_text() == '' and page.evaluate('viewer.gizmo.gridPiece && !viewer.gizmo.recipe')
+    assert page.locator('#snapBadge').inner_text() == '' and page.evaluate('viewer.gizmo.gridPiece')
     details = page.locator('#details').inner_text()
     assert 'Recipe snap' not in details and 'Off the grid' not in details and 'Builds from' not in details, details
     start = page.evaluate('viewer.gizmo.pose()')
@@ -883,15 +885,21 @@ def check_recipe(page):
     edits = page.evaluate(GRID_EDITS)
     assert [e['actor'] for e in edits] == [ladder] and not edits[0]['valid'], edits
     assert set(edits[0]['why']) == {'whole tiles', 'quarter turns'}, edits
-    page.keyboard.press('Control+z'); page.keyboard.press('Control+z')
+    # Align to Game pose (the piece panel's Align section) puts it on its rule: the chip goes, one undo step
+    assert page.locator('#alignPose').is_visible()
+    page.locator('#alignPose').click()
+    assert 'Off the grid' not in page.locator('#details').inner_text()
+    edits = page.evaluate(GRID_EDITS)
+    assert [e['actor'] for e in edits] == [ladder] and edits[0]['valid'], edits
+    for _ in range(3): page.keyboard.press('Control+z')
     assert page.evaluate('viewer.changes().total') == 0
     assert 'Off the grid' not in page.locator('#details').inner_text()
-    # Tile snap: the snap button and a chip say Recipe, and it builds (no milestone); a typed move and turn snap, a
-    # typed tilt doesn't hold.
+    # Tile snap: the snap button says 96, and it builds (no milestone); a typed move and turn step from where it
+    # stands, so it stays on its rule; a typed tilt under a step of 90 leaves it as it was.
     page.evaluate("viewer.setSnapMode('tile')")
-    assert page.locator('#snapBadge').inner_text() == 'R' and page.evaluate('viewer.gizmo.recipe')
+    assert page.locator('#snapBadge').inner_text() == '96'
     details = page.locator('#details').inner_text()
-    assert 'Recipe snap' in details and 'Builds from' not in details, details
+    assert 'Recipe snap' not in details and 'Builds from' not in details, details
     # Its climb's ends (ladders.js, the twin of ladders.py): foot (11, 23, 0), top (12, 23, 6) on the roof; its helper
     # in patch_bar. Moved four tiles along its wall (-Y), its top lands where the roof ends: marked, and the chip says so.
     ends = page.evaluate('id => viewer.ladderEnds(id)', root_of(ladder))
@@ -921,16 +929,14 @@ def check_recipe(page):
     assert abs(turned['rotation'][0]) < 0.01 and abs(turned['rotation'][2]) < 0.01, turned
     edits = page.evaluate(GRID_EDITS)
     assert [e['actor'] for e in edits] == [ladder] and edits[0]['valid'] and edits[0]['turns'] == 1, edits
-    page.locator('#editRotate').click()
-    assert page.evaluate('[viewer.gizmo.controls.showX, viewer.gizmo.controls.showY, viewer.gizmo.controls.showZ]') == [False, True, False]
-    page.locator('#editMove').click()
-    assert page.evaluate('viewer.gizmo.controls.showX && viewer.gizmo.controls.showZ')
-    # Copies of a door, a car and a van, pasted and turned while placing, keep the rule; the door's copies stay linked.
+    # Copies of a door, a car and a van, pasted and turned while placing, are put on the rule by Game pose; the door's
+    # copies stay linked.
     for family, turns, dx in (('door', 0, 0), ('car', 1, 60), ('van', 1, -60)):
         assembly = first(family)
         page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', root_of(assembly['pivot']))
         before = set(page.evaluate('viewer.editState().added.map(a => a.id)'))
         paste(turns, dx)
+        page.evaluate('viewer.alignToGamePose()')
         copies = page.evaluate('viewer.gizmo.selection().map(r => r.userData.source)')
         assert all(c['added'] for c in copies) and len({c['actor'] for c in copies}) == len(assembly['members']), (family, copies)
         assert page.evaluate('viewer.editState().added.length') == len(before) + len(assembly['members'])
@@ -940,11 +946,12 @@ def check_recipe(page):
         (1, 1 + len(first('car')['members']) + len(first('van')['members']))], edits
     door_tags = {e['prefab'] for e in edits if e['actor'] in first('door')['members']}
     assert len(door_tags) == 1 and next(iter(door_tags)).endswith(':' + door['pivot'].split('.')[-1]), door_tags
-    # A piece of no grid family takes the plain tile snap.
+    # A piece of no grid family has no Game pose.
     page.evaluate('id => viewer.select(id)', original)
-    assert page.locator('#snapBadge').inner_text() == '96' and not page.evaluate('viewer.gizmo.recipe')
+    assert page.locator('#snapBadge').inner_text() == '96' and not page.evaluate('viewer.gizmo.gridPiece')
+    assert page.locator('#alignPose').is_hidden()
     page.evaluate("viewer.setSnapMode('off')")
-    assert page.locator('#snapBadge').inner_text() == '' and not page.evaluate('viewer.gizmo.recipe')
+    assert page.locator('#snapBadge').inner_text() == ''
     page.locator('#editResetAll').click()
     assert page.evaluate('viewer.changes().total') == 0
     page.evaluate('id => viewer.select(id)', original)
@@ -2572,20 +2579,20 @@ def check_cover(page):
     assert cover()['size'] == [192, 192], cover()
     moved = page.evaluate('viewer.gizmo.pose()')['location']
     assert abs(moved[1] - (start[1] - 96)) < 0.01 and abs(moved[0] - start[0]) < 0.01, (start, moved)
-    drag_handle(page, '+z', 1.1)                      # up a tile: today's tile heights
-    assert cover()['heights'] == [high[0], high[1] + recipe['heightStep']], cover()
-    drag_handle(page, '-z', -1.0)                     # the bottom up a tile: off the floor
-    assert cover()['heights'] == [high[0] + recipe['heightStep'], high[1] + recipe['heightStep']], cover()
-    assert [round(v) for v in drawn()] == [192, 192, round(high[0] + 96), round(high[1] + 96)], drawn()
+    drag_handle(page, '+z', 0.8)                      # up a level (64: tile snap's step up, the distance dragged)
+    assert cover()['heights'] == [high[0], high[1] + 64], cover()
+    drag_handle(page, '-z', -0.6)                     # the bottom up a level: off the floor
+    assert cover()['heights'] == [high[0] + 64, high[1] + 64], cover()
+    assert [round(v) for v in drawn()] == [192, 192, round(high[0] + 64), round(high[1] + 64)], drawn()
     for _ in range(4):
         page.keyboard.press('Control+z')
     assert cover() == dict(type='high', size=[96, 96], heights=high), cover()
     assert page.evaluate('viewer.gizmo.pose()')['location'] == start
-    # snap off: smooth, to a unit; 24: steps of 24
+    # snap off: smooth, not rounded; 24: steps of 24 dragged
     set_snap(page, 'off')
     drag_handle(page, '+x', -0.5)                     # half a tile in
     x = cover()['size'][0]
-    assert 40 <= x <= 56 and x == round(x), cover()
+    assert 40 <= x <= 56, cover()
     assert 'units across' in page.locator('#coverSize').inner_text()
     page.keyboard.press('Control+z')
     set_snap(page, 'fine')
@@ -2722,12 +2729,11 @@ def look_down(page, xyz, height=3200):
 
 def check_floor_placing(page, is_bar):
     """Floor pieces on the map: the piece list's Floors (flat pieces carrying the saved floor tiles, not decorations);
-    placing one keeps its height in the map, moved by whole levels to the floor under the cursor, so it never stacks
-    on the floor it is dropped on (Bar: a sidewalk dropped on a sidewalk stands at the sidewalks' height); a pasted
-    floor piece snaps too; a decoration (Bar's rug) and any other piece are placed on the surface as before. Bar: with
-    floor 2 chosen in the Floor picker, a sidewalk dropped on the road takes floor 2's height; Level snap off (L), it
-    stacks on what it is dropped on; moved up with the gizmo, a floor piece steps by whole levels, unless Level snap is
-    off."""
+    one is placed as any piece is (Level snap went on 21 November 2026: the custom geometry improvements plan, D5), and
+    the piece panel's Align to Level puts it at its height in its map moved by whole levels, the nearest (Bar: a
+    sidewalk dropped on a sidewalk stacks on it, and Level puts it back at the sidewalks' height); a pasted floor piece
+    is known as one too; a decoration (Bar's rug) is no floor piece. Moved up with the gizmo with snap off, a floor
+    piece moves freely, and Level puts it back on a level."""
     count, original = page.evaluate('viewer.roots.size'), page.evaluate('viewer.gizmo.active')
     info = page.evaluate('viewer.floorPieces()')
     if not info['supports']: return skip('floor-placing', 'the map has no floor pieces to stand on', whole=True)
@@ -2778,55 +2784,19 @@ def check_floor_placing(page, is_bar):
     page.mouse.move(*at); page.wait_for_function('viewer.placing()?.ghost.visible')
     page.mouse.click(*at)
     page.wait_for_function('viewer.editState().added.length === 1')
-    z = page.evaluate("""() => [...viewer.roots.values()].find(r => r.userData.source.added).userData.source.location[2]""")
-    expect = target['pivot'][2] + round((loc[2] - target['pivot'][2] - support) / 64) * 64
-    assert abs(z - expect) < 0.01 and abs(z + support - loc[2]) <= 32, (z, expect, loc, support, target['pivot'])
+    added_z = lambda: page.evaluate('viewer.editState().added[0].location[2]')
+    expect = target['pivot'][2] + round((loc[2] - target['pivot'][2]) / 64) * 64
+    if is_bar: assert added_z() > 10, added_z()       # placed as any piece: on the sidewalk's top, 16 to 18 up
+    # Align to Level (the piece panel's Align section): its height in its map moved by whole levels, the nearest
+    page.wait_for_selector('#alignLevel:not([hidden])')
+    page.locator('#alignLevel').click()
+    z = added_z()
+    assert abs((z - target['pivot'][2]) / 64 - round((z - target['pivot'][2]) / 64)) < 1e-6, (z, target['pivot'])
+    assert abs(z - expect) <= 64, (z, expect, loc, support, target['pivot'])
     if is_bar: assert abs(z) < 0.01, z     # at the sidewalks' height, not stacked 16 to 18 units up
-    page.keyboard.press('Control+z')
+    page.keyboard.press('Control+z'); page.keyboard.press('Control+z')
     assert page.evaluate('viewer.changes().total') == 0
-    if is_bar:
-        assert page.evaluate('viewer.levelSnap()') and 'on' in page.locator('#editLevels').get_attribute('class').split()
-        side_entry = page.locator('#libList .libitem', has_text='SidewalkStrA8x4').first
-        added_z = lambda: page.evaluate("""() => [...viewer.roots.values()].find(r => r.userData.source.added).userData.source.location[2]""")
-        # Level snap off (L): the sidewalk dropped on the sidewalk stacks on it, as any piece does
-        page.evaluate('document.activeElement && document.activeElement.blur()')
-        page.keyboard.press('l')
-        assert not page.evaluate('viewer.levelSnap()') and 'on' not in page.locator('#editLevels').get_attribute('class').split()
-        side_entry.click()
-        assert 'a floor piece' not in page.locator('#dragHint').inner_text()
-        look_down(page, loc, 2200)
-        page.mouse.move(*at); page.wait_for_function('viewer.placing()?.ghost.visible'); page.mouse.click(*at)
-        page.wait_for_function('viewer.editState().added.length === 1')
-        assert added_z() > 10, added_z()
-        page.keyboard.press('Control+z')
-        page.keyboard.press('l')
-        assert page.evaluate('viewer.levelSnap()')
-        # The Floor picker: floor 2 chosen, a sidewalk dropped on the road (an asphalt plane's tile at z 0) takes floor
-        # 2's height in the nearest building (the bar's: 210, so its pivot 192)
-        road = page.evaluate("""() => { const k = viewer.floorPieces().kinds;
-          return viewer.data.tactical.floorTiles.filter(t => k[t.actor] === 'floor' && Math.abs(t.location[2]) < 2
-            && viewer.data.meshes[viewer.data.objects.find(o => o.actor === t.actor).mesh].name.endsWith('AsphaltPlaneFlat')).slice(0, 300).map(t => t.location); }""")
-        choose(page, 'floor', '2')
-        side_entry.click()
-        assert "floor 2's height" in page.locator('#dragHint').inner_text(), page.locator('#dragHint').inner_text()
-        spot2 = None
-        for rl in road:
-            look_down(page, rl, 2200)
-            at2 = page.evaluate('p => viewer.screenOf(p)', rl)
-            hit = page.evaluate('([x, y]) => { const h = viewer.pick(x, y); return h ? h.point.y : null; }', at2)
-            if hit is not None and abs(hit - rl[2]) < 4: spot2 = (rl, at2); break
-        assert spot2, 'no road tile clear under the cursor'
-        rl, at2 = spot2
-        page.mouse.move(*at2); page.wait_for_function('viewer.placing()?.ghost.visible'); page.mouse.click(*at2)
-        page.wait_for_function('viewer.editState().added.length === 1')
-        chosen = page.evaluate('([x, y]) => viewer.chosenStorey(x, y)', rl[:2])
-        assert chosen and chosen['floor'] == 1, chosen
-        expect2 = target['pivot'][2] + round((chosen['z'] - target['pivot'][2] - support) / 64) * 64
-        assert abs(added_z() - expect2) < 0.01 and expect2 > 100, (added_z(), expect2, chosen)
-        page.keyboard.press('Control+z')
-        choose(page, 'floor', 'all')
-        assert page.evaluate('viewer.changes().total') == 0
-    # a decoration (Bar's rug) and a piece that isn't a floor are placed as before: no level snapping
+    # a decoration (Bar's rug) and a piece that isn't a floor are no floor pieces
     if is_bar:
         page.locator('#libKind').select_option('all')
         page.locator('#libFilter').fill('rug')
@@ -2836,7 +2806,7 @@ def check_floor_placing(page, is_bar):
     page.keyboard.press('Escape')
     page.keyboard.press('p')
     assert page.locator('#library').is_hidden()
-    # a floor piece copied and pasted snaps the same way
+    # a floor piece copied and pasted is one too
     if is_bar:
         side = page.evaluate("""() => [...viewer.roots.values()].find(r => r.userData.source.actor.endsWith('.XComLevelActor_133')).userData.source.id""")
         page.evaluate('id => viewer.select(id)', side)
@@ -2844,34 +2814,30 @@ def check_floor_placing(page, is_bar):
         page.keyboard.press('Control+c'); page.keyboard.press('Control+v')
         assert page.evaluate('viewer.placing()?.floor') == 16
         page.keyboard.press('Escape')
-        # Moved up with the gizmo's up arrow, the sidewalk steps by whole levels; with Level snap off, freely
-        def drag_up(pixels):
-            page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', side)
-            page.evaluate('document.activeElement && document.activeElement.blur()')
-            page.keyboard.press('g')
-            page.wait_for_timeout(200)      # (a frame drawn where it was framed, before the screen points)
-            z0 = page.evaluate('viewer.gizmo.pose().location[2]')
-            p0 = page.evaluate('viewer.screenOf(viewer.gizmo.pose().location)')
-            up = page.evaluate('p => viewer.screenOf([p[0], p[1], p[2] + 100])', page.evaluate('viewer.gizmo.pose().location'))
-            n = ((up[0] - p0[0]) ** 2 + (up[1] - p0[1]) ** 2) ** 0.5
-            d = [(up[0] - p0[0]) / n, (up[1] - p0[1]) / n]
-            grab = None
-            for r in range(20, 160, 6):
-                pt = [p0[0] + d[0] * r, p0[1] + d[1] * r]
-                page.mouse.move(*pt)    # (the gizmo takes its hovered axis in its pointermove listener)
-                if page.evaluate('viewer.gizmo.controls.axis') == 'Y': grab = pt; break
-            assert grab, 'the gizmo\'s up arrow not found'
-            page.mouse.down(); page.mouse.move(grab[0] + d[0] * pixels, grab[1] + d[1] * pixels, steps=8); page.mouse.up()
-            return page.evaluate('viewer.gizmo.pose().location[2]') - z0
-        rise = drag_up(140)
-        assert rise > 1 and abs(rise / 64 - round(rise / 64)) < 1e-3, rise
-        page.keyboard.press('Control+z')
-        page.keyboard.press('l')
-        rise = drag_up(140)
+        # Moved up with the gizmo's up arrow (snap off), the sidewalk moves freely; Level puts it back on a level
+        page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', side)
+        page.evaluate('document.activeElement && document.activeElement.blur()')
+        page.keyboard.press('g')
+        page.wait_for_timeout(200)      # (a frame drawn where it was framed, before the screen points)
+        z0 = page.evaluate('viewer.gizmo.pose().location[2]')
+        p0 = page.evaluate('viewer.screenOf(viewer.gizmo.pose().location)')
+        up = page.evaluate('p => viewer.screenOf([p[0], p[1], p[2] + 100])', page.evaluate('viewer.gizmo.pose().location'))
+        n = ((up[0] - p0[0]) ** 2 + (up[1] - p0[1]) ** 2) ** 0.5
+        d = [(up[0] - p0[0]) / n, (up[1] - p0[1]) / n]
+        grab = None
+        for r in range(20, 160, 6):
+            pt = [p0[0] + d[0] * r, p0[1] + d[1] * r]
+            page.mouse.move(*pt)    # (the gizmo takes its hovered axis in its pointermove listener)
+            if page.evaluate('viewer.gizmo.controls.axis') == 'Y': grab = pt; break
+        assert grab, "the gizmo's up arrow not found"
+        page.mouse.down(); page.mouse.move(grab[0] + d[0] * 140, grab[1] + d[1] * 140, steps=8); page.mouse.up()
+        rise = page.evaluate('viewer.gizmo.pose().location[2]') - z0
         assert rise > 1 and abs(rise / 64 - round(rise / 64)) > 1e-3, rise
-        page.keyboard.press('Control+z')
-        page.keyboard.press('l')
-        assert page.evaluate('viewer.levelSnap()') and page.evaluate('viewer.changes().total') == 0
+        page.locator('#alignLevel').click()
+        rise = page.evaluate('viewer.gizmo.pose().location[2]') - z0
+        assert abs(rise / 64 - round(rise / 64)) < 1e-6, rise
+        page.keyboard.press('Control+z'); page.keyboard.press('Control+z')
+        assert page.evaluate('viewer.changes().total') == 0
         page.keyboard.press('v')
     assert page.evaluate('viewer.changes().total') == 0 and page.evaluate('viewer.roots.size') == count
     page.evaluate('id => viewer.select(id)', original)

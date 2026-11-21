@@ -358,8 +358,8 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
   }
   // The originals by key (recipeOf) and by key and component (templateFor), made at their first use.
   let originalIndex = null;
-  // The exported pose of the original whose pose rule a piece keeps under tile snap (a ladder, door, car, van or
-  // fracturing piece: the recipe snap), or null.
+  // The exported pose of the original whose pose rule a piece has (a ladder, door, car, van or fracturing piece: Align
+  // to game pose keeps it), or null.
   function recipeOf(o) {
     if (!o || o.isLight || o.isEffect || isStream(o) || !pieceGrid(o)) return null;
     if (!o.added) return { location: o.location, rotation: o.rotation };

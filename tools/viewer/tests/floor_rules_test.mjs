@@ -4,7 +4,7 @@
 // saved floors, floor stamps (one component only), the level height, the floor under a point, a building floor's
 // walking height and the building for a floor. Run: node tools/viewer/tests/floor_rules_test.mjs
 import assert from 'node:assert/strict';
-import { buildingWithFloor, classifyFloors, floorIndex, floorStamps, floorUnder, levelHeight, ownedFloors, stampSignature,
+import { buildingWithFloor, classifyFloors, floorIndex, floorStamps, floorUnder, levelHeight, nearestLevel, ownedFloors, stampSignature,
          storeyHeight, worldBox } from '../web/floors.js';
 
 // boxes [x0, y0, z0, x1, y1, z1]
@@ -32,11 +32,15 @@ const stamps = floorStamps([{ actor: 'S', parts: [part('S', 'side')], location: 
                            new Map([['S', 'floor'], ['V', 'floor']]), new Map([['S', { z: 16 }], ['V', { z: 75 }]]));
 assert.equal(stamps.size, 1);
 assert.equal(stamps.get(stampSignature([part('S', 'side')]))?.support, 16);
+assert.equal(stamps.get(stampSignature([part('S', 'side')]))?.z, 0);       // (its levels: Align to level's)
 
 // the level height: a sidewalk (pivot 0, its floor 16 over it) on the road, on a sidewalk, upstairs; a storey's floor
 // (pivot 192, its floor 2 over it) dropped on the ground
 assert.deepEqual([levelHeight(0, 16, 0), levelHeight(0, 16, 16), levelHeight(0, 16, 18), levelHeight(0, 16, 208), levelHeight(192, 2, 2),
                   levelHeight(192, 2, 66)], [0, 0, 0, 192, 0, 64]);
+// Align to level: the pivot's height to the nearest of its map height moved by whole levels
+assert.deepEqual([nearestLevel(0, 0), nearestLevel(31.9, 0), nearestLevel(32, 0), nearestLevel(100.5, 16), nearestLevel(-20, 16)],
+                 [0, 0, 64, 80, -48]);
 
 // the floor under a point: the saved floor it lies on, else the point
 const grid = { origin: [0, 0, 0], size: [96, 96, 64], dims: [50, 50, 10] };

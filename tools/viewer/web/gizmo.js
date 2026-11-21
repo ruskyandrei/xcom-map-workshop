@@ -48,8 +48,8 @@ function gamePose(matrix) {
   };
 }
 
-/** The move nearest `delta` (viewer space) that keeps a ladder, door, car or van to its pose rule (poserule.js, the
- *  recipe snap): `actor` is the piece's actor matrix before the move, `from` its original's game pose ({ location,
+/** The move nearest `delta` (viewer space) that keeps a ladder, door, car or van to its pose rule (poserule.js; Align to
+ *  game pose): `actor` is the piece's actor matrix before the move, `from` its original's game pose ({ location,
  *  rotation in rotator units }), `origin` the tile grid's corner (game x, y). */
 export function recipeMove(delta, actor, from, origin) {
   const pose = gamePose(delta.clone().multiply(actor));
@@ -63,16 +63,16 @@ export function recipeMove(delta, actor, from, origin) {
 // assemblyOf(source): the map's assembly (families.py) this original is in, or for a copy the one its original is in,
 // or null. Its pieces always move together, whatever linked pieces says: a car's body, glass and light bar, a door's
 // leaf and frame. An original's assembly joins by its key; a copy's by the prefab and partner links its paste gave it.
-// recipe(root): the game pose of the original whose pose rule this piece keeps under tile snap (a ladder, door, car,
-// van or fracturing piece), or null;
+// recipe(root): the game pose of the original whose pose rule this piece has (a ladder, door, car, van or fracturing
+// piece: Align to game pose puts it on the rule), or null;
 // gridOrigin(): the tile grid's corner (game x, y), or null.
 // copyDrag: { begin(), end(token, delta) }, for a move handle (an axis or a plane) taken with Shift held: the drag
 // moves a copy. begin() returns the viewer's token for it (what is copied), or null for a plain move. The selection
 // moves as in any drag, and at the end goes back to where it was: end(token, delta) places the copy, moved by `delta`
 // (viewer space), or drops it with a null delta (cancelled, or not moved).
 export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEdit, lockedGroup = () => null, fixed = () => false,
-                              assemblyOf = () => null, recipe = () => null, gridOrigin = () => null, levels = () => false,
-                              tiles = () => false, copyDrag = null }) {
+                              assemblyOf = () => null, recipe = () => null, gridOrigin = () => null, tiles = () => false,
+                              copyDrag = null }) {
   const proxy = new THREE.Object3D();
   world.add(proxy);
   const controls = new TransformControls(camera, dom);
@@ -129,10 +129,9 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
     rule = ruleOf(group);
     placeProxy(); applySnap(); show();
   }
-  // The piece whose pose rule an edit keeps under tile snap (the recipe snap): the active piece if it has one, else the
-  // first of the group that has. null when none has, or the map has no tile grid. Snap off or fine, it moves as any
-  // piece does (the Build warns of a pose off the grid).
-  const ruled = () => (snap === 'tile' ? rule : null);
+  // The piece whose pose rule Align to game pose keeps (alignToGamePose): the active piece if it has one, else the
+  // first of the group that has. null when none has, or the map has no tile grid. Under any snap it moves as any piece
+  // does, so a piece on its rule stays on it under tile snap (the Build warns of a pose off the grid).
   // A selection with a building's box in it (tiles(root)) moves by whole tiles and levels and turns by quarter turns
   // about the vertical, whatever the snap: a box stays a box of the tile grid.
   const boxed = () => group.some(tiles);
@@ -214,12 +213,22 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
     undo.push({ undo: () => apply(targets, before), redo: () => apply(targets, after) });
     redo.length = 0;
   }
+  // The selection moved by `delta` as one undo step (a command's move: Align to grid, to game pose, to level).
+  function moveGroup(delta) {
+    const targets = group, before = targets.map(r => r.matrix.clone());
+    const after = before.map(m => delta.clone().multiply(m));
+    if (after.every((m, i) => m.elements.every((v, k) => Math.abs(v - before[i].elements[k]) < 1e-6))) return false;
+    apply(targets, after);
+    commit(targets, before, targets.map(r => r.matrix.clone()));
+    placeProxy(); onEdit();
+    return true;
+  }
   function show() {
     const on = group.length > 0 && mode !== 'off' && !held;
     controls.enabled = on;
     helper.visible = on;
-    // The recipe snap turns about the vertical only: no pitch or roll rings.
-    controls.showX = controls.showZ = !((ruled() || boxed()) && mode === 'rotate');
+    // A building's box turns about the vertical only: no pitch or roll rings.
+    controls.showX = controls.showZ = !(boxed() && mode === 'rotate');
     if (on) controls.setMode(mode);
   }
 
@@ -231,9 +240,7 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
     proxy.updateMatrix();
     const copy = shiftDown && controls.mode === 'translate' && copyDrag ? copyDrag.begin() : null;
     drag = { proxy: proxy.matrix.clone(), position: proxy.position.clone(), quaternion: proxy.quaternion.clone(),
-             targets: group, before: group.map(r => r.matrix.clone()), rule: ruled() && { ...rule, actor: actorOf(rule.root) },
-             // levels(root): whether the active piece keeps to whole levels up and down (the viewer's Level snap)
-             levels: group.length > 0 && levels(roots.get(active) || group[0]),
+             targets: group, before: group.map(r => r.matrix.clone()),
              // tiles(root): a building's box; with one in the selection it all moves by whole tiles and levels
              tiles: boxed(), copy };
     cancelled = false;
@@ -249,12 +256,7 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
     // A move goes in the snap setting's steps from where the drag started (fine 24, tile 96 across and 64 up), so a
     // piece keeps its offset from the grid; along the piece's own axes when the gizmo shows them (local space). A
     // building's box moves by whole tiles and levels of the world, whatever the snap.
-    // The recipe snap puts the rule's piece at the nearest pose its rule allows, and the rest of the group with it.
-    if (drag.rule) {
-      proxy.updateMatrix();
-      const delta = recipeMove(proxy.matrix.clone().multiply(drag.proxy.clone().invert()), drag.rule.actor, drag.rule.from, drag.rule.origin);
-      delta.multiply(drag.proxy).decompose(proxy.position, proxy.quaternion, new THREE.Vector3());
-    } else if (controls.mode === 'translate') {
+    if (controls.mode === 'translate') {
       const steps = drag.tiles ? SNAP_STEPS.tile : stepsOf(snap);
       if (steps.across || steps.up) {
         const d = proxy.position.clone().sub(drag.position);
@@ -266,9 +268,6 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
         proxy.position.copy(drag.position).add(d);
       }
     }
-    // Level snap: a floor piece moves up and down by whole levels (64 units) from where the drag started; across, as set
-    if (!drag.rule && drag.levels && controls.mode === 'translate')
-      proxy.position.y = drag.position.y + Math.round((proxy.position.y - drag.position.y) / 64) * 64;
     proxy.updateMatrix();
     const delta = proxy.matrix.clone().multiply(drag.proxy.clone().invert());
     apply(drag.targets, drag.before.map(m => delta.clone().multiply(m)));
@@ -377,15 +376,37 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
      *  skips onEdit (while the page starts). */
     setPivot(next, quiet = false) { pivot = next === 'centre' ? 'centre' : 'origin'; placeProxy(); if (!quiet) onEdit(); },
     get pivot() { return pivot; },
-    /** Snap: 'off'; 'fine', steps of 24 units and 15 degrees; 'tile', whole tiles from where a drag started (96
-     *  across, 64 up) and 90-degree turns, which for a selection with a ladder, door, car, van or fracturing piece is
-     *  the recipe snap (its pose rule). */
+    /** Snap (snap_steps.js): 'off'; 'fine', steps of 24 units and 15 degrees; 'tile', whole tiles (96 across, 64 up)
+     *  and 90-degree turns; each step counted from where a drag started. */
     setSnap(next) { snap = next; placeProxy(); applySnap(); },
     get snap() { return snap; },
-    /** Whether the selection keeps a pose rule now (the recipe snap: tile snap, and a piece with a rule). */
-    get recipe() { return Boolean(ruled()); },
     /** Whether the selection has a piece with a pose rule (a ladder, door, car, van or fracturing piece). */
     get gridPiece() { return Boolean(rule); },
+    /** Align to grid (the custom geometry improvements plan, 3.1): the selection moved so that its pivot (the active
+     *  piece's own, or the selection's middle) stands on the nearest multiple of the snap setting's steps from `origin`
+     *  (game [x, y, z]: the tile grid's corner and lowest level), each axis, and turned so that its pitch, yaw and roll
+     *  are whole angular steps; with snap off, whole tiles, levels and quarter turns. A building's box keeps whole tiles
+     *  and quarter turns about the vertical. One undo step; false when it is there already. */
+    alignToGrid(origin = [0, 0, 0]) {
+      if (!group.length) return false;
+      const s = snap === 'off' || boxed() ? SNAP_STEPS.tile : stepsOf(snap);
+      proxy.updateMatrix();
+      const current = proxy.matrix.clone(), pose = gamePose(current);
+      const on = (v, step, o) => o + Math.round((v - o) / step) * step;
+      const location = [on(pose.location[0], s.across, origin[0]), on(pose.location[1], s.across, origin[1]), on(pose.location[2], s.up, origin[2])];
+      const turned = boxed() ? [0, Math.round(pose.rotation[1] / 90) * 90, 0] : pose.rotation.map(d => Math.round(d / s.turn) * s.turn);
+      return moveGroup(actorMatrix(location, turned.map(d => d * TURN / 360)).multiply(current.invert()));
+    },
+    /** Align to game pose (decision D4): the selection moved so that its piece with a pose rule (a ladder, door, car,
+     *  van or fracturing piece: the active one, else the first) stands at the nearest pose its rule allows (whole tiles
+     *  and storeys and quarter turns from where its original stands), the rest with it. One undo step; false without
+     *  such a piece, or when it is there already. */
+    alignToGamePose() {
+      if (!rule) return false;
+      return moveGroup(recipeMove(new THREE.Matrix4(), actorOf(rule.root), rule.from, rule.origin));
+    },
+    /** The selection moved by `delta` (viewer space) as one undo step; false when that changes nothing. */
+    moveBy(delta) { return moveGroup(delta); },
     /** Work out the groups and pose rules again (the map's families arrived). */
     regroup() { regroup(); },
     /** True while the pointer is on a handle or dragging, so a click does not also pick the scene. */
@@ -417,7 +438,6 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
         if (c) delta = new THREE.Matrix4().makeTranslation(c.x, c.y, c.z).multiply(new THREE.Matrix4().extractRotation(delta))
           .multiply(new THREE.Matrix4().makeTranslation(-c.x, -c.y, -c.z));
       }
-      if (ruled()) delta = recipeMove(delta, actorOf(rule.root), rule.from, rule.origin);
       const targets = group, before = targets.map(r => r.matrix.clone());
       apply(targets, before.map(m => delta.clone().multiply(m)));
       commit(targets, before, targets.map(r => r.matrix.clone()));

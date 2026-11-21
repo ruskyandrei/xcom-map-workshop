@@ -4,7 +4,7 @@
 //   stands, the map's own buildings changed carrying what the map saved (projectListings);
 // - where the map's own buildings that are not changed list it: its saved listings, or a copy's moved to the floor it
 //   stands in (mapListings); both together (listingsNow);
-// - the key of the pieces' edits (moved, deleted) that the cutaway, the ground grid and Level snap follow (editedKey).
+// - the key of the pieces' edits (moved, deleted) that the cutaway and the ground grid follow (editedKey).
 //
 // createFloorListings takes what it needs of app.js as one argument object, when app.js makes it: the buildings and
 // the map's buildings changed, a piece's box and its original's carried to where it stands. It keeps no state of its

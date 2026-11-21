@@ -11,7 +11,7 @@ import { normalCover } from './cover.js';
 import { activeMapId, areaBindings, boxesShown, builderMode, buildings, buildTool, cleared, clearKeepsOutside,
          clipboard, copySerial, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, families,
          floorTileLayer, geometryCache, gridTool, groupIndex, groups, handleDefs, landingLines, lastBuild, lastClearMs,
-         levelSnap, library, lightDrag, lighting, lightRoots, lightsOn, lightsShown, likenessCount, likenessOn,
+         library, lightDrag, lighting, lightRoots, lightsOn, lightsShown, likenessCount, likenessOn,
          likenessThin, lineCollision, lineCollisionFailed, lookPicker, lookPicking, missionIndex, missionMoves,
          missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet, pickBox, pickedEffect,
          pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, prefabTab, project, projectMissions,
@@ -25,7 +25,8 @@ import { ownLandings } from './spawns.js';
 import { spawnKey } from './spawns_view.js';
 import { gameToView } from './handles.js';
 
-export function createTestApi({ $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState,
+export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, alignToGrid, alignToLevel,
+                                allBuildings, applyPrefabDocument, applyState,
                                 bombHelperFix, boxOf, BUILD_TOOLS, builderDocument, builderRecords,
                                 buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap, clearPlan,
                                 closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint,
@@ -44,7 +45,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, allBuildings, app
                                 recipeOf, recordVolumes, refreshEffects, refreshPickBox, refreshSpawnMarkers, renderer,
                                 resetBaseSpawn, restoreMapBuildings, rockCorners, roomOfSelection, saveBuilder,
                                 savedBuildings, savePrefab, saveProject, select, SESSION, setBinding, setBoxesShown,
-                                setCover, setEffectsShown, setEffectStays, setGridTool, setLevelSnap, setLibraryScope,
+                                setCover, setEffectsShown, setEffectStays, setGridTool, setLibraryScope,
                                 setLightsShown, setLikeness, setMadeLook, setNormalEffects, setNormalLights,
                                 setNormalSpawns, setNormalView, setPickedSpawn, setPickTool, setSnapMode, setSolo,
                                 setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown, setVolumeTool, setZones,
@@ -145,7 +146,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, allBuildings, app
     lightHandles: () => { const project = projector();
       return handleDefs.map(h => ({ key: h.key, value: h.value, screen: project(h.at(h.value)), origin: project(h.origin) })); },
     lightDragging: () => Boolean(lightDrag),
-    levelSnap: () => levelSnap, setLevelSnap, chosenStorey: (x, y) => chosenStorey(x, y),
+    alignToGrid, alignToLevel, alignToGamePose, chosenStorey: (x, y) => chosenStorey(x, y),
     collisionRead: () => (lineCollision ? !lineCollisionFailed : null),
     recipeOf: id => recipeOf(roots.get(id)?.userData.source),
     ladderEnds: id => ladderNow(roots.get(id)), ladderMarks,

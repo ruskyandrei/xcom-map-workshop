@@ -4,7 +4,7 @@
 //   a cover block's or invisible floor's panel (showCover). Each area's own part of it (its section shown or hidden,
 //   its panel, the flags chip) is run through the edit hub's select runs, where the area registers it (edit_hub.js);
 // - the selected piece's marks: its highlight (refreshHighlight), a ladder's ends and its chip (ladderNow, floorPlan,
-//   refreshLadder) and the grid chip of a piece the recipe snap holds (gridNow, refreshGrid), which the edit hub's
+//   refreshLadder) and the grid chip of a piece off its pose rule (gridNow, refreshGrid), which the edit hub's
 //   edit run keeps up, with the selection following the gizmo when a command changed it;
 // - the pieces and lights an actor name stands for, selected and framed (selectActors: a compile report's or a
 //   prefab test's actor);
@@ -59,7 +59,7 @@ export const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.g
 export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, editChanged,
                                   effectViewOnly, flagContract, flagSource, flashHint, foreignCost, foreignNote, frame,
                                   gizmo, gridOrigin, groupChip, highlight, isLanding, ladderMarks, lightViewOnly,
-                                  listingsNow, missionName, ownSize, pickEffect, RECIPE_NOTE, recipeOf,
+                                  listingsNow, missionName, ownSize, pickEffect, recipeOf,
                                   setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, tileCorner }) {
   // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
   const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
@@ -320,15 +320,15 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
   const OFF_GRID_NOTE = 'Ladders, doors, cars, vans and fracturing pieces (walls, storey floors) map what the game saves '
     + 'for their tiles exactly only moved by whole tiles (96 across) and storeys (64 up) and turned by quarter turns about '
     + 'the vertical from where the original stands. This one is off that grid: it builds where it stands, with a warning '
-    + 'in the Build report. Tile snap (96 on the snap button) keeps such a piece on the grid';
+    + 'in the Build report. Align to game pose (the piece panel\'s Align) puts it on the grid, and tile snap keeps it there';
   function refreshGrid(root) {
     if (!gridChip) return;
     const move = isStream(root?.userData.source) ? null : gridNow(root);
-    gridChip.hidden = !move || (move.valid && !gizmo.recipe);
+    gridChip.hidden = !move || move.valid;
     if (gridChip.hidden) return;
-    gridChip.textContent = move.valid ? 'Recipe snap' : 'Off the grid';
-    gridChip.classList.toggle('warn', !move.valid);
-    gridChip.title = move.valid ? `${RECIPE_NOTE}.` : `${OFF_GRID_NOTE}. It misses ${move.why.join(', ')}.`;
+    gridChip.textContent = 'Off the grid';
+    gridChip.classList.add('warn');
+    gridChip.title = `${OFF_GRID_NOTE}. It misses ${move.why.join(', ')}.`;
   }
   function refreshHighlight(root) {
     // The box covers everything that moves with the selection.
