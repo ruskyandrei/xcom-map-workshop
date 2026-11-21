@@ -23,11 +23,11 @@ import { sentence } from './build_queue.js';
 import { QUARTER } from './constants.js';
 import { onHub } from './edit_hub.js';
 import { areaBindings, areaShown, assigning, cleared, clearKeepsOutside, copySerial, data, derivedCopies, effectRoots,
-         effectsOn, families, handleDefs, hintTimer, lightDrag, lightIndex, lighting, lightRadius, lightRoots, lightsOn,
-         lightsShown, nextCopySerial, pickedEffect, placing, reachKey, reachNow, reachShown, roots, selected,
-         setAreaBindings, setAssigning, setCopySerial, setDerivedCopies, setHandleDefs, setLightDrag, setLightsDirty,
-         setLightsOn, setNormalLightsValue, setReachKey, setReachNow, setSoloOn, soloOn, spawnsOn, streamSet, volumesOn,
-         zonesOn } from './editor_state.js';
+         effectsOn, families, handleDefs, hintTimer, lightDrag, lightIndex, lighting, lightRadius, lightRoots,
+         lightsDirty, lightsOn, lightsShown, nextCopySerial, pickedEffect, placing, reachKey, reachNow, reachShown,
+         roots, selected, setAreaBindings, setAssigning, setCopySerial, setDerivedCopies, setHandleDefs,
+         setLastLightSync, setLightDrag, setLightsDirty, setLightsOn, setNormalLightsValue, setReachKey, setReachNow,
+         setSoloOn, soloOn, spawnsOn, streamSet, volumesOn, zonesOn } from './editor_state.js';
 import { soundReach, VALUE_LIMITS } from './effects_rules.js';
 import { actorMatrix } from './gizmo.js';
 import { effectiveConeDegrees, LIGHT_LIMITS, storableCone } from './light_rules.js';
@@ -838,6 +838,24 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
     o.added.entity = l.entity;
     return root;
   }
+  // The Map lighting mode's buttons as a scene opens (app.js's startScene): the map's own modes only where its lighting
+  // can be had.
+  function lightingModes() {
+    for (const button of $('lighting').querySelectorAll('button')) button.disabled = button.dataset.value !== 'neutral' && !lighting.available;
+    // Neutral light by default: our map lighting is an approximation (the user's choice, 7 November).
+    $('lighting').value = 'neutral';
+  }
+  // The view lit as the Map lighting mode says, with the lights as edited: app.js's applyLighting once a scene has
+  // started (before, it does nothing).
+  function applyMapLighting() {
+    // the lights as edited (lightRecords), when they changed since
+    if (lightsDirty && data.scope === 'map' && !data.preview) {
+      lighting.setLights(lightRecords()); setLightsDirty(false); setLastLightSync(performance.now());
+    }
+    if (soloOn) { lighting.dim(sun.target.position, lightRadius); return; }
+    const result = lighting.apply($('lighting').value, sun.target.position, lightRadius);
+    $('lightCount').textContent = $('lighting').value === 'neutral' ? '' : `${result.local} local lights`;
+  }
   // The lights of a map once its pieces are built: placed, area, toggleable and streamed levels' lights with a place; the
   // sun and sky without one (listed in View options).
   function buildLights(streamLights) {
@@ -887,10 +905,11 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   onHub('select-sections', 'lights', root => { $('lightBox').hidden = !root?.userData.light; });
   onHub('select-light', 'lights', root => { showLight(root); });
 
-  return { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, assignOwner, buildLights, changeLight,
-           clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear, hoverHandle, lightClip,
-           lightEdited, lightEntries, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
-           lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, recipeLight, refreshLightShapes,
-           refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
-           setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited, withStorableCone };
+  return { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLighting, areaOwner, assignOwner,
+           buildLights, changeLight, clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear,
+           hoverHandle, lightClip, lightEdited, lightEntries, lightingModes, lightPanel, lightPose, lightRecords,
+           lightsBlocked, lightShapes, lightSource, lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight,
+           recipeLight, refreshLightShapes, refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding,
+           setLightsShown, setLightValues, setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
+           withStorableCone };
 }

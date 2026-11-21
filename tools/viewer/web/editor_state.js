@@ -7,6 +7,13 @@
 export const prefabParameter = new URLSearchParams(location.search).get('prefab');
 export const builderMode = prefabParameter !== null;
 
+// The server's list of maps (maps.json), read as the page opens (app.js's open), or null before; and the map browser
+// made from it (map_menu.js's makeMapBrowser), or null before: a map's name in the lists, the list brought up to the
+// server's, the Map menu, Prepare's check of an outdated map, open() and the prefab builder's Open read them.
+export let mapCatalogue = null, mapBrowser = null;
+export function setMapCatalogue(next) { mapCatalogue = next; }
+export function setMapBrowser(next) { mapBrowser = next; }
+
 // The scene: the map's export (its scene.json) or the builder's prefab scene, read as the page opens, and the map's
 // id (null in the builder).
 export let data, activeMapId;
@@ -216,12 +223,12 @@ export function setPlacing(next) { placing = next; }
 export let hintTimer;
 export function setHintTimer(next) { hintTimer = next; }
 // The Map lighting mode (lighting.js, made with the scene in app.js's startScene) and the radius the view's lights are
-// reckoned within (app.js's frame).
+// reckoned within (navigation.js's frame).
 export let lighting, lightRadius = 700;
 export function setLighting(next) { lighting = next; }
 export function setLightRadius(next) { lightRadius = next; }
-// The Lights view's state that other areas read or set (lights_wiring.js; app.js's keys, pointer handlers, View
-// options and draw loop, and the test hooks):
+// The Lights view's state that other areas read or set (lights_wiring.js; app.js's pointer handlers, View options
+// and draw loop, the keys and the test hooks):
 // - areaShown, reachShown: View options' Area lights and "Outline the pieces a light reaches" (read from the browser's
 //   storage as the page loads);
 // - soloOn: Solo is on; lightsDirty: the lights changed since the Map lighting mode last had them (lastLightSync, when);
@@ -243,8 +250,8 @@ export function setLightDrag(next) { lightDrag = next; }
 export function setReachKey(next) { reachKey = next; }
 export function setReachNow(next) { reachNow = next; }
 
-// What other areas read or set of the Effects view (effects_wiring.js; the selection, selection.js; app.js's keys,
-// pointer handlers, draw loop and test hooks):
+// What other areas read or set of the Effects view (effects_wiring.js; the selection, selection.js; app.js's
+// pointer handlers and draw loop, the keys and the test hooks):
 // - effectsDirty: what is drawn is to be worked out again (refreshEffects) before it is next read; effectMarkers: the
 //   markers drawn now, the roots' and the copies a piece's copy carries;
 // - normalEffects: the Normal button's Effects switch, which draws and picks them with pieces in the normal view;
@@ -304,7 +311,7 @@ export function setMissionMovesValue(next) { missionMoves = next; }
 export function setMissionDragView(next) { missionDragView = next; }
 export function setSpawnPlacing(next) { spawnPlacing = next; }
 
-// What other areas read or set of the Landing zones view (zones_wiring.js; app.js's keys and pointer handlers):
+// What other areas read or set of the Landing zones view (zones_wiring.js; the keys and app.js's pointer handlers):
 // zonePlacing, whether the next click places a landing zone (the Add panel's Landing zones kind).
 export let zonePlacing = false;
 export function setZonePlacing(next) { zonePlacing = next; }
@@ -344,8 +351,8 @@ export let lookPicker = null, lookPicking = null;
 export function setLookPicker(next) { lookPicker = next; }
 export function setLookPicking(next) { lookPicking = next; }
 
-// What other areas read or set of the made pieces' drawing (made_drawing.js; the made pieces' handles, app.js's keys,
-// pointer handlers and test hooks):
+// What other areas read or set of the made pieces' drawing (made_drawing.js; the made pieces' handles, app.js's
+// pointer handlers, the keys and the test hooks):
 // - buildTool: the Build menu's tool being drawn (its button is lit), or null;
 // - wallDrawing: the made piece being drawn, or null: { look, room (a room's four walls), slab, roof (a room's roof:
 //   roofTemplate), template (once read), start, floor, pointerId, last } (setWallDrawing gives back what it set:
@@ -355,7 +362,7 @@ export function setBuildTool(next) { buildTool = next; }
 export function setWallDrawing(next) { wallDrawing = next; return next; }
 
 // What other areas read or set of a made piece's handles (made_handles.js; the selection, selection.js; app.js's
-// keys, pointer handlers and test hooks; the made pieces' panel):
+// pointer handlers, the keys and the test hooks; the made pieces' panel):
 // - wallDrag: the drag of one of the picked made piece's handles under way, or null;
 // - wallFocus: { id, index }: the opening (or slab's hole) whose handle was last touched, which the panel rings and
 //   Delete takes out, or null (the selection lets it go when another piece is picked);
@@ -364,7 +371,7 @@ export let wallDrag = null, wallFocus = null, rockPoint = null;
 export function setWallDrag(next) { wallDrag = next; }
 export function setWallFocus(next) { wallFocus = next; }
 export function setRockPoint(next) { rockPoint = next; }
-// The snap setting (app.js's setSnapMode sets it, the gizmo's with it, and draws its button): 'off', 'fine' (24 units,
+// The snap setting (navigation.js's setSnapMode sets it, the gizmo's with it, and draws its button): 'off', 'fine' (24 units,
 // 15 degrees) or 'tile' (whole tiles, 90 degrees); the placing, the cover blocks' and the made pieces' handles read it.
 export let snapMode = 'off';
 export function setSnapModeValue(next) { snapMode = next; }
@@ -380,8 +387,8 @@ export let lineCollision = null, lineCollisionFailed = false;
 export function setLineCollision(next) { lineCollision = next; }
 export function setLineCollisionFailed(next) { lineCollisionFailed = next; }
 
-// Break and Repair (made_breaking.js): the piece Break is on, { id }, or null; app.js's keys and pointer handlers read
-// it.
+// Break and Repair (made_breaking.js): the piece Break is on, { id }, or null; the keys and app.js's pointer handlers
+// read it.
 export let breaking = null;
 export function setBreaking(next) { breaking = next; }
 
@@ -390,7 +397,7 @@ export function setBreaking(next) { breaking = next; }
 export let alignTarget = null;
 export function setAlignTarget(next) { alignTarget = next; }
 
-// Placing (clipboard.js), and what of it app.js's pointer handlers, keys and draw loop read or set:
+// Placing (clipboard.js), and what of it app.js's pointer handlers and draw loop and the keys read or set:
 // - ghostDirty: the preview of what is being placed is to be moved to the pointer again (the pointer handlers, the
 //   keys and Level snap ask for it, the draw loop moves it);
 // - libraryScope: the Add panel's tab, 'map' (This map), 'all' (All maps) or 'prefabs' (app.js gives it the one the
@@ -402,7 +409,8 @@ export function setGhostDirty(next) { ghostDirty = next; }
 export function setLibraryScopeValue(next) { libraryScope = next; }
 export function setLevelSnapValue(next) { levelSnap = next; }
 
-// The map grid (map_grid.js), and what of it app.js's scene start, pointer handlers, keys and test hooks read or set:
+// The map grid (map_grid.js), and what of it app.js's scene start and pointer handlers, the keys and the test hooks
+// read or set:
 // - ownGrid: the map's own size as exported, { dims, max }, kept before the first change (the scene start drops it);
 // - gridTool: the rail's Map grid is on, its handles shown (setGridToolValue, beside the grid's setGridTool, which also
 //   draws); gridDrag: a handle's drag under way, or null.

@@ -4,45 +4,36 @@ import { createGizmo, placedPose, actorMatrix } from './gizmo.js';
 import { createPieceBrowser, pieceGrid, useFamilies } from './pieces.js';
 import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
          groupKey } from './project.js';
-import { ownLandings } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
-import { createMapBrowser } from './map_browser.js';
 import { createSetupDialog, setupApi } from './setup.js';
-import { spawnKey } from './spawns_view.js';
 import { makeEffectMarker } from './effects_view.js';
 import { viewHeight } from './effects_preview.js';
 import { recordName } from './effects_rules.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
-import { api as prefabApi, createPrefabBrowser } from './prefabs.js';
+import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
-         buildingMeta, buildings, buildTool, cachePrefix, cleared, clearKeepsOutside, clipboard, copySerial, coverDrag,
-         data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, eventMemo, exportProblem, families,
-         floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups,
-         handleDefs, hintTimer, landingLines, landingZones, lastBuild, lastClearMs, lastLightSync, leaving, levelSnap,
-         library, libraryScope, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown,
-         likenessCount, likenessOn, likenessThin, lineCollision, lineCollisionFailed, loadErrorCount, lookPicker,
-         lookPicking, missionIndex, missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns,
-         ownPicked, ownSet, pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces,
-         placing, prefabParameter, prefabTab, project, projectMissions, projectSpawnRules, reachNow, reachShown,
-         rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
+         buildingMeta, cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo,
+         floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, hintTimer,
+         landingZones, lastBuild, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots,
+         lightsDirty, lightsOn, lightsShown, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue,
+         missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns, ownSet, pickBox, pickDrag,
+         pickedSpawn, pickTool, pieces, placing, prefabParameter, project, projectMissions, projectSpawnRules,
+         reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
          setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn,
-         setEventMemo, setExportProblem, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors,
-         setLandingLines, setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLibrary,
-         setLibraryScopeValue, setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue,
-         setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings, setNormalEffectsValue,
-         setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickBoxValue, setPickedEffect,
-         setPickedSpawnValue, setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
-         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSnapModeValue, setSpawnFilters,
-         setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStartingCache, setTileKey, setTipDirty, setZonesOn,
-         snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData, spawnsOn,
-         spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag,
-         wallDrawing, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
+         setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors, setLandingZones,
+         setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
+         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
+         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
+         setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey,
+         setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn,
+         spawnLayerReady, spawnPlacing, spawnsOn, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
+         wallDrag, wallDrawing, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -75,6 +66,12 @@ import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
 import { createSelection } from './selection.js';
+import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
+import { createTestApi } from './test_api.js';
+import { createNavigation, RECIPE_NOTE } from './navigation.js';
+import { createLoading } from './loading.js';
+import { createPopups } from './popups.js';
+import { createMapMenu } from './map_menu.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -82,11 +79,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting } from './lighting.js';
 import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
-import { visibleBounds, focusBounds } from './view_layout.js';
-import { COVER_KIND, normalCover } from './cover.js';
-import { QUARTER, TILE } from './constants.js';
+import { COVER_KIND } from './cover.js';
+import { TILE } from './constants.js';
 import { WALL_LOOKS, SLAB_LOOKS, slabLookOf, madeWallShape, madeSlabShape } from './walls.js';
-import { loadLooks, catalogued, lookFromEntry, lookTags, DONOR_VERSION } from './looks.js';
+import { DONOR_VERSION, loadLooks, lookTags } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 import { GROUND_LOOKS, versionedGround, POINTS_VERSION, madeGroundShape } from './ground.js';
 
@@ -257,11 +253,12 @@ const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v 
 // piece's root built, added and taken away, an original's parts and boxes, and a piece's box; made before
 // the gizmo, which is given baseMatrix (nothing of it runs as the page loads but a few tables and vectors
 // made).
-const { addRoots, baseMatrix, boundsOf, boxOf, buildRoot, loaded, material, materialCache, materialKey, movedBox,
-        originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt, removeRoots, texture, track,
+const { addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, material, materialCache, materialKey,
+        movedBox, originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt, removeRoots, texture, track,
         vertexBox } = createScenePieces({
   camera, content, flashHint, fromOf, gltfLoader, gridOrigin, pickables, renderer, textureLoader, texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
+  loadingState: (message, fraction, detail) => loadingState(message, fraction, detail),
   assetUrl: url => assetUrl(url), drawBroken: root => drawBroken(root),
   select: (id, add, keep) => select(id, add, keep) });
 const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: controls, roots: allRoots, baseMatrix, onEdit: editChanged,
@@ -297,7 +294,7 @@ function useMapFamilies(table) {
   gizmo.regroup();
 }
 // (the Map lighting mode, lighting, and the pieces that could not be drawn, loadErrorCount: editor_state.js)
-let mapCatalogue=null, mapBrowser=null;     // (cachePrefix: editor_state.js)
+// (the server's map list, mapCatalogue, the map browser, mapBrowser, and cachePrefix: editor_state.js)
 // (the lights' reach, lightRadius: editor_state.js)
 
 const short = path => path.split('.').at(-1);
@@ -310,21 +307,15 @@ function field(parent, name, value) {
   text(parent, 'dt', name); return text(parent, 'dd', value);
 }
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+// The loading overlay (loading.js): its message, bar and detail line, an opening document's steps on it, and a
+// JSON file read with its progress; made as soon as the words it needs are (nothing of it runs as the page loads).
+const { fetchJson, loadingState, openingProgress } = createLoading({
+  $, plural });
 async function copyText(button, value) {
   const label = button.textContent;
   try { await navigator.clipboard.writeText(value); button.textContent = 'Copied'; }
   catch { button.textContent = 'Copy failed'; }
   setTimeout(() => { button.textContent = label; }, 1500);
-}
-// a panel section's text with its how-to notes shown (the test hooks read it)
-function sectionText(id) {
-  const box = $(id);
-  if (box.hidden) return null;
-  const had = box.classList.contains('showhow');
-  box.classList.add('showhow');
-  const words = box.innerText;
-  box.classList.toggle('showhow', had);
-  return words;
 }
 // The selection's group as a chip beside its name; groupPanel keeps it up to date. (The selection, selection.js,
 // puts it in the piece panel; both it and the groups are given it.)
@@ -412,21 +403,6 @@ onHub('edit', 'piece-status', () => {
   $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();
   $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)) || (r.userData.effect && r.userData.values));
   $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !cleared);
-});
-onHub('edit', 'tools', () => {
-  for (const [id, m] of [['editMove','translate'],['editRotate','rotate'],['editOff','off']]) $(id).classList.toggle('on', gizmo.mode === m);
-  snapButton();
-  const world = gizmo.space === 'world';
-  $('editSpace').querySelector('use').setAttribute('href', world ? '#i-world' : '#i-local');
-  $('editSpace').title = world ? "World axes: click for the piece's own axes (X)" : "The piece's own axes: click for world axes (X)";
-  const centre = gizmo.pivot === 'centre';
-  $('editPivot').querySelector('use').setAttribute('href', centre ? '#i-pivot-centre' : '#i-pivot-origin');
-  $('editPivot').classList.toggle('on', centre);
-  $('editPivot').setAttribute('aria-pressed', String(centre));
-  $('editPivot').title = centre
-    ? "Pivot: the selection's centre (with tile snap, the nearest tile centre or corner). Click to move and turn about each piece's own origin (C)"
-    : "Pivot: each piece's own origin. Click to move and turn about the selection's centre (C)";
-  $('selected').disabled = !selected;
 });
 // While a gizmo handle is held: one short line on what is moving and how to back out.
 function dragHint(dragging) {
@@ -536,24 +512,6 @@ function restingHint() {
 // A copy is a new piece built from its source's mesh and materials, with its own id, actor name and pivot.
 // (the clipboard, clipboard, and the copies' serial: editor_state.js)
 const newId = () => `added:${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
-// (snapMode, the snap setting, 'off', 'fine' or 'tile': editor_state.js)
-// Snap cycles off, fine steps, whole tiles. Under tile snap a selection with a ladder, door, car, van or fracturing piece
-// takes the recipe snap (gizmo.js recipeMove, poserule.js): the Build maps what the map saves per tile exactly only for
-// such a pose. Snap off or fine, such a piece moves as any piece does, and off the grid the Build warns (refreshGrid).
-const SNAPS = {
-  off: ['fine', '', 'Snap off. Click for steps of 24 units and 15°'],
-  fine: ['tile', '24', 'Snap: steps of 24 units and 15°. Click for whole tiles'],
-  tile: ['off', '96', 'Snap: whole tiles (96 across, 64 up) from where the piece stood, and 90° turns. Click to turn snap off'],
-};
-const RECIPE_NOTE = 'Recipe snap: under tile snap, ladders, doors, cars, vans and fracturing pieces (walls, storey floors) move by whole tiles (96 across) and storeys (64 up) and '
-  + 'turn by quarter turns about the vertical, from where the original stands, so the Build maps what the map '
-  + 'saves for their tiles exactly. Click to turn snap off: they then move freely';
-function snapButton() {
-  const button = $('editSnap'), recipe = gizmo.recipe;
-  button.classList.toggle('on', snapMode !== 'off'); button.setAttribute('aria-pressed', snapMode !== 'off');
-  button.title = recipe ? `${RECIPE_NOTE}.` : SNAPS[snapMode][2];
-  $('snapBadge').textContent = recipe ? 'R' : SNAPS[snapMode][1];
-}
 // What a selected root is called in a list: a piece by its mesh, a light by its actor.
 const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
   : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
@@ -747,12 +705,19 @@ function projector() {
 }
 // (walls, floors, roofs and ground are drawn from the Build menu on the Add button, no longer listed here: B1)
 const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
+// The header's menus (popups.js): one open at a time, a press elsewhere closing it; made before the first area
+// that is given showPop.
+const { showPop } = createPopups({
+  $, renderProjectMenu, viewport,
+  // (made further down: called through, since they are not made yet while this runs)
+  refreshInstalls: () => refreshInstalls(), refreshSquadLine: () => refreshSquadLine() });
 // The Lights view (lights_wiring.js): the map's lights as roots, the view, the panel's light section, Solo, the
 // area lights following their glowing pieces, the reach, the drag handles (the picked effect's and sound's too),
 // and the project's light records.
-const { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, assignOwner, buildLights, changeLight,
-        clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear, hoverHandle, lightClip, lightEdited,
-        lightEntries, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
+const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLighting, areaOwner, assignOwner,
+        buildLights, changeLight, clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear,
+        hoverHandle, lightClip, lightEdited,
+        lightEntries, lightingModes, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
         lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, recipeLight, refreshLightShapes,
         refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
         setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
@@ -774,10 +739,11 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, as
   effectValuesEditable: root => effectValuesEditable(root), setEffectsShown: on => setEffectsShown(on),
   setEffectValues: (root, values) => setEffectValues(root, values) });
 // Prepare (prepare.js): the dialog that exports the map again, and a build or a play waiting for it.
-const { needsPrepare, showPrepare } = createPrepare({
+const { needsPrepare, prepareOpened, showPrepare } = createPrepare({
   $, showPop,
   // (made further down: called through, since they are not made yet while this runs)
-  banner: (message, actions, options) => banner(message, actions, options), mapLabel: id => mapLabel(id) });
+  banner: (message, actions, options) => banner(message, actions, options), mapLabel: id => mapLabel(id),
+  projectsAvailable: () => projectsAvailable() });
 
 // Projects: the edits saved, reopened and recovered (first-editor plan E1; project.js, research/editor-contracts.md).
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
@@ -864,13 +830,12 @@ const { editStateNow, applyState } = createDocumentState({
 const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
         openProject, projectChanged, saveProject } = createDocumentSession({
   $, SESSION, applyState, builder, camera, controls, dirty, documentWrites, editChanged, editState, flashHint, gizmo,
-  loadingState, plural, projectNote, projectsAvailable, saveState, showFileDialog, text, touchRecent, unsavedDocument,
+  loadingState, openingProgress, plural, projectNote, projectsAvailable, saveState, showFileDialog, text, touchRecent,
+  unsavedDocument,
   // (made with the map grid, further down: called through, since it is not made yet while this runs)
   ownSize: () => ownSize(),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
   bombHelperFix: moves => bombHelperFix(moves), setMissionMoves: next => setMissionMoves(next),
-  // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
-  openingProgress: name => openingProgress(name),
   // (made with the prefab builder just below, which is given the session's banner and drafts: called through)
   builderDocument: () => builderDocument(), builderTitle: () => builderTitle(), problemsPaint: () => problemsPaint(),
   refreshBuilder: () => refreshBuilder(), saveBuilder: options => saveBuilder(options),
@@ -879,16 +844,18 @@ const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSaved
   setLastBuild: (id, status) => setLastBuild(id, status) });
 // The prefab builder's session (builder_session.js): the prefab's document opened, kept and saved, its size line and
 // ground, Align to grid, the missing pieces looked for by recipe, and the Problems check.
-const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderRecords, builderTitle, openPrefabDocument,
-        physicalBox, problemsPaint, recoverPrefabSources, refreshBuilder, saveBuilder } = createBuilderSession({
+const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderPage, builderRecords, builderTitle,
+        openPrefabDocument, physicalBox, problemsPaint, recoverPrefabSources, refreshBuilder,
+        saveBuilder } = createBuilderSession({
   $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf, buildRoot, controls, dirty, discardAndGo, discardDraft,
-  documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, frame, gizmo, gridOrigin, isStream,
-  libraryTemplate, lightPose, loadingState, movedMatrix, plural, projectChanged, recipeOf, removeRoots, rootName, sceneChanged,
-  selectActors, short, templateFor, text, world,
-  // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
-  openingProgress: name => openingProgress(name),
+  documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, gizmo, gridOrigin, isStream,
+  libraryTemplate, lightPose, loadingState, movedMatrix, openingProgress, plural, projectChanged, recipeOf, removeRoots,
+  rootName, sceneChanged,
+  selectActors, short, showFileDialog, templateFor, text, world,
   // (made with the selection, further down: called through, since it is not made yet while this runs)
   gridNow: root => gridNow(root),
+  // (made with the camera, further down: called through, since it is not made yet while this runs)
+  frame: root => frame(root),
   // (made with the Buildings view and the clipboard, further down: called through, since they are not made yet while
   // this runs)
   snapshot: (selection, own) => snapshot(selection, own), volumeBox: root => volumeBox(root),
@@ -912,7 +879,12 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
   groupTree: (copied, chainOf) => groupTree(copied, chainOf), linkOf: e => linkOf(e), mapChain: key => mapChain(key),
   matrixBox: matrix => matrixBox(matrix), snapshot: (selection, own) => snapshot(selection, own),
   startPlacing: (clip, entry) => startPlacing(clip, entry), stopPlacing: () => stopPlacing() });
-const mapLabel = id => mapCatalogue?.maps.find(m => m.id === id)?.label ?? id ?? '';
+// The map browser's wiring (map_menu.js): a map's name, the list brought up to the server's, the browser made as the
+// page opens, and the Map menu's button and Change map.
+const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMenu({
+  $, goTo, modalOpen, projectsAvailable, showPop,
+  // (made further down: called through, since it is not made yet while this runs)
+  stopPlacing: () => stopPlacing() });
 // Build and Play in game (build_play.js): Build's panel and the window that follows a build, Play in game with its
 // dialog and the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the prefab
 // builder's Test in game and the build queue's chip.
@@ -1043,20 +1015,6 @@ const precache = createPrecache({
          done: $('cacheDone'), start: $('cacheStart') },
   onMapsDone: () => refreshMapList(),
 });
-// Maps were prepared outside the map browser: the list it shows is brought up to the server's, entry by entry (the
-// browser keeps the array it was given).
-async function refreshMapList() {
-  if (!mapCatalogue) return;
-  try {
-    const response = await fetch('/maps.json');
-    if (!response.ok) return;
-    const fresh = await response.json();
-    for (const map of fresh.maps) {
-      const mine = mapCatalogue.maps.find(m => m.id === map.id);
-      if (mine) { delete mine.outdated; Object.assign(mine, map); } else mapCatalogue.maps.push(map);
-    }
-  } catch { /* the list stays as it was; a reload brings it */ }
-}
 function showPrecache() {
   if (modalOpen()) return;
   showPop(null);
@@ -1078,37 +1036,6 @@ function showFileDialog(mode, waitForSave = false) {
 }
 
 // (the last pointer position over the view, for paste, pointer: editor_state.js)
-let frameNear = 2;    // the near plane the last framing set (the wheel zoom brings it in close up)
-function frame(root = content) {
-  const interior=$('scenery').value==='interior';
-  const box = (root === 'playable' || root === content && interior) && data.playableBounds
-    ? focusBounds(data)
-    : root === content ? visibleBounds(roots,data?.playableBounds)
-    : root?.userData?.light ? new THREE.Box3().setFromCenterAndSize(new THREE.Vector3().setFromMatrixPosition(root.matrix),
-                                                                    new THREE.Vector3(1, 1, 1).multiplyScalar(Math.min(800, Math.max(200, root.userData.values.radius ?? 400))))
-    : new THREE.Box3().setFromObject(root);
-  if (builderMode && root === content && !builder.loading) {
-    const b = builderRecords().box;
-    if (!b.isEmpty()) box.union(b);
-    if (box.isEmpty() || box.getSize(new THREE.Vector3()).length() < 1) box.set(new THREE.Vector3(-576, 0, -576), new THREE.Vector3(576, 192, 576));
-  }
-  if(interior && root!==content && root!=='playable')box.intersect(focusBounds(data));
-  if(root!==content && root!=='playable')box.max.y=Math.min(box.max.y,root.userData.cutHeight ?? Infinity);
-  if (box.isEmpty()) return;
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  const radius = size.length() * 0.5;
-  const distance = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.max(1, 1 / camera.aspect) * 1.1;
-  controls.target.copy(center);
-  camera.position.copy(center).add((interior ? new THREE.Vector3(0.55,1.5,1.1) : new THREE.Vector3(1,1.15,1.35)).normalize().multiplyScalar(distance));
-  camera.near = frameNear = Math.max(0.2, distance / 5000); camera.far = Math.max(100000, distance * 8);
-  camera.updateProjectionMatrix(); controls.update();
-  if(root===content || root==='playable') {
-    setLightRadius(Math.max(700,size.length()*0.55));sun.target.position.copy(center);
-    Object.assign(sun.shadow.camera,{left:-lightRadius,right:lightRadius,top:lightRadius,bottom:-lightRadius,near:1,far:lightRadius*6});
-    sun.shadow.camera.updateProjectionMatrix();applyLighting();
-  }
-}
 // A drawn-only copy of some pieces (the placing preview, a piece-list thumbnail) from the loaded meshes and
 // materials, or `override` for every part. It is never picked. parts: { source, matrix }; `frame` moves them all.
 // (Not with the scene's pieces, scene_pieces.js: it falls back on the clipboard's ghost material, made further down.)
@@ -1229,7 +1156,8 @@ function grabView() {
 // panel and the header's Mission picker, the Map picture dialog, and the ground grid.
 const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
         headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
-        refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes, zonesNow } = createClearMap({
+        readLandingLines, refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes,
+        startMissionPicker, zonesNow } = createClearMap({
   $, addLightRoots, addRoots, banner, cloneGroups, editedKey, flashHint, fromOf, gizmo, grabView, isStream,
   lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, refreshLightVisibility,
   removeLightRoots, removeRoots, sceneChanged, setStage, short, showPop, world,
@@ -1421,39 +1349,10 @@ const { deleteNow, deleteSelection, resetAll, resetSelected, undoStep } = create
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 // The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
 // the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.
-const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, updateTileGrid } = createCutaway({
+const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions,
+        updateTileGrid } = createCutaway({
   $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial, isStream, listingsNow,
   movedLandingActors, plural, rayAt, refreshPickBox, segButton, select, short, text, touchShadows, viewport, world });
-// The loading overlay: what is happening, a progress bar when the share done is known, and a detail line.
-// What an opening document's steps say on the loading overlay: the pieces of other maps read (the first 40% of the
-// bar), loaded with their meshes (to 70%) and the document's own pieces made (the rest).
-const OPENING = { reading: [0, 0.4, 'reading'], loading: [0.4, 0.3, 'loading'], making: [0.7, 0.3, 'making'] };
-const openingProgress = name => (phase, done, total) => {
-  const [from, share, word] = OPENING[phase];
-  loadingState(`Opening ${name}: ${word} ${done} of ${plural(total, 'piece')}…`, from + share * (total ? done / total : 1));
-};
-function loadingState(message, fraction = null, detail = '') {
-  $('loadingText').textContent = message;
-  $('loadingBar').hidden = fraction == null;
-  if (fraction != null) $('loadingBar').firstElementChild.style.width = `${Math.round(100 * Math.min(1, Math.max(0, fraction)))}%`;
-  $('loadingDetail').textContent = detail;
-}
-// A JSON file read with its progress (onProgress(share) as it arrives; the server sends its length).
-async function fetchJson(url, onProgress) {
-  const response = await fetch(url);
-  if (!response.ok) throw Error(`Scene request failed: ${response.status}`);
-  const length = Number(response.headers.get('Content-Length')) || 0;
-  if (!length || !response.body) return response.json();
-  const reader = response.body.getReader(), chunks = [];
-  let received = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value); received += value.length;
-    onProgress(received / length);
-  }
-  return JSON.parse(new TextDecoder().decode(await new Blob(chunks).arrayBuffer()));
-}
 async function open() {
   stopPickBox();
   setBoxesShownValue(false); setNormalLightsValue(false); setLightsOn(false); setLightsShownValue(false); setZonesOn(false);
@@ -1463,7 +1362,7 @@ async function open() {
   loadingState('Opening the map list…');
   const mapResponse=await fetch('/maps.json');
   if(!mapResponse.ok)throw Error('Could not load the base map list. Restart the viewer server after updating it.');
-  mapCatalogue=await mapResponse.json();
+  setMapCatalogue(await mapResponse.json());
   // A first run: no game install set and nothing exported yet. Ask for the install before anything else.
   const setup = await setupApi.status(false).catch(() => null);
   if (setup) $('helpVersion').textContent = `${setup.name} ${setup.version} (preview)`;
@@ -1476,22 +1375,7 @@ async function open() {
   }
   setActiveMapId(builderMode ? null : parameters.get('map') || mapCatalogue.defaultMap);
   const activeMap=mapCatalogue.maps.find(map=>map.id===activeMapId);
-  // (the map the address asks for, when it isn't prepared yet: kept now, as the browser marks its entry ready)
-  const askedUnprepared = !builderMode && activeMap && !activeMap.ready ? activeMapId : null;
-  mapBrowser=createMapBrowser({ els: { root: $('mapDialog'), form: $('mapForm'), search: $('mapSearch'), prepared: $('mapPrepared'),
-    groups: $('mapGroups'), list: $('mapList'), count: $('mapCount'), message: $('mapMessage'), bar: $('mapBar'), ok: $('mapOk'),
-    // On a patch preview the open map counts as not open: choosing it opens its original layout.
-    cancel: $('mapCancel'), close: $('mapClose') }, maps: mapCatalogue.maps,
-    current: activeMap?.ready && !parameters.get('scene') ? activeMapId : null,
-    prefabs: async () => (await prefabApi.list()).prefabs, onPrefab: id => goTo({ prefab: id }),
-    // The map asked for but not prepared yet opens as asked once it is ready: the address as it was, its project,
-    // mission and layout too (review finding 7; nothing is open meanwhile). Any other map chosen is a switch of map,
-    // which opens it alone.
-    onOpen: id => {
-      mapBrowser.close();
-      if (id === askedUnprepared) { setLeaving(true); location.reload(); return; }
-      goTo({ map: id, scene: null, project: null, mission: null });
-    } });
+  makeMapBrowser(activeMap, parameters);
   if (builderMode) {
     setData(emptyPrefabScene());
     await startScene({ parameters, familiesAsked: fetch('/families.json').then(r => r.json()), mapName: 'Prefab' });
@@ -1519,61 +1403,25 @@ async function open() {
   setData(await fetchJson(cachePrefix+requestedScene, share => loadingState(`Opening ${mapName}: reading its layout…`, 0.1 * share)));
   await startScene({ parameters, familiesAsked, mapName });
 }
-// Both maps and the prefab workspace start the same editor on a scene.
+// Both maps and the prefab workspace start the same editor on a scene. Each part of the scene is started by the
+// module that owns it (scene_start.js: the page's own parts), in the order the page always started them.
 async function startScene({ parameters, familiesAsked, mapName }) {
   setMergedBuildings(null);
   // No layout menu any more (the user's choice, 7 November): a patch preview (Bar's EXP-07 and EXP-08 layouts)
   // opens only from its address, ?scene=preview-<n>.json.
-  document.title = `${data.name} · XCOM Map Workshop`;
-  $('previewChip').hidden = !data.preview;
+  showSceneTitle($);
   // Configure light data before the first lit material compiles.
   setLighting(createMapLighting({ world, sun, hemisphere, scene: data, maxTextureSize:renderer.capabilities.maxTextureSize }));
-  $('scenery').value=data.preview ? 'full' : data.tactical?.recommendedView || 'full';
-  $('sceneryGroup').hidden=!data.playableBounds || data.scope!=='map';
-  $('projectSize').hidden = !projectsAvailable();     // Map grid: any whole map
-  $('projectClear').hidden = !projectsAvailable();
-  $('projectMissions').hidden = !projectsAvailable();
-  $('projectPicture').hidden = !projectsAvailable();
-  setOwnGrid(null); setStartingCache(null); setLandingLines({ kind: null, lines: [] });
-  // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones. A failed
-  // read leaves the game unknown, with the reason (review finding 31).
-  if (data.scope === 'map' && !data.preview && !builderMode && activeMapId)
-    setLandingRead(fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`)
-      .then(async r => {
-        const v = await r.json().catch(() => null);
-        if (!r.ok || !v || !Array.isArray(v.lines)) throw new Error(v?.error ?? `the editor's server answered ${r.status}`);
-        return v;
-      })
-      .then(v => { setLandingLines(v); }, error => {
-        setLandingLines({ kind: null, lines: [], failed: String(error?.message ?? error) });
-        banner(`The game install's landing lines for this map couldn't be read (${landingLines.failed}), so the editor doesn't know which game is set: the Long War landing lines are missing and Long War only missions aren't checked. Open the map again to ask again.`);
-      })
-      .then(() => { setStartingCache(null); refreshGroundGrid(); refreshLandingZones(); }));
+  showSceneMenus($, projectsAvailable);
+  setOwnGrid(null);
+  readLandingLines();
   drawPlayArea();
-  for (const button of $('lighting').querySelectorAll('button')) button.disabled = button.dataset.value !== 'neutral' && !lighting.available;
-  // Neutral light by default: our map lighting is an approximation (the user's choice, 7 November).
-  $('lighting').value = 'neutral';
+  lightingModes();
   // What the original layout's missions stream into the map (export 13), shown for reference and never edited.
   const streamObjects = data.preview ? [] : Object.values(data.streams || {}).flatMap(s => s.objects);
   chooseMission(parameters.get('mission') ?? '0');
   if (parameters.get('project') && parameters.get('mission')?.startsWith('kind:')) setAskedPick(parameters.get('mission'));
-  // Request every mesh and material up front so downloads overlap; pieces are
-  // still assembled in scene order below.
-  const everything = [...data.objects, ...streamObjects];
-  for (const obj of everything) {
-    track(geometryCache, obj.mesh, () => gltfLoader.loadAsync(cachePrefix+data.meshes[obj.mesh].url));
-    for (const id of obj.materials) { const [key, tint] = materialKey(obj, id); track(materialCache, key, () => material(id, tint)); }
-  }
-  let built = 0;
-  for (const obj of everything) {
-    try { addRoots([await buildRoot(obj)]); }
-    catch (e) { console.error(obj.actor, e); setLoadErrorCount(loadErrorCount + 1); }
-    built++;
-    if (built % 8 === 0 || built === everything.length)
-      loadingState(`Opening ${mapName}: building its pieces…`, 0.1 + 0.9 * built / everything.length,
-                   `${built} of ${everything.length} pieces · meshes and textures load as they are needed`);
-  }
-  if (!roots.size && !builderMode) throw Error('No meshes could be displayed. See import notes and browser console.');
+  await buildPieces(streamObjects, mapName);
   const streamLights = data.preview ? [] : Object.values(data.streams || {}).flatMap(s => s.lights || []);
   // A patch preview's layout is not the map's: its pieces keep their classes' families, without assemblies.
   const familyTable = await familiesAsked;
@@ -1584,259 +1432,51 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   if (data.scope === 'map' && !data.preview) buildLights(streamLights);
   buildEffects();
   lightButton();
-  // The mission picker: shown when the map's missions stream different packages (Police Station's data recovery
-  // streams its radar arrays, its abduction and terror missions don't).
-  const missions = headerMissions();
-  $('missionPick').hidden = missions.length < 2;
-  $('mission').replaceChildren(...missions.map(m => new Option(m.label, m.value)));
-  $('mission').value = missionPickValue;
-  $('mission').title = 'Which mission\'s streamed packages to show: LWR\'s patches and the mission\'s own objects, for reference';
-  $('floorGroup').hidden = !allBuildings().length;
-  // Patch helpers: pieces a patch places hidden in game (LWR's blockers and cover, ladders' collision), hidden here
-  // too by default; unticking Hide patch helpers draws them as a wireframe.
-  const streamHelpers = streamObjects.some(o => o.hidden);
-  $('helpersRow').hidden = !(data.inheritedPatches?.length || streamHelpers);
-  $('composition').textContent = [...(data.inheritedPatches || []).map(p=>{
-    const removed=data.objects.filter(o=>o.layer==='inherited' && o.sourcePackage===p.name && o.hiddenBy!=null).length;
-    return `${p.name} · ${p.components} source helpers${removed ? ` (${removed} removed by layout)` : ''} · ${p.records.filter(r=>r.actorClass==='XComRebuildWorldDataVolume').length} rebuild volumes`;
-  }), ...(data.preview ? [] : Object.entries(data.streams || {}).map(([name, s]) =>
-    `${name} · ${s.error ? `not shown: ${s.error}` : `${s.objects.length} pieces (${s.hiddenComponents} hidden in game), ${s.rebuildVolumes} rebuild volumes`}`))].join(' / ');
+  startMissionPicker();
+  sceneViewOptions(streamObjects);
   placeObjects(); floorOptions(); frame();
-  applyLighting = () => {
-    // the lights as edited (lightRecords), when they changed since
-    if (lightsDirty && data.scope === 'map' && !data.preview) {
-      lighting.setLights(lightRecords()); setLightsDirty(false); setLastLightSync(performance.now());
-    }
-    if (soloOn) { lighting.dim(sun.target.position, lightRadius); return; }
-    const result = lighting.apply($('lighting').value, sun.target.position, lightRadius);
-    $('lightCount').textContent = $('lighting').value === 'neutral' ? '' : `${result.local} local lights`;
-  };
+  applyLighting = applyMapLighting;
   applyLighting();
   $('loading').hidden = true;
   // the ground grid and the landing zones, now that the pieces are on the map (Clear map plan, sections 3 and 4), and
   // the mission's objects (mission types plan, C2)
   refreshGroundGrid(); refreshLandingZones(); refreshSpawnMarkers(); loadSpawnRules();
-  // Import notes: a count on the header button; the list opens from it. Preview notes count as warnings.
-  const issues = data.preview ? [...data.preview.notes,...data.diagnostics.filter(d => !data.preview.notes.some(n => n.source === d.source && n.message === d.message))] : data.diagnostics;
-  $('issueCount').textContent = issues.length + loadErrorCount || '';
-  $('issueCount').classList.toggle('warn', Boolean(data.preview?.notes.length || loadErrorCount));
-  for (const issue of issues) {
-    const item = text($('diagnostics'), 'div', '', 'note');
-    text(item, 'strong', short(issue.source)); text(item, 'div', issue.message);
-  }
-  if (loadErrorCount) text($('diagnostics'), 'div', `${plural(loadErrorCount, 'piece')} could not be displayed; the browser console has the errors.`, 'note');
-  // Exports before version 12 carry no prefab/partner links: say so instead of silently moving one actor.
-  const hasLinks = builderMode || data.objects.some(o => 'prefab' in o);
-  $('editLinked').disabled = !hasLinks;
-  if (!hasLinks) {
-    $('editLinked').classList.remove('on');
-    $('editLinked').title = 'Linked pieces need a re-export: this export has no prefab/partner links. Re-export the map (export version 12) and restart the viewer server.';
-  }
+  showImportNotes($, text, short, plural);
+  showLinked($);
   void refreshInstalls();     // the header's Play button goes by them
   if (!projectsAvailable()) $('projectButton').title = 'Project: open one (Ctrl+O). Saving needs the map\'s original layout: open the map from the map browser (M)';
-  // An export older than what lights and Builds need (export 18 and its glowing pieces): prepare it again.
-  // An export older than the server's exporter (the catalogue's outdated: an update since the map was prepared) is
-  // prepared again at once, so the update's fixes reach it (its dialog says so; a failure leaves the offer in a banner).
-  setExportProblem(projectsAvailable() ? familyTable?.exportProblem ?? null : null);
-  const outdated = Boolean(mapCatalogue?.maps?.find(m => m.id === activeMapId)?.outdated) && data.scope === 'map' && !data.preview;
-  // once a session per map: should it come back still outdated, the dialog waits for a click rather than looping
-  const tried = `workshop.updated.${activeMapId}`;
-  let again = false;
-  try { again = sessionStorage.getItem(tried) === '1'; sessionStorage.setItem(tried, outdated ? '1' : '0'); } catch { /* no session storage: start */ }
-  if (outdated) showPrepare('update', !again);
-  else if (exportProblem) showPrepare('open');
+  prepareOpened(familyTable, mapCatalogue);
   if (builderMode) {
-    document.body.classList.add('prefab-builder');
-    $('builderSize').hidden = false;
-    $('prefabTest').hidden = false;
-    $('projectButton').querySelector('small').textContent = 'Prefab';
-    $('projectMenu').querySelector('h3').textContent = 'Prefab';
-    $('projectButton').title = 'Prefab: Save and Open';
-    $('mapButton').querySelector('small').textContent = 'Prefab';
-    $('mapButton').title = 'Open a map or prefab (M)';
-    $('projectLoad').querySelector('span').textContent = 'Open…';
-    const loadProjectButton = text($('projectLoad').parentElement, 'button', 'Load project…');
-    loadProjectButton.type = 'button'; loadProjectButton.onclick = () => showFileDialog('load');
+    builderPage();
     setLibraryScope('all');
     await openPrefabDocument(prefabParameter);
     void prefabTest.reconnect();
   } else if (parameters.get('project')) await openProject(parameters.get('project'));
-  window.viewer = {data, mapId:activeMapId, mapPicture, gizmo, renderer, world, camera, controls, roots, select, frame, lighting, sun, hemisphere, grid,
-    // the selected cover piece's handles on the screen ({ key: [x, y] }, none when they don't show), and a record put on a
-    // cover piece as one undo step (for scripts: the guide's shots, the checks)
-    // (each [x, y, x', y']: the handle, and where a point `tiles` tiles further out along its face's axis is, in below 0)
-    coverHandles: (tiles = 1) => { const r = handleCover(), project = projector();
-      return r ? Object.fromEntries(coverFacesNow(r).map(f => { const p = coverHandlePoint(f);
-        return [f.face[0], [...project(p), ...project(p.clone().addScaledVector(f.dir, TILE * tiles))]]; })) : {}; },
-    setCover: (id, cover) => { const r = roots.get(id); if (r?.userData.source.cover) setCover(r, normalCover(cover, coverRecipe())); },
-    // made walls (custom geometry plan, M1): the Build menu's tools (B1), drawing, a game point on the screen, the picked
-    // wall's handles on the screen ({ key: [x, y, x', y'] }: the handle and a point `units` along its drag axis), its state
-    buildTools: () => Object.keys(BUILD_TOOLS), startBuild, buildTool: () => buildTool, startWallDrawing, stopWallDrawing,
-    plainLook, isPlain: id => isPlain(roots.get(id)?.userData.source.added?.generated),
-    // the group a piece is in: { id, locked, keys (its pieces' and buildings' keys, inner groups' too) } or null
-    groupOf: id => { const r = roots.get(id), g = r && groupIndex.get(memberOf(r.userData.source));
-                     return g ? { id: g.id, locked: g.locked, keys: liveKeys(g) } : null; },
-    roomPicked: () => { const r = roomOfSelection(); return r && { walls: r.walls.map(w => w.userData.source.id), roof: r.roof?.userData.source.id ?? null }; },
-    groundPanelText: () => sectionText('groundBox'),
-    // looks from any piece (M4c): the picker, the eyedropper, a made piece's look changed, the catalogue read
-    openLookPicker, closeLookPicker, startLookPick, lookPicking: () => lookPicking && { kind: lookPicking.kind },
-    lookMode: () => (lookPicker?.isOpen ? lookPicker.state().kind : null), lookPickerState: () => lookPicker?.state() ?? null,
-    setMadeLook: (id, kind, look) => setMadeLook(roots.get(id), kind, look),
-    catalogued, lookFromEntry, storedLook,
-    wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, donor: wallDrawing.look.donor ?? null, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
-                                        ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
-                                        last: wallDrawing.last ? { ...wallDrawing.last } : null },
-    wallHandles: (units = TILE) => { const r = handleWall(), project = projector();
-      return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
-        const way = h.dir ?? h.along;      // (a gap's middle, dragged in the wall's plane: along the wall)
-        return [h.key, [...project(p), ...project(way ? p.clone().addScaledVector(way, units) : p)]]; })) : {}; },
-    rockPoint: () => (rockPoint ? { ...rockPoint, gizmo: pointGizmo.enabled, up: pointGizmo.showY } : null),
-    rockCorners: () => [...rockCorners.entries()].map(([k, v]) => [k, v?.then ? 'asking' : v]),
-    wallState: id => { const r = madeRoot(id); return r ? wallState(r) : null; },
-    slabPanelText: () => sectionText('slabBox'),
-    buildingsNow: () => buildingsFromVolumes().map(b => ({ name: b.name, floors: b.floors.map(f => f.boxes) })),
-    // the map's surface below a point (game x, y, from z down: 4096 when not given), as the wall tool and the Add panel
-    // find the floor, and as invisible floors read it (the game's collision once it has come). (One key each for this
-    // and screenOf: a second, later in the list, took its place; review finding 34.)
-    groundAt: (x, y, fromZ = 4096) => groundAt(x, y, fromZ),
-    wallMeshReady: id => { const r = madeRoot(id); return Boolean(r && loaded(geometryCache, r.userData.source.mesh)); },
-    addWallOpening, wallPanelText: () => sectionText('wallBox'),
-    streamPieces: streamObjects.length, mission: () => missionIndex, missionPick: () => missionPickValue, headerMissions,
-    missionMoves: () => [...missionMoves.values()], moveMissionGroup,
-    // (a base spawn point: turned, given values, back as the map has it; SP6)
-    editBaseSpawn, resetBaseSpawn, spawnEditShown: () => !$('spawnEdit').hidden, copySpawn, deleteSpawn, editSpawnCopy,
-    spawnAddEntries, startSpawnPlacing, placeSpawn, spawnPlacing: () => spawnPlacing,
-    // where a game point is drawn in the view's canvas (client pixels), for clicks at a tile
-    clientAt: ([x, y, z]) => { const p = gameToView([x, y, z]).project(camera), r = renderer.domElement.getBoundingClientRect();
-                               return [r.left + (p.x + 1) / 2 * r.width, r.top + (1 - p.y) / 2 * r.height]; },
-    // (the mission objects' hooks before the Spawns view: a stream object picked by its stream and actor)
-    setPickedMission: o => setPickedSpawn(o ? spawnKey(o.stream, o.actor) : null),
-    pickedMission: () => { const e = spawnEntry(pickedSpawn); return e && e.layer !== 'base' ? { stream: e.stream, actor: e.record.actor } : null; },
-    missionGizmo: () => ({ enabled: missionGizmo.enabled, at: [missionProxy.position.x, missionProxy.position.z, missionProxy.position.y] }),
-    missions: () => projectMissions, showMissions, missionsPanel,
-    tileGrid: () => { updateTileGrid(); return grid.children[0]?.userData ?? null; },
-    // (the dialogs' keys and a state put on the map, for the browser checks: browser_editing.py)
-    showPrepare, applyState,
-    pick, changes, pickables, pieces, showPieces, library, setLibraryScope, libraryTemplate, setSnapMode, families: () => families, playArea,
-    // prefabs (prefab plan stage P), for the browser smoke test
-    prefabs: prefabTab, prefabApi, prefabRecords, savePrefab, choosePrefab, prefabClip,
-    builderMode, builderDocument, builderRecords, saveBuilder, openPrefabDocument, applyPrefabDocument, goTo, keepRecovery,
-    pasteSnapshot, snapshot, dirty, copySerial: () => copySerial,
-    placementProblem: at => {
-      if (!placing) return 'No placement';
-      const target = dropTarget(placing.clip, at);
-      return target ? prefabPlacementProblem(placing.clip, placeMove(placing.clip, target, placing.turns)) : 'No target';
-    },
-    gridNow: id => gridNow(roots.get(id)),
-    groupList: () => [...groups.values()].map(g => ({ id: g.id, prefab: g.prefab ?? null, members: [...g.members.keys()] })),
-    // lights (editor lights plan 4.6), for the browser smoke test
-    lightRoots, lightsShown: () => lightsShown, setLightsShown, lightRecords, pickLight, lightPanel, setSolo, soloOn: () => soloOn,
-    lightReach: () => reachNow, areaBindings: () => new Map(areaBindings), setBinding, lightShapes, derivedCopies: () => derivedCopies,
-    // the selected light's drag handles: each one's value and screen point, and the light's
-    lightHandles: () => { const project = projector();
-      return handleDefs.map(h => ({ key: h.key, value: h.value, screen: project(h.at(h.value)), origin: project(h.origin) })); },
-    lightDragging: () => Boolean(lightDrag),
-    levelSnap: () => levelSnap, setLevelSnap, chosenStorey: (x, y) => chosenStorey(x, y),
-    collisionRead: () => (lineCollision ? !lineCollisionFailed : null),
-    recipeOf: id => recipeOf(roots.get(id)?.userData.source),
-    ladderEnds: id => ladderNow(roots.get(id)), ladderMarks,
-    placing: () => placing && { name: placing.clip.name, fromList: Boolean(placing.entry), ghost: placing.ghost, turns: placing.turns, floor: placing.clip.floor },
-    editState, projectState: () => stateKey(editState()), saveProject, fileDialog, highlight,
-    // Clear map, the ground grid and landing zones (Clear map plan), for the browser smoke test
-    clearPlan: keep => { const p = clearPlan(keep ?? null); return { pieces: p.pieces, lights: p.lights, landing: p.landing, script: p.script, deletable: p.originals.length,
-                                                       editableLights: p.originalLights.length, boxes: p.boxes.length, outside: p.outside, lightsOutside: p.lightsOutside }; },
-    outsideBox: dims => outsideBox(dims),
-    ownLandingCount: () => (data ? ownLandings(data).length : 0),
-    gridTool: () => ({ on: gridTool, handles: gridHandles.visible ? gridHandles.children.map(h => h.children[0].userData.gridAxis) : [],
-                       dims: [...data.tileGrid.dimensions] }),
-    setGridTool, gridHandleAt: axis => { const v = gridHandleAt(axis); return [v.x, v.z, v.y]; },
-    zoneGizmo: () => ({ enabled: zoneGizmo.enabled, shown: zoneGizmoHelper.visible, axis: zoneGizmo.axis, mode: zoneGizmo.mode,
-                        dragging: zoneGizmo.dragging, at: [zoneProxy.position.x, zoneProxy.position.z, zoneProxy.position.y] }),
-    clearMap, showClearMap, cleared: () => cleared, clearKeepsOutside: () => clearKeepsOutside, stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
-    groundGrid: () => ({ shown: groundGrid.visible, ...groundGrid.userData, ground: groundHeight() }), pickZone, pickedZone: () => pickedZone,
-    lastClearMs: () => lastClearMs, landingLayer, setZones, setZonesShown, zonesOn: () => zonesOn,
-    // the Spawns view (spawns plan, SP3): the entries drawn now, with where each marker stands and its screen point
-    spawnLayer, spawnsOn: () => spawnsOn, setSpawnsShown, normalSpawns: () => normalSpawns, setNormalSpawns, showSpawn,
-    pickedSpawn: () => pickedSpawn, pickSpawn: key => setPickedSpawn(key), spawnRules: () => spawnRulesData, bombHelperFix,
-    projectSpawnRules: () => projectSpawnRules, setSpawnRule,
-    spawns: () => { const project = projector(), shown = new Set(spawnLayer.children.map(m => m.userData.spawn));
-      return spawnEntriesNow.map(e => ({ key: e.key, layer: e.layer, stream: e.stream, kind: e.record.kind, role: e.record.role ?? null,
-        group: e.record.group ?? null, actor: e.record.actor, marked: shown.has(e.key), at: spawnAt(e), screen: project(gameToView(spawnAt(e))),
-        deleted: spawnDeleted(e), box: e.record.kind === 'noSpawn' ? spawnBoxNow(e) : null })); },
-    // a no-spawn volume's face handles (the Buildings view's six): where each is on screen, null when none show
-    spawnVolumeHandles: () => { const e = spawnVolumeHandle(), b = e && spawnBoxNow(e), project = projector();
-      return b ? Object.fromEntries(FACES.map(([key]) => [key, project(viewPoint(handlePoint(b, key)))])) : null; },
-    spawnEdits: () => [...missionMoves.values()].map(m => structuredClone(m)),
-    spawnPanelText: () => ($('spawnPanel').hidden ? null : { title: $('spawnTitle').textContent, info: $('spawnInfo').textContent }),
-    setSpawnFilter: (family, on) => { setSpawnFilters({ ...spawnFilters, [family]: on }); syncSpawnFilters(); refreshSpawnMarkers(); },
-    // the Effects view (effects and sounds plan, FX1): each marker's record id, where it stands (game units), its
-    // screen point and whether it is a copy the Build makes with a piece
-    effectsOn: () => effectsOn, setEffectsShown, pickEffect, pickedEffect: () => pickedEffect, effectShapes,
-    // the Wave preview (FX2): what plays, how far it has got and why it failed
-    playWave: wave => { const r = effectRoots.get(pickedEffect)?.userData.source; if (r) playWave(r, wave); }, stopWave,
-    // effects and sounds edited (FX3): each root's state, the normal view's switch, keep where it is
-    likenessPane: () => ({ shown: likenessPane.shown ? likenessPane.shown.source.system : null, hidden: $('likenessPane').hidden,
-      particles: likenessPane.shown?.likeness.count() ?? 0 }), ghostLikenesses: () => ghostLikenesses.filter(g => !g.idle).length,
-    likenessState: () => ({ on: likenessOn, effects: likenesses.size, particles: likenessCount, thin: likenessThin,
-      drawn: [...likenesses].filter(([, k]) => k.likeness.group.visible).map(([owner]) => owner.userData.source?.id ?? null) }), setLikeness,
-    // one effect's likeness, emitter by emitter (effects_preview.js describe)
-    likenessOf: id => { const k = likenesses.get(effectRoots.get(id)); return k ? k.likeness.describe() : null; },
-    effectRoots, effectState: id => { const r = effectRoots.get(id); return r && { id, kind: r.userData.source.kind, added: Boolean(r.userData.source.added),
-      deleted: r.userData.deleted, moved: Boolean(r.userData.edit), stays: r.userData.stays, gone: Boolean(r.userData.derivedGone), visible: r.visible,
-      at: (v => [v.x, v.z, v.y])(new THREE.Vector3().setFromMatrixPosition(r.matrix)), viewOnly: effectViewOnly(r.userData.source, 'move'),
-      // its values (FX5), as the project keeps them, and its record as edited
-      values: r.userData.values ? structuredClone(r.userData.values) : null, now: effectNow(r) }; },
-    setNormalEffects, normalEffects: () => normalEffects, setEffectStays: (id, on) => { const r = effectRoots.get(id); if (r) setEffectStays(r, on); },
-    seekWave: t => { if (wavePlayer) wavePlayer.audio.currentTime = t; },
-    wave: () => wavePlayer && { wave: wavePlayer.wave, record: wavePlayer.record, state: wavePlayer.state, why: wavePlayer.why,
-                                time: wavePlayer.audio.currentTime, duration: wavePlayer.audio.duration, paused: wavePlayer.audio.paused, volume: wavePlayer.audio.volume },
-    effectMarkers: () => { if (effectsDirty) refreshEffects(); const project = projector();
-      return effectMarkers.map(m => ({ id: m.userData.record.id, kind: m.userData.record.kind, derived: Boolean(m.userData.derived),
-                                       added: Boolean(m.userData.record.added),
-                                       ...(w => ({ at: [w.x, w.z, w.y], screen: project(w) }))(m.getWorldPosition(new THREE.Vector3())) })); },
-    zoneHit: (x, y) => zoneHit(x, y), movedLandingActors: () => [...movedLandingActors()],
-    // for the browser smoke test: floor pieces (each carrying actor's kind, and the floor stamps' supports), the
-    // screen point of a game point, building-floor listings and the overlay
-    floorPieces: () => { const f = floorData(); return { kinds: Object.fromEntries(f.kinds), supports: [...f.stamps.values()].map(v => [v.actor, v.support]) }; },
-    screenOf: ([x, y, z]) => { const v = new THREE.Vector3(x, z, y).project(camera), r = renderer.domElement.getBoundingClientRect();
-      return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; },
-    // box select, for the browser smoke test
-    boxesShown: () => boxesShown, setBoxesShown, pickVolumeEdge,
-    ownSelected: () => [...ownSet].map(b => b.name), ownEdge: (x, y) => pickBoxEdge(x, y)?.own?.userData.own.building.name ?? null,
-    ownBoxes: () => ownVolumeLayer.children.filter(c => c.userData.own).map(c => ({ building: c.userData.own.building.name, floor: c.userData.own.floor, box: c.userData.own.box })),
-    lightsOn: () => lightsOn, normalLights: () => normalLights, setNormalLights, setNormalView,
-    pickBox: () => pickBox && [...pickBox], pickTool: () => pickTool, setPickTool, takePickBox, pickHits: () => pickHits.map(c => c.id),
-    setPickBox: box => { setPickBoxValue([...box]); setPickToolValue(false); refreshPickBox(true); },
-    pieceBox: id => (roots.get(id) ? boxOf(roots.get(id))?.slice() ?? null : null),
-    pickMoveHandle: () => (pickBox ? projector()(viewPoint(pickMovePoint())) : null),
-    pickFaceHandle: key => (pickBox ? projector()(viewPoint(handlePoint(pickBox, key))) : null),
-    // the Buildings view, for the browser smoke test
-    buildings: () => buildings, allBuildings, volumeRoots, volumesOn: () => volumesOn, setVolumesShown, volumeBox, addVolumes, newBuilding, setVolumeTool,
-    volumeHandle: key => { const r = volumeRoots.get(selected); return r ? projector()(viewPoint(handlePoint(volumeBox(r), key))) : null; },
-    ownPicked: () => ownPicked?.userData.own ?? null,
-    // the map's own buildings made editable (map buildings plan), for the browser smoke test
-    savedBuildings, restoreMapBuildings, copyVolumes, pasteVolumes, deleteVolumes, clipboard: () => clipboard,
-    mapEdits: () => { const e = mapEdits(); return { changed: [...e.changed], gone: [...e.gone] }; },
-    putVolume: (id, box) => { const r = volumeRoots.get(id); recordVolumes([r], () => setVolumeBox(r, box)); },
-    listingsNow: id => roots.get(id) && listingsNow(roots.get(id)), floorTiles: () => floorTileLayer && floorTileLayer.userData.tiles.length,
-    project: () => project && { id: project.doc.id, name: project.doc.name, revision: project.revision, dirty: dirty(), carried: project.carried, doc: project.doc },
-    // this page's session (its drafts for recovery are kept under it) and its last build status (the document checks)
-    session: SESSION, lastBuild: () => lastBuild };
+  window.viewer = createTestApi({
+    $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState, bombHelperFix, boxOf, BUILD_TOOLS,
+    builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
+    clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
+    deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn, editSpawnCopy, editState, effectNow, effectShapes,
+    effectViewOnly, FACES, fileDialog, floorData, frame, gameToView, ghostLikenesses, gizmo, goTo, grid, gridHandleAt,
+    gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
+    hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
+    lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
+    memberOf, missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup, newBuilding,
+    openLookPicker, openPrefabDocument, outsideBox, ownVolumeLayer, pasteSnapshot, pasteVolumes, pick, pickables,
+    pickBoxEdge, pickEffect, pickLight, pickMovePoint, pickVolumeEdge, pickZone, placeMove, placeSpawn, plainLook,
+    playArea, playWave, pointGizmo, prefabClip, prefabPlacementProblem, prefabRecords, projector, recipeOf,
+    recordVolumes, refreshEffects, refreshPickBox, refreshSpawnMarkers, renderer, resetBaseSpawn, restoreMapBuildings,
+    rockCorners, roomOfSelection, saveBuilder, savedBuildings, savePrefab, saveProject, select, SESSION, setBinding,
+    setBoxesShown, setCover, setEffectsShown, setEffectStays, setGridTool, setLevelSnap, setLibraryScope,
+    setLightsShown, setLikeness, setMadeLook, setNormalEffects, setNormalLights, setNormalSpawns, setNormalView,
+    setPickedSpawn, setPickTool, setSnapMode, setSolo, setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown,
+    setVolumeTool, setZones, setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
+    spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer, spawnVolumeHandle, startBuild,
+    startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, streamObjects, sun,
+    syncSpawnFilters, takePickBox, updateTileGrid, viewPoint, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
+    world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
 }
 
-// Header menus: one open at a time; a press elsewhere or Escape closes it.
-function showPop(id) {
-  for (const button of document.querySelectorAll('[data-pop]')) {
-    const on = button.dataset.pop === id, pop = $(button.dataset.pop);
-    pop.hidden = !on;
-    button.setAttribute('aria-expanded', on);
-    if (on && pop.classList.contains('left')) pop.style.left = `${button.getBoundingClientRect().left - viewport.getBoundingClientRect().left}px`;
-  }
-  if (id === 'projectMenu') renderProjectMenu();
-  if (id === 'playMenu') { refreshSquadLine(); refreshInstalls(); }
-}
-for (const button of document.querySelectorAll('[data-pop]')) button.onclick = () => showPop($(button.dataset.pop).hidden ? button.dataset.pop : null);
-document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, [data-pop]')) showPop(null); });
 $('statsToggle').checked = recall('workshop.stats') === '1';
 $('statsLine').hidden = !$('statsToggle').checked;
 $('statsToggle').onchange = e => { $('statsLine').hidden = !e.target.checked; remember('workshop.stats', e.target.checked ? '1' : '0'); };
@@ -1870,19 +1510,6 @@ poseInputs.forEach((input, i) => {
     else if (e.key === 'Escape') { input.blur(); editChanged(); }
   });
 });
-function showMapBrowser() {
-  if (!mapBrowser || modalOpen()) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  mapBrowser.show();
-}
-// The Map menu: Change map and the map's own things (missions, picture, grid, Clear map). Where it would hold Change
-// map alone (a prefab, a patch preview), the button opens the map browser itself.
-$('mapButton').onclick = () => {
-  if (builderMode || !projectsAvailable()) { showMapBrowser(); return; }
-  showPop($('mapMenu').hidden ? 'mapMenu' : null);
-};
-$('mapChange').onclick = showMapBrowser;
 $('mission').onchange = e => {
   chooseMission(e.target.value);
   const parameters = new URLSearchParams(location.search);
@@ -2007,18 +1634,6 @@ renderer.domElement.addEventListener('pointermove', e => { setPointer([e.clientX
 renderer.domElement.addEventListener('pointerleave', () => { setPointer(null); setGhostDirty(true); setTipDirty(true); });
 controls.addEventListener('change', () => { setGhostDirty(true); setTipDirty(true); });
 renderer.domElement.addEventListener('dblclick', () => (effectsOn ? frameEffect() : selected && !gizmo.busy() && frame(allRoots.get(selected))));
-$('editMove').onclick = () => gizmo.setMode('translate');
-$('editRotate').onclick = () => gizmo.setMode('rotate');
-$('editOff').onclick = () => gizmo.setMode('off');
-$('editSpace').onclick = () => gizmo.toggleSpace();
-// The pivot (C): each piece's own origin, or the selection's centre (Discord feedback S4); remembered on this computer.
-const PIVOT = 'workshop.pivot';
-function togglePivot() {
-  gizmo.setPivot(gizmo.pivot === 'centre' ? 'origin' : 'centre');
-  remember(PIVOT, gizmo.pivot);
-}
-if (recall(PIVOT) === 'centre') gizmo.setPivot('centre', true);    // (the button shows it at the first editChanged)
-$('editPivot').onclick = togglePivot;
 // Snap and linked pieces are toggle buttons: .on and aria-pressed carry the state.
 function toggleButton(button, onChange) {
   button.onclick = () => {
@@ -2027,11 +1642,6 @@ function toggleButton(button, onChange) {
     onChange(on);
   };
 }
-function setSnapMode(next) {
-  setSnapModeValue(next); gizmo.setSnap(next); setGhostDirty(true);
-  snapButton(); refreshGrid(roots.get(selected));
-}
-$('editSnap').onclick = () => setSnapMode(SNAPS[snapMode][0]);
 $('editLevels').onclick = () => setLevelSnap(!levelSnap);
 levelButton();
 setPieces(createPieceBrowser({
@@ -2169,302 +1779,23 @@ $('skyToggle').checked = recall(SKY_SHOWN) === '1';
 $('skyList').hidden = !$('skyToggle').checked;
 $('skyToggle').onchange = e => { $('skyList').hidden = !e.target.checked; remember(SKY_SHOWN, e.target.checked ? '1' : '0'); e.target.blur(); };
 
-// The arrow keys and WASD move the camera while held. By default they pan across the map: Up/W and Down/S along the
-// view's direction laid flat, Left/A and Right/D across it, so the camera keeps its height and angle. With View
-// options' "Keys move along the view" ticked, Up/W and Down/S move forward and back the way the camera faces (climbing
-// or descending with its tilt), Left/A and Right/D sideways across it. Either way the orbit target moves with the
-// camera. The speed is the same on every map and at every zoom: PAN_SPEED units a second, well under what the distance
-// used to give after Interior's framing on most maps (about 9,000 units away); Shift moves three times as fast.
-// Q and E turn the view left and right while held, about the vertical, keeping the camera's tilt: by default the
-// camera circles the point it looks at (as XCOM's own camera turns), and with "Keys move along the view" it turns where
-// it stands, the point it looks at swinging round it. TURN_SPEED a second; Shift three times as fast.
-const PAN_KEYS = { arrowup: 'forward', w: 'forward', arrowdown: 'back', s: 'back', arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right' };
-const TURN_KEYS = { q: 1, e: -1 };    // a positive turn about +Y swings forward towards the screen's left
-const TURN_SPEED = THREE.MathUtils.degToRad(60);
-const PAN_SPEED = 5000;    // about 52 tiles a second (7,200 at first: the user found it a little fast)
-const FLY_KEYS = 'workshop.flyKeys';
-const panKeys = new Set();
-let panFast = false, flyKeys = recall(FLY_KEYS) === '1';
-// View options' camera speeds (Discord feedback S2, S3): each a factor on its default, remembered on this computer.
-// Move speed scales PAN_SPEED, key turn speed TURN_SPEED, and drag turn speed OrbitControls' orbit and the look-drag
-// along the view (LOOK_PER_SCREEN). A double-click on a slider puts it back to 1; letting go of one gives the keys back
-// to the camera.
-const CAMERA_SPEEDS = { moveSpeed: 'workshop.moveSpeed', turnSpeed: 'workshop.turnSpeed', dragSpeed: 'workshop.dragSpeed' };
-const cameraSpeed = { moveSpeed: 1, turnSpeed: 1, dragSpeed: 1 };
-for (const [id, key] of Object.entries(CAMERA_SPEEDS)) {
-  const input = $(id), saved = Number(recall(key));
-  if (saved > 0) input.value = String(saved);    // (a range input keeps a saved value inside its own limits)
-  const show = () => {
-    cameraSpeed[id] = Number(input.value);
-    $(`${id}Value`).textContent = `×${cameraSpeed[id].toFixed(2)}`;
-    controls.rotateSpeed = cameraSpeed.dragSpeed;
-  };
-  show();
-  input.oninput = () => { show(); remember(key, input.value); };
-  input.onchange = () => input.blur();
-  input.ondblclick = () => { input.value = '1'; input.oninput(); input.blur(); };
-}
-function turnCamera(dt) {
-  const turn = [...panKeys].reduce((sum, k) => sum + (TURN_KEYS[k] ?? 0), 0);
-  if (!turn) return;
-  const angle = turn * TURN_SPEED * cameraSpeed.turnSpeed * (panFast ? 3 : 1) * dt, up = new THREE.Vector3(0, 1, 0);
-  if (flyKeys) controls.target.sub(camera.position).applyAxisAngle(up, angle).add(camera.position);
-  else camera.position.sub(controls.target).applyAxisAngle(up, angle).add(controls.target);
-  camera.lookAt(controls.target);    // so this frame's move goes by the turned view
-}
-function panCamera(dt) {
-  if (!panKeys.size) return;
-  turnCamera(dt);
-  const forward = new THREE.Vector3().subVectors(controls.target, camera.position);
-  if (!flyKeys) {
-    forward.setY(0);
-    // Looking straight down, forward is the top of the screen.
-    if (forward.lengthSq() < 1e-6) forward.set(0, 1, 0).applyQuaternion(camera.quaternion).setY(0);
-  }
-  if (forward.lengthSq() < 1e-6) return;
-  forward.normalize();
-  // Sideways is the screen's right, level with the ground (also looking straight down, when forward x up is nothing).
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).setY(0);
-  if (right.lengthSq() < 1e-6) return;
-  right.normalize();
-  const held = new Set([...panKeys].map(k => PAN_KEYS[k])), move = new THREE.Vector3();
-  if (held.has('forward')) move.add(forward);
-  if (held.has('back')) move.sub(forward);
-  if (held.has('right')) move.add(right);
-  if (held.has('left')) move.sub(right);
-  if (move.lengthSq() < 1e-6) return;
-  const speed = PAN_SPEED * cameraSpeed.moveSpeed * (panFast ? 3 : 1);
-  move.normalize().multiplyScalar(speed * dt);
-  camera.position.add(move); controls.target.add(move);
-}
-// Along the view, a left-drag looks round from where the camera stands instead of orbiting: the camera keeps its place
-// and the point it looks at swings round it at the same distance, dragging right looking right and up looking up
-// (LOOK_PER_SCREEN for a drag the view's height; the tilt stops just short of straight up or down). OrbitControls'
-// own rotate is off then; its pans (right-drag, or Shift, Ctrl or Cmd with the left button) and the wheel stay. A press
-// the gizmo or a light's handle takes is left to them, and a press that barely moves is still a click.
-const LOOK_PER_SCREEN = Math.PI / 2;
-let look = null;    // { id, x, y } while a look-drag is held
-function lookBy(yaw, pitch) {
-  const aim = new THREE.Spherical().setFromVector3(new THREE.Vector3().subVectors(controls.target, camera.position));
-  aim.theta += yaw;
-  aim.phi = THREE.MathUtils.clamp(aim.phi - pitch, 0.01, Math.PI - 0.01);
-  controls.target.copy(camera.position).add(new THREE.Vector3().setFromSpherical(aim));
-  camera.lookAt(controls.target);
-}
-renderer.domElement.addEventListener('pointerdown', e => {
-  if (!flyKeys || e.button !== 0 || e.ctrlKey || e.shiftKey || e.metaKey || !controls.enabled || gizmo.busy()) return;
-  look = { id: e.pointerId, x: e.clientX, y: e.clientY };
-  zoomAnchor = null;
-});
-renderer.domElement.addEventListener('pointermove', e => {
-  if (!look || e.pointerId !== look.id) return;
-  if (!controls.enabled) { look = null; return; }    // the gizmo took the drag after all
-  const k = LOOK_PER_SCREEN * cameraSpeed.dragSpeed / Math.max(1, renderer.domElement.clientHeight);
-  lookBy(-(e.clientX - look.x) * k, -(e.clientY - look.y) * k);
-  look.x = e.clientX; look.y = e.clientY;
-});
-for (const type of ['pointerup', 'pointercancel']) renderer.domElement.addEventListener(type, e => { if (look?.id === e.pointerId) look = null; });
-function setFlyKeys(on) {
-  flyKeys = Boolean(on); remember(FLY_KEYS, flyKeys ? '1' : '0');
-  controls.enableRotate = !flyKeys; look = null;
-}
-$('flyKeys').checked = flyKeys;
-controls.enableRotate = !flyKeys;
-$('flyKeys').onchange = e => { setFlyKeys(e.target.checked); e.target.blur(); };
-// The wheel zooms towards what is under the cursor. OrbitControls' own zoom scaled the distance to the orbit target, so
-// each notch moved a share of a shrinking distance and never passed the target: on a big map, zoomed far in towards
-// anything but the target, scrolling all but stopped. Here a notch moves the camera ZOOM_STEP of the way to the surface
-// under the cursor (else the ground level with the target, else a point on the cursor's ray as far as the target), so
-// that point stays under the cursor, and the orbit target moves onto the view's centre line at that point's depth:
-// orbiting, panning and the next notch work about what is looked at. Zooming out moves away from it the same way.
-// A burst of wheel events with the cursor still keeps the first one's point (a raycast once per burst).
-const ZOOM_STEP = 0.18, ZOOM_BURST = 250;
-let zoomAnchor = null;   // { point, x, y, time }
-function zoomPoint(clientX, clientY) {
-  const now = performance.now();
-  if (zoomAnchor && now - zoomAnchor.time < ZOOM_BURST && Math.hypot(clientX - zoomAnchor.x, clientY - zoomAnchor.y) < 4) {
-    zoomAnchor.time = now;
-    return zoomAnchor.point;
-  }
-  const ray = rayAt(clientX, clientY).ray, reach = camera.position.distanceTo(controls.target);
-  let point = data ? pick(clientX, clientY)?.point?.clone() : null;
-  if (!point) {
-    const ground = ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -controls.target.y), new THREE.Vector3());
-    point = ground && ground.distanceTo(camera.position) < reach * 4 ? ground : ray.at(Math.max(reach, 1), new THREE.Vector3());
-  }
-  zoomAnchor = { point, x: clientX, y: clientY, time: now };
-  return point;
-}
-function wheelZoom(e) {
-  e.preventDefault();
-  if (gizmo.controls.dragging) return;
-  // pixels, lines or pages to notches (a mouse notch is about 100 pixels; a touchpad sends many small ones)
-  const pixels = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 800 : 1);
-  const notches = THREE.MathUtils.clamp(pixels / 100, -3, 3);
-  if (!notches) return;
-  const point = zoomPoint(e.clientX, e.clientY);
-  const forward = new THREE.Vector3().subVectors(controls.target, camera.position).normalize();
-  // scrolled up (deltaY below 0) zooms in, as OrbitControls did: under 1 nears the point, over 1 backs away
-  const factor = Math.pow(1 - ZOOM_STEP, -notches);
-  const next = point.clone().addScaledVector(new THREE.Vector3().subVectors(camera.position, point), factor);
-  if (next.distanceTo(point) > camera.far * 0.5) return;    // as far out as the view reaches
-  camera.position.copy(next);
-  const depth = Math.max(1, new THREE.Vector3().subVectors(point, camera.position).dot(forward));
-  controls.target.copy(camera.position).addScaledVector(forward, depth);
-  // close in, the near plane comes in too, so the surface isn't cut away; back out it returns to the framing's
-  const near = THREE.MathUtils.clamp(depth / 50, 0.2, frameNear);
-  if (Math.abs(near - camera.near) > 1e-3) { camera.near = near; camera.updateProjectionMatrix(); }
-  controls.update();
-}
-controls.enableZoom = false;
-controls.addEventListener('start', () => { zoomAnchor = null; });    // orbited or panned: a new burst picks again
-renderer.domElement.addEventListener('wheel', wheelZoom, { passive: false });
-document.addEventListener('keyup', e => {
-  panKeys.delete(e.key.toLowerCase());
-  panFast = e.shiftKey;
-});
-// Shift pressed while a move or turn key is already held speeds the camera up at once (it used to wait for the next key
-// press: Discord feedback B1)
-document.addEventListener('keydown', e => { if (e.key === 'Shift') panFast = true; });
-window.addEventListener('blur', () => { panKeys.clear(); panFast = false; });
-// The editor's keys (index.html's help panel lists them for users): V select, T box select, G move, R rotate (while
-// placing, R and Shift+R turn the piece), P the Add panel, M the map browser, X world or local axes, C the pivot
-// (origin or centre), F frame, L level snap, O solo the selected lights, B Break on a picked wall, floor or roof that
-// breaks (else the play area), I the eyedropper while drawing; Shift+N, B, L, Z, U and X the six views (in the
-// Buildings view N draws a new box); arrow keys and WASD move the camera and Q and E turn it; Escape cancels a drag,
-// stops placing, drawing or a pick, closes a menu or, when there is none of those, clears the selection; Ctrl+Z /
-// Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+C / X / V copy, cut and paste, Ctrl+G groups the selection and
-// Ctrl+Shift+G ungroups the selected group, Delete deletes; a picked landing zone or spawn point takes Delete, Ctrl+D
-// (a copy) and [ ] (a quarter turn); Ctrl+S saves, Ctrl+B builds and Ctrl+O loads a project. Typing in a field never
-// triggers them (Ctrl+S, B and O aside), and Ctrl+C with nothing selected is the browser's own copy. An open dialog
-// (modalOpen) keeps the keys.
-document.addEventListener('keydown', e => {
-  const key = e.key.toLowerCase();
-  if (modalOpen()) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
-  if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); if (!e.repeat) saveProject(); return; }
-  if ((e.ctrlKey || e.metaKey) && key === 'o') { e.preventDefault(); if (!e.repeat) showFileDialog('load'); return; }
-  if ((e.ctrlKey || e.metaKey) && key === 'b') { e.preventDefault(); if (!e.repeat) openBuild(); return; }
-  if (e.target.closest?.('input, select, textarea, [contenteditable]')) return;
-  // while a light's handle is dragged, Escape puts it back and other keys wait
-  if (lightDrag) { if (key === 'escape') endLightDrag(false); e.preventDefault(); return; }
-  if (volumeDrag) { if (key === 'escape') endVolumeDrag(false); e.preventDefault(); return; }
-  if (coverDrag) { if (key === 'escape') endCoverDrag(false); e.preventDefault(); return; }
-  if (wallDrag) { if (key === 'escape') endWallDrag(false); e.preventDefault(); return; }
-  if (rockPoint && key === 'escape') { if (!cancelPointDrag()) releaseRockPoint(); e.preventDefault(); return; }
-  if (wallDrawing && key === 'escape') {
-    if (wallDrawing.start) { try { renderer.domElement.releasePointerCapture(wallDrawing.pointerId); } catch { /* released */ }
-      wallDrawing.start = null; wallDrawing.pointerId = null; wallGhost.visible = false; wallHint(); }
-    else stopWallDrawing();
-    e.preventDefault(); return;
-  }
-  if (pickDrag) { if (key === 'escape') endPickDrag(false); e.preventDefault(); return; }
-  if (zoneGizmo.dragging) { if (key === 'escape') cancelZoneGizmo(); e.preventDefault(); return; }
-  if (missionGizmo.dragging) { if (key === 'escape') cancelMissionGizmo(); e.preventDefault(); return; }
-  if (gridDrag) { if (key === 'escape') endGridDrag(false); e.preventDefault(); return; }
-  if (gridTool && key === 'escape' && !pickedZone && !selected && !placing) { setGridTool(false); e.preventDefault(); return; }
-  if (zonePlacing && key === 'escape') { stopZonePlacing(); e.preventDefault(); return; }
-  if (spawnPlacing && key === 'escape') { stopSpawnPlacing(); e.preventDefault(); return; }
-  if (lookPicking && key === 'escape') { stopLookPick(); e.preventDefault(); return; }
-  if (breaking && key === 'escape') { stopBreak(); e.preventDefault(); return; }
-  // B: Break on the picked made wall, floor or roof, or off again (B5)
-  if (key === 'b' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat
-      && (breaking || isMadeWall(madeRoot(selected)?.userData.source) || isMadeSlab(madeRoot(selected)?.userData.source)
-          || mapBreakable(roots.get(selected)?.userData.source))) {
-    if (breaking) stopBreak(); else startBreak();
-    e.preventDefault(); return;
-  }
-  // I: the eyedropper, while a wall, slab or ground tool draws (M4c; the look picker's own I is its panel's)
-  if (key === 'i' && !e.ctrlKey && !e.metaKey && !e.altKey && wallDrawing) {
-    startLookPick(wallDrawing.ground ? 'ground' : wallDrawing.slab ? 'slab' : 'wall');
-    e.preventDefault(); return;
-  }
-  // a picked landing zone: Delete, Ctrl+D copies, G and R its gizmo's arrows or ring, [ and ] turn it, Escape lets it
-  // go (Ctrl+Z undoes as for anything)
-  if (pickedZone && !selected && !e.altKey) {
-    if (key === 'delete' && !e.ctrlKey && !e.metaKey) { deleteZone(); e.preventDefault(); return; }
-    if ((e.ctrlKey || e.metaKey) && key === 'd') { copyZone(); e.preventDefault(); return; }
-    if (key === '[' || key === ']') { turnZone(key === '[' ? -1 : 1); e.preventDefault(); return; }
-    if ((key === 'g' || key === 'r') && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-      setZoneGizmoMode(key === 'r' ? 'rotate' : 'translate'); e.preventDefault(); return;
-    }
-    if (key === 'escape') { pickZone(null); e.preventDefault(); return; }
-  }
-  // the Effects view: Escape lets the picked marker go (a drag or a placing first gives way)
-  if (effectsOn && pickedEffect && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { pickEffect(null); e.preventDefault(); return; }
-  // a picked spawn marker (or a zone the Spawns view describes): Escape lets it go
-  if ((pickedSpawn || spawnZonePick) && !selected && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { setPickedSpawn(null); e.preventDefault(); return; }
-  // a picked base pod, Meld point or drop-in point, or a copy (SP6, SP7), as a landing zone: Delete, Ctrl+D copies,
-  // [ and ] turn a drop-in point a quarter
-  {
-    const se = pickedSpawn && !selected && !e.altKey && !placing && !gizmo.busy() ? spawnEntry(pickedSpawn) : null;
-    if (se && ['base', 'copy'].includes(se.layer) && projectsAvailable() && (spawnMovable(se) || spawnDeleted(se))) {
-      if (key === 'delete' && !e.ctrlKey && !e.metaKey) { deleteSpawn(pickedSpawn); e.preventDefault(); return; }
-      if ((e.ctrlKey || e.metaKey) && key === 'd') { copySpawn(pickedSpawn); e.preventDefault(); return; }
-      // (a drop-in point only: a pod's facing aims nothing, the user, 18 November 2026)
-      if ((key === '[' || key === ']') && !e.ctrlKey && !e.metaKey && TURNED_KINDS.includes(se.record.kind) && spawnMovable(se)) {
-        const turn = key === '[' ? -QUARTER : QUARTER, hint = `Turned a quarter ${turn > 0 ? 'right' : 'left'}`;
-        if (se.layer === 'copy') editSpawnCopy(se.record.actor, { turn }, hint); else editBaseSpawn(se.record.actor, { turn }, hint);
-        e.preventDefault(); return;
-      }
-    }
-  }
-  // the select box: Enter takes what is inside (Shift+Enter adds it to the selection), Escape puts the box away
-  if ((pickTool || pickBox) && !e.ctrlKey && !e.metaKey && !e.altKey && !placing) {
-    if (key === 'escape' && !gizmo.controls.dragging) { stopPickBox(); e.preventDefault(); return; }
-    if (key === 'enter' && pickBox) { takePickBox(e.shiftKey); e.preventDefault(); return; }
-  }
-  if (volumesOn && !e.ctrlKey && !e.metaKey && !e.altKey && !placing) {
-    if (key === 'escape' && volumeTool) { setVolumeTool(null); e.preventDefault(); return; }
-    if (key === 'escape' && ownPicked && !selected) { setOwnPicked(null); e.preventDefault(); return; }
-    if (key === 'n' && !e.shiftKey) { setVolumeTool(volumeTool === 'new' ? null : 'new'); e.preventDefault(); return; }
-    if (key === 'r') { flashHint('A building\'s box is not turned'); e.preventDefault(); return; }
-  }
-  if (e.ctrlKey || e.metaKey) {
-    if (e.altKey) return;
-    if (key === 'z' && !e.shiftKey) undoStep();
-    else if (key === 'y' || (key === 'z' && e.shiftKey)) undoStep(true);
-    else if ((key === 'c' || key === 'x') && selected) copySelection(key === 'x');
-    else if (key === 'v') paste();
-    else if (key === 'g') { if (!e.repeat && !volumesOn && !lightsOn) groupShortcut(e.shiftKey); }
-    else return;
-  } else if (key === 'delete') { if (!selected && !ownSet.size) return; if (!deleteWallOpening()) deleteSelection(); }
-  else if (key === 'escape') {
-    if (assigning) { setAssigning(null); lightPanel(); flashHint('Assigning cancelled'); }
-    else if (gizmo.cancel()) dragHint(false);
-    else if (placing) stopPlacing();
-    else if (document.querySelector('.pop:not([hidden])')) showPop(null);
-    else if (selected) select(null);
-    else if (ownSet.size || (ownPicked && !volumesOn)) { ownSet.clear(); setOwnPickedValue(null); refreshVolumes(); volumePanel(); }
-    else return;
-  }
-  else if (e.altKey) return;
-  else if (PAN_KEYS[key] || TURN_KEYS[key]) { panKeys.add(key); panFast = e.shiftKey; }
-  else if (key === 'p') { if (data) showPieces(!pieces.open); }
-  else if (key === 'm') showMapBrowser();
-  else if (key === 'r') {
-    // While placing, R turns the piece a quarter turn about its pivot (Shift+R the other way); otherwise it is Rotate.
-    if (!placing) { gizmo.setMode('rotate'); e.preventDefault(); return; }
-    placing.turns = (placing.turns + (e.shiftKey ? 3 : 1)) % 4; setGhostDirty(true);
-    clearTimeout(hintTimer); restingHint();
-  }
-  else if (key === 'v') gizmo.setMode('off');
-  else if (key === 't') { if (data && !e.repeat) setPickTool(!(pickTool || pickBox)); }
-  else if (key === 'g') gizmo.setMode('translate');
-  else if (key === 'x') { if (e.shiftKey) { if (data) setEffectsShown(!effectsOn); } else gizmo.toggleSpace(); }
-  else if (key === 'c') togglePivot();
-  else if (key === 'b') {
-    if (e.shiftKey) { if (data) setVolumesShown(!volumesOn); }
-    else { if (!playArea.children.length) return; setPlayArea(!playArea.visible); }
-  }
-  else if (key === 'l') { if (e.shiftKey) { if (data) setLightsShown(!lightsOn); } else setLevelSnap(!levelSnap); }
-  else if (key === 'n') { if (!e.shiftKey || !data) return; setNormalView(); }
-  else if (key === 'z') { if (!e.shiftKey || !data) return; setZonesShown(!zonesOn); }
-  else if (key === 'u') { if (!e.shiftKey || !data) return; setSpawnsShown(!spawnsOn); }
-  else if (key === 'o') { if (!lightRoots.has(selected)) return; setSolo(!soloOn); }
-  else if (key === 'f') { if (!(effectsOn && frameEffect())) frame(selected ? allRoots.get(selected) : undefined); }
-  else return;
-  e.preventDefault();
-});
+// The camera, snap and keys (navigation.js): the framing, the camera's keys, look-drag, wheel and speeds, the gizmo's
+// buttons with the pivot and snap (and the edit hub's tools refresh), and the editor's keys; made where the camera's
+// keys were, the last of its runs, after every factory whose functions the keys call.
+const { frame, panCamera, setSnapMode } = createNavigation({
+  $, builderRecords, camera, cancelMissionGizmo, cancelPointDrag, cancelZoneGizmo, content, controls,
+  copySelection, copySpawn, copyZone, deleteSelection, deleteSpawn, deleteWallOpening, deleteZone, dragHint,
+  editBaseSpawn, editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endVolumeDrag, endWallDrag,
+  flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
+  missionGizmo, modalOpen, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
+  refreshGrid, refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
+  setGridTool, setLevelSnap, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
+  setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,
+  showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stopBreak,
+  stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,
+  TURNED_KINDS, turnZone, undoStep, volumePanel, wallGhost, wallHint, zoneGizmo,
+  // (a let startScene sets: called through)
+  applyLighting: () => applyLighting() });
 window.addEventListener('beforeunload', e => { if (!leaving && unsavedDocument()) e.preventDefault(); });
 new ResizeObserver(() => {
   const w = viewport.clientWidth, h = viewport.clientHeight;

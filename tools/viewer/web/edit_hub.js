@@ -31,7 +31,7 @@ export const RUNS = {
     'groups',        // groups.js: the group section (none for a building's box)
     'align',         // align.js: the Align section and its white box (none for a building's box)
     'room',          // made_panel.js: the Room section
-    'tools',         // app.js: the gizmo's buttons, snap, the axes, the pivot and Selected
+    'tools',         // navigation.js: the gizmo's buttons, snap, the axes, the pivot and Selected
     'project',       // document_session.js: the project's title, its save state and its draft
     'lights',        // lights_wiring.js: the lights drawn follow, and their warnings
   ],
