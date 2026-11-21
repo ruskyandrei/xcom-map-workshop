@@ -3,14 +3,15 @@
 // moves as one stays together (a locked group, and with linked pieces on, linked pieces), and the move is one undo
 // step. Here: the choices remembered in the browser (alignPrefs, saveAlignPrefs), the units moved and their names
 // (alignUnits, unitBox, unitName, unitLabel), the piece panel's Align section with the white box on the target
-// (alignPanel, targetHelper) and the move (align).
+// (alignPanel, targetHelper: the edit hub runs it after an edit, edit_hub.js) and the move (align).
 //
 // createAlign takes what it needs of app.js as one argument object, when app.js makes it: the gizmo, the scene, the
 // pieces that can be copied, a piece's member key and its group (groups.js), the recipe snap's move, and the hints. Its
 // own state is inside it (the white box); the target chosen in the panel (alignTarget) is editor_state.js's, since
 // app.js's handler of the target list sets it.
 import * as THREE from 'three';
-import { alignTarget, data, groupIndex, setAlignTarget } from './editor_state.js';
+import { onHub } from './edit_hub.js';
+import { alignTarget, data, groupIndex, selected, setAlignTarget, volumeRoots } from './editor_state.js';
 import { recall, remember } from './storage.js';
 
 export function createAlign({ $, copyablePieces, flashHint, gizmo, keepRecipe, liveGroup, memberOf, plural, short,
@@ -89,5 +90,10 @@ export function createAlign({ $, copyablePieces, flashHint, gizmo, keepRecipe, l
     flashHint(`Aligned ${plural(units.length - 1, 'piece')} with ${unitName(ref)} on ${what} · Ctrl+Z undoes it`);
   }
 
-  return { align, alignPanel, saveAlignPrefs, targetHelper };
+  // After an edit (the edit hub, edit_hub.js). (a building's box is not aligned)
+  onHub('edit', 'align', () => {
+    if (volumeRoots.has(selected)) { $('alignBox').hidden = true; targetHelper.visible = false; } else alignPanel();
+  });
+
+  return { align, alignPanel, saveAlignPrefs };
 }

@@ -32,7 +32,9 @@ through [`storage.js`](tools/viewer/web/storage.js). [`project.js`](tools/viewer
 shape on the page. What several of the page's areas use (the scene, its roots, the selection, the project open, the
 groups, the buildings, the cleared map's state, what the document session shares with other areas, what Play in
 game goes by, the prefab builder's document, the clipboard and the Add panel's lists) lives in
-[`editor_state.js`](tools/viewer/web/editor_state.js). The open document's life is
+[`editor_state.js`](tools/viewer/web/editor_state.js). After an edit, an undo or a selection, each area keeps its own
+panels up through the edit hub, [`edit_hub.js`](tools/viewer/web/edit_hub.js), with which its module registers them.
+The open document's life is
 [`document_session.js`](tools/viewer/web/document_session.js)'s: a project opened, saved and left, its unsaved state
 kept on the server as a draft against a lost tab and offered back, and the banner under the header. The scene to and
 from a document's state is [`document_state.js`](tools/viewer/web/document_state.js)'s: `editStateNow` reads the edits
@@ -323,6 +325,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | Copy, paste and placing: a clip of the selection, a paste, the preview that follows the cursor and where a click places it, the Add panel shown and its tab, an entry of it chosen and placed, a copy dragged off with Shift | [`clipboard.js`](tools/viewer/web/clipboard.js) (`createClipboard`). A copied thing's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`optionsOf`, `stateOfRoot`), a group's in [`project.js`](tools/viewer/web/project.js), the pose rule's snap in [`gizmo.js`](tools/viewer/web/gizmo.js) (`recipeMove`), and a floor's height under a point in [`floors.js`](tools/viewer/web/floors.js) (`levelHeight`, `floorUnder`). |
 | A piece, effect, sound or lens flare of another map read as a template: its record read, its template made, the templates a project's records name, what such a piece costs and says | [`library_templates.js`](tools/viewer/web/library_templates.js) (`createLibraryTemplates`). The records read and the templates made are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`libraryRecords`, `effectTemplates`, `foreignEffects`, `foreignTemplates`, `donorHashes`); the Add panel's All maps is [`library.js`](tools/viewer/web/library.js), and the server's side [`library.py`](tools/viewer/library.py). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
+| What an area keeps up after an edit, an undo or a selection (its panel or section, a button's state, a mark in the view) | Its area's module, which registers the refresh with the edit hub, [`edit_hub.js`](tools/viewer/web/edit_hub.js), as its factory is made (`onHub(run, name, refresh)`), under a name put in the hub's `RUNS` at the place in the run where it must be called (section 3, "The page"). |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
 | The game's grid numbers on the page | [`constants.js`](tools/viewer/web/constants.js). |
@@ -456,8 +459,8 @@ where there is one.
   - the install's landing lines for the map (`landingLines`), the starting zones worked out from them
     (`startingCache`), the last clear's time (`lastClearMs`) and the landing zone's pieces as the server's families name
     them (`landingActors`), which app.js's scene start, its map families and the test hooks read or set;
-  - what the cutaway last followed (`cutKey`), what the tile grid was drawn round (`tileKey`) and the Floor tiles
-    overlay (`floorTileLayer`), which app.js's edit hub, View options, draw loop and test hooks read or set;
+  - what the tile grid was drawn round (`tileKey`) and the Floor tiles overlay (`floorTileLayer`), which app.js's View
+    options, draw loop and test hooks read or set;
   - what is wrong with the open map's export for lights and builds (`exportProblem`), which app.js's scene start sets
     and Prepare reads.
 
@@ -543,6 +546,17 @@ where there is one.
   (`recordOf(unit, 'prefab')` puts a recipe light's values before its pose). The three writers and the readers were
   recorded on every kind of piece when they moved onto these, and those records are the node test's cases
   (`piece_record_cases.json`).
+- A panel registers its refresh with the edit hub ([`edit_hub.js`](tools/viewer/web/edit_hub.js)); it is not called by
+  name from another area. After an edit, an undo or a selection, the hub's `edit` run calls each area's refresh (its
+  panel or section, a button's state, a mark in the view) in the order its `RUNS` lists them, the order the page has
+  always called them in, whatever order the modules are made in; so an area's module can be made anywhere, and a new
+  refresh is a name put in `RUNS` where it must be called and one `onHub(run, name, refresh)` in its module's factory.
+  A refresh that returns `STOP` ends its run, and those after it wait for the next (the selection followed the gizmo
+  and ran the hub itself; a box can't be turned; the cutaway's select ran it). A refresh that needs what another
+  worked out in the same run is one refresh with it (app.js's `piece-status`: the pose fields and the edit status share
+  the pose and the count of changes). Where another area's refresh must be called in the middle of one, it is a run
+  of its own that the one runs: `drag`, the lights following a gizmo handle held, between the pose fields and the end
+  of the edit's run. The hub is its own module, not editor_state.js, so that its node test can import it.
 - A module's top level only declares, so the order of imports means nothing. No module imports app.js.
 - A rule, a record or a sentence is in a pure module with a node test. The wiring of a panel is beside it and has a
   browser check in the table of checks. A hook a browser check uses is on `window.viewer`.

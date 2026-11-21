@@ -22,6 +22,7 @@ import { TILE } from './constants.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverFrame, coverGameWords, coverMaterial, coverMeshId,
          coverMeshRecord, coverScene, coverSightWords, coverStart, coverTiles, floorStart, isBlocker, isFloor,
          lengthWords, normalCover, resizedCover, retyped, sizeWords } from './cover.js';
+import { onHub } from './edit_hub.js';
 import { activeMapId, builderMode, coverDrag, data, families, geometryCache, lightsOn, lineCollision,
          lineCollisionFailed, placing, roots, selected, setCoverDrag, setLineCollision, setLineCollisionFailed,
          snapMode, volumeDrag, volumesOn, zonesOn } from './editor_state.js';
@@ -415,7 +416,12 @@ export function createCoverWiring({ $, alongLine, camera, editChanged, gizmo, gr
     return true;
   }
 
+  // After an edit (the edit hub, edit_hub.js): a picked invisible floor's height over the ground, once a drag ends.
+  onHub('edit', 'floor-note', () => {
+    if (selected && isFloor(roots.get(selected)?.userData.source.cover) && !gizmo.controls.dragging) floorNote(roots.get(selected));
+  });
+
   return { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNow, coverHandleNear, coverHandlePoint,
-           coverOf, coverPanel, coverRecipe, coverVersion, endCoverDrag, fitFloor, FLOOR_CLEARANCE, floorNote, groundAt,
+           coverOf, coverPanel, coverRecipe, coverVersion, endCoverDrag, fitFloor, FLOOR_CLEARANCE, groundAt,
            handleCover, hoverCoverHandle, moveCoverDrag, setCover, startCoverDrag, updateCoverHandles };
 }

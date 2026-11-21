@@ -10,14 +10,14 @@
 // createCutaway takes what it needs of app.js as one argument object, when app.js makes it: the scene, the tile grid's
 // group, the cut materials and the patch helpers' wireframe, the gizmo, the pieces' listings, the buildings, the
 // landing a moved zone takes along, box select's box, picking, the floor buttons and the hints. Its own state is inside
-// it (the actors shown and their ceilings, the tiles' owners); what the cutaway last followed, the tile grid's key and
-// the overlay's layer (cutKey, tileKey, floorTileLayer: app.js's edit hub, View options, draw loop and test hooks read
-// or set them) are editor_state.js's.
+// it (the actors shown and their ceilings, the tiles' owners, what it last followed); the tile grid's key and the
+// overlay's layer (tileKey, floorTileLayer: app.js's View options, draw loop and test hooks read or set them) are
+// editor_state.js's. After an edit it follows the pieces through the edit hub (edit_hub.js).
 import * as THREE from 'three';
 import { TILE } from './constants.js';
+import { onHub, STOP } from './edit_hub.js';
 import { builderMode, cleared, data, floorTileLayer, landingZones, loadErrorCount, pickBox, pickDrag, placing, pointer,
-         roots, selected, setCutKey, setFloorTileLayer, setTileKey, setTipDirty, streamSet,
-         tileKey } from './editor_state.js';
+         roots, selected, setFloorTileLayer, setTileKey, setTipDirty, streamSet, tileKey } from './editor_state.js';
 import { stampSignature } from './floors.js';
 import { withLocalLights } from './lighting.js';
 import { floorTilesOverlay, focusBounds, footprintOf, interiorPlanes, tileGridAround } from './view_layout.js';
@@ -26,9 +26,12 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
                                 isStream, listingsNow, movedLandingActors, plural, rayAt, refreshPickBox, segButton,
                                 select, short, text, touchShadows, viewport, world }) {
   const WHOLE_OVERHANG = 4 * TILE;    // four tiles
+  // the pieces' edits the cutaway last followed (floor_listings.js's editedKey), so the edit hub runs it again only
+  // when they changed
+  let cutKey = '';
   function cutaway() {
     touchShadows();
-    setCutKey(editedKey());
+    cutKey = editedKey();
     // The floor cut applies to every building at once (the user's choice, 7 November: no building list).
     const requested = $('floor').value ?? 'all';
     const interior=$('scenery').value==='interior';
@@ -215,6 +218,12 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     $('floor').value = buttons.some(b => b.dataset.value === previous) ? previous : 'all';
     cutaway();
   }
+
+  // After an edit (the edit hub, edit_hub.js).
+  onHub('edit', 'cutaway', () => {
+    // pieces moved, deleted or brought back: the cutaway follows once a drag ends
+    if (data && !gizmo.controls.dragging && editedKey() !== cutKey) { cutaway(); if (selected) return STOP; }   // (cutaway's select ran the hub)
+  });
 
   return { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, updateTileGrid };
 }

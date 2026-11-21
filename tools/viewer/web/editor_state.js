@@ -243,8 +243,8 @@ export function setLightDrag(next) { lightDrag = next; }
 export function setReachKey(next) { reachKey = next; }
 export function setReachNow(next) { reachNow = next; }
 
-// What other areas read or set of the Effects view (effects_wiring.js; app.js's selection, edit hub, keys, pointer
-// handlers, draw loop and test hooks):
+// What other areas read or set of the Effects view (effects_wiring.js; app.js's selection, keys, pointer handlers, draw
+// loop and test hooks):
 // - effectsDirty: what is drawn is to be worked out again (refreshEffects) before it is next read; effectMarkers: the
 //   markers drawn now, the roots' and the copies a piece's copy carries;
 // - normalEffects: the Normal button's Effects switch, which draws and picks them with pieces in the normal view;
@@ -428,13 +428,10 @@ export function setStartingCache(next) { startingCache = next; }
 export function setLastClearMs(next) { lastClearMs = next; }
 export function setLandingActors(next) { landingActors = next; }
 
-// The cutaway (cutaway.js), and what of it app.js's edit hub, View options, draw loop and test hooks read or set:
-// - cutKey: the pieces' edits the cutaway last followed (floor_listings.js's editedKey), so the hub runs it again only
-//   when they changed;
+// The cutaway (cutaway.js), and what of it app.js's View options, draw loop and test hooks read or set:
 // - tileKey: what the tile grid was last drawn round, or null to draw it again (View options' grid drops it);
 // - floorTileLayer: View options' Floor tiles overlay as drawn (view_layout.js floorTilesOverlay), or null.
-export let cutKey = '', tileKey = '', floorTileLayer = null;
-export function setCutKey(next) { cutKey = next; }
+export let tileKey = '', floorTileLayer = null;
 export function setTileKey(next) { tileKey = next; }
 export function setFloorTileLayer(next) { floorTileLayer = next; }
 

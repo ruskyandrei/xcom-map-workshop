@@ -4,7 +4,7 @@
 // - a group's pieces on the map now (liveMembers, liveKeys, ownKeys, liveGroup) and those of them that can break
 //   together (breakableCount, breakBlockCount, breakWallCount);
 // - what the selection is to the groups (selectionUnits, selectionGroup) and the piece panel's group section with the
-//   group chip (groupPanel);
+//   group chip (groupPanel, which the edit hub runs after an edit: edit_hub.js);
 // - the groups changed, each change one undo step (changeGroups): Lock as group (lockAsGroup), Add to group
 //   (groupToAddTo, addToGroup), Ungroup (ungroup), and the keys' Ctrl+G and Ctrl+Shift+G (groupShortcut).
 //
@@ -13,7 +13,8 @@
 // selection's highlight and the group chip, the selection and the hints. It keeps no state of its own: the groups,
 // their index and their pieces now (liveCache) are editor_state.js's.
 import { isFloor } from './cover.js';
-import { effectRoots, groupIndex, groups, lightRoots, liveCache, roots, setGroups, setLiveCache,
+import { onHub } from './edit_hub.js';
+import { effectRoots, groupIndex, groups, lightRoots, liveCache, roots, selected, setGroups, setLiveCache,
          volumeRoots } from './editor_state.js';
 import { groupKey, pruneGroups, uuid } from './project.js';
 
@@ -203,6 +204,9 @@ export function createGroups({ $, cloneGroups, flashHint, gizmo, groupables, gro
     else flashHint('Select two or more pieces or groups to group them');
   }
 
-  return { addToGroup, changeGroups, groupPanel, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
-           selectionGroup, ungroup };
+  // After an edit (the edit hub, edit_hub.js). (a building's box is in no group)
+  onHub('edit', 'groups', () => { if (volumeRoots.has(selected)) $('groupBox').hidden = true; else groupPanel(); });
+
+  return { addToGroup, changeGroups, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup, selectionGroup,
+           ungroup };
 }

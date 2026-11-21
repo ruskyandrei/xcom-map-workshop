@@ -31,6 +31,7 @@
 // hits) is editor_state.js's.
 import * as THREE from 'three';
 import { LEVEL, TILE } from './constants.js';
+import { onHub, STOP } from './edit_hub.js';
 import { allRoots, boxesShown, builderMode, buildingMeta, buildings, buildingsVersion, cleared, data, effectRoots,
          effectsOn, hintTimer, lightRoots, lightsOn, lightsShown, mergedBuildings, ownPicked, ownSet, pickBox,
          pickCentres, pickDrag, pickedSpawn, pickHits, pickTool, placing, roots, selected, setBoxesShownValue,
@@ -1166,12 +1167,21 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   $('boxAgain').onclick = () => setPickTool(true);
   $('boxCancel').onclick = stopPickBox;
 
+  // After an edit (the edit hub, edit_hub.js).
+  onHub('edit', 'buildings', () => {
+    // the Buildings view: the project's buildings follow the boxes; a box is never turned
+    if (data) {
+      if (volumesOn && gizmo.mode === 'rotate') { gizmo.setMode('translate'); return STOP; }
+      syncVolumes(); refreshVolumes(); volumePanel();
+    }
+  });
+
   return { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag,
            endVolumeDrag, FACES, handlePoint, hoverVolumeHandle, liveVolumes, makeVolume, mapEdits, mapIdOf,
            mapRestoreChange, movePickDrag, moveVolumeDrag, newBuilding, newBuildingId, ownVolumeLayer, pasteVolumes,
            PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
            refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
            setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
-           syncVolumes, takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear,
-           volumeHint, volumePanel };
+           takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint,
+           volumePanel };
 }

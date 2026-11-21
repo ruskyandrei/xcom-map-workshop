@@ -21,6 +21,7 @@
 import * as THREE from 'three';
 import { sentence } from './build_queue.js';
 import { QUARTER } from './constants.js';
+import { onHub } from './edit_hub.js';
 import { areaBindings, areaShown, assigning, cleared, clearKeepsOutside, copySerial, data, derivedCopies, effectRoots,
          effectsOn, families, handleDefs, hintTimer, lightDrag, lightIndex, lighting, lightRadius, lightRoots, lightsOn,
          lightsShown, nextCopySerial, pickedEffect, placing, reachKey, reachNow, reachShown, roots, selected,
@@ -876,11 +877,17 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
            [['Undo', () => gizmo.undo()]]);
   }
 
+  // After an edit, and while a gizmo handle is held (the edit hub, edit_hub.js).
+  onHub('edit', 'lights', () => {
+    lightsChanged();
+    warnLights();
+  });
+  onHub('drag', 'lights', () => { if (lightsShown) lightsChanged(); });
+
   return { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, assignOwner, buildLights, changeLight,
            clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear, hoverHandle, lightClip,
-           lightEdited, lightEntries, lightPanel, lightPose, lightRecords, lightsBlocked, lightsChanged, lightShapes,
-           lightSource, lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, recipeLight, refreshLightShapes,
+           lightEdited, lightEntries, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
+           lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, recipeLight, refreshLightShapes,
            refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
-           setNormalLights, setSolo, showLight, startLightDrag, updateLightHandles, valuesEdited, warnLights,
-           withStorableCone };
+           setNormalLights, setSolo, showLight, startLightDrag, updateLightHandles, valuesEdited, withStorableCone };
 }

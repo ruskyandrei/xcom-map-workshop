@@ -23,7 +23,7 @@ import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, buildings, buildTool, cachePrefix, cleared, clearKeepsOutside, clipboard, copySerial, coverDrag,
-         cutKey, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, eventMemo, exportProblem,
+         data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, eventMemo, exportProblem,
          families, floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups,
          handleDefs, hintTimer, landingLines, landingZones, lastBuild, lastClearMs, lastLightSync, leaving, levelSnap,
          library, libraryScope, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown,
@@ -74,6 +74,7 @@ import { createFloorListings } from './floor_listings.js';
 import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
+import { onHub, runHub, STOP } from './edit_hub.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -478,7 +479,7 @@ function select(id, add = false, keep = false) {
 }
 // The Flags group of the piece panel and its chip (flags_panel.js): a piece's flags as the project has them,
 // the chip, the group's rows and a change of them (one undo step).
-const { flagChip, flagContract, flagKey, flagSource, flagsPanel, resetFlags } = createFlagsPanel({
+const { flagChip, flagContract, flagKey, flagSource, resetFlags } = createFlagsPanel({
   $, boxOf, gizmo, isStream, plural, select, text, tileCorner,
   // (made further down: called through, since it is not made yet while this runs)
   sourceKey: o => sourceKey(o) });
@@ -652,18 +653,18 @@ function editChanged() {
   try { return editChangedNow(); } finally { setEventMemo(null); }
 }
 function editChangedNow() {
-  setEffectsDirty(true);     // (the Effects view's markers follow the pieces that carry them)
+  runHub('edit');
+}
+// app.js's own refreshes of the edit hub's run (edit_hub.js lists them with the other areas' and calls them in
+// order):
+onHub('edit', 'selection', () => {
   // A command (undo of a paste, a delete) can change the selection under us: follow the gizmo.
-  if (data && selected !== gizmo.active) { select(gizmo.active, false, true); return; }
-  // the Buildings view: the project's buildings follow the boxes; a box is never turned
-  if (data) {
-    if (volumesOn && gizmo.mode === 'rotate') { gizmo.setMode('translate'); return; }
-    syncVolumes(); refreshVolumes(); volumePanel();
-  }
-  // pieces moved, deleted or brought back: the cutaway follows once a drag ends
-  if (data && !gizmo.controls.dragging && editedKey() !== cutKey) { cutaway(); if (selected) return; }   // (cutaway's select ran this)
+  if (data && selected !== gizmo.active) { select(gizmo.active, false, true); return STOP; }
+});
+onHub('edit', 'marks', () => {
   if (selected && roots.get(selected)) { refreshHighlight(roots.get(selected)); refreshLadder(roots.get(selected)); refreshGrid(roots.get(selected)); }
-  if (selected && isFloor(roots.get(selected)?.userData.source.cover) && !gizmo.controls.dragging) floorNote(roots.get(selected));
+});
+onHub('edit', 'piece-status', () => {
   const pose = gizmo.pose(), count = changes();
   if (pose) [...pose.location, ...pose.rotation].forEach((v, i) => {
     if (document.activeElement !== poseInputs[i]) poseInputs[i].value = (Math.abs(v) < 0.005 ? 0 : v).toFixed(2);
@@ -671,7 +672,7 @@ function editChangedNow() {
   // while a handle is held, only what is seen to move is kept up: the pieces, the highlight, the pose fields, the
   // grid chip. The status, the save state, the panels, the size line and the warnings wait for the drag's end, which
   // runs this again in full (the gizmo's dragging-changed).
-  if (gizmo.controls.dragging) { if (lightsShown) lightsChanged(); return; }
+  if (gizmo.controls.dragging) { runHub('drag'); return STOP; }
   // a streamed piece, or a view-only light, is shown, not edited: its place, read only
   const pickedRoot = allRoots.get(selected), pickedSource = pickedRoot?.userData.source;
   const fixedPick = isStream(pickedSource) || Boolean(pickedRoot?.userData.light && lightViewOnly(pickedSource));
@@ -698,11 +699,8 @@ function editChangedNow() {
   $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();
   $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)) || (r.userData.effect && r.userData.values));
   $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !cleared);
-  flagsPanel(); kindButton();
-  // (a building's box is in no group and is not aligned)
-  if (volumeRoots.has(selected)) { $('groupBox').hidden = true; $('alignBox').hidden = true; targetHelper.visible = false; }
-  else { groupPanel(); alignPanel(); }
-  roomPanel();
+});
+onHub('edit', 'tools', () => {
   for (const [id, m] of [['editMove','translate'],['editRotate','rotate'],['editOff','off']]) $(id).classList.toggle('on', gizmo.mode === m);
   snapButton();
   const world = gizmo.space === 'world';
@@ -716,10 +714,7 @@ function editChangedNow() {
     ? "Pivot: the selection's centre (with tile snap, the nearest tile centre or corner). Click to move and turn about each piece's own origin (C)"
     : "Pivot: each piece's own origin. Click to move and turn about the selection's centre (C)";
   $('selected').disabled = !selected;
-  projectChanged();
-  lightsChanged();
-  warnLights();
-}
+});
 // While a gizmo handle is held: one short line on what is moving and how to back out.
 function dragHint(dragging) {
   const hint = $('dragHint');
@@ -977,14 +972,14 @@ const { chosenStorey, floorData, floorSupportOf, levelButton, setLevelSnap } = c
 
 // The user's groups (groups.js): a group's pieces on the map now, what the selection is to the groups, the
 // piece panel's group section, and the groups changed (each change one undo step).
-const { addToGroup, changeGroups, groupPanel, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
+const { addToGroup, changeGroups, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
         selectionGroup, ungroup } = createGroups({
   $, cloneGroups, flashHint, gizmo, groupables, groupChain, groupChip, highlight, isStream, keyWords, leafKeys,
   memberOf, memberRecord, plural, select });
 
 // Align (align.js): the others of the selection lined up with a target, the piece panel's Align section and
 // its white box on the target.
-const { align, alignPanel, saveAlignPrefs, targetHelper } = createAlign({
+const { align, alignPanel, saveAlignPrefs } = createAlign({
   $, copyablePieces, flashHint, gizmo, liveGroup, memberOf, plural, short, world,
   // (made with the clipboard, further down: called through, since it is not made yet while this runs)
   keepRecipe: (move, parts) => keepRecipe(move, parts) });
@@ -1042,10 +1037,10 @@ const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries
 // and the project's light records.
 const { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, assignOwner, buildLights, changeLight,
         clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear, hoverHandle, lightClip, lightEdited,
-        lightEntries, lightPanel, lightPose, lightRecords, lightsBlocked, lightsChanged, lightShapes, lightSource,
+        lightEntries, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
         lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, recipeLight, refreshLightShapes,
         refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
-        setNormalLights, setSolo, showLight, startLightDrag, updateLightHandles, valuesEdited, warnLights,
+        setNormalLights, setSolo, showLight, startLightDrag, updateLightHandles, valuesEdited,
         withStorableCone } = createLightsWiring({
   $, actorPose, baseMatrix, camera, copyable, copyText, editChanged, field, flashHint, gizmo, HANDLE_PICK, highlight,
   isStream, ladderMarks, lightLayer, pickables, PL, plural, projector, renderer, restingHint, select, short, showPop,
@@ -1589,7 +1584,7 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
         PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
         refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
         setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
-        syncVolumes, takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint,
+        takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint,
         volumePanel } = createBuildingsWiring({
   $, boxOf, builderBounds, camera, chosenStorey, editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
   editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, isStream, lightViewOnly, missionGizmo,
@@ -1612,7 +1607,7 @@ const { kindButton, selectKind } = createSelectKind({
 // Invisible kind, the ground under an invisible floor, the piece panel's cover section, and the handles on a
 // picked cover piece and their drags.
 const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNow, coverHandleNear, coverHandlePoint,
-        coverOf, coverPanel, coverRecipe, coverVersion, endCoverDrag, fitFloor, FLOOR_CLEARANCE, floorNote, groundAt,
+        coverOf, coverPanel, coverRecipe, coverVersion, endCoverDrag, fitFloor, FLOOR_CLEARANCE, groundAt,
         handleCover, hoverCoverHandle, moveCoverDrag, setCover, startCoverDrag,
         updateCoverHandles } = createCoverWiring({
   $, alongLine, camera, editChanged, gizmo, gridOrigin, HANDLE_PICK, materialCache, pickables, PL, projector, renderer,
@@ -1668,7 +1663,7 @@ const { BUILD_TOOLS, endWallDraw, moveWallDraw, startBuild, startWallDraw, start
   world });
 // The piece panel's sections of a made piece (made_panel.js): the Wall, Floor, Ground and Room sections, with the
 // openings and holes, and what their buttons do.
-const { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, roomPanel, slabPanel,
+const { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, slabPanel,
         wallPanel } = createMadePanel({
   $, boxOf, changeWall, flashHint, gizmo, handleWall, isMadeSlab, isMadeWall, isPlain, liveKeys, liveMembers, lookRow,
   madeRoot, madeWallRoot, openLookPicker, originalOf, plainLook, plural, selectionGroup, setMadeLook, setWall, short,

@@ -14,6 +14,7 @@
 // question open about a prop's pathing gate).
 import { sentence } from './build_queue.js';
 import { isFloor } from './cover.js';
+import { onHub } from './edit_hub.js';
 import { data, families, lightsOn, roots, selected, volumesOn, zonesOn } from './editor_state.js';
 import { lowPiece, made as madeFlags, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw,
          ROLES as FLAG_ROLES, roles as flagRoles } from './piece_flags.js';
@@ -232,5 +233,8 @@ export function createFlagsPanel({ $, boxOf, gizmo, isStream, plural, select, so
     if (targets.length) commitFlags(targets, new Map());
   }
 
-  return { flagChip, flagContract, flagKey, flagSource, flagsPanel, resetFlags };
+  // After an edit (the edit hub, edit_hub.js).
+  onHub('edit', 'flags', () => { flagsPanel(); });
+
+  return { flagChip, flagContract, flagKey, flagSource, resetFlags };
 }

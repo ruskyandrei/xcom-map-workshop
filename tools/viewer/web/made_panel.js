@@ -14,6 +14,7 @@
 // is the room shown; the opening last touched is editor_state.js's (wallFocus, which the handles set too).
 import * as THREE from 'three';
 import { TILE } from './constants.js';
+import { onHub } from './edit_hub.js';
 import { data, roots, selected, setWallFocus, volumeRoots, wallFocus } from './editor_state.js';
 import { anotherRock, GROUND, groundLookOf, groundWords as groundShapeWords, resetRock, slopeOf, slopeWords, toolGround,
          turnedGround } from './ground.js';
@@ -287,5 +288,8 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     return true;
   }
 
-  return { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, roomPanel, slabPanel, wallPanel };
+  // After an edit (the edit hub, edit_hub.js).
+  onHub('edit', 'room', () => { roomPanel(); });
+
+  return { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, slabPanel, wallPanel };
 }

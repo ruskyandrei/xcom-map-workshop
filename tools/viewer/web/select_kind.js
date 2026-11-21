@@ -7,6 +7,7 @@
 // createSelectKind takes what it needs of app.js as one argument object, when app.js makes it: the gizmo, the pieces'
 // boxes, the Effects view's switch and what of an effect can change, box select's slack and its stop, the flags' key of
 // an actor, the selection and the hints. It keeps no state of its own.
+import { onHub } from './edit_hub.js';
 import { allRoots, data, effectRoots, pickBox, pickDrag, roots } from './editor_state.js';
 import { recordName } from './effects_rules.js';
 
@@ -106,6 +107,9 @@ export function createSelectKind({ $, boxOf, effectsShown, effectViewOnly, flagK
     select(gizmo.active, false, true);
     flashHint(`${kindCount(found)} of ${seeds.size === 1 ? [...seeds.values()][0] : `${seeds.size} kinds`} selected${found.box ? ' in the box' : ''}`);
   }
+
+  // After an edit (the edit hub, edit_hub.js).
+  onHub('edit', 'kind', () => { kindButton(); });
 
   return { kindButton, selectKind };
 }

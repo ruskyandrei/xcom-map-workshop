@@ -107,7 +107,7 @@ export function createFloorListings({ allBuildings, boxOf, mapEdits, mapIdOf, mo
   }
   // After an edit ends (a drag let go, an undo): copies and moved pieces may stand in other floors now, and the Floor
   // tiles overlay hatches moved and deleted pieces' tiles. The cutaway follows when what it depends on changed.
-  // (cutKey, the edits the cutaway last followed: editor_state.js)
+  // (cutKey, the edits the cutaway last followed: cutaway.js)
   function editedKey() {
     let key = '';
     for (const r of roots.values()) if (r.userData.edit || r.userData.deleted) key += `${r.userData.source.id}:${r.userData.deleted ? 'x' : r.matrix.elements.join(',')}|`;

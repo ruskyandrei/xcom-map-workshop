@@ -10,6 +10,7 @@
 // page session's id (SESSION). Its own state is inside it (navigating, the banner's timer); what other areas share
 // with it (leaving, saving, the drafts' timer, owner and trouble, the build status, the copies' serial) is
 // editor_state.js's.
+import { onHub } from './edit_hub.js';
 import { activeMapId, adoptedDraft, buildTimer, builderMode, copySerial, data, landingRead, looksReady, project, recoveryKept,
          recoveryTimer, recoveryTrouble, saving, setAdoptedDraft, setAskedPick, setLastBuildValue, setLeaving, setProject,
          setRecoveryKept, setRecoveryTimer, setRecoveryTrouble, setSaving } from './editor_state.js';
@@ -394,6 +395,9 @@ export function createDocumentSession({ $, SESSION, applyState, bombHelperFix, b
     const saved = await saveProject();
     return Boolean(saved) && project?.doc.id === id && !dirty();
   }
+
+  // After an edit (the edit hub, edit_hub.js).
+  onHub('edit', 'project', () => { projectChanged(); });
 
   return { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
            openProject, projectChanged, saveProject };

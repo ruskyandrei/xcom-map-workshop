@@ -22,6 +22,7 @@
 // drawn, the redraw asked, the Wave preview's player, the likeness's switch and count) is editor_state.js's.
 import * as THREE from 'three';
 import { clock } from './build_queue.js';
+import { onHub } from './edit_hub.js';
 import { activeMapId, cleared, copySerial, data, effectIndex, effectMarkers, effectRoots, effectsDirty, effectsOn,
          families, foreignEffects, geometryCache, lightsOn, likenessOn, likenessThin, nextCopySerial, normalEffects,
          pickedEffect, pickedSpawn, pointer, roots, setCopySerial, setEffectMarkers, setEffectsDirty, setEffectsOn,
@@ -874,6 +875,11 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
     box.checked = effectFilters[kind] !== false;
     box.onchange = e => { effectFilters[kind] = e.target.checked; remember(EFFECT_FILTERS, JSON.stringify(effectFilters)); setEffectsDirty(true); e.target.blur(); };
   }
+
+  // After an edit (the edit hub, edit_hub.js): what is drawn is worked out again before it is next read.
+  onHub('edit', 'effects', () => {
+    setEffectsDirty(true);     // (the Effects view's markers follow the pieces that carry them)
+  });
 
   return { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffects, clearEffectEdits,
            drawEffectShape, drawLikenessPane, effectAt, effectEdited, effectFollows, effectLayer, effectNow,
