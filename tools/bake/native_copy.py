@@ -386,7 +386,30 @@ def clone_actor(g, p, actor, location, rotation, own_lighting=False, extra_guids
     return clone_assembly(g, p, [(actor, location, rotation)], own_lighting, extra_guids)[0]
 
 
-def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=(), shadow_guid=None):
+def made_shadow_maps(p, components, fresh=(), guid=None):
+    """The shadow maps a copy made from numbers does not take from its donor (follow-ups item 2.2): of each mesh
+    component of `components` (the ones that get a mesh made from numbers, frac_walls.made_component), its LOD 0
+    distance-field shadow maps of the map's dominant light (`guid`, dominant_guid's 16 bytes; every distance field of a
+    component of `fresh`, which the copy points at that light): exports of the component, listed by no other LOD. They
+    are laid out for the donor's mesh: frac_walls.add_walls gives the made piece one of its own, or lists the light
+    irrelevant, in their place. A set of export indices."""
+    import shadowmaps
+    if guid is None:
+        return set()
+    out = set()
+    for ci in components:
+        lods = lightmap_fields.component_fields(p, ci)['lods']
+        if not lods:
+            continue
+        others = {ref for lod in lods[1:] for ref in lod['shadowMaps']}
+        for sm in shadowmaps.shadow_maps(p, ci):
+            if (not sm['factor'] and (ci in fresh or sm['guid'] == guid.hex()) and sm['export'] not in others
+                    and p.exports[sm['export'] - 1]['outer'] == ci):
+                out.add(sm['export'])
+    return out
+
+
+def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=(), shadow_guid=None, made=()):
     """The pieces `members` ([(actor export index, location, rotation)]) cloned together under the level, as one copy
     of an assembly (a car's parts, a door's leaf and frame; private/plans/done/cars-doors-ladders-plan.md, step G2). Each clone
     is clone_actor's, and a reference from any member's exports to any member's (an actor or anything under it) points
@@ -396,14 +419,19 @@ def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=()
 
     `fresh` are mesh components (export indices) of pieces brought from another map: a clone's texture lightmaps list
     `extra_guids` alone (the lights they listed are the other map's), and its distance-field shadow maps name
-    `shadow_guid`, this map's dominant light (left as they are where the map has none)."""
+    `shadow_guid`, this map's dominant light (left as they are where the map has none).
+
+    `made` are the mesh components that get a mesh made from numbers (frac_walls.made_component): their shadow maps
+    of the dominant light (made_shadow_maps) are not cloned, nor their textures. The component's clone still names the
+    donor's own map there until frac_walls.add_walls writes its list; each member's dict gives them as `uncloned`."""
     walker = Walker(p, g)
     fresh = set(fresh)
     extra_guids = extra_guids or {}
+    uncloned = made_shadow_maps(p, made, fresh, dominant_guid(p)) if made else set()
     at = len(g.entries) + 1
     plans, everyone = [], {}
     for actor, location, rotation in members:
-        tree = subtree(p, actor)
+        tree = [i for i in subtree(p, actor) if i not in uncloned]
         mapping = {old: at + k for k, old in enumerate(tree)}
         at += len(tree)
         textures = lighting_textures(p, tree) if own_lighting else []
@@ -502,7 +530,11 @@ def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=()
         for t in textures:
             if lightmap_textures.clone_texture(g, p, t) != tex_map[t]:
                 raise ValueError('the texture clones did not get the planned indices')
-        infos.append(dict(actor=mapping[actor], mapping=mapping, textures=tex_map, remapped=remapped))
+        info = dict(actor=mapping[actor], mapping=mapping, textures=tex_map, remapped=remapped)
+        left = sorted(i for i in subtree(p, actor) if i in uncloned)
+        if left:
+            info['uncloned'] = left
+        infos.append(info)
     return infos
 
 
@@ -2528,6 +2560,7 @@ def clone_copies(st):
     the lights its lightmap may list, its tiles and rebuild volume, a van's building, a ladder's top tile, its flags
     and its blasts: build's first step after the light edits. Fills the state's made, actors, firsts, ladders, vans,
     flag_copies and blast_copies."""
+    import frac_walls
     import native_lights
     p, g, copies, bake, tiles, state = st.p, st.g, st.copies, st.bake, st.tiles, st.light_state
     # the lights a copy's lightmap may list: the after registry (plan 4.3, step 3)
@@ -2579,9 +2612,13 @@ def clone_copies(st):
         # the mesh components of pieces brought from another map: lit from nothing in a baked build
         fresh = {ci for c, ai, *_ in members if c.get('staged') and bake
                  for ci in subtree(p, ai) if p.cls(ci) in MESH_COMPONENTS}
+        # the components that get a mesh made from numbers: the donor's shadow map of the dominant light, laid out for
+        # the donor's mesh, is not cloned (frac_walls.add_walls gives each its own)
+        made_components = {ci for c, ai, *_ in members if c.get('generated')
+                           for ci in [frac_walls.made_component(p, ai, c['generated'])] if ci}
         infos = clone_assembly(g, p, [(ai, location, rotation) for _, ai, location, rotation, _ in members] + volumes,
                                own_lighting=bake, extra_guids=guids, fresh=fresh,
-                               shadow_guid=dominant_guid(p) if fresh else None)
+                               shadow_guid=dominant_guid(p) if fresh else None, made=made_components)
         infos, volume_infos = infos[:len(members)], infos[len(members):]
         own = {info['actor'] for info in infos}
         for info in infos:
@@ -2635,7 +2672,6 @@ def clone_copies(st):
             # a generated wall (frac_walls.py) stands in its own box, not its donor's
             gen = [(c, ai, loc, rot) for c, ai, loc, rot, _ in members if c.get('generated')]
             if gen:
-                import frac_walls
                 box = frac_walls.wall_box(p, gen[0][1], gen[0][2], gen[0][3], gen[0][0]['generated']) or box
         tile_info = add_tiles_box(g, p, box) if box is not None else None
         actors += ([info['actor'] for info in infos] + [info['actor'] for info in volume_infos]

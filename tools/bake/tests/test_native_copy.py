@@ -1308,6 +1308,31 @@ class NativeCopy(unittest.TestCase):
             self.assertEqual(got['report']['copyOf'], p.name(comp))
 
 
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class MadeShadowMaps(unittest.TestCase):
+    """(follow-up 2.2) The donor's shadow maps a copy made from numbers does not clone: the moon's on the component that
+    gets the made mesh, for a donor outdoors; none for an inside wall, which lists the moon irrelevant; none where the
+    map names no dominant light."""
+
+    def test_the_moons_map_of_the_component_that_gets_the_made_mesh(self):
+        import frac_walls
+        p = lighting.Package(BAR)
+        moon = native_copy.dominant_guid(p)
+        asphalt = p.by_name[PL + 'XComLevelActor_131']
+        comp = frac_walls.made_component(p, asphalt, dict(kind='ground'))
+        self.assertEqual(comp, p.own(asphalt, 'StaticMeshComponent'))
+        (sm,) = shadowmaps.shadow_maps(p, comp)
+        self.assertEqual(native_copy.made_shadow_maps(p, [comp], guid=moon), {sm['export']})
+        self.assertEqual(native_copy.made_shadow_maps(p, [comp]), set())
+        inside = p.by_name[PL + 'XComDecoFracLevelActor_17']
+        wall = frac_walls.made_component(p, inside, dict(kind='fracWall'))
+        self.assertEqual(wall, p.own(inside, 'FracturedStaticMeshComponent'))
+        self.assertEqual(native_copy.made_shadow_maps(p, [wall], guid=moon), set())
+        # a copy that keeps its donor's mesh, or no request, has no made component
+        self.assertIsNone(frac_walls.made_component(p, asphalt, dict(kind='relit')))
+        self.assertIsNone(frac_walls.made_component(p, asphalt, None))
+
+
 class BulkOffsets(unittest.TestCase):
     """An inline bulk record's payload offset follows its export to a new place (no game data)."""
     OFF = 1000          # where the export lies in the source
