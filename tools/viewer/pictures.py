@@ -312,7 +312,9 @@ _BASE = {}      # cooked folder -> ({map name, lower case: (package file, export
 
 def _base_index(cooked):
     """Every picture of the game's map-image packages in `cooked` (the install's CookedPCConsole), by the map name it
-    is called after, read once and again when a package file changes."""
+    is called after, read once and again when a package file changes. A package that can't be read or is damaged is
+    skipped: the readers refuse it with an OSError or a ValueError (KB-9), and the other packages' pictures are
+    listed."""
     from package import Package
     map_frame = _map_frame()
     cooked = Path(cooked)
@@ -330,7 +332,7 @@ def _base_index(cooked):
             for k in range(1, len(p.exports) + 1):
                 if p.cls(k) == 'Texture2D':
                     index.setdefault(p.name(k).rsplit('.', 1)[-1].lower(), (path, k, library))
-        except (OSError, ValueError, KeyError):
+        except (OSError, ValueError):
             continue
     _BASE[str(cooked)] = (index, stamp)
     return index
