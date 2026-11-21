@@ -59,6 +59,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'upk'))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'lab'))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'viewer'))
 import labpaths  # noqa: E402
+import installs  # noqa: E402
 # the game's config lines (tools/viewer/mapsini.py: the editor's installer reads and writes them the same way)
 from mapsini import (EOL, FIRST_MISSION, add_stream, check_change, field, is_record, lines_of, plan_lz,  # noqa: E402,F401
                      set_field, slot_record, slot_streams, stream_slots, unquoted, write_checked)
@@ -89,7 +90,8 @@ def __getattr__(name):
     raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
 
 
-TEST_SLOT = 'URB_CommercialAlley_EWI (Commercial Alley Redux) |0'
+# the record a new campaign's first mission asks for by name, LWR's (installs.FIRST_MISSIONS: one home for the name)
+TEST_SLOT = installs.FIRST_MISSIONS[0]
 
 
 def sha256(path):
