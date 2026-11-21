@@ -35,6 +35,11 @@ for controls, a new style) writes the pattern here in the same commit.
     piece's pivot staying. Its cut-outs' blue handles a set at a time: the picked gap's or hole's own handles, every
     other one's middle alone, which picks it. Its commands (Pivot to corner, Join ends, how a wall taller than its
     look is made) stand in its section of the piece panel.
+  - A made piece's texture (since 21 November 2026): its surface's handles show only while its section's Texture
+    mapping fold is open, and its size handles step aside meanwhile. The surface is picked by clicking it (Tab: the
+    next) and outlined in the accent colour; on it a blue dot at the pattern's corner slides the pattern, a ring round
+    the dot turns it and a white dot along the pattern sizes a repeat, in the Snap setting's steps. The fold holds that
+    surface's mapping alone, its fields the exact values.
 - A check that a new handle or marker can be seen and clicked is made with other things around it (a busy map, several
   things picked), not on an empty one.
 

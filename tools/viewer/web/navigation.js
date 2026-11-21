@@ -16,8 +16,8 @@ import { allRoots, assigning, breaking, builder, builderMode, coverDrag, data, e
          lightDrag, lightRadius, lightRoots, lightsOn, lookPicking, ownPicked, ownSet, pickBox, pickDrag,
          pickedEffect, pickedSpawn, pickedZone, pickTool, pieces, placing, rockPoint, roots, selected, setAssigning,
          setGhostDirty, setLightRadius, setOwnPickedValue, setSnapModeValue, snapMode, soloOn, spawnPlacing, spawnsOn,
-         spawnZonePick, volumeDrag, volumesOn, volumeTool, wallDrag, wallDrawing, zonePlacing,
-         zonesOn } from './editor_state.js';
+         spawnZonePick, textureDrag, texturePicked, volumeDrag, volumesOn, volumeTool, wallDrag, wallDrawing,
+         zonePlacing, zonesOn } from './editor_state.js';
 import { recall, remember } from './storage.js';
 import { focusBounds, visibleBounds } from './view_layout.js';
 import { modalOpen } from './modal.js';
@@ -35,15 +35,15 @@ const SNAPS = {
 export function createNavigation({ $, applyLighting, builderRecords, camera, cancelMissionGizmo, cancelPointDrag,
                                    cancelZoneGizmo, content, controls, copySelection, copySpawn, copyZone,
                                    deleteSelection, deleteSpawn, deleteWallOpening, deleteZone, dragHint, editBaseSpawn,
-                                   editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endVolumeDrag,
-                                   endWallDrag, flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall,
+                                   editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endTextureDrag,
+                                   endVolumeDrag, endWallDrag, flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall,
                                    lightPanel, madeRoot, mapBreakable, missionGizmo, openBuild, paste, pick, pickEffect,
                                    pickZone, playArea, projectsAvailable, rayAt, refreshVolumes, releaseRockPoint,
                                    renderer, restingHint, saveProject, select, setEffectsShown, setGridTool,
                                    alignToGrid, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn,
                                    setPickTool, setPlayArea, setSolo, setSpawnsShown, setVolumesShown, setVolumeTool,
                                    setZoneGizmoMode, setZonesShown, showFileDialog, showMapBrowser, showPieces, showPop,
-                                   spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stopBreak,
+                                   spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
                                    stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing,
                                    stopZonePlacing, sun, takePickBox, TURNED_KINDS, turnZone, undoStep, volumePanel,
                                    wallGhost, wallHint, zoneGizmo }) {
@@ -279,7 +279,8 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
   // (origin or centre), F frame, L Align to grid, O solo the selected lights, B Break on a picked wall, floor or roof that
   // breaks (else the play area), I the eyedropper while drawing; Shift+N, B, L, Z, U and X the six views (in the
   // Buildings view N draws a new box); arrow keys and WASD move the camera and Q and E turn it; Escape cancels a drag,
-  // stops placing, drawing or a pick, closes a menu or, when there is none of those, clears the selection; Ctrl+Z /
+  // stops placing, drawing or a pick, closes a menu or, when there is none of those, clears the selection; Tab, with a
+  // made piece's Texture mapping fold open and nothing focused, picks its next surface (Shift+Tab the one before); Ctrl+Z /
   // Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+C / X / V copy, cut and paste, Ctrl+G groups the selection and
   // Ctrl+Shift+G ungroups the selected group, Delete deletes; a picked landing zone or spawn point takes Delete, Ctrl+D
   // (a copy) and [ ] (a quarter turn); Ctrl+S saves, Ctrl+B builds and Ctrl+O loads a project. Typing in a field never
@@ -297,6 +298,10 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
     if (volumeDrag) { if (key === 'escape') endVolumeDrag(false); e.preventDefault(); return; }
     if (coverDrag) { if (key === 'escape') endCoverDrag(false); e.preventDefault(); return; }
     if (wallDrag) { if (key === 'escape') endWallDrag(false); e.preventDefault(); return; }
+    if (textureDrag) { if (key === 'escape') endTextureDrag(false); e.preventDefault(); return; }
+    // (Tab moves between the page's controls as ever once one has the focus)
+    if (key === 'tab' && texturePicked && !e.ctrlKey && !e.metaKey && !e.altKey
+        && (e.target === document.body || e.target === renderer.domElement) && stepSurface(e.shiftKey ? -1 : 1)) { e.preventDefault(); return; }
     if (rockPoint && key === 'escape') { if (!cancelPointDrag()) releaseRockPoint(); e.preventDefault(); return; }
     if (wallDrawing && key === 'escape') {
       if (wallDrawing.start) { try { renderer.domElement.releasePointerCapture(wallDrawing.pointerId); } catch { /* released */ }

@@ -16,8 +16,8 @@ import { activeMapId, areaBindings, boxesShown, builderMode, buildings, buildToo
          missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet, pickBox, pickedEffect,
          pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, prefabTab, project, projectMissions,
          projectSpawnRules, reachNow, rockPoint, roots, selected, setPickBoxValue, setPickToolValue, setSpawnFilters,
-         soloOn, spawnEntriesNow, spawnFilters, spawnPlacing, spawnRulesData, spawnsOn, stage, volumeRoots, volumesOn,
-         wallDrawing, wavePlayer, zonesOn } from './editor_state.js';
+         soloOn, spawnEntriesNow, spawnFilters, spawnPlacing, spawnRulesData, spawnsOn, stage, textureDrag,
+         texturePicked, volumeRoots, volumesOn, wallDrawing, wavePlayer, zonesOn } from './editor_state.js';
 import { catalogued, lookFromEntry } from './looks.js';
 import { api as prefabApi } from './prefabs.js';
 import { stateKey } from './project.js';
@@ -50,7 +50,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
                                 setNormalSpawns, setNormalView, setPickedSpawn, setPickTool, setSnapMode, setSolo,
                                 setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown, setVolumeTool, setZones,
                                 setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
-                                spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer,
+                                textureHandleScreens, textureSurfaceAt, spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer,
                                 spawnVolumeHandle, startBuild, startLookPick, startSpawnPlacing, startWallDrawing,
                                 stopWallDrawing, stopWave, storedLook, streamObjects, sun, syncSpawnFilters,
                                 takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow,
@@ -97,13 +97,19 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
     wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, donor: wallDrawing.look.donor ?? null, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,
                                         ready: Boolean(wallDrawing.template && (!wallDrawing.roof || wallDrawing.roofTemplate)), drawing: Boolean(wallDrawing.start),
                                         last: wallDrawing.last ? { ...wallDrawing.last } : null },
+    // (none while the piece's Texture mapping fold is open: its texture handles show instead)
     wallHandles: (units = TILE) => { const r = handleWall(), project = projector();
-      return r ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
+      return r && texturePicked?.id !== r.userData.source.id ? Object.fromEntries(wallHandlesNow(r).map(h => { const p = wallHandlePoint(h);
         const way = h.dir ?? h.along;      // (a gap's middle, dragged in the wall's plane: along the wall)
         return [h.key, [...project(p), ...project(way ? p.clone().addScaledVector(way, units) : p)]]; })) : {}; },
     rockPoint: () => (rockPoint ? { ...rockPoint, gizmo: pointGizmo.enabled, up: pointGizmo.showY } : null),
     rockCorners: () => [...rockCorners.entries()].map(([k, v]) => [k, v?.then ? 'asking' : v]),
     wallState: id => { const r = madeRoot(id); return r ? wallState(r) : null; },
+    // a made piece's texture mapping (stage 4, design B): the surface picked while its fold is open, whether a handle
+    // is dragged, its handles on the screen ({ picked, slide, turn, size: [x, y] or null, reach, corner }, null when
+    // the fold is shut), and where the middle of one of its surfaces is drawn (to click it)
+    texturePicked: () => (texturePicked ? { ...texturePicked } : null), textureDragging: () => Boolean(textureDrag),
+    textureHandles: () => textureHandleScreens(), textureSurfaceAt: (role, side = null, ab = null) => textureSurfaceAt(role, side, ab),
     slabPanelText: () => sectionText('slabBox'),
     buildingsNow: () => buildingsFromVolumes().map(b => ({ name: b.name, floors: b.floors.map(f => f.boxes) })),
     // the map's surface below a point (game x, y, from z down: 4096 when not given), as the wall tool and the Add panel

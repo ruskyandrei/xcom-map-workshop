@@ -16,6 +16,8 @@ export const RUNS = {
   edit: [
     'effects',       // effects_wiring.js: what the Effects view draws is worked out again (its markers follow the
                      // pieces that carry them)
+    'textures',      // made_handles.js: a made piece with a surface aligned to the world, moved or turned, is drawn
+                     // again from where it stands, once a drag ends
     'selection',     // selection.js: a command (the undo of a paste, a delete) changed the selection under us: select
                      // follows the gizmo and ends the run, which it ran itself
     'buildings',     // buildings_wiring.js: the project's buildings follow their boxes, the view's panel; a box being
@@ -46,6 +48,8 @@ export const RUNS = {
     'cutaway',       // cutaway.js: which pieces are drawn and how each is cut
     'ground-grid',   // clear_map.js: the ground grid, drawn again if its pieces changed
     'joins',         // made_handles.js: where made walls meet
+    'textures',      // made_handles.js: a made piece with a surface aligned to the world, pasted or put back, is drawn
+                     // from where it stands
   ],
   // The project's landing zones changed or were read (clear_map.js: the install's landing lines read as a map opens,
   // a clear done or undone; delete_reset.js: Reset all done or undone, after the cleared run).

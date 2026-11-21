@@ -371,6 +371,14 @@ export let wallDrag = null, wallFocus = null, rockPoint = null;
 export function setWallDrag(next) { wallDrag = next; }
 export function setWallFocus(next) { wallFocus = next; }
 export function setRockPoint(next) { rockPoint = next; }
+// What other areas read of a made piece's texture mapping (made_mapping_wiring.js sets them; the made pieces' handles,
+// which hide their size handles meanwhile, app.js's pointer handlers, the keys and the test hooks):
+// - texturePicked: { id, role, side }, the surface picked on the made piece `id` while its Texture mapping fold is
+//   open (its handles show), or null;
+// - textureDrag: the drag of one of its handles under way (its blue dot, ring or white dot), or null.
+export let texturePicked = null, textureDrag = null;
+export function setTexturePicked(next) { texturePicked = next; }
+export function setTextureDrag(next) { textureDrag = next; }
 // The snap setting (navigation.js's setSnapMode sets it, the gizmo's with it, and draws its button): 'off', 'fine' (24 units,
 // 15 degrees) or 'tile' (whole tiles, 90 degrees); the placing, the cover blocks' and the made pieces' handles read it.
 export let snapMode = 'off';

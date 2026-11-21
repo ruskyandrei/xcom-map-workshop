@@ -1,0 +1,425 @@
+{
+ "about": "Where a made piece's frame stands on each world-aligned surface's axes in the world (the texture mapping's mappingOrigin; the custom geometry improvements plan, stage 4). made_edits.mapping_origin (test_compiler_free.py) and made_mapping.js mappingOrigin (shared_cases_test.mjs) read these cases. origin: {role: [a0, b0]}, or null when no surface of the kind is aligned to the world.",
+ "cases": [
+  {
+   "case": "a wall square to the world: along x, up z",
+   "kind": "fracWall",
+   "location": [
+    100,
+    200,
+    16
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "faces": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "faces": [
+     100.0,
+     16.0
+    ]
+   }
+  },
+  {
+   "case": "a wall a quarter turned: along y",
+   "kind": "fracWall",
+   "location": [
+    100,
+    200,
+    16
+   ],
+   "rotation": [
+    0,
+    16384,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "faces": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "faces": [
+     200.0,
+     16.0
+    ]
+   }
+  },
+  {
+   "case": "a wall turned back: along -x",
+   "kind": "fracWall",
+   "location": [
+    100,
+    200,
+    16
+   ],
+   "rotation": [
+    0,
+    32768,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "faces": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "faces": [
+     -100.0,
+     16.0
+    ]
+   }
+  },
+  {
+   "case": "a wall a quarter the other way",
+   "kind": "fracWall",
+   "location": [
+    100,
+    200,
+    16
+   ],
+   "rotation": [
+    0,
+    -16384,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "faces": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "faces": [
+     -200.0,
+     16.0
+    ]
+   }
+  },
+  {
+   "case": "a wall at a free angle (30 degrees, the rotator's whole step)",
+   "kind": "fracWall",
+   "location": [
+    143.5,
+    -217.25,
+    37.75
+   ],
+   "rotation": [
+    0,
+    5461.33,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "faces": {
+      "mode": "count",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "faces": [
+     15.657951,
+     37.75
+    ]
+   }
+  },
+  {
+   "case": "a wall whose faces keep the piece's own frame: none",
+   "kind": "fracWall",
+   "location": [
+    100,
+    200,
+    16
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "faces": {
+      "mode": "size",
+      "u": 96,
+      "v": 96
+     }
+    }
+   },
+   "origin": null
+  },
+  {
+   "case": "no mapping: none",
+   "kind": "fracWall",
+   "location": [
+    100,
+    200,
+    16
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "origin": null
+  },
+  {
+   "case": "a slab's top alone aligned to the world",
+   "kind": "fracSlab",
+   "location": [
+    96,
+    288,
+    192
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "top": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     },
+     "underside": {
+      "mode": "size",
+      "u": 96,
+      "v": 96
+     }
+    }
+   },
+   "origin": {
+    "top": [
+     96.0,
+     288.0
+    ]
+   }
+  },
+  {
+   "case": "a slab at 45 degrees, both surfaces",
+   "kind": "fracSlab",
+   "location": [
+    96,
+    0,
+    192
+   ],
+   "rotation": [
+    0,
+    8192,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "top": {
+      "mode": "fit",
+      "u": 96,
+      "v": 96,
+      "world": true
+     },
+     "underside": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "top": [
+     67.882251,
+     -67.882251
+    ],
+    "underside": [
+     67.882251,
+     -67.882251
+    ]
+   }
+  },
+  {
+   "case": "ground: its top along x and y, its sides on all three axes",
+   "kind": "ground",
+   "location": [
+    -1200.5,
+    640.25,
+    3
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "top": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     },
+     "sides": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "top": [
+     -1200.5,
+     640.25
+    ],
+    "sides": [
+     -1200.5,
+     640.25,
+     3.0
+    ]
+   }
+  },
+  {
+   "case": "a surface the kind has not: none",
+   "kind": "ground",
+   "location": [
+    10,
+    20,
+    30
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "faces": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": null
+  },
+  {
+   "case": "a yaw between steps goes to the nearer (16383.6: a quarter)",
+   "kind": "fracWall",
+   "location": [
+    100,
+    200,
+    16
+   ],
+   "rotation": [
+    0,
+    16383.6,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "faces": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "faces": [
+     200.0,
+     16.0
+    ]
+   }
+  },
+  {
+   "case": "half a step below zero rounds away from zero (-0.5: -1)",
+   "kind": "fracSlab",
+   "location": [
+    5000,
+    7000,
+    0
+   ],
+   "rotation": [
+    0,
+    -0.5,
+    0
+   ],
+   "mapping": {
+    "surfaces": {
+     "top": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "top": [
+     4999.32886,
+     7000.479337
+    ]
+   }
+  },
+  {
+   "case": "pitch and roll are not read",
+   "kind": "fracSlab",
+   "location": [
+    96,
+    288,
+    192
+   ],
+   "rotation": [
+    2048,
+    0,
+    1000
+   ],
+   "mapping": {
+    "surfaces": {
+     "underside": {
+      "mode": "size",
+      "u": 96,
+      "v": 96,
+      "world": true
+     }
+    }
+   },
+   "origin": {
+    "underside": [
+     96.0,
+     288.0
+    ]
+   }
+  }
+ ]
+}

@@ -382,6 +382,10 @@ canvas { display: block; width: 100%; height: 100%; }
 .fold .check { margin-top: 0; }
 .pose .xyz { grid-template-columns: 26px repeat(3, 1fr); align-items: center; }
 .pose .xyzname { font-size: 11px; color: #7f95a1; }
+/* the Texture mapping fold of a made piece's section: its rows of two fields (U and V) after the row's name, as the Place
+   fold's rows of three */
+.texfold .xyz { grid-template-columns: 44px repeat(2, 1fr); align-items: center; }
+.texfold .xyzname { font-size: 11px; color: #7f95a1; }
 .flagrow .whymark { width: 14px; height: 14px; color: #7f95a1; }
 .flagrow.off .flagname, .flagrow.off input { opacity: .5; }
 .flagswhy { font-size: 11px; color: var(--muted); line-height: 1.35; min-height: 30px; padding: 5px 7px; border-radius: 4px; background: #151d24; }

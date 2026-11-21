@@ -24,8 +24,8 @@ import { call } from './api.js';
 import { PL, TILE } from './constants.js';
 import { onHub } from './edit_hub.js';
 import { coverDrag, data, effectsOn, geometryCache, lightsOn, placing, rockPoint, roots, selected, setRockPoint,
-         setWallDrag, setWallFocus, snapMode, spawnsOn, volumeDrag, volumesOn, wallDrag, wallDrawing, wallFocus,
-         zonesOn } from './editor_state.js';
+         setWallDrag, setWallFocus, snapMode, spawnsOn, texturePicked, volumeDrag, volumesOn, wallDrag, wallDrawing,
+         wallFocus, zonesOn } from './editor_state.js';
 import { groundBounds, groundBox as groundShapeBox, groundWords as groundShapeWords, madeGroundNumbers, movedPoint,
          ROCK, toolGround, versionedGround } from './ground.js';
 import { scaleMarker } from './lights_view.js';
@@ -75,11 +75,12 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   }
   // ---- the wall as it is now, and changing it
   const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
-  // The mesh record for a made wall's numbers (as madeShape makes it) and end styles, its key.
-  function madeMesh(o, generated, ends = null) {
+  // The mesh record for a made wall's numbers (as madeShape makes it) and end styles, its key; `pose` where it stands
+  // ({ location, rotation }: a free-form piece's surface aligned to the world is drawn from there).
+  function madeMesh(o, generated, ends = null, pose = null) {
     if (isFree(generated)) {
       // (a free-form piece: made_free.js's spelling and bounds, the same endpoints)
-      const m = freeMesh(generated.kind, generated[{ fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[generated.kind]], ends, generated.blasts);
+      const m = freeMesh(generated.kind, generated[{ fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[generated.kind]], ends, generated.blasts, pose);
       if (!data.meshes[m.key]) data.meshes[m.key] = { ...data.meshes[o.mesh], url: m.url, bounds: m.bounds };
       return m.key;
     }
@@ -134,7 +135,7 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     state = { ...state, generated: versionedGround(state.generated) };
     const o = root.userData.source;
     o.added = { ...o.added, generated: structuredClone(state.generated) };
-    const key = madeMesh(o, state.generated, root.userData.joins?.ends), was = root.userData.drawnMesh ?? o.mesh;
+    const key = madeMesh(o, state.generated, root.userData.joins?.ends, state), was = root.userData.drawnMesh ?? o.mesh;
     o.mesh = key;
     gizmo.applyMatrices([root], [movedMatrix(o, state.location, state.rotation)]);
     root.updateMatrixWorld(true);
@@ -147,11 +148,12 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       // have them, and the Build makes them) and its drawing the shape it had, which its mesh key says too; the hint says
       // why. (track drops the failed load, so the next change asks again.)
       if (root.userData.wallToken !== token) return;
-      o.mesh = was;
+      o.mesh = was; root.userData.failedMesh = key;
       flashHint(`${data.meshes[key]?.name ?? 'The piece'}: the editor couldn't draw these numbers (${error?.message ?? error}), so it shows the shape it had; the Build makes the new one`);
       return;
     }
     if (root.userData.wallToken !== token) return;
+    root.userData.failedMesh = null;
     const old = root.userData.parts, materials = old.map(p => p.userData.baseMaterial);
     const fresh = base.scene.clone(true), parts = [];
     fresh.traverse(child => { if (child.isMesh) parts.push(child); });
@@ -420,9 +422,11 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     return out;
   }
   const wallHandlePoint = h => (h.kind === 'end' || h.kind === 'side' ? h.at.clone().addScaledVector(h.dir, camera.position.distanceTo(h.at) * 0.06) : h.at);
+  // (a piece whose Texture mapping fold is open shows its surface's handles instead: made_mapping_wiring.js)
+  const texturing = root => texturePicked?.id === root?.userData.source.id;
   function updateWallHandles() {
     const root = wallDrag?.root ?? handleWall();
-    wallHandleLayer.visible = Boolean(root) && !gizmo.controls.dragging && !pointGizmo.dragging;
+    wallHandleLayer.visible = Boolean(root) && !texturing(root) && !gizmo.controls.dragging && !pointGizmo.dragging;
     if (!wallHandleLayer.visible) { if (wallHover) hoverWallHandle(null); return; }
     const handles = wallHandlesNow(root), lit = wallDrag?.key ?? wallHover;
     while (wallHandleMeshes.length < handles.length) {
@@ -451,7 +455,7 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   }
   function wallHandleNear(x, y) {
     const root = handleWall();
-    if (!root || gizmo.controls.dragging) return null;
+    if (!root || texturing(root) || gizmo.controls.dragging) return null;
     const project = projector();
     return wallHandlesNow(root).map(h => { const s = project(wallHandlePoint(h)); return s && { h, d: Math.hypot(s[0] - x, s[1] - y) }; })
       .filter(c => c && c.d <= HANDLE_PICK + 2).sort((a, b) => a.d - b.d)[0]?.h ?? null;
@@ -644,11 +648,32 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     return true;
   }
 
-  // The scene's pieces changed (the edit hub's scene run, edit_hub.js): where made walls meet.
-  onHub('scene', 'joins', () => { refreshJoins(); });
+  // A free-form piece with a surface aligned to the world (the texture mapping's `world`, stage 4) is drawn from where
+  // it stands: its mesh's key carries it (made_free.js freeNumbers' mappingOrigin), so a piece moved, turned, pasted or
+  // put back by an undo is asked for again, once a drag ends. (`failedMesh`: applyWall's last key the server didn't
+  // make, not asked for again at every edit.)
+  const KIND_KEY = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' };
+  function refreshWorldTextures() {
+    if (gizmo.controls.dragging) return;
+    for (const r of roots.values()) {
+      const g = r.userData.source.added?.generated;
+      if (!isFree(g) || r.userData.deleted || wallDrag?.root === r) continue;
+      const n = g[KIND_KEY[g.kind]];
+      if (!Object.values(n?.mapping?.surfaces ?? {}).some(s => s?.world === true)) continue;
+      const key = freeMesh(g.kind, n, r.userData.joins?.ends, g.blasts, actorPose(r.userData.source, r.matrix)).key;
+      if (key !== r.userData.source.mesh && key !== r.userData.failedMesh) applyWall(r, wallState(r));
+    }
+  }
 
-  return { cancelPointDrag, changeWall, endWallDrag, handleWall, hoverWallHandle, isMade, isMadeGround, isMadeSlab,
-           isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo, pointGizmo, refreshJoins,
-           releaseRockPoint, rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint,
-           wallHandlesNow, wallLookOf, wallPiecesWords, wallState, wallTemplate };
+  // The scene's pieces changed (the edit hub's scene run, edit_hub.js): where made walls meet, and the pieces drawn
+  // from where they stand; after an edit, those too.
+  onHub('scene', 'joins', () => { refreshJoins(); });
+  onHub('scene', 'textures', () => { refreshWorldTextures(); });
+  onHub('edit', 'textures', () => { refreshWorldTextures(); });
+
+  return { applyWall, applyWallSoon, cancelPointDrag, changeWall, dropQueuedWall, endWallDrag, handleWall,
+           hoverWallHandle, isMade, isMadeGround, isMadeSlab, isMadeWall, lookWall, madeRoot, madeWallRoot,
+           moveWallDrag, placePointGizmo, pointGizmo, refreshJoins, releaseRockPoint, rockCorners, setWall,
+           startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint, wallHandlesNow, wallLookOf,
+           wallPiecesWords, wallState, wallTemplate };
 }

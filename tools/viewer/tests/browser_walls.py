@@ -31,7 +31,9 @@ The made pieces' other paths (the refactor's follow-ups, item 4.6), each a check
   step all its walls a storey, the walls' Choose... gives them a look from the picker and Plain takes it back; a room
   with a roof has no Lower or Taller, and its roof's Choose... and Plain do the same; each one undo step. Its walls
   given the look of one of the map's walls, with the walls' catalogue then forgotten and its read refused, the Room
-  section names the look by the donor's mesh, as a wall's own Wall section does once the room is ungrouped."""
+  section names the look by the donor's mesh, as a wall's own Wall section does once the room is ungrouped.
+- free-handles and texture-mapping (the police station): the made pieces' handles of the custom geometry improvements
+  plan's designs A and B (check_free_handles and check_texture_mapping say what each walks through)."""
 import json
 import math
 
@@ -973,3 +975,161 @@ def check_free_handles(browser, url, open_viewer):
     page.close()
     assert not errors, errors
     return dict(handles=5)
+
+
+TEX_WALL = dict(FREE_WALL, wall=dict(FREE_WALL['wall'], openings=[]))
+
+
+def surface_now(page, piece, role):
+    g = generated(page, piece)
+    numbers = g[{'fracWall': 'wall', 'fracSlab': 'slab', 'ground': 'ground'}[g['kind']]]
+    return ((numbers.get('mapping') or {}).get('surfaces') or {}).get(role)
+
+
+def alone_click(page, piece, at):
+    """A click at `at` with the map's other pieces hidden, so that its ray meets the made piece (the pick takes drawn
+    pieces only)."""
+    hidden = page.evaluate("""id => { const out = [];
+      for (const r of viewer.roots.values()) if (r.visible && r.userData.source.id !== id) { r.visible = false; out.push(r.userData.source.id); }
+      return out; }""", piece)
+    page.mouse.click(*at)
+    page.evaluate('ids => { for (const id of ids) viewer.roots.get(id).visible = true; }', hidden)
+
+
+def check_texture_mapping(browser, url, open_viewer):
+    """A made piece's texture mapping as chosen (the custom geometry improvements plan, 10.6, design B): the Texture
+    mapping fold opened on a made wall puts its size handles aside and picks the face toward the camera; Tab picks the
+    other face and a click the one clicked; Size takes the look's repeat (one undo step); the blue dot slides the
+    pattern a tile under tile snap, Esc during a drag puts it back, the ring turns it in steps of 15 under fine snap
+    about its corner, the white dot sizes a repeat in tiles under tile snap and smoothly with snap off (u and v alike),
+    each one undo step; the fields set a value exactly; Aligned to the world puts the piece's place in its mesh's
+    request; Original and Reset surface take the surface's mapping out; a floor's top and underside picked by clicking
+    them, Tab back to the top; the fold shut, the size handles back."""
+    errors = []
+    page = open_viewer(browser, url, errors)
+    (wall, slab), _ = made_pieces(page, [TEX_WALL, FREE_SLAB])
+    page.evaluate("viewer.setSnapMode('tile')")
+    page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', wall)
+    page.wait_for_timeout(400)
+    mesh_ready(page, wall)
+    assert page.evaluate('viewer.wallHandles()'), 'the size handles show while the fold is shut'
+    # the fold opened: the size handles step aside, the face toward the camera picked, no handles while Original
+    page.locator('#texFold > summary').click()
+    page.wait_for_function('viewer.texturePicked()')          # (a fold's toggle comes after the click)
+    picked = page.evaluate('viewer.texturePicked()')
+    assert picked and picked['id'] == wall and picked['role'] == 'faces' and picked['side'] in ('y0', 'y1'), picked
+    assert page.evaluate('viewer.wallHandles()') == {}, page.evaluate('viewer.wallHandles()')
+    assert page.locator('#texFoldVal').inner_text() == 'faces: original', page.locator('#texFoldVal').inner_text()
+    assert page.evaluate('viewer.textureHandles()')['slide'] is None
+    side = picked['side']
+    # Tab: the other face; a click on the face seen picks it again
+    key(page, 'Tab')
+    assert page.evaluate('viewer.texturePicked()')['side'] != side, page.evaluate('viewer.texturePicked()')
+    alone_click(page, wall, page.evaluate('s => viewer.textureSurfaceAt("faces", s)', side))
+    assert page.evaluate('viewer.texturePicked()')['side'] == side, page.evaluate('viewer.texturePicked()')
+    assert page.evaluate('viewer.gizmo.picks().ids') == [wall], 'the click picked a surface, not a piece'
+    # Size: the look's repeat (the Bar look gives none: 192), one undo step
+    depth = page.evaluate('viewer.gizmo.undoDepth()')
+    page.locator('#texMode button[data-value="size"]').click()
+    assert surface_now(page, wall, 'faces') == dict(mode='size', u=192, v=192), surface_now(page, wall, 'faces')
+    assert page.evaluate('viewer.gizmo.undoDepth()') == depth + 1
+    assert page.locator('#texFoldVal').inner_text() == 'faces: size 192', page.locator('#texFoldVal').inner_text()
+    mesh_ready(page, wall)
+    h = page.evaluate('viewer.textureHandles()')
+    assert h['slide'] and h['turn'] and h['size'], h
+    point = lambda ab: page.evaluate('([s, ab]) => viewer.textureSurfaceAt("faces", s, ab)', [side, ab])   # noqa: E731
+    # the blue dot under tile snap: 100 along and 10 up is a tile along (half a repeat of 192), nothing up
+    depth = page.evaluate('viewer.gizmo.undoDepth()')
+    drag(page, h['slide'], point([h['at'][0] + 100, h['at'][1] + 10]))
+    s = surface_now(page, wall, 'faces')
+    assert s.get('offsetU') == -0.5 and 'offsetV' not in s, s
+    assert page.evaluate('viewer.gizmo.undoDepth()') == depth + 1
+    # Esc during a drag puts it back
+    h = page.evaluate('viewer.textureHandles()')
+    page.mouse.move(*h['slide'])
+    page.mouse.down()
+    page.mouse.move(*point([h['at'][0] + 250, h['at'][1] + 130]), steps=6)
+    assert page.evaluate('viewer.textureDragging()')
+    page.keyboard.press('Escape')
+    page.mouse.up()
+    assert surface_now(page, wall, 'faces') == s and not page.evaluate('viewer.textureDragging()'), surface_now(page, wall, 'faces')
+    # the white dot under tile snap: 100 further out along its way is a tile on the repeat at the dot, `reach` repeats out
+    page.evaluate("viewer.setSnapMode('tile')")
+    h = page.evaluate('viewer.textureHandles()')
+    at, out = h['at'], h['sizeAt']
+    way = [out[0] - at[0], out[1] - at[1]]
+    length = math.hypot(*way)
+    way = [v / length for v in way]
+    drag(page, h['size'], point([out[0] + 100 * way[0], out[1] + 100 * way[1]]))
+    s = surface_now(page, wall, 'faces')
+    want = 192 * (length + 96) / length
+    assert abs(s['u'] - want) < 1e-3 and s['u'] == s['v'], (s, want, h['reach'])
+    # with snap off, smoothly: the dot taken to twice as far doubles the repeat
+    page.evaluate("viewer.setSnapMode('off')")
+    h = page.evaluate('viewer.textureHandles()')
+    at, out, was = h['at'], h['sizeAt'], s['u']
+    drag(page, h['size'], point([at[0] + 2 * (out[0] - at[0]), at[1] + 2 * (out[1] - at[1])]))
+    s = surface_now(page, wall, 'faces')
+    assert abs(s['u'] - 2 * was) < was * 0.02 and s['u'] == s['v'], (s, was)
+    key(page, 'Control+z')
+    assert abs(surface_now(page, wall, 'faces')['u'] - was) < 1e-6, surface_now(page, wall, 'faces')
+    # the ring under fine snap: its grip turned 40 degrees on the surface (clockwise on its axes) turns the pattern 45
+    # the other way round the surface's axes, as the pointer went, about its corner, which stays put
+    page.evaluate("viewer.setSnapMode('fine')")
+    h = page.evaluate('viewer.textureHandles()')
+    at, grip, phi = h['at'], h['turnAt'], math.radians(-40)
+    off = [grip[0] - at[0], grip[1] - at[1]]
+    to = [at[0] + off[0] * math.cos(phi) - off[1] * math.sin(phi), at[1] + off[0] * math.sin(phi) + off[1] * math.cos(phi)]
+    drag(page, h['turn'], point(to))
+    s = surface_now(page, wall, 'faces')
+    assert s.get('turn') == 45, s
+    stays = page.evaluate("""async ([id, corner]) => { const m = await import('/made_mapping.js');
+      const w = viewer.wallState(id).generated.wall, s = w.mapping.surfaces.faces;
+      return m.patternPoint(s, [w.x0, w.x1, w.z0, w.z1], [0, 0], corner); }""", [wall, h['corner']])
+    assert all(abs(stays[k] - at[k]) < 1e-3 for k in (0, 1)), (h, stays)
+    # the fields: a value as typed, one undo step each
+    depth = page.evaluate('viewer.gizmo.undoDepth()')
+    page.locator('#texU').fill('64')
+    page.locator('#texU').press('Enter')
+    s = surface_now(page, wall, 'faces')
+    assert s['u'] == 64 and abs(s['v'] - was) < 1e-6 and s['turn'] == 45, s
+    page.locator('#texFlipU').check()
+    assert surface_now(page, wall, 'faces').get('flipU') is True
+    assert page.evaluate('viewer.gizmo.undoDepth()') == depth + 2
+    # Aligned to the world: the piece's place goes into its mesh's request
+    page.locator('#texWorld').check()
+    assert surface_now(page, wall, 'faces').get('world') is True
+    mesh_ready(page, wall)
+    mesh = page.evaluate('id => viewer.roots.get(id).userData.source.mesh', wall)
+    assert '"mappingOrigin":{"faces":[' in mesh, mesh
+    # Original takes the surface's mapping out (and the mapping with it); Reset surface the same
+    page.locator('#texMode button[data-value="original"]').click()
+    assert 'mapping' not in generated(page, wall)['wall'], generated(page, wall)
+    assert page.evaluate('viewer.textureHandles()')['slide'] is None
+    key(page, 'Control+z')
+    assert surface_now(page, wall, 'faces').get('world') is True
+    page.locator('#texReset').click()
+    assert 'mapping' not in generated(page, wall)['wall'], generated(page, wall)
+    # a floor: its top picked by clicking it from above, its underside from below, Tab back to the top
+    page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', slab)
+    page.wait_for_timeout(400)
+    mesh_ready(page, slab)
+    assert page.locator('#slabBox #texFold').count() == 1, 'the fold in the Floor section'
+    alone_click(page, slab, page.evaluate('viewer.textureSurfaceAt("top")'))
+    assert page.evaluate('viewer.texturePicked()')['role'] == 'top', page.evaluate('viewer.texturePicked()')
+    box = page.evaluate('id => viewer.pieceBox(id)', slab)
+    middle = [(box[0] + box[1]) / 2, (box[2] + box[3]) / 2, box[4]]
+    page.evaluate("""c => { viewer.controls.target.set(c[0], c[2], c[1]); viewer.camera.position.set(c[0] + 260, c[2] - 120, c[1] + 260);
+      viewer.camera.lookAt(c[0], c[2], c[1]); viewer.controls.update(); }""", middle)
+    page.wait_for_timeout(300)
+    alone_click(page, slab, page.evaluate('viewer.textureSurfaceAt("underside")'))
+    assert page.evaluate('viewer.texturePicked()')['role'] == 'underside', page.evaluate('viewer.texturePicked()')
+    key(page, 'Tab')
+    assert page.evaluate('viewer.texturePicked()')['role'] == 'top', page.evaluate('viewer.texturePicked()')
+    # the fold shut: no surface picked, the size handles back
+    page.locator('#texFold > summary').click()
+    page.wait_for_function('viewer.texturePicked() === null')
+    assert page.evaluate('viewer.wallHandles()'), 'the size handles back once the fold is shut'
+    page.close()
+    assert not errors, errors
+    return dict(surfaces=3, turn=45)

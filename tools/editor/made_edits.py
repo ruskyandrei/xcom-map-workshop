@@ -31,8 +31,8 @@ from pathlib import Path
 
 # (compiler_tables puts tools/viewer on the path, for export_math, and tools/bake, for the Build's looks, ground
 # shapes, blasts, made floors' cursors and cuts, and a made wall's storeys)
-from compiler_tables import (FRAC_SLAB_LOOKS, GROUND_LOOKS, HEADROOM, MADE_KINDS, TILE, donor_shape, keyable,
-                             made_wall_along, short, tidy, union, wall_heights, world_box)
+from compiler_tables import (FRAC_SLAB_LOOKS, GROUND_LOOKS, HEADROOM, MADE_KINDS, TILE, donor_shape, game_round,
+                             keyable, made_wall_along, short, tidy, union, wall_heights, world_box)
 from export_math import transform
 import looks
 import ground as ground_shapes
@@ -40,6 +40,7 @@ import made_blasts
 import made_cursors
 import made_split
 import frac_wall     # (loaded already: ground's import loads it)
+import uv_mapping
 
 # A fracturing wall made from numbers (custom geometry plan, section 0): its numbers are its tile edges, it is at
 # least this long (tools/bake/frac_walls.py MIN_LENGTH; test_frac_walls checks they agree), and its solid stops
@@ -87,9 +88,10 @@ POINTS_VERSION = {'ground': 4}
 FREE_VERSION = {'fracWall': 5, 'fracSlab': 4, 'ground': 5}
 BUILD_FREE_VERSION = {'fracWall': 4, 'fracSlab': 3, 'ground': 3}
 WALL_TALL = ('repeat', 'stretch')
-# a texture mapping's surfaces and modes (the plan's section 5; built in its stage 4)
+# a texture mapping's surfaces and modes (the plan's section 5; built in its stage 4), and each kind's surfaces
 MAPPING_ROLES = ('faces', 'top', 'underside', 'sides')
 MAPPING_MODES = ('size', 'fit', 'count')
+MAPPING_KIND_ROLES = {'fracWall': ('faces',), 'fracSlab': ('top', 'underside'), 'ground': ('top', 'sides')}
 
 
 def wall_look_storeys(wall):
@@ -127,17 +129,52 @@ def mapping_valid(mapping, num):
     return True
 
 
+def mapping_origin(kind, mapping, location, rotation):
+    """Where a made piece's frame stands on each world-aligned surface's axes in the world, {role: place} (the Build's
+    `mappingOrigin`, which tools/bake/uv_mapping.origin_of reads), or None when no surface of the kind is aligned to the
+    world: a wall's faces [the location along the piece's x, its z]; a top or underside [the location along the piece's
+    x and along its y]; a ground shape's sides [along its x, along its y, z] (a side along x reads x, one along y reads
+    y). The piece's axes are its rotator's yaw rounded as the package holds it (game_round); each number to a
+    millionth, half up. made_mapping.js mappingOrigin is the page's twin, with the cases both tests read
+    (tests/mapping_origin_cases.json)."""
+    surfaces = (mapping or {}).get('surfaces') or {}
+    roles = [r for r in MAPPING_KIND_ROLES.get(kind, ()) if (surfaces.get(r) or {}).get('world') is True]
+    if not roles:
+        return None
+    yaw = game_round(rotation[1]) * 2 * math.pi / 65536
+    c, s = math.cos(yaw), math.sin(yaw)
+    ax, ay = location[0] * c + location[1] * s, -location[0] * s + location[1] * c
+
+    def r6(v):
+        r = math.floor(v * 1e6 + 0.5) / 1e6
+        return 0.0 if r == 0 else r
+    place = dict(faces=(ax, location[2]), top=(ax, ay), underside=(ax, ay), sides=(ax, ay, location[2]))
+    return {r: [r6(v) for v in place[r]] for r in roles}
+
+
+def mapping_origin_valid(origin):
+    """Whether a mappingOrigin is the Build's (uv_mapping.check_origin): {role: [a0, b0] or [x, y, z]} of finite
+    numbers, 'sides' taking [x, y, z] only."""
+    try:
+        uv_mapping.check_origin(origin)
+    except uv_mapping.MappingError:
+        return False
+    return isinstance(origin, dict)
+
+
 def free_valid(kind, n, num):
     """Whether a free-form piece's numbers (FREE_VERSION) are well formed: `free` 1, finite extents with some size each
     way, openings or holes inside, a whole seed, a look that is absent, a look id of its kind or one named by its donor,
-    `plain` a boolean, a mapping of mapping_valid's. The generators check what the geometry can hold (the Build's
-    check)."""
+    `plain` a boolean, a mapping of mapping_valid's, a mappingOrigin of mapping_origin_valid's (the lowering works it out
+    again from the pose: free_generated). The generators check what the geometry can hold (the Build's check)."""
     if not isinstance(n, dict) or n.get('free') != 1 or 'whole' in n or 'ends' in n or 'storeys' in n or 'height' in n:
         return False
     keys = ('x0', 'x1', 'y0', 'y1', 'z0', 'z1')
     if not all(num(n.get(k)) for k in keys) or not (n['x0'] < n['x1'] and n['y0'] < n['y1'] and n['z0'] < n['z1']):
         return False
     if not isinstance(n.get('plain', False), bool) or ('mapping' in n and not mapping_valid(n['mapping'], num)):
+        return False
+    if 'mappingOrigin' in n and not mapping_origin_valid(n['mappingOrigin']):
         return False
     seed = n.get('seed', 1)
     if not isinstance(seed, int) or isinstance(seed, bool):
@@ -640,8 +677,9 @@ class MadeEdits:
 
     def free_generated(self, rec, g, num, where):
         """A free-form request (FREE_VERSION) checked and put into the Build's free version (BUILD_FREE_VERSION): its
-        numbers as they are, less `plain` (warned of: the Build makes the kind's default look), its blasts checked as
-        any made piece's."""
+        numbers as they are, less `plain` (warned of: the Build makes the kind's default look), with `mappingOrigin`
+        worked out from the record's pose for its surfaces aligned to the world (mapping_origin; one the record carries
+        is not taken), its blasts checked as any made piece's."""
         kind = {'fracWall': 'wall', 'fracSlab': 'slab', 'ground': 'ground'}[g['kind']]
         name = rec.get('label') or short(rec.get('from', {}).get('actor', '?'))
         n = g.get(kind)
@@ -666,7 +704,13 @@ class MadeEdits:
         elif 'breaksFurther' in g:
             self.c.note('unknown-field', '%s: breaksFurther goes with blasts; with none it is ignored' % name, **where)
             g = {k: v for k, v in g.items() if k != 'breaksFurther'}
-        numbers = {k: v for k, v in n.items() if k != 'plain'}
+        numbers = {k: v for k, v in n.items() if k not in ('plain', 'mappingOrigin')}
+        # (a pose that is malformed is the pose's check to refuse, after this)
+        pose = [rec.get('location', [0.0, 0.0, 0.0]), rec.get('rotation', [0, 0, 0])]
+        well = all(isinstance(p, list) and len(p) == 3 and all(num(v) for v in p) for p in pose)
+        origin = mapping_origin(g['kind'], numbers.get('mapping'), *pose) if well else None
+        if origin:
+            numbers['mappingOrigin'] = origin
         if n.get('plain'):
             default = ("the Bar's inside wall" if g['kind'] == 'fracWall' else 'asphalt' if g['kind'] == 'ground'
                        else "the Bar's upper floor" if n.get('look') == 'floor' else "the Bar's roof")

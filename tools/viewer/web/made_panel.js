@@ -8,6 +8,8 @@
 // - the Ground section (groundPanel): a ground shape's size, slope and look, Turn, Another rock and Reset points;
 // - the Room section: a drawn room picked whole (roomOfSelection, roomPanel), its walls' and roof's looks, and its
 //   walls a storey lower or taller (storeyButtons, roomStoreys).
+// The Wall, Floor and Ground sections each show the Texture mapping fold after their Look row (made_mapping_wiring.js
+// texturePanel fills it).
 //
 // createMadePanel takes what it needs of app.js as one argument object, when app.js makes it: the made pieces' state,
 // changes and handles, their looks and Break row, the groups and the selection's group, and the hints. Its own state
@@ -31,7 +33,7 @@ import { plural, segmented } from './dom_words.js';
 export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, gizmo, handleWall, isMadeGround,
                                   isMadeSlab, isMadeWall, isPlain, liveKeys, liveMembers, lookRow, madeRoot,
                                   madeWallRoot, openLookPicker, originalOf, plainLook, selectionGroup, setMadeLook,
-                                  setWall, wallLookOf, wallPiecesWords, wallState }) {
+                                  setWall, texturePanel, wallLookOf, wallPiecesWords, wallState }) {
   // ---- the piece panel's Wall section
   // A made wall's look name, for its Wall section and its room: its look's, its catalogue entry's or its donor's mesh
   const wallLookName = o => madeLookName(wallLookOf(o), catalogued('wall', o.added.generated.wall?.look),
@@ -42,6 +44,7 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     const lookName = wallLookName(o);
     $('wallHead').textContent = `Wall · ${isPlain(g) ? 'plain' : lookName}`;
     lookRow('wall', g, lookName, tool);
+    texturePanel(root, tool);
     $('wallState').textContent = free ? freeSizeWords(w) : tool ? wallWords(w) : `${Math.round(w.x1 - w.x0)} long, made elsewhere: no handles here`;
     $('wallSize').textContent = free ? `${freeSizeWords(w)} (long, thick, tall). Its white handles size it as the snap setting says; the other end or the bottom stays.`
       : tool ? `${wallWords(w)}. Its white handles size it as the snap setting says; the one on top makes it taller or lower.${wallPiecesWords(w)}`
@@ -107,6 +110,7 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     const tool = free ? toolFree('fracSlab', s) : toolSlab(s);
     $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${isPlain(o.added.generated) ? 'plain' : madeLookName(look)}`;
     lookRow('slab', o.added.generated, madeLookName(look), tool);
+    texturePanel(root, tool);
     const cut = slabTiles(s).some(n => n > SLAB.pieceTiles)
       ? ` The Build makes it as slabs of at most ${SLAB.pieceTiles} by ${SLAB.pieceTiles} tiles side by side: they break as one.` : '';
     breakRow('slab', o.added.generated, o.keepsPieces);
@@ -153,6 +157,7 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     const plain = isPlain(o.added.generated);
     $('groundHead').textContent = `Ground · ${plain ? 'plain' : madeLookName(look)}`;
     lookRow('ground', o.added.generated, madeLookName(look), tool);
+    texturePanel(root, tool);
     $('groundState').textContent = free ? freeSizeWords(g) : tool ? groundShapeWords(g) : 'Made elsewhere: no handles here';
     $('groundSize').textContent = tool ? `${free ? freeSizeWords(g) : groundShapeWords(g)}. Its white handles size it as the snap setting says${g.shape === 'patch' ? '' : '; the one on top raises or lowers it'}.`
       : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';

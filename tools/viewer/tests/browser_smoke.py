@@ -5799,6 +5799,9 @@ CHECKS = (
     Check('free-handles', lambda c: __import__('browser_walls').check_free_handles(c.browser, c.page.url, open_viewer),
           "a made wall's thickness and bottom handles, its gaps a set at a time, Pivot to corner, Stretch and Join ends",
           when=ON_POLICE, full=False),
+    Check('texture-mapping', lambda c: __import__('browser_walls').check_texture_mapping(c.browser, c.page.url, open_viewer),
+          "a made wall's and floor's Texture mapping: surfaces picked, Size, its slide, turn and size handles, the fields, "
+          'world alignment, Original and Reset surface', when=ON_POLICE, full=False),
     Check('made-prefab', editing('made_prefab'), 'made pieces kept through a prefab', needs=('projects',), full=False),
     Check('modals', editing('modals'), 'dialogs keep the focus and the keys', full=False),
     Check('reset-all', editing('reset_all'), 'Reset all mends a broken piece', full=False),

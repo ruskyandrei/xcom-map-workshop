@@ -89,6 +89,36 @@ class FreeFormTests(unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
         self.assertEqual(native_made(spec)[0]['generated']['wall']['mapping'], mapping)
 
+    def test_a_world_aligned_surface_goes_with_its_origin(self):
+        # (stage 4: the Build is told where the piece's frame stands on the surface's axes in the world, from the
+        # record's pose; one the record carries is not taken, and a malformed one leaves the record out)
+        mapping = dict(surfaces=dict(faces=dict(mode='size', u=64.0, v=64.0, world=True)))
+        wall = dict(WALL, wall=dict(WALL['wall'], mapping=mapping, mappingOrigin=dict(faces=[1.0, 2.0])))
+        spec, report = compiled([dict(made(wall, at=(300.0, 600.0, 16.0)), rotation=[0, 16384, 0])])
+        self.assertTrue(report['ok'], refused(report))
+        numbers = native_made(spec)[0]['generated']['wall']
+        self.assertEqual(numbers['mappingOrigin'], dict(faces=[600.0, 16.0]))
+        self.assertEqual(numbers['mapping'], mapping)
+        # (three numbers are the Build's too, for any surface: a record carrying them is taken, and not used)
+        three = dict(WALL, wall=dict(WALL['wall'], mapping=mapping, mappingOrigin=dict(faces=[1.0, 2.0, 3.0], sides=[0.0, 0.0, 0.0])))
+        _, report = compiled([made(three)])
+        self.assertTrue(report['ok'], refused(report))
+        # a mapping in the piece's own frame: no origin
+        local = dict(WALL, wall=dict(WALL['wall'], mapping=dict(surfaces=dict(faces=dict(mode='size', u=64.0, v=64.0)))))
+        spec, report = compiled([made(local)])
+        self.assertNotIn('mappingOrigin', native_made(spec)[0]['generated']['wall'])
+        for bad in (dict(faces=[1.0]), dict(roof=[1.0, 2.0]), dict(faces=[1.0, float('inf')]), [1.0, 2.0], dict(sides=[1.0, 2.0])):
+            _, report = compiled([made(dict(WALL, wall=dict(WALL['wall'], mappingOrigin=bad)))])
+            self.assertIn('malformed', codes(report), bad)
+
+    def test_the_texture_origins_the_page_works_out_too(self):
+        # (mapping_origin_cases.json, shared_cases_test.mjs: made_mapping.js mappingOrigin is the twin)
+        cases = json.loads(Path(__file__).with_name('mapping_origin_cases.json').read_text(encoding='utf-8'))['cases']
+        self.assertGreaterEqual(len(cases), 10)
+        for c in cases:
+            self.assertEqual(made_edits.mapping_origin(c['kind'], c.get('mapping'), c['location'], c['rotation']), c['origin'],
+                             c['case'])
+
     def test_a_free_ramp_s_slope_is_its_rise_over_its_run(self):
         ramp = dict(shape='ramp', free=1, x0=0.0, x1=96.0, y0=0.0, y1=96.0, z0=0.0, z1=192.0)
         self.assertAlmostEqual(compiler.ground_slope(ramp), 63.43, places=2)

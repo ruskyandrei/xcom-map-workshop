@@ -183,8 +183,17 @@ chosen, a rock's `points`, and a texture `mapping` (`{surfaces: {faces | top | u
 count, modeV, u, v, turn, flipU, flipV, offsetU, offsetV, world}}}`, `modeV` the mode along v when it differs:
 `tools/bake/uv_mapping.py` says what each means). The compiler checks them (`tools/editor/made_edits.py`
 `free_valid`) and hands them to the Build as its own free version of the kind (walls 4, slabs and ground 3), less
-`plain`. An editor from before refuses these versions by their number; older versions are read and built as they were,
-and the page upgrades a piece to the free form when a size of it is edited (`tools/viewer/web/made_free.js`).
+`plain`, with `mappingOrigin` added where a surface is aligned to the world (`world: true`): `{role: place}`, where
+the piece's frame stands in the world, worked out from the record's location and rotation (`made_edits.mapping_origin`;
+the page's mesh requests carry the same, `made_mapping.js` `mappingOrigin`, with the cases both read in
+`tools/editor/tests/mapping_origin_cases.json`; `tools/bake/uv_mapping.py` `origin_of` reads it): for a wall's faces
+`[a0, b0]`, the location along the piece's x (its yaw's rounded step) and its z; for a top or underside, along its x
+and along its y; for a ground shape's sides `[x, y, z]`, along its x, along its y and z (a side along x reads x, one
+along y reads y); each to a millionth. A three-number place is the Build's for any surface, and the sides take only
+that. A record need not carry it, and one it carries is accepted (as `uv_mapping.check_origin` takes it) and not taken:
+the Build's is worked out again from the pose. An editor from before refuses these
+versions by their number; older versions are read and built as they were, and the page upgrades a piece to the free
+form when a size or its texture mapping is edited (`tools/viewer/web/made_free.js`).
 
 ```json
 {

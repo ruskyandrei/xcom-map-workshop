@@ -25,7 +25,7 @@ import { activeMapId, allRoots, areaShown, assigning, breaking, builderMode, cac
          setMergedBuildings, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid,
          setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setReachKey, setReachShown,
          setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnPlacing,
-         spawnsOn, streamSet, tipDirty, volumeDrag, volumesOn, wallDrag, wallDrawing, zonePlacing,
+         spawnsOn, streamSet, textureDrag, tipDirty, volumeDrag, volumesOn, wallDrag, wallDrawing, zonePlacing,
          zonesOn } from './editor_state.js';
 import { createDocumentSession, projectsAvailable } from './document_session.js';
 import { createDocumentState } from './document_state.js';
@@ -47,6 +47,7 @@ import { createClipboard } from './clipboard.js';
 import { createMadeLooksWiring } from './made_looks_wiring.js';
 import { createMadeDrawing } from './made_drawing.js';
 import { createMadeHandles } from './made_handles.js';
+import { createMadeMapping } from './made_mapping_wiring.js';
 import { createMadePanel } from './made_panel.js';
 import { createMadeBreaking } from './made_breaking.js';
 import { createMapGrid, gridOrigin, tileCorner } from './map_grid.js';
@@ -731,10 +732,10 @@ const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, 
 // The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The
 // page"). A made piece: what it is, its look's donor, its state and its changes (each one undo step), and its
 // handles and drags; the modules below are given its functions.
-const { cancelPointDrag, changeWall, endWallDrag, handleWall, hoverWallHandle, isMade, isMadeGround, isMadeSlab,
-        isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo, pointGizmo, releaseRockPoint,
-        rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint, wallHandlesNow,
-        wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
+const { applyWall, applyWallSoon, cancelPointDrag, changeWall, dropQueuedWall, endWallDrag, handleWall, hoverWallHandle,
+        isMade, isMadeGround, isMadeSlab, isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo,
+        pointGizmo, releaseRockPoint, rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear,
+        wallHandlePoint, wallHandlesNow, wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
   actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo, gltfLoader, HANDLE_PICK,
   libraryTemplate, movedMatrix, partsOf, pickables, projector, rayAt, refreshHighlight, renderer, restingHint,
   sceneChanged, select, showPop, track, volumeHint, world,
@@ -757,13 +758,21 @@ const { BUILD_TOOLS, endWallDraw, moveWallDraw, startBuild, startWallDraw, start
   $, addVolumes, askLineCollision, busyStart, camera, flashHint, gizmo, gridOrigin, groundAt, groundHeight, isMadeWall,
   lockAsGroup, lookWall, madeRequest, movedMatrix, newBuilding, pasteSnapshot, pick, plainLook, rayAt, renderer,
   restingHint, showPieces, stopPlacing, stopSpawnPlacing, stopZonePlacing, wallTemplate, world });
+// A made piece's texture mapping (made_mapping_wiring.js): the Texture mapping fold of the Wall, Floor and Ground
+// sections, the surface picked by a click or Tab while it is open, and that surface's handles in the view; made after
+// the made pieces' handles and before their panel sections, which fill the fold (nothing of it runs as the page loads
+// but its fold's and fields' handlers, on elements of its own).
+const { endTextureDrag, hoverTextureHandle, moveTextureDrag, pickSurface, startTextureDrag, stepSurface,
+        textureHandleNear, textureHandleScreens, texturePanel, textureSurfaceAt, updateTextureHandles } = createMadeMapping({
+  $, applyWall, applyWallSoon, camera, changeWall, dropQueuedWall, editChanged, flashHint, gizmo, handleWall, pick,
+  projector, rayAt, renderer, restingHint, setWall, showPop, volumeHint, wallState, world });
 // The piece panel's sections of a made piece (made_panel.js): the Wall, Floor, Ground and Room sections, with the
 // openings and holes, and what their buttons do.
 const { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, slabPanel,
         wallPanel } = createMadePanel({
   $, boxOf, changeWall, flashHint, gizmo, handleWall, isMadeGround, isMadeSlab, isMadeWall, isPlain, liveKeys,
   liveMembers, lookRow, madeRoot, madeWallRoot, openLookPicker, originalOf, plainLook, selectionGroup, setMadeLook,
-  setWall, wallLookOf, wallPiecesWords, wallState,
+  setWall, texturePanel, wallLookOf, wallPiecesWords, wallState,
   // (made further down: called through, since it is not made yet while this runs)
   breakRow: (kind, g, keeps) => breakRow(kind, g, keeps) });
 // Break and Repair (made_breaking.js): blasts set off on a made wall, floor or roof, or on one of the map's own
@@ -904,7 +913,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     setLightsShown, setLikeness, setMadeLook, setNormalEffects, setNormalLights, setNormalSpawns, setNormalView,
     setPickedSpawn, setPickTool, setSnapMode, setSolo, setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown,
     setVolumeTool, setZones, setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
-    spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer, spawnVolumeHandle, startBuild,
+    textureHandleScreens, textureSurfaceAt, spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer, spawnVolumeHandle, startBuild,
     startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, streamObjects, sun,
     syncSpawnFilters, takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
     world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
@@ -983,12 +992,14 @@ $('wire').onchange = e => {
 $('exposure').oninput = e => { renderer.toneMappingExposure = Number(e.target.value); };
 let pointerStart;
 // The Buildings view's drags (a box's face handle, the New box tool) take the press first.
-// A cover piece's handles likewise (cover-block-handles-plan.md).
+// A cover piece's handles likewise (cover-block-handles-plan.md). A made piece's texture handles, while its Texture
+// mapping fold is open, before them all (they show alone).
 renderer.domElement.addEventListener('pointerdown', e => {
-  if (!startVolumeDrag(e) && !startCoverDrag(e) && !startWallDrag(e) && !startPickDrag(e)) return;
+  if (!startTextureDrag(e) && !startVolumeDrag(e) && !startCoverDrag(e) && !startWallDrag(e) && !startPickDrag(e)) return;
   pointerStart = null; e.stopImmediatePropagation(); e.preventDefault();
 }, { capture: true });
 renderer.domElement.addEventListener('pointermove', e => {
+  if (textureDrag) { if (e.pointerId === textureDrag.pointerId) moveTextureDrag(e); e.stopImmediatePropagation(); return; }
   if (volumeDrag) { if (e.pointerId === volumeDrag.pointerId) moveVolumeDrag(e); e.stopImmediatePropagation(); return; }
   if (coverDrag) { if (e.pointerId === coverDrag.pointerId) moveCoverDrag(e); e.stopImmediatePropagation(); return; }
   if (wallDrag) { if (e.pointerId === wallDrag.pointerId) moveWallDrag(e); e.stopImmediatePropagation(); return; }
@@ -996,9 +1007,13 @@ renderer.domElement.addEventListener('pointermove', e => {
   if (pickDrag) { if (e.pointerId === pickDrag.pointerId) movePickDrag(e); e.stopImmediatePropagation(); return; }
   if ((volumesOn || pickBox || spawnVolumeHandle()) && !gizmo.controls.dragging && e.buttons === 0)
     hoverVolumeHandle(volumeHandleNear(e.clientX, e.clientY) ?? (pickBox && pickMoveNear(e.clientX, e.clientY) ? 'move' : null));
-  else if (!gizmo.controls.dragging && e.buttons === 0) { hoverCoverHandle(coverHandleNear(e.clientX, e.clientY)); hoverWallHandle(wallHandleNear(e.clientX, e.clientY)); }
+  else if (!gizmo.controls.dragging && e.buttons === 0) {
+    hoverCoverHandle(coverHandleNear(e.clientX, e.clientY)); hoverWallHandle(wallHandleNear(e.clientX, e.clientY));
+    hoverTextureHandle(textureHandleNear(e.clientX, e.clientY));
+  }
 }, { capture: true });
 renderer.domElement.addEventListener('pointerup', e => {
+  if (textureDrag && e.pointerId === textureDrag.pointerId) { e.stopImmediatePropagation(); endTextureDrag(true); return; }
   if (pickDrag && e.pointerId === pickDrag.pointerId) { e.stopImmediatePropagation(); endPickDrag(true); return; }
   if (coverDrag && e.pointerId === coverDrag.pointerId) { e.stopImmediatePropagation(); endCoverDrag(true); return; }
   if (wallDrag && e.pointerId === wallDrag.pointerId) { e.stopImmediatePropagation(); endWallDrag(true); return; }
@@ -1007,7 +1022,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   e.stopImmediatePropagation(); endVolumeDrag(true);
 }, { capture: true });
 renderer.domElement.addEventListener('pointercancel', () => {
-  endVolumeDrag(false); endCoverDrag(false); endWallDrag(false); endPickDrag(false);
+  endTextureDrag(false); endVolumeDrag(false); endCoverDrag(false); endWallDrag(false); endPickDrag(false);
   if (wallDrawing?.start) { wallDrawing.start = null; wallDrawing.pointerId = null; wallGhost.visible = false; wallHint(); }
 });
 // A light's drag handle under the press takes it, ahead of the gizmo, the camera and picking (capture listeners run
@@ -1048,6 +1063,8 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (effectsOn) { if (e.button === 0) pickEffectAt(e.clientX, e.clientY, e.ctrlKey || e.shiftKey || e.metaKey); return; }
   // the Spawns view: only its markers (and, to describe them, landing zones) are picked, never a piece
   if (spawnsOn) { if (e.button === 0) spawnClick(e); return; }
+  // a made piece's Texture mapping fold open: a click on it picks the surface it falls on
+  if (e.button === 0 && pickSurface(e)) return;
   // with the Normal button's Effects switch, a marker is picked ahead of the light or piece behind it
   const fx = effectsShown() && !lightsOn ? effectAt(e.clientX, e.clientY) : null;
   if (fx) { select(fx.userData.source.id, e.ctrlKey || e.shiftKey || e.metaKey); return; }
@@ -1231,13 +1248,13 @@ $('skyToggle').onchange = e => { $('skyList').hidden = !e.target.checked; rememb
 const { frame, panCamera, setSnapMode } = createNavigation({
   $, builderRecords, camera, cancelMissionGizmo, cancelPointDrag, cancelZoneGizmo, content, controls,
   copySelection, copySpawn, copyZone, deleteSelection, deleteSpawn, deleteWallOpening, deleteZone, dragHint,
-  editBaseSpawn, editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endVolumeDrag, endWallDrag,
-  flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
+  editBaseSpawn, editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endTextureDrag, endVolumeDrag,
+  endWallDrag, flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
   missionGizmo, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
   alignToGrid, setGridTool, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,
-  showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stopBreak,
+  showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,
   TURNED_KINDS, turnZone, undoStep, volumePanel, wallGhost, wallHint, zoneGizmo,
   // (a let startScene sets: called through)
@@ -1266,6 +1283,7 @@ renderer.setAnimationLoop(() => {
   updateVolumeHandles();
   updateCoverHandles();
   updateWallHandles();
+  updateTextureHandles();
   placePointGizmo();
   drawCursorRings();
   if (lightsDirty && !soloOn && $('lighting').value !== 'neutral' && now - lastLightSync > 120) applyLighting();

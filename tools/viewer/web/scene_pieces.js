@@ -318,16 +318,18 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
   // A copy is a new piece built from its source's mesh and materials, with its own id, actor name and pivot.
   // (the clipboard, clipboard, and the copies' serial: editor_state.js)
   const newId = () => `added:${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
-  // A made piece's mesh and materials; a plain one's (B2) on the plain material, but for the hidden inside faces.
-  function madeShape(template, generated) {
-    const shape = madeShapeOf(template, generated);
+  // A made piece's mesh and materials; a plain one's (B2) on the plain material, but for the hidden inside faces. `pose`
+  // where it stands, when known ({ location, rotation }: a free-form piece's surface aligned to the world is drawn from
+  // there; without it, made_handles.js asks for it again once the piece stands in the scene).
+  function madeShape(template, generated, pose = null) {
+    const shape = madeShapeOf(template, generated, pose);
     return isPlain(generated) && shape.materials
       ? { ...shape, materials: shape.materials.map(m => (data.materials[m]?.render?.family === 'hidden' ? m : PLAIN_MATERIAL)) } : shape;
   }
   // A made piece's mesh and materials from its numbers (walls.js madeWallShape and madeSlabShape, ground.js
   // madeGroundShape: the mesh record goes into the scene's meshes), or {} when the server can't draw them.
-  function madeShapeOf(template, generated) {
-    if (isFree(generated)) return freeShape(template, generated, data.meshes);
+  function madeShapeOf(template, generated, pose = null) {
+    if (isFree(generated)) return freeShape(template, generated, data.meshes, pose);
     if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab, generated.blasts, data.meshes);
     if (generated?.kind === 'ground') return madeGroundShape(template, generated.ground, data.meshes);
     return generated?.kind === 'fracWall' ? madeWallShape(template, generated.wall, generated.blasts, data.meshes) : {};
@@ -342,7 +344,7 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
   }
   function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null, blasts = null, breaksFurther = false }) {
     if (generated && ['fracWall', 'fracSlab', 'ground'].includes(generated.kind)) placed = unscaled(placed);
-    return { ...template, ...madeShape(template, generated), id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
+    return { ...template, ...madeShape(template, generated, location && rotation ? { location, rotation } : null), id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
       // its piece flags as made (piece flags plan): a paste's are its original's request, a project's its record's; the
       // template's settings (pieceFlags) stay its baseline
       initialFlags: flags ? { ...flags } : null,

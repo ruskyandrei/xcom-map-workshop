@@ -7,7 +7,9 @@
 //   copy_floors in test_native_copy.py);
 // - tools/editor/tests/stage_levels_cases.json: prefab_document.js prefabStageLevels (prefab_stage.stage_levels);
 // - tools/editor/tests/wall_join_cases.json: walls.js wallJoins (compiler.wall_joins in test_compiler_generated.py);
-// - tools/editor/tests/free_join_cases.json: walls.js freeWallJoins (made_edits.free_wall_joins in test_compiler_free.py).
+// - tools/editor/tests/free_join_cases.json: walls.js freeWallJoins (made_edits.free_wall_joins in test_compiler_free.py);
+// - tools/editor/tests/mapping_origin_cases.json: made_mapping.js mappingOrigin (made_edits.mapping_origin in
+//   test_compiler_free.py).
 // Run: node tools/viewer/tests/shared_cases_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -16,6 +18,7 @@ import { gridMove, nearestGridPose } from '../web/poserule.js';
 import { copyFloors, floorAt } from '../web/floors.js';
 import { prefabStageLevels } from '../web/prefab_document.js';
 import { freeWallJoins, wallJoins } from '../web/walls.js';
+import { mappingOrigin } from '../web/made_mapping.js';
 
 const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 const near = (a, b, eps, what) => {
@@ -74,5 +77,10 @@ for (const c of freeJoints) {
   assert.deepEqual(Object.fromEntries(Object.entries(found).map(([k, v]) => [k, v.ends])), c.ends, c.case);
   assert.deepEqual(Object.fromEntries(Object.entries(found).map(([k, v]) => [k, v.joins.map(j => j.how)])), c.joins, c.case);
 }
+// where a world-aligned surface's texture is counted from: made_edits.mapping_origin's cases (test_compiler_free.py)
+const origins = read('../../editor/tests/mapping_origin_cases.json').cases;
+assert.ok(origins.length >= 10);
+for (const c of origins) assert.deepEqual(mappingOrigin(c.kind, c.mapping ?? null, c.location, c.rotation), c.origin, c.case);
 console.log(`shared_cases_test: ok (${cones.length} cones, ${poses.length} poses, ${floors.floorAt.length + floors.copyFloors.length} floor `
-  + `cases, ${stages.length} stage heights, ${joints.length} wall joints, ${freeJoints.length} free-form joints)`);
+  + `cases, ${stages.length} stage heights, ${joints.length} wall joints, ${freeJoints.length} free-form joints, `
+  + `${origins.length} texture origins)`);

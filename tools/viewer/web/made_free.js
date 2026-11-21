@@ -11,8 +11,11 @@
 // D1: resizedFace, with the openings or holes it no longer holds clipped or gone), the piece renumbered from its low
 // corner (Pivot to corner: pivotedToCorner, its blasts and points shifted with it), whether numbers are a free form's
 // the editor makes (toolFree), and its mesh as the editor's server draws it (freeNumbers, freeBounds, freeMesh,
-// freeShape: the same endpoints as the older numbers', which the server reads by their `free`). Locations are game units; a piece's frame has x and y across, z up.
+// freeShape: the same endpoints as the older numbers', which the server reads by their `free`; a surface aligned to the
+// world carries where the piece stands, made_mapping.js mappingOrigin, so its pose is passed in). Locations are game
+// units; a piece's frame has x and y across, z up.
 import { GROUND_LOOKS, groundBox, POINTS_VERSION } from './ground.js';
+import { mappingOrigin, reframed } from './made_mapping.js';
 import { blastQuery, madeRecord, SLAB_LOOKS, slabLookOf, spelledLook, WALL_LOOKS, wallSpec, wallTop } from './walls.js';
 
 /** The free form's request version of each kind (made_edits.py FREE_VERSION). */
@@ -23,8 +26,6 @@ const PLAIN_VERSION = { fracWall: 4, fracSlab: 3, ground: 3 };
 export const FREE = { least: 1, leastCut: 1 };
 const AXES = { x0: 0, x1: 0, y0: 1, y1: 1, z0: 2, z1: 2 };
 const tidy = v => { const r = Math.round(v * 1e6) / 1e6; return r === 0 ? 0 : r; };
-// (a texture offset is in repeats, a small number: kept finer)
-const fine = v => { const r = Math.round(v * 1e12) / 1e12; return r === 0 ? 0 : r; };
 
 /** Whether a request is in the free form. */
 export const isFree = g => Boolean(g) && g.version === FREE_VERSION[g.kind] && g[KEY[g.kind]]?.free === 1;
@@ -113,8 +114,10 @@ export function resizedFace(kind, n, face, delta) {
 /** Pivot to corner (decision D1): the numbers renumbered from their low corner (x0 and y0 to 0; a wall's z0 and a
  *  slab's or ground shape's stay, as its floor or ground is its origin's height), every number in the frame shifted
  *  with them: openings, holes, a rock's points, the blasts (`blasts`, [{ at: [x, y, z], radius }] in the piece's
- *  frame) and a mapping's offsets (in repeats of a surface's size; a world-aligned surface stays). Gives { numbers,
- *  blasts, shift: [dx, dy, dz] }: the piece's origin moves by `shift` in its own frame, so nothing moves in the world. */
+ *  frame) and a mapping's offsets (made_mapping.js reframed: a wall's faces by the shift along x, a top or underside
+ *  along x and y, on each axis tiled by size; a world-aligned surface stays, and so do a ground shape's sides, whose
+ *  four runs one offset cannot keep). Gives { numbers, blasts, shift: [dx, dy, dz] }: the piece's origin moves by
+ *  `shift` in its own frame, so nothing moves in the world. */
 export function pivotedToCorner(kind, n, blasts = null) {
   const shift = [n.x0, n.y0, 0];
   const out = { ...n, x0: 0, x1: tidy(n.x1 - n.x0), y0: 0, y1: tidy(n.y1 - n.y0) };
@@ -127,11 +130,9 @@ export function pivotedToCorner(kind, n, blasts = null) {
   if (kind === 'ground' && n.points) out.points = n.points.map(p => [tidy(p[0] - shift[0]), tidy(p[1] - shift[1]), p[2]]);
   if (n.mapping?.surfaces) {
     const surfaces = {};
-    for (const [role, s] of Object.entries(n.mapping.surfaces)) {
-      // (a surface's u runs along x on a wall's faces and a slab's or ground's top; its v up or along y)
-      const du = s.mode === 'size' && !s.world ? shift[0] / s.u : 0, dv = s.mode === 'size' && !s.world && role !== 'faces' ? shift[1] / s.v : 0;
-      surfaces[role] = du || dv ? { ...s, offsetU: fine((s.offsetU ?? 0) + du), offsetV: fine((s.offsetV ?? 0) + dv) } : s;
-    }
+    // (a wall's faces run along x and up, a top or underside along x and y: the shift on the surface's own axes)
+    for (const [role, s] of Object.entries(n.mapping.surfaces))
+      surfaces[role] = role === 'sides' ? s : reframed(s, role === 'faces' ? [shift[0], 0] : [shift[0], shift[1]]);
     out.mapping = { ...n.mapping, surfaces };
   }
   const moved = blasts?.map(b => ({ ...b, at: [tidy(b.at[0] - shift[0]), tidy(b.at[1] - shift[1]), b.at[2]] })) ?? blasts;
@@ -164,8 +165,10 @@ const ENDPOINT = { fracWall: ['fracwall', 'wall'], fracSlab: ['fracslab', 'slab'
 const DEFAULT_LOOK = { fracWall: WALL_LOOKS[0].id, fracSlab: SLAB_LOOKS[0].id, ground: GROUND_LOOKS[0].id };
 /** Free-form numbers in the one spelling their mesh's key and request use: the extents, the kind's own fields, a look
  *  other than the default (spelled as generated.py donor_look), the mapping, and a wall's end styles where it is
- *  joined (`ends`: madeWallJoins', two free ends left out). */
-export function freeNumbers(kind, n, ends = null) {
+ *  joined (`ends`: madeWallJoins', two free ends left out). With the piece's pose ({ location, rotation }), its
+ *  surfaces aligned to the world carry where it stands on their axes (`mappingOrigin`, as the compiler's lowering
+ *  gives the Build: made_edits.free_generated). */
+export function freeNumbers(kind, n, ends = null, pose = null) {
   const out = { free: 1, x0: n.x0, x1: n.x1, y0: n.y0, y1: n.y1, z0: n.z0, z1: n.z1, seed: n.seed ?? 1 };
   if (kind === 'fracWall') {
     out.tall = n.tall ?? 'repeat';
@@ -178,6 +181,8 @@ export function freeNumbers(kind, n, ends = null) {
   }
   if (n.look !== undefined && n.look !== DEFAULT_LOOK[kind] && !n.plain) out.look = spelledLook(n.look);
   if (n.mapping) out.mapping = structuredClone(n.mapping);
+  const origin = pose && n.mapping ? mappingOrigin(kind, n.mapping, pose.location, pose.rotation) : null;
+  if (origin) out.mappingOrigin = origin;
   return out;
 }
 /** A free-form piece's mesh bounds (the mesh form's [centre, half sizes, radius]): its box, a wall's x in from its ends
@@ -194,19 +199,20 @@ export function freeBounds(kind, n, ends = null) {
   const h = [0, 1, 2].map(k => (b[2 * k + 1] - b[2 * k]) / 2);
   return [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, (b[4] + b[5]) / 2, ...h, Math.hypot(...h)];
 }
-/** A free-form piece's mesh: { key, url, bounds, sections } (its blasts, a wall's or slab's, in its key and request). */
-export function freeMesh(kind, n, ends = null, blasts = null) {
-  const [path, param] = ENDPOINT[kind], numbers = freeNumbers(kind, n, ends), broken = kind === 'ground' ? { key: '', query: {} } : blastQuery(blasts);
+/** A free-form piece's mesh: { key, url, bounds, sections } (its blasts, a wall's or slab's, in its key and request; its
+ *  pose, for a surface aligned to the world: freeNumbers). */
+export function freeMesh(kind, n, ends = null, blasts = null, pose = null) {
+  const [path, param] = ENDPOINT[kind], numbers = freeNumbers(kind, n, ends, pose), broken = kind === 'ground' ? { key: '', query: {} } : blastQuery(blasts);
   const sections = kind === 'fracWall' ? wallSpec(n).sections : kind === 'fracSlab' ? slabLookOf(n)?.sections ?? 2 : 1;
   return { key: `made:${path}:${JSON.stringify(numbers)}${broken.key}`, sections, bounds: freeBounds(kind, n, ends),
            url: `/generated/${path}.glb?${new URLSearchParams({ [param]: JSON.stringify(numbers), ...broken.query })}` };
 }
 /** A free-form piece's { mesh, materials } on its template's materials by slot (walls.js madeRecord), or {} when the
- *  editor would not draw its numbers. */
-export function freeShape(template, generated, meshes) {
+ *  editor would not draw its numbers; `pose` where it stands (a surface aligned to the world: freeNumbers). */
+export function freeShape(template, generated, meshes, pose = null) {
   const n = generated[KEY[generated.kind]];
   if (!toolFree(generated.kind, n)) return {};
-  const m = freeMesh(generated.kind, n, null, generated.blasts);
+  const m = freeMesh(generated.kind, n, null, generated.blasts, pose);
   return madeRecord(template, meshes, m.key, { noun: { fracWall: 'a wall', fracSlab: 'a slab', ground: 'ground' }[generated.kind],
                                                url: m.url, sections: m.sections, bounds: m.bounds });
 }
