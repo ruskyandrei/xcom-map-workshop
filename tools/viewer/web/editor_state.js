@@ -179,7 +179,7 @@ export const foreignTemplates = new Map();
 // (library_templates.js's assetUrl); a piece of another map gives its own.
 export let cachePrefix = '/cache/';
 export function setCachePrefix(next) { cachePrefix = next; }
-// The meshes loaded, by mesh key, each shared by every piece that uses it (app.js's track and loaded).
+// The meshes loaded, by mesh key, each shared by every piece that uses it (scene_pieces.js's track and loaded).
 export const geometryCache = new Map();
 // The saved prefabs' pictures waiting to be drawn (prefab_place.js's drawPrefabPictures draws one a frame).
 export const prefabPictures = [];
