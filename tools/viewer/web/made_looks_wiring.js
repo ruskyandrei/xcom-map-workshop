@@ -20,16 +20,17 @@ import { data, geometryCache, groupIndex, lookPicker, lookPicking, pieces, roots
          setLookPicking } from './editor_state.js';
 import { GROUND_LOOKS, groundLookOf } from './ground.js';
 import { catalogued, entryForPiece, loadLooks, lookFromEntry, lookKey } from './looks.js';
-import { stateOfRoot } from './piece_records.js';
+import { fromOf, stateOfRoot } from './piece_records.js';
 import { recall, remember } from './storage.js';
 import { openingsInLook, SLAB_LOOKS, slabLookOf, storeysInLook, WALL_LOOKS, withStoreys } from './walls.js';
+import { plural, short } from './dom_words.js';
 
-export function createMadeLooksWiring({ $, assetUrl, boundsOf, changeGroups, deleteNow, flashHint, fromOf, gizmo,
-                                        gltfLoader, isMadeGround, isMadeSlab, isMadeWall, isPlain, madeRequest,
-                                        madeRoot, madeShape, material, materialCache, materialKey, memberOf,
-                                        memberRecord, movedMatrix, pasteSnapshot, pick, plainLook, plural, previewGroup,
-                                        renderer, short, showPieces, startWallDrawing, stopPlacing, stopWallDrawing,
-                                        track, wallState, wallTemplate }) {
+export function createMadeLooksWiring({ $, assetUrl, boundsOf, changeGroups, deleteNow, flashHint, gizmo, gltfLoader,
+                                        isMadeGround, isMadeSlab, isMadeWall, isPlain, madeRequest, madeRoot,
+                                        madeShape, material, materialCache, materialKey, memberOf, memberRecord,
+                                        movedMatrix, pasteSnapshot, pick, plainLook, previewGroup, renderer,
+                                        showPieces, startWallDrawing, stopPlacing, stopWallDrawing, track, wallState,
+                                        wallTemplate }) {
   // ---- looks from any piece (custom geometry plan, M4c)
   // The look each tool draws in: a look id, or a donor look chosen in the picker (lookFromEntry's), remembered in this
   // browser. A donor look no catalogue read holds is forgotten.

@@ -13,8 +13,8 @@ import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
-import { fromOf, isStream, sourceKey } from './piece_records.js';
-import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, cachePrefix, coverDrag, data,
+import { isStream } from './piece_records.js';
+import { activeMapId, allRoots, areaShown, assigning, breaking, builderMode, cachePrefix, coverDrag, data,
          effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, lastLightSync,
          leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
          lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects, pickBox, pickDrag,
@@ -62,7 +62,7 @@ import { createPrepare } from './prepare.js';
 import { checkHub, editChangedNow, runHub } from './edit_hub.js';
 import { createSelection, rootName, selectionWords } from './selection.js';
 import { createViews } from './views.js';
-import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
+import { createHandles, HANDLE_PICK } from './handles.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { createTestApi } from './test_api.js';
 import { createNavigation, RECIPE_NOTE } from './navigation.js';
@@ -73,14 +73,14 @@ import { createPopups } from './popups.js';
 import { createMapMenu } from './map_menu.js';
 import { createProjectMenu } from './project_menu.js';
 import { createPieceStatus } from './piece_status.js';
-import { holdModals, modalOpen, releaseAfterChange } from './modal.js';
+import { holdModals, releaseAfterChange } from './modal.js';
 import { ask, call } from './api.js';
 import { recall, remember } from './storage.js';
-import { copyText, field, plural, segButton, segmented, short, text } from './dom_words.js';
+import { segButton, segmented } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createMapLighting } from './lighting.js';
 import { COVER_KIND } from './cover.js';
-import { PL, TILE } from './constants.js';
+import { TILE } from './constants.js';
 import { loadLooks, lookTags } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 
@@ -186,8 +186,7 @@ function readLooks() {
 const { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
         materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, rayAt, recipeOf, removeRoots,
         templateFor, texture, track, unscaled, vertexBox } = createScenePieces({
-  camera, content, fromOf, gltfLoader, gridOrigin, isStream, pickables, renderer, sourceKey, textureLoader,
-  texturePromises,
+  camera, content, gltfLoader, gridOrigin, pickables, renderer, textureLoader, texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
   loadingState: (message, fraction, detail) => loadingState(message, fraction, detail),
   assetUrl: url => assetUrl(url), coverVersion: (version, type) => coverVersion(version, type),
@@ -214,15 +213,16 @@ const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: cont
 // with its link tag, and a piece's assembly (the map's own, or another map's as its records are read); made where the
 // families' use was, after the gizmo, which it regroups (nothing of it runs as the page loads but its two tables made).
 const { assemblyOf, foreignAssemblies, useMapFamilies } = createMapFamilies({
-  fromOf, gizmo });
+  gizmo });
 // (the Map lighting mode, lighting, and the pieces that could not be drawn, loadErrorCount: editor_state.js)
 // (the server's map list, mapCatalogue, the map browser, mapBrowser, and cachePrefix: editor_state.js)
 // (the lights' reach, lightRadius: editor_state.js)
 
 // The loading overlay (loading.js): its message, bar and detail line, an opening document's steps on it, and a
-// JSON file read with its progress; made as soon as the words it needs are (nothing of it runs as the page loads).
+// JSON file read with its progress; made early, since the document session, the prefab builder's and the scene's
+// pieces show it (nothing of it runs as the page loads).
 const { fetchJson, loadingState, openingProgress } = createLoading({
-  $, plural });
+  $ });
 // The selection's group as a chip beside its name; groupPanel keeps it up to date. (The selection, selection.js,
 // puts it in the piece panel; both it and the groups are given it.)
 const groupChip = document.createElement('span');
@@ -230,7 +230,7 @@ groupChip.hidden = true;
 // The Flags group of the piece panel and its chip (flags_panel.js): a piece's flags as the project has them,
 // the chip, the group's rows and a change of them (one undo step).
 const { flagContract, flagKey, flagSource, resetFlags } = createFlagsPanel({
-  $, boxOf, gizmo, isStream, plural, sourceKey, text, tileCorner,
+  $, boxOf, gizmo, tileCorner,
   // (made further down: called through, since it is not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep) });
 const poseInputs = ['posX','posY','posZ','rotP','rotY','rotR'].map($);
@@ -261,7 +261,7 @@ function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(tr
 // says.
 const { assetUrl, bakeNote, effectTemplate, foreignCost, foreignNote, isForeignTarget, libraryTemplate,
         loadForeignTemplates, readEffectRecords, readLibraryRecords, recordId } = createLibraryTemplates({
-  boundsOf, buildRoot, foreignAssemblies, fromOf, plural, short,
+  boundsOf, buildRoot, foreignAssemblies,
   // (made further down: called through, since they are not made yet while this runs)
   collisionMesh: c => collisionMesh(c), effectSource: rec => effectSource(rec),
   lightSource: record => lightSource(record) });
@@ -282,14 +282,14 @@ const { chosenStorey, floorData, floorSupportOf, levelButton, setLevelSnap } = c
 // piece panel's group section, and the groups changed (each change one undo step).
 const { addToGroup, changeGroups, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
         selectionGroup, ungroup } = createGroups({
-  $, flashHint, gizmo, groupChip, highlight, isStream, plural,
+  $, flashHint, gizmo, groupChip, highlight,
   // (made with the selection, further down: called through, since they are not made yet while this runs)
   groupables: () => groupables(), select: (id, add, keep) => select(id, add, keep) });
 
 // Align (align.js): the others of the selection lined up with a target, the piece panel's Align section and
 // its white box on the target.
 const { align, alignPanel, saveAlignPrefs } = createAlign({
-  $, flashHint, gizmo, liveGroup, memberOf, plural, short, world,
+  $, flashHint, gizmo, liveGroup, memberOf, world,
   // (made with the selection, further down: called through, since it is not made yet while this runs)
   copyablePieces: () => copyablePieces(),
   // (made with the clipboard, further down: called through, since it is not made yet while this runs)
@@ -322,9 +322,8 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
         setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
         withStorableCone } = createLightsWiring({
-  $, actorPose, baseMatrix, camera, copyText, editChanged, field, flashHint, gizmo, HANDLE_PICK, highlight,
-  isStream, ladderMarks, lightLayer, pickables, PL, plural, projector, renderer, restingHint, short, showPop,
-  sun, text, world,
+  $, actorPose, baseMatrix, camera, editChanged, flashHint, gizmo, HANDLE_PICK, highlight, ladderMarks, lightLayer,
+  pickables, projector, renderer, restingHint, showPop, sun, world,
   // (made further down: called through, since they are not made yet while this runs)
   applyLighting: () => applyLighting(), banner: (message, actions, options) => banner(message, actions, options),
   // (made with the views' switching, further down: called through)
@@ -357,9 +356,9 @@ const SESSION = uuid();
 // The scene to and from a document (document_state.js): the edits on screen as a project records them, and a
 // project's state put on the map.
 const { applyState, changes, editState, projectNote } = createDocumentState({
-  $, actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, baseMatrix, buildRoots, builder,
-  clearLightEdits, cloneGroups, editChanged, gizmo, isStream, lightEdited, lightState, liveMembers, loadForeignTemplates,
-  memberOf, movedMatrix, plural, removeRoots, sceneChanged, short, sourceKey, templateFor, text,
+  $, actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, baseMatrix, buildRoots,
+  clearLightEdits, cloneGroups, editChanged, gizmo, lightEdited, lightState, liveMembers, loadForeignTemplates,
+  memberOf, movedMatrix, removeRoots, sceneChanged, templateFor,
   // (made with the map grid, further down: called through, since they are not made yet while this runs)
   ownSize: () => ownSize(), setStage: next => setStage(next),
   // (made with the cover blocks, further down: called through, since they are not made yet while this runs)
@@ -383,8 +382,8 @@ const { applyState, changes, editState, projectNote } = createDocumentState({
 // and offered back, and the banner under the header.
 const { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery,
         loadProject, openProject, projectChanged, saveProject, saveState, unsavedDocument } = createDocumentSession({
-  $, SESSION, applyState, builder, camera, changes, controls, documentWrites, editChanged, editState, flashHint, gizmo,
-  loadingState, openingProgress, plural, projectNote, text,
+  $, SESSION, applyState, camera, changes, controls, documentWrites, editChanged, editState, flashHint, gizmo,
+  loadingState, openingProgress, projectNote,
   // (made with the Project menu, further down: called through, since it is not made yet while this runs)
   showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave), touchRecent: id => touchRecent(id),
   // (made with the map grid, further down: called through, since it is not made yet while this runs)
@@ -402,17 +401,16 @@ const { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensu
 // The pose fields and the edit status (piece_status.js): the edit hub's piece-status refresh, registered as it is made,
 // after the document session, whose save state it shows (nothing of it runs as the page loads but the registration).
 createPieceStatus({
-  $, changes, gizmo, isStream, lightPose, lightViewOnly, poseInputs, saveState, valuesEdited });
+  $, changes, gizmo, lightPose, lightViewOnly, poseInputs, saveState, valuesEdited });
 // The prefab builder's session (builder_session.js): the prefab's document opened, kept and saved, its size line and
 // ground, Align to grid, the missing pieces looked for by recipe, and the Problems check.
 const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderPage, builderRecords, builderTitle,
         openPrefabDocument, physicalBox, problemsPaint, recoverPrefabSources, refreshBuilder,
         saveBuilder } = createBuilderSession({
-  $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf, buildRoot, controls, dirty, discardAndGo, discardDraft,
-  documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, gizmo, gridOrigin, isStream,
-  libraryTemplate, lightPose, loadingState, movedMatrix, openingProgress, plural, projectChanged, recipeOf, removeRoots,
-  rootName, sceneChanged,
-  short, templateFor, text, world,
+  $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf, buildRoot, controls, dirty, discardAndGo,
+  discardDraft, documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, gizmo, gridOrigin,
+  libraryTemplate, lightPose, loadingState, movedMatrix, openingProgress, projectChanged, recipeOf, removeRoots,
+  rootName, sceneChanged, templateFor, world,
   // (made with the selection, further down: called through, since they are not made yet while this runs)
   gridNow: root => gridNow(root), selectActors: names => selectActors(names),
   // (made with the Project menu, further down: called through, since it is not made yet while this runs)
@@ -428,11 +426,10 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
 // Prefabs tab placed as a paste is.
 const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, prefabRecords, savePrefab,
         showPrefabDialog } = createPrefabPlace({
-  $, BUSY_PIECES, PL, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, effectTemplate,
-  flashHint, fromOf, ghostEdges, ghostLine, gltfLoader, isForeignTarget, isStream, libraryTemplate, lightPose,
-  lightsBlocked, madeShape, memberOf, movedMatrix, nextFrame, physicalBox, plural, readEffectRecords,
-  readLibraryRecords, recipeLight, recordId, rootName, saveBuilder, selectionGroup, short, templateFor, text, track,
-  withStorableCone,
+  $, BUSY_PIECES, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, effectTemplate,
+  flashHint, ghostEdges, ghostLine, gltfLoader, isForeignTarget, libraryTemplate, lightPose, lightsBlocked, madeShape,
+  memberOf, movedMatrix, nextFrame, physicalBox, readEffectRecords, readLibraryRecords, recipeLight, recordId,
+  rootName, saveBuilder, selectionGroup, templateFor, track, withStorableCone,
   // (made with the selection, further down: called through, since they are not made yet while this runs)
   copyable: () => copyable(), gridNow: root => gridNow(root),
   // (made with the cover blocks, the Effects view and the clipboard, further down: called through, since they are not
@@ -446,7 +443,7 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
 // The map browser's wiring (map_menu.js): a map's name, the list brought up to the server's, the browser made as the
 // page opens, and the Map menu's button and Change map.
 const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMenu({
-  $, goTo, modalOpen, projectsAvailable, showPop,
+  $, goTo, projectsAvailable, showPop,
   // (made further down: called through, since it is not made yet while this runs)
   stopPlacing: () => stopPlacing() });
 // Build and Play in game (build_play.js): Build's panel and the window that follows a build, Play in game with its
@@ -454,8 +451,8 @@ const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMe
 // builder's Test in game and the build queue's chip.
 const { followBuild, followQueueForProject, landHere, openBuild, openPrefabTest, playInGame, prefabTest, refreshInstalls,
         refreshSquadLine, renderPlayItems, renderQueueChip, setLastBuild } = createBuildPlay({
-  $, bakeNote, banner, builder, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo, mapLabel,
-  needsPrepare, plural, projectsAvailable, saveProject, short, showPop, showPrepare, text,
+  $, bakeNote, banner, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo, mapLabel,
+  needsPrepare, projectsAvailable, saveProject, showPop, showPrepare,
   // (made with Clear map, further down: called through, since they are not made yet while this runs)
   headerMissions: () => headerMissions(), zonesNow: () => zonesNow(),
   // (made with the selection, further down: called through, since it is not made yet while this runs)
@@ -529,8 +526,8 @@ const precache = createPrecache({
 // windows, which it is given (nothing of it runs as the page loads).
 const { renderProjectMenu, showFileDialog, showGameMaps, showPrecache, showProjectManager,
         touchRecent } = createProjectMenu({
-  $, dirty, fileDialog, gameMaps, loadProject, mapLabel, modalOpen, precache, projectManager, renderPlayItems, showPop,
-  showPrefabDialog, text,
+  $, dirty, fileDialog, gameMaps, loadProject, mapLabel, precache, projectManager, renderPlayItems, showPop,
+  showPrefabDialog,
   // (made with the clipboard, further down: called through, since it is not made yet while this runs)
   stopPlacing: () => stopPlacing() });
 
@@ -538,7 +535,7 @@ const { renderProjectMenu, showFileDialog, showGameMaps, showPrecache, showProje
 // The building floors a piece is listed on (floor_listings.js): the project's buildings' and the map's own,
 // as the Build lists them, and the key of the pieces' edits.
 const { editedKey, listingsNow, projectListings } = createFloorListings({
-  boxOf, movedBox, originalOf, short, vertexBox,
+  boxOf, movedBox, originalOf, vertexBox,
   // (made further down: called through, since they are not made yet while this runs)
   allBuildings: () => allBuildings(), mapEdits: () => mapEdits(), mapIdOf: b => mapIdOf(b) });
 // The Map grid's handles (map_grid.js, made just below) take the press first.
@@ -594,9 +591,9 @@ const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight
         headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
         readLandingLines, refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes,
         startMissionPicker, zonesNow } = createClearMap({
-  $, addLightRoots, addRoots, banner, cloneGroups, editedKey, flashHint, fromOf, gizmo, grabView, isStream,
-  lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, removeLightRoots,
-  removeRoots, sceneChanged, setStage, short, showPop, world,
+  $, addLightRoots, addRoots, banner, cloneGroups, editedKey, flashHint, gizmo, grabView, lightViewOnly, ownSize,
+  projectChanged, projectsAvailable, refreshInstalls, removeLightRoots, removeRoots, sceneChanged, setStage, showPop,
+  world,
   // (made further down: called through, since they are not made yet while this runs)
   allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(),
   explicitZones: () => explicitZones(), liveVolumes: () => liveVolumes(),
@@ -620,9 +617,8 @@ const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, 
         spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnLayerReady,
         spawnMovable, spawnPanel, spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects,
         syncSpawnFilters, syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
-  $, camera, controls, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission, headerMissions, isStream,
-  landingLayer, movedMatrix, pick, plural, projectsAvailable, rayAt, renderer, restingHint,
-  setLightsShown, short, text, tileCorner, world,
+  $, camera, controls, flashHint, floorStays, gizmo, groundHeight, headerMission, headerMissions,
+  landingLayer, movedMatrix, pick, projectsAvailable, rayAt, renderer, restingHint, setLightsShown, tileCorner, world,
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   groundAt: (x, y, fromZ) => groundAt(x, y, fromZ),
@@ -641,8 +637,8 @@ const { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffe
         setEffectsShown, setEffectStays, setEffectValues, setLikeness, setNormalEffects, stepGhostLikenesses,
         stepLikenesses, stopWave } = createEffectsWiring({
   $, actorPose, assetUrl, baseMatrix, camera, controls, effectTemplate, flashHint, gizmo, gltfLoader, isForeignTarget,
-  isStream, ownerRoot, plural, pointOutside, renderer, sceneChanged, setLightsShown,
-  setPickedSpawn, setSpawnsShown, short, text, texture, track, viewport, world,
+  ownerRoot, pointOutside, renderer, sceneChanged, setLightsShown, setPickedSpawn, setSpawnsShown, texture, track,
+  viewport, world,
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   carried: (point, from, to) => carried(point, from, to), setVolumesShown: on => setVolumesShown(on),
@@ -653,10 +649,10 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
         placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,
         stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
         zoneSoldiers, zoneState } = createZonesWiring({
-  $, banner, camera, controls, editChanged, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission,
-  isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, plural, projectChanged, projectsAvailable,
-  rayAt, refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer, restingHint,
-  setEffectsShown, setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
+  $, banner, camera, controls, editChanged, flashHint, floorStays, gizmo, groundHeight, headerMission,
+  isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, projectChanged, projectsAvailable, rayAt,
+  refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer, restingHint, setEffectsShown,
+  setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   cutaway: () => cutaway(), setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
@@ -668,13 +664,13 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
         PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
         refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
         setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
-        takePickBox, updateVolumeHandles, viewPoint, volumeBox, volumeClick, volumeHandleNear, volumeHint,
+        takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint,
         volumePanel } = createBuildingsWiring({
   $, boxOf, builderBounds, camera, chosenStorey, editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
-  editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, isStream, lightViewOnly, missionGizmo,
-  pick, plural, projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers, renderer, restingHint,
-  selectionWords, setEffectsShown, setZonesShown, short, showPop, spawnBoxNow, spawnEntry, spawnMovable,
-  spawnsShown, storeysNow, text, volumeLayer, world,
+  editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, lightViewOnly, missionGizmo, pick,
+  projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers, renderer, restingHint, selectionWords,
+  setEffectsShown, setZonesShown, showPop, spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, volumeLayer,
+  world,
   // (made with the selection and the views' switching, just below: called through, since they are not made yet while
   // this runs)
   select: (id, add, keep) => select(id, add, keep), syncLights: () => syncLights(),
@@ -690,10 +686,10 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
 // grouped; after the Buildings view, the last factory whose functions it calls (nothing of it runs as the page loads).
 const { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshHighlight, select, selectActors,
         selectedBoxes } = createSelection({
-  $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyText, editChanged, effectViewOnly, field, flagContract,
-  flagSource, flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream,
-  ladderMarks, lightViewOnly, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf,
-  setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text, tileCorner,
+  $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, editChanged, effectViewOnly, flagContract, flagSource,
+  flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, ladderMarks, lightViewOnly,
+  listingsNow, missionName, ownSize, pickEffect, RECIPE_NOTE, recipeOf, setEffectsShown, setLightsShown,
+  setVolumesShown, setZonesShown, tileCorner,
   // (made with the camera, further down: called through, since it is not made yet while this runs)
   frame: root => frame(root) });
 // Switching the views (views.js): the normal view, whether lights are drawn and what stays selected after a view or a
@@ -706,8 +702,7 @@ const { lightButton, setNormalView, syncLights } = createViews({
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
 const { kindButton, selectKind } = createSelectKind({
-  $, boxOf, effectsShown, effectViewOnly, flagKey, flashHint, gizmo, isStream, PICK_SLACK, plural, select, short,
-  stopPickBox });
+  $, boxOf, effectsShown, effectViewOnly, flagKey, flashHint, gizmo, PICK_SLACK, select, stopPickBox });
 // Cover blocks and invisible floors (cover_wiring.js): a cover piece's recipe, template and the Add panel's
 // Invisible kind, the ground under an invisible floor, the piece panel's cover section, and the handles on a
 // picked cover piece and their drags.
@@ -715,7 +710,7 @@ const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNo
         coverOf, coverPanel, coverRecipe, coverVersion, endCoverDrag, fitFloor, FLOOR_CLEARANCE, groundAt,
         handleCover, hoverCoverHandle, moveCoverDrag, setCover, startCoverDrag,
         updateCoverHandles } = createCoverWiring({
-  $, alongLine, camera, editChanged, gizmo, gridOrigin, HANDLE_PICK, materialCache, pickables, PL, projector, renderer,
+  $, alongLine, camera, editChanged, gizmo, gridOrigin, HANDLE_PICK, materialCache, pickables, projector, renderer,
   restingHint, sceneChanged, select, showPop, track, volumeHint, world });
 // Copy, paste and placing (clipboard.js): a clip of the selection, a paste, the preview placed with a click,
 // the Add panel shown and an entry of it placed, and a copy dragged off with Shift; after the cover blocks,
@@ -726,14 +721,14 @@ const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, 
         stopPlacing } = createClipboard({
   $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots, addRoots, askLineCollision,
   assemblyOf, banner, boundsOf, buildRoots, busy, BUSY_PIECES, busyStart, chosenStorey, cloneGroup, cloneGroups,
-  copyVolumes, coverEntries, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE,
-  floorSupportOf, fromOf, ghostEdges, ghostLikeness, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain,
-  hoverLikeness, isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly, liveFloorIndex, loaded,
-  madeShape, makeVolume, materialCache, materialKey, memberOf, memberRecord, newBuildingId, nextFrame, ownerRoot,
-  ownVolumeLayer, partsOf, pasteVolumes, pick, plural, prefabPlacementProblem, rayAt, recipeOf, removeEffectRoots,
-  removeLightRoots, removeRoots, restingHint, sceneChanged, selectionWords, setLightsShown, setNormalLights,
-  setVolumeBox, short, spawnAddEntries, startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopZonePlacing, text,
-  tileCorner, unscaled, volumeBox, world, zoneEntries,
+  copyVolumes, coverEntries, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE, floorSupportOf,
+  ghostEdges, ghostLikeness, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness,
+  isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly, liveFloorIndex, loaded, madeShape,
+  makeVolume, materialCache, materialKey, memberOf, memberRecord, newBuildingId, nextFrame, ownerRoot, ownVolumeLayer,
+  partsOf, pasteVolumes, pick, prefabPlacementProblem, rayAt, recipeOf, removeEffectRoots, removeLightRoots,
+  removeRoots, restingHint, sceneChanged, selectionWords, setLightsShown, setNormalLights, setVolumeBox,
+  spawnAddEntries, startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopZonePlacing, tileCorner, unscaled,
+  volumeBox, world, zoneEntries,
   // (made further down: called through, since they are not made yet while this runs)
   deleteSelection: quiet => deleteSelection(quiet), stopWallDrawing: () => stopWallDrawing() });
 // The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The
@@ -744,8 +739,8 @@ const { cancelPointDrag, changeWall, endWallDrag, handleWall, hoverWallHandle, i
         rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint, wallHandlesNow,
         wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
   actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo, gltfLoader, HANDLE_PICK,
-  libraryTemplate, movedMatrix, partsOf, pickables, plural, projector, rayAt, refreshHighlight, renderer, restingHint,
-  sceneChanged, select, short, showPop, track, volumeHint, world,
+  libraryTemplate, movedMatrix, partsOf, pickables, projector, rayAt, refreshHighlight, renderer, restingHint,
+  sceneChanged, select, showPop, track, volumeHint, world,
   // (made further down: called through, since they are not made yet while this runs)
   groundPanel: root => groundPanel(root), slabPanel: root => slabPanel(root), startWallDraw: e => startWallDraw(e),
   wallPanel: root => wallPanel(root) });
@@ -753,50 +748,48 @@ const { cancelPointDrag, changeWall, endWallDrag, handleWall, hoverWallHandle, i
 // the eyedropper, a made piece's look changed and its Look row.
 const { closeLookPicker, lookPickAt, lookRow, openLookPicker, prepareSample, setMadeLook, startLookPick, stopLookPick,
         storedLook } = createMadeLooksWiring({
-  $, assetUrl, boundsOf, changeGroups, flashHint, fromOf, gizmo, gltfLoader, isMadeGround, isMadeSlab, isMadeWall,
-  isPlain, madeRequest, madeRoot, madeShape, material, materialCache, materialKey, memberOf, memberRecord, movedMatrix,
-  pasteSnapshot, pick, plainLook, plural, previewGroup, renderer, short, showPieces, stopPlacing, track, wallState,
-  wallTemplate,
+  $, assetUrl, boundsOf, changeGroups, flashHint, gizmo, gltfLoader, isMadeGround, isMadeSlab, isMadeWall, isPlain,
+  madeRequest, madeRoot, madeShape, material, materialCache, materialKey, memberOf, memberRecord, movedMatrix,
+  pasteSnapshot, pick, plainLook, previewGroup, renderer, showPieces, stopPlacing, track, wallState, wallTemplate,
   // (made further down: called through, since they are not made yet while this runs)
   deleteNow: (quiet, only) => deleteNow(quiet, only),
   startWallDrawing: (look, options) => startWallDrawing(look, options), stopWallDrawing: () => stopWallDrawing() });
 // The made pieces' drawing (made_drawing.js): the Build menu, and a wall, room, floor, roof or ground shape drawn.
 const { BUILD_TOOLS, endWallDraw, moveWallDraw, startBuild, startWallDraw, startWallDrawing, stopWallDrawing, wallGhost,
         wallHint } = createMadeDrawing({
-  $, addVolumes, askLineCollision, busyStart, camera, flashHint, fromOf, gizmo, gridOrigin, groundAt, groundHeight,
-  isMadeWall, lockAsGroup, lookWall, madeRequest, movedMatrix, newBuilding, pasteSnapshot, pick, plainLook, plural,
-  rayAt, renderer, restingHint, showPieces, stopPlacing, stopSpawnPlacing, stopZonePlacing, text, wallTemplate,
-  world });
+  $, addVolumes, askLineCollision, busyStart, camera, flashHint, gizmo, gridOrigin, groundAt, groundHeight, isMadeWall,
+  lockAsGroup, lookWall, madeRequest, movedMatrix, newBuilding, pasteSnapshot, pick, plainLook, rayAt, renderer,
+  restingHint, showPieces, stopPlacing, stopSpawnPlacing, stopZonePlacing, wallTemplate, world });
 // The piece panel's sections of a made piece (made_panel.js): the Wall, Floor, Ground and Room sections, with the
 // openings and holes, and what their buttons do.
 const { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, slabPanel,
         wallPanel } = createMadePanel({
   $, boxOf, changeWall, flashHint, gizmo, handleWall, isMadeGround, isMadeSlab, isMadeWall, isPlain, liveKeys,
-  liveMembers, lookRow, madeRoot, madeWallRoot, openLookPicker, originalOf, plainLook, plural, selectionGroup,
-  setMadeLook, setWall, short, wallLookOf, wallPiecesWords, wallState,
+  liveMembers, lookRow, madeRoot, madeWallRoot, openLookPicker, originalOf, plainLook, selectionGroup, setMadeLook,
+  setWall, wallLookOf, wallPiecesWords, wallState,
   // (made further down: called through, since it is not made yet while this runs)
   breakRow: (kind, g, keeps) => breakRow(kind, g, keeps) });
 // Break and Repair (made_breaking.js): blasts set off on a made wall, floor or roof, or on one of the map's own
 // fracturing pieces, the Break rows and tool, and a broken piece drawn.
 const { breakAt, breakRow, drawBroken, mapBreakable, startBreak, stopBreak } = createMadeBreaking({
-  $, changeWall, flashHint, gizmo, isMadeSlab, isMadeWall, madeRoot, pick, plural, renderer, select, stopLookPick,
-  stopPlacing, stopWallDrawing, world });
+  $, changeWall, flashHint, gizmo, isMadeSlab, isMadeWall, madeRoot, pick, renderer, select, stopLookPick, stopPlacing,
+  stopWallDrawing, world });
 // Delete, Reset piece and Reset all (delete_reset.js): a large step under the busy mark, Delete, Reset piece and
 // Reset all, each one undo step; made after the factories whose functions they call (nothing of them runs as
 // the page loads).
 const { deleteNow, deleteSelection, resetAll, resetSelected, undoStep } = createDeleteReset({
   addEffectRoots, addLightRoots, addRoots, baseMatrix, busy, BUSY_PIECES, clearedChanged, cloneGroups, copyable,
-  deleteVolumes, drawBroken, effectViewOnly, flashHint, gizmo, isStream, liveVolumes, mapEdits, mapRestoreChange,
-  nextFrame, plural, refreshLandingZones, refreshLightVisibility, refreshMissionPicker, removeEffectRoots,
-  removeLightRoots, removeRoots, restingHint, sceneChanged, selectedBoxes, selectionWords, setLightValues,
-  setMissionMoves, setStage, syncSpawnRule, valuesEdited });
+  deleteVolumes, drawBroken, effectViewOnly, flashHint, gizmo, liveVolumes, mapEdits, mapRestoreChange, nextFrame,
+  refreshLandingZones, refreshLightVisibility, refreshMissionPicker, removeEffectRoots, removeLightRoots, removeRoots,
+  restingHint, sceneChanged, selectedBoxes, selectionWords, setLightValues, setMissionMoves, setStage, syncSpawnRule,
+  valuesEdited });
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 // The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
 // the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.
 const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions,
         updateTileGrid } = createCutaway({
-  $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial, isStream, listingsNow,
-  movedLandingActors, plural, rayAt, refreshPickBox, segButton, select, short, text, touchShadows, viewport, world });
+  $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial, listingsNow, movedLandingActors,
+  rayAt, refreshPickBox, segButton, select, touchShadows, viewport, world });
 async function open() {
   stopPickBox();
   setBoxesShownValue(false); setNormalLightsValue(false); setLightsOn(false); setLightsShownValue(false); setZonesOn(false);
@@ -885,7 +878,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // the ground grid and the landing zones, now that the pieces are on the map (Clear map plan, sections 3 and 4), and
   // the mission's objects (mission types plan, C2)
   refreshGroundGrid(); refreshLandingZones(); refreshSpawnMarkers(); loadSpawnRules();
-  showImportNotes($, text, short, plural);
+  showImportNotes($);
   showLinked($);
   void refreshInstalls();     // the header's Play button goes by them
   if (!projectsAvailable()) $('projectButton').title = 'Project: open one (Ctrl+O). Saving needs the map\'s original layout: open the map from the map browser (M)';
@@ -901,7 +894,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
     clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
     deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn, editSpawnCopy, editState, effectNow, effectShapes,
-    effectViewOnly, FACES, fileDialog, floorData, frame, gameToView, ghostLikenesses, gizmo, goTo, grid, gridHandleAt,
+    effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grid, gridHandleAt,
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
@@ -917,7 +910,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     setVolumeTool, setZones, setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
     spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer, spawnVolumeHandle, startBuild,
     startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, streamObjects, sun,
-    syncSpawnFilters, takePickBox, updateTileGrid, viewPoint, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
+    syncSpawnFilters, takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
     world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
   // every refresh the edit hub's runs list is registered by now (edit_hub.js): a lost one fails here, not silently
   checkHub();
@@ -1233,7 +1226,7 @@ const { frame, panCamera, setSnapMode } = createNavigation({
   copySelection, copySpawn, copyZone, deleteSelection, deleteSpawn, deleteWallOpening, deleteZone, dragHint,
   editBaseSpawn, editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endVolumeDrag, endWallDrag,
   flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
-  missionGizmo, modalOpen, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
+  missionGizmo, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
   setGridTool, setLevelSnap, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,

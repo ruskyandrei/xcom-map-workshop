@@ -18,11 +18,13 @@ import { builderMode, data, hintTimer, library, pieces, roots, setBuildTool, set
 import { drawnGround, groundBox as groundShapeBox, groundWords as groundShapeWords, slopeWords } from './ground.js';
 import { drawnRoom, drawnSlab, drawnWall, roomRoof, SLAB, SLAB_LOOKS, slabLookOf, storeysOf, WALL, wallSpec,
          wallTop } from './walls.js';
+import { plural, text } from './dom_words.js';
+import { fromOf } from './piece_records.js';
 
-export function createMadeDrawing({ $, addVolumes, askLineCollision, busyStart, camera, flashHint, fromOf, gizmo,
-                                    gridOrigin, groundAt, groundHeight, isMadeWall, lockAsGroup, lookWall, madeRequest,
-                                    movedMatrix, newBuilding, pasteSnapshot, pick, plainLook, plural, rayAt, renderer,
-                                    restingHint, showPieces, stopPlacing, stopSpawnPlacing, stopZonePlacing, text,
+export function createMadeDrawing({ $, addVolumes, askLineCollision, busyStart, camera, flashHint, gizmo, gridOrigin,
+                                    groundAt, groundHeight, isMadeWall, lockAsGroup, lookWall, madeRequest,
+                                    movedMatrix, newBuilding, pasteSnapshot, pick, plainLook, rayAt, renderer,
+                                    restingHint, showPieces, stopPlacing, stopSpawnPlacing, stopZonePlacing,
                                     wallTemplate, world }) {
   // ---- the Build menu (custom geometry editing plan, B1, 19 November 2026): the Add button's flyout starts drawing a made
   // piece at once; the find box finds the same tools by their words

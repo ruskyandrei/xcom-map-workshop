@@ -51,6 +51,7 @@ const ROLE_WORDS = { bomb: 'the bomb', button: 'its button', waypoint: 'its floo
                      visible: 'its visible point', point: 'its helper point (the arrow\'s and camera\'s)', node: 'the node',
                      volume: 'the capture volume', captured: 'the actor it captures', actor: 'a capture actor' };
 const GROUP_WORDS = g => (g === 'bomb' ? 'the bomb' : g.startsWith('node:') ? `power node ${g.slice(5)}` : g.startsWith('capture:') ? `capture point ${g.slice(8)}` : g);
+// a name's last part, as dom_words.js' short, but '' for a missing path (null or undefined)
 const short = path => String(path ?? '').split('.').pop();
 
 /** Whether a record gets a marker: its kind is one of KINDS, it isn't a group's helper part, and it isn't a
@@ -235,7 +236,6 @@ export function spawnEntryOf(o, record) {
 
 /** The kinds a project copies (compiler.SPAWN_COPY_KINDS). */
 export const SPAWN_COPY_KINDS = ['pod', 'meld', 'noSpawn'];
-const shortName = a => String(a ?? '').split('.').pop();
 /** The template of a new no-spawn volume on a map with none to copy: the Build makes it from one of the map's plain
  * volumes (spawn_edits.py SpawnEdits.spawn_add, native_copy.add_volume), keeping aliens and civilians out as the
  * game's class does. */
@@ -256,7 +256,7 @@ export function copyTemplateWhy(o) {
   if (o.kind !== 'pod') return '';
   const v = k => o.values?.[k]?.value;
   const why = [v('commander') && 'the commander\'s place', v('secondary') && 'a secondary pod', v('forceType') && 'of a forced alien type',
-               o.links?.length && `linked to ${o.links.map(l => shortName(l.actor)).join(', ')}`].filter(Boolean);
+               o.links?.length && `linked to ${o.links.map(l => short(l.actor)).join(', ')}`].filter(Boolean);
   return why.length ? `it is ${why.join(' and ')}: a copy is made only from a plain pod` : '';
 }
 /** The base spawn point a new one of `kind` from the Add panel is a copy of (its Spawn points kind: a Pod, a Meld

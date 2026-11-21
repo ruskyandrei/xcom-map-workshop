@@ -13,9 +13,9 @@ import * as THREE from 'three';
 import { onHub } from './edit_hub.js';
 import { alignTarget, data, groupIndex, selected, setAlignTarget, volumeRoots } from './editor_state.js';
 import { recall, remember } from './storage.js';
+import { plural, short } from './dom_words.js';
 
-export function createAlign({ $, copyablePieces, flashHint, gizmo, keepRecipe, liveGroup, memberOf, plural, short,
-                              world }) {
+export function createAlign({ $, copyablePieces, flashHint, gizmo, keepRecipe, liveGroup, memberOf, world }) {
   // Align (the piece panel, with two or more pieces or groups selected): lines the others up with one of them, the
   // target, along the chosen game axes, any of X, Y and Z: their boxes' centres, low edges or high edges meet. The
   // target is the last one picked (the one the gizmo sits on) unless another is chosen in the panel; a white box marks

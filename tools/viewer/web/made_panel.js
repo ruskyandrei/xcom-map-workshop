@@ -18,20 +18,24 @@ import { onHub } from './edit_hub.js';
 import { data, roots, selected, setWallFocus, volumeRoots, wallFocus } from './editor_state.js';
 import { anotherRock, GROUND, groundLookOf, groundWords as groundShapeWords, resetRock, slopeOf, slopeWords, toolGround,
          turnedGround } from './ground.js';
-import { catalogued } from './looks.js';
+import { catalogued, madeLookName } from './looks.js';
 import { flippedWall, holeWords, joinWords, openingPlay, openingWords, playWords, reshuffled, reshuffledSlab, SLAB,
          slabLookOf, slabTiles, slabWords, sortedOpenings, steppedStoreys, storeysOf, storeyWords, toolSlab, toolWall,
          WALL, wallSpec, wallTop, wallWords, withHole, withOpening, withoutHole, withoutOpening,
          withStoreys } from './walls.js';
+import { plural } from './dom_words.js';
 
 export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, gizmo, handleWall, isMadeGround,
                                   isMadeSlab, isMadeWall, isPlain, liveKeys, liveMembers, lookRow, madeRoot,
-                                  madeWallRoot, openLookPicker, originalOf, plainLook, plural, selectionGroup,
-                                  setMadeLook, setWall, short, wallLookOf, wallPiecesWords, wallState }) {
+                                  madeWallRoot, openLookPicker, originalOf, plainLook, selectionGroup, setMadeLook,
+                                  setWall, wallLookOf, wallPiecesWords, wallState }) {
   // ---- the piece panel's Wall section
+  // A made wall's look name, for its Wall section and its room: its look's, its catalogue entry's or its donor's mesh
+  const wallLookName = o => madeLookName(wallLookOf(o), catalogued('wall', o.added.generated.wall?.look),
+                                         data.meshes[originalOf(o)?.mesh]?.name);
   function wallPanel(root) {
     const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);
-    const lookName = look?.name ?? catalogued('wall', w?.look)?.name ?? short(data.meshes[originalOf(o)?.mesh]?.name ?? 'made from numbers');
+    const lookName = wallLookName(o);
     $('wallHead').textContent = `Wall · ${isPlain(g) ? 'plain' : lookName}`;
     lookRow('wall', g, lookName, tool);
     $('wallState').textContent = tool ? wallWords(w) : `${Math.round(w.x1 - w.x0)} long, made elsewhere: no handles here`;
@@ -85,8 +89,8 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
   // ---- the piece panel's Floor section (made slabs)
   function slabPanel(root) {
     const o = root.userData.source, s = o.added.generated.slab, look = slabLookOf(s), tool = toolSlab(s);
-    $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${isPlain(o.added.generated) ? 'plain' : look?.name ?? 'made from numbers'}`;
-    lookRow('slab', o.added.generated, look?.name ?? 'made from numbers', tool);
+    $('slabHead').textContent = `${look?.role === 'roof' ? 'Roof' : 'Floor'} · ${isPlain(o.added.generated) ? 'plain' : madeLookName(look)}`;
+    lookRow('slab', o.added.generated, madeLookName(look), tool);
     const cut = slabTiles(s).some(n => n > SLAB.pieceTiles)
       ? ` The Build makes it as slabs of at most ${SLAB.pieceTiles} by ${SLAB.pieceTiles} tiles side by side: they break as one.` : '';
     breakRow('slab', o.added.generated, o.keepsPieces);
@@ -130,8 +134,8 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
   function groundPanel(root) {
     const o = root.userData.source, g = o.added.generated.ground, look = groundLookOf(g), tool = toolGround(g);
     const plain = isPlain(o.added.generated);
-    $('groundHead').textContent = `Ground · ${plain ? 'plain' : look?.name ?? 'made from numbers'}`;
-    lookRow('ground', o.added.generated, look?.name ?? 'made from numbers', tool);
+    $('groundHead').textContent = `Ground · ${plain ? 'plain' : madeLookName(look)}`;
+    lookRow('ground', o.added.generated, madeLookName(look), tool);
     $('groundState').textContent = tool ? groundShapeWords(g) : 'Made elsewhere: no handles here';
     $('groundSize').textContent = tool ? `${groundShapeWords(g)}. Its white handles size it by whole tiles${g.shape === 'patch' ? '' : '; the one on top raises or lowers it'}.`
       : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
@@ -160,12 +164,13 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
   });
   // ---- a room (custom geometry editing plan, B3): a drawn room is one locked group; picked whole, the panel is the
   // room's, its walls' and roof's own sections hidden (Ungroup edits them one by one)
-  function madeLookName(root) {
+  // A room's wall's or roof's look name (looks.js' madeLookName), or null when it is plain.
+  function rootLookName(root) {
     const o = root.userData.source, g = o.added.generated;
     if (isPlain(g)) return null;
-    if (g.kind === 'fracWall') return wallLookOf(o)?.name ?? catalogued('wall', g.wall?.look)?.name ?? 'made from numbers';
-    if (g.kind === 'fracSlab') return slabLookOf(g.slab)?.name ?? 'made from numbers';
-    return groundLookOf(g.ground)?.name ?? 'made from numbers';
+    if (g.kind === 'fracWall') return wallLookName(o);
+    if (g.kind === 'fracSlab') return madeLookName(slabLookOf(g.slab));
+    return madeLookName(groundLookOf(g.ground));
   }
   // The picked group as a room: its made walls (three or more, each joined at both ends to another of them) and the
   // made slab on them (its roof), with nothing else but its building; or null.
@@ -188,7 +193,7 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     const box = new THREE.Box3();
     for (const r of room.walls) box.expandByObject(r);
     const tiles = [Math.round((box.max.x - box.min.x) / TILE), Math.round((box.max.z - box.min.z) / TILE)];
-    const w = room.walls[0].userData.source.added.generated.wall, names = new Set(room.walls.map(madeLookName));
+    const w = room.walls[0].userData.source.added.generated.wall, names = new Set(room.walls.map(rootLookName));
     const tool = room.walls.every(r => toolWall(r.userData.source.added.generated.wall));
     $('roomHead').textContent = `Room · ${tiles[0]} by ${tiles[1]} tiles`;
     $('roomState').textContent = `${plural(room.walls.length, 'wall')}, ${storeyWords(storeysOf(w))}${room.roof ? ', a roof' : ''} · picked as one`;
@@ -200,7 +205,7 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     $('roomWallsPlain').disabled = !tool || (names.size === 1 && names.has(null));
     $('roomRoofRow').hidden = !room.roof;
     if (room.roof) {
-      const name = madeLookName(room.roof);
+      const name = rootLookName(room.roof);
       $('roomRoofLook').textContent = name ? `Roof: ${name}` : 'Roof: no look chosen';
       $('roomRoofLook').classList.toggle('warn', !name);
       $('roomRoofPlain').disabled = !name;

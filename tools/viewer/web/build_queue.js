@@ -1,9 +1,8 @@
 // The build queue's page side (tools/viewer/buildqueue.py; private build queue plan, sections 4, 5 and 9.5): what the
 // project manager and the editor's chip show of the queue, worked out without the page (the node tests read it), and
 // the one controller that asks the server for the queue for both of them.
-import { sentence } from './dom_words.js';
+import { plural, sentence } from './dom_words.js';
 
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export const clock = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 export const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 export const ACTIVE = ['waiting', 'starting', 'building'];

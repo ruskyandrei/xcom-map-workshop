@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { withoutLocalLights } from './lighting.js';
 import { pieceKind, inKind, setKindOptions } from './piece_categories.js';
+import { short } from './dom_words.js';
 // Every piece is in a family (the compiler's FAMILIES, served by tools/viewer/families.py with the map's assemblies),
 // which says whether the Build makes it and, while it doesn't, the milestone that will: static scenery, destructible
 // props, collectibles, ladders, doors, cars, vans, fracturing pieces (walls, storey floors) and physics props
@@ -122,7 +123,6 @@ function drawSpawnIcon(canvas, kind) {
   g.restore();
 }
 const tiles = units => Math.max(1, Math.round(units / 96));   // a floor piece's size across in whole tiles (a curb drops out)
-const short = path => path.split('.').at(-1);
 // The package path an archetype sits in: a prefab's parts share their prefab's (VEH_MovingVan.Prefab.PRE_MovingVanA).
 const outer = a => (a && a !== 'None' && a.includes('.') ? a.slice(0, a.lastIndexOf('.')) : null);
 const recipe = o => [o.actorClass, o.archetype, o.mesh, o.materials.join(','), (o.tint ?? []).join(',')].join('|');

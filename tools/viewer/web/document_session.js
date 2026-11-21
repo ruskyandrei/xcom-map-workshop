@@ -13,7 +13,7 @@
 // with it (leaving, saving, the drafts' timer, owner and trouble, the build status, the copies' serial) is
 // editor_state.js's.
 import { onHub } from './edit_hub.js';
-import { activeMapId, adoptedDraft, areaBindings, builderMode, buildTimer, cleared, copySerial, data, groups,
+import { activeMapId, adoptedDraft, areaBindings, builder, builderMode, buildTimer, cleared, copySerial, data, groups,
          landingRead, landingZones, looksReady, project, projectMissions, projectSpawnRules, recoveryKept,
          recoveryTimer, recoveryTrouble, saving, setAdoptedDraft, setAskedPick, setLastBuildValue, setLeaving,
          setProject, setRecoveryKept, setRecoveryTimer, setRecoveryTrouble, setSaving, stage } from './editor_state.js';
@@ -21,16 +21,16 @@ import { api as projectApi, newDocument, sortState, sourceOf, stateKey, validAdd
          validOverride, validStage, SCHEMA_VERSION as PROJECT_SCHEMA_VERSION } from './project.js';
 import { api as prefabApi } from './prefabs.js';
 import { setParagraphs } from './missions.js';
+import { plural, text } from './dom_words.js';
 
 // Projects edit a full map's original layout: not a patch preview.
 export const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 'map' && !data.preview;
 
-export function createDocumentSession({ $, applyState, bombHelperFix, builder, builderDocument, builderKey,
-                                        builderTitle, camera, changes, controls, documentWrites, editChanged, editState,
-                                        flashHint, followBuild, gizmo, loadingState, openingProgress, ownSize, plural,
-                                        problemsPaint, projectNote, refreshBuilder, renderPlayItems, saveBuilder,
-                                        savedBuildings, SESSION, setLastBuild, setMissionMoves, showFileDialog, text,
-                                        touchRecent }) {
+export function createDocumentSession({ $, applyState, bombHelperFix, builderDocument, builderKey, builderTitle, camera,
+                                        changes, controls, documentWrites, editChanged, editState, flashHint,
+                                        followBuild, gizmo, loadingState, openingProgress, ownSize, problemsPaint,
+                                        projectNote, refreshBuilder, renderPlayItems, saveBuilder, savedBuildings,
+                                        SESSION, setLastBuild, setMissionMoves, showFileDialog, touchRecent }) {
   // a switch of document under way (asking, saving, leaving): no other starts, and no draft is kept meanwhile
   let navigating = false;
   // Discarding the changes on screen: this page's own draft goes, and a draft it restored; other pages' stay.

@@ -24,7 +24,7 @@
 // and grid chips); the selection itself (selected) is editor_state.js's.
 import { LEVEL, TILE } from './constants.js';
 import { coverWords, isBlocker, isFloor, lengthWords, sizeWords } from './cover.js';
-import { plural, short } from './dom_words.js';
+import { copyText, field, plural, short, text } from './dom_words.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
 import { recordName } from './effects_rules.js';
 import { allRoots, buildingMeta, data, effectRoots, effectsOn, families, lightRoots, lightsOn, lightsShown,
@@ -38,6 +38,7 @@ import { destructionNote, lootNote } from './pieces.js';
 import { gridMove } from './poserule.js';
 import { remember } from './storage.js';
 import { focusBounds } from './view_layout.js';
+import { isStream } from './piece_records.js';
 
 // "12 pieces, 2 lights and 1 building": what these roots are, by kind.
 export function selectionWords(list, other = '') {
@@ -55,12 +56,11 @@ export const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.g
   : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
   : short(data.meshes[r.userData.source.mesh].name));
 
-export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyText, editChanged,
-                                  effectViewOnly, field, flagContract, flagSource, flashHint, foreignCost, foreignNote,
-                                  frame, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream, ladderMarks,
-                                  lightViewOnly, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE,
-                                  recipeOf, setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short,
-                                  text, tileCorner }) {
+export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, editChanged,
+                                  effectViewOnly, flagContract, flagSource, flashHint, foreignCost, foreignNote, frame,
+                                  gizmo, gridOrigin, groupChip, highlight, isLanding, ladderMarks, lightViewOnly,
+                                  listingsNow, missionName, ownSize, pickEffect, RECIPE_NOTE, recipeOf,
+                                  setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, tileCorner }) {
   // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
   const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
   // The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.

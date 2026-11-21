@@ -3,6 +3,7 @@
 // allows them (showSceneMenus), the import notes (showImportNotes) and the gizmo's Linked button as the export allows it
 // (showLinked). The areas start their own parts of the scene in their modules; startScene calls each in the order the
 // page always started them. Plain exports, each given what it needs of app.js; nothing here runs as the page loads.
+import { plural, short, text } from './dom_words.js';
 import { builderMode, data, loadErrorCount } from './editor_state.js';
 
 // The page's title, and the chip of a patch preview.
@@ -20,7 +21,7 @@ export function showSceneMenus($, projectsAvailable) {
   $('projectPicture').hidden = !projectsAvailable();
 }
 // The import notes: their count on the header's button and their list.
-export function showImportNotes($, text, short, plural) {
+export function showImportNotes($) {
   // Import notes: a count on the header button; the list opens from it. Preview notes count as warnings.
   const issues = data.preview ? [...data.preview.notes,...data.diagnostics.filter(d => !data.preview.notes.some(n => n.source === d.source && n.message === d.message))] : data.diagnostics;
   $('issueCount').textContent = issues.length + loadErrorCount || '';

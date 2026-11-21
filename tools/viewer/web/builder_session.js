@@ -18,20 +18,22 @@ import { TILE } from './constants.js';
 import { allRoots, builder, builderMode, data, donorHashes, effectRoots, eventMemo, groups, lightRoots, prefabPictures,
          prefabTab, recoveryTimer, roots, saving, setAdoptedDraft, setRecoveryKept, setRecoveryTrouble, setSaving,
          volumeRoots } from './editor_state.js';
-import { PIECE_FIELDS } from './piece_records.js';
+import { isStream, PIECE_FIELDS } from './piece_records.js';
 import { gridMove, nearestGridPose } from './poserule.js';
 import { PREFAB_GRID_LEVELS, PREFAB_GRID_TOP, PREFAB_MAX_Z, PREFAB_MIN_Z, PREFAB_TILES, normalizePrefab,
          reconcilePrefab } from './prefab_document.js';
 import { api as prefabApi, newPrefab } from './prefabs.js';
 import { uuid } from './project.js';
 import { savedWhen } from './project_files.js';
+import { plural, short, text } from './dom_words.js';
 
-export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf, buildRoot, controls,
-                                       dirty, discardAndGo, discardDraft, documentWrites, draftWords, dropAdopted, editChanged,
-                                       editState, flashHint, frame, gizmo, gridNow, gridOrigin, isStream, libraryTemplate,
-                                       lightPose, loadingState, movedMatrix, openingProgress, plural, prefabRecords,
-                                       projectChanged, recipeOf, removeRoots, rootName, sceneChanged, selectActors, short,
-                                       showFileDialog, showPrefabDialog, snapshot, templateFor, text, volumeBox, world }) {
+export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf,
+                                       buildRoot, controls, dirty, discardAndGo, discardDraft, documentWrites,
+                                       draftWords, dropAdopted, editChanged, editState, flashHint, frame, gizmo,
+                                       gridNow, gridOrigin, libraryTemplate, lightPose, loadingState, movedMatrix,
+                                       openingProgress, prefabRecords, projectChanged, recipeOf, removeRoots, rootName,
+                                       sceneChanged, selectActors, showFileDialog, showPrefabDialog, snapshot,
+                                       templateFor, volumeBox, world }) {
   // The prefab builder uses the same roots, history and tools, with a complete document
   // instead of a delta against a map. Missing pieces remain members of that document.
   const physicalBoxes = new WeakMap();

@@ -12,8 +12,9 @@ import { activeMapId, builderMode, mapBrowser, mapCatalogue, placing, setLeaving
          setMapBrowser } from './editor_state.js';
 import { createMapBrowser } from './map_browser.js';
 import { api as prefabApi } from './prefabs.js';
+import { modalOpen } from './modal.js';
 
-export function createMapMenu({ $, goTo, modalOpen, projectsAvailable, showPop, stopPlacing }) {
+export function createMapMenu({ $, goTo, projectsAvailable, showPop, stopPlacing }) {
   const mapLabel = id => mapCatalogue?.maps.find(m => m.id === id)?.label ?? id ?? '';
   // Maps were prepared outside the map browser: the list it shows is brought up to the server's, entry by entry (the
   // browser keeps the array it was given).

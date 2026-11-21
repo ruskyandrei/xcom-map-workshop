@@ -17,6 +17,7 @@ import { clock, needsFullBuild, requestOrder, rowLine, stripWords } from './buil
 import { nextStop, tabOrder } from './modal.js';
 import { call } from './api.js';
 import { recall, remember as keep } from './storage.js';
+import { plural } from './dom_words.js';
 
 export const managerApi = {
   list: () => call('GET', '/manager.json'),
@@ -29,7 +30,6 @@ export const managerApi = {
 };
 
 const el = (tag, props = {}, ...children) => { const e = Object.assign(document.createElement(tag), props); e.append(...children); return e; };
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const byName = (a, b) => (a.name ?? '').localeCompare(b.name ?? '', undefined, { sensitivity: 'base' });
 const lighting = b => b.quick ? 'not baked' : b.lightingUnchanged ? 'baked (lighting unchanged)' : 'baked';
 // whose picture the map shows on the game's mission screens (pictures.py status)

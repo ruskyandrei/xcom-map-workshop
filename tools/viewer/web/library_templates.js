@@ -9,8 +9,8 @@
 // - what a piece of another map costs and says (foreignCount, kilobytes, foreignCost, foreignNote, bakeNote).
 //
 // createLibraryTemplates takes what it needs of app.js as one argument object, when app.js makes it: a piece's root
-// built and its bounds, the Lights view's and the Effects view's sources, the cover blocks' collision meshes, the
-// assemblies of other maps and the helpers. Its own state is inside it (the records and effects read ahead); the
+// built and its bounds, the Lights view's and the Effects view's sources, the cover blocks' collision meshes and the
+// assemblies of other maps. Its own state is inside it (the records and effects read ahead); the
 // records read, the templates made, the effects and the maps' hashes, and the cache's prefix, are editor_state.js's.
 import * as THREE from 'three';
 import { call } from './api.js';
@@ -20,9 +20,11 @@ import { actorMatrix } from './gizmo.js';
 import { valuesOf } from './lights_view.js';
 import { api as prefabApi } from './prefabs.js';
 import { targetKey } from './project.js';
+import { plural, short } from './dom_words.js';
+import { fromOf } from './piece_records.js';
 
-export function createLibraryTemplates({ boundsOf, buildRoot, collisionMesh, effectSource, foreignAssemblies, fromOf,
-                                         lightSource, plural, short }) {
+export function createLibraryTemplates({ boundsOf, buildRoot, collisionMesh, effectSource, foreignAssemblies,
+                                         lightSource }) {
   // Pieces of other maps (library.js, tools/viewer/library.py). A piece's record, read on first use, joins the page's
   // tables: its meshes, materials and textures under their own keys (lib-<map>-…, with the folder they are served
   // from), and its components as templates a copy is made of, as the map's own pieces are. A template names its home

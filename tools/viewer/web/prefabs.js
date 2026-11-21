@@ -8,6 +8,7 @@
 // broken copy's `blasts` (review finding 6: piece_records.js). A prefab of schema 1 to 3 opens, and saves as 4.
 import { draftQuery } from './project.js';
 import { call, sendPng } from './api.js';
+import { plural } from './dom_words.js';
 
 export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 4;
 
@@ -42,7 +43,6 @@ export function newPrefab(id, name, { tiles, pieces, groups, buildings, donors }
 }
 /** "12 pieces, 2 lights and 1 building · 8 by 6 tiles": what a prefab's summary (or counts like it) holds. */
 export function prefabWords(p) {
-  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   const parts = [p.pieces && plural(p.pieces, 'piece'), p.lights && plural(p.lights, 'light'), p.effects && plural(p.effects, 'effect'),
                  p.sounds && plural(p.sounds, 'sound'), p.flares && plural(p.flares, 'lens flare'),
                  p.buildings && plural(p.buildings, 'building')].filter(Boolean);

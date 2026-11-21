@@ -6,6 +6,7 @@
 // it say what a play would do with the squad: errors stop a play, warnings don't. A selection that install doesn't
 // have stays in the squad, shown as not on this install.
 import { call } from './api.js';
+import { plural } from './dom_words.js';
 
 export const squadApi = {
   get: () => call('GET', '/squad.json'),
@@ -15,7 +16,6 @@ export const squadApi = {
   exportDocument: document => call('POST', '/squad/export', { document }),
 };
 
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 /** The squad in a few words for the play dialog, from /play.json's `squad`; null when not known. */
 export function squadLine(summary) {
   if (!summary) return null;

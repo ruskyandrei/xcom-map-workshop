@@ -2,11 +2,12 @@
 // an option of its own, every map, read from the game now instead of the first time each is used. It shows what
 // there is to do, a bar while the job runs, and Cancel at any moment; what is cached so far stays. Closing the window
 // leaves a running job running: opening it again shows where it is.
-import { call as ask } from './api.js';
+import { call as callServer } from './api.js';
 import { clock } from './build_queue.js';
 
-const call = (method, url, body) => ask(method, url, body, { fallback: r => `The server answered ${r.status}` });
+const call = (method, url, body) => callServer(method, url, body, { fallback: r => `The server answered ${r.status}` });
 const count = n => Number(n).toLocaleString('en-GB');
+// a count with its noun, as dom_words.js' plural, its digits grouped in British English (12,345 pieces)
 const plural = (n, word) => `${count(n)} ${word}${n === 1 ? '' : 's'}`;
 export function duration(seconds) {
   if (seconds < 90) return seconds < 45 ? 'under a minute' : 'about a minute';

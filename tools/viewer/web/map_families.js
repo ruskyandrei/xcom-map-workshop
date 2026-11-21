@@ -11,8 +11,9 @@ import { short } from './dom_words.js';
 import { data, setFamilies, setLandingActors } from './editor_state.js';
 import { useFamilies } from './pieces.js';
 import { targetKey } from './project.js';
+import { fromOf } from './piece_records.js';
 
-export function createMapFamilies({ fromOf, gizmo }) {
+export function createMapFamilies({ gizmo }) {
   // The families of pieces and the map's assemblies (families.json, tools/viewer/families.py: the compiler's own), or
   // null from a server without them. assemblyIndex: an original's key (package|level|actor) to its assembly.
   let assemblyIndex = new Map();     // (the families, families: editor_state.js)

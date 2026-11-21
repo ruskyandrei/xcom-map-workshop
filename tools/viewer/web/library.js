@@ -35,6 +35,8 @@ const SORTS = {
   maps: (a, b) => (b.placed?.maps ?? 0) - (a.placed?.maps ?? 0) || a.name.localeCompare(b.name),
 };
 const el = (tag, props = {}, ...children) => { const e = Object.assign(document.createElement(tag), props); e.append(...children); return e; };
+// a count with its noun, as dom_words.js' plural, its digits grouped as the browser's language groups them
+// (12,345 pieces)
 const plural = (n, word) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
 const kb = bytes => (bytes >= 1 << 20 ? `${(bytes / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 const json = (url, method = 'GET', body = undefined) => call(method, url, body, { fallback: r => `The library didn't answer (${r.status})` });

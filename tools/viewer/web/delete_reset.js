@@ -13,12 +13,13 @@ import { areaBindings, buildingMeta, cleared, clearKeepsOutside, effectRoots, gr
          lightRoots, missionMoves, ownSet, pickedEffect, projectMissions, projectSpawnRules, roots, setAreaBindings,
          setCleared, setClearKeepsOutside, setGroups, setLandingZones, setLightsDirty, setMergedBuildings, setPickedZone,
          setProjectMissions, setProjectSpawnRules, stage, volumesOn } from './editor_state.js';
-import { cloneBlasts } from './piece_records.js';
+import { cloneBlasts, isStream } from './piece_records.js';
+import { plural } from './dom_words.js';
 
 export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, baseMatrix, busy, BUSY_PIECES,
                                     clearedChanged, cloneGroups, copyable, deleteVolumes, drawBroken, effectViewOnly,
-                                    flashHint, gizmo, isStream, liveVolumes, mapEdits, mapRestoreChange, nextFrame,
-                                    plural, refreshLandingZones, refreshLightVisibility, refreshMissionPicker,
+                                    flashHint, gizmo, liveVolumes, mapEdits, mapRestoreChange, nextFrame,
+                                    refreshLandingZones, refreshLightVisibility, refreshMissionPicker,
                                     removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged,
                                     selectedBoxes, selectionWords, setLightValues, setMissionMoves, setStage,
                                     syncSpawnRule, valuesEdited }) {

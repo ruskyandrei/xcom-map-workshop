@@ -22,6 +22,8 @@ import { onHub } from './edit_hub.js';
 import { effectRoots, groupIndex, groups, lightRoots, liveCache, roots, selected, setGroups, setLiveCache,
          volumeRoots } from './editor_state.js';
 import { groupKey, memberKey, pruneGroups, uuid } from './project.js';
+import { plural } from './dom_words.js';
+import { isStream } from './piece_records.js';
 
 // Groups (research/editor-contracts.md, section 2): pieces the user keeps together, saved in the project. A group
 // selects and moves as one, with linked pieces on or off; Ungroup ends it. There is no unlocking (the user, 11
@@ -56,7 +58,7 @@ export const memberOf = o => memberKey(memberRecord(o));
 export const cloneGroup = g => ({ ...g, members: new Map(g.members) });
 export const cloneGroups = (from = groups) => new Map([...from].map(([id, g]) => [id, cloneGroup(g)]));
 
-export function createGroups({ $, flashHint, gizmo, groupables, groupChip, highlight, isStream, plural, select }) {
+export function createGroups({ $, flashHint, gizmo, groupables, groupChip, highlight, select }) {
   // Groups' pieces on the map now (deleted ones left out): member key -> its roots. Remade after any change of pieces.
   // (that cache, liveCache: editor_state.js)
   function liveMembers() {

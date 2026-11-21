@@ -15,9 +15,11 @@ import { activeMapId, builder, builderMode, lastBuild, placing, project } from '
 import { api as projectApi } from './project.js';
 import { savedWhen } from './project_files.js';
 import { recall, remember } from './storage.js';
+import { text } from './dom_words.js';
+import { modalOpen } from './modal.js';
 
-export function createProjectMenu({ $, dirty, fileDialog, gameMaps, loadProject, mapLabel, modalOpen, precache,
-                                    projectManager, renderPlayItems, showPop, showPrefabDialog, stopPlacing, text }) {
+export function createProjectMenu({ $, dirty, fileDialog, gameMaps, loadProject, mapLabel, precache, projectManager,
+                                    renderPlayItems, showPop, showPrefabDialog, stopPlacing }) {
   // Recent projects: when this browser last opened or saved each, beside when it was saved anywhere.
   const RECENT = 'workshop.recentProjects';
   function recentTimes() { try { return JSON.parse(recall(RECENT)) ?? {}; } catch { return {}; } }

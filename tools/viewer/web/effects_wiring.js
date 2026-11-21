@@ -35,16 +35,17 @@ import { LIMITS as LIKENESS_LIMITS, parametersOf } from './effects_sim.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
 import { actorMatrix } from './gizmo.js';
 import { setParagraphs } from './missions.js';
-import { optionsOf, recordOf } from './piece_records.js';
+import { isStream, optionsOf, recordOf } from './piece_records.js';
 import { targetKey, uuid } from './project.js';
 import { landingUnmoved, yawOf } from './spawns.js';
 import { recall, remember } from './storage.js';
+import { plural, short, text } from './dom_words.js';
 
 export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera, carried, controls, effectTemplate,
-                                     flashHint, gizmo, gltfLoader, isForeignTarget, isStream, lightButton, ownerRoot,
-                                     plural, pointOutside, renderer, sceneChanged, select, setLightsShown,
-                                     setPickedSpawn, setSpawnsShown, setVolumesShown, setZonesShown, short, stopPickBox,
-                                     text, texture, track, viewport, world, zoneState }) {
+                                     flashHint, gizmo, gltfLoader, isForeignTarget, lightButton, ownerRoot,
+                                     pointOutside, renderer, sceneChanged, select, setLightsShown, setPickedSpawn,
+                                     setSpawnsShown, setVolumesShown, setZonesShown, stopPickBox, texture, track,
+                                     viewport, world, zoneState }) {
   // ---------------------------------------------------------------- the Effects view (effects and sounds plan, FX1)
   // The map's effects, sounds and lens flares (export 28; effects_view.js draws them, effects_rules.js says what they
   // are), and those of the streams the header's Mission picker shows. Shift+X (the rail's spark) shows them as markers
@@ -391,13 +392,13 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
       const row = item.getBoundingClientRect(), host = viewport.getBoundingClientRect();
       pane.style.left = `${row.right - host.left + 10}px`;
       pane.style.top = `${Math.max(8, Math.min(row.top - host.top - 90, host.height - 290))}px`;
-      const text = $('likenessText');
-      text.replaceChildren();
-      text.append(entry.name);
+      const paneText = $('likenessText');
+      paneText.replaceChildren();
+      paneText.append(entry.name);
       const out = leftOut(made.system), small = document.createElement('small');
       small.textContent = [`${entry.group} · the square is one tile`, out.ignored.length ? 'drawn roughly' : null].filter(Boolean).join(' · ');
-      text.append(small);
-      for (const line of tip.split('\n').filter(Boolean)) { const more = document.createElement('small'); more.textContent = line; text.append(more); }
+      paneText.append(small);
+      for (const line of tip.split('\n').filter(Boolean)) { const more = document.createElement('small'); more.textContent = line; paneText.append(more); }
       pane.hidden = false;
     }, 300);
   }

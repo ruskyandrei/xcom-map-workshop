@@ -27,13 +27,15 @@ import { uuid } from './project.js';
 import { DIRECTIONS as ZONE_DIRECTIONS, evacBox, explicitEw, GROUND as ZONE_GROUND, groundOf, landingUnmoved,
          ownLandings, ownSlots, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
 import { remember } from './storage.js';
+import { plural } from './dom_words.js';
+import { gameToView } from './handles.js';
 
-export function createZonesWiring({ $, banner, camera, controls, cutaway, editChanged, flashHint, floorStays,
-                                   gameToView, gizmo, groundHeight, headerMission, isLanding, landHere, LANDING_SHOWN,
-                                   landingLayer, lightButton, ownSize, plural, projectChanged, projectsAvailable, rayAt,
-                                   refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer,
-                                   restingHint, select, setEffectsShown, setLightsShown, setSpawnsShown,
-                                   setVolumesShown, stopPickBox, tileCorner, world, zonesNow }) {
+export function createZonesWiring({ $, banner, camera, controls, cutaway, editChanged, flashHint, floorStays, gizmo,
+                                   groundHeight, headerMission, isLanding, landHere, LANDING_SHOWN, landingLayer,
+                                   lightButton, ownSize, projectChanged, projectsAvailable, rayAt, refreshGroundGrid,
+                                   refreshLightVisibility, refreshMissionPicker, renderer, restingHint, select,
+                                   setEffectsShown, setLightsShown, setSpawnsShown, setVolumesShown, stopPickBox,
+                                   tileCorner, world, zonesNow }) {
   // ---------------------------------------------------------------- landing zones (Clear map plan, section 4)
   // Each zone drawn as its footprint: the evac zone's box (faint), the six soldier points as dots, an arrow the way the
   // squad faces, its number, and for a zone that is one of the map's own landings the grounded Skyranger's outline. A

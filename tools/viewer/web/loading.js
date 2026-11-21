@@ -3,10 +3,11 @@
 // document's steps say on it (openingProgress, OPENING), and a JSON file read with its progress (fetchJson, the scene's
 // layout as a map opens).
 //
-// createLoading takes app.js's `$` and `plural`, the words it needs, when app.js makes it (early: nothing of it runs as
-// the page loads, and the document session, the prefab builder's and the scene's pieces show it); it keeps no state.
+// createLoading takes app.js's `$` when app.js makes it (early: nothing of it runs as the page loads, and the
+// document session, the prefab builder's and the scene's pieces show it); it keeps no state.
+import { plural } from './dom_words.js';
 
-export function createLoading({ $, plural }) {
+export function createLoading({ $ }) {
   // The loading overlay: what is happening, a progress bar when the share done is known, and a detail line.
   // What an opening document's steps say on the loading overlay: the pieces of other maps read (the first 40% of the
   // bar), loaded with their meshes (to 70%) and the document's own pieces made (the rest).

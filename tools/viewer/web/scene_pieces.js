@@ -18,10 +18,10 @@
 //
 // createScenePieces takes what it needs of app.js as one argument object, when app.js makes it: the renderer, the
 // camera and the scene's content, the pickables, the texture and mesh loaders and the textures' loads, the grid's
-// origin, a piece's original and key, whether it is streamed or made, an asset's url, a cover piece's template
-// version, a broken piece drawn, the selection and the hints. Its own state is inside it (the loads settled, the
-// materials' cache, the originals' parts and vertex boxes, the originals by key for templates and recipes); the meshes
-// loaded are editor_state.js's (geometryCache).
+// origin, whether a piece is made, an asset's url, a cover piece's template version, a broken piece drawn, the
+// selection and the hints. Its own state is inside it (the loads settled, the materials' cache, the originals' parts
+// and vertex boxes, the originals by key for templates and recipes); the meshes loaded are editor_state.js's
+// (geometryCache).
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { TILE } from './constants.js';
@@ -32,7 +32,7 @@ import { actorMatrix, placedPose } from './gizmo.js';
 import { madeGroundShape } from './ground.js';
 import { withLocalLights } from './lighting.js';
 import { isPlain } from './made_requests.js';
-import { cloneBlasts } from './piece_records.js';
+import { cloneBlasts, fromOf, isStream, sourceKey } from './piece_records.js';
 import { pieceGrid } from './pieces.js';
 import { targetKey, tidyLocation, tidyRotator } from './project.js';
 import { madeSlabShape, madeWallShape } from './walls.js';
@@ -49,9 +49,9 @@ export function actorPose(source, matrix) {
 export const movedMatrix = (source, location, rotation) => actorMatrix(location, rotation)
   .multiply(actorMatrix(source.location, source.rotation).invert()).multiply(new THREE.Matrix4().fromArray(source.matrix));
 
-export function createScenePieces({ assetUrl, camera, content, coverVersion, drawBroken, flashHint, fromOf, gltfLoader,
-                                    gridOrigin, isMade, isStream, loadingState, pickables, renderer, select, sourceKey,
-                                    textureLoader, texturePromises }) {
+export function createScenePieces({ assetUrl, camera, content, coverVersion, drawBroken, flashHint, gltfLoader,
+                                    gridOrigin, isMade, loadingState, pickables, renderer, select, textureLoader,
+                                    texturePromises }) {
   // Picking: the first visible, unclipped piece under a screen point, or null.
   function rayAt(clientX, clientY) {
     const rect = renderer.domElement.getBoundingClientRect(), ray = new THREE.Raycaster();

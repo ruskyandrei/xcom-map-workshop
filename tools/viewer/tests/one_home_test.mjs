@@ -2,8 +2,9 @@
 // follow-ups 3.28 and 3.20): the page's modules read for the browser's fetch, which only api.js uses (call, ask,
 // sendPng) besides the plain fetches named here, each with why it stays, and for localStorage and sessionStorage, which
 // only storage.js uses. A new one fails here: ask the server through api.js and keep a value through storage.js, or
-// name the place here with its reason and in ARCHITECTURE.md. The modules are read as code: comments and the text of
-// strings are left out, a template's ${...} kept. Run: node tools/viewer/tests/one_home_test.mjs
+// name the place here with its reason and in ARCHITECTURE.md. So too a module's own plural or short (follow-up 3.22):
+// dom_words.js has them, and only the variants named here differ. The modules are read as code: comments and the text
+// of strings are left out, a template's ${...} kept. Run: node tools/viewer/tests/one_home_test.mjs
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -106,5 +107,31 @@ for (const file of files) {
 }
 for (const name of names)
   for (const file of Object.keys(ALLOWED[name])) if (!files.includes(file)) problems.push(`${file}: named for ${name}, not a module of the page`);
+
+// The words helpers (follow-up 3.22): dom_words.js' plural and short are declared nowhere else, but for the variants
+// named here, each with how it differs (its comment in the module says the same).
+const WORDS = {
+  plural: {
+    'dom_words.js': 'the one home',
+    'library.js': "groups the count's digits as the browser's language does",
+    'precache.js': "groups the count's digits in British English",
+  },
+  short: {
+    'dom_words.js': 'the one home',
+    'effects_rules.js': "'' for a missing path",
+    'spawn_rules.js': "'' for a missing path",
+    'spawns_view.js': "'' for a missing path",
+  },
+};
+/** Whether `code` declares a function named `name` (a function statement, or a const, let or var given an arrow). */
+const declares = (code, name) => new RegExp(`\\bfunction\\s+${name}\\s*\\(|\\b(?:const|let|var)\\s+${name}\\s*=\\s*(?:async\\s+)?(?:\\([^()]*\\)|[\\w$]+)\\s*=>`).test(code);
+assert.ok(declares('const plural = (n, word) => n;', 'plural') && declares('function short(p) {}', 'short'));
+assert.ok(!declares('const short = plan.free != null && need > plan.free;', 'short') && !declares('const shortName = a => a;', 'short'));
+for (const file of files) {
+  const code = codeOf(fs.readFileSync(path.join(web, file), 'utf8'));
+  for (const name of Object.keys(WORDS))
+    if (declares(code, name) !== Boolean(WORDS[name][file]))
+      problems.push(`${file}: ${declares(code, name) ? `its own ${name}: import dom_words.js' (or name it here with how it differs)` : `${name} named here, not declared`}`);
+}
 assert.deepEqual(problems, []);
 console.log(`one home: ok (${files.length} modules)`);

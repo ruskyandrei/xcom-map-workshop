@@ -11,6 +11,7 @@
 import { TILE } from './constants.js';
 import { wallRotation, wallDirection, spelledLook } from './walls.js';
 import { catalogued } from './looks.js';
+import { plural } from './dom_words.js';
 
 // The looks, as tools/bake/ground_looks.json lists them (walls_test.mjs compares the two)
 export const GROUND_LOOKS = [
@@ -37,7 +38,6 @@ export const GROUND = { maxTiles: 64, maxHeight: 384, minHeight: 8, step: 8, blo
 const round = (v, step) => step * Math.round(v / step);
 const sign = v => (v < 0 ? -1 : 1);
 const tidy = v => { const r = Math.round(v * 1e4) / 1e4; return r === 0 ? 0 : r; };
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** A ground shape's look: one of GROUND_LOOKS by its id, or a donor look (M4: { mesh, material, measure }) as the
  *  catalogue has it, with its repeat and thickness (null when no catalogue read holds it). */
