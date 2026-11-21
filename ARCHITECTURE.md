@@ -116,7 +116,13 @@ a picked cover piece and their drags. What is pure about a cover piece (its box,
 over the picked actors, a change of them (one undo step, after asking where a prop's pathing gate would change a half-on
 role) and Reset; the flags' rules are [`piece_flags.js`](tools/viewer/web/piece_flags.js)'s. Select all of a kind is
 [`select_kind.js`](tools/viewer/web/select_kind.js)'s: every drawn piece or effect of a picked one's kind (inside box
-select's box, if one is drawn), so that the Flags group can set them all.
+select's box, if one is drawn), so that the Flags group can set them all. The user's groups are
+[`groups.js`](tools/viewer/web/groups.js)'s: a group's pieces on the map now, what the selection is to the groups, the
+piece panel's group section with the group chip, and the groups changed (Lock as group, Add to group, Ungroup, each
+change one undo step); a group's record (its key, its members' keys, the tree pruned of a group left with one member)
+is [`project.js`](tools/viewer/web/project.js)'s. Align is [`align.js`](tools/viewer/web/align.js)'s: the others of
+the selection lined up with a target along the chosen axes (one undo step), the piece panel's Align section and the
+white box on the target.
 `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -270,6 +276,8 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A cover block or invisible floor: its recipe and template, the Add panel's Invisible kind, the ground under a floor (the map's collision, Fit to ground), the piece panel's cover section, a new record put on a piece, its handles and their drags | [`cover_wiring.js`](tools/viewer/web/cover_wiring.js) (`createCoverWiring`). What is pure about a cover piece (its box and mesh, the tiles it covers and what the game makes of them, a size changed by a handle, its words) goes in [`cover.js`](tools/viewer/web/cover.js), with its node tests (`cover_test.mjs`, `cover_tiles_test.mjs`), and the Build's side in [`cover_blocks.py`](tools/bake/cover_blocks.py). |
 | The piece panel's Flags group and its chip: a piece's flags as the project has them, a row changed (one undo step), the question about a prop's pathing gate, Reset | [`flags_panel.js`](tools/viewer/web/flags_panel.js) (`createFlagsPanel`). A flag's rule (a piece's roles and their limits, what a request does, its normalized form) goes in [`piece_flags.js`](tools/viewer/web/piece_flags.js), pure, with its node tests (`piece_flags_test.mjs`, `project_flags_test.mjs`), and the compiler's side in [`flag_edits.py`](tools/editor/flag_edits.py). |
 | Select all of a kind: what counts as a piece's or an effect's kind, the pieces and effects that match (inside box select's box), the button | [`select_kind.js`](tools/viewer/web/select_kind.js) (`createSelectKind`). |
+| The user's groups: a group's pieces on the map now, what the selection is to the groups, the group section and chip, a group made, added to or ended (one undo step) | [`groups.js`](tools/viewer/web/groups.js) (`createGroups`). A group's record (`groupKey`, `pruneGroups`) goes in [`project.js`](tools/viewer/web/project.js), and the compiler's side in [`group_edits.py`](tools/editor/group_edits.py). |
+| Align: the others of the selection lined up with a target, the Align section and its white box | [`align.js`](tools/viewer/web/align.js) (`createAlign`). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
@@ -390,7 +398,8 @@ where there is one.
   - whether Break is on (`breaking`), which app.js's keys and pointer handlers read;
   - the game's collision by mesh that the invisible floors measure the ground by (`lineCollision`, with
     `lineCollisionFailed`): the cover blocks' module asks for the map's, a piece of another map read adds its own, and
-    the test hooks read both.
+    the test hooks read both;
+  - the target Align lines the others up with (`alignTarget`), which app.js's handler of the panel's target list sets.
 
   A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
   was (`setAreaShown(recall(AREA_SHOWN) === '1')`, `setLikenessOn(...)` inside the Effects view's factory), so it is
@@ -405,9 +414,9 @@ where there is one.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
   `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`,
   `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`,
-  `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`) takes them
-  as one argument object and destructures it, so the code moved into it calls them by the names it always did. It
-  returns the functions other areas call, and app.js destructures them under the same names, so their callers stay as
+  `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`,
+  `createGroups`, `createAlign`) takes them as one argument object and destructures it, so the code moved into it
+  calls them by the names it always did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers stay as
   they were. app.js makes it after the functions and objects it is given, and before any code that runs as the page
   loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a `const`, is
   given as a function that calls it, since it is not made yet: `openingProgress: name => openingProgress(name)`.

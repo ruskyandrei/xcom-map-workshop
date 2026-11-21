@@ -252,8 +252,8 @@ export let likenessOn = true, likenessThin = 1, likenessCount = 0;
 export function setLikenessOn(next) { likenessOn = next; }
 export function setLikenessThin(next) { likenessThin = next; }
 export function setLikenessCount(next) { likenessCount = next; }
-// Groups' pieces on the map now (app.js's liveMembers makes it; whatever adds or takes away roots drops it): member
-// key -> its roots, or null.
+// Groups' pieces on the map now (groups.js's liveMembers makes it; whatever adds or takes away roots drops it):
+// member key -> its roots, or null.
 export let liveCache = null;
 export function setLiveCache(next) { liveCache = next; }
 // Box select's pieces' middles while its box is up (buildings_wiring.js's pickCandidates), or null: worked out again
@@ -375,3 +375,8 @@ export function setLineCollisionFailed(next) { lineCollisionFailed = next; }
 // it.
 export let breaking = null;
 export function setBreaking(next) { breaking = next; }
+
+// The target Align lines the others up with (align.js; app.js's handler of the piece panel's target list sets it): the
+// id of a piece of it, or null for the last one picked.
+export let alignTarget = null;
+export function setAlignTarget(next) { alignTarget = next; }
