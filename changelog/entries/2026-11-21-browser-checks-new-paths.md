@@ -37,5 +37,5 @@ runs (the editing run on URB_Bar, `room-buttons` in the police run):
 Checked: each check failed with a one-line break planted in the page (not kept): a made piece's blast not added, Delete
 taking the first gap whatever was touched, the corner moved along the rock's y, Lower stepping up, Shift+click not
 adding, the gate's question not asked, the build window's Prepare not offered for `export-missing`. Each new check and
-`prepare` passed five times running on one test server; `browser_smoke.py --all` passed (see the rough edges' entry
-for its numbers).
+`prepare` passed five times running on one test server; in `browser_smoke.py --all`, run twice, the editing run (18
+checks) and the police run (4) passed each time (the rough edges' entry has the rest).

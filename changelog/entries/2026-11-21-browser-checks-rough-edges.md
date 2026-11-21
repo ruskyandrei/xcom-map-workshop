@@ -28,11 +28,14 @@ load (the computer's) are dealt with in [browser_smoke.py](../../tools/viewer/te
 - **`--all` makes the Play check's scratch install itself.** Without `--play-install`, it copies the files the Play
   check needs (the config's `Default*.ini`, `XComGame.upk`, the played map, the `XCom*.int` words, an empty
   `Binaries`) from the game install the settings name, which is only read, into its scratch folder, when they come to
-  less than 300 MB (about 34 MB for LWR); else Play is skipped as before, saying why. The module's docstring and
-  `--play-install`'s help say so.
+  less than 300 MB (32 MB for LWR); else Play is skipped as before, saying why. The module's docstring and
+  `--play-install`'s help say so. The scratch folder is made whole first: the servers run from the repository, so a
+  relative `--scratch` named folders of their own there.
 
 Checked: before and after with the start commit's script on one test server: `--only adding` failed before and passes;
 `--only streams` on the Bar and `--only streams,spawns` on the police station exited 1 before and pass, their skipped
 parts listed. The changed checks (`typed-pose`, `adding`, `effects`, `projects`, `prefabs`, `prefab-effects`,
 `library-all`, `library-effects`, `effect-values`, `library-flares`) passed five times in a row on one test server
-against one projects folder. `browser_smoke.py --all` passed twice with Play, its install made by the run.
+against one projects folder. `browser_smoke.py --all` twice: 9 of its 10 runs passed each time (77 checks); the Play
+run made its scratch install itself (36 files) and was then refused because XCOM was running (a game not started by
+the checks), so Play is still to be run with the game closed.

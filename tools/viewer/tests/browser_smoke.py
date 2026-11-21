@@ -6108,7 +6108,8 @@ def run_all(args):
     checks ran and skipped, with why, and its errors (all.json in the scratch folder)."""
     left = all_covered()
     assert not left, f'--all runs no check called {", ".join(left)}: add it to ALL_RUNS'
-    root = Path(args.scratch) if args.scratch else Path(tempfile.mkdtemp(prefix='workshop-smoke-'))
+    # (whole: the servers run from the repository, and take their folders and the Play install from here)
+    root = (Path(args.scratch) if args.scratch else Path(tempfile.mkdtemp(prefix='workshop-smoke-'))).resolve()
     root.mkdir(parents=True, exist_ok=True)
     print(f'scratch folder: {root}', flush=True)
     cache = scratch_cache(root, args.cache)
