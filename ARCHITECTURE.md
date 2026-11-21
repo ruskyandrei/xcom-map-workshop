@@ -189,6 +189,10 @@ document's steps on it, a JSON file read with its progress) is [`loading.js`](to
 The page's small helpers of the DOM and of words (an element of text, a term and its value in a list, a count with
 its noun, a name's last part, a copy to the clipboard told on its button, a row of buttons used like a select, a
 sentence's first letter made a capital) are [`dom_words.js`](tools/viewer/web/dom_words.js)'s, which imports nothing.
+The hint line under the view (what a held gizmo handle moves, a short notice, how to place what is being placed) is
+[`hints.js`](tools/viewer/web/hints.js)'s; the busy mark for slow steps (put up after a third of a second, or at once
+with the view's clicks and keys held meanwhile), a long loop giving way and many pieces built a few at a time are
+[`busy.js`](tools/viewer/web/busy.js)'s.
 app.js's `open` starts the page: the map list read, the first run's install asked for, the map browser made, the map
 the address asks for opened (or the browser shown on it, to prepare it), and `startScene`.
 `window.viewer`, the set of hooks the browser checks drive, is made by [`test_api.js`](tools/viewer/web/test_api.js)
@@ -360,6 +364,8 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A header menu (a button with `data-pop` and its menu) | `index.html`; [`popups.js`](tools/viewer/web/popups.js) (`createPopups`) opens and closes it, and draws a menu afresh as it opens where the menu needs it. |
 | The map list, the map browser's making and what choosing a map does, the Map menu's button and Change map | [`map_menu.js`](tools/viewer/web/map_menu.js) (`createMapMenu`). The browser's dialog is [`map_browser.js`](tools/viewer/web/map_browser.js); the list and the browser are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`mapCatalogue`, `mapBrowser`). |
 | The loading overlay's words and bar, a JSON file read with its progress | [`loading.js`](tools/viewer/web/loading.js) (`createLoading`). |
+| The hint line under the view: a held gizmo handle's line, a short notice, the resting hint | [`hints.js`](tools/viewer/web/hints.js) (`createHints`). |
+| A slow step under the busy mark, a long loop giving way, many pieces built a few at a time | [`busy.js`](tools/viewer/web/busy.js) (`createBusy`). |
 | An element of text, a term and its value in a list, a count with its noun, a name's last part, a copy to the clipboard told on its button, a row of buttons used like a select, a sentence's capital | [`dom_words.js`](tools/viewer/web/dom_words.js), pure (it imports nothing), with its node test (`dom_words_test.mjs`). An area's own words go in its own pure module. |
 | Prepare: the dialog that exports the map again, a build or a play waiting for it | [`prepare.js`](tools/viewer/web/prepare.js) (`createPrepare`), and the server's side in [`exports.py`](tools/viewer/exports.py). |
 | Copy, paste and placing: a clip of the selection, a paste, the preview that follows the cursor and where a click places it, the Add panel shown and its tab, an entry of it chosen and placed, a copy dragged off with Shift | [`clipboard.js`](tools/viewer/web/clipboard.js) (`createClipboard`). A copied thing's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`optionsOf`, `stateOfRoot`), a group's in [`project.js`](tools/viewer/web/project.js), the pose rule's snap in [`gizmo.js`](tools/viewer/web/gizmo.js) (`recipeMove`), and a floor's height under a point in [`floors.js`](tools/viewer/web/floors.js) (`levelHeight`, `floorUnder`). |
@@ -525,8 +531,8 @@ where there is one.
   `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`, `createGroups`,
   `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`,
   `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`, `createPrepare`, `createSelection`,
-  `createNavigation`, `createTestApi`, `createPopups`, `createMapMenu`, `createLoading`) takes them as one
-  argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
+  `createNavigation`, `createTestApi`, `createPopups`, `createMapMenu`, `createLoading`, `createMapFamilies`,
+  `createHints`, `createBusy`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
   functions other areas call, and app.js destructures them under the same names, so their callers stay as they were.
   app.js makes it after the functions and objects it is given, and before any code that runs as the page
   loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a `const`, is

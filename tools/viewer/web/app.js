@@ -17,21 +17,20 @@ import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo,
-         floorTileLayer, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, hintTimer, landingZones,
-         lastBuild, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty,
-         lightsOn, lightsShown, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves,
-         missionPickValue, normalEffects, normalLights, normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pickTool,
-         pieces, placing, prefabParameter, project, projectMissions, projectSpawnRules, reachShown, roots, selected,
-         setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix,
-         setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty,
-         setGroups, setHintTimer, setLandingZones, setLibrary, setLibraryScopeValue, setLighting, setLightsOn,
-         setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue, setMergedBuildings,
-         setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue,
-         setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
-         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSpawnRulesData, setSpawnsOn,
-         setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnLayerReady, spawnPlacing, spawnsOn, stage,
-         streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, wallDrag, wallDrawing, zonePlacing,
-         zonesOn } from './editor_state.js';
+         floorTileLayer, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, landingZones, lastBuild,
+         lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn,
+         lightsShown, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves, missionPickValue,
+         normalEffects, normalLights, normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pieces, placing,
+         prefabParameter, project, projectMissions, projectSpawnRules, reachShown, roots, selected, setActiveMapId,
+         setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setCleared,
+         setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setGroups,
+         setLandingZones, setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache,
+         setLookPicker, setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
+         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
+         setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey,
+         setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn,
+         spawnLayerReady, spawnPlacing, spawnsOn, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
+         wallDrag, wallDrawing, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -70,6 +69,8 @@ import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './s
 import { createTestApi } from './test_api.js';
 import { createNavigation, RECIPE_NOTE } from './navigation.js';
 import { createLoading } from './loading.js';
+import { createHints } from './hints.js';
+import { createBusy } from './busy.js';
 import { createPopups } from './popups.js';
 import { createMapMenu } from './map_menu.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
@@ -186,19 +187,18 @@ const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level:
 // (The map's size as the project sets it, the cleared map, its landing zones, missions, picture and spawn rules, the
 // buildings, and the install's landing lines for the map with the read a project waits for: editor_state.js.)
 // The scene's pieces (scene_pieces.js): picking, textures and materials, the meshes' and materials' loads, a
-// piece's root built, added and taken away, an original's parts and boxes, and a piece's box; made before
-// the gizmo, which is given baseMatrix (nothing of it runs as the page loads but a few tables and vectors
-// made).
+// piece's root built, added and taken away, an original's parts and boxes, a piece's box, an added piece made from
+// its template, a record's template and an original's recipe pose; made before the gizmo, which is given baseMatrix
+// (nothing of it runs as the page loads but a few tables and vectors made).
 const { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
         materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, rayAt, recipeOf, removeRoots,
         templateFor, texture, track, unscaled, vertexBox } = createScenePieces({
-  camera, content, flashHint, fromOf, gltfLoader, gridOrigin, isStream, pickables, renderer, textureLoader,
-  texturePromises,
+  camera, content, fromOf, gltfLoader, gridOrigin, isStream, pickables, renderer, textureLoader, texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
   loadingState: (message, fraction, detail) => loadingState(message, fraction, detail),
   assetUrl: url => assetUrl(url), coverVersion: (version, type) => coverVersion(version, type),
-  drawBroken: root => drawBroken(root), isMade: o => isMade(o), select: (id, add, keep) => select(id, add, keep),
-  sourceKey: o => sourceKey(o) });
+  drawBroken: root => drawBroken(root), flashHint: message => flashHint(message), isMade: o => isMade(o),
+  select: (id, add, keep) => select(id, add, keep), sourceKey: o => sourceKey(o) });
 const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: controls, roots: allRoots, baseMatrix, onEdit: editChanged,
                             // a group's lights and buildings move with it, drawn or not; a building is whole (all its boxes)
                             // outside the Buildings view, where each box is on its own
@@ -316,109 +316,14 @@ onHub('edit', 'piece-status', () => {
   $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)) || (r.userData.effect && r.userData.values));
   $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !cleared);
 });
-// While a gizmo handle is held: one short line on what is moving and how to back out.
-function dragHint(dragging) {
-  const hint = $('dragHint');
-  clearTimeout(hintTimer);
-  if (!dragging) { restingHint(); return; }
-  hint.hidden = false;
-  hint.replaceChildren(`${gizmo.mode === 'rotate' ? 'Rotating' : 'Moving'} ${plural(gizmo.selection().length, 'piece')} · `
-    + `${ownSet.size ? 'the map\'s own building stays where it is (copy it instead) · ' : ''}`);
-  text(hint, 'kbd', 'Esc'); hint.append(' cancels the drag');
-}
-// The busy mark for slow steps (map buildings plan, 4a): the build window's turning ring with what is being done, put
-// up once a step has run for about a third of a second, so quick steps never show it. busyStart(message) returns the
-// function that ends it. A long step on the page's own thread, which no timer interrupts (a paste of many pieces),
-// asks for it `now`: the mark is drawn first and a frame let through (nextFrame) before the work runs.
-const BUSY_AFTER = 330, BUSY_PIECES = 60, WORK_SLICE = 12, BUILD_CHUNK = 16;
-const busyJobs = [];
-function busyStart(message, now = false, hold = false) {
-  const job = { message, shown: now, hold, done: 0, total: null };
-  busyJobs.push(job);
-  const timer = now ? null : setTimeout(() => { job.shown = true; busyPaint(); }, BUSY_AFTER);
-  busyPaint();
-  const end = () => { clearTimeout(timer); const at = busyJobs.indexOf(job); if (at >= 0) busyJobs.splice(at, 1); busyPaint(); };
-  end.job = job;
-  return end;
-}
-function busyPaint() {
-  const job = busyJobs.filter(j => j.shown).at(-1);
-  $('busyMark').hidden = !job;
-  if (!job) return;
-  const counted = job.total > 0;
-  $('busyText').textContent = counted ? `${job.message} ${Math.min(job.done, job.total)} of ${job.total}` : job.message;
-  $('busyBar').hidden = !counted;
-  if (counted) $('busyBar').firstElementChild.style.width = `${Math.round(100 * Math.min(1, job.done / job.total))}%`;
-}
-// After the next frame is drawn (or a moment, where the page is in the background and draws none).
-const nextFrame = () => new Promise(resolve => { requestAnimationFrame(() => setTimeout(resolve, 0)); setTimeout(resolve, 80); });
-// One way to be busy (plan "sturdier prefabs, faster editor", L1): busy(message, work, { total, now }) puts the mark
-// up (after a third of a second, or at once and with a frame let through when the caller knows the step is large),
-// runs work(step) and takes the mark down whatever happens. step(done, total, message) moves the bar and the count
-// ("212 of 458"); without a total the ring alone shows. While a mark put up at once is shown, clicks and keys meant
-// for the view are ignored (busyHeld), so a second Ctrl+V does not queue behind the first; a mark that comes up late
-// (a read that may be quick) holds nothing unless asked to.
-async function busy(message, work, { total = null, now = false, hold = now } = {}) {
-  const end = busyStart(message, now, hold), job = end.job;
-  job.total = total;
-  const step = (done, of = job.total, text = null) => { job.done = done; job.total = of; if (text) job.message = text; busyPaint(); };
-  try {
-    if (now) await nextFrame();
-    return await work(step);
-  } finally { end(); }
-}
-const busyHeld = () => busyJobs.some(j => j.hold && j.shown);
-for (const type of ['keydown', 'pointerdown', 'wheel'])
-  window.addEventListener(type, e => {
-    if (!busyHeld()) return;
-    const view = type === 'keydown' ? !e.target.closest?.('input, textarea, select, [contenteditable], dialog') : e.target.tagName === 'CANVAS';
-    if (view) { e.stopImmediatePropagation(); e.preventDefault(); }
-  }, { capture: true, passive: false });
-// A long loop on the page's own thread gives way once it has held it for WORK_SLICE ms: `const rest = breather()`
-// before the loop, `await rest()` in it. The ring keeps turning and the bar moves; a short loop never waits.
-function breather(slice = WORK_SLICE) {
-  let since = performance.now();
-  return async () => { if (performance.now() - since < slice) return; await nextFrame(); since = performance.now(); };
-}
-// Many pieces made (buildRoot each), a few at a time, giving way by time and counting for the busy mark. With `failed`
-// (a list), a piece that can't be drawn (its mesh, a material or a texture not had) is left out of what is given back
-// and named there, { obj, error }, as the map's own load leaves one out (review finding 29); without, it throws.
-async function buildRoots(objs, step = null, failed = null) {
-  const built = [], rest = breather();
-  for (let k = 0; k < objs.length; k += BUILD_CHUNK) {
-    const chunk = objs.slice(k, k + BUILD_CHUNK);
-    const made = await Promise.all(chunk.map(obj => (failed ? buildRoot(obj).catch(error => { failed.push({ obj, error }); return null; }) : buildRoot(obj))));
-    built.push(...made.filter(Boolean));
-    step?.(k + chunk.length, objs.length);
-    await rest();
-  }
-  return built;
-}
-// A short notice in the same place (copied, deleted, nothing to paste); it goes after a moment.
-// (its timer, hintTimer: editor_state.js)
-function flashHint(message) {
-  if (gizmo.controls.dragging) return;
-  const hint = $('dragHint');
-  hint.replaceChildren(message); hint.hidden = false;
-  clearTimeout(hintTimer);
-  setHintTimer(setTimeout(restingHint, 2500));
-}
-// With nothing else to say: how to place the piece being placed, or nothing.
-function restingHint() {
-  const hint = $('dragHint');
-  if (pickTool && !placing) {
-    hint.hidden = false; hint.replaceChildren('Box select: drag over the ground, around the pieces to take · ');
-    text(hint, 'kbd', 'Esc'); hint.append(' cancels');
-    return;
-  }
-  hint.hidden = !placing;
-  if (!placing) return;
-  const turned = placing.turns ? ` (turned ${placing.turns * 90}°)` : '';
-  const storey = $('floor').value !== 'all' ? `floor ${$('floor').value}'s height (the Floor picker)` : 'the level under the cursor';
-  const floor = placing.clip.floor != null && levelSnap ? ` · a floor piece: its height snaps to ${storey}` : '';
-  hint.replaceChildren(`Placing ${placing.clip.name}${turned}${floor} · click to place · R turns · Shift+click places more · `);
-  text(hint, 'kbd', 'Esc'); hint.append(' stops');
-}
+// The hint line under the view (hints.js): while a gizmo handle is held, a short notice, and with nothing else to say
+// what is being placed; and the busy mark for slow steps (busy.js), the page giving way in a long loop and many pieces
+// built a few at a time, whose listeners hold the view's clicks and keys while a mark put up at once is shown. Made
+// where their code was: the busy mark's listeners are set here, as before.
+const { dragHint, flashHint, restingHint } = createHints({
+  $, gizmo });
+const { BUSY_PIECES, buildRoots, busy, busyPaint, busyStart, nextFrame } = createBusy({
+  $, buildRoot });
 
 // What a selected root is called in a list: a piece by its mesh, a light by its actor.
 const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
