@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGizmo, placedPose, actorMatrix } from './gizmo.js';
+import { createGizmo } from './gizmo.js';
 import { createPieceBrowser, pieceGrid, useFamilies } from './pieces.js';
-import { api as projectApi, stateKey, targetKey, tidyLocation, tidyRotator, uuid } from './project.js';
+import { api as projectApi, stateKey, targetKey, uuid } from './project.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
@@ -15,7 +15,6 @@ import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
-import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo,
          floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, hintTimer,
@@ -57,7 +56,8 @@ import { createMadePanel } from './made_panel.js';
 import { createMadeBreaking } from './made_breaking.js';
 import { createMapGrid } from './map_grid.js';
 import { createClearMap } from './clear_map.js';
-import { createScenePieces } from './scene_pieces.js';
+import { actorPose, createScenePieces, movedMatrix } from './scene_pieces.js';
+import { isPlain, madeRequest, plainLook } from './made_requests.js';
 import { createCutaway } from './cutaway.js';
 import { createFloorListings } from './floor_listings.js';
 import { createLevelSnap } from './level_snap.js';
@@ -81,10 +81,8 @@ import { createMapLighting } from './lighting.js';
 import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
 import { COVER_KIND } from './cover.js';
 import { TILE } from './constants.js';
-import { WALL_LOOKS, SLAB_LOOKS, slabLookOf, madeWallShape, madeSlabShape } from './walls.js';
-import { DONOR_VERSION, loadLooks, lookTags } from './looks.js';
+import { loadLooks, lookTags } from './looks.js';
 import { createLookPicker } from './look_picker.js';
-import { GROUND_LOOKS, versionedGround, POINTS_VERSION, madeGroundShape } from './ground.js';
 
 const $ = id => document.getElementById(id);
 // Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
@@ -221,14 +219,14 @@ const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v 
 // piece's root built, added and taken away, an original's parts and boxes, and a piece's box; made before
 // the gizmo, which is given baseMatrix (nothing of it runs as the page loads but a few tables and vectors
 // made).
-const { addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, material, materialCache, materialKey,
-        movedBox, originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt, removeRoots, texture, track,
-        vertexBox } = createScenePieces({
+const { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
+        materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, rayAt, removeRoots, texture,
+        track, unscaled, vertexBox } = createScenePieces({
   camera, content, flashHint, fromOf, gltfLoader, gridOrigin, pickables, renderer, textureLoader, texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
   loadingState: (message, fraction, detail) => loadingState(message, fraction, detail),
-  assetUrl: url => assetUrl(url), drawBroken: root => drawBroken(root),
-  select: (id, add, keep) => select(id, add, keep) });
+  assetUrl: url => assetUrl(url), coverVersion: (version, type) => coverVersion(version, type),
+  drawBroken: root => drawBroken(root), select: (id, add, keep) => select(id, add, keep) });
 const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: controls, roots: allRoots, baseMatrix, onEdit: editChanged,
                             // a group's lights and buildings move with it, drawn or not; a building is whole (all its boxes)
                             // outside the Buildings view, where each box is on its own
@@ -460,10 +458,6 @@ function restingHint() {
   text(hint, 'kbd', 'Esc'); hint.append(' stops');
 }
 
-// Adding and deleting pieces. Like moves, these are edits a project keeps and the Build makes.
-// A copy is a new piece built from its source's mesh and materials, with its own id, actor name and pivot.
-// (the clipboard, clipboard, and the copies' serial: editor_state.js)
-const newId = () => `added:${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
 // What a selected root is called in a list: a piece by its mesh, a light by its actor.
 const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
   : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
@@ -492,78 +486,6 @@ const copyablePieces = () => copyable().filter(r => !r.userData.light && !r.user
 // What a group can hold of the selection: pieces, lights that can be edited, and the buildings picked with them.
 const groupables = () => [...copyable(), ...selectedBoxes()];
 function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(true); cutaway(); refreshGroundGrid(false); refreshJoins(); }
-// An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
-// rotator exactly, so untouched native values stay as they were.
-function actorPose(source, matrix) {
-  const pose = placedPose(source, matrix);
-  const turn = matrix.clone().multiply(new THREE.Matrix4().fromArray(source.matrix).invert()).elements;
-  const same = [0, 1, 2, 4, 5, 6, 8, 9, 10].every(i => Math.abs(turn[i] - (i % 5 === 0 ? 1 : 0)) < 1e-7);
-  return { location: pose.location.map(tidyLocation), rotation: same ? [...source.rotation] : pose.rotation.map(tidyRotator) };
-}
-// The render matrix that puts a source piece's actor at a game pose (the inverse of actorPose).
-const movedMatrix = (source, location, rotation) => actorMatrix(location, rotation)
-  .multiply(actorMatrix(source.location, source.rotation).invert()).multiply(new THREE.Matrix4().fromArray(source.matrix));
-// A made piece's request (custom geometry plan, M4): a donor look's at its kind's DONOR_VERSION with the look in its
-// numbers, a look id's (or none) at version 1 as before.
-// A made piece drawn plain (custom geometry editing plan, B2, 19 November 2026): its kind's default look's numbers at
-// its kind's PLAIN_VERSION, drawn in a plain material until a look is chosen in the piece panel; the Build makes it in
-// that default look and says so (compiler made-no-look).
-const PLAIN_VERSION = { fracWall: 4, fracSlab: 3, ground: 3 };
-// (MADE_KINDS, the kinds of made piece, one piece each made from numbers: piece_records.js)
-const isPlain = g => Boolean(g) && (g.version === PLAIN_VERSION[g.kind] || (g.kind === 'ground' && g.version === POINTS_VERSION && g.ground?.look === undefined));
-const madeRequest = (kind, look, numbers, plain = false) => {
-  const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[kind];
-  // (a rock with moved points: POINTS_VERSION whatever its look, versionedGround)
-  if (plain) return versionedGround({ kind, version: PLAIN_VERSION[kind], [key]: numbers });
-  return versionedGround(look?.donor ? { kind, version: DONOR_VERSION[key], [key]: { ...numbers, look: { ...look.donor } } } : { kind, version: 1, [key]: numbers });
-};
-// The default look a plain piece of `kind` is made in: the Bar's inside wall, the Bar's floor or roof by the slab's
-// role, asphalt (a look marked `plain`, which setMadeLook makes a plain request of).
-function plainLook(kind, numbers = null) {
-  if (kind === 'wall') return { ...WALL_LOOKS[0], plain: true };
-  if (kind === 'ground') return { ...GROUND_LOOKS[0], plain: true };
-  const role = slabLookOf(numbers ?? {})?.role ?? 'roof';
-  return { ...(SLAB_LOOKS.find(l => l.role === role) ?? SLAB_LOOKS[0]), plain: true };
-}
-// A made piece's mesh and materials; a plain one's (B2) on the plain material, but for the hidden inside faces.
-function madeShape(template, generated) {
-  const shape = madeShapeOf(template, generated);
-  return isPlain(generated) && shape.materials
-    ? { ...shape, materials: shape.materials.map(m => (data.materials[m]?.render?.family === 'hidden' ? m : PLAIN_MATERIAL)) } : shape;
-}
-// A made piece's mesh and materials from its numbers (walls.js madeWallShape and madeSlabShape, ground.js
-// madeGroundShape: the mesh record goes into the scene's meshes), or {} when the server can't draw them.
-function madeShapeOf(template, generated) {
-  if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab, generated.blasts, data.meshes);
-  if (generated?.kind === 'ground') return madeGroundShape(template, generated.ground, data.meshes);
-  return generated?.kind === 'fracWall' ? madeWallShape(template, generated.wall, generated.blasts, data.meshes) : {};
-}
-// An added piece: a copy of one source component, as its own actor (output name, entity id, prefab and partner).
-// A made piece stands at scale 1 whatever its donor's (custom geometry plan, M4b: the Build sets its DrawScale and
-// DrawScale3D to 1; a ground donor placed at 4 gives a look like any other): its matrix without the donor's scale.
-function unscaled(matrix) {
-  const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
-  matrix.decompose(p, q, s);
-  return new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1));
-}
-function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null, blasts = null, breaksFurther = false }) {
-  if (generated && ['fracWall', 'fracSlab', 'ground'].includes(generated.kind)) placed = unscaled(placed);
-  return { ...template, ...madeShape(template, generated), id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
-    // its piece flags as made (piece flags plan): a paste's are its original's request, a project's its record's; the
-    // template's settings (pieceFlags) stay its baseline
-    initialFlags: flags ? { ...flags } : null,
-    // a copy of one of the map's fracturing pieces broken (E6): its blasts, a paste's its original's
-    initialBlasts: blasts?.length && !generated ? cloneBlasts(blasts) : null,
-    // (and, a roof or floor the game keeps whole, asked to break further in battle: F-139)
-    initialBreaksFurther: Boolean(blasts?.length && !generated && breaksFurther),
-    // `floors` stays its original's listings (its template's, a copy's included) and `cutout` its original's: the
-    // copy's own listings follow where it stands (listingsNow), as the Build lists it.
-    floors: originalOf(template)?.floors ?? template.floors ?? [], prefab, partner, matrix: placed.toArray(), location, rotation,
-    // `generated`: a fracturing wall the Build makes from numbers on this piece's materials (custom geometry plan,
-    // section 0), kept as the project has it; the view draws the mesh made from its numbers (madeShapeOf)
-    added: { from: fromOf(template), entity, tinted, ...(generated ? { generated } : {}),
-             ...(template.cover ? { template: { kind: COVER_KIND, version: coverVersion(template.added?.template?.version, template.cover.type) } } : {}) } };
-}
 // The pieces and effects of other maps read as templates (library_templates.js): their records read, a
 // piece's or an effect's template, the templates a project's records name, and what such a piece costs and
 // says.
