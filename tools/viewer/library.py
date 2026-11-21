@@ -158,7 +158,7 @@ def _list_donors(game, text):
         name = mapsini.field(line, 'Name')
         if name:
             base.add(name)
-        streams.update(re.findall(r'MapName="([^"]+)"', line))
+        streams.update(mapsini.slot_streams(line))
     files = {p.stem.lower(): p for p in cooked_of(game).glob('*.upk')}
     out = []
     for name in sorted({n.lower() for n in base | streams}):

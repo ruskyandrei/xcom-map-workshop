@@ -153,21 +153,10 @@ UFO_TYPES = ('eShip_UFOSmallScout', 'eShip_UFOLargeScout', 'eShip_UFOAbductor', 
 OPTION, VALUE = re.compile(r'[A-Za-z][A-Za-z0-9]{0,31}'), re.compile(r'[A-Za-z0-9]{1,32}')
 
 
-def _unquoted(record, name):
-    m = re.search(r'(?<![A-Za-z])%s\s*=\s*(\w+)' % name, record)
-    return m.group(1) if m else None
-
-
-def _quoted(record, name):
-    m = re.search(r'(?<![A-Za-z])%s\s*=\s*"([^"]*)"' % name, record)
-    return m.group(1) if m else None
-
-
 def kind_key(record):
-    """A record's kind (a KINDS key) from its text (str or bytes)."""
-    if isinstance(record, bytes): record = record.decode('latin-1')
-    mission = (_unquoted(record, 'MissionType') or '').replace('eMission_', '')
-    council = (_unquoted(record, 'CouncilType') or 'eFCMType_None').replace('eFCMType_', '')
+    """A record's kind (a KINDS key) from its text (str or bytes: mapsini reads either)."""
+    mission = (mapsini.unquoted(record, 'MissionType') or '').replace('eMission_', '')
+    council = (mapsini.unquoted(record, 'CouncilType') or 'eFCMType_None').replace('eFCMType_', '')
     if mission == 'Special':
         return f'Special/{council}' if council in COUNCIL else 'Special'
     return mission
@@ -248,12 +237,12 @@ def play_setup(record, content_text=None, try_untried=False, lwr=False):
         elif k['state'] != 'works':     # a kind played and working without them misses nothing
             missing.append(LINES['options']['missing'].format(options=', '.join(f'?{o}=1' for o in k['options'])))
     if 'ufoType' in k['lines']:
-        ship = _unquoted(record or '', 'ShipType')
+        ship = mapsini.unquoted(record or '', 'ShipType')
         if ship in UFO_TYPES:
             if use('ufoType'): lines.append(f'set XGBattleDesc m_eUFOType {ship}')
             else: missing.append(LINES['ufoType']['missing'])
     if 'councilType' in k['lines']:
-        family = _quoted(record or '', 'MapFamily') or ''
+        family = mapsini.field(record or '', 'MapFamily') or ''
         if family in COUNCIL_BY_MAP:
             value, which = COUNCIL_BY_MAP[family]
             if use('councilType'): lines.append(f'set XGBattleDesc m_eCouncilType {value}')
@@ -433,9 +422,9 @@ def valid_entry(entry, records):
 
 
 def _set(line, name, value):
-    """A record's unquoted field set (added before the closing bracket when the record has none)."""
-    pattern = r'(?<![A-Za-z])%s\s*=\s*\w+' % name
-    if re.search(pattern, line): return re.sub(pattern, '%s=%s' % (name, value), line, count=1)
+    """A record's unquoted field set (mapsini.set_field), or added before the closing bracket when the record has
+    none."""
+    if mapsini.unquoted(line, name) is not None: return mapsini.set_field(line, name, value, quoted=False)
     close = line.rindex(')')
     return line[:close].rstrip() + ', %s=%s ' % (name, value) + line[close:]
 

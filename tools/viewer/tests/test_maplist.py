@@ -4,6 +4,7 @@ import tempfile
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import maplist
+import mapsini
 
 # Records as LWR's DefaultMaps.ini writes them (cut short): a map with several records in different groups, a council
 # variant, a commented-out record, the strategy map, a DLC record named after its package, and two maps that would
@@ -90,7 +91,7 @@ class MapListTests(unittest.TestCase):
         self.assertEqual(len(records), len(maplist.live_records(INI)) + 1)
         # where the install has a live record for the map (plain EW may), the commented-out ones are not taken
         live = INI + 'Maps=( MapFamily="Act1_IntroLevel",  Name="Act1_IntroLevel",  DisplayName="IntroLevel", MissionType=eMission_Special)\n'
-        self.assertEqual([maplist.field(r, 'DisplayName') for r in maplist.records(live) if 'Act1_IntroLevel' in r], ['IntroLevel'])
+        self.assertEqual([mapsini.field(r, 'DisplayName') for r in maplist.records(live) if 'Act1_IntroLevel' in r], ['IntroLevel'])
 
     def test_distinct_keeps_a_label_that_names_its_tail(self):
         maps = {'URB_Boulevard': dict(name='URB_Boulevard', label='Urban Boulevard'),

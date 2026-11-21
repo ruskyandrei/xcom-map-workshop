@@ -471,7 +471,7 @@ def base_records(lines, base):
     found = []
     for i, l in enumerate(lines):
         record = maplist.switched_off(l.decode('latin-1'), ())
-        if record and same_map(maplist.field(record, 'Name'), base): found.append((i, record.encode('latin-1')))
+        if record and same_map(dep.field(record, 'Name'), base): found.append((i, record.encode('latin-1')))
     return found
 
 
