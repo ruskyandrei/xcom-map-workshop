@@ -2,10 +2,11 @@
 // Part B, stage FX1): each one's name, its chips, the lines of its panel and whether a clear keeps it, from export 28's
 // records (tools/viewer/effects_metadata.py). No three.js here: effects_view.js draws, effects_wiring.js wires the view, and
 // tools/viewer/tests/effects_rules_test.mjs checks these.
+import { plural } from './dom_words.js';
 
 export const KIND_LABEL = { effect: 'Effect', sound: 'Sound', flare: 'Lens flare' };
+// a name's last part, as dom_words.js' short, but '' for a missing path (null or undefined)
 const short = path => String(path ?? '').split('.').at(-1);
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const round = (v, places = 2) => Number(Number(v).toFixed(places));
 const number = v => (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString('en-GB') : String(round(v)));
 

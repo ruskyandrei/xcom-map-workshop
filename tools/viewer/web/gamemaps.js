@@ -6,6 +6,7 @@
 // landing zones, files (what the Project menu's Remove from game did).
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
+import { plural } from './dom_words.js';
 
 export const gameMapsApi = {
   list: () => call('GET', '/gamemaps.json'),
@@ -15,7 +16,6 @@ export const gameMapsApi = {
 };
 
 const el = (tag, props = {}, ...children) => { const e = Object.assign(document.createElement(tag), props); e.append(...children); return e; };
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const own = r => r.kind === 'own';
 const statusText = r => r.state === 'replaced' ? `Replaced by ${(r.by ?? []).join(', ')}${r.manual ? ' (and switched off)' : ''}`
   : r.state === 'off' ? 'Switched off'

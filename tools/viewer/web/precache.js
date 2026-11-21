@@ -7,6 +7,7 @@ import { clock } from './build_queue.js';
 
 const call = (method, url, body) => callServer(method, url, body, { fallback: r => `The server answered ${r.status}` });
 const count = n => Number(n).toLocaleString('en-GB');
+// a count with its noun, as dom_words.js' plural, its digits grouped in British English (12,345 pieces)
 const plural = (n, word) => `${count(n)} ${word}${n === 1 ? '' : 's'}`;
 export function duration(seconds) {
   if (seconds < 90) return seconds < 45 ? 'under a minute' : 'about a minute';

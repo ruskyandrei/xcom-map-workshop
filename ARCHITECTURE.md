@@ -470,6 +470,8 @@ or the path's (`recordOf(unit, 'prefab')` puts a recipe light's values before it
   reason, and here (follow-up 3.28). `storage.js` keeps what the browser keeps (`recall`, `remember`, `forget`) and
   what the tab keeps while it is open (`recallSession`, `rememberSession`, `forgetSession`), each catching a storage
   that is missing or blocked; the same test finds `localStorage` and `sessionStorage` nowhere else (follow-up 3.20).
+- A count with its noun and a name's last part come from `dom_words.js` (`plural`, `short`). The same test finds them
+  declared nowhere else but in the variants it names, each saying how it differs (follow-up 3.22).
 
 ### The compiler and the Build
 

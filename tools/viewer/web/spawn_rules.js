@@ -19,6 +19,7 @@ const MELD_MISSIONS = new Set(['Abduction', 'Crash', 'LandedUFO']);
 const LANDING_LEFT = new Set(['CovertOpsExtraction', 'CaptureAndHold', 'Special/Rescue', 'Special/Extraction']);
 
 const key = m => (m?.type === 'Special' ? ({ 'Council bomb': 'Special/Bomb', 'Council rescue': 'Special/Rescue', 'Council extraction': 'Special/Extraction', 'Council assault': 'Special/Assault' }[m.label] ?? 'Special') : m?.type ?? '');
+// a name's last part, as dom_words.js' short, but '' for a missing path (null or undefined)
 const short = path => String(path ?? '').split('.').pop();
 
 /** A wave use's words: "destination of XComWaveSystem_0 set 1, wave 2, group 1 (3rd)". */

@@ -10,6 +10,7 @@
 // Locations are game units (x, y, z up), rotations rotator units (pitch, yaw, roll).
 import { QUARTER, TILE } from './constants.js';
 import { catalogued } from './looks.js';
+import { plural } from './dom_words.js';
 
 // The looks a wall is drawn in: each a donor (one of the game's fracturing walls, placed in a map of the base game), the
 // mesh its actor holds, and what it looks like in words. M1 has one, the Bar's inside wall (frac_wall.RECIPE).
@@ -46,7 +47,6 @@ export const SWEEP = { cover: [44, 60], high: [88, 104], walk: 64, sight: 96, ha
 const round = (v, step) => step * Math.round(v / step);
 const sign = v => (v < 0 ? -1 : 1);
 const tidy = v => { const r = Math.round(v * 1e4) / 1e4; return r === 0 ? 0 : r; };
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // ---- heights
 // The Bar's inside wall's numbers as wallSpec gives them (its two storeys, the donor's height).
