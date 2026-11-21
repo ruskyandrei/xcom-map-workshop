@@ -1,5 +1,6 @@
-"""The suite runner (tools/run_tests.py): a selection that runs nothing fails, skips are counted by reason, the logs'
-lines carry their times and --times reads them, and --help lists every environment variable the tools read."""
+"""The suite runner (tools/run_tests.py): a selection that runs nothing fails, -k given again adds to the selection,
+skips are counted by reason, the logs' lines carry their times and --times reads them, and --help lists every
+environment variable the tools read."""
 import contextlib
 import io
 from pathlib import Path
@@ -52,15 +53,33 @@ class Runner(unittest.TestCase):
 
     def test_a_node_selection_that_matches_no_file_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
-            r = run_tests.node_suite('no-such-node-test-name', Path(tmp))
+            r = run_tests.node_suite(['no-such-node-test-name'], Path(tmp))
         self.assertFalse(r['passed'])
         self.assertIn('no test file matched', r['line'])
 
     def test_a_python_selection_that_matches_nothing_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
-            r = run_tests.python_suite('repo', 'no_such_test_name_anywhere', Path(tmp))
+            r = run_tests.python_suite('repo', ['no_such_test_name_anywhere'], Path(tmp))
         self.assertFalse(r['passed'])
         self.assertEqual(r['line'], 'no test matched -k no_such_test_name_anywhere')
+
+    def test_k_given_twice_runs_the_tests_of_both(self):
+        # follow-up 4.5: -k given twice kept only the last pattern, so half of what was asked ran, silently
+        first, second = 'test_skips_are_counted_by_reason', 'test_a_node_logs_files_are_its_tests'
+        with tempfile.TemporaryDirectory() as tmp:
+            with contextlib.redirect_stdout(io.StringIO()):
+                code = run_tests.main(['repo', '-k', first, '-k', second, '--log', tmp])
+            log = run_tests.unstamped((Path(tmp) / 'repo.log').read_text(encoding='utf-8'))
+        self.assertEqual(code, 0)
+        self.assertIn(first, log)
+        self.assertIn(second, log)
+        self.assertIn('Ran 2 tests', log)
+
+    def test_node_files_matching_any_pattern(self):
+        names = [f.name for f in run_tests.node_files(['twin_constants', 'shared_cases'])]
+        self.assertEqual(names, ['shared_cases_test.mjs', 'twin_constants_test.mjs'])
+        self.assertEqual(run_tests.node_files(['no-such-node-test-name']), [])
+        self.assertEqual(len(run_tests.node_files(None)), len(list((REPO / 'tools/viewer/tests').glob('*_test.mjs'))))
 
 
 class Times(unittest.TestCase):
