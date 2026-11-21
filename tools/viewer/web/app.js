@@ -9,20 +9,19 @@ import { createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
 import { createSetupDialog, setupApi } from './setup.js';
 import { viewHeight } from './effects_preview.js';
-import { recordName } from './effects_rules.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { fromOf, isStream, sourceKey } from './piece_records.js';
-import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, buildingMeta, cachePrefix,
-         coverDrag, data, effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool,
-         groupIndex, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty,
-         lightsOn, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects,
-         pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots, selected,
-         setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix,
-         setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue,
-         setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue,
+import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, cachePrefix, coverDrag, data,
+         effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, lastLightSync,
+         leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
+         lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects, pickBox, pickDrag,
+         pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots, selected, setActiveMapId,
+         setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setData,
+         setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue, setLighting,
+         setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue,
          setMergedBuildings, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid,
          setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setReachKey, setReachShown,
          setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnPlacing,
@@ -61,7 +60,7 @@ import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
 import { checkHub, editChangedNow, runHub } from './edit_hub.js';
-import { createSelection, selectionWords } from './selection.js';
+import { createSelection, rootName, selectionWords } from './selection.js';
 import { createViews } from './views.js';
 import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
@@ -258,22 +257,6 @@ const { dragHint, flashHint, restingHint } = createHints({
 const { BUSY_PIECES, buildRoots, busy, busyPaint, busyStart, nextFrame } = createBusy({
   $, buildRoot });
 
-// What a selected root is called in a list: a piece by its mesh, a light by its actor.
-const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
-  : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
-  : short(data.meshes[r.userData.source.mesh].name));
-// The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
-const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
-// The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
-function copyable() {
-  return gizmo.selection().filter(r => !r.userData.volume).filter(r => (r.userData.light ? !lightViewOnly(r.userData.source)
-    : r.userData.effect ? !effectViewOnly(r.userData.source, 'copy') || !effectViewOnly(r.userData.source, 'delete')
-    : !r.userData.source.hidden && !r.userData.source.environment));
-}
-// (Align lines up pieces only: lights and effects have no box of their own to line up)
-const copyablePieces = () => copyable().filter(r => !r.userData.light && !r.userData.effect);
-// What a group can hold of the selection: pieces, lights that can be edited, and the buildings picked with them.
-const groupables = () => [...copyable(), ...selectedBoxes()];
 function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(true); runHub('scene'); }
 // The pieces and effects of other maps read as templates (library_templates.js): their records read, a
 // piece's or an effect's template, the templates a project's records name, and what such a piece costs and
@@ -301,14 +284,16 @@ const { chosenStorey, floorData, floorSupportOf, levelButton, setLevelSnap } = c
 // piece panel's group section, and the groups changed (each change one undo step).
 const { addToGroup, changeGroups, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
         selectionGroup, ungroup } = createGroups({
-  $, flashHint, gizmo, groupables, groupChip, highlight, isStream, plural,
-  // (made with the selection, further down: called through, since it is not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep) });
+  $, flashHint, gizmo, groupChip, highlight, isStream, plural,
+  // (made with the selection, further down: called through, since they are not made yet while this runs)
+  groupables: () => groupables(), select: (id, add, keep) => select(id, add, keep) });
 
 // Align (align.js): the others of the selection lined up with a target, the piece panel's Align section and
 // its white box on the target.
 const { align, alignPanel, saveAlignPrefs } = createAlign({
-  $, copyablePieces, flashHint, gizmo, liveGroup, memberOf, plural, short, world,
+  $, flashHint, gizmo, liveGroup, memberOf, plural, short, world,
+  // (made with the selection, further down: called through, since it is not made yet while this runs)
+  copyablePieces: () => copyablePieces(),
   // (made with the clipboard, further down: called through, since it is not made yet while this runs)
   keepRecipe: (move, parts) => keepRecipe(move, parts) });
 
@@ -340,7 +325,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
         setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
         withStorableCone } = createLightsWiring({
-  $, actorPose, baseMatrix, camera, copyable, copyText, editChanged, field, flashHint, gizmo, HANDLE_PICK, highlight,
+  $, actorPose, baseMatrix, camera, copyText, editChanged, field, flashHint, gizmo, HANDLE_PICK, highlight,
   isStream, ladderMarks, lightLayer, pickables, PL, plural, projector, renderer, restingHint, short, showPop,
   sun, text, world,
   // (made further down: called through, since they are not made yet while this runs)
@@ -350,7 +335,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
   // (made with Clear map, further down: called through)
   pointOutside: (x, y) => pointOutside(x, y),
   // (made with the selection, further down: called through)
-  select: (id, add, keep) => select(id, add, keep),
+  copyable: () => copyable(), select: (id, add, keep) => select(id, add, keep),
   // (made with the Spawns, Landing zones and Buildings views, further down: called through)
   setSpawnsShown: on => setSpawnsShown(on), setVolumesShown: on => setVolumesShown(on),
   setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(),
@@ -446,13 +431,13 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
 // Prefabs tab placed as a paste is.
 const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, prefabRecords, savePrefab,
         showPrefabDialog } = createPrefabPlace({
-  $, BUSY_PIECES, PL, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, copyable, effectTemplate,
+  $, BUSY_PIECES, PL, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, effectTemplate,
   flashHint, fromOf, ghostEdges, ghostLine, gltfLoader, isForeignTarget, isStream, libraryTemplate, lightPose,
   lightsBlocked, madeShape, memberOf, movedMatrix, nextFrame, physicalBox, plural, readEffectRecords,
   readLibraryRecords, recipeLight, recordId, rootName, saveBuilder, selectionGroup, short, templateFor, text, track,
   withStorableCone,
-  // (made with the selection, further down: called through, since it is not made yet while this runs)
-  gridNow: root => gridNow(root),
+  // (made with the selection, further down: called through, since they are not made yet while this runs)
+  copyable: () => copyable(), gridNow: root => gridNow(root),
   // (made with the cover blocks, the Effects view and the clipboard, further down: called through, since they are not
   // made yet while this runs)
   boxMatrix: b => boxMatrix(b), coverOf: entity => coverOf(entity),
@@ -703,13 +688,14 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
   deleteSelection: quiet => deleteSelection(quiet),
   // (made with the cutaway, below: called through, since it is not made yet while this runs)
   floorOptions: () => floorOptions() });
-// The selection (selection.js): select and the piece panel it fills, a cover piece's too, and the selected piece's
-// marks (its highlight, its ladder's ends, its grid chip); after the Buildings view, the last factory whose functions
-// it calls (nothing of it runs as the page loads).
-const { gridNow, ladderNow, refreshHighlight, select, selectActors } = createSelection({
-  $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyable, copyText, editChanged, field, flagContract,
+// The selection (selection.js): select and the piece panel it fills, a cover piece's too, the selected piece's marks
+// (its highlight, its ladder's ends, its grid chip), and the selection's pieces that can be copied, lined up or
+// grouped; after the Buildings view, the last factory whose functions it calls (nothing of it runs as the page loads).
+const { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshHighlight, select, selectActors,
+        selectedBoxes } = createSelection({
+  $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyText, editChanged, effectViewOnly, field, flagContract,
   flagSource, flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream,
-  ladderMarks, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName,
+  ladderMarks, lightViewOnly, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf,
   setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text, tileCorner,
   // (made with the camera, further down: called through, since it is not made yet while this runs)
   frame: root => frame(root) });

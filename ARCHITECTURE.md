@@ -101,6 +101,11 @@ The map's buildings' records are its too, at the start of its factory: every bui
 (`allBuildings`: the map's as exported where unchanged, the project's and the map's changed ones by their boxes),
 which of the map's own can be edited, which the project changed or deleted (`mapEdits`), and what the project saves
 of them (`savedBuildings`).
+The selection is [`selection.js`](tools/viewer/web/selection.js)'s: `select` and the piece panel it fills for what is
+picked, the selected piece's marks (its highlight, a ladder's ends, its grid chip), the pieces an actor name stands
+for, and the sets the gizmo's selection gives (the pieces that can be copied or deleted, `copyable`; those Align lines
+up; the floor boxes selected with pieces; what a group can hold); what some roots are in words (`selectionWords`) and
+what a selected root is called in a list (`rootName`) are plain exports at its top.
 Switching between the views (the normal view; after a view or a Normal button's switch changed, whether lights are
 drawn and what stays selected; the views' buttons) is [`views.js`](tools/viewer/web/views.js)'s; each view's own
 switch is its module's. What every area's drag handles share (how near the mouse a handle is picked, a game point as a
@@ -381,7 +386,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The cutaway, the tile grid, the Floor tiles overlay, the Floor picker's buttons | [`cutaway.js`](tools/viewer/web/cutaway.js) (`createCutaway`). What is pure about them (the visible bounds, a footprint, the tiles around it, Interior's planes, the overlay's tiles) goes in [`view_layout.js`](tools/viewer/web/view_layout.js), and a piece's listings in [`floor_listings.js`](tools/viewer/web/floor_listings.js). |
 | The building floors a piece is listed on (the project's buildings', the map's own), the key of the pieces' edits | [`floor_listings.js`](tools/viewer/web/floor_listings.js) (`createFloorListings`). The rules (`touchedFloors`, `ruleListing`, `copyFloors`, `floorAt`, `carriedListing`, `sourceFloorMatch`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests, and the Build's side in [`buildings.py`](tools/bake/buildings.py). |
 | Floor pieces, Level snap and its button, the Floor picker's floor under a point | [`level_snap.js`](tools/viewer/web/level_snap.js) (`createLevelSnap`). The floor rules (`ownedFloors`, `classifyFloors`, `floorStamps`, `buildingWithFloor`, `storeyHeight`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests. |
-| The selection: a piece, light, building's box or effect picked (or nothing), the views stepping aside for it, the piece panel filled for it (a cover block's or invisible floor's too), the selected piece's highlight, a ladder's ends and its chip, the grid chip of a piece the recipe snap holds, what some roots are in words, the pieces an actor name stands for selected and framed | [`selection.js`](tools/viewer/web/selection.js) (`createSelection`; `selectionWords` a plain export). An area's own part of the piece panel (its section shown or hidden for what is picked, its panel, a chip) is the area's module's, registered with one of the edit hub's select runs ([`edit_hub.js`](tools/viewer/web/edit_hub.js)), never called by name from `select`. |
+| The selection: a piece, light, building's box or effect picked (or nothing), the views stepping aside for it, the piece panel filled for it (a cover block's or invisible floor's too), the selected piece's highlight, a ladder's ends and its chip, the grid chip of a piece the recipe snap holds, what some roots are in words, what a selected root is called in a list, the pieces an actor name stands for selected and framed, the selection's pieces that can be copied or deleted, those Align lines up, the floor boxes selected with pieces and what a group can hold of the selection | [`selection.js`](tools/viewer/web/selection.js) (`createSelection`, which gives back `copyable`, `copyablePieces`, `selectedBoxes` and `groupables`; `selectionWords` and `rootName` plain exports). An area's own part of the piece panel (its section shown or hidden for what is picked, its panel, a chip) is the area's module's, registered with one of the edit hub's select runs ([`edit_hub.js`](tools/viewer/web/edit_hub.js)), never called by name from `select`. |
 | The piece panel's pose fields and the edit status (what has changed and whether it is saved, Undo, Redo, Reset, Reset all) after an edit | [`piece_status.js`](tools/viewer/web/piece_status.js) (`createPieceStatus`), the edit hub's `piece-status` refresh. The count of changes is [`document_state.js`](tools/viewer/web/document_state.js)'s (`changes`). |
 | The camera (framing, the keys that move and turn it, the look-drag, the wheel, the speeds), the gizmo's mode buttons, the pivot and snap, a key of the editor | [`navigation.js`](tools/viewer/web/navigation.js) (`createNavigation`). A key calls the function of the area that owns what it does, given to the factory; the help panel in `index.html` lists the keys for users. |
 | Delete, Reset piece, Reset all, a large step under the busy mark | [`delete_reset.js`](tools/viewer/web/delete_reset.js) (`createDeleteReset`). |
@@ -623,7 +628,9 @@ where there is one.
   functions must be called through: the scene's pieces before the gizmo, the first code given their functions; Delete
   and Reset after Break and Repair, the last factory whose functions they call; the selection after the Buildings
   view, the last factory whose functions it calls, so the eight factories made before it that are given `select`
-  (and the two given `gridNow`) are given functions that call them; the views' switching after the selection, so the
+  (and the two given `gridNow`, and the four given the sets of the selection: the groups `groupables`, Align
+  `copyablePieces`, the Lights view and prefabs saved and placed `copyable`) are given functions that call them; the
+  views' switching after the selection, so the
   five views made before it are given `syncLights` or `lightButton` as functions that call them; the loading overlay
   as soon as the words it takes
   are made, so that only the scene's pieces, made before, are given `loadingState` as a function that calls it. What is
