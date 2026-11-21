@@ -155,7 +155,7 @@ const volumeLayer = new THREE.Group();
 // (effectsOn, pickedEffect, effectsDirty, effectMarkers, normalEffects: editor_state.js)
 // the Spawns view (editor spawns plan, SP3; spawns_wiring.js): only its markers are picked; the Normal button's switch
 // (normalSpawns, remembered) draws and picks them with pieces
-// (spawnsOn, normalSpawns, spawnLayerReady: editor_state.js)
+// (spawnsOn, normalSpawns: editor_state.js; whether its layer is made: spawns_wiring.js)
 // (the Wave preview's player, wavePlayer: editor_state.js)
 world.add(volumeLayer);
 const cutMaterials = new Map();
@@ -637,9 +637,9 @@ const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, 
         missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker,
         placeMissionGizmo, placeSpawn, refreshSpawnMarkers, resetBaseSpawn, scaleSpawnMarkers, setMissionMoves,
         setNormalSpawns, setPickedSpawn, setSpawnRule, setSpawnsShown, showSpawn, spawnAddEntries, spawnAt, spawnBoxNow,
-        spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnMovable, spawnPanel,
-        spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects, syncSpawnFilters,
-        syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
+        spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnLayerReady,
+        spawnMovable, spawnPanel, spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects,
+        syncSpawnFilters, syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
   $, camera, controls, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission, headerMissions, isStream,
   landingLayer, movedMatrix, pick, plural, projectsAvailable, rayAt, renderer, restingHint,
   setLightsShown, short, text, tileCorner, world,
@@ -720,7 +720,8 @@ const { gridNow, ladderNow, refreshHighlight, select, selectActors } = createSel
 // it runs as the page loads), so the five views made before it are given its functions as functions that call them.
 const { lightButton, setNormalView, syncLights } = createViews({
   $, gizmo, refreshLightShapes, refreshLightVisibility, refreshPickBox, refreshVolumes, select, setEffectsShown,
-  setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnPanel, spawnsShown });
+  setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnLayerReady, spawnPanel,
+  spawnsShown });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
 const { kindButton, selectKind } = createSelectKind({

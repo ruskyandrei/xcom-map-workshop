@@ -468,7 +468,9 @@ where there is one.
   `++copySerial`; `nextChooseToken()`).
 
   What one area alone uses lives in that area's module, inside its factory when it is made by one (the document
-  session's `navigating`). What several areas use lives in [`editor_state.js`](tools/viewer/web/editor_state.js):
+  session's `navigating`); a module made after it that reads it is given a getter the factory returns (the Spawns
+  view's `spawnLayerReady`, which the views' switching reads), never a copy of the value. What several areas use lives
+  in [`editor_state.js`](tools/viewer/web/editor_state.js):
   - the scene (`data`) and its roots, the selection, the project open, the groups, the buildings, the map's size, the
     cleared map's state and its landing zones, the project's missions, picture and spawn rules;
   - the server's list of maps (`mapCatalogue`) and the map browser made from it (`mapBrowser`), which app.js's `open`
@@ -497,7 +499,7 @@ where there is one.
     switch, the Wave preview's player, the likeness's switch, thinning and count), and what it reads of other areas:
     groups' pieces now (`liveCache`), box select's middles, the picked spawn marker, the pointer and its tips' redraw;
   - what of the Spawns view they (and the Clear map window and the Buildings view's handles on a no-spawn volume)
-    read or set: the Normal button's spawn switch, whether its layer is made, the families shown, the zone it
+    read or set: the Normal button's spawn switch, the families shown, the zone it
     describes, the install's spawn rules, the entries drawn, the project's moves and edits of spawn points and mission
     objects (`missionMoves`) with their drag, and the kind being placed; and what it reads of the header's mission
     picker (`missionIndex`);
