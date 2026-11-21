@@ -327,3 +327,18 @@ class LanesPart:
         self.staged = {lane: made['edit'][lane] for lane in edit}
         maps = {c['donor']['package'] for lane in edit.values() for c in lane.get('copies', []) if c.get('donor')}
         self.donors = [r for r in (self.report or {}).get('donors', []) if r['map'] in maps]
+
+
+def made_digest(out, name):
+    """One SHA-256 of what a made piece's build gives (frac_slab.build's, ground.build's): its mesh as written, its
+    collision, its fragments' boxes, its lightmap rectangle, and its mesh's name `name` (the old numbers' tests pin
+    these, recorded on the commit the free form started from)."""
+    import hashlib
+    import gen_mesh
+    h = hashlib.sha256()
+    h.update(gen_mesh.write(out['mesh'], 0))
+    h.update(repr(out.get('solids')).encode())
+    h.update(repr(out.get('fragments')).encode())
+    h.update(repr(out.get('lightmapRect')).encode())
+    h.update(name.encode())
+    return h.hexdigest()
