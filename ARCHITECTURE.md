@@ -203,6 +203,9 @@ the framing of a piece or the map, the arrow keys and WASD with Q and E, the loo
 to the point under the cursor, View options' camera speeds), the gizmo's buttons with the pivot and snap (kept up after
 each edit by the edit hub's `tools` refresh), and the editor's keys, each calling the area that owns what it does.
 The header's menus (one open at a time, a press elsewhere closing it) are [`popups.js`](tools/viewer/web/popups.js)'s.
+Every dialog's keyboard (Tab kept going round its controls, the focus given back when it closes) and whether a dialog
+or the made pieces' look picker is open (`modalOpen`, which the editor's keys and the windows that open from a menu ask
+before they act) are [`modal.js`](tools/viewer/web/modal.js)'s.
 The Project menu (drawn afresh as it opens, with the projects this browser opened or saved last) and the windows its
 items open (the file dialog, the project manager, Game maps, Cache everything) are
 [`project_menu.js`](tools/viewer/web/project_menu.js)'s; the windows themselves are made by app.js with their
@@ -391,6 +394,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The camera (framing, the keys that move and turn it, the look-drag, the wheel, the speeds), the gizmo's mode buttons, the pivot and snap, a key of the editor | [`navigation.js`](tools/viewer/web/navigation.js) (`createNavigation`). A key calls the function of the area that owns what it does, given to the factory; the help panel in `index.html` lists the keys for users. |
 | Delete, Reset piece, Reset all, a large step under the busy mark | [`delete_reset.js`](tools/viewer/web/delete_reset.js) (`createDeleteReset`). |
 | A header menu (a button with `data-pop` and its menu) | `index.html`; [`popups.js`](tools/viewer/web/popups.js) (`createPopups`) opens and closes it, and draws a menu afresh as it opens where the menu needs it. |
+| A dialog's keyboard (Tab going round its controls, its own Tab order, the focus given back), whether a dialog or the look picker is open | [`modal.js`](tools/viewer/web/modal.js): every `.modal` of `index.html` gets it once (`holdModals`); a dialog's own order is `tabOrder`; the editor's keys and windows ask `modalOpen` before they act. A dialog's own keys (Escape, its shortcuts) are its module's. |
 | The Project menu drawn as it opens, the recent projects, a window its items open (the file dialog, the project manager, Game maps, Cache everything) | [`project_menu.js`](tools/viewer/web/project_menu.js) (`createProjectMenu`). A window's own dialog is its module's ([`project_files.js`](tools/viewer/web/project_files.js), [`manager.js`](tools/viewer/web/manager.js), [`gamemaps.js`](tools/viewer/web/gamemaps.js), [`precache.js`](tools/viewer/web/precache.js)), made by app.js with its elements. |
 | The map list, the map browser's making and what choosing a map does, the Map menu's button and Change map | [`map_menu.js`](tools/viewer/web/map_menu.js) (`createMapMenu`). The browser's dialog is [`map_browser.js`](tools/viewer/web/map_browser.js); the list and the browser are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`mapCatalogue`, `mapBrowser`). |
 | The loading overlay's words and bar, a JSON file read with its progress | [`loading.js`](tools/viewer/web/loading.js) (`createLoading`). |
@@ -518,7 +522,8 @@ where there is one.
     boxes, each building's name and kind (`buildingMeta`), the map's own buildings selected or picked to be read, the
     view's tool and a drag under way, and box select's tool, box, drag and what it would take;
   - the made pieces' look picker (`lookPicker`, made with the Add panel's piece browser) and the eyedropper
-    (`lookPicking`), which app.js's dialogs' check, pointer handlers and draw loop, the keys and the test hooks read;
+    (`lookPicking`), which modal.js's check of an open dialog (`modalOpen`), app.js's pointer handlers and draw loop,
+    the keys and the test hooks read;
   - the Build menu's tool being drawn (`buildTool`) and the made piece being drawn (`wallDrawing`), which the made
     pieces' handles, app.js's pointer handlers, the keys and the test hooks read;
   - a made piece's handle being dragged (`wallDrag`), the opening whose handle was last touched (`wallFocus`: the

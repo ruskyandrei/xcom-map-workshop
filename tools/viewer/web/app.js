@@ -73,7 +73,7 @@ import { createPopups } from './popups.js';
 import { createMapMenu } from './map_menu.js';
 import { createProjectMenu } from './project_menu.js';
 import { createPieceStatus } from './piece_status.js';
-import { anyModal, holdModals, releaseAfterChange } from './modal.js';
+import { holdModals, modalOpen, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
 import { copyText, field, plural, segButton, segmented, short, text } from './dom_words.js';
@@ -89,8 +89,6 @@ const $ = id => document.getElementById(id);
 // (modal.js; put in first, so the build window's own key catcher doesn't keep Tab from it)
 holdModals();
 releaseAfterChange();     // (selects, tick boxes and sliders let the shortcuts work once changed: review finding 33)
-// Whether a dialog (or the look picker) is open: the editor's shortcuts take no keys then, and no other window opens.
-function modalOpen() { return anyModal() || Boolean(lookPicker?.isOpen); }
 const documentWrites = orderedWrites();
 const viewport = $('viewport');
 const renderer = new THREE.WebGLRenderer({ antialias: true });

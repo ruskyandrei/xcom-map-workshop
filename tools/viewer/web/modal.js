@@ -2,7 +2,8 @@
 // round its own controls, from the last back to the first; a dialog that opens without taking the focus is given it;
 // and when it closes the focus goes back to where it was. Each dialog keeps its own keys (its module's listener, for
 // Escape and its shortcuts); one with an order of its own for Tab gives it here (tabOrder). The editor's shortcuts
-// ask anyModal() and take no keys while a dialog is open (app.js modalOpen).
+// ask modalOpen() (a dialog open, or the made pieces' look picker) and take no keys while one is.
+import { lookPicker } from './editor_state.js';
 
 const orders = new WeakMap();      // a dialog's root -> (event, stops) => the control Tab goes to (undefined: round)
 
@@ -27,6 +28,8 @@ function topModal(doc = document) {
 }
 /** Whether a dialog is open. */
 export const anyModal = (doc = document) => topModal(doc) !== null;
+// Whether a dialog (or the look picker) is open: the editor's shortcuts take no keys then, and no other window opens.
+export function modalOpen() { return anyModal() || Boolean(lookPicker?.isOpen); }
 
 const shown = el => Boolean(el?.isConnected) && el.getClientRects().length > 0 && !el.closest('[hidden]');
 
