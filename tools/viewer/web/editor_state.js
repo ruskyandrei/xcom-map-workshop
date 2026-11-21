@@ -437,3 +437,8 @@ export let cutKey = '', tileKey = '', floorTileLayer = null;
 export function setCutKey(next) { cutKey = next; }
 export function setTileKey(next) { tileKey = next; }
 export function setFloorTileLayer(next) { floorTileLayer = next; }
+
+// Prepare (prepare.js): what is wrong with the open map's export for lights and builds (families.json's exportProblem;
+// app.js's scene start sets it as the map opens), or null: a build or a play then asks for the map to be prepared.
+export let exportProblem = null;
+export function setExportProblem(next) { exportProblem = next; }

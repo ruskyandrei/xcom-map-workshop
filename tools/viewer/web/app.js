@@ -23,8 +23,8 @@ import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, buildings, buildTool, cachePrefix, cleared, clearKeepsOutside, clipboard, copySerial, coverDrag,
-         cutKey, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, eventMemo, families,
-         floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups,
+         cutKey, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, eventMemo, exportProblem,
+         families, floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups,
          handleDefs, hintTimer, landingLines, landingZones, lastBuild, lastClearMs, lastLightSync, leaving, levelSnap,
          library, libraryScope, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown,
          likenessCount, likenessOn, likenessThin, lineCollision, lineCollisionFailed, loadErrorCount, lookPicker,
@@ -33,17 +33,17 @@ import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, 
          placing, prefabParameter, prefabTab, project, projectMissions, projectSpawnRules, reachNow, reachShown,
          rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
          setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn,
-         setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors, setLandingLines,
-         setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLibrary, setLibraryScopeValue, setLighting,
-         setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue, setLiveCache, setLoadErrorCount,
-         setLookPicker, setLooksReady, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
-         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickBoxValue, setPickedEffect, setPickedSpawnValue,
-         setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions, setProjectPicture,
-         setProjectSpawnRules, setReachKey, setReachShown, setSelected, setSnapModeValue, setSpawnFilters,
-         setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStartingCache, setTileKey, setTipDirty, setWallFocus,
-         setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData,
-         spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag,
-         wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
+         setEventMemo, setExportProblem, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors,
+         setLandingLines, setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLibrary,
+         setLibraryScopeValue, setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue,
+         setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings, setNormalEffectsValue,
+         setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickBoxValue, setPickedEffect,
+         setPickedSpawnValue, setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
+         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSelected, setSnapModeValue,
+         setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStartingCache, setTileKey, setTipDirty,
+         setWallFocus, setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing,
+         spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
+         volumeTool, wallDrag, wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -73,6 +73,7 @@ import { createCutaway } from './cutaway.js';
 import { createFloorListings } from './floor_listings.js';
 import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
+import { createPrepare } from './prepare.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -1060,80 +1061,11 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, as
   drawEffectShape: () => drawEffectShape(), effectNow: (root, r) => effectNow(root, r), effectsShown: () => effectsShown(),
   effectValuesEditable: root => effectValuesEditable(root), setEffectsShown: on => setEffectsShown(on),
   setEffectValues: (root, values) => setEffectValues(root, values) });
-// Prepare: an export older than what lights and builds need (families.json's exportProblem) exported again (POST
-// /maps/<id>/export with prepare), then the page reopened. A dialog in the middle of the window asks: when the map
-// opens, before a build or a play of a project, and from a build that failed for want of it (its Prepare the map
-// button, which starts it at once). Later leaves a banner with the same offer. 'update': the map's export is older
-// than this editor's exporter, so it is prepared again at once when it opens (an update's drawing fixes, export 19).
-let exportProblem = null, preparing = false;
-const prepareWhy = {
-  open: 'is older than what editing lights and building need',
-  build: 'is older than a build needs, so the project can\'t be built yet',
-  failed: 'is older than the build needs, which is why it stopped',
-};
-function showPrepare(why = 'open', start = false) {
-  const els = { root: $('prepareModal'), title: $('prepareTitle'), note: $('prepareNote'), bar: $('prepareBar'), status: $('prepareStatus'),
-                ok: $('prepareOk'), later: $('prepareLater'), close: $('prepareClose') };
-  const label = mapLabel(activeMapId);
-  const hide = () => { els.root.hidden = true; };
-  const update = why === 'update';
-  const later = () => {
-    if (preparing) return;
-    hide();
-    if (update) banner(`Map schema updated: ${label} wasn't re-exported, so some pieces may draw wrong.`,
-                       [['Re-export', () => showPrepare('update')]]);
-    else banner(`${label}'s copy in the editor is older than what editing lights and building need. Prepare it again (about half a minute; projects and edits are kept).`,
-                [['Prepare now', () => showPrepare('open')]]);
-  };
-  const progress = fraction => {
-    els.bar.hidden = false;
-    els.bar.className = `buildbar${fraction == null ? ' indeterminate' : ''}`;
-    els.bar.firstElementChild.style.width = `${(100 * (fraction ?? 0.3)).toFixed(1)}%`;
-  };
-  async function run() {
-    if (preparing) return;
-    preparing = true;
-    els.ok.disabled = true; els.ok.textContent = update ? 'Re-exporting…' : 'Preparing…'; els.later.hidden = els.close.hidden = true;
-    const reading = update ? 'Re-exporting' : 'Reading the map from the game again';
-    els.status.textContent = `${reading}: about half a minute…`;
-    progress(null);
-    const at = `/maps/${encodeURIComponent(activeMapId)}/export`;
-    try {
-      const started = await fetch(at, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prepare: true }) });
-      if (!started.ok) throw Error((await started.json().catch(() => ({}))).error || `the server said ${started.status}`);
-      for (;;) {
-        await new Promise(done => setTimeout(done, 1500));
-        const s = await (await fetch(`${at}.json`)).json();
-        if (s.state === 'failed') throw Error(s.error || 'the export failed');
-        if (s.state === 'ready') { els.status.textContent = update ? 'Re-exported: opening it…' : 'Prepared: opening it again…'; progress(1); location.reload(); return; }
-        if (s.progress) { progress(s.progress.fraction); els.status.textContent = `${reading}: ${Math.round(s.progress.fraction * 100)}%…`; }
-      }
-    } catch (e) {
-      preparing = false;
-      els.bar.hidden = true;
-      els.status.textContent = `${label} could not be ${update ? 're-exported' : 'prepared'}: ${e.message}`;
-      els.ok.disabled = false; els.ok.textContent = 'Try again'; els.later.hidden = els.close.hidden = false;
-    }
-  }
-  els.title.textContent = update ? label : `${label} needs preparing again`;
-  els.note.textContent = update
-    ? 'Map schema updated. Re-exporting.'
-    : `The editor's copy of ${label} ${prepareWhy[why] ?? prepareWhy.open}. Preparing reads the map from the game again, which takes about half a minute, and opens it afresh. Your projects are kept, and so are edits not saved yet.`;
-  els.ok.textContent = update ? 'Re-export' : 'Prepare now'; els.ok.disabled = false;
-  els.later.hidden = els.close.hidden = false;
-  els.bar.hidden = true; els.status.textContent = '';
-  els.ok.onclick = run; els.later.onclick = els.close.onclick = later;
-  els.root.onkeydown = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); later(); } };
-  els.root.hidden = false;
-  showPop(null);
-  if (start) run(); else setTimeout(() => els.ok.focus(), 0);
-}
-// A build or a play of a project waits for the map to be prepared: true when the dialog was shown instead.
-function needsPrepare() {
-  if (!exportProblem) return false;
-  showPrepare('build');
-  return true;
-}
+// Prepare (prepare.js): the dialog that exports the map again, and a build or a play waiting for it.
+const { needsPrepare, showPrepare } = createPrepare({
+  $, showPop,
+  // (made further down: called through, since they are not made yet while this runs)
+  banner: (message, actions, options) => banner(message, actions, options), mapLabel: id => mapLabel(id) });
 
 // Projects: the edits saved, reopened and recovered (first-editor plan E1; project.js, research/editor-contracts.md).
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
@@ -1976,7 +1908,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // An export older than what lights and Builds need (export 18 and its glowing pieces): prepare it again.
   // An export older than the server's exporter (the catalogue's outdated: an update since the map was prepared) is
   // prepared again at once, so the update's fixes reach it (its dialog says so; a failure leaves the offer in a banner).
-  exportProblem = projectsAvailable() ? familyTable?.exportProblem ?? null : null;
+  setExportProblem(projectsAvailable() ? familyTable?.exportProblem ?? null : null);
   const outdated = Boolean(mapCatalogue?.maps?.find(m => m.id === activeMapId)?.outdated) && data.scope === 'map' && !data.preview;
   // once a session per map: should it come back still outdated, the dialog waits for a click rather than looping
   const tried = `workshop.updated.${activeMapId}`;

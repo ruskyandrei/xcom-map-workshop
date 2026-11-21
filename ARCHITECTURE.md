@@ -154,6 +154,9 @@ Floor pieces and Level snap are [`level_snap.js`](tools/viewer/web/level_snap.js
 saved floor tiles and a floor piece's support, Level snap and its button, and the Floor picker's floor under a point.
 Delete, Reset piece and Reset all are [`delete_reset.js`](tools/viewer/web/delete_reset.js)'s, each one undo step,
 with a large step put under the busy mark.
+Prepare is [`prepare.js`](tools/viewer/web/prepare.js)'s: the dialog that exports an old map again (when it opens,
+before a build or a play, from a build that failed for want of it), Later's banner, and a build or a play waiting for
+it.
 `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -316,6 +319,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The building floors a piece is listed on (the project's buildings', the map's own), the key of the pieces' edits | [`floor_listings.js`](tools/viewer/web/floor_listings.js) (`createFloorListings`). The rules (`touchedFloors`, `ruleListing`, `copyFloors`, `floorAt`, `carriedListing`, `sourceFloorMatch`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests, and the Build's side in [`buildings.py`](tools/bake/buildings.py). |
 | Floor pieces, Level snap and its button, the Floor picker's floor under a point | [`level_snap.js`](tools/viewer/web/level_snap.js) (`createLevelSnap`). The floor rules (`ownedFloors`, `classifyFloors`, `floorStamps`, `buildingWithFloor`, `storeyHeight`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests. |
 | Delete, Reset piece, Reset all, a large step under the busy mark | [`delete_reset.js`](tools/viewer/web/delete_reset.js) (`createDeleteReset`). |
+| Prepare: the dialog that exports the map again, a build or a play waiting for it | [`prepare.js`](tools/viewer/web/prepare.js) (`createPrepare`), and the server's side in [`exports.py`](tools/viewer/exports.py). |
 | Copy, paste and placing: a clip of the selection, a paste, the preview that follows the cursor and where a click places it, the Add panel shown and its tab, an entry of it chosen and placed, a copy dragged off with Shift | [`clipboard.js`](tools/viewer/web/clipboard.js) (`createClipboard`). A copied thing's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`optionsOf`, `stateOfRoot`), a group's in [`project.js`](tools/viewer/web/project.js), the pose rule's snap in [`gizmo.js`](tools/viewer/web/gizmo.js) (`recipeMove`), and a floor's height under a point in [`floors.js`](tools/viewer/web/floors.js) (`levelHeight`, `floorUnder`). |
 | A piece, effect, sound or lens flare of another map read as a template: its record read, its template made, the templates a project's records name, what such a piece costs and says | [`library_templates.js`](tools/viewer/web/library_templates.js) (`createLibraryTemplates`). The records read and the templates made are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`libraryRecords`, `effectTemplates`, `foreignEffects`, `foreignTemplates`, `donorHashes`); the Add panel's All maps is [`library.js`](tools/viewer/web/library.js), and the server's side [`library.py`](tools/viewer/library.py). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
@@ -453,7 +457,9 @@ where there is one.
     (`startingCache`), the last clear's time (`lastClearMs`) and the landing zone's pieces as the server's families name
     them (`landingActors`), which app.js's scene start, its map families and the test hooks read or set;
   - what the cutaway last followed (`cutKey`), what the tile grid was drawn round (`tileKey`) and the Floor tiles
-    overlay (`floorTileLayer`), which app.js's edit hub, View options, draw loop and test hooks read or set.
+    overlay (`floorTileLayer`), which app.js's edit hub, View options, draw loop and test hooks read or set;
+  - what is wrong with the open map's export for lights and builds (`exportProblem`), which app.js's scene start sets
+    and Prepare reads.
 
   A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
   was (`setAreaShown(recall(AREA_SHOWN) === '1')`, `setLikenessOn(...)` inside the Effects view's factory), so it is
@@ -468,11 +474,12 @@ where there is one.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
   `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`,
   `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`,
-  `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`,
-  `createGroups`, `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`, `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`) takes them as one argument object and
-  destructures it, so the code moved into it calls them by the names it always did. It returns the functions other
-  areas call, and app.js destructures them under the same names, so their callers stay as they were. app.js makes it
-  after the functions and objects it is given, and before any code that runs as the page
+  `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`, `createGroups`,
+  `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`,
+  `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`, `createPrepare`) takes them as one
+  argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
+  functions other areas call, and app.js destructures them under the same names, so their callers stay as they were.
+  app.js makes it after the functions and objects it is given, and before any code that runs as the page
   loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a `const`, is
   given as a function that calls it, since it is not made yet: `openingProgress: name => openingProgress(name)`.
   That holds for what another factory returns too: the document session is made before Build and Play, which is given
