@@ -6,7 +6,8 @@
 // - tools/bake/tests/floor_membership_cases.json: floors.js floorAt and copyFloors (native_copy.floor_at and
 //   copy_floors in test_native_copy.py);
 // - tools/editor/tests/stage_levels_cases.json: prefab_document.js prefabStageLevels (prefab_stage.stage_levels);
-// - tools/editor/tests/wall_join_cases.json: walls.js wallJoins (compiler.wall_joins in test_compiler_generated.py).
+// - tools/editor/tests/wall_join_cases.json: walls.js wallJoins (compiler.wall_joins in test_compiler_generated.py);
+// - tools/editor/tests/free_join_cases.json: walls.js freeWallJoins (made_edits.free_wall_joins in test_compiler_free.py).
 // Run: node tools/viewer/tests/shared_cases_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -14,7 +15,7 @@ import { effectiveCone } from '../web/light_rules.js';
 import { gridMove, nearestGridPose } from '../web/poserule.js';
 import { copyFloors, floorAt } from '../web/floors.js';
 import { prefabStageLevels } from '../web/prefab_document.js';
-import { wallJoins } from '../web/walls.js';
+import { freeWallJoins, wallJoins } from '../web/walls.js';
 
 const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 const near = (a, b, eps, what) => {
@@ -65,5 +66,13 @@ for (const c of joints) {
   assert.deepEqual(Object.fromEntries(Object.entries(found).map(([k, v]) => [k, v.ends])), c.ends, c.case);
   for (const [key, joins] of Object.entries(c.joins ?? {})) assert.deepEqual(found[key].joins, joins, c.case);
 }
+// free-form walls at any angle: made_edits.free_wall_joins' cases (test_compiler_free.py), through walls.js freeWallJoins
+const freeJoints = read('../../editor/tests/free_join_cases.json').cases;
+for (const c of freeJoints) {
+  const found = freeWallJoins(c.walls.map(w => ({ key: w.key, location: w.at, rotation: [0, w.yaw, 0],
+                                                  wall: { free: 1, x0: w.x0, x1: w.x1, y0: w.y[0], y1: w.y[1], z0: w.z[0], z1: w.z[1] } })));
+  assert.deepEqual(Object.fromEntries(Object.entries(found).map(([k, v]) => [k, v.ends])), c.ends, c.case);
+  assert.deepEqual(Object.fromEntries(Object.entries(found).map(([k, v]) => [k, v.joins.map(j => j.how)])), c.joins, c.case);
+}
 console.log(`shared_cases_test: ok (${cones.length} cones, ${poses.length} poses, ${floors.floorAt.length + floors.copyFloors.length} floor `
-  + `cases, ${stages.length} stage heights, ${joints.length} wall joints)`);
+  + `cases, ${stages.length} stage heights, ${joints.length} wall joints, ${freeJoints.length} free-form joints)`);

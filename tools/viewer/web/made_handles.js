@@ -33,7 +33,7 @@ import { moveWords, stepsOf } from './snap_steps.js';
 import { targetKey } from './project.js';
 import { blastQuery, holeWords, madeBounds, madeSlabNumbers, madeWallNumbers, movedHole, movedOpening, OPENING as GAP,
          openingParts, openingWords, raisedWall, resizedSlab, resizedWall, shiftedLocation, slabBounds, slabLookOf,
-         slabWords, sortedOpenings, storeysOf, storeyWords, toolSlab, toolWall, WALL, WALL_LOOKS, wallJoins, wallSpec,
+         slabWords, sortedOpenings, storeysOf, storeyWords, toolSlab, toolWall, WALL, WALL_LOOKS, madeWallJoins, wallSpec,
          wallTop, wallWords } from './walls.js';
 import { plural, short } from './dom_words.js';
 
@@ -101,9 +101,10 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     }
     return key;
   }
-  // ---- joined walls (custom geometry plan, M3 item 2): where made walls meet, each end's style follows (wallJoins, the
-  // compiler's wall_joins), worked out again after every change and never saved (the Build works it out the same way);
-  // a wall whose ends changed is drawn anew. root.userData.joins: its { ends, joins } now.
+  // ---- joined walls (custom geometry plan, M3 item 2; the improvements plan's 4.7): where made walls meet, each end's
+  // style follows (madeWallJoins, the compiler's made_wall_joins: a free-form wall's ends mitred or leaning at any
+  // angle), worked out again after every change and never saved (the Build works it out the same way); a wall whose
+  // ends changed is drawn anew. root.userData.joins: its { ends, joins } now.
   let joinsQueued = false;
   function refreshJoins() {
     if (joinsQueued) return;
@@ -112,12 +113,12 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       joinsQueued = false;
       const walls = [...roots.values()].filter(r => isMadeWall(r.userData.source) && !r.userData.deleted
         && r.userData.source.added.generated.kind === 'fracWall');
-      const found = wallJoins(walls.map(r => ({ key: r.userData.source.id, wall: r.userData.source.added.generated.wall,
-                                                ...actorPose(r.userData.source, r.matrix) })));
+      const found = madeWallJoins(walls.map(r => ({ key: r.userData.source.id, wall: r.userData.source.added.generated.wall,
+                                                    ...actorPose(r.userData.source, r.matrix) })));
       for (const r of walls) {
         const now = found[r.userData.source.id], was = r.userData.joins?.ends ?? ['free', 'free'];
         r.userData.joins = now;
-        if (now.ends[0] !== was[0] || now.ends[1] !== was[1]) applyWall(r, wallState(r));
+        if (JSON.stringify(now.ends) !== JSON.stringify(was)) applyWall(r, wallState(r));
         else if (selected === r.userData.source.id && JSON.stringify(now.joins) !== JSON.stringify(r.userData.joinsShown ?? [])) wallPanel(r);
       }
     });

@@ -2,6 +2,7 @@
 free-form request is checked (made_edits.free_valid) and goes on to the Build as the Build's free version of its kind,
 its numbers as they are, less `plain`, which is warned of as the older plain versions are; a free-form piece stands in
 its own numbers' box; malformed numbers leave the record out."""
+import json
 from pathlib import Path
 import sys
 import unittest
@@ -88,6 +89,48 @@ class FreeFormTests(unittest.TestCase):
         ramp = dict(shape='ramp', free=1, x0=0.0, x1=96.0, y0=0.0, y1=96.0, z0=0.0, z1=192.0)
         self.assertAlmostEqual(compiler.ground_slope(ramp), 63.43, places=2)
         self.assertEqual(compiler.ground_box(ramp), (0.0, 96.0, 0.0, 96.0, 0.0, 192.0))
+
+
+class FreeJoinTests(unittest.TestCase):
+    def test_the_cases_the_page_passes_too(self):
+        # (free_join_cases.json, shared_cases_test.mjs: walls.js freeWallJoins is the twin)
+        cases = json.loads(Path(__file__).with_name('free_join_cases.json').read_text(encoding='utf-8'))['cases']
+        self.assertGreaterEqual(len(cases), 15)
+        for c in cases:
+            found = made_edits.free_wall_joins([
+                dict(key=w['key'], location=w['at'], rotation=[0, w['yaw'], 0],
+                     wall=dict(free=1, x0=w['x0'], x1=w['x1'], y0=w['y'][0], y1=w['y'][1], z0=w['z'][0], z1=w['z'][1]))
+                for w in c['walls']])
+            self.assertEqual({k: v['ends'] for k, v in found.items()}, c['ends'], c['case'])
+            self.assertEqual({k: [j['how'] for j in v['joins']] for k, v in found.items()}, c['joins'], c['case'])
+
+    def test_a_mitre_by_hand(self):
+        # a right angle: each end's plane leans one unit along per unit across, through the corner; 60 degrees: cot 30
+        free = lambda key, at, yaw: dict(key=key, location=at, rotation=[0, yaw, 0],  # noqa: E731
+                                         wall=dict(free=1, x0=0.0, x1=384.0, y0=-8.0, y1=8.0, z0=-16.0, z1=384.0))
+        found = made_edits.free_wall_joins([free('a', [0, 0, 0], 0), free('b', [384, 0, 0], 16384)])
+        self.assertEqual(found['a']['ends'][1], dict(inset=0.0, lean=-1.0))
+        found = made_edits.free_wall_joins([free('a', [0, 0, 0], 0), free('b', [384, 0, 0], round(65536 / 3))])
+        self.assertAlmostEqual(abs(found['a']['ends'][1]['lean']), 3 ** 0.5, places=3)
+
+    def test_a_free_wall_meeting_an_older_one_keeps_today_s_rule(self):
+        old = dict(key='old', location=[0, 0, 0], rotation=[0, 0, 0], wall=dict(x0=0.0, x1=480.0, openings=[], seed=1))
+        new = dict(key='new', location=[480, 0, 0], rotation=[0, 16384, 0],
+                   wall=dict(free=1, x0=0.0, x1=384.0, y0=-8.0, y1=8.0, z0=-16.0, z1=384.0))
+        found = made_edits.made_wall_joins([old, new])
+        self.assertEqual(found['old']['ends'], ['free', 'through'])
+        self.assertEqual(found['new']['ends'], ['free', 'free'])
+        self.assertEqual([j['how'] for j in found['new']['joins']], ['butt'])
+
+    def test_mitred_walls_go_to_the_build_with_their_ends(self):
+        a = dict(WALL, wall=dict(WALL['wall'], x0=0.0, x1=384.0, openings=[]))
+        b = dict(a)
+        spec, report = compiled([made(a, at=(0, 600, 0)), dict(made(b, serial=2, at=(384, 600, 0)), rotation=[0, 16384, 0])])
+        self.assertTrue(report['ok'], refused(report))
+        walls = native_made(spec)
+        self.assertEqual(walls[0]['generated']['wall']['ends'], ['free', dict(inset=0.0, lean=-1.0)])
+        self.assertEqual(walls[1]['generated']['wall']['ends'], [dict(inset=0.0, lean=1.0), 'free'])
+        self.assertEqual(walls[0]['generated']['version'], 4)
 
 
 if __name__ == '__main__':

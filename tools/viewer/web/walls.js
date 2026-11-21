@@ -456,9 +456,121 @@ export function wallJoins(walls) {
   });
   return out;
 }
+// ---- free-form walls meeting at any angle (the custom geometry improvements plan, 4.7, D7 and D10; made_edits.py
+// free_wall_joins is the twin, tools/editor/tests/free_join_cases.json the cases both pass): two ends within the join's
+// reach are each cut on the one upright plane through the corner (the line from where their inner faces cross to
+// where their outer faces cross), right angles too; two ends in line meet end to end; an end on another wall's line
+// between its ends stops against that wall's near face, leaning along it, as ends do against a pair in line. Under
+// MITRE_LEAST degrees, or three or more ends at a point with no two in line, ends meet square (left free). An end is a
+// style ('free', 'line') or { inset, lean } (the frac_wall free form's). The angle is the rounded rotator's.
+export const MITRE_LEAST = 30;
+const IN_LINE = Math.cos(179 * Math.PI / 180);
+const tidy6 = v => { const r = Math.round(v * 1e6) / 1e6; return r === 0 ? 0 : r; };
+const freeFrame = w => {
+  const yaw = Math.round(w.rotation[1]) * 2 * Math.PI / 65536, d = [Math.cos(yaw), Math.sin(yaw)];
+  return { o: [Number(w.location[0]), Number(w.location[1])], d, n: [-d[1], d[0]] };
+};
+function meet(p, u, q, v) {
+  const det = u[0] * -v[1] - u[1] * -v[0];
+  if (Math.abs(det) < 1e-9) return null;
+  const rx = q[0] - p[0], ry = q[1] - p[1], s = (rx * -v[1] - ry * -v[0]) / det;
+  return [p[0] + s * u[0], p[1] + s * u[1]];
+}
+function endOn(a, k, [q, v], least = MITRE_LEAST) {
+  const { o, d, n } = a.frame, cx = meet(o, d, q, v);
+  if (!cx) return 'free';
+  const across = v[0] * n[0] + v[1] * n[1];
+  if (Math.abs(across) < Math.sin(least * Math.PI / 180) - 1e-9) return 'free';
+  const xc = (cx[0] - o[0]) * d[0] + (cx[1] - o[1]) * d[1], lean = (v[0] * d[0] + v[1] * d[1]) / across;
+  return { inset: tidy6(k === 1 ? a.x1 - xc : xc - a.x0), lean: tidy6(lean) };
+}
+const faceLine = (w, y) => [[w.frame.o[0] + y * w.frame.n[0], w.frame.o[1] + y * w.frame.n[1]], w.frame.d];
+const away = (w, k) => (k === 0 ? w.frame.d : [-w.frame.d[0], -w.frame.d[1]]);
+/** Where free-form walls meet: `walls` [{ key, location, rotation, wall }] gives { key: { ends: [x0's, x1's] ('free',
+ *  'line' or { inset, lean }), joins: [{ end, how ('mitre' | 'line' | 'stem'), other }] } }; level walls only. */
+export function freeWallJoins(walls) {
+  const info = [], out = {};
+  for (const w of walls) {
+    out[w.key] = { ends: ['free', 'free'], joins: [] };
+    const [p, , r] = w.rotation;
+    if (Math.round(p) % 65536 || Math.round(r) % 65536) continue;
+    const frame = freeFrame(w), n = w.wall, x0 = Number(n.x0), x1 = Number(n.x1);
+    info.push({ key: w.key, frame, x0, x1, y0: Number(n.y0), y1: Number(n.y1),
+                p: [x0, x1].map(x => [frame.o[0] + frame.d[0] * x, frame.o[1] + frame.d[1] * x]),
+                z: [Number(w.location[2]) + Number(n.z0), Number(w.location[2]) + Number(n.z1)] });
+  }
+  const floor = (a, b) => Math.min(a.z[1], b.z[1]) - Math.max(a.z[0], b.z[0]) > JOIN_FLOOR;
+  const passes = (pt, b) => {
+    const { o, d } = b.frame, vx = pt[0] - o[0], vy = pt[1] - o[1], t = vx * d[0] + vy * d[1];
+    return Math.abs(d[0] * vy - d[1] * vx) <= JOIN_REACH && b.x0 + JOIN_REACH < t && t < b.x1 - JOIN_REACH;
+  };
+  const nearFace = (c, a, k) => { const v = away(a, k), n = c.frame.n; return faceLine(c, v[0] * n[0] + v[1] * n[1] > 0 ? c.y1 : c.y0); };
+  const put = (j, m, end, how, other) => { const rec = out[info[j].key]; rec.ends[m] = end; rec.joins.push({ end: m, how, other: info[other].key }); };
+  const dot = (u, v) => u[0] * v[0] + u[1] * v[1];
+  const done = new Set();
+  info.forEach((a, i) => {
+    for (const k of [0, 1]) {
+      if (done.has(`${i}:${k}`)) continue;
+      const pt = a.p[k], ends = [];
+      info.forEach((b, j) => { for (const m of [0, 1]) if ((j === i || floor(a, b)) && Math.hypot(b.p[m][0] - pt[0], b.p[m][1] - pt[1]) <= JOIN_REACH) ends.push([j, m]); });
+      ends.forEach(([j, m]) => done.add(`${j}:${m}`));
+      const through = info.map((b, j) => j).filter(j => j !== i && floor(a, info[j]) && passes(pt, info[j]));
+      if (through.length) {
+        for (const [j, m] of ends) { const end = endOn(info[j], m, nearFace(info[through[0]], info[j], m)); if (end !== 'free') put(j, m, end, 'stem', through[0]); }
+        continue;
+      }
+      if (ends.length < 2) continue;
+      let pair = null;
+      for (let x = 0; x < ends.length && !pair; x++) for (let y = x + 1; y < ends.length && !pair; y++)
+        if (dot(away(info[ends[x][0]], ends[x][1]), away(info[ends[y][0]], ends[y][1])) <= IN_LINE) pair = [ends[x], ends[y]];
+      if (pair) {
+        const [[ja, ma], [jb, mb]] = pair;
+        put(ja, ma, 'line', 'line', jb); put(jb, mb, 'line', 'line', ja);
+        for (const [j, m] of ends) {
+          if ((j === ja && m === ma) || (j === jb && m === mb)) continue;
+          const end = endOn(info[j], m, nearFace(info[ja], info[j], m));
+          if (end !== 'free') put(j, m, end, 'stem', ja);
+        }
+        continue;
+      }
+      if (ends.length !== 2) continue;
+      const [[ja, ma], [jb, mb]] = ends, A = info[ja], B = info[jb], u = away(A, ma), v = away(B, mb);
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot(u, v)))) * 180 / Math.PI;
+      if (angle < MITRE_LEAST || ja === jb) continue;
+      const [inA, outA] = dot(v, A.frame.n) > 0 ? [A.y1, A.y0] : [A.y0, A.y1];
+      const [inB, outB] = dot(u, B.frame.n) > 0 ? [B.y1, B.y0] : [B.y0, B.y1];
+      const inner = meet(...faceLine(A, inA), ...faceLine(B, inB)), outer = meet(...faceLine(A, outA), ...faceLine(B, outB));
+      if (!inner || !outer) continue;
+      const len = Math.hypot(outer[0] - inner[0], outer[1] - inner[1]);
+      if (len < 1e-9) continue;
+      const plane = [inner, [(outer[0] - inner[0]) / len, (outer[1] - inner[1]) / len]];
+      put(ja, ma, endOn(A, ma, plane, MITRE_LEAST / 2), 'mitre', jb);
+      put(jb, mb, endOn(B, mb, plane, MITRE_LEAST / 2), 'mitre', ja);
+    }
+  });
+  return out;
+}
+/** Where made walls meet, older and free-form alike (made_edits.py made_wall_joins): the free-form walls' ends among
+ *  themselves by freeWallJoins, every other end by wallJoins (a corner with a wall of an older version keeps it). */
+export function madeWallJoins(walls) {
+  const old = wallJoins(walls), free = freeWallJoins(walls.filter(w => w.wall?.free === 1)), out = {};
+  for (const w of walls) {
+    const o = old[w.key], f = free[w.key];
+    if (!f) { out[w.key] = o; continue; }
+    const ends = [...f.ends], joins = [...f.joins];
+    for (const j of o.joins) {
+      if (f.joins.some(x => x.end === j.end)) continue;
+      const other = walls.find(x => x.key === j.other);
+      if (other && other.wall?.free !== 1) { ends[j.end] = o.ends[j.end]; joins.push(j); }
+    }
+    out[w.key] = { ends, joins };
+  }
+  return out;
+}
 /** A wall's joins in words, for its panel: '' when it meets nothing. */
 export function joinWords(joins) {
-  const say = { corner: 'runs through at a corner', butt: 'butts on another wall at a corner', line: 'meets another wall end to end', stem: 'stops against another wall' };
+  const say = { corner: 'runs through at a corner', butt: 'butts on another wall at a corner', line: 'meets another wall end to end', stem: 'stops against another wall',
+                mitre: 'meets another wall in a mitred corner' };
   if (!joins?.length) return '';
   const byEnd = [0, 1].map(e => joins.filter(j => j.end === e).map(j => say[j.how]));
   const parts = byEnd.map((w, e) => (w.length ? `${e === 0 ? 'its start' : 'its far end'} ${w.join(', ')}` : '')).filter(Boolean);

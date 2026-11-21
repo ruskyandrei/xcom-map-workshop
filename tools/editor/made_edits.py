@@ -303,6 +303,183 @@ def wall_joins(walls):
     return out
 
 
+# Free-form walls meeting at any angle (the custom geometry improvements plan, 4.7, decisions D7 and D10; walls.js
+# freeWallJoins is the twin, and free_join_cases.json the cases both pass): two ends within WALL_JOIN_REACH of each
+# other are each cut on the one upright plane through the corner, the line from where their inner faces cross to where
+# their outer faces cross, right angles too; two ends in line meet end to end ('line'); an end on another wall's line
+# between its ends stops against that wall's near face, leaning along it (a stem), as ends do against a pair in line.
+# Under MITRE_LEAST degrees between the walls, or three or more ends at a point with no two in line, ends meet square
+# (left free). An end is a style ('free', 'line') or {inset (how far in from the wall's own end its solid stops along
+# its line), lean (how far its plane leans along the wall for each unit across it)}, the frac_wall free form's. The
+# angle is the rounded rotator's, as the package holds it, on both sides.
+MITRE_LEAST = 30.0
+WALL_IN_LINE = math.cos(math.radians(179.0))     # two ends leaving a point this nearly opposite are in line
+
+
+def _free_frame(w):
+    """A free-form wall's frame in plan: (its origin, its direction, its normal), the yaw a whole rotator."""
+    yaw = round(w['rotation'][1]) * 2 * math.pi / 65536
+    d = (math.cos(yaw), math.sin(yaw))
+    return (float(w['location'][0]), float(w['location'][1])), d, (-d[1], d[0])
+
+
+def _meet(p, u, q, v):
+    """Where the lines p + s u and q + t v cross (None when they run alongside)."""
+    det = u[0] * -v[1] - u[1] * -v[0]
+    if abs(det) < 1e-9:
+        return None
+    rx, ry = q[0] - p[0], q[1] - p[1]
+    s = (rx * -v[1] - ry * -v[0]) / det
+    return (p[0] + s * u[0], p[1] + s * u[1])
+
+
+def _end_on(a, k, point_line, least=MITRE_LEAST):
+    """Wall a's end k ({inset, lean}) on the plane through the line `point_line` ((point, direction) in plan); 'free'
+    where the plane meets the wall at under `least` degrees (a stem's least is the walls' own, a mitre's half the
+    corner's)."""
+    (o, d, n), (q, v) = a['frame'], point_line
+    cx = _meet(o, d, q, v)
+    if cx is None:
+        return 'free'
+    across = v[0] * n[0] + v[1] * n[1]
+    if abs(across) < math.sin(math.radians(least)) - 1e-9:
+        return 'free'
+    x_c = (cx[0] - o[0]) * d[0] + (cx[1] - o[1]) * d[1]
+    lean = (v[0] * d[0] + v[1] * d[1]) / across
+    inset = a['x1'] - x_c if k == 1 else x_c - a['x0']
+    return dict(inset=tidy(inset, 6), lean=tidy(lean, 6))
+
+
+def _face(w, y):
+    """A wall's face at y across, as a line in plan: (a point on it, its direction)."""
+    o, d, n = w['frame']
+    return (o[0] + y * n[0], o[1] + y * n[1]), d
+
+
+def _away(w, k):
+    """The way wall w runs from its end k, into the wall."""
+    d = w['frame'][1]
+    return d if k == 0 else (-d[0], -d[1])
+
+
+def free_wall_joins(walls):
+    """Where free-form made walls meet: `walls` [dict(key, location, rotation, wall)] gives {key: dict(ends: [the x0
+    end, the x1 end] ('free', 'line' or {inset, lean}), joins: [dict(end, how ('mitre', 'line', 'stem'), other)])}.
+    Only level walls turned by yaw meet (as wall_joins)."""
+    info = []
+    for w in walls:
+        rot, n = w['rotation'], w['wall']
+        if round(rot[0]) % 65536 or round(rot[2]) % 65536:
+            continue
+        frame = _free_frame(w)
+        o, d, _ = frame
+        x0, x1 = float(n['x0']), float(n['x1'])
+        info.append(dict(key=w['key'], frame=frame, x0=x0, x1=x1, y0=float(n['y0']), y1=float(n['y1']),
+                         p=[(o[0] + d[0] * x, o[1] + d[1] * x) for x in (x0, x1)],
+                         z=(float(w['location'][2]) + float(n['z0']), float(w['location'][2]) + float(n['z1']))))
+    out = {w['key']: dict(ends=['free', 'free'], joins=[]) for w in walls}
+
+    def floor(a, b):
+        return min(a['z'][1], b['z'][1]) - max(a['z'][0], b['z'][0]) > WALL_JOIN_FLOOR
+
+    def passes(pt, b):
+        o, d, _ = b['frame']
+        vx, vy = pt[0] - o[0], pt[1] - o[1]
+        t = vx * d[0] + vy * d[1]
+        return abs(d[0] * vy - d[1] * vx) <= WALL_JOIN_REACH and b['x0'] + WALL_JOIN_REACH < t < b['x1'] - WALL_JOIN_REACH
+
+    def near_face(c, a, k):
+        """Wall c's face on the side wall a's end k runs into: as a line."""
+        v, n = _away(a, k), c['frame'][2]
+        return _face(c, c['y1'] if v[0] * n[0] + v[1] * n[1] > 0 else c['y0'])
+
+    def put(j, m, end, how, other):
+        rec = out[info[j]['key']]
+        rec['ends'][m] = end
+        rec['joins'].append(dict(end=m, how=how, other=info[other]['key']))
+
+    done = set()
+    for i, a in enumerate(info):
+        for k in (0, 1):
+            if (i, k) in done:
+                continue
+            pt = a['p'][k]
+            ends = [(j, m) for j, b in enumerate(info) for m in (0, 1)
+                    if (j == i or floor(a, b)) and math.dist(b['p'][m], pt) <= WALL_JOIN_REACH]
+            done.update(ends)
+            through = [j for j, b in enumerate(info) if j != i and floor(a, b) and passes(pt, b)]
+            if through:
+                for j, m in ends:
+                    end = _end_on(info[j], m, near_face(info[through[0]], info[j], m))
+                    if end != 'free':
+                        put(j, m, end, 'stem', through[0])
+                continue
+            if len(ends) < 2:
+                continue
+            pairs = [(e, f) for x, e in enumerate(ends) for f in ends[x + 1:]
+                     if sum(p * q for p, q in zip(_away(info[e[0]], e[1]), _away(info[f[0]], f[1]))) <= WALL_IN_LINE]
+            if pairs:
+                (ja, ma), (jb, mb) = pairs[0]
+                put(ja, ma, 'line', 'line', jb)
+                put(jb, mb, 'line', 'line', ja)
+                for j, m in ends:
+                    if (j, m) in pairs[0]:
+                        continue
+                    end = _end_on(info[j], m, near_face(info[ja], info[j], m))
+                    if end != 'free':
+                        put(j, m, end, 'stem', ja)
+                continue
+            if len(ends) != 2:
+                continue                        # three or more ends, none in line: square, for now
+            (ja, ma), (jb, mb) = ends
+            A, B = info[ja], info[jb]
+            u, v = _away(A, ma), _away(B, mb)
+            angle = math.degrees(math.acos(max(-1.0, min(1.0, u[0] * v[0] + u[1] * v[1]))))
+            if angle < MITRE_LEAST or ja == jb:
+                continue
+            # the inner faces (each wall's face toward the other) cross at one point, the outer at another: the plane
+            nA, nB = A['frame'][2], B['frame'][2]
+            inA, outA = (A['y1'], A['y0']) if v[0] * nA[0] + v[1] * nA[1] > 0 else (A['y0'], A['y1'])
+            inB, outB = (B['y1'], B['y0']) if u[0] * nB[0] + u[1] * nB[1] > 0 else (B['y0'], B['y1'])
+            inner = _meet(*_face(A, inA), *_face(B, inB))
+            outer = _meet(*_face(A, outA), *_face(B, outB))
+            if inner is None or outer is None:
+                continue
+            plane = (inner, (outer[0] - inner[0], outer[1] - inner[1]))
+            length = math.hypot(*plane[1])
+            if length < 1e-9:
+                continue
+            plane = (inner, (plane[1][0] / length, plane[1][1] / length))
+            put(ja, ma, _end_on(A, ma, plane, MITRE_LEAST / 2), 'mitre', jb)
+            put(jb, mb, _end_on(B, mb, plane, MITRE_LEAST / 2), 'mitre', ja)
+    return out
+
+
+def made_wall_joins(walls):
+    """Where made walls meet, old and free-form alike: the free-form walls' ends among themselves by free_wall_joins;
+    every other end by wall_joins, today's rule (a corner with a wall of an older version keeps it)."""
+    old = wall_joins(walls)
+    free = free_wall_joins([w for w in walls if w['wall'].get('free') == 1])
+    out = {}
+    for w in walls:
+        o = old[w['key']]
+        f = free.get(w['key'])
+        if not f:
+            out[w['key']] = o
+            continue
+        ends, joins = list(f['ends']), list(f['joins'])
+        for j in o['joins']:
+            if any(x['end'] == j['end'] for x in f['joins']):
+                continue
+            # (an end the free rule left: joined to an older wall by today's rule, or nothing)
+            other = next((x for x in walls if x['key'] == j['other']), None)
+            if other is not None and other['wall'].get('free') != 1:
+                ends[j['end']] = o['ends'][j['end']]
+                joins.append(j)
+        out[w['key']] = dict(ends=ends, joins=joins)
+    return out
+
+
 def opening_box(location, rotation, o, half=12.0):
     """The world box [x0, x1, y0, y1, z0, z1] of a made wall's opening, the wall standing at `location` turned by
     `rotation` (its numbers in its own frame: x along it, z over its floor)."""
@@ -511,8 +688,8 @@ class MadeEdits:
         (wall_joins; version 2, `ends`) when an end is joined, and its box follows its solid."""
         if len(self.walls) < 2:
             return
-        found = wall_joins([dict(key=copy['label'], location=copy['location'], rotation=copy['rotation'],
-                                 wall=copy['generated']['wall']) for copy, _ in self.walls])
+        found = made_wall_joins([dict(key=copy['label'], location=copy['location'], rotation=copy['rotation'],
+                                      wall=copy['generated']['wall']) for copy, _ in self.walls])
         for copy, where in self.walls:
             ends = found[copy['label']]['ends']
             if ends == ['free', 'free']:
@@ -521,7 +698,9 @@ class MadeEdits:
             copy['generated'] = dict(gen, version=max(2, gen.get('version', 1)), wall=dict(gen['wall'], ends=list(ends)))
             _, _, inset, half = wall_heights(gen['wall'])
             insets = {'free': inset, 'line': 0.0, 'through': -half}
-            along = made_wall_along(gen['wall'], insets[ends[0]], insets[ends[1]])
+            # (a mitred or leaning end: its solid reaches its plane's furthest point along the wall)
+            reach = lambda e: insets[e] if isinstance(e, str) else e['inset'] - abs(e['lean']) * half  # noqa: E731
+            along = made_wall_along(gen['wall'], reach(ends[0]), reach(ends[1]))
             copy['box'] = self.c.boxes(self.parts[copy['label']], copy['location'], copy['rotation'], along)
 
     def made_walls_stacked(self):
