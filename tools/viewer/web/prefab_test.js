@@ -1,4 +1,5 @@
 import { call as ask } from './api.js';
+import { forgetSession, recallSession, rememberSession } from './storage.js';
 
 // This tab authorizes the first launch only while following the build it submitted.
 const SESSION = 'workshop.prefabTest';
@@ -13,7 +14,7 @@ const LABEL = {
 const call = (path, body) => ask(body === undefined ? 'GET' : 'POST', `/prefab-tests${path}`, body, { fallback: r => r.statusText });
 
 function keep(id) {
-  try { if (id) sessionStorage.setItem(SESSION, id); else sessionStorage.removeItem(SESSION); } catch {}
+  if (id) rememberSession(SESSION, id); else forgetSession(SESSION);
 }
 
 export function createPrefabTest({ els, uuid, onPick = null }) {
@@ -183,8 +184,7 @@ export function createPrefabTest({ els, uuid, onPick = null }) {
     },
     async reconnect() {
       const serial = generation;
-      let id;
-      try { id = sessionStorage.getItem(SESSION); } catch {}
+      const id = recallSession(SESSION);
       if (!id) return;
       try {
         const result = await call(`/${id}.json`);

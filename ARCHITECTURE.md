@@ -465,7 +465,9 @@ or the path's (`recordOf(unit, 'prefab')` puts a recipe light's values before it
   (`map_picture.js`, `prefabs.js`), the wave's range probe (`effects_wiring.js`: one byte asked again, for the
   server's words on a wave the browser could not play) and the scene's layout read with its progress (`loading.js`).
   The node test `one_home_test.mjs` holds the list: a new plain `fetch` fails it until it is named there with its
-  reason, and here (follow-up 3.28).
+  reason, and here (follow-up 3.28). `storage.js` keeps what the browser keeps (`recall`, `remember`, `forget`) and
+  what the tab keeps while it is open (`recallSession`, `rememberSession`, `forgetSession`), each catching a storage
+  that is missing or blocked; the same test finds `localStorage` and `sessionStorage` nowhere else (follow-up 3.20).
 
 ### The compiler and the Build
 

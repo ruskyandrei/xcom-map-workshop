@@ -1,8 +1,9 @@
 // Settings kept per browser (web/storage.js, review finding 56): one key style, `workshop.<name>`; a value kept under
-// an older name is read once and moved to the new one; blocked storage reads null and drops writes.
+// an older name is read once and moved to the new one; blocked storage reads null and drops writes. A tab's own values
+// (recallSession, rememberSession, forgetSession; follow-up 3.20) the same, with no older names.
 // Run: node tools/viewer/tests/storage_test.mjs
 import assert from 'node:assert/strict';
-import { forget, oldKey, recall, remember } from '../web/storage.js';
+import { forget, forgetSession, oldKey, recall, recallSession, remember, rememberSession } from '../web/storage.js';
 
 const kept = new Map();
 globalThis.localStorage = { getItem: k => (kept.has(k) ? kept.get(k) : null), setItem: (k, v) => kept.set(k, String(v)),
@@ -35,4 +36,21 @@ globalThis.localStorage = { getItem: () => { throw new Error('blocked'); }, setI
 assert.equal(recall('workshop.flyKeys'), null);
 remember('workshop.flyKeys', '1');
 forget('workshop.flyKeys');
+
+// a tab's own (sessionStorage): the same, with no older names
+const tab = new Map();
+globalThis.sessionStorage = { getItem: k => (tab.has(k) ? tab.get(k) : null), setItem: (k, v) => tab.set(k, String(v)),
+                              removeItem: k => tab.delete(k) };
+assert.equal(recallSession('workshop.prefabTest'), null);
+rememberSession('workshop.prefabTest', 'abc');
+assert.equal(recallSession('workshop.prefabTest'), 'abc');
+forgetSession('workshop.prefabTest');
+assert.deepEqual([...tab], []);
+globalThis.sessionStorage = globalThis.localStorage;      // (blocked)
+assert.equal(recallSession('workshop.prefabTest'), null);
+rememberSession('workshop.prefabTest', 'abc');
+forgetSession('workshop.prefabTest');
+delete globalThis.sessionStorage;                         // (missing)
+assert.equal(recallSession('workshop.updated.URB_Bar'), null);
+rememberSession('workshop.updated.URB_Bar', '1');
 console.log('storage: ok');

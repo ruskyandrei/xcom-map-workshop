@@ -9,6 +9,7 @@
 // (exportProblem: app.js's scene start sets it) is editor_state.js's.
 import { call } from './api.js';
 import { activeMapId, data, exportProblem, setExportProblem } from './editor_state.js';
+import { recallSession, rememberSession } from './storage.js';
 
 export function createPrepare({ $, banner, mapLabel, projectsAvailable, showPop }) {
   // Prepare: an export older than what lights and builds need (families.json's exportProblem) exported again (POST
@@ -87,8 +88,8 @@ export function createPrepare({ $, banner, mapLabel, projectsAvailable, showPop 
     const outdated = Boolean(mapCatalogue?.maps?.find(m => m.id === activeMapId)?.outdated) && data.scope === 'map' && !data.preview;
     // once a session per map: should it come back still outdated, the dialog waits for a click rather than looping
     const tried = `workshop.updated.${activeMapId}`;
-    let again = false;
-    try { again = sessionStorage.getItem(tried) === '1'; sessionStorage.setItem(tried, outdated ? '1' : '0'); } catch { /* no session storage: start */ }
+    const again = recallSession(tried) === '1';     // (no session storage: start)
+    rememberSession(tried, outdated ? '1' : '0');
     if (outdated) showPrepare('update', !again);
     else if (exportProblem) showPrepare('open');
   }

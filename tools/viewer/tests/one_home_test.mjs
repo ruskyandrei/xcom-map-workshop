@@ -1,8 +1,9 @@
-// The server through api.js (ARCHITECTURE.md, "The page", Modules; follow-up 3.28): the page's modules read for the
-// browser's fetch, which only api.js uses (call, ask, sendPng) besides the plain fetches named here, each with why it
-// stays. A new one fails here: ask the server through api.js, or name the place here with its reason and in
-// ARCHITECTURE.md. The modules are read as code: comments and the text of strings are left out, a template's ${...}
-// kept. Run: node tools/viewer/tests/one_home_test.mjs
+// The server through api.js, the browser's storage through storage.js (ARCHITECTURE.md, "The page", Modules;
+// follow-ups 3.28 and 3.20): the page's modules read for the browser's fetch, which only api.js uses (call, ask,
+// sendPng) besides the plain fetches named here, each with why it stays, and for localStorage and sessionStorage, which
+// only storage.js uses. A new one fails here: ask the server through api.js and keep a value through storage.js, or
+// name the place here with its reason and in ARCHITECTURE.md. The modules are read as code: comments and the text of
+// strings are left out, a template's ${...} kept. Run: node tools/viewer/tests/one_home_test.mjs
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,6 +20,8 @@ const ALLOWED = {
     'map_picture.js': [2, "the project's kept picture and a map's own picture, read as blobs"],
     'prefabs.js': [1, "a prefab's picture read as a blob, for its duplicate"],
   },
+  localStorage: { 'storage.js': [6, 'the one home: recall (an older key moved), remember, forget'] },
+  sessionStorage: { 'storage.js': [3, "the one home of a tab's own: recallSession, rememberSession, forgetSession"] },
 };
 
 const KEYWORD = /(?:^|[^\w$])(?:return|typeof|case|do|else|in|of|new|delete|void|throw|yield|await)$/;
