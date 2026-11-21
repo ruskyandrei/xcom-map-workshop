@@ -65,7 +65,7 @@ def undone(page, back):
 def from_above(page, c):
     page.evaluate("""c => { viewer.controls.target.set(c[0], c[2], c[1]); viewer.camera.position.set(c[0] + 1, c[2] + 1400, c[1] + 1);
       viewer.camera.lookAt(c[0], c[2], c[1]); viewer.controls.update(); }""", c)
-    page.wait_for_timeout(300)
+    page.wait_for_timeout(300)      # (a frame drawn from where the camera was put: screenOf reads its matrices)
 
 
 def check_looks(browser, url, open_viewer, at=(-1200.0, -2200.0, 16.0), start=(-1344.0, -2208.0, 16.0), end=(-960.0, -2208.0, 16.0)):
@@ -97,12 +97,10 @@ def check_looks(browser, url, open_viewer, at=(-1200.0, -2200.0, 16.0), start=(-
     out['pictures'] = len(shown)
     # the find box narrows them by the look's name
     word = listed[0]['name'].split('_')[0][:6].lower()
-    page.locator('.lookpicker input[type=search]').fill(word)
-    page.wait_for_timeout(200)
+    page.locator('.lookpicker input[type=search]').fill(word)       # (the cards are laid again in its input listener)
     narrowed = cards(page)
     assert narrowed and len(narrowed) < len(listed) and word in narrowed[0]['name'].lower() + narrowed[0]['title'].lower(), (word, narrowed[:3])
     page.locator('.lookpicker input[type=search]').fill('')
-    page.wait_for_timeout(200)
     # a card (one not listed first: the look chosen is listed first afterwards) makes the wall again in its look where
     # it stands: version 3, its look named by its donor, its piece a copy of the card's donor placing; the panel closes
     listed = cards(page)
