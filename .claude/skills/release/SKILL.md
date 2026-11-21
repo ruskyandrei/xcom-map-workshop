@@ -19,7 +19,8 @@ sits on the commit it was built from, so main is pushed before the release is cr
 - **Release from main.** If the work is on another branch, its full suites must pass on that branch first, and then
   it is merged into main as a fast-forward. If the user didn't say to merge it, ask first.
 - **Build into `dist/release`.** Never build in the scratchpad: the bundled Python's paths go past Windows' 260
-  characters there. `dist/` is ignored by Git.
+  characters there. `dist/` is ignored by Git. A trial build in a worktree in a deep folder (an agent's, under
+  `.claude/worktrees`) goes to `dist/rf`: a longer name passes 260 characters there too.
 - **The notes say what is true.**
   - Check each "works" or "fixed" claim against its source: the experiment notes, the findings register,
     and [missions.py](../../../tools/viewer/missions.py)'s `KINDS` states.
@@ -76,7 +77,7 @@ sits on the commit it was built from, so main is pushed before the release is cr
      one.
    - Then run `python tools/run_tests.py release viewer -k guide`.
 6. **Build:** `python tools/release/make_release.py --out dist/release`. It takes about three minutes and prints
-   each file's size and SHA-256.
+   each file's size and SHA-256. (In an agent's worktree: `--out dist/rf`, and `smoke_release.py --dist dist/rf`.)
 7. **Smoke tests:** `python tools/release/smoke_release.py`. All steps must print PASS.
    - It checks the files, then reads the zip back: the version, the README, the guide's table, and every file of ours
      against the repository.

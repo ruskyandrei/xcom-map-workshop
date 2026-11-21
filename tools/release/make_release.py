@@ -7,6 +7,9 @@ Windows installer and as a portable zip. No Python, no internet and no UDK are n
 
   python tools/release/make_release.py [--out <folder>] [--keep] [--iscc <ISCC.exe>] [--no-installer]
 
+--out is dist/release by default; a trial build in a worktree in a deep folder (an agent's, under .claude/worktrees)
+goes to a short one, dist/rf, or its paths pass Windows' 260 characters.
+
 The installer needs Inno Setup's compiler (6 or 7, free for any use: jrsoftware.org): --iscc, else the ISCC
 environment variable, else the usual install folders. Without it the zip alone is made, with a note.
 
@@ -276,7 +279,10 @@ def check(stage):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
-    ap.add_argument('--out', type=Path, default=REPO / 'dist' / 'release', help='where the folder and zip go (default dist/release)')
+    ap.add_argument('--out', type=Path, default=REPO / 'dist' / 'release',
+                    help='where the folder and zip go (default dist/release). In a worktree in a deep folder (an agent\'s '
+                         'under .claude/worktrees) give a short one, dist/rf: with a longer name the compiled files of '
+                         'SciPy\'s tests pass Windows\' 260 characters and the build stops')
     ap.add_argument('--keep', action='store_true', help='keep the unzipped folder beside the zip')
     ap.add_argument('--iscc', type=Path, help='Inno Setup\'s compiler, ISCC.exe (default: the ISCC variable, else its usual folders)')
     ap.add_argument('--no-installer', action='store_true', help='make the zip only')
