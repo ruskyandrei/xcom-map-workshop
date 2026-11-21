@@ -15,10 +15,11 @@
 //
 // createClearMap takes what it needs of app.js as one argument object, when app.js makes it: the scene, the gizmo, the
 // pieces' and lights' roots added and taken away, the map's size, the Spawns, Landing zones and Buildings views'
-// functions, the cutaway, Play's installs, the project's change, the view taken (grabView), the popups and the hints.
+// functions, Play's installs, the project's change, the view taken (grabView), the popups and the hints; what the
+// other areas draw after a clear or a change of the missions or the zones follows the edit hub's runs (edit_hub.js).
 // Its own state is inside it (the caches of what it works out, the window, the panels); the install's landing lines,
 // the starting zones worked out, the last clear's time and the landing pieces as the server names them (app.js's scene
-// start and families, and the test hooks, read or set them) are editor_state.js's.
+// start, the map's families in map_families.js and the test hooks read or set them) are editor_state.js's.
 import * as THREE from 'three';
 import { call } from './api.js';
 import { LEVEL, TILE } from './constants.js';

@@ -885,8 +885,8 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
     lightPanel();
     if (soloOn) updateSolo();
   }
-  // Light edits are drawn and saved; while the family is refused, said once, as warnNotBuilt does for pieces. A glowing
-  // piece moved, copied or deleted takes its light along, so it waits for the same test.
+  // Light edits are drawn and saved; while the light family is held back (its `builds` off in families.json), said
+  // once in a banner. A glowing piece moved, copied or deleted takes its light along, so it is said for that too.
   function warnLights() {
     if (warnedLights || !families?.families?.light || families.families.light.builds) return;
     const edited = [...lightRoots.values()].some(r => !isStream(r.userData.source) && lightEdited(r));

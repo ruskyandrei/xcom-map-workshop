@@ -160,7 +160,6 @@ const cutMaterials = new Map();
 const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:true,transparent:true,opacity:0.65,depthWrite:false});
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
-// Edits: the gizmo moves whole actors (all their components); a project keeps the edits (Ctrl+S) and the Build makes them.
 // (A streamed piece, isStream, the original a piece is, fromOf, and a map's own piece's key in a project, sourceKey:
 // piece_records.js.)
 // The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
