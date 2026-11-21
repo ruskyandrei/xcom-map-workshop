@@ -10,7 +10,9 @@
 // - the Add panel shown and its tab (showPieces, setLibraryScope), and an entry of it chosen and placed: one of this
 //   map's pieces, a light, a cover block or a recipe (chooseEntry, entryParts), or one of All maps (chooseLibraryEntry,
 //   chooseLibraryEffect);
-// - a copy dragged off with Shift on a move handle (copyDragBegin, copyDragEnd).
+// - a copy dragged off with Shift on a move handle (copyDragBegin, copyDragEnd);
+// - a drawn-only copy of some pieces (previewGroup: the placing preview, the Add panel's thumbnails), and the Add
+//   panel's recipes of the areas that make them (pieceRecipes: lights, cover blocks, landing zones, spawn points).
 //
 // createClipboard takes what it needs of app.js as one argument object, when app.js makes it: the gizmo, the scene,
 // the pieces' roots made and taken out, the Lights, Effects, Spawns, Landing zones and Buildings views' adding and
@@ -19,15 +21,18 @@
 // set (the clip, what is being placed, the preview's redraw asked, the Add panel's tab, Level snap) is
 // editor_state.js's.
 import * as THREE from 'three';
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { LEVEL, QUARTER, TILE } from './constants.js';
 import { isFloor } from './cover.js';
 import { allRoots, boxesShown, builderMode, buildingMeta, chooseToken, clipboard, copySerial, data, effectRoots,
-         groupIndex, hintTimer, levelSnap, library, libraryScope, lightsShown, nextChooseToken, nextCopySerial, ownSet,
-         pickedEffect, pieces, placing, pointer, prefabTab, roots, setClipboard, setGhostDirty, setGroups,
-         setLibraryScopeValue, setPlacing, snapMode, volumesOn } from './editor_state.js';
+         geometryCache, groupIndex, hintTimer, levelSnap, library, libraryScope, lightsShown, nextChooseToken,
+         nextCopySerial, ownSet, pickedEffect, pieces, placing, pointer, prefabTab, roots, setClipboard, setGhostDirty,
+         setGroups, setLibraryScopeValue, setPlacing, snapMode, volumesOn } from './editor_state.js';
 import { recordName } from './effects_rules.js';
+import { makeEffectMarker } from './effects_view.js';
 import { floorUnder, levelHeight } from './floors.js';
 import { actorMatrix, placedPose, recipeMove } from './gizmo.js';
+import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
 import { MADE_KINDS, optionsOf, stateOfRoot } from './piece_records.js';
 import { collectPieces } from './pieces.js';
 import { buildingKey, groupKey, memberKey, pruneGroups, targetKey, uuid } from './project.js';
@@ -37,16 +42,17 @@ import { tileGridOf } from './view_layout.js';
 export function createClipboard({ $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots,
                                   addRoots, askLineCollision, assemblyOf, banner, boundsOf, buildRoots, busy,
                                   BUSY_PIECES, busyStart, chosenStorey, cloneGroup, cloneGroups, copyVolumes,
-                                  deleteSelection, effectFollows, effectTemplate, effectViewOnly, flashHint,
-                                  FLOOR_CLEARANCE, floorSupportOf, fromOf, ghostEdges, ghostLine, gizmo, gridOrigin,
-                                  groundAt, groundHeight, groupChain, hoverLikeness, isForeignTarget, libraryTemplate,
-                                  lightClip, lightViewOnly, liveFloorIndex, makeVolume, memberOf, memberRecord,
-                                  newBuildingId, nextFrame, ownerRoot, ownVolumeLayer, partsOf, pasteVolumes, pick,
-                                  pieceRecipes, plural, prefabPlacementProblem, previewGroup, rayAt, recipeOf,
+                                  coverEntries, deleteSelection, effectFollows, effectTemplate, effectViewOnly,
+                                  flashHint, FLOOR_CLEARANCE, floorSupportOf, fromOf, ghostEdges, ghostLikeness,
+                                  ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness,
+                                  isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly,
+                                  liveFloorIndex, loaded, madeShape, makeVolume, materialCache, materialKey, memberOf,
+                                  memberRecord, newBuildingId, nextFrame, ownerRoot, ownVolumeLayer, partsOf,
+                                  pasteVolumes, pick, plural, prefabPlacementProblem, rayAt, recipeOf,
                                   removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged,
-                                  selectionWords, setLightsShown, setNormalLights, setVolumeBox, short,
+                                  selectionWords, setLightsShown, setNormalLights, setVolumeBox, short, spawnAddEntries,
                                   startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopWallDrawing,
-                                  stopZonePlacing, text, tileCorner, volumeBox, world }) {
+                                  stopZonePlacing, text, tileCorner, unscaled, volumeBox, world, zoneEntries }) {
   // What the selection is now (moved pieces at their moved pose), with the pivot piece's game location and a name
   // for hints.
   function snapshot(selection = gizmo.selection(), own = ownSet) {
@@ -317,6 +323,47 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     startPlacing(clipboard);
   }
 
+  // (walls, floors, roofs and ground are drawn from the Build menu on the Add button, no longer listed here: B1)
+  const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
+  // A drawn-only copy of some pieces (the placing preview, a piece-list thumbnail) from the loaded meshes and
+  // materials, or `override` for every part. It is never picked. parts: { source, matrix }; `frame` moves them all.
+  // (The clipboard's: it falls back on the clipboard's ghost material.)
+  function previewGroup(parts, override, frame) {
+    const group = new THREE.Group();
+    for (const { source, matrix: placed, values, state } of parts) {
+      // (a made piece of a prefab, its donor's source and its numbers: drawn from its made mesh once loaded, prefabClip)
+      const made = state?.generated && !data.meshes[source.mesh]?.made ? madeShape(source, state.generated) : null;
+      const drawn = made?.mesh && loaded(geometryCache, made.mesh) ? made : null, matrix = drawn ? unscaled(placed) : placed;
+      if (source.isEffect) {
+        const holder = new THREE.Group(), marker = makeEffectMarker(source);
+        holder.add(marker); holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
+        group.add(holder);
+        ghostLikeness(holder, source);
+        continue;
+      }
+      if (source.isLight) {
+        const holder = new THREE.Group(), marker = makeMarker(source.kind);
+        paintMarker(marker, values ?? valuesOf(source));
+        marker.scale.setScalar(24); holder.add(marker);
+        holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
+        group.add(holder);
+        continue;
+      }
+      const mesh = drawn?.mesh ?? source.mesh, materials = drawn?.materials ?? source.materials, gltf = loaded(geometryCache, mesh);
+      if (!gltf) continue;
+      const root = data.meshes[mesh].kind === 'skeletal' ? cloneSkeleton(gltf.scene) : gltf.scene.clone(true);
+      let i = 0;
+      root.traverse(part => {
+        if (!part.isMesh) return;
+        part.material = override ?? loaded(materialCache, materialKey(source, materials[i])[0]) ?? ghostMaterial;
+        part.raycast = () => {}; i++;
+      });
+      root.matrix.multiplyMatrices(frame, matrix); root.matrixAutoUpdate = false;
+      group.add(root);
+    }
+    return group;
+  }
+
   // Placing, for paste and the piece list: a see-through preview of the clip follows the cursor, a click places a
   // copy there (Shift+click keeps placing), Escape stops. The gizmo is held meanwhile, so a click never grabs a handle.
   // (ghostDirty, what is being placed, placing, and pieces: editor_state.js)
@@ -510,6 +557,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   }
 
   return { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget,
-           entryParts, ghostMaterial, groupTree, keepRecipe, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost,
-           paste, pasteSnapshot, placeAt, placeMove, setLibraryScope, showPieces, snapshot, startPlacing, stopPlacing };
+           entryParts, groupTree, keepRecipe, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,
+           pasteSnapshot, pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot,
+           startPlacing, stopPlacing };
 }

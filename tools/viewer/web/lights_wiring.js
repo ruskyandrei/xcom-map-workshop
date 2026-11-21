@@ -17,10 +17,12 @@
 // camera and the view's layers, the panel's helpers, the other views' switches and the Effects view's handles' needs.
 // Its own state is inside it (the shapes' keys, the handles' hover, the fixed lights, the owners' index); what other
 // areas read or set (the views' switches, Solo, the drag, the handles, the reach, the area lights' copies, the lights'
-// sync) is editor_state.js's.
+// sync) is editor_state.js's. The view's storage keys (View options' Area lights, reach outlines and sun and sky
+// list: AREA_SHOWN, REACH_SHOWN, SKY_SHOWN) are plain exports at the top, before the factory: app.js reads the
+// switches from them as the page loads and its View options' handlers write them.
 import * as THREE from 'three';
-import { sentence } from './build_queue.js';
 import { QUARTER } from './constants.js';
+import { sentence } from './dom_words.js';
 import { onHub } from './edit_hub.js';
 import { areaBindings, areaShown, assigning, cleared, clearKeepsOutside, copySerial, data, derivedCopies, effectRoots,
          effectsOn, families, handleDefs, hintTimer, lightDrag, lightIndex, lighting, lightRadius, lightRoots,
@@ -35,6 +37,9 @@ import { boxInReach, boxLines, createSolo, emissionShape, HANDLE_COLOURS, lightH
          nearestValue, paintMarker, recordNow, scaleMarker, SOLO_MAX, valuesOf } from './lights_view.js';
 import { optionsOf, recordOf } from './piece_records.js';
 import { targetKey, uuid } from './project.js';
+
+// The Lights view's storage keys.
+export const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
 
 export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMatrix, camera, copyable, copyText,
                                     drawEffectShape, editChanged, effectNow, effectsShown, effectValuesEditable, field,
@@ -904,6 +909,9 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   // As something is picked (the edit hub's select runs): the light section shown for a light, and a light's panel.
   onHub('select-sections', 'lights', root => { $('lightBox').hidden = !root?.userData.light; });
   onHub('select-light', 'lights', root => { showLight(root); });
+
+  // The mission picked changed (the edit hub's mission run, edit_hub.js): which lights are drawn.
+  onHub('mission', 'lights', () => { refreshLightVisibility(); });
 
   return { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLighting, areaOwner, assignOwner,
            buildLights, changeLight, clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear,

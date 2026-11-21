@@ -12,7 +12,7 @@
 // look-drag, the wheel's anchor, the near plane the last framing set). The top level only declares.
 import * as THREE from 'three';
 import { QUARTER } from './constants.js';
-import { onHub } from './edit_hub.js';
+import { onHub, runHub } from './edit_hub.js';
 import { allRoots, assigning, breaking, builder, builderMode, coverDrag, data, effectsOn, gridDrag, gridTool, hintTimer,
          levelSnap, lightDrag, lightRadius, lightRoots, lightsOn, lookPicking, ownPicked, ownSet, pickBox, pickDrag,
          pickedEffect, pickedSpawn, pickedZone, pickTool, pieces, placing, rockPoint, roots, selected, setAssigning,
@@ -41,15 +41,15 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
                                    editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endVolumeDrag,
                                    endWallDrag, flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall,
                                    lightPanel, madeRoot, mapBreakable, missionGizmo, modalOpen, openBuild, paste, pick,
-                                   pickEffect, pickZone, playArea, projectsAvailable, rayAt, refreshGrid,
-                                   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select,
-                                   setEffectsShown, setGridTool, setLevelSnap, setLightsShown, setNormalView,
-                                   setOwnPicked, setPickedSpawn, setPickTool, setPlayArea, setSolo, setSpawnsShown,
-                                   setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,
-                                   showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable,
-                                   startBreak, startLookPick, stopBreak, stopLookPick, stopPickBox, stopPlacing,
-                                   stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox, TURNED_KINDS,
-                                   turnZone, undoStep, volumePanel, wallGhost, wallHint, zoneGizmo }) {
+                                   pickEffect, pickZone, playArea, projectsAvailable, rayAt, refreshVolumes,
+                                   releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
+                                   setGridTool, setLevelSnap, setLightsShown, setNormalView, setOwnPicked,
+                                   setPickedSpawn, setPickTool, setPlayArea, setSolo, setSpawnsShown, setVolumesShown,
+                                   setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog, showMapBrowser,
+                                   showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak,
+                                   startLookPick, stopBreak, stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing,
+                                   stopWallDrawing, stopZonePlacing, sun, takePickBox, TURNED_KINDS, turnZone, undoStep,
+                                   volumePanel, wallGhost, wallHint, zoneGizmo }) {
   onHub('edit', 'tools', () => {
     for (const [id, m] of [['editMove','translate'],['editRotate','rotate'],['editOff','off']]) $(id).classList.toggle('on', gizmo.mode === m);
     snapButton();
@@ -116,7 +116,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
   $('editPivot').onclick = togglePivot;
   function setSnapMode(next) {
     setSnapModeValue(next); gizmo.setSnap(next); setGhostDirty(true);
-    snapButton(); refreshGrid(roots.get(selected));
+    snapButton(); runHub('snap', roots.get(selected));
   }
   $('editSnap').onclick = () => setSnapMode(SNAPS[snapMode][0]);
   // The arrow keys and WASD move the camera while held. By default they pan across the map: Up/W and Down/S along the

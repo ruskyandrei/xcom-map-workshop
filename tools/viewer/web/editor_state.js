@@ -43,7 +43,7 @@ export let project = null;
 export function setProject(next) { project = next; }
 
 // groups: id -> { id, locked, breakTogether, members: Map(member key -> member record) }; groupIndex: member key -> the
-// group it is a direct member of (a piece's key, or a group's: groupKey(id)). (What a group is: app.js, above
+// group it is a direct member of (a piece's key, or a group's: groupKey(id)). (What a group is: groups.js, above
 // parentGroup.)
 export let groups = new Map(), groupIndex = new Map();
 export function setGroups(next) {
@@ -288,7 +288,7 @@ export function setTipDirty(next) { tipDirty = next; }
 // What other areas read or set of the Spawns view (spawns_wiring.js; app.js's map opening, the Clear map window, the
 // Buildings view's handles on a no-spawn volume, the keys, the pointer handlers, the draw loop and the test hooks):
 // - normalSpawns: the Normal button's "Spawn points and objectives" switch (remembered; read from the browser's
-//   storage as a map opens); spawnLayerReady: the view's layer is made (the views' buttons show it from then on);
+//   storage as a map opens);
 // - spawnFilters: the families the flyout shows, by family (remembered);
 // - spawnZonePick: a landing zone picked in the Spawns view, described only (decision D3), or null;
 // - spawnRulesData: what the install does with spawn points (spawn-rules.json), read as a map opens, or null;
@@ -298,10 +298,8 @@ export function setTipDirty(next) { tipDirty = next; }
 //   (stream null, saved as overrides of level "base"); a copy's (stream 'copy'); missionDragView: those moves while a
 //   drag lasts, drawn in their place, or null (setMissionMovesValue: the view's setMissionMoves also draws them);
 // - spawnPlacing: the kind of spawn point the next click places (the Add panel's Spawn points), or null.
-export let normalSpawns = false, spawnLayerReady = false, spawnFilters = {}, spawnZonePick = null, spawnRulesData = null,
-           spawnEntriesNow = [];
+export let normalSpawns = false, spawnFilters = {}, spawnZonePick = null, spawnRulesData = null, spawnEntriesNow = [];
 export function setNormalSpawnsValue(next) { normalSpawns = next; }
-export function setSpawnLayerReady(next) { spawnLayerReady = next; }
 export function setSpawnFilters(next) { spawnFilters = next; }
 export function setSpawnZonePick(next) { spawnZonePick = next; }
 export function setSpawnRulesData(next) { spawnRulesData = next; }

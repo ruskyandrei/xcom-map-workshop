@@ -18,6 +18,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { LEVEL, TILE } from './constants.js';
+import { onHub } from './edit_hub.js';
 import { builderMode, cleared, data, effectsOn, landingZones, lightsOn, pickedZone, pieces, placing, project, roots,
          selected, setEffectsDirty, setLandingZones, setMergedBuildings, setPickedZone, setZonePlacing, setZonesOn,
          spawnsOn, stage, volumesOn, zonePlacing, zonesOn } from './editor_state.js';
@@ -449,6 +450,9 @@ export function createZonesWiring({ $, banner, camera, controls, cutaway, editCh
     if (!builderMode) cutaway();
     refreshGroundGrid(); refreshLandingZones();
   }
+
+  // The project's landing zones changed or were read (the edit hub's landing-zones run, edit_hub.js).
+  onHub('landing-zones', 'zones', () => { refreshLandingZones(); });
 
   return { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
            placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,

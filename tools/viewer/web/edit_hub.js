@@ -11,8 +11,8 @@ export const STOP = Symbol('STOP');
 
 // Each run, its refreshes in their order, and whose each is.
 export const RUNS = {
-  // After any edit, undo or selection (app.js's editChanged: the gizmo calls it after each edit, and the areas after
-  // theirs).
+  // After any edit, undo or selection (editChangedNow, which app.js's editChanged calls: the gizmo calls it after
+  // each edit, and the areas after theirs).
   edit: [
     'effects',       // effects_wiring.js: what the Effects view draws is worked out again (its markers follow the
                      // pieces that carry them)
@@ -24,7 +24,7 @@ export const RUNS = {
                      // run, which the cutaway's select ran
     'marks',         // selection.js: the selected piece's highlight, its ladder's ends and its grid chip
     'floor-note',    // cover_wiring.js: an invisible floor's height over the ground, once a drag ends
-    'piece-status',  // app.js: the pose fields; while a gizmo handle is held, the drag's run and the end of this one;
+    'piece-status',  // piece_status.js: the pose fields; while a gizmo handle is held, the drag's run and the end of this one;
                      // then the edit status, Delete, Undo, Redo, Reset and Reset all
     'flags',         // flags_panel.js: the piece panel's Flags group
     'kind',          // select_kind.js: Select all of a kind
@@ -35,10 +35,32 @@ export const RUNS = {
     'project',       // document_session.js: the project's title, its save state and its draft
     'lights',        // lights_wiring.js: the lights drawn follow, and their warnings
   ],
-  // While a gizmo handle is held, what is seen to move besides the pieces, the highlight and the pose fields (app.js's
-  // piece-status runs it, then ends the edit's run: the rest waits for the drag's end).
+  // While a gizmo handle is held, what is seen to move besides the pieces, the highlight and the pose fields
+  // (piece_status.js's piece-status runs it, then ends the edit's run: the rest waits for the drag's end).
   drag: [
     'lights',        // lights_wiring.js: the lights drawn follow
+  ],
+  // The scene's pieces changed (app.js's sceneChanged, after it asks for the sun's shadows again, the groups' pieces
+  // now to be worked out again and the Effects view's markers to be redrawn).
+  scene: [
+    'cutaway',       // cutaway.js: which pieces are drawn and how each is cut
+    'ground-grid',   // clear_map.js: the ground grid, drawn again if its pieces changed
+    'joins',         // made_handles.js: where made walls meet
+  ],
+  // The project's landing zones changed or were read (clear_map.js: the install's landing lines read as a map opens,
+  // a clear done or undone).
+  'landing-zones': [
+    'zones',         // zones_wiring.js: the zones drawn
+  ],
+  // The header's mission picked changed with its choices (clear_map.js's refreshMissionPicker).
+  mission: [
+    'lights',        // lights_wiring.js: which lights are drawn (the streams' among them)
+    'spawns',        // spawns_wiring.js: the markers, and the picked marker's gizmo
+    'cutaway',       // cutaway.js: the streams shown
+  ],
+  // The snap setting changed (navigation.js's setSnapMode, given the selected piece's root).
+  snap: [
+    'grid',          // selection.js: the selected piece's grid chip
   ],
   // select's (selection.js), each where it fills the piece panel for what is picked. Each area's section of the panel
   // shown or hidden for it (given the root picked, or nothing):
@@ -86,4 +108,15 @@ export function onHub(run, name, refresh) {
 export function runHub(run, ...args) {
   for (const refresh of registered.get(run)) if (refresh && refresh(...args) === STOP) return STOP;
   return undefined;
+}
+// Every name of every run has its refresh registered, or this throws, naming those that have none: app.js's startScene
+// calls it once the page has started, when every area's module is made, so a registration lost (which its run would
+// pass over without a word) fails there, where the browser checks see it.
+export function checkHub() {
+  const missing = Object.entries(RUNS).flatMap(([run, names]) => names.filter((name, k) => !registered.get(run)[k]).map(name => `${run}/${name}`));
+  if (missing.length) throw new Error(`The edit hub has no refresh registered for ${missing.join(', ')}`);
+}
+// The edit run (app.js's editChanged calls it once it has made the edit event's memo).
+export function editChangedNow() {
+  runHub('edit');
 }

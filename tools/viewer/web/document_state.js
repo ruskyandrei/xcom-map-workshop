@@ -3,29 +3,35 @@
 // by piece_records.js's recordOf), the groups, the map's size, the buildings, the cleared map with its landing zones
 // and missions, the spawn rules and the picture. applyState puts such a state on the map as exported; the records
 // naming what this export lacks are given back, to be kept and saved back unchanged. A project's file, its drafts and
-// the prefab builder's document all go through these two (app.js's editState keeps editStateNow's answer for one
-// edit event).
+// the prefab builder's document all go through these two (editState keeps editStateNow's answer for one edit event,
+// the edit hub's memo). Before a state is applied, the scene goes back to the map as exported (clearEdits); a note of
+// what the state could not put back goes into the import notes (projectNote). The edits on screen are also counted by
+// kind (changes: the edit status, and whether a trial has edits to keep).
 //
 // createDocumentState takes what it needs of app.js as one argument object, when app.js makes it: the roots' makers
-// and readers, the lights', effects' and spawn points' records, and the groups', buildings' and map grid's own parts.
+// and readers, the lights', effects' and spawn points' records and their edits cleared, the groups', buildings' and
+// map grid's own parts, and the panel's helpers.
 // The shared state it reads and writes is editor_state.js's.
 import * as THREE from 'three';
 import { COVER_KIND } from './cover.js';
-import { areaBindings, builderMode, clearKeepsOutside, cleared, copySerial, data, effectRoots, landingZones, library, lightIndex,
-         lightRoots, loadErrorCount, projectMissions, projectPicture, projectSpawnRules, roots, setClearKeepsOutside, setCleared,
-         setCopySerial, setGroups, setLandingZones, setLoadErrorCount, setMergedBuildings, setProjectMissions, setProjectPicture,
+import { areaBindings, builderMode, cleared, clearKeepsOutside, copySerial, data, effectRoots, eventMemo, landingZones,
+         library, lightIndex, lightRoots, loadErrorCount, missionMoves, projectMissions, projectPicture,
+         projectSpawnRules, roots, setCleared, setClearKeepsOutside, setCopySerial, setGroups, setLandingZones,
+         setLiveCache, setLoadErrorCount, setMergedBuildings, setProjectMissions, setProjectPicture,
          setProjectSpawnRules, stage, volumeRoots } from './editor_state.js';
 import { cloneBlasts, optionsOf, recordOf, stateOfRoot } from './piece_records.js';
 import { memberKey, pruneGroups, sortState, targetKey, validBuilding, validPicture, validPrefabMark, validStage } from './project.js';
 import { NEW_VOLUME, SPAWN_COPY_KINDS, copyEntryOf, spawnEntryOf, spawnKey } from './spawns_view.js';
 
-export function createDocumentState({ actorPose, addEffectRoots, addLightRoots, addRoots, addedEffectOf, addedLightOf, addedObject,
-                                      applyEffectRecord, applyLightRecord, baseSpawnOf, buildRoots, builder, clearEdits,
-                                      clearedChanged, cloneGroups, coverOf, coverVersion, drawBroken, editChanged, effectState,
-                                      gizmo, lightState, liveMembers, loadForeignTemplates, mapBreakable, memberOf, missionKey,
-                                      missionOverrides, movedMatrix, ownSize, plural, projectNote, savedBuildings, sceneChanged,
-                                      setBuildings, setMissionMoves, setStage, short, sourceKey, spawnCopyRecords, streamObjects,
-                                      syncSpawnRule, templateFor }) {
+export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf, addedObject, addEffectRoots,
+                                      addLightRoots, addRoots, applyEffectRecord, applyLightRecord, baseMatrix,
+                                      baseSpawnOf, builder, buildRoots, clearedChanged, clearEffectEdits,
+                                      clearLightEdits, cloneGroups, coverOf, coverVersion, drawBroken, editChanged,
+                                      effectEdited, effectState, gizmo, isStream, lightEdited, lightState, liveMembers,
+                                      loadForeignTemplates, mapBreakable, memberOf, missionKey, missionOverrides,
+                                      movedMatrix, ownSize, plural, removeRoots, savedBuildings, sceneChanged,
+                                      setBuildings, setMissionMoves, setStage, short, sourceKey, spawnCopyRecords,
+                                      streamObjects, syncSpawnRule, templateFor, text }) {
   function editStateNow() {
     const overrides = new Map(), added = new Map();     // (`added`: units while the roots are read, then their records)
     for (const root of roots.values()) {
@@ -216,5 +222,57 @@ export function createDocumentState({ actorPose, addEffectRoots, addLightRoots, 
     return carried;
   }
 
-  return { editStateNow, applyState };
+  // The edits on screen, as a project records them: overrides of original actors and added actors, sorted.
+  function editState() {
+    if (!eventMemo) return editStateNow();
+    return eventMemo.state ??= editStateNow();
+  }
+  // Back to the map as exported, with no history: before a project's state is applied.
+  function clearEdits() {
+    const all = [...roots.values()];
+    removeRoots(all.filter(r => r.userData.source.added));
+    const moved = all.filter(r => r.userData.edit && !r.userData.source.added);
+    gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
+    for (const r of all) {
+      r.userData.deleted = false; r.userData.flags = null; r.userData.breaksFurther = false;
+      if (r.userData.blasts) { r.userData.blasts = null; drawBroken(r); }
+    }
+    setGroups(new Map()); setLiveCache(null);
+    clearLightEdits();
+    clearEffectEdits();
+    setCleared(false); setClearKeepsOutside(false); setLandingZones(null); setMergedBuildings(null); setProjectMissions(null);
+    setProjectPicture(null);
+    setProjectSpawnRules(null); syncSpawnRule();
+    setMissionMoves(new Map());
+    setStage(null);
+    setBuildings([]);
+    clearedChanged();
+  }
+  function projectNote(message) { text($('diagnostics'), 'div', message, 'note'); $('issueCount').textContent = String(Number($('issueCount').textContent || 0) + 1); }
+
+  // Unsaved changes by kind. A deleted original counts as deleted only; an added piece as added only. A grid of the
+  // project's size (stage) and the project's own landing zones count once each.
+  function changes() {
+    let moved = 0, added = 0, deleted = 0, lights = 0;
+    const flagged = new Set(), broken = new Set();     // (broken: the map's pieces broken where they stand, E6)
+    for (const root of roots.values()) {
+      if (root.userData.source.added) added++;
+      else if (root.userData.deleted) deleted++;
+      else if (root.userData.edit) moved++;
+      if (!root.userData.source.added && !root.userData.deleted && root.userData.flags) flagged.add(sourceKey(root.userData.source));
+      if (!root.userData.source.added && !root.userData.deleted && !root.userData.edit && root.userData.blasts?.length) broken.add(sourceKey(root.userData.source));
+    }
+    for (const root of lightRoots.values()) if (!isStream(root.userData.source) && root.userData.source.role !== 'area' && lightEdited(root)) lights++;
+    let effects = 0;
+    for (const root of effectRoots.values()) if (effectEdited(root)) effects++;
+    const grid = stage ? 1 : 0, zones = landingZones ? 1 : 0;
+    // the buildings the project saves: its own, and the map's it changed or deleted
+    const built = data ? savedBuildings().length : 0;
+    // a mission's objects moved in their streams (mission types plan, Part E), and the base spawn points edited (SP6)
+    const spawns = [...missionMoves.values()].filter(m => m.stream === null || m.stream === 'copy').length, missions = missionMoves.size - spawns;
+    return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, flags: flagged.size, broken: broken.size,
+             total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + flagged.size + broken.size };
+  }
+
+  return { applyState, changes, editState, editStateNow, projectNote };
 }

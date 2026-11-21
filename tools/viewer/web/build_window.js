@@ -1,7 +1,8 @@
 // The build window's words (review finding 22: moved out of app.js, which draws them): what a build status from the
 // server (tools/viewer/builds.py, tools/editor/build.py's stages) says, worked out without the page, so the node tests
 // read it. app.js renderBuild puts these in the window's elements.
-import { clock, sentence } from './build_queue.js';
+import { clock } from './build_queue.js';
+import { sentence } from './dom_words.js';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const kilobytes = bytes => (bytes >= 1 << 20 ? `${(bytes / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);

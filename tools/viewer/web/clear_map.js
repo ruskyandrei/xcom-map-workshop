@@ -21,6 +21,7 @@
 // start and families, and the test hooks, read or set them) are editor_state.js's.
 import * as THREE from 'three';
 import { LEVEL, TILE } from './constants.js';
+import { onHub, runHub } from './edit_hub.js';
 import { activeMapId, areaBindings, askedPick, builderMode, cleared, clearKeepsOutside, data, effectRoots,
          landingActors, landingLines, landingZones, lightRoots, missionIndex, missionMoves, missionPickValue,
          playStatus, project, projectMissions, projectPicture, roots, setAreaBindings, setAskedPick, setCleared,
@@ -37,13 +38,12 @@ import { groundOf, ownLandings, startingZones } from './spawns.js';
 import { deletedEntry, spawnEditable, spawnKey, spawnNamed } from './spawns_view.js';
 import { recall, remember } from './storage.js';
 
-export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banner, clearedChanged, cloneGroups, cutaway,
+export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banner, clearedChanged, cloneGroups,
                                  editedKey, explicitZones, flashHint, fromOf, gizmo, grabView, isStream, lightViewOnly,
-                                 liveVolumes, missionFloorLost, missionReached, ownSize, placeMissionGizmo, plural,
-                                 projectChanged, projectsAvailable, refreshInstalls, refreshLandingZones,
-                                 refreshLightVisibility, refreshSpawnMarkers, removeLightRoots, removeRoots,
-                                 sceneChanged, setMissionMoves, setStage, short, showPop, spawnFamilyBuilds,
-                                 spawnsAvailable, world, zoneSoldiers, zoneState }) {
+                                 liveVolumes, missionFloorLost, missionReached, ownSize, plural, projectChanged,
+                                 projectsAvailable, refreshInstalls, refreshLightVisibility, removeLightRoots,
+                                 removeRoots, sceneChanged, setMissionMoves, setStage, short, showPop,
+                                 spawnFamilyBuilds, spawnsAvailable, world, zoneSoldiers, zoneState }) {
   // The landing zone's pieces (compiler.LANDING_PREFIXES, F-45): from the server's families, else by their archetype.
   const LANDING_PREFIXES = ['dgn_dropshipsoldierspawn.', 'veh_lv1skyranger_mod.prefabs.'];
   // (landingActors, as the server names them: editor_state.js)
@@ -71,7 +71,7 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
           setLandingLines({ kind: null, lines: [], failed: String(error?.message ?? error) });
           banner(`The game install's landing lines for this map couldn't be read (${landingLines.failed}), so the editor doesn't know which game is set: the Long War landing lines are missing and Long War only missions aren't checked. Open the map again to ask again.`);
         })
-        .then(() => { setStartingCache(null); refreshGroundGrid(); refreshLandingZones(); }));
+        .then(() => { setStartingCache(null); refreshGroundGrid(); runHub('landing-zones'); }));
   }
   function zonesNow() {
     if (landingZones) return landingZones.filter(validLandingZone);
@@ -300,7 +300,7 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
         setAreaBindings(new Map()); setGroups(new Map());
         setCleared(true); setClearKeepsOutside(keepOutside); setMergedBuildings(null); setStage(next); clearedChanged();
         setProjectMissions(missionsCleared.map(e => ({ ...e }))); refreshMissionPicker();
-        if (kept) { setLandingZones([{ ...kept }]); setPickedZone(null); refreshLandingZones(); }
+        if (kept) { setLandingZones([{ ...kept }]); setPickedZone(null); runHub('landing-zones'); }
         refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
       },
       undo: () => {
@@ -310,7 +310,7 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
         setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore));
         setCleared(clearedBefore); setClearKeepsOutside(keepsBefore); setMergedBuildings(null); setStage(stageBefore); clearedChanged();
         setProjectMissions(missionsBefore ? missionsBefore.map(e => ({ ...e })) : null); refreshMissionPicker();
-        if (kept) { setLandingZones(zonesBefore ? zonesBefore.map(z => ({ ...z })) : null); setPickedZone(null); refreshLandingZones(); }
+        if (kept) { setLandingZones(zonesBefore ? zonesBefore.map(z => ({ ...z })) : null); setPickedZone(null); runHub('landing-zones'); }
         refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection(picks.ids, picks.active); sceneChanged();
       },
     });
@@ -518,7 +518,7 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     $('mission').replaceChildren(...list.map(m => new Option(m.label, m.value)));
     if (!list.some(m => m.value === missionPickValue)) chooseMission(list[0]?.value ?? '0');
     $('mission').value = missionPickValue;
-    if (missionPickValue !== before) { refreshLightVisibility(); refreshSpawnMarkers(); placeMissionGizmo(); cutaway(); }
+    if (missionPickValue !== before) runHub('mission');
   }
   // The header's Mission picker as a map opens (app.js's startScene).
   function startMissionPicker() {
@@ -546,6 +546,9 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     setMissionPickValue(String(missionIndex));
     setStreamSet(new Set(missions[missionIndex]?.streams ?? []));
   }
+
+  // The scene's pieces changed (the edit hub's scene run, edit_hub.js): the ground grid drawn again if its pieces did.
+  onHub('scene', 'ground-grid', () => { refreshGroundGrid(false); });
 
   return { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
            headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,

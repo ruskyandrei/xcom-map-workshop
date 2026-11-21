@@ -1,45 +1,38 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGizmo, placedPose, actorMatrix } from './gizmo.js';
-import { createPieceBrowser, pieceGrid, useFamilies } from './pieces.js';
-import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
-         groupKey } from './project.js';
-import { createProjectDialog, savedWhen } from './project_files.js';
+import { createGizmo } from './gizmo.js';
+import { createPieceBrowser } from './pieces.js';
+import { api as projectApi, targetKey, uuid } from './project.js';
+import { createProjectDialog } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
 import { createSetupDialog, setupApi } from './setup.js';
-import { makeEffectMarker } from './effects_view.js';
 import { viewHeight } from './effects_preview.js';
 import { recordName } from './effects_rules.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
-import { cloneBlasts } from './piece_records.js';
-import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
-         buildingMeta, cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo,
-         floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, hintTimer,
-         landingZones, lastBuild, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots,
-         lightsDirty, lightsOn, lightsShown, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue,
-         missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns, ownSet, pickBox, pickDrag,
-         pickedSpawn, pickTool, pieces, placing, prefabParameter, project, projectMissions, projectSpawnRules,
-         reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
-         setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn,
-         setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors, setLandingZones,
-         setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
-         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
-         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
-         setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey,
-         setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn,
-         spawnLayerReady, spawnPlacing, spawnsOn, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
-         wallDrag, wallDrawing, zonePlacing, zonesOn } from './editor_state.js';
-import { createDocumentSession } from './document_session.js';
+import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, buildingMeta, cachePrefix,
+         coverDrag, data, effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool,
+         groupIndex, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty,
+         lightsOn, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects,
+         pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots, selected,
+         setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix,
+         setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue,
+         setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue,
+         setMergedBuildings, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid,
+         setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setReachKey, setReachShown,
+         setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnPlacing,
+         spawnsOn, streamSet, tipDirty, volumeDrag, volumesOn, wallDrag, wallDrawing, zonePlacing,
+         zonesOn } from './editor_state.js';
+import { createDocumentSession, projectsAvailable } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
 import { createBuilderSession } from './builder_session.js';
 import { createPrefabPlace } from './prefab_place.js';
-import { createLightsWiring } from './lights_wiring.js';
+import { AREA_SHOWN, createLightsWiring, REACH_SHOWN, SKY_SHOWN } from './lights_wiring.js';
 import { createEffectsWiring } from './effects_wiring.js';
 import { createSpawnsWiring } from './spawns_wiring.js';
 import { createZonesWiring } from './zones_wiring.js';
@@ -47,7 +40,7 @@ import { createBuildingsWiring } from './buildings_wiring.js';
 import { createCoverWiring } from './cover_wiring.js';
 import { createFlagsPanel } from './flags_panel.js';
 import { createSelectKind } from './select_kind.js';
-import { createGroups } from './groups.js';
+import { cloneGroup, cloneGroups, createGroups, groupChain, memberOf, memberRecord, topLocked } from './groups.js';
 import { createAlign } from './align.js';
 import { createLibraryTemplates } from './library_templates.js';
 import { createClipboard } from './clipboard.js';
@@ -56,35 +49,40 @@ import { createMadeDrawing } from './made_drawing.js';
 import { createMadeHandles } from './made_handles.js';
 import { createMadePanel } from './made_panel.js';
 import { createMadeBreaking } from './made_breaking.js';
-import { createMapGrid } from './map_grid.js';
+import { createMapGrid, gridOrigin, tileCorner } from './map_grid.js';
+import { createMapFamilies } from './map_families.js';
 import { createClearMap } from './clear_map.js';
-import { createScenePieces } from './scene_pieces.js';
+import { actorPose, createScenePieces, movedMatrix } from './scene_pieces.js';
+import { isPlain, madeRequest, plainLook } from './made_requests.js';
 import { createCutaway } from './cutaway.js';
 import { createFloorListings } from './floor_listings.js';
 import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
-import { onHub, runHub, STOP } from './edit_hub.js';
-import { createSelection } from './selection.js';
+import { checkHub, editChangedNow, runHub } from './edit_hub.js';
+import { createSelection, selectionWords } from './selection.js';
+import { createViews } from './views.js';
+import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { createTestApi } from './test_api.js';
 import { createNavigation, RECIPE_NOTE } from './navigation.js';
 import { createLoading } from './loading.js';
+import { createHints } from './hints.js';
+import { createBusy } from './busy.js';
 import { createPopups } from './popups.js';
 import { createMapMenu } from './map_menu.js';
+import { createProjectMenu } from './project_menu.js';
+import { createPieceStatus } from './piece_status.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
+import { copyText, field, plural, segButton, segmented, short, text } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting } from './lighting.js';
-import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
 import { COVER_KIND } from './cover.js';
 import { TILE } from './constants.js';
-import { WALL_LOOKS, SLAB_LOOKS, slabLookOf, madeWallShape, madeSlabShape } from './walls.js';
-import { DONOR_VERSION, loadLooks, lookTags } from './looks.js';
+import { loadLooks, lookTags } from './looks.js';
 import { createLookPicker } from './look_picker.js';
-import { GROUND_LOOKS, versionedGround, POINTS_VERSION, madeGroundShape } from './ground.js';
 
 const $ = id => document.getElementById(id);
 // Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
@@ -157,7 +155,7 @@ const volumeLayer = new THREE.Group();
 // (effectsOn, pickedEffect, effectsDirty, effectMarkers, normalEffects: editor_state.js)
 // the Spawns view (editor spawns plan, SP3; spawns_wiring.js): only its markers are picked; the Normal button's switch
 // (normalSpawns, remembered) draws and picks them with pieces
-// (spawnsOn, normalSpawns, spawnLayerReady: editor_state.js)
+// (spawnsOn, normalSpawns: editor_state.js; whether its layer is made: spawns_wiring.js)
 // (the Wave preview's player, wavePlayer: editor_state.js)
 world.add(volumeLayer);
 const cutMaterials = new Map();
@@ -165,44 +163,9 @@ const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:tru
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
 // Edits: the gizmo moves whole actors (all their components); a project keeps the edits (Ctrl+S) and the Build makes them.
-// Groups (research/editor-contracts.md, section 2): pieces the user keeps together, saved in the project. A group
-// selects and moves as one, with linked pieces on or off; Ungroup ends it. There is no unlocking (the user, 11
-// November 2026: "just leave it to group/ungroup"): every group is locked, and a project's `locked` is always true.
-// breakTogether is for the game: when one of its breakable pieces is damaged or destroyed, the others are too, and
-// its cover blocks go with a destroyed one (the
-// compiler and the copier link them).
-// A member is also a light (as a piece: its target, or {added}) or one of the project's buildings ({building}; plan
-// 5.4a): they move, copy and go with the group, and take no part in breaking together.
-// Groups nest (prefab plan 5.4): a member is a piece or another group ({group}); a piece is a direct member of one
-// group at most, and a group of one. A piece picked selects the outermost group it is in; Ungroup ends that one, so
-// it peels one level; Ctrl+G on pieces and whole groups makes a group of them, the groups kept inside.
-// (groups and groupIndex, and setGroups: editor_state.js)
-const parentGroup = g => groupIndex.get(groupKey(g.id));
-// A group and the groups it is in, from the inside out.
-function groupChain(g) { const out = []; for (let x = g; x && out.length < 64; x = parentGroup(x)) out.push(x); return out; }
-// The outermost locked group among a group and the ones it is in: what a piece of it selects and moves with.
-const topLocked = g => groupChain(g).filter(x => x.locked).at(-1) ?? null;
-// The pieces of a group, those of the groups inside it too: their member keys.
-function leafKeys(g, out = [], depth = 0) {
-  for (const [k, m] of g.members) {
-    if (m.group === undefined) out.push(k);
-    else if (groups.has(m.group) && depth < 64) leafKeys(groups.get(m.group), out, depth + 1);
-  }
-  return out;
-}
-// A piece's member key and record: an original by package, level and actor; an added piece by its output name.
-// (a light is a member as a piece is; a floor box stands for its building, which is a member whole: plan 5.4a)
-const memberRecord = o => (o.isVolume ? { building: volumeRoots.get(o.id)?.userData.volume.building ?? '' }
-  : o.added ? { added: o.actor } : { package: o.sourcePackage, level: o.layer, actor: o.actor });
-const memberOf = o => memberKey(memberRecord(o));
-const cloneGroup = g => ({ ...g, members: new Map(g.members) });
-const cloneGroups = (from = groups) => new Map([...from].map(([id, g]) => [id, cloneGroup(g)]));
 // Pieces of the packages a mission streams into the map (LWR's patches, mission objects): shown for reference, never
 // edited (a project edits the map's own pieces; the Build makes nothing of theirs).
 const isStream = o => o?.layer === 'stream';
-// The families of pieces and the map's assemblies (families.json, tools/viewer/families.py: the compiler's own), or
-// null from a server without them. assemblyIndex: an original's key (package|level|actor) to its assembly.
-let assemblyIndex = new Map(), originalIndex = null;     // (the families, families: editor_state.js)
 // The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
 // opens once they are, so its pieces in a donor look are drawn in it. A read that fails isn't kept (review finding
 // 31): the banner says why, and Try again reads it again.
@@ -219,48 +182,21 @@ function readLooks() {
 }
 // The original a piece is, or was copied from: package, level and actor (a project's key for it).
 const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level: o.layer, actor: o.actor });
-// foreignAssemblies: the same for the assemblies of other maps' pieces, as their records are read (libraryTemplate).
-const foreignAssemblies = new Map();
-const assemblyOf = o => {
-  if (!o) return null;
-  const key = targetKey(fromOf(o));
-  return assemblyIndex.get(key) ?? foreignAssemblies.get(key) ?? null;
-};
-// The exported pose of the original whose pose rule a piece keeps under tile snap (a ladder, door, car, van or
-// fracturing piece: the recipe snap), or null.
-function recipeOf(o) {
-  if (!o || o.isLight || o.isEffect || isStream(o) || !pieceGrid(o)) return null;
-  if (!o.added) return { location: o.location, rotation: o.rotation };
-  if (!originalIndex) {
-    originalIndex = new Map();
-    for (const r of roots.values()) if (!r.userData.source.added) originalIndex.set(targetKey(fromOf(r.userData.source)), r.userData.source);
-  }
-  const original = originalIndex.get(targetKey(o.added.from)) ?? foreignTemplates.get(`${targetKey(o.added.from)}|${o.component}`);
-  if (!original) return null;
-  // a made wall's height is free (its columns are made for where it stands): it moves by storeys from its own
-  return isMade(o) ? { location: [original.location[0], original.location[1], o.location[2]], rotation: original.rotation }
-    : { location: original.location, rotation: original.rotation };
-}
-const gridOrigin = () => data?.tileGrid?.origin?.slice(0, 2) ?? null;
-// The corner the game counts its tiles from (export 26's tileGrid.tiles, its world data's WorldBounds; for an older
-// export a unit under the origin, as on every installed map), [x, y, z]: a point's tile (a ladder's ends, a mission
-// object's, a soldier's spot, the floor under a piece placed) is counted from it, as compiler.py tile_corner has it.
-// Placing (snap, the lines, the grid rule) keeps the origin, the level volume's corner, where the maps' pieces stand.
-const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v => v - 1) ?? null;
 // (The map's size as the project sets it, the cleared map, its landing zones, missions, picture and spawn rules, the
 // buildings, and the install's landing lines for the map with the read a project waits for: editor_state.js.)
 // The scene's pieces (scene_pieces.js): picking, textures and materials, the meshes' and materials' loads, a
-// piece's root built, added and taken away, an original's parts and boxes, and a piece's box; made before
-// the gizmo, which is given baseMatrix (nothing of it runs as the page loads but a few tables and vectors
-// made).
-const { addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, material, materialCache, materialKey,
-        movedBox, originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt, removeRoots, texture, track,
-        vertexBox } = createScenePieces({
-  camera, content, flashHint, fromOf, gltfLoader, gridOrigin, pickables, renderer, textureLoader, texturePromises,
+// piece's root built, added and taken away, an original's parts and boxes, a piece's box, an added piece made from
+// its template, a record's template and an original's recipe pose; made before the gizmo, which is given baseMatrix
+// (nothing of it runs as the page loads but a few tables and vectors made).
+const { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
+        materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, rayAt, recipeOf, removeRoots,
+        templateFor, texture, track, unscaled, vertexBox } = createScenePieces({
+  camera, content, fromOf, gltfLoader, gridOrigin, isStream, pickables, renderer, textureLoader, texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
   loadingState: (message, fraction, detail) => loadingState(message, fraction, detail),
-  assetUrl: url => assetUrl(url), drawBroken: root => drawBroken(root),
-  select: (id, add, keep) => select(id, add, keep) });
+  assetUrl: url => assetUrl(url), coverVersion: (version, type) => coverVersion(version, type),
+  drawBroken: root => drawBroken(root), flashHint: message => flashHint(message), isMade: o => isMade(o),
+  select: (id, add, keep) => select(id, add, keep), sourceKey: o => sourceKey(o) });
 const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: controls, roots: allRoots, baseMatrix, onEdit: editChanged,
                             // a group's lights and buildings move with it, drawn or not; a building is whole (all its boxes)
                             // outside the Buildings view, where each box is on its own
@@ -278,45 +214,19 @@ const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: cont
                             copyDrag: { begin: () => copyDragBegin(), end: (token, delta) => copyDragEnd(token, delta) },
                             // Level snap: a floor piece moved up or down keeps to whole levels (64 units)
                             levels: root => !root.userData.light && !root.userData.volume && !root.userData.effect && levelSnap && floorSupportOf([root.userData.source]) != null });
-// The map's families arrived: an assembly also knows the link tag its copies' pieces share where a piece has no prefab
-// of its own (pasteSnapshot): its members' prefab (Police Station's standalone light bar joins its sedan's), else its
-// pivot (a door's leaf and frame share no prefab).
-function useMapFamilies(table) {
-  setFamilies(table); assemblyIndex = new Map();
-  const prefabOf = new Map(data.objects.filter(o => o.prefab && o.layer === 'base').map(o => [o.actor, o.prefab]));
-  for (const a of table?.assemblies ?? []) {
-    const tag = a.members.length > 1 ? (a.members.map(m => prefabOf.get(m)).find(Boolean) ?? short(a.pivot)) : null;
-    const assembly = { ...a, tag };
-    for (const m of a.members) assemblyIndex.set(targetKey({ package: table.map, level: 'base', actor: m }), assembly);
-  }
-  useFamilies(table, o => assemblyOf(o)?.family ?? null);
-  setLandingActors(Array.isArray(table?.landing) ? new Set(table.landing) : null);
-  gizmo.regroup();
-}
+// The map's families and assemblies (map_families.js): the families set as the map's arrive, each original's assembly
+// with its link tag, and a piece's assembly (the map's own, or another map's as its records are read); made where the
+// families' use was, after the gizmo, which it regroups (nothing of it runs as the page loads but its two tables made).
+const { assemblyOf, foreignAssemblies, useMapFamilies } = createMapFamilies({
+  fromOf, gizmo });
 // (the Map lighting mode, lighting, and the pieces that could not be drawn, loadErrorCount: editor_state.js)
 // (the server's map list, mapCatalogue, the map browser, mapBrowser, and cachePrefix: editor_state.js)
 // (the lights' reach, lightRadius: editor_state.js)
 
-const short = path => path.split('.').at(-1);
-function text(parent, tag, value, className) {
-  const el = document.createElement(tag); el.textContent = value;
-  if (className) el.className = className;
-  parent.append(el); return el;
-}
-function field(parent, name, value) {
-  text(parent, 'dt', name); return text(parent, 'dd', value);
-}
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 // The loading overlay (loading.js): its message, bar and detail line, an opening document's steps on it, and a
 // JSON file read with its progress; made as soon as the words it needs are (nothing of it runs as the page loads).
 const { fetchJson, loadingState, openingProgress } = createLoading({
   $, plural });
-async function copyText(button, value) {
-  const label = button.textContent;
-  try { await navigator.clipboard.writeText(value); button.textContent = 'Copied'; }
-  catch { button.textContent = 'Copy failed'; }
-  setTimeout(() => { button.textContent = label; }, 1500);
-}
 // The selection's group as a chip beside its name; groupPanel keeps it up to date. (The selection, selection.js,
 // puts it in the piece panel; both it and the groups are given it.)
 const groupChip = document.createElement('span');
@@ -328,29 +238,6 @@ const { flagContract, flagKey, flagSource, resetFlags } = createFlagsPanel({
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), sourceKey: o => sourceKey(o) });
 const poseInputs = ['posX','posY','posZ','rotP','rotY','rotR'].map($);
-// Unsaved changes by kind. A deleted original counts as deleted only; an added piece as added only. A grid of the
-// project's size (stage) and the project's own landing zones count once each.
-function changes() {
-  let moved = 0, added = 0, deleted = 0, lights = 0;
-  const flagged = new Set(), broken = new Set();     // (broken: the map's pieces broken where they stand, E6)
-  for (const root of roots.values()) {
-    if (root.userData.source.added) added++;
-    else if (root.userData.deleted) deleted++;
-    else if (root.userData.edit) moved++;
-    if (!root.userData.source.added && !root.userData.deleted && root.userData.flags) flagged.add(sourceKey(root.userData.source));
-    if (!root.userData.source.added && !root.userData.deleted && !root.userData.edit && root.userData.blasts?.length) broken.add(sourceKey(root.userData.source));
-  }
-  for (const root of lightRoots.values()) if (!isStream(root.userData.source) && root.userData.source.role !== 'area' && lightEdited(root)) lights++;
-  let effects = 0;
-  for (const root of effectRoots.values()) if (effectEdited(root)) effects++;
-  const grid = stage ? 1 : 0, zones = landingZones ? 1 : 0;
-  // the buildings the project saves: its own, and the map's it changed or deleted
-  const built = data ? savedBuildings().length : 0;
-  // a mission's objects moved in their streams (mission types plan, Part E), and the base spawn points edited (SP6)
-  const spawns = [...missionMoves.values()].filter(m => m.stream === null || m.stream === 'copy').length, missions = missionMoves.size - spawns;
-  return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, flags: flagged.size, broken: broken.size,
-           total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + flagged.size + broken.size };
-}
 // After any trial edit, undo or selection: the highlight, the pose fields, the tool states and the edit status.
 // Undo, redo and the "not saved" chip appear only once something has changed.
 // One edit event builds the document's state once (plan "faster editor", P2): while editChanged runs, editState,
@@ -363,170 +250,19 @@ function editChanged() {
   setEventMemo({});
   try { return editChangedNow(); } finally { setEventMemo(null); }
 }
-function editChangedNow() {
-  runHub('edit');
-}
-// app.js's own refreshes of the edit hub's run (edit_hub.js lists them with the other areas' and calls them in
-// order):
-onHub('edit', 'piece-status', () => {
-  const pose = gizmo.pose(), count = changes();
-  if (pose) [...pose.location, ...pose.rotation].forEach((v, i) => {
-    if (document.activeElement !== poseInputs[i]) poseInputs[i].value = (Math.abs(v) < 0.005 ? 0 : v).toFixed(2);
-  });
-  // while a handle is held, only what is seen to move is kept up: the pieces, the highlight, the pose fields, the
-  // grid chip. The status, the save state, the panels, the size line and the warnings wait for the drag's end, which
-  // runs this again in full (the gizmo's dragging-changed).
-  if (gizmo.controls.dragging) { runHub('drag'); return STOP; }
-  // a streamed piece, or a view-only light, is shown, not edited: its place, read only
-  const pickedRoot = allRoots.get(selected), pickedSource = pickedRoot?.userData.source;
-  const fixedPick = isStream(pickedSource) || Boolean(pickedRoot?.userData.light && lightViewOnly(pickedSource));
-  if (fixedPick && !pose) {
-    const at = pickedRoot.userData.light ? lightPose(pickedRoot) : pickedSource;
-    [...at.location, ...at.rotation.map(r => r * 360 / 65536)].forEach((v, i) => { poseInputs[i].value = (Math.abs(v) < 0.005 ? 0 : v).toFixed(2); });
-  }
-  { const n = i => Math.round(Number(poseInputs[i].value) || 0);
-    $('poseSum').textContent = `${n(0)}, ${n(1)}, ${n(2)} · ${n(4)}°`;
-    $('sourceSum').textContent = pickedSource?.actorClass ?? ''; }
-  poseInputs.forEach((input, i) => { input.disabled = fixedPick || (i >= 3 && pickedRoot?.userData.light && pickedSource.kind === 'point'); });
-  $('editDelete').disabled = fixedPick;
-  // (in the builder every piece is the prefab's own, so only whether it is saved is said)
-  $('editCount').hidden = builderMode ? !count.total && !builder.doc?.revision : !count.total;
-  $('editCount').textContent = builderMode ? saveState() : [count.moved && `${count.moved} moved`, count.added && `${count.added} added`,
-    count.deleted && `${count.deleted} deleted`, count.lights && plural(count.lights, 'light edit'),
-    count.effects && plural(count.effects, 'effect or sound edit'),
-    count.grid && `grid ${data.tileGrid.dimensions[0]} × ${data.tileGrid.dimensions[1]}${cleared ? ` × ${data.tileGrid.dimensions[2]}` : ''}`,
-    count.zones && 'landing zones changed', count.buildings && plural(count.buildings, 'building'),
-    count.missions && `${plural(count.missions, 'mission object')} moved`, count.spawns && plural(count.spawns, 'spawn point edit'), count.flags && `${plural(count.flags, 'piece')} with flags changed`, count.broken && `${plural(count.broken, 'piece')} broken`,
-    saveState()].filter(Boolean).join(' · ');
-  $('editCount').classList.toggle('warn', saveState() !== 'saved');
-  $('editUndo').hidden = $('editRedo').hidden = !(count.total || gizmo.canUndo() || gizmo.canRedo());
-  $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();
-  $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)) || (r.userData.effect && r.userData.values));
-  $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !cleared);
-});
-// While a gizmo handle is held: one short line on what is moving and how to back out.
-function dragHint(dragging) {
-  const hint = $('dragHint');
-  clearTimeout(hintTimer);
-  if (!dragging) { restingHint(); return; }
-  hint.hidden = false;
-  hint.replaceChildren(`${gizmo.mode === 'rotate' ? 'Rotating' : 'Moving'} ${plural(gizmo.selection().length, 'piece')} · `
-    + `${ownSet.size ? 'the map\'s own building stays where it is (copy it instead) · ' : ''}`);
-  text(hint, 'kbd', 'Esc'); hint.append(' cancels the drag');
-}
-// The busy mark for slow steps (map buildings plan, 4a): the build window's turning ring with what is being done, put
-// up once a step has run for about a third of a second, so quick steps never show it. busyStart(message) returns the
-// function that ends it. A long step on the page's own thread, which no timer interrupts (a paste of many pieces),
-// asks for it `now`: the mark is drawn first and a frame let through (nextFrame) before the work runs.
-const BUSY_AFTER = 330, BUSY_PIECES = 60, WORK_SLICE = 12, BUILD_CHUNK = 16;
-const busyJobs = [];
-function busyStart(message, now = false, hold = false) {
-  const job = { message, shown: now, hold, done: 0, total: null };
-  busyJobs.push(job);
-  const timer = now ? null : setTimeout(() => { job.shown = true; busyPaint(); }, BUSY_AFTER);
-  busyPaint();
-  const end = () => { clearTimeout(timer); const at = busyJobs.indexOf(job); if (at >= 0) busyJobs.splice(at, 1); busyPaint(); };
-  end.job = job;
-  return end;
-}
-function busyPaint() {
-  const job = busyJobs.filter(j => j.shown).at(-1);
-  $('busyMark').hidden = !job;
-  if (!job) return;
-  const counted = job.total > 0;
-  $('busyText').textContent = counted ? `${job.message} ${Math.min(job.done, job.total)} of ${job.total}` : job.message;
-  $('busyBar').hidden = !counted;
-  if (counted) $('busyBar').firstElementChild.style.width = `${Math.round(100 * Math.min(1, job.done / job.total))}%`;
-}
-// After the next frame is drawn (or a moment, where the page is in the background and draws none).
-const nextFrame = () => new Promise(resolve => { requestAnimationFrame(() => setTimeout(resolve, 0)); setTimeout(resolve, 80); });
-// One way to be busy (plan "sturdier prefabs, faster editor", L1): busy(message, work, { total, now }) puts the mark
-// up (after a third of a second, or at once and with a frame let through when the caller knows the step is large),
-// runs work(step) and takes the mark down whatever happens. step(done, total, message) moves the bar and the count
-// ("212 of 458"); without a total the ring alone shows. While a mark put up at once is shown, clicks and keys meant
-// for the view are ignored (busyHeld), so a second Ctrl+V does not queue behind the first; a mark that comes up late
-// (a read that may be quick) holds nothing unless asked to.
-async function busy(message, work, { total = null, now = false, hold = now } = {}) {
-  const end = busyStart(message, now, hold), job = end.job;
-  job.total = total;
-  const step = (done, of = job.total, text = null) => { job.done = done; job.total = of; if (text) job.message = text; busyPaint(); };
-  try {
-    if (now) await nextFrame();
-    return await work(step);
-  } finally { end(); }
-}
-const busyHeld = () => busyJobs.some(j => j.hold && j.shown);
-for (const type of ['keydown', 'pointerdown', 'wheel'])
-  window.addEventListener(type, e => {
-    if (!busyHeld()) return;
-    const view = type === 'keydown' ? !e.target.closest?.('input, textarea, select, [contenteditable], dialog') : e.target.tagName === 'CANVAS';
-    if (view) { e.stopImmediatePropagation(); e.preventDefault(); }
-  }, { capture: true, passive: false });
-// A long loop on the page's own thread gives way once it has held it for WORK_SLICE ms: `const rest = breather()`
-// before the loop, `await rest()` in it. The ring keeps turning and the bar moves; a short loop never waits.
-function breather(slice = WORK_SLICE) {
-  let since = performance.now();
-  return async () => { if (performance.now() - since < slice) return; await nextFrame(); since = performance.now(); };
-}
-// Many pieces made (buildRoot each), a few at a time, giving way by time and counting for the busy mark. With `failed`
-// (a list), a piece that can't be drawn (its mesh, a material or a texture not had) is left out of what is given back
-// and named there, { obj, error }, as the map's own load leaves one out (review finding 29); without, it throws.
-async function buildRoots(objs, step = null, failed = null) {
-  const built = [], rest = breather();
-  for (let k = 0; k < objs.length; k += BUILD_CHUNK) {
-    const chunk = objs.slice(k, k + BUILD_CHUNK);
-    const made = await Promise.all(chunk.map(obj => (failed ? buildRoot(obj).catch(error => { failed.push({ obj, error }); return null; }) : buildRoot(obj))));
-    built.push(...made.filter(Boolean));
-    step?.(k + chunk.length, objs.length);
-    await rest();
-  }
-  return built;
-}
-// A short notice in the same place (copied, deleted, nothing to paste); it goes after a moment.
-// (its timer, hintTimer: editor_state.js)
-function flashHint(message) {
-  if (gizmo.controls.dragging) return;
-  const hint = $('dragHint');
-  hint.replaceChildren(message); hint.hidden = false;
-  clearTimeout(hintTimer);
-  setHintTimer(setTimeout(restingHint, 2500));
-}
-// With nothing else to say: how to place the piece being placed, or nothing.
-function restingHint() {
-  const hint = $('dragHint');
-  if (pickTool && !placing) {
-    hint.hidden = false; hint.replaceChildren('Box select: drag over the ground, around the pieces to take · ');
-    text(hint, 'kbd', 'Esc'); hint.append(' cancels');
-    return;
-  }
-  hint.hidden = !placing;
-  if (!placing) return;
-  const turned = placing.turns ? ` (turned ${placing.turns * 90}°)` : '';
-  const storey = $('floor').value !== 'all' ? `floor ${$('floor').value}'s height (the Floor picker)` : 'the level under the cursor';
-  const floor = placing.clip.floor != null && levelSnap ? ` · a floor piece: its height snaps to ${storey}` : '';
-  hint.replaceChildren(`Placing ${placing.clip.name}${turned}${floor} · click to place · R turns · Shift+click places more · `);
-  text(hint, 'kbd', 'Esc'); hint.append(' stops');
-}
+// The hint line under the view (hints.js): while a gizmo handle is held, a short notice, and with nothing else to say
+// what is being placed; and the busy mark for slow steps (busy.js), the page giving way in a long loop and many pieces
+// built a few at a time, whose listeners hold the view's clicks and keys while a mark put up at once is shown. Made
+// where their code was: the busy mark's listeners are set here, as before.
+const { dragHint, flashHint, restingHint } = createHints({
+  $, gizmo });
+const { BUSY_PIECES, buildRoots, busy, busyPaint, busyStart, nextFrame } = createBusy({
+  $, buildRoot });
 
-// Adding and deleting pieces. Like moves, these are edits a project keeps and the Build makes.
-// A copy is a new piece built from its source's mesh and materials, with its own id, actor name and pivot.
-// (the clipboard, clipboard, and the copies' serial: editor_state.js)
-const newId = () => `added:${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
 // What a selected root is called in a list: a piece by its mesh, a light by its actor.
 const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
   : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
   : short(data.meshes[r.userData.source.mesh].name));
-// "12 pieces, 2 lights and 1 building": what these roots are, by kind.
-function selectionWords(list, other = '') {
-  const lights = list.filter(r => r.userData.light).length, boxes = list.filter(r => r.userData.volume);
-  const fx = kind => list.filter(r => r.userData.effect && r.userData.source.kind === kind).length;
-  const effects = fx('effect'), sounds = fx('sound'), flares = fx('flare');
-  const made = new Set(boxes.map(r => r.userData.volume.building)).size, n = list.length - lights - boxes.length - effects - sounds - flares;
-  const parts = [n && plural(n, `${other}piece`), lights && plural(lights, `${n ? '' : other}light`), effects && plural(effects, 'effect'),
-                 sounds && plural(sounds, 'sound'), flares && plural(flares, 'lens flare'),
-                 made && plural(made, `${n || lights ? '' : other}building`)].filter(Boolean);
-  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? `0 ${other}pieces`;
-}
 // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
 const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
 // The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
@@ -539,86 +275,7 @@ function copyable() {
 const copyablePieces = () => copyable().filter(r => !r.userData.light && !r.userData.effect);
 // What a group can hold of the selection: pieces, lights that can be edited, and the buildings picked with them.
 const groupables = () => [...copyable(), ...selectedBoxes()];
-// "3 pieces, 1 light and 1 building": a group's members (their keys), by kind.
-function keyWords(keys) {
-  const kind = k => { const r = liveMembers().get(k)?.[0]; return k.startsWith('building|') ? 'building' : r?.userData.light ? 'light'
-    : r?.userData.effect ? (r.userData.source.kind === 'flare' ? 'lens flare' : r.userData.source.kind) : 'piece'; };
-  const parts = ['piece', 'light', 'effect', 'sound', 'lens flare', 'building'].map(w => { const n = keys.filter(k => kind(k) === w).length; return n && plural(n, w); }).filter(Boolean);
-  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? plural(0, 'piece');
-}
-function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(true); cutaway(); refreshGroundGrid(false); refreshJoins(); }
-// An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
-// rotator exactly, so untouched native values stay as they were.
-function actorPose(source, matrix) {
-  const pose = placedPose(source, matrix);
-  const turn = matrix.clone().multiply(new THREE.Matrix4().fromArray(source.matrix).invert()).elements;
-  const same = [0, 1, 2, 4, 5, 6, 8, 9, 10].every(i => Math.abs(turn[i] - (i % 5 === 0 ? 1 : 0)) < 1e-7);
-  return { location: pose.location.map(tidyLocation), rotation: same ? [...source.rotation] : pose.rotation.map(tidyRotator) };
-}
-// The render matrix that puts a source piece's actor at a game pose (the inverse of actorPose).
-const movedMatrix = (source, location, rotation) => actorMatrix(location, rotation)
-  .multiply(actorMatrix(source.location, source.rotation).invert()).multiply(new THREE.Matrix4().fromArray(source.matrix));
-// A made piece's request (custom geometry plan, M4): a donor look's at its kind's DONOR_VERSION with the look in its
-// numbers, a look id's (or none) at version 1 as before.
-// A made piece drawn plain (custom geometry editing plan, B2, 19 November 2026): its kind's default look's numbers at
-// its kind's PLAIN_VERSION, drawn in a plain material until a look is chosen in the piece panel; the Build makes it in
-// that default look and says so (compiler made-no-look).
-const PLAIN_VERSION = { fracWall: 4, fracSlab: 3, ground: 3 };
-// (MADE_KINDS, the kinds of made piece, one piece each made from numbers: piece_records.js)
-const isPlain = g => Boolean(g) && (g.version === PLAIN_VERSION[g.kind] || (g.kind === 'ground' && g.version === POINTS_VERSION && g.ground?.look === undefined));
-const madeRequest = (kind, look, numbers, plain = false) => {
-  const key = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' }[kind];
-  // (a rock with moved points: POINTS_VERSION whatever its look, versionedGround)
-  if (plain) return versionedGround({ kind, version: PLAIN_VERSION[kind], [key]: numbers });
-  return versionedGround(look?.donor ? { kind, version: DONOR_VERSION[key], [key]: { ...numbers, look: { ...look.donor } } } : { kind, version: 1, [key]: numbers });
-};
-// The default look a plain piece of `kind` is made in: the Bar's inside wall, the Bar's floor or roof by the slab's
-// role, asphalt (a look marked `plain`, which setMadeLook makes a plain request of).
-function plainLook(kind, numbers = null) {
-  if (kind === 'wall') return { ...WALL_LOOKS[0], plain: true };
-  if (kind === 'ground') return { ...GROUND_LOOKS[0], plain: true };
-  const role = slabLookOf(numbers ?? {})?.role ?? 'roof';
-  return { ...(SLAB_LOOKS.find(l => l.role === role) ?? SLAB_LOOKS[0]), plain: true };
-}
-// A made piece's mesh and materials; a plain one's (B2) on the plain material, but for the hidden inside faces.
-function madeShape(template, generated) {
-  const shape = madeShapeOf(template, generated);
-  return isPlain(generated) && shape.materials
-    ? { ...shape, materials: shape.materials.map(m => (data.materials[m]?.render?.family === 'hidden' ? m : PLAIN_MATERIAL)) } : shape;
-}
-// A made piece's mesh and materials from its numbers (walls.js madeWallShape and madeSlabShape, ground.js
-// madeGroundShape: the mesh record goes into the scene's meshes), or {} when the server can't draw them.
-function madeShapeOf(template, generated) {
-  if (generated?.kind === 'fracSlab') return madeSlabShape(template, generated.slab, generated.blasts, data.meshes);
-  if (generated?.kind === 'ground') return madeGroundShape(template, generated.ground, data.meshes);
-  return generated?.kind === 'fracWall' ? madeWallShape(template, generated.wall, generated.blasts, data.meshes) : {};
-}
-// An added piece: a copy of one source component, as its own actor (output name, entity id, prefab and partner).
-// A made piece stands at scale 1 whatever its donor's (custom geometry plan, M4b: the Build sets its DrawScale and
-// DrawScale3D to 1; a ground donor placed at 4 gives a look like any other): its matrix without the donor's scale.
-function unscaled(matrix) {
-  const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
-  matrix.decompose(p, q, s);
-  return new THREE.Matrix4().compose(p, q, new THREE.Vector3(1, 1, 1));
-}
-function addedObject(template, placed, { actor, entity, prefab, partner, location, rotation, tinted, flags = null, generated = null, blasts = null, breaksFurther = false }) {
-  if (generated && ['fracWall', 'fracSlab', 'ground'].includes(generated.kind)) placed = unscaled(placed);
-  return { ...template, ...madeShape(template, generated), id: newId(), actor, layer: 'added', hidden: false, environment: false, hiddenBy: null, provenance: null,
-    // its piece flags as made (piece flags plan): a paste's are its original's request, a project's its record's; the
-    // template's settings (pieceFlags) stay its baseline
-    initialFlags: flags ? { ...flags } : null,
-    // a copy of one of the map's fracturing pieces broken (E6): its blasts, a paste's its original's
-    initialBlasts: blasts?.length && !generated ? cloneBlasts(blasts) : null,
-    // (and, a roof or floor the game keeps whole, asked to break further in battle: F-139)
-    initialBreaksFurther: Boolean(blasts?.length && !generated && breaksFurther),
-    // `floors` stays its original's listings (its template's, a copy's included) and `cutout` its original's: the
-    // copy's own listings follow where it stands (listingsNow), as the Build lists it.
-    floors: originalOf(template)?.floors ?? template.floors ?? [], prefab, partner, matrix: placed.toArray(), location, rotation,
-    // `generated`: a fracturing wall the Build makes from numbers on this piece's materials (custom geometry plan,
-    // section 0), kept as the project has it; the view draws the mesh made from its numbers (madeShapeOf)
-    added: { from: fromOf(template), entity, tinted, ...(generated ? { generated } : {}),
-             ...(template.cover ? { template: { kind: COVER_KIND, version: coverVersion(template.added?.template?.version, template.cover.type) } } : {}) } };
-}
+function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(true); runHub('scene'); }
 // The pieces and effects of other maps read as templates (library_templates.js): their records read, a
 // piece's or an effect's template, the templates a project's records name, and what such a piece costs and
 // says.
@@ -645,8 +302,7 @@ const { chosenStorey, floorData, floorSupportOf, levelButton, setLevelSnap } = c
 // piece panel's group section, and the groups changed (each change one undo step).
 const { addToGroup, changeGroups, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
         selectionGroup, ungroup } = createGroups({
-  $, cloneGroups, flashHint, gizmo, groupables, groupChain, groupChip, highlight, isStream, keyWords, leafKeys,
-  memberOf, memberRecord, plural,
+  $, flashHint, gizmo, groupables, groupChip, highlight, isStream, plural,
   // (made with the selection, further down: called through, since it is not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep) });
 
@@ -657,60 +313,23 @@ const { align, alignPanel, saveAlignPrefs } = createAlign({
   // (made with the clipboard, further down: called through, since it is not made yet while this runs)
   keepRecipe: (move, parts) => keepRecipe(move, parts) });
 
-// The Lights view's storage keys, and its switches read from them (the view: lights_wiring.js, made below).
-const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
+// The Lights view's switches read from its storage keys (lights_wiring.js's; the view is made below).
 const PL = 'TheWorld.PersistentLevel.';
 setAreaShown(recall(AREA_SHOWN) === '1');     // (lightsShown, areaShown: editor_state.js)
 setReachShown(recall(REACH_SHOWN) === '1');   // the selected light's reach outlined (View options; off at first)
-// The normal view: out of the Buildings view, the Lights view, the Landing zones view and the Effects view.
-function setNormalView() {
-  if (volumesOn) setVolumesShown(false);
-  if (lightsOn) setLightsShown(false);
-  if (zonesOn) setZonesShown(false);
-  if (effectsOn) setEffectsShown(false);
-  if (spawnsOn) setSpawnsShown(false);
-}
-// After a view or a switch changed: whether lights are drawn, what stays selected, the buttons.
-function syncLights() {
-  setLightsShownValue(lightsOn || (normalLights && !volumesOn));
-  if (volumesOn || lightsOn || !boxesShown) { ownSet.clear(); if (!volumesOn) setOwnPickedValue(null); }
-  const picks = gizmo.picks();
-  const keep = picks.ids.filter(id => (lightRoots.has(id) ? lightsShown : volumeRoots.has(id) ? volumesOn || (boxesShown && !lightsOn) : !lightsOn));
-  if (keep.length !== picks.ids.length) gizmo.setSelection(keep, picks.active); else gizmo.regroup();
-  refreshLightVisibility(); lightButton(); refreshLightShapes(); refreshVolumes();
-  if (pickBox) refreshPickBox(true);
-  if (data) select(gizmo.active, false, true);
-}
-function lightButton() {
-  for (const [id, on] of [['editNormal', !volumesOn && !lightsOn && !zonesOn && !effectsOn && !spawnsOn], ['editBuildings', volumesOn], ['editLights', lightsOn],
-                          ['editZones', zonesOn], ['editEffects', effectsOn], ['editSpawns', spawnsOn]]) {
-    $(id).classList.toggle('on', on); $(id).setAttribute('aria-pressed', on);
-  }
-  $('normalLights').checked = normalLights; $('boxesToggle').checked = boxesShown; $('normalEffects').checked = normalEffects;
-  $('normalSpawns').checked = normalSpawns;
-  // (the spawn markers show with the view, or with the switch in the normal view)
-  if (spawnLayerReady) { spawnLayer.visible = spawnsShown(); spawnPanel(); }
-  $('areaToggle').checked = areaShown; $('reachToggle').checked = reachShown;
-  $('areaToggle').disabled = $('reachToggle').disabled = !lightsShown;
-}
-const HANDLE_PICK = 10;
-// Screen positions (client pixels) for points in the view, or null behind the camera.
-function projector() {
-  const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
-  return v => {
-    p.copy(v).project(camera);
-    if (p.z < -1 || p.z > 1) return null;
-    return [rect.left + (p.x + 1) / 2 * rect.width, rect.top + (1 - p.y) / 2 * rect.height];
-  };
-}
-// (walls, floors, roofs and ground are drawn from the Build menu on the Add button, no longer listed here: B1)
-const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
+// The drag handles' helpers (handles.js): screen positions of points in the view (projector) and how far along a line
+// the mouse's ray passes (alongLine); made before the areas whose handles use them (nothing of it runs as the page
+// loads). The handles' pick distance (HANDLE_PICK) and a game point as a point of the view (gameToView) are its plain
+// exports.
+const { alongLine, projector } = createHandles({
+  camera, rayAt, renderer });
 // The header's menus (popups.js): one open at a time, a press elsewhere closing it; made before the first area
 // that is given showPop.
 const { showPop } = createPopups({
-  $, renderProjectMenu, viewport,
+  $, viewport,
   // (made further down: called through, since they are not made yet while this runs)
-  refreshInstalls: () => refreshInstalls(), refreshSquadLine: () => refreshSquadLine() });
+  refreshInstalls: () => refreshInstalls(), refreshSquadLine: () => refreshSquadLine(),
+  renderProjectMenu: () => renderProjectMenu() });
 // The Lights view (lights_wiring.js): the map's lights as roots, the view, the panel's light section, Solo, the
 // area lights following their glowing pieces, the reach, the drag handles (the picked effect's and sound's too),
 // and the project's light records.
@@ -724,9 +343,11 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         withStorableCone } = createLightsWiring({
   $, actorPose, baseMatrix, camera, copyable, copyText, editChanged, field, flashHint, gizmo, HANDLE_PICK, highlight,
   isStream, ladderMarks, lightLayer, pickables, PL, plural, projector, renderer, restingHint, short, showPop,
-  sun, syncLights, text, world,
+  sun, text, world,
   // (made further down: called through, since they are not made yet while this runs)
   applyLighting: () => applyLighting(), banner: (message, actions, options) => banner(message, actions, options),
+  // (made with the views' switching, further down: called through)
+  syncLights: () => syncLights(),
   // (made with Clear map, further down: called through)
   pointOutside: (x, y) => pointOutside(x, y),
   // (made with the selection, further down: called through)
@@ -741,79 +362,32 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
 // Prepare (prepare.js): the dialog that exports the map again, and a build or a play waiting for it.
 const { needsPrepare, prepareOpened, showPrepare } = createPrepare({
   $, showPop,
+  projectsAvailable,
   // (made further down: called through, since they are not made yet while this runs)
-  banner: (message, actions, options) => banner(message, actions, options), mapLabel: id => mapLabel(id),
-  projectsAvailable: () => projectsAvailable() });
+  banner: (message, actions, options) => banner(message, actions, options), mapLabel: id => mapLabel(id) });
 
 // Projects: the edits saved, reopened and recovered (first-editor plan E1; project.js, research/editor-contracts.md).
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
 // (The project open, `project`: editor_state.js.)
-let templates = null;
 // Drafts for recovery belong to the page session that keeps them (review finding 3; projects.py): this page's id,
 // made as it loads, names its own draft, and the page deletes only that one, or a draft it showed the user and the
 // user restored or discarded (the drafts' state: editor_state.js).
 const SESSION = uuid();
 const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
-// Projects edit a full map's original layout: not a patch preview.
-const projectsAvailable = () => !builderMode && Boolean(data) && data.scope === 'map' && !data.preview;
-// The edits on screen, as a project records them: overrides of original actors and added actors, sorted.
-function editState() {
-  if (!eventMemo) return editStateNow();
-  return eventMemo.state ??= editStateNow();
-}
-const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
-const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
-  || cleared || landingZones || projectMissions || projectSpawnRules);
-function saveState() { return builderMode ? !builder.doc?.revision ? 'not saved' : dirty() ? 'unsaved' : 'saved' : !project ? 'not saved' : dirty() ? 'unsaved' : 'saved'; }
-// Back to the map as exported, with no history: before a project's state is applied.
-function clearEdits() {
-  const all = [...roots.values()];
-  removeRoots(all.filter(r => r.userData.source.added));
-  const moved = all.filter(r => r.userData.edit && !r.userData.source.added);
-  gizmo.applyMatrices(moved, moved.map(r => baseMatrix(r)));
-  for (const r of all) {
-    r.userData.deleted = false; r.userData.flags = null; r.userData.breaksFurther = false;
-    if (r.userData.blasts) { r.userData.blasts = null; drawBroken(r); }
-  }
-  setGroups(new Map()); setLiveCache(null);
-  clearLightEdits();
-  clearEffectEdits();
-  setCleared(false); setClearKeepsOutside(false); setLandingZones(null); setMergedBuildings(null); setProjectMissions(null);
-  setProjectPicture(null);
-  setProjectSpawnRules(null); syncSpawnRule();
-  setMissionMoves(new Map());
-  setStage(null);
-  setBuildings([]);
-  clearedChanged();
-}
-function templateFor(from, component) {
-  if (!templates) {
-    templates = new Map();
-    for (const r of roots.values()) if (!r.userData.source.added) templates.set(`${sourceKey(r.userData.source)}|${r.userData.source.component}`, r.userData.source);
-  }
-  return templates.get(`${targetKey(from)}|${component}`) ?? foreignTemplates.get(`${targetKey(from)}|${component}`);
-}
-// Recent projects: when this browser last opened or saved each, beside when it was saved anywhere.
-const RECENT = 'workshop.recentProjects';
-function recentTimes() { try { return JSON.parse(recall(RECENT)) ?? {}; } catch { return {}; } }
-function touchRecent(id) {
-  const times = { ...recentTimes(), [id]: new Date().toISOString() };
-  remember(RECENT, JSON.stringify(Object.fromEntries(Object.entries(times).sort((a, b) => b[1].localeCompare(a[1])).slice(0, 20))));
-}
-function projectNote(message) { text($('diagnostics'), 'div', message, 'note'); $('issueCount').textContent = String(Number($('issueCount').textContent || 0) + 1); }
 // The scene to and from a document (document_state.js): the edits on screen as a project records them, and a
 // project's state put on the map.
-const { editStateNow, applyState } = createDocumentState({
-  actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, buildRoots, builder, clearEdits,
-  cloneGroups, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates, memberOf, movedMatrix, plural,
-  projectNote, sceneChanged, short, sourceKey, templateFor,
+const { applyState, changes, editState, projectNote } = createDocumentState({
+  $, actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, baseMatrix, buildRoots, builder,
+  clearLightEdits, cloneGroups, editChanged, gizmo, isStream, lightEdited, lightState, liveMembers, loadForeignTemplates,
+  memberOf, movedMatrix, plural, removeRoots, sceneChanged, short, sourceKey, templateFor, text,
   // (made with the map grid, further down: called through, since they are not made yet while this runs)
   ownSize: () => ownSize(), setStage: next => setStage(next),
   // (made with the cover blocks, further down: called through, since they are not made yet while this runs)
   coverOf: entity => coverOf(entity), coverVersion: (version, type) => coverVersion(version, type),
   // (made with the Effects view, further down: called through, since they are not made yet while this runs)
   addEffectRoots: list => addEffectRoots(list), addedEffectOf: entity => addedEffectOf(entity),
-  applyEffectRecord: record => applyEffectRecord(record), effectState: (overrides, added) => effectState(overrides, added),
+  applyEffectRecord: record => applyEffectRecord(record), clearEffectEdits: () => clearEffectEdits(),
+  effectEdited: root => effectEdited(root), effectState: (overrides, added) => effectState(overrides, added),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
   baseSpawnOf: actor => baseSpawnOf(actor), missionKey: (stream, actor) => missionKey(stream, actor),
   missionOverrides: () => missionOverrides(), setMissionMoves: next => setMissionMoves(next),
@@ -827,21 +401,28 @@ const { editStateNow, applyState } = createDocumentState({
   drawBroken: root => drawBroken(root), mapBreakable: o => mapBreakable(o) });
 // The document session (document_session.js): opening, saving and leaving a project, its drafts kept for recovery
 // and offered back, and the banner under the header.
-const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
-        openProject, projectChanged, saveProject } = createDocumentSession({
-  $, SESSION, applyState, builder, camera, controls, dirty, documentWrites, editChanged, editState, flashHint, gizmo,
-  loadingState, openingProgress, plural, projectNote, projectsAvailable, saveState, showFileDialog, text, touchRecent,
-  unsavedDocument,
+const { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery,
+        loadProject, openProject, projectChanged, saveProject, saveState, unsavedDocument } = createDocumentSession({
+  $, SESSION, applyState, builder, camera, changes, controls, documentWrites, editChanged, editState, flashHint, gizmo,
+  loadingState, openingProgress, plural, projectNote, text,
+  // (made with the Project menu, further down: called through, since it is not made yet while this runs)
+  showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave), touchRecent: id => touchRecent(id),
   // (made with the map grid, further down: called through, since it is not made yet while this runs)
   ownSize: () => ownSize(),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
   bombHelperFix: moves => bombHelperFix(moves), setMissionMoves: next => setMissionMoves(next),
+  // (made with the Buildings view, further down: called through, since it is not made yet while this runs)
+  savedBuildings: () => savedBuildings(),
   // (made with the prefab builder just below, which is given the session's banner and drafts: called through)
-  builderDocument: () => builderDocument(), builderTitle: () => builderTitle(), problemsPaint: () => problemsPaint(),
-  refreshBuilder: () => refreshBuilder(), saveBuilder: options => saveBuilder(options),
+  builderDocument: () => builderDocument(), builderKey: () => builderKey(), builderTitle: () => builderTitle(),
+  problemsPaint: () => problemsPaint(), refreshBuilder: () => refreshBuilder(), saveBuilder: options => saveBuilder(options),
   // (made with Build and Play just below, which is given the session's banner and save: called through)
   followBuild: (status, id) => followBuild(status, id), renderPlayItems: () => renderPlayItems(),
   setLastBuild: (id, status) => setLastBuild(id, status) });
+// The pose fields and the edit status (piece_status.js): the edit hub's piece-status refresh, registered as it is made,
+// after the document session, whose save state it shows (nothing of it runs as the page loads but the registration).
+createPieceStatus({
+  $, changes, gizmo, isStream, lightPose, lightViewOnly, poseInputs, saveState, valuesEdited });
 // The prefab builder's session (builder_session.js): the prefab's document opened, kept and saved, its size line and
 // ground, Align to grid, the missing pieces looked for by recipe, and the Problems check.
 const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderPage, builderRecords, builderTitle,
@@ -851,9 +432,11 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
   documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, gizmo, gridOrigin, isStream,
   libraryTemplate, lightPose, loadingState, movedMatrix, openingProgress, plural, projectChanged, recipeOf, removeRoots,
   rootName, sceneChanged,
-  selectActors, short, showFileDialog, templateFor, text, world,
-  // (made with the selection, further down: called through, since it is not made yet while this runs)
-  gridNow: root => gridNow(root),
+  short, templateFor, text, world,
+  // (made with the selection, further down: called through, since they are not made yet while this runs)
+  gridNow: root => gridNow(root), selectActors: names => selectActors(names),
+  // (made with the Project menu, further down: called through, since it is not made yet while this runs)
+  showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave),
   // (made with the camera, further down: called through, since it is not made yet while this runs)
   frame: root => frame(root),
   // (made with the Buildings view and the clipboard, further down: called through, since they are not made yet while
@@ -867,7 +450,7 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
         showPrefabDialog } = createPrefabPlace({
   $, BUSY_PIECES, PL, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, copyable, effectTemplate,
   flashHint, fromOf, ghostEdges, ghostLine, gltfLoader, isForeignTarget, isStream, libraryTemplate, lightPose,
-  lightsBlocked, madeShape, memberOf, movedMatrix, nextFrame, physicalBox, plural, previewGroup, readEffectRecords,
+  lightsBlocked, madeShape, memberOf, movedMatrix, nextFrame, physicalBox, plural, readEffectRecords,
   readLibraryRecords, recipeLight, recordId, rootName, saveBuilder, selectionGroup, short, templateFor, text, track,
   withStorableCone,
   // (made with the selection, further down: called through, since it is not made yet while this runs)
@@ -877,8 +460,9 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
   boxMatrix: b => boxMatrix(b), coverOf: entity => coverOf(entity),
   coverVersion: (version, type) => coverVersion(version, type), effectViewOnly: (o, cap) => effectViewOnly(o, cap),
   groupTree: (copied, chainOf) => groupTree(copied, chainOf), linkOf: e => linkOf(e), mapChain: key => mapChain(key),
-  matrixBox: matrix => matrixBox(matrix), snapshot: (selection, own) => snapshot(selection, own),
-  startPlacing: (clip, entry) => startPlacing(clip, entry), stopPlacing: () => stopPlacing() });
+  matrixBox: matrix => matrixBox(matrix), previewGroup: (parts, override, frame) => previewGroup(parts, override, frame),
+  snapshot: (selection, own) => snapshot(selection, own), startPlacing: (clip, entry) => startPlacing(clip, entry),
+  stopPlacing: () => stopPlacing() });
 // The map browser's wiring (map_menu.js): a map's name, the list brought up to the server's, the browser made as the
 // page opens, and the Map menu's button and Change map.
 const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMenu({
@@ -891,54 +475,16 @@ const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMe
 const { followBuild, followQueueForProject, landHere, openBuild, openPrefabTest, playInGame, prefabTest, refreshInstalls,
         refreshSquadLine, renderPlayItems, renderQueueChip, setLastBuild } = createBuildPlay({
   $, bakeNote, banner, builder, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo, mapLabel,
-  needsPrepare, plural, projectsAvailable, saveProject, selectActors, short, showFileDialog, showPop, showPrepare, text,
+  needsPrepare, plural, projectsAvailable, saveProject, short, showPop, showPrepare, text,
   // (made with Clear map, further down: called through, since they are not made yet while this runs)
   headerMissions: () => headerMissions(), zonesNow: () => zonesNow(),
+  // (made with the selection, further down: called through, since it is not made yet while this runs)
+  selectActors: names => selectActors(names),
+  // (made with the Project menu, further down: called through, since it is not made yet while this runs)
+  showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave),
   // (made with the Spawns and Landing zones views, further down: called through, since they are not made yet while
   // this runs)
   setZones: (next, words) => setZones(next, words), showSpawn: (actor, stream) => showSpawn(actor, stream) });
-async function renderProjectMenu() {
-  const info = $('projectInfo');
-  info.replaceChildren();
-  if (builderMode) {
-    text(info, 'strong', builder.doc?.name ?? 'New prefab');
-    text(info, 'div', builder.doc?.revision ? `Revision ${builder.doc.revision}${dirty() ? ' · unsaved changes' : ''}` : 'Save to add this prefab to the library.');
-    for (const id of ['projectSave', 'projectSaveAs']) $(id).disabled = false;
-    return;
-  }
-  if (project) {
-    text(info, 'strong', project.doc.name);
-    text(info, 'div', `Revision ${project.revision} · saved ${savedWhen(project.doc.savedAt)}${dirty() ? ' · unsaved changes' : ''}`);
-    text(info, 'div', `Builds as ${project.doc.output?.shipAs ?? '(no map name)'}`).title = 'The map\'s name in the game (its package and records), fixed when the project was first saved: Save as under a new name makes a new project that builds under a name of its own';
-    const pkg = lastBuild?.package;
-    if (lastBuild?.state === 'running') text(info, 'div', `Building revision ${lastBuild.job.revision}…`);
-    else if (pkg) {
-      const last = text(info, 'div', `Last built: revision ${pkg.revision} · ${savedWhen(pkg.builtAt)}${pkg.quick ? ' · lighting not baked' : ''}`);
-      last.title = pkg.quick ? `${pkg.folder}\nBuilt without baking the lighting: its lighting isn't right in the game (pathing and cover are). Build with Bake the lighting ticked for the proper lighting` : pkg.folder;
-    }
-  } else if (projectsAvailable()) text(info, 'div', 'No project open: edits are a trial until you save them.');
-  else text(info, 'div', 'This is a patch preview: projects edit a map\'s original layout. Open the map from the map browser (M) to save one; Load opens a project on its map.');
-  for (const id of ['projectSave', 'projectSaveAs']) $(id).disabled = !projectsAvailable();
-  $('projectClose').hidden = !project;
-  renderPlayItems();
-  // Recent: the three last opened or saved here (or else saved anywhere), the open one aside.
-  const list = $('projectRecent');
-  try {
-    const { projects } = await projectApi.list(), times = recentTimes();
-    const when = p => [times[p.id] ?? '', p.savedAt ?? ''].sort().at(-1);
-    const recent = projects.filter(p => !p.error && p.id !== project?.doc.id).sort((a, b) => when(b).localeCompare(when(a))).slice(0, 3);
-    list.replaceChildren();
-    for (const p of recent) {
-      const button = text(list, 'button', '', 'projectitem');
-      button.type = 'button'; button.dataset.id = p.id;
-      text(button, 'strong', p.name ?? p.id);
-      text(button, 'small', `${mapLabel(p.map)} · revision ${p.revision} · ${savedWhen(p.savedAt)}${p.recovery ? ' · unsaved changes kept' : ''}`);
-      button.title = `Open ${p.name}`;
-      button.onclick = () => { showPop(null); loadProject(p); };
-    }
-    if (!recent.length) text(list, 'div', projects.some(p => p.id === project?.doc.id) ? 'No other projects yet.' : 'No projects yet.', 'empty');
-  } catch (e) { list.replaceChildren(`Projects could not be listed: ${e.message}`); }
-}
 // The game install and the editor's checks (setup.js): a first run asks for the install before anything else.
 const setupDialog = createSetupDialog({
   els: { root: $('setupDialog'), form: $('setupForm'), title: $('setupTitle'), intro: $('setupIntro'), found: $('setupFound'),
@@ -946,17 +492,6 @@ const setupDialog = createSetupDialog({
          message: $('setupMessage'), version: $('setupVersion') },
   // the server lists the new install's maps: open the page afresh on them
   onChosen: () => setTimeout(() => location.reload(), 600) });
-// The pieces and lights an actor name stands for (a compile report's entity or target, a prefab test's actor),
-// selected and framed. False when none is in the view.
-function selectActors(names) {
-  const want = new Set(names.flatMap(n => [n, short(n)]));
-  const ids = [...roots.values(), ...lightRoots.values()]
-    .filter(r => !r.userData.deleted && (want.has(r.userData.source.actor) || want.has(short(r.userData.source.actor))))
-    .map(r => r.userData.source.id);
-  if (!ids.length) { flashHint(`${short(names[0])} is not in the view`); return false; }
-  gizmo.setSelection(ids, ids[0]); editChanged(); frame(allRoots.get(ids[0]));
-  return true;
-}
 const fileDialog = createProjectDialog({
   els: { root: $('fileDialog'), form: $('fileForm'), title: $('fileTitle'), folder: $('fileFolder'), head: $('fileHead'),
          list: $('fileList'), show: $('fileShow'), name: $('fileName'), ok: $('fileOk'), cancel: $('fileCancel'),
@@ -1001,12 +536,6 @@ const gameMaps = createGameMaps({
          message: $('gameMapsMessage'), undoAll: $('gameMapsUndoAll'), done: $('gameMapsDone'), where: $('gameMapsWhere') },
   onChanged: () => refreshInstalls(),
 });
-function showGameMaps() {
-  if (modalOpen()) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  gameMaps.show();
-}
 // The Cache everything window (precache.js): every piece of the game's maps, and every map, read ahead of use.
 const precache = createPrecache({
   els: { root: $('cacheModal'), close: $('cacheClose'), pieces: $('cachePieces'), maps: $('cacheMaps'),
@@ -1015,96 +544,23 @@ const precache = createPrecache({
          done: $('cacheDone'), start: $('cacheStart') },
   onMapsDone: () => refreshMapList(),
 });
-function showPrecache() {
-  if (modalOpen()) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  precache.show();
-}
-function showProjectManager() {
-  if (modalOpen()) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  projectManager.show();
-}
-function showFileDialog(mode, waitForSave = false) {
-  if (builderMode && mode === 'save') return showPrefabDialog(true);
-  if (fileDialog.open || (mode === 'save' && !projectsAvailable())) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  return fileDialog.show(mode, { mapId: activeMapId, current: project?.doc.id ?? null, name: mode === 'save' ? project?.doc.name ?? '' : '', waitForSave });
-}
+// The Project menu (project_menu.js): drawn afresh as it opens, the recent projects kept in the browser, and the
+// windows its items open (the file dialog, the project manager, Game maps, Cache everything); made after those
+// windows, which it is given (nothing of it runs as the page loads).
+const { renderProjectMenu, showFileDialog, showGameMaps, showPrecache, showProjectManager,
+        touchRecent } = createProjectMenu({
+  $, dirty, fileDialog, gameMaps, loadProject, mapLabel, modalOpen, precache, projectManager, renderPlayItems, showPop,
+  showPrefabDialog, text,
+  // (made with the clipboard, further down: called through, since it is not made yet while this runs)
+  stopPlacing: () => stopPlacing() });
 
 // (the last pointer position over the view, for paste, pointer: editor_state.js)
-// A drawn-only copy of some pieces (the placing preview, a piece-list thumbnail) from the loaded meshes and
-// materials, or `override` for every part. It is never picked. parts: { source, matrix }; `frame` moves them all.
-// (Not with the scene's pieces, scene_pieces.js: it falls back on the clipboard's ghost material, made further down.)
-function previewGroup(parts, override, frame) {
-  const group = new THREE.Group();
-  for (const { source, matrix: placed, values, state } of parts) {
-    // (a made piece of a prefab, its donor's source and its numbers: drawn from its made mesh once loaded, prefabClip)
-    const made = state?.generated && !data.meshes[source.mesh]?.made ? madeShape(source, state.generated) : null;
-    const drawn = made?.mesh && loaded(geometryCache, made.mesh) ? made : null, matrix = drawn ? unscaled(placed) : placed;
-    if (source.isEffect) {
-      const holder = new THREE.Group(), marker = makeEffectMarker(source);
-      holder.add(marker); holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
-      group.add(holder);
-      ghostLikeness(holder, source);
-      continue;
-    }
-    if (source.isLight) {
-      const holder = new THREE.Group(), marker = makeMarker(source.kind);
-      paintMarker(marker, values ?? valuesOf(source));
-      marker.scale.setScalar(24); holder.add(marker);
-      holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
-      group.add(holder);
-      continue;
-    }
-    const mesh = drawn?.mesh ?? source.mesh, materials = drawn?.materials ?? source.materials, gltf = loaded(geometryCache, mesh);
-    if (!gltf) continue;
-    const root = data.meshes[mesh].kind === 'skeletal' ? cloneSkeleton(gltf.scene) : gltf.scene.clone(true);
-    let i = 0;
-    root.traverse(part => {
-      if (!part.isMesh) return;
-      part.material = override ?? loaded(materialCache, materialKey(source, materials[i])[0]) ?? ghostMaterial;
-      part.raycast = () => {}; i++;
-    });
-    root.matrix.multiplyMatrices(frame, matrix); root.matrixAutoUpdate = false;
-    group.add(root);
-  }
-  return group;
-}
-// A row of buttons used like a select: .value, buttons with data-value, onChange after a click.
-function segmented(el, onChange) {
-  Object.defineProperty(el, 'value', {
-    get: () => (el.querySelector('button.on') || el.querySelector('button'))?.dataset.value,
-    set: v => { for (const b of el.querySelectorAll('button')) { b.classList.toggle('on', b.dataset.value === v); b.setAttribute('aria-pressed', b.dataset.value === v); } },
-  });
-  el.addEventListener('click', e => {
-    const button = e.target.closest('button');
-    if (!button || button.disabled || button.classList.contains('on')) return;
-    el.value = button.dataset.value; onChange();
-  });
-}
-function segButton(value, label, title) {
-  const button = document.createElement('button');
-  Object.assign(button, { type: 'button', textContent: label, title });
-  button.dataset.value = value;
-  return button;
-}
 // The building floors a piece is listed on (floor_listings.js): the project's buildings' and the map's own,
 // as the Build lists them, and the key of the pieces' edits.
 const { editedKey, listingsNow, projectListings } = createFloorListings({
   boxOf, movedBox, originalOf, short, vertexBox,
   // (made further down: called through, since they are not made yet while this runs)
   allBuildings: () => allBuildings(), mapEdits: () => mapEdits(), mapIdOf: b => mapIdOf(b) });
-// How far along a line (origin, unit dir) the mouse's ray passes closest: the handle's drag
-function alongLine(clientX, clientY, origin, dir) {
-  const ray = rayAt(clientX, clientY).ray, w = origin.clone().sub(ray.origin);
-  const b = dir.dot(ray.direction), c = ray.direction.dot(ray.direction), d = dir.dot(w), e = ray.direction.dot(w);
-  const den = c - b * b;
-  return Math.abs(den) < 1e-9 ? null : (b * e - c * d) / den;
-}
 // The Map grid's handles (map_grid.js, made just below) take the press first.
 renderer.domElement.addEventListener('pointerdown', e => {
   if (!startGridDrag(e)) return;
@@ -1162,11 +618,10 @@ const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight
   lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, refreshLightVisibility,
   removeLightRoots, removeRoots, sceneChanged, setStage, short, showPop, world,
   // (made further down: called through, since they are not made yet while this runs)
-  allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(), cutaway: () => cutaway(),
+  allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(),
   explicitZones: () => explicitZones(), liveVolumes: () => liveVolumes(),
   missionFloorLost: o => missionFloorLost(o), missionReached: o => missionReached(o),
-  placeMissionGizmo: () => placeMissionGizmo(), refreshLandingZones: () => refreshLandingZones(),
-  refreshSpawnMarkers: () => refreshSpawnMarkers(), setMissionMoves: next => setMissionMoves(next),
+  setMissionMoves: next => setMissionMoves(next),
   spawnFamilyBuilds: () => spawnFamilyBuilds(), spawnsAvailable: () => spawnsAvailable(),
   zoneSoldiers: (z, st) => zoneSoldiers(z, st), zoneState: () => zoneState() });
 
@@ -1182,15 +637,15 @@ const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, 
         missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker,
         placeMissionGizmo, placeSpawn, refreshSpawnMarkers, resetBaseSpawn, scaleSpawnMarkers, setMissionMoves,
         setNormalSpawns, setPickedSpawn, setSpawnRule, setSpawnsShown, showSpawn, spawnAddEntries, spawnAt, spawnBoxNow,
-        spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnMovable, spawnPanel,
-        spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects, syncSpawnFilters,
-        syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
-  $, camera, controls, flashHint, floorStays, gizmo, groundHeight, headerMission, headerMissions, isStream,
-  landingLayer, lightButton, movedMatrix, pick, plural, projectsAvailable, rayAt, renderer, restingHint,
+        spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnLayerReady,
+        spawnMovable, spawnPanel, spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects,
+        syncSpawnFilters, syncSpawnRule, TURNED_KINDS } = createSpawnsWiring({
+  $, camera, controls, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission, headerMissions, isStream,
+  landingLayer, movedMatrix, pick, plural, projectsAvailable, rayAt, renderer, restingHint,
   setLightsShown, short, text, tileCorner, world,
   // (made further down: called through, since they are not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep),
-  gameToView: p => gameToView(p), groundAt: (x, y, fromZ) => groundAt(x, y, fromZ),
+  select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
+  groundAt: (x, y, fromZ) => groundAt(x, y, fromZ),
   numberField: (parent, label, value, options) => numberField(parent, label, value, options),
   pickZone: id => pickZone(id), setEffectsShown: on => setEffectsShown(on), setVolumesShown: on => setVolumesShown(on),
   setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(),
@@ -1206,15 +661,12 @@ const { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffe
         setEffectsShown, setEffectStays, setEffectValues, setLikeness, setNormalEffects, stepGhostLikenesses,
         stepLikenesses, stopWave } = createEffectsWiring({
   $, actorPose, assetUrl, baseMatrix, camera, controls, effectTemplate, flashHint, gizmo, gltfLoader, isForeignTarget,
-  isStream, lightButton, ownerRoot, plural, pointOutside, renderer, sceneChanged, setLightsShown,
+  isStream, ownerRoot, plural, pointOutside, renderer, sceneChanged, setLightsShown,
   setPickedSpawn, setSpawnsShown, short, text, texture, track, viewport, world,
   // (made further down: called through, since they are not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep),
+  select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   carried: (point, from, to) => carried(point, from, to), setVolumesShown: on => setVolumesShown(on),
   setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(), zoneState: () => zoneState() });
-// A game point (x, y, z) as a point of the view, whose basis is x, up, y (the Spawns and Landing zones views and the
-// test hooks)
-const gameToView = p => new THREE.Vector3(p[0], p[2], p[1]);
 // The Landing zones view (zones_wiring.js): the zones drawn, the view, a zone picked with its gizmo and panel, the
 // zones changed and added, and what follows a change of the cleared mark.
 const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
@@ -1222,11 +674,11 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
         stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
         zoneSoldiers, zoneState } = createZonesWiring({
   $, banner, camera, controls, editChanged, flashHint, floorStays, gameToView, gizmo, groundHeight, headerMission,
-  isLanding, landHere, LANDING_SHOWN, landingLayer, lightButton, ownSize, plural, projectChanged, projectsAvailable,
+  isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, plural, projectChanged, projectsAvailable,
   rayAt, refreshGroundGrid, refreshLightVisibility, refreshMissionPicker, renderer, restingHint,
   setEffectsShown, setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
   // (made further down: called through, since they are not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep),
+  select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   cutaway: () => cutaway(), setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
 // The Buildings view and box select (buildings_wiring.js): the project's buildings as boxes and the map's own, the
 // view, its handles, drags and panel, the Normal button's Floor boxes, and box select.
@@ -1242,9 +694,10 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
   editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, isStream, lightViewOnly, missionGizmo,
   pick, plural, projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers, renderer, restingHint,
   selectionWords, setEffectsShown, setZonesShown, short, showPop, spawnBoxNow, spawnEntry, spawnMovable,
-  spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
-  // (made with the selection, just below: called through, since it is not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep),
+  spawnsShown, storeysNow, text, volumeLayer, world,
+  // (made with the selection and the views' switching, just below: called through, since they are not made yet while
+  // this runs)
+  select: (id, add, keep) => select(id, add, keep), syncLights: () => syncLights(),
   // (made with Select all of a kind and the clipboard, below: called through, since they are not made yet while this
   // runs)
   copySelection: cut => copySelection(cut), kindButton: () => kindButton(),
@@ -1255,11 +708,20 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
 // The selection (selection.js): select and the piece panel it fills, a cover piece's too, and the selected piece's
 // marks (its highlight, its ladder's ends, its grid chip); after the Buildings view, the last factory whose functions
 // it calls (nothing of it runs as the page loads).
-const { gridNow, ladderNow, refreshGrid, refreshHighlight, select } = createSelection({
+const { gridNow, ladderNow, refreshHighlight, select, selectActors } = createSelection({
   $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyable, copyText, editChanged, field, flagContract,
-  flagSource, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream, ladderMarks,
-  listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName, selectionWords,
-  setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text, tileCorner });
+  flagSource, flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream,
+  ladderMarks, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName,
+  setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text, tileCorner,
+  // (made with the camera, further down: called through, since it is not made yet while this runs)
+  frame: root => frame(root) });
+// Switching the views (views.js): the normal view, whether lights are drawn and what stays selected after a view or a
+// switch changed, and the views' buttons; after the selection, the last factory whose functions it calls (nothing of
+// it runs as the page loads), so the five views made before it are given its functions as functions that call them.
+const { lightButton, setNormalView, syncLights } = createViews({
+  $, gizmo, refreshLightShapes, refreshLightVisibility, refreshPickBox, refreshVolumes, select, setEffectsShown,
+  setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnLayerReady, spawnPanel,
+  spawnsShown });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
 const { kindButton, selectKind } = createSelectKind({
@@ -1278,27 +740,28 @@ const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNo
 // the Add panel shown and an entry of it placed, and a copy dragged off with Shift; after the cover blocks,
 // whose floor's clearance it reads, and the Buildings view, whose own buildings' layer it reads.
 const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
-        ghostMaterial, groupTree, keepRecipe, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,
-        pasteSnapshot, placeAt, placeMove, setLibraryScope, showPieces, snapshot, startPlacing,
+        groupTree, keepRecipe, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste, pasteSnapshot,
+        pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot, startPlacing,
         stopPlacing } = createClipboard({
   $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots, addRoots, askLineCollision,
   assemblyOf, banner, boundsOf, buildRoots, busy, BUSY_PIECES, busyStart, chosenStorey, cloneGroup, cloneGroups,
-  copyVolumes, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE, floorSupportOf, fromOf,
-  ghostEdges, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness, isForeignTarget,
-  libraryTemplate, lightClip, lightViewOnly, liveFloorIndex, makeVolume, memberOf, memberRecord, newBuildingId,
-  nextFrame, ownerRoot, ownVolumeLayer, partsOf, pasteVolumes, pick, pieceRecipes, plural, prefabPlacementProblem,
-  previewGroup, rayAt, recipeOf, removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged,
-  selectionWords, setLightsShown, setNormalLights, setVolumeBox, short, startSpawnPlacing, startZonePlacing,
-  stopSpawnPlacing, stopZonePlacing, text, tileCorner, volumeBox, world,
+  copyVolumes, coverEntries, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE,
+  floorSupportOf, fromOf, ghostEdges, ghostLikeness, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain,
+  hoverLikeness, isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly, liveFloorIndex, loaded,
+  madeShape, makeVolume, materialCache, materialKey, memberOf, memberRecord, newBuildingId, nextFrame, ownerRoot,
+  ownVolumeLayer, partsOf, pasteVolumes, pick, plural, prefabPlacementProblem, rayAt, recipeOf, removeEffectRoots,
+  removeLightRoots, removeRoots, restingHint, sceneChanged, selectionWords, setLightsShown, setNormalLights,
+  setVolumeBox, short, spawnAddEntries, startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopZonePlacing, text,
+  tileCorner, unscaled, volumeBox, world, zoneEntries,
   // (made further down: called through, since they are not made yet while this runs)
   deleteSelection: quiet => deleteSelection(quiet), stopWallDrawing: () => stopWallDrawing() });
 // The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The
 // page"). A made piece: what it is, its look's donor, its state and its changes (each one undo step), and its
 // handles and drags; the modules below are given its functions.
 const { cancelPointDrag, changeWall, endWallDrag, handleWall, hoverWallHandle, isMade, isMadeGround, isMadeSlab,
-        isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo, pointGizmo, refreshJoins,
-        releaseRockPoint, rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint,
-        wallHandlesNow, wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
+        isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo, pointGizmo, releaseRockPoint,
+        rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint, wallHandlesNow,
+        wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
   actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo, gltfLoader, HANDLE_PICK,
   libraryTemplate, movedMatrix, partsOf, pickables, plural, projector, rayAt, refreshHighlight, renderer, restingHint,
   sceneChanged, select, short, showPop, track, volumeHint, world,
@@ -1475,6 +938,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, streamObjects, sun,
     syncSpawnFilters, takePickBox, updateTileGrid, viewPoint, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
     world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
+  // every refresh the edit hub's runs list is registered by now (edit_hub.js): a lost one fails here, not silently
+  checkHub();
 }
 
 $('statsToggle').checked = recall('workshop.stats') === '1';
@@ -1788,7 +1253,7 @@ const { frame, panCamera, setSnapMode } = createNavigation({
   editBaseSpawn, editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endVolumeDrag, endWallDrag,
   flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
   missionGizmo, modalOpen, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
-  refreshGrid, refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
+  refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
   setGridTool, setLevelSnap, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,
   showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stopBreak,

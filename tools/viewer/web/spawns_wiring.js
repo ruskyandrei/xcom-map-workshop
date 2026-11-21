@@ -23,12 +23,13 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { LEVEL, QUARTER, TILE } from './constants.js';
+import { onHub } from './edit_hub.js';
 import { activeMapId, builderMode, data, effectsOn, families, lightsOn, missionDragView, missionIndex, missionMoves,
          missionPickValue, nextCopySerial, normalSpawns, pickedSpawn, pieces, placing, projectSpawnRules, roots,
          selected, setMissionDragView, setMissionMovesValue, setNormalSpawnsValue, setPickedSpawnValue,
-         setProjectSpawnRules, setSpawnEntriesNow, setSpawnFilters, setSpawnLayerReady, setSpawnPlacing,
-         setSpawnRulesData, setSpawnsOn, setSpawnZonePick, spawnEntriesNow, spawnFilters, spawnPlacing, spawnRulesData,
-         spawnsOn, spawnZonePick, streamSet, volumesOn, zonesOn } from './editor_state.js';
+         setProjectSpawnRules, setSpawnEntriesNow, setSpawnFilters, setSpawnPlacing, setSpawnRulesData, setSpawnsOn,
+         setSpawnZonePick, spawnEntriesNow, spawnFilters, spawnPlacing, spawnRulesData, spawnsOn, spawnZonePick,
+         streamSet, volumesOn, zonesOn } from './editor_state.js';
 import { scaleMarker } from './lights_view.js';
 import { uuid, validSpawnRules } from './project.js';
 import { consumerWords, fromWords, useLines } from './spawn_rules.js';
@@ -62,7 +63,10 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   setNormalSpawnsValue(recall(NORMAL_SPAWNS) === '1');
   const spawnLayer = new THREE.Group(); world.add(spawnLayer);
   spawnLayer.visible = false;
-  setSpawnLayerReady(true);
+  // whether the view's layer is made (the views' buttons show it from then on: views.js's lightButton asks the getter
+  // this factory gives back; editor_state.js held the flag until the views' switching was made after this view)
+  let spawnLayerReady = false;
+  spawnLayerReady = true;
   setSpawnFilters((() => { try { return JSON.parse(recall(SPAWN_FILTERS) || '{}') || {}; } catch { return {}; } })());
   // (the families shown, spawnFilters, and the picked marker's key, pickedSpawn: editor_state.js)
   // (a landing zone picked in the Spawns view, described only (decision D3), spawnZonePick: editor_state.js)
@@ -758,6 +762,9 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
     return out;
   }
 
+  // The mission picked changed (the edit hub's mission run, edit_hub.js): the markers and the picked one's gizmo.
+  onHub('mission', 'spawns', () => { refreshSpawnMarkers(); placeMissionGizmo(); });
+
   return { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
            editedSpawns, editSpawnCopy, loadSpawnRules, missionFloorLost, missionGizmo, missionGizmoWanted, missionKey,
            missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker,
@@ -765,5 +772,6 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
            setNormalSpawns, setPickedSpawn, setSpawnRule, setSpawnsShown, showSpawn, spawnAddEntries, spawnAt,
            spawnBoxNow, spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer,
            spawnMovable, spawnPanel, spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects,
-           syncSpawnFilters, syncSpawnRule, TURNED_KINDS };
+           syncSpawnFilters, syncSpawnRule, TURNED_KINDS,
+           spawnLayerReady: () => spawnLayerReady };
 }
