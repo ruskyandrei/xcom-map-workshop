@@ -11,8 +11,8 @@ export const STOP = Symbol('STOP');
 
 // Each run, its refreshes in their order, and whose each is.
 export const RUNS = {
-  // After any edit, undo or selection (app.js's editChanged: the gizmo calls it after each edit, and the areas after
-  // theirs).
+  // After any edit, undo or selection (editChangedNow, which app.js's editChanged calls: the gizmo calls it after
+  // each edit, and the areas after theirs).
   edit: [
     'effects',       // effects_wiring.js: what the Effects view draws is worked out again (its markers follow the
                      // pieces that carry them)
@@ -86,4 +86,8 @@ export function onHub(run, name, refresh) {
 export function runHub(run, ...args) {
   for (const refresh of registered.get(run)) if (refresh && refresh(...args) === STOP) return STOP;
   return undefined;
+}
+// The edit run (app.js's editChanged calls it once it has made the edit event's memo).
+export function editChangedNow() {
+  runHub('edit');
 }

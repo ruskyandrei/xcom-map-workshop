@@ -2,7 +2,7 @@
 // registered in; STOP ends the run; a name the run doesn't list, or one registered twice, throws.
 // Run: node tools/viewer/tests/edit_hub_test.mjs
 import assert from 'node:assert/strict';
-import { onHub, RUNS, runHub, STOP } from '../web/edit_hub.js';
+import { editChangedNow, onHub, RUNS, runHub, STOP } from '../web/edit_hub.js';
 
 // each run lists its names once
 for (const [run, names] of Object.entries(RUNS)) assert.equal(new Set(names).size, names.length, run);
@@ -12,6 +12,10 @@ const called = [];
 for (const name of [...RUNS.edit].reverse()) onHub('edit', name, (...args) => { called.push([name, ...args]); });
 assert.equal(runHub('edit', 'a', 2), undefined);
 assert.deepEqual(called, RUNS.edit.map(name => [name, 'a', 2]));
+// editChangedNow is the edit run, given nothing
+called.length = 0;
+assert.equal(editChangedNow(), undefined);
+assert.deepEqual(called, RUNS.edit.map(name => [name]));
 
 // a name not registered is passed over; STOP ends the run where it is given back
 const drag = [];

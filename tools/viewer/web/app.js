@@ -59,7 +59,7 @@ import { createFloorListings } from './floor_listings.js';
 import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
-import { onHub, runHub, STOP } from './edit_hub.js';
+import { editChangedNow, onHub, runHub, STOP } from './edit_hub.js';
 import { createSelection, selectionWords } from './selection.js';
 import { createViews } from './views.js';
 import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
@@ -271,9 +271,6 @@ function editChanged() {
   if (eventMemo) return editChangedNow();
   setEventMemo({});
   try { return editChangedNow(); } finally { setEventMemo(null); }
-}
-function editChangedNow() {
-  runHub('edit');
 }
 // app.js's own refreshes of the edit hub's run (edit_hub.js lists them with the other areas' and calls them in
 // order):
