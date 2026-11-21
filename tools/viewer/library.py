@@ -150,11 +150,14 @@ def donors(game):
 
 def _list_donors(game, text):
     import maplist
+    import mapsini
     base, streams = set(), set()
     # the records the editor works from: the live ones, and the tutorial map's, which the file comments out
     # (maplist.SWITCHED_OFF): a map that can be opened is a map whose pieces can be taken
     for line in maplist.records(text):
-        base.update(re.findall(r'(?<![A-Za-z])Name="([^"]+)"', line))
+        name = mapsini.field(line, 'Name')
+        if name:
+            base.add(name)
         streams.update(re.findall(r'MapName="([^"]+)"', line))
     files = {p.stem.lower(): p for p in cooked_of(game).glob('*.upk')}
     out = []

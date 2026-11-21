@@ -90,15 +90,3 @@ line, and its finding in the [findings register](research/findings-register.md) 
   Play in game.
 - **Cause.** The editor looks for `XComEW.exe` in the process list.
 - **Finding.** [F-84](research/findings-register.md).
-
-### KB-11: A hand-edited map record with spaces around "=" is not replaced by a Replace build
-
-- **What happens.** If the game's `DefaultMaps.ini` holds a map record written by hand with spaces around `=`
-  (`MapName = "..."`), installing a Build that replaces that map adds the editor's record but leaves the hand-written
-  one in place, so the game can still load the original.
-- **Since.** 0.5.3, where Replace began taking out only the records the Build has its own for (found 21 November
-  2026 by reading the code; not reported).
-- **Workaround.** Write the record without spaces around `=`, as the game's own records are, or remove it by hand.
-- **Cause.** The editor reads the records' fields in two ways: the one that finds the map allows the spaces, the one
-  that lists what a Replace takes out does not.
-- **Finding.** None in the register; found by a review of the code the refactor left as it was (21 November 2026).

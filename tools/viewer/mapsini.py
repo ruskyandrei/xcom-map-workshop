@@ -46,23 +46,30 @@ def _like(text, line):
     return text.encode('latin1') if isinstance(line, bytes) else text
 
 
-# (re.ASCII: a line of text matches as its bytes would, whatever Latin-1 letters or blanks it holds)
+# A field as the game reads it: its name (not the end of another's: MapName, DisplayName), '=' with any blanks around
+# it (a record written by hand may have them, KB-11), and a quoted value or an unquoted one of letters, digits and
+# underscores (MissionType=eMission_Abduction, ShipType=10). re.ASCII: a line of text matches as its bytes would,
+# whatever Latin-1 letters or blanks it holds.
+def _field_re(name, quoted):
+    return r'(?<![A-Za-z])' + name + r'\s*=\s*' + (r'"([^"]*)"' if quoted else r'(\w+)')
+
+
 def field(line, name):
-    m = re.search(r'(?<![A-Za-z])' + name + r'="([^"]*)"', _text(line), re.ASCII)
+    m = re.search(_field_re(name, True), _text(line), re.ASCII)
     return m.group(1) if m else None
 
 
 def set_field(line, name, value, quoted=True):
-    pat = r'(?<![A-Za-z])' + name + (r'="[^"]*"' if quoted else r'=[A-Za-z_]+')
+    """The record line with the field set, written as the game's records write one (no blanks around '=')."""
     new = name + ('="' + value + '"' if quoted else '=' + value)
-    out, n = re.subn(pat, lambda _: new, _text(line), count=1, flags=re.ASCII)
+    out, n = re.subn(_field_re(name, quoted), lambda _: new, _text(line), count=1, flags=re.ASCII)
     if n != 1:
         raise ValueError(f'record has no {name}')
     return _like(out, line)
 
 
 def unquoted(line, name):
-    m = re.search(r'(?<![A-Za-z])' + name + r'=([A-Za-z_]+)', _text(line), re.ASCII)
+    m = re.search(_field_re(name, False), _text(line), re.ASCII)
     return m.group(1) if m else None
 
 

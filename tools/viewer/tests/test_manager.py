@@ -6,6 +6,7 @@ from functools import partial
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -191,6 +192,31 @@ class Manager(ManagerInstalls, unittest.TestCase):
         manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))
         done = player.remove()['removed']
         self.assertEqual((done['records'], done['rotation'], done['recordsBack'], done['left']), (1, 1, 3, []))
+        self.assertEqual(self.files(self.lwr), before)
+
+    def test_replace_takes_out_a_record_written_by_hand_with_spaces_around_its_equals_signs(self):
+        # KB-11: a record of Bar's written by hand as Name = "URB_Bar" (the game reads it so, and so does the map
+        # list) is one of Bar's records to the install too: Replace comments it out with the others, and Bar's
+        # records read with the Build's records' missions
+        terror, council = self.more_missions(self.lwr)
+        path = self.lwr / 'XEW/XComGame/Config/DefaultMaps.ini'
+        spaced = re.sub(rb'(?<![A-Za-z])Name="URB_Bar"', b'Name = "URB_Bar"', terror, count=1)
+        spaced = spaced.replace(b'MissionType=eMission_TerrorSite', b'MissionType = eMission_TerrorSite')
+        self.assertNotEqual(spaced, terror)
+        lines = dep.lines_of(path.read_bytes())
+        lines[lines.index(terror)] = spaced
+        path.write_bytes(dep.EOL.join(lines))
+        before = self.files(self.lwr)
+        self.package()
+        player = self.player()
+        done = manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))['results'][0]
+        self.assertTrue(done['ok'], done)
+        self.assertEqual((done['missions'], done['switchedOff']), (['Abduction', 'Terror'], 3))
+        maps = dep.lines_of(self.files(self.lwr)['DefaultMaps.ini'])
+        for line in (record('bar'), spaced, council): self.assertIn(b';' + line, maps)
+        self.assertNotIn(spaced, maps)
+        self.assertEqual(self.records(self.lwr, 'URB_Bar'), [])
+        installs.reset(self.lwr)
         self.assertEqual(self.files(self.lwr), before)
 
     def test_a_map_stays_replaced_while_any_variant_replaces_it(self):

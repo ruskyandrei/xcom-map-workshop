@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -276,6 +277,26 @@ class ConfigLines(unittest.TestCase):
         # a commented-out record of another map is no record of it
         with self.assertRaises(build.BuildError):
             build.config_lines([';' + record('bar')], [], [], 'URB_Bar', VARIANT, PATCH, 'x')
+
+    def test_a_record_written_by_hand_with_spaces_around_its_equals_signs_is_one_of_the_maps(self):
+        # KB-11: the game reads a record written Name = "URB_Bar", and so do the map list and the install
+        # (installs.base_records): the Build finds the same records in the same order, so its records stand for the
+        # install's (config.recordMissions), and writes its own copy of that one
+        bar = record('bar')
+        terror = mapsini.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False)
+        spaced = re.sub(r'(?<![A-Za-z])Name="URB_Bar"', 'Name = "URB_Bar"', terror, count=1)
+        spaced = spaced.replace('DisplayName="', 'DisplayName  =  "').replace('bInRotation=True', 'bInRotation= True')
+        maps = ['[XComGame.XComMapManager]', bar, record('templeship'), spaced]
+        self.assertEqual(build.base_records(maps, 'URB_Bar'), [bar, spaced])
+        self.assertEqual([l.decode('latin-1') for _, l in build.installs.base_records([m.encode('latin-1') for m in maps], 'URB_Bar')],
+                         [bar, spaced])
+        c = build.config_lines(maps, [], [], 'URB_Bar', VARIANT, PATCH, None)
+        self.assertEqual((c['missions'], c['recordMissions']), (['Abduction', 'Terror'], [[0], [1]]))
+        mine = c['maps'][1]
+        self.assertEqual((mapsini.field(mine, 'Name'), mapsini.unquoted(mine, 'bInRotation'), mapsini.unquoted(mine, 'MissionType')),
+                         (VARIANT, 'False', 'eMission_TerrorSite'))
+        self.assertEqual(mapsini.field(mine, 'DisplayName'), '%s (Beta/Functionality Complete Urban Bar, Terror) |0' % VARIANT)
+        self.assertIn('StreamingMaps[2]=( MapName="%s"' % PATCH, mine)
 
     def test_cache_names_are_the_variants_own(self):
         # output names plan 4: <Variant>_Lighting, a plain name (lighting_fixture.cache_fname gives number 0)
