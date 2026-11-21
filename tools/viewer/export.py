@@ -27,6 +27,7 @@ import collision
 import effects_draw
 import effects_metadata
 import piece_flags
+import settings
 
 # 13: the map's missions and the packages they stream (`missions`, `streams`); textures from compiled shaders
 # 14: no diagnostic pink: more diffuse rules (parameter names, compiled shaders' colour textures, colours by kind,
@@ -703,7 +704,7 @@ def map_records(package_path):
 def stream_package(package_path, name):
     """A streamed package beside the map's (the EW folder), else in the base game's CookedPCConsole, or None."""
     cooked = Path(package_path).resolve().parent
-    for folder in (cooked, cooked.parents[2] / 'XComGame' / 'CookedPCConsole'):
+    for folder in (cooked, settings.cooked_folders(cooked.parents[2])[-1]):
         if (folder / f'{name}.upk').is_file(): return folder / f'{name}.upk'
     return None
 

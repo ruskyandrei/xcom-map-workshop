@@ -65,7 +65,7 @@ for folder in (HERE.parent / 'upk', HERE.parent / 'bake', HERE.parent / 'editor'
 import atomic_files  # noqa: E402
 from export_math import multiply, transform  # noqa: E402
 from projects import ProjectError  # noqa: E402
-from settings import resolve_game, settings_path  # noqa: E402
+from settings import game_cooked, resolve_game, settings_path  # noqa: E402
 
 INDEX_VERSION = 10      # 2: an entry says what blocks it (`blocked`), and the family gate is the compiler's;
                         # 3: scanned with the families EXP-39 switched on, and assemblies are one entry each;
@@ -119,8 +119,7 @@ def sha256(path):
         return hashlib.file_digest(f, 'sha256').hexdigest()
 
 
-def cooked_of(game):
-    return Path(game) / 'XEW' / 'XComGame' / 'CookedPCConsole'
+cooked_of = game_cooked
 
 
 # ---------------------------------------------------------------------------------------------------- the donors

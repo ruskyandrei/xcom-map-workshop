@@ -35,7 +35,7 @@ import gamemaps
 import manager
 import pictures
 from maplist import lwr_maps
-from settings import KEYS, doctor, load_settings, resolve_game, save_settings, settings_path
+from settings import KEYS, doctor, game_config, game_cooked, load_settings, resolve_game, save_settings, settings_path
 
 WEB = Path(__file__).resolve().parent / "web"
 
@@ -103,7 +103,7 @@ def landing_lines(map_id):
         game = None
     if game is None:
         return dict(kind=None, file=None, lines=[])
-    ini = Path(game) / 'XEW' / 'XComGame' / 'Config' / 'DefaultLZMutator.ini'
+    ini = game_config(game) / 'DefaultLZMutator.ini'
     if not ini.is_file():
         return dict(kind=game_kind(game), file=None, lines=[])
     zones = spawns.map_lines(ini.read_text(encoding='latin-1'), map_id)
@@ -238,7 +238,7 @@ class Handler(SimpleHTTPRequestHandler):
         from settings import lwr_game
         try: game, _ = lwr_game(self.player.settings) if self.player is not None else (None, None)
         except (OSError, ValueError): game = None
-        return None if game is None else game / 'XEW' / 'XComGame' / 'CookedPCConsole'
+        return None if game is None else game_cooked(game)
 
     def same_origin(self):
         # A page elsewhere (or a DNS-rebound name) must not reach these routes: the Host must be this server's

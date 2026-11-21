@@ -83,6 +83,7 @@ import threading
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'bake'))
 
 import atomic_files  # noqa: E402
+import settings  # noqa: E402
 
 LEDGER_FOLDER = 'XCOM Map Workshop'
 SCHEMA = 'xcom-map-workshop/installs'
@@ -116,11 +117,10 @@ class InstallError(Exception):
 
 
 def config(game, name):
-    return Path(game) / 'XEW' / 'XComGame' / 'Config' / name
+    return settings.game_config(game) / name
 
 
-def cooked(game):
-    return Path(game) / 'XEW' / 'XComGame' / 'CookedPCConsole'
+cooked = settings.game_cooked
 
 
 # A prefab test's record is an abduction's, as every other play's (so Meld comes: the game spawns it on abductions,
@@ -578,7 +578,7 @@ def read_package(folder, game=None):
         raise InstallError(f'{folder} is not a variant package')
     files = []
     for rel, digest in m['files'].items():
-        if not re.fullmatch(r'CookedPCConsole/[A-Za-z0-9_.-]+', rel) or Path(rel).name in ('.', '..'):
+        if not re.fullmatch(settings.COOKED + r'/[A-Za-z0-9_.-]+', rel) or Path(rel).name in ('.', '..'):
             raise InstallError(f'{folder} names a file outside its package')
         src = folder / rel
         if not src.is_file(): raise InstallError(f'{src} is missing')
@@ -610,7 +610,6 @@ def lab_deploys(game, lab=None):
     Their names come from projects' output names, so such a file is a project's earlier test. Only for the lab copy (its
     XComLab-copy.txt marker) with the lab setting set (`lab` stands in for it); for any other install, or with no lab,
     nothing. A ledger that can't be read adds nothing."""
-    import settings
     game = Path(game)
     if not (game / settings.LAB_MARKER).is_file(): return {}
     lab = settings.configured('lab') if lab is None else Path(lab)
@@ -726,8 +725,8 @@ def _copy_files(game, ledger, files, play=False, atomic=None, project=None, keep
         name = dst.name
         if not (dst.exists() and sha256(dst) == digest):
             if keep is not None and dst.exists() and name.lower() not in noted:
-                (Path(keep) / 'CookedPCConsole').mkdir(parents=True, exist_ok=True)
-                copy = Path(keep) / 'CookedPCConsole' / name
+                (Path(keep) / settings.COOKED).mkdir(parents=True, exist_ok=True)
+                copy = Path(keep) / settings.COOKED / name
                 shutil.copy2(dst, copy)
                 ledger.setdefault('labFiles', {})[name] = str(copy.relative_to(game))
             change = None if atomic else _current(game)
@@ -1745,7 +1744,6 @@ def _install_rotation(game, folder, mode, now=None):
             ledger['dropInExclusions'] = (ledger.get('dropInExclusions') or []) + taken
         ledger.setdefault('history', []).append(dict(at=entry['installedAt'], rotation=variant, mode=mode, buildId=m.get('buildId')))
         write_ledger(game, ledger)
-    import settings
     warnings = mission_warnings(plan['missions'], base, mode, lwr=settings.game_kind(game) == 'lwr', kept=plan['kept'])
     rivals =[e['variant'] for e in others if e['base'] == base and e['mode'] == 'replace'] if mode == 'replace' else []
     if rivals and any(x['byName'] for x in plan['missions']):

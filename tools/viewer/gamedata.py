@@ -34,6 +34,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'upk'))
 import script_enums  # noqa: E402
 from script_enums import Enum  # noqa: E402
+import settings  # noqa: E402
 
 PARSER_VERSION = 1
 CORE = 'XComGame.XGTacticalGameCore'
@@ -168,7 +169,7 @@ LANGUAGES = ('INT', 'FRA', 'DEU', 'ITA', 'ESN', 'POL', 'RUS', 'JPN', 'KOR', 'CHT
 
 def game_language(game):
     """The language the install's engine config names (DefaultEngine.ini, else BaseEngine.ini), else INT."""
-    for path in (Path(game) / 'XEW' / 'XComGame' / 'Config' / 'DefaultEngine.ini',
+    for path in (_config(game, 'DefaultEngine.ini'),
                  Path(game) / 'XEW' / 'Engine' / 'Config' / 'BaseEngine.ini'):
         try: found = ini_value(ini_entries(read_text(path)), 'Engine.Engine', 'Language')
         except OSError: continue
@@ -182,7 +183,7 @@ class Localisation:
     FILES = ('XComGame', 'XComStrategyGame')
 
     def __init__(self, game, language='INT'):
-        self.root = Path(game) / 'XEW' / 'XComGame' / 'Localization'
+        self.root = settings.ew_folder(game) / 'Localization'
         self.language = language
         self.paths, self._entries = [], {}
         for lang in dict.fromkeys((language, 'INT')):
@@ -234,8 +235,8 @@ def _array_lines(text):
 
 # ---- the catalogue ----
 
-def _package(game): return Path(game) / 'XEW' / 'XComGame' / 'CookedPCConsole' / 'XComGame.upk'
-def _config(game, name): return Path(game) / 'XEW' / 'XComGame' / 'Config' / name
+def _package(game): return settings.game_cooked(game) / 'XComGame.upk'
+def _config(game, name): return settings.game_config(game) / name
 
 
 def input_files(game, language='INT'):
@@ -243,7 +244,7 @@ def input_files(game, language='INT'):
     game = Path(game)
     files = [_package(game), _config(game, 'DefaultGameCore.ini'), _config(game, 'XComGameCore.ini'),
              _config(game, 'DefaultEngine.ini'), game / 'XEW' / 'Engine' / 'Config' / 'BaseEngine.ini']
-    root = game / 'XEW' / 'XComGame' / 'Localization'
+    root = settings.ew_folder(game) / 'Localization'
     for lang in dict.fromkeys(('INT', language)):
         files += [root / lang / f'{stem}.{lang.lower()}' for stem in Localisation.FILES]
     return files
@@ -356,9 +357,8 @@ class Catalogue:
 def load(game, cache=None, family=None, language=None):
     """The Catalogue of a game folder. cache: a folder for the enums (None: read each time). family: settings.game_kind
     (worked out when None). A GameDataError says what the install lacks."""
-    from settings import game_kind
     game = Path(game)
-    family = family or game_kind(game)
+    family = family or settings.game_kind(game)
     if family is None: raise GameDataError(f'{game} is not a game folder')
     package, core = _package(game), _config(game, 'DefaultGameCore.ini')
     if not package.is_file(): raise GameDataError(f'{game} has no XEW\\XComGame\\CookedPCConsole\\XComGame.upk')

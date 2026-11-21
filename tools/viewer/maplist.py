@@ -21,10 +21,10 @@ tutorial's (Basic Training, streaming the tutorial's script). The editor takes t
 browser lists the map, the exporter reads its streams and a variant of it gets a copy (Build, Play in game). The
 other maps whose records are all commented out are left out: Long War's EU maps, which need EU textures.
 """
-from pathlib import Path
 import re
 
 import mapsini
+import settings
 
 GROUPS = (('abduction', 'Abduction'), ('ufo', 'UFO'), ('terror', 'Terror'), ('council', 'Council'),
           ('exalt', 'EXALT'), ('story', 'Story'), ('other', 'Other'))
@@ -144,8 +144,7 @@ def label_of(name, display_names):
 
 def package_of(lwr, name):
     """The map's package in the install (`lwr`, the game's folder): the EW folder first, then the base game's."""
-    lwr = Path(lwr)
-    for folder in (lwr / 'XEW' / 'XComGame' / 'CookedPCConsole', lwr / 'XComGame' / 'CookedPCConsole'):
+    for folder in settings.cooked_folders(lwr):
         path = folder / f'{name}.upk'
         if path.is_file():
             return path
