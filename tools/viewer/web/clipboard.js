@@ -470,18 +470,22 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     if (clipboard.groundFloor) askLineCollision();     // the ground's collision on its way before the floor goes down
     startPlacing(clipboard, entry);
   }
+  // The floor boxes that come with a clip (a building copied, a prefab's), as outlines added to `group`: the preview
+  // placed and a copy's stand-in show them alike.
+  function addBoxOutlines(group, clip) {
+    for (const v of clip.volumes ?? []) {
+      const line = new THREE.LineSegments(ghostEdges, ghostLine);
+      line.matrix.copy(v.matrix); line.matrixAutoUpdate = false; line.raycast = () => {};
+      group.add(line);
+    }
+  }
   function startPlacing(clip, entry = null) {
     stopPlacing(); stopWallDrawing();
     // a floor piece snaps by levels (dropTarget): its saved floor's height over its pivot
     clip.floor = clip.prefab || clip.entries.some(e => e.source.isLight || e.source.isEffect) ? null : floorSupportOf(clip.entries.map(e => e.source));
     const ghost = new THREE.Group(), here = new THREE.Matrix4();
     ghost.add(previewGroup(clip.entries, ghostHidden, here), previewGroup(clip.entries, ghostMaterial, here));
-    // the floor boxes that come with it (a building copied, a prefab's), as outlines
-    for (const v of clip.volumes ?? []) {
-      const line = new THREE.LineSegments(ghostEdges, ghostLine);
-      line.matrix.copy(v.matrix); line.matrixAutoUpdate = false; line.raycast = () => {};
-      ghost.add(line);
-    }
+    addBoxOutlines(ghost, clip);
     ghost.visible = false; ghost.matrixAutoUpdate = false; world.add(ghost);
     setPlacing({ clip, entry, ghost, turns: 0 }); setGhostDirty(true);
     gizmo.hold(true); pieces.setChosen(entry); library.setChosen(entry); prefabTab.setChosen(entry); restingHint();
@@ -529,11 +533,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     if (!clip) return null;
     const stand = new THREE.Group(), here = new THREE.Matrix4();
     stand.add(previewGroup(clip.entries, null, here));
-    for (const v of clip.volumes) {
-      const line = new THREE.LineSegments(ghostEdges, ghostLine);
-      line.matrix.copy(v.matrix); line.matrixAutoUpdate = false; line.raycast = () => {};
-      stand.add(line);
-    }
+    addBoxOutlines(stand, clip);
     stand.matrixAutoUpdate = false; world.add(stand);
     const hint = $('dragHint');
     hint.hidden = false;
