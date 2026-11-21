@@ -50,7 +50,7 @@ export let stage = null;
 export function setStageValue(next) { stage = next; }
 // A cleared map (Clear map plan, section 6): the Build takes out what the editor never showed; the map's size may then
 // be set as on the blank map, smaller too. The landing zones as the project sets them (project.js validLandingZone):
-// null while the project keeps the map's own landings and the install's lines (app.js's zonesNow gives those).
+// null while the project keeps the map's own landings and the install's lines (clear_map.js's zonesNow gives those).
 export let cleared = false, landingZones = null;
 export function setCleared(next) { cleared = next; }
 export function setLandingZones(next) { landingZones = next; }
@@ -94,7 +94,7 @@ export function setRecoveryTimer(next) { recoveryTimer = next; }
 export function setRecoveryKept(next) { recoveryKept = next; }
 export function setAdoptedDraft(next) { adoptedDraft = next; }
 export function setRecoveryTrouble(next) { recoveryTrouble = next; }
-// An added kind the address asks for (?mission=kind:...), picked once the project that adds it is open (app.js's
+// An added kind the address asks for (?mission=kind:...), picked once the project that adds it is open (clear_map.js's
 // mission picker).
 export let askedPick = null;
 export function setAskedPick(next) { askedPick = next; }
@@ -110,8 +110,9 @@ export function setBuildTimer(next) { buildTimer = next; }
 //   kinds too;
 // - pickedZone: the landing zone picked in the Landing zones view, by id, or null (zones_wiring.js's pickZone); Land
 //   here plays the project landing there;
-// - missionPickValue: the header's Mission picker's value (app.js's chooseMission), a record's index ('0', '1', ...) or
-//   'kind:<kind>' for a kind the project adds (mission types plan, D2); a play is of that mission unless one is chosen.
+// - missionPickValue: the header's Mission picker's value (clear_map.js's chooseMission), a record's index ('0', '1',
+//   ...) or 'kind:<kind>' for a kind the project adds (mission types plan, D2); a play is of that mission unless one is
+//   chosen.
 export let playStatus = null, pickedZone = null, missionPickValue = '0';
 export function setPlayStatus(next) { playStatus = next; }
 export function setPickedZone(next) { pickedZone = next; }
@@ -199,11 +200,11 @@ export function setSpawnsOn(next) { spawnsOn = next; }
 // The effect, sound or lens flare picked (app.js's select sets it), whose panel and handles show, or null.
 export let pickedEffect = null;
 export function setPickedEffect(next) { pickedEffect = next; }
-// The streams of the mission the header's Mission picker shows (app.js's chooseMission): their pieces, lights, effects
-// and spawn points are drawn.
+// The streams of the mission the header's Mission picker shows (clear_map.js's chooseMission): their pieces, lights,
+// effects and spawn points are drawn.
 export let streamSet = new Set();
 export function setStreamSet(next) { streamSet = next; }
-// The mission the header's Mission picker shows (app.js's chooseMission): its record's index, -1 for a kind the
+// The mission the header's Mission picker shows (clear_map.js's chooseMission): its record's index, -1 for a kind the
 // project adds (missionPickValue says which).
 export let missionIndex = 0;
 export function setMissionIndex(next) { missionIndex = next; }
@@ -408,3 +409,20 @@ export let ownGrid = null, gridTool = false, gridDrag = null;
 export function setOwnGrid(next) { ownGrid = next; }
 export function setGridToolValue(next) { gridTool = next; }
 export function setGridDrag(next) { gridDrag = next; }
+
+// Clear map and the landings (clear_map.js), and what of them app.js's scene start, its map families and the test hooks
+// read or set:
+// - landingLines: the install's landing lines for the map (GET landing-lines.json) and its kind, which come with the
+//   map: 'lwr' or 'longwar' (Long War), 'ew' (plain Enemy Within), or null, a game the editor doesn't know (none set,
+//   or the read failed: `failed` says why), a state of its own and not Long War (review finding 31) (the read a
+//   project waits for: landingRead);
+// - startingCache: the landing zones the map's own landings and those lines give (zonesNow), worked out once a scene,
+//   or null;
+// - lastClearMs: how long the last clear took, in milliseconds (the test hooks), or null;
+// - landingActors: the landing zone's pieces as the server's families name them (app.js's useMapFamilies), or null:
+//   then by their archetype (isLanding).
+export let landingLines = { kind: null, lines: [] }, startingCache = null, lastClearMs = null, landingActors = null;
+export function setLandingLines(next) { landingLines = next; }
+export function setStartingCache(next) { startingCache = next; }
+export function setLastClearMs(next) { lastClearMs = next; }
+export function setLandingActors(next) { landingActors = next; }
