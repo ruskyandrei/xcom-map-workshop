@@ -55,6 +55,30 @@ def result_pixels(page):
     }""")
 
 
+# The canvas's wheel turns counted as it has them (a listener added after the dialog's own, so it runs after it)
+WHEELS = """() => { const c = document.getElementById('mapPictureCanvas');
+  if (!c.dataset.counted) { c.dataset.counted = '1'; window.wheels = 0; c.addEventListener('wheel', () => { window.wheels++; }); }
+  return window.wheels; }"""
+# What the result canvas was drawn from last: 'crop', the frame's own pixels, drawn at once on each change of the frame,
+# or 'game', the server's answer as the game shows it, drawn when it comes (an answer for an earlier frame is dropped)
+RESULT_FROM = """() => { const g = document.getElementById('mapPictureResult').getContext('2d');
+  if (!g.counted) { const draw = g.drawImage.bind(g); g.counted = true;
+    g.drawImage = (image, ...rest) => { window.resultFrom = image instanceof HTMLCanvasElement ? 'crop' : 'game'; return draw(image, ...rest); }; } }"""
+
+
+def wheel(page, dy, times):
+    """`times` turns of the wheel over where the pointer is, until the canvas has had every one."""
+    seen = page.evaluate(WHEELS)
+    for _ in range(times): page.mouse.wheel(0, dy)
+    page.wait_for_function('n => window.wheels >= n', arg=seen + times)
+
+
+def game_result(page):
+    """The result as the game shows it, for the frame now shown: the server's answer, asked a moment after the frame's
+    last change, drawn."""
+    page.wait_for_function("window.resultFrom === 'game'", timeout=30000)
+
+
 def open_dialog(page):
     page.locator('#mapButton').click()
     page.locator('#projectPicture').click()
@@ -104,6 +128,7 @@ def check(page, base, map_id, shots, errors):
     # an image chosen: the largest 2:1 frame around the middle
     with tempfile.TemporaryDirectory() as folder:
         chosen = picture_file(folder)
+        page.evaluate(RESULT_FROM)
         page.set_input_files('#mapPictureFile', str(chosen))
         page.wait_for_function('viewer.mapPicture.state() !== null')
         s = state(page)
@@ -129,13 +154,12 @@ def check(page, base, map_id, shots, errors):
         moved = sound(state(page))
         assert moved['x'] < f['x'] and moved['y'] < f['y'] and abs(moved['w'] - f['w']) < 1e-6, (f, moved)
         page.mouse.move(box['x'] + 20, box['y'] + 20)
-        for _ in range(60): page.mouse.wheel(0, 120)
-        page.wait_for_function('viewer.mapPicture.state().frame.w === 1600')     # (the wheel's events arrive one by one)
+        wheel(page, 120, 60)
+        page.wait_for_function('viewer.mapPicture.state().frame.w === 1600')
         wide = sound(state(page))
         assert abs(wide['w'] - 1600) < 1e-6, wide
-        for _ in range(12): page.mouse.wheel(0, -120)
+        wheel(page, -120, 12)
         page.wait_for_function('viewer.mapPicture.state().frame.w < 800')
-        page.wait_for_timeout(300)
         f = sound(state(page))
         assert 500 < f['w'] < 800, f
         # the keyboard: arrows move it
@@ -145,20 +169,20 @@ def check(page, base, map_id, shots, errors):
         assert keyed['x'] > f['x'] and keyed['y'] > f['y'], (f, keyed)
         # the result, 512 x 256, drawn from the frame: its top left quarter of the image is red
         page.mouse.move(box['x'] + 5, box['y'] + 5)
-        for _ in range(80): page.mouse.wheel(0, -120)
+        wheel(page, -120, 80)
         page.wait_for_function('viewer.mapPicture.state().frame.w === 32')
         page.mouse.move(box['x'] + 2, box['y'] + 2)
         page.mouse.down(); page.mouse.move(box['x'] - 300, box['y'] - 300, steps=3); page.mouse.up()
         f = sound(state(page))
         # (so small a frame is all corner: the drag resized it from its top left, as far as the image's corner let it)
         assert f['w'] < 100 and f['x'] == 0 and f['y'] < 20, f
-        page.wait_for_timeout(900)      # (the server's answer for the frame, after its short wait)
+        game_result(page)
         pixels = result_pixels(page)
         assert pixels['size'] == [512, 256] and pixels['mean'][0] > 150 and pixels['mean'][2] < 90, pixels
         page.mouse.move(box['x'] + 5, box['y'] + 5)
-        for _ in range(80): page.mouse.wheel(0, 120)
+        wheel(page, 120, 80)
         page.wait_for_function('viewer.mapPicture.state().frame.w === 1600')
-        page.wait_for_timeout(900)
+        game_result(page)
         pixels = result_pixels(page)
         assert pixels['drawn'] and 90 < pixels['mean'][0] < 170, pixels
         out['frame'] = sound(state(page))
@@ -226,7 +250,7 @@ def check(page, base, map_id, shots, errors):
             view = page.evaluate('[viewer.renderer.domElement.width, viewer.renderer.domElement.height]')
             assert [taken['width'], taken['height']] == view, (taken, view)
             assert page.evaluate(shown) == before
-            page.wait_for_timeout(900)
+            game_result(page)
             assert result_pixels(page)['drawn']
             out['taken'] = [taken['width'], taken['height']]
             if shots: page.screenshot(path=str(shots / 'map-picture-4-view.png'))
