@@ -679,10 +679,14 @@ class MadeWallInBuilding(SharedPart, unittest.TestCase):
         self.assertEqual(buildings.piece_box(self.p, dict(source=self.p.by_name[PL + DONOR], box=box), {}), box)
 
     def test_a_one_storey_wall_is_in_the_ground_floor_only(self):
+        # its floor and its CutdownFloor (follow-up 4.1): the donor has bCutoutMask, so a wall is listed on the lowest
+        # floor it reaches alone, the highest its CutdownFloor: the ground floor and 1 for a one-storey wall, whose top
+        # meets the upper floor's volume, as the Bar's own three one-storey walls (0 to 214 high) are listed; the
+        # twin, two storeys, has 2 (the donor's [[0, 2]])
         with self.part() as part:
             sec = {c['label']: c['export'] for c in part.m['nativeCopies']['copies']}
             low = self.listings(part.q, sec['Low'])
-            self.assertEqual([[k for k, _ in floors] for floors in low.values()], [[0]])
+            self.assertEqual(list(low.values()), [[[0, 1]]])
 
 
 @unittest.skipUnless(BAR.exists(), NO_BAR)
