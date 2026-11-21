@@ -333,6 +333,36 @@ class ToolRunner(unittest.TestCase):
             self.assertIn('work folder: %s' % (folder / '.work'), (folder / 'tool.log').read_text(encoding='utf-8'))
 
 
+class Generators(unittest.TestCase):
+    def test_the_exp26_generator_compiles_as_it_was_made_and_saves_at_the_stores_schema(self):
+        """tools/editor/examples/exp26_projects.py (build_outputs.py's bar-pieces input takes its compile) made its
+        document at project schema 1, which the store refuses to write: it compiles it so and saves it at the
+        store's schema (follow-ups 3.6). The map's export is a stand-in here."""
+        import runpy
+        import projects
+        script = HERE.parent / 'examples' / 'exp26_projects.py'
+        pl = 'TheWorld.PersistentLevel.'
+        lights = [dict(actor=pl + n, layer='base', location=[0.0, 0.0, 300.0], rotation=[-16384, 0, 0],
+                       component=pl + n + '.SpotLightComponent_0')
+                  for n in ('SpotLight_3', 'PointLight_4', 'SpotLight_53', 'SpotLight_32', 'PointLight_15')]
+        objects = [dict(actor=pl + n, layer='base', location=[96.0, 0.0, 0.0], rotation=[0, 0, 0],
+                        component=pl + n + '.StaticMeshComponent_0')
+                   for n in ('XComLevelActor_37', 'XComDestructibleActor_2')]
+        compiled = []
+        with tempfile.TemporaryDirectory() as temp, \
+                mock.patch.object(compiler, 'find_export', return_value=('scene.json', dict(lights=lights, objects=objects))), \
+                mock.patch.object(compiler, 'light_rule', return_value=None), \
+                mock.patch.object(compiler, 'compile_project', side_effect=lambda doc, scene, enable=(): (
+                    compiled.append(dict(doc)), ({}, dict(ok=True, counts={}, warnings=[])))[1]), \
+                mock.patch('sys.argv', [str(script), '--cache', temp]), \
+                mock.patch('settings.load_settings', return_value=dict(projects=Path(temp) / 'projects', cache=Path(temp))):
+            runpy.run_path(str(script), run_name='__main__')
+            saved = projects.ProjectStore(Path(temp) / 'projects').load('26a0a0b1-2626-4d0a-8e26-3c4d5e6f7a26')
+        self.assertEqual([d['schemaVersion'] for d in compiled], [1])
+        self.assertEqual((saved['schemaVersion'], saved['revision'], saved['name']),
+                         (projects.SCHEMA_VERSION, 1, 'EXP-26 lights'))
+
+
 class Builds(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
