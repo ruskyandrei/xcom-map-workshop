@@ -60,6 +60,11 @@ How it is made:
   Build gives the copy's lightmap (frac_walls.py);
 - the collision: the wall's slab (16 thick, as the donor's box) cut into boxes round the openings, one convex element
   each (cover_blocks' hull writer), so no box spans an opening.
+
+The free form (custom geometry improvements plan, stage 2: numbers with `free: 1`; the block "the free form" says what
+they hold) is built by the general path at any size: its look's outline resized to its faces, bottom and top
+(wall_profile.py), its cells' seeds a lattice hashed cell by cell, its ends leaning where it is mitred. Numbers of the
+old form never take it, and build as they always did.
 """
 import hashlib
 import json
@@ -68,7 +73,10 @@ from pathlib import Path
 import random
 import struct
 
+import free_form
+from free_form import NumbersError
 import gen_mesh
+import wall_profile
 from wall_profile import STOREY_HEIGHT, lowered, storey_cut
 
 LOOKS_FILE = Path(__file__).resolve().parent / 'wall_looks.json'
@@ -165,7 +173,10 @@ def shaped(wall):
     face's top and the section's corners above the face a storey lower. A measured look's: as it is at its donor's
     storeys (`storeys`, when left out); one storey, its `storey` (192) taken out of it for each storey less (storey_cut,
     lowered), its top that much lower. A piece cut from a longer wall (made_split: `whole` [where it starts, the
-    wall's length]) has `uvShift`, its start, so its texture goes on from the piece before it."""
+    wall's length]) has `uvShift`, its start, so its texture goes on from the piece before it. Free-form numbers: the
+    look's outline at the wall's faces, bottom and top, and its band (free_shaped)."""
+    if is_free(wall):
+        return free_shaped(wall)
     R = _shaped(wall)
     whole = (wall or {}).get('whole')
     return dict(R, uvShift=float(whole[0])) if whole else R
@@ -191,6 +202,327 @@ def _shaped(wall):
     face = base['face']
     return dict(base, top=base['top'] - drop, face=[face[0], face[1] - drop],
                 section=[[y, z - drop if z > face[0] + 1e-6 else z, v] for y, z, v in base['section']])
+
+
+# ---------------------------------------------------------------------------------------------------- the free form
+# A wall's numbers with `free: 1` (custom geometry improvements plan, stage 2, its request's section) say its shape in
+# fields, at any size, in its own frame: x0 < x1 its ends along it; y0 < y1 its faces (the look's -half..half when left
+# out); z0 < z1 its bottom and top over its floor (the look's); `band` [lo, hi] the part of that it is (a band of a tall
+# stretched wall, made_split: the outline between those heights); `tall` ('repeat' or 'stretch') how made_split makes
+# a height past the look's (within one piece the height is always wall_profile.heightened's); `openings` anywhere
+# inside it, reaching an end or not; `ends` each a style (END_INSETS' keys, measured from x0 or x1: 'free' the look's
+# endInset in, 'line' on it, 'through' half the faces' distance past it) or {inset, lean}: the solid stops `inset` in
+# from that end (under 0: past it), its end a plane through there that leans `lean` units along the wall for each unit
+# across, the end at y across standing at (its place) + lean * y, y from the frame's line, at either end (a mitre,
+# clamped to MAX_LEAN); `whole` [where it starts along from the whole wall's x0, the whole's length, its origin up the
+# whole's frame, the whole's height(, the whole's x0)] for a piece of a split wall (made_split gives all five; the
+# older [start, length] read as before); `seed`, the cells' seed (an int);
+# `mapping` (the texture's, stage 4: taken and not used yet); `look` and `plain` as the request says. `storeys` means
+# nothing there. The cells' seeds are a lattice of the look's cell size counted from the frame's origin (the whole
+# wall's, for a piece), each lattice cell's seed placed in it by a hash of the seed and the cell's place, so a change of
+# size moves only the cells it cuts (free_seeds). A leaning end's cells are a column of bands, so nothing but the end
+# lies within its reach, and its built faces lean (lean_ends); the collision box at it becomes a hull. Each face's
+# texture coordinates are held near 0 in whole repeats (free_form.held: the mesh keeps them as half floats). A refusal
+# is a free_form.NumbersError, its code saying which rule.
+FREE_TALL = ('repeat', 'stretch')
+MAX_LEAN = 1.0 / math.tan(math.radians(15.0))   # the lean of a mitre at a 30-degree corner, the sharpest made
+LEAN_MARGIN = 2.0           # units: what a leaning end's reach keeps clear of the cells and gaps further in
+SHORTEST = 1.0              # units: the least length a free wall's solid keeps at every place across it
+
+
+def is_free(wall):
+    """Whether the wall's numbers are the free form's (`free: 1`; free_form.is_free: NumbersError for a `free` of
+    another value)."""
+    return free_form.is_free(wall)
+
+
+_finite = free_form.number
+
+
+def whole_origin(wall):
+    """A piece of a split wall's origin in the whole wall's frame (along it, up it): from its `whole` [dx, length, dz,
+    height(, the whole's x0)], (dx plus the whole's x0, dz); an older [start, length] (start, 0); (0, 0) for a wall
+    not split."""
+    whole = wall.get('whole')
+    if not whole:
+        return 0.0, 0.0
+    if len(whole) == 2:
+        return float(whole[0]), 0.0
+    return float(whole[0]) + (float(whole[4]) if len(whole) == 5 else 0.0), float(whole[2])
+
+
+def free_shaped(wall):
+    """The recipe of a free wall (the block's comment): its look's outline at its faces, bottom and top, and its band
+    (wall_profile.free_shape), with `uvShift` its origin along the whole wall for a piece of one."""
+    base = look_of(wall)
+    half = float(base['half'])
+    R = wall_profile.free_shape(base, float(wall.get('y0', -half)), float(wall.get('y1', half)),
+                                float(wall.get('z0', base['bottom'])), float(wall.get('z1', base['top'])),
+                                wall.get('band'))
+    return dict(R, uvShift=whole_origin(wall)[0]) if wall.get('whole') else R
+
+
+def free_ends(wall, R):
+    """A free wall's two ends as (inset, lean) (the block's comment), R its shaped recipe (a 'through' end goes half
+    its faces' distance past its end); a lean past MAX_LEAN is clamped to it. ValueError for ends of another kind."""
+    ends = wall.get('ends')
+    if ends is None:
+        ends = ('free', 'free')
+    if not isinstance(ends, (list, tuple)) or len(ends) != 2:
+        raise NumbersError('ends', "a free wall's ends are two, each a style or {inset, lean} (it has %r)" % (ends,))
+    styles = dict(free=float(R['endInset']), line=0.0, through=-float(R['half']))
+    out = []
+    for end in ends:
+        if isinstance(end, str) and end in styles:
+            out.append((styles[end], 0.0))
+        elif isinstance(end, dict) and _finite(end.get('inset')) and _finite(end.get('lean', 0.0)):
+            lean = float(end.get('lean', 0.0))
+            out.append((float(end['inset']), max(-MAX_LEAN, min(MAX_LEAN, lean))))
+        else:
+            raise NumbersError('ends', "a free wall's end is one of %s or {inset, lean} with finite numbers (it has %r)"
+                               % (', '.join(styles), end))
+    return out
+
+
+def reach_of(R):
+    """How far across its frame's line a wall's outline reaches, at most (either side, trims and all): a leaning end
+    moves its corners along the wall by up to this times its lean."""
+    return max(abs(float(y)) for X in 'AB' for y, _ in R['profile'][X])
+
+
+def check_free(wall):
+    """A free wall's numbers checked (the block's comment), as the Build and the mesh server take them: a
+    free_form.NumbersError (a ValueError with its code) saying what is wrong, for numbers without `free: 1` too (a size
+    is never changed to fit); the numbers when they are right."""
+    if not is_free(wall):
+        raise NumbersError('free', "a wall of the free form's request holds free: 1 (it has %r)"
+                           % (sorted(wall) if isinstance(wall, dict) else wall,))
+    what = 'a free wall'
+    look = look_of(wall)
+    box = dict(x0=wall.get('x0'), x1=wall.get('x1'), y0=wall.get('y0', -float(look['half'])),
+               y1=wall.get('y1', float(look['half'])), z0=wall.get('z0', float(look['bottom'])),
+               z1=wall.get('z1', float(look['top'])))
+    x0, x1, y0, y1, z0, z1 = free_form.extents(box, what)
+    free_form.mapping(wall, what)
+    seed = wall.get('seed', 1)
+    if not isinstance(seed, int) or isinstance(seed, bool):
+        raise NumbersError('number', "a free wall's seed is a whole number (it has %r)" % (seed,))
+    if wall.get('tall', 'repeat') not in FREE_TALL:
+        raise NumbersError('tall', "a free wall's tall is %s (it has %r)" % (' or '.join(FREE_TALL), wall.get('tall')))
+    band = wall.get('band')
+    if band is not None and not (isinstance(band, (list, tuple)) and len(band) == 2 and all(map(_finite, band))
+                                 and z0 - 1e-6 <= band[0] and band[0] + free_form.MIN_SIZE <= band[1] <= z1 + 1e-6):
+        raise NumbersError('band', "a free wall's band is [lo, hi] within its bottom %g and top %g (it has %r)"
+                           % (z0, z1, band))
+    whole = wall.get('whole')
+    if whole is not None and not (isinstance(whole, (list, tuple)) and len(whole) in (2, 4, 5)
+                                  and all(map(_finite, whole)) and whole[1] > 0 and (len(whole) == 2 or whole[3] > 0)):
+        raise NumbersError('whole', "a split wall's piece's place is [dx, length, dz, height] or [dx, length, dz, "
+                           "height, the whole's x0], finite numbers, the length and height over 0 (it has %r)" % (whole,))
+    openings = wall.get('openings') or []
+    if not isinstance(openings, list):
+        raise NumbersError('opening', "a free wall's openings are a list (it has %r)" % (openings,))
+    for o in openings:
+        if not (isinstance(o, dict) and all(_finite(o.get(k)) for k in ('x0', 'x1', 'z0', 'z1'))
+                and x0 - 1e-6 <= o['x0'] < o['x1'] <= x1 + 1e-6 and o['z0'] < o['z1']):
+            raise NumbersError('opening', 'an opening outside its wall or of no size: %r' % (o,))
+    R = shaped(wall)            # (NumbersError 'thickness' for faces that leave the look's outline crossing itself)
+    solid = solid_wall(wall, R)
+    a, b = solid['x0'], solid['x1']
+    l0, l1 = solid['lean']
+    lo, hi = extent(R)
+    for y in (lo, hi):
+        if (b + l1 * y) - (a + l0 * y) < SHORTEST:
+            raise NumbersError('ends', "a free wall's ends leave its solid %g long %g across (its ends' insets and "
+                               "leans meet)" % ((b + l1 * y) - (a + l0 * y), y))
+    reach = reach_of(R)
+    for end, (x, lean) in enumerate(((a, l0), (b, l1))):
+        if abs(lean) <= 1e-9:
+            continue
+        s = abs(lean) * reach + LEAN_MARGIN
+        for o in solid['openings']:
+            if o['z1'] <= R['bottom'] or o['z0'] >= R['top']:
+                continue
+            near, far = (o['x1'], o['x0']) if end else (o['x0'], o['x1'])
+            within = near > x - s if end else near < x + s
+            through = near >= x - 1e-6 if end else near <= x + 1e-6
+            clear = far <= x - s if end else far >= x + s
+            if within and not (through and clear):
+                raise NumbersError('lean', 'a gap from %g to %g along the wall stands within %g of its leaning end at '
+                                   '%g, which reaches that far: keep it clear or cut it through to the end'
+                                   % (o['x0'], o['x1'], s, x))
+    return wall
+
+
+def _jitter(seed, *place):
+    """Two numbers in -1..1 from the seed and a lattice cell's place: the same cell always the same."""
+    d = hashlib.sha256(repr((int(seed),) + place).encode()).digest()
+    a, b = struct.unpack('<2Q', d[:16])
+    return 2.0 * a / 2 ** 64 - 1.0, 2.0 * b / 2 ** 64 - 1.0
+
+
+def _lattice(lo, hi, size, off):
+    """The lattice cells along one axis that the run lo..hi (in the piece's frame, the lattice's origin at -off) meets:
+    [(index, (a, b) its span cut to the run)]; a cell met for less than a quarter of its size is left to its neighbour,
+    unless no cell is met for more."""
+    cells = []
+    for i in range(math.floor((lo + off) / size), math.floor((hi + off) / size) + 1):
+        a, b = max(i * size - off, lo), min((i + 1) * size - off, hi)
+        if b - a > 1e-9:
+            cells.append((i, (a, b)))
+    wide = [c for c in cells if c[1][1] - c[1][0] >= size / 4]
+    return wide or [max(cells, key=lambda c: c[1][1] - c[1][0])]
+
+
+def _inside(v, a, b):
+    """v kept within a..b, a little in from each (a seed whose lattice cell an end or the top cuts)."""
+    m = min(1.0, (b - a) / 4)
+    return min(max(v, a + m), b - m)
+
+
+def free_seeds(wall, R):
+    """The seeds of a free wall's cells (the block's comment): one in each lattice cell of the look's cell size the
+    solid meets (wall: solid_wall's), its place from _jitter and the look's jitter, counted from the frame's origin
+    (the whole wall's: whole_origin); a leaning end's own column of seeds (_end_columns) in place of the lattice's near
+    it; those in a gap left out as the old form's are (_kept_seeds)."""
+    x0, x1 = float(wall['x0']), float(wall['x1'])
+    zb, zt = float(R['bottom']), float(R['top'])
+    cx, cz = (float(v) for v in R['cell'])
+    jit = float(R['jitter'])
+    ox, oz = whole_origin(wall)
+    seed = wall.get('seed', 1)
+    rows = _lattice(zb, zt, cz, oz)
+    pts = []
+    for k, (za, zc) in rows:
+        for i, (xa, xc) in _lattice(x0, x1, cx, ox):
+            jx, jz = _jitter(seed, i, k)
+            pts.append((_inside((i + 0.5 + jx * jit) * cx - ox, xa, xc), _inside((k + 0.5 + jz * jit) * cz - oz, za, zc)))
+    columns, keep = _end_columns(wall, R, rows, seed, oz)
+    pts = [p for p in pts if keep(p[0])]
+    ends = [(x, z) for x, zs in columns for z in zs]
+    if not ends:
+        return _kept_seeds(pts, wall, x0, x1, zb, zt)
+    return [p for p in pts if not _in_gap(p, wall)] + ends
+
+
+def _end_columns(wall, R, rows, seed, oz):
+    """A free wall's leaning ends' columns of seeds ([(x, [z])]) and which of the lattice's seeds stay (x -> bool).
+
+    A leaning end moves its corners along the wall by up to its reach (reach_of times its lean). So that nothing but
+    the end lies within that, its cells are a column of seeds at one x, `s` (the reach and LEAN_MARGIN) in from the end,
+    one in each lattice row: seeds at one x part their cells by level lines, which meet the end square. The lattice's
+    seeds stay `d` further in, the distance at which none can be as near any point within the reach as the column's
+    nearest seed is (the column's seeds stand no further apart up the wall than twice `dz`). Two leaning ends too near
+    for a lattice seed between their columns have one column, at the middle."""
+    leans = wall.get('lean') or (0.0, 0.0)
+    x0, x1 = float(wall['x0']), float(wall['x1'])
+    if all(abs(l) <= 1e-9 for l in leans):
+        return [], lambda x: True
+    cz, jit = float(R['cell'][1]), float(R['jitter'])
+    zb, zt = float(R['bottom']), float(R['top'])
+    reach = reach_of(R)
+    found = {}
+    for end, lean in enumerate(leans):
+        if abs(lean) <= 1e-9:
+            continue
+        zs = [_inside((k + 0.5 + _jitter(seed, 'end', end, k)[1] * jit) * cz - oz, za, zc) for k, (za, zc) in rows]
+        dz = max([zs[0] - zb, zt - zs[-1]] + [(b - a) / 2 for a, b in zip(zs, zs[1:])])
+        s = abs(lean) * reach + LEAN_MARGIN
+        found[end] = (s, math.hypot(s, dz) + LEAN_MARGIN, zs)
+    if len(found) == 2 and (x1 - found[1][0]) - (x0 + found[0][0]) < found[0][1] + found[1][1]:
+        x = ((x0 + found[0][0]) + (x1 - found[1][0])) / 2
+        return [(x if x0 < x < x1 else (x0 + x1) / 2, found[1][2])], lambda x: False
+    columns, lo, hi = [], -math.inf, math.inf
+    for end, (s, d, zs) in sorted(found.items()):
+        x = x1 - s if end else x0 + s
+        columns.append((x if x0 < x < x1 else (x0 + x1) / 2, zs))
+        if end:
+            hi = x1 - s - d
+        else:
+            lo = x0 + s + d
+    return columns, lambda x: lo < x < hi
+
+
+def lean_ends(faces, wall):
+    """A free wall's leaning ends put on its built faces (wall: solid_wall's, `lean` each end's): each corner on an
+    end moved along the wall by its place across times the end's lean; a face along the wall keeps its texture and
+    lightmap coordinates as they run on it (read at the moved place), an end's face its own; the charts a moved corner
+    reaches past grown to hold it."""
+    ends = [(x, lean) for x, lean in zip((float(wall['x0']), float(wall['x1'])), wall.get('lean') or ()) if abs(lean) > 1e-9]
+    if not ends:
+        return
+    touched = set()
+    for poly in faces.polys:
+        shift = [next((lean for x, lean in ends if abs(p[0] - x) < 1e-6), 0.0) * p[1] for p in poly['points']]
+        if not any(shift):
+            continue
+        old, normal = poly['points'], poly['normal']
+        new = [(p[0] + d, p[1], p[2]) for p, d in zip(old, shift)]
+        if abs(normal[0]) < 1e-6:
+            poly['uv0'] = _moved_values(old, poly['uv0'], shift, normal)
+            poly['cuv'] = _moved_values(old, poly['cuv'], shift, normal)
+        else:
+            n = _newell(new)
+            poly['normal'] = tuple(-v for v in n) if _dot(n, normal) < 0 else tuple(n)
+        poly['points'] = new
+        touched.add(poly['chart'])
+    by_chart = {}
+    for poly in faces.polys:
+        if poly['chart'] in touched:
+            by_chart.setdefault(poly['chart'], []).append(poly)
+    for key, polys in by_chart.items():
+        w, h, density = faces.charts[key]
+        us = [c[0] for poly in polys for c in poly['cuv']]
+        vs = [c[1] for poly in polys for c in poly['cuv']]
+        du, dv = min(0.0, min(us)), min(0.0, min(vs))
+        if du or dv:
+            for poly in polys:
+                poly['cuv'] = [(c[0] - du, c[1] - dv) for c in poly['cuv']]
+        faces.charts[key] = [max(w, max(us)) - du, max(h, max(vs)) - dv, density]
+
+
+def _moved_values(points, values, shift, normal):
+    """The values (each a pair) of a face along the wall at its corners moved along it by `shift`: the values are
+    affine on the face, a x + b q + c (q across the face, square to x), so each gains a times its corner's shift."""
+    e = (0.0, normal[2], -normal[1])            # across the face, square to x
+    rows = [(p[0], p[1] * e[1] + p[2] * e[2], 1.0) for p in points]
+    m = [[sum(r[i] * r[j] for r in rows) for j in range(3)] for i in range(3)]
+    det = _det3(m)
+    out = []
+    slopes = []
+    for c in range(2):
+        rhs = [sum(r[i] * v[c] for r, v in zip(rows, values)) for i in range(3)]
+        slopes.append(_det3([[rhs[i], m[i][1], m[i][2]] for i in range(3)]) / det if abs(det) > 1e-12 else 0.0)
+    for v, d in zip(values, shift):
+        out.append((v[0] + slopes[0] * d, v[1] + slopes[1] * d))
+    return out
+
+
+def _det3(m):
+    return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]))
+
+
+def _newell(points):
+    """The unit normal of the flat polygon `points` (Newell's: its corners in order)."""
+    n = [0.0, 0.0, 0.0]
+    for a, b in zip(points, points[1:] + points[:1]):
+        n[0] += (a[1] - b[1]) * (a[2] + b[2])
+        n[1] += (a[2] - b[2]) * (a[0] + b[0])
+        n[2] += (a[0] - b[0]) * (a[1] + b[1])
+    return _norm(n)
+
+
+def solid_box(wall):
+    """The box [x0, x1, y0, y1, z0, z1] a wall's solid stands in, in its frame: its ends in from x0 and x1 (solid_wall),
+    a leaning end reaching along the wall as far as its lean takes it across the outline; across, the outline's extent;
+    its bottom and top. For numbers of the old form, frac_walls.local_box's."""
+    R = shaped(wall)
+    lo, hi = extent(R)
+    solid = solid_wall(wall, R)
+    l0, l1 = solid.get('lean') or (0.0, 0.0)
+    return [min(solid['x0'] + l0 * lo, solid['x0'] + l0 * hi), max(solid['x1'] + l1 * lo, solid['x1'] + l1 * hi),
+            lo, hi, R['bottom'], R['top']]
 
 
 # ---------------------------------------------------------------------------------------------------- 2D polygons
@@ -287,19 +619,25 @@ def bands(R=RECIPE):
 
 
 # ---------------------------------------------------------------------------------------------------- cells
-def solid_wall(wall):
+def solid_wall(wall, R=None):
     """The wall as it is built: its ends in from its tile edges by their styles (END_INSETS: a free end
     RECIPE['endInset']), its openings cut to what is left (an opening's own sides are kept: the game's doorways have
-    them on the tile edges too)."""
-    e0, e1 = ends_of(wall)
-    insets = end_insets(look_of(wall))
-    x0, x1 = float(wall['x0']) + insets[e0], float(wall['x1']) - insets[e1]
+    them on the tile edges too). A free wall's ends are measured from its own x0 and x1 (free_ends; R its shaped
+    recipe, worked out when not given), and it has `lean`, each end's."""
+    lean = None
+    if is_free(wall):
+        (i0, l0), (i1, l1) = free_ends(wall, R or shaped(wall))
+        x0, x1, lean = float(wall['x0']) + i0, float(wall['x1']) - i1, [l0, l1]
+    else:
+        e0, e1 = ends_of(wall)
+        insets = end_insets(look_of(wall))
+        x0, x1 = float(wall['x0']) + insets[e0], float(wall['x1']) - insets[e1]
     openings = []
     for o in wall.get('openings') or ():
         a, b = max(float(o['x0']), x0), min(float(o['x1']), x1)
         if b - a > 1e-6:
             openings.append(dict(x0=a, x1=b, z0=float(o['z0']), z1=float(o['z1'])))
-    return dict(wall, x0=x0, x1=x1, openings=openings)
+    return dict(wall, x0=x0, x1=x1, openings=openings, **({'lean': lean} if lean else {}))
 
 
 def seeds(wall):
@@ -310,24 +648,29 @@ def seeds(wall):
     nx = max(1, round((x1 - x0) / R['cell'][0]))
     nz = max(1, round((zt - zb) / R['cell'][1]))
     dx, dz = (x1 - x0) / nx, (zt - zb) / nz
-    out, skipped = [], []
+    pts = []
     for k in range(nz):
         for i in range(nx):
             jx, jz = rng.uniform(-1, 1) * R['jitter'], rng.uniform(-1, 1) * R['jitter']
-            s = (x0 + (i + 0.5 + jx) * dx, zb + (k + 0.5 + jz) * dz)
-            if any(o['x0'] - 1 < s[0] < o['x1'] + 1 and o['z0'] - 1 < s[1] < o['z1'] + 1 for o in wall.get('openings', ())):
-                skipped.append(s)
-                continue
-            out.append(s)
+            pts.append((x0 + (i + 0.5 + jx) * dx, zb + (k + 0.5 + jz) * dz))
+    return _kept_seeds(pts, wall, x0, x1, zb, zt)
+
+
+def _in_gap(p, wall):
+    """Whether the seed p is in one of the wall's openings (or within a unit of one)."""
+    return any(o['x0'] - 1 < p[0] < o['x1'] + 1 and o['z0'] - 1 < p[1] < o['z1'] + 1 for o in wall.get('openings', ()))
+
+
+def _kept_seeds(pts, wall, x0, x1, zb, zt):
+    """The seeds `pts` of the wall's cells (its solid x0..x1 by zb..zt) but those in a gap (_in_gap)."""
+    out = [s for s in pts if not _in_gap(s, wall)]
     # every seed in a gap (a gap along the whole wall, a strip of wall left under or over it): each moved into the
     # strip nearest it, so the strip has fragments (walls with any seed left are as before)
     if not out:
-        inside = lambda p: any(o['x0'] - 1 < p[0] < o['x1'] + 1 and o['z0'] - 1 < p[1] < o['z1'] + 1
-                               for o in wall.get('openings', ()))
-        for s in skipped:
+        for s in pts:
             o = next(o for o in wall['openings'] if o['x0'] - 1 < s[0] < o['x1'] + 1 and o['z0'] - 1 < s[1] < o['z1'] + 1)
             spots = [(s[0], (zb + o['z0']) / 2), (s[0], (o['z1'] + zt) / 2), ((x0 + o['x0']) / 2, s[1]), ((o['x1'] + x1) / 2, s[1])]
-            spots = [p for p in spots if not inside(p) and x0 < p[0] < x1 and zb < p[1] < zt]
+            spots = [p for p in spots if not _in_gap(p, wall) and x0 < p[0] < x1 and zb < p[1] < zt]
             if spots:
                 p = min(spots, key=lambda p: (p[0] - s[0]) ** 2 + (p[1] - s[1]) ** 2)
                 if p not in out:
@@ -347,13 +690,14 @@ def cut_opening(poly, o):
     return [q for q in (left, right, above, below) if q and area(q) > 1e-3]
 
 
-def cells(wall):
-    """[(seed, convex polygon)] of the wall's fragments, before their faces are made."""
+def cells(wall, R=None):
+    """[(seed, convex polygon)] of the wall's fragments, before their faces are made (R: the wall's shaped recipe,
+    worked out when not given)."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    R = shaped(wall)
+    R = R or shaped(wall)
     zb, zt = R['bottom'], R['top']
     outline = [((x0, zb), 'out'), ((x1, zb), 'out'), ((x1, zt), 'out'), ((x0, zt), 'out')]
-    pts = seeds(wall)
+    pts = free_seeds(wall, R) if is_free(wall) else seeds(wall)
     out = []
     for i, s in enumerate(pts):
         poly = outline
@@ -373,11 +717,11 @@ def cells(wall):
     return [(s, insert_points(q, every)) for s, q in out]
 
 
-def classify(wall, p, q):
+def classify(wall, p, q, R=None):
     """What the edge p..q of a fragment is: 'x0' or 'x1' (a wall's end), 'zb' or 'zt' (its bottom or top), ('open',
-    k) (an opening's side), or 'in' (an edge it shares with another fragment)."""
+    k) (an opening's side), or 'in' (an edge it shares with another fragment). R: the wall's shaped recipe."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    R = shaped(wall)
+    R = R or shaped(wall)
     zb, zt = R['bottom'], R['top']
     m = ((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
     vertical, flat = abs(p[0] - q[0]) < 1e-5, abs(p[1] - q[1]) < 1e-5
@@ -582,6 +926,7 @@ class Profile:
     def __init__(self, R):
         self.R = R
         self.ux = float(R.get('uvShift', 0.0))      # (a piece of a longer wall: where it starts in it, made_split)
+        self.uz = float(R.get('uvShiftZ', 0.0))     # (a free wall raised from its look's bottom: wall_profile.shifted)
         self.sides = {X: [(float(y), float(z)) for y, z in R['profile'][X]] for X in 'AB'}
         zs = {z for X in 'AB' for _, z in self.sides[X]} | {float(R['bottom']), float(R['top'])}
         zs |= {float(s) for X in 'AB' for s in R['splits'][X]}
@@ -618,9 +963,9 @@ class Profile:
     def surface(self, X, k, z):
         """(slot, texture (x, z, t) -> (u, v)) of side X's segment k at height z (t up the segment)."""
         slot, tex = self._surface(X, k, z)
-        if not self.ux:
+        if not self.ux and not self.uz:
             return slot, tex
-        return slot, lambda x, z, t: tex(x + self.ux, z, t)
+        return slot, lambda x, z, t: tex(x + self.ux, z + self.uz, t)
 
     def _surface(self, X, k, z):
         R = self.R
@@ -768,7 +1113,7 @@ def fragment_faces_any(wall, faces, f, poly, R, P):
     count = len(pts)
     for k in range(count):
         p, q = pts[k], pts[(k + 1) % count]
-        kind = classify(wall, p, q)
+        kind = classify(wall, p, q, R)
         if math.dist(p, q) < 1e-6:
             continue
         dx, dz = q[0] - p[0], q[1] - p[1]
@@ -933,12 +1278,14 @@ def pack_rect(charts, density, margin, block=4):
 
 
 # ---------------------------------------------------------------------------------------------------- collision
-def solids(wall):
+def solids(wall, R=None):
     """The collision boxes [(lo, hi)]: the slab (the donor's 16 thick) cut into upright strips at every opening's
     sides, each strip's stretches clear of openings one box, neighbouring strips with the same stretches joined. A
-    measured look's boxes span its donor's collision across the wall (`collisionY`, from its centre line)."""
+    measured look's boxes span its donor's collision across the wall (`collisionY`, from its centre line). A free
+    wall's box at a leaning end is a hull (hulls.hull_element's fields, as frac_walls.body_setup_boxes takes them), its
+    end leaning as the end does (R: the wall's shaped recipe)."""
     x0, x1 = float(wall['x0']), float(wall['x1'])
-    R = shaped(wall)
+    R = R or shaped(wall)
     zb, zt = R['bottom'], R['top']
     hy = R['collisionHalf']
     ylo, yhi = (float(R['collisionY'][0]), float(R['collisionY'][1])) if 'collisionY' in R else (-hy, hy)
@@ -959,7 +1306,24 @@ def solids(wall):
             strips[-1][1] = b
         else:
             strips.append([a, b, runs])
-    return [((a, ylo, z0), (b, yhi, z1)) for a, b, runs in strips for z0, z1 in runs]
+    boxes = [((a, ylo, z0), (b, yhi, z1)) for a, b, runs in strips for z0, z1 in runs]
+    l0, l1 = wall.get('lean') or (0.0, 0.0)
+    if abs(l0) <= 1e-9 and abs(l1) <= 1e-9:
+        return boxes
+    import hulls        # (numpy: only for a leaning end)
+    out = []
+    for lo, hi in boxes:
+        at0, at1 = abs(l0) > 1e-9 and abs(lo[0] - x0) < 1e-6, abs(l1) > 1e-9 and abs(hi[0] - x1) < 1e-6
+        if not (at0 or at1):
+            out.append((lo, hi))
+            continue
+        corners = []
+        for end in (0, 1):
+            for y in (lo[1], hi[1]):
+                x = (lo[0] + l0 * y if at0 else lo[0]) if end == 0 else (hi[0] + l1 * y if at1 else hi[0])
+                corners += [(x, y, lo[2]), (x, y, hi[2])]
+        out.append(hulls.hull_element(corners))
+    return out
 
 
 # ---------------------------------------------------------------------------------------------------- packing it all
@@ -1033,13 +1397,15 @@ def build(wall, template=None):
     """The mesh of `wall` (gen_mesh's form) on the donor's decoded mesh `template` (its fields other than the
     geometry: the stream layouts, versions, the fracturing tail; default_template() when None), with dict(fragments,
     solids, counts)."""
+    if is_free(wall):
+        check_free(wall)
     R = shaped(wall)
     template = template or default_template()
-    wall = solid_wall(wall)
+    wall = solid_wall(wall, R)
     any_look = general(R)
     P = Profile(R) if any_look else None
     faces = Faces()
-    found = cells(wall)
+    found = cells(wall, R)
     edges = {}
     outer = {}
     for f, (_, poly) in enumerate(found):
@@ -1063,11 +1429,15 @@ def build(wall, template=None):
                 nb.append(g)
                 dims.append(a * over / math.dist(p, q))
         records.append(dict(seed=seed, neighbours=nb, dims=dims))
+    lean_ends(faces, wall)
+    if is_free(wall):
+        for poly in faces.polys:
+            poly['uv0'] = free_form.held(poly['uv0'], 'a face of a wall')
     for rec in records:
         rec['centre'] = (rec['seed'][0], 0.0, rec['seed'][1])
     guid = hashlib.md5(('frac_wall|%r' % (sorted(wall.items(), key=str),)).encode()).digest()
     out = assemble(faces, records, template, R, guid, slots=sections_of(R), what='a wall')
-    return dict(out, solids=solids(wall), **({'whole': list(wall['whole'])} if wall.get('whole') else {}))
+    return dict(out, solids=solids(wall, R), **({'whole': list(wall['whole'])} if wall.get('whole') else {}))
 
 
 def assemble(faces, records, template, R, guid, slots=6, what='a mesh'):
