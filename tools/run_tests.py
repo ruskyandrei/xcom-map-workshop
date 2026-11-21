@@ -75,10 +75,12 @@ ENVIRONMENT = (
             'naming a scratch file.',
             'the settings file in Documents. With neither, the tests that read the game skip, each saying what it lacks.'),
         Var('XCOM_COOKED',
-            "A CookedPCConsole folder read in place of the configured install's by the tests that take its packages "
-            'through tools/lab/labpaths.py (most of the bake and upk suites, and the default of each XCOM_<MAP>_UPK '
-            'below), and by test_material_rules.py. The other viewer tests that read the install take the settings\' '
-            'folder only: to point every test at another install, name a settings file.',
+            "A CookedPCConsole folder read in place of the configured install's by the tests that read the install's "
+            'maps from it: they take them through tools/lab/labpaths.py (its install_map, test_file and lwr_cooked), '
+            "and it is the default of each XCOM_<MAP>_UPK below. Naming another install's folder (plain Enemy "
+            "Within's, say) points those tests at it; a test whose package is not there skips, saying where it looked. "
+            "The tests that read the game folder as a whole (its config files, its script package) take the settings' "
+            'game folder, or XCOM_GAME where it names them.',
             "the configured LWR install's CookedPCConsole (the lwr setting). With neither, those tests skip."),
         Var('XCOM_GAME',
             "A game folder read in place of the configured install's by test_game_grid.py (the upk suite: every map "
@@ -122,8 +124,7 @@ ENVIRONMENT = (
         Package('XCOM_PATCH_BAR_UPK', 'patch_bar.upk', 'test_stream_copy.py'),
         Package('XCOM_POLICE_PATCH_UPK', 'patch_policestation.upk', 'test_cover_blocks.py'),
         Package('XCOM_POLICE_UPK', 'URB_PoliceStation.upk', 'test_cover_blocks.py, test_gen_mesh.py, '
-                "test_light_factory.py, test_native_copy.py, test_streams.py (which takes the settings' folder, not "
-                "XCOM_COOKED's)"),
+                'test_light_factory.py, test_native_copy.py, test_streams.py'),
         Package('XCOM_STONEWALL_UPK', 'CLrgScout_Stonewall.upk', 'test_native_copy.py'),
         Package('XCOM_TEMPLE_UPK', 'TempleShip.upk', 'test_light_factory.py, test_native_lights.py'),
         Package('XCOM_TRUCKSTOP_STREAM_UPK', 'URB_TruckStop_Stream.upk', 'test_light_factory.py, test_map_frame.py, '

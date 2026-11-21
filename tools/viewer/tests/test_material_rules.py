@@ -1,21 +1,21 @@
 """No diagnostic pink (export 14): where a material's colour comes from when it has no texture parameter the profile
 knows. The rules on their own, then on LWR's own maps where the install is here: burning trees and alien wreck
 debris (Forest Trench), a patch package's stub materials (Supply Ship Overlook) and a fractured mesh's interior."""
-import os
 from pathlib import Path
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
 import export  # noqa: E402
 from materials import approximate_colour, opacity_input, GREY, WATER  # noqa: E402
 from PIL import Image  # noqa: E402
 from package import Package  # noqa: E402
-from settings import lwr_cooked  # noqa: E402
+import labpaths  # noqa: E402
 
 # the LWR install's packages (the lwr setting), or the folder XCOM_COOKED names; without either, those tests skip
-COOKED = Path(os.environ.get('XCOM_COOKED') or lwr_cooked() or 'no-lwr-install-configured')
+COOKED = Path(labpaths.lwr_cooked() or 'no-lwr-install-configured')
 
 
 class Rules(unittest.TestCase):

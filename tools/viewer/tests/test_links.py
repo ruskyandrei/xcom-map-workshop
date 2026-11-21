@@ -8,12 +8,13 @@ from package import Package, Reader
 from scene_metadata import fragment_breaks, kismet_references, kismet_uses, prefab_members
 from resolver import resolve_scene
 from viewer_fixtures import scene
-import settings
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
+import labpaths
 
-# URB_Bar from the LWR install (the lwr setting); without it the Kismet test skips
-COOKED = settings.lwr_cooked()
-BAR = COOKED / 'URB_Bar.upk' if COOKED else None
-POLICE = COOKED / 'URB_PoliceStation.upk' if COOKED else None
+# URB_Bar and the police station of the configured install, or of the folder XCOM_COOKED names; without them the
+# Kismet tests skip
+BAR, NO_BAR = labpaths.install_map('URB_Bar')
+POLICE, NO_POLICE = labpaths.install_map('URB_PoliceStation')
 
 
 class PrefabPackage:
@@ -95,7 +96,7 @@ class KismetWalkTests(unittest.TestCase):
         self.assertEqual(other.reads, {3: 1, 4: 1, 5: 1, 6: 1})
 
 
-@unittest.skipUnless(BAR and BAR.exists(), 'URB_Bar.upk of the LWR install (the lwr setting) not found')
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class KismetTests(unittest.TestCase):
     def test_bars_kismet_names_its_grounded_skyranger_and_drop_zone(self):
         # export 15's referencedBy: the landing's SeqAct_ToggleHidden hides both, through its Target variables; no
@@ -108,7 +109,7 @@ class KismetTests(unittest.TestCase):
         self.assertFalse({p.cls(a) for a in found} & {'XComLadder', 'XComInteractiveLevelActor', 'XComFracLevelActor'})
 
 
-@unittest.skipUnless(POLICE and POLICE.exists(), 'URB_PoliceStation.upk of the LWR install (the lwr setting) not found')
+@unittest.skipUnless(POLICE and POLICE.exists(), NO_POLICE)
 class BreaksTests(unittest.TestCase):
     def test_police_stations_car_glass_names_its_car_and_its_standalone_light_bar(self):
         # export 16's breaks (plan sections 2.3 and 3.3): the glass's fragment columns name the body and its parts; a

@@ -7,8 +7,9 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
 import spawnrules  # noqa: E402
-from settings import lwr_cooked  # noqa: E402
+import labpaths  # noqa: E402
 
 LOADER = '''[XComMutator.XComMutatorLoader]
 arrTacticalMutators="XComLZMutator.XComLZMutator"
@@ -102,7 +103,7 @@ class Rules(unittest.TestCase):
         self.assertEqual({found[f] for f in spawnrules.FAMILIES}, {'unknown'})
 
     def test_the_configured_install(self):
-        cooked = lwr_cooked()
+        cooked = labpaths.lwr_cooked()      # the configured install's, or the folder XCOM_COOKED names
         game = Path(cooked).parents[2] if cooked else None
         if not game or not (game / 'XEW' / 'XComGame' / 'Config' / spawnrules.LOADER).is_file():
             self.skipTest('no Long War install configured')

@@ -218,9 +218,11 @@ class Plan(unittest.TestCase):
 
 
 def cooked():
-    import settings
+    """The configured install's CookedPCConsole, or the folder XCOM_COOKED names; None without either."""
+    sys.path.insert(0, str(HERE.parents[1] / 'lab'))
+    import labpaths
     try:
-        return settings.lwr_cooked()
+        return labpaths.lwr_cooked()
     except (OSError, ValueError):
         return None
 
@@ -229,7 +231,8 @@ COOKED = cooked()
 BAR = COOKED / 'URB_Bar.upk' if COOKED else None
 
 
-@unittest.skipUnless(BAR and BAR.is_file(), 'the game install is not configured (python tools/viewer/viewer.py settings)')
+@unittest.skipUnless(BAR and BAR.is_file(), 'URB_Bar.upk not found at %s' % BAR if BAR else
+                     'the game install is not configured (python tools/viewer/viewer.py settings, or XCOM_COOKED)')
 class Install(unittest.TestCase):
     """Read from the configured install: the class defaults in its script packages are CLASS_DEFAULTS, and URB_Bar's
     TVs are set as the survey found them (research/native/piece-flags.md, section 5)."""
