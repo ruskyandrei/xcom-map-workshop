@@ -26,6 +26,8 @@ import re
 import subprocess
 import sys
 
+from settings import ew_folder, game_config
+
 APP_ID = '200510'       # XCOM: Enemy Unknown, which Enemy Within is launched from
 
 
@@ -77,7 +79,7 @@ def user_config(game, documents):
     """The XComContent.ini files the game may write during a play: the user's, under Documents, and one in the game
     folder (the game keeps its settings there when started with -nohomedir)."""
     return [Path(documents) / 'My Games' / 'XCOM - Enemy Within' / 'XComGame' / 'Config' / 'XComContent.ini',
-            Path(game) / 'XEW' / 'XComGame' / 'Config' / 'XComContent.ini']
+            game_config(game) / 'XComContent.ini']
 
 
 # A play with saving on (F-89, EXP-56): the game starts at its main menu, whose login readies saving, and this key
@@ -99,9 +101,8 @@ def saving_config(game, documents):
     and profile.bin (the logged-in game writes its profile, the play's squad in it: EXP-56 run 1 rewrote the lab
     copy's), each in Documents and in the game folder."""
     home = Path(documents) / 'My Games' / 'XCOM - Enemy Within' / 'XComGame'
-    own = Path(game) / 'XEW' / 'XComGame'
-    return [home / 'Config' / 'XComInput.ini', own / 'Config' / 'XComInput.ini',
-            home / 'SaveData' / 'profile.bin', own / 'SaveData' / 'profile.bin']
+    return [home / 'Config' / 'XComInput.ini', game_config(game) / 'XComInput.ini',
+            home / 'SaveData' / 'profile.bin', ew_folder(game) / 'SaveData' / 'profile.bin']
 
 
 def steam_exe():

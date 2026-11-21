@@ -256,8 +256,10 @@ if outcome in ('grand', 'linger'):
     grand = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])
     print('grandchild: %%d' %% grand.pid, flush=True)
 if quick:
+    print('running: making the edit in the map', flush=True)
     print('  $ python -B -u native_copy.py URB_Bar.upk lit variant --copies native-edit.json', flush=True)
 else:
+    print('running: patch and cook', flush=True)
     print('  $ pwsh -File patchtool.ps1 build', flush=True)
 print('    progress: relighting 2/5', flush=True)
 while not go.exists():
@@ -289,6 +291,15 @@ with publication.guard(output, variant):
                         boundary=lambda name: os._exit(70) if name == die else None)
 print('built %%s: %%s (%%s.upk %%s)' %% (build_id, output / variant, variant, hashlib.sha256(content).hexdigest()[:12]), flush=True)
 ''' % VIEWER
+
+
+# ---------------------------------------------------------------- landing zones (test_spawns')
+
+def same_place(a, b, slack=2.0):
+    """Whether two zones are the same place and direction, within `slack` units (Bar's first line is its own landing
+    within two units)."""
+    return a['direction'] == b['direction'] and all(abs(float(a['location'][k]) - float(b['location'][k])) <= slack
+                                                    for k in range(3))
 
 
 # ---------------------------------------------------------------- a scene (test_resolver's)

@@ -418,9 +418,11 @@ def associate_with(source, objects, lights, meshes, materials, warn=None):
                     closest = float(foot_gap[mine].min())
                     window = mine & (foot_gap <= closest + t['nearFoot'])
                     nearest = np.flatnonzero(mine)[np.argmin(foot_gap[mine])]
-                    found.append(candidate(chosen[k], light, closest, float(light_gap[mine].min()),
-                                           float(facing[window].max()), lightmass(k), materials_of(k),
-                                           section_material(chosen[k], triangles.sections[near[nearest]], materials), t))
+                    found.append(candidate(chosen[k], light, foot_distance=closest, distance=float(light_gap[mine].min()),
+                                           normal_dot=float(facing[window].max()), settings=lightmass(k),
+                                           material_reasons=materials_of(k),
+                                           material=section_material(chosen[k], triangles.sections[near[nearest]], materials),
+                                           t=t))
         attachments[light['id']] = decide(light, found, t)
     owners_out = {}
     for light_id, entry in attachments.items():
@@ -436,7 +438,7 @@ def section_material(obj, section, materials):
     return (materials.get(key) or {}).get('name') if key is not None else None
 
 
-def candidate(obj, light, foot_distance, distance, normal_dot, settings, material_reasons, material, t):
+def candidate(obj, light, *, foot_distance, distance, normal_dot, settings, material_reasons, material, t):
     """One candidate's measurements, evidence, support and score."""
     flag = bool(settings.get('bUseEmissiveForStaticLighting'))
     falloff = float(settings.get('EmissiveLightFalloffExponent', DEFAULT_FALLOFF))

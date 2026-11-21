@@ -835,6 +835,13 @@ class Build:
         # and the manifest and folder of the finished package
         self.seeded = self.pictured = self.picture_note = self.inside = self.manifest = self.folder = None
 
+    def tool(self, label, args, log):
+        """Start a tool (run_tool), first saying what runs in a `running: <label>` line: the server shows the label
+        on the build's step while the tool runs (tools/viewer/builds.py). None for a tool whose step says enough in
+        its own words: the line is then `running:`, which clears the last tool's label."""
+        self.echo(('running: %s' % (label or '')).rstrip())
+        self.run_tool(args, log)
+
     def _run(self, args, log):
         """Run a tool, its output to the log file and the console; raise on a failure. The tool writes its output in
         UTF-8 (procs.utf8_env), so a path whose characters the system's code page lacks is printed, not fatal."""
@@ -1166,8 +1173,8 @@ class Build:
                                                             else 'and the udk setting is not set'))
         common = ['-Udk', self.udk, '-Work', self.patch_work, '-Lwr', self.lwr]
         ps = ['pwsh', '-NoProfile', '-File', PATCHTOOL]
-        self.run_tool(ps + ['build', self.spec, '-Force'] + common, self.work / 'logs' / 'patchtool-build.log')
-        self.run_tool(ps + ['cook', self.spec] + common, self.work / 'logs' / 'patchtool-cook.log')
+        self.tool('patch and cook', ps + ['build', self.spec, '-Force'] + common, self.work / 'logs' / 'patchtool-build.log')
+        self.tool('patch and cook', ps + ['cook', self.spec] + common, self.work / 'logs' / 'patchtool-cook.log')
         self.cooked = self.udk / 'UDKGame' / 'CookedPC' / 'Maps' / 'patches' / ('%s.udk' % self.patch)
         if not self.cooked.is_file():
             raise BuildError('no cooked patch %s' % self.cooked)
@@ -1199,17 +1206,17 @@ class Build:
         if not (lacking or grid or stage.get('lines') or stage.get('hideGround') or ambient or cleared):
             return
         out = self.work / 'shell'
-        self.run_tool([sys.executable, '-B', '-u', SHELL, self.base, out, '--cooked', self.install_cooked]
-                      + (['--grid', grid[0], grid[1]] if grid else [])
-                      + (['--levels', grid[2]] if grid and len(grid) == 3 else [])
-                      + (['--grid-lines'] if stage.get('lines') else ['--hide-ground'] if stage.get('hideGround') else [])
-                      + (['--ambient-light'] if ambient else [])
-                      # a cleared map lays no ground: the user lays floor pieces (Clear map plan, section 7)
-                      + (['--no-ground'] if grid and (stage.get('ground') is False or cleared) else [])
-                      + (['--clear'] if cleared else [])
-                      + [x for e in self.piece_flags if e['flags'].get('floor') is False for x in ('--floor-off', e['name'])]
-                      + (['--building'] if self.needs_templates() else []),
-                      self.work / 'logs' / 'shell.log')
+        self.tool(None, [sys.executable, '-B', '-u', SHELL, self.base, out, '--cooked', self.install_cooked]
+                        + (['--grid', grid[0], grid[1]] if grid else [])
+                        + (['--levels', grid[2]] if grid and len(grid) == 3 else [])
+                        + (['--grid-lines'] if stage.get('lines') else ['--hide-ground'] if stage.get('hideGround') else [])
+                        + (['--ambient-light'] if ambient else [])
+                        # a cleared map lays no ground: the user lays floor pieces (Clear map plan, section 7)
+                        + (['--no-ground'] if grid and (stage.get('ground') is False or cleared) else [])
+                        + (['--clear'] if cleared else [])
+                        + [x for e in self.piece_flags if e['flags'].get('floor') is False for x in ('--floor-off', e['name'])]
+                        + (['--building'] if self.needs_templates() else []),
+                  self.work / 'logs' / 'shell.log')
         try:
             report = json.loads((out / 'shell.json').read_text(encoding='utf-8'))
             if not report.get('shelled'):
@@ -1357,8 +1364,8 @@ class Build:
         if not (any(c.get('donor') for c in self.natives) or foreign_effects):
             return
         out = self.work / 'transplant'
-        self.run_tool([sys.executable, '-B', '-u', TRANSPLANT, self.base, out, '--edit', self.copies, '--cooked',
-                       self.install_cooked], self.work / 'logs' / 'transplant.log')
+        self.tool(None, [sys.executable, '-B', '-u', TRANSPLANT, self.base, out, '--edit', self.copies, '--cooked',
+                         self.install_cooked], self.work / 'logs' / 'transplant.log')
         try:
             report = json.loads((out / 'transplant.json').read_text(encoding='utf-8'))
             self.source, self.copies = Path(report['staged']), out / 'native-edit.staged.json'
@@ -1395,8 +1402,9 @@ class Build:
             # effects and sounds moved, copied or deleted (the effects and sounds plan). The map is the base map, or
             # the staged one with the effects and sounds of other maps in it (transplant)
             self.cache_name, self.unchanged = None, True
-            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit, self.variant, '--copies',
-                           self.copies], self.work / 'logs' / 'native-copy.log')
+            self.tool('making the edit in the map', [sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit,
+                                                    self.variant, '--copies', self.copies],
+                      self.work / 'logs' / 'native-copy.log')
             self.relit = dict(written=0, unchanged=0, skipped=0, shadowMaps=0, copies=[], nativeCopies=[], hidden=0,
                               lightingUnchanged=True, coverBlocks=len(self.covers), **self.building_record(),
                               **self.flag_record())
@@ -1412,16 +1420,17 @@ class Build:
             # as an edit
             # (the map is the base map, or the staged one with the pieces of other maps in it: those are lit from
             # nothing where they stand)
-            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit, self.variant, '--copies',
-                           self.copies, '--bake', '--cache', self.cache_name, '--receivers-near', '%g' % self.radius]
-                          + pieces + (['--edit-spec', self.spec] if self.has_patch else []),
-                          self.work / 'logs' / 'native-copy.log')
+            self.tool('copying and relighting',
+                      [sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit, self.variant, '--copies',
+                       self.copies, '--bake', '--cache', self.cache_name, '--receivers-near', '%g' % self.radius]
+                      + pieces + (['--edit-spec', self.spec] if self.has_patch else []),
+                      self.work / 'logs' / 'native-copy.log')
         else:
             # the relight alone, on a copy of the map whose name table holds the cache's name (named_base)
-            self.run_tool([sys.executable, '-B', '-u', RELIGHT, self.named_base(), self.lit, self.variant, '--cache',
-                           self.cache_name, '--edit-spec', self.spec, '--receivers-near', '%g' % self.radius]
-                          + pieces,
-                          self.work / 'logs' / 'relight.log')
+            self.tool('relighting', [sys.executable, '-B', '-u', RELIGHT, self.named_base(), self.lit, self.variant,
+                                     '--cache', self.cache_name, '--edit-spec', self.spec, '--receivers-near',
+                                     '%g' % self.radius] + pieces,
+                      self.work / 'logs' / 'relight.log')
         rec = json.loads((self.lit / ('%s.relight.json' % self.variant)).read_text(encoding='utf-8'))
         # a completed calculation that changes no texel (plan 4.4): the map keeps the original's lightmaps, and there
         # is no texture cache to ship
@@ -1543,8 +1552,9 @@ class Build:
             # light edits too: the same actor and component changes as a full build's, receivers' lightmap lists left
             # as they are (editor lights plan, 4.3). The map is the base map, or the staged one with the pieces of
             # other maps in it (transplant)
-            self.run_tool([sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit, self.variant, '--copies',
-                           self.copies], self.work / 'logs' / 'native-copy.log')
+            self.tool('making the edit in the map', [sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit,
+                                                    self.variant, '--copies', self.copies],
+                      self.work / 'logs' / 'native-copy.log')
             if not (self.lit / ('%s.upk' % self.variant)).is_file():
                 raise BuildError('native_copy.py made no %s.upk' % self.variant)
         else:
@@ -1638,9 +1648,9 @@ class Build:
         # the base map, whose grounded Skyrangers give a place to an entry of the intro that saves none (F-106)
         if Path(self.install_base).is_file():
             extra += ['--map', self.install_base]
-        self.run_tool([sys.executable, '-B', '-u', INTRO_COPY, src, cooked_dir / ('%s.upk' % copy), self.map,
-                       self.variant, '--report', report] + extra,
-                      self.work / 'logs' / ('intro-copy-%s.log' % stream))
+        self.tool(None, [sys.executable, '-B', '-u', INTRO_COPY, src, cooked_dir / ('%s.upk' % copy), self.map,
+                         self.variant, '--report', report] + extra,
+                  self.work / 'logs' / ('intro-copy-%s.log' % stream))
         r = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else {}
         if r.get('moved') or r.get('notFound') or r.get('filled'):
             self.stage('intro', stream=stream, moved=r.get('moved') or [],
@@ -1713,10 +1723,10 @@ class Build:
                 listed.write_text(json.dumps([dict(actor=m['actor'], location=m['location'], rotation=m['rotation'])
                                               for m in moves[stream]], indent=1) + '\n', encoding='utf-8', newline='\n')
                 extra = ['--moves', listed, '--base', self.map, '--variant', self.variant]
-            self.run_tool([sys.executable, '-B', '-u', STREAM_COPY, src, cooked_dir / ('%s.upk' % copy)]
-                          + [x for n in hides.get(stream) or [] for x in ('--hide', n)] + extra
-                          + ['--report', self.work / ('stream-copy-%s.json' % stream)],
-                          self.work / 'logs' / ('stream-copy-%s.log' % stream))
+            self.tool(None, [sys.executable, '-B', '-u', STREAM_COPY, src, cooked_dir / ('%s.upk' % copy)]
+                            + [x for n in hides.get(stream) or [] for x in ('--hide', n)] + extra
+                            + ['--report', self.work / ('stream-copy-%s.json' % stream)],
+                      self.work / 'logs' / ('stream-copy-%s.log' % stream))
             if not (cooked_dir / ('%s.upk' % copy)).is_file():
                 raise BuildError('stream_copy.py made no %s' % copy)
             copies[stream] = copy

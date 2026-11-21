@@ -28,13 +28,24 @@ only. Every later editor reads schema 1 (plan D11).
 Prefab space is the tile grid: the origin is a tile corner at ground level, x and y across, z up, game units.
 """
 import math
+from pathlib import Path
 import re
+import sys
 import threading
 import time
 import uuid
 
-import atomic_files
-from projects import ID, SHA256, ProjectError, ProjectStore, file_stem
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
+import paths  # noqa: E402
+import atomic_files  # noqa: E402
+from projects import ID, SHA256, ProjectError, ProjectStore, file_stem  # noqa: E402
+
+paths.use('editor')
+# the values an effect's or a sound's record carries, and a light's: the compiler's families' own tables, which the
+# Build checks a placed prefab's records against
+from effect_edits import EFFECT_VALUE_KEYS  # noqa: E402
+from light_edits import LIGHT_KEYS  # noqa: E402
 
 SCHEMA = 'xcom-map-workshop/prefab'
 # 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`; the effects and
@@ -44,8 +55,6 @@ SCHEMA = 'xcom-map-workshop/prefab'
 SCHEMA_VERSION = 4
 READ_VERSIONS = (1, 2, 3, 4)
 EFFECT_KINDS = ('effect', 'sound', 'flare')
-EFFECT_VALUE_KEYS = {'effect': ('scale', 'startsOn', 'parameters', 'follow'),
-                     'sound': ('radiusMin', 'radiusMax', 'volume', 'pitch', 'startsOn')}
 MAX_PARAMETERS = 64
 FLAG_ROLES = ('walking', 'cover', 'sight', 'floor', 'mouse')
 TOP_KEYS = {'schema', 'schemaVersion', 'id', 'name', 'revision', 'created', 'savedAt', 'floor', 'pieces', 'groups',
@@ -65,7 +74,6 @@ TAG = re.compile(r'[A-Za-z0-9_.:|-]{1,200}')
 KEY = re.compile(r'[A-Za-z0-9_-]{1,64}')
 WORD = re.compile(r'[A-Za-z][A-Za-z0-9_]{0,31}')
 PNG = b'\x89PNG\r\n\x1a\n'
-LIGHT_KEYS = ('color', 'brightness', 'radius', 'falloffExponent', 'innerConeAngle', 'outerConeAngle', 'enabled')
 LIGHT_KINDS = ('spot', 'point')
 BUILDING_KINDS = ('building', 'ufo')
 # A piece made from numbers (`generated`): its kind, and the most its numbers hold. What they mean is the compiler's to

@@ -351,12 +351,12 @@ class BuildRunner:
             command += ['--check-game', str(game)]
         return command
 
-    def start_queued(self, document, snapshot, context, saved_file, owner, attempt_id, log, digest=None, picture=None):
+    def start_queued(self, document, *, snapshot, context, saved_file, owner, attempt_id, log, digest=None, picture=None):
         """A full build of the queue's snapshot (buildqueue.py): its Attempt. The queue holds the reservation."""
         return self._start(document, self.queue_command(snapshot, context, saved_file), False, log=log, origin='queue',
                            owner=owner, attempt_id=attempt_id, snapshot=str(snapshot), digest=digest, picture=picture)
 
-    def _start(self, document, command, quick, log=None, started=None, origin='foreground', owner=None, attempt_id=None,
+    def _start(self, document, command, quick, *, log=None, started=None, origin='foreground', owner=None, attempt_id=None,
                output=None, snapshot=None, digest=None, picture=None):
         attempt_id = attempt_id or str(uuid4())
         variant = (document.get('output') or {}).get('shipAs')
@@ -594,11 +594,10 @@ class BuildRunner:
                 # build.py's own at the line's start, a tool's indented under its command line (relight.py's writes
                 # reaching pieces it didn't relight)
                 job.setdefault('warnings', []).append(line.lstrip()[len('warning: '):])
-            elif line.startswith('  $ '):
-                tool = next((t for t in ('patchtool.ps1', 'native_copy.py', 'relight.py') if t in line), None)
-                if tool: job['running'] = dict(patchtool='patch and cook',
-                                               native_copy='copying and relighting' if '--bake' in line else 'making the edit in the map',
-                                               relight='relighting')[tool.split('.')[0]]
+            elif line.startswith('running:'):
+                # build.py's line before each tool it starts (Build.tool): what the step shows while the tool runs, or
+                # nothing (an empty line: a tool whose step says enough in its own words)
+                job['running'] = line[len('running:'):].strip() or None
                 job['progress'] = None
 
     @staticmethod

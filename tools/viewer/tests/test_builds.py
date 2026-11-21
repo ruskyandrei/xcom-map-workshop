@@ -188,6 +188,20 @@ class Builds(unittest.TestCase):
                                            'writing the lighting changed 37 texels (by up to 0.21) in the lightmaps of 2 '
                                            'pieces that were not relit: A, B'])
 
+    def test_a_tool_with_no_label_clears_the_last_tools(self):
+        """build.py's `running:` line before each tool (Build.tool) sets the step's label; an empty one, before a tool
+        whose step says enough in its own words, clears it. A Build that tries its transplant again after a failed
+        light stage (some untried copies left out) no longer shows the light stage's "copying and relighting" while
+        the transplant runs."""
+        job = dict(lines=[], stages=[], stage=None, running=None, progress=None, error=None)
+        self.runner._line(job, 'running: copying and relighting')
+        self.runner._line(job, '    progress: relighting 2/5')
+        self.assertEqual((job['running'], job['progress']['done']), ('copying and relighting', 2))
+        self.runner._line(job, 'running:')
+        self.assertEqual((job['running'], job['progress']), (None, None))
+        self.runner._line(job, 'running: relighting')
+        self.assertEqual(job['running'], 'relighting')
+
     def test_a_failure_with_a_code_keeps_it_for_the_page(self):
         """(review finding 55) build.py's "build failed code:" line is kept as the job's errorCode, which the page's
         Prepare prompt goes by; the reason is still the job's error."""

@@ -157,9 +157,33 @@ LAB_MARKER = 'XComLab-copy.txt'
 # The folder name Steam runs; tools/lab/switch_install.ps1 parks the other install beside it as .LWR or .Lab.
 STEAM_NAME = 'XCom-Enemy-Unknown'
 
+# The game folder's layout, spelled here alone (test_game_layout.py holds it): an Enemy Within install (LWR or plain)
+# keeps its game files in XEW\XComGame (ew_folder), its packages (maps, scripts, map pictures) in CookedPCConsole there
+# (game_cooked) and its config in Config (game_config); the base game's packages, a few of which EW's records stream,
+# lie in XComGame\CookedPCConsole (cooked_folders). A Build's package and a map pack hold a folder of the same name
+# (COOKED), whose contents a player copies into the game's.
+COOKED = 'CookedPCConsole'
+
+
+def ew_folder(game):
+    return Path(game) / 'XEW' / 'XComGame'
+
+
+def game_cooked(game):
+    return ew_folder(game) / COOKED
+
+
+def game_config(game):
+    return ew_folder(game) / 'Config'
+
+
+def cooked_folders(game):
+    """The folders a map's or a stream's package may lie in: the install's EW packages, then the base game's."""
+    return game_cooked(game), Path(game) / 'XComGame' / COOKED
+
 
 def is_game(folder):
-    return (Path(folder) / 'XEW' / 'XComGame' / 'CookedPCConsole').is_dir()
+    return game_cooked(folder).is_dir()
 
 
 # What a game folder holds, by the config only each has (XEW\XComGame\Config): LWR's own, then Long War's
@@ -171,7 +195,7 @@ def game_kind(folder):
     """'lwr', 'longwar' or 'ew' for a game folder (is_game), else None."""
     folder = Path(folder)
     if not is_game(folder): return None
-    config = folder / 'XEW' / 'XComGame' / 'Config'
+    config = game_config(folder)
     if (config / 'DefaultLWRebalance.ini').is_file(): return 'lwr'
     if (config / 'DefaultLZMutator.ini').is_file(): return 'longwar'
     return 'ew'
@@ -238,7 +262,7 @@ def lwr_cooked():
     """The game install's EW CookedPCConsole, or None: test fixtures default to its packages."""
     try: game, _ = game_install(load_settings())
     except (OSError, ValueError): return None
-    return None if game is None else game / 'XEW' / 'XComGame' / 'CookedPCConsole'
+    return None if game is None else game_cooked(game)
 
 
 def require(settings, key):
@@ -323,7 +347,7 @@ def doctor(settings, sources=()):
     else:
         checks.append(_check('game', 'ok', note, ''))
         for source in sources:
-            local = found / 'XEW' / 'XComGame' / 'CookedPCConsole' / f"{source['name']}.upk"
+            local = game_cooked(found) / f"{source['name']}.upk"
             if not local.is_file():
                 checks.append(_check(f"map {source['name']}", 'missing', f'{local} not found', 'Check the game install'))
                 continue

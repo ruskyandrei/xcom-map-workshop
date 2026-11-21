@@ -81,7 +81,7 @@ import pack_scripts
 import pictures
 import publication
 from projects import ProjectError
-from settings import kind_label, lwr_game
+from settings import COOKED, kind_label, lwr_game
 from version import VERSION
 
 PACKS = 'Map packs'             # in the builds folder; no variant can have the name (a space)
@@ -783,11 +783,11 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
             z.writestr('Install.cmd', pack_scripts.INSTALL_CMD)
             z.writestr('Uninstall.cmd', pack_scripts.UNINSTALL_CMD)
             z.writestr('pack-tools/pack.ps1', pack_scripts.PS1)
-            z.writestr(f'CookedPCConsole/{pack_folder}/{card_file}', card_data)
-            z.writestr(f'CookedPCConsole/{pack_folder}/README.txt',
+            z.writestr(f'{COOKED}/{pack_folder}/{card_file}', card_data)
+            z.writestr(f'{COOKED}/{pack_folder}/README.txt',
                        scrub(folder_readme(described, parts)).encode('latin-1', 'replace'))
             for n, (src, _) in sorted(files.items()):
-                z.write(src, f'CookedPCConsole/{n}' if n in caches else f'CookedPCConsole/{pack_folder}/{n}')
+                z.write(src, f'{COOKED}/{n}' if n in caches else f'{COOKED}/{pack_folder}/{n}')
             for p in parts:
                 readme, manifest = p['folder'] / 'README.txt', p['folder'] / 'manifest.json'
                 if readme.is_file():

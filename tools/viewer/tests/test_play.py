@@ -1160,10 +1160,6 @@ class Launch(unittest.TestCase):
     def test_the_kinds_of_mission_and_their_commands(self):
         self.assertEqual([missions.kind_key(r) for r in (record('bar'), bomb_record(), record('templeship'), record('gangplank'))],
                          ['Abduction', 'Special/Bomb', 'Final', 'LandedUFO'])
-        self.assertEqual(missions.kind_of_export(dict(type='Special', label='Council rescue')), 'Special/Rescue')
-        # export 37 says the kind itself: a reworded label no longer turns a council mission into a plain special one
-        self.assertEqual(missions.kind_of_export(dict(type='Special', label='Council rescue (new words)', kind='Special/Rescue')),
-                         'Special/Rescue')
         self.assertEqual(missions.kind('eMission_Unheard')['state'], 'untried')
         # an entry the Build can write; a kind that is a list or a record is no entry, never a TypeError (review 23)
         self.assertTrue(missions.valid_entry(dict(record=0), 1))

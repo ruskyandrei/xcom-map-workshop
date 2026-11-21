@@ -34,6 +34,7 @@ import shutil
 import struct
 
 import atomic_files
+from settings import ew_folder
 
 SAVE = re.compile(r'save(\d+)', re.I)
 LOW = range(1, 10)                      # the slots a play writes without asking: copied aside before it
@@ -44,7 +45,7 @@ PACKAGE_TAG = struct.pack('<I', 0x9E2A83C1)
 def folders(game, documents):
     """The save folders a play may write to, those that are there."""
     found = [Path(documents) / 'My Games' / 'XCOM - Enemy Within' / 'XComGame' / 'SaveData',
-             Path(game) / 'XEW' / 'XComGame' / 'SaveData']
+             ew_folder(game) / 'SaveData']
     return [f for f in found if f.is_dir()]
 
 

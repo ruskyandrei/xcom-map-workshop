@@ -5,6 +5,7 @@ from functools import partial
 import http.client
 import json
 import os
+import socket
 from pathlib import Path
 import sys
 import tempfile
@@ -98,6 +99,22 @@ class Server(unittest.TestCase):
                            headers={'Host': 'evil.example', 'Content-Type': 'application/json'})
         self.assertEqual(connection.getresponse().status, 403)
         connection.close()
+
+    def test_connections_that_come_at_once_wait_to_be_served(self):
+        """A page (or a script) that opens many connections at once, fetching the page's modules, has them wait in
+        the listen queue until the server takes them, not refused: 40 connections made while the server has not yet
+        taken one all go through (the queue was 5, Python's default, and Windows refused the sixth)."""
+        server = LocalServer(('127.0.0.1', 0), partial(Handler, catalogue=load_catalogue(self.temp.name)))
+        self.addCleanup(server.server_close)
+        sockets = []
+        try:
+            for _ in range(40):
+                sockets.append(socket.create_connection(('127.0.0.1', server.server_port), timeout=5))
+        except OSError as error:
+            self.fail(f'connection {len(sockets) + 1} of 40 refused while the server was busy: {error}')
+        finally:
+            for s in sockets: s.close()
+        self.assertEqual(len(sockets), 40)
 
     def test_a_failing_route_answers_a_json_500_with_its_reason(self):
         class Store:

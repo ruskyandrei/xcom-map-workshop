@@ -35,7 +35,7 @@ import gamemaps
 import manager
 import pictures
 from maplist import lwr_maps
-from settings import KEYS, doctor, load_settings, resolve_game, save_settings, settings_path
+from settings import KEYS, doctor, game_config, game_cooked, load_settings, resolve_game, save_settings, settings_path
 
 WEB = Path(__file__).resolve().parent / "web"
 
@@ -103,7 +103,7 @@ def landing_lines(map_id):
         game = None
     if game is None:
         return dict(kind=None, file=None, lines=[])
-    ini = Path(game) / 'XEW' / 'XComGame' / 'Config' / 'DefaultLZMutator.ini'
+    ini = game_config(game) / 'DefaultLZMutator.ini'
     if not ini.is_file():
         return dict(kind=game_kind(game), file=None, lines=[])
     zones = spawns.map_lines(ini.read_text(encoding='latin-1'), map_id)
@@ -146,6 +146,9 @@ def contained(root, rel):
 
 class LocalServer(ThreadingHTTPServer):
     allow_reuse_address = False
+    # connections waiting to be taken: a page (or a script) fetching the page's modules opens dozens at once, and
+    # Python's default of 5 had Windows refuse the rest while the server was taking the first
+    request_queue_size = 64
 
     def server_bind(self):
         # Windows SO_REUSEADDR can let a second process bind the same port.
@@ -184,6 +187,10 @@ class Handler(SimpleHTTPRequestHandler):
         self.builds = builds
         self.queue = queue
         self.game_setup = setup
+        # whether the request has its answer started (send_response): a failure after that closes the connection
+        # instead of answering twice (answer). Each request a kept-alive connection brings starts unanswered
+        # (parse_request); the handler serves its requests inside the base class's __init__, so it is set first.
+        self.answered = False
         super().__init__(*args, directory=str(WEB), **kwargs)
 
     catalogue = property(lambda self: self.live.catalogue)
@@ -238,7 +245,7 @@ class Handler(SimpleHTTPRequestHandler):
         from settings import lwr_game
         try: game, _ = lwr_game(self.player.settings) if self.player is not None else (None, None)
         except (OSError, ValueError): game = None
-        return None if game is None else game / 'XEW' / 'XComGame' / 'CookedPCConsole'
+        return None if game is None else game_cooked(game)
 
     def same_origin(self):
         # A page elsewhere (or a DNS-rebound name) must not reach these routes: the Host must be this server's
@@ -274,7 +281,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.close_connection = True
         except Exception as error:      # noqa: BLE001 (whatever failed, the page is told why)
             traceback.print_exc()
-            if getattr(self, 'answered', False):
+            if self.answered:
                 self.close_connection = True
                 return
             try:

@@ -27,6 +27,7 @@ import collision
 import effects_draw
 import effects_metadata
 import piece_flags
+import settings
 
 # 13: the map's missions and the packages they stream (`missions`, `streams`); textures from compiled shaders
 # 14: no diagnostic pink: more diffuse rules (parameter names, compiled shaders' colour textures, colours by kind,
@@ -219,6 +220,8 @@ class Exporter:
         self.diagnostics = []
         self.progress = progress
         self.flags = {}     # actor -> its piece flags (piece_flags.describe), worked out once for its components
+        self.landings = []          # the map's own landings (export 22): effects() reads them, run() writes them
+        self.area_matcher = None    # what matches area lights to their glowing pieces: run() works it out and writes it
 
     def piece_flags(self, actor):
         """The actor's flags as the export carries them, or None (a class they don't apply to, a streamed or inherited
@@ -250,8 +253,8 @@ class Exporter:
         if defaults is None:
             return nothing
         found = self.guarded('effects', lambda: effects_metadata.describe(
-            p, self.kismet, self.prefabs, self.landings, carried, prefix=self.prefix, layer='stream' if stream else 'base',
-            stream=stream, defaults=defaults, warn=self.warn), None)
+            p, kismet=self.kismet, prefabs=self.prefabs, landings=self.landings, carried=carried, prefix=self.prefix,
+            layer='stream' if stream else 'base', stream=stream, defaults=defaults, warn=self.warn), None)
         if found is None:
             return nothing
         # export 29: what the page draws each system's likeness from (effects_draw.py; plan Part J1)
@@ -703,7 +706,7 @@ def map_records(package_path):
 def stream_package(package_path, name):
     """A streamed package beside the map's (the EW folder), else in the base game's CookedPCConsole, or None."""
     cooked = Path(package_path).resolve().parent
-    for folder in (cooked, cooked.parents[2] / 'XComGame' / 'CookedPCConsole'):
+    for folder in (cooked, settings.cooked_folders(cooked.parents[2])[-1]):
         if (folder / f'{name}.upk').is_file(): return folder / f'{name}.upk'
     return None
 

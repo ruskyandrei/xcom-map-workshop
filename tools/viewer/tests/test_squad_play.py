@@ -138,8 +138,8 @@ class Snapshot(SquadPlay):
         maps = self.lwr / 'XEW/XComGame/Config/DefaultMaps.ini'
         maps.write_bytes(maps.read_bytes().replace(record('bar'), record('bar') + dep.EOL + exalt))
         doc = squadrecords.default_document()
-        shiv = dict(squadrecords._unit(9, 'Tracks', '', 'eSC_None', 'eItem_SHIVDeck_I', None, ['eItem_ShivMinigun'], [],
-                                       None, None, kind='shiv'))
+        shiv = dict(squadrecords._unit(9, first='Tracks', last='', cls='eSC_None', armour='eItem_SHIVDeck_I', sidearm=None,
+                                       weapons=['eItem_ShivMinigun'], items=[], look=None, country=None, kind='shiv'))
         doc['units'] = [shiv] + doc['units'][:3]
         self.squad_store.save(doc, self.squad_store.read()[1])
         player = self.player()

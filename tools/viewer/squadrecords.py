@@ -552,20 +552,26 @@ def soldier_first(resolved):
 # ---- the default squad, and a new unit of each kind ----
 
 DEFAULT_NAME = 'Test squad'
-# The six squaddies plays had before the panel (EXP-29 run 6): (first, last, class, armour, sidearm, weapon, small item,
-# look, country). The heavy's pair is the game's own: the machine gun in the pistol's place, the rocket launcher as the
+# The six squaddies plays had before the panel (EXP-29 run 6), each a unit's fields (_unit): first and last name, class,
+# armour, sidearm, weapon, small item, look, country. The heavy's pair is the game's own: the machine gun in the pistol's place, the rocket launcher as the
 # weapon.
 DEFAULT_UNITS = (
-    ('Tom', 'Alpha', 'eSC_Assault', 'eItem_ArmorKevlar', 'eItem_Pistol', 'eItem_Shotgun', 'eItem_FragGrenade', 'man-a', 'eCountry_Canada'),
-    ('Raj', 'Bravo', 'eSC_Support', 'eItem_ArmorKevlar', 'eItem_Pistol', 'eItem_AssaultRifle', 'eItem_FragGrenade', 'man-b', 'eCountry_India'),
-    ('Mia', 'Charlie', 'eSC_HeavyWeapons', 'eItem_ArmorCarapace', 'eItem_LMG', 'eItem_RocketLauncher', 'eItem_FragGrenade', 'woman-a', 'eCountry_Mexico'),
-    ('Leo', 'Delta', 'eSC_Sniper', 'eItem_ArmorKevlar', 'eItem_Pistol', 'eItem_SniperRifle', 'eItem_FragGrenade', 'man-c', 'eCountry_Italy'),
-    ('Eva', 'Echo', 'eSC_Support', 'eItem_ArmorCarapace', 'eItem_Pistol', 'eItem_AssaultRifle', 'eItem_Medikit', 'woman-b', 'eCountry_Mexico'),
-    ('Sam', 'Foxtrot', 'eSC_Assault', 'eItem_ArmorKevlar', 'eItem_Pistol', 'eItem_AssaultRifle', 'eItem_NeedleGrenade', 'man-d', 'eCountry_Canada'),
+    dict(first='Tom', last='Alpha', cls='eSC_Assault', armour='eItem_ArmorKevlar', sidearm='eItem_Pistol',
+         weapons='eItem_Shotgun', items='eItem_FragGrenade', look='man-a', country='eCountry_Canada'),
+    dict(first='Raj', last='Bravo', cls='eSC_Support', armour='eItem_ArmorKevlar', sidearm='eItem_Pistol',
+         weapons='eItem_AssaultRifle', items='eItem_FragGrenade', look='man-b', country='eCountry_India'),
+    dict(first='Mia', last='Charlie', cls='eSC_HeavyWeapons', armour='eItem_ArmorCarapace', sidearm='eItem_LMG',
+         weapons='eItem_RocketLauncher', items='eItem_FragGrenade', look='woman-a', country='eCountry_Mexico'),
+    dict(first='Leo', last='Delta', cls='eSC_Sniper', armour='eItem_ArmorKevlar', sidearm='eItem_Pistol',
+         weapons='eItem_SniperRifle', items='eItem_FragGrenade', look='man-c', country='eCountry_Italy'),
+    dict(first='Eva', last='Echo', cls='eSC_Support', armour='eItem_ArmorCarapace', sidearm='eItem_Pistol',
+         weapons='eItem_AssaultRifle', items='eItem_Medikit', look='woman-b', country='eCountry_Mexico'),
+    dict(first='Sam', last='Foxtrot', cls='eSC_Assault', armour='eItem_ArmorKevlar', sidearm='eItem_Pistol',
+         weapons='eItem_AssaultRifle', items='eItem_NeedleGrenade', look='man-d', country='eCountry_Canada'),
 )
 
 
-def _unit(i, first, last, cls, armour, sidearm, weapons, items, look, country, kind='soldier'):
+def _unit(i, *, first, last, cls, armour, sidearm, weapons, items, look, country, kind='soldier'):
     return dict(id=f'unit-{i}', kind=kind, first=first, last=last, **{'class': cls}, rank=1, look=look, country=country,
                 armour=armour, sidearm=sidearm, weapons=[weapons] if isinstance(weapons, str) else list(weapons),
                 items=[items] if isinstance(items, str) else list(items), perks=[], stats={})
@@ -576,7 +582,7 @@ def default_document(catalogue=None):
     resolves it with its own tables."""
     from squads import SCHEMA, SCHEMA_VERSION
     return dict(schema=SCHEMA, version=SCHEMA_VERSION, name=DEFAULT_NAME,
-                units=[_unit(i, *row) for i, row in enumerate(DEFAULT_UNITS, 1)])
+                units=[_unit(i, **row) for i, row in enumerate(DEFAULT_UNITS, 1)])
 
 
 def templates(catalogue):
@@ -589,15 +595,16 @@ def templates(catalogue):
         for name in wanted:
             if name in lists[kind][slot]: return name
         return lists[kind][slot][0] if lists[kind][slot] else None
-    soldier = _unit(0, 'New', 'Soldier', 'eSC_Assault', pick('soldier', 'armour', 'eItem_ArmorKevlar'),
-                    pick('soldier', 'sidearm', 'eItem_Pistol'), [pick('soldier', 'weapons', 'eItem_AssaultRifle')],
-                    [pick('soldier', 'items', 'eItem_FragGrenade')], 'man-a', 'eCountry_Canada')
-    mec = _unit(0, 'New', 'MEC', 'eSC_Mec', pick('mec', 'armour', 'eItem_MecArmor1'), None,
-                [pick('mec', 'weapons', 'eItem_Chaingun')] + [m for m in ('eItem_MecKineticArm', 'eItem_MecFlameThrower')
-                                                              if m in lists['mec']['weapons']],
-                [], 'man-b', 'eCountry_India', kind='mec')
-    shiv = _unit(0, 'SHIV', '', 'eSC_None', pick('shiv', 'armour', 'eItem_SHIVDeck_I'), None,
-                 [pick('shiv', 'weapons', 'eItem_ShivMinigun')], [], None, None, kind='shiv')
+    soldier = _unit(0, first='New', last='Soldier', cls='eSC_Assault', armour=pick('soldier', 'armour', 'eItem_ArmorKevlar'),
+                    sidearm=pick('soldier', 'sidearm', 'eItem_Pistol'),
+                    weapons=[pick('soldier', 'weapons', 'eItem_AssaultRifle')],
+                    items=[pick('soldier', 'items', 'eItem_FragGrenade')], look='man-a', country='eCountry_Canada')
+    mec = _unit(0, first='New', last='MEC', cls='eSC_Mec', armour=pick('mec', 'armour', 'eItem_MecArmor1'), sidearm=None,
+                weapons=[pick('mec', 'weapons', 'eItem_Chaingun')]
+                + [m for m in ('eItem_MecKineticArm', 'eItem_MecFlameThrower') if m in lists['mec']['weapons']],
+                items=[], look='man-b', country='eCountry_India', kind='mec')
+    shiv = _unit(0, first='SHIV', last='', cls='eSC_None', armour=pick('shiv', 'armour', 'eItem_SHIVDeck_I'), sidearm=None,
+                 weapons=[pick('shiv', 'weapons', 'eItem_ShivMinigun')], items=[], look=None, country=None, kind='shiv')
     for unit in (soldier, mec, shiv):
         unit.pop('id')
         unit['weapons'] = [w for w in unit['weapons'] if w]

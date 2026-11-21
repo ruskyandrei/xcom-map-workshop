@@ -313,13 +313,6 @@ def soldier_spots(zone, own=None):
     return place(zone)['soldiers']
 
 
-def same_place(a, b, slack=2.0):
-    """Whether two zones are the same place and direction, within `slack` units (Bar's first line is its own landing
-    within two units)."""
-    return a['direction'] == b['direction'] and all(abs(float(a['location'][k]) - float(b['location'][k])) <= slack
-                                                    for k in range(3))
-
-
 ZONE_KEYS = ('id', 'location', 'direction', 'kind', 'missionType', 'councilType', 'alternate', 'lwr', 'ew', 'other')
 # (matched whole, fullmatch: `$` would take a name ending in a line break, which writes a line of its own)
 _TYPE = re.compile(r'[A-Za-z0-9_]+')

@@ -16,7 +16,6 @@ SP8's writer planning is here too: plan_exclusion() places the variant's `Exclud
 scripted drop-in of the variant where the map puts it), and exclusion_lines() finds such lines again to take them
 out.
 """
-from pathlib import Path
 import re
 
 LOADER = 'DefaultMutatorLoader.ini'
@@ -128,12 +127,12 @@ def rules(game):
     landing/bomb/meld/pods/dropIns ('active' | 'absent' | 'unknown'), tactical (the loader's tactical mutators in
     order), config ({name: value}), excludeMaps ([dict(name, live, line, quoted)]), files ({name: path or None}),
     detected: 'install' (what the files say; the game log says what ran))."""
-    from settings import game_kind
+    from settings import game_config, game_kind
     out = dict(kind=None, **{f: 'unknown' for f in FAMILIES}, tactical=[], config={}, excludeMaps=[],
                files={LOADER: None, RANDOM_SPAWNS: None}, detected='install', dropInSection=False)
     if game is None:
         return out
-    folder = Path(game) / 'XEW' / 'XComGame' / 'Config'
+    folder = game_config(game)
     out['kind'] = game_kind(game)
     load = folder / LOADER
     if not load.is_file():
