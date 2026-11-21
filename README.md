@@ -64,7 +64,8 @@ It holds the editor's source, the tools around it and the research behind it. Th
 after 0.5.2; the tags up to v0.5.2 mark releases made before it was public.
 
 [ARCHITECTURE.md](ARCHITECTURE.md) says how the code's parts fit, where new code goes and the rules that keep its
-shape.
+shape. [UI-GUIDELINES.md](UI-GUIDELINES.md) says how the editor should look and be used: editing in the 3D view, one
+way to do a thing, short panels, and mock designs before a larger change.
 
 | Folder | What it holds |
 | --- | --- |

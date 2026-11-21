@@ -50,4 +50,8 @@
   checklist (section 6) before a commit that adds a module, a long function, or a reader or writer of a format. The
   `repo` suite's structure test holds the rules a test can (the page's and the release's imports, the import path,
   the compiler's families); sizes are guidance, listed by `python -B tools/repo/tests/test_structure.py --sizes`.
+- **A change to what the editor's user sees or does follows [UI-GUIDELINES.md](UI-GUIDELINES.md):** edit in the 3D
+  view with handles and gizmos where that can be done, without crowding it; one way to do a thing, in the stylesheet's
+  parts; short panels, and buttons that look like buttons. For a larger change (a new window, panel or view, or one
+  laid out anew) show the user a few mock designs first and build the one chosen (its section 4).
 - See [README.md](README.md) for the layout and the setup this depends on.
