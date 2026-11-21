@@ -24,9 +24,9 @@ import { LEVEL, TILE } from './constants.js';
 import { activeMapId, areaBindings, askedPick, builderMode, cleared, clearKeepsOutside, data, effectRoots,
          landingActors, landingLines, landingZones, lightRoots, missionIndex, missionMoves, missionPickValue,
          playStatus, project, projectMissions, projectPicture, roots, setAreaBindings, setAskedPick, setCleared,
-         setClearKeepsOutside, setGroups, setLandingZones, setLastClearMs, setLightsDirty, setMergedBuildings,
-         setMissionIndex, setMissionPickValue, setPickedZone, setProjectMissions, setProjectPicture, setStartingCache,
-         setStreamSet, stage, startingCache } from './editor_state.js';
+         setClearKeepsOutside, setGroups, setLandingLines, setLandingRead, setLandingZones, setLastClearMs,
+         setLightsDirty, setMergedBuildings, setMissionIndex, setMissionPickValue, setPickedZone, setProjectMissions,
+         setProjectPicture, setStartingCache, setStreamSet, stage, startingCache } from './editor_state.js';
 import { survivesClear } from './effects_rules.js';
 import { floorIndex } from './floors.js';
 import { createMapPicture } from './map_picture.js';
@@ -54,6 +54,25 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
   // The landing zones as the project has them: its own list, or the map's own landings joined with the install's lines
   // (spawns.js startingZones; ids stable for a map, so an unchanged list is saved as nothing)
   // (startingCache, the starting zones worked out: editor_state.js)
+  // The install's landing lines for the map, read as a map opens (app.js's startScene); the ground grid and the zones
+  // follow once they come.
+  function readLandingLines() {
+    setStartingCache(null); setLandingLines({ kind: null, lines: [] });
+    // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones. A failed
+    // read leaves the game unknown, with the reason (review finding 31).
+    if (data.scope === 'map' && !data.preview && !builderMode && activeMapId)
+      setLandingRead(fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`)
+        .then(async r => {
+          const v = await r.json().catch(() => null);
+          if (!r.ok || !v || !Array.isArray(v.lines)) throw new Error(v?.error ?? `the editor's server answered ${r.status}`);
+          return v;
+        })
+        .then(v => { setLandingLines(v); }, error => {
+          setLandingLines({ kind: null, lines: [], failed: String(error?.message ?? error) });
+          banner(`The game install's landing lines for this map couldn't be read (${landingLines.failed}), so the editor doesn't know which game is set: the Long War landing lines are missing and Long War only missions aren't checked. Open the map again to ask again.`);
+        })
+        .then(() => { setStartingCache(null); refreshGroundGrid(); refreshLandingZones(); }));
+  }
   function zonesNow() {
     if (landingZones) return landingZones.filter(validLandingZone);
     if (!startingCache && data) setStartingCache(startingZones(ownLandings(data), landingLines.lines ?? [], (() => { let n = 0; return () => `start-${++n}`; })()));
@@ -501,6 +520,16 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     $('mission').value = missionPickValue;
     if (missionPickValue !== before) { refreshLightVisibility(); refreshSpawnMarkers(); placeMissionGizmo(); cutaway(); }
   }
+  // The header's Mission picker as a map opens (app.js's startScene).
+  function startMissionPicker() {
+    // The mission picker: shown when the map's missions stream different packages (Police Station's data recovery
+    // streams its radar arrays, its abduction and terror missions don't).
+    const missions = headerMissions();
+    $('missionPick').hidden = missions.length < 2;
+    $('mission').replaceChildren(...missions.map(m => new Option(m.label, m.value)));
+    $('mission').value = missionPickValue;
+    $('mission').title = 'Which mission\'s streamed packages to show: LWR\'s patches and the mission\'s own objects, for reference';
+  }
   const missionName = m => m.label;
   function missionLabels(missions) {
     const count = {};
@@ -520,5 +549,6 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
 
   return { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
            headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
-           refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes, zonesNow };
+           readLandingLines, refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes,
+           startMissionPicker, zonesNow };
 }

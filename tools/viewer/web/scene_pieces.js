@@ -18,14 +18,15 @@
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { TILE } from './constants.js';
-import { data, geometryCache, roots, selected, setLiveCache } from './editor_state.js';
+import { builderMode, cachePrefix, data, geometryCache, loadErrorCount, roots, selected, setLiveCache,
+         setLoadErrorCount } from './editor_state.js';
 import { actorMatrix } from './gizmo.js';
 import { withLocalLights } from './lighting.js';
 import { cloneBlasts } from './piece_records.js';
 import { targetKey } from './project.js';
 
 export function createScenePieces({ assetUrl, camera, content, drawBroken, flashHint, fromOf, gltfLoader, gridOrigin,
-                                    pickables, renderer, select, textureLoader, texturePromises }) {
+                                    loadingState, pickables, renderer, select, textureLoader, texturePromises }) {
   // Picking: the first visible, unclipped piece under a screen point, or null.
   function rayAt(clientX, clientY) {
     const rect = renderer.domElement.getBoundingClientRect(), ray = new THREE.Raycaster();
@@ -209,6 +210,27 @@ export function createScenePieces({ assetUrl, camera, content, drawBroken, flash
     content.updateMatrixWorld(true);
     if (selected) select(selected, false, true);
   }
+  // The scene's pieces built as a map or a prefab's scene opens (app.js's startScene): the map's own and the streamed
+  // missions' objects, counted on the loading overlay.
+  async function buildPieces(streamObjects, mapName) {
+    // Request every mesh and material up front so downloads overlap; pieces are
+    // still assembled in scene order below.
+    const everything = [...data.objects, ...streamObjects];
+    for (const obj of everything) {
+      track(geometryCache, obj.mesh, () => gltfLoader.loadAsync(cachePrefix+data.meshes[obj.mesh].url));
+      for (const id of obj.materials) { const [key, tint] = materialKey(obj, id); track(materialCache, key, () => material(id, tint)); }
+    }
+    let built = 0;
+    for (const obj of everything) {
+      try { addRoots([await buildRoot(obj)]); }
+      catch (e) { console.error(obj.actor, e); setLoadErrorCount(loadErrorCount + 1); }
+      built++;
+      if (built % 8 === 0 || built === everything.length)
+        loadingState(`Opening ${mapName}: building its pieces…`, 0.1 + 0.9 * built / everything.length,
+                     `${built} of ${everything.length} pieces · meshes and textures load as they are needed`);
+    }
+    if (!roots.size && !builderMode) throw Error('No meshes could be displayed. See import notes and browser console.');
+  }
   // Building-floor listings as the Build gives them (floors.js copyFloors, the Build's native_copy.copy_floors, which
   // pass the same cases): an original where the map has it keeps its own; a copy, or an original moved, joins the floor
   // it now stands in, by the box of its original's mesh vertices carried to where it stands (floorAt). Exports before
@@ -267,6 +289,7 @@ export function createScenePieces({ assetUrl, camera, content, drawBroken, flash
     return drawnBox.isEmpty() ? null : [drawnBox.min.x, drawnBox.max.x, drawnBox.min.z, drawnBox.max.z, drawnBox.min.y, drawnBox.max.y];
   }
 
-  return { addRoots, baseMatrix, boundsOf, boxOf, buildRoot, loaded, material, materialCache, materialKey, movedBox,
-           originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt, removeRoots, texture, track, vertexBox };
+  return { addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, material, materialCache, materialKey,
+           movedBox, originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt, removeRoots, texture, track,
+           vertexBox };
 }

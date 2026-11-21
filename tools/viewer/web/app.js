@@ -22,27 +22,25 @@ import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, buildings, buildTool, cachePrefix, cleared, clearKeepsOutside, clipboard, copySerial, coverDrag,
-         data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, eventMemo, exportProblem, families,
-         floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups,
-         handleDefs, hintTimer, landingLines, landingZones, lastBuild, lastClearMs, lastLightSync, leaving, levelSnap,
-         library, libraryScope, lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown,
-         likenessCount, likenessOn, likenessThin, lineCollision, lineCollisionFailed, loadErrorCount, lookPicker,
-         lookPicking, missionIndex, missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns,
-         ownPicked, ownSet, pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces,
-         placing, prefabParameter, prefabTab, project, projectMissions, projectSpawnRules, reachNow, reachShown,
-         rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
-         setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn,
-         setEventMemo, setExportProblem, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors,
-         setLandingLines, setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLibrary,
-         setLibraryScopeValue, setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue,
-         setLiveCache, setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings, setNormalEffectsValue,
-         setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickBoxValue, setPickedEffect,
-         setPickedSpawnValue, setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
-         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSnapModeValue, setSpawnFilters,
-         setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStartingCache, setTileKey, setTipDirty, setZonesOn,
-         snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData, spawnsOn,
-         spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag,
-         wallDrawing, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
+         data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, eventMemo, families, floorTileLayer,
+         foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, handleDefs, hintTimer,
+         landingLines, landingZones, lastBuild, lastClearMs, lastLightSync, leaving, levelSnap, library, libraryScope,
+         lightDrag, lighting, lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown, likenessCount, likenessOn,
+         likenessThin, lineCollision, lineCollisionFailed, lookPicker, lookPicking, missionIndex, missionMoves,
+         missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet, pickBox, pickDrag,
+         pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, prefabParameter, prefabTab,
+         project, projectMissions, projectSpawnRules, reachNow, reachShown, rockPoint, roots, selected, setActiveMapId,
+         setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setCleared,
+         setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn, setEventMemo, setFamilies, setGhostDirty,
+         setGroups, setHintTimer, setLandingActors, setLandingZones, setLeaving, setLibrary, setLibraryScopeValue,
+         setLighting, setLightRadius, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady,
+         setMergedBuildings, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid,
+         setOwnPickedValue, setPickBoxValue, setPickedEffect, setPickedSpawnValue, setPickToolValue, setPieces,
+         setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey,
+         setReachShown, setSnapModeValue, setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey,
+         setTipDirty, setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing,
+         spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
+         volumeTool, wallDrag, wallDrawing, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -75,6 +73,7 @@ import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
 import { createSelection } from './selection.js';
+import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -257,10 +256,11 @@ const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v 
 // piece's root built, added and taken away, an original's parts and boxes, and a piece's box; made before
 // the gizmo, which is given baseMatrix (nothing of it runs as the page loads but a few tables and vectors
 // made).
-const { addRoots, baseMatrix, boundsOf, boxOf, buildRoot, loaded, material, materialCache, materialKey, movedBox,
-        originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt, removeRoots, texture, track,
+const { addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, material, materialCache, materialKey,
+        movedBox, originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt, removeRoots, texture, track,
         vertexBox } = createScenePieces({
-  camera, content, flashHint, fromOf, gltfLoader, gridOrigin, pickables, renderer, textureLoader, texturePromises,
+  camera, content, flashHint, fromOf, gltfLoader, gridOrigin, loadingState, pickables, renderer, textureLoader,
+  texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
   assetUrl: url => assetUrl(url), drawBroken: root => drawBroken(root),
   select: (id, add, keep) => select(id, add, keep) });
@@ -750,9 +750,10 @@ const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries
 // The Lights view (lights_wiring.js): the map's lights as roots, the view, the panel's light section, Solo, the
 // area lights following their glowing pieces, the reach, the drag handles (the picked effect's and sound's too),
 // and the project's light records.
-const { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, assignOwner, buildLights, changeLight,
-        clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear, hoverHandle, lightClip, lightEdited,
-        lightEntries, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
+const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLighting, areaOwner, assignOwner,
+        buildLights, changeLight, clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear,
+        hoverHandle, lightClip, lightEdited,
+        lightEntries, lightingModes, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
         lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, recipeLight, refreshLightShapes,
         refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
         setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
@@ -774,10 +775,11 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, as
   effectValuesEditable: root => effectValuesEditable(root), setEffectsShown: on => setEffectsShown(on),
   setEffectValues: (root, values) => setEffectValues(root, values) });
 // Prepare (prepare.js): the dialog that exports the map again, and a build or a play waiting for it.
-const { needsPrepare, showPrepare } = createPrepare({
+const { needsPrepare, prepareOpened, showPrepare } = createPrepare({
   $, showPop,
   // (made further down: called through, since they are not made yet while this runs)
-  banner: (message, actions, options) => banner(message, actions, options), mapLabel: id => mapLabel(id) });
+  banner: (message, actions, options) => banner(message, actions, options), mapLabel: id => mapLabel(id),
+  projectsAvailable: () => projectsAvailable() });
 
 // Projects: the edits saved, reopened and recovered (first-editor plan E1; project.js, research/editor-contracts.md).
 // The scene holds the state; a project records it against the map as exported, and replays it onto the map.
@@ -879,12 +881,13 @@ const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSaved
   setLastBuild: (id, status) => setLastBuild(id, status) });
 // The prefab builder's session (builder_session.js): the prefab's document opened, kept and saved, its size line and
 // ground, Align to grid, the missing pieces looked for by recipe, and the Problems check.
-const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderRecords, builderTitle, openPrefabDocument,
-        physicalBox, problemsPaint, recoverPrefabSources, refreshBuilder, saveBuilder } = createBuilderSession({
+const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderPage, builderRecords, builderTitle,
+        openPrefabDocument, physicalBox, problemsPaint, recoverPrefabSources, refreshBuilder,
+        saveBuilder } = createBuilderSession({
   $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf, buildRoot, controls, dirty, discardAndGo, discardDraft,
   documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, frame, gizmo, gridOrigin, isStream,
   libraryTemplate, lightPose, loadingState, movedMatrix, plural, projectChanged, recipeOf, removeRoots, rootName, sceneChanged,
-  selectActors, short, templateFor, text, world,
+  selectActors, short, showFileDialog, templateFor, text, world,
   // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
   openingProgress: name => openingProgress(name),
   // (made with the selection, further down: called through, since it is not made yet while this runs)
@@ -1229,7 +1232,8 @@ function grabView() {
 // panel and the header's Mission picker, the Map picture dialog, and the ground grid.
 const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
         headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
-        refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes, zonesNow } = createClearMap({
+        readLandingLines, refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes,
+        startMissionPicker, zonesNow } = createClearMap({
   $, addLightRoots, addRoots, banner, cloneGroups, editedKey, flashHint, fromOf, gizmo, grabView, isStream,
   lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, refreshLightVisibility,
   removeLightRoots, removeRoots, sceneChanged, setStage, short, showPop, world,
@@ -1421,7 +1425,8 @@ const { deleteNow, deleteSelection, resetAll, resetSelected, undoStep } = create
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 // The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
 // the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.
-const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, updateTileGrid } = createCutaway({
+const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions,
+        updateTileGrid } = createCutaway({
   $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial, isStream, listingsNow,
   movedLandingActors, plural, rayAt, refreshPickBox, segButton, select, short, text, touchShadows, viewport, world });
 // The loading overlay: what is happening, a progress bar when the share done is known, and a detail line.
@@ -1519,61 +1524,25 @@ async function open() {
   setData(await fetchJson(cachePrefix+requestedScene, share => loadingState(`Opening ${mapName}: reading its layout…`, 0.1 * share)));
   await startScene({ parameters, familiesAsked, mapName });
 }
-// Both maps and the prefab workspace start the same editor on a scene.
+// Both maps and the prefab workspace start the same editor on a scene. Each part of the scene is started by the
+// module that owns it (scene_start.js: the page's own parts), in the order the page always started them.
 async function startScene({ parameters, familiesAsked, mapName }) {
   setMergedBuildings(null);
   // No layout menu any more (the user's choice, 7 November): a patch preview (Bar's EXP-07 and EXP-08 layouts)
   // opens only from its address, ?scene=preview-<n>.json.
-  document.title = `${data.name} · XCOM Map Workshop`;
-  $('previewChip').hidden = !data.preview;
+  showSceneTitle($);
   // Configure light data before the first lit material compiles.
   setLighting(createMapLighting({ world, sun, hemisphere, scene: data, maxTextureSize:renderer.capabilities.maxTextureSize }));
-  $('scenery').value=data.preview ? 'full' : data.tactical?.recommendedView || 'full';
-  $('sceneryGroup').hidden=!data.playableBounds || data.scope!=='map';
-  $('projectSize').hidden = !projectsAvailable();     // Map grid: any whole map
-  $('projectClear').hidden = !projectsAvailable();
-  $('projectMissions').hidden = !projectsAvailable();
-  $('projectPicture').hidden = !projectsAvailable();
-  setOwnGrid(null); setStartingCache(null); setLandingLines({ kind: null, lines: [] });
-  // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones. A failed
-  // read leaves the game unknown, with the reason (review finding 31).
-  if (data.scope === 'map' && !data.preview && !builderMode && activeMapId)
-    setLandingRead(fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`)
-      .then(async r => {
-        const v = await r.json().catch(() => null);
-        if (!r.ok || !v || !Array.isArray(v.lines)) throw new Error(v?.error ?? `the editor's server answered ${r.status}`);
-        return v;
-      })
-      .then(v => { setLandingLines(v); }, error => {
-        setLandingLines({ kind: null, lines: [], failed: String(error?.message ?? error) });
-        banner(`The game install's landing lines for this map couldn't be read (${landingLines.failed}), so the editor doesn't know which game is set: the Long War landing lines are missing and Long War only missions aren't checked. Open the map again to ask again.`);
-      })
-      .then(() => { setStartingCache(null); refreshGroundGrid(); refreshLandingZones(); }));
+  showSceneMenus($, projectsAvailable);
+  setOwnGrid(null);
+  readLandingLines();
   drawPlayArea();
-  for (const button of $('lighting').querySelectorAll('button')) button.disabled = button.dataset.value !== 'neutral' && !lighting.available;
-  // Neutral light by default: our map lighting is an approximation (the user's choice, 7 November).
-  $('lighting').value = 'neutral';
+  lightingModes();
   // What the original layout's missions stream into the map (export 13), shown for reference and never edited.
   const streamObjects = data.preview ? [] : Object.values(data.streams || {}).flatMap(s => s.objects);
   chooseMission(parameters.get('mission') ?? '0');
   if (parameters.get('project') && parameters.get('mission')?.startsWith('kind:')) setAskedPick(parameters.get('mission'));
-  // Request every mesh and material up front so downloads overlap; pieces are
-  // still assembled in scene order below.
-  const everything = [...data.objects, ...streamObjects];
-  for (const obj of everything) {
-    track(geometryCache, obj.mesh, () => gltfLoader.loadAsync(cachePrefix+data.meshes[obj.mesh].url));
-    for (const id of obj.materials) { const [key, tint] = materialKey(obj, id); track(materialCache, key, () => material(id, tint)); }
-  }
-  let built = 0;
-  for (const obj of everything) {
-    try { addRoots([await buildRoot(obj)]); }
-    catch (e) { console.error(obj.actor, e); setLoadErrorCount(loadErrorCount + 1); }
-    built++;
-    if (built % 8 === 0 || built === everything.length)
-      loadingState(`Opening ${mapName}: building its pieces…`, 0.1 + 0.9 * built / everything.length,
-                   `${built} of ${everything.length} pieces · meshes and textures load as they are needed`);
-  }
-  if (!roots.size && !builderMode) throw Error('No meshes could be displayed. See import notes and browser console.');
+  await buildPieces(streamObjects, mapName);
   const streamLights = data.preview ? [] : Object.values(data.streams || {}).flatMap(s => s.lights || []);
   // A patch preview's layout is not the map's: its pieces keep their classes' families, without assemblies.
   const familyTable = await familiesAsked;
@@ -1584,79 +1553,22 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   if (data.scope === 'map' && !data.preview) buildLights(streamLights);
   buildEffects();
   lightButton();
-  // The mission picker: shown when the map's missions stream different packages (Police Station's data recovery
-  // streams its radar arrays, its abduction and terror missions don't).
-  const missions = headerMissions();
-  $('missionPick').hidden = missions.length < 2;
-  $('mission').replaceChildren(...missions.map(m => new Option(m.label, m.value)));
-  $('mission').value = missionPickValue;
-  $('mission').title = 'Which mission\'s streamed packages to show: LWR\'s patches and the mission\'s own objects, for reference';
-  $('floorGroup').hidden = !allBuildings().length;
-  // Patch helpers: pieces a patch places hidden in game (LWR's blockers and cover, ladders' collision), hidden here
-  // too by default; unticking Hide patch helpers draws them as a wireframe.
-  const streamHelpers = streamObjects.some(o => o.hidden);
-  $('helpersRow').hidden = !(data.inheritedPatches?.length || streamHelpers);
-  $('composition').textContent = [...(data.inheritedPatches || []).map(p=>{
-    const removed=data.objects.filter(o=>o.layer==='inherited' && o.sourcePackage===p.name && o.hiddenBy!=null).length;
-    return `${p.name} · ${p.components} source helpers${removed ? ` (${removed} removed by layout)` : ''} · ${p.records.filter(r=>r.actorClass==='XComRebuildWorldDataVolume').length} rebuild volumes`;
-  }), ...(data.preview ? [] : Object.entries(data.streams || {}).map(([name, s]) =>
-    `${name} · ${s.error ? `not shown: ${s.error}` : `${s.objects.length} pieces (${s.hiddenComponents} hidden in game), ${s.rebuildVolumes} rebuild volumes`}`))].join(' / ');
+  startMissionPicker();
+  sceneViewOptions(streamObjects);
   placeObjects(); floorOptions(); frame();
-  applyLighting = () => {
-    // the lights as edited (lightRecords), when they changed since
-    if (lightsDirty && data.scope === 'map' && !data.preview) {
-      lighting.setLights(lightRecords()); setLightsDirty(false); setLastLightSync(performance.now());
-    }
-    if (soloOn) { lighting.dim(sun.target.position, lightRadius); return; }
-    const result = lighting.apply($('lighting').value, sun.target.position, lightRadius);
-    $('lightCount').textContent = $('lighting').value === 'neutral' ? '' : `${result.local} local lights`;
-  };
+  applyLighting = applyMapLighting;
   applyLighting();
   $('loading').hidden = true;
   // the ground grid and the landing zones, now that the pieces are on the map (Clear map plan, sections 3 and 4), and
   // the mission's objects (mission types plan, C2)
   refreshGroundGrid(); refreshLandingZones(); refreshSpawnMarkers(); loadSpawnRules();
-  // Import notes: a count on the header button; the list opens from it. Preview notes count as warnings.
-  const issues = data.preview ? [...data.preview.notes,...data.diagnostics.filter(d => !data.preview.notes.some(n => n.source === d.source && n.message === d.message))] : data.diagnostics;
-  $('issueCount').textContent = issues.length + loadErrorCount || '';
-  $('issueCount').classList.toggle('warn', Boolean(data.preview?.notes.length || loadErrorCount));
-  for (const issue of issues) {
-    const item = text($('diagnostics'), 'div', '', 'note');
-    text(item, 'strong', short(issue.source)); text(item, 'div', issue.message);
-  }
-  if (loadErrorCount) text($('diagnostics'), 'div', `${plural(loadErrorCount, 'piece')} could not be displayed; the browser console has the errors.`, 'note');
-  // Exports before version 12 carry no prefab/partner links: say so instead of silently moving one actor.
-  const hasLinks = builderMode || data.objects.some(o => 'prefab' in o);
-  $('editLinked').disabled = !hasLinks;
-  if (!hasLinks) {
-    $('editLinked').classList.remove('on');
-    $('editLinked').title = 'Linked pieces need a re-export: this export has no prefab/partner links. Re-export the map (export version 12) and restart the viewer server.';
-  }
+  showImportNotes($, text, short, plural);
+  showLinked($);
   void refreshInstalls();     // the header's Play button goes by them
   if (!projectsAvailable()) $('projectButton').title = 'Project: open one (Ctrl+O). Saving needs the map\'s original layout: open the map from the map browser (M)';
-  // An export older than what lights and Builds need (export 18 and its glowing pieces): prepare it again.
-  // An export older than the server's exporter (the catalogue's outdated: an update since the map was prepared) is
-  // prepared again at once, so the update's fixes reach it (its dialog says so; a failure leaves the offer in a banner).
-  setExportProblem(projectsAvailable() ? familyTable?.exportProblem ?? null : null);
-  const outdated = Boolean(mapCatalogue?.maps?.find(m => m.id === activeMapId)?.outdated) && data.scope === 'map' && !data.preview;
-  // once a session per map: should it come back still outdated, the dialog waits for a click rather than looping
-  const tried = `workshop.updated.${activeMapId}`;
-  let again = false;
-  try { again = sessionStorage.getItem(tried) === '1'; sessionStorage.setItem(tried, outdated ? '1' : '0'); } catch { /* no session storage: start */ }
-  if (outdated) showPrepare('update', !again);
-  else if (exportProblem) showPrepare('open');
+  prepareOpened(familyTable, mapCatalogue);
   if (builderMode) {
-    document.body.classList.add('prefab-builder');
-    $('builderSize').hidden = false;
-    $('prefabTest').hidden = false;
-    $('projectButton').querySelector('small').textContent = 'Prefab';
-    $('projectMenu').querySelector('h3').textContent = 'Prefab';
-    $('projectButton').title = 'Prefab: Save and Open';
-    $('mapButton').querySelector('small').textContent = 'Prefab';
-    $('mapButton').title = 'Open a map or prefab (M)';
-    $('projectLoad').querySelector('span').textContent = 'Open…';
-    const loadProjectButton = text($('projectLoad').parentElement, 'button', 'Load project…');
-    loadProjectButton.type = 'button'; loadProjectButton.onclick = () => showFileDialog('load');
+    builderPage();
     setLibraryScope('all');
     await openPrefabDocument(prefabParameter);
     void prefabTest.reconnect();

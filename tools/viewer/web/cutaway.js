@@ -218,6 +218,20 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     $('floor').value = buttons.some(b => b.dataset.value === previous) ? previous : 'all';
     cutaway();
   }
+  // The Floor picker shown, and View options' patch helpers and the layout's patches and streams, as a scene opens
+  // (app.js's startScene).
+  function sceneViewOptions(streamObjects) {
+    $('floorGroup').hidden = !allBuildings().length;
+    // Patch helpers: pieces a patch places hidden in game (LWR's blockers and cover, ladders' collision), hidden here
+    // too by default; unticking Hide patch helpers draws them as a wireframe.
+    const streamHelpers = streamObjects.some(o => o.hidden);
+    $('helpersRow').hidden = !(data.inheritedPatches?.length || streamHelpers);
+    $('composition').textContent = [...(data.inheritedPatches || []).map(p=>{
+      const removed=data.objects.filter(o=>o.layer==='inherited' && o.sourcePackage===p.name && o.hiddenBy!=null).length;
+      return `${p.name} · ${p.components} source helpers${removed ? ` (${removed} removed by layout)` : ''} · ${p.records.filter(r=>r.actorClass==='XComRebuildWorldDataVolume').length} rebuild volumes`;
+    }), ...(data.preview ? [] : Object.entries(data.streams || {}).map(([name, s]) =>
+      `${name} · ${s.error ? `not shown: ${s.error}` : `${s.objects.length} pieces (${s.hiddenComponents} hidden in game), ${s.rebuildVolumes} rebuild volumes`}`))].join(' / ');
+  }
 
   // After an edit (the edit hub, edit_hub.js).
   onHub('edit', 'cutaway', () => {
@@ -225,5 +239,5 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     if (data && !gizmo.controls.dragging && editedKey() !== cutKey) { cutaway(); if (selected) return STOP; }   // (cutaway's select ran the hub)
   });
 
-  return { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, updateTileGrid };
+  return { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions, updateTileGrid };
 }

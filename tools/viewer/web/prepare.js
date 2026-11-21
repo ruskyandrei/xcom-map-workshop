@@ -7,9 +7,9 @@
 // createPrepare takes what it needs of app.js as one argument object, when app.js makes it: the banner, the map's
 // label and the popups. Its own state is inside it (whether a prepare is under way); the export's problem
 // (exportProblem: app.js's scene start sets it) is editor_state.js's.
-import { activeMapId, exportProblem } from './editor_state.js';
+import { activeMapId, data, exportProblem, setExportProblem } from './editor_state.js';
 
-export function createPrepare({ $, banner, mapLabel, showPop }) {
+export function createPrepare({ $, banner, mapLabel, projectsAvailable, showPop }) {
   // Prepare: an export older than what lights and builds need (families.json's exportProblem) exported again (POST
   // /maps/<id>/export with prepare), then the page reopened. A dialog in the middle of the window asks: when the map
   // opens, before a build or a play of a project, and from a build that failed for want of it (its Prepare the map
@@ -78,6 +78,20 @@ export function createPrepare({ $, banner, mapLabel, showPop }) {
     showPop(null);
     if (start) run(); else setTimeout(() => els.ok.focus(), 0);
   }
+  // The map's export checked as it opens (app.js's startScene, given the families' answer and the server's map list).
+  function prepareOpened(familyTable, mapCatalogue) {
+    // An export older than what lights and Builds need (export 18 and its glowing pieces): prepare it again.
+    // An export older than the server's exporter (the catalogue's outdated: an update since the map was prepared) is
+    // prepared again at once, so the update's fixes reach it (its dialog says so; a failure leaves the offer in a banner).
+    setExportProblem(projectsAvailable() ? familyTable?.exportProblem ?? null : null);
+    const outdated = Boolean(mapCatalogue?.maps?.find(m => m.id === activeMapId)?.outdated) && data.scope === 'map' && !data.preview;
+    // once a session per map: should it come back still outdated, the dialog waits for a click rather than looping
+    const tried = `workshop.updated.${activeMapId}`;
+    let again = false;
+    try { again = sessionStorage.getItem(tried) === '1'; sessionStorage.setItem(tried, outdated ? '1' : '0'); } catch { /* no session storage: start */ }
+    if (outdated) showPrepare('update', !again);
+    else if (exportProblem) showPrepare('open');
+  }
   // A build or a play of a project waits for the map to be prepared: true when the dialog was shown instead.
   function needsPrepare() {
     if (!exportProblem) return false;
@@ -85,5 +99,5 @@ export function createPrepare({ $, banner, mapLabel, showPop }) {
     return true;
   }
 
-  return { needsPrepare, showPrepare };
+  return { needsPrepare, prepareOpened, showPrepare };
 }

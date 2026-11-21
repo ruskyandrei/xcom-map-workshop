@@ -159,6 +159,14 @@ with a large step put under the busy mark.
 Prepare is [`prepare.js`](tools/viewer/web/prepare.js)'s: the dialog that exports an old map again (when it opens,
 before a build or a play, from a build that failed for want of it), Later's banner, and a build or a play waiting for
 it.
+As a map or a prefab opens, app.js's `startScene` starts the scene part by part, each part a function of the module
+that owns it, called in the order the page always started them: the scene's pieces built (`buildPieces`), the landing
+lines read and the header's Mission picker (Clear map's `readLandingLines`, `startMissionPicker`), the Map lighting
+mode's buttons and the view lit (the Lights view's `lightingModes`, `applyMapLighting`), the lights and effects made
+(`buildLights`, `buildEffects`), the Floor picker and View options' patch helpers (the cutaway's `sceneViewOptions`), the
+camera framed, the map's export checked (Prepare's `prepareOpened`) and the prefab builder's page dressed
+(`builderPage`). What is no one area's (the page's title, View options' Full or Interior and the Map menu's items, the
+import notes, the gizmo's Linked button) is [`scene_start.js`](tools/viewer/web/scene_start.js)'s.
 `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -326,6 +334,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | Copy, paste and placing: a clip of the selection, a paste, the preview that follows the cursor and where a click places it, the Add panel shown and its tab, an entry of it chosen and placed, a copy dragged off with Shift | [`clipboard.js`](tools/viewer/web/clipboard.js) (`createClipboard`). A copied thing's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`optionsOf`, `stateOfRoot`), a group's in [`project.js`](tools/viewer/web/project.js), the pose rule's snap in [`gizmo.js`](tools/viewer/web/gizmo.js) (`recipeMove`), and a floor's height under a point in [`floors.js`](tools/viewer/web/floors.js) (`levelHeight`, `floorUnder`). |
 | A piece, effect, sound or lens flare of another map read as a template: its record read, its template made, the templates a project's records name, what such a piece costs and says | [`library_templates.js`](tools/viewer/web/library_templates.js) (`createLibraryTemplates`). The records read and the templates made are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`libraryRecords`, `effectTemplates`, `foreignEffects`, `foreignTemplates`, `donorHashes`); the Add panel's All maps is [`library.js`](tools/viewer/web/library.js), and the server's side [`library.py`](tools/viewer/library.py). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
+| What the page does for an area as a map or a prefab opens (its part of the scene made, its panel or menu set for the scene) | A function of the area's module, returned by its factory and called from app.js's `startScene` at its place in the order (`buildPieces` in [`scene_pieces.js`](tools/viewer/web/scene_pieces.js), `readLandingLines` in [`clear_map.js`](tools/viewer/web/clear_map.js)), given what `startScene` has worked out so far as its parameters (the streamed objects, the families' answer). What is no one area's goes in [`scene_start.js`](tools/viewer/web/scene_start.js), plain exports given what they need. |
 | What an area keeps up after an edit, an undo or a selection (its panel or section, a button's state, a mark in the view) | Its area's module, which registers the refresh with the edit hub, [`edit_hub.js`](tools/viewer/web/edit_hub.js), as its factory is made (`onHub(run, name, refresh)`), under a name put in the hub's `RUNS` at the place in the run where it must be called (section 3, "The page"). |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
@@ -565,6 +574,10 @@ where there is one.
   `select-piece`: the Effects view's, a light's, a cover piece's and a made or breakable piece's panels;
   `select-chips`: the flags chip), given what it has there (the root picked, its source, the chips' row). The hub is
   its own module, not editor_state.js, so that its node test can import it.
+- As a map or a prefab opens, app.js's `startScene` calls each area's part of the scene in the order the page always
+  started them, and does little else. A part keeps its place in that order when it moves into its area's module, and
+  is given what `startScene` worked out before it (the streamed objects, the families' answer, the server's map list)
+  as its parameters, so that its statements move as they were.
 - A module's top level only declares, so the order of imports means nothing. No module imports app.js.
 - A rule, a record or a sentence is in a pure module with a node test. The wiring of a panel is beside it and has a
   browser check in the table of checks. A hook a browser check uses is on `window.viewer`.

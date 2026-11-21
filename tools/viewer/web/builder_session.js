@@ -31,7 +31,7 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
                                        editState, flashHint, frame, gizmo, gridNow, gridOrigin, isStream, libraryTemplate,
                                        lightPose, loadingState, movedMatrix, openingProgress, plural, prefabRecords,
                                        projectChanged, recipeOf, removeRoots, rootName, sceneChanged, selectActors, short,
-                                       showPrefabDialog, snapshot, templateFor, text, volumeBox, world }) {
+                                       showFileDialog, showPrefabDialog, snapshot, templateFor, text, volumeBox, world }) {
   // The prefab builder uses the same roots, history and tools, with a complete document
   // instead of a delta against a map. Missing pieces remain members of that document.
   const physicalBoxes = new WeakMap();
@@ -215,6 +215,20 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
     builder.kept = carried.added.map(({ id, ...p }) => p);
     builder.envelope = builder.kept.length ? envelope ?? [0, 0, 0, doc.floor.tiles[0] * TILE, doc.floor.tiles[1] * TILE, 0] : null;
     refreshBuilder(); editChanged();
+  }
+  // The page dressed as the prefab builder's as its scene opens (app.js's startScene).
+  function builderPage() {
+    document.body.classList.add('prefab-builder');
+    $('builderSize').hidden = false;
+    $('prefabTest').hidden = false;
+    $('projectButton').querySelector('small').textContent = 'Prefab';
+    $('projectMenu').querySelector('h3').textContent = 'Prefab';
+    $('projectButton').title = 'Prefab: Save and Open';
+    $('mapButton').querySelector('small').textContent = 'Prefab';
+    $('mapButton').title = 'Open a map or prefab (M)';
+    $('projectLoad').querySelector('span').textContent = 'Open…';
+    const loadProjectButton = text($('projectLoad').parentElement, 'button', 'Load project…');
+    loadProjectButton.type = 'button'; loadProjectButton.onclick = () => showFileDialog('load');
   }
   async function openPrefabDocument(id) {
     // the loading overlay while a saved prefab is read and its pieces made (those of other maps are read from them)
@@ -416,6 +430,6 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
     problems.open = !problems.open; problemsPaint();
   };
 
-  return { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderRecords, builderTitle, openPrefabDocument,
-           physicalBox, problemsPaint, recoverPrefabSources, refreshBuilder, saveBuilder };
+  return { applyPrefabDocument, builderBounds, builderDocument, builderKey, builderPage, builderRecords, builderTitle,
+           openPrefabDocument, physicalBox, problemsPaint, recoverPrefabSources, refreshBuilder, saveBuilder };
 }
