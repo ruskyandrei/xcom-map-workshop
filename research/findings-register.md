@@ -3166,6 +3166,22 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
 - **Known gap**: with the budget off the game's textures all stay mapped in its 32-bit address space; a long
   session might run out of it. Not seen in runs of a few minutes.
 
+### T-51: The police station's own landing reads as moved in the editor with nothing changed
+**Open** (21 November 2026; found by the editor follow-ups' stage P5, seen on main before the refactor too). Known bug
+[KB-13](../KNOWN-BUGS.md).
+- **What**: URB_PoliceStation opened in the editor (no project change) hides its Skyranger, drop zone frame, dust and
+  sound. The page's `movedLandingActors()` lists six pieces of the landing (XComLevelActor_2, Emitter_43,
+  Emitter_477, XComLevelActor_664, PointInSpace_254, AmbientSoundSimpleToggleable_4). The same on main's code and the
+  follow-ups' tip, served the same scratch cache.
+- **Cause**: `landingUnmoved` (`tools/viewer/web/spawns.js`) takes a landing with a frame as unmoved only when the
+  frame and each of the six soldier points stand within 4 units of where `place()` puts them for the zone. The map's
+  own soldier points stand on raised ground, 86 and 118 high where `place()` gives 48, and 3 to 5 units off its layout
+  in x and y (soldier1 at 1870, -1392 against 1867, -1397). The frame and the zone match, so the zone has not moved.
+  The map's other zone start-2 stands 5 units from start-1 (2255, -1585 against 2251.27, -1589.08).
+- **Fix to try**: compare the zone with the landing's own zone (place and direction) and leave the soldier points
+  out, or compare them on x and y with the map's own points as the reference. Check the Build's own rule for a
+  moved landing the same way.
+
 ### T-50: Two near-black made ground blocks' relight previews moved up to 29/255 with the DXT1 reading; no stored texel did
 **Accepted** (21 November 2026, measured offline; no code change, by the editor follow-ups' decision D2).
 - **What**: the editor refactor's final checks compared the made-ground real baked Build (EXP-77's project on URB_Bar)

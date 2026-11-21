@@ -90,3 +90,17 @@ line, and its finding in the [findings register](research/findings-register.md) 
   Play in game.
 - **Cause.** The editor looks for `XComEW.exe` in the process list.
 - **Finding.** [F-84](research/findings-register.md).
+
+### KB-13: The police station's Skyranger and landing frame are hidden as the map opens
+
+- **What happens.** URB_PoliceStation opened in the editor, with nothing changed, draws without its own landing: the
+  Skyranger, the drop zone frame, its dust and its sound are hidden, as for a landing zone moved away. The map's
+  landing zone start-1 stays where it was. The `clear-map` browser check fails on the police station for it.
+- **Since.** 18 November 2026 (the version after 0.5.3), when the view began to hide the landing of a zone it counts
+  as moved.
+- **Workaround.** None in the view; the pieces are only hidden there. Not checked: whether a Build after a landing
+  zone change on this map treats the landing as moved too.
+- **Cause.** `spawns.js`' `landingUnmoved` compares the map's own six soldier points with the layout it works out
+  from the zone; the police station's stand on raised ground (86 and 118 high against 48) and 3 to 5 units off that
+  layout, beyond its 4-unit rule, so an unmoved landing reads as moved.
+- **Finding.** [T-51](research/findings-register.md).
