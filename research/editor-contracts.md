@@ -180,7 +180,8 @@ own frame (`x0`..`x1`, `y0`..`y1`, `z0`..`z1`: a wall's ends, faces and bottom a
 ground shape's footprint and plate or body), a wall's `tall` (`repeat` or `stretch`), openings or holes anywhere
 inside, `look` absent (the kind's default), a look id or a donor look with `plain: true` beside it when none was
 chosen, a rock's `points`, and a texture `mapping` (`{surfaces: {faces | top | underside | sides: {mode: size | fit |
-count, u, v, turn, flipU, flipV, offsetU, offsetV, world}}}`). The compiler checks them (`tools/editor/made_edits.py`
+count, modeV, u, v, turn, flipU, flipV, offsetU, offsetV, world}}}`, `modeV` the mode along v when it differs:
+`tools/bake/uv_mapping.py` says what each means). The compiler checks them (`tools/editor/made_edits.py`
 `free_valid`) and hands them to the Build as its own free version of the kind (walls 4, slabs and ground 3), less
 `plain`. An editor from before refuses these versions by their number; older versions are read and built as they were,
 and the page upgrades a piece to the free form when a size of it is edited (`tools/viewer/web/made_free.js`).

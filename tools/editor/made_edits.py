@@ -116,7 +116,7 @@ def mapping_valid(mapping, num):
     for role, s in mapping['surfaces'].items():
         if role not in MAPPING_ROLES or not isinstance(s, dict) or s.get('mode') not in MAPPING_MODES:
             return False
-        if set(s) - {'mode', 'u', 'v', 'turn', 'flipU', 'flipV', 'offsetU', 'offsetV', 'world'}:
+        if set(s) - {'mode', 'modeV', 'u', 'v', 'turn', 'flipU', 'flipV', 'offsetU', 'offsetV', 'world'} or s.get('modeV', s['mode']) not in MAPPING_MODES:
             return False
         if not (num(s.get('u')) and num(s.get('v')) and s['u'] > 0 and s['v'] > 0):
             return False

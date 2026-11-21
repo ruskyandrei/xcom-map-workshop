@@ -166,7 +166,8 @@ taken out. Each other lane has a maker module that `build` calls: [`native_light
 [`native_effects.py`](tools/bake/native_effects.py), [`native_sounds.py`](tools/bake/native_sounds.py),
 [`native_flares.py`](tools/bake/native_flares.py), [`native_spawns.py`](tools/bake/native_spawns.py),
 [`cover_blocks.py`](tools/bake/cover_blocks.py), [`buildings.py`](tools/bake/buildings.py) and the made pieces'
-modules. With `--bake`, the copies get lighting of their own and the relight runs. It writes the variant map and a
+modules (`frac_walls.py`, the generators `frac_wall.py`, `frac_slab.py` and `ground.py`, the splitter `made_split.py`,
+and the one texture mapping every generator calls, [`uv_mapping.py`](tools/bake/uv_mapping.py)). With `--bake`, the copies get lighting of their own and the relight runs. It writes the variant map and a
 fixture manifest.
 
 A Build of the copy tool is one record, `BuildState`. Its first fields are the inputs: the map, the output folder,
