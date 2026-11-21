@@ -3,10 +3,10 @@
 // the surfaces, the mapping read and written, the words, and where a world-aligned surface is counted from. Run: node
 // tools/viewer/tests/made_mapping_test.mjs
 import assert from 'node:assert/strict';
-import { DEFAULT_REPEAT, framePoint, lookRepeat, lookSurface, MAPPING_ROLES, mappingOrigin, mappingWords, nextSurface, patternCorner,
-         patternPoint, sizable, sizedMapping, slidMapping, surfaceAt, surfaceExtent, surfaceMapping, surfaceOfNormal, surfacePlane,
-         surfaceSteps, surfaceWords, reframed, textureNotes, tidySurface, turnedMapping, uv, withMode, withSurface,
-         withValue } from '../web/made_mapping.js';
+import { DEFAULT_REPEAT, framePoint, lookRepeat, lookSurface, MAPPING_ROLES, mappingOrigin, mappingWords, materialTiling, nextSurface,
+         patternCorner, patternPoint, patternSize, sizable, sizedMapping, slidMapping, surfaceAt, surfaceExtent, surfaceMapping,
+         surfaceOfNormal, surfacePlane, surfaceSlots, surfaceSteps, surfaceWords, reframed, textureNotes, tidySurface, turnedMapping,
+         uv, withMode, withSurface, withValue } from '../web/made_mapping.js';
 import { forgetLooks, loadLooks } from '../web/looks.js';
 
 const near = (got, want, what, eps = 1e-9) => {
@@ -207,8 +207,30 @@ assert.deepEqual(lookRepeat('fracWall', { look: { mesh: 'Not.Read', measure: 1 }
   assert.match(textureNotes('fracWall', wall('Shop.Meshes.Wall_FRACTURED'), rear).join(), /^The other side of this look has no face/);
   // its faces in two materials up the wall, once mapped (a picture across it needs one face material)
   assert.match(textureNotes('fracWall', withSurface(wall('Shop.Meshes.Wall_FRACTURED'), 'faces', size), rear).join('|'), /\|Its faces draw 2 materials up the wall/);
+  // the slots a surface draws in: a wall's picked side's; null for a look no catalogue holds
+  assert.deepEqual([surfaceSlots('fracWall', wall('Shop.Meshes.Wall_FRACTURED'), rear), surfaceSlots('fracWall', wall('Shop.Meshes.Wall_FRACTURED'), front),
+                    surfaceSlots('fracSlab', slab, { role: 'underside' }), surfaceSlots('fracWall', bare, front)], [[0, 1], [], [0], null]);
   globalThis.fetch = was;
   forgetLooks();
+}
+// ---- a pattern's real size: what the surface's materials' own tiling does (their tilings, materialTiling's)
+{
+  const twice = { scale: [2, 2], known: true }, plain = { scale: [1, 1], known: true }, unread = { scale: [1, 1], known: false };
+  assert.deepEqual(patternSize({ mode: 'size', u: 192, v: 192 }, [twice]),
+                   { note: 'Its material repeats its texture 2 times in each repeat: the pattern shows every 96', known: true });
+  assert.equal(patternSize({ mode: 'size', u: 192, v: 96 }, [twice]).note, 'Its material repeats its texture 2 times in each repeat: the pattern shows every 96 by 48');
+  assert.equal(patternSize({ mode: 'count', u: 3, v: 2 }, [{ scale: [1.25, 1.25], known: true }]).note,
+               'Its material repeats its texture 1.25 times in each repeat: the pattern shows 3.75 by 2.5 times over the surface');
+  assert.equal(patternSize({ mode: 'size', modeV: 'fit', u: 96, v: 1 }, [{ scale: [2, 3], known: true }]).note,
+               'Its material repeats its texture 2 by 3 times in each repeat: the pattern shows every 48 along U and 3 times along V');
+  // nothing to say: unscaled, unmapped, materials that differ; not known when any material's tiling isn't
+  assert.deepEqual(patternSize({ mode: 'size', u: 192, v: 192 }, [plain]), { note: null, known: true });
+  assert.deepEqual(patternSize(null, [twice]), { note: null, known: true });
+  assert.deepEqual(patternSize({ mode: 'fit', u: 1, v: 1 }, [twice, { scale: [1.25, 1.25], known: true }]), { note: null, known: true });
+  assert.deepEqual(patternSize({ mode: 'size', u: 192, v: 192 }, [twice, unread]), { note: null, known: false });
+  assert.deepEqual(patternSize({ mode: 'size', u: 192, v: 192 }, []), { note: null, known: false });
+  // (the export's records: materialTiling's own cases are material_tiling_cases.json's, in shared_cases_test.mjs)
+  assert.deepEqual(materialTiling(null), { scale: [1, 1], known: false });
 }
 // the fold's shut line
 assert.equal(mappingWords('faces', { mode: 'size', u: 64, v: 64, turn: 30 }), 'faces: size 64, 30°');

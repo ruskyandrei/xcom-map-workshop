@@ -23,13 +23,14 @@
 // hooks read them).
 import * as THREE from 'three';
 import { segmented, text } from './dom_words.js';
-import { setTextureDrag, setTexturePicked, snapMode, textureDrag, texturePicked } from './editor_state.js';
+import { data, setTextureDrag, setTexturePicked, snapMode, textureDrag, texturePicked } from './editor_state.js';
 import { HANDLE_PICK } from './handles.js';
 import { scaleMarker } from './lights_view.js';
 import { freeRequest, toolFree } from './made_free.js';
-import { framePoint, MAPPING_ROLES, mappingOrigin, mappingWords, nextSurface, patternCorner, patternPoint, sizable,
-         sizedMapping, slidMapping, surfaceAt, surfaceExtent, surfaceMapping, surfaceOfNormal, surfacePlane,
-         surfaceSteps, surfaceWords, textureNotes, turnedMapping, withMode, withSurface, withValue } from './made_mapping.js';
+import { framePoint, MAPPING_ROLES, mappingOrigin, mappingWords, materialTiling, nextSurface, patternCorner, patternPoint,
+         patternSize, sizable, sizedMapping, slidMapping, surfaceAt, surfaceExtent, surfaceMapping, surfaceOfNormal,
+         surfacePlane, surfaceSlots, surfaceSteps, surfaceWords, textureNotes, turnedMapping, withMode, withSurface,
+         withValue } from './made_mapping.js';
 import { actorPose } from './scene_pieces.js';
 import { moveWords, stepsOf, stepWords } from './snap_steps.js';
 
@@ -43,6 +44,10 @@ const num = v => `${Math.round(v * 100) / 100}`;
 const turnWords = snap => (stepsOf(snap).turn ? `in steps of ${stepsOf(snap).turn}°` : 'smoothly');
 // (a slide on a wall's face or a ground shape's side steps across and up; on a top or underside, across both ways)
 const slideWords = (snap, upright) => moveWords(snap, { across: !upright });
+// (the Repeat row's title, and what it adds where the surface's material may scale its coordinates unknown to the export)
+const REPEAT_TITLE = "A repeat's size along U and V, game units (Count: how many repeats over the surface)";
+const UNKNOWN_SCALE = '. Its material may scale its texture itself, which the map\'s export does not record for it: a repeat '
+  + 'here is one unit of the texture coordinates, and the pattern may repeat more often than that';
 const TITLES = {
   slide: (snap, upright) => `The pattern's corner: drag to slide the pattern on the surface (${slideWords(snap, upright)}, as the snap setting)`,
   turn: snap => `The ring: drag round to turn the pattern about its corner (${turnWords(snap)}, as the snap setting)`,
@@ -89,6 +94,12 @@ export function createMadeMapping({ $, applyWall, applyWallSoon, camera, changeW
     return mappingOrigin(kind, n.mapping, pose.location, pose.rotation)?.[role] ?? [0, 0];
   }
 
+  // The tilings (made_mapping.js materialTiling) of the materials a surface draws in: its look's slots' (surfaceSlots),
+  // or the piece's every drawn material where its look is in no catalogue; the inside faces' left out.
+  function surfaceTilings(root, kind, n, at) {
+    const materials = root.userData.source.materials ?? [], slots = surfaceSlots(kind, n, at) ?? materials.map((_, i) => i);
+    return slots.map(i => data.materials[materials[i]]).filter(m => m && m.render?.family !== 'hidden').map(materialTiling);
+  }
   // ---- the fold
   function texturePanel(root, tool) {
     const { kind, n } = numbersOf(root);
@@ -97,9 +108,12 @@ export function createMadeMapping({ $, applyWall, applyWallSoon, camera, changeW
     const at = surfaceOf(root), s = surfaceMapping(n, at.role), off = !tool || !s;
     $('texFoldVal').textContent = mappingWords(at.role, s);
     $('texSurface').textContent = surfaceWords(kind, at);
-    // (what the look draws there: a part of a larger texture, no face on a side, several materials up a wall)
+    // (what the look draws there: a part of a larger texture, no face on a side, several materials up a wall; and the
+    // pattern's real size where its materials' own tiling is known, which the Repeat row says it isn't otherwise)
+    const size = patternSize(s, surfaceTilings(root, kind, n, at));
     $('texNotes').replaceChildren();
-    for (const note of textureNotes(kind, n, at)) text($('texNotes'), 'div', note);
+    for (const note of [...textureNotes(kind, n, at), size.note].filter(Boolean)) text($('texNotes'), 'div', note);
+    $('texRepeat').title = REPEAT_TITLE + (size.known ? '' : UNKNOWN_SCALE);
     $('texMode').value = s ? s.mode : 'original';
     for (const b of $('texMode').querySelectorAll('button')) b.disabled = !tool;
     // (a field being typed in keeps what is typed)

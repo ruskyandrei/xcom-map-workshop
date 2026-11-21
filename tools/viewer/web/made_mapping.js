@@ -11,7 +11,9 @@
 //   (withMode: Size first takes the look's repeat, lookRepeat; Count and Fit one by one; Original takes the surface's
 //   entry out), a field's value (withValue) and the words of the fold's shut line (mappingWords, surfaceWords);
 // - what the look draws on a surface, from its catalogue entry (lookSurface: tools/bake/looks.py surfaces, whether its
-//   texture tiles there or is a part of a larger one), and what the fold says of it (textureNotes);
+//   texture tiles there or is a part of a larger one; surfaceSlots, the materials it draws in), and what the fold says
+//   of it (textureNotes); a material's own tiling as the map's export records it (materialTiling) and the pattern's
+//   real size it gives a mapped surface (patternSize);
 // - the rule (uv) and its inverse (patternPoint): the pattern's corner nearest a point (patternCorner), a handle's
 //   drag (slidMapping, turnedMapping, sizedMapping), in the snap setting's steps (snap_steps.js), and the offsets that
 //   keep a pattern in place when the piece's frame moves (reframed);
@@ -163,6 +165,49 @@ export function textureNotes(kind, n, picked) {
   const slots = Math.max(f[here]?.slots?.length ?? 0, f[there]?.slots?.length ?? 0);
   if (slots > 1) out.push(`Its faces draw ${slots} materials up the wall, a storey each: the pattern runs on across them, each drawing it in its own material, so a picture across the whole wall needs a look with one face material`);
   return out;
+}
+/** The donor's material slots a surface draws in, from its look's catalogue entry (a wall's the picked side's face
+ *  slots), or null where the look is in no catalogue read (the piece's every drawn material then stands for it). */
+export function surfaceSlots(kind, n, picked) {
+  const f = lookSurface(kind, n, picked.role);
+  if (!f) return null;
+  return (kind === 'fracWall' ? f[picked.side === 'y0' ? 'B' : 'A'] : f)?.slots ?? [];
+}
+
+// ---- a pattern's real size: what a material's own tiling does to the texture coordinates a mapping writes
+// (the families whose tiling scalar the export reads into a material's render.uv, tools/viewer/materials.py profile;
+// material_tiling_cases.json holds the two sides to the same cases)
+const READ_TILING = ['BLDG_Enterable'];
+/** What a material multiplies its texture's coordinates by, as the map's export records it (its record's render.uv:
+ *  tools/viewer/materials.py profile): { scale [u, v], known }, known where the export read it (a scale other than 1,
+ *  read from a texture coordinate node or a family's tiling scalar, or a family whose tiling scalar it reads: a
+ *  building's TileXY, 1 where unset), not where it found nothing to read (cooked materials mostly keep no expressions:
+ *  its 1 is then only the default) or the coordinates go through a node it can't follow (approximate). */
+export function materialTiling(info) {
+  const uv = info?.render?.uv ?? {}, scale = Array.isArray(uv.scale) && uv.scale.length === 2 && uv.scale.every(finite) ? uv.scale : [1, 1];
+  const family = (info?.parents ?? []).some(p => READ_TILING.includes(String(p).split('.').at(-1)));
+  return { scale: [...scale], known: !uv.approximate && (family || scale[0] !== 1 || scale[1] !== 1) };
+}
+/** The pattern's real size on a mapped surface `s` drawn by materials of tilings `tilings` (materialTiling's, one per
+ *  material the surface draws in): { note, known }: known when every one is; a note (a sentence) when they are and
+ *  scale the coordinates (all alike), saying where the pattern repeats ("Its material repeats its texture 2 times in
+ *  each repeat: the pattern shows every 96"); null otherwise (unscaled, unknown, unmapped, or materials that differ). */
+export function patternSize(s, tilings) {
+  const known = tilings.length > 0 && tilings.every(t => t.known);
+  if (!s || !known) return { note: null, known };
+  const [su, sv] = tilings[0].scale;
+  if (tilings.some(t => t.scale[0] !== su || t.scale[1] !== sv) || (su === 1 && sv === 1)) return { note: null, known };
+  const mv = s.modeV ?? s.mode;
+  const times = su === sv ? `${num(su)} times` : `${num(su)} by ${num(sv)} times`;
+  const often = (mode, value, k) => (mode === 'fit' ? 1 : value) * k;
+  let shows;
+  if (s.mode === 'size' && mv === 'size') shows = `every ${num(s.u / su)}${s.u / su !== s.v / sv ? ` by ${num(s.v / sv)}` : ''}`;
+  else if (s.mode !== 'size' && mv !== 'size') shows = `${num(often(s.mode, s.u, su))} by ${num(often(mv, s.v, sv))} times over the surface`;
+  else {
+    const axis = (mode, value, k) => (mode === 'size' ? `every ${num(value / k)}` : `${num(often(mode, value, k))} times`);
+    shows = `${axis(s.mode, s.u, su)} along U and ${axis(mv, s.v, sv)} along V`;
+  }
+  return { note: `Its material repeats its texture ${times} in each repeat: the pattern shows ${shows}`, known };
 }
 /** The numbers with a surface's mode chosen: 'original' takes its entry out; 'size' first fills u and v with the
  *  look's repeat, 'count' and 'fit' with 1 and 1; the turn, flips, offsets and world kept; the same mode leaves it. */

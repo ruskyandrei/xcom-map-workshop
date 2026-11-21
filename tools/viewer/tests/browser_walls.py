@@ -1049,6 +1049,23 @@ def check_texture_mapping(browser, url, open_viewer):
     assert surface_now(page, wall, 'faces') == dict(mode='size', u=192, v=192), surface_now(page, wall, 'faces')
     assert page.evaluate('viewer.gizmo.undoDepth()') == depth + 1
     assert page.locator('#texFoldVal').inner_text() == 'faces: size 192', page.locator('#texFoldVal').inner_text()
+    # the pattern's real size, from its materials' tiling as the export records it: twice a repeat says the pattern is
+    # 96; a material the export read nothing of says on the Repeat row that it may scale its texture itself
+    scale = """([id, uv, parents]) => { const was = [];
+      for (const k of new Set(viewer.roots.get(id).userData.source.materials)) { const m = viewer.data.materials[k];
+        if (!m || m.render?.family === 'hidden') continue;
+        was.push([k, m.render.uv, m.parents]); m.render.uv = uv; m.parents = parents ?? m.parents; }
+      viewer.select(id); return was; }"""
+    was = page.evaluate(scale, [wall, dict(channel=0, scale=[2, 2]), []])
+    assert was, 'the wall draws in materials of the map'
+    assert page.locator('#texNotes').inner_text() == 'Its material repeats its texture 2 times in each repeat: the pattern shows every 96', \
+        page.locator('#texNotes').inner_text()
+    assert 'may scale its texture itself' not in page.locator('#texRepeat').get_attribute('title')
+    page.evaluate(scale, [wall, dict(channel=0, scale=[1, 1]), []])
+    assert page.locator('#texNotes').inner_text() == '', page.locator('#texNotes').inner_text()
+    assert 'may scale its texture itself' in page.locator('#texRepeat').get_attribute('title')
+    page.evaluate("""([id, was]) => { for (const [k, uv, parents] of was) Object.assign(viewer.data.materials[k], { parents }).render.uv = uv;
+      viewer.select(id); }""", [wall, was])
     mesh_ready(page, wall)
     h = page.evaluate('viewer.textureHandles()')
     assert h['slide'] and h['turn'] and h['size'], h
