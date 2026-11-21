@@ -14,6 +14,7 @@ sys.path.insert(0, str(HERE.parent))
 import library  # noqa: E402
 import manager  # noqa: E402
 from package import FormatError, Package  # noqa: E402
+import packs  # noqa: E402
 import pictures  # noqa: E402
 import scene_metadata  # noqa: E402
 from viewer_fixtures import ID, ManagerInstalls  # noqa: E402
@@ -117,6 +118,29 @@ class Bounded(unittest.TestCase):
         # four of the seven numbers: before, the other three came from the next export's bytes
         with self.assertRaises(FormatError):
             library.describe(with_component((0.0, 0.0, 0.0, 10.0)), 1)
+
+
+class PackageGuid(unittest.TestCase):
+    """packs.package_guid reads the GUID through upkinfo.summary (item 6.7): a summary that does not read is None."""
+
+    def guid(self, data):
+        path = Path(self.enterContext(tempfile.TemporaryDirectory())) / 'Map.upk'
+        path.write_bytes(data)
+        return packs.package_guid(path)
+
+    def test_a_good_package_gives_its_guid_and_an_all_zero_one_is_seen(self):
+        self.assertEqual(self.guid(WHOLE), bytes(range(16)))
+        zeroed = bytearray(WHOLE)
+        zeroed[AT['gens'] - 16:AT['gens']] = bytes(16)
+        self.assertEqual(self.guid(bytes(zeroed)), bytes(16))       # the pack export's warning
+
+    def test_a_summary_cut_short_and_a_file_that_is_no_package_give_none(self):
+        # cut after the GUID, in the chunk table: before, the GUID was taken from a summary that does not read
+        self.assertIsNone(self.guid(WHOLE[:AT['chunks'] + 2]))
+        self.assertIsNone(self.guid(WHOLE[:AT['gens'] - 3]))        # cut inside the GUID
+        self.assertIsNone(self.guid(b'bar'))
+        self.assertIsNone(self.guid(b'not a package at all, but long enough to hold a summary\r\n' * 8))
+        self.assertIsNone(packs.package_guid(Path(self.enterContext(tempfile.TemporaryDirectory())) / 'missing.upk'))
 
 
 if __name__ == '__main__':
