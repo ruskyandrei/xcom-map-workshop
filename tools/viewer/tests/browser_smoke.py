@@ -10,13 +10,18 @@ The checks are one table (CHECKS, listed by --help): each one's name, what it do
 with and the maps it can run on. With no --only, the whole run does the table's checks in order; --only names some
 (those run only when named too) and refuses a name it doesn't know. The report (printed, and written beside the
 screenshot as .json) lists what ran and what was skipped, with why (a check that skipped itself whole is listed as
-skipped only); a check --only asked for that was skipped, whole or in part, fails the run. --all runs every check on
-fresh test servers of its own (ports 8795-8798, or --ports, scratch folders, a scratch cache and a scratch settings
-file, --dry-play), one after another, each stopped after its run, and reports each run's lists. --write-api-names
-writes the test hooks' names that the check api-names compares (api_names.py).
+skipped only), and the server's answers of status 500 and above that any check's page met, with their address (a
+failure prints them too). A check --only asked for that did nothing (skipped whole, or its server or map can't have
+it) fails the run; a part of a check that skipped is listed and fails nothing. What the checks save is named after
+the run, so a check runs again against the same projects folder. --all runs every check on fresh test servers of its
+own (ports 8795-8798, or --ports, scratch folders, a scratch cache and a scratch settings file, --dry-play), one after
+another, each stopped after its run, and reports each run's lists. --write-api-names writes the test hooks' names
+that the check api-names compares (api_names.py).
 
 --all's Play run (and --play on a server of your own) installs into a scratch game folder, never a real install
-(--play-install, the server's --install). It holds copies of an LWR install's files at the same places under XEW:
+(--play-install, the server's --install; without it --all makes one in its scratch folder, copying these files of the
+game install the settings name when they come to less than 300 MB, else it skips Play). It holds copies of an LWR
+install's files at the same places under XEW:
   XEW\\XComGame\\Config\\Default*.ini            (DefaultMaps.ini and DefaultLZMutator.ini take the play's record; the
                                               test squad reads DefaultGameCore.ini and DefaultEngine.ini)
   XEW\\XComGame\\CookedPCConsole\\XComGame.upk   (the test squad's game data)
@@ -31,6 +36,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -48,6 +54,27 @@ CAMERA = "(() => ({c: viewer.camera.position.toArray(), t: viewer.controls.targe
 SKIPPED = []
 # What a check gives back when it skipped itself whole: the report lists it as skipped, not as ran too.
 WHOLE = object()
+# This run's mark, in the names of what the checks save (projects, prefabs): a check run again against the same
+# projects folder saves under names of its own, not the last run's.
+RUN = f'{int(time.time()) % 1_000_000:06d}'
+# The server's answers of status 500 and above that any check's page met, with their address and the check (a console
+# error says only "the server responded with a status of 500"): watch_answers records them, the report lists them and
+# a failure prints them. CURRENT names the check running.
+SERVER_ERRORS = []
+CURRENT = dict(check=None)
+
+
+def watch_answers(page):
+    """The page, its answers of status 500 and above recorded in SERVER_ERRORS from now on."""
+    page.on('response', lambda r: SERVER_ERRORS.append(dict(check=CURRENT['check'], status=r.status, method=r.request.method, url=r.url))
+            if r.status >= 500 else None)
+    return page
+
+
+def print_server_errors():
+    if SERVER_ERRORS:
+        print('Answers of status 500 and above during the run:\n' + '\n'.join(
+            f"  {e['status']} {e['method']} {e['url']} ({e['check'] or 'opening the map'})" for e in SERVER_ERRORS), file=sys.stderr, flush=True)
 
 
 def skip(check, reason, page=None, whole=False):
@@ -622,8 +649,9 @@ def check_destruction(page, is_bar):
 
 
 def check_adding(page, is_bar):
-    """Trial copies and deletions on the selected piece: copy, paste through the placing preview, undo/redo, delete
-    and Reset all."""
+    """Trial copies and deletions on a piece it picks (typed-pose's): copy, paste through the placing preview,
+    undo/redo, delete and Reset all."""
+    page.evaluate('id => viewer.select(id)', own_piece(page, is_bar))
     count = page.evaluate('viewer.roots.size')
     group = page.evaluate('viewer.gizmo.selection().length')
     original = page.evaluate('viewer.gizmo.active')
@@ -2136,7 +2164,7 @@ def check_library_all(browser, url):
     state = page.evaluate('viewer.projectState()')
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
-    type_project_name(page, 'Library smoke')
+    type_project_name(page, f'Library smoke {RUN}')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     project = page.evaluate('viewer.project().id')
@@ -2161,7 +2189,7 @@ def check_library_all(browser, url):
     page.locator('#buildOptionsOk').click()
     page.locator('#buildModal').wait_for(state='visible')
     page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=300000)
-    assert page.locator('#buildTitle').inner_text().startswith('Built Library smoke'), page.locator('#buildModal').inner_text()
+    assert page.locator('#buildTitle').inner_text().startswith(f'Built Library smoke {RUN}'), page.locator('#buildModal').inner_text()
     steps = page.locator('#buildSteps').inner_text()
     assert 'Bring the pieces from other maps' in steps and '1 piece from URB_PoliceStation' in steps, steps
     build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
@@ -2236,6 +2264,12 @@ def check_library_effects(browser, url):
     page.locator('#libAllKind').select_option('effects')
     page.locator('#libAllFilter').fill('Fire')
     page.wait_for_function("[...document.querySelectorAll('#libAllList .libitem canvas')].some(c => c.dataset.likeness)", timeout=120000)
+    # The pane hides on its row's mouseleave. The list is drawn again (its rows put back) whenever its size changes,
+    # which the busy row under it does while the pictures in view are read and drawn; the one time the wait for the
+    # pane to hide timed out (1 of 76 hovers, five pages at once), the list had been drawn again during that hover. So
+    # the pointer goes on a row once the list has settled: every picture in view drawn, none being read.
+    page.wait_for_function("[...document.querySelectorAll('#libAllList .libitem canvas')].every(c => c.dataset.drawn)"
+                           " && document.querySelector('#libAll .busyrow').hidden", timeout=120000)
     key = page.evaluate("document.querySelector('#libAllList .libitem canvas[data-likeness]').closest('.libitem').dataset.key")
     row = page.locator(f'#libAllList .libitem[data-key="{key}"]')
     row.hover()
@@ -2298,7 +2332,7 @@ def check_library_effects(browser, url):
     state = page.evaluate('viewer.projectState()')
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
-    type_project_name(page, 'Library effects smoke')
+    type_project_name(page, f'Library effects smoke {RUN}')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     project = page.evaluate('viewer.project().id')
@@ -2313,7 +2347,7 @@ def check_library_effects(browser, url):
     page.locator('#buildOptionsOk').click()
     page.locator('#buildModal').wait_for(state='visible')
     page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=300000)
-    assert page.locator('#buildTitle').inner_text().startswith('Built Library effects smoke'), page.locator('#buildModal').inner_text()
+    assert page.locator('#buildTitle').inner_text().startswith(f'Built Library effects smoke {RUN}'), page.locator('#buildModal').inner_text()
     steps = page.locator('#buildSteps').inner_text()
     assert 'Bring the pieces from other maps' in steps and '2 effects and sounds from' in steps, steps
     build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
@@ -2417,7 +2451,7 @@ def check_effect_values(browser, url):
     state = page.evaluate('viewer.projectState()')
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
-    type_project_name(page, 'Effect values smoke')
+    type_project_name(page, f'Effect values smoke {RUN}')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     project = page.evaluate('viewer.project().id')
@@ -2429,7 +2463,7 @@ def check_effect_values(browser, url):
     page.locator('#buildOptionsOk').click()
     page.locator('#buildModal').wait_for(state='visible')
     page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=300000)
-    assert page.locator('#buildTitle').inner_text().startswith('Built Effect values smoke'), page.locator('#buildModal').inner_text()
+    assert page.locator('#buildTitle').inner_text().startswith(f'Built Effect values smoke {RUN}'), page.locator('#buildModal').inner_text()
     build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
     assert build['state'] == 'built', build
     page.locator('#buildClose').click()
@@ -3305,17 +3339,26 @@ def check_effects_editing(page):
     built (serve --family effect --family sound): a typed move and Delete are undo steps; a copy pastes as a copy of
     the effect, its hint naming an effect; the normal view's Effects and sounds switch draws and picks them with
     pieces; a piece and an effect grouped move together; an effect a piece carries follows it, and Keep where it is
-    keeps it where the map has it. Everything is undone at the end, and the selection it found selected again."""
+    keeps it where the map has it. Everything is undone at the end, and the selection it found selected again; the
+    snap setting it found is put back on every way out (a skip, an effect that is view only, a failure)."""
     if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"):
         return skip('effects', 'effect edits: needs a map (not a preview) of export 28 or later', whole=True)
+    snap = page.evaluate('viewer.gizmo.snap')
+    page.evaluate("viewer.gizmo.setSnap('off')")
+    try:
+        return effects_editing(page, snap)
+    finally:
+        if not page.is_closed(): page.evaluate('s => viewer.gizmo.setSnap(s)', snap)
+
+
+def effects_editing(page, snap):
+    """check_effects_editing's edits, with the snap off (`snap`: the setting it found, put back as it ends)."""
     held = page.evaluate('viewer.gizmo.active')
     blur = lambda: page.evaluate('document.activeElement?.blur()')
     state = lambda id: page.evaluate('id => { viewer.effectMarkers(); return viewer.effectState(id); }', id)
     # a drag of the gizmo along game X, as TransformControls makes one (an effect's panel has no pose fields)
     drag = lambda dx: page.evaluate('''dx => { const c = viewer.gizmo.controls, p = c.object; c.dispatchEvent({type: 'mouseDown'});
         p.position.x += dx; p.updateMatrixWorld(true); c.dispatchEvent({type: 'objectChange'}); c.dispatchEvent({type: 'mouseUp'}); }''', dx)
-    snap = page.evaluate('viewer.gizmo.snap')
-    page.evaluate("viewer.gizmo.setSnap('off')")
     fx = page.evaluate("""[...viewer.effectRoots.values()].map(r => r.userData.source).find(o => o.kind === 'effect' && !o.stream
         && !o.carriedBy && !o.landingActor && o.can?.move && o.can?.delete && o.can?.copy)?.id ?? null""")
     if not fx: return skip('effects', 'effect edits: the map has no effect that can be moved, copied and deleted', whole=True)
@@ -3651,7 +3694,7 @@ def check_library_flares(browser, url):
     records = page.evaluate("(() => { const r = viewer.prefabRecords(); return { pieces: r.pieces, left: r.left, counts: r.counts, donors: r.donors }; })()")
     assert records['left'] == [] and records['counts']['flares'] == 2 and records['counts']['pieces'] == 0, records
     assert sorted(d['package'] for d in records['donors']) == sorted(['URB_Bar', entry['source']['package']])
-    saved = page.evaluate("viewer.savePrefab('Smoke flares').then(s => ({ id: s.id, revision: s.revision }))")
+    saved = page.evaluate("n => viewer.savePrefab(n).then(s => ({ id: s.id, revision: s.revision }))", f'Smoke flares {RUN}')
     listed = page.evaluate("fetch('/prefabs.json').then(r => r.json())")['prefabs']
     prefab, = [p for p in listed if p['id'] == saved['id']]
     assert (prefab['pieces'], prefab['effects'], prefab['sounds'], prefab['flares']) == (0, 0, 0, 2), prefab
@@ -3660,7 +3703,7 @@ def check_library_flares(browser, url):
     page.keyboard.press('p')
     choose(page, 'libScope', 'prefabs')
     page.wait_for_selector('#prefabList .libitem')
-    item = page.locator('#prefabList .libitem', has_text='Smoke flares')
+    item = page.locator('#prefabList .libitem', has_text=f'Smoke flares {RUN}')
     assert '2 lens flares' in item.inner_text(), item.inner_text()
     fxs = page.evaluate('viewer.effectRoots.size')
     item.click()
@@ -3677,7 +3720,7 @@ def check_library_flares(browser, url):
     state = page.evaluate('viewer.projectState()')
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
-    type_project_name(page, 'Library flares smoke')
+    type_project_name(page, f'Library flares smoke {RUN}')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     project = page.evaluate('viewer.project().id')
@@ -3689,7 +3732,7 @@ def check_library_flares(browser, url):
     page.locator('#buildOptionsOk').click()
     page.locator('#buildModal').wait_for(state='visible')
     page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=600000)
-    assert page.locator('#buildTitle').inner_text().startswith('Built Library flares smoke'), page.locator('#buildModal').inner_text()
+    assert page.locator('#buildTitle').inner_text().startswith(f'Built Library flares smoke {RUN}'), page.locator('#buildModal').inner_text()
     steps = page.locator('#buildSteps').inner_text()
     assert f"1 lens flare from {entry['source']['package']}" in steps, steps
     build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
@@ -4278,10 +4321,12 @@ def check_projects(browser, url):
     """Projects (first-editor plan E1). Only against a test server whose --projects is a scratch folder: it saves
     projects there. Saving, reopening identically, recovery after a lost tab, a stale save refused and overwritten,
     a project of the untouched map, and edits naming pieces this export lacks kept unchanged. Then the Save dialog
-    replacing a project and renaming the open one, the Load dialog, and the recent list."""
+    replacing a project and renaming the open one, the Load dialog, and the recent list. Its projects are named after
+    the run (RUN), so it runs again against the same folder, after other checks' projects too."""
     errors = []
     page = open_viewer(browser, url, errors, expected=(409,))
     if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'): return skip('projects', 'needs a map, not a preview', page, whole=True)
+    before = {p['id'] for p in page.evaluate("fetch('/projects.json').then(r => r.json())")['projects']}
     visible = page.evaluate("[...viewer.roots.keys()].filter(id => { const r = viewer.roots.get(id), o = r.userData.source;"
                             " return r.visible && !o.hidden && viewer.gizmo.linkedCount(id) === 0 && !viewer.recipeOf(id); })")
     linked = page.evaluate("[...viewer.roots.keys()].find(id => viewer.roots.get(id).visible && viewer.gizmo.linkedCount(id) >= 1)")
@@ -4306,11 +4351,11 @@ def check_projects(browser, url):
     page.wait_for_selector('#fileDialog:not([hidden])')
     assert page.locator('#fileTitle').inner_text() == 'Save project' and page.locator('#fileName').input_value() == ''
     assert page.locator('#fileOk').is_disabled()
-    shown = type_project_name(page, 'Smoke test project')
+    shown = type_project_name(page, f'Smoke test project {RUN}')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     first = page.evaluate('viewer.project().id')
-    assert f'project={first}' in page.url and page.locator('#projectTitle').inner_text() == 'Smoke test project'
+    assert f'project={first}' in page.url and page.locator('#projectTitle').inner_text() == f'Smoke test project {RUN}'
     assert 'saved' in page.locator('#editCount').inner_text() and 'unsaved' not in page.locator('#editCount').inner_text()
     doc = page.evaluate('viewer.project().doc')
     # The project's name as one word, at most 24 characters (numbered when another project has it), as the dialog
@@ -4329,7 +4374,7 @@ def check_projects(browser, url):
     page.keyboard.press('Control+b')
     page.wait_for_selector('#buildOptions:not([hidden])')
     assert not page.locator('#buildBake').is_checked()
-    assert page.locator('#buildOptionsTitle').inner_text() == 'Build Smoke test project'
+    assert page.locator('#buildOptionsTitle').inner_text() == f'Build Smoke test project {RUN}'
     assert page.locator('#buildOptionsNote').inner_text().startswith('Revision 1, as saved')
     page.wait_for_function("document.activeElement?.id === 'buildOptionsOk'")
     assert page.locator('#buildOptionsOk').inner_text() == 'Build' and page.locator('#buildOptionsLast').is_hidden()
@@ -4371,9 +4416,9 @@ def check_projects(browser, url):
     # A project of the untouched map: Reset all, then Save as… a new name; it reopens with no edits and its own names.
     # The Save dialog starts on the open project: its name typed in, its row chosen and marked open.
     page.locator('#editResetAll').click()
-    save_dialog(page, 'Smoke test project')
+    save_dialog(page, f'Smoke test project {RUN}')
     assert page.locator('.filerow.on').get_attribute('data-id') == first and 'open' in page.locator('.filerow.on').inner_text()
-    type_project_name(page, 'Smoke test empty')
+    type_project_name(page, f'Smoke test empty {RUN}')
     assert page.locator('.filerow.on').count() == 0
     page.locator('#fileName').press('Enter')
     page.wait_for_function('id => viewer.project()?.id !== id && viewer.project().revision === 1', arg=first)
@@ -4381,7 +4426,7 @@ def check_projects(browser, url):
     assert empty['doc']['output']['shipAs'] != doc['output']['shipAs']
     page.goto(project_url(page, empty['id']))
     page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=120000)
-    assert page.evaluate('viewer.changes().total') == 0 and page.evaluate('viewer.project().name') == 'Smoke test empty'
+    assert page.evaluate('viewer.changes().total') == 0 and page.evaluate('viewer.project().name') == f'Smoke test empty {RUN}'
     # Records naming pieces this export does not have are kept, noted, and saved back unchanged.
     status = page.evaluate("""async id => {
       const doc = await (await fetch(`/projects/${id}/project.json`)).json();
@@ -4411,7 +4456,7 @@ def check_projects(browser, url):
     page.evaluate('id => viewer.select(id)', visible[20])
     type_pose(page, 'posX', -96)
     replaced = page.evaluate('viewer.projectState()')
-    save_dialog(page, 'smoke TEST project')
+    save_dialog(page, f'smoke TEST project {RUN}')
     assert page.locator('.filerow.on').get_attribute('data-id') == first
     page.locator('#fileName').press('Enter')
     assert 'already exists' in page.locator('#fileConfirm').inner_text()
@@ -4422,23 +4467,24 @@ def check_projects(browser, url):
     page.locator('#fileConfirm button.primary').click()
     page.wait_for_function('id => viewer.project()?.id === id && viewer.project().revision === 5 && !viewer.project().dirty', arg=first)
     now = page.evaluate('viewer.project()')
-    assert now['name'] == 'smoke TEST project' and now['doc']['output'] == doc['output'] and f'project={first}' in page.url
+    assert now['name'] == f'smoke TEST project {RUN}' and now['doc']['output'] == doc['output'] and f'project={first}' in page.url
     assert page.evaluate('viewer.projectState()') == replaced
     assert page.evaluate("id => fetch(`/projects/${id}/project.json`).then(r => r.json())", empty['id'])['revision'] == 3
     # The open project's own name in another case saves its next revision, renamed, without a confirm.
-    save_dialog(page, 'Smoke Test Project')
+    save_dialog(page, f'Smoke Test Project {RUN}')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 6')
-    assert page.evaluate('viewer.project()')['name'] == 'Smoke Test Project' and page.evaluate('viewer.project().id') == first
-    # Each project is one file named after it, renamed with it (the case too).
-    files = {p['id']: p['file'] for p in page.evaluate("fetch('/projects.json').then(r => r.json())")['projects']}
-    assert files == {first: 'Smoke Test Project.json', empty['id']: 'Smoke test empty.json'}, files
+    assert page.evaluate('viewer.project()')['name'] == f'Smoke Test Project {RUN}' and page.evaluate('viewer.project().id') == first
+    # Each project is one file named after it, renamed with it (the case too): the two this check saved, beside what
+    # the folder held before it
+    files = {p['id']: p['file'] for p in page.evaluate("fetch('/projects.json').then(r => r.json())")['projects'] if p['id'] not in before}
+    assert files == {first: f'Smoke Test Project {RUN}.json', empty['id']: f'Smoke test empty {RUN}.json'}, files
     # Ctrl+O, the Load dialog: it starts on the open project; typing finds another; Enter opens it.
     page.evaluate('document.activeElement && document.activeElement.blur()')
     page.keyboard.press('Control+o')
     page.wait_for_selector('#fileDialog:not([hidden]) .filerow')
     assert page.locator('.filerow.on').get_attribute('data-id') == first
-    page.locator('#fileName').fill('smoke test em')
+    page.locator('#fileName').fill(f'smoke test empty {RUN}')
     assert page.locator('.filerow.on').get_attribute('data-id') == empty['id']
     page.locator('#fileName').press('Enter')
     wait_opened(page, empty['id'])
@@ -4454,16 +4500,10 @@ def check_projects(browser, url):
     assert not errors, errors
 
 
-def check_prepare(browser, url, project_id=None):
-    """The prepare-again dialog, with the server's answers stood in for (no map is exported): a map whose export is
-    older than building needs opens with the dialog in the middle of the window; Later (or Esc) leaves a banner that
-    opens it again; Prepare now shows the export's progress and reopens the map. With project_id (a saved project on
-    this map, on a test server with scratch builds: a quick build of it really runs): Build asks to prepare instead
-    of building; and a build that failed for want of a newer export offers Prepare the map, which starts it."""
-    errors = []
-    old = dict(on=True)
-    asked = dict(count=0)
-
+def stand_in_export(page, old, asked):
+    """The server's answers about the map's export stood in for on `page` (no map is exported): while old['on'], the
+    families say the export is older than building needs; a prepare's export starts at once and reports 40% until its
+    third status read (asked['count']), then ready."""
     def families(route):
         answer = route.fetch()
         body = answer.json()
@@ -4478,16 +4518,25 @@ def check_prepare(browser, url, project_id=None):
         asked['count'] += 1
         route.fulfill(json=dict(state='running', progress=dict(fraction=0.4)) if asked['count'] < 3 else dict(state='ready'))
 
-    def routed(page):
-        page.route('**/maps/*/families.json', families)
-        page.route('**/maps/*/export', export)
-        page.route('**/maps/*/export.json', export_status)
+    page.route('**/maps/*/families.json', families)
+    page.route('**/maps/*/export', export)
+    page.route('**/maps/*/export.json', export_status)
 
+
+def check_prepare(browser, url, project_id=None):
+    """The prepare-again dialog, with the server's answers stood in for (no map is exported): a map whose export is
+    older than building needs opens with the dialog in the middle of the window; Later (or Esc) leaves a banner that
+    opens it again; Prepare now shows the export's progress and reopens the map. With project_id (a saved project on
+    this map, on a test server with scratch builds: a quick build of it really runs): Build asks to prepare instead
+    of building; and a build that failed for want of a newer export offers Prepare the map, which starts it."""
+    errors = []
+    old = dict(on=True)
+    asked = dict(count=0)
     page = browser.new_page(viewport=dict(width=1600, height=1000), device_scale_factor=1)
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
     page.on('dialog', lambda d: d.accept())
-    routed(page)
+    stand_in_export(page, old, asked)
     page.goto(url)
     page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=120000)
     modal = page.locator('#prepareModal')
@@ -4565,6 +4614,101 @@ def check_prepare(browser, url, project_id=None):
                                timeout=120000)
     page.close()
     assert not errors, errors
+
+
+def check_prepare_routes(browser, url):
+    """Build's routes into Prepare (the refactor's follow-ups, item 4.8), for a project saved here (named after the run)
+    with the server's answers stood in for, so that no Build runs and no map is exported: while the export is older
+    than building needs, Build (Ctrl+B) asks to prepare the map instead of opening its panel (needsPrepare); and a
+    build that stopped for want of a newer export (the build's status answered: failed, code export-missing) offers
+    Prepare the map in its window, which starts the prepare at once and opens the map again when it is ready."""
+    errors = []
+    page = open_viewer(browser, url, errors)
+    piece = page.evaluate("[...viewer.roots.values()].find(r => r.visible && !r.userData.source.added && !r.userData.source.hidden"
+                          " && !r.userData.source.environment)?.userData.source.id")
+    page.evaluate('id => viewer.select(id)', piece)
+    type_pose(page, 'posX', 96)
+    page.keyboard.press('Control+s')
+    page.wait_for_selector('#fileDialog:not([hidden])')
+    type_project_name(page, f'Prepare routes check {RUN}')
+    page.locator('#fileName').press('Enter')
+    page.wait_for_function('viewer.project()?.revision === 1')
+    project = page.evaluate('viewer.project()')
+    page.close()
+    old, asked, started = dict(on=True), dict(count=0), dict(count=0)
+    page = browser.new_page(viewport=dict(width=1600, height=1000), device_scale_factor=1)
+    page.on('pageerror', lambda e: errors.append(str(e)))
+    page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
+    page.on('dialog', lambda d: d.accept())
+    stand_in_export(page, old, asked)
+    job = dict(project=project['id'], name=project['name'], revision=1, variant=project['doc']['output']['shipAs'], quick=True,
+               state='running', attempt='prepare-routes-check', origin='page', stage=None, stages=[], lines=[],
+               startedAt='2026-11-21T00:00:00Z', finishedAt=None, error=None, errorCode=None, running=None, progress=None)
+
+    def build(route):
+        # a build asked for: answered as started, nothing run
+        if route.request.method != 'POST': return route.continue_()
+        started['count'] += 1
+        status = json.loads(urllib.request.urlopen(url.split('?')[0] + f"projects/{project['id']}/build.json", timeout=30).read())
+        route.fulfill(json=dict(status, state='running', job=job))
+
+    def build_status(route):
+        # its status: stopped for want of a newer export (compiler.ExportMissing's code, builds.py's errorCode)
+        answer = route.fetch()
+        error = ('no export of URB_Bar with SHA-256 0123 at version 18 or newer in <cache>: prepare the map (re-export it: '
+                 'the map browser\'s Prepare, or python tools/viewer/viewer.py export "<game>/x.upk" --scope map) and restart the editor')
+        route.fulfill(response=answer, json=dict(answer.json(), state='failed', job=dict(job, state='failed', error=error, errorCode='export-missing',
+                                                                                          finishedAt='2026-11-21T00:00:05Z')))
+
+    modal = page.locator('#prepareModal')
+    page.goto(url.split('?')[0] + f"?map={project['doc']['source']['map']}&project={project['id']}")
+    page.wait_for_function("id => window.viewer && document.querySelector('#loading').hidden && viewer.project()?.id === id", arg=project['id'], timeout=120000)
+    # the map opens with the dialog (the export too old); Later
+    modal.wait_for(state='visible')
+    page.locator('#prepareLater').click()
+    modal.wait_for(state='hidden')
+    # Build asks to prepare the map instead of opening its panel; Later again
+    page.evaluate('document.activeElement?.blur?.()')
+    page.keyboard.press('Control+b')
+    modal.wait_for(state='visible')
+    assert 'can\'t be built yet' in page.locator('#prepareNote').inner_text(), page.locator('#prepareNote').inner_text()
+    assert page.locator('#buildOptions').is_hidden() and started['count'] == 0
+    page.locator('#prepareLater').click()
+    modal.wait_for(state='hidden')
+    # the export new enough as far as the page knows: Build's panel opens, and the build it starts stops for want of a
+    # newer export; its window offers Prepare the map (the button that matters), which starts the prepare at once
+    old['on'] = False
+    page.route('**/projects/*/build', build)
+    page.route('**/projects/*/build.json', build_status)
+    page.reload()
+    page.wait_for_function("id => window.viewer && document.querySelector('#loading').hidden && viewer.project()?.id === id", arg=project['id'], timeout=120000)
+    assert modal.is_hidden()
+    page.evaluate('document.activeElement?.blur?.()')
+    page.keyboard.press('Control+b')
+    page.wait_for_selector('#buildOptions:not([hidden])')
+    page.wait_for_function("document.activeElement?.id === 'buildOptionsOk'")
+    page.keyboard.press('Enter')
+    page.locator('#buildModal').wait_for(state='visible')
+    page.locator('#buildPrepare').wait_for(state='visible', timeout=60000)
+    assert started['count'] == 1
+    assert 'Prepare the map again, then build' in page.locator('#buildResult').inner_text(), page.locator('#buildResult').inner_text()
+    assert 'primary' not in (page.locator('#buildClose').get_attribute('class') or '').split()
+    asked['count'] = 0
+    page.locator('#buildPrepare').click()
+    page.locator('#buildModal').wait_for(state='hidden')
+    modal.wait_for(state='visible')
+    assert 'why it stopped' in page.locator('#prepareNote').inner_text(), page.locator('#prepareNote').inner_text()
+    assert page.locator('#prepareLater').is_hidden() and page.locator('#prepareOk').is_disabled()
+    page.wait_for_function("document.querySelector('#prepareStatus').textContent.includes('40%')", timeout=20000)
+    # prepared: the page opens again on the project
+    page.wait_for_function("id => window.viewer && document.querySelector('#loading').hidden && viewer.project()?.id === id && "
+                           "document.querySelector('#prepareModal').hidden", arg=project['id'], timeout=120000)
+    page.close()
+    # nothing was built: the server's own status of the project has no job
+    status = json.loads(urllib.request.urlopen(url.split('?')[0] + f"projects/{project['id']}/build.json", timeout=30).read())
+    assert status['state'] == 'idle' and not status['job'], status
+    assert not errors, errors
+    return dict(project=project['id'], builds=started['count'])
 
 
 def check_play(browser, url, project_id=None, screenshot=None):
@@ -5031,7 +5175,7 @@ def prefab_library(browser, url):
     page.keyboard.press('p')
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
-    type_project_name(page, 'Prefab smoke')
+    type_project_name(page, f'Prefab smoke {RUN}')
     page.locator('#fileName').press('Enter')
     page.wait_for_function('viewer.project()?.revision === 1')
     project = page.evaluate('viewer.project().id')
@@ -5047,7 +5191,7 @@ def prefab_library(browser, url):
     page.locator('#buildOptionsOk').click()
     page.locator('#buildModal').wait_for(state='visible')
     page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=600000)
-    assert page.locator('#buildTitle').inner_text().startswith('Built Prefab smoke'), page.locator('#buildModal').inner_text()
+    assert page.locator('#buildTitle').inner_text().startswith(f'Built Prefab smoke {RUN}'), page.locator('#buildModal').inner_text()
     build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
     assert build['state'] == 'built' and build['package']['foreignPieces'] == ids['cars'] + 1, build
     assert [d['map'] for d in build['package']['donors']] == [here], build['package']['donors']
@@ -5057,6 +5201,20 @@ def prefab_library(browser, url):
 
 
 def check_prefab_effects(browser, url):
+    """The prefab-effects check (prefab_effects), then the prefabs it made deleted, whether it passed or not, as
+    check_prefabs does: a failure leaves no prefab behind for the prefab library check, which wants a fresh folder."""
+    base = url.split('?')[0]
+    listed = lambda: json.loads(urllib.request.urlopen(base + 'prefabs.json', timeout=30).read())['prefabs']   # noqa: E731
+    before = {p['id'] for p in listed()}
+    try:
+        return prefab_effects(browser, url)
+    finally:
+        for p in listed():
+            if p['id'] not in before:
+                urllib.request.urlopen(urllib.request.Request(base + f"prefabs/{quote(p['id'])}/prefab.json", method='DELETE'), timeout=30)
+
+
+def prefab_effects(browser, url):
     """Effects and sounds in a prefab (effects and sounds plan, stage FX6a), on URB_Bar against check_prefabs' kind of
     test server, after it (its prefab is deleted at the end): a prop, a free effect and a sound grouped and saved as
     a prefab (schema 3, each of its kind with its source, counted, no footprint from the sound's reach); placed in
@@ -5093,7 +5251,7 @@ def check_prefab_effects(browser, url):
     assert max(records['tiles']) <= reach, (records['tiles'], reach)
     assert len(records['groups']) == 1 and sorted(m['added'] for m in records['groups'][0]['members']) == sorted(p['actor'] for p in records['pieces'])
     assert [d['package'] for d in records['donors']] == [here]
-    saved = page.evaluate("viewer.savePrefab('Smoke effects').then(s => ({ id: s.id, revision: s.revision }))")
+    saved = page.evaluate("n => viewer.savePrefab(n).then(s => ({ id: s.id, revision: s.revision }))", f'Smoke effects {RUN}')
     listed = lambda: page.evaluate("fetch('/prefabs.json').then(r => r.json())")['prefabs']
     row, = [p for p in listed() if p['id'] == saved['id']]
     assert (row['pieces'], row['lights'], row['effects'], row['sounds'], row['maps']) == (1, 0, 1, 1, [here]), row
@@ -5102,11 +5260,11 @@ def check_prefab_effects(browser, url):
     page.keyboard.press('p')
     choose(page, 'libScope', 'prefabs')
     page.wait_for_selector('#prefabList .libitem')
-    assert '1 piece, 1 effect and 1 sound' in page.locator('#prefabList .libitem', has_text='Smoke effects').inner_text()
+    assert '1 piece, 1 effect and 1 sound' in page.locator('#prefabList .libitem', has_text=f'Smoke effects {RUN}').inner_text()
 
     def place(page):
         count, fxs = page.evaluate('viewer.roots.size'), page.evaluate('viewer.effectRoots.size')
-        page.locator('#prefabList .libitem', has_text='Smoke effects').click()
+        page.locator('#prefabList .libitem', has_text=f'Smoke effects {RUN}').click()
         page.wait_for_function('viewer.placing()?.fromList', timeout=180000)
         page.evaluate("viewer.frame('playable')")
         canvas = page.locator('#viewport > canvas').bounding_box()
@@ -5122,7 +5280,7 @@ def check_prefab_effects(browser, url):
         assert sorted(a.get('kind', 'piece') for a in added) == ['effect', 'piece', 'sound'], added
         assert all(a['from']['package'] == here for a in added) and {a['from']['actor'] for a in added if a.get('kind')} == {ids['fxActor'], ids['sndActor']}
         marked, = [g for g in page.evaluate('viewer.groupList()') if g['prefab']]
-        assert marked['prefab']['name'] == 'Smoke effects' and len(marked['members']) == 3, marked
+        assert marked['prefab']['name'] == f'Smoke effects {RUN}' and len(marked['members']) == 3, marked
         return added
 
     here_added = place(page)
@@ -5147,7 +5305,7 @@ def check_prefab_effects(browser, url):
             page.keyboard.press('p')
             page.keyboard.press('Control+s')
             page.wait_for_selector('#fileDialog:not([hidden])')
-            type_project_name(page, 'Prefab effects smoke')
+            type_project_name(page, f'Prefab effects smoke {RUN}')
             page.locator('#fileName').press('Enter')
             page.wait_for_function('viewer.project()?.revision === 1')
             project = page.evaluate('viewer.project().id')
@@ -5159,7 +5317,7 @@ def check_prefab_effects(browser, url):
             page.locator('#buildOptionsOk').click()
             page.locator('#buildModal').wait_for(state='visible')
             page.wait_for_function("!document.getElementById('buildTitle').textContent.startsWith('Building')", timeout=600000)
-            assert page.locator('#buildTitle').inner_text().startswith('Built Prefab effects smoke'), page.locator('#buildModal').inner_text()
+            assert page.locator('#buildTitle').inner_text().startswith(f'Built Prefab effects smoke {RUN}'), page.locator('#buildModal').inner_text()
             build = page.evaluate("id => fetch(`/projects/${id}/build.json`).then(r => r.json())", project)
             donor, = build['package']['donors']
             assert build['state'] == 'built' and donor['map'] == here and donor['effects'] == 2 and build['package']['foreignPieces'] == 1, build['package']
@@ -5250,6 +5408,13 @@ def check_map_lights(ctx):
     assert page.evaluate("viewer.sun.intensity > 0 && viewer.hemisphere.intensity > 0")
 
 
+def own_piece(page, is_bar):
+    """The piece typed-pose and adding pick: a dumpster on the Bar, else the first of the map's drawn pieces' meshes."""
+    term = 'Dumpster_A' if is_bar else page.evaluate("viewer.data.meshes[viewer.data.objects.find(o=>!o.hidden && !o.environment).mesh].name.split('.').at(-1)")
+    return page.evaluate("term => [...viewer.roots].find(([, r]) => !r.userData.source.hidden && !r.userData.source.environment"
+                         " && viewer.data.meshes[r.userData.source.mesh].name.endsWith(term))[0]", term)
+
+
 def check_typed_pose(ctx):
     """A picked piece opens its panel; a typed position moves the selection without turning it, as one undo step, and
     so does a typed yaw."""
@@ -5258,9 +5423,7 @@ def check_typed_pose(ctx):
     assert page.locator('#viewOptions').is_hidden()
     page.evaluate('viewer.select(null)')
     assert page.locator('#inspector').is_hidden() and page.locator('#finder').count() == 0
-    term = 'Dumpster_A' if ctx.is_bar else page.evaluate("viewer.data.meshes[viewer.data.objects.find(o=>!o.hidden && !o.environment).mesh].name.split('.').at(-1)")
-    page.evaluate("term => viewer.select([...viewer.roots].find(([, r]) => !r.userData.source.hidden && !r.userData.source.environment"
-                  " && viewer.data.meshes[r.userData.source.mesh].name.endsWith(term))[0])", term)
+    page.evaluate('id => viewer.select(id)', own_piece(page, ctx.is_bar))
     assert page.locator('#inspector').is_visible() and page.locator("#details h2").inner_text()
     start = page.evaluate('viewer.gizmo.pose()')
     page.locator('#posX').fill(f"{start['location'][0] + 48:.2f}"); page.locator('#posX').press('Enter')
@@ -5646,6 +5809,14 @@ CHECKS = (
           'made walls, floors and ground drawn, edited, saved and built (on the police station)', needs=('projects',), full=False),
     Check('looks', lambda c: __import__('browser_looks').check_looks(c.browser, c.page.url, open_viewer),
           'the look picker (on the police station)', full=False),
+    Check('made-break', lambda c: __import__('browser_walls').check_made_break(c.browser, c.page.url, open_viewer, skip),
+          'Break, Breaks further and Repair on a made wall, floor and roof', when=ON_MAP, full=False),
+    Check('made-openings', lambda c: __import__('browser_walls').check_made_openings(c.browser, c.page.url, open_viewer),
+          'Delete takes out the gap or hole last touched', when=ON_MAP, full=False),
+    Check('rock-corner', lambda c: __import__('browser_walls').check_rock_corner(c.browser, c.page.url, open_viewer),
+          'a rock\'s corner moved with the point gizmo', when=ON_MAP, full=False),
+    Check('room-buttons', lambda c: __import__('browser_walls').check_room_buttons(c.browser, c.page.url, open_viewer),
+          'a room\'s Lower, Taller, Choose... and Plain (on the police station)', when=ON_POLICE, full=False),
     Check('made-prefab', editing('made_prefab'), 'made pieces kept through a prefab', needs=('projects',), full=False),
     Check('modals', editing('modals'), 'dialogs keep the focus and the keys', full=False),
     Check('reset-all', editing('reset_all'), 'Reset all mends a broken piece', full=False),
@@ -5658,6 +5829,10 @@ CHECKS = (
     Check('ladder-floor', editing('ladder_floor'), 'a ladder\'s floor count', full=False),
     Check('small-defects', editing('small_defects'), 'small page defects', full=False),
     Check('grid-panel', editing('grid_panel'), 'the Map grid\'s panel beside the Selected piece panel (1280 and 1024 wide)', full=False),
+    Check('select-kind', editing('select_kind'), 'Select all of a kind on pieces, and their flags set together', when=ON_MAP, full=False),
+    Check('flags-gate', editing('flags_gate'), 'the Flags group asks before opening a prop\'s pathing gate', when=ON_MAP, full=False),
+    Check('prepare-routes', lambda c: check_prepare_routes(c.browser, c.page.url), 'Build\'s routes into Prepare, the build\'s '
+          'status answered by the check (no Build runs)', needs=('projects',), when=ON_MAP, full=False),
     Check('documents', lambda c: __import__('browser_documents').check_all(c.browser, c.page.url),
           'two windows, replacing, failed saves, builds and first opens', needs=('projects',), full=False),
 )
@@ -5694,6 +5869,7 @@ def run_checks(ctx, names):
         if why:
             skip(check.name, why)
             continue
+        CURRENT['check'] = check.name
         try:
             result = check.run(ctx)
         except BaseException as error:
@@ -5723,6 +5899,9 @@ def smoke(args):
     errors = set()
     with sync_playwright() as pw:
         browser = pw.chromium.launch(channel="msedge",headless=True)
+        # every page a check opens (through this browser, in any check module) records its answers of 500 and above
+        new_page = browser.new_page
+        browser.new_page = lambda *a, **k: watch_answers(new_page(*a, **k))
         page = browser.new_page(viewport=dict(width=1600,height=1000),device_scale_factor=1)
         page.on("pageerror",lambda e: errors.add(str(e)))
         page.on("console",lambda msg: errors.add(msg.text) if msg.type == "error" else None)
@@ -5750,18 +5929,29 @@ def smoke(args):
             assert page.evaluate('viewer.roots.size === viewer.data.objects.length + viewer.streamPieces')
             run_checks(ctx, names)
             closing(ctx)
+        except BaseException:
+            print_server_errors()
+            raise
         finally:
             # the report, a check's failure too: what ran before it, what was skipped, and which failed and why
             errors -= EXPECTED
-            asked = [s for s in SKIPPED if s['check'] in names] if args.only else []
             result = dict(**({'only': sorted(names)} if args.only else {}), **ctx.report, ran=ctx.ran, skipped=SKIPPED,
                           **({'failed': ctx.failed} if ctx.failed else {}), results=ctx.results, errors=sorted(errors),
-                          screenshot=str(args.screenshot))
+                          serverErrors=SERVER_ERRORS, screenshot=str(args.screenshot))
             args.screenshot.with_suffix('.json').write_text(json.dumps(result,indent=2),encoding='utf8',newline='\n')
             print(json.dumps(result,indent=2))
         browser.close()
-    if errors: raise SystemExit(1)
-    if asked: raise SystemExit('asked for and skipped: ' + '; '.join(f"{s['check']}: {s['reason']}" for s in asked))
+    if errors:
+        print_server_errors()
+        raise SystemExit(1)
+    # under --only, a check asked for that did nothing (skipped whole, or its server or map can't have it) fails the
+    # run, and so a run in which everything skipped does; a part of a check that skipped is listed, and fails nothing
+    if args.only:
+        parts = [s for s in SKIPPED if s['check'] in ctx.ran]
+        if parts: print('skipped in part: ' + '; '.join(f"{s['check']}: {s['reason']}" for s in parts), flush=True)
+        left = [n for n in sorted(names) if n not in ctx.ran]
+        if left: raise SystemExit('asked for and skipped: ' + '; '.join(
+            f"{n}: {'; '.join(s['reason'] for s in SKIPPED if s['check'] == n) or 'not run'}" for n in left))
 
 
 # --all: everything, on fresh test servers of its own -------------------------------------------------------------------
@@ -5786,9 +5976,10 @@ ALL_RUNS = (
     dict(name='builder', map='URB_Bar', smoke=['--projects', '--only', 'builder,prefab-test']),
     dict(name='editing', map='URB_Bar', smoke=['--projects', '--only', 'made-prefab,modals,reset-all,draw-errors,look-undo,failed-reads,'
                                                                         'let-go,paste-buildings,squad-read,ladder-floor,small-defects,'
-                                                                        'grid-panel']),
+                                                                        'grid-panel,made-break,made-openings,rock-corner,select-kind,'
+                                                                        'flags-gate,prepare-routes']),
     dict(name='documents', map='URB_Bar', smoke=['--projects', '--only', 'documents']),
-    dict(name='police', map='URB_PoliceStation', smoke=['--projects', '--only', 'walls,looks,light-bar']),
+    dict(name='police', map='URB_PoliceStation', smoke=['--projects', '--only', 'walls,looks,room-buttons,light-bar']),
     dict(name='temple', map='TempleShip', smoke=['--only', 'temple-interior,temple-look']),
     dict(name='map-picture', map='URB_Bar', script='browser_map_picture.py'),
     dict(name='maps', map='URB_Bar', script='browser_maps_smoke.py'),
@@ -5841,6 +6032,41 @@ def scratch_cache(root, cache):
     return cache
 
 
+# What a scratch game folder for the Play check holds (the module docstring and --play-install's help list them), at
+# their places under the install, and the most --all copies of the settings' install to make one itself.
+PLAY_FILES = (('XEW/XComGame/Config', 'Default*.ini'), ('XEW/XComGame/CookedPCConsole', 'XComGame.upk'),
+              ('XEW/XComGame/CookedPCConsole', '{map}.upk'), ('XEW/XComGame/Localization/INT', 'XCom*.int'))
+PLAY_COPY_LIMIT = 300 * 2 ** 20
+
+
+def scratch_play_install(root, map_name):
+    """--all's Play run without --play-install: (a scratch game folder in `root`, None) made of copies of the files
+    PLAY_FILES names from the game install the settings name, which is only read; or (None, why not), when they can't
+    be found or come to PLAY_COPY_LIMIT or more."""
+    game = own_game()
+    if not game: return None, 'the settings name no game install to copy the Play check\'s files from'
+    from settings import resolve_game
+    source, note = resolve_game(game)
+    if source is None: return None, f'no game install to copy the Play check\'s files from: {note}'
+    files, missing = [], []
+    for folder, pattern in PLAY_FILES:
+        found = sorted(f for f in (source / folder).glob(pattern.format(map=map_name)) if f.is_file())
+        files += found
+        if not found: missing.append(f'{folder}/{pattern.format(map=map_name)}')
+    if missing: return None, f'{source} has no {", ".join(missing)}'
+    size = sum(f.stat().st_size for f in files)
+    if size >= PLAY_COPY_LIMIT:
+        return None, f'the Play check\'s files of {source} come to {size // 2 ** 20} MB, too many to copy: give --play-install'
+    target = root / 'play-install'
+    for f in files:
+        to = target / f.relative_to(source)
+        to.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(f, to)
+    (target / 'XEW' / 'Binaries').mkdir(parents=True, exist_ok=True)
+    print(f'made the Play check\'s scratch install in {target}: {len(files)} files ({size // 2 ** 20} MB) copied from {source}', flush=True)
+    return target, None
+
+
 def start_server(port, folder, cache, extra=()):
     """A test server on `port` with scratch projects, builds, squad and settings in `folder` (the settings name the
     scratch cache and the user's game install, read only) and --dry-play, so that nothing starts the game."""
@@ -5882,17 +6108,21 @@ def run_all(args):
     checks ran and skipped, with why, and its errors (all.json in the scratch folder)."""
     left = all_covered()
     assert not left, f'--all runs no check called {", ".join(left)}: add it to ALL_RUNS'
-    root = Path(args.scratch) if args.scratch else Path(tempfile.mkdtemp(prefix='workshop-smoke-'))
+    # (whole: the servers run from the repository, and take their folders and the Play install from here)
+    root = (Path(args.scratch) if args.scratch else Path(tempfile.mkdtemp(prefix='workshop-smoke-'))).resolve()
     root.mkdir(parents=True, exist_ok=True)
     print(f'scratch folder: {root}', flush=True)
     cache = scratch_cache(root, args.cache)
     report, failed = [], False
+    play_install = args.play_install
     for k, run in enumerate(ALL_RUNS):
         port, folder = args.ports[k % len(args.ports)], root / run['name']
-        if run.get('play') and not args.play_install:
-            report.append(dict(name=run['name'], skipped='give --play-install <a scratch game folder> (Play installs into it)'))
-            print(f"SKIP {run['name']}: {report[-1]['skipped']}", flush=True)
-            continue
+        if run.get('play') and not play_install:
+            play_install, why = scratch_play_install(root, run['map'])
+            if not play_install:
+                report.append(dict(name=run['name'], skipped=f'{why} (Play installs into a scratch game folder: --play-install)'))
+                print(f"SKIP {run['name']}: {report[-1]['skipped']}", flush=True)
+                continue
         folder.mkdir(parents=True, exist_ok=False)
         url = f"http://127.0.0.1:{port}/?map={run['map']}"
         if 'script' in run:
@@ -5900,7 +6130,7 @@ def run_all(args):
             command += ['--screenshot', str(folder / 'maps.png')] if run['script'] == 'browser_maps_smoke.py' else ['--map', run['map']]
         else:
             command = [sys.executable, '-B', __file__, '--url', url, '--screenshot', str(folder / 'smoke.png'), *run['smoke']]
-        proc, log = start_server(port, folder, cache, ['--install', args.play_install] if run.get('play') else [])
+        proc, log = start_server(port, folder, cache, ['--install', str(play_install)] if run.get('play') else [])
         started = time.time()
         try:
             done = subprocess.run(command, cwd=REPO, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=3600)
@@ -5914,7 +6144,8 @@ def run_all(args):
         shown = folder / 'smoke.json'
         if shown.is_file():
             got = json.loads(shown.read_text(encoding='utf-8'))
-            entry.update(ran=got['ran'], skipped=got['skipped'], errors=got['errors'], **({'failed': got['failed']} if 'failed' in got else {}))
+            entry.update(ran=got['ran'], skipped=got['skipped'], errors=got['errors'], **({'failed': got['failed']} if 'failed' in got else {}),
+                         **({'serverErrors': got['serverErrors']} if got.get('serverErrors') else {}))
         if code != 0:
             failed = True
             entry['last'] = (out.strip().splitlines() or [''])[-1]
@@ -5923,6 +6154,8 @@ def run_all(args):
               f"{len(entry.get('skipped', []))} skipped" + (f"; {entry['failed']['check']} failed" if entry.get('failed') else '')
               + (f": {entry['last']}" if code != 0 else ''), flush=True)
         for s in entry.get('skipped', []): print(f"    skipped {s['check']}: {s['reason']}", flush=True)
+        if code != 0:
+            for e in entry.get('serverErrors', []): print(f"    answered {e['status']}: {e['method']} {e['url']} ({e['check']})", flush=True)
     (root / 'all.json').write_text(json.dumps(report, indent=2), encoding='utf-8', newline='\n')
     print(f'report: {root / "all.json"}')
     if failed: raise SystemExit(1)
@@ -5948,10 +6181,11 @@ def main():
     ap.add_argument("--write-api-names",action="store_true",help="Write window.viewer's names on the Bar, the blank map and in the "
                     "builder, read from the test server --url names, into viewer_api_names.json (what api-names compares), and stop")
     ap.add_argument("--scratch",help="With --all: the folder for the servers' scratch folders and the report (default: a new temporary one)")
-    ap.add_argument("--play-install",help="With --all: a scratch game folder for the Play check (without it, Play is skipped), never a "
-                    "real install. It holds copies of an LWR install's XEW\\XComGame\\Config\\Default*.ini, "
-                    "XEW\\XComGame\\CookedPCConsole\\XComGame.upk and URB_Bar.upk, XEW\\XComGame\\Localization\\INT\\XCom*.int, "
-                    "and an empty XEW\\Binaries folder (where a play writes its commands file)")
+    ap.add_argument("--play-install",help="With --all: a scratch game folder for the Play check, never a real install. It holds copies "
+                    "of an LWR install's XEW\\XComGame\\Config\\Default*.ini, XEW\\XComGame\\CookedPCConsole\\XComGame.upk and "
+                    "URB_Bar.upk, XEW\\XComGame\\Localization\\INT\\XCom*.int, and an empty XEW\\Binaries folder (where a play "
+                    "writes its commands file). Without it, --all makes one in its scratch folder from the game install the "
+                    "settings name (only read), when those files come to less than 300 MB; else Play is skipped")
     ap.add_argument("--cache",help="With --all: a scratch cache holding exports of URB_Bar, URB_PoliceStation, TempleShip and CB2_MP_Blank, and the "
                     "game's library scanned (default: made in the scratch folder); never the user's own")
     args = ap.parse_args()
