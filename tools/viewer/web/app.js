@@ -8,7 +8,6 @@ import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
 import { createSetupDialog, setupApi } from './setup.js';
-import { makeEffectMarker } from './effects_view.js';
 import { viewHeight } from './effects_preview.js';
 import { recordName } from './effects_rules.js';
 import { createPrecache } from './precache.js';
@@ -17,15 +16,15 @@ import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo,
-         floorTileLayer, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, landingZones, lastBuild,
-         lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn,
-         lightsShown, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves, missionPickValue,
-         normalEffects, normalLights, normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pieces, placing,
-         prefabParameter, project, projectMissions, projectSpawnRules, reachShown, roots, selected, setActiveMapId,
-         setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setCleared,
-         setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setGroups,
-         setLandingZones, setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache,
-         setLookPicker, setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
+         floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, groups, landingZones, lastBuild, lastLightSync,
+         leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, lightsShown,
+         likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves, missionPickValue, normalEffects,
+         normalLights, normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project,
+         projectMissions, projectSpawnRules, reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown,
+         setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData,
+         setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setGroups, setLandingZones, setLibrary,
+         setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
+         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
          setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
          setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey,
          setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn,
@@ -78,9 +77,7 @@ import { call } from './api.js';
 import { recall, remember } from './storage.js';
 import { copyText, field, plural, segButton, segmented, short, text } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting } from './lighting.js';
-import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
 import { COVER_KIND } from './cover.js';
 import { TILE } from './constants.js';
 import { loadLooks, lookTags } from './looks.js';
@@ -436,8 +433,6 @@ function projector() {
     return [rect.left + (p.x + 1) / 2 * rect.width, rect.top + (1 - p.y) / 2 * rect.height];
   };
 }
-// (walls, floors, roofs and ground are drawn from the Build menu on the Add button, no longer listed here: B1)
-const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
 // The header's menus (popups.js): one open at a time, a press elsewhere closing it; made before the first area
 // that is given showPop.
 const { showPop } = createPopups({
@@ -592,7 +587,7 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
         showPrefabDialog } = createPrefabPlace({
   $, BUSY_PIECES, PL, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, copyable, effectTemplate,
   flashHint, fromOf, ghostEdges, ghostLine, gltfLoader, isForeignTarget, isStream, libraryTemplate, lightPose,
-  lightsBlocked, madeShape, memberOf, movedMatrix, nextFrame, physicalBox, plural, previewGroup, readEffectRecords,
+  lightsBlocked, madeShape, memberOf, movedMatrix, nextFrame, physicalBox, plural, readEffectRecords,
   readLibraryRecords, recipeLight, recordId, rootName, saveBuilder, selectionGroup, short, templateFor, text, track,
   withStorableCone,
   // (made with the selection, further down: called through, since it is not made yet while this runs)
@@ -602,8 +597,9 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
   boxMatrix: b => boxMatrix(b), coverOf: entity => coverOf(entity),
   coverVersion: (version, type) => coverVersion(version, type), effectViewOnly: (o, cap) => effectViewOnly(o, cap),
   groupTree: (copied, chainOf) => groupTree(copied, chainOf), linkOf: e => linkOf(e), mapChain: key => mapChain(key),
-  matrixBox: matrix => matrixBox(matrix), snapshot: (selection, own) => snapshot(selection, own),
-  startPlacing: (clip, entry) => startPlacing(clip, entry), stopPlacing: () => stopPlacing() });
+  matrixBox: matrix => matrixBox(matrix), previewGroup: (parts, override, frame) => previewGroup(parts, override, frame),
+  snapshot: (selection, own) => snapshot(selection, own), startPlacing: (clip, entry) => startPlacing(clip, entry),
+  stopPlacing: () => stopPlacing() });
 // The map browser's wiring (map_menu.js): a map's name, the list brought up to the server's, the browser made as the
 // page opens, and the Map menu's button and Change map.
 const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMenu({
@@ -761,44 +757,6 @@ function showFileDialog(mode, waitForSave = false) {
 }
 
 // (the last pointer position over the view, for paste, pointer: editor_state.js)
-// A drawn-only copy of some pieces (the placing preview, a piece-list thumbnail) from the loaded meshes and
-// materials, or `override` for every part. It is never picked. parts: { source, matrix }; `frame` moves them all.
-// (Not with the scene's pieces, scene_pieces.js: it falls back on the clipboard's ghost material, made further down.)
-function previewGroup(parts, override, frame) {
-  const group = new THREE.Group();
-  for (const { source, matrix: placed, values, state } of parts) {
-    // (a made piece of a prefab, its donor's source and its numbers: drawn from its made mesh once loaded, prefabClip)
-    const made = state?.generated && !data.meshes[source.mesh]?.made ? madeShape(source, state.generated) : null;
-    const drawn = made?.mesh && loaded(geometryCache, made.mesh) ? made : null, matrix = drawn ? unscaled(placed) : placed;
-    if (source.isEffect) {
-      const holder = new THREE.Group(), marker = makeEffectMarker(source);
-      holder.add(marker); holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
-      group.add(holder);
-      ghostLikeness(holder, source);
-      continue;
-    }
-    if (source.isLight) {
-      const holder = new THREE.Group(), marker = makeMarker(source.kind);
-      paintMarker(marker, values ?? valuesOf(source));
-      marker.scale.setScalar(24); holder.add(marker);
-      holder.matrix.multiplyMatrices(frame, matrix); holder.matrixAutoUpdate = false;
-      group.add(holder);
-      continue;
-    }
-    const mesh = drawn?.mesh ?? source.mesh, materials = drawn?.materials ?? source.materials, gltf = loaded(geometryCache, mesh);
-    if (!gltf) continue;
-    const root = data.meshes[mesh].kind === 'skeletal' ? cloneSkeleton(gltf.scene) : gltf.scene.clone(true);
-    let i = 0;
-    root.traverse(part => {
-      if (!part.isMesh) return;
-      part.material = override ?? loaded(materialCache, materialKey(source, materials[i])[0]) ?? ghostMaterial;
-      part.raycast = () => {}; i++;
-    });
-    root.matrix.multiplyMatrices(frame, matrix); root.matrixAutoUpdate = false;
-    group.add(root);
-  }
-  return group;
-}
 // The building floors a piece is listed on (floor_listings.js): the project's buildings' and the map's own,
 // as the Build lists them, and the key of the pieces' edits.
 const { editedKey, listingsNow, projectListings } = createFloorListings({
@@ -985,18 +943,19 @@ const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNo
 // the Add panel shown and an entry of it placed, and a copy dragged off with Shift; after the cover blocks,
 // whose floor's clearance it reads, and the Buildings view, whose own buildings' layer it reads.
 const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
-        ghostMaterial, groupTree, keepRecipe, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,
-        pasteSnapshot, placeAt, placeMove, setLibraryScope, showPieces, snapshot, startPlacing,
+        groupTree, keepRecipe, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste, pasteSnapshot,
+        pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot, startPlacing,
         stopPlacing } = createClipboard({
   $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots, addRoots, askLineCollision,
   assemblyOf, banner, boundsOf, buildRoots, busy, BUSY_PIECES, busyStart, chosenStorey, cloneGroup, cloneGroups,
-  copyVolumes, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE, floorSupportOf, fromOf,
-  ghostEdges, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness, isForeignTarget,
-  libraryTemplate, lightClip, lightViewOnly, liveFloorIndex, makeVolume, memberOf, memberRecord, newBuildingId,
-  nextFrame, ownerRoot, ownVolumeLayer, partsOf, pasteVolumes, pick, pieceRecipes, plural, prefabPlacementProblem,
-  previewGroup, rayAt, recipeOf, removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged,
-  selectionWords, setLightsShown, setNormalLights, setVolumeBox, short, startSpawnPlacing, startZonePlacing,
-  stopSpawnPlacing, stopZonePlacing, text, tileCorner, volumeBox, world,
+  copyVolumes, coverEntries, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE,
+  floorSupportOf, fromOf, ghostEdges, ghostLikeness, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain,
+  hoverLikeness, isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly, liveFloorIndex, loaded,
+  madeShape, makeVolume, materialCache, materialKey, memberOf, memberRecord, newBuildingId, nextFrame, ownerRoot,
+  ownVolumeLayer, partsOf, pasteVolumes, pick, plural, prefabPlacementProblem, rayAt, recipeOf, removeEffectRoots,
+  removeLightRoots, removeRoots, restingHint, sceneChanged, selectionWords, setLightsShown, setNormalLights,
+  setVolumeBox, short, spawnAddEntries, startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopZonePlacing, text,
+  tileCorner, unscaled, volumeBox, world, zoneEntries,
   // (made further down: called through, since they are not made yet while this runs)
   deleteSelection: quiet => deleteSelection(quiet), stopWallDrawing: () => stopWallDrawing() });
 // The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The

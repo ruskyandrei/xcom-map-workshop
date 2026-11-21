@@ -135,7 +135,9 @@ the selection lined up with a target along the chosen axes (one undo step), the 
 white box on the target. Copy, paste and placing are [`clipboard.js`](tools/viewer/web/clipboard.js)'s: a clip of the
 selection, a clip pasted (new pieces with links, groups and buildings of their own, one undo step), the see-through
 preview that follows the cursor until a click places a copy (with the snaps, Level snap and the recipe snap), the Add
-panel shown with its tab and an entry of it chosen and placed, and a copy dragged off with Shift. The pieces and
+panel shown with its tab and an entry of it chosen and placed with the Add panel's recipes of the areas that make
+them, a copy dragged off with Shift, and a drawn-only copy of some pieces (the preview, the Add panel's thumbnails,
+the look picker's samples) on the clipboard's see-through material where a piece's own is not loaded. The pieces and
 effects of other maps read as templates are [`library_templates.js`](tools/viewer/web/library_templates.js)'s: their
 records read in a few requests, a piece's or an effect's template (its meshes, materials and textures joining the
 page's tables), the templates a project's or a prefab's records name, and what such a piece costs and says; the Add
@@ -555,7 +557,7 @@ where there is one.
   When part of an area's run of code stays in app.js (a helper other areas use, as `projector`, `gameToView` or
   `alongLine`; a constant of app.js's event wiring; a pointer listener that is app.js's pointer handlers', as the Map
   grid's, which write its `pointerStart`; a function that reads a value app.js makes further down that is not a
-  function, as `grabView` (the Effects view's likeness layer) and `previewGroup` (the clipboard's ghost material)),
+  function, as `grabView` (the Effects view's likeness layer)),
   app.js keeps those declarations where they were and makes the factory after them, where the run ended: what the run
   does as the page loads then still happens at the same point among the page's other code. An object a view makes as
   the page loads that a view made before it also uses (the landing zones' layer, which the Spawns view shows too; the
