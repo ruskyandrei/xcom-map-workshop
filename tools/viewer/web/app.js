@@ -14,19 +14,19 @@ import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
-import { activeMapId, allRoots, areaBindings, areaShown, assigning, breaking, builder, builderMode, buildingMeta,
-         cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo, floorTileLayer,
-         ghostDirty, gridDrag, gridTool, groupIndex, groups, landingZones, lastLightSync, leaving, levelSnap, library,
-         libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn, lookPicker, lookPicking, mapBrowser,
-         mapCatalogue, missionMoves, missionPickValue, normalEffects, pickBox, pickDrag, pickedSpawn, pieces, placing,
-         prefabParameter, project, reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown,
-         setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setData, setEffectsDirty, setEffectsOn,
-         setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue,
-         setLiveCache, setLookPicker, setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue,
-         setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setPickedEffect, setPickedSpawnValue, setPieces,
-         setPointer, setPrefabTab, setReachKey, setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick,
-         setTileKey, setTipDirty, setZonesOn, soloOn, spawnPlacing, spawnsOn, stage, streamSet, tipDirty, volumeDrag,
-         volumesOn, wallDrag, wallDrawing, zonePlacing, zonesOn } from './editor_state.js';
+import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, buildingMeta, cachePrefix,
+         cleared, coverDrag, data, effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool,
+         groupIndex, groups, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots,
+         lightsDirty, lightsOn, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue,
+         normalEffects, pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots,
+         selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue,
+         setCachePrefix, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary,
+         setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
+         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
+         setNormalSpawnsValue, setOwnGrid, setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab,
+         setReachKey, setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty,
+         setZonesOn, soloOn, spawnPlacing, spawnsOn, streamSet, tipDirty, volumeDrag, volumesOn, wallDrag, wallDrawing,
+         zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession, projectsAvailable } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -237,29 +237,6 @@ const { flagContract, flagKey, flagSource, resetFlags } = createFlagsPanel({
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), sourceKey: o => sourceKey(o) });
 const poseInputs = ['posX','posY','posZ','rotP','rotY','rotR'].map($);
-// Unsaved changes by kind. A deleted original counts as deleted only; an added piece as added only. A grid of the
-// project's size (stage) and the project's own landing zones count once each.
-function changes() {
-  let moved = 0, added = 0, deleted = 0, lights = 0;
-  const flagged = new Set(), broken = new Set();     // (broken: the map's pieces broken where they stand, E6)
-  for (const root of roots.values()) {
-    if (root.userData.source.added) added++;
-    else if (root.userData.deleted) deleted++;
-    else if (root.userData.edit) moved++;
-    if (!root.userData.source.added && !root.userData.deleted && root.userData.flags) flagged.add(sourceKey(root.userData.source));
-    if (!root.userData.source.added && !root.userData.deleted && !root.userData.edit && root.userData.blasts?.length) broken.add(sourceKey(root.userData.source));
-  }
-  for (const root of lightRoots.values()) if (!isStream(root.userData.source) && root.userData.source.role !== 'area' && lightEdited(root)) lights++;
-  let effects = 0;
-  for (const root of effectRoots.values()) if (effectEdited(root)) effects++;
-  const grid = stage ? 1 : 0, zones = landingZones ? 1 : 0;
-  // the buildings the project saves: its own, and the map's it changed or deleted
-  const built = data ? savedBuildings().length : 0;
-  // a mission's objects moved in their streams (mission types plan, Part E), and the base spawn points edited (SP6)
-  const spawns = [...missionMoves.values()].filter(m => m.stream === null || m.stream === 'copy').length, missions = missionMoves.size - spawns;
-  return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, flags: flagged.size, broken: broken.size,
-           total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + flagged.size + broken.size };
-}
 // After any trial edit, undo or selection: the highlight, the pose fields, the tool states and the edit status.
 // Undo, redo and the "not saved" chip appear only once something has changed.
 // One edit event builds the document's state once (plan "faster editor", P2): while editChanged runs, editState,
@@ -436,10 +413,10 @@ const SESSION = uuid();
 const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
 // The scene to and from a document (document_state.js): the edits on screen as a project records them, and a
 // project's state put on the map.
-const { applyState, editState, projectNote } = createDocumentState({
+const { applyState, changes, editState, projectNote } = createDocumentState({
   $, actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, baseMatrix, buildRoots, builder,
-  clearLightEdits, cloneGroups, editChanged, gizmo, lightState, liveMembers, loadForeignTemplates, memberOf, movedMatrix,
-  plural, removeRoots, sceneChanged, short, sourceKey, templateFor, text,
+  clearLightEdits, cloneGroups, editChanged, gizmo, isStream, lightEdited, lightState, liveMembers, loadForeignTemplates,
+  memberOf, movedMatrix, plural, removeRoots, sceneChanged, short, sourceKey, templateFor, text,
   // (made with the map grid, further down: called through, since they are not made yet while this runs)
   ownSize: () => ownSize(), setStage: next => setStage(next),
   // (made with the cover blocks, further down: called through, since they are not made yet while this runs)
@@ -447,7 +424,7 @@ const { applyState, editState, projectNote } = createDocumentState({
   // (made with the Effects view, further down: called through, since they are not made yet while this runs)
   addEffectRoots: list => addEffectRoots(list), addedEffectOf: entity => addedEffectOf(entity),
   applyEffectRecord: record => applyEffectRecord(record), clearEffectEdits: () => clearEffectEdits(),
-  effectState: (overrides, added) => effectState(overrides, added),
+  effectEdited: root => effectEdited(root), effectState: (overrides, added) => effectState(overrides, added),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
   baseSpawnOf: actor => baseSpawnOf(actor), missionKey: (stream, actor) => missionKey(stream, actor),
   missionOverrides: () => missionOverrides(), setMissionMoves: next => setMissionMoves(next),

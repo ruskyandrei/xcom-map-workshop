@@ -5,7 +5,8 @@
 // naming what this export lacks are given back, to be kept and saved back unchanged. A project's file, its drafts and
 // the prefab builder's document all go through these two (editState keeps editStateNow's answer for one edit event,
 // the edit hub's memo). Before a state is applied, the scene goes back to the map as exported (clearEdits); a note of
-// what the state could not put back goes into the import notes (projectNote).
+// what the state could not put back goes into the import notes (projectNote). The edits on screen are also counted by
+// kind (changes: the edit status, and whether a trial has edits to keep).
 //
 // createDocumentState takes what it needs of app.js as one argument object, when app.js makes it: the roots' makers
 // and readers, the lights', effects' and spawn points' records and their edits cleared, the groups', buildings' and
@@ -14,10 +15,10 @@
 import * as THREE from 'three';
 import { COVER_KIND } from './cover.js';
 import { areaBindings, builderMode, cleared, clearKeepsOutside, copySerial, data, effectRoots, eventMemo, landingZones,
-         library, lightIndex, lightRoots, loadErrorCount, projectMissions, projectPicture, projectSpawnRules, roots,
-         setCleared, setClearKeepsOutside, setCopySerial, setGroups, setLandingZones, setLiveCache, setLoadErrorCount,
-         setMergedBuildings, setProjectMissions, setProjectPicture, setProjectSpawnRules, stage,
-         volumeRoots } from './editor_state.js';
+         library, lightIndex, lightRoots, loadErrorCount, missionMoves, projectMissions, projectPicture,
+         projectSpawnRules, roots, setCleared, setClearKeepsOutside, setCopySerial, setGroups, setLandingZones,
+         setLiveCache, setLoadErrorCount, setMergedBuildings, setProjectMissions, setProjectPicture,
+         setProjectSpawnRules, stage, volumeRoots } from './editor_state.js';
 import { cloneBlasts, optionsOf, recordOf, stateOfRoot } from './piece_records.js';
 import { memberKey, pruneGroups, sortState, targetKey, validBuilding, validPicture, validPrefabMark, validStage } from './project.js';
 import { NEW_VOLUME, SPAWN_COPY_KINDS, copyEntryOf, spawnEntryOf, spawnKey } from './spawns_view.js';
@@ -26,10 +27,11 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
                                       addLightRoots, addRoots, applyEffectRecord, applyLightRecord, baseMatrix,
                                       baseSpawnOf, builder, buildRoots, clearedChanged, clearEffectEdits,
                                       clearLightEdits, cloneGroups, coverOf, coverVersion, drawBroken, editChanged,
-                                      effectState, gizmo, lightState, liveMembers, loadForeignTemplates, mapBreakable,
-                                      memberOf, missionKey, missionOverrides, movedMatrix, ownSize, plural, removeRoots,
-                                      savedBuildings, sceneChanged, setBuildings, setMissionMoves, setStage, short,
-                                      sourceKey, spawnCopyRecords, streamObjects, syncSpawnRule, templateFor, text }) {
+                                      effectEdited, effectState, gizmo, isStream, lightEdited, lightState, liveMembers,
+                                      loadForeignTemplates, mapBreakable, memberOf, missionKey, missionOverrides,
+                                      movedMatrix, ownSize, plural, removeRoots, savedBuildings, sceneChanged,
+                                      setBuildings, setMissionMoves, setStage, short, sourceKey, spawnCopyRecords,
+                                      streamObjects, syncSpawnRule, templateFor, text }) {
   function editStateNow() {
     const overrides = new Map(), added = new Map();     // (`added`: units while the roots are read, then their records)
     for (const root of roots.values()) {
@@ -248,5 +250,29 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
   }
   function projectNote(message) { text($('diagnostics'), 'div', message, 'note'); $('issueCount').textContent = String(Number($('issueCount').textContent || 0) + 1); }
 
-  return { applyState, editState, editStateNow, projectNote };
+  // Unsaved changes by kind. A deleted original counts as deleted only; an added piece as added only. A grid of the
+  // project's size (stage) and the project's own landing zones count once each.
+  function changes() {
+    let moved = 0, added = 0, deleted = 0, lights = 0;
+    const flagged = new Set(), broken = new Set();     // (broken: the map's pieces broken where they stand, E6)
+    for (const root of roots.values()) {
+      if (root.userData.source.added) added++;
+      else if (root.userData.deleted) deleted++;
+      else if (root.userData.edit) moved++;
+      if (!root.userData.source.added && !root.userData.deleted && root.userData.flags) flagged.add(sourceKey(root.userData.source));
+      if (!root.userData.source.added && !root.userData.deleted && !root.userData.edit && root.userData.blasts?.length) broken.add(sourceKey(root.userData.source));
+    }
+    for (const root of lightRoots.values()) if (!isStream(root.userData.source) && root.userData.source.role !== 'area' && lightEdited(root)) lights++;
+    let effects = 0;
+    for (const root of effectRoots.values()) if (effectEdited(root)) effects++;
+    const grid = stage ? 1 : 0, zones = landingZones ? 1 : 0;
+    // the buildings the project saves: its own, and the map's it changed or deleted
+    const built = data ? savedBuildings().length : 0;
+    // a mission's objects moved in their streams (mission types plan, Part E), and the base spawn points edited (SP6)
+    const spawns = [...missionMoves.values()].filter(m => m.stream === null || m.stream === 'copy').length, missions = missionMoves.size - spawns;
+    return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, flags: flagged.size, broken: broken.size,
+             total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + flagged.size + broken.size };
+  }
+
+  return { applyState, changes, editState, editStateNow, projectNote };
 }
