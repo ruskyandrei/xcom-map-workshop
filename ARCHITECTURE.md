@@ -167,7 +167,8 @@ mode's buttons and the view lit (the Lights view's `lightingModes`, `applyMapLig
 camera framed, the map's export checked (Prepare's `prepareOpened`) and the prefab builder's page dressed
 (`builderPage`). What is no one area's (the page's title, View options' Full or Interior and the Map menu's items, the
 import notes, the gizmo's Linked button) is [`scene_start.js`](tools/viewer/web/scene_start.js)'s.
-`window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
+`window.viewer`, the set of hooks the browser checks drive, is made by [`test_api.js`](tools/viewer/web/test_api.js)
+(`createTestApi`) and set by `startScene` once the scene has opened.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
 page and the editor's JSON routes. Its handler's `handle_<area>` methods hand each route to its area's module:
@@ -355,6 +356,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A line of the game's config | [`mapsini.py`](tools/viewer/mapsini.py). |
 | A tool folder on the import path | [`paths.use()`](tools/paths.py), at the top of the module. |
 | A browser check | The table of checks (`CHECKS`) in [`browser_smoke.py`](tools/viewer/tests/browser_smoke.py). |
+| A test hook (a name on `window.viewer` that a browser check, the guide's pictures or a script reads or calls) | [`test_api.js`](tools/viewer/web/test_api.js) (`createTestApi`): the shared state and a pure module's export imported there, what a factory returns given by `startScene` in its argument object. The name goes into [`viewer_api_names.json`](tools/viewer/tests/viewer_api_names.json) in the same change (`browser_smoke.py --url <test server> --write-api-names`), which the `api-names` check holds. |
 | A test's shared records and helpers | Its suite's fixtures module: [`viewer_fixtures.py`](tools/viewer/tests/viewer_fixtures.py), [`tools/bake/tests/fixtures.py`](tools/bake/tests/fixtures.py), [`editor_fixtures.py`](tools/editor/tests/editor_fixtures.py), [`upk_fixtures.py`](tools/upk/tests/upk_fixtures.py) (a suite without one makes one, named for the suite). One more than one suite needs: [`tools/tests/shared_fixtures.py`](tools/tests/shared_fixtures.py) (the DefaultMaps records, a made-up mesh), which each suite's fixtures module imports it from. |
 | An environment variable a test or a tool reads | `ENVIRONMENT` in [`run_tests.py`](tools/run_tests.py), with what it does and what happens without it (`run_tests.py --help` prints it), in the commit that reads it. |
 | A rule both the page and Python need | A JSON file both read, or a case file both sides' tests read ([`shared_cases_test.mjs`](tools/viewer/tests/shared_cases_test.mjs) lists them). |
@@ -580,7 +582,10 @@ where there is one.
   as its parameters, so that its statements move as they were.
 - A module's top level only declares, so the order of imports means nothing. No module imports app.js.
 - A rule, a record or a sentence is in a pure module with a node test. The wiring of a panel is beside it and has a
-  browser check in the table of checks. A hook a browser check uses is on `window.viewer`.
+  browser check in the table of checks. A hook a browser check uses is on `window.viewer`: it is made in
+  `test_api.js` from the modules' exports (the shared state and the pure modules' functions imported, a live binding
+  each; what app.js's factories return given as one argument object), and its name is in the recorded list
+  (`viewer_api_names.json`), so that a move that loses a hook fails the `api-names` check.
 - The server is asked through `api.js`, the browser's storage through `storage.js`.
 
 ### The compiler and the Build
