@@ -43,14 +43,6 @@ export function draggedHeight(z, dy, bottom = null) {
   if (bottom === null || bottom === undefined || Number(z) - GROUND >= bottom - 1) return moved;
   return Math.round(bottom + Math.round((moved - GROUND - bottom) / LEVEL) * LEVEL) + GROUND;
 }
-/** The landing zone gizmo's steps by the editor's snap setting (navigation.js): [across, up] in units, or null with
- *  snap off, which moves a zone smoothly, as everything else. */
-export const ZONE_STEPS = { off: null, fine: [24, 24], tile: [TILE, LEVEL] };
-/** A move of the zone gizmo [dx, dy, dz] (game axes: x and y across, z up) in the snap setting's steps. */
-export function snapZoneMove(move, snap) {
-  const steps = ZONE_STEPS[snap], by = (v, s) => Math.round(v / s) * s;
-  return steps ? [by(move[0], steps[0]), by(move[1], steps[0]), by(move[2], steps[1])] : [...move];
-}
 /** Where a zone placed at (x, y) stands across, by the snap setting: under tile snap a unit off a tile corner of the
  *  grid whose box starts at `origin`, as LWR's lines stand (the Bar's first: 719, -1681); under fine snap on steps of
  *  24; with snap off where it was put. */

@@ -29,7 +29,8 @@ import { zoneServes } from './missions.js';
 import { uuid } from './project.js';
 import { showMapMenu } from './scene_start.js';
 import { DIRECTIONS as ZONE_DIRECTIONS, draggedHeight, evacBox, explicitEw, groundOf, landingUnmoved, ownLandings,
-         ownSlots, placedZone, snapZoneMove, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
+         ownSlots, placedZone, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
+import { steppedMove } from './snap_steps.js';
 import { remember } from './storage.js';
 import { plural } from './dom_words.js';
 import { gameToView } from './handles.js';
@@ -237,7 +238,7 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
   }
   // The picked zone's gizmo (the user, 13 November: a gizmo in place of the panel's buttons). Its handle stands on the
   // drop zone's frame (StartLoc), on the ground. It moves the zone as the snap setting says (the user, 21 November:
-  // smoothly with snap off, as everything else; spawns.js snapZoneMove), and turns it by quarter turns about the
+  // smoothly with snap off, as everything else; snap_steps.js steppedMove), and turns it by quarter turns about the
   // vertical, whatever the snap: a zone faces one of four ways, all an LZArray line or the game's landing can take.
   // G shows the arrows, R the ring; each drag is one undo step, Escape during one puts it back.
   const zoneProxy = new THREE.Object3D(); world.add(zoneProxy);
@@ -255,7 +256,7 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     zoneGizmo.setMode(zoneGizmoMode);
     zoneGizmo.showX = zoneGizmo.showZ = zoneGizmoMode !== 'rotate';
   }
-  // the hints' words for the snap setting's steps (spawns.js ZONE_STEPS, placedZone)
+  // the hints' words for the snap setting's steps (snap_steps.js SNAP_STEPS, spawns.js placedZone)
   const ZONE_MOVE_WORDS = { off: 'smoothly', fine: 'in steps of 24 units', tile: 'by whole tiles across and storeys up' };
   const ZONE_PLACE_WORDS = { off: 'anywhere', fine: 'on steps of 24 units', tile: 'on a tile' };
   function setZoneGizmoMode(mode) {
@@ -273,7 +274,7 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     const d = zoneGizmoDrag;
     if (!d || d.cancelled) return;
     if (zoneGizmo.mode === 'translate') {
-      const p = zoneProxy.position, [dx, dz, dy] = snapZoneMove([p.x - d.at.x, p.z - d.at.z, p.y - d.at.y], snapMode);
+      const p = zoneProxy.position, [dx, dz, dy] = steppedMove([p.x - d.at.x, p.z - d.at.z, p.y - d.at.y], snapMode);
       p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
       // the zone keeps its own height, moved by dy; one saved under the grid comes onto it (draggedHeight)
       const l = d.from.location, z = draggedHeight(l[2], dy, data.tileGrid?.origin?.[2] ?? null);

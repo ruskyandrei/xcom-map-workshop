@@ -146,7 +146,8 @@ for (const off of [[3, -5, 38], [-4, 5, 70], [32, 0, 0], [0, -384, 16]]) {
 }
 // A zone dragged keeps its own height, moved by the drag (the police station's lines and own landing stand at 64,
 // their ground 48 over the grid's first level, -48): only a zone saved under the grid comes onto its nearest level
-const { draggedHeight, snapZoneMove, placedZone } = await import('../web/spawns.js');
+const { draggedHeight, placedZone } = await import('../web/spawns.js');
+const { steppedMove } = await import('../web/snap_steps.js');
 assert.equal(draggedHeight(63.99999141531498, 0, -48), 63.99999141531498);
 assert.equal(draggedHeight(64, 64, -48), 128);
 assert.equal(draggedHeight(64, 10.5, -48), 74.5);
@@ -158,9 +159,9 @@ assert.equal(draggedHeight(48, 64, 0), 128);        // (its first move puts it o
 assert.equal(draggedHeight(63.5, 0, 0), 63.5);      // a unit's slack under the bottom
 // The zone gizmo's steps follow the snap setting (the user, 21 November): smooth with snap off, 24 on fine, whole
 // tiles across and storeys up on tile
-assert.deepEqual(snapZoneMove([37.3, -50.2, 10.7], 'off'), [37.3, -50.2, 10.7]);
-assert.deepEqual(snapZoneMove([37.3, -50.2, 10.7], 'fine'), [48, -48, 0]);
-assert.deepEqual(snapZoneMove([150, -50.2, 40], 'tile'), [192, -96, 64]);
+assert.deepEqual(steppedMove([37.3, -50.2, 10.7], 'off'), [37.3, -50.2, 10.7]);
+assert.deepEqual(steppedMove([37.3, -50.2, 10.7], 'fine'), [48, -48, 0]);
+assert.deepEqual(steppedMove([150, -50.2, 40], 'tile'), [192, -96, 64]);
 // a zone placed: a unit off a tile corner under tile snap (as LWR's lines), on 24's under fine, where clicked with
 // snap off
 assert.deepEqual(placedZone(770.4, -1700.2, [-1728, -2496, -48], 'tile'), [767, -1729]);
