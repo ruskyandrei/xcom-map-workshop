@@ -6,6 +6,8 @@
 // - the selected piece's marks: its highlight (refreshHighlight), a ladder's ends and its chip (ladderNow, floorPlan,
 //   refreshLadder) and the grid chip of a piece the recipe snap holds (gridNow, refreshGrid), which the edit hub's
 //   edit run keeps up, with the selection following the gizmo when a command changed it;
+// - the pieces and lights an actor name stands for, selected and framed (selectActors: a compile report's or a
+//   prefab test's actor);
 // - what some roots are, by kind, in words (selectionWords: "12 pieces, 2 lights and 1 building"), a plain export at
 //   the top, before the factory: it reads only its arguments.
 //
@@ -20,9 +22,9 @@ import { LEVEL, TILE } from './constants.js';
 import { coverWords, isBlocker, isFloor, lengthWords, sizeWords } from './cover.js';
 import { plural } from './dom_words.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
-import { data, effectRoots, effectsOn, families, lightRoots, lightsOn, lightsShown, normalEffects, ownSet, pickedEffect,
-         roots, selected, setAreaShown, setEffectsDirty, setOwnPickedValue, setPickedEffect, setSelected, setWallFocus,
-         volumeRoots, volumesOn, wallFocus, zonesOn } from './editor_state.js';
+import { allRoots, data, effectRoots, effectsOn, families, lightRoots, lightsOn, lightsShown, normalEffects, ownSet,
+         pickedEffect, roots, selected, setAreaShown, setEffectsDirty, setOwnPickedValue, setPickedEffect, setSelected,
+         setWallFocus, volumeRoots, volumesOn, wallFocus, zonesOn } from './editor_state.js';
 import { placedPose } from './gizmo.js';
 import { addedFloors, ladderEnds } from './ladders.js';
 import { plan as planFlags, rawOf as flagRaw } from './piece_flags.js';
@@ -44,11 +46,11 @@ export function selectionWords(list, other = '') {
 }
 
 export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyable, copyText,
-                                  editChanged, field, flagContract, flagSource, foreignCost, foreignNote, gizmo,
-                                  gridOrigin, groupChip, highlight, isLanding, isStream, ladderMarks, listingsNow,
-                                  missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName,
-                                  setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text,
-                                  tileCorner }) {
+                                  editChanged, field, flagContract, flagSource, flashHint, foreignCost, foreignNote,
+                                  frame, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream, ladderMarks,
+                                  listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf,
+                                  rootName, setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short,
+                                  text, tileCorner }) {
   // add: Ctrl/Shift-click toggles the piece in the selection. keep: only refresh the panel and highlight.
   // The piece panel shows only with a selection: name and what moves with it first, source paths folded away.
   function select(id, add = false, keep = false) {
@@ -329,5 +331,17 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
     if (selected && roots.get(selected)) { refreshHighlight(roots.get(selected)); refreshLadder(roots.get(selected)); refreshGrid(roots.get(selected)); }
   });
 
-  return { gridNow, ladderNow, refreshGrid, refreshHighlight, select };
+  // The pieces and lights an actor name stands for (a compile report's entity or target, a prefab test's actor),
+  // selected and framed. False when none is in the view.
+  function selectActors(names) {
+    const want = new Set(names.flatMap(n => [n, short(n)]));
+    const ids = [...roots.values(), ...lightRoots.values()]
+      .filter(r => !r.userData.deleted && (want.has(r.userData.source.actor) || want.has(short(r.userData.source.actor))))
+      .map(r => r.userData.source.id);
+    if (!ids.length) { flashHint(`${short(names[0])} is not in the view`); return false; }
+    gizmo.setSelection(ids, ids[0]); editChanged(); frame(allRoots.get(ids[0]));
+    return true;
+  }
+
+  return { gridNow, ladderNow, refreshGrid, refreshHighlight, select, selectActors };
 }

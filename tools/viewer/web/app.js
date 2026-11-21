@@ -525,9 +525,9 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
   documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, gizmo, gridOrigin, isStream,
   libraryTemplate, lightPose, loadingState, movedMatrix, openingProgress, plural, projectChanged, recipeOf, removeRoots,
   rootName, sceneChanged,
-  selectActors, short, templateFor, text, world,
-  // (made with the selection, further down: called through, since it is not made yet while this runs)
-  gridNow: root => gridNow(root),
+  short, templateFor, text, world,
+  // (made with the selection, further down: called through, since they are not made yet while this runs)
+  gridNow: root => gridNow(root), selectActors: names => selectActors(names),
   // (made with the Project menu, further down: called through, since it is not made yet while this runs)
   showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave),
   // (made with the camera, further down: called through, since it is not made yet while this runs)
@@ -568,9 +568,11 @@ const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMe
 const { followBuild, followQueueForProject, landHere, openBuild, openPrefabTest, playInGame, prefabTest, refreshInstalls,
         refreshSquadLine, renderPlayItems, renderQueueChip, setLastBuild } = createBuildPlay({
   $, bakeNote, banner, builder, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo, mapLabel,
-  needsPrepare, plural, projectsAvailable, saveProject, selectActors, short, showPop, showPrepare, text,
+  needsPrepare, plural, projectsAvailable, saveProject, short, showPop, showPrepare, text,
   // (made with Clear map, further down: called through, since they are not made yet while this runs)
   headerMissions: () => headerMissions(), zonesNow: () => zonesNow(),
+  // (made with the selection, further down: called through, since it is not made yet while this runs)
+  selectActors: names => selectActors(names),
   // (made with the Project menu, further down: called through, since it is not made yet while this runs)
   showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave),
   // (made with the Spawns and Landing zones views, further down: called through, since they are not made yet while
@@ -583,17 +585,6 @@ const setupDialog = createSetupDialog({
          message: $('setupMessage'), version: $('setupVersion') },
   // the server lists the new install's maps: open the page afresh on them
   onChosen: () => setTimeout(() => location.reload(), 600) });
-// The pieces and lights an actor name stands for (a compile report's entity or target, a prefab test's actor),
-// selected and framed. False when none is in the view.
-function selectActors(names) {
-  const want = new Set(names.flatMap(n => [n, short(n)]));
-  const ids = [...roots.values(), ...lightRoots.values()]
-    .filter(r => !r.userData.deleted && (want.has(r.userData.source.actor) || want.has(short(r.userData.source.actor))))
-    .map(r => r.userData.source.id);
-  if (!ids.length) { flashHint(`${short(names[0])} is not in the view`); return false; }
-  gizmo.setSelection(ids, ids[0]); editChanged(); frame(allRoots.get(ids[0]));
-  return true;
-}
 const fileDialog = createProjectDialog({
   els: { root: $('fileDialog'), form: $('fileForm'), title: $('fileTitle'), folder: $('fileFolder'), head: $('fileHead'),
          list: $('fileList'), show: $('fileShow'), name: $('fileName'), ok: $('fileOk'), cancel: $('fileCancel'),
@@ -820,11 +811,13 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
 // The selection (selection.js): select and the piece panel it fills, a cover piece's too, and the selected piece's
 // marks (its highlight, its ladder's ends, its grid chip); after the Buildings view, the last factory whose functions
 // it calls (nothing of it runs as the page loads).
-const { gridNow, ladderNow, refreshGrid, refreshHighlight, select } = createSelection({
+const { gridNow, ladderNow, refreshGrid, refreshHighlight, select, selectActors } = createSelection({
   $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyable, copyText, editChanged, field, flagContract,
-  flagSource, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream, ladderMarks,
-  listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName,
-  setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text, tileCorner });
+  flagSource, flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream,
+  ladderMarks, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName,
+  setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text, tileCorner,
+  // (made with the camera, further down: called through, since it is not made yet while this runs)
+  frame: root => frame(root) });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
 const { kindButton, selectKind } = createSelectKind({
