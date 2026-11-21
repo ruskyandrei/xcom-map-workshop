@@ -61,3 +61,16 @@ Checked:
   (a blast set off on a made wall by B and a click, and Repair mending it; an opening and a hole taken out by Delete
   once their rows were hovered, Ctrl+Z bringing the opening back; a rock's corner clicked taking the point gizmo, and
   Escape letting it go), and no page error. The Room section's buttons are walked by none.
+
+The stage's end (its four parts together), checked after this entry's first commit:
+- **The whole stage against the commit it started from:** the 97 functions moved into the five modules (16, 14, 41, 13
+  and 13) are the old ones with the 19 substitutions of a write by its setter's call, and app.js's 343 functions are
+  the same. The five modules' import statements, and one line of app.js's call of the drawing's module, are wrapped
+  again to the repository's width (the move's wrapping left the closing words out of the count), nothing else:
+  app.js is 5,758 lines.
+- **`browser_smoke.py --all`** on fresh test servers, with a scratch cache and `--play-install <scratch game>`: the nine
+  runs of the editor's checks pass, 70 checks ran and 6 skipped, each for its map or its run (TempleShip's two, the
+  police station's light bar and Play run elsewhere; `streams`' edit and the patch previews have nothing on the Bar's
+  export to work on), 14 min 33 s with other work on the computer. The Play run was refused before it played: the
+  server's play status said "XCOM is running", since the game was open on the computer. Nothing of Play moved in this
+  stage. Then, on the stage's last tree, the 20 checks above and the scratch script again: all as before.

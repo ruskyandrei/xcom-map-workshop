@@ -16,7 +16,8 @@
 // the meshes' and materials' loading for a sample. It has no state of its own: what other areas read or set (the look
 // picker, made with the Add panel's piece browser, and the eyedropper's state) is editor_state.js's.
 import * as THREE from 'three';
-import { data, geometryCache, groupIndex, lookPicker, lookPicking, pieces, roots, selected, setLookPicking } from './editor_state.js';
+import { data, geometryCache, groupIndex, lookPicker, lookPicking, pieces, roots, selected,
+         setLookPicking } from './editor_state.js';
 import { GROUND_LOOKS, groundLookOf } from './ground.js';
 import { catalogued, entryForPiece, loadLooks, lookFromEntry, lookKey } from './looks.js';
 import { stateOfRoot } from './piece_records.js';

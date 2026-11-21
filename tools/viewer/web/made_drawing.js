@@ -13,9 +13,11 @@
 // the Buildings view's boxes and the groups' lock. Its own state is the ghosts' meshes; what other areas read or set
 // (the Build menu's tool, the drawing under way) is editor_state.js's.
 import * as THREE from 'three';
-import { builderMode, data, hintTimer, library, pieces, roots, setBuildTool, setWallDrawing, wallDrawing } from './editor_state.js';
+import { builderMode, data, hintTimer, library, pieces, roots, setBuildTool, setWallDrawing,
+         wallDrawing } from './editor_state.js';
 import { drawnGround, groundBox as groundShapeBox, groundWords as groundShapeWords, slopeWords } from './ground.js';
-import { drawnRoom, drawnSlab, drawnWall, roomRoof, SLAB, SLAB_LOOKS, slabLookOf, storeysOf, WALL, wallSpec, wallTop } from './walls.js';
+import { drawnRoom, drawnSlab, drawnWall, roomRoof, SLAB, SLAB_LOOKS, slabLookOf, storeysOf, WALL, wallSpec,
+         wallTop } from './walls.js';
 
 export function createMadeDrawing({ $, addVolumes, askLineCollision, busyStart, camera, flashHint, fromOf, gizmo,
                                     gridOrigin, groundAt, groundHeight, isMadeWall, lockAsGroup, lookWall, madeRequest,

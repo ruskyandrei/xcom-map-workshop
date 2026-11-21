@@ -20,7 +20,8 @@ import { anotherRock, GROUND, groundLookOf, groundWords as groundShapeWords, res
 import { catalogued } from './looks.js';
 import { flippedWall, holeWords, joinWords, openingPlay, openingWords, playWords, reshuffled, reshuffledSlab, SLAB,
          slabLookOf, slabTiles, slabWords, sortedOpenings, steppedStoreys, storeysOf, storeyWords, toolSlab, toolWall,
-         WALL, wallSpec, wallTop, wallWords, withHole, withOpening, withoutHole, withoutOpening, withStoreys } from './walls.js';
+         WALL, wallSpec, wallTop, wallWords, withHole, withOpening, withoutHole, withoutOpening,
+         withStoreys } from './walls.js';
 
 export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, gizmo, handleWall, isMadeSlab, isMadeWall,
                                   isPlain, liveKeys, liveMembers, lookRow, madeRoot, madeWallRoot, openLookPicker,

@@ -22,7 +22,8 @@ import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { TILE } from './constants.js';
 import { coverDrag, data, effectsOn, geometryCache, lightsOn, placing, rockPoint, roots, selected, setRockPoint,
-         setWallDrag, setWallFocus, snapMode, spawnsOn, volumeDrag, volumesOn, wallDrag, wallDrawing, wallFocus, zonesOn } from './editor_state.js';
+         setWallDrag, setWallFocus, snapMode, spawnsOn, volumeDrag, volumesOn, wallDrag, wallDrawing, wallFocus,
+         zonesOn } from './editor_state.js';
 import { groundBounds, groundBox as groundShapeBox, groundWords as groundShapeWords, madeGroundNumbers, movedPoint,
          raisedGround, resizedGround, ROCK, slopeWords, toolGround, versionedGround } from './ground.js';
 import { scaleMarker } from './lights_view.js';
