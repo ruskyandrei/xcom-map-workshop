@@ -23,7 +23,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { ask } from './api.js';
-import { LEVEL, QUARTER, TILE } from './constants.js';
+import { LEVEL, PL, QUARTER, TILE } from './constants.js';
 import { onHub } from './edit_hub.js';
 import { activeMapId, builderMode, data, effectsOn, families, lightsOn, missionDragView, missionIndex, missionMoves,
          missionPickValue, nextCopySerial, normalSpawns, pickedSpawn, pieces, placing, projectSpawnRules, roots,
@@ -207,7 +207,7 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   // a copy's template: the base record it copies, or NEW_VOLUME for a no-spawn volume made fresh (no `from`)
   const copyTemplateOf = m => (m?.stream !== 'copy' ? null : m.copy.from ? baseSpawnOf(m.copy.from) : m.copy.kind === 'noSpawn' ? NEW_VOLUME : null);
   // a new copy's name: its template's with a serial (a fresh volume's after the class)
-  const copyName = o => `${o.actor ?? `TheWorld.PersistentLevel.${o.actorClass}`}_copy${nextCopySerial()}`;
+  const copyName = o => `${o.actor ?? `${PL}${o.actorClass}`}_copy${nextCopySerial()}`;
   // a no-spawn volume's box now (the drag's, the project's, else the map's): [x0, y0, z0, x1, y1, z1]
   const spawnBoxNow = e => missionMoveOf(e.stream, e.record.actor)?.box ?? recordBox(e.record);
   // A new pod or Meld point from the Add panel (its Spawn points kind): the Spawns view is shown with the kind's family,

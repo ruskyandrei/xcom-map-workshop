@@ -218,10 +218,9 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     $('floor').value = buttons.some(b => b.dataset.value === previous) ? previous : 'all';
     cutaway();
   }
-  // The Floor picker shown, and View options' patch helpers and the layout's patches and streams, as a scene opens
-  // (app.js's startScene).
+  // View options' patch helpers and the layout's patches and streams, as a scene opens (app.js's startScene; the Floor
+  // picker is shown or hidden by floorOptions, which it calls after the pieces are placed).
   function sceneViewOptions(streamObjects) {
-    $('floorGroup').hidden = !allBuildings().length;
     // Patch helpers: pieces a patch places hidden in game (LWR's blockers and cover, ladders' collision), hidden here
     // too by default; unticking Hide patch helpers draws them as a wireframe.
     const streamHelpers = streamObjects.some(o => o.hidden);

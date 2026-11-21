@@ -31,9 +31,6 @@ export function playedMessage(r, mapLabel) {
   ].filter(Boolean).join('\n');
 }
 
-// A map's name with its label when the catalogue has one: "Commercial Alley Redux (URB_CommercialAlley_EWI)".
-const named = (name, mapLabel) => { const label = mapLabel(name); return label && label !== name ? `${label} (${name})` : name; };
-
 /** One thing the editor installed, in a few words. */
 const installedName = i => i.kind === 'map' ? `a record for ${i.map} (its own are commented out)`
   : `${i.project?.name ?? 'a project'}, revision ${i.project?.revision} (${i.map})${i.quick ? ', lighting not baked' : ''}`;
