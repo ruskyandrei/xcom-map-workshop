@@ -9,11 +9,20 @@
 The checks are one table (CHECKS, listed by --help): each one's name, what it does, what the server must be started
 with and the maps it can run on. With no --only, the whole run does the table's checks in order; --only names some
 (those run only when named too) and refuses a name it doesn't know. The report (printed, and written beside the
-screenshot as .json) lists what ran and what was skipped, with why; a check --only asked for that was skipped, whole
-or in part, fails the run. --all runs every check on fresh test servers of its own (ports 8795-8798, or --ports, scratch
-folders, a scratch cache and a scratch settings file, --dry-play), one after another, each stopped after its run, and
-reports each run's lists. --write-api-names writes the test hooks' names that the check api-names compares
-(api_names.py).
+screenshot as .json) lists what ran and what was skipped, with why (a check that skipped itself whole is listed as
+skipped only); a check --only asked for that was skipped, whole or in part, fails the run. --all runs every check on
+fresh test servers of its own (ports 8795-8798, or --ports, scratch folders, a scratch cache and a scratch settings
+file, --dry-play), one after another, each stopped after its run, and reports each run's lists. --write-api-names
+writes the test hooks' names that the check api-names compares (api_names.py).
+
+--all's Play run (and --play on a server of your own) installs into a scratch game folder, never a real install
+(--play-install, the server's --install). It holds copies of an LWR install's files at the same places under XEW:
+  XEW\\XComGame\\Config\\Default*.ini            (DefaultMaps.ini and DefaultLZMutator.ini take the play's record; the
+                                              test squad reads DefaultGameCore.ini and DefaultEngine.ini)
+  XEW\\XComGame\\CookedPCConsole\\XComGame.upk   (the test squad's game data)
+  XEW\\XComGame\\CookedPCConsole\\<map>.upk      (the map played: URB_Bar.upk for --all)
+  XEW\\XComGame\\Localization\\INT\\XCom*.int     (the test squad's words)
+  XEW\\Binaries\\                               (empty: a play writes its commands file there)
 No game is started.
 """
 import argparse
@@ -37,13 +46,18 @@ MAIN_PORT = 8768        # the user's own server: never checked against
 CAMERA = "(() => ({c: viewer.camera.position.toArray(), t: viewer.controls.target.toArray()}))()"
 # What the run left out, and why (review finding 24): skip() records each, and the report lists them.
 SKIPPED = []
+# What a check gives back when it skipped itself whole: the report lists it as skipped, not as ran too.
+WHOLE = object()
 
 
-def skip(check, reason, page=None):
+def skip(check, reason, page=None, whole=False):
     """Record that `check`, or the part of it the reason names, was left out, and why; closes the check's own page
-    when given. Returns None, so `return skip(...)` ends a check as a bare return did."""
+    when given. `whole`: the check (or this part of an on_page check) did nothing else, and the skip ends it: returns
+    WHOLE, for `return skip(...)` to give back to the run. Otherwise returns None, so `return skip(...)` ends a check
+    as a bare return did."""
     if page is not None: page.close()
     SKIPPED.append(dict(check=check, reason=reason))
+    return WHOLE if whole else None
 
 
 def check_light_grid(page):
@@ -456,7 +470,7 @@ def check_play_area(page):
 def check_interior_whole(page):
     """Interior draws a piece that reaches into its area whole across the map (cut by height only), unless it reaches
     more than four tiles past the area's sides; such pieces, and the ones outside, stay cut at the sides."""
-    if not page.locator('#scenery').is_visible(): return skip('play-area', 'Interior whole: the map has no Full and Interior choice')
+    if not page.locator('#scenery').is_visible(): return skip('play-area', 'Interior whole: the map has no Full and Interior choice', whole=True)
     was = value(page, 'scenery')
     choose(page, 'scenery', 'interior')
     found = page.evaluate("""async () => {
@@ -1103,11 +1117,15 @@ def check_copy_drag(page):
     assert page.evaluate('viewer.gizmo.controls.axis') == 'X', ends
     hx, hy = x0 + ux * d, y0 + uy * d
     # Escape during a Shift drag: nothing is copied or moved
+    serial = page.evaluate('viewer.copySerial()')
     page.keyboard.down('Shift'); page.mouse.down(); page.mouse.move(hx + ux * 60, hy + uy * 60, steps=5)
     assert 'copy' in page.locator('#dragHint').inner_text()
     assert page.evaluate('viewer.roots.size') == count
     page.keyboard.press('Escape'); page.mouse.up(); page.keyboard.up('Shift')
-    page.wait_for_timeout(200)
+    # the release handled (the gizmo's mouseUp, which hands the copy on), and no paste begun: a paste numbers its copies
+    # before anything it waits for, so one begun would show in the serial at once
+    page.wait_for_function('!viewer.gizmo.controls.dragging')
+    assert page.evaluate('viewer.copySerial()') == serial, (serial, page.evaluate('viewer.copySerial()'))
     assert page.evaluate('viewer.roots.size') == count and page.evaluate(matrix, a) == before
     assert page.evaluate('viewer.changes().total') == 0 and page.evaluate('viewer.gizmo.undoDepth()') == steps
     # the drag itself: the copy along X only, the original where it was
@@ -1233,10 +1251,10 @@ def check_map_buildings(page):
     project's are, a box stretched, a storey pasted on top (a new box, no volume of the map's), a building deleted and
     restored, each undone; what the project would save holds only the changed ones."""
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 21"):
-        return skip('map-buildings', 'needs a map (not a preview) of export 21 or later')
+        return skip('map-buildings', 'needs a map (not a preview) of export 21 or later', whole=True)
     mine = "() => viewer.buildings().filter(b => b.replaces).map(b => b.id)"
     ids = page.evaluate(mine)
-    if not ids: return skip('map-buildings', 'the map has no building of its own')
+    if not ids: return skip('map-buildings', 'the map has no building of its own', whole=True)
     saved = "() => JSON.stringify(viewer.savedBuildings())"
     assert page.evaluate(saved) == '[]' and page.evaluate('viewer.mapEdits()') == {'changed': [], 'gone': []}
     # each editable building of the map is the export's, one id from its actor, every box naming its floor volume
@@ -1298,7 +1316,9 @@ def check_clear_map(page):
     grid, the ground grid over every tile); a landing zone turned, copied, deleted and undone; the clear undone and
     redone. Nothing is saved."""
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 22"):
-        return skip('clear-map', 'needs a map (not a preview) of export 22 or later')
+        return skip('clear-map', 'needs a map (not a preview) of export 22 or later', whole=True)
+    # nothing selected: a piece left selected by a check before (typed-pose's) opens its panel over the Map grid's Done
+    page.evaluate('viewer.select(null)')
     page.wait_for_function("viewer.zones().length > 0 || viewer.landingLines().lines.length === 0", timeout=10000)
     plan = page.evaluate('viewer.clearPlan()')
     # the landing's pieces the clear keeps: its frame and grounded Skyranger, none on a landing with no frame (the
@@ -1317,9 +1337,10 @@ def check_clear_map(page):
         p0 = page.evaluate('p => viewer.screenOf(p)', at)
         p1 = page.evaluate('p => viewer.screenOf(p)', [at[k] + (100 if k == axis else 0) for k in range(3)])
         n = math.hypot(p1[0] - p0[0], p1[1] - p0[1]); d = [(p1[0] - p0[0]) / n, (p1[1] - p0[1]) / n]
-        page.mouse.move(*p0); page.wait_for_timeout(30)
+        # (the press takes the handle under its own point and the release sets the size, in their listeners, which
+        # the mouse calls wait for)
+        page.mouse.move(*p0)
         page.mouse.down(); page.mouse.move(p0[0] + d[0] * pixels, p0[1] + d[1] * pixels, steps=12); page.mouse.up()
-        page.wait_for_timeout(50)
         return page.evaluate('viewer.gridTool().dims')
     page.evaluate("""() => { const b = viewer.data.playableBounds, c = [0, 1, 2].map(k => (b.min[k] + b.max[k]) / 2),
                              s = Math.max(b.max[0] - b.min[0], b.max[2] - b.min[2]);
@@ -1496,7 +1517,7 @@ def check_clear_map(page):
 
     def grab(axis, points):
         for pt in points:
-            page.mouse.move(*pt); page.wait_for_timeout(25)
+            page.mouse.move(*pt)        # (the gizmo takes its hovered axis in its pointermove listener, as copy-drag's does)
             if page.evaluate('viewer.zoneGizmo().axis') == axis: return pt
         raise AssertionError("the zone gizmo's %s handle not found" % axis)
     at = g['at']
@@ -1511,7 +1532,7 @@ def check_clear_map(page):
     assert dx > 0 and dx % 96 == 0 and moved['location'][1:] == z0['location'][1:], (moved, z0)
     assert page.evaluate('viewer.pickedZone()') == z0['id']           # the drag did not let the zone go
     # R: the ring, quarter turns about the vertical only
-    page.keyboard.press('r'); page.wait_for_timeout(100)
+    page.keyboard.press('r'); page.wait_for_timeout(100)    # (a frame drawn: the ring's handles are placed by a render)
     g = page.evaluate('viewer.zoneGizmo()')
     assert g['mode'] == 'rotate', g
     import math
@@ -1600,7 +1621,7 @@ def check_floor_boxes(page):
     click on a box's edge or the select box takes the whole building. It moves by whole tiles and turns by quarter
     turns with what is picked, is copied with a piece as a new building, and deleted; each one undo step."""
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && Boolean(viewer.data.tileGrid?.origin)"):
-        return skip('floor-boxes', 'needs a map (not a preview) with a tile grid')
+        return skip('floor-boxes', 'needs a map (not a preview) with a tile grid', whole=True)
     state = page.evaluate('viewer.projectState()')
     page.evaluate('viewer.select(null)')
     assert not page.evaluate('viewer.boxesShown()') and not page.locator('#boxesToggle').is_checked()
@@ -1981,7 +2002,7 @@ def check_library_all(browser, url):
     server, a piece of another map placed, saved, reopened and built without baking."""
     errors = []
     page = open_viewer(browser, url, errors)
-    if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'): return skip('library-all', 'needs a map, not a preview', page)
+    if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'): return skip('library-all', 'needs a map, not a preview', page, whole=True)
     count = page.evaluate('viewer.roots.size')
     page.evaluate("localStorage.removeItem('workshop.libraryScope'); localStorage.removeItem('workshop.libraryView')")
     page.keyboard.press('p')
@@ -2160,7 +2181,7 @@ def check_library_effects(browser, url):
     errors = []
     page = open_viewer(browser, url, errors)
     if not page.evaluate("viewer.data.scope === 'map' && viewer.data.source.file.toLowerCase().endsWith('urb_bar.upk')"):
-        return skip('library-effects', 'URB_Bar only', page)
+        return skip('library-effects', 'URB_Bar only', page, whole=True)
     page.evaluate("localStorage.removeItem('workshop.libraryView')")
     page.keyboard.press('p')
     choose(page, 'libScope', 'all')
@@ -2226,8 +2247,11 @@ def check_library_effects(browser, url):
     page.locator('#libAllKind').select_option('sounds')
     page.wait_for_function("document.querySelector('#libAllList .libitem canvas')?.dataset.drawn")
     assert page.evaluate("![...document.querySelectorAll('#libAllList .libitem canvas')].some(c => c.dataset.likeness)")
-    page.locator('#libAllList .libitem').first.hover()
-    page.wait_for_timeout(600)
+    first = page.locator('#libAllList .libitem').first
+    first.hover()
+    # (a row whose likeness the pane is to show takes the row's tip at once, on the pointer's arrival, the pane coming
+    # after: a sound's row has taken none)
+    assert first.evaluate('row => row.dataset.tip === undefined'), first.evaluate('row => [row.dataset.tip, row.title]')
     assert page.evaluate('viewer.likenessPane().hidden')
     page.mouse.move(900, 500)
     page.locator('#libAllPlaceable').uncheck()
@@ -2310,9 +2334,9 @@ def check_effect_values(browser, url):
     errors = []
     page = open_viewer(browser, url, errors)
     if not page.evaluate("viewer.data.scope === 'map' && viewer.data.source.file.toLowerCase().endsWith('urb_bar.upk')"):
-        return skip('effect-values', 'URB_Bar only', page)
+        return skip('effect-values', 'URB_Bar only', page, whole=True)
     if not page.evaluate("viewer.families()?.families?.['effect-values']?.builds"):
-        return skip('effect-values', 'the server doesn\'t build effect values (families.json)', page)
+        return skip('effect-values', 'the server doesn\'t build effect values (families.json)', page, whole=True)
     page.evaluate('viewer.setEffectsShown(true)')
     root = lambda actor: page.evaluate("a => [...viewer.effectRoots.values()].find(r => r.userData.source.actor.endsWith('.' + a)).userData.source.id", actor)
     fx = root('Emitter_38')
@@ -2459,7 +2483,7 @@ def check_cover(page):
     record."""
     recipe = page.evaluate('viewer.families()?.coverRecipes')
     if not recipe:
-        return skip('cover', 'the server builds no cover blocks (families.json has no cover recipes)')
+        return skip('cover', 'the server builds no cover blocks (families.json has no cover recipes)', whole=True)
     count = page.evaluate('viewer.roots.size')
     page.evaluate('viewer.select(null)')
     page.keyboard.press('p')
@@ -2659,7 +2683,7 @@ def check_floor_placing(page, is_bar):
     off."""
     count, original = page.evaluate('viewer.roots.size'), page.evaluate('viewer.gizmo.active')
     info = page.evaluate('viewer.floorPieces()')
-    if not info['supports']: return skip('floor-placing', 'the map has no floor pieces to stand on')
+    if not info['supports']: return skip('floor-placing', 'the map has no floor pieces to stand on', whole=True)
     kind_of = lambda suffix: next((k for a, k in info['kinds'].items() if a.endswith(suffix)), None)
     if is_bar:
         assert kind_of('.XComLevelActor_133') == 'floor', kind_of('.XComLevelActor_133')
@@ -2704,7 +2728,7 @@ def check_floor_placing(page, is_bar):
         if hit is not None and abs(hit - loc[2]) < 4: spot = (loc, at); break
     assert spot, 'no saved floor tile clear under the cursor'
     loc, at = spot
-    page.mouse.move(*at); page.wait_for_timeout(100)
+    page.mouse.move(*at); page.wait_for_function('viewer.placing()?.ghost.visible')
     page.mouse.click(*at)
     page.wait_for_function('viewer.editState().added.length === 1')
     z = page.evaluate("""() => [...viewer.roots.values()].find(r => r.userData.source.added).userData.source.location[2]""")
@@ -2724,7 +2748,7 @@ def check_floor_placing(page, is_bar):
         side_entry.click()
         assert 'a floor piece' not in page.locator('#dragHint').inner_text()
         look_down(page, loc, 2200)
-        page.mouse.move(*at); page.wait_for_timeout(100); page.mouse.click(*at)
+        page.mouse.move(*at); page.wait_for_function('viewer.placing()?.ghost.visible'); page.mouse.click(*at)
         page.wait_for_function('viewer.editState().added.length === 1')
         assert added_z() > 10, added_z()
         page.keyboard.press('Control+z')
@@ -2746,7 +2770,7 @@ def check_floor_placing(page, is_bar):
             if hit is not None and abs(hit - rl[2]) < 4: spot2 = (rl, at2); break
         assert spot2, 'no road tile clear under the cursor'
         rl, at2 = spot2
-        page.mouse.move(*at2); page.wait_for_timeout(100); page.mouse.click(*at2)
+        page.mouse.move(*at2); page.wait_for_function('viewer.placing()?.ghost.visible'); page.mouse.click(*at2)
         page.wait_for_function('viewer.editState().added.length === 1')
         chosen = page.evaluate('([x, y]) => viewer.chosenStorey(x, y)', rl[:2])
         assert chosen and chosen['floor'] == 1, chosen
@@ -2778,7 +2802,7 @@ def check_floor_placing(page, is_bar):
             page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', side)
             page.evaluate('document.activeElement && document.activeElement.blur()')
             page.keyboard.press('g')
-            page.wait_for_timeout(200)
+            page.wait_for_timeout(200)      # (a frame drawn where it was framed, before the screen points)
             z0 = page.evaluate('viewer.gizmo.pose().location[2]')
             p0 = page.evaluate('viewer.screenOf(viewer.gizmo.pose().location)')
             up = page.evaluate('p => viewer.screenOf([p[0], p[1], p[2] + 100])', page.evaluate('viewer.gizmo.pose().location'))
@@ -2787,7 +2811,7 @@ def check_floor_placing(page, is_bar):
             grab = None
             for r in range(20, 160, 6):
                 pt = [p0[0] + d[0] * r, p0[1] + d[1] * r]
-                page.mouse.move(*pt); page.wait_for_timeout(30)
+                page.mouse.move(*pt)    # (the gizmo takes its hovered axis in its pointermove listener)
                 if page.evaluate('viewer.gizmo.controls.axis') == 'Y': grab = pt; break
             assert grab, 'the gizmo\'s up arrow not found'
             page.mouse.down(); page.mouse.move(grab[0] + d[0] * pixels, grab[1] + d[1] * pixels, steps=8); page.mouse.up()
@@ -2806,12 +2830,16 @@ def check_floor_placing(page, is_bar):
     page.evaluate('id => viewer.select(id)', original)
 
 
+# The floor tile tip shown and saying `arg` (the draw loop writes it once the pointer has moved)
+TIP_SAYS = "t => !document.getElementById('floorTip').hidden && document.getElementById('floorTip').textContent.includes(t)"
+
+
 def check_floor_tiles(page, is_bar):
     """View options, Floor tiles (private/plans/done/floor-brush-plan.md, 3.7): the saved floor tiles in one batched mesh, a
     deleted piece's hatched, a tile's piece named on hover and selected on a click; and a copy's building-floor
     listings following where it stands (3.8), on Bar's floor pieces."""
     total = page.evaluate('viewer.data.tactical?.floorTiles?.length ?? 0')
-    if not total: return skip('floor-tiles', 'the export has no saved floor tiles')
+    if not total: return skip('floor-tiles', 'the export has no saved floor tiles', whole=True)
     original = page.evaluate('viewer.gizmo.active')
     check_option(page, 'floorTiles', True)
     page.keyboard.press('Escape')
@@ -2828,13 +2856,15 @@ def check_floor_tiles(page, is_bar):
         look_down(page, t['tile']['location'], 2400)
         if page.evaluate("""f => { const h = viewer.pick(...viewer.screenOf(f.location)); return h && viewer.roots.get(h.object.userData.objectId).userData.source.actor === f.actor; }""", t['tile']): break
     else: raise AssertionError('no clear floor tile')
-    page.mouse.move(*page.evaluate('p => viewer.screenOf(p)', t['tile']['location'])); page.wait_for_timeout(200)
+    page.mouse.move(*page.evaluate('p => viewer.screenOf(p)', t['tile']['location']))
+    page.wait_for_function(TIP_SAYS, arg=t['tile']['actor'].split('.')[-1])
     assert page.locator('#floorTip').is_visible() and t['tile']['actor'].split('.')[-1] in page.locator('#floorTip').inner_text()
     page.evaluate('id => viewer.select(id)', t['id'])
     page.keyboard.press('Delete')
     assert page.evaluate('viewer.floorTiles()') == drawn
     assert page.evaluate("viewer.world.children.some(g => g.userData.tiles && g.children.some(c => c.isLineSegments))")
-    page.mouse.move(10, 10); page.mouse.move(*page.evaluate('p => viewer.screenOf(p)', t['tile']['location'])); page.wait_for_timeout(200)
+    page.mouse.move(10, 10); page.mouse.move(*page.evaluate('p => viewer.screenOf(p)', t['tile']['location']))
+    page.wait_for_function(TIP_SAYS, arg='deleted since')
     assert 'deleted since' in page.locator('#floorTip').inner_text()
     page.keyboard.press('Control+z')
     page.evaluate('viewer.select(null)')
@@ -2947,7 +2977,7 @@ def check_lights(page, is_bar):
     page.keyboard.press('Control+z')
     assert page.evaluate('viewer.lightRoots.size') == base + 1
     # the Map lighting mode takes the lights as edited
-    choose(page, 'lighting', 'map'); page.wait_for_timeout(300)
+    choose(page, 'lighting', 'map'); page.wait_for_function('viewer.lighting.counts.all === viewer.lightRecords().length')
     assert page.evaluate('viewer.lighting.counts.all === viewer.lightRecords().length')
     assert page.evaluate('id => viewer.lightRecords().some(l => l.actor === viewer.lightRoots.get(id).userData.source.actor)', copy)
     choose(page, 'lighting', 'neutral')
@@ -3033,7 +3063,7 @@ def check_library_assembly(browser, url):
     placed."""
     errors = []
     page = open_viewer(browser, url, errors)
-    if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'): return skip('library-assembly', 'needs a map, not a preview', page)
+    if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'): return skip('library-assembly', 'needs a map, not a preview', page, whole=True)
     count = page.evaluate('viewer.roots.size')
     page.keyboard.press('p')
     choose(page, 'libScope', 'all')
@@ -3077,7 +3107,7 @@ def check_library_assembly(browser, url):
         # it is of its family for the page's rules too: it stands on this map's tile grid as on its own
         assert page.evaluate("""n => { const picked = viewer.gizmo.picks().ids; return picked.length >= n; }""", parts)
         done[family] = dict(name=entry['name'], package=entry['source']['package'], parts=parts)
-    if not done: return skip('library-assembly', 'no assembly of another map could be placed', page)
+    if not done: return skip('library-assembly', 'no assembly of another map could be placed', page, whole=True)
     page.keyboard.press('p')
     total = page.evaluate('viewer.roots.size')
     assert total > count
@@ -3166,13 +3196,13 @@ def check_output_names(browser, url, errors):
     stamp = page.evaluate('Date.now() % 100000')
     name, word = f'Names smoke {stamp}', f'NamesSmoke{stamp}'
     # the server's answer held back: Save stays disabled and no name is shown meanwhile
-    page.evaluate("""() => { const f = window.fetch; window.slowNames = true;
+    page.evaluate("""() => { const f = window.fetch; window.slowNames = true; window.namesAsked = null;
       window.fetch = (u, o) => String(u).includes('output-names') && window.slowNames
-        ? new Promise(r => setTimeout(() => r(f(u, o)), 1500)) : f(u, o); }""")
+        ? (window.namesAsked = JSON.parse(o.body).name, new Promise(r => setTimeout(() => r(f(u, o)), 1500))) : f(u, o); }""")
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
     page.locator('#fileName').fill(name)
-    page.wait_for_timeout(400)
+    page.wait_for_function('n => window.namesAsked === n', arg=name)     # (the name typed asked for, its answer held back)
     assert page.locator('#fileOk').is_disabled() and page.locator('#fileOutput').inner_text() == 'Builds as …'
     page.wait_for_function("() => !document.getElementById('fileOk').disabled")
     page.evaluate('window.slowNames = false')
@@ -3226,7 +3256,7 @@ def check_effects_view(page):
     reach, the flyout's boxes hide a kind, Escape lets the picked one go, and plain X still flips the gizmo's axes.
     The selection it found is selected again at its end."""
     if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"):
-        return skip('effects', 'the Effects view: needs a map (not a preview) of export 28 or later')
+        return skip('effects', 'the Effects view: needs a map (not a preview) of export 28 or later', whole=True)
     held = page.evaluate('viewer.gizmo.active')
     page.evaluate('viewer.select(null)')
     if page.locator('#scenery').is_visible(): choose(page, 'scenery', 'full')
@@ -3277,7 +3307,7 @@ def check_effects_editing(page):
     pieces; a piece and an effect grouped move together; an effect a piece carries follows it, and Keep where it is
     keeps it where the map has it. Everything is undone at the end, and the selection it found selected again."""
     if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"):
-        return skip('effects', 'effect edits: needs a map (not a preview) of export 28 or later')
+        return skip('effects', 'effect edits: needs a map (not a preview) of export 28 or later', whole=True)
     held = page.evaluate('viewer.gizmo.active')
     blur = lambda: page.evaluate('document.activeElement?.blur()')
     state = lambda id: page.evaluate('id => { viewer.effectMarkers(); return viewer.effectState(id); }', id)
@@ -3288,7 +3318,7 @@ def check_effects_editing(page):
     page.evaluate("viewer.gizmo.setSnap('off')")
     fx = page.evaluate("""[...viewer.effectRoots.values()].map(r => r.userData.source).find(o => o.kind === 'effect' && !o.stream
         && !o.carriedBy && !o.landingActor && o.can?.move && o.can?.delete && o.can?.copy)?.id ?? null""")
-    if not fx: return skip('effects', 'effect edits: the map has no effect that can be moved, copied and deleted')
+    if not fx: return skip('effects', 'effect edits: the map has no effect that can be moved, copied and deleted', whole=True)
     page.evaluate('viewer.select(null); viewer.setNormalEffects(false); viewer.setEffectsShown(true)')
     page.evaluate('id => viewer.pickEffect(id)', fx)
     assert page.evaluate('viewer.effectsOn()') and page.evaluate('viewer.pickedEffect()') == fx
@@ -3402,7 +3432,7 @@ def check_effects_box(page):
     bar; in the Effects view it takes markers only and the view stays; Select all of a kind takes every effect of a
     picked one's particle system, in the box where one is drawn. Nothing of it is an edit."""
     if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"):
-        return skip('effects', 'the effect box: needs a map (not a preview) of export 28 or later')
+        return skip('effects', 'the effect box: needs a map (not a preview) of export 28 or later', whole=True)
     held = page.evaluate('viewer.gizmo.active')
     state = page.evaluate('viewer.projectState()')
     page.evaluate('viewer.select(null); viewer.setEffectsShown(false); viewer.setNormalEffects(true)')
@@ -3469,11 +3499,11 @@ def check_flares(page):
     and no values; box select takes it and counts it; Select all of a kind takes the flares of its template; a prefab
     of it holds a flare piece. Everything is undone at the end."""
     if page.evaluate("!(viewer.data.exporterVersion >= 28) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"):
-        return skip('flares', 'lens flares: needs a map (not a preview) of export 28 or later')
+        return skip('flares', 'lens flares: needs a map (not a preview) of export 28 or later', whole=True)
     flare = page.evaluate("""(() => { const all = [...viewer.effectRoots.values()].map(r => r.userData.source).filter(o => o.kind === 'flare' && !o.stream
         && o.layer === 'base' && o.template && o.can?.move && o.can?.delete && o.can?.copy);
       return all.length ? { id: all[0].id, actor: all[0].actor, template: all[0].template, same: all.filter(o => o.template === all[0].template).length } : null; })()""")
-    if not flare: return skip('flares', 'the map has no lens flare that can be moved, copied and deleted')
+    if not flare: return skip('flares', 'the map has no lens flare that can be moved, copied and deleted', whole=True)
     held = page.evaluate('viewer.gizmo.active')
     before = page.evaluate('viewer.projectState()')
     blur = lambda: page.evaluate('document.activeElement?.blur()')
@@ -3576,13 +3606,13 @@ def check_library_flares(browser, url):
     page = open_viewer(browser, url, errors, expected=(409, 422))
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.source.file.toLowerCase().endsWith('urb_bar.upk')"
                          " && Boolean(viewer.families()?.families?.flare?.builds)"):
-        return skip('library-flares', 'needs URB_Bar (not a preview) on a server that builds lens flares', page)
+        return skip('library-flares', 'needs URB_Bar (not a preview) on a server that builds lens flares', page, whole=True)
     page.evaluate("localStorage.removeItem('workshop.libraryView')")
     page.keyboard.press('p')
     choose(page, 'libScope', 'all')
     page.wait_for_function('viewer.library.ready()', timeout=60000)
     if not page.evaluate("viewer.library.entries().some(e => e.effect === 'flare')"):
-        return skip('library-flares', 'the library lists no lens flare (scan it again: viewer.py library scan)', page)
+        return skip('library-flares', 'the library lists no lens flare (scan it again: viewer.py library scan)', page, whole=True)
     page.locator('#libAllPlaceable').uncheck()
     page.locator('#libAllKind').select_option('flares')
     shown = page.evaluate("viewer.library.shown().map(e => ({ effect: e.effect, kind: e.kind, blocked: e.blocked, name: e.name }))")
@@ -3678,13 +3708,13 @@ def check_likeness(page):
     the choice is kept; a deleted effect's likeness goes and Ctrl+Z brings it back; nothing of it is an edit. Gives
     the frame time with and without it."""
     if page.evaluate("!(viewer.data.exporterVersion >= 29) || viewer.data.scope !== 'map' || Boolean(viewer.data.preview)"):
-        return skip('likeness', 'needs a map (not a preview) of export 29 or later')
+        return skip('likeness', 'needs a map (not a preview) of export 29 or later', whole=True)
     held = page.evaluate('viewer.gizmo.active')
     state = page.evaluate('viewer.projectState()')
     page.evaluate('viewer.select(null); viewer.setEffectsShown(false); viewer.setNormalEffects(false); viewer.setLikeness(true)')
     if page.locator('#scenery').is_visible(): choose(page, 'scenery', 'full')
     page.evaluate('viewer.frame()')
-    page.wait_for_timeout(1500)
+    page.wait_for_timeout(1500)     # (the likenesses drawn a while, their textures read, before the frame time)
     like = lambda: page.evaluate('viewer.likenessState()')
     can = page.evaluate("""[...viewer.effectRoots.values()].filter(r => r.userData.source.kind === 'effect' && !r.userData.source.stream
         && r.userData.source.startsOn !== false && viewer.data.effectSystems[r.userData.source.system]?.emitters.some(e => e.draw)).map(r => r.userData.source.id)""")
@@ -3711,12 +3741,12 @@ def check_likeness(page):
         page.evaluate('viewer.setLikeness(true)')
         page.evaluate('id => { viewer.setEffectsShown(true); viewer.pickEffect(id); }', target)
         page.keyboard.press('f')
-        page.wait_for_timeout(300)
+        page.wait_for_timeout(300)      # (the camera framed on it drawn, before its pictures)
         page.evaluate('viewer.setEffectsShown(false)')
-        page.wait_for_timeout(700)
+        page.wait_for_function('id => viewer.likenessState().drawn.includes(id)', arg=target)     # (stepped in the picture)
         assert target in like()['drawn'], like()
         page.evaluate('viewer.setLikeness(false)')
-        page.wait_for_timeout(300)
+        page.wait_for_function('() => { const s = viewer.likenessState(); return !s.on && s.effects === 0 && s.particles === 0; }')
         off = like()
         assert not off['on'] and off['effects'] == 0 and off['particles'] == 0, off
         assert not page.locator('#likenessToggle').is_checked() and page.evaluate("localStorage.getItem('workshop.likeness')") == '0'
@@ -3728,7 +3758,7 @@ def check_likeness(page):
         assert page.screenshot(clip=clip) == hidden          # (a still picture without it)
         without = without or frame_time()
         page.evaluate('viewer.setLikeness(true)')
-        page.wait_for_timeout(300)
+        page.wait_for_function('n => viewer.likenessState().effects >= n', arg=len(can))
         assert like()['effects'] >= len(can) and page.evaluate("localStorage.getItem('workshop.likeness')") == '1'
         for _ in range(12):                                  # (its textures and meshes are read first)
             if page.screenshot(clip=clip) != hidden: seen = target; break
@@ -3740,10 +3770,11 @@ def check_likeness(page):
     if not page.evaluate('id => viewer.effectState(id).viewOnly', target):
         page.evaluate('document.activeElement?.blur()')
         page.keyboard.press('Delete')
-        page.wait_for_timeout(200)
+        page.wait_for_function('([id, n]) => { const s = viewer.likenessState(); return !s.drawn.includes(id) && s.effects < n; }',
+                               arg=[target, now['effects']])
         assert target not in like()['drawn'] and like()['effects'] < now['effects'], like()      # (its linked effects go with it)
         page.keyboard.press('Control+z')
-        page.wait_for_timeout(200)
+        page.wait_for_function('n => viewer.likenessState().effects === n', arg=now['effects'])
         assert like()['effects'] == now['effects']
     page.evaluate('viewer.select(null); viewer.setEffectsShown(false)')
     assert page.evaluate('viewer.projectState()') == state
@@ -3807,7 +3838,7 @@ def check_streams(page):
     helpers hidden by default (Hide patch helpers) and as a wireframe when it is unticked, and a streamed piece can be
     inspected but never moved, deleted or saved."""
     if page.evaluate('!viewer.data.streams || Boolean(viewer.data.preview)'):
-        return skip('streams', 'the map (or preview) has no streamed packages')
+        return skip('streams', 'the map (or preview) has no streamed packages', whole=True)
     shown = """() => [...viewer.roots.values()].filter(r => r.userData.source.layer === 'stream' && r.visible)
                  .map(r => r.userData.source.stream)"""
     def consistent():
@@ -3877,13 +3908,13 @@ def check_spawns_view(page):
     with a council bomb record: one marker for the bomb and one for each power node, none on another record and
     nothing left picked; the bomb and a node moved apart and undone, the bomb's group with its helper."""
     if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview && Array.isArray(viewer.data.spawns)'):
-        return skip('spawns', 'the Spawns view: needs a map (not a preview) of an export with spawn points')
+        return skip('spawns', 'the Spawns view: needs a map (not a preview) of an export with spawn points', whole=True)
     normal = page.evaluate('viewer.normalSpawns()')
     page.evaluate('viewer.setNormalSpawns(false); viewer.select(null)')
     pod = page.evaluate("(viewer.spawns().find(s => s.kind === 'pod' && s.layer === 'base') ?? null)")
     if pod:
         page.evaluate('k => { const s = viewer.spawns().find(x => x.key === k); viewer.showSpawn(s.actor, null); viewer.pickSpawn(null); viewer.setNormalSpawns(false); }', pod['key'])
-        page.wait_for_timeout(200)
+        page.wait_for_timeout(200)      # (a frame drawn where showSpawn put the camera, before the screen point)
         pod = page.evaluate('k => viewer.spawns().find(x => x.key === k)', pod['key'])
         x, y = pod['screen']
         page.evaluate('document.activeElement && document.activeElement.blur()')
@@ -3952,9 +3983,9 @@ def check_spawn_edits(page):
     click, whole tiles from its template; the drop-in rule's box ticked and undone; all of it undone back to as the
     map was."""
     if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview && Array.isArray(viewer.data.spawns)'):
-        return skip('spawns', 'spawn edits: needs a map (not a preview) of an export with spawn points')
+        return skip('spawns', 'spawn edits: needs a map (not a preview) of an export with spawn points', whole=True)
     entries = page.evaluate('viewer.spawnAddEntries().map(e => e.name)')
-    if not entries: return skip('spawns', 'spawn edits: the spawn family doesn\'t build on this server')
+    if not entries: return skip('spawns', 'spawn edits: the spawn family doesn\'t build on this server', whole=True)
     assert set(entries) <= {'Pod', 'Meld point', 'No-spawn volume'} and 'No-spawn volume' in entries, entries
     # a map with no no-spawn volume of its own (Act1_IntroLevel) offers a fresh one, which has no actor: the Add panel
     # opened on it threw before (18 November 2026)
@@ -4027,7 +4058,7 @@ def check_spawn_edits(page):
         page.evaluate('a => viewer.showSpawn(a, null)', vol['actor'])
         page.evaluate("document.activeElement && document.activeElement.blur(); viewer.setNormalSpawns(false); viewer.setSpawnsShown(true)")
         page.evaluate('k => viewer.pickSpawn(k)', vol['key'])
-        page.wait_for_timeout(100)
+        page.wait_for_timeout(100)      # (a frame drawn where showSpawn put the camera, before the handles' screen points)
         handles = page.evaluate('viewer.spawnVolumeHandles()')
         assert handles and sorted(handles) == ['x0', 'x1', 'y0', 'y1', 'z0', 'z1'], handles
         b0 = vol['box']
@@ -4035,9 +4066,10 @@ def check_spawn_edits(page):
         a = page.evaluate('p => viewer.screenOf(p)', [b0[3], *mid])
         b = page.evaluate('p => viewer.screenOf(p)', [b0[3] + 192, *mid])
         h = handles['x1']
-        page.mouse.move(*h); page.wait_for_timeout(30)
+        # (the press takes the handle under its own point and the release keeps the box, in their listeners, which the
+        # mouse calls wait for)
+        page.mouse.move(*h)
         page.mouse.down(); page.mouse.move(h[0] + b[0] - a[0], h[1] + b[1] - a[1], steps=12); page.mouse.up()
-        page.wait_for_timeout(50)
         now = next(s for s in spawns() if s['key'] == vol['key'])['box']
         # (an edited box is kept to a thousandth of a unit: the map's -863.9998 is -864)
         assert all(abs(now[k] - b0[k] - (192 if k == 3 else 0)) < 1e-2 for k in range(6)), (b0, now)
@@ -4249,7 +4281,7 @@ def check_projects(browser, url):
     replacing a project and renaming the open one, the Load dialog, and the recent list."""
     errors = []
     page = open_viewer(browser, url, errors, expected=(409,))
-    if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'): return skip('projects', 'needs a map, not a preview', page)
+    if not page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'): return skip('projects', 'needs a map, not a preview', page, whole=True)
     visible = page.evaluate("[...viewer.roots.keys()].filter(id => { const r = viewer.roots.get(id), o = r.userData.source;"
                             " return r.visible && !o.hidden && viewer.gizmo.linkedCount(id) === 0 && !viewer.recipeOf(id); })")
     linked = page.evaluate("[...viewer.roots.keys()].find(id => viewer.roots.get(id).visible && viewer.gizmo.linkedCount(id) >= 1)")
@@ -4691,9 +4723,9 @@ def prefab_library(browser, url):
     errors = []
     page = open_viewer(browser, url, errors, expected=(409, 422))
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && Boolean(viewer.data.tileGrid?.origin)"):
-        return skip('prefabs', 'needs a map (not a preview) with a tile grid', page)
+        return skip('prefabs', 'needs a map (not a preview) with a tile grid', page, whole=True)
     car = page.evaluate("(viewer.families()?.assemblies ?? []).find(a => a.family === 'car' && a.members.length > 1) ?? null")
-    if not car: return skip('prefabs', 'the map has no car of more than one piece', page)
+    if not car: return skip('prefabs', 'the map has no car of more than one piece', page, whole=True)
     here = page.evaluate('viewer.data.name')
     assert page.evaluate("fetch('/prefabs.json').then(r => r.json())")['prefabs'] == [], 'the prefabs folder is not a fresh one'
     page.evaluate("localStorage.removeItem('workshop.libraryScope')")
@@ -5023,7 +5055,7 @@ def check_prefab_effects(browser, url):
     errors = []
     page = open_viewer(browser, url, errors, expected=(409, 422))
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 29 && viewer.data.source.file.toLowerCase().endsWith('urb_bar.upk')"):
-        return skip('prefab-effects', 'URB_Bar (not a preview) of export 29 or later only', page)
+        return skip('prefab-effects', 'URB_Bar (not a preview) of export 29 or later only', page, whole=True)
     here = page.evaluate('viewer.data.name')
     page.evaluate('viewer.setNormalEffects(true)')
     ids = page.evaluate("""(() => { viewer.effectMarkers();
@@ -5036,7 +5068,7 @@ def check_prefab_effects(browser, url):
         && !viewer.recipeOf(o.id) && !(viewer.families()?.assemblies ?? []).some(a => a.members.includes(o.actor)); }).sort((a, b) => far(a) - far(b))[0];
       return { fx: fx.userData.source.id, snd: snd.userData.source.id, prop: prop.userData.source.id,
                fxActor: fx.userData.source.actor, sndActor: snd.userData.source.actor, sndAt: snd.userData.source.location, fxAt: at }; })()""")
-    if not ids: return skip('prefab-effects', 'the Bar has no free effect and sound to group', page)
+    if not ids: return skip('prefab-effects', 'the Bar has no free effect and sound to group', page, whole=True)
     page.evaluate("ids => { viewer.select(ids.prop); viewer.select(ids.fx, true); viewer.select(ids.snd, true); }", ids)
     page.keyboard.press('Control+g')
     assert len(page.evaluate('viewer.groupList()')) == 1
@@ -5246,12 +5278,21 @@ def check_squad_run(ctx):
 
 
 def check_header(ctx):
-    """The header's Selected and Frame, and View options' grid."""
+    """The header's Selected, framing a piece it picks (the button is off with nothing selected, as a check before it
+    may leave things), and Frame, and View options' grid. The selection it found is put back."""
     page = ctx.page
+    held = page.evaluate('viewer.gizmo.active')
+    piece = page.evaluate("""[...viewer.roots.values()].find(r => r.visible && !r.userData.deleted && !r.userData.source.hidden
+      && !r.userData.source.environment)?.userData.source.id ?? null""")
+    assert piece, 'no piece drawn to select'
+    page.evaluate('id => viewer.select(id)', piece)
     page.locator("#selected").click()
+    assert page.evaluate("""async id => { const T = await import('/vendor/three/three.module.js');
+      return new T.Box3().setFromObject(viewer.roots.get(id)).expandByScalar(2).containsPoint(viewer.controls.target); }""", piece)
     page.locator("#frame").click()
     check_option(page,'grid',False)
     check_option(page,'grid',True)
+    page.evaluate('id => viewer.select(id)', held)
 
 
 def check_floors_cut(ctx):
@@ -5281,7 +5322,7 @@ def check_floors_cut(ctx):
         choose(page,'floor','all')
         assert page.evaluate('[...viewer.roots.values()].filter(r=>r.visible).length')==before
     else:
-        skip('floors-cut', 'the map has no buildings')
+        return skip('floors-cut', 'the map has no buildings', whole=True)
 
 
 def check_dense(ctx):
@@ -5371,7 +5412,7 @@ def check_previews(ctx):
     folder = urlunsplit((*urlsplit(page.url)[:2], f"/cache/{quote(page.evaluate('viewer.mapId'))}/", '', ''))
     options = []
     while page.request.head(f'{folder}preview-{len(options)}.json').ok: options.append(f'preview-{len(options)}.json')
-    if not options: return skip('previews', 'the map\'s export has no patch previews (an export with --spec makes them)')
+    if not options: return skip('previews', 'the map\'s export has no patch previews (an export with --spec makes them)', whole=True)
     for option in options:
         url=urlsplit(page.url)
         query='&'.join(p for p in url.query.split('&') if p and not p.startswith(('scene=','project=')))
@@ -5443,9 +5484,10 @@ def run_output_names(ctx):
 
 
 def on_page(*checks):
-    """A run that does each check(page) on the main page."""
+    """A run that does each check(page) on the main page; skipped whole (WHOLE) when each of them skipped itself whole."""
     def run(ctx):
-        for check in checks: check(ctx.page)
+        done = [check(ctx.page) for check in checks]
+        return WHOLE if all(d is WHOLE for d in done) else None
     return run
 
 
@@ -5613,6 +5655,7 @@ def run_checks(ctx, names):
         except BaseException as error:
             ctx.failed = dict(check=check.name, error=(str(error).strip().splitlines() or [type(error).__name__])[0][:500])
             raise
+        if result is WHOLE: continue        # (it skipped itself whole, with why: listed as skipped only)
         ctx.ran.append(check.name)
         if result is not None: ctx.results[check.name] = result
 
@@ -5849,7 +5892,8 @@ def main():
     ap.add_argument("--projects",action="store_true",help="Also check projects: saves into the server's projects folder, so "
                     "use a test server started with --projects <scratch folder>, never the main one")
     ap.add_argument("--play",action="store_true",help="Also check Play in game and Game maps' Undo everything: changes the server's "
-                    "install, so only for a test server started with --install <a scratch game folder> --dry-play")
+                    "install, so only for a test server started with --install <a scratch game folder> --dry-play (--play-install "
+                    "says what that folder holds)")
     ap.add_argument("--play-project",help="With --play: also play this project's build (it must be of its saved revision)")
     ap.add_argument("--squad",action="store_true",help="The server's --squad is a scratch file: the squad check also saves (and puts the squad back)")
     ap.add_argument("--only",help="Run only these checks (the names below, comma-separated), in the table's order, and stop: "
@@ -5859,7 +5903,10 @@ def main():
     ap.add_argument("--write-api-names",action="store_true",help="Write window.viewer's names on the Bar, the blank map and in the "
                     "builder, read from the test server --url names, into viewer_api_names.json (what api-names compares), and stop")
     ap.add_argument("--scratch",help="With --all: the folder for the servers' scratch folders and the report (default: a new temporary one)")
-    ap.add_argument("--play-install",help="With --all: a scratch game folder for the Play check (without it, Play is skipped)")
+    ap.add_argument("--play-install",help="With --all: a scratch game folder for the Play check (without it, Play is skipped), never a "
+                    "real install. It holds copies of an LWR install's XEW\\XComGame\\Config\\Default*.ini, "
+                    "XEW\\XComGame\\CookedPCConsole\\XComGame.upk and URB_Bar.upk, XEW\\XComGame\\Localization\\INT\\XCom*.int, "
+                    "and an empty XEW\\Binaries folder (where a play writes its commands file)")
     ap.add_argument("--cache",help="With --all: a scratch cache holding exports of URB_Bar, URB_PoliceStation, TempleShip and CB2_MP_Blank, and the "
                     "game's library scanned (default: made in the scratch folder); never the user's own")
     args = ap.parse_args()

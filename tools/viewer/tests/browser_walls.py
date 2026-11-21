@@ -45,7 +45,7 @@ def made_ids(page, kind, but=()):
 def look_at(page, at):
     page.evaluate("""c => { viewer.controls.target.set(c[0], c[2], c[1]); viewer.camera.position.set(c[0] + 500, c[2] + 900, c[1] + 900);
       viewer.camera.lookAt(c[0], c[2], c[1]); viewer.controls.update(); }""", at)
-    page.wait_for_timeout(300)
+    page.wait_for_timeout(300)      # (a frame drawn from where the camera was put: screenOf reads its matrices)
 
 
 def drag(page, a, b, steps=12, alt=False):
@@ -108,8 +108,7 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     kinds = page.evaluate("[...document.querySelectorAll('#libKind option')].map(o => o.value)")
     assert not {'Walls', 'Floors and roofs'} & set(kinds), kinds
     for words, gone in (('bar inside wall', ('wall-bar-inside', 'room-bar-inside')), ('look', ('looks-wall', 'looks-slab', 'looks-ground'))):
-        page.locator('#libFilter').fill(words)
-        page.wait_for_timeout(200)
+        page.locator('#libFilter').fill(words)       # (the list is drawn again in the box's input listener, which fill runs)
         assert not any(page.locator(f'#libMap .libitem[data-id="{i}"]').count() for i in gone), (words, gone)
     page.locator('#libFilter').fill('')
     page.evaluate('document.activeElement.blur()')
@@ -297,7 +296,7 @@ def check_walls(browser, url, open_viewer, type_project_name, project_url, at=(-
     # (seen from straight above, so no wall or building beside it hides any of it)
     page.evaluate("""c => { viewer.controls.target.set(c[0], c[2], c[1]); viewer.camera.position.set(c[0] + 1, c[2] + 1400, c[1] + 1);
       viewer.camera.lookAt(c[0], c[2], c[1]); viewer.controls.update(); }""", [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, corner[2]])
-    page.wait_for_timeout(300)
+    page.wait_for_timeout(300)      # (a frame drawn from where the camera was put: screenOf reads its matrices)
     drag(page, ground_point(page, a), ground_point(page, b))
     page.wait_for_function('n => viewer.roots.size === n + 4', arg=len(before_ids), timeout=60000)
     room = page.evaluate("""before => [...viewer.roots.values()].filter(r => !before.includes(r.userData.source.id))

@@ -1354,8 +1354,16 @@ last run's projects). It covers:
 `--play-project <id>` that project's build installed and played (its build must be of its saved revision, so nothing
 builds: Build's panel is answered with its default there, Play last build), then removed. It changes the server's
 install and would start the game, so it refuses any server not started with `serve --install <scratch game folder>
---dry-play`. The scratch folder needs `DefaultMaps.ini` and `DefaultLZMutator.ini` in `XEW\XComGame\Config` (copies
-of an LWR install's), the open map's package in `XEW\XComGame\CookedPCConsole` and an `XEW\Binaries` folder.
+--dry-play`. `browser_smoke.py --all --play-install <scratch game folder>` runs it on a server of its own the same way
+(without `--play-install`, `--all` skips Play). The scratch game folder holds copies of an LWR install's files at the
+same places:
+
+- `XEW\XComGame\Config\Default*.ini` (`DefaultMaps.ini` and `DefaultLZMutator.ini` take the play's record; the test
+  squad reads `DefaultGameCore.ini` and `DefaultEngine.ini`);
+- `XEW\XComGame\CookedPCConsole\XComGame.upk` (the test squad's game data) and the open map's package (`URB_Bar.upk`
+  for `--all`);
+- `XEW\XComGame\Localization\INT\XCom*.int` (the test squad's words);
+- an empty `XEW\Binaries` folder, where a play writes its commands file.
 `test_play.py` covers the same on temporary installs, with a start that records its command: a map played with
 nothing installed, a project's record added and taken out byte for byte, plain Enemy Within, the game's config kept
 aside and put back when the game closes, a separate copy, lines and

@@ -40,6 +40,8 @@ import json
 import math
 import time
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
 WALL = dict(kind='fracWall', version=4, wall=dict(x0=0, x1=288, openings=[dict(x0=96, x1=192, z0=-16, z1=208)], seed=3),
             blasts=[dict(at=[48, 0, 96], radius=96)], breaksFurther=True)
 FLOOR = dict(kind='fracSlab', version=3, slab=dict(x0=0, x1=192, y0=0, y1=288, holes=[dict(x0=96, x1=192, y0=96, y1=192)], seed=1))
@@ -131,7 +133,15 @@ STOPS = """async id => { const { tabStops } = await import('/modal.js');
   return tabStops(document.getElementById(id)).map(el => el.id || el.textContent.trim().slice(0, 30) || el.outerHTML.slice(0, 60)); }"""
 FOCUSED = """id => { const root = document.getElementById(id), a = document.activeElement;
   return { inside: root.contains(a), name: a?.id || a?.textContent?.trim().slice(0, 30) || a?.outerHTML?.slice(0, 60) || a?.tagName }; }"""
+INSIDE = "id => document.getElementById(id).contains(document.activeElement)"
 FOCUS_STOP = """async ([id, k]) => { const { tabStops } = await import('/modal.js'); tabStops(document.getElementById(id)).at(k).focus(); }"""
+
+
+def until(page, expression, arg=None):
+    """Wait up to 5 s for `expression` (a focus that moves a moment after a dialog shows or closes); when it never holds,
+    the assertion after the wait says what was found instead."""
+    try: page.wait_for_function(expression, arg=arg, timeout=5000)
+    except PlaywrightTimeout: pass
 
 
 def modal_case(page, root, opens):
@@ -142,7 +152,7 @@ def modal_case(page, root, opens):
     page.evaluate("document.getElementById('mapButton').focus()")
     page.evaluate(opens)
     page.wait_for_selector(f'#{root}:not([hidden])')
-    page.wait_for_timeout(150)      # (a dialog's own focus comes a moment after it shows)
+    until(page, INSIDE, root)      # (a dialog's own focus comes a moment after it shows)
     assert page.evaluate(FOCUSED, root)['inside'], (root, page.evaluate(FOCUSED, root))
     stops = page.evaluate(STOPS, root)
     assert len(stops) >= 2, (root, stops)
@@ -160,7 +170,7 @@ def modal_case(page, root, opens):
     page.keyboard.press('Delete')
     page.keyboard.press('m')
     page.keyboard.down('w')
-    page.wait_for_timeout(250)
+    page.wait_for_timeout(250)      # (W held a while: a camera move would show; nothing should)
     page.keyboard.up('w')
     assert not page.evaluate('id => viewer.roots.get(id).userData.deleted', piece), root
     assert page.locator('#mapDialog').is_hidden(), root
@@ -168,7 +178,7 @@ def modal_case(page, root, opens):
     assert page.locator(f'#{root}').is_visible(), root
     page.keyboard.press('Escape')
     page.wait_for_selector(f'#{root}', state='hidden')
-    page.wait_for_timeout(50)
+    until(page, "document.activeElement?.id === 'mapButton'")
     assert page.evaluate('document.activeElement?.id') == 'mapButton', (root, page.evaluate('document.activeElement?.id'))
     page.evaluate('viewer.select(null)')
     return len(stops)
@@ -189,7 +199,7 @@ def check_modals(browser, url, open_viewer):
     page.evaluate("""viewer.missionsPanel.show({ title: 'Check', note: 'None ticked', onOk: () => {},
       rows: [{ entry: { record: 0 }, label: 'First', checked: false, disabled: 'not here' }, { entry: { record: 1 }, label: 'Second', checked: false }] })""")
     page.wait_for_selector('#missionsDialog:not([hidden])')
-    page.wait_for_timeout(150)
+    until(page, "document.activeElement === document.querySelectorAll('#missionsList input')[1]")     # (as a dialog's own)
     assert page.locator('#missionsOk').is_disabled()
     assert page.evaluate("document.activeElement === document.querySelectorAll('#missionsList input')[1]"), page.evaluate(FOCUSED, 'missionsDialog')
     page.keyboard.press('Escape')
@@ -211,7 +221,7 @@ def break_piece(page, ids):
     """One of the pieces `ids` broken as the user does: picked, framed, B, a click on it. Its id."""
     for piece in ids[:12]:
         page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); document.activeElement?.blur?.(); }', piece)
-        page.wait_for_timeout(150)
+        page.wait_for_timeout(150)      # (a frame drawn where it was framed, before the screen points)
         page.keyboard.press('b')
         box = page.evaluate('id => viewer.pieceBox(id)', piece)
         for fx, fy in ((0.5, 0.5), (0.3, 0.5), (0.7, 0.5), (0.5, 0.3), (0.5, 0.7)):
@@ -337,9 +347,9 @@ def check_draw_errors(browser, url, open_viewer, save_dialog):
 
 
 # the server's made meshes held back a second and a half in this page (as a slow server would be)
-SLOW_MADE = """() => { const real = window.fetch;
+SLOW_MADE = """() => { const real = window.fetch; window.madeAsked = 0;
   window.fetch = (u, o) => ((u instanceof Request ? u.url : String(u)).includes('/generated/')
-    ? new Promise(done => setTimeout(done, 1500)).then(() => real(u, o)) : real(u, o)); }"""
+    ? (window.madeAsked++, new Promise(done => setTimeout(done, 1500)).then(() => real(u, o))) : real(u, o)); }"""
 WALL_STANDS = """id => { const r = viewer.roots.get(id); return Boolean(r && !r.userData.deleted); }"""
 
 
@@ -357,7 +367,7 @@ def check_look_undo(browser, url, open_viewer):
     page.evaluate("""async id => { const map = viewer.data.name, { looks } = await (await fetch('/looks/walls.json')).json();
       const entry = looks.find(e => e.map.toLowerCase() === map.toLowerCase() && viewer.catalogued('wall', viewer.lookFromEntry('wall', e).donor));
       window.lookDone = viewer.setMadeLook(id, 'wall', viewer.lookFromEntry('wall', entry)); }""", wall)
-    page.wait_for_timeout(200)
+    page.wait_for_function('window.madeAsked > 0')      # (its new mesh asked for, the answer held back)
     page.evaluate("id => { viewer.select(id); document.activeElement?.blur?.(); }", other)
     page.keyboard.press('Delete')
     assert page.evaluate('id => viewer.roots.get(id).userData.deleted', other)
