@@ -13,7 +13,7 @@
 // the Buildings view's boxes and the groups' lock. Its own state is the ghosts' meshes; what other areas read or set
 // (the Build menu's tool, the drawing under way) is editor_state.js's.
 import * as THREE from 'three';
-import { builderMode, data, hintTimer, library, pieces, roots, setBuildTool, setWallDrawing, snapMode,
+import { data, hintTimer, library, pieces, roots, setBuildTool, setWallDrawing, snapMode,
          wallDrawing } from './editor_state.js';
 import { drawnGroundAt, groundBox as groundShapeBox, groundWords as groundShapeWords, slopeWords } from './ground.js';
 import { freeRequest } from './made_free.js';
@@ -43,7 +43,8 @@ export function createMadeDrawing({ $, addVolumes, askLineCollision, busyStart, 
   // (buildTool, the Build menu's tool being drawn: editor_state.js)
   function startBuild(key) {
     const tool = BUILD_TOOLS[key];
-    if (!tool || !data || data.preview || builderMode) return;
+    // (the prefab builder draws them too: a prefab keeps a made piece as a map does, piece_records.js)
+    if (!tool || !data || data.preview) return;
     if (pieces.open) showPieces(false);
     tool.start();
     markBuildTool(key);

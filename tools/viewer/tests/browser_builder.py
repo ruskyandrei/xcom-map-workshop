@@ -36,6 +36,22 @@ def check_builder(browser, url, screenshot=None):
     assert page.locator('#prefabNew').is_visible()
     assert page.get_by_role('button', name='Test in game', exact=True).count() == 0
     page.evaluate('viewer.showPieces(false)')
+    # The Build menu draws made pieces here as in a map (until 21 November 2026 its tools did nothing in the builder):
+    # a wall picked as the user does, a floor and a block by script; saved, they open again as they were drawn.
+    import browser_walls as bw
+    for key, a, b, kind in (('wall', [-192, 0, 0], [192, 0, 0], 'fracWall'), ('floor', [-192, 192, 0], [96, 384, 0], 'fracSlab'),
+                            ('block', [288, 288, 0], [480, 384, 0], 'ground')):
+        (bw.build_menu if key == 'wall' else bw.start_build)(page, key)
+        bw.look_at(page, a)
+        bw.drag(page, bw.ground_point(page, a), bw.ground_point(page, b))
+        page.wait_for_function('k => viewer.wallState(viewer.gizmo.active)?.generated?.kind === k', arg=kind, timeout=60000)
+        page.keyboard.press('Escape')
+    made = page.evaluate("[...viewer.roots.values()].map(r => r.userData.source.added?.generated?.kind).sort()")
+    assert made == ['fracSlab', 'fracWall', 'ground'], made
+    assert page.evaluate('name => viewer.saveBuilder({name})', 'Builder made pieces ' + str(time.time_ns()))
+    opened('?prefab=' + page.evaluate('viewer.builderDocument().id'))
+    assert page.evaluate("[...viewer.roots.values()].map(r => r.userData.source.added?.generated?.kind).sort()") == made
+    opened('?prefab=new')
     # Complete document, hidden boxes and light included. Variable-height floors and negative XY.
     doc = page.evaluate('''async () => {
       const doc = viewer.builderDocument();
