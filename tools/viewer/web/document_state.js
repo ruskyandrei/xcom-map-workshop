@@ -14,8 +14,8 @@
 // The shared state it reads and writes is editor_state.js's.
 import * as THREE from 'three';
 import { COVER_KIND } from './cover.js';
-import { areaBindings, builderMode, cleared, clearKeepsOutside, copySerial, data, effectRoots, eventMemo, landingZones,
-         library, lightIndex, lightRoots, loadErrorCount, missionMoves, projectMissions, projectPicture,
+import { areaBindings, builder, builderMode, cleared, clearKeepsOutside, copySerial, data, effectRoots, eventMemo,
+         landingZones, library, lightIndex, lightRoots, loadErrorCount, missionMoves, projectMissions, projectPicture,
          projectSpawnRules, roots, setCleared, setClearKeepsOutside, setCopySerial, setGroups, setLandingZones,
          setLiveCache, setLoadErrorCount, setMergedBuildings, setProjectMissions, setProjectPicture,
          setProjectSpawnRules, stage, volumeRoots } from './editor_state.js';
@@ -26,13 +26,12 @@ import { plural, short, text } from './dom_words.js';
 
 export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf, addedObject, addEffectRoots,
                                       addLightRoots, addRoots, applyEffectRecord, applyLightRecord, baseMatrix,
-                                      baseSpawnOf, builder, buildRoots, clearedChanged, clearEffectEdits,
-                                      clearLightEdits, cloneGroups, coverOf, coverVersion, drawBroken, editChanged,
-                                      effectEdited, effectState, gizmo, lightEdited, lightState, liveMembers,
-                                      loadForeignTemplates, mapBreakable, memberOf, missionKey, missionOverrides,
-                                      movedMatrix, ownSize, removeRoots, savedBuildings, sceneChanged, setBuildings,
-                                      setMissionMoves, setStage, spawnCopyRecords, streamObjects, syncSpawnRule,
-                                      templateFor }) {
+                                      baseSpawnOf, buildRoots, clearedChanged, clearEffectEdits, clearLightEdits,
+                                      cloneGroups, coverOf, coverVersion, drawBroken, editChanged, effectEdited,
+                                      effectState, gizmo, lightEdited, lightState, liveMembers, loadForeignTemplates,
+                                      mapBreakable, memberOf, missionKey, missionOverrides, movedMatrix, ownSize,
+                                      removeRoots, savedBuildings, sceneChanged, setBuildings, setMissionMoves,
+                                      setStage, spawnCopyRecords, streamObjects, syncSpawnRule, templateFor }) {
   function editStateNow() {
     const overrides = new Map(), added = new Map();     // (`added`: units while the roots are read, then their records)
     for (const root of roots.values()) {

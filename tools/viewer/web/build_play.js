@@ -9,11 +9,12 @@
 //
 // createBuildPlay takes what it needs of app.js as one argument object, when app.js makes it: the views and dialogs
 // it opens (Prepare, the Save dialog, a spawn point's marker, the landing zones), the selection, the document
-// session's banner and save, and the prefab builder's document. Its own state is inside it (the build its window
-// follows, a play waiting for its build, the next play's landing zone, mission and saving); the play status, which the
-// Missions panel reads too, the picked landing zone and the mission picker's value are editor_state.js's.
-import { activeMapId, buildTimer, builderMode, landingZones, lastBuild, missionPickValue, pickedZone, playStatus, project,
-         saving, setBuildTimer, setLastBuildValue, setPlayStatus } from './editor_state.js';
+// session's banner and save, and the prefab builder's document and records. Its own state is inside it (the build its
+// window follows, a play waiting for its build, the next play's landing zone, mission and saving); the play status,
+// which the Missions panel reads too, the picked landing zone, the mission picker's value and the prefab builder's
+// state (builder) are editor_state.js's.
+import { activeMapId, builder, builderMode, buildTimer, landingZones, lastBuild, missionPickValue, pickedZone,
+         playStatus, project, saving, setBuildTimer, setLastBuildValue, setPlayStatus } from './editor_state.js';
 import { createBuildOptions, savingHelp } from './build_options.js';
 import { chipWords, clock } from './build_queue.js';
 import { buildBar, buildSteps, leftOutList, logText, missionWarnings, secondsBetween } from './build_window.js';
@@ -25,10 +26,9 @@ import { api as projectApi, uuid } from './project.js';
 import { createSquadDialog, squadLine } from './squad.js';
 import { plural, short, text } from './dom_words.js';
 
-export function createBuildPlay({ $, bakeNote, banner, builder, builderDocument, builderRecords, dirty, dragHint,
-                                  flashHint, gizmo, headerMissions, mapLabel, needsPrepare, projectsAvailable,
-                                  saveProject, selectActors, setZones, showFileDialog, showPop, showPrepare, showSpawn,
-                                  zonesNow }) {
+export function createBuildPlay({ $, bakeNote, banner, builderDocument, builderRecords, dirty, dragHint, flashHint,
+                                  gizmo, headerMissions, mapLabel, needsPrepare, projectsAvailable, saveProject,
+                                  selectActors, setZones, showFileDialog, showPop, showPrepare, showSpawn, zonesNow }) {
   // Build (Ctrl+B, the header's Build): a panel first asks whether to bake the lighting (build_options.js; off by default),
   // then the open project is saved if it has unsaved changes (Save itself never builds) and the server builds the saved
   // revision (tools/viewer/builds.py runs tools/editor/build.py, with --quick when not baking): the variant package in the

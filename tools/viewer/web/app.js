@@ -14,7 +14,7 @@ import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { isStream } from './piece_records.js';
-import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, cachePrefix, coverDrag, data,
+import { activeMapId, allRoots, areaShown, assigning, breaking, builderMode, cachePrefix, coverDrag, data,
          effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, lastLightSync,
          leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
          lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects, pickBox, pickDrag,
@@ -356,7 +356,7 @@ const SESSION = uuid();
 // The scene to and from a document (document_state.js): the edits on screen as a project records them, and a
 // project's state put on the map.
 const { applyState, changes, editState, projectNote } = createDocumentState({
-  $, actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, baseMatrix, buildRoots, builder,
+  $, actorPose, addLightRoots, addRoots, addedLightOf, addedObject, applyLightRecord, baseMatrix, buildRoots,
   clearLightEdits, cloneGroups, editChanged, gizmo, lightEdited, lightState, liveMembers, loadForeignTemplates,
   memberOf, movedMatrix, removeRoots, sceneChanged, templateFor,
   // (made with the map grid, further down: called through, since they are not made yet while this runs)
@@ -382,7 +382,7 @@ const { applyState, changes, editState, projectNote } = createDocumentState({
 // and offered back, and the banner under the header.
 const { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery,
         loadProject, openProject, projectChanged, saveProject, saveState, unsavedDocument } = createDocumentSession({
-  $, SESSION, applyState, builder, camera, changes, controls, documentWrites, editChanged, editState, flashHint, gizmo,
+  $, SESSION, applyState, camera, changes, controls, documentWrites, editChanged, editState, flashHint, gizmo,
   loadingState, openingProgress, projectNote,
   // (made with the Project menu, further down: called through, since it is not made yet while this runs)
   showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave), touchRecent: id => touchRecent(id),
@@ -451,7 +451,7 @@ const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMe
 // builder's Test in game and the build queue's chip.
 const { followBuild, followQueueForProject, landHere, openBuild, openPrefabTest, playInGame, prefabTest, refreshInstalls,
         refreshSquadLine, renderPlayItems, renderQueueChip, setLastBuild } = createBuildPlay({
-  $, bakeNote, banner, builder, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo, mapLabel,
+  $, bakeNote, banner, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo, mapLabel,
   needsPrepare, projectsAvailable, saveProject, showPop, showPrepare,
   // (made with Clear map, further down: called through, since they are not made yet while this runs)
   headerMissions: () => headerMissions(), zonesNow: () => zonesNow(),

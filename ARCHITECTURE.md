@@ -364,6 +364,11 @@ left behind.
 **Factories.** A module that needs functions of other areas is made by a factory, `create<Area>`, that takes them as
 one argument object and destructures it, so the code in it calls them by their own names. It returns the functions
 other areas call, and app.js destructures them under the same names, so their callers read as they would anywhere.
+What a module can import it imports, and is not given: a pure module's export (`dom_words.js`' words,
+`piece_records.js`' `isStream`, `fromOf` and `sourceKey`, `modal.js`' `modalOpen`), a constant (`PL`) or shared state
+(`editor_state.js`' `builder`). A value given is the one it had when the factory was made (a later value of a `let`
+never reaches it), and a parameter of the same name hides the module's own import (follow-ups 3.23 and 3.8). Some plain exports are still given (`scene_pieces.js`'
+`actorPose`, `groups.js`' `memberOf`, `map_grid.js`' `gridOrigin` and others): a change to such a factory imports them.
 app.js makes each factory after the functions and objects it is given:
 - A function made further down in app.js (a `const`, or one a factory made later returns) is given as a function that
   calls it, since it is not made yet: `select: (id, add, keep) => select(id, add, keep)`. So is a function app.js keeps
