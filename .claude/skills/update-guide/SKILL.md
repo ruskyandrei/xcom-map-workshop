@@ -65,7 +65,7 @@ This skill is the guide alone. The guide's and README's "New in" tables belong t
    the game on its first open.
 4. **Explore what the new pictures will show** on that server in the browser pane, at 1440 × 900
    (`resize_window`): the element ids, the state that makes a clear picture (a piece with several of its kind, a
-   flag that changes), what each mark should point at. `viewer.*` in the page (app.js's `window.viewer`) has hooks
+   flag that changes), what each mark should point at. `viewer.*` in the page (`window.viewer`, made by test_api.js) has hooks
    for selecting, the camera, the views and mission objects.
 5. **Script the shots** in take_shots.py, following the shots there:
    - a method per shot (its name, with `-` for `_`, in `ORDER`; shots that build, save projects or open another
