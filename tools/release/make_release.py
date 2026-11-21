@@ -16,8 +16,9 @@ environment variable, else the usual install folders. Without it the zip alone i
 What goes in (dist/release/XCOM-Map-Workshop-<version>/, then the zip and the installer beside):
 - the editor's modules: every module of ours the editor's entry points import (the server, the Build and the bake
   tools it runs: ENTRIES), found by reading their imports, with the folders they sit in (tools/viewer, tools/editor,
-  tools/bake, tools/upk; tools/lab is searched so a shipped import of a lab tool shows, and none ships; tools/ itself
-  for paths.py), plus EXTRAS that are run as subprocesses by path or read as data; the page (the
+  tools/bake, tools/upk, which the bundled Python's ._pth names; tools/lab is searched too, and a shipped module that
+  imports one of its tools stops the release, since the lab ships nothing; tools/ itself for paths.py), plus EXTRAS
+  that are run as subprocesses by path or read as data; the page (the
   files Git tracks in tools/viewer/web, so an untracked file there never ships) with its pinned three.js (checked
   against setup_vendor.py's checksums). A working tree with uncommitted changes under tools/ gets a warning;
 
@@ -63,7 +64,9 @@ PYTHON_ZIP = 'https://www.python.org/ftp/python/%s/python-%s-embed-amd64.zip' % 
 # release page publishes (fe8ef205f2e9c3ba44d0cf9954e1abd3). The pin keeps every later release on the same bytes.
 PYTHON_SHA256 = '4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a63025a3c3'
 # the folders whose modules the editor imports, in the order its scripts put them on the path
-FOLDERS = ('viewer', 'editor', 'bake', 'upk', 'lab')
+FOLDERS = ('viewer', 'editor', 'bake', 'upk')
+# folders searched too, whose tools never ship: a shipped module that imports one of them stops the release
+UNSHIPPED = ('lab',)
 ENTRIES = ('viewer/viewer.py', 'viewer/gamesetup.py', 'viewer/setup_vendor.py', 'editor/build.py', 'bake/native_copy.py',
            'bake/relight.py', 'bake/intro_copy.py', 'bake/stream_copy.py')
 # run by path as subprocesses, which reading imports doesn't find
@@ -87,6 +90,9 @@ def modules():
         for path in [TOOLS / folder / ('%s.py' % name) for folder in FOLDERS] + [TOOLS / ('%s.py' % name)]:
             if path.is_file() and path.name != 'run_tests.py': return path
         return None
+
+    def unshipped(name):
+        return next((TOOLS / f / ('%s.py' % name) for f in UNSHIPPED if (TOOLS / f / ('%s.py' % name)).is_file()), None)
     seen, todo = set(), [TOOLS / e for e in ENTRIES]
     while todo:
         path = todo.pop()
@@ -98,6 +104,9 @@ def modules():
             for name in names:
                 found = find(name.split('.')[0])
                 if found: todo.append(found)
+                elif unshipped(name.split('.')[0]):
+                    raise SystemExit('%s imports %s, a tool of %s, which the release does not ship' % (
+                        path.name, name, unshipped(name.split('.')[0]).parent.relative_to(REPO).as_posix()))
     names = {}
     for path in seen:
         if path.name in names and names[path.name] != path:
