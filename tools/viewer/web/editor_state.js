@@ -325,3 +325,12 @@ export function setPickToolValue(next) { pickTool = next; }
 export function setPickBoxValue(next) { pickBox = next; }
 export function setPickDrag(next) { pickDrag = next; }
 export function setPickHits(next) { pickHits = next; }
+
+// What other areas read or set of the made pieces' looks (made_looks_wiring.js; app.js's dialogs' check, the Add
+// panel's browsers, the keys, the pointer handlers, the draw loop and the test hooks):
+// - lookPicker: the look picker (look_picker.js), made with the Add panel's piece browser (it paints);
+// - lookPicking: the eyedropper, { kind, onChoose }, while the next click in the view takes the look of the piece under
+//   it, or null.
+export let lookPicker = null, lookPicking = null;
+export function setLookPicker(next) { lookPicker = next; }
+export function setLookPicking(next) { lookPicking = next; }
