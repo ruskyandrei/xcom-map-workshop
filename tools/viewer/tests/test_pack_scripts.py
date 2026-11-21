@@ -117,6 +117,33 @@ class PackScripts(unittest.TestCase):
         self.run_script(folder, 'Uninstall.cmd', self.copy)
         self.assertFalse(there.exists() or state.exists())
 
+    def test_replace_switches_off_a_record_written_by_hand_with_spaces_around_its_equals_signs(self):
+        """KB-11's twin for map packs: a base map's record written by hand as Name = "URB_Bar", DisplayName = "..."
+        (the game reads it so, and so does the editor's own install since KB-11's fix) is one of the base map's
+        records to the pack's Install.cmd too: Replace comments it out as it does the record written without blanks,
+        and Uninstall.cmd puts it back."""
+        folder, r = self.setup_pack('Spaced', mode='replace')
+        switch = {m['variant']: m.get('switch') for m in json.loads((folder / 'pack.json').read_text(encoding='utf-8'))['maps']}
+        self.more_missions(self.copy)       # Bar's terror and council records, which the pack's maps have none for
+        path = self.copy / 'XEW/XComGame/Config/DefaultMaps.ini'
+        lines = dep.lines_of(path.read_bytes())
+        bar = [l for l in lines if dep.is_record(l) and dep.field(l, 'Name') == 'URB_Bar']
+        mine = [l for l in bar if dep.field(l, 'DisplayName') in switch[VARIANT]]
+        self.assertEqual((len(bar), len(mine)), (3, 1))
+        spaced = mine[0].replace(b'Name="URB_Bar"', b'Name = "URB_Bar"', 1).replace(b'DisplayName="', b'DisplayName  =  "')
+        self.assertEqual((dep.field(spaced, 'Name'), dep.field(spaced, 'DisplayName')), ('URB_Bar', dep.field(mine[0], 'DisplayName')))
+        lines[lines.index(mine[0])] = spaced
+        path.write_bytes(dep.EOL.join(lines))
+        before = path.read_bytes()
+        self.run_script(folder, 'Install.cmd', self.copy)
+        maps = dep.lines_of(path.read_bytes())
+        self.assertIn(b';' + spaced, maps)
+        self.assertNotIn(spaced, maps)
+        for line in bar:
+            if line != mine[0]: self.assertIn(line, maps)      # the records the pack's maps have none for stay in use
+        self.run_script(folder, 'Uninstall.cmd', self.copy)
+        self.assertEqual(path.read_bytes(), before)
+
     def test_a_config_is_replaced_whole_or_left_as_it_was(self):
         """(review finding 26's leftover) The scripts write a config beside itself and put it in its place: none of
         their temporary files is left, and a config that can't be replaced (here read-only) stays byte for byte."""

@@ -246,7 +246,7 @@ function Uninstall-Pack {
         if ($at -ge 0) { $maps.RemoveRange($at, $run.Count); $taken++; continue }
         # not there as written: still in the game while a record of its name is, and then its files stay too (a record
         # naming a map that is not there could be drawn); with none, taken out by hand already
-        $named = '^\s*Maps=\(.*(?<![A-Za-z])Name="' + [regex]::Escape($block.variant) + '"'
+        $named = '^\s*Maps=\(.*(?<![A-Za-z])Name\s*=\s*"' + [regex]::Escape($block.variant) + '"'
         if (-not @($maps | Where-Object { $_ -match $named }).Count) { continue }
         $left += "the records of $($block.variant) have changed: take them out by hand"
         $keep.added += $block
@@ -395,9 +395,10 @@ $hasRs = $null -ne $rs
 $added = @(); $commented = @(); $zones = @(); $exclusions = @(); $skipped = @(); $done = @()
 foreach ($map in @($pack.maps)) {
     $base = [regex]::Escape($map.base)
-    $live = '^\s*Maps=\(.*(?<![A-Za-z])Name="' + $base + '"'
-    $any = '^\s*;*\s*Maps=\(.*(?<![A-Za-z])Name="' + $base + '"'
-    $mine = '^\s*Maps=\(.*(?<![A-Za-z])Name="' + [regex]::Escape($map.variant) + '"'
+    # a record's field as the game reads it: blanks may stand around its '=' (a record written by hand: KB-11)
+    $live = '^\s*Maps=\(.*(?<![A-Za-z])Name\s*=\s*"' + $base + '"'
+    $any = '^\s*;*\s*Maps=\(.*(?<![A-Za-z])Name\s*=\s*"' + $base + '"'
+    $mine = '^\s*Maps=\(.*(?<![A-Za-z])Name\s*=\s*"' + [regex]::Escape($map.variant) + '"'
     $last = -1; $has = $false
     for ($i = 0; $i -lt $maps.Count; $i++) {
         if ($maps[$i] -match $any) { $last = $i }
@@ -421,7 +422,7 @@ foreach ($map in @($pack.maps)) {
             if ($maps[$i] -notmatch $live) { continue }
             if ($null -ne $only) {
                 $display = ''
-                if ($maps[$i] -match 'DisplayName="([^"]*)"') { $display = $Matches[1] }
+                if ($maps[$i] -match '(?<![A-Za-z])DisplayName\s*=\s*"([^"]*)"') { $display = $Matches[1] }
                 if ($only -cnotcontains $display) { continue }
             }
             $commented += $maps[$i]; $maps[$i] = ';' + $maps[$i]
