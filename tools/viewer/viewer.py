@@ -146,6 +146,9 @@ def contained(root, rel):
 
 class LocalServer(ThreadingHTTPServer):
     allow_reuse_address = False
+    # connections waiting to be taken: a page (or a script) fetching the page's modules opens dozens at once, and
+    # Python's default of 5 had Windows refuse the rest while the server was taking the first
+    request_queue_size = 64
 
     def server_bind(self):
         # Windows SO_REUSEADDR can let a second process bind the same port.
