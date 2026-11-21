@@ -186,6 +186,10 @@ the framing of a piece or the map, the arrow keys and WASD with Q and E, the loo
 to the point under the cursor, View options' camera speeds), the gizmo's buttons with the pivot and snap (kept up after
 each edit by the edit hub's `tools` refresh), and the editor's keys, each calling the area that owns what it does.
 The header's menus (one open at a time, a press elsewhere closing it) are [`popups.js`](tools/viewer/web/popups.js)'s.
+The Project menu (drawn afresh as it opens, with the projects this browser opened or saved last) and the windows its
+items open (the file dialog, the project manager, Game maps, Cache everything) are
+[`project_menu.js`](tools/viewer/web/project_menu.js)'s; the windows themselves are made by app.js with their
+elements (`createProjectDialog`, `createProjectManager`, `createGameMaps`, `createPrecache`).
 The server's list of maps and the map browser made from it as the page opens are
 [`map_menu.js`](tools/viewer/web/map_menu.js)'s: a map's name in the lists, the list brought up to the server's, the
 browser made with what choosing a map does, and the Map menu's button and Change map; the browser itself is
@@ -367,6 +371,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The camera (framing, the keys that move and turn it, the look-drag, the wheel, the speeds), the gizmo's mode buttons, the pivot and snap, a key of the editor | [`navigation.js`](tools/viewer/web/navigation.js) (`createNavigation`). A key calls the function of the area that owns what it does, given to the factory; the help panel in `index.html` lists the keys for users. |
 | Delete, Reset piece, Reset all, a large step under the busy mark | [`delete_reset.js`](tools/viewer/web/delete_reset.js) (`createDeleteReset`). |
 | A header menu (a button with `data-pop` and its menu) | `index.html`; [`popups.js`](tools/viewer/web/popups.js) (`createPopups`) opens and closes it, and draws a menu afresh as it opens where the menu needs it. |
+| The Project menu drawn as it opens, the recent projects, a window its items open (the file dialog, the project manager, Game maps, Cache everything) | [`project_menu.js`](tools/viewer/web/project_menu.js) (`createProjectMenu`). A window's own dialog is its module's ([`project_files.js`](tools/viewer/web/project_files.js), [`manager.js`](tools/viewer/web/manager.js), [`gamemaps.js`](tools/viewer/web/gamemaps.js), [`precache.js`](tools/viewer/web/precache.js)), made by app.js with its elements. |
 | The map list, the map browser's making and what choosing a map does, the Map menu's button and Change map | [`map_menu.js`](tools/viewer/web/map_menu.js) (`createMapMenu`). The browser's dialog is [`map_browser.js`](tools/viewer/web/map_browser.js); the list and the browser are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`mapCatalogue`, `mapBrowser`). |
 | The loading overlay's words and bar, a JSON file read with its progress | [`loading.js`](tools/viewer/web/loading.js) (`createLoading`). |
 | The hint line under the view: a held gizmo handle's line, a short notice, the resting hint | [`hints.js`](tools/viewer/web/hints.js) (`createHints`). |
@@ -537,7 +542,7 @@ where there is one.
   `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`,
   `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`, `createPrepare`, `createSelection`,
   `createNavigation`, `createTestApi`, `createPopups`, `createMapMenu`, `createLoading`, `createMapFamilies`,
-  `createHints`, `createBusy`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
+  `createHints`, `createBusy`, `createProjectMenu`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
   functions other areas call, and app.js destructures them under the same names, so their callers stay as they were.
   app.js makes it after the functions and objects it is given, and before any code that runs as the page
   loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a `const`, is

@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo } from './gizmo.js';
 import { createPieceBrowser } from './pieces.js';
 import { api as projectApi, targetKey, uuid } from './project.js';
-import { createProjectDialog, savedWhen } from './project_files.js';
+import { createProjectDialog } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
@@ -16,13 +16,13 @@ import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo,
-         floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, groups, landingZones, lastBuild, lastLightSync,
-         leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, lightsShown,
-         likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves, missionPickValue, normalEffects,
-         normalLights, normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project,
-         reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
-         setBoxesShownValue, setCachePrefix, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty,
-         setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
+         floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, groups, landingZones, lastLightSync, leaving,
+         levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, lightsShown, likenessOn,
+         lookPicker, lookPicking, mapBrowser, mapCatalogue, missionMoves, missionPickValue, normalEffects, normalLights,
+         normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project, reachShown,
+         roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue,
+         setCachePrefix, setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary,
+         setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
          setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
          setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
          setPointer, setPrefabTab, setReachKey, setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick,
@@ -71,6 +71,7 @@ import { createHints } from './hints.js';
 import { createBusy } from './busy.js';
 import { createPopups } from './popups.js';
 import { createMapMenu } from './map_menu.js';
+import { createProjectMenu } from './project_menu.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -424,9 +425,10 @@ function projector() {
 // The header's menus (popups.js): one open at a time, a press elsewhere closing it; made before the first area
 // that is given showPop.
 const { showPop } = createPopups({
-  $, renderProjectMenu, viewport,
+  $, viewport,
   // (made further down: called through, since they are not made yet while this runs)
-  refreshInstalls: () => refreshInstalls(), refreshSquadLine: () => refreshSquadLine() });
+  refreshInstalls: () => refreshInstalls(), refreshSquadLine: () => refreshSquadLine(),
+  renderProjectMenu: () => renderProjectMenu() });
 // The Lights view (lights_wiring.js): the map's lights as roots, the view, the panel's light section, Solo, the
 // area lights following their glowing pieces, the reach, the drag handles (the picked effect's and sound's too),
 // and the project's light records.
@@ -469,13 +471,6 @@ const { needsPrepare, prepareOpened, showPrepare } = createPrepare({
 // user restored or discarded (the drafts' state: editor_state.js).
 const SESSION = uuid();
 const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
-// Recent projects: when this browser last opened or saved each, beside when it was saved anywhere.
-const RECENT = 'workshop.recentProjects';
-function recentTimes() { try { return JSON.parse(recall(RECENT)) ?? {}; } catch { return {}; } }
-function touchRecent(id) {
-  const times = { ...recentTimes(), [id]: new Date().toISOString() };
-  remember(RECENT, JSON.stringify(Object.fromEntries(Object.entries(times).sort((a, b) => b[1].localeCompare(a[1])).slice(0, 20))));
-}
 // The scene to and from a document (document_state.js): the edits on screen as a project records them, and a
 // project's state put on the map.
 const { applyState, editState, projectNote } = createDocumentState({
@@ -506,7 +501,9 @@ const { applyState, editState, projectNote } = createDocumentState({
 const { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery,
         loadProject, openProject, projectChanged, saveProject, saveState, unsavedDocument } = createDocumentSession({
   $, SESSION, applyState, builder, camera, changes, controls, documentWrites, editChanged, editState, flashHint, gizmo,
-  loadingState, openingProgress, plural, projectNote, showFileDialog, text, touchRecent,
+  loadingState, openingProgress, plural, projectNote, text,
+  // (made with the Project menu, further down: called through, since it is not made yet while this runs)
+  showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave), touchRecent: id => touchRecent(id),
   // (made with the map grid, further down: called through, since it is not made yet while this runs)
   ownSize: () => ownSize(),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
@@ -528,9 +525,11 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
   documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, gizmo, gridOrigin, isStream,
   libraryTemplate, lightPose, loadingState, movedMatrix, openingProgress, plural, projectChanged, recipeOf, removeRoots,
   rootName, sceneChanged,
-  selectActors, short, showFileDialog, templateFor, text, world,
+  selectActors, short, templateFor, text, world,
   // (made with the selection, further down: called through, since it is not made yet while this runs)
   gridNow: root => gridNow(root),
+  // (made with the Project menu, further down: called through, since it is not made yet while this runs)
+  showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave),
   // (made with the camera, further down: called through, since it is not made yet while this runs)
   frame: root => frame(root),
   // (made with the Buildings view and the clipboard, further down: called through, since they are not made yet while
@@ -569,54 +568,14 @@ const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMe
 const { followBuild, followQueueForProject, landHere, openBuild, openPrefabTest, playInGame, prefabTest, refreshInstalls,
         refreshSquadLine, renderPlayItems, renderQueueChip, setLastBuild } = createBuildPlay({
   $, bakeNote, banner, builder, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo, mapLabel,
-  needsPrepare, plural, projectsAvailable, saveProject, selectActors, short, showFileDialog, showPop, showPrepare, text,
+  needsPrepare, plural, projectsAvailable, saveProject, selectActors, short, showPop, showPrepare, text,
   // (made with Clear map, further down: called through, since they are not made yet while this runs)
   headerMissions: () => headerMissions(), zonesNow: () => zonesNow(),
+  // (made with the Project menu, further down: called through, since it is not made yet while this runs)
+  showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave),
   // (made with the Spawns and Landing zones views, further down: called through, since they are not made yet while
   // this runs)
   setZones: (next, words) => setZones(next, words), showSpawn: (actor, stream) => showSpawn(actor, stream) });
-async function renderProjectMenu() {
-  const info = $('projectInfo');
-  info.replaceChildren();
-  if (builderMode) {
-    text(info, 'strong', builder.doc?.name ?? 'New prefab');
-    text(info, 'div', builder.doc?.revision ? `Revision ${builder.doc.revision}${dirty() ? ' · unsaved changes' : ''}` : 'Save to add this prefab to the library.');
-    for (const id of ['projectSave', 'projectSaveAs']) $(id).disabled = false;
-    return;
-  }
-  if (project) {
-    text(info, 'strong', project.doc.name);
-    text(info, 'div', `Revision ${project.revision} · saved ${savedWhen(project.doc.savedAt)}${dirty() ? ' · unsaved changes' : ''}`);
-    text(info, 'div', `Builds as ${project.doc.output?.shipAs ?? '(no map name)'}`).title = 'The map\'s name in the game (its package and records), fixed when the project was first saved: Save as under a new name makes a new project that builds under a name of its own';
-    const pkg = lastBuild?.package;
-    if (lastBuild?.state === 'running') text(info, 'div', `Building revision ${lastBuild.job.revision}…`);
-    else if (pkg) {
-      const last = text(info, 'div', `Last built: revision ${pkg.revision} · ${savedWhen(pkg.builtAt)}${pkg.quick ? ' · lighting not baked' : ''}`);
-      last.title = pkg.quick ? `${pkg.folder}\nBuilt without baking the lighting: its lighting isn't right in the game (pathing and cover are). Build with Bake the lighting ticked for the proper lighting` : pkg.folder;
-    }
-  } else if (projectsAvailable()) text(info, 'div', 'No project open: edits are a trial until you save them.');
-  else text(info, 'div', 'This is a patch preview: projects edit a map\'s original layout. Open the map from the map browser (M) to save one; Load opens a project on its map.');
-  for (const id of ['projectSave', 'projectSaveAs']) $(id).disabled = !projectsAvailable();
-  $('projectClose').hidden = !project;
-  renderPlayItems();
-  // Recent: the three last opened or saved here (or else saved anywhere), the open one aside.
-  const list = $('projectRecent');
-  try {
-    const { projects } = await projectApi.list(), times = recentTimes();
-    const when = p => [times[p.id] ?? '', p.savedAt ?? ''].sort().at(-1);
-    const recent = projects.filter(p => !p.error && p.id !== project?.doc.id).sort((a, b) => when(b).localeCompare(when(a))).slice(0, 3);
-    list.replaceChildren();
-    for (const p of recent) {
-      const button = text(list, 'button', '', 'projectitem');
-      button.type = 'button'; button.dataset.id = p.id;
-      text(button, 'strong', p.name ?? p.id);
-      text(button, 'small', `${mapLabel(p.map)} · revision ${p.revision} · ${savedWhen(p.savedAt)}${p.recovery ? ' · unsaved changes kept' : ''}`);
-      button.title = `Open ${p.name}`;
-      button.onclick = () => { showPop(null); loadProject(p); };
-    }
-    if (!recent.length) text(list, 'div', projects.some(p => p.id === project?.doc.id) ? 'No other projects yet.' : 'No projects yet.', 'empty');
-  } catch (e) { list.replaceChildren(`Projects could not be listed: ${e.message}`); }
-}
 // The game install and the editor's checks (setup.js): a first run asks for the install before anything else.
 const setupDialog = createSetupDialog({
   els: { root: $('setupDialog'), form: $('setupForm'), title: $('setupTitle'), intro: $('setupIntro'), found: $('setupFound'),
@@ -679,12 +638,6 @@ const gameMaps = createGameMaps({
          message: $('gameMapsMessage'), undoAll: $('gameMapsUndoAll'), done: $('gameMapsDone'), where: $('gameMapsWhere') },
   onChanged: () => refreshInstalls(),
 });
-function showGameMaps() {
-  if (modalOpen()) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  gameMaps.show();
-}
 // The Cache everything window (precache.js): every piece of the game's maps, and every map, read ahead of use.
 const precache = createPrecache({
   els: { root: $('cacheModal'), close: $('cacheClose'), pieces: $('cachePieces'), maps: $('cacheMaps'),
@@ -693,25 +646,15 @@ const precache = createPrecache({
          done: $('cacheDone'), start: $('cacheStart') },
   onMapsDone: () => refreshMapList(),
 });
-function showPrecache() {
-  if (modalOpen()) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  precache.show();
-}
-function showProjectManager() {
-  if (modalOpen()) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  projectManager.show();
-}
-function showFileDialog(mode, waitForSave = false) {
-  if (builderMode && mode === 'save') return showPrefabDialog(true);
-  if (fileDialog.open || (mode === 'save' && !projectsAvailable())) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  return fileDialog.show(mode, { mapId: activeMapId, current: project?.doc.id ?? null, name: mode === 'save' ? project?.doc.name ?? '' : '', waitForSave });
-}
+// The Project menu (project_menu.js): drawn afresh as it opens, the recent projects kept in the browser, and the
+// windows its items open (the file dialog, the project manager, Game maps, Cache everything); made after those
+// windows, which it is given (nothing of it runs as the page loads).
+const { renderProjectMenu, showFileDialog, showGameMaps, showPrecache, showProjectManager,
+        touchRecent } = createProjectMenu({
+  $, dirty, fileDialog, gameMaps, loadProject, mapLabel, modalOpen, precache, projectManager, renderPlayItems, showPop,
+  showPrefabDialog, text,
+  // (made with the clipboard, further down: called through, since it is not made yet while this runs)
+  stopPlacing: () => stopPlacing() });
 
 // (the last pointer position over the view, for paste, pointer: editor_state.js)
 // The building floors a piece is listed on (floor_listings.js): the project's buildings' and the map's own,
