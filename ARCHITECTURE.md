@@ -86,11 +86,16 @@ the boxes changed (each change one undo step), the six face handles a box has (a
 select use them too) and their drags, the cursor's floors drawn round the boxes, the panel, the Normal button's Floor
 boxes, and box select (a box drawn over the ground that selects what is inside). A building's floors, the cursor's
 floors and a building's problems are worked out without the page in [`floors.js`](tools/viewer/web/floors.js).
-The made pieces' looks are [`made_looks_wiring.js`](tools/viewer/web/made_looks_wiring.js)'s: the look each tool
-draws in (remembered in the browser), the look picker's samples and what choosing a look does, the eyedropper, a made
-piece made again in another look with the pieces the change takes, and its Look row in the piece panel. The looks'
-catalogues are [`looks.js`](tools/viewer/web/looks.js)'s and the picker's panel
-[`look_picker.js`](tools/viewer/web/look_picker.js)'s. Drawing a made piece is
+The made pieces (walls, floors, roofs and ground shapes made from numbers on a look's donor) are
+[`made_handles.js`](tools/viewer/web/made_handles.js)'s at their base: what a made piece is, its look's donor as a
+template, its state and its changes (a state put on it with its mesh drawn anew, each change one undo step), where made
+walls meet worked out again after every change, and the picked piece's handles and their drags (a rock's corners moved
+with a gizmo of their own). The made pieces' looks are
+[`made_looks_wiring.js`](tools/viewer/web/made_looks_wiring.js)'s: the look each tool draws in (remembered in the
+browser), the look picker's samples and what choosing a look does, the eyedropper, a made piece made again in another
+look with the pieces the change takes, and its Look row in the piece panel. The looks' catalogues are
+[`looks.js`](tools/viewer/web/looks.js)'s and the picker's panel [`look_picker.js`](tools/viewer/web/look_picker.js)'s.
+Drawing a made piece is
 [`made_drawing.js`](tools/viewer/web/made_drawing.js)'s: the Build menu, and a wall, a room (with a roof and its
 building), a floor or roof, or a ground shape dragged out over the ground with its ghost and made as an added copy of
 its look's donor. What is pure about the wall, slab and ground tools is [`walls.js`](tools/viewer/web/walls.js)'s and
@@ -240,6 +245,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The Spawns view and the mission objects' moves: a spawn point's or mission object's marker, the view's families, its panel and controls, a move, turn, value, copy or delete of one, its gizmo, a spawn point added from the Add panel, the project's spawn rule | [`spawns_wiring.js`](tools/viewer/web/spawns_wiring.js) (`createSpawnsWiring`). What a marker is, draws and says goes in [`spawns_view.js`](tools/viewer/web/spawns_view.js) (its shapes take three.js as an argument) and what the game does with a spawn point in [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), pure, with their node tests (`spawns_view_test.mjs`, `spawn_rules_test.mjs`, `project_spawns_test.mjs`). |
 | The Landing zones view: a zone drawn, picked, moved and turned with its gizmo, its panel and controls, a zone changed, copied, deleted or added, what follows the cleared mark | [`zones_wiring.js`](tools/viewer/web/zones_wiring.js) (`createZonesWiring`). A zone's rules go in [`spawns.js`](tools/viewer/web/spawns.js), pure, with its node tests (`clear_map_test.mjs`, `twin_constants_test.mjs`). |
 | The Buildings view and box select: a floor box (made, stretched, moved, copied, deleted), a building's name, kind and floors, the map's own buildings edited or read, the face handles and their drags, the cursor's floors round a box, the view's panel, the Normal button's Floor boxes, box select | [`buildings_wiring.js`](tools/viewer/web/buildings_wiring.js) (`createBuildingsWiring`). A building's or a floor's rule (the floors around pieces, the cursor's floors, a building's problems, the pieces a box lists) goes in [`floors.js`](tools/viewer/web/floors.js), pure, with its node tests (`floor_rules_test.mjs`, `map_buildings_test.mjs`, `source_floor_match_test.mjs`); a building's record in [`project.js`](tools/viewer/web/project.js) (`validBuilding`, `tidyBuilding`). |
+| A made piece (a wall, floor, roof or ground shape made from numbers): whether a piece is one, its look's donor, its state and changes (each one undo step), its mesh's record, where made walls meet, the picked piece's handles and their drags, a rock's corners | [`made_handles.js`](tools/viewer/web/made_handles.js) (`createMadeHandles`). What is pure about a made piece's numbers and their changes (`resizedWall`, `movedOpening`, `raisedWall`, `resizedSlab`, `movedHole`, `resizedGround`, `movedPoint`, `wallJoins`, the mesh's numbers) goes in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), with their node tests (`walls_test.mjs`, `ground_test.mjs`, `made_shapes_test.mjs`). |
 | The made pieces' looks: the look a tool draws in, the look picker's samples and what choosing a look does, the eyedropper, a made piece's look changed (with the pieces the change takes), its Look row | [`made_looks_wiring.js`](tools/viewer/web/made_looks_wiring.js) (`createMadeLooksWiring`). A look's catalogue and entries go in [`looks.js`](tools/viewer/web/looks.js), the picker's panel in [`look_picker.js`](tools/viewer/web/look_picker.js), with their node tests (`looks_test.mjs`, `look_picker_test.mjs`). |
 | Drawing a made piece: the Build menu's tools, a wall, room, floor, roof or ground shape dragged out with its ghost and made | [`made_drawing.js`](tools/viewer/web/made_drawing.js) (`createMadeDrawing`). Where a drawn piece stands and what its numbers are (`drawnWall`, `drawnRoom`, `drawnSlab`, `roomRoof`, `drawnGround`) go in [`walls.js`](tools/viewer/web/walls.js) or [`ground.js`](tools/viewer/web/ground.js), pure, with their node tests (`walls_test.mjs`, `ground_test.mjs`). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
@@ -353,7 +359,12 @@ where there is one.
   - the made pieces' look picker (`lookPicker`, made with the Add panel's piece browser) and the eyedropper
     (`lookPicking`), which app.js's dialogs' check, keys, pointer handlers, draw loop and test hooks read;
   - the Build menu's tool being drawn (`buildTool`) and the made piece being drawn (`wallDrawing`), which the made
-    pieces' handles and app.js's keys, pointer handlers and test hooks read.
+    pieces' handles and app.js's keys, pointer handlers and test hooks read;
+  - a made piece's handle being dragged (`wallDrag`), the opening whose handle was last touched (`wallFocus`: the
+    selection lets it go, the made pieces' panel rings it and Delete takes it out) and the rock point picked
+    (`rockPoint`), which app.js's selection, keys, pointer handlers and test hooks read or set; the snap setting
+    (`snapMode`; `setSnapModeValue`, beside app.js's `setSnapMode`, which also sets the gizmo's and draws its button)
+    and a cover handle's drag (`coverDrag`), which the made pieces' handles read.
 
   A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
   was (`setAreaShown(recall(AREA_SHOWN) === '1')`, `setLikenessOn(...)` inside the Effects view's factory), so it is
@@ -364,7 +375,7 @@ where there is one.
   an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
   searches for any assignment to the moved names left behind.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
-  `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`, `createZonesWiring`, `createBuildingsWiring`, `createMadeLooksWiring`, `createMadeDrawing`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
+  `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`, `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`) takes them as one argument object and destructures it, so the code moved into it calls them by the names it always
   did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers
   stay as they were. app.js makes it after the functions and objects it is given, and before any code that runs as
   the page loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a

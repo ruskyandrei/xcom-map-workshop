@@ -344,3 +344,22 @@ export function setLookPicking(next) { lookPicking = next; }
 export let buildTool = null, wallDrawing = null;
 export function setBuildTool(next) { buildTool = next; }
 export function setWallDrawing(next) { wallDrawing = next; return next; }
+
+// What other areas read or set of a made piece's handles (made_handles.js; app.js's selection, keys, pointer handlers
+// and test hooks, and the made pieces' panel):
+// - wallDrag: the drag of one of the picked made piece's handles under way, or null;
+// - wallFocus: { id, index }: the opening (or slab's hole) whose handle was last touched, which the panel rings and
+//   Delete takes out, or null (the selection lets it go when another piece is picked);
+// - rockPoint: { id, index }, the rock's point the point gizmo stands on, or null.
+export let wallDrag = null, wallFocus = null, rockPoint = null;
+export function setWallDrag(next) { wallDrag = next; }
+export function setWallFocus(next) { wallFocus = next; }
+export function setRockPoint(next) { rockPoint = next; }
+// The snap setting (app.js's setSnapMode sets it, the gizmo's with it, and draws its button): 'off', 'fine' (24 units,
+// 15 degrees) or 'tile' (whole tiles, 90 degrees); the placing, the cover blocks' and the made pieces' handles read it.
+export let snapMode = 'off';
+export function setSnapModeValue(next) { snapMode = next; }
+// A cover block's or invisible floor's handle being dragged (app.js's cover handles), or null: the made pieces'
+// handles take no press meanwhile.
+export let coverDrag = null;
+export function setCoverDrag(next) { coverDrag = next; }

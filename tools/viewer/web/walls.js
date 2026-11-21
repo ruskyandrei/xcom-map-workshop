@@ -604,8 +604,8 @@ function madeRecord(template, meshes, key, { noun, url, sections, bounds }) {
   return { mesh: key, materials: Array.from({ length: sections }, (_, slot) => bySlot.get(slot) ?? template.materials[0]) };
 }
 /** A made wall's numbers in the one spelling its mesh's key and request use (generated.py wall_numbers: its look's own
- *  storeys left out), with its end styles where they are joined (`ends`, worked out from where it stands: app.js
- *  refreshJoins; two free ends left out). */
+ *  storeys left out), with its end styles where they are joined (`ends`, worked out from where it stands:
+ *  made_handles.js refreshJoins; two free ends left out). */
 export const madeWallNumbers = (w, ends = null) => ({ x0: w.x0, x1: w.x1, openings: (w.openings ?? []).map(o => ({ x0: o.x0, x1: o.x1, z0: o.z0, z1: o.z1 })),
                                 seed: w.seed ?? 1, ...(w.storeys !== undefined && w.storeys !== wallSpec(w).storeys ? { storeys: w.storeys } : {}),
                                 ...(w.look && w.look !== WALL_LOOKS[0].id ? { look: spelledLook(w.look) } : {}),
