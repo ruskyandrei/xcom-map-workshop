@@ -33,7 +33,7 @@ import { makeEffectMarker } from './effects_view.js';
 import { floorUnder, levelHeight } from './floors.js';
 import { actorMatrix, placedPose, recipeMove } from './gizmo.js';
 import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
-import { MADE_KINDS, optionsOf, stateOfRoot } from './piece_records.js';
+import { fromOf, MADE_KINDS, optionsOf, stateOfRoot } from './piece_records.js';
 import { collectPieces } from './pieces.js';
 import { buildingKey, groupKey, memberKey, pruneGroups, targetKey, uuid } from './project.js';
 import { remember } from './storage.js';
@@ -44,8 +44,8 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
                                   addRoots, askLineCollision, assemblyOf, banner, boundsOf, buildRoots, busy,
                                   BUSY_PIECES, busyStart, chosenStorey, cloneGroup, cloneGroups, copyVolumes,
                                   coverEntries, deleteSelection, effectFollows, effectTemplate, effectViewOnly,
-                                  flashHint, FLOOR_CLEARANCE, floorSupportOf, fromOf, ghostEdges, ghostLikeness,
-                                  ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness,
+                                  flashHint, FLOOR_CLEARANCE, floorSupportOf, ghostEdges, ghostLikeness, ghostLine,
+                                  gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness,
                                   isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly,
                                   liveFloorIndex, loaded, madeShape, makeVolume, materialCache, materialKey, memberOf,
                                   memberRecord, newBuildingId, nextFrame, ownerRoot, ownVolumeLayer, partsOf,

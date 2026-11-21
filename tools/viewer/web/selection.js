@@ -38,6 +38,7 @@ import { destructionNote, lootNote } from './pieces.js';
 import { gridMove } from './poserule.js';
 import { remember } from './storage.js';
 import { focusBounds } from './view_layout.js';
+import { isStream } from './piece_records.js';
 
 // "12 pieces, 2 lights and 1 building": what these roots are, by kind.
 export function selectionWords(list, other = '') {
@@ -57,8 +58,8 @@ export const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.g
 
 export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, editChanged,
                                   effectViewOnly, flagContract, flagSource, flashHint, foreignCost, foreignNote, frame,
-                                  gizmo, gridOrigin, groupChip, highlight, isLanding, isStream, ladderMarks,
-                                  lightViewOnly, listingsNow, missionName, ownSize, pickEffect, RECIPE_NOTE, recipeOf,
+                                  gizmo, gridOrigin, groupChip, highlight, isLanding, ladderMarks, lightViewOnly,
+                                  listingsNow, missionName, ownSize, pickEffect, RECIPE_NOTE, recipeOf,
                                   setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, tileCorner }) {
   // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
   const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));

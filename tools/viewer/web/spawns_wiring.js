@@ -41,9 +41,10 @@ import { addFacingPointer, addPlace, addTemplate, baseEditWords, boxMiddle, boxW
          spawnRecords, titleOf, volumePlace } from './spawns_view.js';
 import { forget, recall, remember } from './storage.js';
 import { plural, short, text } from './dom_words.js';
+import { isStream } from './piece_records.js';
 
 export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays, gameToView, gizmo, groundAt,
-                                    groundHeight, headerMission, headerMissions, isStream, landingLayer, lightButton,
+                                    groundHeight, headerMission, headerMissions, landingLayer, lightButton,
                                     movedMatrix, numberField, pick, pickZone, projectsAvailable, rayAt, renderer,
                                     restingHint, select, setEffectsShown, setLightsShown, setVolumesShown,
                                     setZonesShown, stopPickBox, tileCorner, world, zoneHit, zoneState }) {

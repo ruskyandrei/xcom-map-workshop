@@ -35,7 +35,7 @@ import { actorMatrix } from './gizmo.js';
 import { effectiveConeDegrees, LIGHT_LIMITS, storableCone } from './light_rules.js';
 import { boxInReach, boxLines, createSolo, emissionShape, HANDLE_COLOURS, lightHandles, makeHandle, makeMarker,
          nearestValue, paintMarker, recordNow, scaleMarker, SOLO_MAX, valuesOf } from './lights_view.js';
-import { optionsOf, recordOf } from './piece_records.js';
+import { isStream, optionsOf, recordOf } from './piece_records.js';
 import { targetKey, uuid } from './project.js';
 
 // The Lights view's storage keys.
@@ -43,10 +43,10 @@ export const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', 
 
 export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMatrix, camera, copyable,
                                     drawEffectShape, editChanged, effectNow, effectsShown, effectValuesEditable,
-                                    flashHint, gizmo, HANDLE_PICK, highlight, isStream, ladderMarks, lightLayer,
-                                    pickables, PL, pointOutside, projector, renderer, restingHint, select,
-                                    setEffectsShown, setEffectValues, setSpawnsShown, setVolumesShown, setZonesShown,
-                                    showPop, stopPickBox, sun, syncLights, world }) {
+                                    flashHint, gizmo, HANDLE_PICK, highlight, ladderMarks, lightLayer, pickables, PL,
+                                    pointOutside, projector, renderer, restingHint, select, setEffectsShown,
+                                    setEffectValues, setSpawnsShown, setVolumesShown, setZonesShown, showPop,
+                                    stopPickBox, sun, syncLights, world }) {
   // Lights (private/plans/done/editor-lights-plan.md, 4.6). Each light with a place (point and spot lights: placed, generated area,
   // toggleable, a streamed level's) is a root of its own in lightRoots: a marker, picked on screen ahead of the piece
   // behind it, moved and turned by the gizmo with pieces (allRoots), and changed in the panel's light section. A root

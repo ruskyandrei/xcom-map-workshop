@@ -35,14 +35,14 @@ import { LIMITS as LIKENESS_LIMITS, parametersOf } from './effects_sim.js';
 import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
 import { actorMatrix } from './gizmo.js';
 import { setParagraphs } from './missions.js';
-import { optionsOf, recordOf } from './piece_records.js';
+import { isStream, optionsOf, recordOf } from './piece_records.js';
 import { targetKey, uuid } from './project.js';
 import { landingUnmoved, yawOf } from './spawns.js';
 import { recall, remember } from './storage.js';
 import { plural, short, text } from './dom_words.js';
 
 export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera, carried, controls, effectTemplate,
-                                     flashHint, gizmo, gltfLoader, isForeignTarget, isStream, lightButton, ownerRoot,
+                                     flashHint, gizmo, gltfLoader, isForeignTarget, lightButton, ownerRoot,
                                      pointOutside, renderer, sceneChanged, select, setLightsShown, setPickedSpawn,
                                      setSpawnsShown, setVolumesShown, setZonesShown, stopPickBox, texture, track,
                                      viewport, world, zoneState }) {

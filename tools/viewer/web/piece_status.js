@@ -11,8 +11,9 @@
 import { plural } from './dom_words.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
 import { allRoots, builder, builderMode, cleared, data, groups, selected } from './editor_state.js';
+import { isStream } from './piece_records.js';
 
-export function createPieceStatus({ $, changes, gizmo, isStream, lightPose, lightViewOnly, poseInputs, saveState,
+export function createPieceStatus({ $, changes, gizmo, lightPose, lightViewOnly, poseInputs, saveState,
                                     valuesEdited }) {
   // After an edit, an undo or a selection (the edit hub, edit_hub.js).
   onHub('edit', 'piece-status', () => {

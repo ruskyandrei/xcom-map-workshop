@@ -21,8 +21,9 @@ import { valuesOf } from './lights_view.js';
 import { api as prefabApi } from './prefabs.js';
 import { targetKey } from './project.js';
 import { plural, short } from './dom_words.js';
+import { fromOf } from './piece_records.js';
 
-export function createLibraryTemplates({ boundsOf, buildRoot, collisionMesh, effectSource, foreignAssemblies, fromOf,
+export function createLibraryTemplates({ boundsOf, buildRoot, collisionMesh, effectSource, foreignAssemblies,
                                          lightSource }) {
   // Pieces of other maps (library.js, tools/viewer/library.py). A piece's record, read on first use, joins the page's
   // tables: its meshes, materials and textures under their own keys (lib-<map>-…, with the folder they are served
