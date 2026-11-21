@@ -1,9 +1,11 @@
 """A copy of a placed piece as new exports of the map (native_copy.py, baker step L4), on the bar."""
+import os
 from pathlib import Path
 import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -17,6 +19,7 @@ import relight  # noqa: E402
 import seed_map  # noqa: E402
 import shadowmaps  # noqa: E402
 import world_links  # noqa: E402
+import decomp  # noqa: E402   (on the path native_copy gives)
 
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import labpaths  # noqa: E402
@@ -397,6 +400,39 @@ class NativeCopy(unittest.TestCase):
         out = folder / 'URB_BarNative.upk'
         g.write(str(out))
         return got, lighting.Package(out)
+
+    def test_the_shared_builds_maps_read_back_as_a_whole_decode_reads_them(self):
+        # the growing writer's check (follow-ups item 1.1) decodes only the blocks a write made and takes the rest
+        # from the source's image: on the three maps the class wrote, that is the image a whole decode gives
+        import package_edit
+        import upkinfo
+        raw = package_edit.package_bytes(str(BAR))
+        src_h = upkinfo.summary(raw)
+        full, _ = decomp.decompress_pkg(str(BAR))
+        builds = {id(b): b for b in self.shared.values()}.values()
+        written = [b.made[1].path for b in builds if b.made is not None]
+        self.assertEqual(len(written), 3)
+        for path in written:
+            with self.subTest(map=path.name):
+                b = path.read_bytes()
+                h = upkinfo.summary(b)
+                image, taken, decoded = decomp.decode_written(b, h, raw, src_h, full)
+                self.assertEqual(image, decomp._decode(b, h))
+                self.assertLess(decoded, taken // 5)
+
+    def test_a_build_decodes_its_map_once(self):
+        # the map a build writes is read back from the source's decoded blocks and kept (follow-ups item 1.1): a
+        # build decodes the bar once, and neither the writer's check nor the readers after it decode the written map
+        # whole (before, the check did: two decodes)
+        copy = dict(actor='XComLevelActor_37', location=[-1155.0, -1874.4, 0.0], rotation=[0, 0, 0])
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ):
+            for name in (decomp.WORK_ENV, decomp.KEEP_ENV):
+                os.environ.pop(name, None)
+            decomp._MEMO.clear()
+            before = dict(decomp.STATS)
+            native_copy.build(native_copy.BuildState(BAR, d, 'URB_BarOneCopy', [copy]))
+            self.assertEqual({k: decomp.STATS[k] - before[k] for k in ('decoded', 'written')},
+                             dict(decoded=1, written=1))
 
     def test_a_sky_dome_collides_with_nothing_so_its_copy_seeds_no_tiles(self):
         # F-93: the Bar's two sky domes save no collision; its pieces collide

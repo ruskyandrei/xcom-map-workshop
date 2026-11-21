@@ -368,7 +368,8 @@ class Grower:
         # output, never beside the input (which can be in the game install, read only)
         mid = str(dst) + '.grow-tmp'
         if self.edits:
-            # (not verified by itself: the check below decodes the final file, which holds these chunks)
+            # (not verified by itself: the check below reads back the final file, which holds these chunks, and
+            # decodes the blocks they re-encoded)
             package_edit.write_edited(self.src, mid, sorted(self.edits.items()), verify=False, raw=self.raw)
             with open(mid, 'rb') as f:
                 base = f.read()
@@ -405,8 +406,10 @@ class Grower:
         with open(dst, 'wb') as f:
             f.write(out)
 
-        # check: it decodes to the intended logical bytes, with the intended tables
-        full2, h2 = decomp.decompress_pkg(dst)
+        # check: read back from disk, it decodes to the intended logical bytes, with the intended tables. The blocks
+        # the file keeps from the source (their packed bytes the source's at the same place) are the source's decoded
+        # bytes; the blocks this write made, and any that differ, are decoded (decomp.decompress_written)
+        full2, h2 = decomp.decompress_written(dst, self.raw, self.h, self.full)
         lo = self.chunks[0][0]
         if full2[lo:] != bytes(logical[lo:]):
             raise ValueError('verification failed: the written package does not decode to the intended bytes')

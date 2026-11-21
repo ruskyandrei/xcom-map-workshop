@@ -7,6 +7,8 @@ processes. So a decoded image is kept, by the SHA-256 of the compressed file it 
   XCOM_UNPACKED_KEEP (read; written only by `keep`: the pristine maps a later build opens again). A kept image is
   <sha256>.unpacked, written beside its final name and moved into place, and is used only if it has the length the
   package's chunk table gives. Without the variables nothing is read or written on disk.
+A package written from another (the growing writer's read-back) is decoded only where its blocks are not its source's
+(decompress_written), and kept as a decoded one is.
 """
 import collections
 import hashlib
@@ -22,7 +24,10 @@ MEMO_SIZE = 4
 WORK_ENV, KEEP_ENV = 'XCOM_UNPACKED', 'XCOM_UNPACKED_KEEP'
 KEEP_FILES = 12         # the kept folder's newest images stay (prune_kept)
 _MEMO = collections.OrderedDict()       # sha256 of the compressed file -> the decoded image
-STATS = dict(decoded=0, memo=0, disk=0, seconds=0.0)     # what this process did (the build's timings read it)
+# what this process did (the build's timings read it): packages decoded whole, taken from this process's memo or from
+# a kept image, and packages written from a source decoded with the source's blocks reused (decompress_written);
+# seconds is the decoding of both kinds
+STATS = dict(decoded=0, memo=0, disk=0, written=0, seconds=0.0)
 
 
 CHUNK_TAG = 0x9E2A83C1
@@ -108,7 +113,10 @@ def _write_kept(folder, key, data):
         pass                # a folder that can't be written only costs the next reader its decoding
 
 
-def decompress_pkg(path):
+def _decoded(path, decode, counter):
+    """(the decoded image, the summary) of the package at `path`: from this process's memo, a kept image, or
+    `decode(bytes, summary)` (counted under `counter`), kept in the memo and in the work folder. A package stored
+    uncompressed is its own image."""
     import time
     with open(path, 'rb') as f:
         b = f.read()
@@ -126,8 +134,8 @@ def decompress_pkg(path):
         STATS['disk'] += 1
     else:
         t = time.perf_counter()
-        data = _decode(b, h)
-        STATS['decoded'] += 1
+        data = decode(b, h)
+        STATS[counter] += 1
         STATS['seconds'] += time.perf_counter() - t
         if os.environ.get(WORK_ENV):
             _write_kept(os.environ[WORK_ENV], key, data)
@@ -135,6 +143,63 @@ def decompress_pkg(path):
     while len(_MEMO) > MEMO_SIZE:
         _MEMO.popitem(last=False)
     return data, h
+
+
+def decompress_pkg(path):
+    return _decoded(path, _decode, 'decoded')
+
+
+def blocks_of(raw, h):
+    """{logical offset: (unpacked size, physical offset, packed size)} of every block of the compressed package `raw`
+    (its summary `h`), each chunk read by read_chunk."""
+    out = {}
+    for uo, us, co, cs in h['chunks']:
+        _, _, usum, blocks, at = read_chunk(raw, co)
+        if usum != us:
+            raise ValueError(f'the chunk at {co} holds {usum} bytes, the chunk table says {us}')
+        for c, u in blocks:
+            out[uo] = (u, at, c)
+            uo += u
+            at += c
+    return out
+
+
+def decode_written(b, h, raw, src_h, full):
+    """The image of the package `b` (its summary `h`) written from the package `raw` (`src_h`, decoded as `full`),
+    as _decode gives it: a block of `b` whose packed bytes are those of `raw`'s block at the same logical offset and
+    of the same unpacked size is taken from `full` (the decode of the same bytes); every other block is decoded. Each
+    chunk is read as _decode reads it (read_chunk; its size against the chunk table's). Returns (the image, blocks
+    taken, blocks decoded)."""
+    source = blocks_of(raw, src_h)
+    total = max(uo + us for uo, us, co, cs in h['chunks'])
+    out = bytearray(total)
+    out[:h['chunks'][0][0]] = b[:h['chunks'][0][0]]
+    taken = decoded = 0
+    for uo, us, co, cs in h['chunks']:
+        _, _, usum, blocks, at = read_chunk(b, co)
+        if usum != us:
+            raise ValueError(f'the chunk at {co} holds {usum} bytes, the chunk table says {us}')
+        for c, u in blocks:
+            s = source.get(uo)
+            if (s is not None and s[0] == u and s[2] == c and uo + u <= len(full)
+                    and b[at:at + c] == raw[s[1]:s[1] + c]):
+                out[uo:uo + u] = full[uo:uo + u]
+                taken += 1
+            else:
+                out[uo:uo + u] = lzo1x.decompress(b[at:at + c], u)
+                decoded += 1
+            uo += u
+            at += c
+    return bytes(out), taken, decoded
+
+
+def decompress_written(path, raw, src_h, full):
+    """decompress_pkg of the package at `path`, written from the package whose compressed bytes are `raw` (its summary
+    `src_h`, its decoded image `full`: package_grow.Grower's source): the blocks `path` keeps from `raw` are taken
+    from `full` and only the others are decoded (decode_written), the same bytes as a whole decode in a fraction of
+    its time (a grown map keeps all but the blocks its edits touch). The image is kept in the memo and the work
+    folder under the file's hash, as decompress_pkg keeps it, so the next reader of the file decodes nothing."""
+    return _decoded(path, lambda b, h: decode_written(b, h, raw, src_h, full)[0], 'written')
 
 
 def keep(path, folder):
