@@ -35,7 +35,10 @@ pieces will do (the pieces made here use it as their donor).
 - ladder-floor (finding 34): one of the map's ladders climbing to a roof: that roof's Floor turned off by its flags,
   the ladder's chip says it won't climb (as the Build warns); undone, it climbs.
 - small-defects (finding 34): a warning note in the warning colour, the Floor field to 10, and a UFO mission whose
-  ship type the editor doesn't know shown as it is with OK off until a ship is chosen."""
+  ship type the editor doesn't know shown as it is with OK off until a ship is chosen.
+- grid-panel (the Map grid's panel once opened under the Selected piece panel): at 1280 and at 1024 pixels wide, with
+  a piece picked before the rail's Map grid is opened and with one picked while it is on, the two panels stand apart,
+  clear of the rail, and a click at the middle of the grid panel's Done puts the tool away and keeps the selection."""
 import json
 import math
 import time
@@ -655,3 +658,46 @@ def check_small_defects(browser, url, open_viewer):
     page.close()
     assert not errors, errors
     return colours
+
+
+# one of the map's own pieces, drawn and pickable
+DRAWN_PIECE = """[...viewer.roots.values()].find(r => r.visible && !r.userData.deleted && !r.userData.source.added
+  && !r.userData.source.hidden && !r.userData.source.environment)?.userData.source.id ?? null"""
+
+
+def apart(a, b):
+    """Whether two boxes (Playwright's bounding boxes) share no point."""
+    return (a['x'] + a['width'] <= b['x'] or b['x'] + b['width'] <= a['x']
+            or a['y'] + a['height'] <= b['y'] or b['y'] + b['height'] <= a['y'])
+
+
+def check_grid_panel(browser, url, open_viewer):
+    errors = []
+    page = open_viewer(browser, url, errors)
+    piece = page.evaluate(DRAWN_PIECE)
+    assert piece and page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview"), 'needs a map with a piece of its own'
+    out = {}
+    for width, height in ((1280, 800), (1024, 768)):
+        page.set_viewport_size(dict(width=width, height=height))
+        for first in ('piece', 'tool'):
+            if first == 'piece': page.evaluate('id => viewer.select(id)', piece)
+            page.locator('#editGrid').click()
+            if first == 'tool': page.evaluate('id => viewer.select(id)', piece)
+            assert page.evaluate('viewer.gridTool().on') and page.locator('#gridPanel').is_visible() \
+                and page.locator('#inspector').is_visible(), (width, first)
+            grid, inspector, rail = (page.locator(f'#{id}').bounding_box() for id in ('gridPanel', 'inspector', 'rail'))
+            assert apart(grid, inspector) and apart(grid, rail), (width, first, grid, inspector, rail)
+            done = page.locator('#gridDone').bounding_box()
+            at = [done['x'] + done['width'] / 2, done['y'] + done['height'] / 2]
+            hit = page.evaluate("p => { const e = document.elementFromPoint(p[0], p[1]); "
+                                "return e?.closest('#gridDone') ? 'gridDone' : e?.closest('[id]')?.id ?? null; }", at)
+            assert hit == 'gridDone', (width, first, hit, grid, inspector)
+            page.mouse.click(*at)
+            assert not page.evaluate('viewer.gridTool().on') and page.locator('#gridPanel').is_hidden(), (width, first)
+            # the selection is kept: the tool only adds its panel
+            assert page.evaluate('viewer.gizmo.active') == piece and page.locator('#inspector').is_visible(), (width, first)
+            page.evaluate('viewer.select(null)')
+        out[width] = dict(grid=[round(grid['x']), round(grid['width'])], inspector=[round(inspector['x']), round(inspector['width'])])
+    page.close()
+    assert not errors, errors
+    return out

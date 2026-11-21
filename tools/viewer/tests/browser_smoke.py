@@ -1317,8 +1317,8 @@ def check_clear_map(page):
     redone. Nothing is saved."""
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 22"):
         return skip('clear-map', 'needs a map (not a preview) of export 22 or later', whole=True)
-    # nothing selected: a piece left selected by a check before (typed-pose's) opens its panel over the Map grid's Done
-    page.evaluate('viewer.select(null)')
+    # (a piece a check before left selected, typed-pose's, stays selected: the Map grid's panel opens beside its panel,
+    # and its Done is clicked below)
     page.wait_for_function("viewer.zones().length > 0 || viewer.landingLines().lines.length === 0", timeout=10000)
     plan = page.evaluate('viewer.clearPlan()')
     # the landing's pieces the clear keeps: its frame and grounded Skyranger, none on a landing with no frame (the
@@ -5614,6 +5614,7 @@ CHECKS = (
     Check('squad-read', editing('squad_read'), 'the squad read again', full=False),
     Check('ladder-floor', editing('ladder_floor'), 'a ladder\'s floor count', full=False),
     Check('small-defects', editing('small_defects'), 'small page defects', full=False),
+    Check('grid-panel', editing('grid_panel'), 'the Map grid\'s panel beside the Selected piece panel (1280 and 1024 wide)', full=False),
     Check('documents', lambda c: __import__('browser_documents').check_all(c.browser, c.page.url),
           'two windows, replacing, failed saves, builds and first opens', needs=('projects',), full=False),
 )
@@ -5741,7 +5742,8 @@ ALL_RUNS = (
                                                                       'library-assembly,output-names']),
     dict(name='builder', map='URB_Bar', smoke=['--projects', '--only', 'builder,prefab-test']),
     dict(name='editing', map='URB_Bar', smoke=['--projects', '--only', 'made-prefab,modals,reset-all,draw-errors,look-undo,failed-reads,'
-                                                                        'let-go,paste-buildings,squad-read,ladder-floor,small-defects']),
+                                                                        'let-go,paste-buildings,squad-read,ladder-floor,small-defects,'
+                                                                        'grid-panel']),
     dict(name='documents', map='URB_Bar', smoke=['--projects', '--only', 'documents']),
     dict(name='police', map='URB_PoliceStation', smoke=['--projects', '--only', 'walls,looks,light-bar']),
     dict(name='temple', map='TempleShip', smoke=['--only', 'temple-interior,temple-look']),

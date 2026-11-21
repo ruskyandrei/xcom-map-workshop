@@ -91,16 +91,6 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Cause.** The editor looks for `XComEW.exe` in the process list.
 - **Finding.** [F-84](research/findings-register.md).
 
-### KB-8: The Map grid's panel opens under the Selected piece panel
-
-- **What happens.** With a piece selected, opening **Map grid** from the rail puts its panel in the same place as
-  the Selected piece panel, which covers it: the grid panel's **Done** can't be clicked.
-- **Since.** 0.5.0, which added Map grid (found 21 November 2026).
-- **Workaround.** Clear the selection before opening Map grid, or press Esc to close the grid tool.
-- **Cause.** Both panels open at the same place on the right and the grid tool leaves the selection as it is.
-- **Finding.** None in the register; found by the browser checks (a check left a piece selected before the Map grid
-  check).
-
 ### KB-9: A damaged map-picture package in the install stops the Project manager's list
 
 - **What happens.** If one of the game's map-picture packages (`UILibrary_MapImages_SF.upk` and its DLC
