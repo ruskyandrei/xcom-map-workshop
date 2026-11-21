@@ -8,7 +8,8 @@
 //   panel (landingPanel, its notes and its controls);
 // - the zones changed, each change one undo step (setZones, changeZone): copied, deleted, a kind or a game's mark
 //   changed; a zone added with a click (startZonePlacing, placeZone);
-// - what follows a change of the cleared mark (clearedChanged).
+// - what follows a change of the cleared mark (clearedChanged), the Map menu's items among it (scene_start.js'
+//   showMapMenu).
 //
 // createZonesWiring takes what it needs of app.js as one argument object, when app.js makes it: the camera, the
 // renderer and the scene, the landing zones' layer and its storage key, the other views' switches, the header's
@@ -18,24 +19,26 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { LEVEL, TILE } from './constants.js';
-import { onHub } from './edit_hub.js';
+import { projectsAvailable } from './document_session.js';
+import { onHub, runHub } from './edit_hub.js';
 import { builderMode, cleared, data, effectsOn, landingZones, lightsOn, pickedZone, pieces, placing, project, roots,
          selected, setEffectsDirty, setLandingZones, setMergedBuildings, setPickedZone, setZonePlacing, setZonesOn,
          spawnsOn, stage, volumesOn, zonePlacing, zonesOn } from './editor_state.js';
+import { tileCorner } from './map_grid.js';
 import { zoneServes } from './missions.js';
 import { uuid } from './project.js';
+import { showMapMenu } from './scene_start.js';
 import { DIRECTIONS as ZONE_DIRECTIONS, evacBox, explicitEw, GROUND as ZONE_GROUND, groundOf, landingUnmoved,
          ownLandings, ownSlots, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
 import { remember } from './storage.js';
 import { plural } from './dom_words.js';
 import { gameToView } from './handles.js';
 
-export function createZonesWiring({ $, banner, camera, controls, cutaway, editChanged, flashHint, floorStays, gizmo,
+export function createZonesWiring({ $, banner, camera, controls, editChanged, flashHint, floorStays, gizmo,
                                    groundHeight, headerMission, isLanding, landHere, LANDING_SHOWN, landingLayer,
-                                   lightButton, ownSize, projectChanged, projectsAvailable, rayAt, refreshGroundGrid,
-                                   refreshLightVisibility, refreshMissionPicker, renderer, restingHint, select,
+                                   lightButton, ownSize, projectChanged, rayAt, renderer, restingHint, select,
                                    setEffectsShown, setLightsShown, setSpawnsShown, setVolumesShown, stopPickBox,
-                                   tileCorner, world, zonesNow }) {
+                                   world, zonesNow }) {
   // ---------------------------------------------------------------- landing zones (Clear map plan, section 4)
   // Each zone drawn as its footprint: the evac zone's box (faint), the six soldier points as dots, an arrow the way the
   // squad faces, its number, and for a zone that is one of the map's own landings the grounded Skyranger's outline. A
@@ -209,7 +212,9 @@ export function createZonesWiring({ $, banner, camera, controls, cutaway, editCh
   function zonesChanged() {
     if (pickedZone && !zonesNow().some(z => z.id === pickedZone)) setPickedZone(null);
     setEffectsDirty(true);     // (the landing's effects and sound follow a moved zone)
-    refreshLandingZones(); refreshGroundGrid(); cutaway(); projectChanged(); editChanged();
+    refreshLandingZones();
+    runHub('zone-edit');     // the ground grid and the cutaway (edit_hub.js)
+    projectChanged(); editChanged();
   }
   // The zones with plain EW's marks written out (`ew: true`): a list saved before the mark goes by order (ownSlots),
   // and any change keeps the zones plain EW played
@@ -441,20 +446,16 @@ export function createZonesWiring({ $, banner, camera, controls, cutaway, editCh
   // draws none: the Build takes them out), the ground grid
   function clearedChanged() {
     if (!data) return;
-    $('projectSize').hidden = !projectsAvailable();
-    $('projectClear').hidden = !projectsAvailable();
-    $('projectMissions').hidden = !projectsAvailable();
-    $('projectPicture').hidden = !projectsAvailable();
+    showMapMenu($);
     setMergedBuildings(null);
-    refreshMissionPicker();     // a project's missions, or none
-    refreshLightVisibility();
     setEffectsDirty(true);
-    if (!builderMode) cutaway();
-    refreshGroundGrid(); refreshLandingZones();
+    runHub('cleared');     // the mission picker, the lights drawn, the cutaway, the ground grid and the zones
   }
 
-  // The project's landing zones changed or were read (the edit hub's landing-zones run, edit_hub.js).
+  // The project's landing zones changed or were read, and the cleared mark set (the edit hub's landing-zones and
+  // cleared runs, edit_hub.js): the zones drawn.
   onHub('landing-zones', 'zones', () => { refreshLandingZones(); });
+  onHub('cleared', 'zones', () => { refreshLandingZones(); });
 
   return { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
            placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,

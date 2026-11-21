@@ -552,9 +552,16 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
 
   // The scene's pieces changed (the edit hub's scene run, edit_hub.js): the ground grid drawn again if its pieces did.
   onHub('scene', 'ground-grid', () => { refreshGroundGrid(false); });
+  // The cleared mark set, a landing zone edited (the edit hub's cleared and zone-edit runs): the ground grid drawn
+  // again.
+  onHub('cleared', 'ground-grid', () => { refreshGroundGrid(); });
+  onHub('zone-edit', 'ground-grid', () => { refreshGroundGrid(); });
+  // The cleared mark set, the project's missions set again by Reset all (the edit hub's cleared and project-missions
+  // runs): the header's Mission picker.
+  onHub('cleared', 'mission-picker', () => { refreshMissionPicker(); });
+  onHub('project-missions', 'mission-picker', () => { refreshMissionPicker(); });
 
   return { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
            headerMissions, isLanding, liveFloorIndex, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
-           readLandingLines, refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes,
-           startMissionPicker, zonesNow };
+           readLandingLines, refreshGroundGrid, showClearMap, showMissions, sizeNotes, startMissionPicker, zonesNow };
 }

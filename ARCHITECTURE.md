@@ -340,8 +340,8 @@ value goes stale, so:
 - a collection (a `Map`, an array) is changed in place through the import as it is.
 
 What one area alone uses lives in that area's module, inside its factory (the document session's `navigating`); a
-module made after it that reads it is given a getter the factory returns (the Spawns view's `spawnLayerReady`), never
-a copy of the value. What several areas use lives in [`editor_state.js`](tools/viewer/web/editor_state.js), grouped by
+module made after it that reads it is given a getter the factory returns (the build queue's controller's `state`,
+which the project manager reads), never a copy of the value. What several areas use lives in [`editor_state.js`](tools/viewer/web/editor_state.js), grouped by
 the area that owns it, each group's comment saying who reads or sets it: the scene and its roots, the selection, the
 project open and what it keeps (groups, buildings, the map's size, the clear and its landing zones, missions, picture,
 spawn rules), the document session's state and drafts, Play in game's, the prefab builder's document, the edit hub's
@@ -438,16 +438,24 @@ must be called and one `onHub(run, name, refresh)` in its module's factory.
   runs, which `select` runs at each place it fills the piece panel for what is picked, given what it has there (the
   root picked, its source, the chips' row): `select-sections`, `select-none`, `select-light`, `select-cover`,
   `select-piece` and `select-chips`.
-- Where an area's change must keep other areas up, it runs a run of its own rather than calling them by name: `scene`
-  (app.js's `sceneChanged`: the cutaway, the ground grid, where made walls meet), `landing-zones` (the zones drawn),
-  `clear` (a clear done or undone: the lights drawn), `mission` (the header's mission changed: the lights drawn, the
-  spawn markers and their gizmo, the cutaway) and `snap` (the snap setting: the selected piece's grid chip). What is
-  state (the sun's shadows asked for, the groups' pieces to be worked out again, the Effects view's redraw asked) is set
-  directly.
+- Where an area's change must keep other areas up, it runs a run named for what happened rather than calling them by
+  name, their refreshes in the order the page called them: `scene` (app.js's `sceneChanged`: the cutaway, the ground
+  grid, where made walls meet), `landing-zones` (the zones drawn), `clear` (a clear, a Delete or Reset all done or
+  undone: the lights drawn), `cleared` (the cleared mark set: the header's Mission picker, the lights drawn, the
+  cutaway, the ground grid, the zones), `project-missions` (Reset all's missions set again: the Mission picker),
+  `mission` (the header's mission picked, or changed with its choices: the lights drawn, the spawn markers and their
+  gizmo, the cutaway), `zone-edit` (a landing zone edited: the ground grid, the cutaway), `spawn-box` (a no-spawn
+  volume's box dragged by the Buildings view's face handles: the spawn markers) and `snap` (the snap setting: the
+  selected piece's grid chip). The area's own refresh is its own call (the zones drawn before `zone-edit`).
+- What is state (the sun's shadows asked for, the groups' pieces to be worked out again, the Effects view's redraw
+  asked) is set directly, before the run when none of its refreshes reads it (the Effects view's redraw before
+  `mission` and `cleared`). A statement between two refreshes that the later one reads cannot move: the earlier refresh
+  then stays a call by name, and `RUNS`' comment says why (none does now: follow-up 3.30).
 - Every name `RUNS` lists has its refresh registered: `startScene` ends with the hub's `checkHub`, which throws (the
   page says it could not open, and the browser checks see the error) when one has none, and the hub's node test reads
-  the page's modules for one `onHub` of each name. A run would pass over a lost registration without a word. The hub
-  is a module of its own, not part of editor_state.js, so that its node test can import it.
+  the page's modules for one `onHub` of each name, and for a `runHub` of each run. A run would pass over a lost
+  registration without a word. The hub is a module of its own, not part of editor_state.js, so that its node test can
+  import it.
 
 **Records.** An added thing's record is written only through `piece_records.js`'s `recordOf` and read only through its
 `optionsOf`. A writer gathers what it knows of the thing (a unit: its names, source, components, pose, links, state,

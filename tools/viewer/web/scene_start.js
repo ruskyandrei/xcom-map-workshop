@@ -1,8 +1,10 @@
 // The scene's page as it opens (app.js's startScene): the parts of it that are no one area's own. Here: the page's title
 // and the patch preview's chip (showSceneTitle), View options' Full or Interior and the Map menu's items as the scene
-// allows them (showSceneMenus), the import notes (showImportNotes) and the gizmo's Linked button as the export allows it
-// (showLinked). The areas start their own parts of the scene in their modules; startScene calls each in the order the
-// page always started them. Plain exports, each given what it needs of app.js; nothing here runs as the page loads.
+// allows them (showSceneMenus, showMapMenu), the import notes (showImportNotes) and the gizmo's Linked button as the
+// export allows it (showLinked). The areas start their own parts of the scene in their modules; startScene calls each
+// in the order the page always started them. Plain exports, each given what it needs of app.js; nothing here runs as
+// the page loads.
+import { projectsAvailable } from './document_session.js';
 import { plural, short, text } from './dom_words.js';
 import { builderMode, data, loadErrorCount } from './editor_state.js';
 
@@ -11,10 +13,15 @@ export function showSceneTitle($) {
   document.title = `${data.name} · XCOM Map Workshop`;
   $('previewChip').hidden = !data.preview;
 }
-// View options' Full or Interior, and the Map menu's own items (shown for a whole map's original layout).
-export function showSceneMenus($, projectsAvailable) {
+// View options' Full or Interior, and the Map menu's own items.
+export function showSceneMenus($) {
   $('scenery').value=data.preview ? 'full' : data.tactical?.recommendedView || 'full';
   $('sceneryGroup').hidden=!data.playableBounds || data.scope!=='map';
+  showMapMenu($);
+}
+// The Map menu's own items (Map grid, Clear map, Missions, Map picture), shown for a whole map's original layout: as a
+// scene opens, and after the cleared mark changes (zones_wiring.js's clearedChanged; follow-up 3.18).
+export function showMapMenu($) {
   $('projectSize').hidden = !projectsAvailable();     // Map grid: any whole map
   $('projectClear').hidden = !projectsAvailable();
   $('projectMissions').hidden = !projectsAvailable();

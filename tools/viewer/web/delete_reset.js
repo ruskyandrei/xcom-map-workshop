@@ -7,22 +7,24 @@
 //
 // createDeleteReset takes what it needs of app.js as one argument object, when app.js makes it: the gizmo, the
 // selection's pieces and boxes, the busy mark, the pieces', lights', effects' and boxes' roots added and taken away,
-// the map's buildings changed and restored, the map's size, the landing zones, the spawn moves and rule, the mission
-// picker, a broken piece drawn and the hints. It keeps no state of its own.
+// the map's buildings changed and restored, the map's size, the cleared mark's follow-ups, the spawn moves and rule, a
+// broken piece drawn and the hints. What the other areas draw after a step follows the edit hub's runs (clear,
+// landing-zones, project-missions: edit_hub.js). It keeps no state of its own.
 import { areaBindings, buildingMeta, cleared, clearKeepsOutside, effectRoots, groups, hintTimer, landingZones,
          lightRoots, missionMoves, ownSet, pickedEffect, projectMissions, projectSpawnRules, roots, setAreaBindings,
          setCleared, setClearKeepsOutside, setGroups, setLandingZones, setLightsDirty, setMergedBuildings, setPickedZone,
          setProjectMissions, setProjectSpawnRules, stage, volumesOn } from './editor_state.js';
+import { runHub } from './edit_hub.js';
+import { cloneGroups } from './groups.js';
 import { cloneBlasts, isStream } from './piece_records.js';
+import { selectionWords } from './selection.js';
 import { plural } from './dom_words.js';
 
 export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, baseMatrix, busy, BUSY_PIECES,
-                                    clearedChanged, cloneGroups, copyable, deleteVolumes, drawBroken, effectViewOnly,
-                                    flashHint, gizmo, liveVolumes, mapEdits, mapRestoreChange, nextFrame,
-                                    refreshLandingZones, refreshLightVisibility, refreshMissionPicker,
-                                    removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged,
-                                    selectedBoxes, selectionWords, setLightValues, setMissionMoves, setStage,
-                                    syncSpawnRule, valuesEdited }) {
+                                    clearedChanged, copyable, deleteVolumes, drawBroken, effectViewOnly, flashHint,
+                                    gizmo, liveVolumes, mapEdits, mapRestoreChange, nextFrame, removeEffectRoots,
+                                    removeLightRoots, removeRoots, restingHint, sceneChanged, selectedBoxes,
+                                    setLightValues, setMissionMoves, setStage, syncSpawnRule, valuesEdited }) {
   // Delete: an added piece goes; an original is hidden (and returns with undo or Reset all).
   // A step that touches many pieces (BUSY_PIECES or more) puts the busy mark up first, so the page says what it is
   // doing instead of standing still (plan "faster editor", L3); a small one runs at once.
@@ -67,12 +69,12 @@ export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, bas
       redo: () => {
         removeRoots(added); removeLightRoots(addedLights); removeEffectRoots(addedEffects);
         for (const r of [...originals, ...originalLights, ...originalEffects, ...boxes]) r.userData.deleted = true;
-        refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
+        runHub('clear'); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
       },
       undo: () => {
         addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects);
         for (const r of [...originals, ...originalLights, ...originalEffects, ...boxes]) r.userData.deleted = false;
-        refreshLightVisibility(); setLightsDirty(true); gizmo.setSelection(before.ids, before.active); sceneChanged();
+        runHub('clear'); setLightsDirty(true); gizmo.setSelection(before.ids, before.active); sceneChanged();
       },
     });
     const what = selectionWords([...targets, ...boxes]);
@@ -127,7 +129,9 @@ export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, bas
       setProjectMissions(m.missions ? m.missions.map(e => ({ ...e })) : null);
       setMissionMoves(new Map(m.moves ?? []));
       setProjectSpawnRules(m.rules ?? null); syncSpawnRule();
-      setMergedBuildings(null); setPickedZone(null); setStage(m.stage); clearedChanged(); refreshLandingZones(); refreshMissionPicker();
+      setMergedBuildings(null); setPickedZone(null); setStage(m.stage); clearedChanged();
+      // the zones drawn, the header's Mission picker (edit_hub.js)
+      runHub('landing-zones'); runHub('project-missions');
     };
     const groupsBefore = cloneGroups(), valuesBefore = changed.map(r => ({ ...r.userData.values })), bindingsBefore = new Map(areaBindings);
     gizmo.record({
@@ -141,7 +145,7 @@ export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, bas
         restore.redo();
         for (const r of ownBoxes) r.userData.deleted = true;
         mapState({ stage: null, zones: null, cleared: false, keeps: false, missions: null, rules: null });
-        setAreaBindings(new Map()); setGroups(new Map()); refreshLightVisibility(); setLightsDirty(true); sceneChanged();
+        setAreaBindings(new Map()); setGroups(new Map()); runHub('clear'); setLightsDirty(true); sceneChanged();
       },
       undo: () => {
         flagged.forEach((r, k) => { r.userData.flags = flagsBefore[k]; });
@@ -153,7 +157,7 @@ export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, bas
         restore.undo();
         for (const r of ownBoxes) r.userData.deleted = false;
         mapState(map);
-        setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore)); refreshLightVisibility(); setLightsDirty(true);
+        setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore)); runHub('clear'); setLightsDirty(true);
         gizmo.setSelection(picks.ids, picks.active); sceneChanged();
       },
     });

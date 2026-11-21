@@ -67,10 +67,6 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   setNormalSpawnsValue(recall(NORMAL_SPAWNS) === '1');
   const spawnLayer = new THREE.Group(); world.add(spawnLayer);
   spawnLayer.visible = false;
-  // whether the view's layer is made (the views' buttons show it from then on: views.js's lightButton asks the getter
-  // this factory gives back; editor_state.js held the flag until the views' switching was made after this view)
-  let spawnLayerReady = false;
-  spawnLayerReady = true;
   setSpawnFilters((() => { try { return JSON.parse(recall(SPAWN_FILTERS) || '{}') || {}; } catch { return {}; } })());
   // (the families shown, spawnFilters, and the picked marker's key, pickedSpawn: editor_state.js)
   // (a landing zone picked in the Spawns view, described only (decision D3), spawnZonePick: editor_state.js)
@@ -768,6 +764,8 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
 
   // The mission picked changed (the edit hub's mission run, edit_hub.js): the markers and the picked one's gizmo.
   onHub('mission', 'spawns', () => { refreshSpawnMarkers(); placeMissionGizmo(); });
+  // A no-spawn volume's box dragged by a face handle (the edit hub's spawn-box run): the markers.
+  onHub('spawn-box', 'spawns', () => { refreshSpawnMarkers(); });
 
   return { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
            editedSpawns, editSpawnCopy, loadSpawnRules, missionFloorLost, missionGizmo, missionGizmoWanted, missionKey,
@@ -776,6 +774,5 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
            setNormalSpawns, setPickedSpawn, setSpawnRule, setSpawnsShown, showSpawn, spawnAddEntries, spawnAt,
            spawnBoxNow, spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer,
            spawnMovable, spawnPanel, spawnsAvailable, spawnsShown, startSpawnPlacing, stopSpawnPlacing, streamObjects,
-           syncSpawnFilters, syncSpawnRule, TURNED_KINDS,
-           spawnLayerReady: () => spawnLayerReady };
+           syncSpawnFilters, syncSpawnRule, TURNED_KINDS };
 }
