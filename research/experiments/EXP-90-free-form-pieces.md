@@ -1,6 +1,6 @@
 # EXP-90: made pieces in the free form in the game
 
-Date: 21 November 2026. Status: **prepared offline; the run is under way**. The custom geometry improvements plan's
+Date: 21 November 2026. Status: **run 1 played: the mitred corner, the thick and tall walls, the turned floor and the texture mapping passed; the turned wall broke in its middle, away from the blast ([F-145](../findings-register.md) failed); a wall standing in a tile row takes those tiles ([F-146](../findings-register.md)); a tile a floor covers under about a third of is no floor ([F-147](../findings-register.md))**. The custom geometry improvements plan's
 game runs (its section 7, "What needs the game"): made walls and floors at any place, size, angle and height
 (the free form: `fracWall` 5, `fracSlab` 4, numbers with `free: 1`), mitred corners, tall walls made both ways, a
 thick wall, a turned floor, and a texture mapping. Everything else in the plan is checked offline. Played unattended
@@ -87,4 +87,45 @@ the box and off the floor.
 Staged by the editor's Play in game on a test server started with `--dry-play` (its install the parked lab copy), and
 started with the play file it wrote. Out folder `<lab>\hidden-runs\exp90-1`; `report.md` there holds each step.
 
-(Results follow as the checks are run.)
+Run 1, 21 November 2026, unattended in the lab copy (LWR), the editor's test squad, the Abduction mission (four
+Sectoid pods), invincibility on and the fog lifted. One pass of each check; one second take (check 5). The out folder's
+report and the shots were read against each other.
+
+1. **A, a wall off the tile lines: walking and cover passed; the window's vault unclear; the break passed for what was
+   seen.** Beside its south face the soldiers' cover read 50, 30 and 0 at x -1873, -1777 and -1681: high, low and none,
+   as the compiler's grid crossings said (whole wall, window, doorway). A soldier walked into the doorway's tile and on
+   through it. The wall stands inside the tile row centred y -1105, and the tiles of that row it covers can't be stood
+   on: the one its west part covers (64.75 of 96) and the window's ([F-146](../findings-register.md)). A soldier walked
+   past its end (the game put him 44 off the tile's centre, against the wall's end). No move told a vault through the
+   window from a walk round. An HE grenade by its west end broke its lower storey round the blast (the window's and the
+   west tile could be stood on after, the cover there went to 0); its upper storey stood over the gap, as F-127; the
+   east jamb was not read.
+2. **B, a fractional floor: standing passed, the cursor passed on a whole tile, a tile it covers in part is no floor;
+   the break passed for B, its passing to A unclear.** The cursor landed on B's top (z 258) over the tile B covers whole
+   and on the ground over tiles it covers 29% and 24%; a soldier put on B stood at z 264, and ordered onto the 29% tile
+   went down to the ground ([F-147](../findings-register.md)). With soldiers standing under B the cursor stayed on the
+   ground at every storey. A grenade on B's top took B whole and what stood of A with it; A's upper storey was inside
+   the blast too, so the passing of the break can't be told.
+3. **C, a mitred corner at a free angle: sight and cover at the corner passed; the turned wall's break failed; one wall
+   broken away from the other passed.** A Sectoid inside the corner, under two tiles from a soldier at its outside tile,
+   was not offered in his shot view (two farther Sectoids were). That outside tile, under C1's end, gave high cover (50);
+   the outside tile by C2's end is blocked. An HE grenade landed on the pavement about 120 south-east of C1's start: C1's
+   first part (to about 160 along it, 120 to 140 from the blast) stood, its middle (about 160 to 270 along it, 190 to 270
+   from the blast) was gone, and its corner part stood with C2 ([F-145](../findings-register.md)).
+4. **D, heights and a thick wall: passed.** All four stood, the 600-tall ones at their height with the look's bands
+   repeated (D2) or one face over the height (D3). One HE grenade at D3's foot took the lowest storey of both D3 and D2,
+   the rest of each standing over the gap, as the game's walls do (F-127); D3, one 600-tall mesh, broke like D2's two
+   stacked pieces. A soldier walked through D4's 48-thick doorway in one tile.
+5. **E, a floor turned 20 degrees: a soldier on it passed; the cursor near its corners as warned, in part (unclear).**
+   A soldier put on it stood at z 264. Over tiles on it the cursor landed on its top; over one tile inside the box round
+   it and off the floor, (-433, -1393), it landed at the floor's height once (aimed from the north-east) and on the
+   ground when aimed from the floor itself, and the soldier ordered there went to the ground; over (-145, -1201) and
+   (-433, -1201), also in the box, it landed on the ground. Reading the built cursor volumes over E would settle what
+   they cover.
+6. **F, a texture mapping under baked light: passed.** The mapped wall shows its look's materials at a much smaller
+   repeat with the rows on a slant, on both faces and bands; it and the unmapped wall beside it are lit alike by the
+   map's baked light, with no black, blotch or seam.
+
+Side notes: the A grenade's alien turn ran at once when every soldier had acted; a `SAVING...` badge showed for a while
+in turn 2 (no save was asked for). The parked lab copy was used (`--game`, and the test server's `--install`): the
+folder Steam runs held the LWR3 copy.

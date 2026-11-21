@@ -12,8 +12,10 @@ Statuses:
 
 ## Open now
 
-- F-145 (21 November, offline): the game's 644 placed fracturing walls all stand on quarter turns, so no rule of its
-  own says how a made wall at a free angle should break in columns; a run decides.
+- F-145 (21 November, EXP-90): a made wall at a free angle (30 degrees) broke in its middle, away from the blast,
+  while the part nearest the blast stood: the columns' rule measured on square walls misplaces a turned wall's break.
+- F-146, F-147 (21 November, EXP-90): a made wall standing inside a tile row takes those tiles; a tile a made floor
+  covers under about a third of is no floor. Neither is warned of yet.
 
 - F-143 (20 November, EXP-88): a cover block grouped with a made wall keeps its cover when the wall's columns break
   (the block is invincible and the columns reach it only by damage); a prop in the same kind of group goes.
@@ -168,8 +170,9 @@ Statuses:
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
 ### F-145: The game has no wall turned off the quarter turns, so no rule of its own for a turned wall's columns
-**Open** (21 November 2026, offline: the wall audit, `research/evidence/frac-wall-audit.py`, over every map the
-install lists).
+**Open: the measured rule fails for a turned wall** (21 November 2026, offline: the wall audit,
+`research/evidence/frac-wall-audit.py`, over every map the install lists; in the game: [EXP-90](experiments/EXP-90-free-form-pieces.md)
+run 1).
 - **What**: a made wall can now stand at any angle (the custom geometry improvements plan, stage 2), and its fracture
   columns are made by the rule measured on the game's walls (`frac_walls.columns`: a tile along the wall's longer world
   axis, a storey up, the wall's whole reach across). The plan asked first whether the game's own maps hold walls at a
@@ -179,6 +182,14 @@ install lists).
 - **So**: the game gives no rule for a turned wall's columns; the measured rule is a guess for one. A game run decides
   (a wall at a free angle broken where it is hit: does it break there and nowhere else); until then a turned made wall
   builds with the measured rule.
+- **The run** (EXP-90 check 3): a one-storey made wall 384 long at yaw 5461 (30 degrees), mitred to another at 120
+  degrees. An HE grenade landed about 120 south-east of its start. Its first part, to about 160 along it and 120 to 140
+  from the blast, stood; its middle, about 160 to 270 along it and 190 to 270 from the blast, broke; its corner part
+  stood with the other wall. So it does not break where it is hit.
+- **Likely cause, not checked**: `frac_walls.columns` cuts a wall into columns a tile wide along its longer world axis
+  (x here) and gives each column the wall's whole reach across (y: about 190 units for this wall), so a column's box
+  stands away from its own fragments, which lie along the slant. A rule for a turned wall (columns along its own line,
+  each boxed round its own fragments) is the next step, then the same run again.
 
 ### F-144: A made piece needs only its own moon shadow map; the donor's leftover drew nothing of its own
 **Verified** (21 November 2026, [EXP-89](experiments/EXP-89-made-shadow-maps.md), lab copy, LWR).
@@ -196,6 +207,31 @@ install lists).
   at night); B draws the piece's own map, the only one it lists.
 
 ## Tiles, cover and placement
+### F-146: A made wall standing inside a tile row takes those tiles; beside it the cover is the compiler's
+**Verified** (21 November 2026, [EXP-90](experiments/EXP-90-free-form-pieces.md) run 1, check 1).
+- **What**: a free-form made wall (two storeys, 16 thick) along x at y -1111.5, 6.5 from the game tiles' centre line
+  y -1105, its start 30.25 off a tile line; a window and a doorway in it.
+- **Seen**: the tiles of that row it covers can't be stood on: the one its west part covers (64.75 of 96 of the tile's
+  width, the centre inside the wall) and the window's (the window from 72 up); the doorway's tile can, and a soldier
+  walked through it. South of it the cover read 50, 30 and 0 at the wall's whole part, its window and its doorway, as
+  the compiler's grid crossings (`made_edits.grid_crossings`, `opening_play`) said; a soldier walked past its end (the
+  game put him 44 off his tile's centre against the wall's end). A grenade later opened the window's and the west tile.
+- **So**: a wall drawn off the tile edges, over a tile row's centres, takes that row's tiles and gives cover to the rows
+  either side, as a wall on the tile edge does to its two neighbours; its window is a tile no one stands on, and no unit
+  was seen to vault through it (the compiler's `climb` reading assumes a wall on a tile edge). Not warned of yet.
+
+### F-147: A tile a made floor covers under about a third of is no floor
+**Verified** (21 November 2026, [EXP-90](experiments/EXP-90-free-form-pieces.md) run 1, check 2).
+- **What**: a free-form made upper floor 230.5 by 170.25 (top 194) off the tile lines, standing alone outdoors.
+- **Seen**: over the tile it covers whole the cursor landed on its top (z 258) and a soldier stood on it (z 264); over
+  tiles it covers 29% and 24% the cursor landed on the ground, and the soldier ordered from the floor onto the 29% tile
+  went down to the ground. With a soldier standing under the floor the cursor stayed on the ground at every storey.
+- **A turned floor** (check 5, 20 degrees): a soldier stood on it; over one tile inside the box round it and off it the
+  cursor landed once at the floor's height (the `slab-turned` warning's case), over two others on the ground. What its
+  cursor volumes cover is not read.
+- **So**: a made floor's partly covered edge tiles are floor only above some share of the tile (between 29% and 100%,
+  not narrowed down); the editor does not say which.
+
 ### F-114: Five flags on a piece decide how the game's tiles and mouse use it
 **Open** (16 November 2026: read from the decompiled scripts, the game's script packages and the native reading of
 the tile build; surveyed over the 153 listed maps; played in EXP-60, EXP-61 and EXP-62). A reference fact, and what
