@@ -2,8 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo, placedPose, actorMatrix } from './gizmo.js';
 import { createPieceBrowser, pieceGrid, useFamilies } from './pieces.js';
-import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid,
-         groupKey } from './project.js';
+import { api as projectApi, stateKey, targetKey, tidyLocation, tidyRotator, uuid } from './project.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
@@ -47,7 +46,7 @@ import { createBuildingsWiring } from './buildings_wiring.js';
 import { createCoverWiring } from './cover_wiring.js';
 import { createFlagsPanel } from './flags_panel.js';
 import { createSelectKind } from './select_kind.js';
-import { createGroups } from './groups.js';
+import { cloneGroup, cloneGroups, createGroups, groupChain, memberOf, memberRecord, topLocked } from './groups.js';
 import { createAlign } from './align.js';
 import { createLibraryTemplates } from './library_templates.js';
 import { createClipboard } from './clipboard.js';
@@ -166,38 +165,6 @@ const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:tru
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
 // Edits: the gizmo moves whole actors (all their components); a project keeps the edits (Ctrl+S) and the Build makes them.
-// Groups (research/editor-contracts.md, section 2): pieces the user keeps together, saved in the project. A group
-// selects and moves as one, with linked pieces on or off; Ungroup ends it. There is no unlocking (the user, 11
-// November 2026: "just leave it to group/ungroup"): every group is locked, and a project's `locked` is always true.
-// breakTogether is for the game: when one of its breakable pieces is damaged or destroyed, the others are too, and
-// its cover blocks go with a destroyed one (the
-// compiler and the copier link them).
-// A member is also a light (as a piece: its target, or {added}) or one of the project's buildings ({building}; plan
-// 5.4a): they move, copy and go with the group, and take no part in breaking together.
-// Groups nest (prefab plan 5.4): a member is a piece or another group ({group}); a piece is a direct member of one
-// group at most, and a group of one. A piece picked selects the outermost group it is in; Ungroup ends that one, so
-// it peels one level; Ctrl+G on pieces and whole groups makes a group of them, the groups kept inside.
-// (groups and groupIndex, and setGroups: editor_state.js)
-const parentGroup = g => groupIndex.get(groupKey(g.id));
-// A group and the groups it is in, from the inside out.
-function groupChain(g) { const out = []; for (let x = g; x && out.length < 64; x = parentGroup(x)) out.push(x); return out; }
-// The outermost locked group among a group and the ones it is in: what a piece of it selects and moves with.
-const topLocked = g => groupChain(g).filter(x => x.locked).at(-1) ?? null;
-// The pieces of a group, those of the groups inside it too: their member keys.
-function leafKeys(g, out = [], depth = 0) {
-  for (const [k, m] of g.members) {
-    if (m.group === undefined) out.push(k);
-    else if (groups.has(m.group) && depth < 64) leafKeys(groups.get(m.group), out, depth + 1);
-  }
-  return out;
-}
-// A piece's member key and record: an original by package, level and actor; an added piece by its output name.
-// (a light is a member as a piece is; a floor box stands for its building, which is a member whole: plan 5.4a)
-const memberRecord = o => (o.isVolume ? { building: volumeRoots.get(o.id)?.userData.volume.building ?? '' }
-  : o.added ? { added: o.actor } : { package: o.sourcePackage, level: o.layer, actor: o.actor });
-const memberOf = o => memberKey(memberRecord(o));
-const cloneGroup = g => ({ ...g, members: new Map(g.members) });
-const cloneGroups = (from = groups) => new Map([...from].map(([id, g]) => [id, cloneGroup(g)]));
 // Pieces of the packages a mission streams into the map (LWR's patches, mission objects): shown for reference, never
 // edited (a project edits the map's own pieces; the Build makes nothing of theirs).
 const isStream = o => o?.layer === 'stream';
@@ -524,13 +491,6 @@ function copyable() {
 const copyablePieces = () => copyable().filter(r => !r.userData.light && !r.userData.effect);
 // What a group can hold of the selection: pieces, lights that can be edited, and the buildings picked with them.
 const groupables = () => [...copyable(), ...selectedBoxes()];
-// "3 pieces, 1 light and 1 building": a group's members (their keys), by kind.
-function keyWords(keys) {
-  const kind = k => { const r = liveMembers().get(k)?.[0]; return k.startsWith('building|') ? 'building' : r?.userData.light ? 'light'
-    : r?.userData.effect ? (r.userData.source.kind === 'flare' ? 'lens flare' : r.userData.source.kind) : 'piece'; };
-  const parts = ['piece', 'light', 'effect', 'sound', 'lens flare', 'building'].map(w => { const n = keys.filter(k => kind(k) === w).length; return n && plural(n, w); }).filter(Boolean);
-  return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? plural(0, 'piece');
-}
 function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(true); cutaway(); refreshGroundGrid(false); refreshJoins(); }
 // An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
 // rotator exactly, so untouched native values stay as they were.
@@ -630,8 +590,7 @@ const { chosenStorey, floorData, floorSupportOf, levelButton, setLevelSnap } = c
 // piece panel's group section, and the groups changed (each change one undo step).
 const { addToGroup, changeGroups, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
         selectionGroup, ungroup } = createGroups({
-  $, cloneGroups, flashHint, gizmo, groupables, groupChain, groupChip, highlight, isStream, keyWords, leafKeys,
-  memberOf, memberRecord, plural,
+  $, flashHint, gizmo, groupables, groupChip, highlight, isStream, plural,
   // (made with the selection, further down: called through, since it is not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep) });
 

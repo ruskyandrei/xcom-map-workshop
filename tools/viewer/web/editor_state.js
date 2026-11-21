@@ -43,7 +43,7 @@ export let project = null;
 export function setProject(next) { project = next; }
 
 // groups: id -> { id, locked, breakTogether, members: Map(member key -> member record) }; groupIndex: member key -> the
-// group it is a direct member of (a piece's key, or a group's: groupKey(id)). (What a group is: app.js, above
+// group it is a direct member of (a piece's key, or a group's: groupKey(id)). (What a group is: groups.js, above
 // parentGroup.)
 export let groups = new Map(), groupIndex = new Map();
 export function setGroups(next) {
