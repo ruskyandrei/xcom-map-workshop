@@ -16,13 +16,13 @@ export const RUNS = {
   edit: [
     'effects',       // effects_wiring.js: what the Effects view draws is worked out again (its markers follow the
                      // pieces that carry them)
-    'selection',     // app.js: a command (the undo of a paste, a delete) changed the selection under us: select follows
-                     // the gizmo and ends the run, which it ran itself
+    'selection',     // selection.js: a command (the undo of a paste, a delete) changed the selection under us: select
+                     // follows the gizmo and ends the run, which it ran itself
     'buildings',     // buildings_wiring.js: the project's buildings follow their boxes, the view's panel; a box being
                      // turned ends the run (the gizmo goes back to moving)
     'cutaway',       // cutaway.js: pieces moved, deleted or brought back, once a drag ends; with a selection it ends the
                      // run, which the cutaway's select ran
-    'marks',         // app.js: the selected piece's highlight, its ladder's ends and its grid chip
+    'marks',         // selection.js: the selected piece's highlight, its ladder's ends and its grid chip
     'floor-note',    // cover_wiring.js: an invisible floor's height over the ground, once a drag ends
     'piece-status',  // app.js: the pose fields; while a gizmo handle is held, the drag's run and the end of this one;
                      // then the edit status, Delete, Undo, Redo, Reset and Reset all
@@ -39,6 +39,35 @@ export const RUNS = {
   // piece-status runs it, then ends the edit's run: the rest waits for the drag's end).
   drag: [
     'lights',        // lights_wiring.js: the lights drawn follow
+  ],
+  // select's (selection.js), each where it fills the piece panel for what is picked. Each area's section of the panel
+  // shown or hidden for it (given the root picked, or nothing):
+  'select-sections': [
+    'lights',        // lights_wiring.js: the light section
+    'cover',         // cover_wiring.js: the cover section
+    'made',          // made_panel.js: the Wall, Floor and Ground sections
+    'break',         // made_breaking.js: the Break row of one of the map's fracturing pieces
+  ],
+  // nothing, a building's box or an effect picked (given the root, or nothing)
+  'select-none': [
+    'effects',       // effects_wiring.js: the Effects view's markers painted, its panel, the picked one's shape
+  ],
+  // a light picked (given its root)
+  'select-light': [
+    'lights',        // lights_wiring.js: its panel
+  ],
+  // a cover block or invisible floor picked (given its root): showCover's
+  'select-cover': [
+    'cover',         // cover_wiring.js: its cover section
+  ],
+  // a piece picked (given its root and its source), before its name and chips
+  'select-piece': [
+    'made',          // made_panel.js: a made piece's sections
+    'break',         // made_breaking.js: the Break row of one of the map's fracturing pieces
+  ],
+  // a piece's chips (given the chips' row and the root)
+  'select-chips': [
+    'flags',         // flags_panel.js: the flags chip
   ],
 };
 

@@ -26,7 +26,7 @@ export const allRoots = { get: id => roots.get(id) ?? lightRoots.get(id) ?? volu
                           has: id => roots.has(id) || lightRoots.has(id) || volumeRoots.has(id) || effectRoots.has(id),
                           values: () => [...roots.values(), ...lightRoots.values(), ...volumeRoots.values(), ...effectRoots.values()][Symbol.iterator]() };
 
-// The root picked, whose panel shows (app.js's select sets it).
+// The root picked, whose panel shows (selection.js's select sets it).
 export let selected;
 export function setSelected(next) { selected = next; }
 
@@ -198,7 +198,7 @@ export function setVolumesOn(next) { volumesOn = next; }
 export function setZonesOn(next) { zonesOn = next; }
 export function setEffectsOn(next) { effectsOn = next; }
 export function setSpawnsOn(next) { spawnsOn = next; }
-// The effect, sound or lens flare picked (app.js's select sets it), whose panel and handles show, or null.
+// The effect, sound or lens flare picked (selection.js's select sets it), whose panel and handles show, or null.
 export let pickedEffect = null;
 export function setPickedEffect(next) { pickedEffect = next; }
 // The streams of the mission the header's Mission picker shows (clear_map.js's chooseMission): their pieces, lights,
@@ -243,8 +243,8 @@ export function setLightDrag(next) { lightDrag = next; }
 export function setReachKey(next) { reachKey = next; }
 export function setReachNow(next) { reachNow = next; }
 
-// What other areas read or set of the Effects view (effects_wiring.js; app.js's selection, keys, pointer handlers, draw
-// loop and test hooks):
+// What other areas read or set of the Effects view (effects_wiring.js; the selection, selection.js; app.js's keys,
+// pointer handlers, draw loop and test hooks):
 // - effectsDirty: what is drawn is to be worked out again (refreshEffects) before it is next read; effectMarkers: the
 //   markers drawn now, the roots' and the copies a piece's copy carries;
 // - normalEffects: the Normal button's Effects switch, which draws and picks them with pieces in the normal view;
@@ -309,9 +309,9 @@ export function setSpawnPlacing(next) { spawnPlacing = next; }
 export let zonePlacing = false;
 export function setZonePlacing(next) { zonePlacing = next; }
 
-// What other areas read or set of the Buildings view and box select (buildings_wiring.js; app.js's selection, the
-// views' switches, the map's buildings' records, the clipboard, Select all of a kind, the keys, the pointer handlers,
-// the draw loop and the test hooks):
+// What other areas read or set of the Buildings view and box select (buildings_wiring.js; the selection,
+// selection.js; app.js's views' switches, the map's buildings' records, the clipboard, Select all of a kind, the keys,
+// the pointer handlers, the draw loop and the test hooks):
 // - boxesShown: the Normal button's Floor boxes switch, the project's boxes drawn and picked in the normal view (off
 //   whenever a map opens; setBoxesShownValue, beside the view's setBoxesShown, which also draws);
 // - buildingMeta: building id -> { name, kind }, and for one of the map's own its record (map); changed in place;
@@ -354,8 +354,8 @@ export let buildTool = null, wallDrawing = null;
 export function setBuildTool(next) { buildTool = next; }
 export function setWallDrawing(next) { wallDrawing = next; return next; }
 
-// What other areas read or set of a made piece's handles (made_handles.js; app.js's selection, keys, pointer handlers
-// and test hooks, and the made pieces' panel):
+// What other areas read or set of a made piece's handles (made_handles.js; the selection, selection.js; app.js's
+// keys, pointer handlers and test hooks; the made pieces' panel):
 // - wallDrag: the drag of one of the picked made piece's handles under way, or null;
 // - wallFocus: { id, index }: the opening (or slab's hole) whose handle was last touched, which the panel rings and
 //   Delete takes out, or null (the selection lets it go when another piece is picked);

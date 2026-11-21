@@ -320,6 +320,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The cutaway, the tile grid, the Floor tiles overlay, the Floor picker's buttons | [`cutaway.js`](tools/viewer/web/cutaway.js) (`createCutaway`). What is pure about them (the visible bounds, a footprint, the tiles around it, Interior's planes, the overlay's tiles) goes in [`view_layout.js`](tools/viewer/web/view_layout.js), and a piece's listings in [`floor_listings.js`](tools/viewer/web/floor_listings.js). |
 | The building floors a piece is listed on (the project's buildings', the map's own), the key of the pieces' edits | [`floor_listings.js`](tools/viewer/web/floor_listings.js) (`createFloorListings`). The rules (`touchedFloors`, `ruleListing`, `copyFloors`, `floorAt`, `carriedListing`, `sourceFloorMatch`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests, and the Build's side in [`buildings.py`](tools/bake/buildings.py). |
 | Floor pieces, Level snap and its button, the Floor picker's floor under a point | [`level_snap.js`](tools/viewer/web/level_snap.js) (`createLevelSnap`). The floor rules (`ownedFloors`, `classifyFloors`, `floorStamps`, `buildingWithFloor`, `storeyHeight`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests. |
+| The selection: a piece, light, building's box or effect picked (or nothing), the views stepping aside for it, the piece panel filled for it (a cover block's or invisible floor's too), the selected piece's highlight, a ladder's ends and its chip, the grid chip of a piece the recipe snap holds | [`selection.js`](tools/viewer/web/selection.js) (`createSelection`). An area's own part of the piece panel (its section shown or hidden for what is picked, its panel, a chip) is the area's module's, registered with one of the edit hub's select runs ([`edit_hub.js`](tools/viewer/web/edit_hub.js)), never called by name from `select`. |
 | Delete, Reset piece, Reset all, a large step under the busy mark | [`delete_reset.js`](tools/viewer/web/delete_reset.js) (`createDeleteReset`). |
 | Prepare: the dialog that exports the map again, a build or a play waiting for it | [`prepare.js`](tools/viewer/web/prepare.js) (`createPrepare`), and the server's side in [`exports.py`](tools/viewer/exports.py). |
 | Copy, paste and placing: a clip of the selection, a paste, the preview that follows the cursor and where a click places it, the Add panel shown and its tab, an entry of it chosen and placed, a copy dragged off with Shift | [`clipboard.js`](tools/viewer/web/clipboard.js) (`createClipboard`). A copied thing's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`optionsOf`, `stateOfRoot`), a group's in [`project.js`](tools/viewer/web/project.js), the pose rule's snap in [`gizmo.js`](tools/viewer/web/gizmo.js) (`recipeMove`), and a floor's height under a point in [`floors.js`](tools/viewer/web/floors.js) (`levelHeight`, `floorUnder`). |
@@ -429,17 +430,17 @@ where there is one.
     picker (`missionIndex`);
   - whether the next click places a landing zone (`zonePlacing`: the Landing zones view's, which the keys and the
     pointer handlers read);
-  - what of the Buildings view and box select app.js's selection, the views' switches, the map's buildings' records,
-    the keys, the pointer handlers and the test hooks read or set: the Normal button's Floor boxes, each building's
-    name and kind (`buildingMeta`), the map's own buildings selected or picked to be read, the view's tool and a drag
-    under way, and box select's tool, box, drag and what it would take;
+  - what of the Buildings view and box select the selection (selection.js) and app.js's views' switches, the map's
+    buildings' records, the keys, the pointer handlers and the test hooks read or set: the Normal button's Floor
+    boxes, each building's name and kind (`buildingMeta`), the map's own buildings selected or picked to be read, the
+    view's tool and a drag under way, and box select's tool, box, drag and what it would take;
   - the made pieces' look picker (`lookPicker`, made with the Add panel's piece browser) and the eyedropper
     (`lookPicking`), which app.js's dialogs' check, keys, pointer handlers, draw loop and test hooks read;
   - the Build menu's tool being drawn (`buildTool`) and the made piece being drawn (`wallDrawing`), which the made
     pieces' handles and app.js's keys, pointer handlers and test hooks read;
   - a made piece's handle being dragged (`wallDrag`), the opening whose handle was last touched (`wallFocus`: the
     selection lets it go, the made pieces' panel rings it and Delete takes it out) and the rock point picked
-    (`rockPoint`), which app.js's selection, keys, pointer handlers and test hooks read or set; the snap setting
+    (`rockPoint`), which the selection and app.js's keys, pointer handlers and test hooks read or set; the snap setting
     (`snapMode`; `setSnapModeValue`, beside app.js's `setSnapMode`, which also sets the gizmo's and draws its button)
     and a cover handle's drag (`coverDrag`: the cover blocks' handles set it), which the made pieces' handles read;
   - whether Break is on (`breaking`), which app.js's keys and pointer handlers read;
@@ -479,7 +480,8 @@ where there is one.
   `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`,
   `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`, `createGroups`,
   `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`,
-  `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`, `createPrepare`) takes them as one
+  `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`, `createPrepare`, `createSelection`)
+  takes them as one
   argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
   functions other areas call, and app.js destructures them under the same names, so their callers stay as they were.
   app.js makes it after the functions and objects it is given, and before any code that runs as the page
@@ -507,8 +509,8 @@ where there is one.
   app.js keeps those declarations where they were and makes the factory after them, where the run ended: what the run
   does as the page loads then still happens at the same point among the page's other code. An object a view makes as
   the page loads that a view made before it also uses (the landing zones' layer, which the Spawns view shows too; the
-  floor boxes' outline of a clip, which prefabs saved and placed draw too) stays in app.js where it was made, and both
-  are given it. A function
+  floor boxes' outline of a clip, which prefabs saved and placed draw too; the group chip, which the groups and the
+  selection, made later, put in the piece panel) stays in app.js where it was made, and both are given it. A function
   of the area that an earlier stage left elsewhere in app.js (the Landing zones view's `setZonesShown`) moves into
   the factory with the run: a function declaration runs nothing as the page loads. So does a short run of the
   area's elsewhere that only declares (functions, and constants holding functions or plain values: Clear map's rule of
@@ -534,7 +536,9 @@ where there is one.
   An area whose code makes nothing the page shows or listens with as it loads (it declares functions, and at most
   makes plain values: a table, a vector) does nothing that its place could change, so app.js makes it where the fewest
   functions must be called through: the scene's pieces before the gizmo, the first code given their functions; Delete
-  and Reset after Break and Repair, the last factory whose functions they call. What is
+  and Reset after Break and Repair, the last factory whose functions they call; the selection after the Buildings
+  view, the last factory whose functions it calls, so the eight factories made before it that are given `select`
+  (and the two given `gridNow`) are given functions that call them. What is
   made on the other side of it is given its functions, or gives it theirs, as functions that call them.
   `moved_code.py` reads the functions a factory declares (`createX.f`) and finds them by their own names.
 - An added thing's record is written only through `piece_records.js`'s `recordOf` and read only through its
@@ -556,7 +560,11 @@ where there is one.
   worked out in the same run is one refresh with it (app.js's `piece-status`: the pose fields and the edit status share
   the pose and the count of changes). Where another area's refresh must be called in the middle of one, it is a run
   of its own that the one runs: `drag`, the lights following a gizmo handle held, between the pose fields and the end
-  of the edit's run. The hub is its own module, not editor_state.js, so that its node test can import it.
+  of the edit's run; and `select` (selection.js) runs one at each place it fills the piece panel for what is picked
+  (`select-sections`: each area's section shown or hidden; `select-none`, `select-light`, `select-cover`,
+  `select-piece`: the Effects view's, a light's, a cover piece's and a made or breakable piece's panels;
+  `select-chips`: the flags chip), given what it has there (the root picked, its source, the chips' row). The hub is
+  its own module, not editor_state.js, so that its node test can import it.
 - A module's top level only declares, so the order of imports means nothing. No module imports app.js.
 - A rule, a record or a sentence is in a pure module with a node test. The wiring of a panel is beside it and has a
   browser check in the table of checks. A hook a browser check uses is on `window.viewer`.

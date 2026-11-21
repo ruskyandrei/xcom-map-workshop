@@ -420,6 +420,9 @@ export function createCoverWiring({ $, alongLine, camera, editChanged, gizmo, gr
   onHub('edit', 'floor-note', () => {
     if (selected && isFloor(roots.get(selected)?.userData.source.cover) && !gizmo.controls.dragging) floorNote(roots.get(selected));
   });
+  // As something is picked (the edit hub's select runs): the cover section shown for a cover piece, and filled.
+  onHub('select-sections', 'cover', root => { $('coverBox').hidden = !root?.userData.source?.cover; });
+  onHub('select-cover', 'cover', root => { coverPanel(root); });
 
   return { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNow, coverHandleNear, coverHandlePoint,
            coverOf, coverPanel, coverRecipe, coverVersion, endCoverDrag, fitFloor, FLOOR_CLEARANCE, groundAt,

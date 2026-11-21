@@ -24,10 +24,10 @@ import { flippedWall, holeWords, joinWords, openingPlay, openingWords, playWords
          WALL, wallSpec, wallTop, wallWords, withHole, withOpening, withoutHole, withoutOpening,
          withStoreys } from './walls.js';
 
-export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, gizmo, handleWall, isMadeSlab, isMadeWall,
-                                  isPlain, liveKeys, liveMembers, lookRow, madeRoot, madeWallRoot, openLookPicker,
-                                  originalOf, plainLook, plural, selectionGroup, setMadeLook, setWall, short,
-                                  wallLookOf, wallPiecesWords, wallState }) {
+export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, gizmo, handleWall, isMadeGround,
+                                  isMadeSlab, isMadeWall, isPlain, liveKeys, liveMembers, lookRow, madeRoot,
+                                  madeWallRoot, openLookPicker, originalOf, plainLook, plural, selectionGroup,
+                                  setMadeLook, setWall, short, wallLookOf, wallPiecesWords, wallState }) {
   // ---- the piece panel's Wall section
   function wallPanel(root) {
     const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);
@@ -290,6 +290,17 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
 
   // After an edit (the edit hub, edit_hub.js).
   onHub('edit', 'room', () => { roomPanel(); });
+  // As something is picked (the edit hub's select runs): a made piece's sections shown for it, and filled.
+  onHub('select-sections', 'made', root => {
+    $('wallBox').hidden = !isMadeWall(root?.userData.source);
+    $('slabBox').hidden = !isMadeSlab(root?.userData.source);
+    $('groundBox').hidden = !isMadeGround(root?.userData.source);
+  });
+  onHub('select-piece', 'made', (root, obj) => {
+    if (isMadeWall(obj)) wallPanel(root);
+    if (isMadeSlab(obj)) slabPanel(root);
+    if (isMadeGround(obj)) groundPanel(root);
+  });
 
   return { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, slabPanel, wallPanel };
 }

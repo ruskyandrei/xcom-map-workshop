@@ -880,12 +880,15 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
   onHub('edit', 'effects', () => {
     setEffectsDirty(true);     // (the Effects view's markers follow the pieces that carry them)
   });
+  // As nothing, a building's box or an effect is picked (the edit hub's select runs): the markers painted, the panel,
+  // the picked one's shape.
+  onHub('select-none', 'effects', () => { paintEffects(); effectPanel(); drawEffectShape(); });
 
   return { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffects, clearEffectEdits,
            drawEffectShape, drawLikenessPane, effectAt, effectEdited, effectFollows, effectLayer, effectNow,
-           effectPanel, effectPicture, effectShapes, effectSource, effectsShown, effectState, effectTip,
-           effectValuesEditable, effectViewOnly, frameEffect, ghostLikeness, ghostLikenesses, hoverLikeness, likenesses,
-           likenessLayer, likenessPane, numberField, paintEffects, pickEffect, pickEffectAt, playWave, refreshEffects,
-           removeEffectRoots, setEffectsShown, setEffectStays, setEffectValues, setLikeness, setNormalEffects,
-           stepGhostLikenesses, stepLikenesses, stopWave };
+           effectPicture, effectShapes, effectSource, effectsShown, effectState, effectTip, effectValuesEditable,
+           effectViewOnly, frameEffect, ghostLikeness, ghostLikenesses, hoverLikeness, likenesses, likenessLayer,
+           likenessPane, numberField, pickEffect, pickEffectAt, playWave, refreshEffects, removeEffectRoots,
+           setEffectsShown, setEffectStays, setEffectValues, setLikeness, setNormalEffects, stepGhostLikenesses,
+           stepLikenesses, stopWave };
 }

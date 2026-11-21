@@ -14,6 +14,7 @@
 // (breaking) is editor_state.js's, since app.js's keys and pointer handlers read it.
 import * as THREE from 'three';
 import { TILE } from './constants.js';
+import { onHub } from './edit_hub.js';
 import { breaking, data, roots, selected, setBreaking } from './editor_state.js';
 import { cloneBlasts } from './piece_records.js';
 import { recall, remember } from './storage.js';
@@ -219,6 +220,13 @@ export function createMadeBreaking({ $, changeWall, flashHint, gizmo, isMadeSlab
     };
     gizmo.record({ redo: () => set(after), undo: () => set(before) });
   }
+
+  // As something is picked (the edit hub's select runs, edit_hub.js): the Break row of one of the map's fracturing
+  // pieces, shown for it and filled.
+  onHub('select-sections', 'break', root => { $('pieceBreakBox').hidden = !mapBreakable(root?.userData.source); });
+  onHub('select-piece', 'break', (root, obj) => {
+    if (mapBreakable(obj)) breakRow('piece', { blasts: root.userData.blasts, breaksFurther: root.userData.breaksFurther }, obj.keepsPieces);
+  });
 
   return { breakAt, breakRow, drawBroken, mapBreakable, startBreak, stopBreak };
 }

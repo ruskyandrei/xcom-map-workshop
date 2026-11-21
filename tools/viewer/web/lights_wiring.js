@@ -883,11 +883,14 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
     warnLights();
   });
   onHub('drag', 'lights', () => { if (lightsShown) lightsChanged(); });
+  // As something is picked (the edit hub's select runs): the light section shown for a light, and a light's panel.
+  onHub('select-sections', 'lights', root => { $('lightBox').hidden = !root?.userData.light; });
+  onHub('select-light', 'lights', root => { showLight(root); });
 
   return { addedLight, addedLightOf, addLightRoots, applyLightRecord, areaOwner, assignOwner, buildLights, changeLight,
            clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear, hoverHandle, lightClip,
            lightEdited, lightEntries, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
            lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, recipeLight, refreshLightShapes,
            refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
-           setNormalLights, setSolo, showLight, startLightDrag, updateLightHandles, valuesEdited, withStorableCone };
+           setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited, withStorableCone };
 }

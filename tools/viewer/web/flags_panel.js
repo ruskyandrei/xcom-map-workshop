@@ -235,6 +235,8 @@ export function createFlagsPanel({ $, boxOf, gizmo, isStream, plural, select, so
 
   // After an edit (the edit hub, edit_hub.js).
   onHub('edit', 'flags', () => { flagsPanel(); });
+  // As a piece is picked (the edit hub's select runs): its flags chip among its chips.
+  onHub('select-chips', 'flags', (chips, root) => { flagChip(chips, root); });
 
-  return { flagChip, flagContract, flagKey, flagSource, resetFlags };
+  return { flagContract, flagKey, flagSource, resetFlags };
 }
