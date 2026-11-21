@@ -408,9 +408,11 @@ def check_recovery_edges(browser, url, box_id):
         if r.request.method == 'PUT': time.sleep(0.3); delayed.append(True)
         r.continue_()
     page.route(route, hold_write)
-    page.evaluate('viewer.addVolumes([{box:[-96,0,0,0,96,192],floor:0}]); void viewer.keepRecovery(); window.delayedSave=viewer.saveBuilder()')
-    assert page.evaluate('window.delayedSave')
-    page.wait_for_timeout(1100)
+    # (the save done, and the held draft's write answered too: a draft it brought back after the save would show)
+    put = lambda r: r.request.method == 'PUT' and '/prefabs/'+missing_id+'/recovery.json' in r.url  # noqa: E731
+    with page.expect_response(put):
+        page.evaluate('viewer.addVolumes([{box:[-96,0,0,0,96,192],floor:0}]); void viewer.keepRecovery(); window.delayedSave=viewer.saveBuilder()')
+        assert page.evaluate('window.delayedSave')
     assert delayed and page.evaluate('id=>viewer.prefabApi.recovery(id)', missing_id) is None
     page.evaluate('viewer.addVolumes([{box:[-192,0,0,-96,96,192],floor:0}]); void viewer.keepRecovery(); void viewer.goTo({prefab:"new"})')
     page.locator('#leaveDiscard').click(); page.wait_for_url('**/?prefab=new'); ready()
