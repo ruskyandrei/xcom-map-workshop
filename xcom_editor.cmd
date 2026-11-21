@@ -60,7 +60,8 @@ if "%VIEWER_NO_OPEN%"=="1" set OPEN=--no-open
 set VIEWER_CACHE_ARG=
 rem (a folder ending in \ gets it doubled, or the \ escapes the closing quote)
 if defined VIEWER_CACHE set VIEWER_CACHE_ARG="%VIEWER_CACHE%"
-if defined VIEWER_CACHE if "%VIEWER_CACHE:~-1%"=="\" set VIEWER_CACHE_ARG="%VIEWER_CACHE%\"
+rem (expanded when the line runs, !...!: with %...% an unset VIEWER_CACHE made the line fail to parse)
+if defined VIEWER_CACHE if "!VIEWER_CACHE:~-1!"=="\" set VIEWER_CACHE_ARG="!VIEWER_CACHE!\"
 rem Its own window, titled, so it can be found and closed later. The server opens the browser itself.
 start "XCOM Map Workshop (port %VIEWER_PORT%)" python tools\viewer\viewer.py serve %VIEWER_CACHE_ARG% --port %VIEWER_PORT% %OPEN% %VIEWER_ARGS%
 rem Wait for it to answer on its port (it prepares its cache first), or for its process to end.
