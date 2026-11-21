@@ -319,8 +319,10 @@ def lod_record(r, p):
     """One LOD's lighting at the reader's place: dict(shadowMaps, shadowVertexBuffers (object_refs'), lightmap
     (lightmap_record's), overrideVertexColors). Its painted vertex colours (a flag, 0 or 1; when set the colours'
     stride and count, then with a count the colours as an array of that stride and count) and its positions (12 bytes
-    each) are passed over."""
+    each) are passed over; the colours' places are given, overrideVertexColorsOffset (the flag's) and
+    overrideVertexColorsEnd (where they end: the positions' count)."""
     out = dict(shadowMaps=object_refs(r, p), shadowVertexBuffers=object_refs(r, p), lightmap=lightmap_record(r, p))
+    out['overrideVertexColorsOffset'] = r.pos
     colour = r.take(1)[0]
     if colour not in (0, 1):
         raise FormatError('Invalid vertex-color boolean')
@@ -330,6 +332,7 @@ def lod_record(r, p):
             actual_stride, actual_count, _ = r.array_bytes()
             if actual_stride != stride or actual_count != count:
                 raise FormatError('Vertex-color count/stride mismatch')
+    out['overrideVertexColorsEnd'] = r.pos
     r.take(r.count() * 12)
     out['overrideVertexColors'] = bool(colour)
     return out

@@ -87,6 +87,8 @@ import frac_wall  # noqa: E402
 import ground  # noqa: E402
 import gen_mesh  # noqa: E402
 import looks  # noqa: E402
+import native_fields  # noqa: E402
+from package import FormatError, Reader  # noqa: E402
 import props as legacy_props  # noqa: E402
 
 PACKAGE = 'XComMapEdGeo'
@@ -383,34 +385,38 @@ def column_element(g, walker, template, column):
 
 
 # ---------------------------------------------------------------------------------------------------- the component
-def _lod_colours(data, at):
-    """Where LOD 0's painted vertex colours lie in a mesh component's native data data[at:]: (the flag's offset, the
-    end of the colour array), as lighting_records.lod_record reads the record."""
-    pos = at
-    count = struct.unpack_from('<i', data, pos)[0]
-    if count < 1:
+class GrownObjects:
+    """What native_fields' readers ask of a package, for a component's bytes in the numbering of the map being grown
+    (package_grow.Grower `g`): its licensee, and that a reference names one of its objects, the ones added included."""
+
+    def __init__(self, g):
+        self.g = g
+        self.header = dict(lic=g.h['lic'])
+
+    def name(self, index):
+        if not -len(self.g.imports) <= index <= len(self.g.entries):
+            raise FormatError('Invalid object reference %d' % index)
+        return index
+
+
+def lod0(data, at, objects):
+    """LOD 0's lighting record of a mesh component whose native data is data[at:] (native_fields.mesh_lods, the one
+    reader of it: each count is held to the bytes, each reference to `objects`' objects, each value given with its
+    place in `data`). `objects` is the package whose numbering the bytes are in: a viewer Package for its own data, or
+    GrownObjects for the map being grown. A component with no LOD record, or one that does not read, is a ValueError."""
+    lods = native_fields.mesh_lods(Reader(data, at), objects)['lods']
+    if not lods:
         raise ValueError('a component with no LOD record')
-    pos += 4
-    for _ in range(2):                                  # shadow maps, shadow vertex buffers
-        n = struct.unpack_from('<i', data, pos)[0]
-        pos += 4 + 4 * n
-    kind = struct.unpack_from('<i', data, pos)[0]
-    pos += 4
-    if kind == 2:
-        n = struct.unpack_from('<i', data, pos)[0]
-        pos += 4 + 16 * n + 3 * (4 + 12) + 16
-    elif kind != 0:
-        raise ValueError('a vertex-lit component (lightmap type %d) can\'t take a generated mesh' % kind)
-    flag = pos
-    if data[pos]:
-        stride, n = struct.unpack_from('<2I', data, pos + 1)
-        end = pos + 9
-        if n:
-            s2, n2 = struct.unpack_from('<2i', data, end)
-            end += 8 + s2 * n2
-    else:
-        end = pos + 1
-    return flag, end
+    return lods[0]
+
+
+def _lod_colours(data, at, objects):
+    """Where LOD 0's painted vertex colours lie in a mesh component's native data data[at:] (lod0's record): (the
+    flag's offset, the end of the colour array)."""
+    lod = lod0(data, at, objects)
+    if lod['lightmap']['type'] == 1:
+        raise ValueError('a vertex-lit component (lightmap type 1) can\'t take a generated mesh')
+    return lod['overrideVertexColorsOffset'], lod['overrideVertexColorsEnd']
 
 
 def painted(donor, built):
@@ -467,14 +473,14 @@ def donor_paint(p, comp, mesh_dict):
     """The donor component's painted colours with the donor mesh's vertices and their slots, or None when it paints
     none."""
     e = p.exports[comp - 1]
-    at = p.properties(comp)[1]
-    flag, end = _lod_colours(p.data, at)
-    if not p.data[flag]:
+    data = p.data[e['off']:e['off'] + e['size']]
+    flag, end = _lod_colours(data, p.properties(comp)[1] - e['off'], p)
+    if not data[flag]:
         return None
-    stride, n = struct.unpack_from('<2I', p.data, flag + 1)
+    stride, n = struct.unpack_from('<2I', data, flag + 1)
     if not n:
         return None
-    raw = p.data[flag + 17:end]
+    raw = data[flag + 17:end]
     colours = [bytes(raw[4 * k:4 * k + 4]) for k in range(n)]
     lod = mesh_dict['lods'][0]
     slots = np.zeros(len(lod['positions']), int)
@@ -486,33 +492,26 @@ def donor_paint(p, comp, mesh_dict):
     return dict(positions=np.array(lod['positions'], float), colours=colours, slots=slots)
 
 
-def lightmap_offsets(data, at):
-    """Where LOD 0's texture lightmap lies in a mesh component's native data data[at:] (lighting_records.lightmap's
-    layout): dict(slots [(texture offset, scale offset)] for its three slots, scale, bias (the offsets of its
-    coordinate scale and bias)), or None for a component with no texture lightmap."""
-    pos = at
-    if struct.unpack_from('<i', data, pos)[0] < 1:
+def lightmap_offsets(data, at, objects):
+    """Where LOD 0's texture lightmap lies in a mesh component's native data data[at:] (lod0's record): dict(slots
+    [(texture offset, scale offset)] for its three slots, scale, bias (the offsets of its coordinate scale and bias)),
+    or None for a component whose LOD 0 has no texture lightmap."""
+    lm = lod0(data, at, objects)['lightmap']
+    if lm['type'] != 2:
         return None
-    pos += 4
-    for _ in range(2):                                  # shadow maps, shadow vertex buffers
-        n = struct.unpack_from('<i', data, pos)[0]
-        pos += 4 + 4 * n
-    kind = struct.unpack_from('<i', data, pos)[0]
-    if kind != 2:
-        return None
-    n = struct.unpack_from('<i', data, pos + 4)[0]
-    pos += 8 + 16 * n
-    return dict(slots=[(pos + 16 * k, pos + 16 * k + 4) for k in range(3)], scale=pos + 48, bias=pos + 56)
+    return dict(slots=[(s['textureOffset'], s['scaleOffset']) for s in lm['slots']],
+                scale=lm['coordinateScaleOffset'], bias=lm['coordinateBiasOffset'])
 
 
-def set_light(data, at, light):
+def set_light(data, at, light, objects):
     """`data` with LOD 0's texture lightmap set as `light` says: dict(kind 'rect', rect (w, h), atlas (w, h)) puts
     the rectangle (w by h texels) at the corner the record has (down to a whole block), or at the atlas's corner where
     it doesn't fit; dict(kind
-    'even', textures [3], scales [3 x 3], bias (u, v)) points every vertex at one texel of those textures."""
+    'even', textures [3], scales [3 x 3], bias (u, v)) points every vertex at one texel of those textures. `objects`:
+    lod0's."""
     if not light:
         return data
-    o = lightmap_offsets(data, at)
+    o = lightmap_offsets(data, at, objects)
     if o is None:
         return data
     data = bytearray(data)
@@ -694,14 +693,14 @@ def irrelevant(walker, g, data, start, guid, listed):
                                       struct.pack('<i', len(kept)) + b''.join(kept))
 
 
-def add_shadow_ref(data, at, index):
-    """`data` (a component's bytes, its native data from `at`) with shadow map export `index` added to LOD 0's
-    ShadowMaps."""
-    if struct.unpack_from('<i', data, at)[0] < 1:
-        raise ValueError('a component with no LOD record')
-    n = struct.unpack_from('<i', data, at + 4)[0]
-    return data[:at + 4] + struct.pack('<i', n + 1) + data[at + 8:at + 8 + 4 * n] + struct.pack('<i', index) + \
-        data[at + 8 + 4 * n:]
+def add_shadow_ref(data, at, index, objects):
+    """`data` (a component's bytes, its native data from `at`) with shadow map export `index` (one of `objects`'
+    objects: lod0's) added to LOD 0's ShadowMaps."""
+    objects.name(index)
+    maps = lod0(data, at, objects)['shadowMaps']
+    count, end = maps['at'], maps['at'] + 4 + 4 * len(maps['refs'])
+    return data[:count] + struct.pack('<i', len(maps['refs']) + 1) + data[count + 4:end] + struct.pack('<i', index) + \
+        data[end:]
 
 
 def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, light=None, shadow=None, plain=False,
@@ -733,8 +732,9 @@ def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, lig
     if shadow:
         data = bytearray(irrelevant(walker, g, data, start, shadow['guid'], shadow['export'] is None))
     end_props = native_props_end(walker, data, start)
-    data = bytearray(set_light(bytes(data), end_props, light))
-    flag, end = _lod_colours(data, end_props)
+    objects = GrownObjects(g)
+    data = bytearray(set_light(bytes(data), end_props, light, objects))
+    flag, end = _lod_colours(data, end_props, objects)
     if paint is None:
         block = b'\0'
     else:
@@ -742,7 +742,7 @@ def component_data(g, walker, p, old, new, mesh_index, built, paint, matrix, lig
         block = b'\x01' + struct.pack('<2I', 4, len(colours)) + struct.pack('<2i', 4, len(colours)) + b''.join(colours)
     data = bytes(data[:flag] + block + data[end:])
     if shadow and shadow['export'] is not None:
-        data = add_shadow_ref(data, end_props, shadow['export'])
+        data = add_shadow_ref(data, end_props, shadow['export'], objects)
     # the donor's painted-out fragments and their boxes (lists of the donor's own) say nothing of the made mesh's:
     # dropped; the made piece's own written (custom geometry editing plan, B5)
     if not gone:
