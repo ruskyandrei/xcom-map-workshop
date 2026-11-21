@@ -22,6 +22,7 @@
 // is editor_state.js's.
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { ask } from './api.js';
 import { LEVEL, QUARTER, TILE } from './constants.js';
 import { onHub } from './edit_hub.js';
 import { activeMapId, builderMode, data, effectsOn, families, lightsOn, missionDragView, missionIndex, missionMoves,
@@ -733,7 +734,7 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
     setSpawnRulesData(null);
     if (!spawnsAvailable()) return;
     const id = activeMapId;
-    fetch(`/maps/${encodeURIComponent(id)}/spawn-rules.json`).then(r => (r.ok ? r.json() : null)).then(rules => {
+    ask(`/maps/${encodeURIComponent(id)}/spawn-rules.json`).then(rules => {
       if (id === activeMapId) { setSpawnRulesData(rules); spawnPanel(); syncSpawnRule(); }
     }).catch(() => {});
   }

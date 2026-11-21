@@ -13,6 +13,7 @@
 // assemblies of other maps and the helpers. Its own state is inside it (the records and effects read ahead); the
 // records read, the templates made, the effects and the maps' hashes, and the cache's prefix, are editor_state.js's.
 import * as THREE from 'three';
+import { call } from './api.js';
 import { cachePrefix, data, donorHashes, effectTemplates, foreignEffects, foreignTemplates, library, libraryRecords,
          lineCollision, roots, setLineCollision } from './editor_state.js';
 import { actorMatrix } from './gizmo.js';
@@ -54,9 +55,8 @@ export function createLibraryTemplates({ boundsOf, buildRoot, collisionMesh, eff
         let record = fetchedRecords.get(id);
         fetchedRecords.delete(id);
         if (!record) {
-          const response = await fetch(`/library/piece.json?${new URLSearchParams({ package: source.package, level: 'base', actor: short(source.actor) })}`);
-          record = await response.json().catch(() => ({}));
-          if (!response.ok) throw Error(record.error ?? `the piece could not be read (${response.status})`);
+          record = await call('GET', `/library/piece.json?${new URLSearchParams({ package: source.package, level: 'base', actor: short(source.actor) })}`,
+                              undefined, { fallback: r => `the piece could not be read (${r.status})` });
         }
         for (const [k, m] of Object.entries(record.meshes)) data.meshes[k] ??= { ...m, url: record.base + m.url };
         for (const [k, m] of Object.entries(record.materials)) data.materials[k] ??= m;
@@ -118,9 +118,8 @@ export function createLibraryTemplates({ boundsOf, buildRoot, collisionMesh, eff
         let t = fetchedEffects.get(id);
         fetchedEffects.delete(id);
         if (!t) {
-          const response = await fetch(`/library/effect.json?${new URLSearchParams({ package: source.package, level: 'base', actor: short(source.actor) })}`);
-          t = await response.json().catch(() => ({}));
-          if (!response.ok) throw Error(t.error ?? `it could not be read (${response.status})`);
+          t = await call('GET', `/library/effect.json?${new URLSearchParams({ package: source.package, level: 'base', actor: short(source.actor) })}`,
+                         undefined, { fallback: r => `it could not be read (${r.status})` });
         }
         data.effectSystems ??= {}; data.soundWaves ??= {};
         for (const [k, v] of Object.entries(t.systems ?? {})) data.effectSystems[k] ??= v;
@@ -146,10 +145,7 @@ export function createLibraryTemplates({ boundsOf, buildRoot, collisionMesh, eff
     for (let k = 0; k < sources.length; k += RECORD_CHUNK) {
       const chunk = sources.slice(k, k + RECORD_CHUNK);
       try {
-        const response = await fetch('/library/effects.json', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sources: chunk.map(s => ({ package: s.package, level: 'base', actor: short(s.actor) })) }) });
-        if (!response.ok) break;
-        const answer = await response.json();
+        const answer = await call('POST', '/library/effects.json', { sources: chunk.map(s => ({ package: s.package, level: 'base', actor: short(s.actor) })) });
         answer.effects.forEach((r, i) => { if (r.record) fetchedEffects.set(recordId(chunk[i]), r.record); });
       } catch { break; }
     }

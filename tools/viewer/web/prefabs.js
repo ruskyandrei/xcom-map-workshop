@@ -7,7 +7,7 @@
 // sounds plan, stage FX6a; a lens flare is one more kind since FX6b). 4: a piece made from numbers (`generated`) and a
 // broken copy's `blasts` (review finding 6: piece_records.js). A prefab of schema 1 to 3 opens, and saves as 4.
 import { draftQuery } from './project.js';
-import { call } from './api.js';
+import { call, sendPng } from './api.js';
 
 export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 4;
 
@@ -29,7 +29,7 @@ export const api = {
   importFile: (document, clash = null, expectedRevision = null) =>
     call('POST', '/prefabs/import', { document, clash, ...(expectedRevision === null ? {} : { expectedRevision }) }),
   picture: (id, revision) => `${at(id)}/picture.png?r=${revision}`,
-  putPicture: (id, blob) => fetch(`${at(id)}/picture.png`, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob }),
+  putPicture: (id, blob) => sendPng('PUT', `${at(id)}/picture.png`, blob),
   // many pieces of other maps exported at once, each map opened once (a prefab's first use)
   warm: sources => call('POST', '/library/pieces', { sources }),
   // the records themselves, at most 200 a call: {pieces: [{record} or {error}]}

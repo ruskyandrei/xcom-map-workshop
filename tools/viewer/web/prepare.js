@@ -7,6 +7,7 @@
 // createPrepare takes what it needs of app.js as one argument object, when app.js makes it: the banner, the map's
 // label and the popups. Its own state is inside it (whether a prepare is under way); the export's problem
 // (exportProblem: app.js's scene start sets it) is editor_state.js's.
+import { call } from './api.js';
 import { activeMapId, data, exportProblem, setExportProblem } from './editor_state.js';
 
 export function createPrepare({ $, banner, mapLabel, projectsAvailable, showPop }) {
@@ -49,11 +50,10 @@ export function createPrepare({ $, banner, mapLabel, projectsAvailable, showPop 
       progress(null);
       const at = `/maps/${encodeURIComponent(activeMapId)}/export`;
       try {
-        const started = await fetch(at, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prepare: true }) });
-        if (!started.ok) throw Error((await started.json().catch(() => ({}))).error || `the server said ${started.status}`);
+        await call('POST', at, { prepare: true }, { fallback: r => `the server said ${r.status}` });
         for (;;) {
           await new Promise(done => setTimeout(done, 1500));
-          const s = await (await fetch(`${at}.json`)).json();
+          const s = await call('GET', `${at}.json`);
           if (s.state === 'failed') throw Error(s.error || 'the export failed');
           if (s.state === 'ready') { els.status.textContent = update ? 'Re-exported: opening it…' : 'Prepared: opening it again…'; progress(1); location.reload(); return; }
           if (s.progress) { progress(s.progress.fraction); els.status.textContent = `${reading}: ${Math.round(s.progress.fraction * 100)}%…`; }

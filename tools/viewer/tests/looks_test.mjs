@@ -25,21 +25,26 @@ const GRASS = { mesh: 'Farm.Meshes.Plane', material: 'Farm.Materials.Grass', map
 const answers = { '/looks/walls.json': { kind: 'wall', measure: 1, looks: [ONE, TALL, THREE, ONLY_TWO] },
                   '/looks/ground.json': { kind: 'ground', measure: 1, looks: [GRASS] } };
 let asked = 0;
-const fetcher = async url => { asked++; return { ok: url in answers, json: async () => answers[url] }; };
+// (the server asked through api.js's call: the browser's fetch stood in for)
+const served = async url => { asked++; const ok = url in answers;
+  return { ok, status: ok ? 200 : 404, json: async () => (ok ? answers[url] : {}) }; };
+globalThis.fetch = served;
 
 forgetLooks();
-await Promise.all([loadLooks('wall', fetcher), loadLooks('wall', fetcher), loadLooks('ground', fetcher), loadLooks('slab', fetcher)]);
+await Promise.all([loadLooks('wall'), loadLooks('wall'), loadLooks('ground'), loadLooks('slab')]);
 assert.equal(asked, 3);                      // (read once each)
 // (a read that fails isn't kept, review finding 31: its answer says why, and the next call asks again)
-const slabs = await loadLooks('slab', fetcher);
+const slabs = await loadLooks('slab');
 assert.equal(asked, 4);
 assert.deepEqual([slabs.looks, slabs.byKey.size, slabs.measure], [[], 0, null]);
-assert.match(slabs.error, /^The floors' and roofs' looks couldn't be read \(the editor's server answered/);
+assert.equal(slabs.error, "The floors' and roofs' looks couldn't be read (the editor's server answered 404)");
 assert.equal(looksLoaded('slab'), null);
-const thrown = await loadLooks('slab', async () => { asked++; throw new Error('offline'); });
+globalThis.fetch = async () => { asked++; throw new Error('offline'); };
+const thrown = await loadLooks('slab');
 assert.equal(asked, 5);
 assert.match(thrown.error, /\(offline\)$/);
-assert.equal((await loadLooks('wall', fetcher)).error, undefined);
+globalThis.fetch = served;
+assert.equal((await loadLooks('wall')).error, undefined);
 assert.equal(asked, 5);                      // (a catalogue read is kept)
 assert.equal(catalogued('wall', { mesh: ONE.mesh, measure: 1 }), ONE);
 assert.equal(catalogued('wall', 'bar-inside'), null);

@@ -4,7 +4,7 @@
 // is the result as the game will show it, after DXT1 (the server sends that back). Use this picture sends the cropped
 // 512 x 256 PNG to the server (tools/viewer/pictures.py keeps it with the project) and hands its SHA-256 to the page,
 // which saves it with the project. The image itself never leaves the browser: only the cropped picture is sent.
-import { refusal } from './api.js';
+import { call, refusal, sendPng } from './api.js';
 import { HEIGHT, WIDTH, dragCorner, moveFrame, scaleSteps, sourceRect, startFrame, zoomFrame } from './map_picture_crop.js';
 
 const at = id => `/projects/${encodeURIComponent(id)}/picture.png`;
@@ -12,18 +12,14 @@ const at = id => `/projects/${encodeURIComponent(id)}/picture.png`;
 export const pictureApi = {
   /** Keep a cropped picture (a PNG blob) with the project: { sha256 }. */
   async save(id, blob) {
-    const response = await fetch(at(id), { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob });
+    const response = await sendPng('PUT', at(id), blob);
     if (!response.ok) throw await refusal(response);
     return response.json();
   },
-  async remove(id) {
-    const response = await fetch(at(id), { method: 'DELETE' });
-    if (!response.ok) throw await refusal(response);
-    return response.json();
-  },
+  remove: id => call('DELETE', at(id)),
   /** A cropped picture as the game shows it, after DXT1: a PNG blob. Nothing is kept. */
   async preview(blob) {
-    const response = await fetch('/projects/picture-preview', { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob });
+    const response = await sendPng('POST', '/projects/picture-preview', blob);
     if (!response.ok) throw await refusal(response);
     return response.blob();
   },

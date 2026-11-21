@@ -20,6 +20,7 @@
 // the starting zones worked out, the last clear's time and the landing pieces as the server names them (app.js's scene
 // start and families, and the test hooks, read or set them) are editor_state.js's.
 import * as THREE from 'three';
+import { call } from './api.js';
 import { LEVEL, TILE } from './constants.js';
 import { onHub, runHub } from './edit_hub.js';
 import { activeMapId, areaBindings, askedPick, builderMode, cleared, clearKeepsOutside, data, effectRoots,
@@ -61,10 +62,10 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     // the install's landing lines for the map (Clear map plan, section 4): the starting list of landing zones. A failed
     // read leaves the game unknown, with the reason (review finding 31).
     if (data.scope === 'map' && !data.preview && !builderMode && activeMapId)
-      setLandingRead(fetch(`/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`)
-        .then(async r => {
-          const v = await r.json().catch(() => null);
-          if (!r.ok || !v || !Array.isArray(v.lines)) throw new Error(v?.error ?? `the editor's server answered ${r.status}`);
+      setLandingRead(call('GET', `/maps/${encodeURIComponent(activeMapId)}/landing-lines.json`, undefined,
+                          { fallback: r => `the editor's server answered ${r.status}` })
+        .then(v => {
+          if (!Array.isArray(v.lines)) throw new Error(v.error ?? "the editor's server answered 200");
           return v;
         })
         .then(v => { setLandingLines(v); }, error => {
