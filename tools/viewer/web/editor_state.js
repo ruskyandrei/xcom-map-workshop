@@ -7,6 +7,13 @@
 export const prefabParameter = new URLSearchParams(location.search).get('prefab');
 export const builderMode = prefabParameter !== null;
 
+// The server's list of maps (maps.json), read as the page opens (app.js's open), or null before; and the map browser
+// made from it (map_menu.js's makeMapBrowser), or null before: a map's name in the lists, the list brought up to the
+// server's, the Map menu, Prepare's check of an outdated map, open() and the prefab builder's Open read them.
+export let mapCatalogue = null, mapBrowser = null;
+export function setMapCatalogue(next) { mapCatalogue = next; }
+export function setMapBrowser(next) { mapBrowser = next; }
+
 // The scene: the map's export (its scene.json) or the builder's prefab scene, read as the page opens, and the map's
 // id (null in the builder).
 export let data, activeMapId;

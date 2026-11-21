@@ -171,6 +171,14 @@ How the user drives the view and the editor is [`navigation.js`](tools/viewer/we
 the framing of a piece or the map, the arrow keys and WASD with Q and E, the look-drag along the view, the wheel's zoom
 to the point under the cursor, View options' camera speeds), the gizmo's buttons with the pivot and snap (kept up after
 each edit by the edit hub's `tools` refresh), and the editor's keys, each calling the area that owns what it does.
+The header's menus (one open at a time, a press elsewhere closing it) are [`popups.js`](tools/viewer/web/popups.js)'s.
+The server's list of maps and the map browser made from it as the page opens are
+[`map_menu.js`](tools/viewer/web/map_menu.js)'s: a map's name in the lists, the list brought up to the server's, the
+browser made with what choosing a map does, and the Map menu's button and Change map; the browser itself is
+[`map_browser.js`](tools/viewer/web/map_browser.js). The loading overlay (its message, bar and detail line, an opening
+document's steps on it, a JSON file read with its progress) is [`loading.js`](tools/viewer/web/loading.js)'s.
+app.js's `open` starts the page: the map list read, the first run's install asked for, the map browser made, the map
+the address asks for opened (or the browser shown on it, to prepare it), and `startScene`.
 `window.viewer`, the set of hooks the browser checks drive, is made by [`test_api.js`](tools/viewer/web/test_api.js)
 (`createTestApi`) and set by `startScene` once the scene has opened.
 
@@ -336,6 +344,9 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The selection: a piece, light, building's box or effect picked (or nothing), the views stepping aside for it, the piece panel filled for it (a cover block's or invisible floor's too), the selected piece's highlight, a ladder's ends and its chip, the grid chip of a piece the recipe snap holds | [`selection.js`](tools/viewer/web/selection.js) (`createSelection`). An area's own part of the piece panel (its section shown or hidden for what is picked, its panel, a chip) is the area's module's, registered with one of the edit hub's select runs ([`edit_hub.js`](tools/viewer/web/edit_hub.js)), never called by name from `select`. |
 | The camera (framing, the keys that move and turn it, the look-drag, the wheel, the speeds), the gizmo's mode buttons, the pivot and snap, a key of the editor | [`navigation.js`](tools/viewer/web/navigation.js) (`createNavigation`). A key calls the function of the area that owns what it does, given to the factory; the help panel in `index.html` lists the keys for users. |
 | Delete, Reset piece, Reset all, a large step under the busy mark | [`delete_reset.js`](tools/viewer/web/delete_reset.js) (`createDeleteReset`). |
+| A header menu (a button with `data-pop` and its menu) | `index.html`; [`popups.js`](tools/viewer/web/popups.js) (`createPopups`) opens and closes it, and draws a menu afresh as it opens where the menu needs it. |
+| The map list, the map browser's making and what choosing a map does, the Map menu's button and Change map | [`map_menu.js`](tools/viewer/web/map_menu.js) (`createMapMenu`). The browser's dialog is [`map_browser.js`](tools/viewer/web/map_browser.js); the list and the browser are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`mapCatalogue`, `mapBrowser`). |
+| The loading overlay's words and bar, a JSON file read with its progress | [`loading.js`](tools/viewer/web/loading.js) (`createLoading`). |
 | Prepare: the dialog that exports the map again, a build or a play waiting for it | [`prepare.js`](tools/viewer/web/prepare.js) (`createPrepare`), and the server's side in [`exports.py`](tools/viewer/exports.py). |
 | Copy, paste and placing: a clip of the selection, a paste, the preview that follows the cursor and where a click places it, the Add panel shown and its tab, an entry of it chosen and placed, a copy dragged off with Shift | [`clipboard.js`](tools/viewer/web/clipboard.js) (`createClipboard`). A copied thing's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`optionsOf`, `stateOfRoot`), a group's in [`project.js`](tools/viewer/web/project.js), the pose rule's snap in [`gizmo.js`](tools/viewer/web/gizmo.js) (`recipeMove`), and a floor's height under a point in [`floors.js`](tools/viewer/web/floors.js) (`levelHeight`, `floorUnder`). |
 | A piece, effect, sound or lens flare of another map read as a template: its record read, its template made, the templates a project's records name, what such a piece costs and says | [`library_templates.js`](tools/viewer/web/library_templates.js) (`createLibraryTemplates`). The records read and the templates made are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`libraryRecords`, `effectTemplates`, `foreignEffects`, `foreignTemplates`, `donorHashes`); the Add panel's All maps is [`library.js`](tools/viewer/web/library.js), and the server's side [`library.py`](tools/viewer/library.py). |
@@ -417,6 +428,8 @@ where there is one.
   session's `navigating`). What several areas use lives in [`editor_state.js`](tools/viewer/web/editor_state.js):
   - the scene (`data`) and its roots, the selection, the project open, the groups, the buildings, the map's size, the
     cleared map's state and its landing zones, the project's missions, picture and spawn rules;
+  - the server's list of maps (`mapCatalogue`) and the map browser made from it (`mapBrowser`), which app.js's `open`
+    sets and shows, the map menu reads and shows, Prepare's check reads and the prefab builder's Open shows;
   - what the document session shares with other areas: `leaving`, `saving`, the drafts' timer, owner and trouble
     (the prefab builder's saves use them too), the build status, the copies' serial, and the reads a project waits for;
   - what the scene to and from a document reads of the areas that own it: the All maps library, the area lights'
@@ -498,7 +511,7 @@ where there is one.
   `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`, `createGroups`,
   `createAlign`, `createLibraryTemplates`, `createClipboard`, `createMapGrid`, `createClearMap`, `createScenePieces`,
   `createCutaway`, `createFloorListings`, `createLevelSnap`, `createDeleteReset`, `createPrepare`, `createSelection`,
-  `createNavigation`, `createTestApi`) takes them as one
+  `createNavigation`, `createTestApi`, `createPopups`, `createMapMenu`, `createLoading`) takes them as one
   argument object and destructures it, so the code moved into it calls them by the names it always did. It returns the
   functions other areas call, and app.js destructures them under the same names, so their callers stay as they were.
   app.js makes it after the functions and objects it is given, and before any code that runs as the page
@@ -561,8 +574,15 @@ where there is one.
   functions must be called through: the scene's pieces before the gizmo, the first code given their functions; Delete
   and Reset after Break and Repair, the last factory whose functions they call; the selection after the Buildings
   view, the last factory whose functions it calls, so the eight factories made before it that are given `select`
-  (and the two given `gridNow`) are given functions that call them. What is
+  (and the two given `gridNow`) are given functions that call them; the loading overlay as soon as the words it takes
+  are made, so that only the scene's pieces, made before, are given `loadingState` as a function that calls it. What is
   made on the other side of it is given its functions, or gives it theirs, as functions that call them.
+  An area whose run sets a handler or a listener as the page loads may be made earlier than the run, before the
+  factories given its functions, when no code between sets a handler on, or listens to, the same targets: the
+  header's menus are made before the Lights view, the first area given `showPop` (their buttons' handlers and the
+  document's press that closes a menu are set then; no other code listens to a press on the document, and the one
+  button given a handler of its own later, the Map menu's, still gets it later, from the map menu), and the map menu
+  where `mapLabel` was, its first run (the Map menu's button and Change map are given their handlers there).
   `moved_code.py` reads the functions a factory declares (`createX.f`) and finds them by their own names.
 - An added thing's record is written only through `piece_records.js`'s `recordOf` and read only through its
   `optionsOf`. A writer gathers what it knows of the thing (a unit: its names, source, components, pose, links,

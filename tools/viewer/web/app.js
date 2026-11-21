@@ -8,33 +8,32 @@ import { createProjectDialog, savedWhen } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
-import { createMapBrowser } from './map_browser.js';
 import { createSetupDialog, setupApi } from './setup.js';
 import { makeEffectMarker } from './effects_view.js';
 import { viewHeight } from './effects_preview.js';
 import { recordName } from './effects_rules.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
-import { api as prefabApi, createPrefabBrowser } from './prefabs.js';
+import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, assigning, boxesShown, breaking, builder, builderMode,
          buildingMeta, cachePrefix, cleared, coverDrag, data, effectRoots, effectsDirty, effectsOn, eventMemo,
          floorTileLayer, foreignTemplates, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, groups, hintTimer,
          landingZones, lastBuild, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots,
-         lightsDirty, lightsOn, lightsShown, likenessOn, lookPicker, lookPicking, missionMoves, missionPickValue,
-         normalEffects, normalLights, normalSpawns, ownSet, pickBox, pickDrag, pickedSpawn, pickTool, pieces, placing,
-         prefabParameter, project, projectMissions, projectSpawnRules, reachShown, roots, selected, setActiveMapId,
-         setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setCleared,
-         setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn, setEventMemo, setFamilies, setGhostDirty,
-         setGroups, setHintTimer, setLandingActors, setLandingZones, setLeaving, setLibrary, setLibraryScopeValue,
-         setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMergedBuildings,
-         setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid, setOwnPickedValue,
-         setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
-         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSpawnRulesData, setSpawnsOn,
-         setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnLayerReady, spawnPlacing, spawnsOn, stage,
-         streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn, wallDrag, wallDrawing, zonePlacing,
-         zonesOn } from './editor_state.js';
+         lightsDirty, lightsOn, lightsShown, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue,
+         missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns, ownSet, pickBox, pickDrag,
+         pickedSpawn, pickTool, pieces, placing, prefabParameter, project, projectMissions, projectSpawnRules,
+         reachShown, roots, selected, setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning,
+         setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty, setEffectsOn,
+         setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingActors, setLandingZones,
+         setLibrary, setLibraryScopeValue, setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker,
+         setLooksReady, setMapCatalogue, setMergedBuildings, setNormalEffectsValue, setNormalLightsValue,
+         setNormalSpawnsValue, setOwnGrid, setOwnPickedValue, setPickedEffect, setPickedSpawnValue, setPieces,
+         setPointer, setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey,
+         setReachShown, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn,
+         spawnLayerReady, spawnPlacing, spawnsOn, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
+         wallDrag, wallDrawing, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -70,6 +69,9 @@ import { createSelection } from './selection.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { createTestApi } from './test_api.js';
 import { createNavigation, RECIPE_NOTE } from './navigation.js';
+import { createLoading } from './loading.js';
+import { createPopups } from './popups.js';
+import { createMapMenu } from './map_menu.js';
 import { anyModal, holdModals, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
@@ -254,9 +256,9 @@ const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v 
 const { addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, material, materialCache, materialKey,
         movedBox, originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt, removeRoots, texture, track,
         vertexBox } = createScenePieces({
-  camera, content, flashHint, fromOf, gltfLoader, gridOrigin, loadingState, pickables, renderer, textureLoader,
-  texturePromises,
+  camera, content, flashHint, fromOf, gltfLoader, gridOrigin, pickables, renderer, textureLoader, texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
+  loadingState: (message, fraction, detail) => loadingState(message, fraction, detail),
   assetUrl: url => assetUrl(url), drawBroken: root => drawBroken(root),
   select: (id, add, keep) => select(id, add, keep) });
 const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: controls, roots: allRoots, baseMatrix, onEdit: editChanged,
@@ -292,7 +294,7 @@ function useMapFamilies(table) {
   gizmo.regroup();
 }
 // (the Map lighting mode, lighting, and the pieces that could not be drawn, loadErrorCount: editor_state.js)
-let mapCatalogue=null, mapBrowser=null;     // (cachePrefix: editor_state.js)
+// (the server's map list, mapCatalogue, the map browser, mapBrowser, and cachePrefix: editor_state.js)
 // (the lights' reach, lightRadius: editor_state.js)
 
 const short = path => path.split('.').at(-1);
@@ -305,6 +307,10 @@ function field(parent, name, value) {
   text(parent, 'dt', name); return text(parent, 'dd', value);
 }
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+// The loading overlay (loading.js): its message, bar and detail line, an opening document's steps on it, and a
+// JSON file read with its progress; made as soon as the words it needs are (nothing of it runs as the page loads).
+const { fetchJson, loadingState, openingProgress } = createLoading({
+  $, plural });
 async function copyText(button, value) {
   const label = button.textContent;
   try { await navigator.clipboard.writeText(value); button.textContent = 'Copied'; }
@@ -699,6 +705,12 @@ function projector() {
 }
 // (walls, floors, roofs and ground are drawn from the Build menu on the Add button, no longer listed here: B1)
 const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
+// The header's menus (popups.js): one open at a time, a press elsewhere closing it; made before the first area
+// that is given showPop.
+const { showPop } = createPopups({
+  $, renderProjectMenu, viewport,
+  // (made further down: called through, since they are not made yet while this runs)
+  refreshInstalls: () => refreshInstalls(), refreshSquadLine: () => refreshSquadLine() });
 // The Lights view (lights_wiring.js): the map's lights as roots, the view, the panel's light section, Solo, the
 // area lights following their glowing pieces, the reach, the drag handles (the picked effect's and sound's too),
 // and the project's light records.
@@ -818,13 +830,12 @@ const { editStateNow, applyState } = createDocumentState({
 const { banner, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery, loadProject,
         openProject, projectChanged, saveProject } = createDocumentSession({
   $, SESSION, applyState, builder, camera, controls, dirty, documentWrites, editChanged, editState, flashHint, gizmo,
-  loadingState, plural, projectNote, projectsAvailable, saveState, showFileDialog, text, touchRecent, unsavedDocument,
+  loadingState, openingProgress, plural, projectNote, projectsAvailable, saveState, showFileDialog, text, touchRecent,
+  unsavedDocument,
   // (made with the map grid, further down: called through, since it is not made yet while this runs)
   ownSize: () => ownSize(),
   // (made with the Spawns view, further down: called through, since they are not made yet while this runs)
   bombHelperFix: moves => bombHelperFix(moves), setMissionMoves: next => setMissionMoves(next),
-  // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
-  openingProgress: name => openingProgress(name),
   // (made with the prefab builder just below, which is given the session's banner and drafts: called through)
   builderDocument: () => builderDocument(), builderTitle: () => builderTitle(), problemsPaint: () => problemsPaint(),
   refreshBuilder: () => refreshBuilder(), saveBuilder: options => saveBuilder(options),
@@ -838,10 +849,9 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
         saveBuilder } = createBuilderSession({
   $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf, buildRoot, controls, dirty, discardAndGo, discardDraft,
   documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, gizmo, gridOrigin, isStream,
-  libraryTemplate, lightPose, loadingState, movedMatrix, plural, projectChanged, recipeOf, removeRoots, rootName, sceneChanged,
+  libraryTemplate, lightPose, loadingState, movedMatrix, openingProgress, plural, projectChanged, recipeOf, removeRoots,
+  rootName, sceneChanged,
   selectActors, short, showFileDialog, templateFor, text, world,
-  // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
-  openingProgress: name => openingProgress(name),
   // (made with the selection, further down: called through, since it is not made yet while this runs)
   gridNow: root => gridNow(root),
   // (made with the camera, further down: called through, since it is not made yet while this runs)
@@ -869,7 +879,12 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
   groupTree: (copied, chainOf) => groupTree(copied, chainOf), linkOf: e => linkOf(e), mapChain: key => mapChain(key),
   matrixBox: matrix => matrixBox(matrix), snapshot: (selection, own) => snapshot(selection, own),
   startPlacing: (clip, entry) => startPlacing(clip, entry), stopPlacing: () => stopPlacing() });
-const mapLabel = id => mapCatalogue?.maps.find(m => m.id === id)?.label ?? id ?? '';
+// The map browser's wiring (map_menu.js): a map's name, the list brought up to the server's, the browser made as the
+// page opens, and the Map menu's button and Change map.
+const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMenu({
+  $, goTo, modalOpen, projectsAvailable, showPop,
+  // (made further down: called through, since it is not made yet while this runs)
+  stopPlacing: () => stopPlacing() });
 // Build and Play in game (build_play.js): Build's panel and the window that follows a build, Play in game with its
 // dialog and the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the prefab
 // builder's Test in game and the build queue's chip.
@@ -1000,20 +1015,6 @@ const precache = createPrecache({
          done: $('cacheDone'), start: $('cacheStart') },
   onMapsDone: () => refreshMapList(),
 });
-// Maps were prepared outside the map browser: the list it shows is brought up to the server's, entry by entry (the
-// browser keeps the array it was given).
-async function refreshMapList() {
-  if (!mapCatalogue) return;
-  try {
-    const response = await fetch('/maps.json');
-    if (!response.ok) return;
-    const fresh = await response.json();
-    for (const map of fresh.maps) {
-      const mine = mapCatalogue.maps.find(m => m.id === map.id);
-      if (mine) { delete mine.outdated; Object.assign(mine, map); } else mapCatalogue.maps.push(map);
-    }
-  } catch { /* the list stays as it was; a reload brings it */ }
-}
 function showPrecache() {
   if (modalOpen()) return;
   showPop(null);
@@ -1352,36 +1353,6 @@ const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneV
         updateTileGrid } = createCutaway({
   $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial, isStream, listingsNow,
   movedLandingActors, plural, rayAt, refreshPickBox, segButton, select, short, text, touchShadows, viewport, world });
-// The loading overlay: what is happening, a progress bar when the share done is known, and a detail line.
-// What an opening document's steps say on the loading overlay: the pieces of other maps read (the first 40% of the
-// bar), loaded with their meshes (to 70%) and the document's own pieces made (the rest).
-const OPENING = { reading: [0, 0.4, 'reading'], loading: [0.4, 0.3, 'loading'], making: [0.7, 0.3, 'making'] };
-const openingProgress = name => (phase, done, total) => {
-  const [from, share, word] = OPENING[phase];
-  loadingState(`Opening ${name}: ${word} ${done} of ${plural(total, 'piece')}…`, from + share * (total ? done / total : 1));
-};
-function loadingState(message, fraction = null, detail = '') {
-  $('loadingText').textContent = message;
-  $('loadingBar').hidden = fraction == null;
-  if (fraction != null) $('loadingBar').firstElementChild.style.width = `${Math.round(100 * Math.min(1, Math.max(0, fraction)))}%`;
-  $('loadingDetail').textContent = detail;
-}
-// A JSON file read with its progress (onProgress(share) as it arrives; the server sends its length).
-async function fetchJson(url, onProgress) {
-  const response = await fetch(url);
-  if (!response.ok) throw Error(`Scene request failed: ${response.status}`);
-  const length = Number(response.headers.get('Content-Length')) || 0;
-  if (!length || !response.body) return response.json();
-  const reader = response.body.getReader(), chunks = [];
-  let received = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value); received += value.length;
-    onProgress(received / length);
-  }
-  return JSON.parse(new TextDecoder().decode(await new Blob(chunks).arrayBuffer()));
-}
 async function open() {
   stopPickBox();
   setBoxesShownValue(false); setNormalLightsValue(false); setLightsOn(false); setLightsShownValue(false); setZonesOn(false);
@@ -1391,7 +1362,7 @@ async function open() {
   loadingState('Opening the map list…');
   const mapResponse=await fetch('/maps.json');
   if(!mapResponse.ok)throw Error('Could not load the base map list. Restart the viewer server after updating it.');
-  mapCatalogue=await mapResponse.json();
+  setMapCatalogue(await mapResponse.json());
   // A first run: no game install set and nothing exported yet. Ask for the install before anything else.
   const setup = await setupApi.status(false).catch(() => null);
   if (setup) $('helpVersion').textContent = `${setup.name} ${setup.version} (preview)`;
@@ -1404,22 +1375,7 @@ async function open() {
   }
   setActiveMapId(builderMode ? null : parameters.get('map') || mapCatalogue.defaultMap);
   const activeMap=mapCatalogue.maps.find(map=>map.id===activeMapId);
-  // (the map the address asks for, when it isn't prepared yet: kept now, as the browser marks its entry ready)
-  const askedUnprepared = !builderMode && activeMap && !activeMap.ready ? activeMapId : null;
-  mapBrowser=createMapBrowser({ els: { root: $('mapDialog'), form: $('mapForm'), search: $('mapSearch'), prepared: $('mapPrepared'),
-    groups: $('mapGroups'), list: $('mapList'), count: $('mapCount'), message: $('mapMessage'), bar: $('mapBar'), ok: $('mapOk'),
-    // On a patch preview the open map counts as not open: choosing it opens its original layout.
-    cancel: $('mapCancel'), close: $('mapClose') }, maps: mapCatalogue.maps,
-    current: activeMap?.ready && !parameters.get('scene') ? activeMapId : null,
-    prefabs: async () => (await prefabApi.list()).prefabs, onPrefab: id => goTo({ prefab: id }),
-    // The map asked for but not prepared yet opens as asked once it is ready: the address as it was, its project,
-    // mission and layout too (review finding 7; nothing is open meanwhile). Any other map chosen is a switch of map,
-    // which opens it alone.
-    onOpen: id => {
-      mapBrowser.close();
-      if (id === askedUnprepared) { setLeaving(true); location.reload(); return; }
-      goTo({ map: id, scene: null, project: null, mission: null });
-    } });
+  makeMapBrowser(activeMap, parameters);
   if (builderMode) {
     setData(emptyPrefabScene());
     await startScene({ parameters, familiesAsked: fetch('/families.json').then(r => r.json()), mapName: 'Prefab' });
@@ -1521,19 +1477,6 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
 }
 
-// Header menus: one open at a time; a press elsewhere or Escape closes it.
-function showPop(id) {
-  for (const button of document.querySelectorAll('[data-pop]')) {
-    const on = button.dataset.pop === id, pop = $(button.dataset.pop);
-    pop.hidden = !on;
-    button.setAttribute('aria-expanded', on);
-    if (on && pop.classList.contains('left')) pop.style.left = `${button.getBoundingClientRect().left - viewport.getBoundingClientRect().left}px`;
-  }
-  if (id === 'projectMenu') renderProjectMenu();
-  if (id === 'playMenu') { refreshSquadLine(); refreshInstalls(); }
-}
-for (const button of document.querySelectorAll('[data-pop]')) button.onclick = () => showPop($(button.dataset.pop).hidden ? button.dataset.pop : null);
-document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, [data-pop]')) showPop(null); });
 $('statsToggle').checked = recall('workshop.stats') === '1';
 $('statsLine').hidden = !$('statsToggle').checked;
 $('statsToggle').onchange = e => { $('statsLine').hidden = !e.target.checked; remember('workshop.stats', e.target.checked ? '1' : '0'); };
@@ -1567,19 +1510,6 @@ poseInputs.forEach((input, i) => {
     else if (e.key === 'Escape') { input.blur(); editChanged(); }
   });
 });
-function showMapBrowser() {
-  if (!mapBrowser || modalOpen()) return;
-  showPop(null);
-  if (placing) stopPlacing();
-  mapBrowser.show();
-}
-// The Map menu: Change map and the map's own things (missions, picture, grid, Clear map). Where it would hold Change
-// map alone (a prefab, a patch preview), the button opens the map browser itself.
-$('mapButton').onclick = () => {
-  if (builderMode || !projectsAvailable()) { showMapBrowser(); return; }
-  showPop($('mapMenu').hidden ? 'mapMenu' : null);
-};
-$('mapChange').onclick = showMapBrowser;
 $('mission').onchange = e => {
   chooseMission(e.target.value);
   const parameters = new URLSearchParams(location.search);
