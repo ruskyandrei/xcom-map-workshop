@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGizmo, placedPose, actorMatrix, recipeMove } from './gizmo.js';
-import { collectPieces, createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
+import { createGizmo, placedPose, actorMatrix } from './gizmo.js';
+import { createPieceBrowser, destructionNote, lootNote, pieceGrid, useFamilies } from './pieces.js';
 import { api as projectApi, memberKey, stateKey, targetKey, tidyLocation, tidyRotator, uuid, validStage, tidyStage,
-         stageMax, STAGE_MAPS, groupKey, buildingKey, pruneGroups, mapBuildingId, BUILDING_SAME, validLandingZone } from './project.js';
+         stageMax, STAGE_MAPS, groupKey, mapBuildingId, BUILDING_SAME, validLandingZone } from './project.js';
 import { plan as planFlags, rawOf as flagRaw } from './piece_flags.js';
 import { ownLandings, startingZones, groundOf } from './spawns.js';
 import { createProjectDialog, savedWhen } from './project_files.js';
@@ -23,31 +23,30 @@ import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { api as prefabApi, createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
-import { MADE_KINDS, cloneBlasts, optionsOf, stateOfRoot } from './piece_records.js';
+import { cloneBlasts } from './piece_records.js';
 import { activeMapId, allRoots, areaBindings, areaShown, askedPick, assigning, boxesShown, breaking, builder,
-         builderMode, buildingMeta, buildings, buildingsVersion, buildTool, chooseToken, cleared, clearKeepsOutside,
-         clipboard, copySerial, coverDrag, data, derivedCopies, donorHashes, effectMarkers, effectRoots, effectsDirty,
-         effectsOn, effectTemplates, eventMemo, families, foreignEffects, geometryCache, groupIndex, groups, handleDefs,
-         hintTimer, landingZones, lastBuild, lastLightSync, leaving, library, libraryRecords, lightDrag, lighting,
+         builderMode, buildingMeta, buildings, buildingsVersion, buildTool, cachePrefix, cleared, clearKeepsOutside,
+         clipboard, copySerial, coverDrag, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn,
+         eventMemo, families, foreignTemplates, geometryCache, ghostDirty, groupIndex, groups, handleDefs, hintTimer,
+         landingZones, lastBuild, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lighting,
          lightRadius, lightRoots, lightsDirty, lightsOn, lightsShown, likenessCount, likenessOn, likenessThin,
          lineCollision, lineCollisionFailed, loadErrorCount, lookPicker, lookPicking, mergedBuildings, missionIndex,
-         missionMoves, missionPickValue, nextChooseToken, nextCopySerial, normalEffects, normalLights, normalSpawns,
-         ownPicked, ownSet, pickBox, pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces,
-         placing, playStatus, pointer, prefabParameter, prefabTab, project, projectMissions, projectPicture,
-         projectSpawnRules, reachNow, reachShown, rockPoint, roots, selected, setActiveMapId, setAlignTarget,
-         setAreaBindings, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCleared,
-         setClearKeepsOutside, setClipboard, setData, setEffectsDirty, setEffectsOn, setEventMemo, setFamilies,
-         setGroups, setHintTimer, setLandingRead, setLandingZones, setLastLightSync, setLeaving, setLibrary,
-         setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue, setLineCollision, setLiveCache,
-         setLoadErrorCount, setLookPicker, setLooksReady, setMergedBuildings, setMissionIndex, setMissionPickValue,
-         setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnPickedValue, setPickBoxValue,
-         setPickedEffect, setPickedSpawnValue, setPickedZone, setPickToolValue, setPieces, setPlacing, setPointer,
-         setPrefabTab, setProjectMissions, setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown,
-         setSelected, setSnapModeValue, setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick,
-         setStageValue, setStreamSet, setTipDirty, setWallFocus, setZonesOn, snapMode, soloOn, spawnEntriesNow,
-         spawnFilters, spawnLayerReady, spawnPlacing, spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet,
-         tipDirty, volumeDrag, volumeRoots, volumesOn, volumeTool, wallDrag, wallDrawing, wallFocus, wavePlayer,
-         zonePlacing, zonesOn } from './editor_state.js';
+         missionMoves, missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet, pickBox,
+         pickDrag, pickedEffect, pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, playStatus, pointer,
+         prefabParameter, prefabTab, project, projectMissions, projectPicture, projectSpawnRules, reachNow, reachShown,
+         rockPoint, roots, selected, setActiveMapId, setAlignTarget, setAreaBindings, setAreaShown, setAskedPick,
+         setAssigning, setBoxesShownValue, setCachePrefix, setCleared, setClearKeepsOutside, setData, setEffectsDirty,
+         setEffectsOn, setEventMemo, setFamilies, setGhostDirty, setGroups, setHintTimer, setLandingRead,
+         setLandingZones, setLastLightSync, setLeaving, setLevelSnapValue, setLibrary, setLibraryScopeValue,
+         setLighting, setLightRadius, setLightsDirty, setLightsOn, setLightsShownValue, setLiveCache, setLoadErrorCount,
+         setLookPicker, setLooksReady, setMergedBuildings, setMissionIndex, setMissionPickValue, setNormalEffectsValue,
+         setNormalLightsValue, setNormalSpawnsValue, setOwnPickedValue, setPickBoxValue, setPickedEffect,
+         setPickedSpawnValue, setPickedZone, setPickToolValue, setPieces, setPointer, setPrefabTab, setProjectMissions,
+         setProjectPicture, setProjectSpawnRules, setReachKey, setReachShown, setSelected, setSnapModeValue,
+         setSpawnFilters, setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setStageValue, setStreamSet, setTipDirty,
+         setWallFocus, setZonesOn, snapMode, soloOn, spawnEntriesNow, spawnFilters, spawnLayerReady, spawnPlacing,
+         spawnRulesData, spawnsOn, spawnZonePick, stage, streamSet, tipDirty, volumeDrag, volumeRoots, volumesOn,
+         volumeTool, wallDrag, wallDrawing, wallFocus, wavePlayer, zonePlacing, zonesOn } from './editor_state.js';
 import { createDocumentSession } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -63,6 +62,8 @@ import { createFlagsPanel } from './flags_panel.js';
 import { createSelectKind } from './select_kind.js';
 import { createGroups } from './groups.js';
 import { createAlign } from './align.js';
+import { createLibraryTemplates } from './library_templates.js';
+import { createClipboard } from './clipboard.js';
 import { createMadeLooksWiring } from './made_looks_wiring.js';
 import { createMadeDrawing } from './made_drawing.js';
 import { createMadeHandles } from './made_handles.js';
@@ -75,7 +76,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { createMapLighting, withLocalLights } from './lighting.js';
 import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
-import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes, tileGridOf, floorTilesOverlay } from './view_layout.js';
+import { visibleBounds, footprintOf, tileGridAround, focusBounds, interiorPlanes,
+         floorTilesOverlay } from './view_layout.js';
 import { ladderEnds, addedFloors } from './ladders.js';
 import { COVER_KIND, coverWords, isBlocker, isFloor, lengthWords, normalCover, sizeWords } from './cover.js';
 import { gridMove } from './poserule.js';
@@ -84,9 +86,9 @@ import { WALL_LOOKS, SLAB_LOOKS, slabLookOf, madeWallShape, madeSlabShape } from
 import { loadLooks, catalogued, lookFromEntry, lookTags, DONOR_VERSION } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 import { GROUND_LOOKS, versionedGround, POINTS_VERSION, madeGroundShape } from './ground.js';
-import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, floorUnder, levelHeight,
-         ownedFloors, stampSignature, storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, sourceFloorMatch,
-         cursorStoreys, carriedListing, floorMapOf, LISTED_CLASSES } from './floors.js';
+import { buildingWithFloor, classifyFloors, copyFloors, floorAt, floorIndex, floorStamps, ownedFloors, stampSignature,
+         storeyHeight, worldBox, touchedFloors, ruleListing, floorsOf, sourceFloorMatch, cursorStoreys, carriedListing,
+         floorMapOf, LISTED_CLASSES } from './floors.js';
 
 const $ = id => document.getElementById(id);
 // Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
@@ -352,7 +354,7 @@ function useMapFamilies(table) {
   gizmo.regroup();
 }
 // (the Map lighting mode, lighting, and the pieces that could not be drawn, loadErrorCount: editor_state.js)
-let cachePrefix='/cache/', mapCatalogue=null, mapBrowser=null;
+let mapCatalogue=null, mapBrowser=null;     // (cachePrefix: editor_state.js)
 // (the lights' reach, lightRadius: editor_state.js)
 
 const short = path => path.split('.').at(-1);
@@ -934,43 +936,6 @@ function keyWords(keys) {
   const parts = ['piece', 'light', 'effect', 'sound', 'lens flare', 'building'].map(w => { const n = keys.filter(k => kind(k) === w).length; return n && plural(n, w); }).filter(Boolean);
   return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? plural(0, 'piece');
 }
-// What the selection is now (moved pieces at their moved pose), with the pivot piece's game location and a name
-// for hints.
-function snapshot(selection = gizmo.selection(), own = ownSet) {
-  let list = selection.filter(r => !r.userData.deleted && !r.userData.volume && (r.userData.light ? !lightViewOnly(r.userData.source)
-    : r.userData.effect ? !effectViewOnly(r.userData.source, 'copy') && !r.userData.derivedGone
-    : !r.userData.source.hidden && !r.userData.source.environment));
-  // an effect its piece carries, copied with the piece: the piece's copy carries a copy of it (the Build's carrying),
-  // so it isn't copied a second time (effects and sounds plan, Part C)
-  list = list.filter(r => !(r.userData.effect && effectFollows(r) && list.includes(ownerRoot(r.userData.source.carriedBy))));
-  const boxes = selection.filter(r => r.userData.volume && !r.userData.deleted);
-  if (!list.length && !boxes.length && !own.size) return null;
-  const pivotRoot = list.includes(allRoots.get(gizmo.active)) ? allRoots.get(gizmo.active) : list[0];
-  const name = !pivotRoot ? 'Building' : pivotRoot.userData.light ? short(pivotRoot.userData.source.actor)
-    : pivotRoot.userData.effect ? recordName(pivotRoot.userData.source, data) : short(data.meshes[pivotRoot.userData.source.mesh].name);
-  // the buildings selected with them: their boxes go along, and a paste makes new buildings of them
-  // and the map's own buildings selected with them: their boxes as they are, for a building of the project
-  const owns = ownVolumeLayer.children.filter(c => c.userData.own && own.has(c.userData.own.building)).map(c => c.userData.own);
-  const ownMatrix = boxMatrix;
-  return { volumes: [...boxes.map(r => ({ matrix: r.matrix.clone(), building: r.userData.volume.building, floor: r.userData.volume.floor })),
-                     ...owns.map(o => ({ matrix: ownMatrix(o.box), building: `own:${o.building.name}`, floor: o.floor }))],
-           buildingMeta: Object.fromEntries([...[...new Set(boxes.map(r => r.userData.volume.building))].map(id => [id, { ...buildingMeta.get(id) }]),
-                                             ...[...own].map(b => [`own:${b.name}`, { name: short(b.name), kind: 'building' }])]),
-           // (a piece's state: its tint, flags, made numbers and blasts, piece_records.js)
-           entries: list.map(r => ({ source: r.userData.source, matrix: r.matrix.clone(),
-                                     ...(r.userData.light ? { values: { ...r.userData.values } } : {}),
-                                     ...(r.userData.effect && r.userData.values ? { values: structuredClone(r.userData.values) } : {}),
-                                     ...(r.userData.light || r.userData.effect ? {} : { state: stateOfRoot(r.userData) }) })),
-           pivot: pivotRoot ? placedPose(pivotRoot.userData.source, pivotRoot.matrix).location : (boxes.length ? volumeBox(boxes[0]) : owns[0].box).slice(0, 3), pivotIndex: Math.max(0, list.indexOf(pivotRoot)),
-           name: list.length > 1 ? `${name} and ${plural(list.length - 1, 'other piece')}` : name, words: selectionWords(list),
-           // a clip of effects and sounds alone (the Effects view's): placed where they were, by the drop's move
-           effectsOnly: list.length > 0 && list.every(r => r.userData.effect) && !boxes.length };
-}
-// A floor box as a clip carries it: the matrix that takes a unit cube to the box ([x0, y0, z0, x1, y1, z1], game units).
-const boxMatrix = b => new THREE.Matrix4().makeScale(b[3] - b[0], b[5] - b[2], b[4] - b[1]).setPosition((b[0] + b[3]) / 2, (b[2] + b[5]) / 2, (b[1] + b[4]) / 2);
-const UNIT_BOX = new THREE.Box3(new THREE.Vector3(-0.5, -0.5, -0.5), new THREE.Vector3(0.5, 0.5, 0.5));
-// (and back: the box a clip's volume covers, in game units)
-const matrixBox = matrix => { const b = UNIT_BOX.clone().applyMatrix4(matrix); return [b.min.x, b.min.z, b.min.y, b.max.x, b.max.z, b.max.y]; };
 function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(true); cutaway(); refreshGroundGrid(false); refreshJoins(); }
 // An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
 // rotator exactly, so untouched native values stay as they were.
@@ -1044,592 +1009,20 @@ function addedObject(template, placed, { actor, entity, prefab, partner, locatio
     added: { from: fromOf(template), entity, tinted, ...(generated ? { generated } : {}),
              ...(template.cover ? { template: { kind: COVER_KIND, version: coverVersion(template.added?.template?.version, template.cover.type) } } : {}) } };
 }
-// New pieces from a snapshot, moved by `delta` (viewer space), as one undo step; they become the selection.
-// Links stay inside the copy: a copied car's body, glass and light bar move with each other, not the original.
-// Each copied actor gets an entity id and an output name of its own: its original's name and a serial of its own. Two
-// pieces copied from one original (two copies of a console, pasted together) must not share a name: a project keeps
-// an actor's pieces together by name, and would merge them into one actor with one pose.
-// The copies of an assembly whose pieces share no prefab (a door's leaf and frame) share a prefab-style tag instead,
-// copy<serial>:<the assembly's pivot>, so they move together as their originals do; a piece without a prefab in an
-// assembly whose other pieces have one (Police Station's standalone light bar) takes theirs.
-// Each set of linked pieces copied gets a tag of its own: two copies of one car pasted together (or two of the same
-// car in a prefab) stay two cars, where one tag would make the editor move them as one. The first set with a tag
-// takes the paste's number, any other a number of its own.
-// A clip's entry can say more than its source does (a prefab's pieces, prefabClip): `unit`, what it is a piece of (two
-// of one original stay two); `link`, its set of linked pieces; `partner`, its partner's unit; `key`, what its group
-// calls it; `tinted`. And the clip its own groups (`groups`: [{ id, breakTogether, members: [key] }]) in place of the
-// map's, and `wrap` ({ id, name, revision } of a prefab): everything placed becomes one group marked with it.
-const linkOf = e => (e.link !== undefined ? e.link : e.source.prefab ?? assemblyOf(e.source)?.tag ?? null);
-// The groups some copied things make: `copied` is [member key, the copy's record] for each, chainOf(key) the groups
-// the original is in from the inside out. The copies form the same tree; a group with fewer than two of its members
-// copied isn't made (its one member stands in its place). A Map id -> group.
-function groupTree(copied, chainOf) {
-  const made = new Map(), twin = g => {
-    if (!made.has(g.id)) made.set(g.id, { id: uuid(), locked: true, breakTogether: g.breakTogether === true, members: new Map(),
-                                          ...(g.prefab ? { prefab: { ...g.prefab } } : {}) });
-    return made.get(g.id);
-  };
-  for (const [key, record] of copied) {
-    const chain = chainOf(key);
-    if (!chain.length) continue;
-    twin(chain[0]).members.set(memberKey(record), record);
-    chain.slice(1).forEach((outer, k) => twin(outer).members.set(groupKey(twin(chain[k]).id), { group: twin(chain[k]).id }));
-  }
-  return pruneGroups(new Map([...made.values()].map(g => [g.id, g])));
-}
-const mapChain = key => groupChain(groupIndex.get(key));
-async function pasteSnapshot(clip, delta, step = null, { whole = false, first = null } = {}) {
-  const serial = copySerial + 1;   // the paste's own number, for its prefab groups
-  // (the parts of one actor are pasted as one copy; a made piece is one piece on its own, though a room's walls or a
-  // look change's pieces share a donor actor: the user's quick Build of 19 November 2026 refused a room saved as one
-  // actor naming its donor's component four times, its other walls' numbers lost)
-  // (an entry's state: its own when the clip has it, a copy's or a prefab's piece's; else its source's, as a piece of
-  // the Add panel or a drawn piece is)
-  const stateOfEntry = e => e.state ?? stateOfRoot({ source: e.source });
-  const copies = new Map(), unitOf = e => e.unit ?? (MADE_KINDS.has(stateOfEntry(e).generated?.kind) ? e : e.source.actor);
-  const keyOf = e => e.key ?? memberOf(e.source);
-  const lightEntries = clip.entries.filter(e => e.source.isLight), effectEntries = clip.entries.filter(e => e.source.isEffect);
-  clip = { ...clip, entries: clip.entries.filter(e => !e.source.isLight && !e.source.isEffect) };
-  for (const e of clip.entries)
-    if (!copies.has(unitOf(e))) copies.set(unitOf(e), { name: `${fromOf(e.source).actor}_copy${nextCopySerial()}`, entity: uuid() });
-  const tags = new Map(), tagged = new Set();
-  const linkTag = e => {
-    const was = linkOf(e);
-    if (!was) return null;
-    if (!tags.has(was)) {
-      const tag = was.replace(/^copy\d+:/, '');
-      tags.set(was, `copy${tagged.has(tag) ? nextCopySerial() : serial}:${tag}`);
-      tagged.add(tag);
-    }
-    return tags.get(was);
-  };
-  const lights = lightEntries.map(e => addedLight(e.source, delta.clone().multiply(e.matrix), e.values));
-  const effects = effectEntries.map(e => addedEffect(e.source, delta.clone().multiply(e.matrix), null, null, e.values));
-  // the copied buildings: each a new building with the same floors, its boxes moved (and turned) as the pieces are
-  const twins = new Map(), names = new Set([...buildingMeta.values()].map(m => m.name));
-  const boxes = (clip.volumes ?? []).map(v => {
-    if (!twins.has(v.building)) {
-      // (a prefab's building keeps its name; a copy's says it is one)
-      const meta = clip.buildingMeta?.[v.building] ?? {}, base = (clip.wrap ? meta.name || 'Building' : `${meta.name || 'Building'} copy`).slice(0, 56);
-      let name = base;
-      for (let n = 2; names.has(name); n++) name = `${base} ${n}`;
-      names.add(name);
-      twins.set(v.building, { id: newBuildingId(), meta: { name, kind: meta.kind ?? 'building' } });
-    }
-    const root = makeVolume([0, 0, 0, TILE, TILE, LEVEL], twins.get(v.building).id, v.floor);
-    root.matrix.copy(delta.clone().multiply(v.matrix));
-    setVolumeBox(root, volumeBox(root));
-    root.userData.deleted = true;
-    return root;
-  });
-  const objs = clip.entries.map(e => {
-    const { source, matrix } = e, placed = delta.clone().multiply(matrix), copy = copies.get(unitOf(e));
-    return addedObject(source, placed, optionsOf({ actor: copy.name, id: copy.entity, ...actorPose(source, placed),
-      prefab: linkTag(e),
-      partner: copies.get(e.partner !== undefined ? e.partner : source.partner)?.name ?? null }, 'piece', stateOfEntry(e)));
-  });
-  // (giving way by time, so that the busy mark keeps turning through a large paste and a small one never waits)
-  // A piece that can't be drawn (its mesh, a material or a texture not had) is left out, all its parts, and the hint
-  // says so (review finding 29); the rest is placed.
-  const failed = [], made = await buildRoots(objs, step, failed);
-  const lost = new Set(failed.map(f => f.obj.actor)), built = made.filter(r => !lost.has(r.userData.source.actor));
-  if (failed.length) {
-    for (const f of failed) console.error(f.obj.actor, f.error);
-    flashHint(`${plural(lost.size, 'piece')} of ${clip.name ?? 'the copy'} could not be drawn, so ${lost.size === 1 ? 'it is' : 'they are'} not placed: `
-      + `${failed[0].error?.message ?? failed[0].error}`);
-  }
-  // A copied group stays a group, and so do the groups it is in and the ones inside it (groupTree), each with its
-  // options as the original has them. A prefab's clip brings its own groups.
-  // (each copied member's key, and its copy's record: pieces, lights and buildings)
-  const copied = [...clip.entries.filter(e => !lost.has(copies.get(unitOf(e)).name)).map(e => [keyOf(e), { added: copies.get(unitOf(e)).name }]),
-                  ...lightEntries.map((e, k) => [keyOf(e), memberRecord(lights[k].userData.source)]),
-                  ...effectEntries.map((e, k) => [keyOf(e), memberRecord(effects[k].userData.source)]),
-                  ...[...twins].map(([was, t]) => [buildingKey(was), { building: t.id }])];
-  let chainOf = mapChain;
-  if (clip.groups) {
-    const holder = new Map();
-    for (const g of clip.groups) for (const k of g.members) holder.set(k, g);
-    chainOf = key => { const out = []; for (let g = holder.get(key); g && out.length < 64; g = holder.get(groupKey(g.id))) out.push(g); return out; };
-  }
-  const tree = groupTree(copied, chainOf);
-  if (clip.wrap) {
-    // a placed prefab is one group: what stands free of the groups made (pieces and groups) is held by a new one,
-    // marked with the prefab it came from; a prefab that is one group already has that one marked
-    const inner = new Set([...tree.values()].flatMap(g => [...g.members.keys()])), top = new Map();
-    for (const [, record] of copied) if (!inner.has(memberKey(record))) top.set(memberKey(record), record);
-    for (const g of tree.values()) if (!inner.has(groupKey(g.id))) top.set(groupKey(g.id), { group: g.id });
-    const only = top.size === 1 ? [...top.values()][0].group : null;
-    if (top.size >= 2) { const id = uuid(); tree.set(id, { id, locked: true, breakTogether: false, prefab: { ...clip.wrap }, members: top }); }
-    else if (only) tree.get(only).prefab = { ...clip.wrap };
-  }
-  const newGroups = [...tree.values()];
-  // (what it gives back says how many pieces it left out and why: `lost`, `why`, so a caller's own hint can say so;
-  // `stopped`: its `first` said no)
-  Object.assign(built, { lost: lost.size, why: failed[0] ? failed[0].error?.message ?? String(failed[0].error) : null });
-  // whole: all or nothing; first(): run after the pieces are made and just before the paste is recorded (a look
-  // change's delete), false to place nothing (setMadeLook)
-  if (whole && lost.size) return built;
-  if (first && first() === false) return Object.assign(built, { stopped: true });
-  const before = gizmo.picks(), ids = [...built.map(r => r.userData.source.id), ...lights.map(r => r.userData.source.id),
-                                       ...effects.map(r => r.userData.source.id),
-                                       ...(boxesShown ? boxes.map(r => r.userData.source.id) : [])];
-  if (!built.length && !lights.length && !effects.length && !boxes.length) return built;     // (nothing could be placed)
-  gizmo.record({
-    size: built.length,
-    redo: () => {
-      addRoots(built); addLightRoots(lights); addEffectRoots(effects);
-      for (const r of boxes) r.userData.deleted = false;
-      for (const { id, meta } of twins.values()) buildingMeta.set(id, { ...meta });
-      if (newGroups.length) { const next = cloneGroups(); for (const g of newGroups) next.set(g.id, cloneGroup(g)); setGroups(next); }
-      gizmo.setSelection(ids, ids[Math.min(clip.pivotIndex, ids.length - 1)]); sceneChanged();
-    },
-    undo: () => {
-      removeRoots(built); removeLightRoots(lights); removeEffectRoots(effects);
-      for (const r of boxes) r.userData.deleted = true;
-      // (the copied buildings' names go with them, so the next paste isn't named "copy 2": review finding 34)
-      for (const { id } of twins.values()) buildingMeta.delete(id);
-      if (newGroups.length) { const next = cloneGroups(); for (const g of newGroups) next.delete(g.id); setGroups(next); }
-      gizmo.setSelection(before.ids, before.active); sceneChanged();
-    },
-  });
-  return built;
-}
-function copySelection(cut = false) {
-  if (volumesOn) { copyVolumes(cut); return; }
-  const clip = snapshot();
-  if (!clip) {
-    // (a view-only effect is picked but no selection takes it in: the picked one says why)
-    const fx = gizmo.selection().find(r => r.userData.effect) ?? effectRoots.get(pickedEffect);
-    flashHint(fx ? `It isn't copied: ${effectViewOnly(fx.userData.source, 'copy') ?? 'it is deleted'}` : 'Select a piece, light or floor box to copy');
-    return;
-  }
-  setClipboard(clip);
-  const made = new Set(clip.volumes.map(v => v.building)).size;
-  if (cut) deleteSelection(true);
-  flashHint(`${cut ? 'Cut' : 'Copied'} ${clip.words}${made ? ` and ${plural(made, 'building')}` : ''} · Ctrl+V to place a copy`);
-}
-// Where a paste or placement puts the pivot piece: the point under the screen point `at` (on a piece, or else
-// level with where it was copied from), in game units, or null. Fine snap rounds it to 24 units across the floor.
-// Tile snap moves it whole tiles from where the piece stands in the map, so a piece aligned to the tiles stays so.
-// With Level snap on, a floor piece's height snaps by levels: the height it has in the map, moved by whole levels
-// (64 units) to the saved floor under that point (floors.js levelHeight), so it never stacks on the floor it is
-// dropped on; with a floor chosen in the Floor picker, to that floor's height in the building there (chosenStorey).
-function dropTarget(clip, at) {
-  if (!at) return null;
-  let point = pick(...at)?.point;
-  // over nothing: on the ground grid's plane on a map (Clear map plan, section 3), else level with where it was copied
-  const plane = !builderMode && data?.scope === 'map' && !data.preview && data.tileGrid?.origin ? groundHeight() : clip.pivot[2];
-  if (!point) point = rayAt(...at).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -plane), new THREE.Vector3());
-  if (!point) return null;
-  let [x, y, z] = [point.x, point.z, point.y];
-  const [px, py] = clip.pivot;
-  // a prefab with a building or a piece that keeps the pose rule goes by whole tiles and levels, whatever the snap:
-  // its pivot is a tile corner at ground level
-  if (clip.gridLocked) return [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE, clip.pivot[2] + Math.round((z - clip.pivot[2]) / LEVEL) * LEVEL];
-  if (snapMode === 'fine') [x, y] = [Math.round(x / 24) * 24, Math.round(y / 24) * 24];
-  else if (snapMode === 'tile') [x, y] = [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE];
-  if (clip.floor != null && levelSnap)
-    z = levelHeight(clip.pivot[2], clip.floor, chosenStorey(x, y)?.z ?? floorUnder(liveFloorIndex(), { ...tileGridOf(data), origin: tileCorner() ?? tileGridOf(data).origin }, [x, y, z]).z);
-  // a light from the Add panel: at its template's height above what is under the cursor
-  if (clip.lightHeight != null) z += clip.lightHeight;
-  // an invisible floor from the Add panel: its top just over the ground at the centre of the tile under its pivot (its
-  // first tile's), where the game looks for that tile's floor and the panel measures (floorCentres), whatever the snap:
-  // with snap off the pivot stands anywhere in that tile, and the ground there can be a kerb's height off
-  if (clip.groundFloor) {
-    const o = gridOrigin(), at = o ? [0, 1].map(k => o[k] + TILE * Math.floor(([x, y][k] - o[k]) / TILE) + TILE / 2) : [x, y];
-    const g = groundAt(at[0], at[1], z + 96); if (g != null) z = g + FLOOR_CLEARANCE;
-  }
-  return [x, y, z];
-}
-// The move (viewer space) that takes the clip's pivot to a game location, turned by quarter turns about the pivot
-// (R while placing). Game (x, y, z up) is viewer (x, z, y).
-const moveTo = (clip, [x, y, z], turns = 0) => new THREE.Matrix4().makeTranslation(x, z, y)
-  .multiply(actorMatrix([0, 0, 0], [0, turns * QUARTER, 0]))
-  .multiply(new THREE.Matrix4().makeTranslation(-clip.pivot[0], -clip.pivot[2], -clip.pivot[1]));
-// A move (viewer space) of pieces ({ source, matrix } each), kept under tile snap to the pose rule of the first of them
-// that is a ladder, door, car, van or fracturing piece (the recipe snap, as the gizmo keeps it); any other move as it is.
-function keepRecipe(move, parts) {
-  const origin = gridOrigin();
-  if (!origin || snapMode !== 'tile') return move;
-  for (const { source, matrix } of parts) {
-    const from = recipeOf(source);
-    if (!from) continue;
-    const actor = matrix.clone().multiply(new THREE.Matrix4().fromArray(source.matrix).invert())
-      .multiply(actorMatrix(source.location, source.rotation));
-    return recipeMove(move, actor, from, origin);
-  }
-  return move;
-}
-// The move that places a clip: moveTo, kept to the pivot piece's pose rule if it has one, else the first piece's.
-const placeMove = (clip, target, turns) => keepRecipe(moveTo(clip, target, turns), [clip.entries[clip.pivotIndex], ...clip.entries].filter(Boolean));
-// Paste (Ctrl+V) places what was copied: a preview follows the cursor until a click puts it down. While placing,
-// Ctrl+V puts it down under the cursor, as a click does.
-function paste() {
-  if (placing) { if (pointer) placeAt(pointer, false); return; }
-  if (volumesOn) { pasteVolumes(); return; }
-  if (!clipboard) { flashHint('Nothing copied yet: select a piece and press Ctrl+C'); return; }
-  // a large copy's preview takes a moment to make: the busy mark meanwhile
-  if (clipboard.entries.length >= BUSY_PIECES) {
-    const clip = clipboard;
-    busy(`Getting ${plural(clip.entries.length, 'piece')} ready to place…`, () => { startPlacing(clip); return nextFrame(); }, { now: true });
-    return;
-  }
-  startPlacing(clipboard);
-}
-
-// Placing, for paste and the piece list: a see-through preview of the clip follows the cursor, a click places a
-// copy there (Shift+click keeps placing), Escape stops. The gizmo is held meanwhile, so a click never grabs a handle.
-let ghostDirty = false;   // (what is being placed, placing, and pieces: editor_state.js)
-// The preview is drawn twice: plainly where it is in view, faintly where walls or roofs hide it.
-const ghostMaterial = new THREE.MeshBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.45, depthWrite: false });
-const ghostHidden = new THREE.MeshBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.15, depthWrite: false, depthTest: false });
-// Pieces of other maps (library.js, tools/viewer/library.py). A piece's record, read on first use, joins the page's
-// tables: its meshes, materials and textures under their own keys (lib-<map>-…, with the folder they are served
-// from), and its components as templates a copy is made of, as the map's own pieces are. A template names its home
-// map (`foreign`), and so does every copy of it; an added record's `from` is the piece in that map.
-const foreignTemplates = new Map();     // (the records read, libraryRecords: editor_state.js)
-const assetUrl = url => (url.startsWith('/') ? url : cachePrefix + url);
-const isForeignTarget = t => typeof t?.package === 'string' && t.level === 'base' && Boolean(data?.name) && t.package.toLowerCase() !== data.name.toLowerCase();
-// Many pieces' records read in a few requests (a prefab's or a project's opening), kept for libraryTemplate, which
-// then asks the server for none of them. step(done, total) as the chunks arrive. A piece the server could not give
-// is left for libraryTemplate's own request, which says why.
-const RECORD_CHUNK = 100, fetchedRecords = new Map();
-const recordId = source => `${source.package}|${short(source.actor)}`.toLowerCase();
-async function readLibraryRecords(sources, step = null) {
-  const want = [...new Map(sources.map(s => [recordId(s), s])).entries()].filter(([id]) => !libraryRecords.has(id) && !fetchedRecords.has(id));
-  for (let k = 0; k < want.length; k += RECORD_CHUNK) {
-    const chunk = want.slice(k, k + RECORD_CHUNK);
-    step?.(k, want.length);
-    try {
-      const answer = await prefabApi.records(chunk.map(([, s]) => ({ package: s.package, level: 'base', actor: short(s.actor) })));
-      answer.pieces.forEach((p, i) => { if (p.record) fetchedRecords.set(chunk[i][0], p.record); });
-    } catch { break; }
-  }
-  if (want.length) step?.(want.length, want.length);
-  return want.length;
-}
-function libraryTemplate(source) {
-  const id = recordId(source);
-  if (!libraryRecords.has(id)) {
-    const promise = (async () => {
-      let record = fetchedRecords.get(id);
-      fetchedRecords.delete(id);
-      if (!record) {
-        const response = await fetch(`/library/piece.json?${new URLSearchParams({ package: source.package, level: 'base', actor: short(source.actor) })}`);
-        record = await response.json().catch(() => ({}));
-        if (!response.ok) throw Error(record.error ?? `the piece could not be read (${response.status})`);
-      }
-      for (const [k, m] of Object.entries(record.meshes)) data.meshes[k] ??= { ...m, url: record.base + m.url };
-      for (const [k, m] of Object.entries(record.materials)) data.materials[k] ??= m;
-      for (const [k, t] of Object.entries(record.textures)) data.textures[k] ??= { ...t, url: record.base + t.url };
-      lineCollision ?? setLineCollision(new Map());
-      for (const [k, c] of Object.entries(record.collision ?? {})) lineCollision.set(k, collisionMesh(c));
-      const foreign = { package: record.source.package, key: record.key, buildings: record.buildings ?? [], areaLights: record.areaLights ?? {} };
-      if (record.source.sha256) donorHashes.set(record.source.package.toLowerCase(), record.source.sha256);
-      // where the piece stands on its home map's tile grid, said on this map's (the compiler does the same): the
-      // pose rule's snap then works as for one of the map's own pieces
-      const here = data.tileGrid?.origin, shift = record.grid && here?.length === 3 ? here.map((v, k) => v - record.grid[k]) : [0, 0, 0];
-      const rebased = o => {
-        const matrix = [...o.matrix];
-        matrix[12] += shift[0]; matrix[13] += shift[2]; matrix[14] += shift[1];
-        return { ...o, matrix, location: o.location.map((v, k) => v + shift[k]) };
-      };
-      const sources = record.objects.map(o => {
-        const source = { ...rebased(o), layer: 'base', floorLocation: o.location, referencedBy: [], foreign };
-        const lights = (foreign.areaLights[o.actor]?.lights ?? []).filter(l => l.component === o.component);
-        if (!lights.length) return source;
-        const inverse = actorMatrix(o.location, o.rotation).invert();
-        const foreignAreaLights = lights.map(light => {
-          const source = lightSource(light);
-          const relative = inverse.clone().multiply(new THREE.Matrix4().fromArray(source.matrix));
-          return { root: { userData: { source, values: valuesOf(source) } }, relative };
-        });
-        return { ...source, foreignAreaLights };
-      });
-      for (const s of sources) foreignTemplates.set(`${targetKey(fromOf(s))}|${s.component}`, s);
-      // an assembly (a car's body, glass and parts; a door's leaf and frame) comes whole: its parts are placed, moved
-      // and copied as one, by the link tag an assembly of the map's own has (useMapFamilies)
-      if (record.assembly) {
-        const a = record.assembly;
-        const assembly = { ...a, tag: a.members.length > 1 ? (record.objects.map(o => o.prefab).find(Boolean) ?? short(a.pivot)) : null };
-        for (const m of a.members) foreignAssemblies.set(targetKey({ package: record.source.package, level: 'base', actor: m }), assembly);
-      }
-      // its meshes and materials loaded, as a placed piece's are (the preview and the thumbnail draw from the caches)
-      await Promise.all(sources.map(buildRoot));
-      const radius = s => data.meshes[s.mesh].bounds?.[6] ?? 0;
-      const pivot = sources.find(s => s.actor === record.assembly?.pivot) ?? sources.reduce((a, b) => (radius(b) > radius(a) ? b : a));
-      const frame = actorMatrix(pivot.location, pivot.rotation).invert();
-      return { sources, pivotIndex: sources.indexOf(pivot), frame, box: boundsOf(sources, frame), record };
-    })();
-    promise.catch(() => libraryRecords.delete(id));
-    libraryRecords.set(id, promise);
-  }
-  return libraryRecords.get(id);
-}
-// An effect, ambient sound or lens flare of another map (effects and sounds plan, stage FX4; a flare since FX6b): its
-// template read from its map
-// (/library/effect.json: export 28's record, its particle system or waves), kept for the placing and the project's
-// copies (foreignEffects, by its target), its system and waves joined to the map's (the panel, the box, the Wave
-// preview read them by their ids, which name the donor). Gives the record as an effect root's source.
-const fetchedEffects = new Map();     // (effectTemplates, foreignEffects: editor_state.js)
-function effectTemplate(source) {
-  const id = recordId(source);
-  if (!effectTemplates.has(id)) {
-    const promise = (async () => {
-      let t = fetchedEffects.get(id);
-      fetchedEffects.delete(id);
-      if (!t) {
-        const response = await fetch(`/library/effect.json?${new URLSearchParams({ package: source.package, level: 'base', actor: short(source.actor) })}`);
-        t = await response.json().catch(() => ({}));
-        if (!response.ok) throw Error(t.error ?? `it could not be read (${response.status})`);
-      }
-      data.effectSystems ??= {}; data.soundWaves ??= {};
-      for (const [k, v] of Object.entries(t.systems ?? {})) data.effectSystems[k] ??= v;
-      for (const [k, v] of Object.entries(t.waves ?? {})) data.soundWaves[k] ??= v;
-      // what its likeness is drawn from (export 29): the donor's textures, meshes and materials, by their own keys
-      if (t.draw) {
-        for (const [k, m] of Object.entries(t.draw.meshes ?? {})) data.meshes[k] ??= { ...m, url: t.draw.base + m.url };
-        for (const [k, m] of Object.entries(t.draw.materials ?? {})) data.materials[k] ??= m;
-        for (const [k, x] of Object.entries(t.draw.textures ?? {})) data.textures[k] ??= { ...x, url: t.draw.base + x.url };
-      }
-      if (t.source.sha256) donorHashes.set(t.source.package.toLowerCase(), t.source.sha256);
-      const out = effectSource({ ...t.record, foreign: { package: t.source.package, key: t.key } });
-      foreignEffects.set(targetKey({ package: out.sourcePackage, level: 'base', actor: out.actor }), out);
-      return out;
-    })();
-    promise.catch(() => effectTemplates.delete(id));
-    effectTemplates.set(id, promise);
-  }
-  return effectTemplates.get(id);
-}
-// Many effects' templates in a few requests (a project's opening), kept for effectTemplate
-async function readEffectRecords(sources) {
-  for (let k = 0; k < sources.length; k += RECORD_CHUNK) {
-    const chunk = sources.slice(k, k + RECORD_CHUNK);
-    try {
-      const response = await fetch('/library/effects.json', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sources: chunk.map(s => ({ package: s.package, level: 'base', actor: short(s.actor) })) }) });
-      if (!response.ok) break;
-      const answer = await response.json();
-      answer.effects.forEach((r, i) => { if (r.record) fetchedEffects.set(recordId(chunk[i]), r.record); });
-    } catch { break; }
-  }
-}
-// The templates of the foreign pieces, effects and sounds some added records name, read before the records are
-// applied. Gives what could not be had, as sentences.
-async function loadForeignTemplates(added, progress = null) {
-  const wanted = new Map(), effects = new Map(), failed = [];
-  for (const e of added) if (!e.template && isForeignTarget(e.from)) (e.kind ? effects : wanted).set(targetKey(e.from), e.from);
-  const list = [...wanted.values()], effectList = [...effects.values()];
-  if (list.length > 1) await readLibraryRecords(list, (done, total) => progress?.('reading', done, total));
-  if (effectList.length > 1) await readEffectRecords(effectList);
-  let made = 0;
-  await Promise.all([...list.map(from => libraryTemplate(from)
-    .catch(error => failed.push(`${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`))
-    .finally(() => progress?.('loading', ++made, list.length))),
-    ...effectList.map(from => effectTemplate(from)
-      .catch(error => failed.push(`${short(from.actor)} of ${from.package} could not be read from the game's maps (${error.message})`)))]);
-  return failed;
-}
-const foreignCount = () => new Set([...roots.values()].map(r => r.userData.source).filter(o => o.added && o.foreign).map(o => o.actor)).size;
-const kilobytes = bytes => (bytes >= 1 << 20 ? `${(bytes / (1 << 20)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
-function foreignCost(obj) {
-  const entry = library?.entry(obj.foreign.key);
-  return entry?.closure ? `By the Build, from ${obj.foreign.package}: up to ${kilobytes(entry.closure.bytes)} more in the map` : null;
-}
-const foreignNote = obj => `A piece of ${obj.foreign.package}, not of this map. The Build copies it into the map with the meshes, materials and `
-  + 'textures it needs. A build with Bake the lighting lights it for where it stands (EXP-38); without, it keeps the '
-  + 'light it has in its home map, so it can look too dark or too bright here.';
-// What Build's panel says of a project with pieces of other maps: what baking does for them.
-const bakeNote = () => (foreignCount() ? `${plural(foreignCount(), 'piece')} from other maps: baked, ${foreignCount() === 1 ? 'it is' : 'they are'} lit for `
-  + `where ${foreignCount() === 1 ? 'it stands' : 'they stand'}; unbaked, ${foreignCount() === 1 ? 'it keeps' : 'they keep'} the light of the map ${foreignCount() === 1 ? 'it comes' : 'they come'} from.` : null);
-let libraryScope = 'map';     // (the All maps library, library, and chooseToken: editor_state.js)
-const LIBRARY_SCOPES = { map: 'libFilter', all: 'libAllFilter', prefabs: 'prefabFilter' };
-function setLibraryScope(scope) {
-  if (builderMode && scope === 'map') scope = 'all';
-  libraryScope = LIBRARY_SCOPES[scope] ? scope : 'map';
-  remember('workshop.libraryScope', libraryScope);
-  $('libScope').value = libraryScope;
-  $('libMap').hidden = libraryScope !== 'map';
-  library.show(pieces.open && libraryScope === 'all');
-  prefabTab.show(pieces.open && libraryScope === 'prefabs');
-  if (libraryScope !== 'all') hoverLikeness(null);
-  if (placing?.entry) stopPlacing();
-  if (pieces.open) $(LIBRARY_SCOPES[libraryScope]).focus({ preventScroll: true });
-}
-// An entry of All maps: its piece read (exported by the server the first time), then placed as a copy is.
-async function chooseLibraryEntry(entry) {
-  const token = nextChooseToken();
-  if (!entry) { stopPlacing(); return; }
-  if (entry.effect) { chooseLibraryEffect(entry, token); return; }
-  let template;
-  if (!isForeignTarget({ ...entry.source, level: 'base' })) {
-    // the map's own piece: a copy of it, as from This map
-    const sources = partsOf(targetKey({ package: data.name, level: 'base', actor: `TheWorld.PersistentLevel.${entry.source.actor}` }));
-    if (!sources.length) { flashHint(`${entry.name} is not in this export of the map`); return; }
-    template = { sources, pivotIndex: 0 };
-  } else {
-    flashHint(`Reading ${entry.name} from ${entry.source.package}…`);
-    const done = busyStart(`Reading ${entry.name} from ${entry.source.package}…`);
-    try { template = await libraryTemplate(entry.source); }
-    catch (error) { if (token === chooseToken) flashHint(`${entry.name} could not be placed: ${error.message}`); return; }
-    finally { done(); }
-    if (token !== chooseToken || !pieces.open || libraryScope !== 'all') return;
-  }
-  const { sources, pivotIndex } = template;
-  setClipboard({ entries: sources.map(source => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix) })),
-                pivot: [...sources[pivotIndex].location], pivotIndex, name: entry.name, libraryEntry: entry });
-  startPlacing(clipboard, entry);
-}
-// An effect, sound or lens flare of All maps (effects and sounds plan, stage FX4): this map's own copied as the Effects view's
-// Ctrl+C copies it, another map's read from it (effectTemplate); then placed as a copied effect is.
-async function chooseLibraryEffect(entry, token) {
-  let source;
-  if (!isForeignTarget({ ...entry.source, level: 'base' })) {
-    source = [...effectRoots.values()].map(r => r.userData.source)
-      .find(o => !o.added && o.layer === 'base' && short(o.actor) === entry.source.actor);
-    if (!source) { flashHint(`${entry.name} is not in this export of the map`); return; }
-  } else {
-    flashHint(`Reading ${entry.name} from ${entry.source.package}…`);
-    const done = busyStart(`Reading ${entry.name} from ${entry.source.package}…`);
-    try { source = await effectTemplate(entry.source); }
-    catch (error) { if (token === chooseToken) flashHint(`${entry.name} could not be placed: ${error.message}`); return; }
-    finally { done(); }
-    if (token !== chooseToken || !pieces.open || libraryScope !== 'all') return;
-  }
-  if (effectViewOnly({ ...source, added: true }, 'copy')) { flashHint(`${entry.name} can't be placed: ${effectViewOnly({ ...source, added: true }, 'copy')}`); return; }
-  setClipboard({ entries: [{ source, matrix: new THREE.Matrix4().fromArray(source.matrix) }], pivot: [...source.location], pivotIndex: 0,
-                name: entry.name, libraryEntry: entry });
-  startPlacing(clipboard, entry);
-}
-function showPieces(on) {
-  $('libMap').hidden = libraryScope !== 'map';
-  library.show(on && libraryScope === 'all');
-  prefabTab.show(on && libraryScope === 'prefabs');
-  // floor pieces are marked (the Kind menu's Floors, and a search for "floor" finds them)
-  pieces.show(on, () => collectPieces({ roots, data,
-    groups: gizmo.linkedGroups([...roots.values()].filter(r => !r.userData.source.added)),
-    frameOf: s => actorMatrix(s.location, s.rotation).invert(), boundsOf })
-    .map(e => (floorSupportOf(e.sources) != null ? Object.assign(e, { floor: true, text: `${e.text} floor` }) : e))
-    .concat(pieceRecipes()));
-  if (!on && placing?.entry) stopPlacing();
-  if (!on) stopWallDrawing();
-  // the hover pane goes with the panel or its All maps tab (closed with the pointer still on a row, it stayed)
-  if (!on || libraryScope !== 'all') hoverLikeness(null);
-  $('editAdd').classList.toggle('on', on); $('editAdd').setAttribute('aria-pressed', on);
-}
-// The parts of a piece-list entry where the map has them.
-const entryParts = entry => entry.sources.map(source => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix) }));
-// Choosing an entry puts it on the clipboard and places it; choosing it again (null) stops.
-function chooseEntry(entry) {
-  nextChooseToken();
-  if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing(); return; }
-  stopWallDrawing();
-  if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
-  if (entry.spawnAdd) { stopPlacing(); stopZonePlacing(); startSpawnPlacing(entry.spawnAdd); return; }      // Spawn points
-  if (entry.light) {    // the Lights kind's Point Light and Spot Light
-    const clip = lightClip(entry.light);
-    if (!clip) return;
-    if (!lightsShown) { if (volumesOn) setLightsShown(true); else setNormalLights(true); }
-    setClipboard(clip);
-    startPlacing(clip, entry);
-    return;
-  }
-  // a cover block is placed by its first tile: the centre of the tile at its corner goes under the cursor
-  const at = entry.sources[entry.pivotIndex].location;
-  setClipboard({ entries: entryParts(entry), pivot: entry.cover ? [at[0] + 48, at[1] + 48, at[2]] : [...at],
-                pivotIndex: entry.pivotIndex, name: entry.name, groundFloor: isFloor(entry.cover) });
-  if (clipboard.groundFloor) askLineCollision();     // the ground's collision on its way before the floor goes down
-  startPlacing(clipboard, entry);
-}
+// The pieces and effects of other maps read as templates (library_templates.js): their records read, a
+// piece's or an effect's template, the templates a project's records name, and what such a piece costs and
+// says.
+const { assetUrl, bakeNote, effectTemplate, foreignCost, foreignNote, isForeignTarget, libraryTemplate,
+        loadForeignTemplates, readEffectRecords, readLibraryRecords, recordId } = createLibraryTemplates({
+  boundsOf, buildRoot, foreignAssemblies, fromOf, plural, short,
+  // (made further down: called through, since they are not made yet while this runs)
+  collisionMesh: c => collisionMesh(c), effectSource: rec => effectSource(rec),
+  lightSource: record => lightSource(record) });
+// The outline of a floor box that comes with a clip, while the clip is placed or dragged off (clipboard.js) and as a
+// prefab is placed (prefab_place.js, made before the clipboard's module): made here, where it always was, and given to
+// both.
 const ghostEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
 const ghostLine = new THREE.LineBasicMaterial({ color: 0x82d5ce, transparent: true, opacity: 0.7, depthTest: false });
-function startPlacing(clip, entry = null) {
-  stopPlacing(); stopWallDrawing();
-  // a floor piece snaps by levels (dropTarget): its saved floor's height over its pivot
-  clip.floor = clip.prefab || clip.entries.some(e => e.source.isLight || e.source.isEffect) ? null : floorSupportOf(clip.entries.map(e => e.source));
-  const ghost = new THREE.Group(), here = new THREE.Matrix4();
-  ghost.add(previewGroup(clip.entries, ghostHidden, here), previewGroup(clip.entries, ghostMaterial, here));
-  // the floor boxes that come with it (a building copied, a prefab's), as outlines
-  for (const v of clip.volumes ?? []) {
-    const line = new THREE.LineSegments(ghostEdges, ghostLine);
-    line.matrix.copy(v.matrix); line.matrixAutoUpdate = false; line.raycast = () => {};
-    ghost.add(line);
-  }
-  ghost.visible = false; ghost.matrixAutoUpdate = false; world.add(ghost);
-  setPlacing({ clip, entry, ghost, turns: 0 }); ghostDirty = true;
-  gizmo.hold(true); pieces.setChosen(entry); library.setChosen(entry); prefabTab.setChosen(entry); restingHint();
-}
-function stopPlacing() {
-  if (!placing) return;
-  world.remove(placing.ghost);
-  placing.ghost.traverse(part => part.isSkinnedMesh && part.skeleton.dispose());
-  setPlacing(null); gizmo.hold(false); pieces.setChosen(null); library.setChosen(null); prefabTab.setChosen(null);
-  clearTimeout(hintTimer); restingHint();
-}
-// The preview sits where a click would place the piece; it hides when the cursor is off the view.
-function moveGhost() {
-  ghostDirty = false;
-  const target = dropTarget(placing.clip, pointer);
-  placing.ghost.visible = Boolean(target);
-  if (target) { placing.ghost.matrix.copy(placeMove(placing.clip, target, placing.turns)); placing.ghost.matrixWorldNeedsUpdate = true; }
-}
-async function placeAt(at, keep) {
-  const { clip, turns } = placing, target = dropTarget(clip, at);
-  if (!target) return;
-  const delta = placeMove(clip, target, turns);
-  // (a warning, not a refusal: plan "sturdier prefabs", R7; the Build's stage-outside says the same)
-  const problem = prefabPlacementProblem(clip, delta);
-  if (!keep) stopPlacing();
-  // (a paste that fails says why: placeAt is called without waiting for it, by a click or Ctrl+V)
-  let placed;
-  try {
-    placed = clip.entries.length >= BUSY_PIECES
-      ? await busy(`Placing ${clip.prefab ? clip.name : 'the copy'}: pieces made`, step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true })
-      : await pasteSnapshot(clip, delta);
-  } catch (error) { console.error(error); flashHint(`${clip.name ?? 'The copy'} could not be placed: ${error?.message ?? error}`); return; }
-  if (clip.libraryEntry) library.used(clip.libraryEntry);     // it heads the recently used pieces
-  if (problem) banner(problem, [['Undo', () => gizmo.undo()]]);
-  if (!keep && !placed?.lost) flashHint(`Placed ${clip.name} · Ctrl+V places another`);
-}
-// Shift held as a move handle is taken (an axis or a plane): the drag moves a copy along it (the gizmo's copyDrag).
-// The selection itself is what moves under the cursor, with the snaps of any drag, and a drawn-only stand-in keeps
-// its place; on release the selection is back where it was and the copy is pasted where it was dragged to, as any
-// paste is (one undo step, the copy selected). Escape, or a drag that went nowhere, makes no copy.
-// Not in the Buildings view, where boxes are copied on their own (copyVolumes): there Shift is a plain move.
-function copyDragBegin() {
-  if (volumesOn || placing) return null;
-  const clip = snapshot();
-  if (!clip) return null;
-  const stand = new THREE.Group(), here = new THREE.Matrix4();
-  stand.add(previewGroup(clip.entries, null, here));
-  for (const v of clip.volumes) {
-    const line = new THREE.LineSegments(ghostEdges, ghostLine);
-    line.matrix.copy(v.matrix); line.matrixAutoUpdate = false; line.raycast = () => {};
-    stand.add(line);
-  }
-  stand.matrixAutoUpdate = false; world.add(stand);
-  const hint = $('dragHint');
-  hint.hidden = false;
-  hint.replaceChildren(`Moving a copy of ${clip.name} · `);
-  text(hint, 'kbd', 'Esc'); hint.append(' cancels the drag');
-  return { clip, stand };
-}
-async function copyDragEnd({ clip, stand }, delta) {
-  try {
-    const placed = delta && clip.entries.length >= BUSY_PIECES
-      ? await busy('Placing the copy: pieces made', step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true })
-      : delta ? await pasteSnapshot(clip, delta) : null;
-    if (placed?.lost) delta = null;      // (its hint says what was left out)
-  } catch (error) {
-    console.error(error); flashHint(`The copy of ${clip.name} could not be placed: ${error?.message ?? error}`); delta = null;
-  } finally {
-    // (the stand-in goes once the copy's original is drawn in its place again)
-    world.remove(stand);
-    stand.traverse(part => part.isSkinnedMesh && part.skeleton.dispose());
-  }
-  if (delta) flashHint(`Copied ${clip.name}`);
-}
 // Delete: an added piece goes; an original is hidden (and returns with undo or Reset all).
 // A step that touches many pieces (BUSY_PIECES or more) puts the busy mark up first, so the page says what it is
 // doing instead of standing still (plan "faster editor", L3); a small one runs at once.
@@ -1726,9 +1119,9 @@ function floorData() {
 // Level snap (L, the tool strip's button under Snap; on unless turned off, and remembered): floor pieces keep to whole
 // levels when placed and when moved with the gizmo. Off, they are placed and moved as any piece is.
 const LEVEL_SNAP = 'workshop.levelSnap';
-let levelSnap = recall(LEVEL_SNAP) !== '0';
+setLevelSnapValue(recall(LEVEL_SNAP) !== '0');     // (levelSnap: editor_state.js)
 function setLevelSnap(on) {
-  levelSnap = Boolean(on); remember(LEVEL_SNAP, levelSnap ? '1' : '0'); ghostDirty = true;
+  setLevelSnapValue(Boolean(on)); remember(LEVEL_SNAP, levelSnap ? '1' : '0'); setGhostDirty(true);
   levelButton(); restingHint();
 }
 function levelButton() {
@@ -1835,7 +1228,9 @@ const { addToGroup, changeGroups, groupPanel, groupShortcut, liveGroup, liveKeys
 // Align (align.js): the others of the selection lined up with a target, the piece panel's Align section and
 // its white box on the target.
 const { align, alignPanel, saveAlignPrefs, targetHelper } = createAlign({
-  $, copyablePieces, flashHint, gizmo, keepRecipe, liveGroup, memberOf, plural, short, world });
+  $, copyablePieces, flashHint, gizmo, liveGroup, memberOf, plural, short, world,
+  // (made with the clipboard, further down: called through, since it is not made yet while this runs)
+  keepRecipe: (move, parts) => keepRecipe(move, parts) });
 
 // The Lights view's storage keys, and its switches read from them (the view: lights_wiring.js, made below).
 const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
@@ -2083,26 +1478,30 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
   $, SESSION, actorPose, addRoots, addedObject, applyState, banner, boxOf, buildRoot, controls, dirty, discardAndGo, discardDraft,
   documentWrites, draftWords, dropAdopted, editChanged, editState, flashHint, frame, gizmo, gridNow, gridOrigin, isStream,
   libraryTemplate, lightPose, loadingState, movedMatrix, plural, projectChanged, recipeOf, removeRoots, rootName, sceneChanged,
-  selectActors, short, snapshot, templateFor, text, world,
+  selectActors, short, templateFor, text, world,
   // (made with the loading overlay, further down: called through, since it is not made yet while this runs)
   openingProgress: name => openingProgress(name),
-  // (made with the Buildings view, further down: called through, since it is not made yet while this runs)
-  volumeBox: root => volumeBox(root),
+  // (made with the Buildings view and the clipboard, further down: called through, since they are not made yet while
+  // this runs)
+  snapshot: (selection, own) => snapshot(selection, own), volumeBox: root => volumeBox(root),
   // (made with prefabs saved and placed just below, which is given the builder's records and save: called through)
   prefabRecords: options => prefabRecords(options), showPrefabDialog: whole => showPrefabDialog(whole) });
 // Prefabs saved and placed (prefab_place.js): the Save as prefab dialog, the save, and a prefab of the Add panel's
 // Prefabs tab placed as a paste is.
 const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, prefabRecords, savePrefab,
         showPrefabDialog } = createPrefabPlace({
-  $, BUSY_PIECES, PL, actorPose, assetUrl, banner, boxMatrix, builderRecords, busy, busyPaint, busyStart, copyable,
-  effectTemplate, flashHint, fromOf, ghostEdges, ghostLine, gltfLoader, gridNow, groupTree, isForeignTarget, isStream,
-  libraryTemplate, lightPose, lightsBlocked, linkOf, madeShape, mapChain, matrixBox, memberOf, movedMatrix, nextFrame,
-  physicalBox, plural, previewGroup, readEffectRecords, readLibraryRecords, recipeLight, recordId, rootName,
-  saveBuilder, selectionGroup, short, snapshot, startPlacing, stopPlacing, templateFor, text, track, withStorableCone,
-  // (made with the cover blocks and the Effects view, further down: called through, since they are not made yet while
-  // this runs)
-  coverOf: entity => coverOf(entity), coverVersion: (version, type) => coverVersion(version, type),
-  effectViewOnly: (o, cap) => effectViewOnly(o, cap) });
+  $, BUSY_PIECES, PL, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, copyable, effectTemplate,
+  flashHint, fromOf, ghostEdges, ghostLine, gltfLoader, gridNow, isForeignTarget, isStream, libraryTemplate, lightPose,
+  lightsBlocked, madeShape, memberOf, movedMatrix, nextFrame, physicalBox, plural, previewGroup, readEffectRecords,
+  readLibraryRecords, recipeLight, recordId, rootName, saveBuilder, selectionGroup, short, templateFor, text, track,
+  withStorableCone,
+  // (made with the cover blocks, the Effects view and the clipboard, further down: called through, since they are not
+  // made yet while this runs)
+  boxMatrix: b => boxMatrix(b), coverOf: entity => coverOf(entity),
+  coverVersion: (version, type) => coverVersion(version, type), effectViewOnly: (o, cap) => effectViewOnly(o, cap),
+  groupTree: (copied, chainOf) => groupTree(copied, chainOf), linkOf: e => linkOf(e), mapChain: key => mapChain(key),
+  matrixBox: matrix => matrixBox(matrix), snapshot: (selection, own) => snapshot(selection, own),
+  startPlacing: (clip, entry) => startPlacing(clip, entry), stopPlacing: () => stopPlacing() });
 const mapLabel = id => mapCatalogue?.maps.find(m => m.id === id)?.label ?? id ?? '';
 // Build and Play in game (build_play.js): Build's panel and the window that follows a build, Play in game with its
 // dialog and the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the prefab
@@ -3456,14 +2855,15 @@ const { addVolumes, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursor
         setBuildings, setOwnPicked, setPickTool, setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle,
         startPickDrag, startVolumeDrag, stopPickBox, syncVolumes, takePickBox, updateVolumeHandles, viewPoint,
         volumeBox, volumeClick, volumeHandleNear, volumeHint, volumePanel } = createBuildingsWiring({
-  $, allBuildings, boxOf, builderBounds, camera, chosenStorey, copySelection, deleteSelection, editBaseSpawn,
-  editChanged, editedCopies, editedKey, editedSpawns, editSpawnCopy, effectsShown, effectViewOnly, flashHint,
-  floorOptions, freshBox, gizmo, HANDLE_PICK, isStream, lightViewOnly, mapEditable, mapEdits, mapFloors, mapIdOf,
-  mapKind, mapTarget, missionGizmo, pick, plural, PROJECT_BUILDING, projectListings, projector, projectsAvailable,
-  rayAt, refreshSpawnMarkers, renderer, restingHint, select, selectionWords, setEffectsShown, setZonesShown, short,
-  showPop, spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
-  // (made with Select all of a kind, just below: called through, since it is not made yet while this runs)
-  kindButton: () => kindButton() });
+  $, allBuildings, boxOf, builderBounds, camera, chosenStorey, deleteSelection, editBaseSpawn, editChanged,
+  editedCopies, editedKey, editedSpawns, editSpawnCopy, effectsShown, effectViewOnly, flashHint, floorOptions,
+  freshBox, gizmo, HANDLE_PICK, isStream, lightViewOnly, mapEditable, mapEdits, mapFloors, mapIdOf, mapKind, mapTarget,
+  missionGizmo, pick, plural, PROJECT_BUILDING, projectListings, projector, projectsAvailable, rayAt,
+  refreshSpawnMarkers, renderer, restingHint, select, selectionWords, setEffectsShown, setZonesShown, short, showPop,
+  spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights, text, volumeLayer, world,
+  // (made with Select all of a kind and the clipboard, below: called through, since they are not made yet while this
+  // runs)
+  copySelection: cut => copySelection(cut), kindButton: () => kindButton() });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
 const { kindButton, selectKind } = createSelectKind({
@@ -3478,6 +2878,24 @@ const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNo
         updateCoverHandles } = createCoverWiring({
   $, alongLine, camera, editChanged, gizmo, gridOrigin, HANDLE_PICK, materialCache, pickables, PL, projector, renderer,
   restingHint, sceneChanged, select, showPop, track, volumeHint, world });
+// Copy, paste and placing (clipboard.js): a clip of the selection, a paste, the preview placed with a click,
+// the Add panel shown and an entry of it placed, and a copy dragged off with Shift; after the cover blocks,
+// whose floor's clearance it reads, and the Buildings view, whose own buildings' layer it reads.
+const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
+        ghostMaterial, groupTree, keepRecipe, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,
+        pasteSnapshot, placeAt, placeMove, setLibraryScope, showPieces, snapshot, startPlacing,
+        stopPlacing } = createClipboard({
+  $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots, addRoots, askLineCollision,
+  assemblyOf, banner, boundsOf, buildRoots, busy, BUSY_PIECES, busyStart, chosenStorey, cloneGroup, cloneGroups,
+  copyVolumes, deleteSelection, effectFollows, effectTemplate, effectViewOnly, flashHint, FLOOR_CLEARANCE,
+  floorSupportOf, fromOf, ghostEdges, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness,
+  isForeignTarget, libraryTemplate, lightClip, lightViewOnly, liveFloorIndex, makeVolume, memberOf, memberRecord,
+  newBuildingId, nextFrame, ownerRoot, ownVolumeLayer, partsOf, pasteVolumes, pick, pieceRecipes, plural,
+  prefabPlacementProblem, previewGroup, rayAt, recipeOf, removeEffectRoots, removeLightRoots, removeRoots, restingHint,
+  sceneChanged, selectionWords, setLightsShown, setNormalLights, setVolumeBox, short, startSpawnPlacing,
+  startZonePlacing, stopSpawnPlacing, stopZonePlacing, text, tileCorner, volumeBox, world,
+  // (made further down: called through, since it is not made yet while this runs)
+  stopWallDrawing: () => stopWallDrawing() });
 // The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The
 // page"). A made piece: what it is, its look's donor, its state and its changes (each one undo step), and its
 // handles and drags; the modules below are given its functions.
@@ -3844,7 +3262,7 @@ async function open() {
         : 'Choose a base map to start. A map opens in about half a minute the first time, while the editor prepares it.' });
     return new Promise(() => {});
   }
-  cachePrefix='/cache/'+encodeURIComponent(activeMapId)+'/';
+  setCachePrefix('/cache/'+encodeURIComponent(activeMapId)+'/');
   const requestedScene = parameters.get('scene') || 'scene.json';
   if (!/^(scene|preview-\d+)\.json$/.test(requestedScene)) throw Error('Invalid scene selection');
   // The bar: the layout file's download is the first tenth, building the pieces (their meshes and textures
@@ -4231,7 +3649,7 @@ $('mission').onchange = e => {
   setEffectsDirty(true);     // (the Effects view shows the streams of the mission picked)
   cutaway();
 };
-segmented($('floor'), () => { cutaway(); ghostDirty = true; restingHint(); });
+segmented($('floor'), () => { cutaway(); setGhostDirty(true); restingHint(); });
 $('hideHelpers').onchange = () => cutaway();
 segmented($('scenery'), () => {cutaway();frame();refreshLightVisibility();setEffectsDirty(true);});
 $('frame').onclick = () => frame();
@@ -4339,9 +3757,9 @@ renderer.domElement.addEventListener('pointerup', e => {
   // Ctrl or Shift adds a piece to the selection (or takes it out again).
   if (hit) select(hit.object.userData.objectId, e.ctrlKey || e.shiftKey || e.metaKey);
 });
-renderer.domElement.addEventListener('pointermove', e => { setPointer([e.clientX, e.clientY]); ghostDirty = true; setTipDirty(true); });
-renderer.domElement.addEventListener('pointerleave', () => { setPointer(null); ghostDirty = true; setTipDirty(true); });
-controls.addEventListener('change', () => { ghostDirty = true; setTipDirty(true); });
+renderer.domElement.addEventListener('pointermove', e => { setPointer([e.clientX, e.clientY]); setGhostDirty(true); setTipDirty(true); });
+renderer.domElement.addEventListener('pointerleave', () => { setPointer(null); setGhostDirty(true); setTipDirty(true); });
+controls.addEventListener('change', () => { setGhostDirty(true); setTipDirty(true); });
 renderer.domElement.addEventListener('dblclick', () => (effectsOn ? frameEffect() : selected && !gizmo.busy() && frame(allRoots.get(selected))));
 $('editMove').onclick = () => gizmo.setMode('translate');
 $('editRotate').onclick = () => gizmo.setMode('rotate');
@@ -4364,7 +3782,7 @@ function toggleButton(button, onChange) {
   };
 }
 function setSnapMode(next) {
-  setSnapModeValue(next); gizmo.setSnap(next); ghostDirty = true;
+  setSnapModeValue(next); gizmo.setSnap(next); setGhostDirty(true);
   snapButton(); refreshGrid(roots.get(selected));
 }
 $('editSnap').onclick = () => setSnapMode(SNAPS[snapMode][0]);
@@ -4410,7 +3828,7 @@ setPrefabTab(createPrefabBrowser({
   },
 }));
 segmented($('libScope'), () => setLibraryScope($('libScope').value));
-libraryScope = LIBRARY_SCOPES[recall('workshop.libraryScope')] ? recall('workshop.libraryScope') : 'map';
+setLibraryScopeValue(LIBRARY_SCOPES[recall('workshop.libraryScope')] ? recall('workshop.libraryScope') : 'map');
 $('libScope').value = libraryScope;
 $('editAdd').onclick = () => data && showPieces(!pieces.open);
 $('floorTiles').onchange = e => { drawFloorTiles(); e.target.blur(); };
@@ -4780,7 +4198,7 @@ document.addEventListener('keydown', e => {
   else if (key === 'r') {
     // While placing, R turns the piece a quarter turn about its pivot (Shift+R the other way); otherwise it is Rotate.
     if (!placing) { gizmo.setMode('rotate'); e.preventDefault(); return; }
-    placing.turns = (placing.turns + (e.shiftKey ? 3 : 1)) % 4; ghostDirty = true;
+    placing.turns = (placing.turns + (e.shiftKey ? 3 : 1)) % 4; setGhostDirty(true);
     clearTimeout(hintTimer); restingHint();
   }
   else if (key === 'v') gizmo.setMode('off');

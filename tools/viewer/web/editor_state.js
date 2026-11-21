@@ -165,11 +165,18 @@ export function setPrefabTab(next) { prefabTab = next; }
 export let clipboard = null, chooseToken = 0;
 export function setClipboard(next) { clipboard = next; }
 export function nextChooseToken() { return ++chooseToken; }
-// Pieces of other maps as read (app.js's library templates): libraryRecords, a piece's record by its id
-// (package|actor, lower case); effectTemplates, an effect's, sound's or lens flare's, by its id; foreignEffects, those
-// as effect roots' sources, by their target; donorHashes, a map's package, lower case -> its SHA-256, as its pieces'
-// records give it.
+// Pieces of other maps as read (library_templates.js): libraryRecords, a piece's record by its id (package|actor,
+// lower case); effectTemplates, an effect's, sound's or lens flare's, by its id; foreignEffects, those as effect roots'
+// sources, by their target; donorHashes, a map's package, lower case -> its SHA-256, as its pieces' records give it.
 export const libraryRecords = new Map(), effectTemplates = new Map(), foreignEffects = new Map(), donorHashes = new Map();
+// The components of the pieces of other maps read, as templates a copy is made of (library_templates.js's
+// libraryTemplate adds them; app.js's recipeOf, templateFor and projectListings read them): `<target key>|<component>`
+// -> its source.
+export const foreignTemplates = new Map();
+// The url the open map's export is served under (app.js's open sets it): an asset's url in the export is under it
+// (library_templates.js's assetUrl); a piece of another map gives its own.
+export let cachePrefix = '/cache/';
+export function setCachePrefix(next) { cachePrefix = next; }
 // The meshes loaded, by mesh key, each shared by every piece that uses it (app.js's track and loaded).
 export const geometryCache = new Map();
 // The saved prefabs' pictures waiting to be drawn (prefab_place.js's drawPrefabPictures draws one a frame).
@@ -200,7 +207,7 @@ export function setStreamSet(next) { streamSet = next; }
 // project adds (missionPickValue says which).
 export let missionIndex = 0;
 export function setMissionIndex(next) { missionIndex = next; }
-// What is being placed (app.js's startPlacing): { clip, entry (from the piece list, or null), ghost }, or null.
+// What is being placed (clipboard.js's startPlacing): { clip, entry (from the piece list, or null), ghost }, or null.
 export let placing = null;
 export function setPlacing(next) { placing = next; }
 // The hint's timer (app.js's flashHint): the resting hint comes back when it fires.
@@ -380,3 +387,15 @@ export function setBreaking(next) { breaking = next; }
 // id of a piece of it, or null for the last one picked.
 export let alignTarget = null;
 export function setAlignTarget(next) { alignTarget = next; }
+
+// Placing (clipboard.js), and what of it app.js's pointer handlers, keys and draw loop read or set:
+// - ghostDirty: the preview of what is being placed is to be moved to the pointer again (the pointer handlers, the
+//   keys and Level snap ask for it, the draw loop moves it);
+// - libraryScope: the Add panel's tab, 'map' (This map), 'all' (All maps) or 'prefabs' (app.js gives it the one the
+//   browser's storage remembers as the page loads);
+// - levelSnap: Level snap, a floor piece placed or moved keeps to whole levels (app.js's setLevelSnap sets it and
+//   draws its button; app.js gives it the browser's storage's as the page loads).
+export let ghostDirty = false, libraryScope = 'map', levelSnap = true;
+export function setGhostDirty(next) { ghostDirty = next; }
+export function setLibraryScopeValue(next) { libraryScope = next; }
+export function setLevelSnapValue(next) { levelSnap = next; }

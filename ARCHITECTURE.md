@@ -122,7 +122,14 @@ piece panel's group section with the group chip, and the groups changed (Lock as
 change one undo step); a group's record (its key, its members' keys, the tree pruned of a group left with one member)
 is [`project.js`](tools/viewer/web/project.js)'s. Align is [`align.js`](tools/viewer/web/align.js)'s: the others of
 the selection lined up with a target along the chosen axes (one undo step), the piece panel's Align section and the
-white box on the target.
+white box on the target. Copy, paste and placing are [`clipboard.js`](tools/viewer/web/clipboard.js)'s: a clip of the
+selection, a clip pasted (new pieces with links, groups and buildings of their own, one undo step), the see-through
+preview that follows the cursor until a click places a copy (with the snaps, Level snap and the recipe snap), the Add
+panel shown with its tab and an entry of it chosen and placed, and a copy dragged off with Shift. The pieces and
+effects of other maps read as templates are [`library_templates.js`](tools/viewer/web/library_templates.js)'s: their
+records read in a few requests, a piece's or an effect's template (its meshes, materials and textures joining the
+page's tables), the templates a project's or a prefab's records name, and what such a piece costs and says; the Add
+panel's All maps browser is [`library.js`](tools/viewer/web/library.js)'s.
 `window.viewer`, set in `startScene`, is the set of hooks the browser checks drive.
 
 **The server.** `viewer.py serve` ([`tools/viewer/viewer.py`](tools/viewer/viewer.py)) serves the cache's exports, the
@@ -278,6 +285,8 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | Select all of a kind: what counts as a piece's or an effect's kind, the pieces and effects that match (inside box select's box), the button | [`select_kind.js`](tools/viewer/web/select_kind.js) (`createSelectKind`). |
 | The user's groups: a group's pieces on the map now, what the selection is to the groups, the group section and chip, a group made, added to or ended (one undo step) | [`groups.js`](tools/viewer/web/groups.js) (`createGroups`). A group's record (`groupKey`, `pruneGroups`) goes in [`project.js`](tools/viewer/web/project.js), and the compiler's side in [`group_edits.py`](tools/editor/group_edits.py). |
 | Align: the others of the selection lined up with a target, the Align section and its white box | [`align.js`](tools/viewer/web/align.js) (`createAlign`). |
+| Copy, paste and placing: a clip of the selection, a paste, the preview that follows the cursor and where a click places it, the Add panel shown and its tab, an entry of it chosen and placed, a copy dragged off with Shift | [`clipboard.js`](tools/viewer/web/clipboard.js) (`createClipboard`). A copied thing's record goes in [`piece_records.js`](tools/viewer/web/piece_records.js) (`optionsOf`, `stateOfRoot`), a group's in [`project.js`](tools/viewer/web/project.js), the pose rule's snap in [`gizmo.js`](tools/viewer/web/gizmo.js) (`recipeMove`), and a floor's height under a point in [`floors.js`](tools/viewer/web/floors.js) (`levelHeight`, `floorUnder`). |
+| A piece, effect, sound or lens flare of another map read as a template: its record read, its template made, the templates a project's records name, what such a piece costs and says | [`library_templates.js`](tools/viewer/web/library_templates.js) (`createLibraryTemplates`). The records read and the templates made are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`libraryRecords`, `effectTemplates`, `foreignEffects`, `foreignTemplates`, `donorHashes`); the Add panel's All maps is [`library.js`](tools/viewer/web/library.js), and the server's side [`library.py`](tools/viewer/library.py). |
 | A new part of what a project keeps of the scene (saved, and put back when it opens) | [`document_state.js`](tools/viewer/web/document_state.js): `editStateNow` writes it into the state, `applyState` puts it back on the map. [`document_session.js`](tools/viewer/web/document_session.js) carries it between the file and those two (`openProject`, `offerProjectDraft`, `saveProject`). Then as for a field of the project document. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
@@ -399,7 +408,13 @@ where there is one.
   - the game's collision by mesh that the invisible floors measure the ground by (`lineCollision`, with
     `lineCollisionFailed`): the cover blocks' module asks for the map's, a piece of another map read adds its own, and
     the test hooks read both;
-  - the target Align lines the others up with (`alignTarget`), which app.js's handler of the panel's target list sets.
+  - the target Align lines the others up with (`alignTarget`), which app.js's handler of the panel's target list sets;
+  - what of placing app.js's pointer handlers, keys and draw loop read or set: the preview's redraw asked
+    (`ghostDirty`), the Add panel's tab (`libraryScope`; `setLibraryScopeValue`, beside the clipboard's
+    `setLibraryScope`, which also shows the tab) and Level snap (`levelSnap`; `setLevelSnapValue`, beside app.js's
+    `setLevelSnap`, which also remembers it and draws its button); and the url the open map's export is served under
+    (`cachePrefix`), which app.js's opening sets and the templates of other maps' pieces read, and the templates made
+    of other maps' pieces (`foreignTemplates`), which app.js's recipes, templates and listings read.
 
   A value such state takes from the browser's storage as the page loads is given by its setter's call where the `let`
   was (`setAreaShown(recall(AREA_SHOWN) === '1')`, `setLikenessOn(...)` inside the Effects view's factory), so it is
@@ -415,9 +430,10 @@ where there is one.
   `createBuilderSession`, `createPrefabPlace`, `createLightsWiring`, `createEffectsWiring`, `createSpawnsWiring`,
   `createZonesWiring`, `createBuildingsWiring`, `createMadeHandles`, `createMadeLooksWiring`, `createMadeDrawing`,
   `createMadePanel`, `createMadeBreaking`, `createCoverWiring`, `createFlagsPanel`, `createSelectKind`,
-  `createGroups`, `createAlign`) takes them as one argument object and destructures it, so the code moved into it
-  calls them by the names it always did. It returns the functions other areas call, and app.js destructures them under the same names, so their callers stay as
-  they were. app.js makes it after the functions and objects it is given, and before any code that runs as the page
+  `createGroups`, `createAlign`, `createLibraryTemplates`, `createClipboard`) takes them as one argument object and
+  destructures it, so the code moved into it calls them by the names it always did. It returns the functions other
+  areas call, and app.js destructures them under the same names, so their callers stay as they were. app.js makes it
+  after the functions and objects it is given, and before any code that runs as the page
   loads and uses what it returns (a dialog handed `loadProject`). A function app.js makes further down, a `const`, is
   given as a function that calls it, since it is not made yet: `openingProgress: name => openingProgress(name)`.
   That holds for what another factory returns too: the document session is made before Build and Play, which is given
@@ -428,15 +444,19 @@ where there is one.
   given a value app.js makes further down that is not a function (a constant, as the page session's `SESSION`, or one
   another factory returns, as box select's `PICK_SLACK`, which Select all of a kind reads) is made after it instead,
   and what it sets up runs that much later: a change that moves it so checks that no other code sets a handler on, or
-  listens to, the same targets in between. The prefab builder's session and prefabs saved
-  and placed are made so, after the document session; they call each other (the builder's save opens the Save as
-  prefab dialog, whose Save saves the builder), so the first made is given the second's functions as functions that
-  call them.
+  listens to, the same targets in between, and that what it makes later is drawn as before (the clipboard, made after
+  the cover blocks and the Buildings view for their floor clearance and own buildings' layer, makes its preview's
+  materials later: see-through materials, which three.js sorts by render order and depth, consulting the order
+  materials were made only for opaque ones; the preview's meshes are made when placing starts, as before). The prefab
+  builder's session and prefabs saved and placed are made so, after the document session; they call each other (the
+  builder's save opens the Save as prefab dialog, whose Save saves the builder), so the first made is given the
+  second's functions as functions that call them.
   When part of an area's run of code stays in app.js (a helper other areas use, as `projector` or `gameToView`; a
   constant of app.js's event wiring), app.js keeps those declarations where they were and makes the factory after
   them, where the run ended: what the run does as the page loads then still happens at the same point among the
   page's other code. An object a view makes as the page loads that a view made before it also uses (the landing
-  zones' layer, which the Spawns view shows too) stays in app.js where it was made, and both are given it. A function
+  zones' layer, which the Spawns view shows too; the floor boxes' outline of a clip, which prefabs saved and placed
+  draw too) stays in app.js where it was made, and both are given it. A function
   of the area that an earlier stage left elsewhere in app.js (the Landing zones view's `setZonesShown`) moves into
   the factory with the run: a function declaration runs nothing as the page loads. An area whose code was two runs
   with other code between (the Buildings view's, box select's after the made pieces') is made where the first run
@@ -448,7 +468,8 @@ where there is one.
   and the meshes' caches), the area is made where its last run was instead, and what the first run did as the page
   loads now happens there, later: a change that does so checks that the first run only made values there (no handler
   set, nothing added to the scene; the cover blocks' collision material, made later, is never drawn), and gives the
-  factories made between that read its functions as the page loads functions that call them. An area that is several modules (the made
+  factories made between that read its functions as the page loads functions that call them. An area that is several
+  modules (the made
   pieces: their base, `made_handles.js`, then their looks, drawing, panel sections and Break) has each made where its
   own first run was, so in the order of its code; each is given the functions of those made before it directly, and
   those of the ones made after it as functions that call them. A function app.js keeps in a `let` (`applyLighting`,
