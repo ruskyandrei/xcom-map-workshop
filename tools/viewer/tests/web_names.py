@@ -63,6 +63,14 @@ def where(path):
         return str(path)
 
 
+def on_line(path):
+    """A file as ESLint's command line names it: relative to the repository when it is in it, else whole."""
+    try:
+        return path.relative_to(REPO).as_posix()
+    except ValueError:
+        return str(path)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     ap.add_argument('files', nargs='*', help='these files instead of the page\'s modules (tools/viewer/web/*.js)')
@@ -75,8 +83,10 @@ def main():
     folder = args.scratch.resolve()
     prepare(folder, tools['npm'])
     files = [Path(f).resolve() for f in args.files] or sorted(WEB.glob('*.js'))
+    # paths relative to the repository, where ESLint runs: absolute ones pass cmd.exe's 8,191-character command line
+    # for about seventy modules in a worktree's deep folder, and then nothing is checked
     done = subprocess.run([tools['npx'], '--prefix', str(folder), '--no', '--', 'eslint', '--config', str(CONFIG), '--format', 'json',
-                           *map(str, files)],
+                           *map(on_line, files)],
                           cwd=REPO, capture_output=True, text=True, encoding='utf-8', errors='replace',
                           env=dict(os.environ, WEB_NAMES_SCRATCH=str(folder)))
     try:
