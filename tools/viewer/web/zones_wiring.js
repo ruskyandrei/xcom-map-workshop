@@ -19,10 +19,12 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { LEVEL, TILE } from './constants.js';
+import { projectsAvailable } from './document_session.js';
 import { onHub, runHub } from './edit_hub.js';
 import { builderMode, cleared, data, effectsOn, landingZones, lightsOn, pickedZone, pieces, placing, project, roots,
          selected, setEffectsDirty, setLandingZones, setMergedBuildings, setPickedZone, setZonePlacing, setZonesOn,
          spawnsOn, stage, volumesOn, zonePlacing, zonesOn } from './editor_state.js';
+import { tileCorner } from './map_grid.js';
 import { zoneServes } from './missions.js';
 import { uuid } from './project.js';
 import { showMapMenu } from './scene_start.js';
@@ -34,9 +36,9 @@ import { gameToView } from './handles.js';
 
 export function createZonesWiring({ $, banner, camera, controls, editChanged, flashHint, floorStays, gizmo,
                                    groundHeight, headerMission, isLanding, landHere, LANDING_SHOWN, landingLayer,
-                                   lightButton, ownSize, projectChanged, projectsAvailable, rayAt, renderer,
-                                   restingHint, select, setEffectsShown, setLightsShown, setSpawnsShown,
-                                   setVolumesShown, stopPickBox, tileCorner, world, zonesNow }) {
+                                   lightButton, ownSize, projectChanged, rayAt, renderer, restingHint, select,
+                                   setEffectsShown, setLightsShown, setSpawnsShown, setVolumesShown, stopPickBox,
+                                   world, zonesNow }) {
   // ---------------------------------------------------------------- landing zones (Clear map plan, section 4)
   // Each zone drawn as its footprint: the evac zone's box (faint), the six soldier points as dots, an arrow the way the
   // squad faces, its number, and for a zone that is one of the map's own landings the grounded Skyranger's outline. A

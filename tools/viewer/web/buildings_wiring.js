@@ -31,6 +31,7 @@
 // hits) is editor_state.js's.
 import * as THREE from 'three';
 import { LEVEL, TILE } from './constants.js';
+import { projectsAvailable } from './document_session.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
 import { allRoots, boxesShown, builderMode, buildingMeta, buildings, buildingsVersion, cleared, data, effectRoots,
          effectsOn, hintTimer, lightRoots, lightsOn, lightsShown, mergedBuildings, ownPicked, ownSet, pickBox,
@@ -45,19 +46,19 @@ import { scaleMarker } from './lights_view.js';
 import { PREFAB_MAX_Z, PREFAB_MIN_Z } from './prefab_document.js';
 import { BUILDING_FLOORS_MAX, BUILDING_SAME, mapBuildingId, targetKey, tidyBuilding,
          validBuilding } from './project.js';
+import { selectionWords } from './selection.js';
 import { boxWords } from './spawns_view.js';
 import { plural, short, text } from './dom_words.js';
 import { isStream } from './piece_records.js';
-import { gameToView } from './handles.js';
+import { gameToView, HANDLE_PICK } from './handles.js';
 
 export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenStorey, copySelection, deleteSelection,
                                         editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
                                         editSpawnCopy, effectsShown, effectViewOnly, flashHint, floorOptions, gizmo,
-                                        HANDLE_PICK, kindButton, lightViewOnly, missionGizmo, pick, projectListings,
-                                        projector, projectsAvailable, rayAt, renderer, restingHint, select,
-                                        selectionWords, setEffectsShown, setZonesShown, showPop, spawnBoxNow,
-                                        spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights, volumeLayer,
-                                        world }) {
+                                        kindButton, lightViewOnly, missionGizmo, pick, projectListings, projector,
+                                        rayAt, renderer, restingHint, select, setEffectsShown, setZonesShown, showPop,
+                                        spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, syncLights,
+                                        volumeLayer, world }) {
   // allBuildings is what the floors code reads: the map's as exported where unchanged (their saved listings), the
   // project's and the changed ones of the map by their boxes (worked out once for each state of the buildings:
   // mergedBuildings, editor_state.js).

@@ -15,15 +15,16 @@ import { areaBindings, buildingMeta, cleared, clearKeepsOutside, effectRoots, gr
          setCleared, setClearKeepsOutside, setGroups, setLandingZones, setLightsDirty, setMergedBuildings, setPickedZone,
          setProjectMissions, setProjectSpawnRules, stage, volumesOn } from './editor_state.js';
 import { runHub } from './edit_hub.js';
+import { cloneGroups } from './groups.js';
 import { cloneBlasts, isStream } from './piece_records.js';
+import { selectionWords } from './selection.js';
 import { plural } from './dom_words.js';
 
 export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, baseMatrix, busy, BUSY_PIECES,
-                                    clearedChanged, cloneGroups, copyable, deleteVolumes, drawBroken, effectViewOnly,
-                                    flashHint, gizmo, liveVolumes, mapEdits, mapRestoreChange, nextFrame,
-                                    removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged,
-                                    selectedBoxes, selectionWords, setLightValues, setMissionMoves, setStage,
-                                    syncSpawnRule, valuesEdited }) {
+                                    clearedChanged, copyable, deleteVolumes, drawBroken, effectViewOnly, flashHint,
+                                    gizmo, liveVolumes, mapEdits, mapRestoreChange, nextFrame, removeEffectRoots,
+                                    removeLightRoots, removeRoots, restingHint, sceneChanged, selectedBoxes,
+                                    setLightValues, setMissionMoves, setStage, syncSpawnRule, valuesEdited }) {
   // Delete: an added piece goes; an original is hidden (and returns with undo or Reset all).
   // A step that touches many pieces (BUSY_PIECES or more) puts the busy mark up first, so the page says what it is
   // doing instead of standing still (plan "faster editor", L3); a small one runs at once.

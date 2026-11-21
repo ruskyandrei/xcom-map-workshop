@@ -650,8 +650,8 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
         stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
         zoneSoldiers, zoneState } = createZonesWiring({
   $, banner, camera, controls, editChanged, flashHint, floorStays, gizmo, groundHeight, headerMission,
-  isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, projectChanged, projectsAvailable, rayAt, renderer,
-  restingHint, setEffectsShown, setLightsShown, setSpawnsShown, tileCorner, world, zonesNow,
+  isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, projectChanged, rayAt, renderer, restingHint,
+  setEffectsShown, setLightsShown, setSpawnsShown, world, zonesNow,
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
   setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
@@ -666,9 +666,9 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
         takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint,
         volumePanel } = createBuildingsWiring({
   $, boxOf, builderBounds, camera, chosenStorey, editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
-  editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, HANDLE_PICK, lightViewOnly, missionGizmo, pick,
-  projectListings, projector, projectsAvailable, rayAt, renderer, restingHint, selectionWords, setEffectsShown,
-  setZonesShown, showPop, spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow, volumeLayer, world,
+  editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, lightViewOnly, missionGizmo, pick, projectListings,
+  projector, rayAt, renderer, restingHint, setEffectsShown, setZonesShown, showPop, spawnBoxNow, spawnEntry,
+  spawnMovable, spawnsShown, storeysNow, volumeLayer, world,
   // (made with the selection and the views' switching, just below: called through, since they are not made yet while
   // this runs)
   select: (id, add, keep) => select(id, add, keep), syncLights: () => syncLights(),
@@ -775,10 +775,10 @@ const { breakAt, breakRow, drawBroken, mapBreakable, startBreak, stopBreak } = c
 // Reset all, each one undo step; made after the factories whose functions they call (nothing of them runs as
 // the page loads).
 const { deleteNow, deleteSelection, resetAll, resetSelected, undoStep } = createDeleteReset({
-  addEffectRoots, addLightRoots, addRoots, baseMatrix, busy, BUSY_PIECES, clearedChanged, cloneGroups, copyable,
-  deleteVolumes, drawBroken, effectViewOnly, flashHint, gizmo, liveVolumes, mapEdits, mapRestoreChange, nextFrame,
-  removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged, selectedBoxes, selectionWords,
-  setLightValues, setMissionMoves, setStage, syncSpawnRule, valuesEdited });
+  addEffectRoots, addLightRoots, addRoots, baseMatrix, busy, BUSY_PIECES, clearedChanged, copyable, deleteVolumes,
+  drawBroken, effectViewOnly, flashHint, gizmo, liveVolumes, mapEdits, mapRestoreChange, nextFrame, removeEffectRoots,
+  removeLightRoots, removeRoots, restingHint, sceneChanged, selectedBoxes, setLightValues, setMissionMoves, setStage,
+  syncSpawnRule, valuesEdited });
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 // The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
 // the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.
