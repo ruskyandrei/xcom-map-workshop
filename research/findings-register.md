@@ -3151,6 +3151,41 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
 - **Known gap**: with the budget off the game's textures all stay mapped in its 32-bit address space; a long
   session might run out of it. Not seen in runs of a few minutes.
 
+### T-50: Two near-black made ground blocks' relight previews moved up to 29/255 with the DXT1 reading; no stored texel did
+**Accepted** (21 November 2026, measured offline; no code change, by the editor follow-ups' decision D2).
+- **What**: the editor refactor's final checks compared the made-ground real baked Build (EXP-77's project on URB_Bar)
+  with the refactor's start: 181 of 214 relit images moved, all within 6/255 but two `Ground_block_1x1` blocks
+  (`XComLevelActor_482`, `483`), up to 29/255 with 274 texels over 6/255. It was bisected to the commit that made
+  `lightmap_textures` read the original bakes with `dxt1.py` in place of Pillow (a DXT1 block's two in-between palette
+  colours exact, where Pillow rounds them down to whole 255ths). The images compared are the relight's previews
+  (`<variant>-<actor>.png`: original and relit side by side, both divided by the original's 99th percentile).
+- **Measured**: the ground Build at the follow-ups' stage R1, once as it is and once with the Pillow reading put back
+  in a scratch copy of the tools. The Pillow Build reproduces the final checks' moves exactly (181 of 214 previews,
+  largest 29/255, 274 texels over 6). Each relit component's written lightmap was decoded to light (the flat light
+  the relight reports, summed over R, G and B, in the codec's linear units). The scale is URB_Bar's median lit level:
+  the median of the covered texels above 0.05 over its 930 texture-lightmapped components, 0.443; a 255th of it is
+  0.0017.
+  - **The two blocks** are made pieces lit from nothing (`--fresh-copy`): their written texels don't read the
+    original bake at all. Only the report's original median and the preview's scale do. Under the two readings their
+    lightmaps are byte for byte the same: the largest difference is 0. An absolute relight of the two in the built map
+    gives the Build's relit medians exactly (0.118 and 0.114); the stored texels lie within the DXT1 encoding of it
+    under either reading (median 0.0022 and 0.0028, at most 0.030 and 0.037).
+  - **Why their previews moved**: their original is the donor's cloned bake, near black, with directional values of 0
+    to 6.7/255. Pillow read 2.667, 5.333 and 6.667 as 2, 5 and 6, so the preview's scale went from 0.000147 to
+    0.000193. Both tiles moved with it: the original's up to 29/255 (123 texels over 6), and 482's relit tile on its
+    28 darkest texels (all of 483's relit tile lies above the scale).
+  - The cause the refactor's follow-ups guessed (`apply_change`'s weight near a zero original) is not it:
+    `apply_change` is used only for pieces relit as a change.
+- **Where the reading does move the light**: 8 of the 26 components the Build wrote, all pieces of the map relit as a
+  change under their original slot scale. Before the DXT1 encoding their light differs by at most 0.022 at a texel
+  (99th percentile at most 0.012). Stored, at most 0.23 at a texel (99th percentile at most 0.030), the size of
+  each Build's own encoding error (at most 0.13, 99th percentile at most 0.047): the encoder picks other endpoints
+  for a block whose texels moved a little. This is the move the DXT1 reading was accepted with; D2's floor, which
+  acts only where an original is within the codec's step of nothing, would not touch it.
+- **Fix**: none. Under D2's rule (a difference under a 255th of the median lit level changes no code) the blocks
+  stay as they are. A check that compares relit Builds by their previews magnifies a near-black original's moves;
+  the written lightmaps decoded to light are the measure.
+
 ### T-49: Furies didn't build: LWR stores the map uncompressed, and the package writers took only compressed maps
 **Fixed** (20 November 2026; built offline, not played).
 - **What**: a user's 0.6.0 build of a Furies project (`DLC2_3_Furies`: six cover blocks and two pieces' Mouse flag)
