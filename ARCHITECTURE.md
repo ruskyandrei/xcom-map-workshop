@@ -47,7 +47,9 @@ state back on the map, after taking the scene back to the map as exported (`clea
 put back (`projectNote`). A project's file, its drafts and the prefab builder's document all go through these two.
 An added thing's record (a copy of a piece, a made piece, a cover block, a light, an effect, a sound or a lens flare),
 as a project, a prefab and the prefab builder's document
-keep it, is written and read in one place, [`piece_records.js`](tools/viewer/web/piece_records.js). Build and Play in
+keep it, is written and read in one place, [`piece_records.js`](tools/viewer/web/piece_records.js), whose plain exports
+also say what a piece as the page holds it stands for: whether it is a streamed piece (`isStream`), the original it is
+or was copied from (`fromOf`) and a map's own piece's key in a project (`sourceKey`). Build and Play in
 game are [`build_play.js`](tools/viewer/web/build_play.js)'s: Build's panel and the window that follows a build to its
 end, Play's dialog and the Game menu's Installs, the header's Build and Play buttons, the test squad's line, the
 prefab builder's Test in game and the build queue's chip. What a build status or a play's answer says, in words, is
@@ -99,6 +101,11 @@ The map's buildings' records are its too, at the start of its factory: every bui
 (`allBuildings`: the map's as exported where unchanged, the project's and the map's changed ones by their boxes),
 which of the map's own can be edited, which the project changed or deleted (`mapEdits`), and what the project saves
 of them (`savedBuildings`).
+The selection is [`selection.js`](tools/viewer/web/selection.js)'s: `select` and the piece panel it fills for what is
+picked, the selected piece's marks (its highlight, a ladder's ends, its grid chip), the pieces an actor name stands
+for, and the sets the gizmo's selection gives (the pieces that can be copied or deleted, `copyable`; those Align lines
+up; the floor boxes selected with pieces; what a group can hold); what some roots are in words (`selectionWords`) and
+what a selected root is called in a list (`rootName`) are plain exports at its top.
 Switching between the views (the normal view; after a view or a Normal button's switch changed, whether lights are
 drawn and what stays selected; the views' buttons) is [`views.js`](tools/viewer/web/views.js)'s; each view's own
 switch is its module's. What every area's drag handles share (how near the mouse a handle is picked, a game point as a
@@ -196,6 +203,9 @@ the framing of a piece or the map, the arrow keys and WASD with Q and E, the loo
 to the point under the cursor, View options' camera speeds), the gizmo's buttons with the pivot and snap (kept up after
 each edit by the edit hub's `tools` refresh), and the editor's keys, each calling the area that owns what it does.
 The header's menus (one open at a time, a press elsewhere closing it) are [`popups.js`](tools/viewer/web/popups.js)'s.
+Every dialog's keyboard (Tab kept going round its controls, the focus given back when it closes) and whether a dialog
+or the made pieces' look picker is open (`modalOpen`, which the editor's keys and the windows that open from a menu ask
+before they act) are [`modal.js`](tools/viewer/web/modal.js)'s.
 The Project menu (drawn afresh as it opens, with the projects this browser opened or saved last) and the windows its
 items open (the file dialog, the project manager, Game maps, Cache everything) are
 [`project_menu.js`](tools/viewer/web/project_menu.js)'s; the windows themselves are made by app.js with their
@@ -214,6 +224,17 @@ with the view's clicks and keys held meanwhile), a long loop giving way and many
 [`busy.js`](tools/viewer/web/busy.js)'s.
 app.js's `open` starts the page: the map list read, the first run's install asked for, the map browser made, the map
 the address asks for opened (or the browser shown on it, to prepare it), and `startScene`.
+app.js itself holds only what joins the modules: the imports; the renderer, the camera and its controls, the world's
+layers and the gizmo; each module's factory made, in the order the page sets things up, given the others' functions; the
+dialogs made with their elements (the first run's setup, the file dialog, the project manager, Game maps, Cache
+everything) and the build queue's controller, given its calls to the server (`queueCall`); `open` and `startScene`; and
+the event wiring (the panels' field handlers, the pointer handlers, the draw loop). Beside them it keeps a few helpers
+that join the page's own objects to the modules: the sun's shadows asked again (`touchShadows`), the edit event's memo
+around the hub's edit run (`editChanged`, the gizmo's `onEdit`), the hub's `scene` run with the state a scene change
+sets (`sceneChanged`), the view taken without the editor's helpers for the Map picture (`grabView`, which reads the
+Effects view's likeness layer, made further down) and the made pieces' looks read as the page loads (`readLooks`, whose
+failure is told by the document session's banner, made after it); and only the state its own wiring reads (section 3,
+"The page").
 `window.viewer`, the set of hooks the browser checks drive, is made by [`test_api.js`](tools/viewer/web/test_api.js)
 (`createTestApi`) and set by `startScene` once the scene has opened.
 
@@ -379,11 +400,12 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | The cutaway, the tile grid, the Floor tiles overlay, the Floor picker's buttons | [`cutaway.js`](tools/viewer/web/cutaway.js) (`createCutaway`). What is pure about them (the visible bounds, a footprint, the tiles around it, Interior's planes, the overlay's tiles) goes in [`view_layout.js`](tools/viewer/web/view_layout.js), and a piece's listings in [`floor_listings.js`](tools/viewer/web/floor_listings.js). |
 | The building floors a piece is listed on (the project's buildings', the map's own), the key of the pieces' edits | [`floor_listings.js`](tools/viewer/web/floor_listings.js) (`createFloorListings`). The rules (`touchedFloors`, `ruleListing`, `copyFloors`, `floorAt`, `carriedListing`, `sourceFloorMatch`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests, and the Build's side in [`buildings.py`](tools/bake/buildings.py). |
 | Floor pieces, Level snap and its button, the Floor picker's floor under a point | [`level_snap.js`](tools/viewer/web/level_snap.js) (`createLevelSnap`). The floor rules (`ownedFloors`, `classifyFloors`, `floorStamps`, `buildingWithFloor`, `storeyHeight`) go in [`floors.js`](tools/viewer/web/floors.js), with their node tests. |
-| The selection: a piece, light, building's box or effect picked (or nothing), the views stepping aside for it, the piece panel filled for it (a cover block's or invisible floor's too), the selected piece's highlight, a ladder's ends and its chip, the grid chip of a piece the recipe snap holds, what some roots are in words, the pieces an actor name stands for selected and framed | [`selection.js`](tools/viewer/web/selection.js) (`createSelection`; `selectionWords` a plain export). An area's own part of the piece panel (its section shown or hidden for what is picked, its panel, a chip) is the area's module's, registered with one of the edit hub's select runs ([`edit_hub.js`](tools/viewer/web/edit_hub.js)), never called by name from `select`. |
+| The selection: a piece, light, building's box or effect picked (or nothing), the views stepping aside for it, the piece panel filled for it (a cover block's or invisible floor's too), the selected piece's highlight, a ladder's ends and its chip, the grid chip of a piece the recipe snap holds, what some roots are in words, what a selected root is called in a list, the pieces an actor name stands for selected and framed, the selection's pieces that can be copied or deleted, those Align lines up, the floor boxes selected with pieces and what a group can hold of the selection | [`selection.js`](tools/viewer/web/selection.js) (`createSelection`, which gives back `copyable`, `copyablePieces`, `selectedBoxes` and `groupables`; `selectionWords` and `rootName` plain exports). An area's own part of the piece panel (its section shown or hidden for what is picked, its panel, a chip) is the area's module's, registered with one of the edit hub's select runs ([`edit_hub.js`](tools/viewer/web/edit_hub.js)), never called by name from `select`. |
 | The piece panel's pose fields and the edit status (what has changed and whether it is saved, Undo, Redo, Reset, Reset all) after an edit | [`piece_status.js`](tools/viewer/web/piece_status.js) (`createPieceStatus`), the edit hub's `piece-status` refresh. The count of changes is [`document_state.js`](tools/viewer/web/document_state.js)'s (`changes`). |
 | The camera (framing, the keys that move and turn it, the look-drag, the wheel, the speeds), the gizmo's mode buttons, the pivot and snap, a key of the editor | [`navigation.js`](tools/viewer/web/navigation.js) (`createNavigation`). A key calls the function of the area that owns what it does, given to the factory; the help panel in `index.html` lists the keys for users. |
 | Delete, Reset piece, Reset all, a large step under the busy mark | [`delete_reset.js`](tools/viewer/web/delete_reset.js) (`createDeleteReset`). |
 | A header menu (a button with `data-pop` and its menu) | `index.html`; [`popups.js`](tools/viewer/web/popups.js) (`createPopups`) opens and closes it, and draws a menu afresh as it opens where the menu needs it. |
+| A dialog's keyboard (Tab going round its controls, its own Tab order, the focus given back), whether a dialog or the look picker is open | [`modal.js`](tools/viewer/web/modal.js): every `.modal` of `index.html` gets it once (`holdModals`); a dialog's own order is `tabOrder`; the editor's keys and windows ask `modalOpen` before they act. A dialog's own keys (Escape, its shortcuts) are its module's. |
 | The Project menu drawn as it opens, the recent projects, a window its items open (the file dialog, the project manager, Game maps, Cache everything) | [`project_menu.js`](tools/viewer/web/project_menu.js) (`createProjectMenu`). A window's own dialog is its module's ([`project_files.js`](tools/viewer/web/project_files.js), [`manager.js`](tools/viewer/web/manager.js), [`gamemaps.js`](tools/viewer/web/gamemaps.js), [`precache.js`](tools/viewer/web/precache.js)), made by app.js with its elements. |
 | The map list, the map browser's making and what choosing a map does, the Map menu's button and Change map | [`map_menu.js`](tools/viewer/web/map_menu.js) (`createMapMenu`). The browser's dialog is [`map_browser.js`](tools/viewer/web/map_browser.js); the list and the browser are kept in [`editor_state.js`](tools/viewer/web/editor_state.js) (`mapCatalogue`, `mapBrowser`). |
 | The loading overlay's words and bar, a JSON file read with its progress | [`loading.js`](tools/viewer/web/loading.js) (`createLoading`). |
@@ -398,7 +420,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | What an area keeps up after an edit, an undo or a selection (its panel or section, a button's state, a mark in the view) | Its area's module, which registers the refresh with the edit hub, [`edit_hub.js`](tools/viewer/web/edit_hub.js), as its factory is made (`onHub(run, name, refresh)`), under a name put in the hub's `RUNS` at the place in the run where it must be called (section 3, "The page"); a name with no registration fails the page's start (`checkHub`) and the hub's node test. |
 | State of the page (a module-level `let` or a collection) | The module of the one area that uses it. State several areas use: [`editor_state.js`](tools/viewer/web/editor_state.js), exported with its setter. Never app.js. |
 | A rule, a record or a sentence of the page | A pure module (no three.js, no document), with a node test in `tools/viewer/tests/<module>_test.mjs`. Examples: [`piece_records.js`](tools/viewer/web/piece_records.js), [`light_rules.js`](tools/viewer/web/light_rules.js), [`spawn_rules.js`](tools/viewer/web/spawn_rules.js), [`poserule.js`](tools/viewer/web/poserule.js). |
-| The game's grid numbers on the page | [`constants.js`](tools/viewer/web/constants.js). |
+| The game's grid numbers on the page, and the name a map's own actors begin with | [`constants.js`](tools/viewer/web/constants.js) (`TILE`, `LEVEL`, `QUARTER`; `PL`). |
 | A call to the server, from the page | [`api.js`](tools/viewer/web/api.js). |
 | A route of the server | A `handle_<area>` method of `viewer.py`'s handler that hands the request to its area's module (`handle_play` and [`play.py`](tools/viewer/play.py) are the model). |
 | Something a browser remembers | [`storage.js`](tools/viewer/web/storage.js). |
@@ -406,6 +428,7 @@ puts builds into the campaigns' rotation, beside the base map or in its place, a
 | A record of the map's export | [`export.py`](tools/viewer/export.py) or [`scene_metadata.py`](tools/viewer/scene_metadata.py), with `EXPORT_VERSION` raised. |
 | A field of the project document | [`projects.py`](tools/viewer/projects.py) and [`project.js`](tools/viewer/web/project.js), with the compiler's reading of it, and the contract in [`research/editor-contracts.md`](research/editor-contracts.md). |
 | A field of an added thing's record (a copy of a piece, a cover block, a light, an effect, a sound, a lens flare) | [`piece_records.js`](tools/viewer/web/piece_records.js): `recordOf` writes it (for every writer: a project, a prefab, the builder's document), `optionsOf` reads it (a project opened, a prefab placed, a paste), and `PIECE_FIELDS` names it; a case in [`piece_record_cases.json`](tools/viewer/tests/piece_record_cases.json) or [`piece_records_test.mjs`](tools/viewer/tests/piece_records_test.mjs). Then as for a field of the project document, and the prefab's check of a piece in [`prefabs.py`](tools/viewer/prefabs.py). |
+| What a piece as the page holds it stands for: whether it is a streamed piece, the original it is or was copied from, a map's own piece's key in a project | [`piece_records.js`](tools/viewer/web/piece_records.js) (`isStream`, `fromOf`, `sourceKey`: plain exports), with its node test ([`piece_records_test.mjs`](tools/viewer/tests/piece_records_test.mjs)). A target's key itself is [`project.js`](tools/viewer/web/project.js)'s (`targetKey`). |
 | An edit family of the compiler | A class in a module of its own in `tools/editor`, made with the `Compiler` it works for (`self.c`), with its own tables and state. It takes what it shares with the compiler from [`compiler_tables.py`](tools/editor/compiler_tables.py), never imports the compiler, and reports through the compiler's `error`, `warn` and `note`. The compiler imports it at the top and names again the tables of it that others read through the compiler. The compiler holds it as an attribute named as its module (`self.effect_edits`), and reads the family's state through it (`self.effect_edits.ops`): the state has one home. A method of the family stays on the compiler only as a one-line forwarder, and only when a test or a tool calls it there by name (`Compiler.stage`). [`spawn_edits.py`](tools/editor/spawn_edits.py) is the model; section 1 lists the others. |
 | A table or helper of the compiler that a family reads too | [`compiler_tables.py`](tools/editor/compiler_tables.py), named in its `__all__`. One only the compiler reads stays in `compiler.py`; one only a family reads goes in the family's module (the `SPAWN_*` tables in `spawn_edits.py`, the effects' in `effect_edits.py`, the `LIGHT_*` tables and `light_rule` in `light_edits.py`). |
 | A lane of the native edit | One change across the compiler's spec, `native_split` in [`native_edit.py`](tools/editor/native_edit.py), the copy tool and the Build. In the copy tool ([`native_copy.py`](tools/bake/native_copy.py)): a maker module in `tools/bake` (as [`native_effects.py`](tools/bake/native_effects.py)); the lane's field on `BuildState` and its reading in `edit_state` (with its line in `CommandLine.LANES` of [`test_native_copy.py`](tools/bake/tests/test_native_copy.py)); and a step, a function taking the `BuildState` that reads its fields and writes its results to fields the class names, called from `build` in the place the map's writes need. |
@@ -510,7 +533,8 @@ where there is one.
     boxes, each building's name and kind (`buildingMeta`), the map's own buildings selected or picked to be read, the
     view's tool and a drag under way, and box select's tool, box, drag and what it would take;
   - the made pieces' look picker (`lookPicker`, made with the Add panel's piece browser) and the eyedropper
-    (`lookPicking`), which app.js's dialogs' check, pointer handlers and draw loop, the keys and the test hooks read;
+    (`lookPicking`), which modal.js's check of an open dialog (`modalOpen`), app.js's pointer handlers and draw loop,
+    the keys and the test hooks read;
   - the Build menu's tool being drawn (`buildTool`) and the made piece being drawn (`wallDrawing`), which the made
     pieces' handles, app.js's pointer handlers, the keys and the test hooks read;
   - a made piece's handle being dragged (`wallDrag`), the opening whose handle was last touched (`wallFocus`: the
@@ -547,7 +571,9 @@ where there is one.
   call: `lineCollision ??= new Map()` is `lineCollision ?? setLineCollision(new Map())`, which sets it only when it is
   null, as before.
 
-  app.js still declares the state of the areas not yet moved out of it; new state never goes there. An assignment to
+  app.js declares only the state its own wiring reads: the sun's shadows' timer, the draw loop's clocks, the press
+  the pointer handlers share (`pointerStart`) and the Map lighting mode's `applyLighting`, which `startScene` sets; new
+  state never goes there. An assignment to
   an imported name throws only when its line runs, and no browser check runs every line: a change that moves state
   searches for any assignment to the moved names left behind.
 - A module made from many of app.js's functions (`createDocumentSession`, `createDocumentState`, `createBuildPlay`,
@@ -578,7 +604,7 @@ where there is one.
   builder's session and prefabs saved and placed are made so, after the document session; they call each other (the
   builder's save opens the Save as prefab dialog, whose Save saves the builder), so the first made is given the
   second's functions as functions that call them.
-  When part of an area's run of code stays in app.js (a helper other areas use, as `isStream` or `fromOf`; a constant
+  When part of an area's run of code stays in app.js (a helper other areas use, as `sceneChanged`; a constant
   of app.js's event wiring; a pointer listener that is app.js's pointer handlers', as the Map grid's, which write its
   `pointerStart`; a function that reads a value app.js makes further down that is not a function, as `grabView` (the
   Effects view's likeness layer)), app.js keeps those declarations where they were and makes the factory after them,
@@ -620,7 +646,9 @@ where there is one.
   functions must be called through: the scene's pieces before the gizmo, the first code given their functions; Delete
   and Reset after Break and Repair, the last factory whose functions they call; the selection after the Buildings
   view, the last factory whose functions it calls, so the eight factories made before it that are given `select`
-  (and the two given `gridNow`) are given functions that call them; the views' switching after the selection, so the
+  (and the two given `gridNow`, and the four given the sets of the selection: the groups `groupables`, Align
+  `copyablePieces`, the Lights view and prefabs saved and placed `copyable`) are given functions that call them; the
+  views' switching after the selection, so the
   five views made before it are given `syncLights` or `lightButton` as functions that call them; the loading overlay
   as soon as the words it takes
   are made, so that only the scene's pieces, made before, are given `loadingState` as a function that calls it. What is
@@ -658,9 +686,9 @@ where there is one.
   `select-chips`: the flags chip), given what it has there (the root picked, its source, the chips' row). Where an
   area's change must keep other areas up, it runs a run of its own rather than calling them by name: `scene` (app.js's
   `sceneChanged`: the cutaway, the ground grid and where made walls meet), `landing-zones` (Clear map's changes of the
-  landing zones: the zones drawn), `mission` (the header's mission picked changed with its choices: the lights drawn,
-  the spawn markers and their gizmo, the cutaway) and `snap` (navigation.js's snap setting: the selected piece's grid
-  chip). What is state (the sun's shadows asked for, the groups' pieces to be worked out again, the Effects view's
+  landing zones: the zones drawn), `clear` (a clear done or undone: the lights drawn), `mission` (the header's mission
+  picked changed with its choices: the lights drawn, the spawn markers and their gizmo, the cutaway) and `snap`
+  (navigation.js's snap setting: the selected piece's grid chip). What is state (the sun's shadows asked for, the groups' pieces to be worked out again, the Effects view's
   redraw asked) is set directly. Every name `RUNS` lists has its refresh registered: app.js's `startScene` ends with
   the hub's `checkHub`, which throws (the page says it could not open, and the browser checks see the error) when one
   has none, and the hub's node test reads the page's modules for one `onHub` of each name. The hub is its own module,
@@ -762,8 +790,9 @@ app.js's counts of `let`s and top-level functions; the two numbers are `guidelin
 - functions only in what the release ships (the modules and page files `tools/release/make_release.py` lists), and
   files among every tracked Python file and page module.
 
-The largest today are what the refactor is taking apart: app.js (every area of the page was added to it before the
-page had modules), the compiler, the copy tool's `build`, and the browser checks in one file.
+The largest today are what the refactor is taking apart: the compiler, the copy tool's `build`, and the browser checks
+in one file. app.js, which every area of the page was added to before the page had modules, is no longer among them:
+the areas have left it for modules of their own.
 
 ### What the structure test holds
 

@@ -8,23 +8,29 @@
 //   edit run keeps up, with the selection following the gizmo when a command changed it;
 // - the pieces and lights an actor name stands for, selected and framed (selectActors: a compile report's or a
 //   prefab test's actor);
-// - what some roots are, by kind, in words (selectionWords: "12 pieces, 2 lights and 1 building"), a plain export at
-//   the top, before the factory: it reads only its arguments.
+// - the selection's pieces that can be copied or deleted (copyable: hidden helpers shown for inspection left out),
+//   those Align lines up (copyablePieces), the floor boxes selected with pieces in the normal view (selectedBoxes)
+//   and what a group can hold of the selection (groupables), which the gizmo's selection gives;
+// - what some roots are, by kind, in words (selectionWords: "12 pieces, 2 lights and 1 building"), and what a
+//   selected root is called in a list (rootName), plain exports at the top, before the factory: they read only
+//   their arguments, the scene and the buildings' names.
 //
 // createSelection takes what it needs of app.js as one argument object, when app.js makes it: the gizmo, the
 // selection's highlight and ladder marks, the group chip (app.js makes it, and gives it to the groups too), the panel's
-// helpers, the pieces' boxes, poses and recipes, what can be copied and how a selection is named, the views' switches,
+// helpers, the pieces' boxes, poses and recipes, which lights and effects can only be seen, the views' switches,
 // a light's glowing piece, the effect picked, the floors a piece is listed on, the buildings, the map's size, the
 // missions' names and the landing's pieces, what a piece of another map costs and says, the flags' contract and the
 // Lights view's storage key. Its own state is inside it (the map's floor tiles as a set, and the piece panel's ladder
 // and grid chips); the selection itself (selected) is editor_state.js's.
 import { LEVEL, TILE } from './constants.js';
 import { coverWords, isBlocker, isFloor, lengthWords, sizeWords } from './cover.js';
-import { plural } from './dom_words.js';
+import { plural, short } from './dom_words.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
-import { allRoots, data, effectRoots, effectsOn, families, lightRoots, lightsOn, lightsShown, normalEffects, ownSet,
-         pickedEffect, roots, selected, setAreaShown, setEffectsDirty, setOwnPickedValue, setPickedEffect, setSelected,
-         setWallFocus, volumeRoots, volumesOn, wallFocus, zonesOn } from './editor_state.js';
+import { recordName } from './effects_rules.js';
+import { allRoots, buildingMeta, data, effectRoots, effectsOn, families, lightRoots, lightsOn, lightsShown,
+         normalEffects, ownSet, pickedEffect, roots, selected, setAreaShown, setEffectsDirty, setOwnPickedValue,
+         setPickedEffect, setSelected, setWallFocus, volumeRoots, volumesOn, wallFocus,
+         zonesOn } from './editor_state.js';
 import { placedPose } from './gizmo.js';
 import { addedFloors, ladderEnds } from './ladders.js';
 import { plan as planFlags, rawOf as flagRaw } from './piece_flags.js';
@@ -44,13 +50,29 @@ export function selectionWords(list, other = '') {
                  made && plural(made, `${n || lights ? '' : other}building`)].filter(Boolean);
   return parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0] ?? `0 ${other}pieces`;
 }
+// What a selected root is called in a list: a piece by its mesh, a light by its actor.
+export const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
+  : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
+  : short(data.meshes[r.userData.source.mesh].name));
 
-export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyable, copyText,
-                                  editChanged, field, flagContract, flagSource, flashHint, foreignCost, foreignNote,
+export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyText, editChanged,
+                                  effectViewOnly, field, flagContract, flagSource, flashHint, foreignCost, foreignNote,
                                   frame, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream, ladderMarks,
-                                  listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf,
-                                  rootName, setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short,
+                                  lightViewOnly, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE,
+                                  recipeOf, setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short,
                                   text, tileCorner }) {
+  // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
+  const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
+  // The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
+  function copyable() {
+    return gizmo.selection().filter(r => !r.userData.volume).filter(r => (r.userData.light ? !lightViewOnly(r.userData.source)
+      : r.userData.effect ? !effectViewOnly(r.userData.source, 'copy') || !effectViewOnly(r.userData.source, 'delete')
+      : !r.userData.source.hidden && !r.userData.source.environment));
+  }
+  // (Align lines up pieces only: lights and effects have no box of their own to line up)
+  const copyablePieces = () => copyable().filter(r => !r.userData.light && !r.userData.effect);
+  // What a group can hold of the selection: pieces, lights that can be edited, and the buildings picked with them.
+  const groupables = () => [...copyable(), ...selectedBoxes()];
   // add: Ctrl/Shift-click toggles the piece in the selection. keep: only refresh the panel and highlight.
   // The piece panel shows only with a selection: name and what moves with it first, source paths folded away.
   function select(id, add = false, keep = false) {
@@ -346,5 +368,6 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
   // The snap setting changed (the edit hub's snap run, edit_hub.js): the selected piece's grid chip.
   onHub('snap', 'grid', root => { refreshGrid(root); });
 
-  return { gridNow, ladderNow, refreshGrid, refreshHighlight, select, selectActors };
+  return { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshGrid, refreshHighlight, select,
+           selectActors, selectedBoxes };
 }

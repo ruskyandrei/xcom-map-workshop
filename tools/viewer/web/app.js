@@ -2,26 +2,26 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo } from './gizmo.js';
 import { createPieceBrowser } from './pieces.js';
-import { api as projectApi, targetKey, uuid } from './project.js';
+import { api as projectApi, uuid } from './project.js';
 import { createProjectDialog } from './project_files.js';
 import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
 import { createSetupDialog, setupApi } from './setup.js';
 import { viewHeight } from './effects_preview.js';
-import { recordName } from './effects_rules.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
 import { createPrefabBrowser } from './prefabs.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
-import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, buildingMeta, cachePrefix,
-         coverDrag, data, effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool,
-         groupIndex, lastLightSync, leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty,
-         lightsOn, likenessOn, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects,
-         pickBox, pickDrag, pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots, selected,
-         setActiveMapId, setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix,
-         setData, setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue,
-         setLighting, setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue,
+import { fromOf, isStream, sourceKey } from './piece_records.js';
+import { activeMapId, allRoots, areaShown, assigning, breaking, builder, builderMode, cachePrefix, coverDrag, data,
+         effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, lastLightSync,
+         leaving, levelSnap, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
+         lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects, pickBox, pickDrag,
+         pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots, selected, setActiveMapId,
+         setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setData,
+         setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue, setLighting,
+         setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue,
          setMergedBuildings, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid,
          setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setReachKey, setReachShown,
          setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnPlacing,
@@ -60,7 +60,7 @@ import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
 import { checkHub, editChangedNow, runHub } from './edit_hub.js';
-import { createSelection, selectionWords } from './selection.js';
+import { createSelection, rootName, selectionWords } from './selection.js';
 import { createViews } from './views.js';
 import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
@@ -73,14 +73,14 @@ import { createPopups } from './popups.js';
 import { createMapMenu } from './map_menu.js';
 import { createProjectMenu } from './project_menu.js';
 import { createPieceStatus } from './piece_status.js';
-import { anyModal, holdModals, releaseAfterChange } from './modal.js';
+import { holdModals, modalOpen, releaseAfterChange } from './modal.js';
 import { call } from './api.js';
 import { recall, remember } from './storage.js';
 import { copyText, field, plural, segButton, segmented, short, text } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createMapLighting } from './lighting.js';
 import { COVER_KIND } from './cover.js';
-import { TILE } from './constants.js';
+import { PL, TILE } from './constants.js';
 import { loadLooks, lookTags } from './looks.js';
 import { createLookPicker } from './look_picker.js';
 
@@ -89,8 +89,6 @@ const $ = id => document.getElementById(id);
 // (modal.js; put in first, so the build window's own key catcher doesn't keep Tab from it)
 holdModals();
 releaseAfterChange();     // (selects, tick boxes and sliders let the shortcuts work once changed: review finding 33)
-// Whether a dialog (or the look picker) is open: the editor's shortcuts take no keys then, and no other window opens.
-function modalOpen() { return anyModal() || Boolean(lookPicker?.isOpen); }
 const documentWrites = orderedWrites();
 const viewport = $('viewport');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -163,9 +161,8 @@ const helperMaterial = new THREE.MeshBasicMaterial({color:0x59d5df,wireframe:tru
 const textureLoader = new THREE.TextureLoader();
 const gltfLoader = new GLTFLoader();
 // Edits: the gizmo moves whole actors (all their components); a project keeps the edits (Ctrl+S) and the Build makes them.
-// Pieces of the packages a mission streams into the map (LWR's patches, mission objects): shown for reference, never
-// edited (a project edits the map's own pieces; the Build makes nothing of theirs).
-const isStream = o => o?.layer === 'stream';
+// (A streamed piece, isStream, the original a piece is, fromOf, and a map's own piece's key in a project, sourceKey:
+// piece_records.js.)
 // The looks made walls, slabs and ground shapes can take (custom geometry plan, M4: looks.js), read once; a project
 // opens once they are, so its pieces in a donor look are drawn in it. A read that fails isn't kept (review finding
 // 31): the banner says why, and Try again reads it again.
@@ -180,8 +177,6 @@ function readLooks() {
   });
   return ready;
 }
-// The original a piece is, or was copied from: package, level and actor (a project's key for it).
-const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level: o.layer, actor: o.actor });
 // (The map's size as the project sets it, the cleared map, its landing zones, missions, picture and spawn rules, the
 // buildings, and the install's landing lines for the map with the read a project waits for: editor_state.js.)
 // The scene's pieces (scene_pieces.js): picking, textures and materials, the meshes' and materials' loads, a
@@ -191,12 +186,13 @@ const fromOf = o => (o.added ? o.added.from : { package: o.sourcePackage, level:
 const { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
         materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, rayAt, recipeOf, removeRoots,
         templateFor, texture, track, unscaled, vertexBox } = createScenePieces({
-  camera, content, fromOf, gltfLoader, gridOrigin, isStream, pickables, renderer, textureLoader, texturePromises,
+  camera, content, fromOf, gltfLoader, gridOrigin, isStream, pickables, renderer, sourceKey, textureLoader,
+  texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
   loadingState: (message, fraction, detail) => loadingState(message, fraction, detail),
   assetUrl: url => assetUrl(url), coverVersion: (version, type) => coverVersion(version, type),
   drawBroken: root => drawBroken(root), flashHint: message => flashHint(message), isMade: o => isMade(o),
-  select: (id, add, keep) => select(id, add, keep), sourceKey: o => sourceKey(o) });
+  select: (id, add, keep) => select(id, add, keep) });
 const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: controls, roots: allRoots, baseMatrix, onEdit: editChanged,
                             // a group's lights and buildings move with it, drawn or not; a building is whole (all its boxes)
                             // outside the Buildings view, where each box is on its own
@@ -234,9 +230,9 @@ groupChip.hidden = true;
 // The Flags group of the piece panel and its chip (flags_panel.js): a piece's flags as the project has them,
 // the chip, the group's rows and a change of them (one undo step).
 const { flagContract, flagKey, flagSource, resetFlags } = createFlagsPanel({
-  $, boxOf, gizmo, isStream, plural, text, tileCorner,
-  // (made further down: called through, since they are not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep), sourceKey: o => sourceKey(o) });
+  $, boxOf, gizmo, isStream, plural, sourceKey, text, tileCorner,
+  // (made further down: called through, since it is not made yet while this runs)
+  select: (id, add, keep) => select(id, add, keep) });
 const poseInputs = ['posX','posY','posZ','rotP','rotY','rotR'].map($);
 // After any trial edit, undo or selection: the highlight, the pose fields, the tool states and the edit status.
 // Undo, redo and the "not saved" chip appear only once something has changed.
@@ -259,22 +255,6 @@ const { dragHint, flashHint, restingHint } = createHints({
 const { BUSY_PIECES, buildRoots, busy, busyPaint, busyStart, nextFrame } = createBusy({
   $, buildRoot });
 
-// What a selected root is called in a list: a piece by its mesh, a light by its actor.
-const rootName = r => (r.userData.volume ? `Floor box of ${buildingMeta.get(r.userData.volume.building)?.name || 'a building'}`
-  : r.userData.light ? short(r.userData.source.actor) : r.userData.effect ? recordName(r.userData.source, data)
-  : short(data.meshes[r.userData.source.mesh].name));
-// The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
-const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
-// The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
-function copyable() {
-  return gizmo.selection().filter(r => !r.userData.volume).filter(r => (r.userData.light ? !lightViewOnly(r.userData.source)
-    : r.userData.effect ? !effectViewOnly(r.userData.source, 'copy') || !effectViewOnly(r.userData.source, 'delete')
-    : !r.userData.source.hidden && !r.userData.source.environment));
-}
-// (Align lines up pieces only: lights and effects have no box of their own to line up)
-const copyablePieces = () => copyable().filter(r => !r.userData.light && !r.userData.effect);
-// What a group can hold of the selection: pieces, lights that can be edited, and the buildings picked with them.
-const groupables = () => [...copyable(), ...selectedBoxes()];
 function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(true); runHub('scene'); }
 // The pieces and effects of other maps read as templates (library_templates.js): their records read, a
 // piece's or an effect's template, the templates a project's records name, and what such a piece costs and
@@ -302,19 +282,20 @@ const { chosenStorey, floorData, floorSupportOf, levelButton, setLevelSnap } = c
 // piece panel's group section, and the groups changed (each change one undo step).
 const { addToGroup, changeGroups, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
         selectionGroup, ungroup } = createGroups({
-  $, flashHint, gizmo, groupables, groupChip, highlight, isStream, plural,
-  // (made with the selection, further down: called through, since it is not made yet while this runs)
-  select: (id, add, keep) => select(id, add, keep) });
+  $, flashHint, gizmo, groupChip, highlight, isStream, plural,
+  // (made with the selection, further down: called through, since they are not made yet while this runs)
+  groupables: () => groupables(), select: (id, add, keep) => select(id, add, keep) });
 
 // Align (align.js): the others of the selection lined up with a target, the piece panel's Align section and
 // its white box on the target.
 const { align, alignPanel, saveAlignPrefs } = createAlign({
-  $, copyablePieces, flashHint, gizmo, liveGroup, memberOf, plural, short, world,
+  $, flashHint, gizmo, liveGroup, memberOf, plural, short, world,
+  // (made with the selection, further down: called through, since it is not made yet while this runs)
+  copyablePieces: () => copyablePieces(),
   // (made with the clipboard, further down: called through, since it is not made yet while this runs)
   keepRecipe: (move, parts) => keepRecipe(move, parts) });
 
 // The Lights view's switches read from its storage keys (lights_wiring.js's; the view is made below).
-const PL = 'TheWorld.PersistentLevel.';
 setAreaShown(recall(AREA_SHOWN) === '1');     // (lightsShown, areaShown: editor_state.js)
 setReachShown(recall(REACH_SHOWN) === '1');   // the selected light's reach outlined (View options; off at first)
 // The drag handles' helpers (handles.js): screen positions of points in the view (projector) and how far along a line
@@ -341,7 +322,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
         setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
         withStorableCone } = createLightsWiring({
-  $, actorPose, baseMatrix, camera, copyable, copyText, editChanged, field, flashHint, gizmo, HANDLE_PICK, highlight,
+  $, actorPose, baseMatrix, camera, copyText, editChanged, field, flashHint, gizmo, HANDLE_PICK, highlight,
   isStream, ladderMarks, lightLayer, pickables, PL, plural, projector, renderer, restingHint, short, showPop,
   sun, text, world,
   // (made further down: called through, since they are not made yet while this runs)
@@ -351,7 +332,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
   // (made with Clear map, further down: called through)
   pointOutside: (x, y) => pointOutside(x, y),
   // (made with the selection, further down: called through)
-  select: (id, add, keep) => select(id, add, keep),
+  copyable: () => copyable(), select: (id, add, keep) => select(id, add, keep),
   // (made with the Spawns, Landing zones and Buildings views, further down: called through)
   setSpawnsShown: on => setSpawnsShown(on), setVolumesShown: on => setVolumesShown(on),
   setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(),
@@ -373,7 +354,6 @@ const { needsPrepare, prepareOpened, showPrepare } = createPrepare({
 // made as it loads, names its own draft, and the page deletes only that one, or a draft it showed the user and the
 // user restored or discarded (the drafts' state: editor_state.js).
 const SESSION = uuid();
-const sourceKey = o => targetKey({ package: o.sourcePackage, level: o.layer, actor: o.actor });
 // The scene to and from a document (document_state.js): the edits on screen as a project records them, and a
 // project's state put on the map.
 const { applyState, changes, editState, projectNote } = createDocumentState({
@@ -448,13 +428,13 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
 // Prefabs tab placed as a paste is.
 const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, prefabRecords, savePrefab,
         showPrefabDialog } = createPrefabPlace({
-  $, BUSY_PIECES, PL, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, copyable, effectTemplate,
+  $, BUSY_PIECES, PL, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, effectTemplate,
   flashHint, fromOf, ghostEdges, ghostLine, gltfLoader, isForeignTarget, isStream, libraryTemplate, lightPose,
   lightsBlocked, madeShape, memberOf, movedMatrix, nextFrame, physicalBox, plural, readEffectRecords,
   readLibraryRecords, recipeLight, recordId, rootName, saveBuilder, selectionGroup, short, templateFor, text, track,
   withStorableCone,
-  // (made with the selection, further down: called through, since it is not made yet while this runs)
-  gridNow: root => gridNow(root),
+  // (made with the selection, further down: called through, since they are not made yet while this runs)
+  copyable: () => copyable(), gridNow: root => gridNow(root),
   // (made with the cover blocks, the Effects view and the clipboard, further down: called through, since they are not
   // made yet while this runs)
   boxMatrix: b => boxMatrix(b), coverOf: entity => coverOf(entity),
@@ -615,8 +595,8 @@ const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight
         readLandingLines, refreshGroundGrid, refreshMissionPicker, showClearMap, showMissions, sizeNotes,
         startMissionPicker, zonesNow } = createClearMap({
   $, addLightRoots, addRoots, banner, cloneGroups, editedKey, flashHint, fromOf, gizmo, grabView, isStream,
-  lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, refreshLightVisibility,
-  removeLightRoots, removeRoots, sceneChanged, setStage, short, showPop, world,
+  lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, removeLightRoots,
+  removeRoots, sceneChanged, setStage, short, showPop, world,
   // (made further down: called through, since they are not made yet while this runs)
   allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(),
   explicitZones: () => explicitZones(), liveVolumes: () => liveVolumes(),
@@ -705,13 +685,14 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
   deleteSelection: quiet => deleteSelection(quiet),
   // (made with the cutaway, below: called through, since it is not made yet while this runs)
   floorOptions: () => floorOptions() });
-// The selection (selection.js): select and the piece panel it fills, a cover piece's too, and the selected piece's
-// marks (its highlight, its ladder's ends, its grid chip); after the Buildings view, the last factory whose functions
-// it calls (nothing of it runs as the page loads).
-const { gridNow, ladderNow, refreshHighlight, select, selectActors } = createSelection({
-  $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyable, copyText, editChanged, field, flagContract,
+// The selection (selection.js): select and the piece panel it fills, a cover piece's too, the selected piece's marks
+// (its highlight, its ladder's ends, its grid chip), and the selection's pieces that can be copied, lined up or
+// grouped; after the Buildings view, the last factory whose functions it calls (nothing of it runs as the page loads).
+const { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshHighlight, select, selectActors,
+        selectedBoxes } = createSelection({
+  $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyText, editChanged, effectViewOnly, field, flagContract,
   flagSource, flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream,
-  ladderMarks, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName,
+  ladderMarks, lightViewOnly, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf,
   setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, short, text, tileCorner,
   // (made with the camera, further down: called through, since it is not made yet while this runs)
   frame: root => frame(root) });
