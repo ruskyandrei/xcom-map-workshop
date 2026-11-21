@@ -74,7 +74,7 @@ shape.
 | `tools/upk/` | Readers and writers for the game's packages. |
 | `tools/release/` | What makes a release: the installer and zip, the guide, the release notes. |
 | `tools/lab/`, `tools/patch/`, `tools/re/`, `tools/udk/`, `unrealscript/` | The tools of the experiments: driving the game in a lab copy, patch maps made with the UDK, reading the game's executable. The editor's Build does not need them. |
-| `tools/repo/` | Checks that keep the repository free of anything personal or private, the structure test that holds the code's limits ([ARCHITECTURE.md](ARCHITECTURE.md)), and `moved_code.py`, which checks that a move of code changed nothing. |
+| `tools/repo/` | Checks that keep the repository free of anything personal or private, the structure test that holds the code's import rules and lists its sizes ([ARCHITECTURE.md](ARCHITECTURE.md)), and `moved_code.py`, which checks that a move of code changed nothing. |
 | `research/` | What was found out about the game and how: the [findings register](research/findings-register.md), the experiments (`experiments/EXP-*.md`), the [native code notes](research/native-code-notes.md) and the first [research summary](research/mission-editor-research.md). |
 | [KNOWN-BUGS.md](KNOWN-BUGS.md) | The bugs known and not fixed yet: what you see, how to work round it, and the finding behind each. |
 | [CHANGELOG.md](CHANGELOG.md) | The change ledger's index: one month file per month in `changelog/`, newest first, and one file per change since the last release in `changelog/entries/`, each with how it was checked. |
