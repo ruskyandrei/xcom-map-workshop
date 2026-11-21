@@ -13,7 +13,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parents[1] / 'viewer'))
 import compiler  # noqa: E402
 import made_edits  # noqa: E402
-from editor_fixtures import codes, compiled, made, refused, warned  # noqa: E402
+from editor_fixtures import codes, compiled, made, noted, refused, warned  # noqa: E402
 
 WALL = dict(kind='fracWall', version=5, wall=dict(free=1, x0=-20.5, x1=123.0, y0=-10.0, y1=10.0, z0=-16.0, z1=201.25,
                                                   tall='repeat', openings=[dict(x0=10.0, x1=60.5, z0=-16.0, z1=150.0)], seed=2))
@@ -110,6 +110,21 @@ class FreeFormTests(unittest.TestCase):
         for bad in (dict(faces=[1.0]), dict(roof=[1.0, 2.0]), dict(faces=[1.0, float('inf')]), [1.0, 2.0], dict(sides=[1.0, 2.0])):
             _, report = compiled([made(dict(WALL, wall=dict(WALL['wall'], mappingOrigin=bad)))])
             self.assertIn('malformed', codes(report), bad)
+
+    def test_a_mapped_surface_its_look_draws_from_an_atlas_is_noted(self):
+        # (the checked-in catalogue, tools/bake/looks.py surfaces: the subway car roof's top is the top half of its
+        # texture; the construction kit's core floor tiles, though its 88-wide donor shows half a repeat across)
+        top = dict(surfaces=dict(top=dict(mode='size', u=96.0, v=96.0)))
+        for mesh, notes in (('SubwayTrain.Meshes.SubwayCarRoof_FRACTURED', ['mapped-atlas']),
+                            ('ComKit_Meshes.Cores.Core_320FloorC_FRACTURED', [])):
+            slab = dict(SLAB, slab=dict(SLAB['slab'], look=dict(mesh=mesh, measure=1), mapping=top))
+            spec, report = compiled([made(slab)])
+            self.assertTrue(report['ok'], refused(report))
+            self.assertEqual(noted(report, 'mapped-'), notes, mesh)
+            self.assertEqual(warned(report), [], mesh)          # (a note: nothing in the game goes wrong)
+        # an unmapped surface, or one its look tiles, says nothing
+        roof = dict(SLAB, slab=dict(SLAB['slab'], look=dict(mesh='SubwayTrain.Meshes.SubwayCarRoof_FRACTURED', measure=1)))
+        self.assertEqual(noted(compiled([made(roof)])[1], 'mapped-'), [])
 
     def test_the_texture_origins_the_page_works_out_too(self):
         # (mapping_origin_cases.json, shared_cases_test.mjs: made_mapping.js mappingOrigin is the twin)

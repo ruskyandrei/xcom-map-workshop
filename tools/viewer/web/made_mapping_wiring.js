@@ -4,7 +4,8 @@
 //   as they fill: the fold is one element, put after the Look row of the section shown), showing one surface's mapping:
 //   Original, Size, Fit or Count, its repeat, offset and turn, its flips, Aligned to the world and Reset surface, each
 //   change one undo step (made_handles.js changeWall), an older piece put into the free form first (made_free.js
-//   freeRequest);
+//   freeRequest), and what the look draws there in a note (made_mapping.js textureNotes: a part of a larger texture,
+//   which a mapping repeats whole; a wall's side with no face; its faces' materials up the wall);
 // - while the fold is open, the surface picked: by a click on the picked piece, by the hit's normal (pickSurface), or
 //   Tab (stepSurface), outlined in the accent colour; editor_state.js's texturePicked says which, and every other
 //   handle steps aside meanwhile: the piece's size handles (made_handles.js) and the move and turn gizmo (held here);
@@ -21,14 +22,14 @@
 // drag are editor_state.js's (texturePicked, textureDrag: the keys, the pointer handlers, the size handles and the test
 // hooks read them).
 import * as THREE from 'three';
-import { segmented } from './dom_words.js';
+import { segmented, text } from './dom_words.js';
 import { setTextureDrag, setTexturePicked, snapMode, textureDrag, texturePicked } from './editor_state.js';
 import { HANDLE_PICK } from './handles.js';
 import { scaleMarker } from './lights_view.js';
 import { freeRequest, toolFree } from './made_free.js';
 import { framePoint, MAPPING_ROLES, mappingOrigin, mappingWords, nextSurface, patternCorner, patternPoint, sizable,
          sizedMapping, slidMapping, surfaceAt, surfaceExtent, surfaceMapping, surfaceOfNormal, surfacePlane,
-         surfaceSteps, surfaceWords, turnedMapping, withMode, withSurface, withValue } from './made_mapping.js';
+         surfaceSteps, surfaceWords, textureNotes, turnedMapping, withMode, withSurface, withValue } from './made_mapping.js';
 import { actorPose } from './scene_pieces.js';
 import { moveWords, stepsOf, stepWords } from './snap_steps.js';
 
@@ -96,6 +97,9 @@ export function createMadeMapping({ $, applyWall, applyWallSoon, camera, changeW
     const at = surfaceOf(root), s = surfaceMapping(n, at.role), off = !tool || !s;
     $('texFoldVal').textContent = mappingWords(at.role, s);
     $('texSurface').textContent = surfaceWords(kind, at);
+    // (what the look draws there: a part of a larger texture, no face on a side, several materials up a wall)
+    $('texNotes').replaceChildren();
+    for (const note of textureNotes(kind, n, at)) text($('texNotes'), 'div', note);
     $('texMode').value = s ? s.mode : 'original';
     for (const b of $('texMode').querySelectorAll('button')) b.disabled = !tool;
     // (a field being typed in keeps what is typed)

@@ -10,6 +10,8 @@
 // - a surface's mapping read and written in the numbers (surfaceMapping, withSurface, tidySurface), a mode chosen
 //   (withMode: Size first takes the look's repeat, lookRepeat; Count and Fit one by one; Original takes the surface's
 //   entry out), a field's value (withValue) and the words of the fold's shut line (mappingWords, surfaceWords);
+// - what the look draws on a surface, from its catalogue entry (lookSurface: tools/bake/looks.py surfaces, whether its
+//   texture tiles there or is a part of a larger one), and what the fold says of it (textureNotes);
 // - the rule (uv) and its inverse (patternPoint): the pattern's corner nearest a point (patternCorner), a handle's
 //   drag (slidMapping, turnedMapping, sizedMapping), in the snap setting's steps (snap_steps.js), and the offsets that
 //   keep a pattern in place when the piece's frame moves (reframed);
@@ -111,7 +113,8 @@ export function withSurface(n, role, surface) {
   return Object.keys(surfaces).length ? { ...rest, mapping: { ...(n.mapping ?? {}), surfaces } } : rest;
 }
 /** A look's repeat on a surface, [u, v] in game units: a ground look's own; a wall's or slab's catalogue entry's
- *  measured repeat of that surface when it has one; DEFAULT_REPEAT otherwise. */
+ *  measured repeat of that surface when it has one (a slab's facts' repeats, else its surfaces': a wall's faces' side
+ *  A's, else side B's); DEFAULT_REPEAT otherwise. */
 export function lookRepeat(kind, n, role) {
   const one = v => Math.round(v * 10) / 10;
   const pair = r => (Array.isArray(r) ? r : [r, r]);
@@ -120,9 +123,46 @@ export function lookRepeat(kind, n, role) {
     const r = pair(groundLookOf(n)?.repeat);
     return ok(r) ? r.map(one) : [DEFAULT_REPEAT, DEFAULT_REPEAT];
   }
-  const cat = n?.look && typeof n.look === 'object' ? catalogued(kind === 'fracWall' ? 'wall' : 'slab', n.look) : null;
-  const r = pair(cat?.facts?.repeats?.[role]?.repeat);
+  const cat = n?.look && typeof n.look === 'object' ? catalogued(CATALOGUE_KIND[kind], n.look) : null;
+  const f = lookSurface(kind, n, role);
+  const r = pair(cat?.facts?.repeats?.[role]?.repeat ?? (kind === 'fracWall' ? (f?.A ?? f?.B)?.repeat : f?.repeat));
   return ok(r) ? r.map(one) : [DEFAULT_REPEAT, DEFAULT_REPEAT];
+}
+// ---- what a look draws on a surface (its catalogue entry's surfaces, tools/bake/looks.py)
+const CATALOGUE_KIND = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' };
+/** A look's surface as its catalogue entry says the look draws it on its donor (tools/bake/looks.py surfaces): a
+ *  slab's or ground shape's { slots, repeat, share, tiles } (tiles [u, v]: whether its texture tiles along each, or
+ *  the look draws a part of a larger one there); a wall's faces' { A, B } (A its face toward +y, the fold's side 'y1';
+ *  a side null where the look has no face there, only trims); null for a look no catalogue read holds. */
+export function lookSurface(kind, n, role) {
+  const cat = n?.look && typeof n.look === 'object' ? catalogued(CATALOGUE_KIND[kind], n.look) : null;
+  return cat?.surfaces?.[role] ?? null;
+}
+// (a surface whose look draws a part of a larger texture along an axis: looks.py's rule)
+const windowed = f => Array.isArray(f?.tiles) && f.tiles.includes(false);
+/** What the fold says of the picked surface `picked` ({ role, side }) beside its fields, each a sentence ([] for
+ *  nothing): a wall's look with no face on a side (its outline there all trims, which keep their texture: the mapping
+ *  changes nothing on it); and, once the surface is mapped, a look that draws a part of a larger texture there (an
+ *  atlas: mapped, the whole texture repeats, its other parts with it) and a wall's faces drawn in several materials up
+ *  it (the pattern runs on across them, each drawing it in its own material). Nothing for a look no catalogue holds. */
+export function textureNotes(kind, n, picked) {
+  const role = picked.role, mapped = Boolean(surfaceMapping(n, role)), f = lookSurface(kind, n, role), out = [];
+  const atlas = where => `This look draws a part of a larger texture (an atlas) on ${where}: mapped, the whole texture repeats there, its other parts with it`;
+  if (!f) return out;
+  if (kind !== 'fracWall') {
+    if (mapped && windowed(f)) out.push(atlas(`its ${ROLE_WORDS[role]}`));
+    return out;
+  }
+  const here = picked.side === 'y0' ? 'B' : 'A', there = here === 'A' ? 'B' : 'A';
+  if (!f[here] && !f[there]) return ['This look has no faces, only trims, which keep their texture: the mapping changes nothing on it'];
+  if (!f[here]) out.push('This side of the look has no face, only trims, which keep their texture: the mapping takes its other side alone');
+  else if (!f[there]) out.push('The other side of this look has no face, only trims: the mapping takes this side alone');
+  if (!mapped) return out;
+  const windows = [here, there].filter(X => windowed(f[X]));
+  if (windows.length) out.push(atlas(windows.length === 2 ? 'both its faces' : windows[0] === here ? 'this face' : 'its other face'));
+  const slots = Math.max(f[here]?.slots?.length ?? 0, f[there]?.slots?.length ?? 0);
+  if (slots > 1) out.push(`Its faces draw ${slots} materials up the wall, a storey each: the pattern runs on across them, each drawing it in its own material, so a picture across the whole wall needs a look with one face material`);
+  return out;
 }
 /** The numbers with a surface's mode chosen: 'original' takes its entry out; 'size' first fills u and v with the
  *  look's repeat, 'count' and 'fit' with 1 and 1; the turn, flips, offsets and world kept; the same mode leaves it. */

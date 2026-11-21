@@ -36,6 +36,7 @@ The made pieces' other paths (the refactor's follow-ups, item 4.6), each a check
   plan's designs A and B (check_free_handles and check_texture_mapping say what each walks through)."""
 import json
 import math
+import re
 
 # the Build menu's tools (made_drawing.js BUILD_TOOLS), each kind's plain version (PLAIN_VERSION), a gap's handles
 # (walls.js openingParts)
@@ -978,6 +979,11 @@ def check_free_handles(browser, url, open_viewer):
 
 
 TEX_WALL = dict(FREE_WALL, wall=dict(FREE_WALL['wall'], openings=[]))
+# a roof in the subway car roof's look (its top the top half of its texture: an atlas, looks.py surfaces) and a wall in
+# the UFO doorway's (its outline all trims: no face either side)
+ATLAS_ROOF = dict(FREE_SLAB, slab=dict(FREE_SLAB['slab'], look=dict(mesh='SubwayTrain.Meshes.SubwayCarRoof_FRACTURED', measure=1)))
+TRIM_WALL = dict(kind='fracWall', version=5, wall=dict(free=1, x0=0, x1=384, y0=-10, y1=10, z0=0, z1=190, seed=3, openings=[],
+                                                       look=dict(mesh='AbductorExtWall.Meshes.AbductorExtAltWallDoorwayx9_FRACTURED', measure=1)))
 
 
 def surface_now(page, piece, role):
@@ -1004,11 +1010,12 @@ def check_texture_mapping(browser, url, open_viewer):
     15 under fine snap about its corner, the white dot sizes a repeat in tiles under tile snap and smoothly with snap
     off (u and v alike), each one undo step; the fields set a value exactly; Aligned to the world puts the piece's
     place in its mesh's request; Original and Reset surface take the surface's mapping out; a floor's top and
-    underside picked by clicking them, Tab back to the top, the gizmo still aside; the fold shut, the size handles and
-    the gizmo back."""
+    underside picked by clicking them, Tab back to the top, the gizmo still aside; a roof in a look drawn from a part of
+    a larger texture says so once mapped, a wall in a look of trims alone says it has no faces; the fold shut, the size
+    handles and the gizmo back."""
     errors = []
     page = open_viewer(browser, url, errors)
-    (wall, slab), _ = made_pieces(page, [TEX_WALL, FREE_SLAB])
+    (wall, slab, roof, trims), _ = made_pieces(page, [TEX_WALL, FREE_SLAB, ATLAS_ROOF, TRIM_WALL])
     page.evaluate("viewer.setSnapMode('tile')")
     page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', wall)
     page.wait_for_timeout(400)
@@ -1135,6 +1142,21 @@ def check_texture_mapping(browser, url, open_viewer):
     key(page, 'Tab')
     assert page.evaluate('viewer.texturePicked()')['role'] == 'top', page.evaluate('viewer.texturePicked()')
     assert not page.evaluate('viewer.gizmo.controls.enabled'), 'the gizmo still aside on the floor picked with the fold open'
+    assert page.locator('#texNotes').inner_text() == '', page.locator('#texNotes').inner_text()
+    # a look that draws a part of a larger texture (the subway car roof's top): a note once the surface is mapped, none
+    # in Original; a wall whose look has no face: a note before any mode
+    notes = {}
+    for piece, mode in ((roof, 'size'), (roof, 'original'), (trims, None)):
+        page.evaluate('id => viewer.select(id)', piece)
+        page.wait_for_function('id => viewer.texturePicked()?.id === id', arg=piece)
+        if mode:
+            page.locator(f'#texMode button[data-value="{mode}"]').click()
+        notes[mode] = page.locator('#texNotes').inner_text()
+    # (its top or its underside, as the camera sees it: both are halves of one texture)
+    assert re.search(r'part of a larger texture \(an atlas\) on its (top|underside): mapped, the whole texture repeats', notes['size']), notes
+    assert notes['original'] == '' and notes[None].startswith('This look has no faces, only trims'), notes
+    page.evaluate('id => viewer.select(id)', slab)
+    page.wait_for_function('id => viewer.texturePicked()?.id === id', arg=slab)
     # the fold shut: no surface picked, the size handles and the gizmo back
     page.locator('#texFold > summary').click()
     page.wait_for_function('viewer.texturePicked() === null')
