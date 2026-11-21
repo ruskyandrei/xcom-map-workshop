@@ -23,6 +23,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { LEVEL, QUARTER, TILE } from './constants.js';
+import { onHub } from './edit_hub.js';
 import { activeMapId, builderMode, data, effectsOn, families, lightsOn, missionDragView, missionIndex, missionMoves,
          missionPickValue, nextCopySerial, normalSpawns, pickedSpawn, pieces, placing, projectSpawnRules, roots,
          selected, setMissionDragView, setMissionMovesValue, setNormalSpawnsValue, setPickedSpawnValue,
@@ -757,6 +758,9 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
     }
     return out;
   }
+
+  // The mission picked changed (the edit hub's mission run, edit_hub.js): the markers and the picked one's gizmo.
+  onHub('mission', 'spawns', () => { refreshSpawnMarkers(); placeMissionGizmo(); });
 
   return { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
            editedSpawns, editSpawnCopy, loadSpawnRules, missionFloorLost, missionGizmo, missionGizmoWanted, missionKey,

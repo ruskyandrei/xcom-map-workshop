@@ -239,5 +239,9 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     if (data && !gizmo.controls.dragging && editedKey() !== cutKey) { cutaway(); if (selected) return STOP; }   // (cutaway's select ran the hub)
   });
 
+  // The scene's pieces, or the mission picked, changed (the edit hub's scene and mission runs, edit_hub.js).
+  onHub('scene', 'cutaway', () => { cutaway(); });
+  onHub('mission', 'cutaway', () => { cutaway(); });
+
   return { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions, updateTileGrid };
 }

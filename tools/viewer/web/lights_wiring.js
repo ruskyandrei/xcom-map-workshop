@@ -910,6 +910,9 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   onHub('select-sections', 'lights', root => { $('lightBox').hidden = !root?.userData.light; });
   onHub('select-light', 'lights', root => { showLight(root); });
 
+  // The mission picked changed (the edit hub's mission run, edit_hub.js): which lights are drawn.
+  onHub('mission', 'lights', () => { refreshLightVisibility(); });
+
   return { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLighting, areaOwner, assignOwner,
            buildLights, changeLight, clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear,
            hoverHandle, lightClip, lightEdited, lightEntries, lightingModes, lightPanel, lightPose, lightRecords,

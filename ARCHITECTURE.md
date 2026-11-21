@@ -653,8 +653,13 @@ where there is one.
   of the edit's run; and `select` (selection.js) runs one at each place it fills the piece panel for what is picked
   (`select-sections`: each area's section shown or hidden; `select-none`, `select-light`, `select-cover`,
   `select-piece`: the Effects view's, a light's, a cover piece's and a made or breakable piece's panels;
-  `select-chips`: the flags chip), given what it has there (the root picked, its source, the chips' row). The hub is
-  its own module, not editor_state.js, so that its node test can import it.
+  `select-chips`: the flags chip), given what it has there (the root picked, its source, the chips' row). Where an
+  area's change must keep other areas up, it runs a run of its own rather than calling them by name: `scene` (app.js's
+  `sceneChanged`: the cutaway, the ground grid and where made walls meet), `landing-zones` (Clear map's changes of the
+  landing zones: the zones drawn), `mission` (the header's mission picked changed with its choices: the lights drawn,
+  the spawn markers and their gizmo, the cutaway) and `snap` (navigation.js's snap setting: the selected piece's grid
+  chip). What is state (the sun's shadows asked for, the groups' pieces to be worked out again, the Effects view's
+  redraw asked) is set directly. The hub is its own module, not editor_state.js, so that its node test can import it.
 - As a map or a prefab opens, app.js's `startScene` calls each area's part of the scene in the order the page always
   started them, and does little else. A part keeps its place in that order when it moves into its area's module, and
   is given what `startScene` worked out before it (the streamed objects, the families' answer, the server's map list)

@@ -21,6 +21,7 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { TILE } from './constants.js';
+import { onHub } from './edit_hub.js';
 import { coverDrag, data, effectsOn, geometryCache, lightsOn, placing, rockPoint, roots, selected, setRockPoint,
          setWallDrag, setWallFocus, snapMode, spawnsOn, volumeDrag, volumesOn, wallDrag, wallDrawing, wallFocus,
          zonesOn } from './editor_state.js';
@@ -612,6 +613,9 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     restingHint(); editChanged();
     return true;
   }
+
+  // The scene's pieces changed (the edit hub's scene run, edit_hub.js): where made walls meet.
+  onHub('scene', 'joins', () => { refreshJoins(); });
 
   return { cancelPointDrag, changeWall, endWallDrag, handleWall, hoverWallHandle, isMade, isMadeGround, isMadeSlab,
            isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo, pointGizmo, refreshJoins,

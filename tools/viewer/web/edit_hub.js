@@ -40,6 +40,28 @@ export const RUNS = {
   drag: [
     'lights',        // lights_wiring.js: the lights drawn follow
   ],
+  // The scene's pieces changed (app.js's sceneChanged, after it asks for the sun's shadows again, the groups' pieces
+  // now to be worked out again and the Effects view's markers to be redrawn).
+  scene: [
+    'cutaway',       // cutaway.js: which pieces are drawn and how each is cut
+    'ground-grid',   // clear_map.js: the ground grid, drawn again if its pieces changed
+    'joins',         // made_handles.js: where made walls meet
+  ],
+  // The project's landing zones changed or were read (clear_map.js: the install's landing lines read as a map opens,
+  // a clear done or undone).
+  'landing-zones': [
+    'zones',         // zones_wiring.js: the zones drawn
+  ],
+  // The header's mission picked changed with its choices (clear_map.js's refreshMissionPicker).
+  mission: [
+    'lights',        // lights_wiring.js: which lights are drawn (the streams' among them)
+    'spawns',        // spawns_wiring.js: the markers, and the picked marker's gizmo
+    'cutaway',       // cutaway.js: the streams shown
+  ],
+  // The snap setting changed (navigation.js's setSnapMode, given the selected piece's root).
+  snap: [
+    'grid',          // selection.js: the selected piece's grid chip
+  ],
   // select's (selection.js), each where it fills the piece panel for what is picked. Each area's section of the panel
   // shown or hidden for it (given the root picked, or nothing):
   'select-sections': [

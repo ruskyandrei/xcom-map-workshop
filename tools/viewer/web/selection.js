@@ -343,5 +343,8 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
     return true;
   }
 
+  // The snap setting changed (the edit hub's snap run, edit_hub.js): the selected piece's grid chip.
+  onHub('snap', 'grid', root => { refreshGrid(root); });
+
   return { gridNow, ladderNow, refreshGrid, refreshHighlight, select, selectActors };
 }

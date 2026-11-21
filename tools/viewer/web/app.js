@@ -59,7 +59,7 @@ import { createFloorListings } from './floor_listings.js';
 import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
-import { editChangedNow } from './edit_hub.js';
+import { editChangedNow, runHub } from './edit_hub.js';
 import { createSelection, selectionWords } from './selection.js';
 import { createViews } from './views.js';
 import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
@@ -275,7 +275,7 @@ function copyable() {
 const copyablePieces = () => copyable().filter(r => !r.userData.light && !r.userData.effect);
 // What a group can hold of the selection: pieces, lights that can be edited, and the buildings picked with them.
 const groupables = () => [...copyable(), ...selectedBoxes()];
-function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(true); cutaway(); refreshGroundGrid(false); refreshJoins(); }
+function sceneChanged() { touchShadows(); setLiveCache(null); setEffectsDirty(true); runHub('scene'); }
 // The pieces and effects of other maps read as templates (library_templates.js): their records read, a
 // piece's or an effect's template, the templates a project's records name, and what such a piece costs and
 // says.
@@ -618,11 +618,10 @@ const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight
   lightViewOnly, ownSize, plural, projectChanged, projectsAvailable, refreshInstalls, refreshLightVisibility,
   removeLightRoots, removeRoots, sceneChanged, setStage, short, showPop, world,
   // (made further down: called through, since they are not made yet while this runs)
-  allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(), cutaway: () => cutaway(),
+  allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(),
   explicitZones: () => explicitZones(), liveVolumes: () => liveVolumes(),
   missionFloorLost: o => missionFloorLost(o), missionReached: o => missionReached(o),
-  placeMissionGizmo: () => placeMissionGizmo(), refreshLandingZones: () => refreshLandingZones(),
-  refreshSpawnMarkers: () => refreshSpawnMarkers(), setMissionMoves: next => setMissionMoves(next),
+  setMissionMoves: next => setMissionMoves(next),
   spawnFamilyBuilds: () => spawnFamilyBuilds(), spawnsAvailable: () => spawnsAvailable(),
   zoneSoldiers: (z, st) => zoneSoldiers(z, st), zoneState: () => zoneState() });
 
@@ -709,7 +708,7 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
 // The selection (selection.js): select and the piece panel it fills, a cover piece's too, and the selected piece's
 // marks (its highlight, its ladder's ends, its grid chip); after the Buildings view, the last factory whose functions
 // it calls (nothing of it runs as the page loads).
-const { gridNow, ladderNow, refreshGrid, refreshHighlight, select, selectActors } = createSelection({
+const { gridNow, ladderNow, refreshHighlight, select, selectActors } = createSelection({
   $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, copyable, copyText, editChanged, field, flagContract,
   flagSource, flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, isStream,
   ladderMarks, listingsNow, missionName, ownSize, pickEffect, plural, RECIPE_NOTE, recipeOf, rootName,
@@ -759,9 +758,9 @@ const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, 
 // page"). A made piece: what it is, its look's donor, its state and its changes (each one undo step), and its
 // handles and drags; the modules below are given its functions.
 const { cancelPointDrag, changeWall, endWallDrag, handleWall, hoverWallHandle, isMade, isMadeGround, isMadeSlab,
-        isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo, pointGizmo, refreshJoins,
-        releaseRockPoint, rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint,
-        wallHandlesNow, wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
+        isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo, pointGizmo, releaseRockPoint,
+        rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint, wallHandlesNow,
+        wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
   actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo, gltfLoader, HANDLE_PICK,
   libraryTemplate, movedMatrix, partsOf, pickables, plural, projector, rayAt, refreshHighlight, renderer, restingHint,
   sceneChanged, select, short, showPop, track, volumeHint, world,
@@ -1251,7 +1250,7 @@ const { frame, panCamera, setSnapMode } = createNavigation({
   editBaseSpawn, editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endVolumeDrag, endWallDrag,
   flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
   missionGizmo, modalOpen, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
-  refreshGrid, refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
+  refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
   setGridTool, setLevelSnap, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,
   showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stopBreak,
