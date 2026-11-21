@@ -1370,7 +1370,10 @@ class Compiler:
         # (a ground shape keeps to the map's tiles by its numbers, not to its donor's place: the game's ground planes
         # stand off the tile grid, scaled, and are no rule for it)
         # (a piece of a made wall or floor stands where the whole's place puts it)
-        if (made and made['kind'] == 'ground') or piece:
+        # (a free-form piece is drawn to stand anywhere at any angle: the Build seeds and rebuilds the tiles over its box
+        # and makes its fracture columns where it stands, so its template's pose rule is no rule for it)
+        free = bool(made) and made.get('version') == self.made_edits.BUILD_FREE_VERSION.get(made['kind'])             and (made.get('wall') or made.get('slab') or made.get('ground') or {}).get('free') == 1
+        if (made and made['kind'] == 'ground') or piece or free:
             pass
         elif not extra.get('assembly') and self.single_grid_rule(short(out), src, ruled, rot, where) is None:
             return
@@ -1806,6 +1809,7 @@ class Compiler:
             self.building_edits.buildings()
             self.made_edits.made_slabs_in_floors()
             self.made_edits.made_slab_cursors()
+            self.made_edits.made_tilted()
             self.mission_edits.landing_zones()
             self.mission_edits.missions_check()
             self.mission_edits.stage_outside()

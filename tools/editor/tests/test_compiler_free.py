@@ -91,6 +91,25 @@ class FreeFormTests(unittest.TestCase):
         self.assertEqual(compiler.ground_box(ramp), (0.0, 96.0, 0.0, 96.0, 0.0, 192.0))
 
 
+class TiltedTests(unittest.TestCase):
+    def test_a_tilted_or_turned_floor_builds_with_a_warning(self):
+        # (decision D6) pitched: built as drawn, warned; turned about the vertical off the quarter turns: its cursor
+        # floor is its box; on a quarter turn: nothing said
+        tilted = dict(made(SLAB), rotation=[2048, 0, 0])
+        turned = dict(made(SLAB, serial=2, at=(0, 1800, 0)), rotation=[0, 3000, 0])
+        square = dict(made(SLAB, serial=3, at=(0, 3000, 0)), rotation=[0, 16384, 0])
+        ramp = dict(made(BLOCK, name='XComLevelActor_1', serial=4, at=(0, 4200, 0)), rotation=[0, 0, 12000])
+        spec, report = compiled([tilted, turned, square, ramp])
+        self.assertTrue(report['ok'], refused(report))
+        got = [(w['code'], w['message'].split(' ')[0]) for w in report['warnings'] if w['code'] in ('made-tilted', 'slab-turned')]
+        self.assertEqual(sorted(c for c, _ in got), ['made-tilted', 'made-tilted', 'slab-turned'])
+        (ground_warning,) = [w['message'] for w in report['warnings'] if w['code'] == 'made-tilted' and 'cursor' not in w['message']]
+        self.assertIn('no cover', ground_warning)
+        self.assertEqual(len(native_made(spec)), 4)
+        # (a free-form piece is drawn to stand anywhere: its template's pose rule is not warned of)
+        self.assertNotIn('off-grid', warned(report))
+
+
 class FreeJoinTests(unittest.TestCase):
     def test_the_cases_the_page_passes_too(self):
         # (free_join_cases.json, shared_cases_test.mjs: walls.js freeWallJoins is the twin)

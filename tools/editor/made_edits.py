@@ -525,6 +525,8 @@ def overlaps_by(a, b, least):
 
 
 class MadeEdits:
+    BUILD_FREE_VERSION = BUILD_FREE_VERSION
+
     def __init__(self, compiler):
         self.c = compiler
         # the made pieces' copies the compiler's add makes (custom geometry plan), with where, for the checks run asks
@@ -809,6 +811,32 @@ class MadeEdits:
                           "floor to a tile a soldier can't stand on, so %s won't be walked on" % (
                               c['label'], HEADROOM, len(tiles), 'tile' if len(tiles) == 1 else 'tiles',
                               'it' if len(tiles) == 1 else 'they'), tiles=tiles[:12], **where)
+
+    def made_tilted(self):
+        """Made floors, roofs and ground shapes turned off the tile grid (the improvements plan, 4.6, decision D6): each
+        builds as drawn, and what is not made for it is warned of once per piece as drawn:
+        - made-tilted: pitched or rolled: its cursor floor (a floor's or roof's) is the box round it, and a floor
+          steeper than about 10 degrees gives no cover (F-81), past 45 none to stand on;
+        - slab-turned: a floor or roof turned about the vertical off the quarter turns: its cursor floor is the box round
+          it, so at its corners the cursor may land beside it."""
+        seen = set()
+        for c in self.c.copies:
+            g = c.get('generated')
+            if not g or g.get('kind') not in ('fracSlab', 'ground') or c.get('member') in seen:
+                continue
+            seen.add(c.get('member'))
+            name = c.get('whole') or c['label']
+            where = next((w for s, w in self.slabs if s is c), {})
+            pitch, yaw, roll = (round(v) for v in c['rotation'])
+            if pitch % 65536 or roll % 65536:
+                tilt = math.degrees(math.acos(max(-1.0, min(1.0, math.cos(pitch * math.tau / 65536) * math.cos(roll * math.tau / 65536)))))
+                self.c.warn('made-tilted', "%s is tilted %d degrees: it is built as drawn, but %s%s" % (
+                    name, round(tilt), "its cursor floor is the box round it, so the cursor may not land on it where it "
+                    "slopes; " if g['kind'] == 'fracSlab' else '', 'a floor steeper than about 10 degrees gives a unit on it '
+                    'no cover, and past 45 it is no floor to stand on' if tilt > 10 else 'units walk on it as on flat ground'), **where)
+            elif g['kind'] == 'fracSlab' and yaw % 16384:
+                self.c.warn('slab-turned', "%s is turned off the tile grid's quarter turns: its cursor floor is the box round it, "
+                            'so at its corners the cursor may land beside it' % name, **where)
 
     def made_slabs_in_floors(self):
         """A warning for each floor or roof made from numbers that stands in a building but counts for none of its
