@@ -14,9 +14,9 @@ import { carriedListing, copyFloors, floorAt, floorMapOf, floorsOf, LISTED_CLASS
          touchedFloors } from './floors.js';
 import { placedPose } from './gizmo.js';
 import { targetKey } from './project.js';
+import { short } from './dom_words.js';
 
-export function createFloorListings({ allBuildings, boxOf, mapEdits, mapIdOf, movedBox, originalOf, short,
-                                      vertexBox }) {
+export function createFloorListings({ allBuildings, boxOf, mapEdits, mapIdOf, movedBox, originalOf, vertexBox }) {
   // (the classes a building floor lists: floors.js LISTED_CLASSES)
   // Where the project's buildings list a piece, by the game editor's rule as the Build applies it (floors.js
   // touchedFloors and ruleListing; tools/bake/buildings.py): from the box of what is drawn of it where it stands.

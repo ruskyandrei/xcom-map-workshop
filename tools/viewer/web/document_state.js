@@ -22,6 +22,7 @@ import { areaBindings, builderMode, cleared, clearKeepsOutside, copySerial, data
 import { cloneBlasts, optionsOf, recordOf, stateOfRoot } from './piece_records.js';
 import { memberKey, pruneGroups, sortState, targetKey, validBuilding, validPicture, validPrefabMark, validStage } from './project.js';
 import { NEW_VOLUME, SPAWN_COPY_KINDS, copyEntryOf, spawnEntryOf, spawnKey } from './spawns_view.js';
+import { plural, short, text } from './dom_words.js';
 
 export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf, addedObject, addEffectRoots,
                                       addLightRoots, addRoots, applyEffectRecord, applyLightRecord, baseMatrix,
@@ -29,9 +30,9 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
                                       clearLightEdits, cloneGroups, coverOf, coverVersion, drawBroken, editChanged,
                                       effectEdited, effectState, gizmo, isStream, lightEdited, lightState, liveMembers,
                                       loadForeignTemplates, mapBreakable, memberOf, missionKey, missionOverrides,
-                                      movedMatrix, ownSize, plural, removeRoots, savedBuildings, sceneChanged,
-                                      setBuildings, setMissionMoves, setStage, short, sourceKey, spawnCopyRecords,
-                                      streamObjects, syncSpawnRule, templateFor, text }) {
+                                      movedMatrix, ownSize, removeRoots, savedBuildings, sceneChanged, setBuildings,
+                                      setMissionMoves, setStage, sourceKey, spawnCopyRecords, streamObjects,
+                                      syncSpawnRule, templateFor }) {
   function editStateNow() {
     const overrides = new Map(), added = new Map();     // (`added`: units while the roots are read, then their records)
     for (const root of roots.values()) {

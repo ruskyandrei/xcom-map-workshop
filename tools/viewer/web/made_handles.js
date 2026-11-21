@@ -34,12 +34,12 @@ import { blastQuery, holeWords, madeBounds, madeSlabNumbers, madeWallNumbers, mo
          openingParts, openingWords, raisedWall, resizedSlab, resizedWall, shiftedLocation, slabBounds, slabLookOf,
          slabWords, sortedOpenings, storeysOf, storeyWords, toolSlab, toolWall, WALL, WALL_LOOKS, wallJoins, wallSpec,
          wallTop, wallWords } from './walls.js';
+import { plural, short } from './dom_words.js';
 
 export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo,
                                     gltfLoader, groundPanel, HANDLE_PICK, libraryTemplate, movedMatrix, partsOf,
-                                    pickables, plural, projector, rayAt, refreshHighlight, renderer, restingHint,
-                                    sceneChanged, select, short, showPop, slabPanel, startWallDraw, track, volumeHint,
-                                    wallPanel, world }) {
+                                    pickables, projector, rayAt, refreshHighlight, renderer, restingHint, sceneChanged,
+                                    select, showPop, slabPanel, startWallDraw, track, volumeHint, wallPanel, world }) {
   // ---- made walls (custom geometry plan, stage M1; walls.js is the pure part). A look's entry in the Add panel draws a
   // wall: press on the ground at one end, drag along a tile line, release (Shift keeps drawing, Esc stops). The wall is
   // an added copy of the look's donor (a fracturing wall of the game's, this map's own or brought from its map) that

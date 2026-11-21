@@ -21,10 +21,11 @@ import { builderMode, cleared, data, floorTileLayer, landingZones, loadErrorCoun
 import { stampSignature } from './floors.js';
 import { withLocalLights } from './lighting.js';
 import { floorTilesOverlay, focusBounds, footprintOf, interiorPlanes, tileGridAround } from './view_layout.js';
+import { plural, short, text } from './dom_words.js';
 
 export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial,
-                                isStream, listingsNow, movedLandingActors, plural, rayAt, refreshPickBox, segButton,
-                                select, short, text, touchShadows, viewport, world }) {
+                                isStream, listingsNow, movedLandingActors, rayAt, refreshPickBox, segButton, select,
+                                touchShadows, viewport, world }) {
   const WHOLE_OVERHANG = 4 * TILE;    // four tiles
   // the pieces' edits the cutaway last followed (floor_listings.js's editedKey), so the edit hub runs it again only
   // when they changed

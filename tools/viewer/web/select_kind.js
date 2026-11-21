@@ -10,9 +10,10 @@
 import { onHub } from './edit_hub.js';
 import { allRoots, data, effectRoots, pickBox, pickDrag, roots } from './editor_state.js';
 import { recordName } from './effects_rules.js';
+import { plural, short } from './dom_words.js';
 
 export function createSelectKind({ $, boxOf, effectsShown, effectViewOnly, flagKey, flashHint, gizmo, isStream,
-                                   PICK_SLACK, plural, select, short, stopPickBox }) {
+                                   PICK_SLACK, select, stopPickBox }) {
   // Select all of a kind (piece flags plan, 2.4): every drawn piece with the same mesh as a picked one, by the mesh's
   // full asset path (two packages' meshes of one short name are two kinds; another map's copy of a shared asset is the
   // same kind), selected in one go; with a box drawn (box select), only those whose middle is inside it, as Select

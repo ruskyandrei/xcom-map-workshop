@@ -23,13 +23,14 @@ import { catalogued, entryForPiece, loadLooks, lookFromEntry, lookKey } from './
 import { stateOfRoot } from './piece_records.js';
 import { recall, remember } from './storage.js';
 import { openingsInLook, SLAB_LOOKS, slabLookOf, storeysInLook, WALL_LOOKS, withStoreys } from './walls.js';
+import { plural, short } from './dom_words.js';
 
 export function createMadeLooksWiring({ $, assetUrl, boundsOf, changeGroups, deleteNow, flashHint, fromOf, gizmo,
                                         gltfLoader, isMadeGround, isMadeSlab, isMadeWall, isPlain, madeRequest,
                                         madeRoot, madeShape, material, materialCache, materialKey, memberOf,
-                                        memberRecord, movedMatrix, pasteSnapshot, pick, plainLook, plural, previewGroup,
-                                        renderer, short, showPieces, startWallDrawing, stopPlacing, stopWallDrawing,
-                                        track, wallState, wallTemplate }) {
+                                        memberRecord, movedMatrix, pasteSnapshot, pick, plainLook, previewGroup,
+                                        renderer, showPieces, startWallDrawing, stopPlacing, stopWallDrawing, track,
+                                        wallState, wallTemplate }) {
   // ---- looks from any piece (custom geometry plan, M4c)
   // The look each tool draws in: a look id, or a donor look chosen in the picker (lookFromEntry's), remembered in this
   // browser. A donor look no catalogue read holds is forgotten.

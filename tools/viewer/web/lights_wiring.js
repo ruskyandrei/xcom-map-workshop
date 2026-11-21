@@ -22,7 +22,7 @@
 // switches from them as the page loads and its View options' handlers write them.
 import * as THREE from 'three';
 import { QUARTER } from './constants.js';
-import { sentence } from './dom_words.js';
+import { copyText, field, plural, sentence, short, text } from './dom_words.js';
 import { onHub } from './edit_hub.js';
 import { areaBindings, areaShown, assigning, cleared, clearKeepsOutside, copySerial, data, derivedCopies, effectRoots,
          effectsOn, families, handleDefs, hintTimer, lightDrag, lightIndex, lighting, lightRadius, lightRoots,
@@ -41,12 +41,12 @@ import { targetKey, uuid } from './project.js';
 // The Lights view's storage keys.
 export const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
 
-export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMatrix, camera, copyable, copyText,
-                                    drawEffectShape, editChanged, effectNow, effectsShown, effectValuesEditable, field,
+export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMatrix, camera, copyable,
+                                    drawEffectShape, editChanged, effectNow, effectsShown, effectValuesEditable,
                                     flashHint, gizmo, HANDLE_PICK, highlight, isStream, ladderMarks, lightLayer,
-                                    pickables, PL, plural, pointOutside, projector, renderer, restingHint, select,
+                                    pickables, PL, pointOutside, projector, renderer, restingHint, select,
                                     setEffectsShown, setEffectValues, setSpawnsShown, setVolumesShown, setZonesShown,
-                                    short, showPop, stopPickBox, sun, syncLights, text, world }) {
+                                    showPop, stopPickBox, sun, syncLights, world }) {
   // Lights (private/plans/done/editor-lights-plan.md, 4.6). Each light with a place (point and spot lights: placed, generated area,
   // toggleable, a streamed level's) is a root of its own in lightRoots: a marker, picked on screen ahead of the piece
   // behind it, moved and turned by the gizmo with pieces (allRoots), and changed in the panel's light section. A root

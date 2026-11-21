@@ -23,10 +23,12 @@ import { PREFAB_TILES, prefabStageLevels } from './prefab_document.js';
 import { createPrefabTest } from './prefab_test.js';
 import { api as projectApi, uuid } from './project.js';
 import { createSquadDialog, squadLine } from './squad.js';
+import { plural, short, text } from './dom_words.js';
 
-export function createBuildPlay({ $, bakeNote, banner, builder, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo,
-                                  headerMissions, mapLabel, needsPrepare, plural, projectsAvailable, saveProject, selectActors,
-                                  setZones, short, showFileDialog, showPop, showPrepare, showSpawn, text, zonesNow }) {
+export function createBuildPlay({ $, bakeNote, banner, builder, builderDocument, builderRecords, dirty, dragHint,
+                                  flashHint, gizmo, headerMissions, mapLabel, needsPrepare, projectsAvailable,
+                                  saveProject, selectActors, setZones, showFileDialog, showPop, showPrepare, showSpawn,
+                                  zonesNow }) {
   // Build (Ctrl+B, the header's Build): a panel first asks whether to bake the lighting (build_options.js; off by default),
   // then the open project is saved if it has unsaved changes (Save itself never builds) and the server builds the saved
   // revision (tools/viewer/builds.py runs tools/editor/build.py, with --quick when not baking): the variant package in the

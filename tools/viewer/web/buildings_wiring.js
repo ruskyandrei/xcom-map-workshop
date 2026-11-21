@@ -46,15 +46,16 @@ import { PREFAB_MAX_Z, PREFAB_MIN_Z } from './prefab_document.js';
 import { BUILDING_FLOORS_MAX, BUILDING_SAME, mapBuildingId, targetKey, tidyBuilding,
          validBuilding } from './project.js';
 import { boxWords } from './spawns_view.js';
+import { plural, short, text } from './dom_words.js';
 
 export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenStorey, copySelection, deleteSelection,
                                         editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
                                         editSpawnCopy, effectsShown, effectViewOnly, flashHint, floorOptions, gizmo,
-                                        HANDLE_PICK, isStream, kindButton, lightViewOnly, missionGizmo, pick, plural,
+                                        HANDLE_PICK, isStream, kindButton, lightViewOnly, missionGizmo, pick,
                                         projectListings, projector, projectsAvailable, rayAt, refreshSpawnMarkers,
                                         renderer, restingHint, select, selectionWords, setEffectsShown, setZonesShown,
-                                        short, showPop, spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow,
-                                        syncLights, text, volumeLayer, world }) {
+                                        showPop, spawnBoxNow, spawnEntry, spawnMovable, spawnsShown, storeysNow,
+                                        syncLights, volumeLayer, world }) {
   // allBuildings is what the floors code reads: the map's as exported where unchanged (their saved listings), the
   // project's and the changed ones of the map by their boxes (worked out once for each state of the buildings:
   // mergedBuildings, editor_state.js).

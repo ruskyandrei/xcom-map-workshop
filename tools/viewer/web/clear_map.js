@@ -38,12 +38,13 @@ import { validLandingZone } from './project.js';
 import { groundOf, ownLandings, startingZones } from './spawns.js';
 import { deletedEntry, spawnEditable, spawnKey, spawnNamed } from './spawns_view.js';
 import { recall, remember } from './storage.js';
+import { plural, short } from './dom_words.js';
 
 export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banner, clearedChanged, cloneGroups,
                                  editedKey, explicitZones, flashHint, fromOf, gizmo, grabView, isStream, lightViewOnly,
-                                 liveVolumes, missionFloorLost, missionReached, ownSize, plural, projectChanged,
+                                 liveVolumes, missionFloorLost, missionReached, ownSize, projectChanged,
                                  projectsAvailable, refreshInstalls, removeLightRoots, removeRoots, sceneChanged,
-                                 setMissionMoves, setStage, short, showPop, spawnFamilyBuilds, spawnsAvailable, world,
+                                 setMissionMoves, setStage, showPop, spawnFamilyBuilds, spawnsAvailable, world,
                                  zoneSoldiers, zoneState }) {
   // The landing zone's pieces (compiler.LANDING_PREFIXES, F-45): from the server's families, else by their archetype.
   const LANDING_PREFIXES = ['dgn_dropshipsoldierspawn.', 'veh_lv1skyranger_mod.prefabs.'];

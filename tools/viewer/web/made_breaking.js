@@ -18,9 +18,10 @@ import { onHub } from './edit_hub.js';
 import { breaking, data, roots, selected, setBreaking } from './editor_state.js';
 import { cloneBlasts } from './piece_records.js';
 import { recall, remember } from './storage.js';
+import { plural } from './dom_words.js';
 
-export function createMadeBreaking({ $, changeWall, flashHint, gizmo, isMadeSlab, isMadeWall, madeRoot, pick, plural,
-                                     renderer, select, stopLookPick, stopPlacing, stopWallDrawing, world }) {
+export function createMadeBreaking({ $, changeWall, flashHint, gizmo, isMadeSlab, isMadeWall, madeRoot, pick, renderer,
+                                     select, stopLookPick, stopPlacing, stopWallDrawing, world }) {
   // ---- Break and Repair (custom geometry editing plan, B5): blasts set off on a made wall, floor or roof, each knocking
   // out the fragments within its reach as the Build does (tools/bake/made_blasts.py), saved on the piece as blasts (D-4)
   // so they stay where they are when it is made longer, taller or in another look.

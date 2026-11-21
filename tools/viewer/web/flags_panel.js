@@ -13,13 +13,13 @@
 // boxes and keys, the tile grid's corner, the selection and the panel's helpers. Its own state is inside it (the
 // question open about a prop's pathing gate).
 import { isFloor } from './cover.js';
-import { sentence } from './dom_words.js';
+import { plural, sentence, text } from './dom_words.js';
 import { onHub } from './edit_hub.js';
 import { data, families, lightsOn, roots, selected, volumesOn, zonesOn } from './editor_state.js';
 import { lowPiece, made as madeFlags, normalize as normalizeFlags, plan as planFlags, rawOf as flagRaw,
          ROLES as FLAG_ROLES, roles as flagRoles } from './piece_flags.js';
 
-export function createFlagsPanel({ $, boxOf, gizmo, isStream, plural, select, sourceKey, text, tileCorner }) {
+export function createFlagsPanel({ $, boxOf, gizmo, isStream, select, sourceKey, tileCorner }) {
   // Piece flags (piece flags plan; piece_flags.js): the five settings of a piece that decide how the game's tiles and
   // mouse use it (Blocks walking, Gives cover, Blocks sight, Floor, Mouse picks it), edited actor by actor for the
   // pieces explicitly picked (gizmo.picks, not the linked pieces the selection moves with); one actor's components

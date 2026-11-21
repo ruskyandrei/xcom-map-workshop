@@ -23,11 +23,12 @@ import { flippedWall, holeWords, joinWords, openingPlay, openingWords, playWords
          slabLookOf, slabTiles, slabWords, sortedOpenings, steppedStoreys, storeysOf, storeyWords, toolSlab, toolWall,
          WALL, wallSpec, wallTop, wallWords, withHole, withOpening, withoutHole, withoutOpening,
          withStoreys } from './walls.js';
+import { plural, short } from './dom_words.js';
 
 export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, gizmo, handleWall, isMadeGround,
                                   isMadeSlab, isMadeWall, isPlain, liveKeys, liveMembers, lookRow, madeRoot,
-                                  madeWallRoot, openLookPicker, originalOf, plainLook, plural, selectionGroup,
-                                  setMadeLook, setWall, short, wallLookOf, wallPiecesWords, wallState }) {
+                                  madeWallRoot, openLookPicker, originalOf, plainLook, selectionGroup, setMadeLook,
+                                  setWall, wallLookOf, wallPiecesWords, wallState }) {
   // ---- the piece panel's Wall section
   function wallPanel(root) {
     const o = root.userData.source, g = o.added.generated, w = g.wall, look = wallLookOf(o), tool = toolWall(w);

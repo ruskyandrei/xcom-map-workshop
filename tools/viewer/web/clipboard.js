@@ -38,6 +38,7 @@ import { collectPieces } from './pieces.js';
 import { buildingKey, groupKey, memberKey, pruneGroups, targetKey, uuid } from './project.js';
 import { remember } from './storage.js';
 import { tileGridOf } from './view_layout.js';
+import { plural, short, text } from './dom_words.js';
 
 export function createClipboard({ $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots,
                                   addRoots, askLineCollision, assemblyOf, banner, boundsOf, buildRoots, busy,
@@ -48,11 +49,11 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
                                   isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly,
                                   liveFloorIndex, loaded, madeShape, makeVolume, materialCache, materialKey, memberOf,
                                   memberRecord, newBuildingId, nextFrame, ownerRoot, ownVolumeLayer, partsOf,
-                                  pasteVolumes, pick, plural, prefabPlacementProblem, rayAt, recipeOf,
-                                  removeEffectRoots, removeLightRoots, removeRoots, restingHint, sceneChanged,
-                                  selectionWords, setLightsShown, setNormalLights, setVolumeBox, short, spawnAddEntries,
-                                  startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopWallDrawing,
-                                  stopZonePlacing, text, tileCorner, unscaled, volumeBox, world, zoneEntries }) {
+                                  pasteVolumes, pick, prefabPlacementProblem, rayAt, recipeOf, removeEffectRoots,
+                                  removeLightRoots, removeRoots, restingHint, sceneChanged, selectionWords,
+                                  setLightsShown, setNormalLights, setVolumeBox, spawnAddEntries, startSpawnPlacing,
+                                  startZonePlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, tileCorner,
+                                  unscaled, volumeBox, world, zoneEntries }) {
   // What the selection is now (moved pieces at their moved pose), with the pivot piece's game location and a name
   // for hints.
   function snapshot(selection = gizmo.selection(), own = ownSet) {
