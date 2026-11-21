@@ -12,8 +12,11 @@ Statuses:
 
 ## Open now
 
-- F-145 (21 November, EXP-90): a made wall at a free angle (30 degrees) broke in its middle, away from the blast,
-  while the part nearest the blast stood: the columns' rule measured on square walls misplaces a turned wall's break.
+- F-145 (21 November, EXP-90): a made wall at a free angle (30 degrees) seemed to break in its middle, away from the
+  blast. Read offline the same night: its lower rows broke from its start, its top band stood where its fragments
+  start over 128 above the hit (the game's rule, as on any wall), and its columns, cut on the world's axes, broke two
+  fragments by its far corner outside the blast's square. Fixed offline (columns along the wall's own line); the game
+  rerun is open.
 - F-146, F-147 (21 November, EXP-90): a made wall standing inside a tile row takes those tiles; a tile a made floor
   covers under about a third of is no floor. Neither is warned of yet.
 
@@ -170,9 +173,10 @@ Statuses:
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
 ### F-145: The game has no wall turned off the quarter turns, so no rule of its own for a turned wall's columns
-**Open: the measured rule fails for a turned wall** (21 November 2026, offline: the wall audit,
-`research/evidence/frac-wall-audit.py`, over every map the install lists; in the game: [EXP-90](experiments/EXP-90-free-form-pieces.md)
-run 1).
+**Fixed offline: a turned wall's columns run along its own line; the game rerun is open** (21 November 2026,
+offline: the wall audit, `research/evidence/frac-wall-audit.py`, over every map the install lists; in the game:
+[EXP-90](experiments/EXP-90-free-form-pieces.md) run 1; the cause read from the built package and the exe copy the
+same night, [frac-neighbours.md](native/frac-neighbours.md) section 2.3).
 - **What**: a made wall can now stand at any angle (the custom geometry improvements plan, stage 2), and its fracture
   columns are made by the rule measured on the game's walls (`frac_walls.columns`: a tile along the wall's longer world
   axis, a storey up, the wall's whole reach across). The plan asked first whether the game's own maps hold walls at a
@@ -186,10 +190,45 @@ run 1).
   degrees. An HE grenade landed about 120 south-east of its start. Its first part, to about 160 along it and 120 to 140
   from the blast, stood; its middle, about 160 to 270 along it and 190 to 270 from the blast, broke; its corner part
   stood with the other wall. So it does not break where it is hit.
-- **Likely cause, not checked**: `frac_walls.columns` cuts a wall into columns a tile wide along its longer world axis
-  (x here) and gives each column the wall's whole reach across (y: about 190 units for this wall), so a column's box
-  stands away from its own fragments, which lie along the slant. A rule for a turned wall (columns along its own line,
-  each boxed round its own fragments) is the next step, then the same run again.
+- **Likely cause, not checked** (the run's guess): `frac_walls.columns` cuts a wall into columns a tile wide along its
+  longer world axis (x here) and gives each column the wall's whole reach across (y: about 190 units for this wall),
+  so a column's box stands away from its own fragments, which lie along the slant.
+- **The game's rule** (read from the exe copy: [frac-neighbours.md](native/frac-neighbours.md) section 2.3): the
+  grenade's splash has a radius R of 288 and a filter box of the hit plus and minus R across and 128 up and down,
+  kept 96 in from each side (plus and minus 192); the columns damaged are those whose boxes lie within R of the hit
+  and meet that box; a damaged column breaks each fragment it lists whose box reaches into the filter box's heights.
+  All of it in the world's frame.
+- **C1 as built** (`XComDecoFracLevelActor_21` of the run's package, 13 fragments, 15 columns): columns at world x
+  -1249.6 to -1249, -1249 to -1153, -1153 to -1057, -1057 to -961 and -961 to -901.5, each a storey (-193 to -1, -1 to
+  191, 191 to 383), each listing the fragments whose world box overlaps its x and boxed across them. On a slant that
+  spans much of the wall: the column at x -1057 to -961 lists fragments 1, 2, 5 and 8 to 12, from 99 to 396 along it,
+  boxed y -1400 to -1232.
+- **The blast** at (-1170.2, -1528.4, about 0): the filter square x -1362 to -978, y -1720 to -1336, heights -128 to
+  128. The columns of the two lower storeys at x up to -961 meet it (their boxes 82 to 171 from the hit); those of the
+  top storey lie over it, those past x -961 beside it. They break fragments 0 to 5 (the wall's two lower rows from its
+  start to 322 along it), 8 (172 to 264 along, the top band's, starting at 123) and 10 and 11 (the corner's two lower
+  rows, 310 to 395 along). Fragments 6 and 7 (the top band from the start to 172, starting at 148 and 149), 9 (264 to
+  345, at 136) and 12 (334 to 396, at 150) start over the filter box's top and stand. Seen from above (the run's
+  picture) that is the band standing to 172, gone from 172 to 264 and standing from 264: the run's reading of a middle
+  gone and the part nearest the blast standing. The oblique picture shows the start's band standing over the hole
+  broken under it. A hit between 4.6 under the pavement and 7.9 over it gives this; the run's matches.
+- **So**: the part nearest the blast did break, under a top band that stood as the game's own walls' upper parts do
+  (F-127). The turned wall's own fault is the columns on the world's axes: the column at x -1057 to -961 meets the
+  blast's square while fragments 10 and 11, which it lists, lie 41 and 48 beyond it (about 300 from the hit). The same
+  wall on yaw 0, the hit at the same place from its start, breaks fragments 0 to 5 and 8: 10 and 11 stand.
+- **Fix** ([frac_walls.py](../tools/bake/frac_walls.py) `turned`, `turned_columns`): a made wall turned about the
+  vertical off the quarter turns gets F0's rule in its own frame: a column a tile along its own line (counted from its
+  fragments' lowest corner less one unit, a piece's own grid), a storey of the level's grid up, listing the fragments
+  on that stretch, its box the world box round the stretch across them. A wall on a quarter turn, or tilted, keeps the
+  rule on the world's axes, byte for byte. C1 at the run's blast now breaks fragments 0 to 5 and 8, as on yaw 0
+  (`test_frac_walls.TurnedColumns`). The top band's look from above at the same blast is the game's rule and stays:
+  a rerun reads the wall from the side, or under the band (fragments 10 and 11, the corner's lower rows, now stand).
+- **Left**: a box round a slanting stretch reaches further than the stretch (a 96-long stretch of a 24-thick wall at 30
+  degrees has a box 95 by 69), so a turned wall can still break a fragment further beyond a blast's square than a
+  wall on a quarter turn (over hits round a 30-degree wall: as far as 174 against 100, in 78 of 696 hits more than
+  100, where the columns on the world's axes did in 93; offline, by the decoded rule). Columns half a tile along
+  would bring it to about 118; not made, as the game's walls all have columns a tile along. A turned floor's columns
+  (slab_columns) are still cells of the world's grid.
 
 ### F-144: A made piece needs only its own moon shadow map; the donor's leftover drew nothing of its own
 **Verified** (21 November 2026, [EXP-89](experiments/EXP-89-made-shadow-maps.md), lab copy, LWR).

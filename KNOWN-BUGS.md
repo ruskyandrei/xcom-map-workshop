@@ -100,7 +100,10 @@ line, and its finding in the [findings register](research/findings-register.md) 
   angle; no release has it yet.
 - **Workaround.** Draw walls that should break where they are hit on a quarter turn; a turned wall stands and
   blocks as drawn, only its breaking is off.
-- **Cause.** Likely, not checked: the fracture columns are cut a tile wide along the wall's longer world axis, each
-  boxed over the wall's whole reach across, so on a slant a column's box does not sit on its own fragments.
+- **Cause.** Read offline: the fracture columns were cut a tile wide along the wall's longer world axis, each listing
+  the fragments over its tile from much of the slanting wall's length, so a blast reaching a column broke fragments
+  far from it (the far corner's lower rows in the check). Most of what was seen from above is the game's own rule:
+  the part nearest the blast broke under a top band whose fragments start more than 128 over the hit, and stand.
+  Fixed offline (columns along the wall's own line); the game rerun is open.
 - **Finding.** [F-145](research/findings-register.md) ([EXP-90](research/experiments/EXP-90-free-form-pieces.md)
   run 1, check 3).

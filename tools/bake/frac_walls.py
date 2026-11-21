@@ -33,9 +33,10 @@ columns moved by move_columns), then add_walls changes it:
                      along the wall and each storey it reaches; a column lists the fragments whose box overlaps its
                      box (the tile along the wall, the storey, the wall's thickness), each with its lowest corner's
                      height (MinZ), lowest first; its box is the tile (cut to the wall's ends), the storey, and across
-                     the wall the listed fragments' boxes together. Its list of the pieces that go with it starts empty
-                     (door_columns and group_columns fill it); its neighbours' columns, by the game's rule
-                     (neighbour_columns);
+                     the wall the listed fragments' boxes together. A wall turned off the quarter turns has them by the
+                     same rule in its own frame (turned_columns: a tile along its own line, F-145). Its list of the
+                     pieces that go with it starts empty (door_columns and group_columns fill it); its neighbours'
+                     columns, by the game's rule (neighbour_columns);
   kind 'fracSlab'  dict(kind, version 1, slab: frac_slab's numbers): a floor or roof slab (custom geometry plan,
                    M5), made as a wall is (its mesh by frac_slab.build, its body setup, its component, light and shadow
                    map), on a copy of one of the game's slabs (which keeps its floor flags, bPathColliding and
@@ -372,6 +373,52 @@ def columns(frag_boxes, grid):
             box[2 * across] = min(frag_boxes[f][2 * across] for f in listed)
             box[2 * across + 1] = max(frag_boxes[f][2 * across + 1] for f in listed)
             frags = sorted(((f, frag_boxes[f][4]) for f in listed), key=lambda x: (x[1], x[0]))
+            out.append(dict(box=box, frags=frags))
+    return out
+
+
+def turned(matrix):
+    """Whether a made wall standing by the 4 x 4 `matrix` is turned about the vertical off the quarter turns: upright
+    (its own z the world's), its own x along neither world axis. Its columns are then made along its own line
+    (turned_columns); a wall on a quarter turn, or tilted, keeps F0's rule on the world's axes (columns)."""
+    m = np.asarray(matrix, float)
+    x, z = m[:3, 0], m[:3, 2]
+    upright = abs(z[0]) <= 1e-9 * abs(z[2]) and abs(z[1]) <= 1e-9 * abs(z[2])
+    return bool(upright and min(abs(x[0]), abs(x[1])) > 1e-9 * np.linalg.norm(x))
+
+
+def turned_columns(local_boxes, matrix, grid):
+    """The fragment columns of a made wall turned off the quarter turns (turned), F0's rule in the wall's own frame
+    (F-145): its fragments have the boxes `local_boxes` in its mesh's frame (frac_wall.build's) and stand by the 4 x 4
+    `matrix`. A column is a tile along the wall's own line, counted from its fragments' lowest corner along it less one
+    unit (a piece's own grid, as slab_columns counts one), by a storey of the level's grid (grid: native_copy.level_grid's
+    tz) up; it lists the fragments whose box overlaps its stretch along the wall and whose world heights overlap the
+    storey, each with its world MinZ, lowest first; its box is the world box round its stretch (cut to the wall's ends)
+    across the listed fragments' reach, at the storey's heights. Columns on the world's axes (columns) would each list
+    fragments from much of a slanting wall's length, with a box reaching places none of them stand, so a blast near
+    the box broke fragments far from it. [dict(box, frags)], along the wall then up, as columns gives."""
+    m = np.asarray(matrix, float)
+    world = [world_box(b, m) for b in local_boxes]
+    lo, hi = min(b[0] for b in local_boxes), max(b[1] for b in local_boxes)
+    anchor = lo - 1.0
+    count = max(1, int(np.ceil((hi - anchor) / TILE - 1e-6)))
+    zfirst = int(np.floor((min(w[4] for w in world) - grid['tz']) / STOREY + 1e-6))
+    zlast = int(np.ceil((max(w[5] for w in world) - grid['tz']) / STOREY - 1e-6))
+    out = []
+    for i in range(count):
+        a0, a1 = max(anchor + TILE * i, lo), min(anchor + TILE * (i + 1), hi)
+        if a1 - a0 < 1e-3:
+            continue
+        for s in range(zfirst, zlast):
+            z0, z1 = grid['tz'] + STOREY * s, grid['tz'] + STOREY * (s + 1)
+            listed = [f for f, (b, w) in enumerate(zip(local_boxes, world))
+                      if min(b[1], a1) - max(b[0], a0) > 0 and min(w[5], z1) - max(w[4], z0) > 0]
+            if not listed:
+                continue
+            across = [min(local_boxes[f][2] for f in listed), max(local_boxes[f][3] for f in listed)]
+            box = world_box([a0, a1] + across + [0.0, 0.0], m)
+            box[4:6] = [z0, z1]
+            frags = sorted(((f, world[f][4]) for f in listed), key=lambda x: (x[1], x[0]))
             out.append(dict(box=box, frags=frags))
     return out
 
@@ -1309,7 +1356,12 @@ def add_walls(g, p, items, grid, bake=True):
                                 shadowMap=shadow_record(p, shadow, sm)))
             continue
         slab = item['generated']['kind'] == 'fracSlab'
-        cols = slab_columns(boxes) if slab else columns(boxes, grid)
+        if slab:
+            cols = slab_columns(boxes)
+        elif turned(matrix):
+            cols = turned_columns([f['box'] for f in out['fragments']], matrix, grid)
+        else:
+            cols = columns(boxes, grid)
         actor = info['actor']
         e = p.exports[item['original'] - 1]
         start = legacy_props.props_start(p.data, e, p.names) - e['off']

@@ -112,6 +112,11 @@ report and the shots were read against each other.
    the outside tile by C2's end is blocked. An HE grenade landed on the pavement about 120 south-east of C1's start: C1's
    first part (to about 160 along it, 120 to 140 from the blast) stood, its middle (about 160 to 270 along it, 190 to 270
    from the blast) was gone, and its corner part stood with C2 ([F-145](../findings-register.md)).
+   Read offline afterwards (F-145, the game's blast rule read from the exe copy): the part seen standing from above is
+   C1's top band, whose fragments start over the blast's reach up (128 over the hit) except the one from 172 to 264
+   along, which went; under the band the wall's two lower rows broke from its start, and the corner's two lower
+   fragments broke too, listed in a column cut on the world's axes that met the blast's square. Fixed offline
+   (columns along a turned wall's own line); a rerun reads the wall from the side.
 4. **D, heights and a thick wall: passed.** All four stood, the 600-tall ones at their height with the look's bands
    repeated (D2) or one face over the height (D3). One HE grenade at D3's foot took the lowest storey of both D3 and D2,
    the rest of each standing over the gap, as the game's walls do (F-127); D3, one 600-tall mesh, broke like D2's two

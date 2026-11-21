@@ -81,10 +81,10 @@ match the script's order (4 bAlwaysFracture, 8 bAlwaysDestroyColumns, 0x200 bUse
 
 1. A bad index logs an error and returns.
 2. Over the column's `FragCache`, lowest first: each fragment loses `DamageAmount` health from the per-fragment
-   health array. The loop ends at the first fragment whose MinZ is over `MaxZ` (unless bAlwaysDestroyColumns; a
-   further test on a value the component returns for the fragment, and one against the filter box's heights, gate
-   it: not fully decoded). One that reaches zero is queued to break (`this+0x234`), the column is marked
-   **damaged**, and if its MinZ lies within 30 units of the column's bottom, **destroyed**.
+   health array. The loop ends at the first fragment whose MinZ is over `MaxZ` (unless bAlwaysDestroyColumns, or the
+   fragment's EW index, below, is 0 or more). A fragment whose world box lies wholly over or under the filter box's
+   heights is passed over, not damaged (section 2.3). One that reaches zero is queued to break (`this+0x234`), the
+   column is marked **damaged**, and if its MinZ lies within 30 units of the column's bottom, **destroyed**.
 3. A damaged column is added to the actor's damaged-columns list (`this+0x240`) and the actor gets
    bNeedsDamageResolution. When a fragment broke: bUseRigidBodyCollisionForCover is cleared, and when the bottom
    broke with nothing left standing there, the virtual at `+0x400` (cover debris) runs once and sets
@@ -98,6 +98,37 @@ match the script's order (4 bAlwaysFracture, 8 bAlwaysDestroyColumns, 0x200 bUse
 
 Not followed: what the damage resolution then does with the damaged-columns list (fragments hidden, tiles
 rebuilt), which is the same for a column damaged directly or through a neighbour.
+
+### 2.3 The blast's filter box, and which fragments a damaged column breaks (21 November 2026, F-145)
+
+Read from the same exe copy for EXP-90's turned wall (F-145). Every test below is in the world's frame: nothing turns
+the hit into a piece's own frame.
+
+- **The splash.** `UXComDamageType::execDealDamage` (`0x00611CA0`, the script's `XComDamageType.DealDamage`, which an
+  exploding projectile calls from `DealSplashDamage` with its weapon's `DamageRadius`) works out a radius R: the
+  event's `Radius` when `bRadialDamage`, at least 46 (`0x01870FE0`); 4 (`0x01873FCC`) otherwise. It sets the event's
+  `FilterBox` to the hit (`HitLocation`) plus and minus R across (x and y) and plus and minus 128 (`0x0186B868`) up
+  and down (R up and down for one kind of causer), `IsValid` 1, and its `Radius` to R, and sends the event to each
+  piece it reaches (`TakeSplashDamage`, its event wrapper `0x00B28490`). The HE grenade's radius is its `iRadius`,
+  288 in LWR's DefaultGameCore.ini; DamageType's `FracturedMeshRadiusMultiplier` is 1 (Engine.upk's
+  `Default__DamageType`; XComDamageType_Explosion keeps it), so ApplyDamage gets 288 too.
+- **The filter box kept.** `RecordDamageEvent` (script) keeps it as `LastFilterBox`, 96 in from each side across
+  where it is wider than two tiles: plus and minus 192 for the grenade.
+- **The columns damaged** (2.1): those whose `Bounds` lie within R of the hit (3D) and meet `LastFilterBox` (closed
+  boxes); with none, every column within R. So a grenade damages the columns that reach into a square four tiles
+  wide round where it lands, up to 128 over it.
+- **The fragments a damaged column breaks** (2.2): its fragments lowest first, passing over each whose box (the
+  mesh's fragment box under the component's LocalToWorld, `0x00E188C0`) starts at or over the filter box's top (128
+  over the hit) or ends at or under its bottom; the loop stops at a MinZ over the hit's height plus R. The test that lets
+  a fragment through regardless (`0x00CA2A90`) reads the mesh's fragment record's last field, EW's index, which the
+  game's walls and the made ones save as -1. That is the rule F-127 saw: a storey's fragments that start more than
+  128 over the hit stand over the hole broken under them.
+- **What it means for a made wall.** A column's box must lie where its fragments are: a damaged column breaks every
+  fragment it lists, wherever along the wall that fragment lies. On a quarter turn F0's columns (a tile along the
+  world's axis) are such boxes. A wall turned off the quarter turns, cut on the world's axes, had columns that each
+  listed fragments from much of its length while their boxes reached the blast's square (EXP-90's C1: a column at
+  world x -1057 to -961 listed the corner's fragments 300 from the hit); its columns are made along its own line
+  instead (`frac_walls.turned_columns`).
 
 ## 3. The lists over the maps
 

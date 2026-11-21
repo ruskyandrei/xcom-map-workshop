@@ -3,16 +3,21 @@ slab off the tiles with a hole across one, and a ground block past the old 64-ti
 URB_Bar (a quick build) and read back: each is its own mesh, the slab's collision covers its solid area round the
 hole, the block's is one box of its size; the Build's check takes the free versions (frac_walls.check)."""
 from pathlib import Path
+import struct
 import sys
 import tempfile
 import unittest
+
+import numpy as np
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
 import fixtures  # noqa: E402
 import frac_walls  # noqa: E402
+import gen_mesh  # noqa: E402
 import labpaths  # noqa: E402
+import lightmap_texels  # noqa: E402
 
 BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
 PL = 'TheWorld.PersistentLevel.'
@@ -77,6 +82,40 @@ class FreeBuild(unittest.TestCase):
         self.assertEqual(q.cls(mesh), 'FracturedStaticMesh')
         self.assertTrue(q.name(mesh).split('.')[-1].startswith('FracWall'), q.name(mesh))
         self.assertEqual(q.own(self.sec['Wall'], 'Rotation')[1], 5000)
+
+    def test_the_wall_at_a_free_angle_has_its_columns_along_its_own_line(self):
+        # (F-145) its fragments' boxes in its mesh's frame, read back, give the columns frac_walls.turned_columns makes
+        # by its pose, not the ones on the world's axes
+        import native_copy
+        q = self.q
+        actor = self.sec['Wall']
+        comp = q.own(actor, 'FracturedStaticMeshComponent')
+        lod = gen_mesh.read(q, q.own(comp, 'StaticMesh'))['lods'][0]
+        pos = np.array(lod['positions'], float)
+        points = {}
+        for s in lod['sections']:
+            for f, (first, n) in enumerate(s['fragments']):
+                points.setdefault(f, set()).update(lod['indices'][1][first:first + 3 * n])
+        local = [[v for k in range(3) for v in (pos[sorted(points[f]), k].min(), pos[sorted(points[f]), k].max())]
+                 for f in sorted(points) if points[f]]
+        matrix = lightmap_texels.world_matrix(q, comp)
+        self.assertTrue(frac_walls.turned(matrix))
+        grid = native_copy.level_grid(q)
+        want = frac_walls.turned_columns(local, matrix, grid)
+        saved = []
+        for c in q.structs(q.own(actor, 'FragmentColumns')):
+            b = struct.unpack('<6fB', c[('Bounds', 0)]['value'])
+            frags = [(it.get(('FragIndex', 0), {}).get('value', 0), it.get(('MinZ', 0), {}).get('value', 0.0))
+                     for it in q.structs(c.get(('FragCache', 0), {}).get('value'))]
+            saved.append(dict(box=[b[0], b[3], b[1], b[4], b[2], b[5]], frags=frags))
+        self.assertEqual([[f for f, _ in c['frags']] for c in saved], [[f for f, _ in c['frags']] for c in want])
+        for s, w in zip(saved, want):
+            self.assertTrue(np.allclose(s['box'], w['box'], atol=1e-3), (s['box'], w['box']))
+            self.assertTrue(np.allclose([z for _, z in s['frags']], [z for _, z in w['frags']], atol=1e-3))
+        # (the columns on the world's axes would be other boxes: tiles of the world's x, across the wall's whole reach)
+        world = [frac_walls.world_box(b, matrix) for b in local]
+        axes = frac_walls.columns(world, grid)
+        self.assertFalse(len(axes) == len(saved) and all(np.allclose(a['box'], s['box'], atol=1.0) for a, s in zip(axes, saved)))
 
     def test_the_block_is_one_box_of_its_size(self):
         q = self.q
