@@ -429,8 +429,8 @@ export function setLastClearMs(next) { lastClearMs = next; }
 export function setLandingActors(next) { landingActors = next; }
 
 // The cutaway (cutaway.js), and what of it app.js's edit hub, View options, draw loop and test hooks read or set:
-// - cutKey: the pieces' edits the cutaway last followed (app.js's editedKey), so the hub runs it again only when they
-//   changed;
+// - cutKey: the pieces' edits the cutaway last followed (floor_listings.js's editedKey), so the hub runs it again only
+//   when they changed;
 // - tileKey: what the tile grid was last drawn round, or null to draw it again (View options' grid drops it);
 // - floorTileLayer: View options' Floor tiles overlay as drawn (view_layout.js floorTilesOverlay), or null.
 export let cutKey = '', tileKey = '', floorTileLayer = null;
