@@ -59,7 +59,7 @@ import { createFloorListings } from './floor_listings.js';
 import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
-import { editChangedNow, runHub } from './edit_hub.js';
+import { checkHub, editChangedNow, runHub } from './edit_hub.js';
 import { createSelection, selectionWords } from './selection.js';
 import { createViews } from './views.js';
 import { createHandles, gameToView, HANDLE_PICK } from './handles.js';
@@ -937,6 +937,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, streamObjects, sun,
     syncSpawnFilters, takePickBox, updateTileGrid, viewPoint, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
     world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
+  // every refresh the edit hub's runs list is registered by now (edit_hub.js): a lost one fails here, not silently
+  checkHub();
 }
 
 $('statsToggle').checked = recall('workshop.stats') === '1';

@@ -109,6 +109,13 @@ export function runHub(run, ...args) {
   for (const refresh of registered.get(run)) if (refresh && refresh(...args) === STOP) return STOP;
   return undefined;
 }
+// Every name of every run has its refresh registered, or this throws, naming those that have none: app.js's startScene
+// calls it once the page has started, when every area's module is made, so a registration lost (which its run would
+// pass over without a word) fails there, where the browser checks see it.
+export function checkHub() {
+  const missing = Object.entries(RUNS).flatMap(([run, names]) => names.filter((name, k) => !registered.get(run)[k]).map(name => `${run}/${name}`));
+  if (missing.length) throw new Error(`The edit hub has no refresh registered for ${missing.join(', ')}`);
+}
 // The edit run (app.js's editChanged calls it once it has made the edit event's memo).
 export function editChangedNow() {
   runHub('edit');
