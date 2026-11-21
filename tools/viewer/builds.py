@@ -595,10 +595,9 @@ class BuildRunner:
                 # reaching pieces it didn't relight)
                 job.setdefault('warnings', []).append(line.lstrip()[len('warning: '):])
             elif line.startswith('running:'):
-                # build.py's line before each tool it starts (Build.tool): what the step shows while the tool runs; an
-                # empty one (a tool whose step says enough in its own words) leaves the label as it is
-                label = line[len('running:'):].strip()
-                if label: job['running'] = label
+                # build.py's line before each tool it starts (Build.tool): what the step shows while the tool runs, or
+                # nothing (an empty line: a tool whose step says enough in its own words)
+                job['running'] = line[len('running:'):].strip() or None
                 job['progress'] = None
 
     @staticmethod

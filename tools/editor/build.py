@@ -838,7 +838,7 @@ class Build:
     def tool(self, label, args, log):
         """Start a tool (run_tool), first saying what runs in a `running: <label>` line: the server shows the label
         on the build's step while the tool runs (tools/viewer/builds.py). None for a tool whose step says enough in
-        its own words (the line is then `running:`)."""
+        its own words: the line is then `running:`, which clears the last tool's label."""
         self.echo(('running: %s' % (label or '')).rstrip())
         self.run_tool(args, log)
 
