@@ -57,7 +57,9 @@ export const RUNS = {
   clear: [
     'lights',        // lights_wiring.js: which lights are drawn (those the clear deleted, or brought back)
   ],
-  // The header's mission picked changed with its choices (clear_map.js's refreshMissionPicker).
+  // The header's mission picked changed: picked in the header (app.js's handler of its select, after it asks for the
+  // Effects view's redraw, which none of these reads), or changed with its choices (clear_map.js's
+  // refreshMissionPicker).
   mission: [
     'lights',        // lights_wiring.js: which lights are drawn (the streams' among them)
     'spawns',        // spawns_wiring.js: the markers, and the picked marker's gizmo

@@ -955,10 +955,10 @@ $('mission').onchange = e => {
   history.replaceState(null, '', `${location.pathname}?${parameters}`);
   // a streamed piece that goes out of view leaves the selection
   if (isStream(allRoots.get(selected)?.userData.source) && !streamSet.has(allRoots.get(selected).userData.source.stream)) select(null);
-  refreshLightVisibility();
-  refreshSpawnMarkers(); placeMissionGizmo();     // (a marker of the mission before goes, with its gizmo)
   setEffectsDirty(true);     // (the Effects view shows the streams of the mission picked)
-  cutaway();
+  // the lights drawn, the spawn markers (a marker of the mission before goes, with its gizmo) and the cutaway: the edit
+  // hub's mission run (edit_hub.js)
+  runHub('mission');
 };
 segmented($('floor'), () => { cutaway(); setGhostDirty(true); restingHint(); });
 $('hideHelpers').onchange = () => cutaway();
