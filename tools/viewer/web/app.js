@@ -74,7 +74,7 @@ import { createMapMenu } from './map_menu.js';
 import { createProjectMenu } from './project_menu.js';
 import { createPieceStatus } from './piece_status.js';
 import { holdModals, modalOpen, releaseAfterChange } from './modal.js';
-import { call } from './api.js';
+import { ask, call } from './api.js';
 import { recall, remember } from './storage.js';
 import { copyText, field, plural, segButton, segmented, short, text } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -804,9 +804,9 @@ async function open() {
   setSpawnsOn(false); setPickedSpawnValue(null); setSpawnZonePick(null); setNormalSpawnsValue(recall(NORMAL_SPAWNS) === '1'); setSpawnRulesData(null);
   const parameters=new URLSearchParams(location.search);
   loadingState('Opening the map list…');
-  const mapResponse=await fetch('/maps.json');
-  if(!mapResponse.ok)throw Error('Could not load the base map list. Restart the viewer server after updating it.');
-  setMapCatalogue(await mapResponse.json());
+  const catalogue = await ask('/maps.json');
+  if (!catalogue) throw Error('Could not load the base map list. Restart the viewer server after updating it.');
+  setMapCatalogue(catalogue);
   // A first run: no game install set and nothing exported yet. Ask for the install before anything else.
   const setup = await setupApi.status(false).catch(() => null);
   if (setup) $('helpVersion').textContent = `${setup.name} ${setup.version} (preview)`;
@@ -822,7 +822,7 @@ async function open() {
   makeMapBrowser(activeMap, parameters);
   if (builderMode) {
     setData(emptyPrefabScene());
-    await startScene({ parameters, familiesAsked: fetch('/families.json').then(r => r.json()), mapName: 'Prefab' });
+    await startScene({ parameters, familiesAsked: call('GET', '/families.json'), mapName: 'Prefab' });
     return;
   }
   $('mapTitle').textContent=activeMap?.label ?? 'None';
@@ -843,7 +843,7 @@ async function open() {
   // downloading meanwhile) the rest.
   const mapName = activeMap.label;
   loadingState(`Opening ${mapName}: reading its layout…`, 0);
-  const familiesAsked = fetch(`/maps/${encodeURIComponent(activeMapId)}/families.json`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const familiesAsked = ask(`/maps/${encodeURIComponent(activeMapId)}/families.json`);
   setData(await fetchJson(cachePrefix+requestedScene, share => loadingState(`Opening ${mapName}: reading its layout…`, 0.1 * share)));
   await startScene({ parameters, familiesAsked, mapName });
 }

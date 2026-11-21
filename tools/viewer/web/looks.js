@@ -7,6 +7,7 @@
 // A made piece names its look as `look: { mesh, measure }` (a ground look's also `material`) in its request (a wall's
 // version 3, a slab's or ground shape's version 2); the copy it is made on is of the donor placing chosen (the
 // catalogue's, a library row's, or a piece picked in the view), which the Build clones.
+import { call } from './api.js';
 
 const LOOK_FILES = { wall: 'walls', slab: 'slabs', ground: 'ground' };
 // a made piece's request version once its look is named by its donor
@@ -21,15 +22,12 @@ const KIND_NOUNS = { wall: 'walls\'', slab: 'floors\' and roofs\'', ground: 'gro
 /** The kind's catalogue, read once: { kind, measure, looks: [entry], byKey: Map }. A read that fails isn't kept
  *  (review finding 31): its answer is an empty catalogue with `error` (the words to show), and the next call asks
  *  again. */
-export function loadLooks(kind, fetcher = fetch) {
+export function loadLooks(kind) {
   if (lists[kind]) return Promise.resolve(lists[kind]);
   if (!pending[kind]) {
     pending[kind] = Promise.resolve()
-      .then(() => fetcher(`/looks/${LOOK_FILES[kind]}.json`))
-      .then(async r => {
-        if (!r.ok) throw new Error(`the editor's server answered ${r.status ?? 'with an error'}`);
-        return r.json();
-      })
+      .then(() => call('GET', `/looks/${LOOK_FILES[kind]}.json`, undefined,
+                       { fallback: r => `the editor's server answered ${r.status}` }))
       .then(answer => {
         const looks = Array.isArray(answer?.looks) ? answer.looks : [];
         const byKey = new Map(looks.map(e => [lookKey(kind, e.mesh, e.material), e]));

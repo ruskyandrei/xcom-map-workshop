@@ -18,6 +18,7 @@
 // hovered handle, the pieces' boxes kept); the map's collision as read (lineCollision, lineCollisionFailed: the pieces
 // of other maps add theirs, the test hooks read it) and a handle's drag (coverDrag) are editor_state.js's.
 import * as THREE from 'three';
+import { ask } from './api.js';
 import { TILE } from './constants.js';
 import { COVER_KIND, COVER_MATERIAL, coverBox, coverFaces, coverFrame, coverGameWords, coverMaterial, coverMeshId,
          coverMeshRecord, coverScene, coverSightWords, coverStart, coverTiles, floorStart, isBlocker, isFloor,
@@ -170,7 +171,7 @@ export function createCoverWiring({ $, alongLine, camera, editChanged, gizmo, gr
     lineCollisionAsked = true;
     if (builderMode) { lineCollision ?? setLineCollision(new Map()); return; }
     // (one map per page: the answer is always the open map's)
-    fetch(`/maps/${encodeURIComponent(activeMapId)}/collision.json`).then(r => (r.ok ? r.json() : null)).catch(() => null).then(reply => {
+    ask(`/maps/${encodeURIComponent(activeMapId)}/collision.json`).then(reply => {
       lineCollision ?? setLineCollision(new Map());
       setLineCollisionFailed(!reply?.meshes);
       for (const [id, c] of Object.entries(reply?.meshes ?? {})) lineCollision.set(id, collisionMesh(c));

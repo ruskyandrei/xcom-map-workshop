@@ -7,6 +7,7 @@
 //
 // createMapMenu takes what it needs of app.js as one argument object, when app.js makes it, where mapLabel was (the
 // build window, the file dialog and the project manager are given it after): the Map menu's handlers are set then.
+import { ask } from './api.js';
 import { activeMapId, builderMode, mapBrowser, mapCatalogue, placing, setLeaving,
          setMapBrowser } from './editor_state.js';
 import { createMapBrowser } from './map_browser.js';
@@ -19,9 +20,8 @@ export function createMapMenu({ $, goTo, modalOpen, projectsAvailable, showPop, 
   async function refreshMapList() {
     if (!mapCatalogue) return;
     try {
-      const response = await fetch('/maps.json');
-      if (!response.ok) return;
-      const fresh = await response.json();
+      const fresh = await ask('/maps.json');
+      if (!fresh) return;
       for (const map of fresh.maps) {
         const mine = mapCatalogue.maps.find(m => m.id === map.id);
         if (mine) { delete mine.outdated; Object.assign(mine, map); } else mapCatalogue.maps.push(map);

@@ -5828,7 +5828,7 @@ CHECKS = (
     Check('squad-read', editing('squad_read'), 'the squad read again', full=False),
     Check('ladder-floor', editing('ladder_floor'), 'a ladder\'s floor count', full=False),
     Check('small-defects', editing('small_defects'), 'small page defects', full=False),
-    Check('grid-panel', editing('grid_panel'), 'the Map grid\'s panel beside the Selected piece panel (1280 and 1024 wide)', full=False),
+    Check('grid-panel', editing('grid_panel'), 'the Map grid\'s panel beside each right-hand panel (1280, 1024 and 800 wide)', full=False),
     Check('select-kind', editing('select_kind'), 'Select all of a kind on pieces, and their flags set together', when=ON_MAP, full=False),
     Check('flags-gate', editing('flags_gate'), 'the Flags group asks before opening a prop\'s pathing gate', when=ON_MAP, full=False),
     Check('prepare-routes', lambda c: check_prepare_routes(c.browser, c.page.url), 'Build\'s routes into Prepare, the build\'s '

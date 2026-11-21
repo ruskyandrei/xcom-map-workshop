@@ -9,7 +9,7 @@
 // look shows (looks.js lookTags). What it gives: the entry chosen (onChoose), or the eyedropper (onPick).
 
 import { lookKey } from './looks.js';
-import { hex16 } from './api.js';
+import { ask, hex16, sendPng } from './api.js';
 
 /** The pictures' size in pixels, and the version of their drawing (a better drawing replaces the old pictures). */
 export const PICTURE = { width: 512, height: 384, version: 1 };
@@ -180,8 +180,8 @@ export function createLookPicker({ prepare, tagsOf, recall, remember, hint = () 
   // -- the pictures ------------------------------------------------------------------------------------------------
   function loadKept() {
     if (kept) return Promise.resolve(kept);
-    keptLoad ??= fetch('/library/pictures.json').then(r => (r.ok ? r.json() : { pictures: [] })).catch(() => ({ pictures: [] }))
-      .then(answer => { kept = new Set(answer.pictures ?? []); keptLoad = null; return kept; });
+    keptLoad ??= ask('/library/pictures.json')
+      .then(answer => { kept = new Set(answer?.pictures ?? []); keptLoad = null; return kept; });
     return keptLoad;
   }
   // a card's sample wanted: those in view first (`now`), the rest after them
@@ -227,7 +227,7 @@ export function createLookPicker({ prepare, tagsOf, recall, remember, hint = () 
     if (ok) {
       showPicture(c, canvas);
       drawnNow++;
-      canvas.toBlob(blob => blob && fetch(`/library/pictures/${c.pk}.png`, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob })
+      canvas.toBlob(blob => blob && sendPng('PUT', `/library/pictures/${c.pk}.png`, blob)
         .then(r => { if (r.ok) { kept?.add(c.pk); progress(); } }).catch(() => {}), 'image/png');
     } else {
       // (the view too small to draw in this frame: tried again)

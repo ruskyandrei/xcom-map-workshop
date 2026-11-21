@@ -14,7 +14,7 @@
 import { pieceKind, inKind, setKindOptions, effectKind, SOFT } from './piece_categories.js';
 import { pieceRow } from './pieces.js';
 import { drawEffectIcon } from './effects_view.js';
-import { call, hex16 } from './api.js';
+import { call, hex16, sendPng } from './api.js';
 
 // What the library only holds back (SOFT, piece_categories.js: compiler.py FOREIGN_SOFT): hidden in its own map,
 // linked to other pieces, of a kind not brought before, waiting for a game test. Such a piece is placed as any other;
@@ -386,7 +386,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     making = false;
     if (canvas && (job.paintable ? paintObject(job.paintable.object, job.paintable.box, canvas) : paint(job.template, canvas))) {
       canvas.dataset.drawn = '1';
-      canvas.toBlob(blob => blob && fetch(`/library/thumbs/${k}.png`, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: blob })
+      canvas.toBlob(blob => blob && sendPng('PUT', `/library/thumbs/${k}.png`, blob)
         .then(r => { if (r.ok) kept.add(k); }).catch(() => {}), 'image/png');
       if (job.entry.effect) canvas.dataset.likeness = '1';
     } else { failed.add(job.entry.key); if (canvas && job.entry.effect) canvas.dataset.drawn = '1'; }

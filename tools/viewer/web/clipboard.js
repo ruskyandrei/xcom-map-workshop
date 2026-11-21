@@ -22,7 +22,7 @@
 // editor_state.js's.
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
-import { LEVEL, QUARTER, TILE } from './constants.js';
+import { LEVEL, PL, QUARTER, TILE } from './constants.js';
 import { isFloor } from './cover.js';
 import { allRoots, boxesShown, builderMode, buildingMeta, chooseToken, clipboard, copySerial, data, effectRoots,
          geometryCache, groupIndex, hintTimer, levelSnap, library, libraryScope, lightsShown, nextChooseToken,
@@ -392,7 +392,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     let template;
     if (!isForeignTarget({ ...entry.source, level: 'base' })) {
       // the map's own piece: a copy of it, as from This map
-      const sources = partsOf(targetKey({ package: data.name, level: 'base', actor: `TheWorld.PersistentLevel.${entry.source.actor}` }));
+      const sources = partsOf(targetKey({ package: data.name, level: 'base', actor: `${PL}${entry.source.actor}` }));
       if (!sources.length) { flashHint(`${entry.name} is not in this export of the map`); return; }
       template = { sources, pivotIndex: 0 };
     } else {

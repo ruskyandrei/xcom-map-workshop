@@ -20,7 +20,8 @@
 // editor_state.js's.
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
-import { TILE } from './constants.js';
+import { call } from './api.js';
+import { PL, TILE } from './constants.js';
 import { onHub } from './edit_hub.js';
 import { coverDrag, data, effectsOn, geometryCache, lightsOn, placing, rockPoint, roots, selected, setRockPoint,
          setWallDrag, setWallFocus, snapMode, spawnsOn, volumeDrag, volumesOn, wallDrag, wallDrawing, wallFocus,
@@ -62,7 +63,7 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   const lookWall = look => (look?.donor ? { look: look.donor } : {});
   // The look's donor as a template: this map's own piece, or the piece read from its home map (libraryTemplate).
   async function wallTemplate(look) {
-    const actor = `TheWorld.PersistentLevel.${look.actor}`;
+    const actor = `${PL}${look.actor}`;
     if (data.name?.toLowerCase() === look.package.toLowerCase()) {
       const parts = partsOf(targetKey({ package: data.name, level: 'base', actor }));
       if (!parts.length) throw Error(`${look.actor} is not in this export of the map`);
@@ -232,10 +233,10 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     const { look: _, ...shape } = madeGroundNumbers(g), key = JSON.stringify(shape), known = rockCorners.get(key);
     if (known && !known.then) return known;
     if (!known && !(performance.now() - (rockCornersFailed.get(key) ?? -Infinity) < 4000)) {
-      const asking = fetch(`/generated/ground-corners.json?${new URLSearchParams({ ground: key })}`)
-        .then(async r => {
-          const answer = await r.json().catch(() => null);
-          if (!r.ok || !answer?.points) throw new Error(answer?.error ?? `the editor's server answered ${r.status}`);
+      const asking = call('GET', `/generated/ground-corners.json?${new URLSearchParams({ ground: key })}`, undefined,
+                          { fallback: r => `the editor's server answered ${r.status}` })
+        .then(answer => {
+          if (!answer.points) throw new Error(answer.error ?? "the editor's server answered 200");
           return answer;
         })
         .then(answer => {

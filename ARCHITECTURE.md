@@ -461,7 +461,15 @@ or the path's (`recordOf(unit, 'prefab')` puts a recipe light's values before it
   from the modules' exports (the shared state and the pure modules' functions imported, each a live binding; what
   app.js's factories return given as one argument object), and its name is in the recorded list
   (`viewer_api_names.json`), so that a move that loses a hook fails the `api-names` check.
-- The server is asked through `api.js`, the browser's storage through `storage.js`.
+- The server is asked through `api.js`, the browser's storage through `storage.js`. `call` is for a request whose
+  failure is an error (it throws the server's words), `ask` for a read whose failure the page takes as none (it gives
+  null), `sendPng` for a PNG sent. What stays a plain `fetch` reads what these cannot: a picture read as a blob
+  (`map_picture.js`, `prefabs.js`), the wave's range probe (`effects_wiring.js`: one byte asked again, for the
+  server's words on a wave the browser could not play) and the scene's layout read with its progress (`loading.js`).
+  The node test `one_home_test.mjs` holds the list: a new plain `fetch` fails it until it is named there with its
+  reason, and here (follow-up 3.28). `storage.js` keeps what the browser keeps (`recall`, `remember`, `forget`) and
+  what the tab keeps while it is open (`recallSession`, `rememberSession`, `forgetSession`), each catching a storage
+  that is missing or blocked; the same test finds `localStorage` and `sessionStorage` nowhere else (follow-up 3.20).
 
 ### The compiler and the Build
 

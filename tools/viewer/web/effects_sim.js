@@ -86,7 +86,6 @@ export function sample(dist, time, rand, params) {
 // what a module does when a particle is born (b) and each step (u); p: the particle's index, s: the emitter's state
 const num = (v, d) => (typeof v === 'number' ? v : Array.isArray(v) ? v[0] : d);
 const vec = (v, d) => (Array.isArray(v) ? v : typeof v === 'number' ? [v, v, v] : d);
-const sign = (rand, pos, neg) => (pos !== false && neg !== false ? (rand() < 0.5 ? -1 : 1) : pos !== false ? 1 : neg !== false ? -1 : 0);
 
 const BIRTH = {
   Lifetime(m, s, p) { const v = sample(m.Lifetime, s.time, s.rand, s.params); if (v != null) s.life[p] = Math.max(0, num(v, 0)); },
