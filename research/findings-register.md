@@ -3218,6 +3218,32 @@ and `test_a_packs_scripts_leave_the_records_its_maps_have_none_for_in_use`; not 
 - **Known gap**: with the budget off the game's textures all stay mapped in its 32-bit address space; a long
   session might run out of it. Not seen in runs of a few minutes.
 
+### T-52: The game allows one instance per Windows session; a second copy's game quits at once
+**Worked around** (21 November 2026: the LWR v3 copy's game started and played on the desktop beside a hidden run of
+the lab copy, both alive and logging).
+- **What**: with a hidden run's game open, a second `XComEW.exe` started from another copy's folder
+  (`-FROMLAUNCHER -nohomedir`, `SteamAppId` and `SteamGameId` set) ended about 0.1 s in with exit code 1 and wrote
+  no `Launch.log` at all. The hidden desktop makes no difference.
+- **Cause**: the game itself, not Steam. `WinMain` (0xBF0911 at the exe's preferred base 0x400000) calls a function
+  (0xEEF7E0) that makes the named mutex `UnrealEngine3_8` and returns 0 when it exists already; `WinMain` then
+  returns 1, before the log is opened. Named objects belong to the Windows session, not to a desktop. Steam's own
+  objects are per process (`STEAM_DATA.<pid>`) or held by Steam (`STEAM_DRM_IPC`), and Steam took the second game's
+  process once it was past the check. The mutex's handle is used nowhere else in the exe.
+- **Fix**: [XComSideBySide.cs](../tools/lab/XComSideBySide.cs) (`<lab>\bin\XComSideBySide.exe`) starts the game
+  suspended, replaces that call in the new process's memory with `mov eax, 1` and resumes it; no file is changed.
+  The exe loads at a random base (read from the process), and the bytes are checked before the change. A game
+  started this way never makes the mutex, so it starts beside a running game, and a game started the usual way
+  after it starts too. It also sets the two Steam variables and `__COMPAT_LAYER=HIGHDPIAWARE` (T-48). The user's own
+  game is started with it; hidden runs start theirs as before.
+- **Hidden runs**: [hidden_game.py](../tools/lab/hidden_game.py) refused whenever any `XComEW.exe` was running. It
+  now refuses when the game of the copy it runs is open (told by the exe's folder), or when another copy's game is
+  open and the mutex exists (that game was started the usual way), and says which.
+- **Left**: the editor's install and Play in game steps, `lab_install.py` and `deploy_fixture.py` still refuse while
+  any `XComEW.exe` runs (`installs.game_running` goes by the name alone), so staging a map waits until every game is
+  closed. Two hidden runs at once are not tried. A hidden run started while such a game is open is not played yet
+  (the first one was open before it); the checks were tried against both games open. F-84's quit within 200 ms has
+  the same signs and may be this check; not looked at.
+
 ### T-51: Most maps' own landings read as moved with nothing changed: the soldier points stand off the mutator's layout
 **Fixed** (21 November 2026, verified offline and in the page; found by the editor follow-ups' stage P5 on the police
 station, there since 18 November 2026). Was known bug KB-13.

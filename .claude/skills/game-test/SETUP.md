@@ -114,7 +114,8 @@ It cannot:
 - use a mouse: no clicking on the interface, no dragging, no hovering (Windows refuses cursor calls on a hidden
   desktop). Everything goes by keys, console commands and the camera trick of section 3.4;
 - record sound: it lists what plays and how loud, not how it sounds;
-- run the live install, or two games at once;
+- run the live install, or two hidden games at once (the user's own game of another copy may run beside a hidden
+  run: section 9);
 - save or load without `--saving`.
 
 Not tried yet: stairs inside a building, climbing down, plain EW, the LWR v3 copy.
@@ -131,6 +132,7 @@ Not tried yet: stairs inside a building, climbing down, plain EW, the LWR v3 cop
 | [tools/lab/StandInInput.c](../../../tools/lab/StandInInput.c) | The stand-in `dinput8.dll` (mouse and keyboard where Windows has none; crash log). |
 | [tools/lab/build_stand_in_input.py](../../../tools/lab/build_stand_in_input.py) | Builds that DLL with LLVM into `<lab>\bin`. |
 | [tools/lab/switch_install.ps1](../../../tools/lab/switch_install.ps1) | Switches which copy is active (renames folders). |
+| [tools/lab/XComSideBySide.cs](../../../tools/lab/XComSideBySide.cs) | `XComSideBySide.exe`: starts a copy's game for the user so that it runs beside a hidden run (T-52, section 9). Not used by a hidden run itself. |
 | [tools/lab/labpaths.py](../../../tools/lab/labpaths.py), [tools/viewer/settings.py](../../../tools/viewer/settings.py) | Read the folders from the settings file (section 4.1). |
 | [tools/viewer/gamelaunch.py](../../../tools/viewer/gamelaunch.py) | Writes the commands file that opens a battle (`play_text`) and the start file for saving (`start_text`). |
 | [tools/lab/tests/test_hidden_game.py](../../../tools/lab/tests/test_hidden_game.py) | The offline tests (the `lab` suite). |
@@ -141,8 +143,10 @@ are missing or older than their source. You never build them by hand.
 
 ### 3.2 One run, start to end
 
-1. `hidden_game.py` checks the steps, that Steam is running (the game quits at once without it), and that the game is
-   not already running. It counts the mice and keyboards Windows sees.
+1. `hidden_game.py` checks the steps, that Steam is running (the game quits at once without it), and that no game is
+   in the way: the game of the copy it runs must not be open, and a game of another copy may be open only when it
+   was started by `XComSideBySide.exe` (one started the usual way holds the game's one-instance mutex, and the run's
+   game would quit at once: T-52). It counts the mice and keyboards Windows sees.
 2. It checks `<game>` holds the lab marker and `XComEW.exe`, then **prepares the copy**:
    - copies DXVK's `d3d9.dll` beside `XComEW.exe` (in `<game>\XEW\Binaries\Win32`), and the stand-in `dinput8.dll`
      too when a device is missing or when `--stand-in-input` or `--crash-log` asks for it;
@@ -456,7 +460,7 @@ python tools/lab/hidden_game.py --map <Map> --squad tools/viewer/tests/squad_def
   `--step "waitlog 240 Mission Started" --step "wait 60"`.
 - In the Bash tool, run it with `run_in_background`; wait for the inbox with a polling loop rather than a long sleep.
   Use forward slashes in paths in Bash (Python takes them), or quote backslash paths.
-- One game at a time.
+- One hidden game at a time. The user's own game of another copy may be open meanwhile (section 9).
 
 Exit codes: 0 done; 1 the game ended by itself (a crash) or opened no window; 2 the run could not start (the message
 says why); 3 a `waitlog` or `shot` ran out of time; 124 the `--timeout` ended it.
@@ -535,11 +539,33 @@ On a usage limit or a pause instruction: finish the step in hand, send quit, wri
 - **Only the lab copy.** The tool refuses a folder without the marker; never work around that.
 - **Ask first** before closing a game the user has open, switching which copy is active, copying the game,
   or downloading anything.
-- **One game at a time**, and end every session with `send <out> quit`, not by killing it: `quit` unmutes the
+- **One hidden game at a time**, and end every session with `send <out> quit`, not by killing it: `quit` unmutes the
   game's sound. A run killed from outside (or ended by `--timeout`) leaves the game muted in Windows for the user's
   next play until a run ends by itself or the volume mixer is used; say so in the report if it happens.
-- **After a run**, check no `XComEW.exe` is running and no `d3d9.dll` or `dinput8.dll` is left in
-  `<game>\XEW\Binaries\Win32`.
+- **The user may be playing another copy meanwhile.** The game allows one instance per Windows session by a named
+  mutex (`UnrealEngine3_8`); a second one quits about 0.1 s in with exit code 1 and no `Launch.log` (T-52). The
+  user's own game is therefore started with `<lab>\bin\XComSideBySide.exe`
+  ([tools/lab/XComSideBySide.cs](../../../tools/lab/XComSideBySide.cs); build line in its header), which skips that
+  check in the new process's memory and never makes the mutex:
+
+  ```
+  <lab>\bin\XComSideBySide.exe --common <Steam common> --copy <the marker's copy= name> --
+      -FROMLAUNCHER -nohomedir -forcelogflush -nostartupmovies
+  ```
+
+  (or `--exe <game>\XEW\Binaries\Win32\XComEW.exe`). Started so, their game and a hidden run work in either order.
+  - Never close, send keys to or change the files of a game or a copy the user is playing. Tell their game from
+    the run's by the exe's folder, never by the name `XComEW.exe` alone.
+  - While the user's copy is the one Steam runs (`<Steam common>\XCom-Enemy-Unknown`), always name the lab copy
+    with `--game`: a copy with a marker of its own would otherwise be taken for the lab copy.
+  - A game the user started the usual way (Steam, or the exe by hand) holds the mutex: `hidden_game.py` then
+    stops before the start and says so. Ask the user to start it with `XComSideBySide.exe` instead; do not close it.
+  - Staging a map still waits: the editor's install and Play in game steps,
+    [lab_install.py](../../../tools/lab/lab_install.py) and `deploy_fixture.py` refuse with "XCOM is running" while
+    any copy's game is open, the user's too (they look at the process name alone). A run on a map already in the lab
+    copy starts meanwhile.
+- **After a run**, check no `XComEW.exe` of the lab copy is running (the user's own game of another copy may be) and
+  no `d3d9.dll` or `dinput8.dll` is left in `<game>\XEW\Binaries\Win32`.
 - **Pictures and run files stay in `<lab>`.** This repository is public: nothing from a run is committed. A note or a
   finding says in words what a picture showed; a picture a check's record needs goes into `private/shots/` (ignored
   by Git).
@@ -553,6 +579,7 @@ On a usage limit or a pause instruction: finish the step in hand, send quit, wri
 | What you see | What it has meant | What to do |
 | --- | --- | --- |
 | The game ends about 1.1 s in, exit code 1, nothing useful in `Launch.log`. | A file named `steam_appid*` is beside `XComEW.exe`; or Steam is not running. | Remove the file (any name starting `steam_appid`); start Steam. |
+| The game ends about 0.1 s in, exit code 1, and `Launch.log` is not written at all. | Another game is open and holds the one-instance mutex (T-52). | For the user's own game: have it started with `XComSideBySide.exe` (section 9). `hidden_game.py` catches this before the start. |
 | The game stands for minutes; the log says `Failed to get Caps bits info from the D3D Object` and compatibility level 0. | Direct3D 9 found no hardware: DXVK's `d3d9.dll` was not beside the game. | Check `<lab>\dxvk\<version>\x32\d3d9.dll` exists. (`-dx11` is no way out: the game has no DirectX 11 shaders.) |
 | The game crashes about 3 s in; the log ends `XAudio2Device initialized` then `Critical error ... Address = 0x11fb6b8`. | Windows had no mouse (T-45). | Build the stand-in (section 4.6), or wake or connect the mouse. |
 | "Windows sees no mouse ... build the stand-in" and the run does not start. | The same, caught before the start. | As above. |

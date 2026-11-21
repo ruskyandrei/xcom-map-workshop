@@ -11,7 +11,10 @@ DXVK's 32-bit d3d9.dll (DirectX 9 over Vulkan) stands beside XComEW.exe and is t
 the game there and does the steps (its header lists them: wait, waitlog, console, type, shot, key; no mouse).
 
 - Which game: the folder Steam runs (<Steam common>\\XCom-Enemy-Unknown) and only while it is the lab copy (its
-  marker XComLab-copy.txt); --game names another lab copy. Steam must be running, the game must not be.
+  marker XComLab-copy.txt); --game names another lab copy. Steam must be running, this copy's game must not be.
+  Another copy's game (the user's own play) may run beside the run when it was started by XComSideBySide.exe
+  (XComSideBySide.cs): the game allows one instance per Windows session by a named mutex, and a game started that
+  way never makes it (T-52). One started the usual way stops the run before it starts, with the reason.
 - Mouse and keyboard: the game asks DirectInput for the system mouse as it starts and crashes without one (T-45).
   When Windows has no mouse or no keyboard (switched to another computer, asleep, unplugged), the stand-in
   dinput8.dll (StandInInput.c, built into <lab>\\bin by build_stand_in_input.py) stands beside the game for the run:
@@ -227,6 +230,70 @@ def running(name):
     return name.lower() in out.lower()
 
 
+GAME_EXE = 'XComEW.exe'
+ONE_INSTANCE_MUTEX = 'UnrealEngine3_8'      # the game makes it as it starts and quits at once when it exists (T-52)
+SIDE_BY_SIDE = '<lab>\\bin\\XComSideBySide.exe (tools/lab/XComSideBySide.cs)'
+
+
+def process_path(pid):
+    """The full path of a running process's exe, or None when it can't be asked (gone, or not ours to ask)."""
+    import ctypes
+    from ctypes import wintypes
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    kernel32.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    handle = kernel32.OpenProcess(0x1000, False, pid)      # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle: return None
+    try:
+        size = wintypes.DWORD(32768)
+        buffer = ctypes.create_unicode_buffer(size.value)
+        return buffer.value if kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)) else None
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def games_running(game):
+    """(this copy's game runs, another copy's game runs): the XComEW.exe processes now, told apart by their exe's
+    folder. A game of another copy (the user's own play) may run beside a hidden run (T-52); one whose path can't be
+    read counts as this copy's."""
+    import csv
+    out = subprocess.run(['tasklist', '/FI', f'IMAGENAME eq {GAME_EXE}', '/NH', '/FO', 'CSV'], capture_output=True, text=True).stdout
+    mine, here, other = os.path.normcase(os.path.abspath(win32(game) / GAME_EXE)), False, False
+    for row in csv.reader(out.splitlines()):
+        if len(row) < 2 or row[0].lower() != GAME_EXE.lower() or not row[1].isdigit(): continue
+        path = process_path(int(row[1]))
+        if path is None or os.path.normcase(os.path.abspath(path)) == mine: here = True
+        else: other = True
+    return here, other
+
+
+def one_instance_mutex_held():
+    """Whether the game's one-instance mutex exists in this Windows session: a game started the usual way holds it,
+    one started by XComSideBySide never makes it (T-52)."""
+    import ctypes
+    from ctypes import wintypes
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32.OpenMutexW.restype = wintypes.HANDLE
+    kernel32.OpenMutexW.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR)
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    handle = kernel32.OpenMutexW(0x00100000, False, ONE_INSTANCE_MUTEX)      # SYNCHRONIZE
+    if handle: kernel32.CloseHandle(handle)
+    return bool(handle)
+
+
+def check_no_game_in_the_way(game):
+    """Raises RunError when a running game stops this run: this copy's own, or another copy's started the usual way
+    (it holds the one-instance mutex, so this run's game would quit about 0.1 s in with exit code 1 and no log)."""
+    here, other = games_running(game)
+    if here: raise RunError('The game of this copy is running: close it first')
+    if other and one_instance_mutex_held():
+        raise RunError('Another copy of XCOM is running that was started the usual way: it holds the game\'s '
+                       'one-instance mutex, and this run\'s game would quit at once (T-52). Close it, or start it with '
+                       f'{SIDE_BY_SIDE}, which lets both run')
+
+
 def input_devices():
     """(mice, keyboards) Windows has now, from its raw input device list, or None off Windows."""
     if sys.platform != 'win32': return None
@@ -304,7 +371,7 @@ def run(game, lab, steps, out, play_text=None, res=(1280, 720), timeout=900, ech
     DLL logs the run's first faults to <out>\\input.log (module, offset, registers, the stack's module addresses)."""
     steps = check_steps((list(SAVING_STEPS) if saving else []) + list(steps))
     if not running('steam.exe'): raise RunError('Steam is not running: the game ends at once without it')
-    if running('XComEW.exe'): raise RunError('The game is running: close it first')
+    check_no_game_in_the_way(game)
     stand_in, note = input_plan(input_devices(), stand_in_dll(lab), stand_in_input, crash_log)
     if note: echo(f'note: {note}')
     hidden_run, remote = helper(lab, 'HiddenRun.exe'), helper(lab, 'GameRemote.exe')

@@ -58,8 +58,12 @@ Each check ends as **passed**, **failed** or **unclear**, with the evidence in a
 ## Before a run
 
 - Only the lab copy: the folder Steam runs must hold `XComLab-copy.txt` (`tools/lab/switch_install.ps1 lab`). The tool
-  refuses anything else. Steam must be running; the game must not be (ask the user before closing a game they have
-  open).
+  refuses anything else. Steam must be running; the lab copy's game must not be.
+- The user may be playing another copy meanwhile (their game is started with `<lab>\bin\XComSideBySide.exe`, which
+  lets it run beside a hidden run: T-52, SETUP.md section 9). Never close or touch that game or its copy; tell it
+  from the run's by the exe's folder. While their copy is the one Steam runs, name the lab copy with `--game`. If
+  the tool says another copy's game holds the one-instance mutex, ask the user to start it with `XComSideBySide.exe`.
+  Staging a map (the editor's install steps, `lab_install.py`) still refuses while any game is open.
 - A third copy, `XCom-Enemy-Unknown.LWR3` (LWR v3.00.00 beta 15; its marker has `copy=lwr3`), is for checks on the
   LWR v3 beta. It is switched in with `switch_install.ps1 lwr3` only when the user asks; `hidden_game.py --game`
   can name it parked.
@@ -78,7 +82,7 @@ Each check ends as **passed**, **failed** or **unclear**, with the evidence in a
   starts no game), then start with `--play-file <game>\XEW\Binaries\XComMapWorkshop-play.txt` (with `--saving` when
   the play staged `XComMapWorkshop-start.txt` too). `--map` opens the map bare: the squad and Sectoid pods, none of
   the mission's commands.
-- One game at a time. A run takes about 75 seconds to reach turn 1.
+- One hidden game at a time. A run takes about 75 seconds to reach turn 1.
 
 ## Starting
 
