@@ -10,11 +10,12 @@ does changes.
   `listingsNow`, `mapListings` and `editedKey`. It keeps no state of its own (what it works out for a piece is kept on
   the piece's root, as before) and gives back the three functions app.js's selection, edit hub and test hooks, the
   cutaway, Clear map's ground grid and the Buildings view call.
-- **[app.js](../../tools/viewer/web/app.js)** makes it where its run was, after the scene's pieces: the run only
-  declared, so nothing moves as the page loads. It is given the Buildings view's `allBuildings`, `mapEdits` and
-  `mapIdOf` as functions that call them (that view is made further down). app.js: 3,115 lines to 3,025; its `let` statements stay 15 (23 names: the
-  run had none, what the cutaway last followed went with it); its top-level functions 131 to 127. A comment of
-  editor_state.js that placed `editedKey` in app.js names the module. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the module and its row.
+- **[app.js](../../tools/viewer/web/app.js)** makes it where its run was: the run only declared, so nothing moves as the
+  page loads. It is given the Buildings view's `allBuildings`, `mapEdits` and `mapIdOf` as functions that call them
+  (that view is made further down). app.js: 3,115 lines to 3,025; its `let` statements stay 15 (23 names: the run had
+  none, what the cutaway last followed went with it); its top-level functions 131 to 127. A comment of editor_state.js
+  that placed `editedKey` in app.js names the module. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the module and its
+  row.
 
 Checked:
 - **The move:** [moved_code.py](../../tools/repo/moved_code.py) against the commit before: the 4 moved functions are

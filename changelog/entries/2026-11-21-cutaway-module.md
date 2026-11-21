@@ -16,12 +16,12 @@ picker's buttons leave app.js for one module. Nothing the editor does changes.
   `setCutKey`: the edit hub runs the cutaway again only when the pieces' edits changed), what the tile grid was drawn
   round (`tileKey`, `setTileKey`: View options' grid drops it) and the overlay as drawn (`floorTileLayer`,
   `setFloorTileLayer`: the draw loop and the test hooks read it).
-- **[app.js](../../tools/viewer/web/app.js)** makes the module where its run was, after Break and Repair: the run
-  only declared (functions, and a constant), so nothing it did as the page loaded moves. The Landing zones and
-  Buildings views and Clear map, made before it, are given `cutaway` and `floorOptions` as functions that call them.
-  The six writes of the three moved names (one in View options' grid) are their setters' calls. app.js: 3,298 lines to 3,115; its `let` statements 18 to 15 (28 names to
-  23); its top-level functions 140 to 131. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the module, its row and the state it
-  added.
+- **[app.js](../../tools/viewer/web/app.js)** makes the module where its run was, after Break and Repair: the run only
+  declared (functions, and a constant), so nothing it did as the page loaded moves. The Landing zones and Buildings
+  views and Clear map, made before it, are given `cutaway` and `floorOptions` as functions that call them. The six
+  writes of the three moved names (one in View options' grid) are their setters' calls. app.js: 3,298 lines to 3,115;
+  its `let` statements 18 to 15 (28 names to 23); its top-level functions 140 to 131.
+  [ARCHITECTURE.md](../../ARCHITECTURE.md) names the module, its row and the state it added.
 
 Checked:
 - **The move:** [moved_code.py](../../tools/repo/moved_code.py) against the commit before: the 9 moved functions are

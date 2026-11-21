@@ -12,13 +12,13 @@ saves of them) move into the Buildings view's module. Nothing the editor does ch
   back the four other areas call (`allBuildings`, `mapEdits`, `mapIdOf`, `savedBuildings`): app.js's selection, edit
   hub and test hooks, the scene to and from a document, Clear map, the floor listings, Level snap, the cutaway and
   Reset all.
-- **[app.js](../../tools/viewer/web/app.js)**: the run is gone from its top. It only declared (functions, and
-  constants of functions and of a word), so its moving later, to where the Buildings view is made, changes nothing
-  as the page loads. The scene to and from a document and Clear map, made before the Buildings view, are given
-  `savedBuildings` and `allBuildings` as functions that call them. app.js: 3,588 lines to 3,525; its `let` statements 20 to 19 (30 names to
-  29); its top-level functions 169 to 159. The comment of editor_state.js's `mergedBuildings` names the module, and the head of
-  [clear_map.js](../../tools/viewer/web/clear_map.js) no longer says it is given the camera and the renderer (it is not).
-  [ARCHITECTURE.md](../../ARCHITECTURE.md) says the records are the Buildings view's.
+- **[app.js](../../tools/viewer/web/app.js)**: the run is gone from its top. It only declared (functions, and constants
+  of functions and of a word), so its moving later, to where the Buildings view is made, changes nothing as the page
+  loads. The scene to and from a document and Clear map, made before the Buildings view, are given `savedBuildings` and
+  `allBuildings` as functions that call them. app.js: 3,588 lines to 3,525; its `let` statements 20 to 19 (30 names to
+  29); its top-level functions 169 to 159. The comment of editor_state.js's `mergedBuildings` names the module, and the
+  head of [clear_map.js](../../tools/viewer/web/clear_map.js) no longer says it is given the camera and the renderer (it
+  is not). [ARCHITECTURE.md](../../ARCHITECTURE.md) says the records are the Buildings view's.
 
 Checked:
 - **The move:** [moved_code.py](../../tools/repo/moved_code.py) against the commit before: the 10 moved functions
@@ -30,5 +30,5 @@ Checked:
 - `web_names` is clean (75 files), and the node suite passes (31 files).
 - **Browser checks** on a test server, on the commit before and on this change: on the Bar `api-names` (240 names on
   each of its three pages), `map-buildings` (the map's own buildings edited, deleted and restored, their records and
-  saved form), `floor-boxes`, `box-select`, `clear-map`, `floors-cut`, `floor-placing` and `projects`; `paste-buildings`,
-  `reset-all`, `small-defects` and `made-prefab`; and `documents`. All passed, none skipped.
+  saved form), `floor-boxes`, `box-select`, `clear-map`, `floors-cut`, `floor-placing` and `projects`;
+  `paste-buildings`, `reset-all`, `small-defects` and `made-prefab`; and `documents`. All passed, none skipped.

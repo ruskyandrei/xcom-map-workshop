@@ -500,12 +500,12 @@ where there is one.
   When part of an area's run of code stays in app.js (a helper other areas use, as `projector`, `gameToView` or
   `alongLine`; a constant of app.js's event wiring; a pointer listener that is app.js's pointer handlers', as the Map
   grid's, which write its `pointerStart`; a function that reads a value app.js makes further down that is not a
-  function, as `grabView`, the Effects view's likeness layer, and `previewGroup`, the clipboard's ghost material),
-  app.js keeps those declarations where they were and makes the factory after
-  them, where the run ended: what the run does as the page loads then still happens at the same point among the
-  page's other code. An object a view makes as the page loads that a view made before it also uses (the landing
-  zones' layer, which the Spawns view shows too; the floor boxes' outline of a clip, which prefabs saved and placed
-  draw too) stays in app.js where it was made, and both are given it. A function
+  function, as `grabView` (the Effects view's likeness layer) and `previewGroup` (the clipboard's ghost material)),
+  app.js keeps those declarations where they were and makes the factory after them, where the run ended: what the run
+  does as the page loads then still happens at the same point among the page's other code. An object a view makes as
+  the page loads that a view made before it also uses (the landing zones' layer, which the Spawns view shows too; the
+  floor boxes' outline of a clip, which prefabs saved and placed draw too) stays in app.js where it was made, and both
+  are given it. A function
   of the area that an earlier stage left elsewhere in app.js (the Landing zones view's `setZonesShown`) moves into
   the factory with the run: a function declaration runs nothing as the page loads. So does a short run of the
   area's elsewhere that only declares (functions, and constants holding functions or plain values: Clear map's rule of

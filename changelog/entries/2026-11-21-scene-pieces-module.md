@@ -16,17 +16,16 @@ module. Nothing the editor does changes.
   it (the loads settled, the originals' parts and vertex boxes). It gives back the 20 functions and tables the rest of
   the page calls, under the same names.
 - **[app.js](../../tools/viewer/web/app.js)** makes it before the gizmo, the first code that is given its functions
-  (`baseMatrix`). Its run made nothing the page shows or listens with as it loaded (functions, a few tables and
-  vectors, a word), so making it earlier changes nothing, and it calls through only two functions made further down
-  (`assetUrl`, `drawBroken`), where at its run's end eleven functions of it would have had to be called through by
-  the six factories and the gizmo made before. Three parts of the run stay in app.js: framing (`frame`, with its
-  near plane: the camera's, stage P9), the drawn-only preview of pieces (`previewGroup`: it reads the clipboard's ghost
-  material, made further down and not a function) and the rows of buttons used like a select (`segmented`,
-  `segButton`: View options' helpers, which app.js's event wiring sets up as the page loads). app.js: 3,525 lines to 3,298; its `let`
-  statements 19 to 18 (29 names to 28); its top-level functions 159 to 140. A comment of editor_state.js that placed
-  `track` and `loaded` in app.js names the module. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the module, its row,
-  and the rule that an area whose code makes nothing as the page loads is made where the fewest functions must be
-  called through.
+  (`baseMatrix`). Its run made nothing the page shows or listens with as it loaded (functions, a few tables and vectors,
+  a word), so making it earlier changes nothing, and it calls through only two functions made further down (`assetUrl`,
+  `drawBroken`), where at its run's end eleven functions of it would have had to be called through by the six factories
+  and the gizmo made before. Three parts of the run stay in app.js: framing (`frame`, with its near plane: the camera's,
+  stage P9), the drawn-only preview of pieces (`previewGroup`: it reads the clipboard's ghost material, made further
+  down and not a function) and the rows of buttons used like a select (`segmented`, `segButton`: View options' helpers,
+  which app.js's event wiring sets up as the page loads). app.js: 3,525 lines to 3,298; its `let` statements 19 to 18
+  (29 names to 28); its top-level functions 159 to 140. A comment of editor_state.js that placed `track` and `loaded` in
+  app.js names the module. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the module, its row, and the rule that an area
+  whose code makes nothing as the page loads is made where the fewest functions must be called through.
 
 Checked:
 - **The move:** [moved_code.py](../../tools/repo/moved_code.py) against the commit before: the 19 moved functions are

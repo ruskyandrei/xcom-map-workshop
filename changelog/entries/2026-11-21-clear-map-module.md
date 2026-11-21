@@ -5,10 +5,9 @@ the missions, the header's Mission picker, the Map picture dialog and the ground
 Nothing the editor does changes.
 
 - **[clear_map.js](../../tools/viewer/web/clear_map.js)** is new. `createClearMap` is made once by app.js, with what it
-  needs of app.js in one argument object: the scene, the camera and the renderer, the gizmo, the pieces' and lights'
-  roots added and taken away, the map's size, the Spawns, Landing zones and Buildings views' functions, the cutaway,
-  Play's installs, the project's change, the view taken for the map picture (`grabView`), the popups and the hints. It
-  holds, moved verbatim:
+  needs of app.js in one argument object: the scene, the gizmo, the pieces' and lights' roots added and taken away, the
+  map's size, the Spawns, Landing zones and Buildings views' functions, the cutaway, Play's installs, the project's
+  change, the view taken for the map picture (`grabView`), the popups and the hints. It holds, moved verbatim:
   - the landing zones as the project has them (`zonesNow`), the landing zone's pieces (`isLanding`, with
     `LANDING_PREFIXES`), the ground's height (`groundHeight`) and the notes under a size (`sizeNotes`,
     `groundWords`);
@@ -41,9 +40,10 @@ Nothing the editor does changes.
   the module. Factories made before it are given its functions as functions that call them (the Lights view
   `pointOutside`; Build and Play `headerMissions`, `zonesNow`; the map grid `groundWords`, `sizeNotes`,
   `refreshGroundGrid`), and the Spawns and Landing zones views, made after it now, are given `headerMission` directly.
-  The eight writes of the four moved names (three in the scene start, one in `useMapFamilies`) are their setters' calls. app.js: 4,048 lines to 3,588; its `let` statements 28 to 20 (39 names to
-  30); its top-level functions 204 to 169. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the module, its row, the state it added
-  and that a short run of an area's that only declares moves into the factory wherever the factory is made.
+  The eight writes of the four moved names (three in the scene start, one in `useMapFamilies`) are their setters'
+  calls. app.js: 4,048 lines to 3,588; its `let` statements 28 to 20 (39 names to 30); its top-level functions 204 to
+  169. [ARCHITECTURE.md](../../ARCHITECTURE.md) names the module, its row, the state it added and that a short run of
+  an area's that only declares moves into the factory wherever the factory is made.
 
 Checked:
 - **The move:** [moved_code.py](../../tools/repo/moved_code.py) against the commit before: the 35 moved functions are
