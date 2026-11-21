@@ -389,8 +389,8 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
     const words = consumerWords(o, { rules: spawnRulesData, mission: headerMission(), placed: validSpawnRules(projectSpawnRules), mapExcluded: Boolean(spawnRulesData?.excluded) });
     if (words.length) line('In the game', words.join(' '));
     if (!moved && missionReached(o) && missionFloorLost(o)) line('', 'The edit leaves no floor of the map under it: the Build warns of it.');
-    // (a base pod or Meld point: the Build counts the places left, compiler.spawn_places, spawns plan SP5; one the
-    // project moved, at its new place)
+    // (a base pod or Meld point: the Build counts the places left, mission_edits.py spawn_places, spawns plan SP5; one
+    // the project moved, at its new place)
     else if (!moved && e.layer === 'base' && ['pod', 'meld'].includes(o.kind) && missionFloorLost(baseEdit ? { ...o, location: baseEdit.location } : o)) {
       line('', `The edit leaves no floor of the map under it: the Build counts its place as lost${o.kind === 'pod' ? ' and warns when fewer pod places are left than the map had' : ' and warns when its spawn group is left without a hard point'}.`);
     }
@@ -528,7 +528,7 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   const missionReached = o => ['capturePoint', 'radar', 'bomb', 'powerNode', 'use', 'soldier', 'landing', 'operative', 'vip'].includes(o.kind)
     && !['effect', 'rebuild', 'visible', 'waypoint', 'volume', 'point'].includes(o.role);
   // Whether the map's saved floor tiles under an object (its level and the one below) had floor and the edit took all
-  // of it away (compiler.mission_objects' rule, on the saved tiles only).
+  // of it away (mission_edits.py mission_objects' rule, on the saved tiles only).
   function missionFloorLost(o) {
     const grid = data?.tileGrid, tiles = data?.tactical?.floorTiles;
     if (!grid?.origin || !tiles?.length) return false;

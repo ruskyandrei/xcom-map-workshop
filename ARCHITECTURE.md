@@ -281,10 +281,10 @@ its rules, records and words go in, with their node tests in `tools/viewer/tests
 | A table or helper of the compiler that a family reads too | [`compiler_tables.py`](tools/editor/compiler_tables.py), named in its `__all__`. One only the compiler reads stays in `compiler.py`; one only a family reads goes in the family's module (the `SPAWN_*` tables in `spawn_edits.py`, the effects' in `effect_edits.py`, the `LIGHT_*` tables and `light_rule` in `light_edits.py`). |
 | A lane of the native edit | One change across the compiler's spec, `native_split` in [`native_edit.py`](tools/editor/native_edit.py), the copy tool and the Build. In the copy tool ([`native_copy.py`](tools/bake/native_copy.py)): a maker module in `tools/bake` (as [`native_effects.py`](tools/bake/native_effects.py)); the lane's field on `BuildState` and its reading in `edit_state` (with its line in `CommandLine.LANES` of [`test_native_copy.py`](tools/bake/tests/test_native_copy.py)); and a step, a function taking the `BuildState` that reads its fields and writes its results to fields the class names, called from `build` in the place the map's writes need. One of the inputs of `build_outputs.py` (section 5) holds the lane: its `record` fails on a lane none holds. |
 | A piece lookup (what the compiler asks of the library of other maps' pieces) | [`piece_lookup.py`](tools/editor/piece_lookup.py) (`Library`), raising `LibraryError` (in [`compiler_tables.py`](tools/editor/compiler_tables.py)) with its code for what can't be had. The library's scan and its records are the viewer's [`library.py`](tools/viewer/library.py). |
-| A reader of package bytes | [`tools/upk`](tools/upk): tagged properties through [`props.tags`](tools/upk/props.py), compressed chunks through [`decomp.read_chunk`](tools/upk/decomp.py), a map's objects through the viewer's [`Package`](tools/viewer/package.py), a mesh component's LOD records and a bulk record through [`native_fields`](tools/upk/native_fields.py)' `mesh_lods` and `bulk_record` (each value with its place in the package; [`lighting_records`](tools/upk/lighting_records.py) and [`lightmap_fields`](tools/bake/lightmap_fields.py) give their values and places in the forms their readers take). |
+| A reader of package bytes | [`tools/upk`](tools/upk): a package's summary and tables through [`upkinfo`](tools/upk/upkinfo.py) (`summary`, `tables`), tagged properties through [`props.tags`](tools/upk/props.py), compressed chunks (a map's or a bulk payload's) through [`decomp.read_chunk`](tools/upk/decomp.py), a map's objects through the viewer's [`Package`](tools/viewer/package.py) (an export's native data through `Package.native`), a mesh component's LOD records and a bulk record through [`native_fields`](tools/upk/native_fields.py)' `mesh_lods` and `bulk_record` (each value with its place in the package; [`lighting_records`](tools/upk/lighting_records.py) and [`lightmap_fields`](tools/bake/lightmap_fields.py) give their values and places in the forms their readers take, and [`frac_walls.lod0`](tools/bake/frac_walls.py) reads the map being grown through it). |
 | A writer of package bytes | [`package_edit.write_edited`](tools/upk/package_edit.py) for edits in place, [`package_grow.py`](tools/upk/package_grow.py) for new exports. |
 | A line of the game's config, and a field of a `DefaultMaps.ini` record | [`mapsini.py`](tools/viewer/mapsini.py): a record's fields and streams read and written by `field`, `unquoted`, `set_field`, `slot_streams` and `add_stream`, on a line of bytes (the install) or of text (the Build, the map list, the export), blanks around `=` read as the game reads them (KB-11); a record's mission by [`maplist.record_kind`](tools/viewer/maplist.py). No other module writes a pattern for a record's field. |
-| A file replaced whole: a project, a record, a picture, an index | [`atomic_files.py`](tools/viewer/atomic_files.py): `write_bytes` or `write_text` (a temporary file beside it, then a replace tried again while another program holds the file a moment), or `replace` for a temporary file the writer filled itself or a file it moves aside. The writer keeps its own lock, flush (`sync`), read-back and error words. No other module of `tools/viewer` calls `os.replace` (`test_atomic_files.py` scans for it; KB-10). |
+| A file replaced whole: a project, a record, a picture, an index | [`atomic_files.py`](tools/viewer/atomic_files.py): `write_bytes` or `write_text` (a temporary file beside it, then a replace tried again while another program holds the file a moment), or `replace` for a temporary file the writer filled itself or a file it moves aside. The writer keeps its own lock, flush (`sync`), read-back and error words. No other module of `tools/viewer` replaces or renames a file itself but `export.py` and `publication.py`, which move folders (`test_atomic_files.py` scans for it and lists them with their reasons; KB-10), and the Build's replaces of the map in `build.py` go through it too. |
 | A tool folder on the import path | [`paths.use()`](tools/paths.py), at the top of the module. |
 | A test's shared records and helpers | Its suite's fixtures module: [`viewer_fixtures.py`](tools/viewer/tests/viewer_fixtures.py), [`tools/bake/tests/fixtures.py`](tools/bake/tests/fixtures.py), [`editor_fixtures.py`](tools/editor/tests/editor_fixtures.py), [`upk_fixtures.py`](tools/upk/tests/upk_fixtures.py) (a suite without one makes one, named for the suite). One more than one suite needs: [`tools/tests/shared_fixtures.py`](tools/tests/shared_fixtures.py) (the DefaultMaps records, a made-up mesh), which each suite's fixtures module imports it from. |
 | An environment variable a test or a tool reads | `ENVIRONMENT` in [`run_tests.py`](tools/run_tests.py), with what it does and what happens without it (`run_tests.py --help` prints it), in the commit that reads it. |
@@ -580,24 +580,24 @@ app.js's counts of `let` statements and top-level functions; the two numbers are
   files among every tracked Python file and page module.
 
 What is over them today, and why (app.js: 5 `let` statements, 11 top-level functions):
-- `tools/viewer/tests/browser_smoke.py` (5,933 lines): the browser checks' runner, their table and most checks in one
+- `tools/viewer/tests/browser_smoke.py` (6,212 lines): the browser checks' runner, their table and most checks in one
   file; some areas' checks have modules of their own (`browser_walls.py`, `browser_editing.py` and others). The rest
   could follow them, by area; that split waits.
-- `tools/bake/native_copy.py` (3,389): the copy tool's walker, clones, tiles and volumes, fracturing columns,
+- `tools/bake/native_copy.py` (3,425): the copy tool's walker, clones, tiles and volumes, fracturing columns,
   building floors, flags, blasts and steps, which share the map's reader and the growing writer; its lanes' makers
   are modules already. A split of the columns, the building floors and the flags waits.
 - `tools/editor/tests/test_compiler.py` (3,115): a test file of many cases; its classes could follow the families into
   files of their own.
-- `tools/bake/relight.py` (2,041): one relight run over the components, with the piece cache; its codec, shadows and
+- `tools/editor/tests/test_build.py` (2,171): a test file of many cases.
+- `tools/bake/relight.py` (2,044): one relight run over the components, with the piece cache; its codec, shadows and
   bounce are modules already.
-- `tools/viewer/installs.py` (2,035): a package put into an install and taken out, with the ledger, the checks and the
+- `tools/viewer/installs.py` (2,018): a package put into an install and taken out, with the ledger, the checks and the
   config records that change with it; a split waits.
+- `tools/editor/build.py` (1,981): the Build's stages, its config lines and its README (its records written through
+  `mapsini.py` since 21 November 2026).
 - `tools/editor/compiler.py` (1,969): the `Compiler` and its helpers once the families left. The map's own pieces
   moved and the added pieces (`overrides`, `added`, with the assemblies and the grid rule: about 650 lines) are the
   next family if it grows.
-- `tools/editor/tests/test_build.py` (1,933): a test file of many cases.
-- `tools/editor/build.py` (1,842): the Build's stages, its config lines and its README (its records written through
-  `mapsini.py` since 21 November 2026).
 - `tools/bake/wall_measure.py` (1,619): the walls' look measurer, one format read whole: a fracturing mesh's LOD 0
   measured into a look.
 - `tools/bake/buildings.py::edit` (210 lines): the map's own buildings edited in place, one pass over a building's
@@ -608,14 +608,13 @@ What is over them today, and why (app.js: 5 `let` statements, 11 top-level funct
   before it joins the pack; a split waits.
 - `tools/bake/native_copy.py::main` (170): the copy tool's command line, and a summary printed from the manifest that
   could be a function of its own.
-- `tools/bake/native_copy.py::build` (169): 81 of its lines are the docstring listing its inputs, which could move
+- `tools/bake/native_copy.py::build` (169): 80 of its lines are the docstring listing its inputs, which could move
   onto `BuildState`'s fields; the body is the steps in order.
 - `tools/viewer/effects_metadata.py::describe` (169): a package's effects, sounds and flares described, one pass over
   their many fields.
 - `tools/editor/group_edits.py::GroupEdits.groups` (166): the groups' pass, with a docstring of its contract; a split
   waits.
 - `tools/bake/transplant.py::stage_edit` (154): the pieces of other maps staged in a copy of the map, one run.
-- `tools/bake/frac_walls.py::add_walls` (153): the made walls added to the map being grown, one run over the copies.
 
 ### What the structure test holds
 
