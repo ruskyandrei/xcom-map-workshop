@@ -115,7 +115,9 @@ Requirements, all on **static flag `0x2000`**, which is what `IsPositionOnFloor`
 
 Nothing is checked for blocking, cover or line of sight.
 
-Both links have cost 1.0 and the types `[ClimbLadder, Landing]`. Adding the down link removes every DropDown link on
+Both links have cost 1.0 and the types `[ClimbLadder, Landing]`. (22 November 2026: only the first DropDown link of
+the top tile goes, and the ladder's height is its component's Bounds' (neighbour-links.md, sections 0 and 6).)
+Adding the down link removes every DropDown link on
 the top tile.
 
 ### 4. Bake versus runtime (high confidence on the code, medium on the effect)

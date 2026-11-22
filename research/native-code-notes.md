@@ -268,6 +268,8 @@ only the patch level's ladders count, was wrong.
 - From the code: in the rebuild consumer's Neighbors step (step 5, `0x46D78F`), each tile of the work set goes
   through `0x905780`. If the tile's static flags have bit `0x2000`, it copies the floor tile and empties its
   Neighbors (`0x5952A0`, TArray::Empty), writes the tile back (`0xC46790`) and adds plain links only (PathObject 0,
+  **[22 November 2026: wrong; `0x905780` makes every link but the ladders', typed ones included, in the rebuild as in
+  the build: research/native/neighbour-links.md, findings register F-154]**
   no types or positions). `0x777580` then replaces the tile's DropDown link. Nothing seen re-adds ladder, door or
   wall links.
 - In the game (EXP-07 run 13): `XComLadder_4`'s links at (33, 33, 0), a tile with bit `0x2000` inside the hider's

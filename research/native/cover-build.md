@@ -233,7 +233,7 @@ URB_Bar; 574 on the farm (pieces that block sight without counting for occupancy
 | `0x20000` | the octree had something within 76 of the tile position; gates the blocking step | `0xCF2B17` | high |
 | `0x40000` | not set by any code found; absent from the six maps looked at | scan `scanset.py` | medium |
 | `0x80000` | one or two levels above a floor tile | `0xD57FC7` | high (0 floor tiles' upper tiles lack it) |
-| `0x100000` | 2 × 2 standing room: floors at (x, y), (x+1, y), (x, y+1), (x+1, y+1) without bits `0x12`, `0x14`, `0x0A` | `0x905C56` | medium (URB_Bar: 1,302 agree, 152 rule only, 1 flag only: a condition is missing) |
+| `0x100000` | 2 × 2 standing room: floors at (x, y), (x+1, y), (x, y+1), (x+1, y+1) without bits `0x12`, `0x14`, `0x0A` | `0x905C56` | medium (URB_Bar: 1,302 agree, 152 rule only, 1 flag only: a condition is missing); read in full in [neighbour-links.md](neighbour-links.md) section 5: high, exact on every map |
 | `0x200000` | the drop-down search found a drop of two levels or more beside the tile | `0xD8F7BB` | medium |
 | `0x400000` | the floor's actor is a valid destination | `0xCF2945` | high |
 | `0x800000`, `0x1000000`, `0x2000000`, `0x4000000` | the +X, −X, +Y, −Y neighbour's position is outside the level volume (build only) | `0x9F8680` | high (all tiles but the last one of the grid) |

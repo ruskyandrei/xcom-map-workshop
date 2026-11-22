@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- F-154 (22 November, the diagonal cover plan): the neighbour links read from the exe, 99.96% of the bakes' links
+  and every typed link worked out; the rebuild makes typed links too. Offline.
 - F-153 (22 November, the diagonal cover plan's C1): the game's cover rule, worked out from a map's pieces, gives
   the 293 marked tiles it works on their baked diagonal cover exactly; the marks themselves follow no rule (a finder
   for corners a project changes takes 245 of 289 and 111 unmarked). Offline; the tile writer (C2) is next.
@@ -436,6 +438,33 @@ the fix).
   that battle's canister lands by a slanted corner.
 - **Known bug** [KB-14](../KNOWN-BUGS.md), for what the fix leaves.
 
+### F-154: The neighbour links read from the exe: 99.96% of the bakes' links worked out, every typed link
+**Verified offline over the install's maps** (22 November 2026: diagonal cover plan, stage C2;
+[neighbour-links.md](native/neighbour-links.md), the reading of `0x905780` and its callees from the exe copy;
+[`neighbour-links-check.py`](evidence/neighbour-links-check.py) over the 96 base maps with a level volume, the record in
+[`neighbour-links-2026-11-22.json`](evidence/neighbour-links-2026-11-22.json); the rule in
+[`tile_links.py`](../tools/bake/tile_links.py)).
+- **What**: each floor tile's Neighbors (its links to the tiles round it, with their kinds, costs, positions and path
+  objects) and the static bits the same step writes, worked out from the map's baked tile data and its pieces.
+- **Seen**: 2,139,524 of 2,140,357 baked links (99.96%) the same in target, cost, kinds, path object and positions to
+  0.1 unit; 324,522 of 325,914 tiles' whole lists the same, in order; every one of the 94,766 typed links (ClimbOnto
+  16,775, ClimbOver 3,992, DropDown 37,947, JumpUp 19,347, WallClimb 14,637, KickDoor 1,172, ClimbLadder 896); bits
+  0x100000 (176,630 tiles) and 0x200000 (20,538) exact on every map. 26 maps identical; the lowest
+  URB_ConvienienceStore_Terror, 99.43%.
+- **The rule**, in short: dz -1, 0, +1 outside, the eight directions inside; a plain link where the target has a
+  floor, neither tile's pathing bit blocks, the tile above has no bit that way (and the tile is not on the top level),
+  a step across levels joins a ramp or parallel floors under 32 apart, and a diagonal's sweep (a box 24 by 24 by 4,
+  24 over each floor) meets nothing; the typed links from four callees (climbing from the cover step's climb bits,
+  doors from interact points and lines, drops down the neighbour's column, jumps up the columns), then the ladders.
+- **What it corrects**: the runtime rebuild makes typed links too (the same function: native-code-notes.md said plain
+  only); a ladder takes only the first DropDown of its top tile; a ladder's height is its component's Bounds' (the
+  editor's tools/viewer/ladders.py is 0.1 to 33 units short); bit 0x100000 does not test the tile's own floor and its
+  reads wrap at the grid's +X edge.
+- **Left**: 1,815 diagonal sweeps of 1,111,854 disagree (pieces tile_world does not model: bushes saved without
+  collision, skeletal meshes, fracturing pieces' fragments; and slope faces the bake's sweep passes); four links into
+  AlienBase02 (58, 19, 6); the units' part of the rule (runtime only) read, not checked.
+- **What it is for**: the Build can now write a whole tile (stage D2 of the diagonal cover plan).
+
 ### F-152: The tile build's static flags worked out from a map's pieces match the bake on 98.3% of tiles; four things the exe reading lacked
 **Verified offline over the install's maps; one stage of the plan rests on it** (22 November 2026: diagonal cover
 plan, stage C2; [`tile-build-check.py`](evidence/tile-build-check.py) over the 96 base maps the install lists, regions
@@ -471,7 +500,7 @@ round the marked tiles and three sampled boxes a map, the record in
 - **Links are not worked out from the flags**: a floor record's plain links (to the 8 tiles round it, a level up or
   down) never exist without a floor on the target and no pathing bit toward it (0 exceptions in about 55,600 on
   URB_Bar, CsmallScout_Farm and URB_PoliceStation), but that rule gives about 3% links the bake lacks, with the same
-  flags and heights as links it has: the neighbour step (0x905780) traces geometry. Its reading is the next stage.
+  flags and heights as links it has: the neighbour step (0x905780) traces geometry. Read since: F-154.
 - **What the Build does with it** (D1, F-149): a diagonal tile next to a change is written by the Build from these
   passes rather than rebuilt by the battle.
 
