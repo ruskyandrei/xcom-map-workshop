@@ -3320,9 +3320,11 @@ the lab copy, both alive and logging).
 - **Hidden runs**: [hidden_game.py](../tools/lab/hidden_game.py) refused whenever any `XComEW.exe` was running. It
   now refuses when the game of the copy it runs is open (told by the exe's folder), or when another copy's game is
   open and the mutex exists (that game was started the usual way), and says which.
-- **Left**: the editor's install and Play in game steps, `lab_install.py` and `deploy_fixture.py` still refuse while
-  any `XComEW.exe` runs (`installs.game_running` goes by the name alone), so staging a map waits until every game is
-  closed. Two hidden runs at once are not tried. A hidden run started while such a game is open is not played yet
+- **Staging beside it** (22 November 2026): the editor's install and Play in game steps, `lab_install.py` and
+  `deploy_fixture.py` refused while any `XComEW.exe` ran; they now ask only about the game of the install they change
+  (`installs.game_running(game)`, `procs.running(image, folder)` by the exe's folder; one whose path can't be read
+  counts), so a map is staged into the lab copy while the user plays another copy. Two hidden runs at once are not
+  tried. A hidden run started while such a game is open is not played yet
   (the first one was open before it); the checks were tried against both games open. F-84's quit within 200 ms has
   the same signs and may be this check; not looked at.
 

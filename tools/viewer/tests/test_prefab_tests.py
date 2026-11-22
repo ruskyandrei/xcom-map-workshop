@@ -67,7 +67,7 @@ class Tests(unittest.TestCase):
         self.donor = installs.cooked(self.game) / 'Donor.upk'
         self.donor.write_bytes(b'donor')
         self.running = False
-        check = patch.object(installs, 'game_running', side_effect=lambda: self.running)
+        check = patch.object(installs, 'game_running', side_effect=lambda *_: self.running)
         check.start()
         self.addCleanup(check.stop)
         self.script, self.gate = self.root / 'builder.py', self.root / 'go'

@@ -258,7 +258,7 @@ class Player:
                             installs.clear_play(game)
                     except (OSError, ValueError, installs.InstallError) as problem:
                         cleanup = str(problem)
-                        if installs.game_running():
+                        if installs.game_running(game):
                             self.watch(game, appear=0, finished=finished)
                             self.test_watching = self.watching
                 raise ProjectError(409, f'Not started: {error}', **({'cleanup': cleanup} if cleanup else {}))
@@ -286,11 +286,11 @@ class Player:
 
         def run():
             deadline = time.monotonic() + appear
-            appeared = installs.game_running()
+            appeared = installs.game_running(game)
             while not stop.is_set() and time.monotonic() < deadline and not appeared:
                 stop.wait(self.every)
-                appeared = installs.game_running()
-            while not stop.is_set() and appeared and installs.game_running(): stop.wait(self.every)
+                appeared = installs.game_running(game)
+            while not stop.is_set() and appeared and installs.game_running(game): stop.wait(self.every)
             if stop.is_set(): return
             stop.wait(min(self.every, 2))           # the game writes its config as it closes
             error = None

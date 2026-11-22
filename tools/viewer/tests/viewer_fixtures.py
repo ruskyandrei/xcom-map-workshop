@@ -91,7 +91,7 @@ class PlayInstalls:
         running = installs.game_running
         self.addCleanup(setattr, installs, 'game_running', running)
         self.running = False
-        installs.game_running = lambda: self.running
+        installs.game_running = lambda *_: self.running
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
         root = Path(self.temp.name)
         # LWR's own first mission: another map's record under the slot's DisplayName

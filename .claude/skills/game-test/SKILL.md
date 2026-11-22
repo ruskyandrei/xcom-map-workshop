@@ -63,7 +63,8 @@ Each check ends as **passed**, **failed** or **unclear**, with the evidence in a
   lets it run beside a hidden run: T-52, SETUP.md section 9). Never close or touch that game or its copy; tell it
   from the run's by the exe's folder. While their copy is the one Steam runs, name the lab copy with `--game`. If
   the tool says another copy's game holds the one-instance mutex, ask the user to start it with `XComSideBySide.exe`.
-  Staging a map (the editor's install steps, `lab_install.py`) still refuses while any game is open.
+  Staging a map (the editor's install steps, `lab_install.py`) refuses only while the lab copy's own game is open:
+  it tells games apart by the exe's folder too.
 - A third copy, `XCom-Enemy-Unknown.LWR3` (LWR v3.00.00 beta 15; its marker has `copy=lwr3`), is for checks on the
   LWR v3 beta. It is switched in with `switch_install.ps1 lwr3` only when the user asks; `hidden_game.py --game`
   can name it parked.

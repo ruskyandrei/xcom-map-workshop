@@ -19,7 +19,7 @@ class LabInstall(unittest.TestCase):
     def setUp(self):
         running = dep.game_running
         self.addCleanup(setattr, dep, 'game_running', running)
-        dep.game_running = lambda: False
+        dep.game_running = lambda *_: False
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
         self.game, self.work, self.builds = root / 'game', root / 'work', root / 'builds'
@@ -113,11 +113,11 @@ class LabInstall(unittest.TestCase):
 
     def test_watch_waits_while_the_game_runs(self):
         self.package()
-        dep.game_running = lambda: True
+        dep.game_running = lambda *_: True
         lab_install.watch(self.builds, 0, game=self.game, work=self.work, once=True)
         self.assertNotEqual(dep.field(self.slot(), 'Name'), 'URB_Bar_Add_1')
         self.assertEqual(lab_install.read_ledger(self.work), {})
-        dep.game_running = lambda: False
+        dep.game_running = lambda *_: False
         lab_install.watch(self.builds, 0, game=self.game, work=self.work, once=True)
         self.assertEqual(dep.field(self.slot(), 'Name'), 'URB_Bar_Add_1')
 

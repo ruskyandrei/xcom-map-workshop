@@ -17,7 +17,7 @@ class DeployRestore(unittest.TestCase):
         # the tests work on a temporary layout, so whether the real game is open does not matter
         running = dep.game_running
         self.addCleanup(setattr, dep, 'game_running', running)
-        dep.game_running = lambda: False
+        dep.game_running = lambda *_: False
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
         self.game, self.work = root / 'game', root / 'work'
@@ -237,7 +237,7 @@ class DeployRestore(unittest.TestCase):
         self.assertEqual((self.cfg / 'DefaultMaps.ini').read_bytes(), self.maps)
 
     def test_refuses_while_the_game_runs(self):
-        dep.game_running = lambda: True
+        dep.game_running = lambda *_: True
         with self.assertRaises(SystemExit):
             dep.deploy(self.manifest, self.game, self.work)
         self.assertEqual((self.cfg / 'DefaultMaps.ini').read_bytes(), self.maps)

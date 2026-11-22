@@ -146,20 +146,21 @@ def plan_maps(lines, base, variant, slot_name=TEST_SLOT, streams=(), replace=Non
     return slot, old, new
 
 
-def game_running():
+def game_running(game=None):
     """Whether XCOM: Enemy Within is running: one look at the process table (tools/viewer/procs.py), as the editor's
-    install step asks it."""
+    install step asks it; with `game` (an install's folder), only that install's game (another copy's may run beside,
+    T-52)."""
     viewer = str(Path(__file__).resolve().parents[1] / 'viewer')
     if viewer not in sys.path:
         sys.path.append(viewer)
     import procs
-    return procs.running('XComEW.exe')
+    return procs.running('XComEW.exe', game)
 
 
 def checks(game):
     if not (game / 'XComLab-copy.txt').exists():
         raise SystemExit('the active install is not the lab copy (no XComLab-copy.txt); refusing')
-    if game_running():
+    if game_running(game):
         raise SystemExit('XCOM is running; close it first')
 
 

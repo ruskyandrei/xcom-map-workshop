@@ -246,10 +246,12 @@ def sha256(path):
     return h.hexdigest()
 
 
-def game_running():
-    """Whether XCOM: Enemy Within is running (any install): one look at the process table (procs.running)."""
+def game_running(game=None):
+    """Whether XCOM: Enemy Within is running: one look at the process table (procs.running). With `game` (an
+    install's folder), only that install's game counts: another copy's game (the user's own play) may run beside while
+    the editor changes this one's files (T-52); a game whose exe's folder can't be read counts."""
     import procs
-    return procs.running('XComEW.exe')
+    return procs.running('XComEW.exe', game)
 
 
 def plan_variant_lz(lz, m, note, zone=None):
@@ -400,7 +402,7 @@ def ready(game):
         read_ledger(game)
     except (OSError, ValueError, InstallError) as error:
         return f'its DefaultMaps.ini or the editor\'s record of it can\'t be read ({error})'
-    if game_running(): return 'XCOM is running'
+    if game_running(game): return 'XCOM is running'
     # a change of the install's files that was stopped part-way is undone before anything else looks at them
     try: recover_change(game)
     except (OSError, ValueError, InstallError) as error:
@@ -788,7 +790,7 @@ def begin_test_install(game, test, files, writes):
 def recover_test_install(game):
     journal = test_install_path(game)
     if not journal.is_file(): return
-    if game_running(): raise InstallError('XCOM is running')
+    if game_running(game): raise InstallError('XCOM is running')
     pending = json.loads(journal.read_text(encoding='utf-8'))
     test = pending['test']
     if not re.fullmatch(r'[0-9a-f-]{36}', test): raise InstallError('Invalid test install journal.')
@@ -1029,7 +1031,7 @@ def recover_change(game):
     with _RECOVERING:
         with _ACTIVE_LOCK:
             if _key(game) in _ACTIVE or not change_path(game).is_file(): return None
-        if game_running(): raise InstallError('XCOM is running')
+        if game_running(game): raise InstallError('XCOM is running')
         journal = json.loads(change_path(game).read_text(encoding='utf-8'))
         if journal.get('state') == 'committed':
             _clean_change(game, journal)
@@ -1881,7 +1883,7 @@ def restore_config(game):
     ledger = read_ledger(game)
     entries = ledger.get('config') or []
     if not entries: return []
-    if game_running(): raise InstallError('XCOM is running')
+    if game_running(game): raise InstallError('XCOM is running')
     done = []
     for entry in entries:
         path = Path(entry['path'])
@@ -1928,7 +1930,7 @@ def restore_saves(game, now=None):
     ledger = read_ledger(game)
     entries = ledger.get('saves') or []
     if not entries: return None
-    if game_running(): raise InstallError('XCOM is running')
+    if game_running(game): raise InstallError('XCOM is running')
     # kept: what keep_saves did before the play (whole saves to the play range, broken ones set aside)
     done = dict(moved=[], setAside=[], restored=[], left=[], kept=[m for e in entries for m in e.get('moved') or []],
                 keptAside=[m for e in entries for m in e.get('setAside') or []])

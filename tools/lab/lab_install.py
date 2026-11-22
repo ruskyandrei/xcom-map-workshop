@@ -119,7 +119,7 @@ def ready(game):
     """None when the lab can take an install, else why not."""
     if not (Path(game) / 'XComLab-copy.txt').exists():
         return 'the lab copy is not the active install'
-    if deploy_fixture.game_running():
+    if deploy_fixture.game_running(game):
         return 'XCOM is running'
     return None
 

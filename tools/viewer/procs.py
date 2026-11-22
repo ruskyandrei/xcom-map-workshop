@@ -106,6 +106,8 @@ if WINDOWS:
     _TerminateProcess = _fn('TerminateProcess', wintypes.BOOL, wintypes.HANDLE, wintypes.UINT)
     _CloseHandle = _fn('CloseHandle', wintypes.BOOL, wintypes.HANDLE)
     _OpenProcess = _fn('OpenProcess', wintypes.HANDLE, wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    _QueryFullProcessImageNameW = _fn('QueryFullProcessImageNameW', wintypes.BOOL, wintypes.HANDLE, wintypes.DWORD,
+                                      wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
     _OpenThread = _fn('OpenThread', wintypes.HANDLE, wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
     _ResumeThread = _fn('ResumeThread', wintypes.DWORD, wintypes.HANDLE)
     _GetProcessTimes = _fn('GetProcessTimes', wintypes.BOOL, wintypes.HANDLE, ctypes.c_void_p, ctypes.c_void_p,
@@ -258,17 +260,42 @@ def processes():
     return _processes()
 
 
-def running(image):
+def exe_path(pid):
+    """The full path of a running process's exe, or None when it can't be asked (gone, or not ours to ask; always
+    elsewhere than Windows)."""
+    if not WINDOWS or not isinstance(pid, int) or pid <= 0:
+        return None
+    handle = _OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return None
+    try:
+        size = wintypes.DWORD(32768)
+        buffer = ctypes.create_unicode_buffer(size.value)
+        return buffer.value if _QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)) else None
+    finally:
+        _CloseHandle(handle)
+
+
+def running(image, folder=None):
     """Whether a process whose exe is named `image` (any case) runs now: one snapshot of the process table, where
-    asking tasklist started a process each time (review finding 50). Unknown process state is reported as running, as
-    tree_alive does; elsewhere than Windows, False."""
+    asking tasklist started a process each time (review finding 50). With `folder`, only one whose exe lies in that
+    folder or under it counts: a game of another install may run beside (T-52). Unknown process state is reported as
+    running, as tree_alive does, and so is a process whose exe's path can't be read; elsewhere than Windows, False."""
     if not WINDOWS:
         return False
     try:
         table = _processes()
     except OSError:
         return True
-    return any(name.lower() == image.lower() for _, name in table.values())
+    pids = [pid for pid, (_, name) in table.items() if name.lower() == image.lower()]
+    if folder is None:
+        return bool(pids)
+    root = os.path.join(os.path.normcase(os.path.abspath(folder)), '')
+    for pid in pids:
+        path = exe_path(pid)
+        if path is None or os.path.normcase(os.path.abspath(path)).startswith(root):
+            return True
+    return False
 
 
 class Contained:

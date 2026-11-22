@@ -3,6 +3,7 @@ play's clear-up and Remove from game, each stopped after any file copy, config r
 (a crash or a forced stop: no clean-up runs), then the next operation on the install (Remove from game, or the next
 look at it). The game's files must come back byte for byte, nothing of the change left behind, and a hand edit made
 in between kept and reported. On the temporary game installs of viewer_fixtures.PlayInstalls."""
+import os
 from pathlib import Path
 import sys
 import unittest
@@ -172,9 +173,27 @@ class Recovery(unittest.TestCase):
         with mock.patch.object(procs, 'running', return_value=True) as running, mock.patch('subprocess.run') as run:
             self.assertTrue(REAL_GAME_RUNNING())
             self.assertTrue(REAL_DEP_GAME_RUNNING())
-        self.assertEqual(running.call_args_list, [mock.call('XComEW.exe')] * 2)
+            self.assertTrue(REAL_GAME_RUNNING(Path('C:/Games/One')))
+        self.assertEqual(running.call_args_list, [mock.call('XComEW.exe', None)] * 2 + [mock.call('XComEW.exe', Path('C:/Games/One'))])
         run.assert_not_called()
         self.assertFalse(procs.running('NoSuchProgram-XMW.exe'))
+
+    @unittest.skipUnless(procs.WINDOWS, 'the process table is read on Windows only')
+    def test_an_install_s_game_is_told_by_its_exe_s_folder(self):
+        """T-52: with an install named, only a game whose exe lies in it counts; one of another copy runs beside, and
+        one whose exe's path can't be read counts as running."""
+        table = {11: (1, 'XComEW.exe'), 12: (1, 'explorer.exe')}
+        paths = {11: r'C:\Games\Other\Binaries\Win32\XComEW.exe'}
+        with mock.patch.object(procs, '_processes', return_value=table), \
+                mock.patch.object(procs, 'exe_path', side_effect=lambda pid: paths.get(pid)):
+            self.assertTrue(procs.running('XComEW.exe'))
+            self.assertFalse(procs.running('XComEW.exe', r'C:\Games\One'))
+            self.assertFalse(procs.running('XComEW.exe', r'C:\Games\On'))       # (a folder's name is not a prefix)
+            self.assertTrue(procs.running('XComEW.exe', r'C:\Games\Other'))
+            self.assertTrue(procs.running('xcomew.EXE', r'c:\games\other\\'))
+            paths.clear()
+            self.assertTrue(procs.running('XComEW.exe', r'C:\Games\One'))
+        self.assertTrue(procs.exe_path(os.getpid()).lower().endswith('.exe'))
 
 
 class Pruning(unittest.TestCase):

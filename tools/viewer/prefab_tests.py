@@ -546,7 +546,7 @@ class PrefabTests:
             with player.lock:
                 installs.recover_test_install(game)
         except (OSError, ValueError, installs.InstallError) as error:
-            if not installs.game_running():
+            if not installs.game_running(game):
                 self._failed(job, error, 'launch', retryable=True)
                 job['cleanup'] = str(error)
                 self.save(job)
