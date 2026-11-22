@@ -982,6 +982,8 @@ TEX_WALL = dict(FREE_WALL, wall=dict(FREE_WALL['wall'], openings=[]))
 # a roof in the subway car roof's look (its top the top half of its texture: an atlas, looks.py surfaces) and a wall in
 # the UFO doorway's (its outline all trims: no face either side)
 ATLAS_ROOF = dict(FREE_SLAB, slab=dict(FREE_SLAB['slab'], look=dict(mesh='SubwayTrain.Meshes.SubwayCarRoof_FRACTURED', measure=1)))
+# a ramp rising 96 over 288 (its slope 303.6 long): its top mapped in its own plane
+SLOPE_RAMP = dict(kind='ground', version=5, ground=dict(free=1, shape='ramp', x0=0, x1=288, y0=0, y1=192, z0=0, z1=96))
 TRIM_WALL = dict(kind='fracWall', version=5, wall=dict(free=1, x0=0, x1=384, y0=-10, y1=10, z0=0, z1=190, seed=3, openings=[],
                                                        look=dict(mesh='AbductorExtWall.Meshes.AbductorExtAltWallDoorwayx9_FRACTURED', measure=1)))
 
@@ -1011,11 +1013,12 @@ def check_texture_mapping(browser, url, open_viewer):
     off (u and v alike), each one undo step; the fields set a value exactly; Aligned to the world puts the piece's
     place in its mesh's request; Original and Reset surface take the surface's mapping out; a floor's top and
     underside picked by clicking them, Tab back to the top, the gizmo still aside; a roof in a look drawn from a part of
-    a larger texture says so once mapped, a wall in a look of trims alone says it has no faces; the fold shut, the size
-    handles and the gizmo back."""
+    a larger texture says so once mapped, a wall in a look of trims alone says it has no faces; a ramp's top mapped in
+    its own plane (the blue dot on the slope, a unit of the surface a unit up it, a slide along it); the fold shut, the
+    size handles and the gizmo back."""
     errors = []
     page = open_viewer(browser, url, errors)
-    (wall, slab, roof, trims), _ = made_pieces(page, [TEX_WALL, FREE_SLAB, ATLAS_ROOF, TRIM_WALL])
+    (wall, slab, roof, trims, ramp), _ = made_pieces(page, [TEX_WALL, FREE_SLAB, ATLAS_ROOF, TRIM_WALL, SLOPE_RAMP])
     page.evaluate("viewer.setSnapMode('tile')")
     page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', wall)
     page.wait_for_timeout(400)
@@ -1172,6 +1175,28 @@ def check_texture_mapping(browser, url, open_viewer):
     # (its top or its underside, as the camera sees it: both are halves of one texture)
     assert re.search(r'part of a larger texture \(an atlas\) on its (top|underside): mapped, the whole texture repeats', notes['size']), notes
     assert notes['original'] == '' and notes[None].startswith('This look has no faces, only trims'), notes
+    # a ramp's top in its own plane: the blue dot on the slope, a unit of the surface a unit up the slope, the pattern
+    # slid by the pointer's way up it (snap off: smoothly), the white dot sizing along it
+    page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', ramp)
+    page.wait_for_function('id => viewer.texturePicked()?.id === id', arg=ramp)
+    if page.evaluate('viewer.texturePicked()')['role'] != 'top':
+        key(page, 'Tab')
+    page.locator('#texMode button[data-value="size"]').click()
+    mesh_ready(page, ramp)
+    page.evaluate("viewer.setSnapMode('off')")
+    h = page.evaluate('viewer.textureHandles()')
+    assert h['slide'] and h['size'] and h['picked']['role'] == 'top', h
+    on = page.evaluate("""async ([id, at]) => { const m = await import('/made_mapping.js');
+      const n = viewer.wallState(id).generated.ground, plane = m.surfacePlane('ground', n, { role: 'top' });
+      const p = m.framePoint(plane, at), q = m.framePoint(plane, [at[0] + 100, at[1]]);
+      return { slopeZ: n.z0 + (p[0] - n.x0) * (n.z1 - n.z0) / (n.x1 - n.x0), z: p[2], step: Math.hypot(...q.map((v, k) => v - p[k])),
+               extent: m.surfaceExtent('ground', n, 'top') }; }""", [ramp, h['at']])
+    assert abs(on['z'] - on['slopeZ']) < 1e-6 and abs(on['step'] - 100) < 1e-6, on
+    assert abs(on['extent'][1] - math.hypot(288, 96)) < 1e-6, on
+    before = surface_now(page, ramp, 'top')
+    drag(page, h['slide'], page.evaluate('at => viewer.textureSurfaceAt("top", null, at)', [h['at'][0] + 100, h['at'][1]]))
+    after = surface_now(page, ramp, 'top')
+    assert abs((after.get('offsetU', 0) - before.get('offsetU', 0)) + 100 / before['u']) < 0.01 and abs(after.get('offsetV', 0)) < 0.01, (before, after)
     page.evaluate('id => viewer.select(id)', slab)
     page.wait_for_function('id => viewer.texturePicked()?.id === id', arg=slab)
     # the fold shut: no surface picked, the size handles and the gizmo back

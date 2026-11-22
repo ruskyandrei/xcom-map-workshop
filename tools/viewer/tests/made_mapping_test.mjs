@@ -123,15 +123,21 @@ assert.deepEqual(nextSurface('ground', null), { role: 'top' });
 const wallN = { free: 1, x0: -20, x1: 300, y0: -8, y1: 10, z0: -16, z1: 400 };
 assert.deepEqual(surfacePlane('fracWall', wallN, { role: 'faces', side: 'y0' }).origin, [0, -8, 0]);
 assert.deepEqual(surfaceExtent('fracWall', wallN, 'faces'), [-20, 300, -16, 400]);
-const ramp = { free: 1, shape: 'ramp', x0: 0, x1: 96, y0: 0, y1: 96, z0: 0, z1: 48 };
+// a ramp's slope in its own plane: a along it (its low edge at x0), its extent the slope's length; its high edge's
+// corner at a = x0 + that length (the shared cases, slope_mapping_cases.json, hold it to uv_mapping's along_slope)
+const ramp = { free: 1, shape: 'ramp', x0: 96, x1: 192, y0: 0, y1: 96, z0: 0, z1: 48 }, slope = Math.hypot(96, 48);
 const plane = surfacePlane('ground', ramp, { role: 'top' });
-assert.deepEqual([plane.origin, plane.a], [[0, 0, 0], [1, 0, 0.5]]);
+near(plane.a, [96 / slope, 0, 48 / slope], 'along the slope');
+near(plane.normal, [-48 / slope, 0, 96 / slope], 'its normal');
+near(surfaceExtent('ground', ramp, 'top'), [96, 96 + slope, 0, 96], 'its extent up the slope');
+near(framePoint(plane, [96, 0]), [96, 0, 0], 'the low edge at x0', 1e-9);
+near(framePoint(plane, [96 + slope, 96]), [192, 96, 48], 'the high edge', 1e-9);
 assert.equal(surfacePlane('ground', ramp, { role: 'sides' }), null);
+near(surfaceExtent('ground', { ...ramp, shape: 'block' }, 'top'), [96, 192, 0, 96], 'a block\'s top: its box');
 // a point of the surface and back: on the ramp's slope, on a wall's back face
-assert.deepEqual(framePoint(plane, [48, 10]), [48, 10, 24]);
-assert.deepEqual(surfaceAt('ground', 'top', framePoint(plane, [48, 10])), [48, 10]);
+near(surfaceAt(plane, framePoint(plane, [140, 10])), [140, 10], 'back from the slope', 1e-9);
 const back = surfacePlane('fracWall', wallN, { role: 'faces', side: 'y0' });
-assert.deepEqual(surfaceAt('fracWall', 'faces', framePoint(back, [100, 50])), [100, 50]);
+assert.deepEqual(surfaceAt(back, framePoint(back, [100, 50])), [100, 50]);
 assert.deepEqual(surfaceExtent('fracSlab', { x0: 1, x1: 2, y0: 3, y1: 4, z0: 5, z1: 6 }, 'top'), [1, 2, 3, 4]);
 assert.deepEqual([surfaceSteps('fracWall', 'faces', 'tile'), surfaceSteps('fracSlab', 'top', 'fine'), surfaceSteps('ground', 'top', 'off')],
                  [[96, 64], [24, 24], [0, 0]]);

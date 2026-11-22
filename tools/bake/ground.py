@@ -49,8 +49,9 @@ and z0 < z1, a patch's plate (its top and its underside: PATCH_LIFT and its look
 makes it), a block's bottom and top, a ramp's bottom and its high edge's top (it rises from z0 at x0 to z1 at x1), a
 rock's bottom (its ground ring) and top; `height` is not read. Rock points lie within that box. `plain` is taken and
 not read (the editor's mark); a texture `mapping` and its `mappingOrigin` (uv_mapping.py) replace the look's texture on
-the top (a ramp's slope, a rock's faces turned more up than aside) and the sides where they list those surfaces, over
-the shape's box (a side's run along the box and its height). Each face's texture coordinates are held near 0 in whole
+the top (a ramp's slope, in its own plane: uv_mapping's along_slope; a rock's faces turned more up than aside) and the
+sides where they list those surfaces, over the shape's box (a side's run along the box and its height; a ramp's slope's
+run up it). Each face's texture coordinates are held near 0 in whole
 repeats (free_form.held): one face may span up to about 2,047 repeats of its texture, and a larger one is refused with
 that reason (the half floats the mesh writes them in keep no place within a repeat past 1,024 from 0). Old numbers
 never hold `free`, and build as they always did."""
@@ -330,8 +331,11 @@ def faces_of(shape):
         pts = [corners[i] for i in loop]
         n = _normal(pts)
         if abs(n[2]) > 0.5:
-            # the top (or a ramp's slope): projected straight down; its chart its true size up the slope
-            uv = (mapped('top', [(x, y) for x, y, _ in pts], box[:4], n) if surfaces.get('top')
+            # the top (or a ramp's slope): projected straight down, a mapped slope in its own plane (uv_mapping's
+            # along_slope); its chart its true size up the slope
+            slope = surfaces.get('top') and shape['shape'] == 'ramp'
+            places = [(uv_mapping.along_slope(x, box[0], box[1], box[4], box[5]) if slope else x, y) for x, y, _ in pts]
+            uv = (mapped('top', places, uv_mapping.slope_extent(*box) if slope else box[:4], n) if surfaces.get('top')
                   else [(top_map[0][0] * x + top_map[0][1] * y + top_map[0][2],
                          top_map[1][0] * x + top_map[1][1] * y + top_map[1][2]) for x, y, _ in pts] if top_map
                   else [(x / rep, y / rep) for x, y, _ in pts])

@@ -11,7 +11,9 @@
 // - tools/editor/tests/mapping_origin_cases.json: made_mapping.js mappingOrigin (made_edits.mapping_origin in
 //   test_compiler_free.py);
 // - tests/material_tiling_cases.json: made_mapping.js materialTiling (materials.profile's uv in
-//   test_materials_and_floors.py).
+//   test_materials_and_floors.py);
+// - tools/bake/tests/slope_mapping_cases.json: made_mapping.js surfacePlane, surfaceAt, surfaceExtent and uv on a ramp's
+//   slope (uv_mapping.along_slope, slope_extent and uv, and the slope ground.py builds, in test_texture_mapping.py).
 // Run: node tools/viewer/tests/shared_cases_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -20,7 +22,7 @@ import { gridMove, nearestGridPose } from '../web/poserule.js';
 import { copyFloors, floorAt } from '../web/floors.js';
 import { prefabStageLevels } from '../web/prefab_document.js';
 import { freeWallJoins, wallJoins } from '../web/walls.js';
-import { mappingOrigin, materialTiling } from '../web/made_mapping.js';
+import { framePoint, mappingOrigin, materialTiling, surfaceAt, surfaceExtent, surfacePlane, uv } from '../web/made_mapping.js';
 
 const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 const near = (a, b, eps, what) => {
@@ -90,6 +92,18 @@ for (const c of tilings) {
   assert.deepEqual(materialTiling({ parents: c.parents, scalars: c.scalars, render: { uv: c.uv } }),
                    { scale: c.uv.scale, known: c.known }, c.case);
 }
+// a ramp's slope in its own plane: uv_mapping.along_slope's places, slope_extent and uv (test_texture_mapping.py)
+const slopes = read('../../bake/tests/slope_mapping_cases.json').cases;
+assert.ok(slopes.length >= 4);
+for (const c of slopes) {
+  const plane = surfacePlane('ground', c.ramp, { role: 'top' }), extent = surfaceExtent('ground', c.ramp, 'top');
+  near(extent, c.extent, 1e-6, c.case);
+  c.points.forEach((p, k) => {
+    near(surfaceAt(plane, p), c.places[k], 1e-6, `${c.case}: the place of ${p}`);
+    near(framePoint(plane, c.places[k]), p, 1e-6, `${c.case}: the point at ${c.places[k]}`);
+    near(uv(c.surface, ...c.places[k], extent, c.origin ?? [0, 0]), c.uv[k], 1e-6, `${c.case}: the coordinates at ${p}`);
+  });
+}
 console.log(`shared_cases_test: ok (${cones.length} cones, ${poses.length} poses, ${floors.floorAt.length + floors.copyFloors.length} floor `
   + `cases, ${stages.length} stage heights, ${joints.length} wall joints, ${freeJoints.length} free-form joints, `
-  + `${origins.length} texture origins, ${tilings.length} material tilings)`);
+  + `${origins.length} texture origins, ${tilings.length} material tilings, ${slopes.length} ramp slopes)`);

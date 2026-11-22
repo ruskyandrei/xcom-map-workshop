@@ -22,8 +22,8 @@
 //   tests read (tools/editor/tests/mapping_origin_cases.json).
 //
 // A surface's point is (a, b), game units on its two axes in the piece's frame (uv_mapping.py's words): a wall's face a
-// along the wall (x), b up (z), both faces; a top or underside a along x, b along y (a ramp's slope seen from above); a
-// ground side a along x or y, b up. The handles work on the rule's (U, V); the generators write them times each face's
+// along the wall (x), b up (z), both faces; a top or underside a along x, b along y (a ramp's slope in its own plane: a
+// along it, x0 at its low edge); a ground side a along x or y, b up. The handles work on the rule's (U, V); the generators write them times each face's
 // signs (uv_mapping.face_signs), which mirror the image and keep its corners and its turn's sense. Pure: no
 // three.js, no document.
 import { groundLookOf } from './ground.js';
@@ -65,23 +65,34 @@ export function nextSurface(kind, now, step = 1) {
   const list = SURFACES[kind], i = list.findIndex(s => s.role === now?.role && (s.side ?? null) === (now?.side ?? null));
   return i < 0 ? list[0] : list[(i + step + list.length) % list.length];
 }
+// (a ramp's slope, rising from its x0 edge at z0 to its x1 edge at z1: its length up the slope, and its run's share)
+const isRamp = (kind, n, role) => kind === 'ground' && role === 'top' && n.shape === 'ramp';
+const slopeOf = n => { const run = n.x1 - n.x0, rise = n.z1 - n.z0, l = Math.hypot(run, rise); return { l, c: run / l, s: rise / l }; };
 /** Where a surface lies in the piece's frame, its numbers `n` free-form: { origin, a, b, normal } (game axes), its
- *  point (a, b) at origin + a·a + b·b; a ramp's top on its slope; null for a ground shape's sides (fields only). */
+ *  point (a, b) at origin + a·a + b·b, a and b at right angles; a ramp's top on its slope, a along it (its low edge at
+ *  a = x0, a the distance up the slope from there: uv_mapping.along_slope); null for a ground shape's sides (fields
+ *  only). */
 export function surfacePlane(kind, n, { role, side = null }) {
   if (kind === 'fracWall') return role === 'faces' ? { origin: [0, side === 'y0' ? n.y0 : n.y1, 0], a: [1, 0, 0], b: [0, 0, 1], normal: [0, side === 'y0' ? -1 : 1, 0] } : null;
   if (role === 'underside') return kind === 'fracSlab' ? { origin: [0, 0, n.z0], a: [1, 0, 0], b: [0, 1, 0], normal: [0, 0, -1] } : null;
   if (role !== 'top') return null;
-  if (kind === 'ground' && n.shape === 'ramp') {
-    // (a ramp rises from its x0 edge at z0 to its x1 edge at z1)
-    const k = (n.z1 - n.z0) / (n.x1 - n.x0), l = Math.hypot(k, 1);
-    return { origin: [0, 0, n.z0 - n.x0 * k], a: [1, 0, k], b: [0, 1, 0], normal: [-k / l, 0, 1 / l] };
+  if (isRamp(kind, n, role)) {
+    const { c, s } = slopeOf(n);
+    return { origin: [n.x0 - n.x0 * c, 0, n.z0 - n.x0 * s], a: [c, 0, s], b: [0, 1, 0], normal: [-s, 0, c] };
   }
   return { origin: [0, 0, n.z1], a: [1, 0, 0], b: [0, 1, 0], normal: [0, 0, 1] };
 }
-/** A surface's extent (a0, a1, b0, b1): the whole piece's, as the generators read a fit or a count from it. */
-export const surfaceExtent = (kind, n, role) => (kind === 'fracWall' || role === 'sides' ? [n.x0, n.x1, n.z0, n.z1] : [n.x0, n.x1, n.y0, n.y1]);
-/** The surface's point (a, b) of a point [x, y, z] of the piece's frame on it (surfacePlane's a axis is always along x). */
-export const surfaceAt = (kind, role, p) => (kind === 'fracWall' || role === 'sides' ? [p[0], p[2]] : [p[0], p[1]]);
+/** A surface's extent (a0, a1, b0, b1): the whole piece's, as the generators read a fit or a count from it (a ramp's
+ *  slope's from its low edge x0 to x0 plus its length up it: uv_mapping.slope_extent). */
+export function surfaceExtent(kind, n, role) {
+  if (kind === 'fracWall' || role === 'sides') return [n.x0, n.x1, n.z0, n.z1];
+  return isRamp(kind, n, role) ? [n.x0, n.x0 + slopeOf(n).l, n.y0, n.y1] : [n.x0, n.x1, n.y0, n.y1];
+}
+/** The surface's point (a, b) of a point [x, y, z] of the piece's frame on its plane `plane` (surfacePlane's). */
+export function surfaceAt(plane, p) {
+  const d = p.map((v, k) => v - plane.origin[k]), dot = q => d[0] * q[0] + d[1] * q[1] + d[2] * q[2];
+  return [dot(plane.a), dot(plane.b)];
+}
 /** The point of the piece's frame at the surface's point (a, b) (surfacePlane's). */
 export const framePoint = (plane, [a, b]) => plane.origin.map((o, k) => o + a * plane.a[k] + b * plane.b[k]);
 /** The snap setting's steps along a surface's a and b: across and up on a face or side, across both ways on a top. */

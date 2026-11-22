@@ -19,13 +19,23 @@ as every other face does (a wall's trims, caps, ends and gaps' sides, its faces 
   world     the pattern's origin is the world's (adjoining surfaces line up), not the piece's own frame's
 
 A point of a surface is given as (a, b): its place in game units on the surface's two axes, in the piece's frame (a
-wall's face: a along the wall (x), b up (z), both faces; a top or underside: a along x, b along y, a ramp's slope
-projected straight down as its look's own texture is; a ground side: a along x on a side facing along y, along y on
-one facing along x, b up). The surface's extent (a0, a1, b0, b1) is the whole logical piece's (a piece of a split wall
-or slab reads it from the whole: frac_wall/frac_slab `whole`; a ground shape's is its box, a side's a its run along
-the box), so a fit or a count goes on across the cuts. `origin` (a, b) is where the piece's frame stands on the
-surface's axes in the world, for a world-aligned surface (the compiler and the Build know the pose; the generator is
-handed it).
+wall's face: a along the wall (x), b up (z), both faces; a top or underside: a along x, b along y; a ramp's slope in
+its own plane, below; a ground side: a along x on a side facing along y, along y on one facing along x, b up). The
+surface's extent (a0, a1, b0, b1) is the whole logical piece's (a piece of a split wall or slab reads it from the
+whole: frac_wall/frac_slab `whole`; a ground shape's is its box, a side's a its run along the box), so a fit or a count
+goes on across the cuts. `origin` (a, b) is where the piece's frame stands on the surface's axes in the world, for a
+world-aligned surface (the compiler and the Build know the pose; the generator is handed it).
+
+A ramp's slope (its top, rising from z0 at x0 to z1 at x1) is mapped in its own plane, so a repeat is its size along
+the slope and not stretched by it: a is x0 plus the distance up the slope from the low edge (along_slope: x0 + (x - x0)
+L / (x1 - x0), L the slope's length), b is y, and its extent runs from x0 to x0 + L (slope_extent). Its low edge so
+keeps a = x0, where a flat top beside it has it too. Aligned to the world, the frame's place is added as on any top
+(a + its x, b + its y): the pattern lines up with the world's, and with a flat top's aligned to the world, along the
+low edge, and runs up the slope by its true length from there (at the high edge it no longer meets a flat top's, the
+slope being longer than its run). Its look's own texture (no mapping) is projected straight down, as the donor's top
+is, and stays so; so do a rock's faces, each a small plane of its own (until 21 November 2026 a ramp's mapped slope
+was projected too, which stretched a repeat up the slope by L / (x1 - x0)). A ramp steeper than 60 degrees has its slope
+among its sides (its normal turned more aside than up), mapped as a side.
 
 The order is the editor's and the Build's alike: the point turned, scaled to repeats by the mode along the turned
 axes, mirrored, then slid by the offsets (U, V = flips * S * R(turn) * (a, b) + offsets). Seen from the pattern, it is
@@ -149,6 +159,18 @@ def face_signs(role, normal=(0.0, 0.0, 1.0)):
         right = normal[1] if abs(normal[1]) > abs(normal[0]) else -normal[0]
         return (1.0 if right > 0 else -1.0, -1.0)
     raise MappingError('a face of an unknown surface %r' % (role,))
+
+
+def along_slope(x, x0, x1, z0, z1):
+    """The place a on a ramp's slope of its point at x (it rises from z0 at x0 to z1 at x1): x0 plus the distance up the
+    slope from the low edge (the module's words)."""
+    run = x1 - x0
+    return x0 + (x - x0) * math.hypot(run, z1 - z0) / run
+
+
+def slope_extent(x0, x1, y0, y1, z0, z1):
+    """A ramp's slope's extent (a0, a1, b0, b1): its low edge x0 to x0 plus its length up the slope, y0 to y1."""
+    return (x0, x0 + math.hypot(x1 - x0, z1 - z0), y0, y1)
 
 
 def mapped(surface, points, extent, origin=(0.0, 0.0), signs=(1.0, 1.0)):

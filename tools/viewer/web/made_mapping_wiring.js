@@ -350,7 +350,7 @@ export function createMadeMapping({ $, applyWall, applyWallSoon, camera, changeW
     const hit = rayAt(e.clientX, e.clientY).ray.intersectPlane(d.plane, new THREE.Vector3());
     if (!hit) return null;
     const v = hit.applyMatrix4(d.inverse);
-    return surfaceAt(d.kind, d.picked.role, [v.x, v.z, v.y]);
+    return surfaceAt(d.frame, [v.x, v.z, v.y]);
   }
   function startTextureDrag(e) {
     if (e.button !== 0 || textureDrag || !texturePicked || gizmo.controls.dragging) return false;
@@ -361,7 +361,7 @@ export function createMadeMapping({ $, applyWall, applyWallSoon, camera, changeW
     const normal = new THREE.Vector3(h.plane.normal[0], h.plane.normal[2], h.plane.normal[1]).transformDirection(m);
     const d = { root, which, kind: h.kind, picked: { ...h.picked }, pointerId: e.pointerId, before: wallState(root), s: h.s,
                 extent: h.extent, origin: h.origin, corner: h.corner, at: h.at, reach: h.reach, ringPx: h.ringPx,
-                plane: new THREE.Plane().setFromNormalAndCoplanarPoint(normal, p0), inverse: m.clone().invert(),
+                frame: h.plane, plane: new THREE.Plane().setFromNormalAndCoplanarPoint(normal, p0), inverse: m.clone().invert(),
                 after: null, shown: null };
     d.from = onSurface(e, d);
     if (!d.from) return false;
@@ -428,7 +428,7 @@ export function createMadeMapping({ $, applyWall, applyWallSoon, camera, changeW
     const root = textureDrag?.root ?? (texturePicked && syncPicked());
     if (!root) return null;
     const h = handlesNow(root), project = projector();
-    const onSurface = v => { const p = v.clone().applyMatrix4(root.matrixWorld.clone().invert()); return surfaceAt(h.kind, h.picked.role, [p.x, p.z, p.y]); };
+    const onSurface = v => { const p = v.clone().applyMatrix4(root.matrixWorld.clone().invert()); return surfaceAt(h.plane, [p.x, p.z, p.y]); };
     return { picked: { ...h.picked }, slide: h.dotView ? project(h.dotView) : null, turn: h.gripView ? project(h.gripView) : null,
              size: h.size ? project(h.size.view) : null, reach: h.reach ?? null, corner: h.corner ?? null, at: h.at ?? null,
              turnAt: h.gripView ? onSurface(h.gripView) : null, sizeAt: h.size?.ab ?? null };
