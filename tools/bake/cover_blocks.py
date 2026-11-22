@@ -632,6 +632,9 @@ def add_blocks(g, p, blocks, version=1):
                     raise RuntimeError('the cover block exports did not get the planned indices')
             made.append(dict(actor=actor, component=actor + 1, floor=actor + 2, location=at))
         tiles = native_copy.add_tiles_box(g, p, b['box'])
+        if tiles and b['kind'] != 'floor':
+            # a block turned to a slanted corner can give diagonal cover there: the finder decides (diagonal_keep)
+            native_copy.diagonal_candidates(g, p, b['box'], tiles['grid'])
         # a block outside the map's tiles has none (tiles is None): it is made, with no rebuild volume
         actors += [c['actor'] for c in made] + ([tiles['volume']['export']] if tiles else [])
         records.append(dict(name=b['name'], kind=b['kind'], actor=made[0]['actor'], component=made[0]['component'],

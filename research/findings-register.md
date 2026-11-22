@@ -12,17 +12,21 @@ Statuses:
 
 ## Open now
 
+- F-155 (22 November, the diagonal cover plan): the Build writes a whole tile as the game's build would (every
+  seeded tile of the install's maps comes back as baked); seeded tiles under a change are written whole, copied
+  corners carry their marks, made walls and cover blocks get the finder's corners. Offline.
 - F-154 (22 November, the diagonal cover plan): the neighbour links read from the exe, 99.96% of the bakes' links
   and every typed link worked out; the rebuild makes typed links too. Offline.
 - F-153 (22 November, the diagonal cover plan's C1): the game's cover rule, worked out from a map's pieces, gives
   the 293 marked tiles it works on their baked diagonal cover exactly; the marks themselves follow no rule (a finder
-  for corners a project changes takes 245 of 289 and 111 unmarked). Offline; the tile writer (C2) is next.
+  for corners a project changes takes 245 of 289 and 111 unmarked). Offline; the Build asks it of made pieces'
+  tiles since F-155.
 - F-151 (22 November, a user's report): a map with many copies builds to hundreds of megabytes: each copy clones
   its source's whole lightmap atlases and shadow maps, held inside the map uncompressed; read offline, not fixed; KB-15.
 - F-149 (22 November, a user's report): a tile the battle rebuilds loses its diagonal cover (the seeds are read by the
   map's full build alone). Fixed and seen in the game for the tiles an edit's own tiles do not hold (a grown
-  CSmallScout_Farm keeps 7 of 8, the eighth taken by the game's own rebuild round a Meld canister); a tile an edit is
-  on or next to still loses it, and copied or stamped slanted walls bring none; KB-14.
+  CSmallScout_Farm keeps 7 of 8, the eighth taken by the game's own rebuild round a Meld canister) and for a tile next
+  to an edit; a tile an edit stands on, and copied slanted walls, since F-155.
 - F-148 (22 November, a user's report): the train station's far gable wall never hides with its roof; the map saves it
   with no collision, so no floor lists it, in the game's map and in a build alike. Read offline; a way round is in the
   finding, a per-piece setting is not built.
@@ -357,8 +361,8 @@ boxes stretched over it; read offline from the install's `URB_TrainStation`; not
   `TrainStationLowerWalls`).
 
 ### F-149: A tile the battle rebuilds loses its diagonal cover, so a build lost it wherever its rebuild volumes reached
-**Fixed for the tiles an edit's own tiles do not hold, and verified in the game; open for the tiles they do**
-(22 November 2026: a user's report that maps saved in the editor lose diagonal cover; read offline from the install's
+**Fixed: verified in the game for the tiles an edit's own tiles do not hold; the tiles they hold since stage D2
+(F-155)** (22 November 2026: a user's report that maps saved in the editor lose diagonal cover; read offline from the install's
 maps and four builds with [`diagonal-cover.py`](evidence/diagonal-cover.py), the counts in
 [`diagonal-cover-2026-11-22.json`](evidence/diagonal-cover-2026-11-22.json); three hidden runs of a grown
 CSmallScout_Farm the same day, the tiles read from each run's save: the build as it was, a first fix that failed,
@@ -407,10 +411,11 @@ the fix).
   the tiles the piece crosses and the ring of one tile round them, with a quarter tile's margin. Since stage D1 of the
   diagonal cover plan (22 November 2026, F-152) a tile in the ring, next to the change and not under it, is left out
   of the rebuild too and written by the Build (`diagonal_keep.py`: its blocking bits, its diagonal cover and its links
-  worked out against the built map; the record's `diagonalCover`, the volume's `diagonalWritten`). A tile the change
-  stands on is still rebuilt and named (`diagonalRebuilt`). A slanted wall copied or moved, a prefab's stamp and a
-  wall brought from another map have no diagonal cover at their new place: it is in the map's tile data, not in a
-  piece. Carrying it there waits for the reading of the neighbour links (F-152).
+  worked out against the built map; the record's `diagonalCover`, the volume's `diagonalWritten`). Since stage D2
+  (F-155) a tile the change stands on is left out too and written whole (`diagonalWhole`), and a copied or moved
+  slanted wall carries the map's marks to its new place; a made wall or a turned cover block gets the corners the
+  finder takes. What a volume made without the change's boxes still takes (a ladder's tile volume, a cleared map's
+  whole-grid volume) is named `diagonalRebuilt`.
 - **In the game, after the fix** (the same project built again, a save at turn 1): 7 of the 8 tiles have their baked
   static and cover flags unchanged. The eighth, (41, 10, 0), was rebuilt by the game itself: a Meld canister stood at
   (1295, -2737), tile (39, 8) (read in the running game), and its rebuild, 288 units each way, takes tiles 36 to 42 by 5 to
@@ -437,6 +442,35 @@ the fix).
   canister's seen in the run above). A map's own diagonal cover is lost that way in the game as shipped, wherever
   that battle's canister lands by a slanted corner.
 - **Known bug** [KB-14](../KNOWN-BUGS.md), for what the fix leaves.
+
+### F-155: The Build writes a whole tile as the game's build would: every seeded tile of the install's maps comes back as baked
+**Fixed, checked offline over the install's maps** (22 November 2026: diagonal cover plan, stages D2 and D3;
+[`whole-tile-check.py`](evidence/whole-tile-check.py) over the 97 base maps, the record in
+[`whole-tile-2026-11-22.json`](evidence/whole-tile-2026-11-22.json); the writer in
+[`diagonal_keep.py`](../tools/bake/diagonal_keep.py); the Build's tests in `test_native_copy.py`, DiagonalCoverKept).
+- **What**: a tile worked out whole from a map's pieces, as the game's full build makes it: pass 1 (occupancy,
+  floor), pass 2 (standing room, cover, the blocking bits; F-152, F-153), the link step and the ladders (F-154), the
+  tiles round it as the battle will have them (worked out where its rebuild takes them, the bake's elsewhere). A
+  seeded tile is worked out as the build works one out: its four diagonals only.
+- **Seen, on maps nobody changed**: of the 299 tiles with diagonal cover on 19 maps, all 299 get their static flags,
+  cover flags, cover location and links back exactly, 293 their floor records too (the six others name the other of
+  two ground pieces whose faces lie at the same height, on the three supply ships). Of 3,840 floor tiles picked at
+  random (40 a map), 3,440 come back whole (89.6%): static flags 97.6%, cover 98.7%, cover location 95.7%, floor
+  records 93.4%, links 98.9% (the misses are F-152's and F-154's).
+- **What the Build does with it**: a seeded tile a change stands on is kept out of the battle's rebuild and written
+  whole (`diagonalWhole`). A copy or move of one of the map's own pieces carries the map's marks: a tile it stands
+  on whose place on the original had diagonal cover is written with it where a diagonal still gives cover there
+  (`newCorner: carried`), and the wall's other tiles get none, as at home. A piece with no place of its own in the
+  map (made from numbers, a cover block, a piece from another map) gets the corners the finder takes (F-153;
+  `newCorner: found`, a free-standing wall on both its faces). A rebuild volume that would reach a new corner is made
+  as several that do not, in its place in the level's list (`refitted`).
+- **On the farm** (`test_native_copy.py`): the scout's hull chunk moved onto open ground carries its two seeded
+  corners there ((45, 42, 0) and (47, 40, 0), cover toward the east as at the scout); a 45-degree cover block gives
+  four found corners; the chunk hidden with the inner hull layer behind it leaves the corners open ground with the
+  seed's flag alone, as a full build would; a barrel on a corner fills it (no floor, the seed's flag alone).
+- **Left**: a piece brought from another map does not carry its home map's marks (the finder decides); a volume
+  made without the change's boxes (a ladder's tile volume, a cleared map's) still rebuilds what it reaches; the
+  game's own rebuilds during play take a written tile like one of its own (F-149).
 
 ### F-154: The neighbour links read from the exe: 99.96% of the bakes' links worked out, every typed link
 **Verified offline over the install's maps** (22 November 2026: diagonal cover plan, stage C2;

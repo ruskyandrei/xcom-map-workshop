@@ -72,10 +72,10 @@ def built(report):
 
 
 class CompilerTests(MissionScenes, unittest.TestCase):
-    def test_a_change_on_a_diagonal_cover_tile_is_warned_and_one_beside_it_is_not(self):
+    def test_a_change_on_a_diagonal_cover_tile_gets_a_note_and_one_beside_it_does_not(self):
         # the map's diagonal cover tiles (export 38, tactical.diagonalCover): a change standing on one (the deleted
-        # piece's box, a quarter tile round it) takes its diagonal cover (findings register F-149); the Build keeps a
-        # tile only next to a change, so a tile two away is not warned
+        # piece's box, a quarter tile round it) has the Build work the tile out whole (F-155); a tile two away is
+        # only written for what the change alters, and not named
         s = scene()
         s['tileGrid'].update(dimensions=[52, 39, 12], size=[96, 96, 64])
         corner = s['tileGrid']['origin']
@@ -85,12 +85,13 @@ class CompilerTests(MissionScenes, unittest.TestCase):
             dict(tile=[under[0] + 3, under[1], 0], floor=0.0, location=None, directions=[])])
         _, report = compile_project(document([dict(target=target('XComLevelActor_1'), deleted=True)]), s)
         self.assertTrue(report['ok'], refused(report))
-        warning, = [w for w in report['warnings'] if w['code'] == 'diagonal-cover-taken']
-        self.assertEqual(warning['tiles'], [under])
-        self.assertIn('diagonal cover goes', warning['message'])
-        # a change elsewhere: no warning
+        self.assertEqual(warned(report, 'diagonal-cover-rewritten'), [])        # a note, not a warning
+        note, = [n for n in report['notes'] if n['code'] == 'diagonal-cover-rewritten']
+        self.assertEqual(note['tiles'], [under])
+        self.assertIn('keeps its diagonal cover while its slanted wall stands', note['message'])
+        # a change elsewhere: no note
         _, report = compile_project(document([dict(target=target('XComFracLevelActor_11'), deleted=True)]), s)
-        self.assertEqual(warned(report, 'diagonal-cover-taken'), [])
+        self.assertEqual([n for n in report['notes'] if n['code'] == 'diagonal-cover-rewritten'], [])
 
     def test_a_map_the_game_knows_by_name_gets_a_note(self):
         # mission types plan, Part B: Zhang and the mission's script are tied to Low Friends' name

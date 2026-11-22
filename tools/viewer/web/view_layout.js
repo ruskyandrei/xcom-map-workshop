@@ -179,16 +179,17 @@ export function floorTilesOverlay(scene,{shown=()=>true,colorOf=()=>0x82d5ce,gon
 
 // The Diagonal cover overlay (View options; findings register F-149): each of the map's tiles with diagonal cover (the
 // export's tactical.diagonalCover) outlined on its floor, with an arrow from its middle toward the slanted wall each of
-// its directions faces. Amber where the Build keeps it; red where taken(tile) (a change of the project stands on the
-// tile: the battle's rebuild works it out again and its diagonal cover goes). userData.tiles: the tiles drawn.
-const DIAGONAL_KEPT=0xf0b84a, DIAGONAL_TAKEN=0xe5534b;
-export function diagonalCoverOverlay(scene,{taken=()=>false}={}) {
+// its directions faces. Amber where the Build keeps the tile as the map has it; blue where changed(tile) (a change of
+// the project stands on the tile: the Build works it out again as the game's own build would, F-155). userData.tiles:
+// the tiles drawn.
+const DIAGONAL_KEPT=0xf0b84a, DIAGONAL_CHANGED=0x5fb4f0;
+export function diagonalCoverOverlay(scene,{changed=()=>false}={}) {
   const {origin,size}=tileGridOf(scene),group=new THREE.Group(),tiles=[];
-  const lines={kept:[],taken:[]};
+  const lines={kept:[],changed:[]};
   for(const t of scene.preview ? [] : scene.tactical?.diagonalCover || []){
     const [tx,ty,tz]=t.tile,z=(t.floor ?? origin[2]+tz*size[2])+3;
     const x0=origin[0]+(tx+0.06)*size[0],x1=origin[0]+(tx+0.94)*size[0],y0=origin[1]+(ty+0.06)*size[1],y1=origin[1]+(ty+0.94)*size[1];
-    const out=taken(t) ? lines.taken : lines.kept;
+    const out=changed(t) ? lines.changed : lines.kept;
     for(const [a,b] of [[[x0,y0],[x1,y0]],[[x1,y0],[x1,y1]],[[x1,y1],[x0,y1]],[[x0,y1],[x0,y0]]])out.push(a[0],z,a[1],b[0],z,b[1]);
     const cx=origin[0]+(tx+0.5)*size[0],cy=origin[1]+(ty+0.5)*size[1];
     for(const d of t.directions){
@@ -201,7 +202,7 @@ export function diagonalCoverOverlay(scene,{taken=()=>false}={}) {
     }
     tiles.push(t);
   }
-  for(const [key,color] of [['kept',DIAGONAL_KEPT],['taken',DIAGONAL_TAKEN]]){
+  for(const [key,color] of [['kept',DIAGONAL_KEPT],['changed',DIAGONAL_CHANGED]]){
     if(!lines[key].length)continue;
     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(lines[key],3));
     const seg=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color,depthTest:false,transparent:true,opacity:0.95}));

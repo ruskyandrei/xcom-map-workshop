@@ -650,9 +650,9 @@ export function carriedListing(saved, oldRule, newRule, floorMap) {
 
 /** The tiles world boxes stand on, as the Build's native_copy.changed_tiles works them out: each box
  *  [x0, y0, z0, x1, y1, z1] (game axes) with a quarter tile round it in x and y, every level it reaches (the ground's
- *  included), on the grid `origin` (the level volume's corner) and `dims`. A Set of 'x,y,z'. A diagonal cover tile one
- *  stands on is rebuilt by the battle and loses its cover; one only next to a change the Build writes itself
- *  (findings register F-149). */
+ *  included), on the grid `origin` (the level volume's corner) and `dims`. A Set of 'x,y,z'. The Build writes a
+ *  diagonal cover tile one stands on whole, and one only next to a change for what the change alters (findings
+ *  register F-149, F-155). */
 export function changedTiles(boxes, origin, dims, tile = [96, 96, 64], margin = 24) {
   const out = new Set(), e = 1e-3;
   for (const b of boxes) {

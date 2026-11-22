@@ -5,7 +5,7 @@
 // - the tile grid round the selection or the piece being placed (tileTargets, updateTileGrid);
 // - View options' Floor tiles: the map's saved floor tiles coloured by the piece that carries each (drawFloorTiles),
 //   the tile under the pointer named (floorTileHit, floorTip) and a click on one selecting its piece (floorTileSelect);
-// - View options' Diagonal cover: the map's tiles with diagonal cover, red where a change stands on one
+// - View options' Diagonal cover: the map's tiles with diagonal cover, blue where a change stands on one
 //   (drawDiagonalCover);
 // - the Floor picker's buttons up to the tallest building's floors (floorOptions).
 //
@@ -195,8 +195,9 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     world.add(floorTileLayer);
   }
   // The Diagonal cover overlay (View options; view_layout.js diagonalCoverOverlay): the map's tiles with diagonal cover,
-  // red where a change of the project stands on one (floors.js changedTiles, the Build's rule: the boxes of the pieces
-  // added, moved or deleted, at their places now and before). Drawn again with the cutaway.
+  // blue where a change of the project stands on one, which the Build works out again (floors.js changedTiles, the
+  // Build's rule: the boxes of the pieces added, moved or deleted, at their places now and before). Drawn again with
+  // the cutaway.
   let diagonalLayer = null;
   function changedBoxes() {
     const out = [], box = new THREE.Box3();
@@ -222,7 +223,7 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     }
     if (!data || !$('diagonalCover')?.checked || !data.tactical?.diagonalCover?.length || !data.tileGrid?.origin) return;
     const on = changedTiles(changedBoxes(), data.tileGrid.origin, data.tileGrid.dimensions, data.tileGrid.size ?? [TILE, TILE, 64]);
-    diagonalLayer = diagonalCoverOverlay(data, { taken: t => on.has(t.tile.join(',')) });
+    diagonalLayer = diagonalCoverOverlay(data, { changed: t => on.has(t.tile.join(',')) });
     world.add(diagonalLayer);
   }
   function floorTileHit(clientX, clientY) {

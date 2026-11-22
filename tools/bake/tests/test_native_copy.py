@@ -309,37 +309,101 @@ class DiagonalCoverKept(unittest.TestCase):
         vols, listed, _ = self.written((36, 38, 10, 14, 0, 6), (2, 5, 2, 5, 0, 3))
         self.assertEqual(listed, vols[0]['fitted']['volumes'] + [vols[1]['export']])
 
-    def test_a_copy_next_to_one_keeps_it_and_a_copy_on_one_takes_it(self):
-        # a wooden barrel copied beside the scout's corner (39, 12, 0), its tiles 37 to 38 by 11 to 13: the corner is
-        # in its box but not under it, so it stays out of the rebuild and the Build writes it (diagonal_keep); one
-        # copied onto the corner (49, 22, 0) takes that one (the rebuild works it out again, without the seed)
+    def built(self, variant, copies=(), hides=(), covers=()):
+        """A Build of the farm: (its manifest's nativeCopies, the rebuild order, {tile: (static, cover)} of its
+        container), the map read back."""
         import world_grid
+        with tempfile.TemporaryDirectory() as d:
+            m = native_copy.build(native_copy.BuildState(FARM, d, variant, list(copies), hides=list(hides),
+                                                         covers=list(covers)))
+            q = lighting.Package(Path(d) / f'{variant}.upk')
+            stores = world_grid.decode(world_grid.container_of(q)[1])['stores']
+            tiles = {t: (struct.unpack('<I', stores[0][t][0])[0],
+                         struct.unpack('<I', stores[1][t][0])[0] if t in stores[1] and stores[1][t][1] else 0)
+                     for t in stores[0]}
+            return m['nativeCopies'], native_copy.rebuild_order(q), tiles
+
+    def test_a_copy_next_to_one_keeps_it_and_a_copy_on_one_writes_it_whole(self):
+        # a wooden barrel copied beside the scout's corner (39, 12, 0), its tiles 37 to 38 by 11 to 13: the corner is
+        # in its box but not under it, so it stays out of the rebuild and the Build writes what the barrel can change
+        # of it (diagonal_keep); one copied onto the corner (49, 22, 0) stays out too, and the Build writes it whole
         barrel = 'XComDestructibleActor_265'
         copies = [dict(actor=barrel, location=[1190.0, -2353.0, -117.0], rotation=[0, 0, 0], label='beside'),
                   dict(actor=barrel, location=[2255.0, -1393.0, -117.0], rotation=[0, 0, 0], label='on')]
-        with tempfile.TemporaryDirectory() as d:
-            m = native_copy.build(native_copy.BuildState(FARM, d, 'Farm_Diagonal', copies))
-            nc = m['nativeCopies']
-            beside, on = nc['copies']
-            self.assertEqual(beside['tiles']['volume'].get('diagonalWritten'), [[39, 12, 0]])
-            self.assertNotIn([39, 12, 0], beside['tiles']['volume'].get('diagonalRebuilt', []))
-            self.assertIn([49, 22, 0], on['tiles']['volume']['diagonalRebuilt'])
-            written = {tuple(r['tile']): r for r in nc['diagonalCover']['written']}
-            # (51, 20, 0) is in the ring of the copy on (49, 22, 0), not under it: written too
-            self.assertEqual(set(written), {(39, 12, 0), (51, 20, 0)})
-            q = lighting.Package(Path(d) / 'Farm_Diagonal.upk')
-            order = native_copy.rebuild_order(q)
-            self.assertNotIn((39, 12, 0), order)
-            self.assertNotIn((51, 20, 0), order)
-            self.assertIn((49, 22, 0), order)
-            # the written tile keeps its diagonal cover toward the wall (E, the diagonal (-s, -s)) in the package
-            model = world_grid.decode(world_grid.container_of(q)[1])
-            cover = struct.unpack('<I', model['stores'][1][(39, 12, 0)][0])[0]
-            self.assertTrue(cover & 0x10000 and cover & 0x4, '%06x' % cover)
-            self.assertEqual('%06x' % cover, written[(39, 12, 0)]['cover'])
-            # every other diagonal tile is left as the bake has it
-            for t in self.diagonal - {(49, 22, 0)}:
-                self.assertNotIn(t, order)
+        nc, order, tiles = self.built('Farm_Diagonal', copies)
+        beside, on = nc['copies']
+        self.assertEqual(beside['tiles']['volume'].get('diagonalWritten'), [[39, 12, 0]])
+        self.assertNotIn('diagonalRebuilt', beside['tiles']['volume'])
+        self.assertNotIn('diagonalRebuilt', on['tiles']['volume'])
+        self.assertEqual(on['tiles']['volume']['diagonalWhole'], [[49, 22, 0]])
+        written = {tuple(r['tile']): r for r in nc['diagonalCover']['written']}
+        # (51, 20, 0) is in the ring of the copy on (49, 22, 0), not under it: written too
+        self.assertEqual(set(written), {(39, 12, 0), (51, 20, 0)})
+        whole = {tuple(r['tile']): r for r in nc['diagonalCover']['whole']}
+        self.assertEqual(set(whole), {(49, 22, 0)})
+        # every diagonal tile is left out of the rebuild
+        self.assertEqual({t for t in self.diagonal if t in order}, set())
+        # the written tile keeps its diagonal cover toward the wall (E, the diagonal (-s, -s)) in the package
+        static, cover = tiles[(39, 12, 0)]
+        self.assertTrue(cover & 0x10000 and cover & 0x4, '%06x' % cover)
+        self.assertEqual('%06x' % cover, written[(39, 12, 0)]['cover'])
+        # the barrel fills the corner: fully occupied, no floor, the seed's flag alone, as a full build would make it
+        static, cover = tiles[(49, 22, 0)]
+        self.assertEqual(cover, 0x10000)
+        self.assertEqual(static & 0x1E000, 0x8000, '%07x' % static)
+        self.assertEqual(whole[(49, 22, 0)]['links'], 0)          # (its floor record kept, with no links)
+
+    def test_a_copied_corner_carries_its_diagonal_cover(self):
+        # the scout's hull chunk XComLevelActor_3 (its slanted wall makes the seeded corners (39, 12, 0) and
+        # (41, 10, 0)) copied onto open ground six tiles on in x and thirty in y: the seeds move with it, so the
+        # Build writes the corners it makes there, (45, 42, 0) and (47, 40, 0), with diagonal cover, its rebuild
+        # volume made as several that leave them; the wall's inner face, which the designers left unmarked at the
+        # scout, gets none (diagonal cover plan, 5.4)
+        copies = [dict(actor='XComLevelActor_3', location=[2448.0, 912.0, -128.0], rotation=[0, -16384, 0])]
+        nc, order, tiles = self.built('Farm_Corner', copies)
+        whole = {tuple(r['tile']): r for r in nc['diagonalCover']['whole']}
+        self.assertEqual({t: r.get('newCorner') for t, r in whole.items()},
+                         {(45, 42, 0): 'carried', (47, 40, 0): 'carried'})
+        for t in whole:
+            self.assertNotIn(t, order)
+            static, cover = tiles[t]
+            self.assertTrue(cover & 0x10000 and cover & 0x4, '%s %06x' % (t, cover))     # east, as at the scout
+        self.assertEqual(tiles[(45, 41, 0)][1] & 0x10000, 0)
+        self.assertTrue(nc['diagonalCover']['refitted'])
+        # the rest of the copy's tiles are still rebuilt
+        x0, x1, y0, y1, z0, z1 = nc['copies'][0]['tiles']['tiles']
+        box = [(x, y, z) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1) for z in range(z0, z1 + 1)]
+        self.assertTrue([t for t in box if t in order])
+        # the scout's own corners are left as they are
+        self.assertEqual({t for t in self.diagonal if t in order}, set())
+
+    def test_a_turned_cover_block_makes_corners_the_finder_takes(self):
+        # a high cover block 272 by 24, turned 45 degrees on open ground, centred on (46, 40, 0): the tiles beside
+        # its faces are corners the finder takes (F-153), two each side, written with diagonal cover toward the block
+        block = dict(name='CoverBlock_copy1', kind='high', location=[1879.3, 230.3, -128.0], rotation=[0, 8192, 0],
+                     size=[272.0, 24.0], heights=[-12.0, 96.0], box=[1862.3, 2071.6, 230.3, 439.6, -140.0, -32.0])
+        nc, order, tiles = self.built('Farm_Block', covers=[block])
+        whole = {tuple(r['tile']): r for r in nc['diagonalCover']['whole']}
+        self.assertEqual({t: r.get('newCorner') for t, r in whole.items()},
+                         {t: 'found' for t in ((45, 40, 0), (46, 39, 0), (46, 41, 0), (47, 40, 0))})
+        for t in whole:
+            self.assertNotIn(t, order)
+            self.assertTrue(tiles[t][1] & 0x10000 and tiles[t][1] & 0xF, '%s %06x' % (t, tiles[t][1]))
+
+    def test_hiding_a_corners_walls_leaves_the_seeds_flag(self):
+        # the scout's hull chunk XComLevelActor_3 and the inner layer behind it (XComLevelActor_11) hidden: the
+        # corners (39, 12, 0) and (41, 10, 0) they made are written whole as a full build with their seeds would
+        # make them: open ground, the diagonal flag and no cover
+        nc, order, tiles = self.built('Farm_NoCorner', hides=[dict(name='XComLevelActor_3'),
+                                                               dict(name='XComLevelActor_11')])
+        whole = {tuple(r['tile']): r for r in nc['diagonalCover']['whole']}
+        self.assertEqual(set(whole), {(39, 12, 0), (41, 10, 0)})
+        for t in whole:
+            self.assertNotIn(t, order)
+            static, cover = tiles[t]
+            self.assertEqual(cover, 0x10000)
+            self.assertEqual(static & 0x1E000, 0x2000, '%07x' % static)       # a floor, nothing in the tile
+            self.assertGreater(whole[t]['links'], whole[t]['before']['links'])
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)

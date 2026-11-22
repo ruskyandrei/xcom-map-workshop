@@ -1,0 +1,7018 @@
+{
+ "total": {
+  "maps": 97,
+  "notRead": [
+   "Command1"
+  ],
+  "marked": {
+   "counts": {
+    "tiles": 299,
+    "static": 299,
+    "cover": 299,
+    "location": 299,
+    "floor": 293,
+    "links": 299,
+    "whole": 293
+   },
+   "bits": {}
+  },
+  "sampled": {
+   "counts": {
+    "tiles": 3840,
+    "static": 3747,
+    "cover": 3791,
+    "location": 3676,
+    "floor": 3585,
+    "links": 3797,
+    "whole": 3440
+   },
+   "bits": {
+    "0x80 written only": 17,
+    "0x100 written only": 13,
+    "0x400 written only": 12,
+    "0x10000 bake only": 11,
+    "0x8000 bake only": 10,
+    "0x200 written only": 9,
+    "0x4 bake only": 8,
+    "0x400 bake only": 6,
+    "0x10 bake only": 5,
+    "0x10 written only": 5,
+    "0x2 bake only": 5,
+    "0x8 bake only": 5,
+    "0x100000 written only": 5,
+    "0x100 bake only": 4,
+    "0x8000 written only": 4,
+    "0x10000 written only": 4,
+    "0x4 written only": 4,
+    "0x2 written only": 3,
+    "0x1000 bake only": 3,
+    "0x4000 bake only": 1,
+    "0x800 bake only": 1,
+    "0x8 written only": 1,
+    "0x40 written only": 1,
+    "0x1000 written only": 1,
+    "0x2000 bake only": 1,
+    "0x100000 bake only": 1,
+    "0x200000 bake only": 1,
+    "0x200 bake only": 1
+   }
+  }
+ },
+ "maps": [
+  {
+   "map": "Act1_IntroLevel",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 39,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       1,
+       12,
+       1
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "00bac30",
+       "00bac30"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.2
+  },
+  {
+   "map": "Act2_Pier",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 40,
+     "floor": 37,
+     "links": 40,
+     "whole": 36
+    },
+    "bits": {
+     "0x10 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       11,
+       8,
+       1
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "043a820",
+       "043a830"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       11,
+       12,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       9,
+       14,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       16,
+       61,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.3
+  },
+  {
+   "map": "Act2_Pier_Asian",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 37,
+     "links": 40,
+     "whole": 37
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       8,
+       9,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043ab2c",
+       "043ab2c"
+      ],
+      "cover": [
+       "00020a",
+       "00020a"
+      ]
+     },
+     {
+      "tile": [
+       8,
+       15,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422824",
+       "0422824"
+      ],
+      "cover": [
+       "108888",
+       "108888"
+      ]
+     },
+     {
+      "tile": [
+       14,
+       60,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422c30",
+       "0422c30"
+      ],
+      "cover": [
+       "020111",
+       "020111"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.4
+  },
+  {
+   "map": "AlienBase01",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 39,
+     "location": 39,
+     "floor": 39,
+     "links": 39,
+     "whole": 38
+    },
+    "bits": {
+     "0x2 written only": 1,
+     "0x10 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       41,
+       74,
+       2
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043e830",
+       "043e830"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       52,
+       136,
+       6
+      ],
+      "wrong": [
+       "static",
+       "cover",
+       "location",
+       "links"
+      ],
+      "static": [
+       "043a832",
+       "043a820"
+      ],
+      "cover": [
+       "0a0155",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.1
+  },
+  {
+   "map": "AlienBase02",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 38,
+     "links": 40,
+     "whole": 38
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       43,
+       23,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043e820",
+       "043e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       82,
+       30,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043e820",
+       "043e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.0
+  },
+  {
+   "map": "CAbductor_Cliffside",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 39,
+     "floor": 40,
+     "links": 39,
+     "whole": 37
+    },
+    "bits": {
+     "0x100 bake only": 1,
+     "0x400 bake only": 1,
+     "0x1000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       21,
+       21,
+       3
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "0422820",
+       "0423d20"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       37,
+       9,
+       3
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       8,
+       28,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043acb2",
+       "043acb2"
+      ],
+      "cover": [
+       "084045",
+       "084045"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.9
+  },
+  {
+   "map": "CAbductor_ScorchedEarth",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 38,
+     "location": 39,
+     "floor": 40,
+     "links": 40,
+     "whole": 38
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       27,
+       29,
+       4
+      ],
+      "wrong": [
+       "cover"
+      ],
+      "static": [
+       "043aa28",
+       "043aa28"
+      ],
+      "cover": [
+       "002222",
+       "042222"
+      ]
+     },
+     {
+      "tile": [
+       29,
+       27,
+       4
+      ],
+      "wrong": [
+       "cover",
+       "location"
+      ],
+      "static": [
+       "04bad34",
+       "04bad34"
+      ],
+      "cover": [
+       "001019",
+       "021019"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.9
+  },
+  {
+   "map": "CB2_MP_Blank",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 38,
+     "whole": 38
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       21,
+       14,
+       0
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       21,
+       13,
+       0
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "05228a2",
+       "05228a2"
+      ],
+      "cover": [
+       "000404",
+       "000404"
+      ]
+     }
+    ]
+   },
+   "seconds": 0.4
+  },
+  {
+   "map": "CBattleship_01",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 38,
+     "cover": 40,
+     "location": 36,
+     "floor": 38,
+     "links": 40,
+     "whole": 32
+    },
+    "bits": {
+     "0x400 bake only": 2,
+     "0x1000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       52,
+       22,
+       6
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "04229a6",
+       "0423da6"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       14,
+       136,
+       6
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043a924",
+       "043a924"
+      ],
+      "cover": [
+       "1008088",
+       "1008088"
+      ]
+     },
+     {
+      "tile": [
+       21,
+       4,
+       9
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       12,
+       84,
+       2
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04aec30",
+       "04aec30"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.0
+  },
+  {
+   "map": "CBattleship_02",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 37,
+     "floor": 39,
+     "links": 40,
+     "whole": 35
+    },
+    "bits": {
+     "0x100 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       38,
+       22,
+       9
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043ab2c",
+       "043ab2c"
+      ],
+      "cover": [
+       "40022a",
+       "40022a"
+      ]
+     },
+     {
+      "tile": [
+       24,
+       11,
+       9
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043aaaa",
+       "043aaaa"
+      ],
+      "cover": [
+       "042066",
+       "042066"
+      ]
+     },
+     {
+      "tile": [
+       16,
+       38,
+       3
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "0422820",
+       "0422920"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       35,
+       85,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043a924",
+       "043a924"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.2
+  },
+  {
+   "map": "CLrgScout_City",
+   "marked": {
+    "counts": {
+     "tiles": 19,
+     "static": 19,
+     "cover": 19,
+     "location": 19,
+     "floor": 19,
+     "links": 19,
+     "whole": 19
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 2.6
+  },
+  {
+   "map": "CLrgScout_DeepWoods",
+   "marked": {
+    "counts": {
+     "tiles": 21,
+     "static": 21,
+     "cover": 21,
+     "location": 21,
+     "floor": 21,
+     "links": 21,
+     "whole": 21
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 39,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       14,
+       16,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "05be820",
+       "05be820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.2
+  },
+  {
+   "map": "CLrgScout_ForestTrench",
+   "marked": {
+    "counts": {
+     "tiles": 19,
+     "static": 19,
+     "cover": 19,
+     "location": 19,
+     "floor": 19,
+     "links": 19,
+     "whole": 19
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 37,
+     "links": 39,
+     "whole": 36
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       9,
+       3,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04baa28",
+       "04baa28"
+      ],
+      "cover": [
+       "042022",
+       "042022"
+      ]
+     },
+     {
+      "tile": [
+       4,
+       40,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "05a2820",
+       "05a2820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       41,
+       74,
+       1
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "04be820",
+       "04be820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       5,
+       43,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04baa28",
+       "04baa28"
+      ],
+      "cover": [
+       "002202",
+       "002202"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.6
+  },
+  {
+   "map": "CLrgScout_Stonewall",
+   "marked": {
+    "counts": {
+     "tiles": 21,
+     "static": 21,
+     "cover": 21,
+     "location": 21,
+     "floor": 21,
+     "links": 21,
+     "whole": 21
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 2.9
+  },
+  {
+   "map": "CLrgScout_TheBarrens",
+   "marked": {
+    "counts": {
+     "tiles": 19,
+     "static": 19,
+     "cover": 19,
+     "location": 19,
+     "floor": 19,
+     "links": 19,
+     "whole": 19
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 3.6
+  },
+  {
+   "map": "Command1",
+   "error": "ValueError: expected one XComLevelVolume with a brush, found 0"
+  },
+  {
+   "map": "COverseer_DeepWoods",
+   "marked": {
+    "counts": {
+     "tiles": 19,
+     "static": 19,
+     "cover": 19,
+     "location": 19,
+     "floor": 19,
+     "links": 19,
+     "whole": 19
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 4.5
+  },
+  {
+   "map": "COverseer_ForestTrench",
+   "marked": {
+    "counts": {
+     "tiles": 19,
+     "static": 19,
+     "cover": 19,
+     "location": 19,
+     "floor": 19,
+     "links": 19,
+     "whole": 19
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 40,
+     "floor": 39,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {
+     "0x4000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       23,
+       9,
+       8
+      ],
+      "wrong": [
+       "static",
+       "floor"
+      ],
+      "static": [
+       "05ba820",
+       "05be820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 5.2
+  },
+  {
+   "map": "COverseer_Stonewall",
+   "marked": {
+    "counts": {
+     "tiles": 19,
+     "static": 19,
+     "cover": 19,
+     "location": 19,
+     "floor": 19,
+     "links": 19,
+     "whole": 19
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 39,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       16,
+       48,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "053e820",
+       "053e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.9
+  },
+  {
+   "map": "COverseer_TheBarrens",
+   "marked": {
+    "counts": {
+     "tiles": 19,
+     "static": 19,
+     "cover": 19,
+     "location": 19,
+     "floor": 19,
+     "links": 19,
+     "whole": 19
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 3.6
+  },
+  {
+   "map": "CSmallScout_Badlands",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 3.1
+  },
+  {
+   "map": "CSmallScout_DirtRoad",
+   "marked": {
+    "counts": {
+     "tiles": 8,
+     "static": 8,
+     "cover": 8,
+     "location": 8,
+     "floor": 8,
+     "links": 8,
+     "whole": 8
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 3.1
+  },
+  {
+   "map": "CsmallScout_Farm",
+   "marked": {
+    "counts": {
+     "tiles": 8,
+     "static": 8,
+     "cover": 8,
+     "location": 8,
+     "floor": 8,
+     "links": 8,
+     "whole": 8
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 39,
+     "location": 39,
+     "floor": 38,
+     "links": 40,
+     "whole": 37
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       25,
+       26,
+       2
+      ],
+      "wrong": [
+       "cover",
+       "location"
+      ],
+      "static": [
+       "0422924",
+       "0422924"
+      ],
+      "cover": [
+       "000000",
+       "000808"
+      ]
+     },
+     {
+      "tile": [
+       45,
+       16,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "05ba820",
+       "05ba820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       44,
+       22,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04ae820",
+       "04ae820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.2
+  },
+  {
+   "map": "CSmallScout_Marshlands",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 3.3
+  },
+  {
+   "map": "CSmallScout_NukedCity",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 38,
+     "links": 38,
+     "whole": 37
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       14,
+       47,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "06ae820",
+       "06ae820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       17,
+       36,
+       9
+      ],
+      "wrong": [
+       "floor",
+       "links"
+      ],
+      "static": [
+       "04a2820",
+       "04a2820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       17,
+       46,
+       2
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "04ba820",
+       "04ba820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.3
+  },
+  {
+   "map": "CSmallScout_Quagmire",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 38,
+     "links": 40,
+     "whole": 38
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       16,
+       58,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04a2820",
+       "04a2820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       19,
+       51,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04ba820",
+       "04ba820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.3
+  },
+  {
+   "map": "CSmallScout_Roadhouse",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 35,
+     "cover": 40,
+     "location": 39,
+     "floor": 39,
+     "links": 39,
+     "whole": 34
+    },
+    "bits": {
+     "0x8000 bake only": 4,
+     "0x10000 bake only": 4,
+     "0x10 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       33,
+       39,
+       1
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "8422820",
+       "843a820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       18,
+       9,
+       2
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "043a820",
+       "043a830"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       32,
+       40,
+       1
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "84a2820",
+       "84ba820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       54,
+       38,
+       1
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "8522820",
+       "853a820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.0
+  },
+  {
+   "map": "CSupplyShip_OverlookA",
+   "marked": {
+    "counts": {
+     "tiles": 4,
+     "static": 4,
+     "cover": 4,
+     "location": 4,
+     "floor": 4,
+     "links": 4,
+     "whole": 4
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 39,
+     "location": 39,
+     "floor": 40,
+     "links": 39,
+     "whole": 37
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       62,
+       62,
+       0
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       84,
+       34,
+       9
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "05ba8a2",
+       "05ba8a2"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       65,
+       0,
+       5
+      ],
+      "wrong": [
+       "cover"
+      ],
+      "static": [
+       "4422924",
+       "4422924"
+      ],
+      "cover": [
+       "108088",
+       "108888"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.9
+  },
+  {
+   "map": "CSupplyShip_Wildfire",
+   "marked": {
+    "counts": {
+     "tiles": 4,
+     "static": 4,
+     "cover": 4,
+     "location": 4,
+     "floor": 2,
+     "links": 4,
+     "whole": 2
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       24,
+       98,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043a928",
+       "043a928"
+      ],
+      "cover": [
+       "010002",
+       "010002"
+      ]
+     },
+     {
+      "tile": [
+       25,
+       99,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043ab28",
+       "043ab28"
+      ],
+      "cover": [
+       "010002",
+       "010002"
+      ]
+     }
+    ]
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 39,
+     "links": 39,
+     "whole": 38
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       72,
+       22,
+       1
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "05be820",
+       "05be820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       24,
+       100,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 12.3
+  },
+  {
+   "map": "DEMO_SonOfFacemelt",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 31.2
+  },
+  {
+   "map": "DLC1_1_LowFriends",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 37,
+     "floor": 40,
+     "links": 37,
+     "whole": 37
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       12,
+       21,
+       1
+      ],
+      "wrong": [
+       "location",
+       "links"
+      ],
+      "static": [
+       "043a830",
+       "043a830"
+      ],
+      "cover": [
+       "201111",
+       "201111"
+      ]
+     },
+     {
+      "tile": [
+       32,
+       19,
+       1
+      ],
+      "wrong": [
+       "location",
+       "links"
+      ],
+      "static": [
+       "043a8b2",
+       "043a8b2"
+      ],
+      "cover": [
+       "a04555",
+       "a04555"
+      ]
+     },
+     {
+      "tile": [
+       29,
+       19,
+       1
+      ],
+      "wrong": [
+       "location",
+       "links"
+      ],
+      "static": [
+       "053a830",
+       "053a830"
+      ],
+      "cover": [
+       "201111",
+       "201111"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "DLC1_2_CnfndLight",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 2.5
+  },
+  {
+   "map": "DLC1_3_Gangplank",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 37,
+     "cover": 37,
+     "location": 35,
+     "floor": 39,
+     "links": 40,
+     "whole": 34
+    },
+    "bits": {
+     "0x2 bake only": 1,
+     "0x10 bake only": 1,
+     "0x4 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       30,
+       31,
+       3
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "063acb2",
+       "063acb2"
+      ],
+      "cover": [
+       "a04155",
+       "a04155"
+      ]
+     },
+     {
+      "tile": [
+       35,
+       52,
+       3
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "063a824",
+       "063a824"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     },
+     {
+      "tile": [
+       41,
+       75,
+       2
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04be820",
+       "04be820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       32,
+       72,
+       8
+      ],
+      "wrong": [
+       "static",
+       "cover",
+       "location"
+      ],
+      "static": [
+       "043a820",
+       "043a822"
+      ],
+      "cover": [
+       "000000",
+       "084444"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.0
+  },
+  {
+   "map": "DLC2_1_Portent",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 37,
+     "cover": 38,
+     "location": 37,
+     "floor": 36,
+     "links": 38,
+     "whole": 33
+    },
+    "bits": {
+     "0x400 written only": 2,
+     "0x80 written only": 1,
+     "0x10 written only": 1,
+     "0x8000 written only": 1,
+     "0x10000 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       47,
+       26,
+       8
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063aa28",
+       "063aa28"
+      ],
+      "cover": [
+       "402222",
+       "402222"
+      ]
+     },
+     {
+      "tile": [
+       8,
+       13,
+       1
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "04228aa",
+       "042282a"
+      ],
+      "cover": [
+       "0c2066",
+       "0c2066"
+      ]
+     },
+     {
+      "tile": [
+       47,
+       27,
+       8
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063ac30",
+       "063a830"
+      ],
+      "cover": [
+       "201111",
+       "201111"
+      ]
+     },
+     {
+      "tile": [
+       43,
+       17,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.6
+  },
+  {
+   "map": "DLC2_2_Deluge",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 32,
+     "cover": 24,
+     "location": 23,
+     "floor": 40,
+     "links": 36,
+     "whole": 23
+    },
+    "bits": {
+     "0x4 bake only": 4,
+     "0x8 bake only": 3,
+     "0x100000 written only": 3,
+     "0x80 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       14,
+       49,
+       0
+      ],
+      "wrong": [
+       "static",
+       "cover",
+       "location"
+      ],
+      "static": [
+       "053a820",
+       "043a828"
+      ],
+      "cover": [
+       "000000",
+       "402222"
+      ]
+     },
+     {
+      "tile": [
+       18,
+       61,
+       0
+      ],
+      "wrong": [
+       "static",
+       "cover",
+       "location",
+       "links"
+      ],
+      "static": [
+       "043a820",
+       "043a824"
+      ],
+      "cover": [
+       "000000",
+       "108888"
+      ]
+     },
+     {
+      "tile": [
+       12,
+       89,
+       0
+      ],
+      "wrong": [
+       "cover",
+       "location"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "000000",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       16,
+       29,
+       0
+      ],
+      "wrong": [
+       "static",
+       "cover",
+       "location"
+      ],
+      "static": [
+       "043a820",
+       "043a824"
+      ],
+      "cover": [
+       "000000",
+       "108888"
+      ]
+     }
+    ]
+   },
+   "seconds": 34.1
+  },
+  {
+   "map": "DLC2_3_Furies",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 39,
+     "floor": 40,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       44,
+       12,
+       3
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "04baa28",
+       "04baa28"
+      ],
+      "cover": [
+       "000202",
+       "000202"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.4
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "marked": {
+    "counts": {
+     "tiles": 16,
+     "static": 16,
+     "cover": 16,
+     "location": 16,
+     "floor": 16,
+     "links": 16,
+     "whole": 16
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 39,
+     "location": 39,
+     "floor": 38,
+     "links": 40,
+     "whole": 37
+    },
+    "bits": {
+     "0x2 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       68,
+       8,
+       9
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0622820",
+       "0622820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       51,
+       45,
+       7
+      ],
+      "wrong": [
+       "static",
+       "cover",
+       "location"
+      ],
+      "static": [
+       "063a820",
+       "063a822"
+      ],
+      "cover": [
+       "000000",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       15,
+       20,
+       7
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04ae820",
+       "04ae820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.8
+  },
+  {
+   "map": "EWI_ExaltHQAssault",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 38,
+     "floor": 40,
+     "links": 40,
+     "whole": 38
+    },
+    "bits": {
+     "0x100 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       8,
+       39,
+       3
+      ],
+      "wrong": [
+       "static",
+       "location"
+      ],
+      "static": [
+       "063a82c",
+       "063a92c"
+      ],
+      "cover": [
+       "10482aa",
+       "10482aa"
+      ]
+     },
+     {
+      "tile": [
+       11,
+       9,
+       3
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043ab2c",
+       "043ab2c"
+      ],
+      "cover": [
+       "00800a",
+       "00800a"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.8
+  },
+  {
+   "map": "EWI_HQAssault",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {
+     "0x10 bake only": 1,
+     "0x400 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       88,
+       6,
+       5
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "043a820",
+       "043ac30"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.0
+  },
+  {
+   "map": "EWI_HQAssault_MP",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 35,
+     "floor": 40,
+     "links": 40,
+     "whole": 35
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       23,
+       25,
+       3
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043a924",
+       "043a924"
+      ],
+      "cover": [
+       "000008",
+       "000008"
+      ]
+     },
+     {
+      "tile": [
+       23,
+       7,
+       9
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043a924",
+       "043a924"
+      ],
+      "cover": [
+       "000008",
+       "000008"
+      ]
+     },
+     {
+      "tile": [
+       6,
+       8,
+       3
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043a830",
+       "043a830"
+      ],
+      "cover": [
+       "201111",
+       "201111"
+      ]
+     },
+     {
+      "tile": [
+       14,
+       5,
+       3
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "04bac30",
+       "04bac30"
+      ],
+      "cover": [
+       "000101",
+       "000101"
+      ]
+     }
+    ]
+   },
+   "seconds": 34.0
+  },
+  {
+   "map": "EWI_MeldTutorial",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 35,
+     "cover": 40,
+     "location": 35,
+     "floor": 35,
+     "links": 40,
+     "whole": 35
+    },
+    "bits": {
+     "0x400 written only": 2,
+     "0x100 written only": 2,
+     "0x80 written only": 1,
+     "0x800 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       10,
+       29,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "073a8a2",
+       "073a822"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       13,
+       27,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "04a2430",
+       "04a2830"
+      ],
+      "cover": [
+       "021111",
+       "021111"
+      ]
+     },
+     {
+      "tile": [
+       21,
+       25,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063a924",
+       "063a824"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     },
+     {
+      "tile": [
+       21,
+       22,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063a924",
+       "063a824"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.4
+  },
+  {
+   "map": "LAbductor_FarmOutskirts",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 39,
+     "location": 40,
+     "floor": 39,
+     "links": 39,
+     "whole": 37
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       72,
+       4,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043acb2",
+       "043acb2"
+      ],
+      "cover": [
+       "0a4155",
+       "0a4155"
+      ]
+     },
+     {
+      "tile": [
+       56,
+       45,
+       1
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "24a2820",
+       "24a2820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       37,
+       30,
+       3
+      ],
+      "wrong": [
+       "cover"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "004404",
+       "084444"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.4
+  },
+  {
+   "map": "LAbductor_WindingStream",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 39,
+     "floor": 40,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       47,
+       33,
+       2
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "04bac30",
+       "04bac30"
+      ],
+      "cover": [
+       "000001",
+       "000001"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.9
+  },
+  {
+   "map": "LLrgScout_CreepyForest",
+   "marked": {
+    "counts": {
+     "tiles": 34,
+     "static": 34,
+     "cover": 34,
+     "location": 34,
+     "floor": 34,
+     "links": 34,
+     "whole": 34
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 3.1
+  },
+  {
+   "map": "LLrgScout_Hillside",
+   "marked": {
+    "counts": {
+     "tiles": 34,
+     "static": 34,
+     "cover": 34,
+     "location": 34,
+     "floor": 34,
+     "links": 34,
+     "whole": 34
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 39,
+     "links": 39,
+     "whole": 38
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       43,
+       14,
+       1
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "042e924",
+       "042e924"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       30,
+       52,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "05ba820",
+       "05ba820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.7
+  },
+  {
+   "map": "LSmallScout_River",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 39,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       51,
+       49,
+       1
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.9
+  },
+  {
+   "map": "LSmallScout_Rivervalley",
+   "marked": {
+    "counts": {
+     "tiles": 8,
+     "static": 8,
+     "cover": 8,
+     "location": 8,
+     "floor": 8,
+     "links": 8,
+     "whole": 8
+    },
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 38,
+     "links": 40,
+     "whole": 38
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       81,
+       3,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "84bab2c",
+       "84bab2c"
+      ],
+      "cover": [
+       "1482aa",
+       "1482aa"
+      ]
+     },
+     {
+      "tile": [
+       89,
+       10,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "843aa28",
+       "843aa28"
+      ],
+      "cover": [
+       "042222",
+       "042222"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.4
+  },
+  {
+   "map": "LSupplyShip_ForestGrove",
+   "marked": {
+    "counts": {
+     "tiles": 4,
+     "static": 4,
+     "cover": 4,
+     "location": 4,
+     "floor": 2,
+     "links": 4,
+     "whole": 2
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       45,
+       3,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043acb0",
+       "043acb0"
+      ],
+      "cover": [
+       "010001",
+       "010001"
+      ]
+     },
+     {
+      "tile": [
+       46,
+       4,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043a8b0",
+       "043a8b0"
+      ],
+      "cover": [
+       "010001",
+       "010001"
+      ]
+     }
+    ]
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 39,
+     "floor": 38,
+     "links": 40,
+     "whole": 37
+    },
+    "bits": {
+     "0x400 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       20,
+       62,
+       9
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04be820",
+       "04be820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       20,
+       5,
+       2
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04be820",
+       "04be820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       30,
+       42,
+       0
+      ],
+      "wrong": [
+       "static",
+       "location"
+      ],
+      "static": [
+       "043ac30",
+       "043a830"
+      ],
+      "cover": [
+       "201111",
+       "201111"
+      ]
+     }
+    ]
+   },
+   "seconds": 5.0
+  },
+  {
+   "map": "LSupplyShip_RockyGorge",
+   "marked": {
+    "counts": {
+     "tiles": 4,
+     "static": 4,
+     "cover": 4,
+     "location": 4,
+     "floor": 2,
+     "links": 4,
+     "whole": 2
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       40,
+       17,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "843acb0",
+       "843acb0"
+      ],
+      "cover": [
+       "010001",
+       "010001"
+      ]
+     },
+     {
+      "tile": [
+       41,
+       18,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "843a8b0",
+       "843a8b0"
+      ],
+      "cover": [
+       "010001",
+       "010001"
+      ]
+     }
+    ]
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 39,
+     "floor": 39,
+     "links": 39,
+     "whole": 36
+    },
+    "bits": {
+     "0x400 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       30,
+       63,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043aa28",
+       "043aa28"
+      ],
+      "cover": [
+       "402222",
+       "402222"
+      ]
+     },
+     {
+      "tile": [
+       27,
+       80,
+       3
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "0522820",
+       "0522c20"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       50,
+       93,
+       0
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "853a820",
+       "853a820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       47,
+       7,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "842e820",
+       "842e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.2
+  },
+  {
+   "map": "TempleShip",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 38,
+     "cover": 39,
+     "location": 39,
+     "floor": 37,
+     "links": 39,
+     "whole": 35
+    },
+    "bits": {
+     "0x400 bake only": 1,
+     "0x1000 bake only": 1,
+     "0x4 written only": 1,
+     "0x8 written only": 1,
+     "0x10 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       10,
+       47,
+       3
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "04229a6",
+       "0423da6"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       13,
+       31,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043e820",
+       "043e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       6,
+       100,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "063e820",
+       "063e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       8,
+       63,
+       6
+      ],
+      "wrong": [
+       "static",
+       "cover",
+       "location",
+       "links"
+      ],
+      "static": [
+       "063a83c",
+       "063a820"
+      ],
+      "cover": [
+       "10612bb",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 4.2
+  },
+  {
+   "map": "URB_Bar",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 39,
+     "location": 39,
+     "floor": 34,
+     "links": 40,
+     "whole": 33
+    },
+    "bits": {
+     "0x400 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       27,
+       31,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422820",
+       "0422820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       18,
+       24,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       27,
+       22,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       32,
+       30,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "URB_Bar_Terror",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 39,
+     "floor": 35,
+     "links": 39,
+     "whole": 34
+    },
+    "bits": {
+     "0x80 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       35,
+       22,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "05a2820",
+       "05a2820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       15,
+       0,
+       0
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "4522820",
+       "4522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       30,
+       28,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "05a28a2",
+       "05a2822"
+      ],
+      "cover": [
+       "084444",
+       "084444"
+      ]
+     },
+     {
+      "tile": [
+       35,
+       21,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "05a2820",
+       "05a2820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "URB_Boulevard",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {
+     "0x8000 written only": 1,
+     "0x10000 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       35,
+       23,
+       1
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "053a820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.0
+  },
+  {
+   "map": "URB_Boulevard_Euro",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 39,
+     "floor": 40,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       35,
+       17,
+       1
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "084444",
+       "084444"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.0
+  },
+  {
+   "map": "URB_CemeteryGrand",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 40,
+     "floor": 37,
+     "links": 40,
+     "whole": 36
+    },
+    "bits": {
+     "0x8000 bake only": 1,
+     "0x10000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       38,
+       25,
+       11
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043e820",
+       "043e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       37,
+       21,
+       7
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "073e820",
+       "073e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       42,
+       27,
+       1
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "05a2820",
+       "05ba820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       40,
+       27,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0426820",
+       "0426820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.6
+  },
+  {
+   "map": "URB_CommercialAlley",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 34,
+     "cover": 40,
+     "location": 34,
+     "floor": 27,
+     "links": 40,
+     "whole": 27
+    },
+    "bits": {
+     "0x400 written only": 2,
+     "0x80 written only": 2,
+     "0x200 written only": 2
+    },
+    "examples": [
+     {
+      "tile": [
+       37,
+       45,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063ac30",
+       "063a830"
+      ],
+      "cover": [
+       "201011",
+       "201011"
+      ]
+     },
+     {
+      "tile": [
+       11,
+       14,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       10,
+       39,
+       9
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       21,
+       12,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "053a8a2",
+       "053a822"
+      ],
+      "cover": [
+       "084444",
+       "084444"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.4
+  },
+  {
+   "map": "URB_CommercialAlley_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 38,
+     "location": 37,
+     "floor": 34,
+     "links": 40,
+     "whole": 32
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       35,
+       12,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       14,
+       12,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "053a820",
+       "053a820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       42,
+       38,
+       0
+      ],
+      "wrong": [
+       "cover",
+       "location"
+      ],
+      "static": [
+       "043a828",
+       "043a828"
+      ],
+      "cover": [
+       "000000",
+       "000022"
+      ]
+     },
+     {
+      "tile": [
+       8,
+       53,
+       0
+      ],
+      "wrong": [
+       "cover",
+       "location"
+      ],
+      "static": [
+       "043a828",
+       "043a828"
+      ],
+      "cover": [
+       "000000",
+       "000222"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.2
+  },
+  {
+   "map": "URB_CommercialAlley_Terror",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 34,
+     "cover": 37,
+     "location": 32,
+     "floor": 28,
+     "links": 40,
+     "whole": 24
+    },
+    "bits": {
+     "0x200 written only": 2,
+     "0x400 written only": 1,
+     "0x100 written only": 1,
+     "0x80 written only": 1,
+     "0x8 bake only": 1,
+     "0x100000 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       12,
+       11,
+       5
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063aa28",
+       "063a828"
+      ],
+      "cover": [
+       "402222",
+       "402222"
+      ]
+     },
+     {
+      "tile": [
+       12,
+       21,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422820",
+       "0422820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       20,
+       29,
+       9
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063aa28",
+       "063a828"
+      ],
+      "cover": [
+       "402222",
+       "402222"
+      ]
+     },
+     {
+      "tile": [
+       30,
+       41,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "043ac30",
+       "043a830"
+      ],
+      "cover": [
+       "021111",
+       "021111"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.1
+  },
+  {
+   "map": "URB_CommercialRestaurant",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 36,
+     "floor": 33,
+     "links": 39,
+     "whole": 32
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       22,
+       26,
+       7
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       4,
+       27,
+       1
+      ],
+      "wrong": [
+       "location",
+       "links"
+      ],
+      "static": [
+       "043aaaa",
+       "043aaaa"
+      ],
+      "cover": [
+       "802446",
+       "802446"
+      ]
+     },
+     {
+      "tile": [
+       14,
+       20,
+       7
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       20,
+       29,
+       7
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "043aaaa",
+       "043aaaa"
+      ],
+      "cover": [
+       "002006",
+       "002006"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.4
+  },
+  {
+   "map": "URB_CommercialStreet",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 38,
+     "floor": 37,
+     "links": 40,
+     "whole": 36
+    },
+    "bits": {
+     "0x10 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       2,
+       25,
+       7
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063a8a2",
+       "063a8a2"
+      ],
+      "cover": [
+       "000004",
+       "000004"
+      ]
+     },
+     {
+      "tile": [
+       17,
+       20,
+       7
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0622820",
+       "0622820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       9,
+       28,
+       7
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063ac30",
+       "063ac30"
+      ],
+      "cover": [
+       "000001",
+       "000001"
+      ]
+     },
+     {
+      "tile": [
+       20,
+       18,
+       1
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "043a820",
+       "043a830"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 3.0
+  },
+  {
+   "map": "URB_CommercialStreet_Terror",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 39,
+     "location": 37,
+     "floor": 36,
+     "links": 40,
+     "whole": 35
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       2,
+       19,
+       7
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063a8a2",
+       "063a8a2"
+      ],
+      "cover": [
+       "000004",
+       "000004"
+      ]
+     },
+     {
+      "tile": [
+       37,
+       6,
+       0
+      ],
+      "wrong": [
+       "cover",
+       "location"
+      ],
+      "static": [
+       "043aa28",
+       "043aa28"
+      ],
+      "cover": [
+       "000000",
+       "002002"
+      ]
+     },
+     {
+      "tile": [
+       25,
+       20,
+       7
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "043a924",
+       "043a924"
+      ],
+      "cover": [
+       "000008",
+       "000008"
+      ]
+     },
+     {
+      "tile": [
+       11,
+       24,
+       7
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0622820",
+       "0622820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.2
+  },
+  {
+   "map": "URB_ConvienienceStore",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 38,
+     "floor": 28,
+     "links": 39,
+     "whole": 28
+    },
+    "bits": {
+     "0x80 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       3,
+       24,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       26,
+       40,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422820",
+       "0422820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       24,
+       33,
+       0
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       31,
+       19,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.0
+  },
+  {
+   "map": "URB_ConvienienceStore_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 38,
+     "cover": 40,
+     "location": 37,
+     "floor": 34,
+     "links": 38,
+     "whole": 32
+    },
+    "bits": {
+     "0x100 written only": 1,
+     "0x2 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       8,
+       30,
+       0
+      ],
+      "wrong": [
+       "links"
+      ],
+      "static": [
+       "0422c30",
+       "0422c30"
+      ],
+      "cover": [
+       "201111",
+       "201111"
+      ]
+     },
+     {
+      "tile": [
+       37,
+       36,
+       5
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "000404",
+       "000404"
+      ]
+     },
+     {
+      "tile": [
+       36,
+       24,
+       5
+      ],
+      "wrong": [
+       "location",
+       "floor",
+       "links"
+      ],
+      "static": [
+       "043aa28",
+       "043aa28"
+      ],
+      "cover": [
+       "042222",
+       "042222"
+      ]
+     },
+     {
+      "tile": [
+       18,
+       22,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "URB_ConvienienceStore_Terror",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 35,
+     "cover": 38,
+     "location": 34,
+     "floor": 28,
+     "links": 38,
+     "whole": 26
+    },
+    "bits": {
+     "0x100 written only": 4,
+     "0x4 written only": 2,
+     "0x400 written only": 2,
+     "0x10 written only": 1,
+     "0x40 written only": 1,
+     "0x200 written only": 1,
+     "0x1000 written only": 1,
+     "0x2000 bake only": 1,
+     "0x10000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       5,
+       26,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       4,
+       14,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       30,
+       23,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "053a820",
+       "053a820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       36,
+       30,
+       5
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063a924",
+       "063a824"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "URB_Demolition_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {
+     "0x8000 bake only": 1,
+     "0x10000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       38,
+       43,
+       3
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "24a2820",
+       "24ba820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.2
+  },
+  {
+   "map": "URB_FastFood",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 38,
+     "cover": 40,
+     "location": 35,
+     "floor": 36,
+     "links": 39,
+     "whole": 33
+    },
+    "bits": {
+     "0x100 written only": 1,
+     "0x4 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       19,
+       19,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043ad34",
+       "043ad34"
+      ],
+      "cover": [
+       "101889",
+       "101889"
+      ]
+     },
+     {
+      "tile": [
+       24,
+       17,
+       4
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063a924",
+       "063a824"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     },
+     {
+      "tile": [
+       25,
+       14,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "004404",
+       "004404"
+      ]
+     },
+     {
+      "tile": [
+       23,
+       17,
+       4
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "084444",
+       "084444"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.8
+  },
+  {
+   "map": "URB_FastFood_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 38,
+     "cover": 40,
+     "location": 37,
+     "floor": 36,
+     "links": 38,
+     "whole": 34
+    },
+    "bits": {
+     "0x80 written only": 1,
+     "0x100 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       20,
+       17,
+       5
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "073a8a2",
+       "073a822"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       29,
+       22,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       27,
+       20,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422924",
+       "0422924"
+      ],
+      "cover": [
+       "108888",
+       "108888"
+      ]
+     },
+     {
+      "tile": [
+       32,
+       22,
+       5
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063a924",
+       "063a824"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.2
+  },
+  {
+   "map": "URB_GasStation_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 35,
+     "floor": 35,
+     "links": 39,
+     "whole": 32
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       20,
+       32,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       39,
+       25,
+       0
+      ],
+      "wrong": [
+       "location",
+       "links"
+      ],
+      "static": [
+       "043ad34",
+       "043ad34"
+      ],
+      "cover": [
+       "201819",
+       "201819"
+      ]
+     },
+     {
+      "tile": [
+       23,
+       22,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043ad34",
+       "043ad34"
+      ],
+      "cover": [
+       "101889",
+       "101889"
+      ]
+     },
+     {
+      "tile": [
+       37,
+       31,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422820",
+       "0422820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.6
+  },
+  {
+   "map": "URB_Highway1",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "URB_HighwayBridge",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 1.4
+  },
+  {
+   "map": "URB_HighwayConstruction",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 1.8
+  },
+  {
+   "map": "URB_HighwayConstruction_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 39,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       11,
+       52,
+       3
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "05ba820",
+       "05ba820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.0
+  },
+  {
+   "map": "URB_HighwayFallen",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 39,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       19,
+       61,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0cbe924",
+       "0cbe924"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.6
+  },
+  {
+   "map": "URB_IndustrialOffice",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 38,
+     "floor": 30,
+     "links": 39,
+     "whole": 29
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       12,
+       36,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       20,
+       15,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       21,
+       12,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0622820",
+       "0622820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       12,
+       30,
+       6
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "043a924",
+       "043a924"
+      ],
+      "cover": [
+       "000808",
+       "000808"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "URB_LiquorStore",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 36,
+     "cover": 37,
+     "location": 34,
+     "floor": 34,
+     "links": 40,
+     "whole": 29
+    },
+    "bits": {
+     "0x80 written only": 2,
+     "0x4 bake only": 1,
+     "0x100 bake only": 1,
+     "0x8000 bake only": 1,
+     "0x10000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       13,
+       44,
+       9
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "073a8a2",
+       "073a822"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       11,
+       29,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "04bad34",
+       "04bad34"
+      ],
+      "cover": [
+       "000809",
+       "000809"
+      ]
+     },
+     {
+      "tile": [
+       13,
+       8,
+       7
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "073a8a2",
+       "073a822"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       9,
+       28,
+       1
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "04ba820",
+       "04ba924"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.4
+  },
+  {
+   "map": "URB_MilitaryAmmo",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 39,
+     "floor": 36,
+     "links": 40,
+     "whole": 35
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       56,
+       10,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043a8a2",
+       "043a8a2"
+      ],
+      "cover": [
+       "000004",
+       "000004"
+      ]
+     },
+     {
+      "tile": [
+       15,
+       27,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "042e820",
+       "042e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       19,
+       37,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0626820",
+       "0626820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       24,
+       26,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0426820",
+       "0426820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.7
+  },
+  {
+   "map": "URB_OfficePaper",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 40,
+     "floor": 28,
+     "links": 40,
+     "whole": 27
+    },
+    "bits": {
+     "0x8000 bake only": 1,
+     "0x10000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       14,
+       13,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "073e820",
+       "073e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       5,
+       16,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043e820",
+       "043e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       13,
+       18,
+       9
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0426820",
+       "0426820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       7,
+       14,
+       7
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "053e820",
+       "053e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.1
+  },
+  {
+   "map": "URB_OfficePaper_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 39,
+     "location": 39,
+     "floor": 32,
+     "links": 39,
+     "whole": 31
+    },
+    "bits": {
+     "0x2 written only": 1,
+     "0x80 written only": 1,
+     "0x8000 written only": 1,
+     "0x10000 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       6,
+       29,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043e820",
+       "043e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       6,
+       28,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043e820",
+       "043e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       10,
+       17,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0526820",
+       "0526820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       19,
+       37,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "URB_OfficePaper_Terror",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 37,
+     "cover": 39,
+     "location": 36,
+     "floor": 29,
+     "links": 39,
+     "whole": 26
+    },
+    "bits": {
+     "0x2 bake only": 1,
+     "0x4 written only": 1,
+     "0x100 written only": 1,
+     "0x100000 bake only": 1,
+     "0x80 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       24,
+       27,
+       0
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "053a820",
+       "053a822"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       13,
+       25,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043e820",
+       "043e820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       14,
+       29,
+       4
+      ],
+      "wrong": [
+       "location",
+       "floor"
+      ],
+      "static": [
+       "043aa28",
+       "043aa28"
+      ],
+      "cover": [
+       "000002",
+       "000002"
+      ]
+     },
+     {
+      "tile": [
+       38,
+       4,
+       0
+      ],
+      "wrong": [
+       "static",
+       "links"
+      ],
+      "static": [
+       "0422924",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.6
+  },
+  {
+   "map": "URB_PierA",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 38,
+     "cover": 40,
+     "location": 39,
+     "floor": 33,
+     "links": 40,
+     "whole": 32
+    },
+    "bits": {
+     "0x400 written only": 1,
+     "0x8000 bake only": 1,
+     "0x10000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       10,
+       11,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "004444",
+       "004444"
+      ]
+     },
+     {
+      "tile": [
+       10,
+       13,
+       5
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       12,
+       57,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043acb2",
+       "043acb2"
+      ],
+      "cover": [
+       "000105",
+       "000105"
+      ]
+     },
+     {
+      "tile": [
+       8,
+       15,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422820",
+       "0422820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.9
+  },
+  {
+   "map": "URB_PierA_Asian",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 34,
+     "links": 40,
+     "whole": 34
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       11,
+       15,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       8,
+       15,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422820",
+       "0422820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       16,
+       64,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043ac30",
+       "043ac30"
+      ],
+      "cover": [
+       "201011",
+       "201011"
+      ]
+     },
+     {
+      "tile": [
+       9,
+       18,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043ac30",
+       "043ac30"
+      ],
+      "cover": [
+       "001001",
+       "001001"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.7
+  },
+  {
+   "map": "URB_PierA_Terror",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 39,
+     "floor": 39,
+     "links": 40,
+     "whole": 38
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       9,
+       36,
+       7
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "063a82a",
+       "063a82a"
+      ],
+      "cover": [
+       "842066",
+       "842066"
+      ]
+     },
+     {
+      "tile": [
+       14,
+       37,
+       1
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0422820",
+       "0422820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.2
+  },
+  {
+   "map": "URB_PoliceStation",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 35,
+     "cover": 39,
+     "location": 35,
+     "floor": 33,
+     "links": 39,
+     "whole": 32
+    },
+    "bits": {
+     "0x200 written only": 2,
+     "0x80 written only": 2,
+     "0x4 bake only": 1,
+     "0x2 written only": 1,
+     "0x200000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       21,
+       16,
+       8
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "0422a28",
+       "0422828"
+      ],
+      "cover": [
+       "042222",
+       "042222"
+      ]
+     },
+     {
+      "tile": [
+       20,
+       7,
+       8
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063aa28",
+       "063a828"
+      ],
+      "cover": [
+       "402222",
+       "402222"
+      ]
+     },
+     {
+      "tile": [
+       12,
+       8,
+       2
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "04ba820",
+       "04ba824"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       19,
+       16,
+       8
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.2
+  },
+  {
+   "map": "URB_ResearchOutpost",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "URB_ResearchOutpost_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 36,
+     "cover": 38,
+     "location": 33,
+     "floor": 30,
+     "links": 40,
+     "whole": 29
+    },
+    "bits": {
+     "0x100 written only": 2,
+     "0x200 written only": 2,
+     "0x8 bake only": 1,
+     "0x200 bake only": 1,
+     "0x100000 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       53,
+       24,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063ab2c",
+       "063a82c"
+      ],
+      "cover": [
+       "14082aa",
+       "14082aa"
+      ]
+     },
+     {
+      "tile": [
+       26,
+       34,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       12,
+       22,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063aa28",
+       "063a828"
+      ],
+      "cover": [
+       "402222",
+       "402222"
+      ]
+     },
+     {
+      "tile": [
+       20,
+       30,
+       6
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "063a924",
+       "063a824"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.3
+  },
+  {
+   "map": "URB_RooftopsConst",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 39,
+     "floor": 40,
+     "links": 40,
+     "whole": 39
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       10,
+       33,
+       7
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "063a824",
+       "063a824"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.3
+  },
+  {
+   "map": "URB_RooftopsConst_Asian",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 36,
+     "floor": 40,
+     "links": 40,
+     "whole": 36
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       3,
+       31,
+       7
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       10,
+       32,
+       7
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043a824",
+       "043a824"
+      ],
+      "cover": [
+       "1008888",
+       "1008888"
+      ]
+     },
+     {
+      "tile": [
+       3,
+       38,
+       7
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "063a822",
+       "063a822"
+      ],
+      "cover": [
+       "804044",
+       "804044"
+      ]
+     },
+     {
+      "tile": [
+       3,
+       32,
+       7
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.5
+  },
+  {
+   "map": "URB_SlaughterhouseA",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 38,
+     "cover": 40,
+     "location": 37,
+     "floor": 36,
+     "links": 39,
+     "whole": 36
+    },
+    "bits": {
+     "0x80 written only": 2
+    },
+    "examples": [
+     {
+      "tile": [
+       9,
+       15,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "043a820",
+       "043a820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       5,
+       46,
+       7
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "073a8a2",
+       "073a822"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     },
+     {
+      "tile": [
+       14,
+       15,
+       4
+      ],
+      "wrong": [
+       "location",
+       "floor",
+       "links"
+      ],
+      "static": [
+       "043a830",
+       "043a830"
+      ],
+      "cover": [
+       "020111",
+       "020111"
+      ]
+     },
+     {
+      "tile": [
+       12,
+       41,
+       4
+      ],
+      "wrong": [
+       "static",
+       "location",
+       "floor"
+      ],
+      "static": [
+       "073a8a2",
+       "073a822"
+      ],
+      "cover": [
+       "804444",
+       "804444"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.0
+  },
+  {
+   "map": "URB_SmallCemetery",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 38,
+     "cover": 38,
+     "location": 33,
+     "floor": 37,
+     "links": 39,
+     "whole": 31
+    },
+    "bits": {
+     "0x10 written only": 1,
+     "0x8000 written only": 1,
+     "0x10000 written only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       9,
+       7,
+       0
+      ],
+      "wrong": [
+       "cover",
+       "location"
+      ],
+      "static": [
+       "043a830",
+       "043a830"
+      ],
+      "cover": [
+       "000000",
+       "001011"
+      ]
+     },
+     {
+      "tile": [
+       4,
+       43,
+       3
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "000004",
+       "000004"
+      ]
+     },
+     {
+      "tile": [
+       15,
+       25,
+       2
+      ],
+      "wrong": [
+       "static",
+       "cover",
+       "location",
+       "floor",
+       "links"
+      ],
+      "static": [
+       "043a934",
+       "043a924"
+      ],
+      "cover": [
+       "121899",
+       "100888"
+      ]
+     },
+     {
+      "tile": [
+       17,
+       29,
+       3
+      ],
+      "wrong": [
+       "static",
+       "location"
+      ],
+      "static": [
+       "04bab2c",
+       "04a2b2c"
+      ],
+      "cover": [
+       "1482aa",
+       "1482aa"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.8
+  },
+  {
+   "map": "URB_StreetHurricane",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 1.4
+  },
+  {
+   "map": "URB_StreetHurricane_Terror",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 1.3
+  },
+  {
+   "map": "URB_StreetOverpass",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 1.9
+  },
+  {
+   "map": "URB_StreetOverpass_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 40,
+     "floor": 40,
+     "links": 40,
+     "whole": 40
+    },
+    "bits": {},
+    "examples": []
+   },
+   "seconds": 1.9
+  },
+  {
+   "map": "URB_TrainStation",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 39,
+     "cover": 40,
+     "location": 38,
+     "floor": 38,
+     "links": 40,
+     "whole": 35
+    },
+    "bits": {
+     "0x2 bake only": 1,
+     "0x8000 bake only": 1,
+     "0x10000 bake only": 1
+    },
+    "examples": [
+     {
+      "tile": [
+       18,
+       35,
+       2
+      ],
+      "wrong": [
+       "static"
+      ],
+      "static": [
+       "05a2820",
+       "05ba822"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       20,
+       55,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0622820",
+       "0622820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       20,
+       74,
+       2
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "04bad34",
+       "04bad34"
+      ],
+      "cover": [
+       "001809",
+       "001809"
+      ]
+     },
+     {
+      "tile": [
+       18,
+       60,
+       6
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0722820",
+       "0722820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.6
+  },
+  {
+   "map": "URB_Trainyard",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 37,
+     "floor": 40,
+     "links": 40,
+     "whole": 37
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       12,
+       15,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043aaaa",
+       "043aaaa"
+      ],
+      "cover": [
+       "042426",
+       "042426"
+      ]
+     },
+     {
+      "tile": [
+       19,
+       36,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "053a8a2",
+       "053a8a2"
+      ],
+      "cover": [
+       "000404",
+       "000404"
+      ]
+     },
+     {
+      "tile": [
+       6,
+       26,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043aaaa",
+       "043aaaa"
+      ],
+      "cover": [
+       "002406",
+       "002406"
+      ]
+     }
+    ]
+   },
+   "seconds": 1.7
+  },
+  {
+   "map": "URB_TruckStop",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 40,
+     "location": 37,
+     "floor": 32,
+     "links": 40,
+     "whole": 30
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       13,
+       20,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       11,
+       16,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       5,
+       7,
+       0
+      ],
+      "wrong": [
+       "location"
+      ],
+      "static": [
+       "043aaaa",
+       "043aaaa"
+      ],
+      "cover": [
+       "000006",
+       "000006"
+      ]
+     },
+     {
+      "tile": [
+       16,
+       25,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.4
+  },
+  {
+   "map": "URB_TruckStop_EWI",
+   "marked": {
+    "counts": {},
+    "bits": {},
+    "examples": []
+   },
+   "sampled": {
+    "counts": {
+     "tiles": 40,
+     "static": 40,
+     "cover": 39,
+     "location": 39,
+     "floor": 36,
+     "links": 39,
+     "whole": 34
+    },
+    "bits": {},
+    "examples": [
+     {
+      "tile": [
+       17,
+       25,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       25,
+       23,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       16,
+       22,
+       4
+      ],
+      "wrong": [
+       "floor"
+      ],
+      "static": [
+       "0522820",
+       "0522820"
+      ],
+      "cover": [
+       "000000",
+       "000000"
+      ]
+     },
+     {
+      "tile": [
+       33,
+       20,
+       0
+      ],
+      "wrong": [
+       "cover"
+      ],
+      "static": [
+       "0422c30",
+       "0422c30"
+      ],
+      "cover": [
+       "201111",
+       "021111"
+      ]
+     }
+    ]
+   },
+   "seconds": 2.1
+  }
+ ]
+}

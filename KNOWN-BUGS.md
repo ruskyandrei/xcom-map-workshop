@@ -91,25 +91,6 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Cause.** The editor looks for `XComEW.exe` in the process list.
 - **Finding.** [F-84](research/findings-register.md).
 
-### KB-14: An edit on a slanted corner takes its diagonal cover
-
-- **What happens.** On maps with slanted walls that give cover from the corner (the UFO maps: scouts, Overseer,
-  supply ships, and the Chryssalid hive), a unit standing in such a corner gets no cover in a built map when the
-  project added, moved or deleted something on that corner's own tile: no shield, as if it stood in the open. The
-  Build's log names the tiles ("are rebuilt and lose their diagonal cover"). A slanted wall that is copied or moved,
-  stamped from a prefab or brought from another map gives no diagonal cover at its new place.
-- **Since.** Every version. Until the version after 0.6.0 a build lost it far more widely: every such corner on a
-  map with a larger grid (Map grid), on many maps every corner within tens of tiles of any edit, and then every
-  corner on a tile next to an edit.
-- **Workaround.** Keep edits off the tiles of the slanted corners that should keep their cover (a tile away is
-  enough).
-- **Cause.** The game marks these tiles when the map is first built, from marker actors, and its tile rebuild at the
-  start of a battle clears the mark and never reads the markers again. The Build keeps the rebuild off the corners
-  round a change and writes those next to it itself; a corner the change stands on it leaves to the rebuild, as it
-  cannot yet write a tile's links whole.
-- **Finding.** [F-149](research/findings-register.md) (F-150 for how far a rebuild reached, F-152 for the Build's
-  tile writing).
-
 ### KB-15: A map with many copied pieces builds to a very large file
 
 - **What happens.** A baked Build of a map with many copied, pasted or brought-in pieces makes a map file hundreds

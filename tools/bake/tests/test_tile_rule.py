@@ -199,5 +199,34 @@ class FarmMarks(unittest.TestCase):
         self.assertFalse(r['diagonal'])
 
 
+@unittest.skipUnless(FARM and FARM.exists(), NO_FARM)
+class FarmWholeTiles(unittest.TestCase):
+    """The Build's whole-tile writer (diagonal_keep.plan_whole) on CsmallScout_Farm as it is: each marked tile, and a
+    few open and occupied ones, written whole come back as the bake has them, static and cover flags, cover location,
+    floor and links (research/evidence/whole-tile-check.py does every map's)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import diagonal_keep
+        import lighting_records as lighting
+        cls.keep = diagonal_keep
+        cls.ld = diagonal_keep.Loaded(lighting.Package(FARM))
+        cls.marked = {t for t, v in cls.ld.cover.items() if v & tile_rule.DIAGONAL}
+
+    def test_tiles_written_whole_are_the_bakes(self):
+        ld = self.ld
+        for t in sorted(self.marked) + [(45, 42, 0), (40, 11, 0), (44, 14, 0)]:
+            with self.subTest(tile=t):
+                r = self.keep.plan_whole(ld, {t}, self.marked, set())[t]
+                rec = ld.floors[t]['record']
+                self.assertEqual('%07x' % r['static'], '%07x' % ld.flags[t])
+                self.assertEqual('%06x' % r['cover'], '%06x' % ld.cover.get(t, 0))
+                if t in ld.location:
+                    self.assertLessEqual(max(abs(r['location'][k] - ld.location[t][k]) for k in range(3)), 0.15)
+                self.assertLessEqual(max(abs(r['floor']['loc'][k] - rec['loc'][k]) for k in range(3)), 0.1)
+                self.assertEqual([(tuple(l['to']), list(l['types']), l['obj']) for l in r['floor']['links']],
+                                 [(tuple(l['to']), list(l['types']), l['obj']) for l in rec['links']])
+
+
 if __name__ == '__main__':
     unittest.main()
