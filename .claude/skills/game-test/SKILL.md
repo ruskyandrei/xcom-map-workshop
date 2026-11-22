@@ -61,10 +61,14 @@ Each check ends as **passed**, **failed** or **unclear**, with the evidence in a
   refuses anything else. Steam must be running; the lab copy's game must not be.
 - The user may be playing another copy meanwhile (their game is started with `<lab>\bin\XComSideBySide.exe`, which
   lets it run beside a hidden run: T-52, SETUP.md section 9). Never close or touch that game or its copy; tell it
-  from the run's by the exe's folder. While their copy is the one Steam runs, name the lab copy with `--game`. If
-  the tool says another copy's game holds the one-instance mutex, ask the user to start it with `XComSideBySide.exe`.
-  Staging a map (the editor's install steps, `lab_install.py`) refuses only while the lab copy's own game is open:
-  it tells games apart by the exe's folder too.
+  from the run's by the exe's folder. While their copy is the one Steam runs, name the lab copy with `--game`, on
+  the start command and on every `send`, `aim`, `goto` and `listen` too: without it they read the log of the folder
+  Steam runs, the user's game's (EXP-91). If the tool says another copy's game holds the one-instance mutex, ask the
+  user to start it with `XComSideBySide.exe`.
+  Staging a map refuses only while the lab copy's own game is open: it tells games apart by the exe's folder too.
+  But `lab_install.py` and `deploy_fixture.py` stage into the folder Steam runs, and take any copy with an
+  `XComLab-copy.txt` for the lab copy, the user's LWR3 copy too: while another copy is the one Steam runs, stage with
+  `lab_install.install(<package folder>, game=<the lab copy's folder>)` from Python, never the command line.
 - A third copy, `XCom-Enemy-Unknown.LWR3` (LWR v3.00.00 beta 15; its marker has `copy=lwr3`), is for checks on the
   LWR v3 beta. It is switched in with `switch_install.ps1 lwr3` only when the user asks; `hidden_game.py --game`
   can name it parked.

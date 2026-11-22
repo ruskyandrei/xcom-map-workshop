@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- F-156 (22 November, EXP-91): a quicksave on the reported city project's built map crashes the game in the
+  checkpoint's serialisation, with or without F-151's fix; the game's own map saves. Cause not known; KB-17.
 - F-155 (22 November, the diagonal cover plan): the Build writes a whole tile as the game's build would (every
   seeded tile of the install's maps comes back as baked); seeded tiles under a change are written whole, copied
   corners carry their marks, made walls and cover blocks get the finder's corners. Verified in a hidden run (six
@@ -24,7 +26,8 @@ Statuses:
   tiles since F-155.
 - F-151 (22 November, a user's report): a map with many copies built to hundreds of megabytes: each copy cloned its
   source's whole lightmap atlases and shadow maps, held inside the map uncompressed. Fixed the same day (a copy's
-  textures the size of what it reads): the reported project 340.8 MB to 55.8 MB, every copy's texels the same; offline.
+  textures the size of what it reads): the reported project 340.8 MB to 55.8 MB, every copy's texels the same;
+  verified in EXP-91 (looks as before, 275 MiB less in textures, about 300 MiB less private memory).
 - F-149 (22 November, a user's report): a tile the battle rebuilds loses its diagonal cover (the seeds are read by the
   map's full build alone). Fixed and seen in the game for the tiles an edit's own tiles do not hold (a grown
   CSmallScout_Farm keeps 7 of 8, the eighth taken by the game's own rebuild round a Meld canister) and for a tile next
@@ -1367,6 +1370,21 @@ alone. The user's note: "looks good". Found in EXP-05 run 16.
 - Fix: `RestoreLoaded` calls `XComMapEdDestructible.HoldBackBlasts`, which takes the explosion actions out while the
   record is applied. `ReleaseBlasts` puts them back a second later, marked as fired if the save says they had. A car
   saved burning still explodes later.
+
+### F-156: A quicksave on the reported city project's built map crashes the game, in the checkpoint's serialisation
+**Open** (22 November 2026, [EXP-91](experiments/EXP-91-smaller-built-maps.md); found while checking F-151's fix).
+- **Seen.** The reported user's project (a CLrgScout_City variant: 166 copies, 119 of them pieces of other maps, 268
+  pieces hidden, light and effect edits), built with and without F-151's fix, in hidden runs on the lab copy (LWR
+  2.06, `--saving`, no aliens): F10 right after turn 1 with nothing moved, and the game ends 0.2 s later (an access
+  violation) after `--- CHECKPOINT STARTING ASYNC WORK (Serialization) ---`. Three times, both builds, the same
+  place: `XComEW.exe+0xa0ff2b` reading 0x1004c or 0x1004e, stack `+0xadcb36 +0x54c5f2 +0x54c5f2 +0xccc1be +0x908df7
+  +0x526124 +0xf2fd5b` (the stand-in input's crash log). The game's own CLrgScout_City saves and loads in the same
+  setup. Not the hypervisor (T-07: none runs).
+- **Not known.** Which of the project's edits does it (the reading address looks like a small index taken for a
+  pointer); whether other editor-built maps crash the same way (none was tried that day; built maps with made walls
+  and floors saved, and loaded, in hidden runs before: EXP-73, EXP-76); whether the game crashes the same way outside
+  a hidden run.
+- **Known bug** [KB-17](../KNOWN-BUGS.md).
 
 ## Removing map pieces (EXP-07)
 
@@ -3522,8 +3540,9 @@ and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15
   has no case.
 
 ### F-151: Every copy clones its source's whole lightmap atlases, and the map holds them uncompressed
-**Fixed** (22 November 2026, a user's report: a map pack whose map was 336 MB; read offline from the pack; fixed the
-same day offline, the smaller built maps plan; not played yet).
+**Verified** (22 November 2026, a user's report: a map pack whose map was 336 MB; read offline from the pack; fixed the
+same day, the smaller built maps plan; played in [EXP-91](experiments/EXP-91-smaller-built-maps.md): the map loads,
+its copies look as before near and far, and the battle holds 275 MiB less in textures).
 - **Seen.** A large-city variant (CLrgScout_City, 166 copies of the map's pieces, 23 pieces brought from other maps,
   light edits) built by 0.6.0: the map file 336 MB, the game's own 13 MB. The Build's manifest: 511 textures, 1,985
   mips, 304 MB moved inside (`lightingInside`). Of the map's 678 lightmap and shadow-map textures (the game's map has
@@ -3556,8 +3575,12 @@ same day offline, the smaller built maps plan; not played yet).
   map's 137 own lighting textures byte for byte. URB_Bar with five copies the same way (796,800 and 303,252 texels).
   build_outputs.py: every package file of its 11 inputs byte for byte as before. Two lightmap textures of 2.7 KB that
   nothing reads stay: the transplant brings them with a piece of another map; they are no clones.
+- **In the game** (EXP-91, the reported project built both ways): it loads (the level up in 0.44 s against 0.48 s);
+  every place where the copies stand thickest looks the same near and at the far zoom, beyond the fires' flicker;
+  `ListTextures` 220 against 495 MiB, the map's own textures 34.8 against 308.9 MB; private memory 1,191 against
+  1,491 MiB at turn 1. Saving that map crashes the game in both builds (F-156).
 - **Left.** A copy's lower mips are made from its own texels, where they were the atlas's (its neighbours blended in
-  at the far zoom). Compressed storage was left out (the plan's decision D3).
+  at the far zoom; no difference seen). Compressed storage was left out (the plan's decision D3).
 - **Known bug** KB-15, taken out with the fix.
 
 ## Toolchain
