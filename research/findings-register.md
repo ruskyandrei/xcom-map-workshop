@@ -12,6 +12,9 @@ Statuses:
 
 ## Open now
 
+- F-148 (22 November, a user's report): the train station's far gable wall never hides with its roof; the map saves it
+  with no collision, so no floor lists it, in the game's map and in a build alike. Read offline; a way round is in the
+  finding, a per-piece setting is not built.
 - F-146 (21 November, EXP-90): a made wall standing inside a tile row takes those tiles (the game's occupancy box);
   the editor reads and says it since 22 November (offline), not played since.
 - F-147 (21 November, EXP-90): a made floor is a tile's floor only where it covers the tile's centre (the game's floor
@@ -317,6 +320,30 @@ run 1, check 2; the cause read offline the same night from the built package and
   tile grid round a picked made floor fills the tiles it is floor on and outlines the others
   (`tools/bake/made_cursors.py` `tiles` and `steps`, `web/floors.js` `slabFloorTiles` and `slabSteps`, with shared cases).
   Not played since.
+
+### F-148: The train station's far gable never hides with its roof: the map saves it with no collision
+**Open** (22 November 2026: a user's report of the piece staying drawn while the rest of the roof hides, the building's
+boxes stretched over it; read offline from the install's `URB_TrainStation`; not played).
+- **What**: the station's roof ends in two gable walls, both `URB_TrainStation_FRAC.Meshes.TrainStationWallC` (2,982
+  wide, 332 high, `bCutoutMask` on). `XComLevelActor_203` (y -2064, z 665) is listed on the building's top floor
+  (`XComBuildingVolume_2`, floor index 2, z 640 to 1088) with the roof frames, and hides with them.
+  `XComLevelActor_201` (y 4272, z 645) is on no floor's list, so nothing hides it; the game shows the same.
+- **Why**: the map saves `_201` with `bCollideActors` and `bPathColliding` off on the actor and `CollideActors` and
+  `BlockRigidBody` off on its mesh component; `_203` saves none of them. The game's editor lists the actors that touch
+  a floor volume, and an actor that collides with nothing touches none (F-87, F-104), so the map's own bake left it
+  out, though the top floor's box (y -2096 to 4416) holds it. It stands 48 units past the play area's end (the tile
+  grid ends at y 4224), which is likely why its collision is off. The camera's cut-out box goes by touching too
+  ([building-cutaway.md](native/building-cutaway.md)), so it can't cut it out either.
+- **In the editor**: the Build's rule is the game editor's and skips a piece that collides with nothing
+  (`buildings.rule`), so a larger box changes nothing; the editor draws it as the game does (no floor hides it).
+  Nothing in the editor lists a piece by hand or gives it collision.
+- **A way round now** (not played): delete `_201` and put a copy of `_203` in its place (240, 4272, 645, unturned);
+  the copy collides, so the rule lists it on the top floor.
+- **Hiding itself needs no collision**: a listed piece hides through its floor component alone, and the maps list
+  pieces that collide with nothing through their floor volumes' inclusion lists (80 in the cache's exports, 76 of them
+  on TempleShip). So a per-piece setting of the floor a piece hides with, the Build writing the entry, would cover
+  this and the other backdrop pieces inside a building's boxes (six more on this map: the sky dome and the five
+  `TrainStationLowerWalls`).
 
 ### F-114: Five flags on a piece decide how the game's tiles and mouse use it
 **Open** (16 November 2026: read from the decompiled scripts, the game's script packages and the native reading of
