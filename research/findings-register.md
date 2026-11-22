@@ -14,7 +14,8 @@ Statuses:
 
 - F-155 (22 November, the diagonal cover plan): the Build writes a whole tile as the game's build would (every
   seeded tile of the install's maps comes back as baked); seeded tiles under a change are written whole, copied
-  corners carry their marks, made walls and cover blocks get the finder's corners. Offline.
+  corners carry their marks, made walls and cover blocks get the finder's corners. Verified in a hidden run (six
+  written corners, cover 50 with the written flags, walked on and off).
 - F-154 (22 November, the diagonal cover plan): the neighbour links read from the exe, 99.96% of the bakes' links
   and every typed link worked out; the rebuild makes typed links too. Offline.
 - F-153 (22 November, the diagonal cover plan's C1): the game's cover rule, worked out from a map's pieces, gives
@@ -444,7 +445,7 @@ the fix).
 - **Known bug** [KB-14](../KNOWN-BUGS.md), for what the fix leaves.
 
 ### F-155: The Build writes a whole tile as the game's build would: every seeded tile of the install's maps comes back as baked
-**Fixed, checked offline over the install's maps** (22 November 2026: diagonal cover plan, stages D2 and D3;
+**Verified in the game** (22 November 2026: diagonal cover plan, stages D2 and D3, and a hidden run of a farm build;
 [`whole-tile-check.py`](evidence/whole-tile-check.py) over the 97 base maps, the record in
 [`whole-tile-2026-11-22.json`](evidence/whole-tile-2026-11-22.json); the writer in
 [`diagonal_keep.py`](../tools/bake/diagonal_keep.py); the Build's tests in `test_native_copy.py`, DiagonalCoverKept).
@@ -468,6 +469,15 @@ the fix).
   corners there ((45, 42, 0) and (47, 40, 0), cover toward the east as at the scout); a 45-degree cover block gives
   four found corners; the chunk hidden with the inner hull layer behind it leaves the corners open ground with the
   seed's flag alone, as a full build would; a barrel on a corner fills it (no floor, the seed's flag alone).
+- **In the game** (a hidden run the same day, LWR: CSmallScout_Farm with the hull chunk XComLevelActor_3 moved onto
+  open ground, built before the carry rule, so the finder decided the chunk's tiles and its inner face was written
+  too; saves at turn 1 and after the moves): soldiers walked onto each written tile read `m_bInCover` True, value 50
+  and `CurrentCoverPointFlags` equal to the written cover flags, the diagonal bit included: (45, 42, 0) and
+  (47, 40, 0) at the new place 0x14404, walked in, out and back in; the inner face's (45, 41, 0) 0x11101 and
+  (46, 40, 0) 0x12202; at the scout, the whole-written (39, 12, 0) 0x10404 (in, out, back in) and (41, 10, 0)
+  0x14004. A step off read no cover ((48, 40), (40, 12)), or the map's own half cover where a piece stands beside
+  ((44, 42), as in the game's map). The written tiles' links carried every walk; both saves hold the six tiles as
+  written.
 - **Left**: a piece brought from another map does not carry its home map's marks (the finder decides); a volume
   made without the change's boxes (a ladder's tile volume, a cleared map's) still rebuilds what it reaches; the
   game's own rebuilds during play take a written tile like one of its own (F-149).
