@@ -223,10 +223,10 @@ SQUARE = 0.999          # the finder's wall: within 2.6 degrees of the diagonal
 
 
 def finder(world, tiles, tile, straight=False):
-    """Whether a tile is one to give diagonal cover (findings register F-151): a wall at 45 degrees crosses it (the
+    """Whether a tile is one to give diagonal cover (findings register F-153): a wall at 45 degrees crosses it (the
     tile is partly occupied, and a diagonal's wall faces that diagonal to within 2.6 degrees, SQUARE) and gives high
     cover there, and the straight rule gives the tile no cover. On the game's own maps this takes 245 of the 289
-    tiles the designers marked that a diagonal passes on, and 110 corners of the same kind they left unmarked; the
+    tiles the designers marked that a diagonal passes on, and 111 corners of the same kind they left unmarked; the
     marks are the designers' choice, not a rule, so the Build asks the finder only of tiles a project changes.
 
     dict(diagonal (the answer), cover (the diagonal cover), straight (the straight cover flags, or None when not

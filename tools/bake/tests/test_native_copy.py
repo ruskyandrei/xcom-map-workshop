@@ -309,6 +309,38 @@ class DiagonalCoverKept(unittest.TestCase):
         vols, listed, _ = self.written((36, 38, 10, 14, 0, 6), (2, 5, 2, 5, 0, 3))
         self.assertEqual(listed, vols[0]['fitted']['volumes'] + [vols[1]['export']])
 
+    def test_a_copy_next_to_one_keeps_it_and_a_copy_on_one_takes_it(self):
+        # a wooden barrel copied beside the scout's corner (39, 12, 0), its tiles 37 to 38 by 11 to 13: the corner is
+        # in its box but not under it, so it stays out of the rebuild and the Build writes it (diagonal_keep); one
+        # copied onto the corner (49, 22, 0) takes that one (the rebuild works it out again, without the seed)
+        import world_grid
+        barrel = 'XComDestructibleActor_265'
+        copies = [dict(actor=barrel, location=[1190.0, -2353.0, -117.0], rotation=[0, 0, 0], label='beside'),
+                  dict(actor=barrel, location=[2255.0, -1393.0, -117.0], rotation=[0, 0, 0], label='on')]
+        with tempfile.TemporaryDirectory() as d:
+            m = native_copy.build(native_copy.BuildState(FARM, d, 'Farm_Diagonal', copies))
+            nc = m['nativeCopies']
+            beside, on = nc['copies']
+            self.assertEqual(beside['tiles']['volume'].get('diagonalWritten'), [[39, 12, 0]])
+            self.assertNotIn([39, 12, 0], beside['tiles']['volume'].get('diagonalRebuilt', []))
+            self.assertIn([49, 22, 0], on['tiles']['volume']['diagonalRebuilt'])
+            written = {tuple(r['tile']): r for r in nc['diagonalCover']['written']}
+            # (51, 20, 0) is in the ring of the copy on (49, 22, 0), not under it: written too
+            self.assertEqual(set(written), {(39, 12, 0), (51, 20, 0)})
+            q = lighting.Package(Path(d) / 'Farm_Diagonal.upk')
+            order = native_copy.rebuild_order(q)
+            self.assertNotIn((39, 12, 0), order)
+            self.assertNotIn((51, 20, 0), order)
+            self.assertIn((49, 22, 0), order)
+            # the written tile keeps its diagonal cover toward the wall (E, the diagonal (-s, -s)) in the package
+            model = world_grid.decode(world_grid.container_of(q)[1])
+            cover = struct.unpack('<I', model['stores'][1][(39, 12, 0)][0])[0]
+            self.assertTrue(cover & 0x10000 and cover & 0x4, '%06x' % cover)
+            self.assertEqual('%06x' % cover, written[(39, 12, 0)]['cover'])
+            # every other diagonal tile is left as the bake has it
+            for t in self.diagonal - {(49, 22, 0)}:
+                self.assertNotIn(t, order)
+
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class NoDiagonalCover(unittest.TestCase):

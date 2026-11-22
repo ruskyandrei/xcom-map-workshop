@@ -1,5 +1,5 @@
 """Read-only: the diagonal cover rule and finder (tools/bake/tile_rule.py) against the game's own maps (diagonal cover
-plan, stage C1; findings register F-151).
+plan, stage C1; findings register F-153).
 
 For every base map the install lists (tools/viewer/library.py donors), or the maps named, with its baked tile data as
 the inputs (static flags, floors), on every tile the build works cover out on (a floor, no ramp, not fully occupied):

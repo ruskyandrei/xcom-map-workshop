@@ -647,3 +647,22 @@ export function carriedListing(saved, oldRule, newRule, floorMap) {
   }
   return { entries: now, kept: false };
 }
+
+/** The tiles world boxes stand on, as the Build's native_copy.changed_tiles works them out: each box
+ *  [x0, y0, z0, x1, y1, z1] (game axes) with a quarter tile round it in x and y, every level it reaches (the ground's
+ *  included), on the grid `origin` (the level volume's corner) and `dims`. A Set of 'x,y,z'. A diagonal cover tile one
+ *  stands on is rebuilt by the battle and loses its cover; one only next to a change the Build writes itself
+ *  (findings register F-149). */
+export function changedTiles(boxes, origin, dims, tile = [96, 96, 64], margin = 24) {
+  const out = new Set(), e = 1e-3;
+  for (const b of boxes) {
+    const x0 = Math.max(0, Math.floor((b[0] - margin - origin[0]) / tile[0] + e));
+    const x1 = Math.min(dims[0] - 1, Math.ceil((b[3] + margin - origin[0]) / tile[0] - e) - 1);
+    const y0 = Math.max(0, Math.floor((b[1] - margin - origin[1]) / tile[1] + e));
+    const y1 = Math.min(dims[1] - 1, Math.ceil((b[4] + margin - origin[1]) / tile[1] - e) - 1);
+    const z0 = Math.max(0, Math.floor((b[2] - origin[2]) / tile[2] + e));
+    const z1 = Math.min(dims[2] - 1, Math.ceil((b[5] - origin[2]) / tile[2] - e) - 1);
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) out.add(`${x},${y},${z}`);
+  }
+  return out;
+}

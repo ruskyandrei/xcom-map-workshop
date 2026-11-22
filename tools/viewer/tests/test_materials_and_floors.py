@@ -210,3 +210,34 @@ class FloorTests(unittest.TestCase):
 
 
 if __name__=='__main__': unittest.main()
+
+
+class DiagonalCoverTests(unittest.TestCase):
+    """The map's diagonal cover tiles in the export (export 38, scene_metadata.saved_diagonal_tiles) and the tiles a
+    change stands on (changed_tiles, web/floors.js changedTiles' twin; findings register F-149)."""
+
+    def test_the_tiles_a_change_stands_on(self):
+        from scene_metadata import changed_tiles
+        farm = ((-2496.0, -3552.0, -128.0), (67, 70, 17))
+        # (the node test's case: a barrel 54 wide at x 1190 stands on tiles 37 and 38, 11 to 13, levels 0 and 1)
+        got = changed_tiles([[1163, 1217, -2380, -2326, -117, -53]], *farm)
+        self.assertEqual(sorted(got), [(x, y, z) for x in (37, 38) for y in (11, 12, 13) for z in (0, 1)])
+        self.assertIn((49, 22, 0), changed_tiles([[2228, 2282, -1420, -1366, -117, -53]], *farm))
+
+    def test_the_farms_eight_tiles(self):
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'lab'))
+        import labpaths
+        farm, why = labpaths.install_map('CsmallScout_Farm')
+        if not (farm and farm.exists()):
+            self.skipTest(why)
+        from package import Package
+        from scene_metadata import saved_diagonal_tiles
+        p = Package(farm)
+        container = [i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComWorldDataContainer'][0]
+        tiles = saved_diagonal_tiles(p, container)
+        self.assertEqual([t['tile'] for t in tiles], [[39, 12, 0], [39, 20, 0], [41, 10, 0], [41, 22, 0], [49, 10, 0],
+                                                      [49, 22, 0], [51, 12, 0], [51, 20, 0]])
+        first = tiles[0]
+        self.assertEqual(first['directions'], [dict(name='E', toward=[-1, -1], low=False)])
+        self.assertAlmostEqual(first['location'][0], 1287.4055, places=3)
+        self.assertAlmostEqual(first['floor'], -116.9514, places=3)

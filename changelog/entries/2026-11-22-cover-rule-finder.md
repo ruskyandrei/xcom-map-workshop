@@ -15,8 +15,8 @@ makes changes yet.
 - [diagonal-finder.py](../../research/evidence/diagonal-finder.py), new, and its record
   [diagonal-finder-2026-11-22.json](../../research/evidence/diagonal-finder-2026-11-22.json): the rule and the finder
   over the install's 97 base maps against their bakes.
-- [findings-register.md](../../research/findings-register.md): F-151. [ARCHITECTURE.md](../../ARCHITECTURE.md): the
-  tile build's row.
+- [findings-register.md](../../research/findings-register.md): F-153 (first numbered F-151, which another change
+  took). [ARCHITECTURE.md](../../ARCHITECTURE.md): the tile build's row.
 
 Checked: [test_tile_rule.py](../../tools/bake/tests/test_tile_rule.py) (sweeps on pieces made here: a face met at the
 box's distance, a box passing an edge, a start inside, a turned face, the kinds' filters, an overlap; a 45-degree
@@ -24,6 +24,6 @@ corner's diagonal cover and its location, the finder's three conditions, the vis
 eight marked tiles bit for bit and to 0.15 unit, the finder taking them and leaving a bulldozer's corner); the check
 over the install: 293 of 293 marked tiles exact.
 
-Known gaps: the finder's condition is the designers' usual choice, not their rule (F-151: 245 of 289, 110 unmarked
+Known gaps: the finder's condition is the designers' usual choice, not their rule (F-153: 245 of 289, 110 unmarked
 of the same kind); pieces of streamed levels, PathBlockingVolumes, terrain and fragments a fracturing piece lost are
 not read; a sweep that starts inside a solid is taken as a hit at once (not read in the exe; none on a marked tile).

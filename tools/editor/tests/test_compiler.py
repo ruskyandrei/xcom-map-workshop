@@ -72,6 +72,26 @@ def built(report):
 
 
 class CompilerTests(MissionScenes, unittest.TestCase):
+    def test_a_change_on_a_diagonal_cover_tile_is_warned_and_one_beside_it_is_not(self):
+        # the map's diagonal cover tiles (export 38, tactical.diagonalCover): a change standing on one (the deleted
+        # piece's box, a quarter tile round it) takes its diagonal cover (findings register F-149); the Build keeps a
+        # tile only next to a change, so a tile two away is not warned
+        s = scene()
+        s['tileGrid'].update(dimensions=[52, 39, 12], size=[96, 96, 64])
+        corner = s['tileGrid']['origin']
+        under = [int((0 - corner[0]) // 96), int((0 - corner[1]) // 96), 0]      # XComLevelActor_1 stands at (0, 0, 0)
+        s['tactical'] = dict(floorTiles=[], diagonalCover=[
+            dict(tile=under, floor=0.0, location=None, directions=[dict(name='N', toward=[-1, 1], low=False)]),
+            dict(tile=[under[0] + 3, under[1], 0], floor=0.0, location=None, directions=[])])
+        _, report = compile_project(document([dict(target=target('XComLevelActor_1'), deleted=True)]), s)
+        self.assertTrue(report['ok'], refused(report))
+        warning, = [w for w in report['warnings'] if w['code'] == 'diagonal-cover-taken']
+        self.assertEqual(warning['tiles'], [under])
+        self.assertIn('diagonal cover goes', warning['message'])
+        # a change elsewhere: no warning
+        _, report = compile_project(document([dict(target=target('XComFracLevelActor_11'), deleted=True)]), s)
+        self.assertEqual(warned(report, 'diagonal-cover-taken'), [])
+
     def test_a_map_the_game_knows_by_name_gets_a_note(self):
         # mission types plan, Part B: Zhang and the mission's script are tied to Low Friends' name
         s = dict(scene(), name='DLC1_1_LowFriends')

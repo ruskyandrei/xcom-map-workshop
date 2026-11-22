@@ -5,7 +5,7 @@
 // walking height and the building for a floor; a made floor's tiles in words, and whether a slab is turned.
 // Run: node tools/viewer/tests/floor_rules_test.mjs
 import assert from 'node:assert/strict';
-import { buildingWithFloor, classifyFloors, floorIndex, floorStamps, floorUnder, levelHeight, nearestLevel, ownedFloors, slabTileWords,
+import { buildingWithFloor, changedTiles, classifyFloors, floorIndex, floorStamps, floorUnder, levelHeight, nearestLevel, ownedFloors, slabTileWords,
          slabTurned, stampSignature, storeyHeight, worldBox } from '../web/floors.js';
 
 // boxes [x0, y0, z0, x1, y1, z1]
@@ -75,3 +75,19 @@ assert.ok(slabTileWords({ floor: [], part: [[0, 0, 0.1]] }).long.includes('the 1
 assert.deepEqual([slabTurned([0, 3641, 0]), slabTurned([0, 16384, 0]), slabTurned([0, -32768, 0]), slabTurned([2048, 3000, 0])],
                  [true, false, false, false]);
 console.log('floor rules: ok');
+
+// the tiles a change stands on (native_copy.changed_tiles' twin): a barrel 54 wide centred at x 1190 on the farm's grid
+// (origin -2496, -3552, -128) stands on tiles 37 and 38 in x, 11 to 13 in y, levels 0 and 1 (its top 11 into level 1);
+// the scout's corner (39, 12, 0) beside it is not among them, and one on the corner stands on it
+{
+  const farm = { origin: [-2496, -3552, -128], dims: [67, 70, 17] };
+  const got = changedTiles([[1163, -2380, -117, 1217, -2326, -53]], farm.origin, farm.dims);
+  assert.deepEqual([...got].sort(), ['37,11,0', '37,11,1', '37,12,0', '37,12,1', '37,13,0', '37,13,1',
+                                     '38,11,0', '38,11,1', '38,12,0', '38,12,1', '38,13,0', '38,13,1']);
+  assert.ok(!got.has('39,12,0'));
+  const on = changedTiles([[2228, -1420, -117, 2282, -1366, -53]], farm.origin, farm.dims);
+  assert.ok(on.has('49,22,0'));
+  // a box over two levels, cut to the grid
+  const tall = changedTiles([[-2496, -3552, -128, -2400, -3456, 10]], farm.origin, farm.dims);
+  assert.deepEqual([...tall].filter(k => k.startsWith('0,0,')).sort(), ['0,0,0', '0,0,1', '0,0,2']);
+}

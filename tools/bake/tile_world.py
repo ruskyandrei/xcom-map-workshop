@@ -10,6 +10,9 @@ research/native/cover-build.md is the reading of the exe this follows; its secti
                                           ignored for cover; a destructible saved bIgnoreForPathing never
                                 'height'  type 2: as 'cover', with ladders, every interactive piece, and a
                                           destructible with a Toughness that is not fragile
+                                'pathing' type 3: a cover piece that ConsiderForOccupancy (bAlwaysConsiderForCover),
+                                          ladders among them
+                                'sight'   type 4: a cover piece that blocks sight (bBlockUnitVisibility)
                                 'engine'  UWorld's SingleLineCheck (flags 0x860C0, level geometry and no others): the
                                           colliding meshes of actors that are bWorldGeometry, by their components'
                                           BlockZeroExtent and BlockNonZeroExtent, whatever the class
@@ -43,6 +46,13 @@ import collision  # noqa: E402
 import piece_flags  # noqa: E402
 from package import Reader  # noqa: E402
 
+# A check that starts inside a convex solid (read off the bake's blocking bits and floor records on occupied tiles,
+# F-152; the exe was not read for it): a box sweep meets it at once when the solid's face behind it is nearer than
+# the face ahead (it moves deeper), its normal the face behind's, and passes through moving out; a line meets it at
+# once whichever way, its normal straight back along the line, but passes through a box element (KBoxElem, a routine
+# of its own) it starts inside: right on most maps (98.3% of tiles), wrong on the highway maps, whose floors stand at
+# the line's start inside box elements (unexplained; F-152).
+INSIDE = 'deeper'
 MESH_COMPONENTS = ('StaticMeshComponent', 'FracturedStaticMeshComponent', 'XComMapEdMeshComponent')
 LEVEL_FAMILY = ('XComLevelActor', 'XComOpacityFadeLevelActor', 'XComDestructibleActor', 'XComCollectible',
                 'XComInteractiveLevelActor', 'XComLadder', 'XComMergedLevelActor')
@@ -56,9 +66,10 @@ FORCE = {None: 0, 0: 0, 1: 1, 2: 2, 'CoverForce_Default': 0, 'CoverForce_High': 
 class Element:
     """One convex solid in world space: its vertices (n by 3), its separating axes for a box sweep (face normals,
     the world axes, edges crossed with the world axes) and for a line (face normals), its bounds."""
-    __slots__ = ('verts', 'faces', 'edges', 'lo', 'hi', 'piece', 'tris')
+    __slots__ = ('verts', 'faces', 'edges', 'lo', 'hi', 'piece', 'tris', 'box')
 
-    def __init__(self, verts, faces, edges, piece):
+    def __init__(self, verts, faces, edges, piece, box=False):
+        self.box = box          # a KBoxElem (its own check routine) rather than a convex hull
         self.verts = verts
         self.faces = faces
         self.edges = edges
@@ -82,15 +93,35 @@ class Triangles:
         self.piece = piece
 
 
+def script_defaults(p, folder=None):
+    """The game's script packages (piece_flags.ScriptDefaults) for a package: from `folder`, else the package's own
+    folder (a map of the install), else the configured install's cooked folder (a package a Build wrote elsewhere).
+    Raises ValueError when none can be read: without them every class default would read as missing."""
+    tried = [Path(folder)] if folder else []
+    tried.append(Path(p.path).parent)
+    try:
+        import settings
+        game, _ = settings.game_install(settings.load_settings())
+        if game is not None:
+            tried.append(settings.game_cooked(game))
+    except (OSError, ValueError, KeyError):
+        pass
+    for f in tried:
+        found = piece_flags.ScriptDefaults.of(f)
+        if found:
+            return found
+    raise ValueError('the game\'s script packages (XComGame, Engine, Core) are in none of %s' % [str(f) for f in tried])
+
+
 class Resolver:
     """Any property of an export as the game loads it: the export's own value, else its archetypes' in the map, then
     in the game's script packages (an archetype there, or the class's default object, with what that takes from its
     parents). An archetype in another package the map does not carry gives way to its class's default, and the export
     is counted as `assumed`."""
 
-    def __init__(self, p):
+    def __init__(self, p, scripts=None):
         self.p = p
-        self.scripts = piece_flags.ScriptDefaults.of(Path(p.path).parent)
+        self.scripts = script_defaults(p, scripts)
         self.chains = {}
         self.assumed = set()
 
@@ -128,6 +159,17 @@ class Resolver:
             item = pk.properties(i)[0].get((key, 0))
             if item is not None:
                 return item['value']
+        return default
+
+    def struct_bool(self, index, struct, field, default=False):
+        """A bool field of a struct property, from the first export of the chain whose saved struct holds it."""
+        for pk, i in self.chain(index):
+            item = pk.properties(i)[0].get((struct, 0))
+            if item is None:
+                continue
+            found, value = piece_flags._struct_field(pk, item['value'], field)
+            if found and value is not None:
+                return value
         return default
 
 
@@ -192,9 +234,9 @@ class MeshCollision:
             edges = _vec(elem[('EdgeDirections', 0)]['value'], 3) if ('EdgeDirections', 0) in elem \
                 else np.zeros((0, 3))
             if len(verts) >= 4:
-                self.solids.append((verts, faces, edges))
+                self.solids.append((verts, faces, edges, False))
         for elem in p.structs(geom.get(('BoxElems', 0), {}).get('value')):
-            self.solids.append(_box_elem(elem))
+            self.solids.append(_box_elem(elem) + (True,))
         for key in ('SphereElems', 'SphylElems'):
             self.skipped += len(p.structs(geom.get((key, 0), {}).get('value')))
 
@@ -203,21 +245,29 @@ class MeshCollision:
 
 class World:
     """The persistent level's listed actors as the traces meet them. `include` (optional) narrows the actors read
-    (a predicate on the export index), `extra` adds pieces made elsewhere (a Build's own)."""
+    (a predicate on the export index); `scripts`, the folder of the game's script packages (script_defaults)."""
 
-    def __init__(self, p, include=None):
+    def __init__(self, p, include=None, scripts=None):
         import lightmap_texels
         import native_copy
         self.p = p
-        self.resolver = Resolver(p)
+        self.resolver = Resolver(p, scripts)
         self.pieces = []
         self.cells = {}
         self.meshes = {}
         self.counts = dict(actors=0, components=0, noBodySetup=0, perTriangle=0, skippedElements=0, unreadable=0)
+        self.blocking_volumes = []      # PathBlockingVolumes' world boxes (lo, hi): the occupancy step's first test
         for a in native_copy.level_actors(p):
             if a <= 0 or (include and not include(a)):
                 continue
             cls = p.cls(a)
+            if cls == 'PathBlockingVolume':
+                try:
+                    lo, hi = native_copy.brush_box(p, a)
+                    self.blocking_volumes.append((np.array(lo, float), np.array(hi, float)))
+                except ValueError:
+                    self.counts['unreadable'] += 1
+                continue
             if cls.endswith('Volume') or cls in ('WorldInfo',):
                 continue
             comps = [c for c in self._components(a)]
@@ -232,7 +282,7 @@ class World:
                     self.counts['unreadable'] += 1
                     continue
                 self._place(piece, c, m)
-            if piece.box_solids or piece.line_solids or piece.engine_box or piece.engine_line:
+            if piece.box_solids or piece.line_solids or piece.engine_box or piece.engine_line or piece.bounds:
                 self.pieces.append(piece)
                 self._index(piece)
 
@@ -240,7 +290,7 @@ class World:
     def empty(cls, p=None):
         """A world with no pieces (a test's, or one a Build fills with pieces of its own: add)."""
         w = cls.__new__(cls)
-        w.p, w.resolver, w.pieces, w.cells, w.meshes = p, None, [], {}, {}
+        w.p, w.resolver, w.pieces, w.cells, w.meshes, w.blocking_volumes = p, None, [], {}, {}, []
         w.counts = dict(actors=0, components=0, noBodySetup=0, perTriangle=0, skippedElements=0, unreadable=0)
         return w
 
@@ -268,6 +318,8 @@ class World:
         piece = Piece(a, p.name(a).split('.')[-1], cls)
         piece.flags = {k: bool(rv.value(a, k, False)) for k in self.ACTOR_FLAGS}
         piece.flags['CollisionType'] = rv.value(a, 'CollisionType', 0)
+        piece.flags['bBlockUnitVisibility'] = bool(rv.struct_bool(a, 'VisibilityBlockingData', 'bBlockUnitVisibility',
+                                                                  True))
         piece.force = FORCE.get(rv.value(a, 'CoverForceFlag', 0), 0)
         piece.ignore_flag = FORCE.get(rv.value(a, 'CoverIgnoreFlag', 0), 0)
         if cls == 'XComDestructibleActor':
@@ -304,12 +356,12 @@ class World:
         rot = m[:3, :3]
         inv = np.linalg.inv(rot)
         solids = []
-        for verts, faces, edges in mc.solids:
+        for verts, faces, edges, is_box in mc.solids:
             w = verts @ rot.T + m[:3, 3]
             f = faces @ inv if len(faces) else _faces_of(w)
             f = f / np.maximum(np.linalg.norm(f, axis=1), EPS)[:, None]
             e = edges @ rot.T if len(edges) else np.zeros((0, 3))
-            solids.append(Element(w, f, e, piece))
+            solids.append(Element(w, f, e, piece, box=is_box))
         self.counts['skippedElements'] += mc.skipped
         piece.skipped += mc.skipped
         tris = None
@@ -321,6 +373,17 @@ class World:
                 tris = self._triangles(c, m, piece)
             return tris
         rigid = piece.flags.get('bUseRigidBodyCollisionForCover')
+        # the octree's box of the component: its mesh's bounds box moved with it (UE3's FBoxSphereBounds::TransformBy)
+        ox, oy, oz, ex, ey, ez, _ = p.native(mi).unpack('7f')
+        corners = np.array([[ox + sx * ex, oy + sy * ey, oz + sz * ez] for sx in (-1, 1) for sy in (-1, 1)
+                            for sz in (-1, 1)]) @ rot.T + m[:3, 3]
+        lo, hi = corners.min(0), corners.max(0)
+        piece.bounds.append((lo, hi))
+        # the occupancy step's PointCheck (section 2): a cover piece but a ladder, with a BodySetup, whose bounds'
+        # half-sizes are all 2 or more (or 192 or more in x or y)
+        half = (hi - lo) / 2
+        if piece.traced and piece.cls != 'XComLadder' and mc.body_setup and                 ((half >= 2.0).all() or half[0] >= 192.0 or half[1] >= 192.0):
+            piece.occupancy += solids if mc.simple_box else [triangles()]
         # the world trace: a mesh with a BodySetup only (section 4)
         if piece.traced:
             if not mc.body_setup:
@@ -338,7 +401,7 @@ class World:
 
     def _index(self, piece):
         seen = set()
-        for el in piece.box_solids + piece.line_solids + piece.engine_box + piece.engine_line:
+        for el in piece.box_solids + piece.line_solids + piece.engine_box + piece.engine_line + piece.occupancy:
             if id(el) in seen:
                 continue
             seen.add(id(el))
@@ -359,6 +422,24 @@ class World:
                     seen.add(id(el))
                     if (el.lo <= hi).all() and (el.hi >= lo).all():
                         out.append(el)
+        return out
+
+    def trace_all(self, start, end, extent=(0.0, 0.0, 0.0), kind='engine'):
+        """Every piece a sweep meets, nearest first, each once (its first contact): a MultiLineCheck."""
+        start, end, ext = np.asarray(start, float), np.asarray(end, float), np.asarray(extent, float)
+        box = bool(ext.any())
+        lo, hi = np.minimum(start, end) - ext - 0.01, np.maximum(start, end) + ext + 0.01
+        best = {}
+        for el in self.near(lo, hi):
+            piece = el.piece
+            if not _takes(piece, el, kind, box):
+                continue
+            hit = _sweep(el, start, end - start, ext) if box else _line(el, start, end - start)
+            if hit is not None and (id(piece) not in best or hit[0] < best[id(piece)][0]):
+                best[id(piece)] = hit + (piece,)
+        out = []
+        for t, normal, inside, piece in sorted(best.values(), key=lambda h: h[0]):
+            out.append(dict(time=t, location=start + (end - start) * t, normal=normal, piece=piece, inside=inside))
         return out
 
     def trace(self, start, end, extent=(0.0, 0.0, 0.0), kind='cover', ignore=None, skip=None):
@@ -391,7 +472,7 @@ class World:
         out = []
         for el in self.near(centre - ext - 0.01, centre + ext + 0.01):
             piece = el.piece
-            pool = piece.engine_box if kind == 'engine' else piece.box_solids
+            pool = piece.engine_box if kind == 'engine' else piece.occupancy
             if not any(el is e for e in pool):
                 continue
             if _overlap(el, centre, ext):
@@ -452,6 +533,8 @@ def solid_piece(name, cls, solids, flags=None, force=0, ignore_flag=0, world_geo
         if world_geometry:
             piece.engine_box.append(el)
             piece.engine_line.append(el)
+        if piece.traced and cls != 'XComLadder':
+            piece.occupancy.append(el)
         piece.bounds.append((el.lo, el.hi))
     return piece
 
@@ -491,6 +574,10 @@ def _takes(piece, el, kind, box):
         return False
     if piece.cls == 'XComDestructibleActor' and f.get('bIgnoreForPathing'):
         return False
+    if kind == 'pathing':
+        return bool(f.get('bAlwaysConsiderForCover', True))
+    if kind == 'sight':
+        return bool(f.get('bBlockUnitVisibility', True))
     if kind == 'height' and (piece.cls in ('XComLadder', 'XComInteractiveLevelActor')
                              or piece.cls == 'XComDestructibleActor' and f.get('toughness') and not f.get('fragile')):
         return True
@@ -530,6 +617,17 @@ def _sat(verts, axes, start, move, ext):
     return enter[k], leave.min(), k
 
 
+def _inside(axes, k, enter, leave, move):
+    """A check that started inside a convex solid (INSIDE): (0, the face behind's normal, True) when it moves deeper
+    (the face behind, at time `enter` < 0, nearer than the face ahead, at `leave`), else None."""
+    if INSIDE == 'deeper' and -enter <= leave:
+        n = axes[k] if axes[k] @ move < 0 else -axes[k]
+        return 0.0, n, True
+    if INSIDE == 'start':
+        return 0.0, -move / max(np.linalg.norm(move), EPS), True
+    return None
+
+
 def _axes(el, box):
     if not box:
         return el.faces
@@ -553,7 +651,7 @@ def _sweep(el, start, move, ext):
     if enter > leave or enter > 1.0 or leave < 0.0:
         return None
     if enter < 0.0:
-        return 0.0, -move / max(np.linalg.norm(move), EPS), True
+        return _inside(axes, k, enter, leave, move)
     n = axes[k] if axes[k] @ move < 0 else -axes[k]
     return float(enter), n, False
 
@@ -569,7 +667,7 @@ def _line(el, start, move):
     if enter > leave or enter > 1.0 or leave < 0.0:
         return None
     if enter < 0.0:
-        return 0.0, -move / max(np.linalg.norm(move), EPS), True
+        return None if el.box else (0.0, -move / max(np.linalg.norm(move), EPS), True)
     n = el.faces[k] if el.faces[k] @ move < 0 else -el.faces[k]
     return float(enter), n, False
 

@@ -352,6 +352,31 @@ class FloorEdits:
         floor for low scenery on a grown map leaves them as they are (F-100 gives way to the user's flags)."""
         return {e['target'] for e in self.c.flag_edits.edits if e['flags'].get('floor') is False}
 
+    def diagonal_cover(self):
+        """A warning for the map's diagonal cover tiles (the export's tactical.diagonalCover, the corners of slanted
+        walls its makers marked) a change stands on: the copies' boxes, the hidden and moved pieces' old ones, the
+        cover blocks' and the pieces whose flags change, counted as the Build does (scene_metadata.changed_tiles). The
+        battle's rebuild works such a tile out again and its diagonal cover goes (findings register F-149); a tile
+        only next to a change the Build writes itself and keeps."""
+        import scene_metadata
+        c = self.c
+        tiles = (c.scene.get('tactical') or {}).get('diagonalCover') or []
+        grid = c.scene.get('tileGrid') or {}
+        if not tiles or not grid.get('origin') or not grid.get('dimensions'):
+            return
+        boxes = [x['box'] for x in c.copies + c.hides + c.covers if x.get('box')]
+        boxes += [x['box'] for x in c.flag_edits.edits if x.get('box')]
+        size = grid.get('size') or (TILE, TILE, 64.0)
+        on = scene_metadata.changed_tiles(boxes, grid['origin'], grid['dimensions'], size)
+        taken = [t['tile'] for t in tiles if tuple(t['tile']) in on]
+        if taken:
+            c.warn('diagonal-cover-taken', 'The project changes what stands on %s of the map\'s slanted corners that '
+                   'give diagonal cover (tile%s %s): the game works %s out again and the diagonal cover goes, so a unit '
+                   'there gets no cover from the slanted wall. A change a tile away keeps it'
+                   % (len(taken) if len(taken) > 1 else 'one', 's' if len(taken) > 1 else '',
+                      ', '.join('(%d, %d, %d)' % tuple(t) for t in taken), 'them' if len(taken) > 1 else 'it'),
+                   tiles=taken)
+
     def floor_now(self):
         """The map's saved floor tiles whose piece is still where it was: a deleted or moved piece takes its floor
         with it (a moved one's copy gives floor where it lands: added_floors)."""

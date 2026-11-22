@@ -12,9 +12,9 @@ Statuses:
 
 ## Open now
 
-- F-151 (22 November, the diagonal cover plan's C1): the game's cover rule, worked out from a map's pieces, gives
+- F-153 (22 November, the diagonal cover plan's C1): the game's cover rule, worked out from a map's pieces, gives
   the 293 marked tiles it works on their baked diagonal cover exactly; the marks themselves follow no rule (a finder
-  for corners a project changes takes 245 of 289 and 110 unmarked). Offline; the tile writer (C2) is next.
+  for corners a project changes takes 245 of 289 and 111 unmarked). Offline; the tile writer (C2) is next.
 - F-151 (22 November, a user's report): a map with many copies builds to hundreds of megabytes: each copy clones
   its source's whole lightmap atlases and shadow maps, held inside the map uncompressed; read offline, not fixed; KB-15.
 - F-149 (22 November, a user's report): a tile the battle rebuilds loses its diagonal cover (the seeds are read by the
@@ -401,13 +401,14 @@ the fix).
   (`reach_box`). A grown grid's whole-map volume leaves every diagonal tile out. A volume that reaches none is made
   as before. The farm's grown build has 20 rebuild volumes in place of 3, and the Build's reading of the battle's
   work (`rebuild_order`) is the old build's less those 8 tiles.
-- **What the fix leaves**: a diagonal tile **inside** an edit's own box is rebuilt and loses its cover, and the
-  Build's record and log name it (`diagonalRebuilt`). The box is the tiles the piece crosses and the ring of one
-  tile round them, with a quarter tile's margin: a tile left as baked beside a change would block or open an edge
-  the change did not. So an edit two tiles from a slanted corner keeps its cover and one on it or next to it takes
-  it. A slanted wall copied or moved, a prefab's stamp and a wall brought from another map have no diagonal cover
-  at their new place: it is in the map's tile data, not in a piece. Keeping, carrying and asking for diagonal cover
-  there is planned, not built.
+- **What the fix leaves**: a diagonal tile **inside** an edit's own box was rebuilt and lost its cover. The box is
+  the tiles the piece crosses and the ring of one tile round them, with a quarter tile's margin. Since stage D1 of the
+  diagonal cover plan (22 November 2026, F-152) a tile in the ring, next to the change and not under it, is left out
+  of the rebuild too and written by the Build (`diagonal_keep.py`: its blocking bits, its diagonal cover and its links
+  worked out against the built map; the record's `diagonalCover`, the volume's `diagonalWritten`). A tile the change
+  stands on is still rebuilt and named (`diagonalRebuilt`). A slanted wall copied or moved, a prefab's stamp and a
+  wall brought from another map have no diagonal cover at their new place: it is in the map's tile data, not in a
+  piece. Carrying it there waits for the reading of the neighbour links (F-152).
 - **In the game, after the fix** (the same project built again, a save at turn 1): 7 of the 8 tiles have their baked
   static and cover flags unchanged. The eighth, (41, 10, 0), was rebuilt by the game itself: a Meld canister stood at
   (1295, -2737), tile (39, 8) (read in the running game), and its rebuild, 288 units each way, takes tiles 36 to 42 by 5 to
@@ -429,7 +430,47 @@ the fix).
   that battle's canister lands by a slanted corner.
 - **Known bug** [KB-14](../KNOWN-BUGS.md), for what the fix leaves.
 
-### F-151: The game's cover rule worked out from a map's pieces gives its marked tiles' diagonal cover exactly; where the marks go is the designers' choice
+### F-152: The tile build's static flags worked out from a map's pieces match the bake on 98.3% of tiles; four things the exe reading lacked
+**Verified offline over the install's maps; one stage of the plan rests on it** (22 November 2026: diagonal cover
+plan, stage C2; [`tile-build-check.py`](evidence/tile-build-check.py) over the 96 base maps the install lists, regions
+round the marked tiles and three sampled boxes a map, the record in
+[`tile-build-check-2026-11-22.json`](evidence/tile-build-check-2026-11-22.json); the passes in
+[`tile_build.py`](../tools/bake/tile_build.py)).
+- **What**: passes 1 and 2 of the game's tile build ([cover-build.md](native/cover-build.md), sections 2 and 5:
+  occupancy, floor, standing room, the cover step, the twelve blocking bits) run on regions built from nothing, each
+  tile set beside the bake.
+- **Seen**: 195,436 of 198,802 tiles have the bake's static flags bit for bit (less the bits these passes do not make:
+  the 2-by-2 bit, the drop bit, the edge bits, water). 39,812 of 42,814 floor records have the bake's place (0.1
+  unit) and floor piece, 40,643 its place; 5,999 of 6,418 straight cover tiles the bake's cover flags and location.
+  The weakest maps are URB_HighwayFallen (60% of its tiles) and URB_Highway1 (78%), not looked into; on
+  CsmallScout_Farm about 17 tiles under the scout's roof keep the floor of a roof placed 9 units lower than the map
+  places it now (a bake older than the roof's last move).
+- **What the reading lacked**, found from the bake's occupied tiles and floor records (the exe was not read for any
+  of it):
+  - **A check that starts inside a solid.** A box sweep meets a convex solid at once when the solid's face behind it
+    is nearer than the face ahead (it moves deeper), its normal the face behind's, and passes through moving out:
+    on the farm, 18 of 18 blocked directions of three occupied tiles. A line meets it at once whichever way, its
+    normal straight back along the line (a floor found at the line's start: (41, 6, 0)'s floor is 30 over its
+    position, as the line starts). A line that starts inside a box element (KBoxElem, a routine of its own) passes
+    through it on most maps; taking it as a hit there too put the highway maps right (URB_Highway1 from 78% to
+    100%) and the rest wrong (all maps from 98.3% to 95.4%, 3,772 floors the bake lacks). Over four maps, of the
+    floor lines starting inside a box element, 1,490 have the bake's floor at their start and 12,544 have none,
+    with no split by which face is nearer: not read.
+  - **"Something near" (0x20000) is on every tile** but a PathBlockingVolume's: the octree query always meets the
+    level's volumes that span the grid (the level volume, the cursor volumes). All of URB_Bar's 24,336 tiles have
+    it but the 4 under its two PathBlockingVolumes, whose flags are 0x803F and nothing else.
+  - **UWorld's line check of the cover and floor steps (0x860C0) meets only `bWorldGeometry` actors** (F-153's
+    debris, saved with it off by its archetype inside the map).
+  - **The step-outs' floor test and the visiting order** (F-153).
+- **Links are not worked out from the flags**: a floor record's plain links (to the 8 tiles round it, a level up or
+  down) never exist without a floor on the target and no pathing bit toward it (0 exceptions in about 55,600 on
+  URB_Bar, CsmallScout_Farm and URB_PoliceStation), but that rule gives about 3% links the bake lacks, with the same
+  flags and heights as links it has: the neighbour step (0x905780) traces geometry. Its reading is the next stage.
+- **What the Build does with it** (D1, F-149): a diagonal tile next to a change is written by the Build from these
+  passes rather than rebuilt by the battle.
+
+### F-153: The game's cover rule worked out from a map's pieces gives its marked tiles' diagonal cover exactly; where the marks go is the designers' choice
+(Numbered F-151 in commit b8b4fa6; F-151 is the large map files', recorded first.)
 **Verified offline over the install's maps** (22 November 2026: diagonal cover plan, stage C1;
 [`diagonal-finder.py`](evidence/diagonal-finder.py) over the 97 base maps the install lists, the record in
 [`diagonal-finder-2026-11-22.json`](evidence/diagonal-finder-2026-11-22.json); the rule in
@@ -448,15 +489,16 @@ the fix).
   - UWorld's line check of the cover step (flags 0x860C0) meets only actors that are `bWorldGeometry`. The farm's
     wall-cap debris (`ARC_AlienCoverDebris_DestroC`, an archetype inside the map) saves it off, and the floor line
     under a cover location passes through it to the ground.
-- **The marks are not a rule**. On every tile a diagonal passes on, marked against unmarked:
+- **The marks are not a rule**. On every tile a diagonal passes on, marked against unmarked (counted again with
+  F-152's engine; the first count differed by a few unmarked tiles):
 
 | Condition | Marked (of 289) | Unmarked |
 | --- | --- | --- |
-| no straight cover | 268 | 2,832 |
-| and the tile partly occupied (the wall crosses it) | 245 | 499 |
-| and the wall at 45 degrees (facing 0.999) | 245 | 113 |
-| and high cover (the finder) | 245 | 110 |
-| partly, 45 degrees, high, straight cover or not | 250 | 263 |
+| no straight cover | 268 | 2,773 |
+| and the tile partly occupied (the wall crosses it) | 245 | 440 |
+| and the wall at 45 degrees (facing 0.999) | 245 | 114 |
+| and high cover (the finder) | 245 | 111 |
+| partly, 45 degrees, high, straight cover or not | 250 | 256 |
 
   The unmarked ones in the finder's row are the same kind of corner on the same UFO maps: small scout columns
   (`SScout_ColumnARev`), large scout door frames and walls (`LSIntWall_192_Door`, `LSCornerDoorFrame`), energy

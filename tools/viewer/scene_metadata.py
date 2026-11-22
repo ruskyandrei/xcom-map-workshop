@@ -165,6 +165,62 @@ def saved_floor_tiles(p, container, dimensions=None):
     return floors
 
 
+# the diagonal cover's four directions (research/native/cover-build.md, section 4, the diagonal table): its cover
+# bit, its low bit, the way it faces (game axes)
+DIAGONAL_DIRECTIONS = (('N', 0x1, 0x10, (-1, 1)), ('S', 0x2, 0x20, (1, -1)), ('E', 0x4, 0x40, (-1, -1)),
+                       ('W', 0x8, 0x80, (1, 1)))
+
+
+def saved_diagonal_tiles(p, container, dimensions=None):
+    """The tiles of a world data container whose cover flags carry diagonal cover (0x10000, the map's cover seeds;
+    findings register F-149): [dict(tile, floor (its floor's height, or None), location (the cover location),
+    directions [dict(name, toward (the diagonal it faces, game axes), low)])]."""
+    import world_links
+    reader = p.native(container)
+    blob, offset = reader.take(reader.end - reader.pos), 0
+    stores = []
+    for kind in ('flags', 'flags', 'floor', 'vector'):
+        if kind == 'vector' and not any(v & 0x10000 for v in stores[1].values()):
+            stores.append({})       # (no diagonal tile: the cover locations are not needed)
+            break
+        store = world_links.parse_store(blob, offset, kind)
+        if dimensions is not None and tuple(store['dims']) != tuple(dimensions):
+            raise ValueError('Cover/grid dimensions disagree')
+        offset = store['end']
+        stores.append({t['tile']: t['value'] for c in store['chunks'] for t in c['tiles'] if t['present']})
+    out = []
+    for tile, cover in sorted(stores[1].items()):
+        if not cover & 0x10000:
+            continue
+        floor = stores[2].get(tile)
+        out.append(dict(tile=list(tile), floor=floor['loc'][2] if floor else None,
+                        location=list(stores[3][tile]) if tile in stores[3] else None,
+                        directions=[dict(name=n, toward=list(d), low=bool(cover & low))
+                                    for n, bit, low, d in DIAGONAL_DIRECTIONS if cover & bit]))
+    return out
+
+
+CHANGE_MARGIN = 24.0      # a quarter tile: the margin round a change's box (seed_map.MARGIN, a copy's seeds)
+
+
+def changed_tiles(boxes, origin, dims, size=(96.0, 96.0, 64.0), margin=CHANGE_MARGIN):
+    """The tiles world boxes [x0, x1, y0, y1, z0, z1] stand on, as the Build counts them for a diagonal cover tile
+    (native_copy.rebuild_spares): each box's tiles with a quarter tile round it in x and y, every level it reaches,
+    the ground's included, on the grid from `origin` (the level volume's corner) of `dims` tiles. A set of (x, y, z).
+    web/floors.js changedTiles is the twin."""
+    e = 1e-3
+    out = set()
+    for b in boxes:
+        x0 = max(0, math.floor((b[0] - margin - origin[0]) / size[0] + e))
+        x1 = min(dims[0] - 1, math.ceil((b[1] + margin - origin[0]) / size[0] - e) - 1)
+        y0 = max(0, math.floor((b[2] - margin - origin[1]) / size[1] + e))
+        y1 = min(dims[1] - 1, math.ceil((b[3] + margin - origin[1]) / size[1] - e) - 1)
+        z0 = max(0, math.floor((b[4] - origin[2]) / size[2] + e))
+        z1 = min(dims[2] - 1, math.ceil((b[5] - origin[2]) / size[2] - e) - 1)
+        out |= {(x, y, z) for x in range(x0, x1 + 1) for y in range(y0, y1 + 1) for z in range(z0, z1 + 1)}
+    return out
+
+
 def tactical_metadata(p, objects, meshes, grid, warn):
     """Saved base-map floors and a reversible inspection view, not live navigation."""
     if not grid: return None
@@ -193,7 +249,12 @@ def tactical_metadata(p, objects, meshes, grid, warn):
                     intersects=all(min(v[k] for v in points)<=view_max[k] and max(v[k] for v in points)>=view_min[k] for k in range(3))
                     role='interior' if intersects else 'backdrop'
                 obj['sceneryRole']=role
-            return dict(source='original-baked-floor-data',floorTiles=floors,
+            try:
+                diagonal = saved_diagonal_tiles(p, i, grid['dimensions'])
+            except (ValueError, struct.error, IndexError) as error:
+                warn(p.name(i), f'Diagonal cover tiles unavailable: {error}')
+                diagonal = []
+            return dict(source='original-baked-floor-data',floorTiles=floors,diagonalCover=diagonal,
                         focusBounds=dict(min=view_min,max=view_max),
                         recommendedView='interior' if shell else 'full',
                         notes='Original saved floor surfaces; mission state and runtime navigation are not evaluated')

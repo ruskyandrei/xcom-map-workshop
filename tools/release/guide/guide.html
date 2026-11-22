@@ -798,6 +798,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </div>
 <p>Above Play area, on a whole map: <b class="ui">Ground grid</b> and <b class="ui">Landing zones</b>
   (<a href="#clearmap">more</a>).</p>
+<p id="diagonal-cover">Below Floor tiles, <b class="ui">Diagonal cover</b> outlines the map's tiles where a unit in the
+  corner of a slanted wall gets cover along the diagonal (the map's makers marked them, mostly at UFO hull corners),
+  each with an arrow toward its wall. Amber: the Build keeps the cover, also when you change something next to the
+  tile. Red: something of your project stands on that tile (added, moved there, moved away or deleted), so the game
+  works the tile out again and its diagonal cover goes; the check list warns about it too. A tile away is enough to
+  keep it. Copied or moved slanted walls don't bring diagonal cover with them.</p>
 
 <h3 id="maps">Map browser</h3>
 <p><b class="ui">Change map…</b> in the header's <a href="#map-menu">Map menu</a> (or <kbd>M</kbd>) lists every map your install plays, in sections by mission type.

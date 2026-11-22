@@ -88,7 +88,10 @@ import settings
 #     `render.compiledTextures` and scenes.json; a streamed package's buildings, tile grid and tactical data are no
 #     longer worked out only to be dropped. Each mission says its kind (`missions[].kind`, missions.kind_key: a
 #     council mission's `Special/<council type>`), which the page and the server took from its label before.
-EXPORT_VERSION = 37
+# 38: the map's diagonal cover tiles (`tactical.diagonalCover`: each tile its seeds marked, its floor's height, its
+#     cover location and the diagonals it gives cover toward; scene_metadata.saved_diagonal_tiles), for View options'
+#     Diagonal cover (findings register F-149)
+EXPORT_VERSION = 38
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the

@@ -8,28 +8,28 @@
   "worked": 293,
   "exact": 293,
   "finder": 245,
-  "extra": 110,
+  "extra": 111,
   "extraMaps": 27,
   "variants": {
    "no straight cover": [
     268,
-    2832
+    2773
    ],
    "and partly occupied": [
     245,
-    499
+    440
    ],
    "and the wall at 45 degrees": [
     245,
-    113
+    114
    ],
    "and high (the finder)": [
     245,
-    110
+    111
    ],
    "partly, 45 degrees, high, straight or not": [
     250,
-    263
+    256
    ]
   },
   "seeds": 351,
@@ -38,7 +38,7 @@
  "maps": [
   {
    "map": "Act1_IntroLevel",
-   "seconds": 1.7,
+   "seconds": 2.0,
    "scanned": 1210,
    "world": {
     "actors": 525,
@@ -78,7 +78,7 @@
   },
   {
    "map": "Act2_Pier",
-   "seconds": 1.9,
+   "seconds": 2.0,
    "scanned": 1371,
    "world": {
     "actors": 813,
@@ -136,7 +136,7 @@
   },
   {
    "map": "Act2_Pier_Asian",
-   "seconds": 1.9,
+   "seconds": 2.1,
    "scanned": 1371,
    "world": {
     "actors": 907,
@@ -176,7 +176,7 @@
   },
   {
    "map": "AlienBase01",
-   "seconds": 2.1,
+   "seconds": 2.3,
    "scanned": 3506,
    "world": {
     "actors": 1032,
@@ -216,24 +216,59 @@
       "E": "no hit",
       "W": "no hit"
      }
+    },
+    {
+     "tile": [
+      6,
+      120,
+      3
+     ],
+     "flags": "63a82a",
+     "cover": "010105",
+     "straight": "000000",
+     "partly": true,
+     "parts": {
+      "N": {
+       "piece": "XComLevelActor_309",
+       "cls": "XComLevelActor",
+       "mesh": "alienTrackCornerWorm",
+       "facing": 1.0,
+       "low": false,
+       "wall": 0.0
+      },
+      "E": {
+       "piece": "XComLevelActor_309",
+       "cls": "XComLevelActor",
+       "mesh": "alienTrackCornerWorm",
+       "facing": 1.0,
+       "low": false,
+       "wall": 0.0
+      }
+     },
+     "straightNotes": {
+      "N": "no hit",
+      "S": "facing 0.707",
+      "E": "facing 0.707",
+      "W": "no hit"
+     }
     }
    ],
    "variants": {
     "no straight cover": [
      0,
-     50
+     52
     ],
     "and partly occupied": [
      0,
-     5
+     6
     ],
     "and the wall at 45 degrees": [
      0,
-     2
+     3
     ],
     "and high (the finder)": [
      0,
-     1
+     2
     ],
     "partly, 45 degrees, high, straight or not": [
      0,
@@ -244,7 +279,7 @@
   },
   {
    "map": "AlienBase02",
-   "seconds": 2.0,
+   "seconds": 2.1,
    "scanned": 3101,
    "world": {
     "actors": 1213,
@@ -284,7 +319,7 @@
   },
   {
    "map": "CAbductor_Cliffside",
-   "seconds": 2.6,
+   "seconds": 2.8,
    "scanned": 3588,
    "world": {
     "actors": 1249,
@@ -379,7 +414,7 @@
   },
   {
    "map": "CAbductor_ScorchedEarth",
-   "seconds": 2.5,
+   "seconds": 2.8,
    "scanned": 4159,
    "world": {
     "actors": 1260,
@@ -474,7 +509,7 @@
   },
   {
    "map": "CB2_MP_Blank",
-   "seconds": 0.7,
+   "seconds": 0.8,
    "scanned": 1278,
    "world": {
     "actors": 22,
@@ -514,7 +549,7 @@
   },
   {
    "map": "CBattleship_01",
-   "seconds": 2.5,
+   "seconds": 2.7,
    "scanned": 2995,
    "world": {
     "actors": 1270,
@@ -554,7 +589,7 @@
   },
   {
    "map": "CBattleship_02",
-   "seconds": 2.4,
+   "seconds": 2.7,
    "scanned": 2993,
    "world": {
     "actors": 1268,
@@ -594,7 +629,7 @@
   },
   {
    "map": "CLrgScout_City",
-   "seconds": 2.7,
+   "seconds": 3.3,
    "scanned": 3479,
    "world": {
     "actors": 1161,
@@ -1686,7 +1721,7 @@
   },
   {
    "map": "CLrgScout_DeepWoods",
-   "seconds": 3.9,
+   "seconds": 4.2,
    "scanned": 6408,
    "world": {
     "actors": 1640,
@@ -2855,7 +2890,7 @@
   },
   {
    "map": "CLrgScout_ForestTrench",
-   "seconds": 3.9,
+   "seconds": 4.3,
    "scanned": 7291,
    "world": {
     "actors": 1611,
@@ -3968,7 +4003,7 @@
   },
   {
    "map": "CLrgScout_Stonewall",
-   "seconds": 3.0,
+   "seconds": 3.5,
    "scanned": 3907,
    "world": {
     "actors": 1168,
@@ -5110,7 +5145,7 @@
   },
   {
    "map": "CLrgScout_TheBarrens",
-   "seconds": 3.6,
+   "seconds": 3.8,
    "scanned": 5196,
    "world": {
     "actors": 1340,
@@ -6199,7 +6234,7 @@
   },
   {
    "map": "COverseer_DeepWoods",
-   "seconds": 4.1,
+   "seconds": 4.5,
    "scanned": 6378,
    "world": {
     "actors": 1563,
@@ -7393,7 +7428,7 @@
   },
   {
    "map": "COverseer_ForestTrench",
-   "seconds": 4.7,
+   "seconds": 4.9,
    "scanned": 7268,
    "world": {
     "actors": 1524,
@@ -8533,7 +8568,7 @@
   },
   {
    "map": "COverseer_Stonewall",
-   "seconds": 3.5,
+   "seconds": 3.7,
    "scanned": 3874,
    "world": {
     "actors": 1219,
@@ -9619,7 +9654,7 @@
   },
   {
    "map": "COverseer_TheBarrens",
-   "seconds": 3.8,
+   "seconds": 3.9,
    "scanned": 5171,
    "world": {
     "actors": 999,
@@ -10786,7 +10821,7 @@
   },
   {
    "map": "CSmallScout_Badlands",
-   "seconds": 3.0,
+   "seconds": 3.2,
    "scanned": 5091,
    "world": {
     "actors": 1312,
@@ -11072,7 +11107,7 @@
   },
   {
    "map": "CSmallScout_DirtRoad",
-   "seconds": 3.2,
+   "seconds": 3.4,
    "scanned": 4161,
    "world": {
     "actors": 1169,
@@ -11450,7 +11485,7 @@
   },
   {
    "map": "CsmallScout_Farm",
-   "seconds": 6.9,
+   "seconds": 7.4,
    "scanned": 4102,
    "world": {
     "actors": 1204,
@@ -11740,7 +11775,7 @@
     ],
     "partly, 45 degrees, high, straight or not": [
      8,
-     5
+     3
     ]
    },
    "seeds": [
@@ -11884,7 +11919,7 @@
   },
   {
    "map": "CSmallScout_Marshlands",
-   "seconds": 3.7,
+   "seconds": 3.9,
    "scanned": 4973,
    "world": {
     "actors": 2076,
@@ -12026,7 +12061,7 @@
     ],
     "partly, 45 degrees, high, straight or not": [
      0,
-     5
+     4
     ]
    },
    "seeds": [
@@ -12170,7 +12205,7 @@
   },
   {
    "map": "CSmallScout_NukedCity",
-   "seconds": 3.8,
+   "seconds": 4.0,
    "scanned": 4105,
    "world": {
     "actors": 1269,
@@ -12319,7 +12354,7 @@
   },
   {
    "map": "CSmallScout_Quagmire",
-   "seconds": 3.4,
+   "seconds": 3.7,
    "scanned": 4971,
    "world": {
     "actors": 1372,
@@ -12605,7 +12640,7 @@
   },
   {
    "map": "CSmallScout_Roadhouse",
-   "seconds": 4.9,
+   "seconds": 5.3,
    "scanned": 4618,
    "world": {
     "actors": 1216,
@@ -13027,7 +13062,7 @@
   },
   {
    "map": "CSupplyShip_OverlookA",
-   "seconds": 4.6,
+   "seconds": 5.1,
    "scanned": 6671,
    "world": {
     "actors": 2346,
@@ -13374,7 +13409,7 @@
   },
   {
    "map": "CSupplyShip_Wildfire",
-   "seconds": 12.4,
+   "seconds": 13.8,
    "scanned": 7625,
    "world": {
     "actors": 1534,
@@ -13694,7 +13729,7 @@
   },
   {
    "map": "DEMO_SonOfFacemelt",
-   "seconds": 31.2,
+   "seconds": 31.4,
    "scanned": 727,
    "world": {
     "actors": 933,
@@ -13734,7 +13769,7 @@
   },
   {
    "map": "DLC1_1_LowFriends",
-   "seconds": 2.6,
+   "seconds": 2.9,
    "scanned": 2111,
    "world": {
     "actors": 1326,
@@ -13774,7 +13809,7 @@
   },
   {
    "map": "DLC1_2_CnfndLight",
-   "seconds": 2.6,
+   "seconds": 2.8,
    "scanned": 3126,
    "world": {
     "actors": 1279,
@@ -13814,7 +13849,7 @@
   },
   {
    "map": "DLC1_3_Gangplank",
-   "seconds": 2.3,
+   "seconds": 2.6,
    "scanned": 1780,
    "world": {
     "actors": 1155,
@@ -13854,7 +13889,7 @@
   },
   {
    "map": "DLC2_1_Portent",
-   "seconds": 2.9,
+   "seconds": 3.1,
    "scanned": 2099,
    "world": {
     "actors": 1061,
@@ -13894,7 +13929,7 @@
   },
   {
    "map": "DLC2_2_Deluge",
-   "seconds": 29.5,
+   "seconds": 30.6,
    "scanned": 1315,
    "world": {
     "actors": 950,
@@ -13911,11 +13946,11 @@
    "variants": {
     "no straight cover": [
      0,
-     35
+     5
     ],
     "and partly occupied": [
      0,
-     35
+     5
     ],
     "and the wall at 45 degrees": [
      0,
@@ -13934,7 +13969,7 @@
   },
   {
    "map": "DLC2_3_Furies",
-   "seconds": 4.1,
+   "seconds": 4.4,
    "scanned": 5372,
    "world": {
     "actors": 1359,
@@ -14029,7 +14064,7 @@
   },
   {
    "map": "EWI_ChryssalidHive",
-   "seconds": 4.4,
+   "seconds": 4.9,
    "scanned": 3363,
    "world": {
     "actors": 1300,
@@ -14851,7 +14886,7 @@
   },
   {
    "map": "EWI_ExaltHQAssault",
-   "seconds": 3.1,
+   "seconds": 3.4,
    "scanned": 2828,
    "world": {
     "actors": 1131,
@@ -14891,7 +14926,7 @@
   },
   {
    "map": "EWI_HQAssault",
-   "seconds": 3.6,
+   "seconds": 3.9,
    "scanned": 2306,
    "world": {
     "actors": 1392,
@@ -14931,7 +14966,7 @@
   },
   {
    "map": "EWI_HQAssault_MP",
-   "seconds": 30.8,
+   "seconds": 32.6,
    "scanned": 1682,
    "world": {
     "actors": 1263,
@@ -14964,14 +14999,14 @@
     ],
     "partly, 45 degrees, high, straight or not": [
      0,
-     3
+     0
     ]
    },
    "seeds": []
   },
   {
    "map": "EWI_MeldTutorial",
-   "seconds": 2.6,
+   "seconds": 2.8,
    "scanned": 2368,
    "world": {
     "actors": 859,
@@ -15011,7 +15046,7 @@
   },
   {
    "map": "LAbductor_FarmOutskirts",
-   "seconds": 3.6,
+   "seconds": 3.8,
    "scanned": 4688,
    "world": {
     "actors": 1321,
@@ -15106,7 +15141,7 @@
   },
   {
    "map": "LAbductor_WindingStream",
-   "seconds": 5.0,
+   "seconds": 5.4,
    "scanned": 7259,
    "world": {
     "actors": 1670,
@@ -15228,7 +15263,7 @@
   },
   {
    "map": "LLrgScout_CreepyForest",
-   "seconds": 3.7,
+   "seconds": 3.9,
    "scanned": 4079,
    "world": {
     "actors": 1241,
@@ -17073,7 +17108,7 @@
   },
   {
    "map": "LLrgScout_Hillside",
-   "seconds": 4.2,
+   "seconds": 4.6,
    "scanned": 4729,
    "world": {
     "actors": 1268,
@@ -18918,7 +18953,7 @@
   },
   {
    "map": "LSmallScout_River",
-   "seconds": 2.9,
+   "seconds": 3.2,
    "scanned": 3818,
    "world": {
     "actors": 1205,
@@ -19285,7 +19320,7 @@
   },
   {
    "map": "LSmallScout_Rivervalley",
-   "seconds": 3.7,
+   "seconds": 4.0,
    "scanned": 4948,
    "world": {
     "actors": 1485,
@@ -19719,7 +19754,7 @@
   },
   {
    "map": "LSupplyShip_ForestGrove",
-   "seconds": 4.8,
+   "seconds": 5.1,
    "scanned": 6366,
    "world": {
     "actors": 2206,
@@ -20066,7 +20101,7 @@
   },
   {
    "map": "LSupplyShip_RockyGorge",
-   "seconds": 4.1,
+   "seconds": 4.4,
    "scanned": 5899,
    "world": {
     "actors": 1710,
@@ -20413,7 +20448,7 @@
   },
   {
    "map": "TempleShip",
-   "seconds": 3.4,
+   "seconds": 3.6,
    "scanned": 3651,
    "world": {
     "actors": 1667,
@@ -20453,7 +20488,7 @@
   },
   {
    "map": "URB_Bar",
-   "seconds": 2.6,
+   "seconds": 2.8,
    "scanned": 2162,
    "world": {
     "actors": 947,
@@ -20528,7 +20563,7 @@
   },
   {
    "map": "URB_Bar_Terror",
-   "seconds": 2.6,
+   "seconds": 2.7,
    "scanned": 2107,
    "world": {
     "actors": 915,
@@ -20568,7 +20603,7 @@
   },
   {
    "map": "URB_Boulevard",
-   "seconds": 2.2,
+   "seconds": 2.3,
    "scanned": 2121,
    "world": {
     "actors": 658,
@@ -20608,7 +20643,7 @@
   },
   {
    "map": "URB_Boulevard_Euro",
-   "seconds": 2.3,
+   "seconds": 2.4,
    "scanned": 1851,
    "world": {
     "actors": 823,
@@ -20648,7 +20683,7 @@
   },
   {
    "map": "URB_CemeteryGrand",
-   "seconds": 2.7,
+   "seconds": 2.9,
    "scanned": 3566,
    "world": {
     "actors": 1460,
@@ -20688,7 +20723,7 @@
   },
   {
    "map": "URB_CommercialAlley",
-   "seconds": 4.1,
+   "seconds": 4.2,
    "scanned": 3846,
    "world": {
     "actors": 1206,
@@ -20705,11 +20740,11 @@
    "variants": {
     "no straight cover": [
      0,
-     41
+     35
     ],
     "and partly occupied": [
      0,
-     11
+     5
     ],
     "and the wall at 45 degrees": [
      0,
@@ -20728,7 +20763,7 @@
   },
   {
    "map": "URB_CommercialAlley_EWI",
-   "seconds": 3.6,
+   "seconds": 3.7,
    "scanned": 3840,
    "world": {
     "actors": 1141,
@@ -20745,11 +20780,11 @@
    "variants": {
     "no straight cover": [
      0,
-     47
+     40
     ],
     "and partly occupied": [
      0,
-     12
+     5
     ],
     "and the wall at 45 degrees": [
      0,
@@ -20785,11 +20820,11 @@
    "variants": {
     "no straight cover": [
      0,
-     53
+     44
     ],
     "and partly occupied": [
      0,
-     12
+     3
     ],
     "and the wall at 45 degrees": [
      0,
@@ -20801,14 +20836,14 @@
     ],
     "partly, 45 degrees, high, straight or not": [
      0,
-     1
+     0
     ]
    },
    "seeds": []
   },
   {
    "map": "URB_CommercialRestaurant",
-   "seconds": 2.9,
+   "seconds": 3.1,
    "scanned": 2274,
    "world": {
     "actors": 1031,
@@ -20848,7 +20883,7 @@
   },
   {
    "map": "URB_CommercialStreet",
-   "seconds": 2.9,
+   "seconds": 3.1,
    "scanned": 1933,
    "world": {
     "actors": 890,
@@ -20888,7 +20923,7 @@
   },
   {
    "map": "URB_CommercialStreet_Terror",
-   "seconds": 2.4,
+   "seconds": 2.5,
    "scanned": 1934,
    "world": {
     "actors": 877,
@@ -20905,11 +20940,11 @@
    "variants": {
     "no straight cover": [
      0,
-     22
+     18
     ],
     "and partly occupied": [
      0,
-     4
+     0
     ],
     "and the wall at 45 degrees": [
      0,
@@ -20928,7 +20963,7 @@
   },
   {
    "map": "URB_ConvienienceStore",
-   "seconds": 2.6,
+   "seconds": 2.8,
    "scanned": 2577,
    "world": {
     "actors": 779,
@@ -20968,7 +21003,7 @@
   },
   {
    "map": "URB_ConvienienceStore_EWI",
-   "seconds": 2.7,
+   "seconds": 2.9,
    "scanned": 2633,
    "world": {
     "actors": 850,
@@ -21025,7 +21060,7 @@
    "variants": {
     "no straight cover": [
      0,
-     28
+     27
     ],
     "and partly occupied": [
      0,
@@ -21048,7 +21083,7 @@
   },
   {
    "map": "URB_Demolition_EWI",
-   "seconds": 2.7,
+   "seconds": 2.8,
    "scanned": 2030,
    "world": {
     "actors": 1177,
@@ -21088,7 +21123,7 @@
   },
   {
    "map": "URB_FastFood",
-   "seconds": 2.3,
+   "seconds": 2.5,
    "scanned": 1744,
    "world": {
     "actors": 981,
@@ -21168,7 +21203,7 @@
   },
   {
    "map": "URB_GasStation_EWI",
-   "seconds": 3.0,
+   "seconds": 3.1,
    "scanned": 2991,
    "world": {
     "actors": 1023,
@@ -21248,7 +21283,7 @@
   },
   {
    "map": "URB_HighwayBridge",
-   "seconds": 1.6,
+   "seconds": 1.7,
    "scanned": 1355,
    "world": {
     "actors": 591,
@@ -21288,7 +21323,7 @@
   },
   {
    "map": "URB_HighwayConstruction",
-   "seconds": 2.4,
+   "seconds": 2.5,
    "scanned": 1630,
    "world": {
     "actors": 782,
@@ -21328,7 +21363,7 @@
   },
   {
    "map": "URB_HighwayConstruction_EWI",
-   "seconds": 3.1,
+   "seconds": 3.0,
    "scanned": 3180,
    "world": {
     "actors": 1161,
@@ -21368,7 +21403,7 @@
   },
   {
    "map": "URB_HighwayFallen",
-   "seconds": 2.1,
+   "seconds": 2.3,
    "scanned": 966,
    "world": {
     "actors": 800,
@@ -21408,7 +21443,7 @@
   },
   {
    "map": "URB_IndustrialOffice",
-   "seconds": 2.6,
+   "seconds": 2.7,
    "scanned": 2307,
    "world": {
     "actors": 1129,
@@ -21465,11 +21500,11 @@
    "variants": {
     "no straight cover": [
      0,
-     13
+     9
     ],
     "and partly occupied": [
      0,
-     6
+     2
     ],
     "and the wall at 45 degrees": [
      0,
@@ -21488,7 +21523,7 @@
   },
   {
    "map": "URB_MilitaryAmmo",
-   "seconds": 3.1,
+   "seconds": 3.2,
    "scanned": 3334,
    "world": {
     "actors": 1277,
@@ -21568,7 +21603,7 @@
   },
   {
    "map": "URB_OfficePaper_EWI",
-   "seconds": 3.0,
+   "seconds": 3.1,
    "scanned": 2497,
    "world": {
     "actors": 1028,
@@ -21608,7 +21643,7 @@
   },
   {
    "map": "URB_OfficePaper_Terror",
-   "seconds": 2.9,
+   "seconds": 3.1,
    "scanned": 2901,
    "world": {
     "actors": 1023,
@@ -21648,7 +21683,7 @@
   },
   {
    "map": "URB_PierA",
-   "seconds": 2.1,
+   "seconds": 2.2,
    "scanned": 1395,
    "world": {
     "actors": 920,
@@ -21688,7 +21723,7 @@
   },
   {
    "map": "URB_PierA_Asian",
-   "seconds": 2.1,
+   "seconds": 2.2,
    "scanned": 1397,
    "world": {
     "actors": 994,
@@ -21728,7 +21763,7 @@
   },
   {
    "map": "URB_PierA_Terror",
-   "seconds": 2.8,
+   "seconds": 2.9,
    "scanned": 1863,
    "world": {
     "actors": 1026,
@@ -21768,7 +21803,7 @@
   },
   {
    "map": "URB_PoliceStation",
-   "seconds": 2.7,
+   "seconds": 2.8,
    "scanned": 2287,
    "world": {
     "actors": 905,
@@ -21808,7 +21843,7 @@
   },
   {
    "map": "URB_ResearchOutpost",
-   "seconds": 2.8,
+   "seconds": 3.0,
    "scanned": 2993,
    "world": {
     "actors": 777,
@@ -21848,7 +21883,7 @@
   },
   {
    "map": "URB_ResearchOutpost_EWI",
-   "seconds": 2.8,
+   "seconds": 3.0,
    "scanned": 2981,
    "world": {
     "actors": 793,
@@ -21888,7 +21923,7 @@
   },
   {
    "map": "URB_RooftopsConst",
-   "seconds": 1.8,
+   "seconds": 1.9,
    "scanned": 1240,
    "world": {
     "actors": 1051,
@@ -21928,7 +21963,7 @@
   },
   {
    "map": "URB_RooftopsConst_Asian",
-   "seconds": 2.0,
+   "seconds": 2.1,
    "scanned": 1243,
    "world": {
     "actors": 1098,
@@ -21968,7 +22003,7 @@
   },
   {
    "map": "URB_SlaughterhouseA",
-   "seconds": 2.6,
+   "seconds": 2.7,
    "scanned": 1806,
    "world": {
     "actors": 912,
@@ -22008,7 +22043,7 @@
   },
   {
    "map": "URB_SmallCemetery",
-   "seconds": 2.2,
+   "seconds": 2.3,
    "scanned": 1550,
    "world": {
     "actors": 1151,
@@ -22048,7 +22083,7 @@
   },
   {
    "map": "URB_StreetHurricane",
-   "seconds": 1.7,
+   "seconds": 1.8,
    "scanned": 1315,
    "world": {
     "actors": 528,
@@ -22128,7 +22163,7 @@
   },
   {
    "map": "URB_StreetOverpass",
-   "seconds": 2.4,
+   "seconds": 2.5,
    "scanned": 2423,
    "world": {
     "actors": 1022,
@@ -22168,7 +22203,7 @@
   },
   {
    "map": "URB_StreetOverpass_EWI",
-   "seconds": 2.5,
+   "seconds": 2.6,
    "scanned": 1653,
    "world": {
     "actors": 952,
@@ -22208,7 +22243,7 @@
   },
   {
    "map": "URB_TrainStation",
-   "seconds": 2.0,
+   "seconds": 2.1,
    "scanned": 2392,
    "world": {
     "actors": 867,
@@ -22248,7 +22283,7 @@
   },
   {
    "map": "URB_Trainyard",
-   "seconds": 2.1,
+   "seconds": 2.3,
    "scanned": 2075,
    "world": {
     "actors": 1059,
@@ -22288,7 +22323,7 @@
   },
   {
    "map": "URB_TruckStop",
-   "seconds": 2.8,
+   "seconds": 2.9,
    "scanned": 2938,
    "world": {
     "actors": 942,
@@ -22328,7 +22363,7 @@
   },
   {
    "map": "URB_TruckStop_EWI",
-   "seconds": 2.8,
+   "seconds": 2.9,
    "scanned": 3150,
    "world": {
     "actors": 956,

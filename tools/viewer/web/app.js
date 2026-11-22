@@ -792,7 +792,7 @@ const { deleteNow, deleteSelection, resetAll, resetSelected, undoStep } = create
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 // The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
 // the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.
-const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions,
+const { cutaway, drawDiagonalCover, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions,
         updateTileGrid } = createCutaway({
   $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial, listingsNow, movedLandingActors,
   rayAt, refreshPickBox, segButton, select, slabTilesOf, touchShadows, viewport, world });
@@ -1149,6 +1149,7 @@ setLibraryScopeValue(LIBRARY_SCOPES[recall('workshop.libraryScope')] ? recall('w
 $('libScope').value = libraryScope;
 $('editAdd').onclick = () => data && showPieces(!pieces.open);
 $('floorTiles').onchange = e => { drawFloorTiles(); e.target.blur(); };
+$('diagonalCover').onchange = e => { drawDiagonalCover(); e.target.blur(); };
 $('libraryClose').onclick = () => showPieces(false);
 toggleButton($('editLinked'), on => { gizmo.setLinked(on); select(selected, false, true); });
 $('projectSave').onclick = () => { showPop(null); saveProject(); };

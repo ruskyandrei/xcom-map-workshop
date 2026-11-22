@@ -1021,18 +1021,27 @@ def diagonal_tiles(p):
     return found
 
 
-def rebuild_spares(p, box, radius, spare=False):
+def changed_tiles(boxes, grid):
+    """The tiles world boxes stand on (scene_metadata.changed_tiles, the rule's one home: the compiler and the page
+    count them so too), on the grid level_grid gives."""
+    return scene_metadata.changed_tiles(boxes, (grid['ox'], grid['oy'], grid['oz']), (grid['nx'], grid['ny'], grid['nz']),
+                                        (seed_map.TILE, seed_map.TILE, seed_map.FLOOR), seed_map.MARGIN)
+
+
+def rebuild_spares(p, box, radius, spare=False, changed=None):
     """What a rebuild volume over `box` (its bounds' sphere `radius`) must leave alone, or None when it reaches
     nothing of the kind: dict(corner: the game's tile corner, need: the tile box it is put there for (the tiles whose
     centres the box holds), forbidden: the tiles its volumes must not take, spared: the diagonal tiles among them the
-    one volume would have reached, rebuilt: the diagonal tiles inside the box, which the rebuild takes).
+    one volume would have reached, rebuilt: the diagonal tiles inside the box, which the rebuild takes, written: those
+    inside it the Build writes itself).
 
     A diagonal tile outside the box is left alone, with the two tiles over it. One inside the box is rebuilt and
-    loses its diagonal cover: the box is there because something on those tiles or the tiles next to them changed
-    (a copy's box holds the ring of tiles round the piece, where its seeds go, and a hidden piece's the ring whose
-    cover and blocked edges it made), and a tile left as baked beside a change would block or open an edge the
-    change did not. With `spare` (a volume that is there for no change of the map's pieces: a grown grid's) the
-    ones inside are left alone as well."""
+    loses its diagonal cover, unless `changed` (the world boxes of what changed there: a copy, a hidden or moved
+    piece) leaves it out: a tile the changes do not stand on (changed_tiles) is next to them only, the box holding it
+    for its edges, cover and links. Such a tile is left out of the rebuild too, with the two tiles over it but those
+    a change stands on, and is `written`: the Build works out what the change alters of it (diagonal_keep.py). With
+    `spare` (a volume that is there for no change of the map's pieces: a grown grid's) the ones inside are left alone
+    as they are."""
     import rebuild_fit
     diagonal = diagonal_tiles(p)
     if not diagonal:
@@ -1043,20 +1052,24 @@ def rebuild_spares(p, box, radius, spare=False):
     if need is None:
         return None
     inside = lambda t: all(need[2 * k] <= t[k] <= need[2 * k + 1] for k in range(3))  # noqa: E731
-    kept = {t for t in diagonal if spare or not inside(t)}
+    on = changed_tiles(changed, grid) if changed else None
+    written = sorted(t for t in diagonal if not spare and inside(t) and on is not None and t not in on)
+    kept = {t for t in diagonal if spare or not inside(t)} | set(written)
     forbidden = set(kept)
     for x, y, z in kept:
-        forbidden |= {(x, y, z + n) for n in range(1, STANDING_ROOM + 1) if spare or not inside((x, y, z + n))}
+        forbidden |= {(x, y, z + n) for n in range(1, STANDING_ROOM + 1)
+                      if spare or not inside((x, y, z + n)) or on is not None and (x, y, z + n) not in on}
     reach = rebuild_fit.span([(box[2 * k] + box[2 * k + 1]) / 2 for k in range(3)], radius, corner)
     reached = lambda t: all(reach[k][0] <= t[k] <= reach[k][1] for k in range(3))  # noqa: E731
     rebuilt = sorted(t for t in diagonal if t not in kept)
     if not any(reached(t) for t in forbidden):
-        return dict(corner=corner, need=need, forbidden=set(), spared=[], rebuilt=rebuilt) if rebuilt else None
+        return dict(corner=corner, need=need, forbidden=set(), spared=[], rebuilt=rebuilt,
+                    written=[]) if rebuilt else None
     return dict(corner=corner, need=need, forbidden=forbidden, spared=sorted(t for t in kept if reached(t)),
-                rebuilt=rebuilt)
+                rebuilt=rebuilt, written=[t for t in written if reached(t)])
 
 
-def add_rebuild_volume(g, p, box, template=None, spare=False):
+def add_rebuild_volume(g, p, box, template=None, spare=False, changed=None):
     """An XComRebuildWorldDataVolume whose bounds are `box` (world [x0, x1, y0, y1, z0, z1]): the map's volume
     `template` (its actor and brush component) cloned, retyped, placed and scaled (add_volume). The battle rebuilds the
     tiles within the bounds' sphere radius of their centre, in x and y and in z (XGBattle.DoWorldDataRebuild), and
@@ -1068,13 +1081,20 @@ def add_rebuild_volume(g, p, box, template=None, spare=False):
     first, and add_to_level lists the others after it wherever it is listed; the record gains `fitted`
     (dict(volumes: the exports, spared: the diagonal tiles left alone)) and its location, scale and rebuildExtent are
     the first volume's. A record of a box that holds diagonal tiles names them in `diagonalRebuilt`: the rebuild takes
-    their diagonal cover."""
+    their diagonal cover; with `changed` (rebuild_spares), the ones next to the change only are left out instead and
+    named in `diagonalWritten`, and the grower's `diagonal_writes` gathers them for the Build to write after
+    (diagonal_keep.write)."""
     import rebuild_fit
     template = template or rebuild_template(p)
     radius = box_reach(p, template, box)
-    spares = rebuild_spares(p, box, radius, spare)
+    spares = rebuild_spares(p, box, radius, spare, changed)
     cubes = rebuild_fit.fit(spares['need'], spares['forbidden']) if spares and spares['forbidden'] else []
     note = {'diagonalRebuilt': [list(t) for t in spares['rebuilt']]} if spares and spares['rebuilt'] else {}
+    if spares and spares['written']:
+        note['diagonalWritten'] = [list(t) for t in spares['written']]
+        if not hasattr(g, 'diagonal_writes'):
+            g.diagonal_writes = set()
+        g.diagonal_writes.update(spares['written'])
     if not cubes:
         made = add_volume(g, p, box, 'XComRebuildWorldDataVolume', template)
         return dict(export=made['mapping'][made['template']], template=template, location=made['location'],
@@ -1320,7 +1340,7 @@ def add_tiles_box(g, p, box):
     if t is None:
         return None
     x0, x1, y0, y1, _, z1 = seed_map.world_of(t, grid)
-    volume = add_rebuild_volume(g, p, [x0, x1, y0, y1, grid['oz'] - seed_map.REBUILD_PAD, z1])
+    volume = add_rebuild_volume(g, p, [x0, x1, y0, y1, grid['oz'] - seed_map.REBUILD_PAD, z1], changed=[box])
     return dict(grid=grid, box=box, tiles=t, seeded=len(seeds['seeded']), alreadyMarked=seeds['already'],
                 seededTiles=[list(x[:3]) for x in seeds['seeded']], volume=volume)
 
@@ -1340,7 +1360,8 @@ def hide_tiles(g, p, box, grid=None):
     if t is None:
         return None
     x0, x1, y0, y1, _, z1 = seed_map.world_of(t, grid)
-    return dict(tiles=list(t), volume=add_rebuild_volume(g, p, [x0, x1, y0, y1, grid['oz'] - seed_map.REBUILD_PAD, z1]))
+    return dict(tiles=list(t), volume=add_rebuild_volume(g, p, [x0, x1, y0, y1, grid['oz'] - seed_map.REBUILD_PAD, z1],
+                                                         changed=[box]))
 
 
 def hide_pieces(g, p, hides, volumes=True):
@@ -2037,11 +2058,13 @@ def flag_tiles(g, p, boxes, volumes=True, max_regions=FLAG_REGIONS):
     Returns (the manifest's record, the volumes' exports)."""
     grid = level_grid(p)
     ranges, seeded, already, outside = [], 0, 0, []
+    changed = []
     for name, box in boxes:
         s = seed_tiles_under(g, p, box, grid)
         if s['tiles'] is None:
             outside.append(name)
             continue
+        changed.append(box)
         ranges.append(tuple(s['tiles']))
         seeded += len(s['seeded'])
         already += s['already']
@@ -2054,7 +2077,7 @@ def flag_tiles(g, p, boxes, volumes=True, max_regions=FLAG_REGIONS):
         v = None
         if volumes:
             x0, x1, y0, y1, _, z1 = seed_map.world_of(t, grid)
-            v = add_rebuild_volume(g, p, [x0, x1, y0, y1, grid['oz'] - seed_map.REBUILD_PAD, z1])
+            v = add_rebuild_volume(g, p, [x0, x1, y0, y1, grid['oz'] - seed_map.REBUILD_PAD, z1], changed=changed)
             made.append(v['export'])
         listed.append(dict(tiles=list(t), **({'volume': v['export']} if v else {})))
     record = dict(regions=listed, seeded=seeded, alreadyMarked=already, outside=outside, joined=joined,
@@ -2295,6 +2318,7 @@ class BuildState:
     dst: object = filled()              # the map written: <out>/<variant>.upk, or the grown map in <out>/grown
     report: object = filled()           # the growing writer's report of the write
     q: object = filled()                # the written map, read again
+    diagonal: object = filled()         # the diagonal cover tiles next to a change, written (diagonal_keep.write)
     # what build makes between its steps
     groups: dict = filled(dict)         # the break groups linked (link_children): each group's clones
     children: dict = filled(dict)       # each clone's parts linked to it (link_children)
@@ -2385,6 +2409,7 @@ def manifest_parts(st, q, bake):
                                                      for f in r['floors']]} if not r['deleted'] else {}))
                                  for r in edit_records],
                   coverBlocks=[dict(c, copy=q.name(c['actor'])) for c in cover_records],
+                  **({'diagonalCover': st.diagonal} if st.diagonal else {}),
                   **({'generatedWalls': [dict(r, copy=q.name(r['copy']).split('.')[-1],
                                               **({'mesh': q.name(r['mesh'])} if r.get('mesh') else {}))
                                          for r in generated_records]} if generated_records else {}),
@@ -2932,6 +2957,11 @@ def write_and_verify(st):
         # reading the grown map afresh, can write it into the textures it redirects (lightmap_writer.cache_fname)
         g.name(lightmap_writer.cache_table_name(cache))
     report = g.write(str(dst))
+    # the diagonal cover tiles next to a change, left out of the rebuild: written now, against the built map
+    # (diagonal_keep.py; findings register F-149)
+    if getattr(g, 'diagonal_writes', None):
+        import diagonal_keep
+        st.diagonal = diagonal_keep.write(dst, g.diagonal_writes)
     q = lighting.Package(dst)
     for m in made:
         check_vertex_lightmaps(q, m['info']['mapping'])

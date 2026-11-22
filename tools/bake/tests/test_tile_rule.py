@@ -1,5 +1,5 @@
 """The game's cover rule and the diagonal cover finder against a map's pieces (tile_world.py, tile_rule.py; diagonal
-cover plan, stage C1; findings register F-151).
+cover plan, stage C1; findings register F-153).
 
 The sweeps and the rule are checked on pieces made here; the rule's answer on CsmallScout_Farm's eight marked tiles
 against the map's bake reads the install and skips without it."""

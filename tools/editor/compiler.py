@@ -1814,6 +1814,7 @@ class Compiler:
             self.mission_edits.landing_zones()
             self.mission_edits.missions_check()
             self.mission_edits.stage_outside()
+            self.floor_edits.diagonal_cover()
             # A moved original can also be another copy's template; only one hide per actor.
             seen = set()
             self.hides = [h for h in sorted(self.hides, key=lambda h: (h['name'], h['label'])) if not (h['name'] in seen or seen.add(h['name']))]
