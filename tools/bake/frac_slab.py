@@ -20,7 +20,7 @@ mesh), look). What the game's slabs are, and so these:
   collision   one box over each solid rectangle round the holes, between the look's collision heights (a roof's 2 thick
               under its drawn top, a floor's the whole plate)
   lightmap    a chart for the top, one for the underside and one for each edge line, at the look's density, packed as
-              a wall's are (frac_wall.pack_rect)
+              a wall's are (made_mesh.pack_rect)
 
 A look is named (a str: slab_looks.json's, built as they always were) or given whole, as a dict {'mesh' (the donor's
 mesh path), 'measure' (slab_measure's VERSION), 'recipe' (what slab_measure.measure gives, from the catalogue
@@ -58,6 +58,7 @@ import random
 import frac_wall
 import free_form
 from free_form import NumbersError
+import made_mesh
 import slab_cells
 import uv_mapping
 
@@ -357,7 +358,7 @@ def build(slab, template=None):
             for k in range(len(poly)):
                 a, b = _key(poly[k]), _key(poly[(k + 1) % len(poly)])
                 owners.setdefault(frozenset((a, b)), []).append(f)
-    faces = frac_wall.Faces()
+    faces = made_mesh.Faces()
     w, h = slab['x1'] - slab['x0'], slab['y1'] - slab['y0']
     faces.chart('top', w, h)
     faces.chart('underside', w, h)
@@ -423,7 +424,7 @@ def build(slab, template=None):
         nb = [-1] * (2 + outside) + sorted(set(across))
         records.append(dict(centre=(cx, cy, (zb + zt) / 2), neighbours=nb, dims=[1.0] * len(nb)))
     guid = hashlib.md5(('frac_slab|%r' % (sorted(_named(slab).items(), key=str),)).encode()).digest()
-    out = frac_wall.assemble(faces, records, template, R, guid, slots=R['sections'], what='a slab')
+    out = made_mesh.assemble(faces, records, template, R, guid, slots=R['sections'], what='a slab')
     return dict(out, solids=layout.solids() if layout else solids(slab))
 
 

@@ -65,6 +65,7 @@ import frac_wall
 import free_form
 from free_form import NumbersError
 import hulls
+import made_mesh
 import measure_common
 import uv_mapping
 
@@ -307,7 +308,7 @@ def _normal(pts):
 
 
 def faces_of(shape):
-    """The mesh's polygons (frac_wall.Faces): every face but the bottom, world-planar texture coordinates (a free
+    """The mesh's polygons (made_mesh.Faces): every face but the bottom, world-planar texture coordinates (a free
     shape's in its texture mapping where it gives one, held near 0 in whole repeats, free_form.held)."""
     R = look_of(shape)
     corners, loops = corners_and_faces(shape)
@@ -325,7 +326,7 @@ def faces_of(shape):
     def mapped(role, places, extent, normal, axes=None):
         return uv_mapping.mapped(surfaces[role], places, extent, uv_mapping.origin_of(shape, role, axes),
                                  uv_mapping.face_signs(role, normal))
-    faces = frac_wall.Faces()
+    faces = made_mesh.Faces()
     for k, loop in enumerate(loops[:-1]):
         pts = [corners[i] for i in loop]
         n = _normal(pts)
@@ -417,7 +418,7 @@ def build(shape, template=None, colour=None):
     records = [dict(centre=centre, neighbours=[], dims=[])]
     guid = hashlib.md5(('ground|%r' % (sorted(_named(shape).items(), key=str),)).encode()).digest()
     R = dict(R, slots={})
-    out = frac_wall.assemble(faces, records, template, R, guid, slots=R['sections'], what='a ground shape')
+    out = made_mesh.assemble(faces, records, template, R, guid, slots=R['sections'], what='a ground shape')
     return dict(out, solids=solids(shape))
 
 
