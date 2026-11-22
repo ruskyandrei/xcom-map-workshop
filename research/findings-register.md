@@ -421,6 +421,12 @@ the fix).
   for a few clusters of three by three tiles in different places (what each battle placed at random): the fix
   takes nothing else out of the rebuild. A soldier walked nine tiles
   into the grown strip (y 3407, then 3695), so the new area is still worked out.
+- **In the game, a tile the Build wrote** (stage D1, a hidden run the same day: CSmallScout_Farm with a wooden barrel
+  copied onto (38, 12, 0), beside the corner (39, 12, 0), which the Build kept out of the rebuild and wrote; LWR):
+  two soldiers on (39, 12, 0), teleported and walked on, read `m_bInCover` True, value 50,
+  `CurrentCoverPointFlags` 0x10004 four times, the written cover; one step east they read no cover. The saves at
+  turn 1 and after the moves hold all eight corners with their written or baked flags. A soldier ordered onto the
+  barrel's tile did not move; whether one walks round the barrel was not read (a Sectoid took the tile past it).
 - **A first fix failed in the game**: its volumes were sized by the diagonal of their boxes, the Build's reading of
   a volume's reach until then, and on the farm each reached 8.6 times further; all 8 tiles were rebuilt again. The
   failure is what showed the rule (F-150).
