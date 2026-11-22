@@ -36,6 +36,7 @@ The made pieces' other paths (the refactor's follow-ups, item 4.6), each a check
   plan's designs A and B (check_free_handles and check_texture_mapping say what each walks through)."""
 import json
 import math
+import re
 
 # the Build menu's tools (made_drawing.js BUILD_TOOLS), each kind's plain version (PLAIN_VERSION), a gap's handles
 # (walls.js openingParts)
@@ -978,6 +979,13 @@ def check_free_handles(browser, url, open_viewer):
 
 
 TEX_WALL = dict(FREE_WALL, wall=dict(FREE_WALL['wall'], openings=[]))
+# a roof in the subway car roof's look (its top the top half of its texture: an atlas, looks.py surfaces) and a wall in
+# the UFO doorway's (its outline all trims: no face either side)
+ATLAS_ROOF = dict(FREE_SLAB, slab=dict(FREE_SLAB['slab'], look=dict(mesh='SubwayTrain.Meshes.SubwayCarRoof_FRACTURED', measure=1)))
+# a ramp rising 96 over 288 (its slope 303.6 long): its top mapped in its own plane
+SLOPE_RAMP = dict(kind='ground', version=5, ground=dict(free=1, shape='ramp', x0=0, x1=288, y0=0, y1=192, z0=0, z1=96))
+TRIM_WALL = dict(kind='fracWall', version=5, wall=dict(free=1, x0=0, x1=384, y0=-10, y1=10, z0=0, z1=190, seed=3, openings=[],
+                                                       look=dict(mesh='AbductorExtWall.Meshes.AbductorExtAltWallDoorwayx9_FRACTURED', measure=1)))
 
 
 def surface_now(page, piece, role):
@@ -1004,11 +1012,13 @@ def check_texture_mapping(browser, url, open_viewer):
     15 under fine snap about its corner, the white dot sizes a repeat in tiles under tile snap and smoothly with snap
     off (u and v alike), each one undo step; the fields set a value exactly; Aligned to the world puts the piece's
     place in its mesh's request; Original and Reset surface take the surface's mapping out; a floor's top and
-    underside picked by clicking them, Tab back to the top, the gizmo still aside; the fold shut, the size handles and
-    the gizmo back."""
+    underside picked by clicking them, Tab back to the top, the gizmo still aside; a roof in a look drawn from a part of
+    a larger texture says so once mapped, a wall in a look of trims alone says it has no faces; a ramp's top mapped in
+    its own plane (the blue dot on the slope, a unit of the surface a unit up it, a slide along it); the fold shut, the
+    size handles and the gizmo back."""
     errors = []
     page = open_viewer(browser, url, errors)
-    (wall, slab), _ = made_pieces(page, [TEX_WALL, FREE_SLAB])
+    (wall, slab, roof, trims, ramp), _ = made_pieces(page, [TEX_WALL, FREE_SLAB, ATLAS_ROOF, TRIM_WALL, SLOPE_RAMP])
     page.evaluate("viewer.setSnapMode('tile')")
     page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', wall)
     page.wait_for_timeout(400)
@@ -1042,6 +1052,23 @@ def check_texture_mapping(browser, url, open_viewer):
     assert surface_now(page, wall, 'faces') == dict(mode='size', u=192, v=192), surface_now(page, wall, 'faces')
     assert page.evaluate('viewer.gizmo.undoDepth()') == depth + 1
     assert page.locator('#texFoldVal').inner_text() == 'faces: size 192', page.locator('#texFoldVal').inner_text()
+    # the pattern's real size, from its materials' tiling as the export records it: twice a repeat says the pattern is
+    # 96; a material the export read nothing of says on the Repeat row that it may scale its texture itself
+    scale = """([id, uv, parents]) => { const was = [];
+      for (const k of new Set(viewer.roots.get(id).userData.source.materials)) { const m = viewer.data.materials[k];
+        if (!m || m.render?.family === 'hidden') continue;
+        was.push([k, m.render.uv, m.parents]); m.render.uv = uv; m.parents = parents ?? m.parents; }
+      viewer.select(id); return was; }"""
+    was = page.evaluate(scale, [wall, dict(channel=0, scale=[2, 2]), []])
+    assert was, 'the wall draws in materials of the map'
+    assert page.locator('#texNotes').inner_text() == 'Its material repeats its texture 2 times in each repeat: the pattern shows every 96', \
+        page.locator('#texNotes').inner_text()
+    assert 'may scale its texture itself' not in page.locator('#texRepeat').get_attribute('title')
+    page.evaluate(scale, [wall, dict(channel=0, scale=[1, 1]), []])
+    assert page.locator('#texNotes').inner_text() == '', page.locator('#texNotes').inner_text()
+    assert 'may scale its texture itself' in page.locator('#texRepeat').get_attribute('title')
+    page.evaluate("""([id, was]) => { for (const [k, uv, parents] of was) Object.assign(viewer.data.materials[k], { parents }).render.uv = uv;
+      viewer.select(id); }""", [wall, was])
     mesh_ready(page, wall)
     h = page.evaluate('viewer.textureHandles()')
     assert h['slide'] and h['turn'] and h['size'], h
@@ -1135,6 +1162,43 @@ def check_texture_mapping(browser, url, open_viewer):
     key(page, 'Tab')
     assert page.evaluate('viewer.texturePicked()')['role'] == 'top', page.evaluate('viewer.texturePicked()')
     assert not page.evaluate('viewer.gizmo.controls.enabled'), 'the gizmo still aside on the floor picked with the fold open'
+    assert page.locator('#texNotes').inner_text() == '', page.locator('#texNotes').inner_text()
+    # a look that draws a part of a larger texture (the subway car roof's top): a note once the surface is mapped, none
+    # in Original; a wall whose look has no face: a note before any mode
+    notes = {}
+    for piece, mode in ((roof, 'size'), (roof, 'original'), (trims, None)):
+        page.evaluate('id => viewer.select(id)', piece)
+        page.wait_for_function('id => viewer.texturePicked()?.id === id', arg=piece)
+        if mode:
+            page.locator(f'#texMode button[data-value="{mode}"]').click()
+        notes[mode] = page.locator('#texNotes').inner_text()
+    # (its top or its underside, as the camera sees it: both are halves of one texture)
+    assert re.search(r'part of a larger texture \(an atlas\) on its (top|underside): mapped, the whole texture repeats', notes['size']), notes
+    assert notes['original'] == '' and notes[None].startswith('This look has no faces, only trims'), notes
+    # a ramp's top in its own plane: the blue dot on the slope, a unit of the surface a unit up the slope, the pattern
+    # slid by the pointer's way up it (snap off: smoothly), the white dot sizing along it
+    page.evaluate('id => { viewer.select(id); viewer.frame(viewer.roots.get(id)); }', ramp)
+    page.wait_for_function('id => viewer.texturePicked()?.id === id', arg=ramp)
+    if page.evaluate('viewer.texturePicked()')['role'] != 'top':
+        key(page, 'Tab')
+    page.locator('#texMode button[data-value="size"]').click()
+    mesh_ready(page, ramp)
+    page.evaluate("viewer.setSnapMode('off')")
+    h = page.evaluate('viewer.textureHandles()')
+    assert h['slide'] and h['size'] and h['picked']['role'] == 'top', h
+    on = page.evaluate("""async ([id, at]) => { const m = await import('/made_mapping.js');
+      const n = viewer.wallState(id).generated.ground, plane = m.surfacePlane('ground', n, { role: 'top' });
+      const p = m.framePoint(plane, at), q = m.framePoint(plane, [at[0] + 100, at[1]]);
+      return { slopeZ: n.z0 + (p[0] - n.x0) * (n.z1 - n.z0) / (n.x1 - n.x0), z: p[2], step: Math.hypot(...q.map((v, k) => v - p[k])),
+               extent: m.surfaceExtent('ground', n, 'top') }; }""", [ramp, h['at']])
+    assert abs(on['z'] - on['slopeZ']) < 1e-6 and abs(on['step'] - 100) < 1e-6, on
+    assert abs(on['extent'][1] - math.hypot(288, 96)) < 1e-6, on
+    before = surface_now(page, ramp, 'top')
+    drag(page, h['slide'], page.evaluate('at => viewer.textureSurfaceAt("top", null, at)', [h['at'][0] + 100, h['at'][1]]))
+    after = surface_now(page, ramp, 'top')
+    assert abs((after.get('offsetU', 0) - before.get('offsetU', 0)) + 100 / before['u']) < 0.01 and abs(after.get('offsetV', 0)) < 0.01, (before, after)
+    page.evaluate('id => viewer.select(id)', slab)
+    page.wait_for_function('id => viewer.texturePicked()?.id === id', arg=slab)
     # the fold shut: no surface picked, the size handles and the gizmo back
     page.locator('#texFold > summary').click()
     page.wait_for_function('viewer.texturePicked() === null')

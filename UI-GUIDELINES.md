@@ -39,7 +39,9 @@ for controls, a new style) writes the pattern here in the same commit.
     mapping fold is open, and its size handles step aside meanwhile. The surface is picked by clicking it (Tab: the
     next) and outlined in the accent colour; on it a blue dot at the pattern's corner slides the pattern, a ring round
     the dot turns it and a white dot along the pattern sizes a repeat, in the Snap setting's steps. The fold holds that
-    surface's mapping alone, its fields the exact values.
+    surface's mapping alone, its fields the exact values, and a note under its modes where the look makes a mapping act
+    otherwise than it reads (a part of a larger texture, which a mapping repeats whole; a wall's side with no face):
+    said, nothing disabled.
 - A check that a new handle or marker can be seen and clicked is made with other things around it (a busy map, several
   things picked), not on an empty one.
 

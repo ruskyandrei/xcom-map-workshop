@@ -31,6 +31,16 @@ class MaterialTests(unittest.TestCase):
                       {'TileXY':1.25},{'Diffuse_Base':{'channel':1,'scale':[2,3]}})
         self.assertEqual(out['uv'],{'channel':1,'scale':[2.5,3.75]})
 
+    def test_the_tiling_the_page_reads_as_known(self):
+        # (material_tiling_cases.json: made_mapping.js materialTiling, in shared_cases_test.mjs, reads these uvs as known
+        # or not; a family whose tiling the profile comes to read joins its READ_TILING with a case)
+        import json
+        cases = json.loads(Path(__file__).with_name('material_tiling_cases.json').read_text(encoding='utf-8'))['cases']
+        self.assertGreaterEqual(len(cases), 8)
+        for c in cases:
+            self.assertEqual(profile(c['parents'], 'BLEND_Opaque', c['parameters'], c['scalars'], c['sampling'])['uv'],
+                             c['uv'], c['case'])
+
     def test_alien_opacity_uses_own_switch_and_packed_texture(self):
         args = (['GEN.ALIEN_Base'], 'BLEND_Masked', {'Diffuse':1,'Spc_Ems_Ref_Opc':2}, {}, {})
         self.assertEqual(profile(*args, {'OpacityMasked':False})['opacitySource'], 'opaque')

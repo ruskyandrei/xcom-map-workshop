@@ -11,6 +11,7 @@ extent, so the pattern goes on across the cuts; a gap or a hole leaving the patt
 following a turned mapping; nothing but the listed surfaces' texture coordinates changing; and free numbers without a
 mapping building byte for byte as on the commit stage 4 started from (dd6f094)."""
 import hashlib
+import json
 import math
 from pathlib import Path
 import sys
@@ -438,13 +439,45 @@ class GroundFaces(Checks, unittest.TestCase):
     def test_the_top_a_patchs_and_a_ramps_slope(self):
         patch = dict(free=1, shape='patch', x0=10.5, x1=300.0, y0=-20.0, y1=150.25, z0=-5.0, z1=3.0)
         ramp = dict(free=1, shape='ramp', x0=0.0, x1=300.0, y0=-40.0, y1=60.0, z0=0.0, z1=100.0)
-        for shape, extent in ((patch, (10.5, 300.0, -20.0, 150.25)), (BLOCK, (10.0, 150.0, -20.0, 70.0)),
-                              (ramp, (0.0, 300.0, -40.0, 60.0))):
+        slope = math.hypot(300.0, 100.0)
+        for shape, extent, place in ((patch, (10.5, 300.0, -20.0, 150.25), lambda p: (p[0], p[1])),
+                                     (BLOCK, (10.0, 150.0, -20.0, 70.0), lambda p: (p[0], p[1])),
+                                     # (a ramp's slope in its own plane: a along it, its length the extent's)
+                                     (ramp, (0.0, slope, -40.0, 60.0), lambda p: (p[0] * slope / 300.0, p[1]))):
             with self.subTest(shape['shape']):
                 out = ground.build(mapped(shape, top=dict(mode='fit', u=1.0, v=1.0, turn=30.0)))
-                # (a ramp's slope projected straight down, as its look's own texture is)
-                self.check_surface(out, lambda p, n: n[2] > 0.5, lambda p: (p[0], p[1]), (1.0, 1.0),
-                                   counted((1.0, 1.0), extent, 30.0), least=4)
+                self.check_surface(out, lambda p, n: n[2] > 0.5, place, (1.0, 1.0), counted((1.0, 1.0), extent, 30.0), least=4)
+        # a repeat of 50 up the slope is 50 along it, not 50 across the ground: its high edge is slope / 50 repeats up
+        out = ground.build(mapped(ramp, top=size(50, 50)))
+        self.check_surface(out, lambda p, n: n[2] > 0.5, lambda p: (p[0] * slope / 300.0, p[1]), (1.0, 1.0),
+                           lambda a, b: (a / 50.0, b / 50.0), least=4)
+
+    def test_a_ramps_slope_as_the_page_has_it(self):
+        # (slope_mapping_cases.json: made_mapping.js surfacePlane, surfaceAt and surfaceExtent are its twins on the page,
+        # shared_cases_test.mjs): the places, the extent and the rule's coordinates; the built slope's corners take them
+        import uv_mapping
+        cases = json.loads((HERE / 'slope_mapping_cases.json').read_text(encoding='utf-8'))['cases']
+        self.assertGreaterEqual(len(cases), 4)
+        for c in cases:
+            with self.subTest(c['case']):
+                r = c['ramp']
+                box = [r[k] for k in ('x0', 'x1', 'y0', 'y1', 'z0', 'z1')]
+                extent = uv_mapping.slope_extent(*box)
+                self.assertTrue(all(abs(g - w) < 1e-6 for g, w in zip(extent, c['extent'])), (extent, c['extent']))
+                for p, ab, want in zip(c['points'], c['places'], c['uv']):
+                    place = (uv_mapping.along_slope(p[0], box[0], box[1], box[4], box[5]), p[1])
+                    got = uv_mapping.uv(c['surface'], *place, extent, c.get('origin') or (0.0, 0.0))
+                    self.assertTrue(all(abs(g - w) < 1e-6 for g, w in zip(place + got, ab + want)), (p, place, got))
+                numbers = mapped(r, top=c['surface'], origin=dict(top=c['origin']) if c.get('origin') else None)
+                wanted = {tuple(round(v, 3) for v in p): want for p, want in zip(c['points'][:4], c['uv'][:4])}
+                seen = 0
+                for p, n, _, uv, _ in corners(ground.build(numbers)):
+                    want = wanted.get(tuple(round(v, 3) for v in p))
+                    if n[2] > 0.5 and want:
+                        seen += 1
+                        for g, w in zip(uv, want):
+                            self.assertLess(abs((g - w) - round(g - w)), 1e-4, (p, uv, want))     # (whole repeats aside)
+                self.assertEqual(seen, 4)
         self.check_surface(ground.build(mapped(BLOCK, origin=dict(top=[-1000.0, 30.0]), top=size(64, 64, world=True))),
                            lambda p, n: n[2] > 0.5, lambda p: (p[0], p[1]), (1.0, 1.0),
                            lambda a, b: ((a - 1000.0) / 64.0, (b + 30.0) / 64.0))

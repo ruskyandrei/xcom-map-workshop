@@ -105,7 +105,83 @@ class Looks(unittest.TestCase):
         self.assertEqual(row['recipe'], {k: WALL['recipe'][k] for k in looks.PAGE_RECIPE['wall']})
         self.assertNotIn('section', row['recipe'])
         self.assertEqual(row['name'], 'Wall A')
+        self.assertEqual(row['surfaces'], {})       # (its recipe holds no maps: nothing said of its surfaces)
         self.assertEqual(looks.listing('slab', folder=self.folder)['looks'], [])     # no catalogue yet
+
+
+def side(slot, fit):
+    """A wall recipe's side: an outline whose middle segment is a face (12 to 180 up) in `slot`, textured by `fit`."""
+    return dict(profile=[[8.0, -16.0], [8.0, 12.0], [8.0, 180.0], [8.0, 192.0]],
+                strips=[dict(slot=1, face=False), dict(slot=None, face=True), dict(slot=1, face=False)], fit=fit, slot=slot)
+
+
+class Surfaces(unittest.TestCase):
+    """Whether a look's surfaces tile, from its recipe's maps over its donor's face (looks.surfaces: the module's
+    rule), on made-up recipes and on the checked-in catalogues' looks named for an atlas or a tiling texture."""
+
+    def test_the_rule_along_each_axis(self):
+        # 384 by 168 of a 192 tile: two repeats along, 0.875 up inside one repeat, square: it tiles both ways
+        self.assertEqual(looks.tiling([[1 / 192, 0, 0], [0, -1 / 192, 0.0625 + 180 / 192]], (0, 384), (12, 180)),
+                         dict(repeat=[192.0, 192.0], share=[2.0, 0.875], tiles=[True, True]))
+        # the subway car roof's top: 302 along, 584 across, the top half of its texture across it: a window across
+        fit = [[0.0, 1 / 302.2, 0.1], [1 / 583.7, 0.0, 0.017 + 143 / 583.7]]
+        self.assertEqual(looks.tiling(fit, (-143, 143), (0, 1776))['tiles'], [True, False])
+        # across a repeat's edge, though under one repeat long: it tiles (a window never crosses its texture's edge)
+        self.assertEqual(looks.tiling([[1 / 300, 0, 0.9], [0, 1 / 700, 0.2]], (0, 60), (0, 100))['tiles'], [True, False])
+        # a coordinate that doesn't change: a strip of a texture, no repeat
+        out = looks.tiling([[1 / 96, 0, 0], [0, 0, 0.2]], (0, 192), (0, 96))
+        self.assertEqual((out['repeat'], out['tiles']), ([96.0, None], [True, False]))
+        # not placed (a ground look's): its span alone
+        self.assertEqual(looks.tiling([[1 / 300, 0, 0.9], [0, 1 / 700, 0.2]], (0, 60), (0, 100), placed=False)['tiles'],
+                         [False, False])
+
+    def test_a_wall_side_with_no_face_and_each_slot_over_its_band(self):
+        a = side(0, [[1 / 192, 0, 0], [0, -1 / 192, 1.0]])
+        b = side(2, [[1 / 288, 0, 0], [0, -1 / 916, 0.46]])
+        R = dict(profile=dict(A=a['profile'], B=b['profile']), strips=dict(A=a['strips'], B=[dict(slot=1, face=False)] * 3),
+                 slots=dict(sideA=[0], sideB=[]), splits=dict(A=[], B=[]), faceUV={'0A': a['fit']}, frame=dict(x=[0.0, 864.0]))
+        found = looks.surfaces('wall', dict(recipe=R))['faces']
+        self.assertIsNone(found['B'])
+        self.assertEqual(found['A'], dict(slots=[0], repeat=[192.0, 192.0], share=[4.5, 0.875], tiles=[True, True]))
+        # side B a face too, a band of a UFO texture: tiles along, a window up
+        R = dict(R, strips=dict(A=a['strips'], B=b['strips']), slots=dict(sideA=[0], sideB=[2]), faceUV={'0A': a['fit'], '2B': b['fit']})
+        self.assertEqual(looks.surfaces('wall', dict(recipe=R))['faces']['B']['tiles'], [True, False])
+        # two slots up side A, split at 96: each read over its own band of the face (a part of its texture up each)
+        two = dict(R, slots=dict(sideA=[0, 3], sideB=[2]), splits=dict(A=[96.0], B=[]),
+                   faceUV={'0A': [[1 / 192, 0, 0], [0, -1 / 400, 0.5]], '3A': [[1 / 192, 0, 0], [0, -1 / 400, 0.6]], '2B': b['fit']})
+        self.assertEqual(looks.surfaces('wall', dict(recipe=two))['faces']['A']['tiles'], [True, False])
+
+    def test_the_catalogues_named_looks(self):
+        # (the checked-in catalogues: atlases and plain tiling textures one can name)
+        def faces(mesh):
+            return looks.surfaces('wall', looks.entry('wall', mesh))['faces']
+        roof = looks.surfaces('slab', looks.entry('slab', 'SubwayTrain.Meshes.SubwayCarRoof_FRACTURED'))
+        self.assertEqual((roof['top']['tiles'], roof['underside']['tiles']), ([True, False], [True, False]))
+        self.assertEqual(roof['top']['slots'], roof['underside']['slots'])        # (one texture: its two halves)
+        for mesh in ('SubwayTrain.Meshes.SubwayEngineInnerWall_FRACTURED', 'SupplyShipBody.MeshesContainers.SupplyCrateWalls_FRACTURED',
+                     'AbductorExtWall.Meshes.AbductorExtWallx9_FRACTURED', 'ExaltHoloGlobe.Meshes.ExaltHoloGlobeWall_A_FRC'):
+            self.assertTrue(any(s and False in s['tiles'] for s in faces(mesh).values()), mesh)
+        # tiling textures on donors narrower than a repeat: the core floors' 88 across a 192 tile, the facades' 168 up,
+        # a joint strip 52 up, the police station's walls (a 176-long one under one repeat both ways)
+        core = looks.surfaces('slab', looks.entry('slab', 'ComKit_Meshes.Cores.Core_320FloorC_FRACTURED'))
+        self.assertEqual((core['top']['share'][1] < 0.5, core['top']['tiles']), (True, [True, True]))
+        for mesh in ('ComKit_Meshes.Cores.Core_384FacadeB_FRACTURED', 'URB_PoliceStationBuilding.Meshes.PoliceStationWallB_FRACTURED',
+                     'ComKit_WallsEXT_Meshes.Walls_ExtJOINT.Wall_ExtJOINT_320to256_FRACTURED'):
+            self.assertTrue(all(s is None or s['tiles'] == [True, True] for s in faces(mesh).values()), mesh)
+        # a doorway of the UFO, its outline all trims: no face either side
+        self.assertEqual(faces('AbductorExtWall.Meshes.AbductorExtAltWallDoorwayx9_FRACTURED'), dict(A=None, B=None))
+
+    def test_the_mapped_surfaces_a_look_draws_from_an_atlas(self):
+        roof = dict(look=dict(mesh='SubwayTrain.Meshes.SubwayCarRoof_FRACTURED', measure=1))
+        size = dict(mode='size', u=96.0, v=96.0)
+        self.assertEqual(looks.mapped_windows('slab', roof), [])
+        self.assertEqual(looks.mapped_windows('slab', dict(roof, mapping=dict(surfaces=dict(underside=size, top=size)))),
+                         ['top', 'underside'])
+        crate = dict(look=dict(mesh='SupplyShipBody.MeshesContainers.SupplyCrateWalls_FRACTURED', measure=1),
+                     mapping=dict(surfaces=dict(faces=size)))
+        self.assertEqual(looks.mapped_windows('wall', crate), ['faces'])
+        self.assertEqual(looks.mapped_windows('wall', dict(crate, look='bar-inside')), [])
+        self.assertEqual(looks.mapped_windows('wall', dict(crate, look=dict(mesh='Not.Catalogued', measure=1))), [])
 
 
 class RequestVersions(unittest.TestCase):

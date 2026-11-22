@@ -3,9 +3,11 @@
 // the surfaces, the mapping read and written, the words, and where a world-aligned surface is counted from. Run: node
 // tools/viewer/tests/made_mapping_test.mjs
 import assert from 'node:assert/strict';
-import { DEFAULT_REPEAT, framePoint, lookRepeat, MAPPING_ROLES, mappingOrigin, mappingWords, nextSurface, patternCorner, patternPoint,
-         sizable, sizedMapping, slidMapping, surfaceAt, surfaceExtent, surfaceMapping, surfaceOfNormal, surfacePlane, surfaceSteps,
-         surfaceWords, reframed, tidySurface, turnedMapping, uv, withMode, withSurface, withValue } from '../web/made_mapping.js';
+import { DEFAULT_REPEAT, framePoint, lookRepeat, lookSurface, MAPPING_ROLES, mappingOrigin, mappingWords, materialTiling, nextSurface,
+         patternCorner, patternPoint, patternSize, sizable, sizedMapping, slidMapping, surfaceAt, surfaceExtent, surfaceMapping,
+         surfaceOfNormal, surfacePlane, surfaceSlots, surfaceSteps, surfaceWords, reframed, textureNotes, tidySurface, turnedMapping,
+         uv, withMode, withSurface, withValue } from '../web/made_mapping.js';
+import { forgetLooks, loadLooks } from '../web/looks.js';
 
 const near = (got, want, what, eps = 1e-9) => {
   assert.equal(got.length, want.length, what);
@@ -121,15 +123,21 @@ assert.deepEqual(nextSurface('ground', null), { role: 'top' });
 const wallN = { free: 1, x0: -20, x1: 300, y0: -8, y1: 10, z0: -16, z1: 400 };
 assert.deepEqual(surfacePlane('fracWall', wallN, { role: 'faces', side: 'y0' }).origin, [0, -8, 0]);
 assert.deepEqual(surfaceExtent('fracWall', wallN, 'faces'), [-20, 300, -16, 400]);
-const ramp = { free: 1, shape: 'ramp', x0: 0, x1: 96, y0: 0, y1: 96, z0: 0, z1: 48 };
+// a ramp's slope in its own plane: a along it (its low edge at x0), its extent the slope's length; its high edge's
+// corner at a = x0 + that length (the shared cases, slope_mapping_cases.json, hold it to uv_mapping's along_slope)
+const ramp = { free: 1, shape: 'ramp', x0: 96, x1: 192, y0: 0, y1: 96, z0: 0, z1: 48 }, slope = Math.hypot(96, 48);
 const plane = surfacePlane('ground', ramp, { role: 'top' });
-assert.deepEqual([plane.origin, plane.a], [[0, 0, 0], [1, 0, 0.5]]);
+near(plane.a, [96 / slope, 0, 48 / slope], 'along the slope');
+near(plane.normal, [-48 / slope, 0, 96 / slope], 'its normal');
+near(surfaceExtent('ground', ramp, 'top'), [96, 96 + slope, 0, 96], 'its extent up the slope');
+near(framePoint(plane, [96, 0]), [96, 0, 0], 'the low edge at x0', 1e-9);
+near(framePoint(plane, [96 + slope, 96]), [192, 96, 48], 'the high edge', 1e-9);
 assert.equal(surfacePlane('ground', ramp, { role: 'sides' }), null);
+near(surfaceExtent('ground', { ...ramp, shape: 'block' }, 'top'), [96, 192, 0, 96], 'a block\'s top: its box');
 // a point of the surface and back: on the ramp's slope, on a wall's back face
-assert.deepEqual(framePoint(plane, [48, 10]), [48, 10, 24]);
-assert.deepEqual(surfaceAt('ground', 'top', framePoint(plane, [48, 10])), [48, 10]);
+near(surfaceAt(plane, framePoint(plane, [140, 10])), [140, 10], 'back from the slope', 1e-9);
 const back = surfacePlane('fracWall', wallN, { role: 'faces', side: 'y0' });
-assert.deepEqual(surfaceAt('fracWall', 'faces', framePoint(back, [100, 50])), [100, 50]);
+assert.deepEqual(surfaceAt(back, framePoint(back, [100, 50])), [100, 50]);
 assert.deepEqual(surfaceExtent('fracSlab', { x0: 1, x1: 2, y0: 3, y1: 4, z0: 5, z1: 6 }, 'top'), [1, 2, 3, 4]);
 assert.deepEqual([surfaceSteps('fracWall', 'faces', 'tile'), surfaceSteps('fracSlab', 'top', 'fine'), surfaceSteps('ground', 'top', 'off')],
                  [[96, 64], [24, 24], [0, 0]]);
@@ -169,6 +177,67 @@ assert.deepEqual(lookRepeat('ground', { shape: 'patch' }, 'top'), [320, 320]);
 assert.deepEqual(lookRepeat('ground', { shape: 'patch', look: 'concrete' }, 'sides'), [384, 384]);
 assert.deepEqual(lookRepeat('fracSlab', { look: 'floor' }, 'top'), [DEFAULT_REPEAT, DEFAULT_REPEAT]);
 assert.deepEqual(lookRepeat('fracWall', { look: { mesh: 'Not.Read', measure: 1 } }, 'faces'), [DEFAULT_REPEAT, DEFAULT_REPEAT]);
+// ---- what a look draws on a surface (its catalogue entry's surfaces, tools/bake/looks.py) and the fold's notes
+{
+  const side = (tiles, slots = [0]) => ({ slots, repeat: [192, 192], share: [2, 0.875], tiles });
+  const walls = [
+    { mesh: 'Ufo.Meshes.Wall_FRACTURED', surfaces: { faces: { A: side([true, true]), B: { ...side([true, false]), repeat: [288, 916] } } } },
+    { mesh: 'Ufo.Meshes.Door_FRACTURED', surfaces: { faces: { A: null, B: null } } },
+    { mesh: 'Shop.Meshes.Wall_FRACTURED', surfaces: { faces: { A: null, B: side([true, true], [0, 1]) } } },
+  ];
+  const roof = { mesh: 'Subway.Meshes.Roof_FRACTURED', facts: {}, surfaces: { top: side([true, false]), underside: side([true, false]) } };
+  const answers = { '/looks/walls.json': { kind: 'wall', measure: 1, looks: walls }, '/looks/slabs.json': { kind: 'slab', measure: 1, looks: [roof] } };
+  const was = globalThis.fetch;
+  globalThis.fetch = async url => ({ ok: url in answers, status: url in answers ? 200 : 404, json: async () => answers[url] ?? {} });
+  forgetLooks();
+  await Promise.all([loadLooks('wall'), loadLooks('slab')]);
+  const wall = mesh => ({ ...bare, look: { mesh, measure: 1 } }), slab = { ...bare, look: { mesh: roof.mesh, measure: 1 } };
+  const size = { mode: 'size', u: 96, v: 96 };
+  assert.deepEqual(lookSurface('fracSlab', slab, 'top').tiles, [true, false]);
+  assert.equal(lookSurface('fracWall', bare, 'faces'), null);                                    // (no look named: no catalogue)
+  // the look's measured repeat is Size's first: a wall's from side A's face, else side B's
+  assert.deepEqual(lookRepeat('fracWall', wall('Ufo.Meshes.Wall_FRACTURED'), 'faces'), [192, 192]);
+  assert.deepEqual(lookRepeat('fracWall', wall('Shop.Meshes.Wall_FRACTURED'), 'faces'), [192, 192]);
+  assert.deepEqual(lookRepeat('fracWall', wall('Ufo.Meshes.Door_FRACTURED'), 'faces'), [DEFAULT_REPEAT, DEFAULT_REPEAT]);
+  // a part of a larger texture: said once mapped, of whichever face it is
+  const front = { role: 'faces', side: 'y1' }, rear = { role: 'faces', side: 'y0' };
+  assert.deepEqual(textureNotes('fracSlab', slab, { role: 'top' }), []);
+  assert.match(textureNotes('fracSlab', withSurface(slab, 'top', size), { role: 'top' }).join(), /part of a larger texture \(an atlas\) on its top: mapped, the whole texture repeats/);
+  assert.deepEqual(textureNotes('fracSlab', withSurface(slab, 'underside', size), { role: 'top' }), []);
+  const ufo = withSurface(wall('Ufo.Meshes.Wall_FRACTURED'), 'faces', size);
+  assert.match(textureNotes('fracWall', ufo, rear).join(), /on this face:/);
+  assert.match(textureNotes('fracWall', ufo, front).join(), /on its other face:/);
+  // no face on a side: said before a mode is chosen; none at all
+  assert.deepEqual(textureNotes('fracWall', wall('Ufo.Meshes.Door_FRACTURED'), front), ['This look has no faces, only trims, which keep their texture: the mapping changes nothing on it']);
+  assert.match(textureNotes('fracWall', wall('Shop.Meshes.Wall_FRACTURED'), front).join(), /^This side of the look has no face/);
+  assert.match(textureNotes('fracWall', wall('Shop.Meshes.Wall_FRACTURED'), rear).join(), /^The other side of this look has no face/);
+  // its faces in two materials up the wall, once mapped (a picture across it needs one face material)
+  assert.match(textureNotes('fracWall', withSurface(wall('Shop.Meshes.Wall_FRACTURED'), 'faces', size), rear).join('|'), /\|Its faces draw 2 materials up the wall/);
+  // the slots a surface draws in: a wall's picked side's; null for a look no catalogue holds
+  assert.deepEqual([surfaceSlots('fracWall', wall('Shop.Meshes.Wall_FRACTURED'), rear), surfaceSlots('fracWall', wall('Shop.Meshes.Wall_FRACTURED'), front),
+                    surfaceSlots('fracSlab', slab, { role: 'underside' }), surfaceSlots('fracWall', bare, front)], [[0, 1], [], [0], null]);
+  globalThis.fetch = was;
+  forgetLooks();
+}
+// ---- a pattern's real size: what the surface's materials' own tiling does (their tilings, materialTiling's)
+{
+  const twice = { scale: [2, 2], known: true }, plain = { scale: [1, 1], known: true }, unread = { scale: [1, 1], known: false };
+  assert.deepEqual(patternSize({ mode: 'size', u: 192, v: 192 }, [twice]),
+                   { note: 'Its material repeats its texture 2 times in each repeat: the pattern shows every 96', known: true });
+  assert.equal(patternSize({ mode: 'size', u: 192, v: 96 }, [twice]).note, 'Its material repeats its texture 2 times in each repeat: the pattern shows every 96 by 48');
+  assert.equal(patternSize({ mode: 'count', u: 3, v: 2 }, [{ scale: [1.25, 1.25], known: true }]).note,
+               'Its material repeats its texture 1.25 times in each repeat: the pattern shows 3.75 by 2.5 times over the surface');
+  assert.equal(patternSize({ mode: 'size', modeV: 'fit', u: 96, v: 1 }, [{ scale: [2, 3], known: true }]).note,
+               'Its material repeats its texture 2 by 3 times in each repeat: the pattern shows every 48 along U and 3 times along V');
+  // nothing to say: unscaled, unmapped, materials that differ; not known when any material's tiling isn't
+  assert.deepEqual(patternSize({ mode: 'size', u: 192, v: 192 }, [plain]), { note: null, known: true });
+  assert.deepEqual(patternSize(null, [twice]), { note: null, known: true });
+  assert.deepEqual(patternSize({ mode: 'fit', u: 1, v: 1 }, [twice, { scale: [1.25, 1.25], known: true }]), { note: null, known: true });
+  assert.deepEqual(patternSize({ mode: 'size', u: 192, v: 192 }, [twice, unread]), { note: null, known: false });
+  assert.deepEqual(patternSize({ mode: 'size', u: 192, v: 192 }, []), { note: null, known: false });
+  // (the export's records: materialTiling's own cases are material_tiling_cases.json's, in shared_cases_test.mjs)
+  assert.deepEqual(materialTiling(null), { scale: [1, 1], known: false });
+}
 // the fold's shut line
 assert.equal(mappingWords('faces', { mode: 'size', u: 64, v: 64, turn: 30 }), 'faces: size 64, 30°');
 assert.equal(mappingWords('top', { mode: 'count', u: 3, v: 2, flipU: true, world: true }), 'top: count 3 × 2, flipped, world');

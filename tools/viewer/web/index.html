@@ -382,7 +382,8 @@
           <summary class="posehead"><span class="headname">Texture mapping</span><span id="texFoldVal" class="foldval"></span></summary>
           <div id="texSurface" class="lightnote"></div>
           <div class="row"><div id="texMode" class="seg" role="group" aria-label="How the surface takes its texture"><button type="button" data-value="original" title="Its look's own texture, as the look maps it (its mapping taken out)">Original</button><button type="button" data-value="size" title="Tile by size: a repeat is U by V game units, so the pattern keeps its size as the piece grows">Size</button><button type="button" data-value="fit" title="Fit: one repeat over the whole surface, stretched as the piece is sized">Fit</button><button type="button" data-value="count" title="Repeat count: U by V repeats over the whole surface, as many after a resize">Count</button></div></div>
-          <div class="xyz" title="A repeat's size along U and V, game units (Count: how many repeats over the surface)"><span id="texSizeName" class="xyzname">Repeat</span>
+          <div id="texNotes" class="lightnote"></div>
+          <div id="texRepeat" class="xyz" title="A repeat's size along U and V, game units (Count: how many repeats over the surface)"><span id="texSizeName" class="xyzname">Repeat</span>
             <label>U<input id="texU" type="number" step="any" min="0" aria-label="Repeat along U"></label>
             <label>V<input id="texV" type="number" step="any" min="0" aria-label="Repeat along V"></label></div>
           <div class="xyz" title="The pattern slid along U and V, in repeats (the blue dot slides it in the view)"><span class="xyzname">Offset</span>

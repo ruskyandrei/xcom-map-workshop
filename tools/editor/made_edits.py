@@ -721,6 +721,9 @@ class MadeEdits:
         if donor_shape(kind, numbers) is False:
             self.c.note('look-measured', "%s's look, %s, is in none of this editor's catalogues: the Build measures it "
                         'from its donor' % (name, numbers['look']['mesh']), **where)
+        for role in looks.mapped_windows(kind, numbers):
+            self.c.note('mapped-atlas', "%s's look draws a part of a larger texture (an atlas) on its %s: mapped, the "
+                        'whole texture repeats there, its other parts with it' % (name, role), **where)
         return True
 
     @staticmethod

@@ -1,0 +1,32 @@
+{
+ "about": "What a material multiplies its texture's coordinates by, as the map's export records it, and whether the export read it: tools/viewer/materials.py profile gives each case's uv (test_materials_and_floors.py), tools/viewer/web/made_mapping.js materialTiling reads it as the case says (shared_cases_test.mjs). A family whose tiling scalar the export reads is known even at 1; a material the export found nothing to read in is not, its 1 only the default.",
+ "cases": [
+  {"case": "a building material's TileXY, which the export applies",
+   "parents": ["GEN_MaterialParents.Master_Materials.BLDG_Enterable"], "parameters": {"Diffuse_Base": 7},
+   "scalars": {"TileXY": 1.25}, "sampling": {}, "uv": {"channel": 0, "scale": [1.25, 1.25]}, "known": true},
+  {"case": "a building material at TileXY 1",
+   "parents": ["TexLibrary_Surfaces.Materials.Brick_A", "GEN_MaterialParents.Master_Materials.BLDG_Enterable"],
+   "parameters": {"Diffuse_Base": 7}, "scalars": {"TileXY": 1.0}, "sampling": {}, "uv": {"channel": 0, "scale": [1.0, 1.0]},
+   "known": true},
+  {"case": "a building material with no TileXY: 1, which the export assumes",
+   "parents": ["GEN_MaterialParents.Master_Materials.BLDG_Enterable"], "parameters": {"Diffuse_Base": 7},
+   "scalars": {}, "sampling": {}, "uv": {"channel": 0, "scale": [1.0, 1.0]}, "known": true},
+  {"case": "a texture coordinate node's tiling, read",
+   "parents": ["GEN_MaterialParents.Master_Materials.PROP_Objects"], "parameters": {"Diffuse": 7},
+   "scalars": {}, "sampling": {"Diffuse": {"channel": 0, "scale": [2.0, 3.0]}}, "uv": {"channel": 0, "scale": [2.0, 3.0]},
+   "known": true},
+  {"case": "a prop's material with nothing read (its expressions cooked away)",
+   "parents": ["GEN_MaterialParents.Master_Materials.PROP_Objects"], "parameters": {"Diffuse": 7},
+   "scalars": {}, "sampling": {}, "uv": {"channel": 0, "scale": [1, 1]}, "known": false},
+  {"case": "a road material's own tiling scalars, which the export doesn't apply",
+   "parents": ["GEN_MaterialParents.RoadAndSidewalk_Material"], "parameters": {"DiffuseMap": 19},
+   "scalars": {"TileU": 1.0, "TileV": 4.0, "TileUV": 1.0}, "sampling": {}, "uv": {"channel": 0, "scale": [1, 1]}, "known": false},
+  {"case": "a floor: its family has no tiling scalar the export reads",
+   "parents": ["GEN_MaterialParents.Master_Materials.BLDG_Floors"], "parameters": {"Diffuse_Base": 7},
+   "scalars": {"ReflectionScale": 1.0}, "sampling": {}, "uv": {"channel": 0, "scale": [1, 1]}, "known": false},
+  {"case": "a coordinate input that isn't a texture coordinate node: not followed",
+   "parents": ["GEN_MaterialParents.Master_Materials.PROP_Objects"], "parameters": {"Diffuse": 7},
+   "scalars": {}, "sampling": {"Diffuse": {"channel": 0, "scale": [1.0, 1.0], "approximate": true}},
+   "uv": {"channel": 0, "scale": [1.0, 1.0], "approximate": true}, "known": false}
+ ]
+}

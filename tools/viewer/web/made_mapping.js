@@ -10,6 +10,10 @@
 // - a surface's mapping read and written in the numbers (surfaceMapping, withSurface, tidySurface), a mode chosen
 //   (withMode: Size first takes the look's repeat, lookRepeat; Count and Fit one by one; Original takes the surface's
 //   entry out), a field's value (withValue) and the words of the fold's shut line (mappingWords, surfaceWords);
+// - what the look draws on a surface, from its catalogue entry (lookSurface: tools/bake/looks.py surfaces, whether its
+//   texture tiles there or is a part of a larger one; surfaceSlots, the materials it draws in), and what the fold says
+//   of it (textureNotes); a material's own tiling as the map's export records it (materialTiling) and the pattern's
+//   real size it gives a mapped surface (patternSize);
 // - the rule (uv) and its inverse (patternPoint): the pattern's corner nearest a point (patternCorner), a handle's
 //   drag (slidMapping, turnedMapping, sizedMapping), in the snap setting's steps (snap_steps.js), and the offsets that
 //   keep a pattern in place when the piece's frame moves (reframed);
@@ -18,8 +22,8 @@
 //   tests read (tools/editor/tests/mapping_origin_cases.json).
 //
 // A surface's point is (a, b), game units on its two axes in the piece's frame (uv_mapping.py's words): a wall's face a
-// along the wall (x), b up (z), both faces; a top or underside a along x, b along y (a ramp's slope seen from above); a
-// ground side a along x or y, b up. The handles work on the rule's (U, V); the generators write them times each face's
+// along the wall (x), b up (z), both faces; a top or underside a along x, b along y (a ramp's slope in its own plane: a
+// along it, x0 at its low edge); a ground side a along x or y, b up. The handles work on the rule's (U, V); the generators write them times each face's
 // signs (uv_mapping.face_signs), which mirror the image and keep its corners and its turn's sense. Pure: no
 // three.js, no document.
 import { groundLookOf } from './ground.js';
@@ -61,23 +65,34 @@ export function nextSurface(kind, now, step = 1) {
   const list = SURFACES[kind], i = list.findIndex(s => s.role === now?.role && (s.side ?? null) === (now?.side ?? null));
   return i < 0 ? list[0] : list[(i + step + list.length) % list.length];
 }
+// (a ramp's slope, rising from its x0 edge at z0 to its x1 edge at z1: its length up the slope, and its run's share)
+const isRamp = (kind, n, role) => kind === 'ground' && role === 'top' && n.shape === 'ramp';
+const slopeOf = n => { const run = n.x1 - n.x0, rise = n.z1 - n.z0, l = Math.hypot(run, rise); return { l, c: run / l, s: rise / l }; };
 /** Where a surface lies in the piece's frame, its numbers `n` free-form: { origin, a, b, normal } (game axes), its
- *  point (a, b) at origin + a·a + b·b; a ramp's top on its slope; null for a ground shape's sides (fields only). */
+ *  point (a, b) at origin + a·a + b·b, a and b at right angles; a ramp's top on its slope, a along it (its low edge at
+ *  a = x0, a the distance up the slope from there: uv_mapping.along_slope); null for a ground shape's sides (fields
+ *  only). */
 export function surfacePlane(kind, n, { role, side = null }) {
   if (kind === 'fracWall') return role === 'faces' ? { origin: [0, side === 'y0' ? n.y0 : n.y1, 0], a: [1, 0, 0], b: [0, 0, 1], normal: [0, side === 'y0' ? -1 : 1, 0] } : null;
   if (role === 'underside') return kind === 'fracSlab' ? { origin: [0, 0, n.z0], a: [1, 0, 0], b: [0, 1, 0], normal: [0, 0, -1] } : null;
   if (role !== 'top') return null;
-  if (kind === 'ground' && n.shape === 'ramp') {
-    // (a ramp rises from its x0 edge at z0 to its x1 edge at z1)
-    const k = (n.z1 - n.z0) / (n.x1 - n.x0), l = Math.hypot(k, 1);
-    return { origin: [0, 0, n.z0 - n.x0 * k], a: [1, 0, k], b: [0, 1, 0], normal: [-k / l, 0, 1 / l] };
+  if (isRamp(kind, n, role)) {
+    const { c, s } = slopeOf(n);
+    return { origin: [n.x0 - n.x0 * c, 0, n.z0 - n.x0 * s], a: [c, 0, s], b: [0, 1, 0], normal: [-s, 0, c] };
   }
   return { origin: [0, 0, n.z1], a: [1, 0, 0], b: [0, 1, 0], normal: [0, 0, 1] };
 }
-/** A surface's extent (a0, a1, b0, b1): the whole piece's, as the generators read a fit or a count from it. */
-export const surfaceExtent = (kind, n, role) => (kind === 'fracWall' || role === 'sides' ? [n.x0, n.x1, n.z0, n.z1] : [n.x0, n.x1, n.y0, n.y1]);
-/** The surface's point (a, b) of a point [x, y, z] of the piece's frame on it (surfacePlane's a axis is always along x). */
-export const surfaceAt = (kind, role, p) => (kind === 'fracWall' || role === 'sides' ? [p[0], p[2]] : [p[0], p[1]]);
+/** A surface's extent (a0, a1, b0, b1): the whole piece's, as the generators read a fit or a count from it (a ramp's
+ *  slope's from its low edge x0 to x0 plus its length up it: uv_mapping.slope_extent). */
+export function surfaceExtent(kind, n, role) {
+  if (kind === 'fracWall' || role === 'sides') return [n.x0, n.x1, n.z0, n.z1];
+  return isRamp(kind, n, role) ? [n.x0, n.x0 + slopeOf(n).l, n.y0, n.y1] : [n.x0, n.x1, n.y0, n.y1];
+}
+/** The surface's point (a, b) of a point [x, y, z] of the piece's frame on its plane `plane` (surfacePlane's). */
+export function surfaceAt(plane, p) {
+  const d = p.map((v, k) => v - plane.origin[k]), dot = q => d[0] * q[0] + d[1] * q[1] + d[2] * q[2];
+  return [dot(plane.a), dot(plane.b)];
+}
 /** The point of the piece's frame at the surface's point (a, b) (surfacePlane's). */
 export const framePoint = (plane, [a, b]) => plane.origin.map((o, k) => o + a * plane.a[k] + b * plane.b[k]);
 /** The snap setting's steps along a surface's a and b: across and up on a face or side, across both ways on a top. */
@@ -111,7 +126,8 @@ export function withSurface(n, role, surface) {
   return Object.keys(surfaces).length ? { ...rest, mapping: { ...(n.mapping ?? {}), surfaces } } : rest;
 }
 /** A look's repeat on a surface, [u, v] in game units: a ground look's own; a wall's or slab's catalogue entry's
- *  measured repeat of that surface when it has one; DEFAULT_REPEAT otherwise. */
+ *  measured repeat of that surface when it has one (a slab's facts' repeats, else its surfaces': a wall's faces' side
+ *  A's, else side B's); DEFAULT_REPEAT otherwise. */
 export function lookRepeat(kind, n, role) {
   const one = v => Math.round(v * 10) / 10;
   const pair = r => (Array.isArray(r) ? r : [r, r]);
@@ -120,9 +136,89 @@ export function lookRepeat(kind, n, role) {
     const r = pair(groundLookOf(n)?.repeat);
     return ok(r) ? r.map(one) : [DEFAULT_REPEAT, DEFAULT_REPEAT];
   }
-  const cat = n?.look && typeof n.look === 'object' ? catalogued(kind === 'fracWall' ? 'wall' : 'slab', n.look) : null;
-  const r = pair(cat?.facts?.repeats?.[role]?.repeat);
+  const cat = n?.look && typeof n.look === 'object' ? catalogued(CATALOGUE_KIND[kind], n.look) : null;
+  const f = lookSurface(kind, n, role);
+  const r = pair(cat?.facts?.repeats?.[role]?.repeat ?? (kind === 'fracWall' ? (f?.A ?? f?.B)?.repeat : f?.repeat));
   return ok(r) ? r.map(one) : [DEFAULT_REPEAT, DEFAULT_REPEAT];
+}
+// ---- what a look draws on a surface (its catalogue entry's surfaces, tools/bake/looks.py)
+const CATALOGUE_KIND = { fracWall: 'wall', fracSlab: 'slab', ground: 'ground' };
+/** A look's surface as its catalogue entry says the look draws it on its donor (tools/bake/looks.py surfaces): a
+ *  slab's or ground shape's { slots, repeat, share, tiles } (tiles [u, v]: whether its texture tiles along each, or
+ *  the look draws a part of a larger one there); a wall's faces' { A, B } (A its face toward +y, the fold's side 'y1';
+ *  a side null where the look has no face there, only trims); null for a look no catalogue read holds. */
+export function lookSurface(kind, n, role) {
+  const cat = n?.look && typeof n.look === 'object' ? catalogued(CATALOGUE_KIND[kind], n.look) : null;
+  return cat?.surfaces?.[role] ?? null;
+}
+// (a surface whose look draws a part of a larger texture along an axis: looks.py's rule)
+const windowed = f => Array.isArray(f?.tiles) && f.tiles.includes(false);
+/** What the fold says of the picked surface `picked` ({ role, side }) beside its fields, each a sentence ([] for
+ *  nothing): a wall's look with no face on a side (its outline there all trims, which keep their texture: the mapping
+ *  changes nothing on it); and, once the surface is mapped, a look that draws a part of a larger texture there (an
+ *  atlas: mapped, the whole texture repeats, its other parts with it) and a wall's faces drawn in several materials up
+ *  it (the pattern runs on across them, each drawing it in its own material). Nothing for a look no catalogue holds. */
+export function textureNotes(kind, n, picked) {
+  const role = picked.role, mapped = Boolean(surfaceMapping(n, role)), f = lookSurface(kind, n, role), out = [];
+  const atlas = where => `This look draws a part of a larger texture (an atlas) on ${where}: mapped, the whole texture repeats there, its other parts with it`;
+  if (!f) return out;
+  if (kind !== 'fracWall') {
+    if (mapped && windowed(f)) out.push(atlas(`its ${ROLE_WORDS[role]}`));
+    return out;
+  }
+  const here = picked.side === 'y0' ? 'B' : 'A', there = here === 'A' ? 'B' : 'A';
+  if (!f[here] && !f[there]) return ['This look has no faces, only trims, which keep their texture: the mapping changes nothing on it'];
+  if (!f[here]) out.push('This side of the look has no face, only trims, which keep their texture: the mapping takes its other side alone');
+  else if (!f[there]) out.push('The other side of this look has no face, only trims: the mapping takes this side alone');
+  if (!mapped) return out;
+  const windows = [here, there].filter(X => windowed(f[X]));
+  if (windows.length) out.push(atlas(windows.length === 2 ? 'both its faces' : windows[0] === here ? 'this face' : 'its other face'));
+  const slots = Math.max(f[here]?.slots?.length ?? 0, f[there]?.slots?.length ?? 0);
+  if (slots > 1) out.push(`Its faces draw ${slots} materials up the wall, a storey each: the pattern runs on across them, each drawing it in its own material, so a picture across the whole wall needs a look with one face material`);
+  return out;
+}
+/** The donor's material slots a surface draws in, from its look's catalogue entry (a wall's the picked side's face
+ *  slots), or null where the look is in no catalogue read (the piece's every drawn material then stands for it). */
+export function surfaceSlots(kind, n, picked) {
+  const f = lookSurface(kind, n, picked.role);
+  if (!f) return null;
+  return (kind === 'fracWall' ? f[picked.side === 'y0' ? 'B' : 'A'] : f)?.slots ?? [];
+}
+
+// ---- a pattern's real size: what a material's own tiling does to the texture coordinates a mapping writes
+// (the families whose tiling scalar the export reads into a material's render.uv, tools/viewer/materials.py profile;
+// material_tiling_cases.json holds the two sides to the same cases)
+const READ_TILING = ['BLDG_Enterable'];
+/** What a material multiplies its texture's coordinates by, as the map's export records it (its record's render.uv:
+ *  tools/viewer/materials.py profile): { scale [u, v], known }, known where the export read it (a scale other than 1,
+ *  read from a texture coordinate node or a family's tiling scalar, or a family whose tiling scalar it reads: a
+ *  building's TileXY, 1 where unset), not where it found nothing to read (cooked materials mostly keep no expressions:
+ *  its 1 is then only the default) or the coordinates go through a node it can't follow (approximate). */
+export function materialTiling(info) {
+  const uv = info?.render?.uv ?? {}, scale = Array.isArray(uv.scale) && uv.scale.length === 2 && uv.scale.every(finite) ? uv.scale : [1, 1];
+  const family = (info?.parents ?? []).some(p => READ_TILING.includes(String(p).split('.').at(-1)));
+  return { scale: [...scale], known: !uv.approximate && (family || scale[0] !== 1 || scale[1] !== 1) };
+}
+/** The pattern's real size on a mapped surface `s` drawn by materials of tilings `tilings` (materialTiling's, one per
+ *  material the surface draws in): { note, known }: known when every one is; a note (a sentence) when they are and
+ *  scale the coordinates (all alike), saying where the pattern repeats ("Its material repeats its texture 2 times in
+ *  each repeat: the pattern shows every 96"); null otherwise (unscaled, unknown, unmapped, or materials that differ). */
+export function patternSize(s, tilings) {
+  const known = tilings.length > 0 && tilings.every(t => t.known);
+  if (!s || !known) return { note: null, known };
+  const [su, sv] = tilings[0].scale;
+  if (tilings.some(t => t.scale[0] !== su || t.scale[1] !== sv) || (su === 1 && sv === 1)) return { note: null, known };
+  const mv = s.modeV ?? s.mode;
+  const times = su === sv ? `${num(su)} times` : `${num(su)} by ${num(sv)} times`;
+  const often = (mode, value, k) => (mode === 'fit' ? 1 : value) * k;
+  let shows;
+  if (s.mode === 'size' && mv === 'size') shows = `every ${num(s.u / su)}${s.u / su !== s.v / sv ? ` by ${num(s.v / sv)}` : ''}`;
+  else if (s.mode !== 'size' && mv !== 'size') shows = `${num(often(s.mode, s.u, su))} by ${num(often(mv, s.v, sv))} times over the surface`;
+  else {
+    const axis = (mode, value, k) => (mode === 'size' ? `every ${num(value / k)}` : `${num(often(mode, value, k))} times`);
+    shows = `${axis(s.mode, s.u, su)} along U and ${axis(mv, s.v, sv)} along V`;
+  }
+  return { note: `Its material repeats its texture ${times} in each repeat: the pattern shows ${shows}`, known };
 }
 /** The numbers with a surface's mode chosen: 'original' takes its entry out; 'size' first fills u and v with the
  *  look's repeat, 'count' and 'fit' with 1 and 1; the turn, flips, offsets and world kept; the same mode leaves it. */
