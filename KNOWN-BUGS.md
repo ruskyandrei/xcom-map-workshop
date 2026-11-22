@@ -90,3 +90,17 @@ line, and its finding in the [findings register](research/findings-register.md) 
   Play in game.
 - **Cause.** The editor looks for `XComEW.exe` in the process list.
 - **Finding.** [F-84](research/findings-register.md).
+
+### KB-14: A built map loses diagonal cover near its edits, and everywhere when its grid is grown
+
+- **What happens.** On maps with slanted walls that give cover from the corner (the UFO maps: scouts, Overseer,
+  supply ships, and the Chryssalid hive), a unit standing in such a corner gets no cover in a built map: no shield,
+  as if it stood in the open. A map with a larger grid (Map grid) loses every such tile; any other build loses the
+  ones within a few tiles of something the project added, moved or deleted.
+- **Since.** Every version.
+- **Workaround.** None for a grown map. Elsewhere, keep edits a few tiles away from the slanted corners that should
+  keep their cover: a build with no edit near them keeps it.
+- **Cause.** The game marks these tiles when the map is first built, from marker actors, and its tile rebuild at the
+  start of a battle, which a build asks for round every change, clears the mark and never reads the markers again.
+- **Finding.** [F-149](research/findings-register.md), which names a fix to try: keep the rebuild off the marked
+  tiles a project did not change.

@@ -1,0 +1,4477 @@
+{
+ "maps": [
+  {
+   "map": "Act2_Pier",
+   "grid": [
+    28,
+    70,
+    12
+   ],
+   "seeds": 1,
+   "diagonalSeeds": 0,
+   "diagonalTiles": 0,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [],
+   "seedsOffDiagonalTiles": [
+    {
+     "name": "XComCoverSeed_0",
+     "tile": [
+      22,
+      7,
+      1
+     ],
+     "diagonal": false
+    }
+   ]
+  },
+  {
+   "map": "CLrgScout_City",
+   "grid": [
+    47,
+    83,
+    12
+   ],
+   "seeds": 20,
+   "diagonalSeeds": 20,
+   "diagonalTiles": 19,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      13,
+      57,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_54"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      69,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_15"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      54,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_57"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      17,
+      53,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_58"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      17,
+      55,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_67"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      52,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_59"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      74,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_48"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      24,
+      61,
+      6
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      24,
+      67,
+      6
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      52,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_37"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      74,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_47"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      71,
+      0
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_63"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      73,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_46"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      70,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_62"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      72,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_45"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      71,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_44"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      34,
+      70,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_43"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      35,
+      57,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_41"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      35,
+      69,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_42"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": [
+    {
+     "name": "XComCoverSeed_53",
+     "tile": [
+      13,
+      69,
+      -1
+     ],
+     "diagonal": true
+    }
+   ]
+  },
+  {
+   "map": "CLrgScout_DeepWoods",
+   "grid": [
+    90,
+    73,
+    12
+   ],
+   "seeds": 21,
+   "diagonalSeeds": 21,
+   "diagonalTiles": 21,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      9,
+      15,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_54"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      9,
+      27,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_53"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      12,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_57"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      11,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_58"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      13,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_67"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      10,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_59"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      32,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_48"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      18,
+      5
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_105"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      18,
+      7
+     ],
+     "cover": "118888",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      24,
+      5
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_104"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      24,
+      7
+     ],
+     "cover": "052022",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      10,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_37"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      32,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_47"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      29,
+      0
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_63"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      31,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_46"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      28,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_62"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      30,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_45"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      29,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_44"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      28,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_43"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      15,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_41"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      27,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_42"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "CLrgScout_ForestTrench",
+   "grid": [
+    95,
+    80,
+    12
+   ],
+   "seeds": 19,
+   "diagonalSeeds": 19,
+   "diagonalTiles": 19,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      10,
+      13,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_54"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      10,
+      25,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_53"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      10,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_57"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      9,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_58"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      11,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_67"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      15,
+      8,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_59"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      15,
+      30,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_48"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      16,
+      7
+     ],
+     "cover": "118888",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      22,
+      7
+     ],
+     "cover": "052022",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      8,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_37"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      30,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_47"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      27,
+      0
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_63"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      29,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_46"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      26,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_62"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      28,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_45"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      27,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_44"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      26,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_43"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      13,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_41"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      25,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_42"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "CLrgScout_Stonewall",
+   "grid": [
+    54,
+    73,
+    12
+   ],
+   "seeds": 21,
+   "diagonalSeeds": 21,
+   "diagonalTiles": 21,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      11,
+      37,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_37"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      11,
+      49,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_59"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      50,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_58"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      51,
+      0
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_57"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      50,
+      0
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_67"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      32,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_41"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      54,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_54"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      45,
+      6
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_103"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      45,
+      7
+     ],
+     "cover": "050022",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      25,
+      45,
+      6
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_102"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      25,
+      45,
+      7
+     ],
+     "cover": "090044",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      32,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_42"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      54,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_53"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      33,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_43"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      35,
+      0
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_62"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      34,
+      0
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_44"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      36,
+      0
+     ],
+     "cover": "010202",
+     "seed": [
+      "XComCoverSeed_63"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      35,
+      0
+     ],
+     "cover": "011001",
+     "seed": [
+      "XComCoverSeed_45"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      36,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_46"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      37,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_47"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      49,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_48"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "CLrgScout_TheBarrens",
+   "grid": [
+    73,
+    74,
+    12
+   ],
+   "seeds": 19,
+   "diagonalSeeds": 19,
+   "diagonalTiles": 19,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      8,
+      44,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_42"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      8,
+      56,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_41"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      9,
+      43,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_43"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      10,
+      42,
+      0
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_44"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      11,
+      41,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_45"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      11,
+      43,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_62"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      40,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_46"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      42,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_63"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      39,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_47"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      61,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_37"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      21,
+      47,
+      7
+     ],
+     "cover": "030111",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      21,
+      53,
+      7
+     ],
+     "cover": "090044",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      25,
+      39,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_48"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      25,
+      61,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_59"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      58,
+      0
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_67"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      60,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_58"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      59,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_57"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      44,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_53"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      56,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_54"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "COverseer_DeepWoods",
+   "grid": [
+    90,
+    73,
+    12
+   ],
+   "seeds": 19,
+   "diagonalSeeds": 19,
+   "diagonalTiles": 19,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      9,
+      14,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_114"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      9,
+      26,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_110"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      11,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_117"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      10,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_118"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      12,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_127"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      9,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_119"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      31,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_108"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      17,
+      7
+     ],
+     "cover": "118888",
+     "seed": [
+      "XComCoverSeed_1"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      23,
+      7
+     ],
+     "cover": "052022",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      9,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_97"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      31,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_107"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      28,
+      0
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_121"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      30,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_106"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      27,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_120"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      29,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_105"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      28,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_104"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      27,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_103"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      14,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_101"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      26,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_102"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "COverseer_ForestTrench",
+   "grid": [
+    95,
+    80,
+    12
+   ],
+   "seeds": 19,
+   "diagonalSeeds": 19,
+   "diagonalTiles": 19,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      9,
+      13,
+      2
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_114"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      9,
+      25,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_110"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      10,
+      2
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_117"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      9,
+      2
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_118"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      11,
+      2
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_127"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      8,
+      2
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_119"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      30,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_108"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      16,
+      9
+     ],
+     "cover": "118888",
+     "seed": [
+      "XComCoverSeed_3"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      22,
+      9
+     ],
+     "cover": "050022",
+     "seed": [
+      "XComCoverSeed_2"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      8,
+      2
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_97"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      30,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_107"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      27,
+      2
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_121"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      29,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_106"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      26,
+      2
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_120"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      28,
+      2
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_105"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      27,
+      2
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_104"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      26,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_103"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      13,
+      2
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_101"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      25,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_102"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "COverseer_Stonewall",
+   "grid": [
+    54,
+    73,
+    12
+   ],
+   "seeds": 19,
+   "diagonalSeeds": 19,
+   "diagonalTiles": 19,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      11,
+      37,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_97"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      11,
+      49,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_119"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      50,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_118"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      51,
+      0
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_117"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      50,
+      0
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_127"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      32,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_101"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      54,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_114"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      45,
+      7
+     ],
+     "cover": "052022",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      25,
+      45,
+      7
+     ],
+     "cover": "090044",
+     "seed": [
+      "XComCoverSeed_4"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      32,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_102"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      54,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_110"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      33,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_103"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      35,
+      0
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_120"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      34,
+      0
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_104"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      36,
+      0
+     ],
+     "cover": "010202",
+     "seed": [
+      "XComCoverSeed_121"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      35,
+      0
+     ],
+     "cover": "011001",
+     "seed": [
+      "XComCoverSeed_105"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      36,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_106"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      37,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_107"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      49,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_108"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "COverseer_TheBarrens",
+   "grid": [
+    73,
+    74,
+    12
+   ],
+   "seeds": 19,
+   "diagonalSeeds": 19,
+   "diagonalTiles": 19,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      9,
+      43,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_114"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      9,
+      55,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_110"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      40,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_117"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      39,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_118"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      41,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_127"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      38,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_119"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      60,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_108"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      46,
+      7
+     ],
+     "cover": "118888",
+     "seed": [
+      "XComCoverSeed_7"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      52,
+      7
+     ],
+     "cover": "052022",
+     "seed": [
+      "XComCoverSeed_6"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      38,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_97"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      26,
+      60,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_107"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      57,
+      0
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_121"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      27,
+      59,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_106"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      56,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_120"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      58,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_105"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      57,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_104"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      56,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_103"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      43,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_101"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      55,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_102"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "CSmallScout_Badlands",
+   "grid": [
+    73,
+    74,
+    12
+   ],
+   "seeds": 8,
+   "diagonalSeeds": 8,
+   "diagonalTiles": 0,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [],
+   "seedsOffDiagonalTiles": [
+    {
+     "name": "XComCoverSeed_0",
+     "tile": [
+      15,
+      41,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_1",
+     "tile": [
+      15,
+      49,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_2",
+     "tile": [
+      17,
+      51,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_3",
+     "tile": [
+      25,
+      51,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_4",
+     "tile": [
+      27,
+      49,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_5",
+     "tile": [
+      27,
+      41,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_6",
+     "tile": [
+      25,
+      39,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_7",
+     "tile": [
+      17,
+      39,
+      -1
+     ],
+     "diagonal": true
+    }
+   ]
+  },
+  {
+   "map": "CSmallScout_DirtRoad",
+   "grid": [
+    65,
+    69,
+    12
+   ],
+   "seeds": 8,
+   "diagonalSeeds": 8,
+   "diagonalTiles": 8,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      8,
+      47,
+      0
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      8,
+      55,
+      0
+     ],
+     "cover": "011101",
+     "seed": [
+      "XComCoverSeed_1"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      10,
+      45,
+      0
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_7"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      10,
+      57,
+      0
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_2"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      45,
+      0
+     ],
+     "cover": "012202",
+     "seed": [
+      "XComCoverSeed_6"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      57,
+      0
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_3"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      20,
+      47,
+      0
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      20,
+      55,
+      0
+     ],
+     "cover": "010000",
+     "seed": [
+      "XComCoverSeed_4"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "CsmallScout_Farm",
+   "grid": [
+    67,
+    70,
+    17
+   ],
+   "seeds": 8,
+   "diagonalSeeds": 8,
+   "diagonalTiles": 8,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      39,
+      12,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_2"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      39,
+      20,
+      0
+     ],
+     "cover": "011101",
+     "seed": [
+      "XComCoverSeed_3"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      41,
+      10,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_1"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      41,
+      22,
+      0
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_4"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      49,
+      10,
+      0
+     ],
+     "cover": "012202",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      49,
+      22,
+      0
+     ],
+     "cover": "018808",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      51,
+      12,
+      0
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_7"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      51,
+      20,
+      0
+     ],
+     "cover": "018808",
+     "seed": [
+      "XComCoverSeed_6"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "CSmallScout_Marshlands",
+   "grid": [
+    72,
+    74,
+    12
+   ],
+   "seeds": 8,
+   "diagonalSeeds": 8,
+   "diagonalTiles": 0,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [],
+   "seedsOffDiagonalTiles": [
+    {
+     "name": "XComCoverSeed_0",
+     "tile": [
+      12,
+      51,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_1",
+     "tile": [
+      12,
+      59,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_2",
+     "tile": [
+      14,
+      61,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_3",
+     "tile": [
+      22,
+      61,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_4",
+     "tile": [
+      24,
+      59,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_5",
+     "tile": [
+      24,
+      51,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_6",
+     "tile": [
+      22,
+      49,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_7",
+     "tile": [
+      14,
+      49,
+      -1
+     ],
+     "diagonal": true
+    }
+   ]
+  },
+  {
+   "map": "CSmallScout_Quagmire",
+   "grid": [
+    72,
+    74,
+    12
+   ],
+   "seeds": 8,
+   "diagonalSeeds": 8,
+   "diagonalTiles": 0,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [],
+   "seedsOffDiagonalTiles": [
+    {
+     "name": "XComCoverSeed_0",
+     "tile": [
+      12,
+      51,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_1",
+     "tile": [
+      12,
+      59,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_2",
+     "tile": [
+      14,
+      61,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_3",
+     "tile": [
+      22,
+      61,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_4",
+     "tile": [
+      24,
+      59,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_5",
+     "tile": [
+      24,
+      51,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_6",
+     "tile": [
+      22,
+      49,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_7",
+     "tile": [
+      14,
+      49,
+      -1
+     ],
+     "diagonal": true
+    }
+   ]
+  },
+  {
+   "map": "CSmallScout_Roadhouse",
+   "grid": [
+    57,
+    80,
+    13
+   ],
+   "seeds": 16,
+   "diagonalSeeds": 16,
+   "diagonalTiles": 0,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [],
+   "seedsOffDiagonalTiles": [
+    {
+     "name": "XComCoverSeed_0",
+     "tile": [
+      22,
+      60,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_1",
+     "tile": [
+      22,
+      68,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_10",
+     "tile": [
+      24,
+      71,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_11",
+     "tile": [
+      32,
+      71,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_12",
+     "tile": [
+      34,
+      69,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_13",
+     "tile": [
+      34,
+      61,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_14",
+     "tile": [
+      32,
+      59,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_15",
+     "tile": [
+      24,
+      59,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_2",
+     "tile": [
+      24,
+      70,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_3",
+     "tile": [
+      32,
+      70,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_4",
+     "tile": [
+      34,
+      68,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_5",
+     "tile": [
+      34,
+      60,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_6",
+     "tile": [
+      32,
+      58,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_7",
+     "tile": [
+      24,
+      58,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_8",
+     "tile": [
+      22,
+      61,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_9",
+     "tile": [
+      22,
+      69,
+      -1
+     ],
+     "diagonal": true
+    }
+   ]
+  },
+  {
+   "map": "CSupplyShip_Wildfire",
+   "grid": [
+    74,
+    107,
+    12
+   ],
+   "seeds": 4,
+   "diagonalSeeds": 4,
+   "diagonalTiles": 4,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      24,
+      98,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_4"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      25,
+      99,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      51,
+      99,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_2"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      52,
+      98,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_3"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "CSupplyShip_OverlookA",
+   "grid": [
+    108,
+    64,
+    12
+   ],
+   "seeds": 4,
+   "diagonalSeeds": 4,
+   "diagonalTiles": 4,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      101,
+      26,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_3"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      101,
+      54,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_4"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      102,
+      27,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_2"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      102,
+      53,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "grid": [
+    74,
+    61,
+    18
+   ],
+   "seeds": 16,
+   "diagonalSeeds": 16,
+   "diagonalTiles": 16,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      3,
+      23,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_13"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      3,
+      57,
+      2
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_2"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      4,
+      22,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_14"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      5,
+      21,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_12"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      6,
+      20,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_11"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      7,
+      19,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_10"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      8,
+      18,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_9"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      9,
+      17,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_8"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      10,
+      17,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_7"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      11,
+      18,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_6"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      19,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      20,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_4"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      21,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_3"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      15,
+      22,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_1"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      23,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      57,
+      2
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_15"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "LLrgScout_CreepyForest",
+   "grid": [
+    48,
+    88,
+    12
+   ],
+   "seeds": 34,
+   "diagonalSeeds": 34,
+   "diagonalTiles": 34,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      15,
+      60,
+      2
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_37"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      15,
+      72,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_59"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      59,
+      2
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_35"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      73,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_58"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      17,
+      58,
+      2
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_38"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      17,
+      74,
+      2
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_57"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      57,
+      2
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_39"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      59,
+      2
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_65"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      73,
+      2
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_67"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      18,
+      75,
+      2
+     ],
+     "cover": "010202",
+     "seed": [
+      "XComCoverSeed_56"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      56,
+      2
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_40"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      58,
+      2
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_64"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      74,
+      2
+     ],
+     "cover": "011001",
+     "seed": [
+      "XComCoverSeed_66"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      76,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_55"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      20,
+      55,
+      2
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_41"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      20,
+      77,
+      2
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_54"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      23,
+      68,
+      9
+     ],
+     "cover": "052022",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      68,
+      9
+     ],
+     "cover": "090044",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      55,
+      2
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_42"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      77,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_53"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      56,
+      2
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_43"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      58,
+      2
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_62"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      74,
+      2
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_8"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      76,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_52"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      34,
+      57,
+      2
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_44"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      34,
+      59,
+      2
+     ],
+     "cover": "010202",
+     "seed": [
+      "XComCoverSeed_63"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      34,
+      73,
+      2
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_9"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      34,
+      75,
+      2
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_7"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      35,
+      58,
+      2
+     ],
+     "cover": "011001",
+     "seed": [
+      "XComCoverSeed_45"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      35,
+      74,
+      2
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_6"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      36,
+      59,
+      2
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_46"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      36,
+      73,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_49"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      37,
+      60,
+      2
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_47"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      37,
+      72,
+      2
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_48"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "LLrgScout_Hillside",
+   "grid": [
+    68,
+    71,
+    12
+   ],
+   "seeds": 34,
+   "diagonalSeeds": 34,
+   "diagonalTiles": 34,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      11,
+      43,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_54"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      11,
+      55,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_53"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      42,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_55"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      12,
+      56,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_52"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      41,
+      0
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_56"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      13,
+      57,
+      0
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_7"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      40,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_57"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      42,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_66"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      56,
+      0
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_8"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      58,
+      0
+     ],
+     "cover": "010202",
+     "seed": [
+      "XComCoverSeed_6"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      15,
+      39,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_58"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      15,
+      41,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_67"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      15,
+      57,
+      0
+     ],
+     "cover": "011001",
+     "seed": [
+      "XComCoverSeed_9"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      15,
+      59,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_49"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      38,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_59"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      16,
+      60,
+      0
+     ],
+     "cover": "010002",
+     "seed": [
+      "XComCoverSeed_48"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      20,
+      46,
+      7
+     ],
+     "cover": "118888",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      20,
+      52,
+      7
+     ],
+     "cover": "052022",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      38,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_37"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      28,
+      60,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_47"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      39,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_35"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      41,
+      0
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_65"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      57,
+      0
+     ],
+     "cover": "010808",
+     "seed": [
+      "XComCoverSeed_63"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      29,
+      59,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_46"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      40,
+      0
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_38"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      42,
+      0
+     ],
+     "cover": "010202",
+     "seed": [
+      "XComCoverSeed_64"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      56,
+      0
+     ],
+     "cover": "018008",
+     "seed": [
+      "XComCoverSeed_62"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      30,
+      58,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_45"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      41,
+      0
+     ],
+     "cover": "011001",
+     "seed": [
+      "XComCoverSeed_39"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      31,
+      57,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_44"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      42,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_40"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      32,
+      56,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_43"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      43,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_41"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      33,
+      55,
+      0
+     ],
+     "cover": "010004",
+     "seed": [
+      "XComCoverSeed_42"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "LSmallScout_River",
+   "grid": [
+    74,
+    55,
+    12
+   ],
+   "seeds": 8,
+   "diagonalSeeds": 8,
+   "diagonalTiles": 0,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [],
+   "seedsOffDiagonalTiles": [
+    {
+     "name": "XComCoverSeed_0",
+     "tile": [
+      39,
+      9,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_1",
+     "tile": [
+      31,
+      9,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_2",
+     "tile": [
+      29,
+      11,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_3",
+     "tile": [
+      29,
+      19,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_4",
+     "tile": [
+      31,
+      21,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_5",
+     "tile": [
+      39,
+      21,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_6",
+     "tile": [
+      41,
+      19,
+      -1
+     ],
+     "diagonal": true
+    },
+    {
+     "name": "XComCoverSeed_7",
+     "tile": [
+      41,
+      11,
+      -1
+     ],
+     "diagonal": true
+    }
+   ]
+  },
+  {
+   "map": "LSmallScout_Rivervalley",
+   "grid": [
+    92,
+    57,
+    12
+   ],
+   "seeds": 8,
+   "diagonalSeeds": 8,
+   "diagonalTiles": 8,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      35,
+      22,
+      0
+     ],
+     "cover": "010404",
+     "seed": [
+      "XComCoverSeed_6"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      35,
+      30,
+      0
+     ],
+     "cover": "011101",
+     "seed": [
+      "XComCoverSeed_7"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      37,
+      20,
+      0
+     ],
+     "cover": "014004",
+     "seed": [
+      "XComCoverSeed_5"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      37,
+      32,
+      0
+     ],
+     "cover": "010101",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      45,
+      20,
+      0
+     ],
+     "cover": "012202",
+     "seed": [
+      "XComCoverSeed_4"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      45,
+      32,
+      0
+     ],
+     "cover": "018808",
+     "seed": [
+      "XComCoverSeed_1"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      47,
+      22,
+      0
+     ],
+     "cover": "012002",
+     "seed": [
+      "XComCoverSeed_3"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      47,
+      30,
+      0
+     ],
+     "cover": "018808",
+     "seed": [
+      "XComCoverSeed_2"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "LSupplyShip_ForestGrove",
+   "grid": [
+    68,
+    96,
+    12
+   ],
+   "seeds": 4,
+   "diagonalSeeds": 4,
+   "diagonalTiles": 4,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      18,
+      4,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_3"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      19,
+      3,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_2"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      45,
+      3,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      46,
+      4,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_4"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "LSupplyShip_RockyGorge",
+   "grid": [
+    52,
+    117,
+    12
+   ],
+   "seeds": 4,
+   "diagonalSeeds": 4,
+   "diagonalTiles": 4,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [
+    {
+     "tile": [
+      13,
+      18,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_3"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      14,
+      17,
+      0
+     ],
+     "cover": "010008",
+     "seed": [
+      "XComCoverSeed_2"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      40,
+      17,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_0"
+     ],
+     "rebuiltBy": []
+    },
+    {
+     "tile": [
+      41,
+      18,
+      0
+     ],
+     "cover": "010001",
+     "seed": [
+      "XComCoverSeed_4"
+     ],
+     "rebuiltBy": []
+    }
+   ],
+   "seedsOffDiagonalTiles": []
+  },
+  {
+   "map": "URB_Bar",
+   "grid": [
+    52,
+    39,
+    12
+   ],
+   "seeds": 2,
+   "diagonalSeeds": 0,
+   "diagonalTiles": 0,
+   "rebuildVolumes": 0,
+   "diagonalTilesRebuilt": 0,
+   "tiles": [],
+   "seedsOffDiagonalTiles": [
+    {
+     "name": "XComCoverSeed_0",
+     "tile": [
+      18,
+      28,
+      0
+     ],
+     "diagonal": false
+    },
+    {
+     "name": "XComCoverSeed_1",
+     "tile": [
+      18,
+      27,
+      -1
+     ],
+     "diagonal": false
+    }
+   ]
+  }
+ ]
+}

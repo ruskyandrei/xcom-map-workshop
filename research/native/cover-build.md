@@ -50,7 +50,9 @@ Calls: build `0x9898F7`, `0x9899F3`, `0x989CAB`, `0x98A14F`, `0x98A177`, `0x98A1
 - The rebuild works only on queued tiles (a bit in `0xFFF`), and first **clears** each one's static flags, cover
   flags, floor data, cover location and interact points (`0x8670E0`).
 - So a rebuilt tile loses what only the build writes: the **edge bits** `0x800000`–`0x4000000` (`0x9F8680`) and
-  **COVER_Diagonal** (`0xE4B630`): a rebuilt diagonal tile gets straight cover.
+  **COVER_Diagonal** (`0xE4B630`): a rebuilt diagonal tile gets straight cover by this reading. In the game
+  (22 November 2026, findings register F-149) CSmallScout_Farm's eight rebuilt diagonal tiles had no cover at all;
+  why the straight test finds none there is not read.
 - A rebuilt tile keeps `0x80000` only if the floor tile under it is rebuilt too (it is the lower tile's step that
   sets it).
 - Everything else follows one rule. The bake and the rebuild differ only through what is in the collision octree

@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-149 (22 November, a user's report): a tile the battle rebuilds loses its diagonal cover (the seeds are read by the
+  map's full build alone), so a build loses it wherever its rebuild volumes reach: everywhere on a grown map, within a
+  few tiles of any edit elsewhere. Seen in a hidden run (a grown CSmallScout_Farm: none of its 8 tiles kept any
+  cover). Not fixed; KB-14.
 - F-148 (22 November, a user's report): the train station's far gable wall never hides with its roof; the map saves it
   with no collision, so no floor lists it, in the game's map and in a build alike. Read offline; a way round is in the
   finding, a per-piece setting is not built.
@@ -344,6 +348,53 @@ boxes stretched over it; read offline from the install's `URB_TrainStation`; not
   on TempleShip). So a per-piece setting of the floor a piece hides with, the Build writing the entry, would cover
   this and the other backdrop pieces inside a building's boxes (six more on this map: the sky dome and the five
   `TrainStationLowerWalls`).
+
+### F-149: A tile the battle rebuilds loses its diagonal cover, so a build loses it wherever its rebuild volumes reach
+**Open** (22 November 2026: a user's report that maps saved in the editor lose diagonal cover; read offline from the
+install's maps and three builds with [`diagonal-cover.py`](evidence/diagonal-cover.py), the counts in
+[`diagonal-cover-2026-11-22.json`](evidence/diagonal-cover-2026-11-22.json); seen in the game the same day in a hidden
+run of a grown CSmallScout_Farm, its tiles read from the run's save).
+- **What diagonal cover is**: a tile whose cover flags carry `0x10000` (COVER_Diagonal) gives cover along the four
+  diagonals, for a unit standing in the corner of a slanted wall. A map marks such tiles with `XComCoverSeed` actors
+  (`bDiagonalCover`); the map's full build, in the game's own editor, writes the flag on each seed's tile before it
+  works the cover out ([cover-build.md](native/cover-build.md), section 1).
+- **Where the game has it**: 18 of the install's maps carry it in their bake, 4 to 34 tiles each, a seed in every one:
+  the large scouts (19 to 34), the Overseer maps (19), CSmallScout_DirtRoad, CSmallScout_Farm and
+  LSmallScout_Rivervalley (8), the supply ships (4), EWI_ChryssalidHive (16). Five maps have seeds and no such tile
+  in their bake (CSmallScout_Badlands, _Marshlands, _Quagmire, _Roadhouse, LSmallScout_River): they play without it
+  as the game ships them.
+- **Why a build loses it**: the tile rebuild a battle runs when it starts, for each `XComRebuildWorldDataVolume`
+  (`XGBattle.DoWorldDataRebuild`), clears each tile it takes (static flags, cover flags, floor data, cover location)
+  and works it out again from what stands there. The pass that reads the seeds is the full build's alone, so the flag
+  does not come back. A build keeps the map's seeds and its baked flags (CSmallScout_Farm's 8 are in all three builds
+  read); it loses them in the battle, where its rebuild volumes reach:
+  - **a grown grid** (Map grid) gets one volume over the whole grid (`shell.py resize`): every diagonal tile of the
+    map;
+  - **a cleared map** gets one too, and its seeds are taken out with the pieces (`native_copy.CLEAR_OUT`), which is
+    right: the walls are gone;
+  - **a copy, a made piece, a cover block, a deleted or moved piece, a moved mission object** get a volume over their
+    tiles, and the battle rebuilds further than the volume: its bounds' centre, the bounds' sphere radius either way
+    on every axis. The farm's ladder build's volume over 4 by 5 tiles, seven levels up, has a radius of 394: 4.1 tiles
+    each way from its centre, two tiles past its box. So an edit within a few tiles of a slanted corner takes its
+    diagonal cover, and inside a large scout (34 such tiles) most edits are.
+  A build with no rebuild volume near a diagonal tile keeps it (the farm's ladder build: 5 volumes, none reaching;
+  the four east tiles still had the flag in a save of its battle).
+- **In the game** (the hidden run: `CSmallScout__Farm_ec8f`, CSmallScout_Farm grown from 67 by 70 by 17 to 67 by 91
+  by 18, LWR, a save at turn 1 before any unit moved): of the 8 baked diagonal tiles none has `0x10000` and none has
+  any cover entry at all. So a rebuilt diagonal tile gets no cover, not the straight cover the native reading
+  expected: why the straight test finds none there is not read. Each also lost its pathing bit toward the hull
+  (`0x43a824` to `0x43a820`, `0x53a830` to `0x53a820`). A soldier put on tiles (49, 22, 0) and (51, 20, 0), the scout's intact
+  north-east corners (by the console's teleport), read `m_bInCover` False, `m_iCurrentCoverValue` 0,
+  `CurrentCoverPointFlags` 0 on each, and the pictures showed the empty shield.
+- **The game does it to itself too**: the same rebuild runs round a Meld canister and a radar array at the start
+  (three tiles each way), round a door that opens and wherever something is destroyed. In a save of the farm's ladder
+  build, four of the 8 tiles (the scout's west corners) had lost the flag and their cover, with no volume of ours near
+  them and only they and one neighbour each changed; which of the game's rebuilds took them is not read.
+- **A fix to try** (not built): keep the rebuild off a diagonal tile nothing of the project changed. A volume's reach
+  is a cube, so the Build would make the rebuilt region of smaller volumes that leave those tiles out; a grown grid
+  needs only its new area and the old edge rebuilt, not the whole map. Nothing in a map package can put the flag back
+  after a rebuild: no script function sets it.
+- **Known bug** [KB-14](../KNOWN-BUGS.md).
 
 ### F-114: Five flags on a piece decide how the game's tiles and mouse use it
 **Open** (16 November 2026: read from the decompiled scripts, the game's script packages and the native reading of

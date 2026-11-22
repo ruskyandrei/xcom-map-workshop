@@ -60,7 +60,8 @@ and `0xFC0` are one bit low, and the game's own queue test uses them), and the c
    pathing and once for sight (only pieces with `bBlockUnitVisibility` stop the sight sweep).
 
 The full build and the rebuild run the same functions. A rebuilt tile loses only what the build alone writes: the
-level's edge marks and diagonal cover.
+level's edge marks and diagonal cover. A build's rebuild volumes take a map's diagonal cover that way wherever they
+reach (findings register F-149, seen in the game).
 
 ### How sight is decided
 
