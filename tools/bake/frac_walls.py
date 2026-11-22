@@ -453,6 +453,18 @@ def slab_columns(frag_boxes):
     return out
 
 
+def made_columns(slab, frag_boxes, local_boxes, matrix, grid):
+    """The fragment columns of a made wall or slab (`slab`) whose fragments have the world boxes `frag_boxes` and the
+    boxes `local_boxes` in its mesh's frame, standing by the 4 x 4 `matrix`: a slab's by the slabs' rule
+    (slab_columns), a wall turned off the quarter turns by F0's in its own frame (turned_columns), any other wall's by
+    F0's on the world's axes (columns, on the level's grid `grid`)."""
+    if slab:
+        return slab_columns(frag_boxes)
+    if turned(matrix):
+        return turned_columns(local_boxes, matrix, grid)
+    return columns(frag_boxes, grid)
+
+
 def _tag(g, name, kind, size, struct_name=None):
     out = struct.pack('<iiiiii', g.name(name), 0, g.name(kind), 0, size, 0)
     return out + (struct.pack('<ii', g.name(struct_name), 0) if struct_name else b'')
@@ -1359,12 +1371,7 @@ def add_walls(g, p, items, grid, bake=True):
                                 shadowMap=shadow_record(p, shadow, sm)))
             continue
         slab = item['generated']['kind'] == 'fracSlab'
-        if slab:
-            cols = slab_columns(boxes)
-        elif turned(matrix):
-            cols = turned_columns([f['box'] for f in out['fragments']], matrix, grid)
-        else:
-            cols = columns(boxes, grid)
+        cols = made_columns(slab, boxes, [f['box'] for f in out['fragments']], matrix, grid)
         actor = info['actor']
         e = p.exports[item['original'] - 1]
         start = legacy_props.props_start(p.data, e, p.names) - e['off']

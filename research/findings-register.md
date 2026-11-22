@@ -221,7 +221,7 @@ same night, [frac-neighbours.md](native/frac-neighbours.md) section 2.3).
   fragments' lowest corner less one unit, a piece's own grid), a storey of the level's grid up, listing the fragments
   on that stretch, its box the world box round the stretch across them. A wall on a quarter turn, or tilted, keeps the
   rule on the world's axes, byte for byte. C1 at the run's blast now breaks fragments 0 to 5 and 8, as on yaw 0
-  (`test_frac_walls.TurnedColumns`). The top band's look from above at the same blast is the game's rule and stays:
+  (`test_turned_walls.TurnedColumns`). The top band's look from above at the same blast is the game's rule and stays:
   a rerun reads the wall from the side, or under the band (fragments 10 and 11, the corner's lower rows, now stand).
 - **Left**: a box round a slanting stretch reaches further than the stretch (a 96-long stretch of a 24-thick wall at 30
   degrees has a box 95 by 69), so a turned wall can still break a fragment further beyond a blast's square than a
