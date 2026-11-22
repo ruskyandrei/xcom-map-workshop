@@ -20,7 +20,8 @@ the installed Edge) and Pillow. The whole run takes about five minutes, most of 
 Some shots take more than one picture: project-menu also the Map menu and the Game menu (map-menu, game-menu), and
 made-walls also the look picker (look-picker), whose cards' pictures the page draws and the server keeps, so a
 first run on a cache without them waits until every wall look's picture is drawn (some hundreds: minutes), and the
-picture shows the picker without its "Drawing pictures" count.
+picture shows the picker without its "Drawing pictures" count. made-walls and texture-mapping each draw the same two
+walls under fine snap, meeting in a mitred corner (made_corner), and undo them after.
 
 The server's answers that would name a folder of this computer are replaced by a usual install's (typical()).
 """
@@ -261,8 +262,8 @@ class Shots:
 
     def rail(self):
         controls = ('#editOff', '#editMove', '#editRotate', '#editBox', '#editAdd', '#editNormal', '#editBuildings', '#editLights',
-                    '#editZones', '#editEffects', '#editSpawns', '#editGrid', '#editSpace', '#editPivot', '#editSnap', '#editLevels',
-                    '#editLinked', '#selected')
+                    '#editZones', '#editEffects', '#editSpawns', '#editGrid', '#editSpace', '#editPivot', '#editSnap', '#editLinked',
+                    '#selected')
         marks = [dict(n=k + 1, sel=s, side='right', gap=20) for k, s in enumerate(controls)]
         self.shot('rail', marks, clip=self.around('#rail', pad=(8, 8, 40, 8)))
 
@@ -332,7 +333,8 @@ class Shots:
         page.evaluate("document.getElementById('sourceDetails').open = true; document.getElementById('poseBox').open = true; document.getElementById('flagsBox').open = false")
         page.set_viewport_size(dict(width=WIDTH, height=TALL))      # the panel with its source fields is taller than the window
         page.wait_for_timeout(800)
-        rows = [(1, '#details'), (2, '#editCopy'), (3, '#flagsBox summary'), (4, '#posX'), (5, '#rotP'), (6, '#sourceDetails summary'), (7, '#copyPaths')]
+        rows = [(1, '#details'), (2, '#editCopy'), (3, '#alignBox .alignto'), (4, '#flagsBox summary'), (5, '#posX'), (6, '#rotP'),
+                (7, '#sourceDetails summary'), (8, '#copyPaths')]
         self.shot('piece-panel', self.panel_rows('#inspector', rows), clip=self.around('#inspector', pad=(40, 8, 8, 8)))
         page.evaluate("document.getElementById('sourceDetails').open = false")
         page.set_viewport_size(dict(width=WIDTH, height=HEIGHT))
@@ -418,7 +420,7 @@ class Shots:
         page.locator('#alignX').check()
         page.evaluate("document.getElementById('alignBox').classList.add('showhow')")      # (its words, as its info button shows them)
         page.wait_for_timeout(400)
-        rows = [(1, '#alignTarget'), (2, '#alignGo'), (3, '#alignText')]
+        rows = [(1, '#alignBox .alignto'), (2, '#alignTarget'), (3, '#alignGo'), (4, '#alignText')]
         self.shot('align', self.panel_rows('#inspector', rows), clip=self.around('#alignBox', pad=(56, 14, 24, 12)))
         page.evaluate("document.getElementById('alignBox').classList.remove('showhow')")
         page.locator('#alignX').uncheck()
@@ -957,20 +959,27 @@ class Shots:
         page.locator('#scenery button[data-value="interior"]').click()
         page.locator('#floor button[data-value="1"]').click()
 
-    def made_walls(self):
-        """A wall drawn from the Build menu on the car park, given the Bar's look and two gaps (a doorway and a
-        window), picked with its handles and its panel; beside it a plain room with a roof. Then the look picker,
-        opened from the wall's Choose… Undone after."""
+    def made_corner(self):
+        """Two walls drawn from the Build menu on the car park under fine snap, meeting in a mitred corner, for the
+        made walls' and the texture mapping's shots: the second drawn first, from the corner at 45 degrees away from
+        the camera, then the first along the tiles up to the corner (five tiles long, so its end is the corner's
+        point); the Bar's look chosen for the first (and so for the wall joined to it), and two gaps cut in it, a
+        doorway and a window. Gives (the site, the first wall's id, the second's), the first picked."""
         page = self.page
-        steps = page.evaluate('viewer.gizmo.undoDepth()')
         x, y, z = self.made_site()
-        self.camera([x + 620, y + 130, z + 110], [260, 1150, 780])
+        page.evaluate("viewer.setSnapMode('fine')")       # (drawn at any angle: steps of 24 and 15 degrees)
+        self.camera([x + 560, y + 20, z + 110], [300, 1150, 780])
         self.settle(2000)
-        room = self.draw('roomroof', [x, y, z], [x + 288, y + 288, z])
-        (wall,) = self.draw('wall', [x + 384, y + 96, z], [x + 864, y + 96, z])
+        corner = [x + 768, y + 96, z]
+        self.draw('wall', corner, [corner[0] + 200, corner[1] - 200, z])
+        (wall,) = self.draw('wall', [x + 288, y + 96, z], corner)
         page.evaluate("id => { const { plain, ...look } = viewer.plainLook('wall'); return viewer.setMadeLook(id, 'wall', look); }", wall)
         page.wait_for_function("old => viewer.gizmo.active && viewer.gizmo.active !== old && viewer.wallMeshReady(viewer.gizmo.active)", arg=wall, timeout=60000)
         wall = page.evaluate('viewer.gizmo.active')
+        walls = "[...viewer.roots.values()].filter(r => !r.userData.deleted && r.userData.source.added?.generated?.kind === 'fracWall').map(r => r.userData.source.id)"
+        (second,) = [i for i in page.evaluate(walls) if i != wall]
+        page.wait_for_function('id => viewer.wallMeshReady(id)', arg=second, timeout=60000)
+        page.evaluate('id => { viewer.select(null); viewer.select(id); }', wall)      # (the look took both: the first alone)
         gaps = "id => viewer.wallState(id).generated.wall.openings.length"
         page.locator('#wallGap').click()
         page.wait_for_function('id => (%s)(id) === 1' % gaps, arg=wall)
@@ -980,21 +989,43 @@ class Shots:
         page.evaluate("document.getElementById('flagsBox').open = false")
         page.keyboard.press('v')
         page.mouse.move(8, 8)
-        self.settle(2500)
+        self.settle(2000)
+        return (x, y, z), wall, second
+
+    def made_walls(self):
+        """Two walls drawn from the Build menu under fine snap (made_corner), meeting in a mitred corner, the first
+        picked with its white size handles on their stems, its window's five blue handles (the doorway showing its
+        middle alone), and its panel. Then the look picker, opened from the wall's Choose… Undone after."""
+        page = self.page
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        (x, y, z), wall, second = self.made_corner()
+        # the doorway picked (a click on its middle): its five handles, the window's middle alone (the doorway, in the
+        # middle tile, keeps its side handles clear of the face's handle a quarter along)
+        h = page.evaluate('viewer.wallHandles()')
+        window = min((k for k in h if k.endswith(':middle')), key=lambda k: page.evaluate(
+            '([id, i]) => viewer.wallState(id).generated.wall.openings[i].z0', [wall, int(k.split(':')[1])]))
+        page.mouse.click(*h[window][:2])
+        page.mouse.move(250, 780)        # (off the handles but over the view, so that none stays lit as pointed at)
+        self.settle(1500)
         h = page.evaluate('viewer.wallHandles()')
         keys = sorted(h)
-        end = min((k for k in keys if k.startswith('end') and k != 'end:top'), key=lambda k: h[k][0])
-        middles = [k for k in keys if k.endswith('middle')]
-        if 'end:top' not in h or not middles: raise SystemExit('the made wall shows no top or gap handle: %s' % keys)
+        if not {'end:x0', 'end:top', 'end:bottom', 'end:face'} <= set(h): raise SystemExit('the made wall lacks a size handle: %s' % keys)
+        picked = window.rsplit(':', 1)[0]
+        others = [k for k in keys if k.endswith(':middle') and not k.startswith(picked + ':')]
+        if not others or picked + ':x0' not in h: raise SystemExit('the gaps do not show a set at a time: %s' % keys)
         at = lambda k: [h[k][0] - 6, h[k][1] - 6, 12, 12]
-        roof = page.evaluate("ids => { const top = ids.map(id => viewer.pieceBox(id)).sort((a, b) => b[5] - a[5])[0];"
-                             " return viewer.screenOf([(top[0] + top[1]) / 2, (top[2] + top[3]) / 2, top[5]]); }", room)
+        end = min(('end:x0', 'end:x1'), key=lambda k: h[k][0])
+        meet = page.evaluate('p => viewer.screenOf(p)', [x + 768, y + 96, z + 300])
         marks = [dict(n=1, sel='#editAdd', side='right', gap=20),
                  dict(n=2, rect=at(end), side='bottom', gap=34, inset=3),
                  dict(n=3, rect=at('end:top'), side='top', gap=30, inset=3),
-                 dict(n=4, rect=at(middles[0]), side='bottom', gap=70, inset=3),
-                 dict(n=5, rect=[roof[0] - 6, roof[1] - 6, 12, 12], side='top', gap=34, inset=3)]
-        marks += self.panel_rows('#inspector', [(6, '#wallLookChange'), (7, '#wallOpenings'), (8, '#wallGap'), (9, '#wallBreak')])
+                 dict(n=4, rect=at('end:bottom'), side='bottom', gap=30, inset=3),
+                 dict(n=5, rect=at('end:face'), side='bottom', gap=40, inset=3),
+                 dict(n=6, rect=at(picked + ':z1'), side='top', gap=40, inset=3),
+                 dict(n=6, rect=at(others[0]), side='bottom', gap=60, inset=3),
+                 dict(n=7, rect=[meet[0] - 6, meet[1] - 6, 12, 12], side='top', gap=40, inset=3)]
+        marks += self.panel_rows('#inspector', [(8, '#wallLookChange'), (9, '#texFold > summary'), (10, '#wallOpenings'),
+                                                (11, '#wallGap'), (12, '#wallBreak')])
         self.shot('made-walls', marks, resize=0.75)
         # the look picker, from the wall's Choose…
         page.locator('#wallLookChange').click()
@@ -1015,6 +1046,41 @@ class Shots:
         page.evaluate('viewer.closeLookPicker()')
         self.made_done(steps)
 
+    def texture_mapping(self):
+        """The first of made_corner's walls with its Texture mapping fold open: its face toward the camera picked and
+        outlined, mapped by size (repeats of 128, turned 15 degrees), with the blue dot, the ring and the white dot
+        on it, and the fold's fields. Undone after."""
+        page = self.page
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        (x, y, z), wall, second = self.made_corner()
+        self.camera([x + 520, y + 96, z + 170], [150, 820, 330])
+        page.locator('#texFold > summary').click()
+        page.wait_for_function('id => viewer.texturePicked()?.id === id', arg=wall)
+        page.locator('#texMode button[data-value="size"]').click()
+        for field, value in (('#texU', '128'), ('#texV', '128'), ('#texTurn', '15')):
+            page.locator(field).fill(value)
+            page.locator(field).press('Enter')
+        page.evaluate('document.activeElement?.blur()')
+        page.wait_for_function('id => viewer.wallMeshReady(id)', arg=wall, timeout=60000)
+        page.mouse.move(8, 8)
+        self.settle(2500)
+        h = page.evaluate('viewer.textureHandles()')
+        if not (h and h['slide'] and h['turn'] and h['size']): raise SystemExit('the texture handles do not show: %s' % h)
+        at = lambda p: [p[0] - 6, p[1] - 6, 12, 12]
+        # (the picked face's outline: a point on its top edge, four fifths along)
+        w = page.evaluate('id => viewer.wallState(id).generated.wall', wall)
+        face = page.evaluate("([s, ab]) => viewer.textureSurfaceAt('faces', s, ab)", [h['picked'].get('side'), [w['x0'] + 0.8 * (w['x1'] - w['x0']), w['z1']]])
+        marks = [dict(n=1, rect=at(face), side='top', gap=40, inset=3),
+                 dict(n=2, rect=at(h['slide']), side='left', gap=40, inset=3),
+                 dict(n=3, rect=at(h['turn']), side='top', gap=40, inset=3),
+                 dict(n=4, rect=at(h['size']), side='right', gap=40, inset=3)]
+        marks += self.panel_rows('#inspector', [(5, '#texFold > summary'), (6, '#texSurface'), (7, '#texMode'), (8, '#texRepeat'),
+                                                (9, '#texFlipU'), (10, '#texReset')])
+        self.shot('texture-mapping', marks, resize=0.75)
+        page.locator('#texFold > summary').click()
+        page.wait_for_function('viewer.texturePicked() === null')
+        self.made_done(steps)
+
     def made_ground(self):
         """Ground drawn from the Build menu on the car park: a block, a ramp up to it, and a rock, the rock picked with
         its blue points, its white handles and its panel. Undone after."""
@@ -1033,13 +1099,14 @@ class Shots:
         self.settle(2500)
         h = page.evaluate('viewer.wallHandles()')
         side = next((k for k in sorted(h) if k.startswith('side')), None)
-        if not side or 'end:top' not in h: raise SystemExit('the rock shows no handles: %s' % sorted(h))
+        if not side or 'end:top' not in h or 'end:bottom' not in h: raise SystemExit('the rock shows no handles: %s' % sorted(h))
         middle = "id => { const b = viewer.pieceBox(id); return viewer.screenOf([(b[0] + b[1]) / 2, (b[2] + b[3]) / 2, b[5]]); }"
         at = lambda p: [p[0] - 6, p[1] - 6, 12, 12]
         marks = [dict(n=1, rect=at(page.evaluate(middle, block)), side='top', gap=40, inset=3),
                  dict(n=2, rect=at(page.evaluate(middle.replace('b[5]]', '(b[4] + b[5]) / 2]'), ramp)), side='top', gap=40, inset=3),
                  dict(n=3, rect=at(page.evaluate(middle, rock)), side='top', gap=60, inset=3),
-                 dict(n=4, rect=at(h[side]), side='bottom', gap=34, inset=3)]
+                 dict(n=4, rect=at(h[side]), side='bottom', gap=34, inset=3),
+                 dict(n=4, rect=at(h['end:bottom']), side='bottom', gap=34, inset=3)]
         marks += self.panel_rows('#inspector', [(5, '#groundLookChange'), (6, '#groundAnother')])
         self.shot('made-ground', marks, resize=0.75)
         self.made_done(steps)
@@ -1292,7 +1359,7 @@ def prefab_test_shot(browser, server, out):
 # (project-menu also takes map-menu and game-menu; made-walls also takes look-picker)
 ORDER = ('window', 'header', 'rail', 'normal-flyout', 'build-menu', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
          'landing-zones', 'effects', 'effects-flyout', 'effect-values', 'add-effects', 'spawns', 'spawns-volume', 'spawns-flyout', 'map-grid', 'view-options', 'build', 'play', 'floors', 'buildings', 'cover-blocks',
-         'made-walls', 'made-ground', 'clear-map', 'missions', 'map-picture', 'squad',
+         'made-walls', 'texture-mapping', 'made-ground', 'clear-map', 'missions', 'map-picture', 'squad',
          'manager', 'save-as', 'mission-objects')
 
 

@@ -263,7 +263,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3>Rearrange a room</h3>
 <ol class="steps">
   <li>Cut down to the room's floor with <b class="ui">Floors</b>.</li>
-  <li>Set <b class="ui">Snap</b> to <b>96</b> to keep pieces on whole tiles, or <b>24</b> for finer steps.</li>
+  <li>Set <b class="ui">Snap</b> to <b>96</b> to move pieces by whole tiles, or <b>24</b> for finer steps. A piece
+    that stands off the tiles keeps its offset: <kbd>L</kbd> brings it onto the grid first.</li>
   <li>Move pieces with <kbd>G</kbd> and turn them with <kbd>R</kbd>. For an exact place, type the position or the yaw
     in the piece panel.</li>
   <li>To line several up, select them, pick the one to line up with last, and use <b class="ui">Align</b>.</li>
@@ -276,9 +277,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <ul>
   <li><b>Open a wall:</b> select the wall section and delete it. Pictures and shelves hanging on it stay unless you
     delete them too.</li>
-  <li><b>Add a door:</b> copy an existing door. Its leaf and frame come together, and it lands on whole tiles in
-    quarter turns. A door needs an opening: delete the wall section where it goes, or copy a wall section that
-    already has a doorway.</li>
+  <li><b>Add a door:</b> copy an existing door. Its leaf and frame come together; with Snap at 96 it lands whole tiles
+    from the original, turned by quarter turns, where the Build carries its tiles exactly (<b class="ui">Game pose</b>
+    in the piece panel's Align section puts one back there). A door needs an opening: delete the wall section where it
+    goes, or copy a wall section that already has a doorway.</li>
   <li><b>Add a way up:</b> copy a ladder to where its foot and its top both meet floor. The Build warns of a ladder
     that isn't expected to climb, and builds it all the same.</li>
   <li><b>Block a route:</b> copy a wall section, a van or a fence into the gap.</li>
@@ -290,10 +292,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3>Work on an upper floor</h3>
 <ol class="steps">
   <li>Choose the floor's number in <b class="ui">Floors</b>. The floors above are cut away.</li>
-  <li>To extend the floor itself, open <b class="ui">Add</b>, choose Kind: <b class="ui">Floors</b>, and pick a floor piece.</li>
-  <li>With <b class="ui">Level snap</b> on, the piece goes to the height of the floor chosen in Floors, however high the
-    cursor is. Click to place it.</li>
-  <li>Put props on it as on any floor.</li>
+  <li>To extend the floor itself, open <b class="ui">Add</b>, choose Kind: <b class="ui">Floors</b>, pick a floor
+    piece, and click on the floor beside where it goes: it is placed on what the cursor points at.</li>
+  <li>Choose <b class="ui">Level</b> in the piece panel's <a href="#align-to">Align section</a>: the piece goes to its
+    height in its map moved by whole levels, the nearest, so it lies level with the floor beside it.</li>
+  <li>Put props on it as on any floor. For a floor of your own size, draw one from the
+    <a href="#made-floors">Build menu</a>.</li>
 </ol>
 <p>A copied storey floor can be walked on only where a soldier has room to stand: not under a duct or a low ceiling.</p>
 </div>
@@ -337,8 +341,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3>Add cover where there is nothing to copy</h3>
 <ol class="steps">
   <li>Press <kbd>P</kbd>, choose Kind: <b class="ui">Invisible</b>, and pick <b class="ui">Cover block</b>.</li>
-  <li>Click the tile it starts on, then set its <b>Width</b>, <b>Length</b>, <b>Height</b> and <b>Cover</b> in the
-    piece panel.</li>
+  <li>Click the tile it starts on, drag its white dots to size it, and set its <b>Cover</b> in the piece
+    panel.</li>
   <li>If it stands over something that can be destroyed (a car, a crate), select the block and that piece, press
     <kbd>Ctrl</kbd>+<kbd>G</kbd>, and tick <b class="ui">Break together in the game</b>. The block then goes with
     the piece and leaves no invisible wall.</li>
@@ -378,6 +382,20 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li>Choose floor 1 in the bottom bar's <b class="ui">Floors</b>: the roof should go.</li>
 </ol>
 <p>More: <a href="#made">Walls, rooms, floors, roofs and ground you draw</a>.</p>
+</div>
+
+<div class="task" id="task-angle">
+<h3>Draw walls at an angle, and give one a pattern of its own</h3>
+<ol class="steps">
+  <li>Set <b class="ui">Snap</b> to <b>24</b> (steps of 24 units and 15°), or off for any angle and length.</li>
+  <li>Choose <b class="ui">Wall</b> in the Build menu and drag from one end to the other: the wall follows the drag.</li>
+  <li>Draw the next wall near the first one's end. Pick both walls and choose <b class="ui">Join ends</b>: their ends
+    go to where their lines cross and meet in a mitred corner. (Or hold <kbd>J</kbd> while you drag one wall's end
+    to the other's.)</li>
+  <li>Open <b class="ui">Texture mapping</b> in the wall's panel and choose <b class="ui">Size</b>. Drag the white dot
+    on the wall to size the pattern, the ring to turn it, the blue dot to slide it.</li>
+</ol>
+<p>More: <a href="#made-joins">Corners</a>, <a href="#texture">Texture mapping</a>.</p>
 </div>
 
 <div class="task" id="task-ground">
@@ -616,7 +634,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="tools">Tool strip</h3>
 <div class="split">
-  <figure><img src="shots/rail.webp" width="94" height="744" alt="The tool strip, its eighteen buttons numbered"></figure>
+  <figure><img src="shots/rail.webp" width="94" height="706" alt="The tool strip, its seventeen buttons numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>Select</b> (<kbd>V</kbd>): click pieces without any handles in the way.</li>
     <li data-n="2"><b>Move</b> (<kbd>G</kbd>): arrows on the selection. Drag an arrow to move along it, or a small
@@ -647,17 +665,34 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       corner, so pieces on the tiles stay on them (a piece one tile by two still moves half a tile when turned). A typed
       turn in the piece panel turns about the same point.</li>
     <li data-n="15"><b>Snap</b> cycles through three settings; the button's corner shows which.
-      <b>Off</b>; <b>24</b>, steps of 24 units and 15°; <b>96</b>, whole tiles (96 across, 64 up) and quarter turns,
-      counted from where the piece stood. The corner shows <b>R</b> when the selection is a piece that
-      <a href="#rules">only moves on the grid</a>.</li>
-    <li data-n="16"><b>Level snap</b> (<kbd>L</kbd>, on at first): floor pieces keep to whole levels when placed and
-      when moved up or down. <a href="#rules">More</a></li>
-    <li data-n="17"><b>Linked pieces</b> (on at first): moving a piece also moves what was placed with it. Turn it
+      <b>Off</b>, smooth; <b>24</b>, steps of 24 units and 15°; <b>96</b>, whole tiles (96 across, 64 up) and quarter
+      turns. It governs every move, size and turn: <a href="#snap">more</a>.</li>
+    <li data-n="16"><b>Linked pieces</b> (on at first): moving a piece also moves what was placed with it. Turn it
       off to move one piece of a set. A car's parts, a van's, and a door with its frame always move together.</li>
-    <li data-n="18"><b>Frame the selection</b> (<kbd>F</kbd>, or double-click a piece): the camera goes to it.</li>
+    <li data-n="17"><b>Frame the selection</b> (<kbd>F</kbd>, or double-click a piece): the camera goes to it.</li>
   </ol>
 </div>
 <p>A lit button with an outline is on. Hover any button for a reminder of what it does.</p>
+<h4 id="snap">Snap: the steps of every move, size and turn</h4>
+<p>The Snap button (item 15) sets the steps of everything you move, size or turn in the view: the gizmo's arrows and
+  rings, the white and blue handles of made pieces, gaps and cover blocks, a piece you place or paste, what you draw
+  from the <a href="#made">Build menu</a>, and a position or turn typed in the piece panel.</p>
+<table>
+  <tr><th>Snap</th><th>Across the floor</th><th>Up</th><th>Turns</th></tr>
+  <tr><td>Off</td><td>Smooth, to fractions of a unit</td><td>Smooth</td><td>Smooth</td></tr>
+  <tr><td>24</td><td>Steps of 24 units</td><td>Steps of 24</td><td>Steps of 15°</td></tr>
+  <tr><td>96</td><td>Whole tiles (96)</td><td>Levels (64)</td><td>Quarter turns</td></tr>
+</table>
+<ul>
+  <li><b>The steps are counted from where the drag starts</b>, so a piece, a face or a gap that stands off the grid
+    keeps its offset as it moves. With the piece's own axes shown (<kbd>X</kbd>), the arrows step along them.</li>
+  <li><b>To bring a piece onto the grid,</b> use <b class="ui">Grid</b> (<kbd>L</kbd>) in the piece panel's
+    <a href="#align-to">Align section</a>.</li>
+  <li><b>A typed position or turn</b> with snap on is taken as a move from where the piece stands, in the snap's steps;
+    the hint line says so while you type. With snap off it is taken as typed.</li>
+  <li><b>Some things keep to the tile grid whatever the snap:</b> a building's floor boxes (and a group or prefab with a
+    building in it), the map grid's sides, spawn points, and a landing zone's turn.</li>
+</ul>
 <h4 id="normal-view">The views, and the Normal view's switches</h4>
 <div class="split">
   <figure><img src="shots/normal-flyout.webp" width="311" height="170" alt="The Normal view button with its flyout: Lights, Floor boxes, Effects and sounds, and Spawn points and objectives"></figure>
@@ -719,8 +754,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     the backdrop around it (distant buildings, the street beyond the edge). Interior draws a piece that reaches into
     the area whole, a car across the edge included, unless it stretches more than four tiles past it.</li>
   <li data-n="3"><b>Floors:</b> <b class="ui">All</b> shows buildings whole, roofs closed. A number cuts every building
-    down to that floor, so you can see and edit inside. It is also the <b>Floor picker</b>: with a floor chosen, a floor
-    piece you place goes to that floor's height.</li>
+    down to that floor, so you can see and edit inside. With a floor chosen, a new floor box in the
+    <a href="#buildings">Buildings view</a> starts at that floor's height.</li>
 </ol>
 <div class="pair">
   <figure><img src="shots/floors-all.webp" width="470" height="320" alt="The Bar with all floors: its roof closed"><figcaption>Floors: All</figcaption></figure>
@@ -785,7 +820,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3 id="piece">Piece panel</h3>
 <p>The panel on the right appears when something is selected.</p>
 <div class="split">
-  <figure><img src="shots/piece-panel.webp" width="348" height="574" alt="The piece panel for a copied claw machine, its parts numbered"></figure>
+  <figure><img src="shots/piece-panel.webp" width="348" height="645" alt="The piece panel for a copied claw machine, its parts numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>What it is:</b> the piece's name, its kind and its map, then chips with what you should know
       about it (listed below).</li>
@@ -794,13 +829,16 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       it), <b>Delete</b> (<kbd>Del</kbd>), <b><a href="#select-kind">Select all of a kind</a></b> with its count, and
       <b>Reset piece</b>, which puts the selected pieces back where the map has them. At the right,
       <b>Save as prefab…</b> saves what is selected as a <a href="#prefabs">prefab</a>.</li>
-    <li data-n="3"><b><a href="#flags">Flags</a>:</b> what the game does with the piece (walking, cover, sight,
+    <li data-n="3"><b><a href="#align-to">Align to</a>:</b> <b>Grid</b> (<kbd>L</kbd>) puts the piece on the grid
+      in the snap setting's steps; <b>Level</b> and <b>Game pose</b> show for the pieces they are for.</li>
+    <li data-n="4"><b><a href="#flags">Flags</a>:</b> what the game does with the piece (walking, cover, sight,
       floor, the mouse), to change. Folded, its line says whether they are as the map has them.</li>
-    <li data-n="4"><b>Place: its position</b> in game units. Type a value and press <kbd>Enter</kbd>.</li>
-    <li data-n="5"><b>Its rotation</b> in degrees: pitch, yaw (the turn about the vertical) and roll.</li>
-    <li data-n="6"><b>Source</b> unfolds the piece's records: its actor and mesh, whether it can be destroyed
+    <li data-n="5"><b>Place: its position</b> in game units. Type a value and press <kbd>Enter</kbd>. With snap on, it
+      is taken in the <a href="#snap">snap setting's steps</a>.</li>
+    <li data-n="6"><b>Its rotation</b> in degrees: pitch, yaw (the turn about the vertical) and roll.</li>
+    <li data-n="7"><b>Source</b> unfolds the piece's records: its actor and mesh, whether it can be destroyed
       and its health, which building floor it belongs to, and what moves with it.</li>
-    <li data-n="7"><b>Copy full paths</b> copies the actor, mesh and material paths, for a bug report or for your own notes.</li>
+    <li data-n="8"><b>Copy full paths</b> copies the actor, mesh and material paths, for a bug report or for your own notes.</li>
   </ol>
 </div>
 <ul>
@@ -816,7 +854,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><th>Chip</th><th>What it means</th></tr>
   <tr><td>Moves with 2 other pieces</td><td>Linked pieces: they were placed together and move together (a car's body and glass).</td></tr>
   <tr><td>Added copy</td><td>A piece you added. Source names the piece it copies.</td></tr>
-  <tr><td>Recipe snap</td><td>It moves only by whole tiles and quarter turns. <a href="#rules">Why</a></td></tr>
+  <tr><td>Off the grid</td><td>A ladder, door, car, van or fracturing piece that stands off the tiles and turns of
+    its original: it builds, with a warning. <b class="ui">Game pose</b> in the Align section puts it back.
+    <a href="#grid-rule">Why</a></td></tr>
   <tr><td>Group of 2</td><td>It is in a <a href="#groups">group</a>.</td></tr>
   <tr><td>Glows · 3 lights</td><td>A glowing piece: its glow lights the map, and moves, copies and goes with it.</td></tr>
   <tr><td>Carries an effect</td><td>A particle effect stands on it, such as a Skyranger's lights or a claw machine's, or the effects a prefab of the map placed round it (an alien vapour pod's smoke). The editor and the Build move, copy and delete them with the piece. A click on the chip opens the <a href="#effects">Effects view</a> on them.</td></tr>
@@ -926,7 +966,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ul>
 
 <h3 id="groups">Groups and Align</h3>
-<p>With two or more pieces selected, the piece panel gains two sections.</p>
+<p>With two or more pieces selected, the piece panel gains a Group section. Its <a href="#align-to">Align
+  section</a> shows for one piece too.</p>
 <div class="split">
   <figure><img src="shots/group.webp" width="348" height="121" alt="The group section of the piece panel, for a group of two kegs"></figure>
   <ol class="legend">
@@ -979,16 +1020,31 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <b class="ui">Break together in the game</b>. When the piece is destroyed the block goes too, so no invisible
     wall is left. One breakable piece is enough, and nothing else destroys the block. An invisible floor stays.</li>
 </ul>
+<h4 id="align-to">Align</h4>
+<p>The Align section puts the selection on the grid or a level, and with two or more pieces lines them up with one
+  of them.</p>
 <div class="split">
-  <figure><img src="shots/align.webp" width="348" height="164" alt="The Align section of the piece panel"></figure>
+  <figure><img src="shots/align.webp" width="348" height="192" alt="The Align section of the piece panel for a group of two kegs and a third keg: Align to Grid, the target, the axes and the Align button"></figure>
   <ol class="legend">
-    <li data-n="1"><b>Target:</b> the piece or group the others line up with. It is the last one you picked unless you
+    <li data-n="1"><b>Align to</b>, for one piece or more, each one undo step:
+      <ul>
+        <li><b>Grid</b> (<kbd>L</kbd>) moves the selection's pivot to the nearest step of the
+          <a href="#snap">snap setting</a>, counted from the tile grid's corner and lowest level, and turns it to whole
+          steps of its turn. With snap off, to the nearest tile corner and level, and a quarter turn.</li>
+        <li><b>Level</b> shows for a floor piece: it goes up or down to its height in its map moved by whole levels
+          (64 units), the nearest, so it lies level with the map's floors. A copy goes by its original's height.</li>
+        <li><b>Game pose</b> shows for a ladder, door, car, van or fracturing piece: it goes to the nearest place and
+          turn its rule allows, <a href="#grid-rule">whole tiles from its original</a>.</li>
+      </ul></li>
+    <li data-n="2"><b>Target:</b> the piece or group the others line up with. It is the last one you picked unless you
       choose another here. A white box marks it in the view.</li>
-    <li data-n="2"><b>Axes and edge:</b> tick any of X, Y (across the floor) and Z (up), choose what lines up (centres,
+    <li data-n="3"><b>Axes and edge:</b> tick any of X, Y (across the floor) and Z (up), choose what lines up (centres,
       low edges or high edges), then <b class="ui">Align</b>. The others move; nothing turns. It is one undo step.</li>
-    <li data-n="3"><b>What will happen</b>, in words: shown by the section's ⓘ.</li>
+    <li data-n="4"><b>What will happen</b>, in words: shown by the section's ⓘ.</li>
   </ol>
 </div>
+<p>Items 2 to 4 show with two or more pieces or groups selected. What moves as one stays together: a group, and with
+  Linked pieces on, linked pieces.</p>
 
 <h3 id="add">Add: the piece list</h3>
 <p><b class="ui">Add</b> (<kbd>P</kbd>, or a click on its button) opens <b>Add a piece</b>. Under <b class="ui">This map</b> it lists one entry
@@ -1049,7 +1105,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   </ol>
 </div>
 <p>Placing one works as from This map: click it, then click in the view. The piece panel shows the map it is from.
-  A piece that keeps to the tiles (a wall, a door) snaps to this map's tiles as it stood on its own map's. A ladder
+  It stands on this map's tiles as it stood on its own map's, so with Snap at 96 a wall or a door keeps to the tiles
+  as there (<b class="ui">Game pose</b> in the Align section puts one back on them). A ladder
   needs floor at its foot and at its top, as a copy of one of the map's own does; put it on an outer wall with
   nothing standing at its foot.
   The Build copies the piece into your map with the meshes, materials and textures it needs, so the built map grows a
@@ -1061,9 +1118,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   menu: <a href="#effects-other">Effects from other maps</a>.</p>
 
 <h3 id="made">Walls, rooms, floors, roofs and ground you draw</h3>
-<p>The game's pieces come in the sizes its maps happen to have. The <b>Build menu</b> makes pieces to your own size:
-  a wall of any length, a room, a storey floor, a roof, and ground. Each is drawn by dragging over the tiles, sized
-  afterwards by its handles, and given the look of any of the game's walls, floors or ground.</p>
+<p>The game's pieces come in the sizes its maps happen to have. The <b>Build menu</b> makes pieces to your own size and
+  place: a wall of any length, height and thickness, at any angle, a room, a storey floor, a roof, and ground. Each is
+  drawn by dragging, sized afterwards by its handles, and given the look of any of the game's walls, floors or
+  ground.</p>
 <div class="split">
   <figure><img src="shots/build-menu.webp" width="261" height="344" alt="The Add button with its Build menu: Wall, Room, Room with a roof, Floor, Roof, and under Ground: Patch, Block, Ramp and Rock"></figure>
   <div>
@@ -1072,14 +1130,24 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
         <a href="#add">piece list</a> instead.)</li>
       <li><b>Pick a tool.</b> Its button stays lit while it draws, and a hint at the top of the view says what to do.</li>
       <li><b>Press on the ground at one corner, drag to the other, let go.</b> A wall is dragged from one end to the
-        other along a tile line.</li>
+        other.</li>
       <li>The tool stops after one piece. Hold <kbd>Shift</kbd> to keep drawing; <kbd>Esc</kbd> stops.</li>
     </ol>
   </div>
 </div>
+<p><b>The drawing follows the <a href="#snap">snap setting</a>:</b></p>
+<ul>
+  <li><b>96:</b> on the tile edges, by whole tiles, and a wall along a tile line.</li>
+  <li><b>24:</b> the first corner on the grid's steps of 24 from its corner, the length in steps of 24, and a wall's
+    direction in steps of 15°.</li>
+  <li><b>Off:</b> exactly as dragged, any length and angle.</li>
+</ul>
+<p>Only a wall follows the drag's angle; a room, a floor, a roof and ground are drawn square to the map, and the gizmo
+  turns them afterwards.</p>
 <table class="wrapfirst">
   <tr><th>Tool</th><th>What it draws</th></tr>
-  <tr><td>Wall</td><td>One wall along a tile line, two storeys tall at first.</td></tr>
+  <tr><td>Wall</td><td>One wall from where you press to where you let go, as tall as its look at first (two storeys
+    for the Bar's inside wall).</td></tr>
   <tr><td>Room</td><td>Four joined walls round the rectangle you drag, with a doorway in the side nearest you.</td></tr>
   <tr><td>Room with a roof</td><td>The same with a roof on its walls and a <a href="#buildings">building</a> round it,
     so the roof is cut away when the cursor is inside.</td></tr>
@@ -1098,32 +1166,63 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>They are real pieces to the game.</b> Walls, floors and roofs break a fragment at a time, as the game's do,
     and a break passes between pieces that touch. Ground doesn't break.</li>
   <li><b>Each kind has a section of its own</b> at the top of the <a href="#piece">piece panel</a>: Wall, Floor, Ground
-    or Room. Its ⓘ shows how its handles work and what it does in the game.</li>
-  <li><b>They copy, move, group and take <a href="#flags">flags</a></b> as other pieces do.</li>
+    or Room. Its first line gives the piece's size in game units (long, thick and tall for a wall), and its ⓘ shows
+    how its handles work and what it does in the game.</li>
+  <li><b>They copy, move, turn, group and take <a href="#flags">flags</a></b> as other pieces do, and stand anywhere:
+    no grid rule holds them.</li>
+  <li><b>They are drawn in the <a href="#prefab-builder">prefab builder</a> too</b>, from its Build menu, and saved
+    with the prefab.</li>
+</ul>
+
+<h4 id="made-handles">Sizing a made piece: its white handles</h4>
+<p>A picked wall, floor, roof or ground shape has a white handle on a stem out of each face it is sized by. Drag one
+  and only that face moves: the opposite face stays, and so does the piece's pivot, so its gaps, holes, damage and
+  pattern stay where they are in the world. The face moves the distance dragged in the
+  <a href="#snap">snap setting's steps</a>: smoothly with snap off, in steps of 24, or by whole tiles across and levels
+  of 64 up. <kbd>Esc</kbd> during the drag puts it back, and each drag is one undo step.</p>
+<ul>
+  <li><b>A wall:</b> its two ends (its length), its top, its bottom (under the floor line), and the face toward the
+    camera (its thickness).</li>
+  <li><b>A floor or roof:</b> its four sides, its top and its underside (its thickness).</li>
+  <li><b>A ground shape:</b> its four sides, its top (a block's top, a ramp's high edge; a patch has none) and its
+    bottom.</li>
+  <li><b>A gap past a face that moves in</b> is cut to it, and one the piece no longer holds goes: the hint says so
+    while you drag. A floor's holes do the same.</li>
+  <li><b>No size limit.</b> The Build makes a long or tall wall, or a large floor, as several pieces the game takes (16
+    tiles at most each, joined): the joints don't show, and they break as one.</li>
+  <li><b>A piece drawn with snap at 96</b> is made on the tiles; its first size edit lets it take any size from then
+    on (<kbd>Ctrl</kbd>+<kbd>Z</kbd> puts it back as it was).</li>
+  <li><b>Pivot to corner</b>, in the Wall, Floor and Ground sections, moves the piece's pivot, where the gizmo sits
+    and what it turns about, to its low corner. Nothing moves in the world. Use it after the face the pivot stood on
+    has moved away from it.</li>
 </ul>
 
 <h4 id="made-walls">A wall</h4>
 <figure class="zoom">
-  <img src="shots/made-walls.webp" width="1080" height="675" alt="A drawn wall in the Bar's inside wall look, with a window and a doorway, picked with its handles and its Wall section; beside it a plain room with a roof">
-  <figcaption>A drawn wall given a look and two gaps, picked. The grey box beside it is a room with a roof as it is
-    drawn: plain.</figcaption>
+  <img src="shots/made-walls.webp" width="1080" height="675" alt="Two drawn walls in the Bar's inside wall look meeting in a mitred corner, the first picked with its white size handles, its doorway's blue handles, and its Wall section">
+  <figcaption>Two walls drawn with snap at 24, the second at 45° from the first's end: they meet in a mitred corner.
+    The first is picked, its doorway too.</figcaption>
 </figure>
 <ol class="legend">
   <li data-n="1"><b>Add:</b> rest the pointer on it for the Build menu.</li>
-  <li data-n="2"><b>An end's white handle</b> lengthens or shortens the wall by whole tiles. Its gaps stay where they
-    are, and one the wall no longer holds goes.</li>
-  <li data-n="3"><b>The top's handle</b> adds or takes storeys, as far as it is dragged.</li>
-  <li data-n="4"><b>A gap's blue handles:</b> its middle moves it along the wall and up or down, and its sides, top
-    and bottom size it.</li>
-  <li data-n="5"><b>A room with a roof</b>, drawn in one drag and still plain.</li>
-  <li data-n="6"><b>Look:</b> <b class="ui">Choose…</b> opens the <a href="#looks">look picker</a>;
+  <li data-n="2"><b>An end's white handle</b> lengthens or shortens the wall; the other end stays.</li>
+  <li data-n="3"><b>The top's handle</b> makes it taller or lower.</li>
+  <li data-n="4"><b>The bottom's handle,</b> under the floor line, moves its bottom down or up.</li>
+  <li data-n="5"><b>The face's handle,</b> on the face toward the camera, makes it thicker or thinner.</li>
+  <li data-n="6"><b>A gap's blue handles,</b> a gap at a time: the picked gap's five (its middle moves it along the
+    wall and up or down, its sides, top and bottom size it), and every other gap's middle alone, which picks it.</li>
+  <li data-n="7"><b>The mitred corner</b> where the second wall, drawn from the first's end, meets it.
+    <a href="#made-joins">Corners</a></li>
+  <li data-n="8"><b>Look:</b> <b class="ui">Choose…</b> opens the <a href="#looks">look picker</a>;
     <b class="ui">Plain</b> goes back to no look.</li>
-  <li data-n="7"><b>The gaps,</b> one line each: its size, a warning mark where it plays oddly (point at it to read
+  <li data-n="9"><b>Texture mapping</b>, folded: how its faces take their pattern. <a href="#texture">More</a></li>
+  <li data-n="10"><b>The gaps,</b> one line each: its size, a warning mark where it plays oddly (point at it to read
     why), and × to remove it.</li>
-  <li data-n="8"><b>Add gap</b> cuts a gap shaped as the game's doorways in the free tile nearest the middle.
-    <b>Flip sides</b> swaps the wall's two faces. <b>Reshuffle</b> gives it another break pattern: it looks the same
-    until it breaks.</li>
-  <li data-n="9"><b>Break</b> and <b>Repair:</b> the wall built already damaged. <a href="#damage">More</a></li>
+  <li data-n="11"><b>Add gap</b> cuts a gap shaped as the game's doorways in the free tile nearest the middle.
+    <b>Flip sides</b> turns the wall round where it stands, so its two faces swap. <b>Reshuffle</b> gives it
+    another break pattern: it looks the same until it breaks. <b>Pivot to corner:</b>
+    <a href="#made-handles">above</a>.</li>
+  <li data-n="12"><b>Break</b> and <b>Repair:</b> the wall built already damaged. <a href="#damage">More</a></li>
 </ol>
 <ul>
   <li><b>A gap is a doorway or a window by its shape.</b> Add gap starts as a doorway: one tile wide, its top 160 over
@@ -1131,24 +1230,55 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>A gap's handles reach the wall's edges.</b> A side dragged to the wall's end cuts the wall away to that end,
     the bottom dragged to the floor cuts down to the wall's bottom, and the top dragged past the wall's top cuts
     through it. A gap never takes the whole wall.</li>
-  <li><b>The steps follow Snap:</b> to the unit with snap off, 24 at 24, and at 96 whole tiles along the wall and 24
-    up. <kbd>Alt</kbd> gives steps of 8. <kbd>Del</kbd> with a gap's handle touched last takes out that gap only.</li>
+  <li><b>A gap's steps follow Snap:</b> smooth with snap off, 24 at 24, and at 96 whole tiles along the wall and
+    levels of 64 up, the distance dragged. <kbd>Alt</kbd> gives steps of 8. <kbd>Del</kbd> with a gap's handle touched
+    last takes out that gap only.</li>
   <li><b>What a gap does in the game</b> goes by its heights, and its line in the panel says it. Units walk through a
     gap that is open at 64 over the floor (a doorway, over its threshold). They climb through one that starts higher
     and leaves low cover under it (a window), as through the game's windows. They see and shoot through one that is
-    open at 96 over the floor: a doorway and a window both. All of it holds at the tiles whose middle the gap spans;
-    a gap that spans no tile's middle does nothing. The Build warns of a gap that plays oddly: a doorway with no door
-    (a unit in it has cover toward its sides), a gap walked through over a wall that gives cover, a gap too low to
-    walk through, a window that sight doesn't cross.</li>
+    open at 96 over the floor: a doorway and a window both. All of it holds where the lines between the tiles'
+    centres cross the wall, on the map's tile grid, wherever the wall stands and at whatever angle; a gap that no
+    such line crosses does nothing. The Build warns of a gap that plays oddly: a doorway with no door (a unit in it
+    has cover toward its sides), a gap walked through over a wall that gives cover, a gap too low to walk through, a
+    window that sight doesn't cross.</li>
   <li><b>A door</b> comes from the <a href="#add">piece list</a>: place one of the game's doors in the doorway. Its
     line in the panel says when a doorway has none.</li>
-  <li><b>Walls that meet are joined,</b> at a corner or end to end, as the game's walls are: the panel says so, and a
-    break passes from one to the other.</li>
-  <li><b>Any length and height:</b> up to 128 tiles and 12 storeys. The Build makes a long or tall wall as several
-    pieces the game takes (16 tiles at most each); the panel says how, and the joints don't show.</li>
+  <li id="wall-in-row"><b>A wall standing inside a row of tiles,</b> over their middles rather than on a tile edge,
+    takes those tiles: no one stands in them, and it gives cover to the tiles either side, as a wall on a tile edge
+    gives its two neighbours. The Wall section says so (its ⓘ), and so does the Build. A gap over such a tile is that
+    tile: units stand in it and walk through it when the gap leaves them room (40 by 40 round the tile's middle, from
+    60 to 92 over the floor), and otherwise no one goes through it. No one climbs through it. The Build warns of a
+    doorway there that leaves no room.</li>
+  <li id="wall-tall"><b>Taller than its look:</b> a wall made taller than its look's own height shows this row in
+    its section. <b class="ui">Repeat storeys</b> stacks the look's storeys, the top one shortened or lengthened by
+    what is left; <b class="ui">Stretch</b> makes one profile over the whole height, the bands at its bottom and top
+    keeping their sizes and the face taking the rest. In the game such a wall breaks a storey at a time either
+    way.</li>
   <li><b>In a group that breaks together,</b> a prop, a door or a <a href="#cover">cover block</a> goes when the wall
     behind it does: <a href="#groups">Groups</a>.</li>
   <li><b>In a building's floor boxes</b> a made wall cuts down with the others: <a href="#buildings">Buildings</a>.</li>
+</ul>
+
+<h4 id="made-joins">Corners: mitred ends and Join ends</h4>
+<p>Walls that meet are joined, as the game's walls are: the Wall section says how, and a break passes from one to the
+  other.</p>
+<ul>
+  <li><b>Two ends at the same point,</b> within a unit, meet in a <b>mitred corner</b> when the walls stand at an angle
+    of 30° or more: each end is cut on the one upright plane through the corner, so the faces meet with no gap and no
+    overlap, at any angle, right angles too.</li>
+  <li><b>Two ends in line</b> meet end to end.</li>
+  <li><b>An end against another wall,</b> on its line between its ends, stops against that wall's near face, cut
+    along it.</li>
+  <li><b>At an angle under 30°,</b> or with three or more ends at one point and no two in line, the ends meet
+    square.</li>
+  <li><b>Join ends:</b> pick two walls (<kbd>Ctrl</kbd>+click) and choose <b class="ui">Join ends</b> in the Wall
+    section. The nearer end of each goes to where their lines cross, each wall's pivot staying where it is, so they
+    meet in a mitred corner; two walls in line meet halfway between their nearest ends. It is one undo step. Walls that
+    run alongside each other apart have no point to meet at: the hint says so.</li>
+  <li><b>Hold <kbd>J</kbd> while you drag a wall's end</b> to take it to the nearest end of another wall, within 64
+    units: the two then meet in a mitred corner.</li>
+  <li>Walls drawn with snap at 96 and not sized since meet as the game's own walls do, at the tile edges: at a corner
+    one runs through to the other's far face. Join ends on two of them makes them mitre.</li>
 </ul>
 
 <h4 id="made-rooms">A room</h4>
@@ -1166,16 +1296,25 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h4 id="made-floors">Floors and roofs</h4>
 <ul>
-  <li><b>White handles on its edges</b> grow or shrink a floor or roof by whole tiles, up to 128 by 128. The Build
-    makes a large one as several slabs; the panel says how.</li>
+  <li><b>Its white handles</b> size a floor or roof: its four sides, its top and its underside
+    (<a href="#made-handles">sizing</a>).</li>
   <li><b>Add hole</b> cuts a hole one tile square in the free tile nearest the middle, for a ladder or stairs. Its
-    blue handles move and size it; a hole past the edge goes.</li>
+    blue handles move and size it, in the snap setting's steps; a hole past the edge goes.</li>
   <li><b>Reshuffle</b> gives another break pattern.</li>
+  <li id="floor-tiles"><b>Which tiles it is floor on.</b> The game looks for a tile's floor on one line straight down
+    through the tile's middle, so a made floor is floor on the tiles whose middle it covers, and not on a tile at its
+    edge it covers only in part. Where it stands off the tile lines, the Floor section's first line ends
+    <i>floor on 6 of 12 tiles</i>, and the tile grid round it fills the tiles it is floor on and outlines those it
+    covers in part (the readout under the view counts both). The Build notes such tiles. A hole is no floor.</li>
   <li><b>A floor is walked on.</b> The Build gives each made floor and roof cursor floors of its own over its
     footprint, starting just under it (<a href="#cursor-floors">the cursor's floors</a>). In a building (a room with a
     roof, or <a href="#buildings">floor boxes</a> drawn round it) the mouse wheel then stops on the ground, on the
     floor and on the roof in turn. A floor in no building is picked by the mouse on every storey, as the game's
     overpasses and canopies are, and the ground under it only from beside it: the Build warns of one.</li>
+  <li><b>A floor turned</b> off the quarter turns has its cursor floors in steps, a box round its part of each tile it
+    reaches; the Build notes how many. <b>A floor tipped</b> (pitched or rolled) builds as drawn, and the Build warns
+    once: its cursor floor is the box round it, so the cursor may not land on it where it slopes; past about 10
+    degrees a unit on it gets no cover, and past 45 it is no floor.</li>
   <li><b>A roof</b> is cut away with its building's top floor when the cursor is inside, and takes no clicks in the
     game. Draw a box for it if it isn't a room's: <a href="#buildings">Buildings</a>.</li>
 </ul>
@@ -1190,12 +1329,13 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li data-n="2"><b>A ramp:</b> it rises toward where its drag ended. Its panel gives its slope in degrees and what
     that means in play.</li>
   <li data-n="3"><b>The picked rock,</b> with a blue point on each of its corners.</li>
-  <li data-n="4"><b>A white handle:</b> those on the sides size the shape by whole tiles, the one on top raises or
-    lowers it (a patch has none on top).</li>
+  <li data-n="4"><b>Its white handles:</b> those on the sides size the shape, the one on top raises or lowers it (a
+    patch has none on top), and the one under it moves its bottom, in the snap setting's steps.</li>
   <li data-n="5"><b>Look:</b> any of the game's ground and rock materials. In the look picker each card shows this
-    shape made in it.</li>
+    shape made in it. Under it, its <a href="#texture">Texture mapping</a>, folded.</li>
   <li data-n="6"><b>Another rock</b> gives a different rock in the same footprint and height; <b>Reset points</b>
-    puts its corners back. A ramp has <b>Turn</b> here: a quarter turn on its footprint.</li>
+    puts its corners back. A ramp has <b>Turn</b> here: a quarter turn on its footprint. <b>Pivot to corner:</b>
+    <a href="#made-handles">sizing</a>.</li>
 </ol>
 <ul>
   <li><b>A rock's blue points are its corners.</b> Click one (it turns white) and drag the arrows that appear on it
@@ -1203,11 +1343,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     the ground. A point dragged past the footprint grows the rock by whole tiles. Each drag is one undo step.</li>
   <li><b>Slopes:</b> a gentle ramp is walked and gives cover as flat ground does. On one steeper than about 10 degrees
     a unit gets no cover, as on every slope of the game's, and past 45 degrees there is no floor on it. The panel says
-    which holds.</li>
+    which holds. A block or patch tipped by the gizmo is warned of the same way by the Build.</li>
   <li><b>A patch's top lies level with the ground it covers,</b> a little over it, so it hides what is under it.</li>
   <li><b>Ground shapes don't break.</b> A rock stands in the way and gives cover by its height, as the game's rocks
     do.</li>
-  <li>A ground shape can be up to 64 tiles a side.</li>
+  <li>A drag draws up to 64 tiles a side; the handles take a shape further.</li>
 </ul>
 
 <h4 id="looks">Looks: the look picker</h4>
@@ -1239,6 +1379,55 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>A look chosen for a wall</b> is given to the walls joined to it as well (a room's four), or to every wall
     picked. It is one undo step.</li>
   <li><b>While a Build menu tool draws,</b> <kbd>I</kbd> picks a look from the view for what is drawn next.</li>
+</ul>
+
+<h4 id="texture">Texture mapping: a pattern of your own size and turn</h4>
+<p>A made piece takes its look's texture as the look lays it. The <b class="ui">Texture mapping</b> fold, under the
+  Look row of the Wall, Floor and Ground sections, lays it anew on one surface at a time: larger or smaller, turned,
+  slid, mirrored, or lined up with the pieces beside it. Folded, its line says how the surface shown is mapped
+  (<i>faces: size 128, 15°</i>).</p>
+<figure class="zoom">
+  <img src="shots/texture-mapping.webp" width="1080" height="675" alt="A drawn wall with its Texture mapping fold open: its face outlined, its bricks mapped by size and turned 15 degrees, with a blue dot, a ring and a white dot on the face, and the fold's fields in the panel">
+  <figcaption>The wall's faces mapped by size, a repeat of 128 turned 15°. While the fold is open, its handles are the
+    only ones shown.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>The picked surface,</b> outlined. A click on the piece picks the surface under the pointer, and
+    <kbd>Tab</kbd> the next.</li>
+  <li data-n="2"><b>The blue dot,</b> at a corner of the pattern: drag it to slide the pattern over the surface.</li>
+  <li data-n="3"><b>The ring</b> round the dot: drag it round to turn the pattern about the dot.</li>
+  <li data-n="4"><b>The white dot,</b> a repeat along from the blue one: drag it to size a repeat, the other way in
+    proportion.</li>
+  <li data-n="5"><b>Texture mapping,</b> open: click its name to fold it again.</li>
+  <li data-n="6"><b>The surface shown,</b> and what <kbd>Tab</kbd> picks next. A wall's two faces take one mapping.</li>
+  <li data-n="7"><b>How it takes its texture:</b> <b class="ui">Original</b>, as the look lays it; <b>Size</b>, a
+    repeat of a set size in game units, so the pattern keeps its size as the piece grows; <b>Fit</b>, one repeat
+    stretched over the whole surface; <b>Count</b>, a set number of repeats over the surface, as many after a
+    resize.</li>
+  <li data-n="8"><b>Repeat, Offset and Turn:</b> a repeat's size along U and V (Count: how many), the pattern slid in
+    repeats, and its turn in degrees, to type exactly.</li>
+  <li data-n="9"><b>Flip U</b> and <b>Flip V</b> mirror the pattern. <b>Aligned to the world</b> counts it from the
+    map's origin rather than the piece's, so it lines up with the pieces beside it and stays put in the world when the
+    piece moves.</li>
+  <li data-n="10"><b>Reset surface</b> takes the surface back to its look's own texture.</li>
+</ol>
+<ul>
+  <li><b>The surfaces:</b> a wall's faces, a floor's or roof's top and underside, a ground shape's top and sides. The
+    trims, ends, edges and the insides of gaps keep their look's texture. A ground shape's sides take the fields
+    only, with no handles.</li>
+  <li><b>The handles move in the <a href="#snap">snap setting's steps</a>:</b> the blue dot across and up on a face
+    (across both ways on a top), the ring in the snap's turns (15° at 24, quarter turns at 96), the white dot in steps
+    along; all smoothly with snap off.
+    <kbd>Esc</kbd> during a drag puts it back, and each drag or change of a field is one undo step.</li>
+  <li><b>While the fold is open,</b> the piece's size handles and the gizmo step aside, so the texture's handles are
+    the only ones on it. They come back when the fold is folded or another piece is picked.</li>
+  <li><b>A mapped ramp's top</b> takes its pattern along its slope, so a repeat of 64 is 64 long up the slope.</li>
+  <li><b>Notes under the modes</b> say where a look makes a mapping act otherwise than it reads. Some looks draw a part
+    of a larger texture (an atlas): mapped, the whole texture repeats there, its other parts with it. Some wall looks
+    have no face on one side, only trims, so the mapping takes the other side alone. Where the look's material repeats
+    its texture more than once in a repeat, a note gives the pattern's real size (<i>the pattern shows every
+    96</i>); where the editor can't read that, the Repeat row's tooltip says the pattern may repeat more often.</li>
+  <li><b>The Build makes the pattern as mapped,</b> in quick and baked builds alike.</li>
 </ul>
 
 <h4 id="damage">Damage: Break and Repair</h4>
@@ -1277,16 +1466,16 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li data-n="6"><b>Its size</b> and <b>what it will do</b> where it stands, in words.</li>
 </ol>
 <p><b>To place a cover block:</b> press <kbd>P</kbd>, choose Kind: <b class="ui">Invisible</b>, pick
-  <b class="ui">Cover block</b> and click its first tile; with tile snap on it stays on the tiles. It starts as one
+  <b class="ui">Cover block</b> and click its first tile; with snap at 96 it goes by whole tiles. It starts as one
   tile of high cover, one tile tall. Size it with its handles and set its cover in the piece panel. Turn it with
   <kbd>R</kbd>; with snap off, the turn handles can also tip it onto its side.</p>
 <p id="cover-size"><b>To size a block:</b> select it and drag one of its white dots. Each moves one face along the
-  block's own axes: its four sides, its top and its bottom. The snap setting on the rail sets the steps:</p>
+  block's own axes: its four sides, its top and its bottom. The face moves the distance dragged in the
+  <a href="#snap">snap setting's steps</a>, so a size off the steps keeps its offset:</p>
 <ul>
-  <li><b>96:</b> whole tiles across, and whole tiles up from its first top (96 units over the floor for high cover,
-    84 for low), as Long War's own blocks stand.</li>
+  <li><b>96:</b> whole tiles across, and levels of 64 up.</li>
   <li><b>24:</b> steps of 24 units.</li>
-  <li><b>Off:</b> smooth, to the unit.</li>
+  <li><b>Off:</b> smooth.</li>
 </ul>
 <p>A drag on a low side (−X, −Y) moves the block's corner, so the far side stays where it is. <kbd>Esc</kbd> during
   the drag puts it back, and each drag is one undo step. A block can be 8 units to 16 tiles across, and its bottom can
@@ -1374,9 +1563,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <ul>
   <li><b>What you place is a copy.</b> Changing or deleting the prefab later changes nothing already placed, and a
     project doesn't need the prefab's file.</li>
-  <li><b>By whole tiles.</b> A prefab with a building in it, or with a wall, door, car, van or ladder, is placed by
-    whole tiles, whole levels and quarter turns, whatever Snap says, so those pieces
-    <a href="#rules">build as they should</a>. Any other prefab goes where you click, as a piece does.</li>
+  <li><b>A prefab with a building in it</b> is placed by whole tiles, whole levels and quarter turns, whatever Snap
+    says, so its floor boxes stay on the tile grid. Any other prefab is placed as a piece is, in the
+    <a href="#snap">snap setting's steps</a>. A door, ladder, car, van or wall in it that lands off
+    <a href="#grid-rule">its grid</a> builds with a warning, and <b class="ui">Game pose</b> in the Align section
+    moves the prefab so that it stands on it.</li>
   <li><b>In another map,</b> its pieces are brought from their home maps, as <a href="#add-all">pieces from other
     maps</a> are. The first time, the editor reads them from the game, which takes a moment for a large prefab.
     A piece that can't be brought into another map is left out, and the message says which.</li>
@@ -1399,7 +1590,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   selection. The map browser (<kbd>M</kbd>) also has a <b class="ui">Prefabs</b> group.</p>
 <p>Add pieces from <b class="ui">All maps</b>, or place another prefab and use <b class="ui">Ungroup</b> to edit
   its pieces. Choose <b class="ui">Lights</b> for point and spot lights, or <b class="ui">Invisible</b> for cover
-  blocks and invisible floors. The Buildings, Lights and Effects views, box select, nested groups, copy, paste and
+  blocks and invisible floors. The <a href="#made">Build menu</a> on the Add button draws walls, rooms, floors, roofs
+  and ground as in a map, and the prefab keeps them. The Buildings, Lights and Effects views, box select, nested groups, copy, paste and
   undo work as in a map, and a prefab's effects are drawn as they look. The
   ground grid grows with your work; it is a drawing guide and is never saved. Negative X and Y are fine.</p>
 <p>In the builder the header's Project button reads <b>Prefab</b>, and its menu is the prefab's. <b class="ui">Prefab → Save</b> (<kbd>Ctrl+S</kbd>) saves everything, including lights and floor boxes hidden
@@ -1425,7 +1617,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p>Doors, ladders, cars, vans and fracturing pieces are meant to stand whole tiles and levels from where their
   originals stand. When one is off that grid, a warning over the size names it; it still builds and tests, but what
   the map saved for its tiles no longer fits exactly. <b class="ui">Show</b> selects it;
-  <b class="ui">Align to grid</b> moves the whole prefab, lights and floor boxes too, the smallest distance that puts
+  <b class="ui">Align prefab to grid</b> moves the whole prefab, lights and floor boxes too, the smallest distance that puts
   every such piece on the grid, in one undo step. Move it by whole levels afterwards to set its height: it stays
   aligned.</p>
 <p>When you open a prefab with missing pieces, the builder looks for the same recipes in your local map catalogue
@@ -2551,13 +2743,13 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Scenery, destructible props</td><td>Tables, crates, dumpsters, windows, signs</td><td>Freely, on every axis</td><td>Yes</td></tr>
   <tr><td>Physics props</td><td>Bodies, loose objects</td><td>Freely</td><td>Yes</td></tr>
   <tr><td>Collectibles</td><td>UFO power cores</td><td>Freely</td><td>Yes; a copy isn't loot</td></tr>
-  <tr><td>Cars and vans</td><td>With their glass, doors and light bars</td><td>On the grid (below), all parts together</td><td>Yes</td></tr>
-  <tr><td>Doors with a frame</td><td>Building doors</td><td>On the grid, leaf and frame together</td><td>Yes</td></tr>
-  <tr><td>Doors without a frame</td><td>UFO and alien doors</td><td>On the grid</td><td>Yes</td></tr>
-  <tr><td>Ladders</td><td></td><td>On the grid</td><td>Yes; it climbs where both ends meet floor, and is warned of where they don't</td></tr>
-  <tr><td>Fracturing pieces</td><td>Walls, storey floors, roof slabs, a bar's counter</td><td>On the grid</td><td>Yes; a wall, floor or roof can be <a href="#damage">built broken</a></td></tr>
-  <tr><td>Walls, floors, roofs and ground you draw</td><td><a href="#made">The Build menu's pieces</a></td><td>Whole tiles; sized by their handles</td><td>Yes; walls, floors and roofs break as the game's do</td></tr>
-  <tr><td>Cover blocks, invisible floors</td><td><a href="#cover">Invisible pieces</a></td><td>Freely; on the tiles with tile snap</td><td>Yes</td></tr>
+  <tr><td>Cars and vans</td><td>With their glass, doors and light bars</td><td>Freely, all parts together; surest on <a href="#grid-rule">the grid</a></td><td>Yes</td></tr>
+  <tr><td>Doors with a frame</td><td>Building doors</td><td>Freely, leaf and frame together; surest on the grid</td><td>Yes</td></tr>
+  <tr><td>Doors without a frame</td><td>UFO and alien doors</td><td>Freely; surest on the grid</td><td>Yes</td></tr>
+  <tr><td>Ladders</td><td></td><td>Freely; surest on the grid</td><td>Yes; it climbs where both ends meet floor, and is warned of where they don't</td></tr>
+  <tr><td>Fracturing pieces</td><td>Walls, storey floors, roof slabs, a bar's counter</td><td>Freely; surest on the grid</td><td>Yes; a wall, floor or roof can be <a href="#damage">built broken</a></td></tr>
+  <tr><td>Walls, floors, roofs and ground you draw</td><td><a href="#made">The Build menu's pieces</a></td><td>Freely, at any angle; sized by their handles</td><td>Yes; walls, floors and roofs break as the game's do</td></tr>
+  <tr><td>Cover blocks, invisible floors</td><td><a href="#cover">Invisible pieces</a></td><td>Freely; sized by their handles</td><td>Yes</td></tr>
   <tr><td>Lights</td><td>Placed point and spot lights</td><td>Freely</td><td>Yes; baked builds only show them right</td></tr>
   <tr><td>Effects, sounds, lens flares</td><td><a href="#effects">Fires, smoke, an idle engine, a lamp's glint</a></td><td>Freely; a carried effect with its piece</td><td>Yes, in a quick build too</td></tr>
   <tr><td>Floor boxes</td><td><a href="#buildings">Buildings</a>, yours and the map's</td><td>Whole tiles and levels, never turned alone</td><td>Yes</td></tr>
@@ -2566,19 +2758,22 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>A mission's objects</td><td><a href="#mission-objects">The bomb and its power nodes, capture points</a></td><td>With their group, whole tiles and levels</td><td>Yes</td></tr>
   <tr><td>Patch helpers</td><td>Long War Rebalance's invisible cover and blockers</td><td>Not at all</td><td>Left as they are</td></tr>
 </table>
-<h3>The grid rule ("recipe snap")</h3>
+<p>"Freely" means in the <a href="#snap">snap setting's steps</a>, which govern every move and turn: with snap off,
+  anywhere.</p>
+<h3 id="grid-rule">The grid rule and Game pose</h3>
 <p>The game saves some things per tile: where a ladder can be climbed, which part of a wall stands on which tile. For
-  the Build to carry those along exactly, such a piece must end up a whole number of tiles (96 units) and storeys
-  (64 units) from where its original stands, turned by quarter turns.</p>
+  the Build to carry those along exactly, a ladder, door, car, van or fracturing piece must end up a whole number of
+  tiles (96 units) and storeys (64 units) from where its original stands, turned by quarter turns.</p>
 <ul>
-  <li><b>With Snap at 96</b> the editor keeps such a piece there for you: dragging, typing, pasting, placing and
-    Align all go to the nearest allowed place. The Snap button shows <b>R</b> and the piece panel a
-    <b class="ui">Recipe snap</b> chip.</li>
-  <li><b>With Snap off or at 24</b> it moves as any piece does. Off the grid, the chip reads
-    <b class="ui">Off the grid</b> and the Build warns: the piece is built, but what the map saved for its tiles no
-    longer fits exactly. Set Snap back to 96 and move it a
-    step to put it on the grid again.</li>
-  <li><b>A piece from another map</b> keeps to this map's tiles as it stood on its own map's.</li>
+  <li><b>It moves as any piece does,</b> in the snap setting's steps. One on its grid stays on it while it is moved
+    with Snap at 96, as those steps are whole tiles and storeys.</li>
+  <li><b>Off the grid,</b> the piece panel shows an <b class="ui">Off the grid</b> chip (its tooltip says what it
+    misses) and the Build warns: the piece is built where it stands, but what the map saved for its tiles no longer
+    fits exactly.</li>
+  <li><b class="ui">Game pose</b>, in the piece panel's <a href="#align-to">Align section</a>, moves it to the nearest
+    place and turn its rule allows, with whatever moves with it, in one undo step.</li>
+  <li><b>A piece from another map</b> stands on this map's tiles as it stood on its own map's.</li>
+  <li><b>Walls, floors, roofs and ground you draw</b> have no such rule: they stand anywhere, at any angle.</li>
 </ul>
 <h3 id="ladders">Ladders</h3>
 <p>The game makes a ladder's climb between two floors: the tile at its foot, and the tile at its top or the one
@@ -2590,12 +2785,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>A ladder with a red end is built all the same</b>, with a warning: the game is not expected to make its
     climb. Earlier versions refused to build it.</li>
 </ul>
-<h3>Floor pieces and Level snap</h3>
+<h3 id="floor-pieces">Floor pieces and Level</h3>
 <p>A floor piece is one the game walks on: asphalt, a sidewalk, a building's storey floor. The piece list gathers them
-  under Kind: <b class="ui">Floors</b>, each with its size in tiles. With <b class="ui">Level snap</b> on, a floor piece
-  you place keeps the height its kind has in the map, moved by whole levels to the floor under the cursor, so a
-  sidewalk dropped next to another sits at the same height instead of on top of it. With a floor number chosen in the
-  bottom bar, it goes to that floor. Moved with the handles, it steps up and down by whole levels.</p>
+  under Kind: <b class="ui">Floors</b>, each with its size in tiles. A floor piece is placed and moved as any piece is:
+  on what the cursor points at, in the snap setting's steps. <b class="ui">Level</b>, in the piece panel's
+  <a href="#align-to">Align section</a>, then puts it at the height its kind has in the map moved by whole levels, the
+  nearest, so a sidewalk set down next to another sits at the same height instead of on top of it.</p>
 <h3 id="mission-objects">What a mission adds</h3>
 <p>The game loads more than the map: each mission that uses a map adds its own objects, and Long War Rebalance adds
   a patch to most maps, mostly invisible cover blocks and blockers. The editor shows the patch so you can plan around
@@ -2640,7 +2835,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><kbd>X</kbd></td><td>World axes or the piece's own</td></tr>
   <tr><td><kbd>C</kbd></td><td>Pivot: the piece's own origin, or the selection's middle (a piece turns in place)</td></tr>
   <tr><td><kbd>B</kbd></td><td>Show or hide the play area; with a made wall, floor or roof or one of the map's fracturing pieces picked, <a href="#damage">Break</a> on or off</td></tr>
-  <tr><td><kbd>L</kbd></td><td>Level snap on or off</td></tr>
+  <tr><td><kbd>L</kbd></td><td><a href="#align-to">Align to grid</a>: the selection onto the nearest step of the snap setting</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>N</kbd></td><td>The Normal view</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>B</kbd></td><td>The Buildings view on or off (only boxes are selected)</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>L</kbd></td><td>The Lights view on or off (only lights are selected)</td></tr>
@@ -2654,7 +2849,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><kbd>N</kbd></td><td>In the Buildings view: New box</td></tr>
   <tr><td><kbd>Shift</kbd> while drawing</td><td>From the <a href="#made">Build menu</a>: keep drawing after each wall, floor or ground shape (<kbd>Esc</kbd> stops)</td></tr>
   <tr><td><kbd>I</kbd></td><td>While drawing from the Build menu, or in the <a href="#looks">look picker</a>: take the look of a piece clicked in the view</td></tr>
-  <tr><td><kbd>Alt</kbd>+drag</td><td>In the Buildings view: stretch a box by steps of 8 units</td></tr>
+  <tr><td><kbd>J</kbd> held</td><td>While dragging a made wall's end: take it to the nearest other wall's end, where they <a href="#made-joins">meet in a mitred corner</a></td></tr>
+  <tr><td><kbd>Tab</kbd></td><td>With a made piece's <a href="#texture">Texture mapping</a> open: pick its next surface</td></tr>
+  <tr><td><kbd>Alt</kbd>+drag</td><td>In the Buildings view: stretch a box by steps of 8 units. On a gap's handle: steps of 8</td></tr>
   <tr><td><kbd>O</kbd></td><td>Solo the selected lights</td></tr>
   <tr><td><kbd>F</kbd>, double-click</td><td>Frame the selection</td></tr>
   <tr><td><kbd>M</kbd></td><td>Map browser</td></tr>
@@ -2724,9 +2921,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <section>
     <h3>Building</h3>
     <ul>
-      <li><b>Some pieces are surest on the grid:</b> ladders, doors, cars, vans, walls, storey floors and roof slabs
-        build exactly by whole tiles and quarter turns from where their originals stand. Off that grid they build
-        with a warning. <a href="#rules">More</a></li>
+      <li><b>Some pieces are surest on the grid:</b> the map's ladders, doors, cars, vans, walls, storey floors and
+        roof slabs build exactly by whole tiles and quarter turns from where their originals stand. Off that grid they
+        build with a warning, and Game pose puts one back. <a href="#grid-rule">More</a></li>
       <li><b>A ladder needs floor at both ends</b> where you put it, or the Build warns that it isn't expected to climb.</li>
       <li><b>The Build warns far more often than it refuses.</b> A warning means "this may behave oddly in the
         game", and the map is built all the same. That includes a single part of a car or a door edited on its own.
@@ -2770,6 +2967,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Under Long War, the aliens' pods and the Meld go where its rules put them</b> when it finds room, and its
     drop-in rules bring scripted reinforcements in near the squad: <a href="#spawns-game">what the game does with
     spawn points</a>.</li>
+  <li><b>A drawn floor off the tile lines is floor only on the tiles whose middle it covers,</b> and a drawn wall
+    inside a row of tiles takes those tiles: <a href="#floor-tiles">floors</a>, <a href="#wall-in-row">walls</a>.</li>
   <li><b>The squad may land on a new piece.</b> Keep copies off the soldier tiles, or
     <a href="#landingzones">move the landing zone</a>.</li>
   <li><b>A quick build's lighting is wrong on purpose.</b> Copies are lit as their originals were and cast no shadows,
