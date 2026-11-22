@@ -13,6 +13,12 @@
 - **Commit whenever a piece of work is done**, without waiting to be asked: a fix, a feature or a stage of a plan,
   once its tests pass, on the branch it was done on, with its ledger entry in the same commit. Leave nothing finished
   lying uncommitted at the end of a turn. Push only when the user asks.
+- **Clean up when work is merged.** In the turn that merges a branch into main, remove its worktree
+  (`git worktree remove`) and delete the branch (`git branch -d`, which refuses a branch that is not merged). The
+  same holds for the worktrees subagents make under `.claude/worktrees`: whoever merges an agent's branch removes
+  that worktree and that branch, its resume checkpoint going with it. A worktree or branch stays only while its work
+  is not merged, or when the user asks to keep it. Never force-delete a branch that is not merged without the
+  user's word.
 - Line endings are kept byte for byte (`.gitattributes`: `* -text`). Keep each file's existing endings; new files use
   LF. Python's `write_text` on Windows writes CRLF unless given `newline=""` or `newline="\n"`.
 - **One main viewer/editor server, on port 8768.** It serves the whole cache library
