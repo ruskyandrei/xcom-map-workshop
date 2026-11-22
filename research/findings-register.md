@@ -12,6 +12,9 @@ Statuses:
 
 ## Open now
 
+- F-151 (22 November, the diagonal cover plan's C1): the game's cover rule, worked out from a map's pieces, gives
+  the 293 marked tiles it works on their baked diagonal cover exactly; the marks themselves follow no rule (a finder
+  for corners a project changes takes 245 of 289 and 110 unmarked). Offline; the tile writer (C2) is next.
 - F-151 (22 November, a user's report): a map with many copies builds to hundreds of megabytes: each copy clones
   its source's whole lightmap atlases and shadow maps, held inside the map uncompressed; read offline, not fixed; KB-15.
 - F-149 (22 November, a user's report): a tile the battle rebuilds loses its diagonal cover (the seeds are read by the
@@ -425,6 +428,50 @@ the fix).
   canister's seen in the run above). A map's own diagonal cover is lost that way in the game as shipped, wherever
   that battle's canister lands by a slanted corner.
 - **Known bug** [KB-14](../KNOWN-BUGS.md), for what the fix leaves.
+
+### F-151: The game's cover rule worked out from a map's pieces gives its marked tiles' diagonal cover exactly; where the marks go is the designers' choice
+**Verified offline over the install's maps** (22 November 2026: diagonal cover plan, stage C1;
+[`diagonal-finder.py`](evidence/diagonal-finder.py) over the 97 base maps the install lists, the record in
+[`diagonal-finder-2026-11-22.json`](evidence/diagonal-finder-2026-11-22.json); the rule in
+[`tile_rule.py`](../tools/bake/tile_rule.py), the pieces and sweeps in [`tile_world.py`](../tools/bake/tile_world.py)).
+- **What**: the cover step of the game's tile build ([cover-build.md](native/cover-build.md), sections 3 and 4) run
+  against each map's own pieces, with the map's baked static flags and floors as its inputs: on the tiles the
+  designers marked with cover seeds (the bake's 0x10000), the diagonal cover the build gives them; on every tile, a
+  finder for tiles to give diagonal cover to.
+- **The rule matches the game**: of the 299 marked tiles on 19 maps, the 293 the build works cover out on all get
+  the baked cover flags bit for bit (directions, low, both step-outs, climbing) and the baked cover location to 0.15
+  unit. The other 6 have no floor of their own (fully occupied): the seed sets the flag and no cover is worked out.
+- **Two things the reading did not have, found by the misses**:
+  - the build's second pass visits tiles x fastest, then y, then z, and takes a tile's floor away (standing room)
+    just before that tile's cover step. A step-out's floor test on a neighbour not visited yet sees the floor its
+    first pass found. Four of the farm's step-out bits came out only with that;
+  - UWorld's line check of the cover step (flags 0x860C0) meets only actors that are `bWorldGeometry`. The farm's
+    wall-cap debris (`ARC_AlienCoverDebris_DestroC`, an archetype inside the map) saves it off, and the floor line
+    under a cover location passes through it to the ground.
+- **The marks are not a rule**. On every tile a diagonal passes on, marked against unmarked:
+
+| Condition | Marked (of 289) | Unmarked |
+| --- | --- | --- |
+| no straight cover | 268 | 2,832 |
+| and the tile partly occupied (the wall crosses it) | 245 | 499 |
+| and the wall at 45 degrees (facing 0.999) | 245 | 113 |
+| and high cover (the finder) | 245 | 110 |
+| partly, 45 degrees, high, straight cover or not | 250 | 263 |
+
+  The unmarked ones in the finder's row are the same kind of corner on the same UFO maps: small scout columns
+  (`SScout_ColumnARev`), large scout door frames and walls (`LSIntWall_192_Door`, `LSCornerDoorFrame`), energy
+  fields, supply ship columns, the Abductor maps' hull columns (none marked on any Abductor map). The marked ones it
+  leaves are the large scouts' roof edges (low cover, 0.961), the supply ships' corner ramps (0.98, straight cover
+  there too) and the Chryssalid hive's whale boat.
+- **Seeds that baked to nothing**: 50 of the 351 seeds stand under the grid (their tile is level -1), all of those
+  of CSmallScout_Badlands, _Marshlands, _Quagmire, _Roadhouse and LSmallScout_River, which is why those five scouts
+  have no diagonal cover as the game ships them; two more (Act2_Pier, URB_Bar) save `bDiagonalCover` off.
+- **So, for the Build**: a tile nothing of a project changes keeps its bake (the designers' marks as they are, the
+  five scouts without). The finder's condition (the fourth row) decides only for tiles a project changes or adds:
+  a corner of the kind the designers usually marked, where the straight rule gives no cover at all.
+- **Inputs not read** (none met on a marked tile): pieces of streamed levels, pawns, PathBlockingVolumes, terrain,
+  a fracturing piece's lost fragments. Over the 97 maps the world reading met 371 per-triangle meshes, 55 cover
+  pieces without a BodySetup and 4 sphere or capsule elements.
 
 ### F-150: A rebuild volume reaches its brush's sphere times its largest scale, not its box's diagonal
 **Verified against a battle's save; the Build's reading corrected** (22 November 2026: found when F-149's first fix
