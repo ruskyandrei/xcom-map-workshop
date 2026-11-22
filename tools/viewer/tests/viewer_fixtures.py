@@ -122,16 +122,14 @@ class PlayInstalls:
                       user_documents=self.documents, **dict(dict(appear=0, every=0.01, cleanup=False), **more))
 
     def package(self, revision=1, quick=False, zones=None, ids=None, groups=None, maps=None, record_missions=None, exclusion=False):
-        """A built package: the relit map, its cache and its own copy of the landing intro, streamed in its place; a
-        quick build's has no cache. `zones`: the project's own landing-zone lines (config.landingZonesFromProject).
+        """A built package: the relit map (its lightmaps inside it, as every build's) and its own copy of the landing
+        intro, streamed in its place. `zones`: the project's own landing-zone lines (config.landingZonesFromProject).
         `maps`: the Build's records (config.maps, text), with `record_missions` (config.recordMissions) when given."""
         folder = self.output / VARIANT
         (folder / 'CookedPCConsole').mkdir(parents=True, exist_ok=True)
         intro = f'CIN_DropshipIntros_{VARIANT}'
         files = {}
-        for name, data in [(f'{VARIANT}.upk', b'relit map %d' % revision), ('Lighting_4242.tfc', b'lightmaps'),
-                           (f'{intro}.upk', b'intro copy')]:
-            if quick and name.endswith('.tfc'): continue
+        for name, data in [(f'{VARIANT}.upk', b'relit map %d' % revision), (f'{intro}.upk', b'intro copy')]:
             (folder / 'CookedPCConsole' / name).write_bytes(data)
             files[f'CookedPCConsole/{name}'] = hashlib.sha256(data).hexdigest()
         m = dict(schema=installs.PACKAGE_SCHEMA, schemaVersion=1, buildId=f'{VARIANT}-{revision}', builtAt='2026-11-08T12:00:00',

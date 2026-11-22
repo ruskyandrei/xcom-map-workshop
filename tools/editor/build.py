@@ -54,7 +54,8 @@ path-too-long). Stages, each logged in the build's work folder (<output>/.work/<
    lightmaps, the stage and the manifest say lightingUnchanged, and there is no texture cache.
    Hidden pieces stop casting shadows, copies cast them at their poses, a copy made in the map is lit for where it
    stands, and every texture-lightmapped component within --radius of the edit is relit as a change on the original
-   bake (--receivers-near). Writes, in the work folder, the variant map and its texture cache, <Variant>_Lighting.tfc (cache_name: the
+   bake (--receivers-near). Writes, in the work folder, the variant map and its texture cache, <Variant>_Lighting.tfc,
+   which never leaves the work folder (step 5 puts its lightmaps inside the map; cache_name: the
    name added to the map's name table first, by native_copy.py's growing write, or for the relight alone by a named
    copy of the map in the work folder: Build.named_base; until 16 November 2026 it was Lighting_<n>, n from the
    variant's name). A quick build runs native_copy.py without --bake (Build.edit_unbaked): the same edit, no relight,
@@ -73,8 +74,10 @@ path-too-long). Stages, each logged in the build's work folder (<output>/.work/<
    every texture that names the build's cache holds all its mips inline, NeverStream, and the package ships no
    texture cache. The game finds a .tfc only in CookedPCConsole itself (F-140), so a map that carries its own lighting
    goes anywhere a map can, a map pack's folder included; its lightmaps stay in memory while the map is loaded.
-   Since 19 November 2026; a package built before has its <Variant>_Lighting.tfc (or Lighting_<n>.tfc) beside the
-   map until it is built again, and a map that can't take its lightmaps in still ships it, the stage saying why.
+   Every build does it, since 19 November 2026; a map that can't take its lightmaps in fails the build, saying why (no
+   build ships a texture cache since 22 November 2026). A package built before 19 November has its
+   <Variant>_Lighting.tfc (or Lighting_<n>.tfc) beside the map: the installs and the map pack refuse it until it is
+   built again (installs.read_package).
 6. Package: <output>/<Variant>/, as the plan's variant package:
      CookedPCConsole/<Variant>.upk          the base map with the edit's copies, relit and seeded, under the
                                             variant's name, with the project's map picture and its baked lightmaps
@@ -670,17 +673,11 @@ def readme(m):
             '(lighting unchanged), so it reads %s\'s own lightmaps and has no texture cache of its own.'
             % (m['variant'], m['source']['map'], made, m['source']['map']),
         ]
-    elif m.get('lightingInside'):
+    else:
         lines += [
             '',
             '%s.upk is %s with the edit made in it: %sits lighting baked, its lightmaps inside the map (no texture '
             'cache goes with it).' % (m['variant'], m['source']['map'], made),
-        ]
-    else:
-        lines += [
-            '',
-            '%s.upk is %s with the edit made in it: %sits lighting baked; its lightmaps are in %s.tfc, which goes in '
-            'CookedPCConsole itself.' % (m['variant'], m['source']['map'], made, m['cache']),
         ]
     if m.get('picture'):
         lines += ['%s.upk holds the project\'s map picture (MapPicture, 512 x 256, %s): Long War Rebalance 3 shows it '
@@ -1160,11 +1157,10 @@ class Build:
 
     def output_names(self):
         """Every name this build may write: the map, its patch (only when the edit makes one, which the compile has
-        said by now: a file of the patch's name that the build never writes doesn't stop it), its texture cache (not
-        in a quick build), and its copies of the intros its base map's records stream and of the streams the edit
-        changes."""
-        names = ([self.variant] + ([self.patch] if self.has_patch else [])
-                 + ([] if self.quick else [outputnames.cache_name(self.variant)]))
+        said by now: a file of the patch's name that the build never writes doesn't stop it), and its copies of the
+        intros its base map's records stream and of the streams the edit changes. (Its texture cache never leaves the
+        work folder: its lightmaps go inside the map.)"""
+        names = [self.variant] + ([self.patch] if self.has_patch else [])
         maps = installs.maps_text(self.lwr).replace('\r\n', '\n').split('\n')
         names += ['%s_%s' % (s, self.variant) for s in intro_streams(base_records(maps, self.map))]
         streams = set(self.native.get('streamHides') or {}) | set(self.native.get('streamMoves') or {})
@@ -1771,8 +1767,8 @@ class Build:
         """The relight's lightmaps put inside the variant's map, its last change (tools/bake/inline_lighting.py; EXP-86,
         F-140): every texture that names the build's cache holds all its mips inline, NeverStream, so the package has no
         texture cache to go beside the map, in CookedPCConsole or in a map pack's folder. A map that can't take them in
-        ships its cache beside it, as builds did before, and the stage says why. Sets self.inside ({cache, textures,
-        mips, bytes: what was moved; held: the map's lightmaps inside it, lighting_held}) or None.
+        fails the build, saying why: no build ships a texture cache. Sets self.inside ({cache, textures, mips, bytes:
+        what was moved; held: the map's lightmaps inside it, lighting_held}) or None.
 
         Where every texture the relight wrote is in the map already (a copy's own, sized to what it reads, F-151, or
         the map's own small ones), no cache was written, or none of the map's textures names it: the lightmaps are
@@ -1790,13 +1786,8 @@ class Build:
                 atomic_files.replace(out, target)       # (tried again while another program holds the map a moment)
             except NotNamed:
                 pass
-            except Exception as error:      # any failure: the map as it is, its cache beside it
-                shutil.copyfile(tfc, cooked_dir / tfc.name)
-                note = ('its lightmaps could not be put inside the map (%s): they are in %s, which goes in '
-                        'CookedPCConsole itself beside the map' % (error, tfc.name))
-                self.echo('note: %s' % note)
-                self.stage('inside', cache=self.cache_name, note=note)
-                return
+            except Exception as error:      # any failure fails the build: no build ships a texture cache
+                raise BuildError('the baked lightmaps could not be put inside the map (%s)' % error) from None
         self.inside = dict({k: done[k] for k in ('cache', 'textures', 'mips', 'bytes')}, held=self.lighting_held(target))
         self.stage('inside', **self.inside)
 
@@ -1872,8 +1863,9 @@ class Build:
                  **({'prefabTest': self.doc['prefabTest']} if 'prefabTest' in self.doc else {}),
                  **({'leftOut': self.left_out} if self.left_out else {}),
                  **({'shell': self.shelled} if self.shelled else {}),
-                 # cache: the texture cache the package ships (none once its lightmaps are inside the map)
-                 patch=patch, cache=None if self.inside else self.cache_name,
+                 # cache: the texture cache a package ships, None since every build keeps its lightmaps inside the map
+                 # (a package from before names its own; installs.read_package refuses it)
+                 patch=patch, cache=None,
                  **({'lightingInside': self.inside} if self.inside else {}),
                  files=files, streams=[patch] if patch else [], config=lines,
                  intros=[dict(stream=s, copy=c) for s, c in intros.items()], replaceStreams=replace,

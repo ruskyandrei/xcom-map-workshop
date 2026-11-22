@@ -5,9 +5,9 @@ installs (installs.py) check what they write against the same claims.
 
 A new project builds as its project name made one word (convert), at most LIMIT characters, numbered when that is
 taken (allocate). Its names are fixed at its first save: the map (output.shipAs), its edit patch (output.patch,
-patch_<map in lower case>), its texture cache when a build bakes one (<map>_Lighting.tfc: cache_name) and the copies a
-build makes of streamed packages (<stream>_<map>: the landing intros, and a stream whose pieces the project moves or
-deletes). Projects saved before 16 November 2026 keep the names they have (the base map's, the project's and a piece
+patch_<map in lower case>) and the copies a build makes of streamed packages (<stream>_<map>: the landing intros, and
+a stream whose pieces the project moves or deletes). A build's texture cache (<map>_Lighting: cache_name) never
+leaves its work folder, since its lightmaps go inside the map, so it holds no name in the game. Projects saved before 16 November 2026 keep the names they have (the base map's, the project's and a piece
 of its id).
 
 Names are compared regardless of case, as Windows compares file names. A name is taken (Claims) when any of these
@@ -50,7 +50,8 @@ class NamesError(Exception):
 
 
 def cache_name(variant):
-    """The texture cache a baked build of `variant` writes: <variant>_Lighting (a .tfc beside the map)."""
+    """The texture cache a baked build of `variant` writes in its work folder, whose lightmaps then go inside the map:
+    <variant>_Lighting."""
     return variant + CACHE_SUFFIX
 
 
@@ -101,9 +102,9 @@ def is_device(name):
 
 
 def derived(variant, streams=()):
-    """Every name a build of `variant` can write: the map, its patch, its texture cache and a copy of each stream in
-    `streams` (the intros and the other streams of its base map's records)."""
-    return [variant, patch_name(variant), cache_name(variant)] + [f'{s}_{variant}' for s in dict.fromkeys(streams)]
+    """Every name a build of `variant` can write: the map, its patch and a copy of each stream in `streams` (the intros
+    and the other streams of its base map's records)."""
+    return [variant, patch_name(variant)] + [f'{s}_{variant}' for s in dict.fromkeys(streams)]
 
 
 def allocate(name, taken, streams=()):
@@ -197,8 +198,6 @@ class Claims:
             label = f'the project “{document.get("name") or path.stem}”'
             for key in ('shipAs', 'patch'):
                 self.add(out.get(key), label, owner)
-            if isinstance(out.get('shipAs'), str):
-                self.add(cache_name(out['shipAs']), label, owner)
 
     def _store(self, store):
         """As _projects, from the store's cache of what each project file said (ProjectStore.claimed)."""
@@ -208,8 +207,6 @@ class Claims:
             label = f'the project “{name}”'
             for key in ('shipAs', 'patch'):
                 self.add(out.get(key), label, owner)
-            if isinstance(out.get('shipAs'), str):
-                self.add(cache_name(out['shipAs']), label, owner)
 
     def _builds(self, root):
         if not root.exists(): return

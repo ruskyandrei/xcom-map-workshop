@@ -10,9 +10,8 @@ Long War Rebalance 3.00.00 beta 15 and later read map packs from cards (tools/up
 and its maps, copied into XEW\\XComGame\\CookedPCConsole, is installed.
 
 - put: copies the pack's folder (the one holding LWRMapPack_NNNN.upk; from a zip or a folder above it, the folder in
-  it that does) into CookedPCConsole, and the .tfc files that lie beside that folder (in an exported pack, the
-  lighting cache of a map that could not take it in, which the game finds only in CookedPCConsole itself: F-140)
-  beside it, and does nothing else. Before the first put it notes what the copy's Config and CookedPCConsole
+  it that does) into CookedPCConsole, and does nothing else (an exported pack's maps hold their lighting inside
+  them: nothing goes beside the folder). Before the first put it notes what the copy's Config and CookedPCConsole
   hold (Config by SHA-256; CookedPCConsole by size and time, --hash for SHA-256 there too, which takes minutes) in
   <lab copy>\\XComLab-pack-test.json. A folder of the same name is replaced, as copying a newer version over does not:
   give --over to copy over what is there instead.
@@ -140,15 +139,6 @@ def put(source, game, over=False, hashed=False, echo=print):
         if target.exists() and not over: shutil.rmtree(target)
         shutil.copytree(folder, target, dirs_exist_ok=True)
         if folder.name not in note['folders']: note['folders'].append(folder.name)
-        # the caches beside the folder in an exported pack go beside it in the game
-        note.setdefault('caches', [])
-        for cache in sorted(folder.parent.glob('*.tfc')) if folder.parent.name == 'CookedPCConsole' else []:
-            there = cooked(game) / cache.name
-            if there.exists() and cache.name not in note['caches']:
-                raise TestError(f'{there} is there already and this test did not put it')
-            shutil.copyfile(cache, there)
-            if cache.name not in note['caches']: note['caches'].append(cache.name)
-            echo(f'put {there}')
         write_note(game, note)
         files = sorted(p.name for p in target.iterdir())
         echo(f'put {target}: {len(files)} file(s)')
@@ -217,7 +207,7 @@ def take(game, echo=print):
         if target.exists():
             shutil.rmtree(target)
             echo(f'deleted {target}')
-    for name in note.get('caches') or []:
+    for name in note.get('caches') or []:      # (a note from when exported packs put caches beside the folder)
         if (cooked(game) / name).is_file():
             (cooked(game) / name).unlink()
             echo(f'deleted {cooked(game) / name}')

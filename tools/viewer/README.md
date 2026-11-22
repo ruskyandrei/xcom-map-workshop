@@ -895,8 +895,10 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     pieces leave their shadows behind. It is for checking a layout in the game before the minutes of baking.
   - **With baking**, the copies get their own lighting and the pieces near the edit are relit, which takes minutes. The
     new lightmaps go inside the map file (`tools/bake/inline_lighting.py`), so the package has no texture cache to go
-    beside it (a package built before 19 November 2026 has its `.tfc`, and so does a map that can't take its lightmaps
-    in, its build says why). The panel says how long the project's last build of each kind took.
+    beside it; a map that can't take its lightmaps in fails the build, saying why. A package built before 19 November
+    2026 still has its `.tfc`: Play in game, Install in the game and the map pack refuse it until it is built again
+    (`installs.read_package`), and the project manager's list says so. The panel says how long the project's last
+    build of each kind took.
   - A package replaces the project's last one either way. The build window, the Project menu and the Installs section
     say when a package's lighting is not baked, and its manifest (`quick`) and README say so too.
   - The server runs one build at a time in the background ([`builds.py`](builds.py)): `POST
@@ -970,8 +972,7 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     with `_Play` after it (`_Play2` and on when one of those names is in the install already, a map pack's folder
     included), the intro copies with their map-name switches naming the play's map, and the record, landing zones
     and drop-in exclusion name it too. So a map pack of the same map (a drop-in folder or one installed with
-    Install.cmd) never meets the play, and a play never touches the project's campaign install. A texture cache keeps
-    its name: a play refuses one that differs from the campaign install's of that name.
+    Install.cmd) never meets the play, and a play never touches the project's campaign install.
   - It opens Build's panel first ([`build_options.js`](web/build_options.js)), with the same **Bake the lighting**
     choice, off by default.
     - **Build and play** builds (saving first if there are unsaved changes), and installs and plays the package when
@@ -1093,14 +1094,12 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
       install the editor reads with a case for each map after its base map's, and each map's moved landing. It
       takes the place of the builds' own copies in the folder and in the maps' lines. A map whose flight differs
       from another's of the same base map keeps its own copy (`introOwn` in `pack.json` says why).
-    - **No `.tfc`.** A baked build's lightmaps are inside its map; a build from before 19 November 2026 has its
-      cache put inside the map as it is packed (`_inline_lighting`,
-      [`tools/bake/inline_lighting.py`](../bake/inline_lighting.py)), the build itself left as it is. Only a map
-      that can't take its lighting in ships its cache, as `CookedPCConsole\<cache>.tfc` beside the folder, with a
-      warning: the game finds a `.tfc` only in `CookedPCConsole` itself, never in a folder under it (F-140).
+    - **No `.tfc`.** Every build's lightmaps are inside its map, so every file of the pack is in its folder (the game
+      finds a `.tfc` only in `CookedPCConsole` itself, never in a folder under it: F-140). A build from before 19
+      November 2026, with its `.tfc`, is left out of the pack until it is built again, and the export says so.
     - `README.txt` (both ways of installing, the classic lines to add by hand, the pictures, the notes),
       `pack.json` (schema 2: the pack's record, the card's lines as text, each map's classic lines, `switch`,
-      `keep`, landing zones and warnings, every file's SHA-256, `folderFiles`, `cacheFiles`, `introFiles`), and
+      `keep`, landing zones and warnings, every file's SHA-256, `folderFiles`, `introFiles`), and
       each build's own README and manifest under `packages\<variant>\`.
     - **`Install.cmd`** and **`Uninstall.cmd`** ([`pack_scripts.py`](pack_scripts.py); they run
       `pack-tools\pack.ps1` with Windows' own PowerShell), so whoever gets the pack needs no editor. `Install.cmd`

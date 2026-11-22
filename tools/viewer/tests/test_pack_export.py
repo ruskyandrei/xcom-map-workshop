@@ -45,12 +45,13 @@ class PackExport(unittest.TestCase):
     def test_a_project_left_out_leaves_nothing_in_the_pack(self):
         self.package()
         self.second()
-        # the second build also has a cache of the first's name with other bytes, last in its manifest: its own map
-        # was read before the conflict was found
+        # the second build also has a file of one of the first's names with other bytes, last in its manifest: its own
+        # map was read before the conflict was found
         path, m = self.manifest(OTHER)
-        (self.output / OTHER / 'CookedPCConsole' / 'Lighting_4242.tfc').write_bytes(b'other lightmaps')
-        m['files']['CookedPCConsole/Lighting_4242.tfc'] = hashlib.sha256(b'other lightmaps').hexdigest()
-        self.assertEqual(list(m['files'])[-1], 'CookedPCConsole/Lighting_4242.tfc')
+        clash = f'CIN_DropshipIntros_{VARIANT}.upk'
+        (self.output / OTHER / 'CookedPCConsole' / clash).write_bytes(b'other intro')
+        m['files'][f'CookedPCConsole/{clash}'] = hashlib.sha256(b'other intro').hexdigest()
+        self.assertEqual(list(m['files'])[-1], f'CookedPCConsole/{clash}')
         path.write_text(json.dumps(m), encoding='utf-8')
         r = manager.pack(self.store, self.builds, self.player(), dict(projects=[ID, OTHER_ID], mode='additional', name='Left out'))
         self.assertEqual(([p['variant'] for p in r['packed']], [s['id'] for s in r['skipped']]), ([VARIANT], [OTHER_ID]))
@@ -59,7 +60,7 @@ class PackExport(unittest.TestCase):
         self.assertFalse([n for n in entries if OTHER in n])
         described = json.loads(entries['pack.json'])
         self.assertEqual([m['variant'] for m in described['maps']], [VARIANT])
-        self.assertEqual(set(described['files']), {f'{VARIANT}.upk', 'Lighting_4242.tfc', f'CIN_DropshipIntros_{VARIANT}.upk'})
+        self.assertEqual(set(described['files']), {f'{VARIANT}.upk', f'CIN_DropshipIntros_{VARIANT}.upk'})
         for name, digest in described['files'].items():
             member = next(n for n in entries if n.endswith('/' + name))
             self.assertEqual(hashlib.sha256(entries[member]).hexdigest(), digest)
@@ -67,7 +68,7 @@ class PackExport(unittest.TestCase):
         self.assertEqual({m['Name'] for m in card['Maps']}, {VARIANT})
         self.assertEqual({z['MapName'] for z in card['LZArray']}, {VARIANT})
         self.assertNotIn(OTHER, entries['README.txt'].decode('latin-1'))
-        self.assertEqual(entries['CookedPCConsole/Lighting_4242.tfc'], b'lightmaps')     # the accepted build's
+        self.assertEqual(entries[f'CookedPCConsole/{r["folder"]}/{clash}'], b'intro copy')     # the accepted build's
 
     def test_a_card_line_the_card_cant_hold_leaves_its_project_out(self):
         self.package()

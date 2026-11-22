@@ -111,12 +111,14 @@ class ClaimsTests(unittest.TestCase):
         (self.builds / 'Junk').mkdir()
         (self.builds / '.work').mkdir()
         c = names.Claims(self.projects, self.builds, [source, play])
-        for name in ('barremix', 'PATCH_BARREMIX', 'BarRemix_Lighting',                 # the project's
+        for name in ('barremix', 'PATCH_BARREMIX',                                       # the project's
                      'oldbuild', 'Patch_OldBuild', 'lighting_1234', 'cin_dropshipintros_oldbuild',    # the build's
                      'junk', 'urb_bar', 'Lighting', 'hand_made',                          # a folder, both installs
                      'patch_bar', 'patch_hide_randomized_objects'):                       # streams a record loads
             with self.subTest(name):
                 self.assertTrue(c.holders(name), name)
+        # a build's texture cache never leaves its work folder (its lightmaps go inside the map): no name to hold
+        self.assertFalse(c.holders('BarRemix_Lighting'))
         self.assertFalse(c.holders('.work'))
         self.assertFalse(c.holders('Free'))
         self.assertIn('Gone', c.taken(['OldBuild']))

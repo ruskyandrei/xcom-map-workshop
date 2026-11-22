@@ -199,8 +199,9 @@ so far.
 **The relight.** [`tools/bake/relight.py`](tools/bake/relight.py) relights each component an edit reaches as a change
 on the original bake: the map's own lights through EW's lightmap codec
 ([`lightmap_encode.py`](tools/bake/lightmap_encode.py)), with shadows ([`shadows.py`](tools/bake/shadows.py), Embree),
-the emissive surfaces' area lights and one bounce. It writes the variant's texture cache, `<Variant>_Lighting.tfc`.
-The Build then puts those lightmaps inside the map ([`inline_lighting.py`](tools/bake/inline_lighting.py)).
+the emissive surfaces' area lights and one bounce. It writes the variant's texture cache, `<Variant>_Lighting.tfc`,
+in the Build's work folder. The Build then puts those lightmaps inside the map
+([`inline_lighting.py`](tools/bake/inline_lighting.py)), or fails: no build ships a texture cache.
 `PieceCache` keeps a project's last baked pieces for its next build, under a key of everything their images depend on.
 
 **The packaged map and the install.** [`tools/viewer/installs.py`](tools/viewer/installs.py) puts a package into a

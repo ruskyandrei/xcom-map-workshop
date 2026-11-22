@@ -232,8 +232,9 @@ and so does a pack made from the project:
   name is its file's (the map, its patch and its copies name none of each other: their name tables were read), so
   each is copied as it is; the intro copies' Switch Strings, which pick the landing by the map's exact name, get the
   play's name (`intro_copy.make` with the map's name as the base). The record is the Build's line under the play's
-  name, its display name starting with it; landing zones and the drop-in exclusion name it too. A texture cache keeps
-  its name (textures find it by name), so a play refuses one that differs from a campaign install's of that name.
+  name, its display name starting with it; landing zones and the drop-in exclusion name it too. Every file of a build
+  is a map package: since 22 November 2026 no build ships a texture cache, and a package from before that has one is
+  refused until it is built again.
 - **Left to see in the game**: a play beside a pack of the same map loads the play's map and lands as the build does.
 
 ### F-160: A map's background sound is one level-loaded sound with no target; another map's bed can be brought

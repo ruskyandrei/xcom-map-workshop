@@ -258,7 +258,7 @@ class ConfigLines(unittest.TestCase):
         # TempleShip, the final mission, lands no Skyranger and has no landing zones
         c = build.config_lines([record('bar')], ['LZArray=(MapName="Other")'], [], 'URB_Bar', VARIANT, PATCH, 'x')
         self.assertEqual((c['landingZones'], c['miniMods']), ([], []))
-        m = dict(variant=VARIANT, patch=PATCH, cache='Lighting_1', files={'CookedPCConsole/a.upk': 'x'}, builtAt='now',
+        m = dict(variant=VARIANT, patch=PATCH, cache=None, files={'CookedPCConsole/a.upk': 'x'}, builtAt='now',
                  project=dict(id='p', name='n', revision=1), source=dict(map='URB_Bar', sha256='s'), config=c)
         self.assertIn('nothing to add; URB_Bar has no landing zones there', build.readme(m))
 
@@ -1608,15 +1608,14 @@ class Builds(unittest.TestCase):
         self.assertIn('the build of another project', said.call_args_list[-1].args[0])
 
     def test_the_names_a_build_writes_must_be_free_for_its_project(self):
-        """Output names plan 3.4: every name the build may write (the map, its patch, its texture cache, its intro and
-        stream copies) is checked against other projects, other builds and the game install before the costly
-        stages, and again as the package goes in."""
+        """Output names plan 3.4: every name the build may write (the map, its patch, its intro and stream copies) is
+        checked against other projects, other builds and the game install before the costly stages, and again as the
+        package goes in."""
         self.spec['objects'] = [COPY, HIDE]
         cooked = self.lwr / 'XEW/XComGame/CookedPCConsole'
         cases = [
             ('another build lists the intro copy', lambda: self.foreign_build('Other_Variant', files=['%s.upk' % INTRO])),
             ('the install has the intro copy', lambda: (cooked / ('%s.upk' % INTRO)).write_bytes(b'by hand')),
-            ('the install has the cache in another case', lambda: (cooked / ('%s_lighting.tfc' % VARIANT.lower())).write_bytes(b'x')),
             ('another project has the same names', lambda: (self.project.parent / 'copy.json').write_text(
                 json.dumps(dict(self.doc, id='2222-copy', name='A copy')), encoding='utf-8')),
         ]
@@ -1629,12 +1628,12 @@ class Builds(unittest.TestCase):
                 self.assertFalse(self.tool('native_copy.py'))
                 self.assertFalse((self.output / VARIANT).exists())
                 import shutil
-                for p in [self.output / 'Other_Variant', cooked / ('%s.upk' % INTRO), cooked / ('%s_lighting.tfc' % VARIANT.lower()),
-                          self.project.parent / 'copy.json']:
+                for p in [self.output / 'Other_Variant', cooked / ('%s.upk' % INTRO), self.project.parent / 'copy.json']:
                     shutil.rmtree(p) if p.is_dir() else p.unlink(missing_ok=True)
-        # a quick build writes no cache: a file of the cache's name doesn't stop it
+        # a build's texture cache never leaves its work folder (its lightmaps go inside the map): a file of the cache's
+        # name doesn't stop it
         (cooked / ('%s_Lighting.tfc' % VARIANT)).write_bytes(b'x')
-        self.make(quick=True).run()
+        self.make().run()
         self.assertTrue((self.output / VARIANT / 'manifest.json').is_file())
         # what the editor installed for this project (its ledger says whose) is its own
         (cooked / ('%s_Lighting.tfc' % VARIANT)).unlink()
@@ -1881,22 +1880,16 @@ class Builds(unittest.TestCase):
         self.assertIsNone(m['lightingInside']['held'])
         self.assertIn('note: the lightmaps inside the map could not be counted (not a package)', self.said)
 
-    def test_a_map_that_cannot_take_its_lightmaps_in_ships_its_cache_beside_it(self):
-        """The fallback: the map as the relight made it, its <Variant>_Lighting.tfc in the package as before, and a
-        note (not a warning: the map plays as builds did before) in the stage, the log and the README."""
+    def test_a_map_that_cannot_take_its_lightmaps_in_fails_the_build(self):
+        """No build ships a texture cache: a map whose lightmaps can't be put inside it fails the build, saying why,
+        and leaves the last good package as it was."""
+        first = self.make('110000').run()
         self.inside_fails = 'not a package'
-        m = self.make().run()
-        named = VARIANT + '_Lighting'
-        self.assertIn('CookedPCConsole/%s.tfc' % named, m['files'])
-        self.assertEqual(m['cache'], named)
-        self.assertNotIn('lightingInside', m)
-        inside, = [s for s in m['stages'] if s['stage'] == 'inside']
-        self.assertIn('could not be put inside the map (not a package)', inside['note'])
-        self.assertTrue(any(line.startswith('note: ') and named + '.tfc' in line for line in self.said))
-        self.assertFalse(any(line.startswith('warning: ') for line in self.said))
-        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1 seeded')
-        self.assertIn('its lightmaps are in %s.tfc, which goes in CookedPCConsole itself' % named,
-                      (self.output / VARIANT / 'README.txt').read_text(encoding='latin-1'))
+        with self.assertRaisesRegex(build.BuildError, r'the baked lightmaps could not be put inside the map \(not a package\)'):
+            self.make('111000').run()
+        m = json.loads((self.output / VARIANT / 'manifest.json').read_text(encoding='utf-8'))
+        self.assertEqual(m['buildId'], first['buildId'])
+        self.assertFalse(list((self.output / VARIANT).rglob('*.tfc')))
 
     def test_a_package_that_cannot_be_put_in_place_leaves_the_last_one(self):
         """Output names plan 3.4: the swap is undone when the new folder can't take the old one's place."""

@@ -16,8 +16,9 @@ where it started with the map's (the words the game matches after it stay), stre
 landing-zone lines and the drop-in exclusion name the play's map. An intro copy's Switch Strings, which pick the
 landing by the map's exact name, are made to name the play's map (tools/bake/intro_copy.py, the map's name as the
 base and the play's as the variant's). A package's own name is its file's: the map, its patch and its copies hold
-no name of each other's (their name tables name none), so each is copied as it is under its new name. A file other
-than a package (a texture cache, which textures find by its name) keeps its name.
+no name of each other's (their name tables name none), so each is copied as it is under its new name. Every file of
+a package is a map package: its baked lightmaps are inside its map (installs.read_package refuses a build that ships a
+texture cache).
 
 A play's things come out once the game has closed (installs.clear_play), so the names never stay in the game.
 """
@@ -104,7 +105,7 @@ def for_play(m, files, taken, scratch, digest):
     its play name (suffix against `taken`, the install's names in lower case), an intro copy renamed inside written
     into the folder `scratch` first and hashed by `digest` (installs.sha256)."""
     variant = m['variant']
-    stems = [dst.stem for _, dst, _ in files if dst.suffix.lower() == '.upk']
+    stems = [dst.stem for _, dst, _ in files]
     if variant.lower() not in {stem.lower() for stem in stems}:
         raise PlayNameError(f'the package has no {variant}.upk')
     end = suffix(stems, taken)
@@ -113,11 +114,7 @@ def for_play(m, files, taken, scratch, digest):
     play = variant + end
     out = []
     for src, dst, sha in files:
-        new = names.get(dst.stem) if dst.suffix.lower() == '.upk' else None
-        if new is None:
-            out.append((src, dst, sha))
-            continue
-        target = dst.with_name(new + dst.suffix)
+        target = dst.with_name(names[dst.stem] + dst.suffix)
         made = Path(scratch) / target.name
         if is_intro(dst.stem) and renamed_intro(src, made, variant, play):
             out.append((made, target, digest(made)))

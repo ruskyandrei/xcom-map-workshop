@@ -575,7 +575,9 @@ def build_record(m, pristine, mission=None):
 
 def read_package(folder, game=None):
     """A variant package's manifest and its files, each checked against the manifest: (manifest, [(file, where it goes
-    in `game`'s CookedPCConsole or None without a game, sha256)])."""
+    in `game`'s CookedPCConsole or None without a game, sha256)]). Every file is a package (.upk): a build keeps its
+    baked lightmaps inside its map, so a package that ships a texture cache (.tfc) is a build from before that,
+    refused with what to do (build it again)."""
     folder = Path(folder)
     try: m = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
     except (OSError, ValueError) as error: raise InstallError(f'{folder} has no readable manifest ({error})')
@@ -585,6 +587,12 @@ def read_package(folder, game=None):
     for rel, digest in m['files'].items():
         if not re.fullmatch(settings.COOKED + r'/[A-Za-z0-9_.-]+', rel) or Path(rel).name in ('.', '..'):
             raise InstallError(f'{folder} names a file outside its package')
+        if Path(rel).suffix.lower() == '.tfc':
+            raise InstallError(f'the last build of {m.get("variant") or folder.name} has its lighting in a texture cache '
+                               f'beside the map ({Path(rel).name}), as builds before 19 November 2026 did: build the '
+                               'project again (a build now keeps its lighting inside the map)')
+        if Path(rel).suffix.lower() != '.upk':
+            raise InstallError(f'{folder} names a file that is no map package ({Path(rel).name})')
         src = folder / rel
         if not src.is_file(): raise InstallError(f'{src} is missing')
         if sha256(src) != digest: raise InstallError(f'{src} differs from its manifest; build the project again')
@@ -679,9 +687,7 @@ def preflight(game, ledger, m, files):
     from before, _owner), unchanged since it was copied; a file the editor never put there is left alone, and stays
     whoever's it is when it already has the package's bytes. The one exception: a file of the package's own names that
     the lab's deploy tools put there, with the bytes they gave it (lab_deploys), is an earlier test of the project and
-    may be replaced (_copy_files keeps it first). A play (play_names.for_play's manifest) never replaces a file a
-    campaign install holds: the one file a play keeps the name of is a texture cache, which the build installed for
-    campaigns reads by that name."""
+    may be replaced (_copy_files keeps it first)."""
     project = (m.get('project') or {}).get('id')
     variant = m['variant']
     problems = []
@@ -713,10 +719,6 @@ def preflight(game, ledger, m, files):
         elif current != digest and current != entry[1]:
             problems.append(f'{path.name} has changed since the editor installed it; it is left alone (move it '
                             f'away to install this build)')
-        elif current != digest and m.get('playOf') and dst.name.lower() in {k.lower() for k in ledger.get('files') or {}}:
-            problems.append(f'{path.name} is the lighting of the build installed for campaigns, and this build\'s '
-                            f'differs; install this build for campaigns first, or build the project again (a build '
-                            f'now keeps its lighting inside the map)')
     if problems:
         raise InstallError('Not installed: ' + '; '.join(problems) + '.')
 

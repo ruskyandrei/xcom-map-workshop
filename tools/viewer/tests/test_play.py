@@ -158,7 +158,6 @@ class Play(PlayInstalls, unittest.TestCase):
         cooked = self.lwr / 'XEW/XComGame/CookedPCConsole'
         self.assertEqual((cooked / f'{PLAY}.upk').read_bytes(), b'relit map 1')
         self.assertEqual((cooked / f'CIN_DropshipIntros_{PLAY}.upk').read_bytes(), b'intro copy')    # (names no map)
-        self.assertEqual((cooked / 'Lighting_4242.tfc').read_bytes(), b'lightmaps')          # a cache keeps its name
         self.assertFalse((cooked / f'{VARIANT}.upk').exists())
         self.assertIn(f'MapName="{PLAY}"'.encode(), self.files(self.lwr)['DefaultLZMutator.ini'])
         self.assertEqual([(i['project']['name'], i['map'], i['variant']) for i in r['game']['installed']], [('Bar remix', PLAY, VARIANT)])
@@ -178,7 +177,7 @@ class Play(PlayInstalls, unittest.TestCase):
         self.settle(player)
         done = player.remove()['removed']
         self.assertEqual((done['records'], done['landingZones'], sorted(done['files']), done['playFile']),
-                         (1, 1, sorted(['Lighting_4242.tfc', f'{PLAY}.upk', f'CIN_DropshipIntros_{PLAY}.upk']), True))
+                         (1, 1, sorted([f'{PLAY}.upk', f'CIN_DropshipIntros_{PLAY}.upk']), True))
         self.assertEqual(self.files(self.lwr), before)
         self.assertFalse((cooked / f'{PLAY}.upk').exists())
         self.assertFalse(any(player.remove()['removed'][k] for k in ('records', 'landingZones', 'files', 'playFile')))
@@ -783,22 +782,18 @@ class Play(PlayInstalls, unittest.TestCase):
         player.play(dict(project=ID))
         self.settle(player)
         cooked = self.lwr / 'XEW/XComGame/CookedPCConsole'
-        (cooked / 'Lighting_4242.tfc').write_bytes(b'edited by hand')
+        (cooked / f'{PLAY}.upk').write_bytes(b'edited by hand')
         maps_path = self.lwr / 'XEW/XComGame/Config/DefaultMaps.ini'
         maps_path.write_bytes(maps_path.read_bytes().replace(b'(XCOM Map Workshop)', b'(mine now)'))
         done = player.remove()['removed']
-        self.assertTrue((cooked / 'Lighting_4242.tfc').exists())
-        self.assertTrue(any('Lighting_4242.tfc' in note for note in done['left']))
+        self.assertTrue((cooked / f'{PLAY}.upk').exists())
+        self.assertTrue(any(f'{PLAY}.upk' in note for note in done['left']))
         self.assertEqual((done['records'], len(self.records(self.lwr, PLAY))), (0, 1))
         self.assertTrue(any('record for ' + PLAY in note for note in done['left']))
-        # the next play goes under the next play name: the record left in the game holds the first; the cache changed
-        # since is still the play's, and stops it until it is moved away
+        # the next play goes under the next play name: what is left in the game holds the first
         self.package(revision=3)
-        with self.assertRaises(ProjectError) as error: player.play(dict(project=ID))
-        self.assertIn('Lighting_4242.tfc has changed since the editor installed it', error.exception.message)
-        (cooked / 'Lighting_4242.tfc').unlink()
         self.assertEqual(player.play(dict(project=ID))['played']['map'], VARIANT + '_Play2')
-        self.assertEqual(len(self.records(self.lwr, PLAY)), 1)
+        self.assertEqual(((cooked / f'{PLAY}.upk').read_bytes(), len(self.records(self.lwr, PLAY))), (b'edited by hand', 1))
 
     def snapshot(self, game):
         """The install's config files and every file of its CookedPCConsole with its bytes."""
@@ -809,7 +804,7 @@ class Play(PlayInstalls, unittest.TestCase):
         """Output names plan 3.4: a campaign install checks the whole package before anything is written; a variant
         installed for another project, a file the editor didn't put there (named in any case) and one changed since
         are refused, and the install is left exactly as it was. A play goes under its play names beside all of them,
-        and leaves them as they are; a file it keeps the name of (a texture cache) is refused for it the same way."""
+        and leaves them as they are."""
         self.package()
         folder, cooked = self.output / VARIANT, self.lwr / 'XEW/XComGame/CookedPCConsole'
         intro = f'CIN_DropshipIntros_{VARIANT}.upk'
@@ -826,10 +821,8 @@ class Play(PlayInstalls, unittest.TestCase):
              lambda: ((cooked / intro).write_bytes(b'whose?'),
                       installs.write_ledger(self.lwr, dict(playFiles={intro: installs.sha256(cooked / intro)})))),
         ]
-        cache = ('a texture cache put there by hand', 'didn\'t put it there', lambda: (cooked / 'Lighting_4242.tfc').write_bytes(b'by hand'))
-        for what, says, make in cases + [cache]:
-            plays = (what, says, make) == cache
-            for install, refused in ((lambda: installs.install_package(self.lwr, folder), plays),
+        for what, says, make in cases:
+            for install, refused in ((lambda: installs.install_package(self.lwr, folder), False),
                                      (lambda: installs.install_rotation(self.lwr, folder, 'additional'), True)):
                 with self.subTest(what):
                     make()
@@ -844,7 +837,7 @@ class Play(PlayInstalls, unittest.TestCase):
                             self.assertEqual({n: b for n, b in after.items() if n in before[1]}, before[1])
                     finally:
                         installs.reset(self.lwr)
-                        for p in (cooked / f'{VARIANT.lower()}.upk', cooked / intro, cooked / 'Lighting_4242.tfc'): p.unlink(missing_ok=True)
+                        for p in (cooked / f'{VARIANT.lower()}.upk', cooked / intro): p.unlink(missing_ok=True)
                         (self.lwr / 'XCOM Map Workshop/play.json').unlink(missing_ok=True)
 
     def test_a_projects_own_files_are_replaced_and_others_identical_ones_kept(self):
@@ -886,16 +879,17 @@ class Play(PlayInstalls, unittest.TestCase):
         ledger['rotation'] = [dict(e, project=dict(e['project'], id=OTHER)) for e in ledger['rotation']]
         installs.write_ledger(self.lwr, ledger)
         self.package(revision=5)
-        with self.assertRaisesRegex(installs.InstallError, 'for another project'): installs.install_package(self.lwr, folder)
+        with self.assertRaisesRegex(installs.InstallError, 'for another project'):
+            installs.install_rotation(self.lwr, folder, 'additional')
         installs.reset(self.lwr)
         # a file the editor never put there with the package's bytes: used, not noted, and left by Remove from game
-        # (a play's texture cache: the one file it keeps the name of)
-        (cooked / 'Lighting_4242.tfc').write_bytes(b'lightmaps')
-        installs.install_package(self.lwr, folder)
-        self.assertNotIn('Lighting_4242.tfc', installs.read_ledger(self.lwr)['playFiles'])
+        intro = f'CIN_DropshipIntros_{VARIANT}.upk'
+        (cooked / intro).write_bytes(b'intro copy')
+        installs.install_rotation(self.lwr, folder, 'additional')
+        self.assertNotIn(intro, installs.read_ledger(self.lwr)['files'])
         installs.reset(self.lwr)
-        self.assertEqual((cooked / 'Lighting_4242.tfc').read_bytes(), b'lightmaps')
-        self.assertFalse((cooked / f'{PLAY}.upk').exists())
+        self.assertEqual((cooked / intro).read_bytes(), b'intro copy')
+        self.assertFalse((cooked / f'{VARIANT}.upk').exists())
 
     def lab(self, files):
         """A lab whose bake fixtures' installer put `files` (paths in a game) there with the bytes they have now, and
@@ -971,29 +965,29 @@ class Play(PlayInstalls, unittest.TestCase):
         self.assertFalse(installs.lab_file(found, 'URB_Bar.upk', 'x'))
         self.assertEqual(installs.lab_deploys(self.lwr, lab=Path(self.temp.name) / 'no lab'), {})
 
-    def test_a_rebuild_with_the_named_cache_leaves_the_old_one_until_everything_is_removed(self):
-        """Output names plan 4: a campaign install of a package with Lighting_<n>.tfc, then of the project's rebuild
-        with <Variant>_Lighting.tfc: both are in the game and noted as the project's; the old one is taken out only by
-        Remove everything (reset), which takes both. A play's files go when the game closes, the old cache's too."""
+    def test_a_package_with_a_texture_cache_is_refused_until_it_is_built_again(self):
+        """Every build keeps its lightmaps inside its map: a package from before (its <cache>.tfc beside the map) is
+        neither played nor installed for campaigns, and says to build it again. A cache an install of before put in the
+        game is still the editor's, and Remove from game takes it out."""
         self.package()
         folder, cooked = self.output / VARIANT, self.lwr / 'XEW/XComGame/CookedPCConsole'
-        installs.install_rotation(self.lwr, folder, 'additional')
         m = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
-        (folder / 'CookedPCConsole' / 'Lighting_4242.tfc').unlink()
-        (folder / 'CookedPCConsole' / f'{VARIANT}_Lighting.tfc').write_bytes(b'named lightmaps')
-        files = {k: v for k, v in m['files'].items() if not k.endswith('Lighting_4242.tfc')}
-        files[f'CookedPCConsole/{VARIANT}_Lighting.tfc'] = hashlib.sha256(b'named lightmaps').hexdigest()
-        (folder / 'manifest.json').write_text(json.dumps(dict(m, files=files, cache=f'{VARIANT}_Lighting')), encoding='utf-8')
-        installs.install_rotation(self.lwr, folder, 'additional')
-        ledger = installs.read_ledger(self.lwr)
-        self.assertTrue((cooked / 'Lighting_4242.tfc').is_file() and (cooked / f'{VARIANT}_Lighting.tfc').is_file())
-        self.assertEqual({ledger['owners'][n] for n in ('Lighting_4242.tfc', f'{VARIANT}_Lighting.tfc')}, {ID})
-        installs.reset(self.lwr)
-        self.assertFalse((cooked / 'Lighting_4242.tfc').exists() or (cooked / f'{VARIANT}_Lighting.tfc').exists())
-        # a play: both kinds of cache are the play's and go with it
-        self.package()
-        installs.install_package(self.lwr, folder)
-        installs.clear_play(self.lwr)
+        (folder / 'CookedPCConsole' / 'Lighting_4242.tfc').write_bytes(b'lightmaps')
+        m['files']['CookedPCConsole/Lighting_4242.tfc'] = hashlib.sha256(b'lightmaps').hexdigest()
+        (folder / 'manifest.json').write_text(json.dumps(dict(m, cache='Lighting_4242')), encoding='utf-8')
+        before = self.snapshot(self.lwr)
+        for install in (lambda: installs.install_package(self.lwr, folder),
+                        lambda: installs.install_rotation(self.lwr, folder, 'additional')):
+            with self.assertRaisesRegex(installs.InstallError, 'texture cache beside the map .Lighting_4242.tfc.*build the project again'):
+                install()
+        with self.assertRaises(ProjectError) as error: self.player().play(dict(project=ID))
+        self.assertIn('build the project again', error.exception.message)
+        self.assertEqual(self.snapshot(self.lwr), before)
+        # an install of before: its cache noted as the editor's, for this project
+        (cooked / 'Lighting_4242.tfc').write_bytes(b'lightmaps')
+        installs.write_ledger(self.lwr, dict(files={'Lighting_4242.tfc': installs.sha256(cooked / 'Lighting_4242.tfc')},
+                                             owners={'Lighting_4242.tfc': ID}))
+        self.assertEqual(installs.reset(self.lwr)['files'], ['Lighting_4242.tfc'])
         self.assertFalse((cooked / 'Lighting_4242.tfc').exists())
 
     def test_nothing_changes_while_xcom_runs(self):
@@ -1026,7 +1020,7 @@ class Play(PlayInstalls, unittest.TestCase):
         play = json.loads((self.lwr / 'XCOM Map Workshop/play.json').read_text(encoding='utf-8'))
         main = json.loads((self.lwr / 'XCOM Map Workshop/installs.json').read_text(encoding='utf-8'))
         self.assertEqual((play['schema'], [b['variant'] for b in play['records']], sorted(play['playFiles']), len(play['playZones'])),
-                         (installs.PLAY_SCHEMA, [PLAY], sorted(['Lighting_4242.tfc', f'{PLAY}.upk', f'CIN_DropshipIntros_{PLAY}.upk']), 1))
+                         (installs.PLAY_SCHEMA, [PLAY], sorted([f'{PLAY}.upk', f'CIN_DropshipIntros_{PLAY}.upk']), 1))
         self.assertFalse(any(main.get(k) for k in installs.PLAY_KEYS + ('files', 'landingZones', 'rotation')))
         self.assertTrue(r['game']['play'])
         # the game closes: all of it is out, and the config files are byte for byte as they were
@@ -1055,12 +1049,12 @@ class Play(PlayInstalls, unittest.TestCase):
         campaign = self.files(self.lwr)
         self.assertIn(f'MapName="{VARIANT}"'.encode(), campaign['DefaultLZMutator.ini'])
         # a play of the same build beside it, under its play names: its record and files go when the game closes, the
-        # campaign's stay; the texture cache, the one file a play keeps the name of, is the campaign's and stays
+        # campaign's stay
         player.play(dict(project=ID))
         self.assertEqual((len(self.records(self.lwr, VARIANT)), len(self.records(self.lwr, PLAY))), (1, 1))
         self.close_game(player)
         self.assertEqual(self.files(self.lwr), campaign)
-        self.assertTrue((cooked / f'{VARIANT}.upk').is_file() and (cooked / 'Lighting_4242.tfc').is_file())
+        self.assertTrue((cooked / f'{VARIANT}.upk').is_file())
         self.assertFalse((cooked / f'{PLAY}.upk').exists())
         # a play of a newer build of it: the campaign's build is left as it is
         self.package(revision=2)
@@ -1069,17 +1063,8 @@ class Play(PlayInstalls, unittest.TestCase):
         self.close_game(player)
         self.assertEqual((cooked / f'{VARIANT}.upk').read_bytes(), b'relit map 1')
         self.assertEqual(self.files(self.lwr), campaign)
-        # ...but not with a texture cache of its own under the campaign's cache's name, which the campaign's map reads
-        folder = self.output / VARIANT
-        (folder / 'CookedPCConsole' / 'Lighting_4242.tfc').write_bytes(b'newer lightmaps')
-        m = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
-        m['files']['CookedPCConsole/Lighting_4242.tfc'] = hashlib.sha256(b'newer lightmaps').hexdigest()
-        (folder / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
-        with self.assertRaises(ProjectError) as error: player.play(dict(project=ID))
-        self.assertIn('Lighting_4242.tfc is the lighting of the build installed for campaigns', error.exception.message)
-        self.assertEqual((cooked / 'Lighting_4242.tfc').read_bytes(), b'lightmaps')
         # the other way round: in the game from a play, then installed for campaigns before the game closes: the
-        # campaign takes the play's cache over, and the play's own files go when the play is cleared
+        # play's files go when the play is cleared, the campaign's stay
         installs.reset(self.lwr)
         self.assertEqual(self.files(self.lwr), before)
         self.package()
@@ -1088,7 +1073,7 @@ class Play(PlayInstalls, unittest.TestCase):
         self.settle(quiet)
         manager.install(self.store, self.builds, quiet, dict(projects=[ID], mode='additional'))
         self.assertEqual(sorted(installs.clear_play(self.lwr)['files']), sorted([f'{PLAY}.upk', f'CIN_DropshipIntros_{PLAY}.upk']))
-        self.assertTrue((cooked / f'{VARIANT}.upk').is_file() and (cooked / 'Lighting_4242.tfc').is_file())
+        self.assertTrue((cooked / f'{VARIANT}.upk').is_file())
         self.assertIn(f'MapName="{VARIANT}"'.encode(), self.files(self.lwr)['DefaultLZMutator.ini'])
         self.assertEqual((len(self.records(self.lwr, VARIANT)), len(self.records(self.lwr, PLAY))), (1, 0))
         installs.reset(self.lwr)

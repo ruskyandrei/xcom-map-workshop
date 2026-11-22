@@ -28,17 +28,15 @@ have been played in the game with a variant. All of that is said as warnings, ne
                                                          (LWRMapPack_<nnnn>.upk, tools/upk/pack_card.py) and a README.
                                                          Copied into a game's CookedPCConsole it is installed on
                                                          Long War Rebalance 3.00.00 beta 15 or later
-                                                         Each map holds its build's baked lighting inside it
-                                                         (tools/bake/inline_lighting.py): the game finds a .tfc only
-                                                         in CookedPCConsole itself, never in a folder (F-140). A build
-                                                         since 19 November 2026 has it inside already; an older one's
-                                                         cache is put inside here
+                                                         Each map holds its build's baked lighting inside it, as every
+                                                         build does: the game finds a .tfc only in CookedPCConsole
+                                                         itself, never in a folder (F-140). A build from before 19
+                                                         November 2026, with its .tfc, is left out until it is built
+                                                         again (installs.read_package says so)
                                                          One copy of each landing intro for all the maps,
                                                          <Intro>_<Folder>_<card number>.upk (intro_copy.py pack_copy,
                                                          F-142), in place of each build's own; a map whose flight
                                                          differs from another's of its base keeps its own
-                            CookedPCConsole/*.tfc       only for a map whose lighting could not be put inside it
-                                                         (a warning says so): its build's cache, beside the folder
                             Install.cmd, Uninstall.cmd   put the pack into any game folder and take it out again
                                                          (pack_scripts.py): the folder where the game reads cards,
                                                          else the files and the lines in DefaultMaps.ini
@@ -168,6 +166,9 @@ def listing(projects, builds, player):
         if build and build['quick']: warnings.append('Its last build is a quick one: its lighting is not baked.')
         if build and build['stale']:
             warnings.append(f'Its last build is of revision {build["revision"]}; the project is at revision {summary.get("revision")}.')
+        if m and any(str(f).lower().endswith('.tfc') for f in m.get('files') or {}):
+            warnings.append('Its last build has its lighting in a texture cache beside the map, as builds before 19 November '
+                            '2026 did: build it again to install or pack it.')
         by_mode = {mode: _mode_warnings(lines, m, missions, summary.get('map'), mode, lwr) for mode in installs.ROTATION_MODES}
         in_game = None
         if variant in played or variant in rotation:
@@ -263,7 +264,7 @@ def pack_readme(pack, parts):
     no record for their missions), landingZones (text lines or None), warnings, quick)."""
     replace = any(p['mode'] == 'replace' for p in parts)
     mixed = pack['mode'] == 'mixed'
-    folder, caches = pack['folder'], pack.get('cacheFiles') or []
+    folder = pack['folder']
     card = pack['card']
     lines = [
         '%s: %d map%s made with the XCOM Map Workshop %s, %s.' % (pack['pack']['name'] + ' v%d' % pack['pack']['version'],
@@ -284,14 +285,8 @@ def pack_readme(pack, parts):
         'LONG WAR REBALANCE 3.00.00 beta 15 or later (with XCOM closed): open the CookedPCConsole folder of this zip and copy',
         'what is in it into the game\'s ...\\XCom-Enemy-Unknown\\XEW\\XComGame\\CookedPCConsole:',
         '     the folder %s' % folder,
-    ]
-    lines += ['     %s' % c for c in caches]
-    if caches:
-        lines += ['The .tfc files hold the maps\' baked lighting and must lie in CookedPCConsole itself, beside the folder: inside',
-                  'the folder the game does not find them.']
-    lines += [
         'Nothing else is needed: no file of the game is changed. Install.cmd does the same copying for you.',
-        'To take the pack out, delete the folder%s. To check it, type' % (' and those .tfc files' if caches else ''),
+        'To take the pack out, delete the folder. To check it, type',
         '   Mutate LWRMapTest Packs',
         'in the game\'s console: it lists the pack\'s card (number %04d, "%s") and each map line as used or not.' % (card['number'], card['packName']),
         'If another pack has a card with the same number, rename one of the two files, keeping LWRMapPack_ and four digits.',
@@ -400,7 +395,7 @@ def pack_readme(pack, parts):
 
 def folder_readme(pack, parts):
     """The README inside the pack's folder: what the folder is, for whoever finds it in CookedPCConsole."""
-    record, caches = pack['pack'], pack.get('cacheFiles') or []
+    record = pack['pack']
     lines = ['%s v%d: a map pack for Long War Rebalance 3.00.00 beta 15 or later, made with the XCOM Map Workshop %s.'
              % (record['name'], record['version'], pack['editorVersion'])]
     if record.get('author'): lines += ['By %s.' % record['author']]
@@ -410,9 +405,7 @@ def folder_readme(pack, parts):
     lines += ['  %s: the landing intro (%s) of %s' % (file, intro['stream'], ', '.join(intro['maps']))
               for file, intro in (pack.get('introFiles') or {}).items()]
     lines += ['', 'Files of this folder:'] + ['  %s' % n for n in pack['folderFiles']]
-    if caches:
-        lines += ['', 'Beside this folder, in CookedPCConsole itself (the maps\' baked lighting):'] + ['  %s' % n for n in caches]
-    lines += ['', 'To take the pack out, delete this folder%s.' % (' and those .tfc files' if caches else ''), '']
+    lines += ['', 'To take the pack out, delete this folder.', '']
     return EOL.join(lines)
 
 
@@ -459,36 +452,10 @@ def pack(projects, builds, player, request, now=None):
 
 
 def _scratch(builds):
-    """A folder beside the zips for the pack's maps with their lighting put inside, deleted with all in it."""
+    """A folder beside the zips for the pack's own copies of the landing intros, deleted with all in it."""
     folder = builds.output / PACKS
     folder.mkdir(parents=True, exist_ok=True)
-    return tempfile.TemporaryDirectory(prefix='.inline-', dir=folder)
-
-
-def _inline_lighting(parts, files, work):
-    """Each build's own lighting cache put inside its maps (tools/bake/inline_lighting.py): the game finds a .tfc only
-    in CookedPCConsole itself, never in a pack's folder (F-140). A build since 19 November 2026 ships its map with the
-    lightmaps inside already and no cache, so this is for builds made before (or a map its build couldn't do). A build's map (the relight writes into the cache for
-    the map alone) is written into `work` with each mip of that cache inside it (and NeverStream: loaded whole with
-    the map) and takes the built map's place in `files` ({name: (source, SHA-256)}); the cache then leaves `files` and
-    the part's file list, and the part records it (lightingInside). A map that can't take it in goes as it is, with
-    its cache beside the folder, and a warning says why."""
-    paths.use('bake')
-    import inline_lighting
-    for p in parts:
-        cache, n = p.get('cache'), f'{p["variant"]}.upk'
-        tfc = f'{cache}.tfc' if cache else None
-        if tfc not in p['files'] or n not in p['files']: continue
-        try: done = inline_lighting.inline(files[n][0], work / n, cache, files[tfc][0], echo=lambda *_: None)
-        except inline_lighting.NotNamed: continue           # the cache is not the map's: nothing to move
-        except Exception as error:                          # any failure: the map as it is, its cache beside
-            p['warnings'].append(f'Its baked lighting could not be put inside the map ({error}): its {tfc} goes beside the '
-                                 'pack\'s folder, in CookedPCConsole itself, where the game finds it.')
-            continue
-        files[n] = (work / n, done['sha256'])
-        files.pop(tfc)
-        p['files'] = [f for f in p['files'] if f != tfc]
-        p['lightingInside'] = {k: done[k] for k in ('cache', 'textures', 'mips', 'bytes')}
+    return tempfile.TemporaryDirectory(prefix='.pack-', dir=folder)
 
 
 def _intro_actions(m):
@@ -666,7 +633,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
             # the card's lines typed now: one the card can't hold leaves this project out, with why (review finding 44)
             pack_card.from_lines('check', mine + picture_lines + zone_lines)
             part = dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
-                              cache=m.get('cache'), intros=_intros_of(m), introActions=_intro_actions(m),
+                              intros=_intros_of(m), introActions=_intro_actions(m),
                               revision=(m.get('project') or {}).get('revision'), buildId=m.get('buildId'), folder=folder,
                               files=sorted(src.name for src, _, _ in package_files),
                               records=[l.decode('latin-1') for l in plan['block']], switch=switch, keep=keep,
@@ -729,9 +696,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
     other = packs.installed_cards(cooked).get(record['card'])
     if other is not None and other.parent.name.lower() != pack_folder.lower():
         notes.append(f'The install the editor reads has another card numbered {record["card"]:04d}, in the folder {other.parent.name}.')
-    _inline_lighting(parts, files, work)
-    caches = sorted(n for n in files if n.lower().endswith('.tfc'))
-    in_folder = sorted([n for n in files if n not in caches] + [card_file, 'README.txt'], key=str.lower)
+    in_folder = sorted(list(files) + [card_file, 'README.txt'], key=str.lower)
     described = dict(schema=PACK_SCHEMA, schemaVersion=2, editorVersion=VERSION, name=name, mode=mode,
                      id=pack_folder, folder=pack_folder, pack=record,
                      card=dict(file=card_file, number=record['card'], packName=pack_name, lines=card_lines),
@@ -740,12 +705,11 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
                                               'records', 'switch', 'keep', 'landingZones', 'donors', 'warnings', 'cardLines',
                                               'ownPicture', 'pictureFrom')},
                            **({'ownZones': True} if p.get('ownZones') else {}),
-                           **({'lightingInside': p['lightingInside']} if p.get('lightingInside') else {}),
                            **({'introShared': p['introShared']} if p.get('introShared') else {}),
                            **({'introOwn': p['introOwn']} if p.get('introOwn') else {}),
                            **({'dropInExclusion': p['dropInExclusion']} if p.get('dropInExclusion') else {})} for p in parts],
                      files={n: digest for n, (_, digest) in sorted(files.items())},
-                     folderFiles=in_folder, cacheFiles=caches, introFiles=intro_files, notes=notes,
+                     folderFiles=in_folder, introFiles=intro_files, notes=notes,
                      **({'projects': shared} if shared else {}))
     folder = builds.output / PACKS
     target = folder / record['zip']
@@ -766,7 +730,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
             z.writestr(f'{COOKED}/{pack_folder}/README.txt',
                        scrub(folder_readme(described, parts)).encode('latin-1', 'replace'))
             for n, (src, _) in sorted(files.items()):
-                z.write(src, f'{COOKED}/{n}' if n in caches else f'{COOKED}/{pack_folder}/{n}')
+                z.write(src, f'{COOKED}/{pack_folder}/{n}')
             for p in parts:
                 readme, manifest = p['folder'] / 'README.txt', p['folder'] / 'manifest.json'
                 if readme.is_file():

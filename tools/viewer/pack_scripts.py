@@ -6,9 +6,8 @@ Install asks for the game folder (or takes it as its argument; it offers the Ste
 while XCOM runs. Then one of two ways (a third argument, cards or classic, forces one):
 
 - The game's script reads map pack cards (its XComMutator.u holds the name LWRMapPackCard: Long War Rebalance 3.00.00
-  beta 15 or later): the pack's folder is copied into CookedPCConsole (any lighting cache a map could not take in
-  beside the folder: the game finds a .tfc only there, F-140), and the
-  drop-in exclusion lines added where a map asks for them (a card can't carry them). No other file of the game is
+  beta 15 or later): the pack's folder is copied into CookedPCConsole (each map holds its baked lighting inside it,
+  so nothing goes beside the folder), and the drop-in exclusion lines added where a map asks for them (a card can't carry them). No other file of the game is
   touched. It names another pack's card of the same number and a file of the same name elsewhere under
   CookedPCConsole. Uninstall deletes the files it copied (the folder too, once empty) and those lines.
 - Any other install, the classic way: it keeps copies of DefaultMaps.ini and DefaultLZMutator.ini as they are, copies the pack's files, adds each
@@ -50,7 +49,7 @@ PS1 = r'''# Installs a map pack made with the XCOM Map Workshop into a game fold
 #   pack.ps1 install [<game folder> [cards|classic]]      pack.ps1 uninstall [<game folder>]
 # Run by Install.cmd and Uninstall.cmd beside the pack's README. What it does is in the README.
 # An install whose script reads map pack cards (Long War Rebalance 3.00.00 beta 15 or later) gets the pack's folder
-# copied into CookedPCConsole and its lighting caches beside it; any other gets the maps' files and their lines in
+# copied into CookedPCConsole; any other gets the maps' files and their lines in
 # DefaultMaps.ini. The third argument forces one way.
 param([Parameter(Position = 0)][string]$Action = 'install', [Parameter(Position = 1)][string]$Game = '',
       [Parameter(Position = 2)][string]$Route = '')
@@ -152,14 +151,9 @@ $backup = Join-Path $stateFolder "$($pack.id)-before"
 $packFolder = $pack.folder
 $sourceRoot = Join-Path $root 'CookedPCConsole'
 $sourceFolder = Join-Path $sourceRoot $packFolder
-$caches = [string[]]@($pack.cacheFiles)
 
-# Where a file of the pack lies in the unzipped pack: in the pack's folder, or (a lighting cache) beside it.
-function Source-Of([string]$name) {
-    $inFolder = Join-Path $sourceFolder $name
-    if (Test-Path -LiteralPath $inFolder) { return $inFolder }
-    return Join-Path $sourceRoot $name
-}
+# Where a file of the pack lies in the unzipped pack: in the pack's folder.
+function Source-Of([string]$name) { return Join-Path $sourceFolder $name }
 # Whether the game's script reads map pack cards: its XComMutator.u has the card's class.
 function Test-Cards {
     $script = Join-Path $cooked 'XComMutator.u'
@@ -208,7 +202,7 @@ function Uninstall-Pack {
     $state = Get-Content -Raw -Encoding UTF8 -LiteralPath $statePath | ConvertFrom-Json
     $left = @()
     if ($state.route -eq 'cards') {
-        # the folder's files and the caches beside it, each deleted if unchanged; the folder goes once empty. While the
+        # the files it copied, each deleted if unchanged; the folder goes once empty. While the
         # card stays (changed since), it names the maps, and they stay too.
         $keep = @{ files = @(); exclusions = @() }
         $cardStays = $false
@@ -317,15 +311,15 @@ foreach ($name in $names) {
     $from = Source-Of $name
     if (-not (Test-Path -LiteralPath $from)) { Fail "$name is missing from the pack: unzip the whole pack first." }
     if ((Sha $from) -ne $pack.files.$name) { Fail "$name in the pack is damaged (its checksum differs)." }
-    # in CookedPCConsole itself go every file the classic way, and the lighting caches either way
-    if ($useCards -and $caches -notcontains $name) { continue }
+    # in CookedPCConsole itself go every file the classic way
+    if ($useCards) { continue }
     $to = Join-Path $cooked $name
     if ((Test-Path -LiteralPath $to) -and (Sha $to) -ne $pack.files.$name) {
         Fail "The game already has another $name. Nothing was changed; take that file's owner out first."
     }
 }
 if ($useCards) {
-    # ---- an install that reads map pack cards: the folder copied, the caches beside it, nothing else
+    # ---- an install that reads map pack cards: the folder copied, nothing else
     $cardPath = Join-Path $sourceFolder $pack.card.file
     if (-not (Test-Path -LiteralPath $cardPath)) { Fail "$($pack.card.file) is missing from the pack: unzip the whole pack first." }
     $target = Join-Path $cooked $packFolder
@@ -361,12 +355,6 @@ if ($useCards) {
         Copy-Item -LiteralPath (Join-Path $sourceFolder $name) -Destination $to -Force
         $copied += @{ name = "$packFolder\$name"; sha256 = (Sha $to) }
     }
-    foreach ($name in $caches) {
-        $to = Join-Path $cooked $name
-        if (Test-Path -LiteralPath $to) { continue }        # there already, the same file: it is not this pack's to delete
-        Copy-Item -LiteralPath (Source-Of $name) -Destination $to
-        $copied += @{ name = $name; sha256 = $pack.files.$name }
-    }
     $state = @{ pack = $pack.id; name = $pack.name; mode = $pack.mode; route = 'cards'; folder = $packFolder;
                 installedAt = (Get-Date).ToString('s'); exclusions = $exclusions; files = $copied }
     ConvertTo-Json $state -Depth 6 | Set-Content -Encoding UTF8 -LiteralPath $statePath
@@ -377,7 +365,6 @@ if ($useCards) {
         if ($map.mode -eq 'replace' -or (-not $map.mode -and $pack.mode -eq 'replace')) { $how = 'in its place' }
         Write-Host "  $($map.variant): $($map.name), a variant of $($map.base), $how"
     }
-    if ($caches.Count) { Write-Host "$($caches.Count) lighting cache file(s) lie beside the folder, in CookedPCConsole itself." }
     if ($exclusions.Count) { Write-Host "$($exclusions.Count) drop-in exclusion(s) were added to DefaultRandomSpawns.ini (a card can't carry them)." }
     foreach ($note in $notes) { Write-Host "  Note: $note" -ForegroundColor Yellow }
     $changed = 'No file of the game was changed.'

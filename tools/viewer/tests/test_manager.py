@@ -35,8 +35,6 @@ from viewer import Handler, LocalServer  # noqa: E402
 sys.path.insert(0, str(HERE.parents[1] / 'lab'))
 import labpaths  # noqa: E402
 
-# URB_Bar as shipped, for the pack whose map holds its lighting inside: without it that test skips
-BAR, NO_BAR = labpaths.test_file('XCOM_BAR_UPK', labpaths.lwr_cooked('URB_Bar.upk'), 'URB_Bar.upk')
 # the game's landing intro, for the pack's one copy of it: without it that test skips
 INTRO, NO_INTRO = labpaths.test_file('XCOM_INTRO_UPK', labpaths.lwr_cooked('CIN_DropshipIntros.upk'), 'CIN_DropshipIntros.upk')
 UNBUILT_ID, MISSING_ID = '2b3c4d5e-1d2a-4b6c-8e9f-123456789abc', '3c4d5e6f-1d2a-4b6c-8e9f-123456789abc'
@@ -373,11 +371,6 @@ class Manager(ManagerInstalls, unittest.TestCase):
     def test_a_pack_beside_the_maps_keeps_names_of_its_own_and_borrows_pictures(self):
         self.more_missions(self.lwr)
         self.package()
-        (self.output / VARIANT / 'CookedPCConsole' / f'{VARIANT}_Lighting.tfc').write_bytes(b'cache')
-        m = json.loads((self.output / VARIANT / 'manifest.json').read_text(encoding='utf-8'))
-        m['files'][f'CookedPCConsole/{VARIANT}_Lighting.tfc'] = hashlib.sha256(b'cache').hexdigest()
-        m['cache'] = f'{VARIANT}_Lighting'          # a map that can't take it in (not a real package): it goes beside
-        (self.output / VARIANT / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
         import pictures
         with mock.patch.object(pictures, 'base_library', lambda cooked, name: 'UILibrary_MapImages' if name == 'URB_Bar' else None):
             r = manager.pack(self.store, self.builds, self.player(), dict(projects=[ID], mode='additional', name='Beside', author='A. N. Author'))
@@ -386,17 +379,10 @@ class Manager(ManagerInstalls, unittest.TestCase):
             described = json.loads(z.read('pack.json'))
             held = pack_card.read(z.read(f'CookedPCConsole/Beside/{described["card"]["file"]}'))
             readme = z.read('README.txt').decode('latin-1')
-        # a lighting cache the map could not take in lies beside the folder (inside it the game does not find it:
-        # F-140), and a warning says why
-        self.assertIn(f'CookedPCConsole/{VARIANT}_Lighting.tfc', names)
-        self.assertNotIn(f'CookedPCConsole/Beside/{VARIANT}_Lighting.tfc', names)
-        self.assertIn(f'{VARIANT}_Lighting.tfc', described['cacheFiles'])
-        self.assertTrue(all(n.endswith('.tfc') for n in described['cacheFiles']))
-        self.assertNotIn(f'{VARIANT}_Lighting.tfc', described['folderFiles'])
-        self.assertIn(f'     {VARIANT}_Lighting.tfc', readme)
-        warning, = [w for w in r['packed'][0]['warnings'] if 'inside the map' in w]
-        self.assertIn(f'its {VARIANT}_Lighting.tfc goes beside the pack\'s folder', warning)
-        self.assertNotIn('lightingInside', described['maps'][0])
+        # every file of the pack is in its folder: each map holds its lighting inside it
+        self.assertEqual({n for n in names if n.startswith('CookedPCConsole/')},
+                         {f'CookedPCConsole/Beside/{n}' for n in described['folderFiles']})
+        self.assertNotIn('cacheFiles', described)
         self.assertEqual(described['files'][f'{VARIANT}.upk'], hashlib.sha256(b'relit map 1').hexdigest())
         self.assertEqual(held['PackName'], 'Beside v1 by A. N. Author')
         self.assertIn('By A. N. Author.', readme)
@@ -408,46 +394,33 @@ class Manager(ManagerInstalls, unittest.TestCase):
         self.assertEqual(described['maps'][0]['pictureFrom'], 'UILibrary_MapImages.URB_Bar')
         self.assertEqual(r['notes'], [])
 
-    @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
-    def test_a_packs_maps_hold_their_lighting_inside_and_no_cache_goes_along(self):
-        """The game finds a .tfc only in CookedPCConsole itself (F-140): each map of the pack holds its build's baked
-        lighting inside it (inline_lighting.py), and the pack has no .tfc. The build itself stays as it is."""
-        import lighting_records as lighting
-        import lighting_fixture as fx
+    def test_a_build_with_a_texture_cache_is_left_out_of_a_pack_until_it_is_built_again(self):
+        """Every build keeps its lightmaps inside its map (the game finds a .tfc only in CookedPCConsole itself, F-140),
+        so no .tfc goes along with a pack: a build from before, its cache beside the map, is left out and says to
+        build it again, and the project manager's list says so too."""
         self.package()
+        self.second()
         cooked = self.output / VARIANT / 'CookedPCConsole'
-        (cooked / 'Lighting_4242.tfc').unlink()
-        fx.run(BAR, cooked, VARIANT, [dict(op='redirect', texture='NormalizedAverageColor0_5')], cache='Lighting_7006')
+        (cooked / 'Lighting_4242.tfc').write_bytes(b'lightmaps')
         m = json.loads((self.output / VARIANT / 'manifest.json').read_text(encoding='utf-8'))
-        del m['files']['CookedPCConsole/Lighting_4242.tfc']
-        for n in (f'{VARIANT}.upk', 'Lighting_7006.tfc'): m['files'][f'CookedPCConsole/{n}'] = hashlib.sha256((cooked / n).read_bytes()).hexdigest()
-        m['cache'] = 'Lighting_7006'
+        m['files']['CookedPCConsole/Lighting_4242.tfc'] = hashlib.sha256(b'lightmaps').hexdigest()
+        m['cache'] = 'Lighting_4242'
         (self.output / VARIANT / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
-        built = (cooked / f'{VARIANT}.upk').read_bytes()
-        r = manager.pack(self.store, self.builds, self.player(), dict(projects=[ID], mode='additional', name='Inside'))
+        player = self.player()
+        listed = manager.listing(self.store, self.builds, player)
+        self.assertTrue(any('texture cache beside the map' in w for w in self.row(listed)['warnings']))
+        self.assertFalse(any('texture cache' in w for w in self.row(listed, OTHER_ID)['warnings']))
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID, OTHER_ID], mode='additional', name='Inside'))
+        skipped, = r['skipped']
+        self.assertEqual(skipped['id'], ID)
+        self.assertIn('build the project again', skipped['error'])
         with zipfile.ZipFile(r['zip']) as z:
             names = set(z.namelist())
             described = json.loads(z.read('pack.json'))
-            packed = z.read(f'CookedPCConsole/Inside/{VARIANT}.upk')
-            readme, inner = z.read('README.txt').decode('latin-1'), z.read('CookedPCConsole/Inside/README.txt').decode('latin-1')
-        self.assertFalse([n for n in names if n.lower().endswith('.tfc')], r['packed'][0]['warnings'])
-        self.assertEqual((described['cacheFiles'], described['maps'][0]['files']), ([], sorted([f'{VARIANT}.upk', f'CIN_DropshipIntros_{VARIANT}.upk'])))
-        inside = described['maps'][0]['lightingInside']
-        self.assertEqual((inside['cache'], inside['textures']), ('Lighting_7006', 1))
-        self.assertGreater(inside['mips'], 0)
-        self.assertEqual(described['files'][f'{VARIANT}.upk'], hashlib.sha256(packed).hexdigest())
-        self.assertNotIn('.tfc', readme + inner)
-        self.assertFalse(r['packed'][0]['warnings'])
-        written = Path(self.temp.name) / 'packed.upk'
-        written.write_bytes(packed)
-        q = lighting.Package(written)
-        k = q.by_name['NormalizedAverageColor0_5']
-        self.assertIsNone(q.effective(k, 'TextureFileCacheName'))
-        self.assertIs(q.effective(k, 'NeverStream'), True)
-        self.assertEqual(q.effective(q.by_name['DirectionalMaxComponent0_5'], 'TextureFileCacheName'), 'Lighting')
-        # the build is as it was, and the scratch folder is gone
-        self.assertEqual((cooked / f'{VARIANT}.upk').read_bytes(), built)
-        self.assertTrue((cooked / 'Lighting_7006.tfc').is_file())
+            readme = z.read('README.txt').decode('latin-1')
+        self.assertFalse([n for n in names if n.lower().endswith('.tfc')])
+        self.assertEqual([p['variant'] for p in described['maps']], [OTHER])
+        self.assertNotIn('.tfc', readme)
         self.assertEqual([p.name for p in (self.output / manager.PACKS).iterdir()], [Path(r['zip']).name])
 
     def real_intro(self, variant, moves=None):
@@ -608,10 +581,6 @@ class Manager(ManagerInstalls, unittest.TestCase):
         held = sorted(str(p.relative_to(cooked)) for p in cooked.rglob('*'))
         self.package()
         self.second()
-        (self.output / VARIANT / 'CookedPCConsole' / f'{VARIANT}_Lighting.tfc').write_bytes(b'cache')
-        m = json.loads((self.output / VARIANT / 'manifest.json').read_text(encoding='utf-8'))
-        m['files'][f'CookedPCConsole/{VARIANT}_Lighting.tfc'] = hashlib.sha256(b'cache').hexdigest()
-        (self.output / VARIANT / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
         player = self.player()
         r = manager.pack(self.store, self.builds, player, dict(projects=[ID, OTHER_ID], mode='additional', name='Card pack'))
         folder = Path(self.temp.name) / 'unzipped cards'
@@ -623,9 +592,7 @@ class Manager(ManagerInstalls, unittest.TestCase):
         self.assertEqual(self.files(self.copy), before)                  # no config file is touched
         there = cooked / 'Card_pack'
         self.assertEqual(sorted(p.name for p in there.iterdir()),
-                         sorted([card, 'README.txt', f'{VARIANT}.upk', f'CIN_DropshipIntros_{VARIANT}.upk', f'{OTHER}.upk']
-                                + [n for n in m['files'] if False]))
-        self.assertEqual((cooked / f'{VARIANT}_Lighting.tfc').read_bytes(), b'cache')      # beside the folder (F-140)
+                         sorted([card, 'README.txt', f'{VARIANT}.upk', f'CIN_DropshipIntros_{VARIANT}.upk', f'{OTHER}.upk']))
         self.assertFalse((cooked / f'{VARIANT}.upk').exists())
         self.assertEqual((there / card).read_bytes(), (folder / 'CookedPCConsole' / 'Card_pack' / card).read_bytes())
         # a newer version over it: the earlier one's files go first, the folder is the new version's

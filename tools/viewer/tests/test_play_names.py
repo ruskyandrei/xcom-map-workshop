@@ -70,11 +70,11 @@ class Names(unittest.TestCase):
         self.assertEqual(m['variant'], 'Map')                   # the build's own manifest is left as it was
         self.assertEqual(m['config']['maps'], [line])
 
-    def test_each_package_gets_the_suffix_and_a_texture_cache_keeps_its_name(self):
+    def test_each_package_gets_the_suffix(self):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
             files = []
-            for name, data in (('Map.upk', b'map'), ('CIN_DropshipIntros_Map.upk', b'no name in it'), ('Map_Lighting.tfc', b'lightmaps')):
+            for name, data in (('Map.upk', b'map'), ('CIN_DropshipIntros_Map.upk', b'no name in it'), ('patch_map.upk', b'patch')):
                 (d / name).write_bytes(data)
                 files.append((d / name, Path('game') / name, sha(data)))
             m = dict(variant='Map', source=dict(map='URB_Bar'), streams=[], replaceStreams={'CIN_DropshipIntros': 'CIN_DropshipIntros_Map'})
@@ -83,7 +83,7 @@ class Names(unittest.TestCase):
             self.assertEqual([(src.name, dst.name, h) for src, dst, h in played],
                              [('Map.upk', 'Map_Play2.upk', sha(b'map')),
                               ('CIN_DropshipIntros_Map.upk', 'CIN_DropshipIntros_Map_Play2.upk', sha(b'no name in it')),
-                              ('Map_Lighting.tfc', 'Map_Lighting.tfc', sha(b'lightmaps'))])
+                              ('patch_map.upk', 'patch_map_Play2.upk', sha(b'patch'))])
             self.assertFalse((d / 'scratch').exists())           # an intro copy that names no map is copied as it is
             # an intro copy that names the map but can't be read is no play
             (d / 'CIN_DropshipIntros_Map.upk').write_bytes(b'... Map ...')
