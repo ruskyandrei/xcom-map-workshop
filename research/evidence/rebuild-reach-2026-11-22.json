@@ -1,0 +1,1349 @@
+{
+ "sampleHalf": [
+  152.0,
+  152.0,
+  136.0
+ ],
+ "maps": [
+  {
+   "map": "Act1_IntroLevel",
+   "template": "LightmassImportanceVolume_1",
+   "templateClass": "LightmassImportanceVolume",
+   "brushExtent": [
+    3353.25,
+    1673.24,
+    648.51
+   ],
+   "brushSphere": 3803.23,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 797.6,
+   "tilesInGame": 8.3
+  },
+  {
+   "map": "Act2_Pier",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    360.0,
+    216.0,
+    320.0
+   ],
+   "brushSphere": 527.88,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 371.5,
+   "tilesInGame": 3.9
+  },
+  {
+   "map": "Act2_Pier_Asian",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    144.0,
+    48.0,
+    128.0
+   ],
+   "brushSphere": 198.55,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 628.8,
+   "tilesInGame": 6.5
+  },
+  {
+   "map": "AlienBase01",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    198.07,
+    128.0,
+    307.28
+   ],
+   "brushSphere": 387.35,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 460.0,
+   "tilesInGame": 4.8
+  },
+  {
+   "map": "AlienBase02",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    96.0,
+    993.5,
+    640.0
+   ],
+   "brushSphere": 1185.69,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1877.3,
+   "tilesInGame": 19.6
+  },
+  {
+   "map": "CAbductor_Cliffside",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    3120.0,
+    1584.0,
+    448.0
+   ],
+   "brushSphere": 3527.63,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1070.9,
+   "tilesInGame": 11.2
+  },
+  {
+   "map": "CAbductor_ScorchedEarth",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    1584.0,
+    3120.0,
+    448.0
+   ],
+   "brushSphere": 3527.63,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1070.9,
+   "tilesInGame": 11.2
+  },
+  {
+   "map": "CB2_MP_Blank",
+   "template": null,
+   "why": "the map has no plain volume with a brush to clone a rebuild volume from"
+  },
+  {
+   "map": "CBattleship_01",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    432.0,
+    432.0,
+    192.0
+   ],
+   "brushSphere": 640.4,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 453.6,
+   "tilesInGame": 4.7
+  },
+  {
+   "map": "CBattleship_02",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    432.0,
+    432.0,
+    192.0
+   ],
+   "brushSphere": 640.4,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 453.6,
+   "tilesInGame": 4.7
+  },
+  {
+   "map": "CLrgScout_City",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    40.0,
+    48.0,
+    64.0
+   ],
+   "brushSphere": 89.44,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 339.9,
+   "tilesInGame": 3.5
+  },
+  {
+   "map": "CLrgScout_DeepWoods",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    237.83,
+    233.7,
+    128.0
+   ],
+   "brushSphere": 346.21,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 367.9,
+   "tilesInGame": 3.8
+  },
+  {
+   "map": "CLrgScout_ForestTrench",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    339.62,
+    308.05,
+    128.0
+   ],
+   "brushSphere": 476.05,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 505.8,
+   "tilesInGame": 5.3
+  },
+  {
+   "map": "CLrgScout_Stonewall",
+   "template": "TriggerVolume_1",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    356.6,
+    293.38,
+    128.0
+   ],
+   "brushSphere": 479.19,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 509.1,
+   "tilesInGame": 5.3
+  },
+  {
+   "map": "CLrgScout_TheBarrens",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    409.42,
+    283.13,
+    128.0
+   ],
+   "brushSphere": 502.85,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 534.3,
+   "tilesInGame": 5.6
+  },
+  {
+   "map": "Command1",
+   "template": null,
+   "why": "the map has no plain volume with a brush to clone a rebuild volume from"
+  },
+  {
+   "map": "COverseer_DeepWoods",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    1968.0,
+    1968.0,
+    256.0
+   ],
+   "brushSphere": 2031.05,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1079.0,
+   "tilesInGame": 11.2
+  },
+  {
+   "map": "COverseer_ForestTrench",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    1968.0,
+    1968.0,
+    256.0
+   ],
+   "brushSphere": 2031.05,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1079.0,
+   "tilesInGame": 11.2
+  },
+  {
+   "map": "COverseer_Stonewall",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    1968.0,
+    1968.0,
+    256.0
+   ],
+   "brushSphere": 2031.05,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1079.0,
+   "tilesInGame": 11.2
+  },
+  {
+   "map": "COverseer_TheBarrens",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    1968.0,
+    1968.0,
+    256.0
+   ],
+   "brushSphere": 2031.05,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1079.0,
+   "tilesInGame": 11.2
+  },
+  {
+   "map": "CSmallScout_Badlands",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    409.42,
+    283.13,
+    128.0
+   ],
+   "brushSphere": 502.85,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 534.3,
+   "tilesInGame": 5.6
+  },
+  {
+   "map": "CSmallScout_DirtRoad",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    314.75,
+    319.91,
+    116.69
+   ],
+   "brushSphere": 463.71,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 540.5,
+   "tilesInGame": 5.6
+  },
+  {
+   "map": "CsmallScout_Farm",
+   "template": "XComCursorVolume_0",
+   "templateClass": "XComCursorVolume",
+   "brushExtent": [
+    1008.0,
+    1008.02,
+    96.0
+   ],
+   "brushSphere": 1428.77,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 2024.1,
+   "tilesInGame": 21.1
+  },
+  {
+   "map": "CSmallScout_Marshlands",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    4108.18,
+    2359.06,
+    527.17
+   ],
+   "brushSphere": 4766.57,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1229.7,
+   "tilesInGame": 12.8
+  },
+  {
+   "map": "CSmallScout_NukedCity",
+   "template": "TriggerVolume_18",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    28.39,
+    95.69,
+    51.31
+   ],
+   "brushSphere": 111.14,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 595.0,
+   "tilesInGame": 6.2
+  },
+  {
+   "map": "CSmallScout_Quagmire",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    4108.18,
+    2359.06,
+    527.17
+   ],
+   "brushSphere": 4766.57,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1229.7,
+   "tilesInGame": 12.8
+  },
+  {
+   "map": "CSmallScout_Roadhouse",
+   "template": "TriggerVolume_18",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    95.08,
+    26.07,
+    51.31
+   ],
+   "brushSphere": 111.14,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 648.1,
+   "tilesInGame": 6.8
+  },
+  {
+   "map": "CSupplyShip_OverlookA",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    241.36,
+    240.76,
+    128.0
+   ],
+   "brushSphere": 364.15,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 386.9,
+   "tilesInGame": 4.0
+  },
+  {
+   "map": "CSupplyShip_Wildfire",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    339.62,
+    339.62,
+    128.0
+   ],
+   "brushSphere": 497.06,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 528.1,
+   "tilesInGame": 5.5
+  },
+  {
+   "map": "DEMO_SonOfFacemelt",
+   "template": "XComCursorVolume_0",
+   "templateClass": "XComCursorVolume",
+   "brushExtent": [
+    288.0,
+    144.0,
+    96.0
+   ],
+   "brushSphere": 336.0,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 476.0,
+   "tilesInGame": 5.0
+  },
+  {
+   "map": "DLC1_1_LowFriends",
+   "template": "TriggerVolume_1",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    194.57,
+    201.31,
+    81.43
+   ],
+   "brushSphere": 291.57,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 486.9,
+   "tilesInGame": 5.1
+  },
+  {
+   "map": "DLC1_2_CnfndLight",
+   "template": "XComCursorVolume_0",
+   "templateClass": "XComCursorVolume",
+   "brushExtent": [
+    4992.0,
+    1680.0,
+    96.0
+   ],
+   "brushSphere": 5267.99,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 7463.0,
+   "tilesInGame": 77.7
+  },
+  {
+   "map": "DLC1_3_Gangplank",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    432.0,
+    432.0,
+    192.0
+   ],
+   "brushSphere": 640.4,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 453.6,
+   "tilesInGame": 4.7
+  },
+  {
+   "map": "DLC2_1_Portent",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    624.0,
+    376.0,
+    128.0
+   ],
+   "brushSphere": 739.69,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 785.9,
+   "tilesInGame": 8.2
+  },
+  {
+   "map": "DLC2_2_Deluge",
+   "template": "XComCursorVolume_0",
+   "templateClass": "XComCursorVolume",
+   "brushExtent": [
+    1536.0,
+    4464.0,
+    96.0
+   ],
+   "brushSphere": 4721.84,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 6689.3,
+   "tilesInGame": 69.7
+  },
+  {
+   "map": "DLC2_3_Furies",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    3120.0,
+    1584.0,
+    448.0
+   ],
+   "brushSphere": 3527.63,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1070.9,
+   "tilesInGame": 11.2
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "template": "TriggerVolume_1",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    178.14,
+    129.78,
+    73.22
+   ],
+   "brushSphere": 232.24,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 431.3,
+   "tilesInGame": 4.5
+  },
+  {
+   "map": "EWI_ExaltHQAssault",
+   "template": "TriggerVolume_1",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    178.33,
+    178.33,
+    178.33
+   ],
+   "brushSphere": 178.33,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 152.0,
+   "tilesInGame": 1.6
+  },
+  {
+   "map": "EWI_HQAssault",
+   "template": "TriggerVolume_1",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    166.91,
+    166.91,
+    221.34
+   ],
+   "brushSphere": 277.7,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 252.9,
+   "tilesInGame": 2.6
+  },
+  {
+   "map": "EWI_HQAssault_MP",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    1267.96,
+    477.88,
+    260.18
+   ],
+   "brushSphere": 1379.78,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 721.2,
+   "tilesInGame": 7.5
+  },
+  {
+   "map": "EWI_MeldTutorial",
+   "template": "XComNoSpawnVolume_0",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    96.0,
+    240.0,
+    128.0
+   ],
+   "brushSphere": 288.44,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 456.7,
+   "tilesInGame": 4.8
+  },
+  {
+   "map": "LAbductor_FarmOutskirts",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    3120.0,
+    1584.0,
+    448.0
+   ],
+   "brushSphere": 3527.63,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1070.9,
+   "tilesInGame": 11.2
+  },
+  {
+   "map": "LAbductor_WindingStream",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    3120.0,
+    1584.0,
+    448.0
+   ],
+   "brushSphere": 3527.63,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1070.9,
+   "tilesInGame": 11.2
+  },
+  {
+   "map": "LLrgScout_CreepyForest",
+   "template": "TriggerVolume_1",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    48.74,
+    26.07,
+    55.45
+   ],
+   "brushSphere": 78.29,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 456.5,
+   "tilesInGame": 4.8
+  },
+  {
+   "map": "LLrgScout_Hillside",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    329.57,
+    314.67,
+    285.41
+   ],
+   "brushSphere": 537.67,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 259.7,
+   "tilesInGame": 2.7
+  },
+  {
+   "map": "LSmallScout_River",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    4872.12,
+    501.78,
+    381.28
+   ],
+   "brushSphere": 4912.71,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1752.3,
+   "tilesInGame": 18.3
+  },
+  {
+   "map": "LSmallScout_Rivervalley",
+   "template": "TriggerVolume_18",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    26.07,
+    95.08,
+    51.31
+   ],
+   "brushSphere": 111.14,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 648.1,
+   "tilesInGame": 6.8
+  },
+  {
+   "map": "LSupplyShip_ForestGrove",
+   "template": "TriggerVolume_1",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    1776.0,
+    4272.0,
+    352.0
+   ],
+   "brushSphere": 4639.83,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1792.7,
+   "tilesInGame": 18.7
+  },
+  {
+   "map": "LSupplyShip_RockyGorge",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    356.6,
+    31.72,
+    128.0
+   ],
+   "brushSphere": 380.2,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1822.1,
+   "tilesInGame": 19.0
+  },
+  {
+   "map": "TempleShip",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    1584.0,
+    1248.0,
+    576.0
+   ],
+   "brushSphere": 2097.22,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 495.2,
+   "tilesInGame": 5.2
+  },
+  {
+   "map": "URB_Bar",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    218.8,
+    205.05,
+    100.94
+   ],
+   "brushSphere": 316.4,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 426.3,
+   "tilesInGame": 4.4
+  },
+  {
+   "map": "URB_Bar_Terror",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    218.8,
+    205.05,
+    100.94
+   ],
+   "brushSphere": 316.4,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 426.3,
+   "tilesInGame": 4.4
+  },
+  {
+   "map": "URB_Boulevard",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    162.15,
+    117.88,
+    160.0
+   ],
+   "brushSphere": 256.49,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 330.7,
+   "tilesInGame": 3.4
+  },
+  {
+   "map": "URB_Boulevard_Euro",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    162.15,
+    117.88,
+    160.0
+   ],
+   "brushSphere": 256.49,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 330.7,
+   "tilesInGame": 3.4
+  },
+  {
+   "map": "URB_CemeteryGrand",
+   "template": "XComNoSpawnVolume_10",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    144.0,
+    96.0,
+    128.0
+   ],
+   "brushSphere": 215.26,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 340.8,
+   "tilesInGame": 3.6
+  },
+  {
+   "map": "URB_CommercialAlley",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    266.1,
+    188.17,
+    128.0
+   ],
+   "brushSphere": 350.15,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 372.0,
+   "tilesInGame": 3.9
+  },
+  {
+   "map": "URB_CommercialAlley_EWI",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    266.1,
+    188.17,
+    128.0
+   ],
+   "brushSphere": 350.15,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 372.0,
+   "tilesInGame": 3.9
+  },
+  {
+   "map": "URB_CommercialAlley_Terror",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    266.1,
+    188.17,
+    128.0
+   ],
+   "brushSphere": 350.15,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 372.0,
+   "tilesInGame": 3.9
+  },
+  {
+   "map": "URB_CommercialRestaurant",
+   "template": "XComNoSpawnVolume_1",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    192.0,
+    96.0,
+    64.0
+   ],
+   "brushSphere": 224.0,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 476.0,
+   "tilesInGame": 5.0
+  },
+  {
+   "map": "URB_CommercialStreet",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    256.32,
+    243.67,
+    113.78
+   ],
+   "brushSphere": 371.51,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 444.1,
+   "tilesInGame": 4.6
+  },
+  {
+   "map": "URB_CommercialStreet_Terror",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    256.32,
+    243.67,
+    113.78
+   ],
+   "brushSphere": 371.51,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 444.1,
+   "tilesInGame": 4.6
+  },
+  {
+   "map": "URB_ConvienienceStore",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    403.78,
+    154.99,
+    118.75
+   ],
+   "brushSphere": 448.51,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 513.7,
+   "tilesInGame": 5.4
+  },
+  {
+   "map": "URB_ConvienienceStore_EWI",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    403.78,
+    154.99,
+    118.75
+   ],
+   "brushSphere": 448.51,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 513.7,
+   "tilesInGame": 5.4
+  },
+  {
+   "map": "URB_ConvienienceStore_Terror",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    403.78,
+    154.99,
+    118.75
+   ],
+   "brushSphere": 448.51,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 513.7,
+   "tilesInGame": 5.4
+  },
+  {
+   "map": "URB_Demolition_EWI",
+   "template": "XComCursorVolume_0",
+   "templateClass": "XComCursorVolume",
+   "brushExtent": [
+    864.0,
+    864.0,
+    96.0
+   ],
+   "brushSphere": 1225.65,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1736.3,
+   "tilesInGame": 18.1
+  },
+  {
+   "map": "URB_FastFood",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    142.36,
+    278.71,
+    128.0
+   ],
+   "brushSphere": 338.13,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 361.0,
+   "tilesInGame": 3.8
+  },
+  {
+   "map": "URB_FastFood_EWI",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    142.36,
+    278.71,
+    128.0
+   ],
+   "brushSphere": 338.13,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 361.0,
+   "tilesInGame": 3.8
+  },
+  {
+   "map": "URB_GasStation_EWI",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    305.74,
+    181.69,
+    128.0
+   ],
+   "brushSphere": 377.99,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 401.6,
+   "tilesInGame": 4.2
+  },
+  {
+   "map": "URB_Highway1",
+   "template": "XComNoSpawnVolume_2",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    144.0,
+    96.0,
+    128.0
+   ],
+   "brushSphere": 215.26,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 340.8,
+   "tilesInGame": 3.6
+  },
+  {
+   "map": "URB_HighwayBridge",
+   "template": "XComNoSpawnVolume_10",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    240.0,
+    96.0,
+    128.0
+   ],
+   "brushSphere": 288.44,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 456.7,
+   "tilesInGame": 4.8
+  },
+  {
+   "map": "URB_HighwayConstruction",
+   "template": "XComNoSpawnVolume_11",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    96.0,
+    240.0,
+    128.0
+   ],
+   "brushSphere": 288.44,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 456.7,
+   "tilesInGame": 4.8
+  },
+  {
+   "map": "URB_HighwayConstruction_EWI",
+   "template": "XComNoSpawnVolume_11",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    96.0,
+    240.0,
+    128.0
+   ],
+   "brushSphere": 288.44,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 456.7,
+   "tilesInGame": 4.8
+  },
+  {
+   "map": "URB_HighwayFallen",
+   "template": "TriggerVolume_4",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    246.0,
+    163.0,
+    128.0
+   ],
+   "brushSphere": 321.67,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 341.8,
+   "tilesInGame": 3.6
+  },
+  {
+   "map": "URB_IndustrialOffice",
+   "template": "XComNoSpawnVolume_2",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    672.0,
+    768.0,
+    96.0
+   ],
+   "brushSphere": 1025.0,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1452.1,
+   "tilesInGame": 15.1
+  },
+  {
+   "map": "URB_LiquorStore",
+   "template": "XComNoSpawnVolume_10",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    144.0,
+    96.0,
+    96.0
+   ],
+   "brushSphere": 197.91,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 313.4,
+   "tilesInGame": 3.3
+  },
+  {
+   "map": "URB_MilitaryAmmo",
+   "template": "XComNoSpawnVolume_0",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    864.0,
+    864.0,
+    160.0
+   ],
+   "brushSphere": 1232.31,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 1047.5,
+   "tilesInGame": 10.9
+  },
+  {
+   "map": "URB_OfficePaper",
+   "template": "XComNoSpawnVolume_0",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    192.0,
+    96.0,
+    128.0
+   ],
+   "brushSphere": 249.93,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 395.7,
+   "tilesInGame": 4.1
+  },
+  {
+   "map": "URB_OfficePaper_EWI",
+   "template": "XComNoSpawnVolume_15",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    576.0,
+    1152.0,
+    64.0
+   ],
+   "brushSphere": 1289.56,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 2740.3,
+   "tilesInGame": 28.5
+  },
+  {
+   "map": "URB_OfficePaper_Terror",
+   "template": "XComNoSpawnVolume_0",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    96.0,
+    240.0,
+    128.0
+   ],
+   "brushSphere": 288.44,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 456.7,
+   "tilesInGame": 4.8
+  },
+  {
+   "map": "URB_PierA",
+   "template": "TriggerVolume_6",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    222.51,
+    304.22,
+    93.62
+   ],
+   "brushSphere": 388.36,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 564.2,
+   "tilesInGame": 5.9
+  },
+  {
+   "map": "URB_PierA_Asian",
+   "template": "TriggerVolume_6",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    222.51,
+    304.22,
+    93.62
+   ],
+   "brushSphere": 388.36,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 564.2,
+   "tilesInGame": 5.9
+  },
+  {
+   "map": "URB_PierA_Terror",
+   "template": "XComNoSpawnVolume_3",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    96.0,
+    192.0,
+    96.0
+   ],
+   "brushSphere": 235.15,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 372.3,
+   "tilesInGame": 3.9
+  },
+  {
+   "map": "URB_PoliceStation",
+   "template": "XComNoSpawnVolume_11",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    240.0,
+    96.0,
+    112.0
+   ],
+   "brushSphere": 281.71,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 446.0,
+   "tilesInGame": 4.6
+  },
+  {
+   "map": "URB_ResearchOutpost",
+   "template": "XComNoSpawnVolume_10",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    96.0,
+    96.0,
+    112.0
+   ],
+   "brushSphere": 176.0,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 278.7,
+   "tilesInGame": 2.9
+  },
+  {
+   "map": "URB_ResearchOutpost_EWI",
+   "template": "XComNoSpawnVolume_10",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    96.0,
+    96.0,
+    112.0
+   ],
+   "brushSphere": 176.0,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 278.7,
+   "tilesInGame": 2.9
+  },
+  {
+   "map": "URB_RooftopsConst",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    368.73,
+    320.21,
+    81.43
+   ],
+   "brushSphere": 495.1,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 826.8,
+   "tilesInGame": 8.6
+  },
+  {
+   "map": "URB_RooftopsConst_Asian",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    368.73,
+    320.21,
+    81.43
+   ],
+   "brushSphere": 495.1,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 826.8,
+   "tilesInGame": 8.6
+  },
+  {
+   "map": "URB_SlaughterhouseA",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    376.0,
+    624.0,
+    128.0
+   ],
+   "brushSphere": 739.69,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 785.9,
+   "tilesInGame": 8.2
+  },
+  {
+   "map": "URB_SmallCemetery",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    194.57,
+    201.31,
+    81.43
+   ],
+   "brushSphere": 291.57,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 486.9,
+   "tilesInGame": 5.1
+  },
+  {
+   "map": "URB_StreetHurricane",
+   "template": "TriggerVolume_10",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    318.67,
+    164.49,
+    8.0
+   ],
+   "brushSphere": 358.7,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 6098.0,
+   "tilesInGame": 63.5
+  },
+  {
+   "map": "URB_StreetHurricane_Terror",
+   "template": "XComNoSpawnVolume_0",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    96.0,
+    240.0,
+    128.0
+   ],
+   "brushSphere": 288.44,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 456.7,
+   "tilesInGame": 4.8
+  },
+  {
+   "map": "URB_StreetOverpass",
+   "template": "TriggerVolume_1",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    680.0,
+    304.0,
+    488.0
+   ],
+   "brushSphere": 890.48,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 445.2,
+   "tilesInGame": 4.6
+  },
+  {
+   "map": "URB_StreetOverpass_EWI",
+   "template": "XComNoSpawnVolume_1",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    2160.0,
+    144.0,
+    192.0
+   ],
+   "brushSphere": 2173.29,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 2294.0,
+   "tilesInGame": 23.9
+  },
+  {
+   "map": "URB_TrainStation",
+   "template": "XComNoSpawnVolume_0",
+   "templateClass": "XComNoSpawnVolume",
+   "brushExtent": [
+    96.0,
+    3264.0,
+    320.0
+   ],
+   "brushSphere": 3281.05,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 5195.0,
+   "tilesInGame": 54.1
+  },
+  {
+   "map": "URB_Trainyard",
+   "template": "TriggerVolume_0",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    229.87,
+    354.82,
+    227.58
+   ],
+   "brushSphere": 480.14,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 317.5,
+   "tilesInGame": 3.3
+  },
+  {
+   "map": "URB_TruckStop",
+   "template": "TriggerVolume_10",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    197.08,
+    198.85,
+    145.25
+   ],
+   "brushSphere": 315.41,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 295.3,
+   "tilesInGame": 3.1
+  },
+  {
+   "map": "URB_TruckStop_EWI",
+   "template": "TriggerVolume_10",
+   "templateClass": "TriggerVolume",
+   "brushExtent": [
+    197.08,
+    198.85,
+    145.25
+   ],
+   "brushSphere": 315.41,
+   "sampleByDiagonal": 254.4,
+   "sampleInGame": 295.3,
+   "tilesInGame": 3.1
+  }
+ ]
+}

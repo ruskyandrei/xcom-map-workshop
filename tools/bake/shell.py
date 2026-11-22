@@ -496,8 +496,10 @@ def resize(walker, g, p, nx, ny, ground=True, nz=None, floor_off=()):
         import math
         high = max(b[5] for _, b, _ in scenery)
         top = max(top, origin[2] + seed_map.FLOOR * (math.floor((high + 2.0 - origin[2]) / seed_map.FLOOR) + 2))
+    # (the map's diagonal cover tiles left out of it: nothing here changes them, and a rebuilt one loses its
+    # diagonal cover for good, F-149; an edit that reaches one brings its own volume)
     rebuild = native_copy.add_rebuild_volume(g, p, [origin[0], origin[0] + 96.0 * nx, origin[1], origin[1] + 96.0 * ny,
-                                                    origin[2] - seed_map.REBUILD_PAD, top])
+                                                    origin[2] - seed_map.REBUILD_PAD, top], spare=True)
     add.append(rebuild['export'])
     for index, _, off in scenery:
         if off:
@@ -511,7 +513,8 @@ def resize(walker, g, p, nx, ny, ground=True, nz=None, floor_off=()):
                      groundPlane=p.name(template).rsplit('.', 1)[-1] if template else None, planesLaid=len(laid),
                      ground='laid' if plane else 'not asked for' if not ground else 'none: the map\'s ground is no plane',
                      containerBytes=[len(blob), len(world_grid.encode(grown))], levelVolume=stretched,
-                     rebuildVolume=dict(bounds=rebuild['bounds'], extent=rebuild['rebuildExtent']))
+                     rebuildVolume=dict(bounds=rebuild['bounds'], extent=rebuild['rebuildExtent'],
+                                        **({'fitted': rebuild['fitted']} if rebuild.get('fitted') else {})))
 
 
 def equip(map_path, out, cooked=None, donor=DONOR, schema=None, grid=None, ground=True, building=False, levels=None,
@@ -743,6 +746,10 @@ def main():
               '%d floor already, %d tiles queued'
               % (r['before'], r['grid'], r['ground'], r['planesLaid'], *r['containerBytes'],
                  len(r.get('walkableScenery') or []), len(r.get('sceneryFloors') or []), r.get('sceneryTilesSeeded', 0)))
+        fitted = r['rebuildVolume'].get('fitted')
+        if fitted:
+            print('the rebuild over the grid is %d volumes that leave the map\'s %d diagonal cover tiles alone'
+                  % (len(fitted['volumes']), len(fitted['spared'])))
     print('written %s' % report['shelled'])
 
 

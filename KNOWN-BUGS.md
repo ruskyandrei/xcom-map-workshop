@@ -91,16 +91,18 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Cause.** The editor looks for `XComEW.exe` in the process list.
 - **Finding.** [F-84](research/findings-register.md).
 
-### KB-14: A built map loses diagonal cover near its edits, and everywhere when its grid is grown
+### KB-14: An edit on or next to a slanted corner takes its diagonal cover
 
 - **What happens.** On maps with slanted walls that give cover from the corner (the UFO maps: scouts, Overseer,
-  supply ships, and the Chryssalid hive), a unit standing in such a corner gets no cover in a built map: no shield,
-  as if it stood in the open. A map with a larger grid (Map grid) loses every such tile; any other build loses the
-  ones within a few tiles of something the project added, moved or deleted.
-- **Since.** Every version.
-- **Workaround.** None for a grown map. Elsewhere, keep edits a few tiles away from the slanted corners that should
-  keep their cover: a build with no edit near them keeps it.
+  supply ships, and the Chryssalid hive), a unit standing in such a corner gets no cover in a built map when the
+  project added, moved or deleted something on that corner's tile or on a tile next to it: no shield, as if it stood
+  in the open. The Build's log names the tiles ("are rebuilt and lose their diagonal cover"). A slanted wall that is
+  copied or moved, stamped from a prefab or brought from another map gives no diagonal cover at its new place.
+- **Since.** Every version. Until the version after 0.6.0 a build lost it far more widely: every such corner on a
+  map with a larger grid (Map grid), and on many maps every corner within tens of tiles of any edit.
+- **Workaround.** Keep edits two tiles or more away from the slanted corners that should keep their cover.
 - **Cause.** The game marks these tiles when the map is first built, from marker actors, and its tile rebuild at the
-  start of a battle, which a build asks for round every change, clears the mark and never reads the markers again.
-- **Finding.** [F-149](research/findings-register.md), which names a fix to try: keep the rebuild off the marked
-  tiles a project did not change.
+  start of a battle, which a build asks for on the tiles round every change, clears the mark and never reads the
+  markers again. The Build now keeps the rebuild to the tiles round a change; the changed tiles themselves it cannot
+  spare.
+- **Finding.** [F-149](research/findings-register.md) (and F-150 for how far a rebuild reached).

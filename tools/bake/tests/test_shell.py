@@ -437,6 +437,26 @@ class GrownFarmPlateau(unittest.TestCase):
         self.assertTrue(any(struct.unpack('<I', self.tiles[t][0])[0] & world_grid.SEED for t in tiles))
         self.assertGreaterEqual(self.r['rebuildVolume']['bounds'][5], 64.0)
 
+    def test_the_rebuild_leaves_the_scouts_diagonal_cover_alone(self):
+        # the scout's eight slanted corners carry diagonal cover, which a rebuilt tile loses for good (F-149): the
+        # grown grid's rebuild is made of volumes that take none of them, nor the two tiles over each, and every
+        # other tile the one volume was there for
+        diagonal = native_copy.diagonal_tiles(self.own)
+        self.assertEqual(len(diagonal), 8)
+        self.assertEqual(native_copy.diagonal_tiles(self.p), diagonal)       # the grown grid keeps them
+        fitted = self.r['rebuildVolume']['fitted']
+        self.assertEqual(sorted(tuple(t) for t in fitted['spared']), sorted(diagonal))
+        listed = [a for a in shell.listed(self.p) if self.p.cls(a) == 'XComRebuildWorldDataVolume']
+        self.assertEqual(listed, fitted['volumes'])
+        self.assertGreater(len(listed), 1)
+        order = native_copy.rebuild_order(self.p)
+        kept = {(x, y, z + n) for x, y, z in diagonal for n in range(3)}
+        self.assertEqual(kept & set(order), set())
+        top = int((self.r['rebuildVolume']['bounds'][5] - native_copy.level_grid(self.p)['tz']) // 64)
+        missed = [t for t, (raw, present) in self.tiles.items()
+                  if t[2] < top and present and struct.unpack('<I', raw)[0] & 0xFFF and t not in order and t not in kept]
+        self.assertEqual(missed, [])
+
     def test_no_ground_plane_is_laid_under_it(self):
         g0 = native_copy.level_grid(self.own)
         mesh = self.own.effective(self.own.own(self.own.by_name[shell.LEVEL + '.' + self.r['groundPlane']],

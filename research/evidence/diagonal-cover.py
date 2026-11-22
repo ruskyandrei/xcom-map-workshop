@@ -5,7 +5,8 @@
         per map: its XComCoverSeed actors (how many with bDiagonalCover), the tiles of its baked cover store that
         carry 0x10000, each with the seed standing in it, and the rebuild volumes (XComRebuildWorldDataVolume) of its
         level that reach it. A volume's reach is the cube the battle rebuilds for it: its bounds' centre, the bounds'
-        sphere radius either way on every axis (XGBattle.DoWorldDataRebuild).
+        sphere radius either way on every axis (XGBattle.DoWorldDataRebuild), the sphere the brush's own times
+        the volume's largest scale (native_copy.volume_sphere, F-150).
   python -B research/evidence/diagonal-cover.py save <save> <map.upk> [--level <z> ...] [--draw]
         a tactical save of a battle on that map against the map's bake: the static and cover flags of every tile that
         differ, counted by level, and each baked diagonal tile's flags before and after. --draw adds a picture of each
@@ -62,9 +63,8 @@ def map_report(path):
             seeds.append(dict(name=name, location=at, diagonal=bool(p.effective(i, 'bDiagonalCover', False)),
                               tile=tile_of(grid, at)))
         elif p.cls(i) == 'XComRebuildWorldDataVolume':
-            lo, hi = native_copy.brush_box(p, i)
-            volumes.append(dict(name=name, centre=[(lo[k] + hi[k]) / 2 for k in range(3)],
-                                radius=math.sqrt(sum(((hi[k] - lo[k]) / 2) ** 2 for k in range(3)))))
+            centre, radius = native_copy.volume_sphere(p, i)
+            volumes.append(dict(name=name, centre=centre, radius=radius))
     tiles = []
     for t in sorted(t for t, f in cover.items() if f & DIAGONAL):
         centre = [grid['tx'] + (t[0] + .5) * 96, grid['ty'] + (t[1] + .5) * 96, grid['tz'] + (t[2] + .5) * 64]

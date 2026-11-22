@@ -13,9 +13,9 @@ Statuses:
 ## Open now
 
 - F-149 (22 November, a user's report): a tile the battle rebuilds loses its diagonal cover (the seeds are read by the
-  map's full build alone), so a build loses it wherever its rebuild volumes reach: everywhere on a grown map, within a
-  few tiles of any edit elsewhere. Seen in a hidden run (a grown CSmallScout_Farm: none of its 8 tiles kept any
-  cover). Not fixed; KB-14.
+  map's full build alone). Fixed and seen in the game for the tiles an edit's own tiles do not hold (a grown
+  CSmallScout_Farm keeps 7 of 8, the eighth taken by the game's own rebuild round a Meld canister); a tile an edit is
+  on or next to still loses it, and copied or stamped slanted walls bring none; KB-14.
 - F-148 (22 November, a user's report): the train station's far gable wall never hides with its roof; the map saves it
   with no collision, so no floor lists it, in the game's map and in a build alike. Read offline; a way round is in the
   finding, a per-piece setting is not built.
@@ -349,54 +349,114 @@ boxes stretched over it; read offline from the install's `URB_TrainStation`; not
   this and the other backdrop pieces inside a building's boxes (six more on this map: the sky dome and the five
   `TrainStationLowerWalls`).
 
-### F-149: A tile the battle rebuilds loses its diagonal cover, so a build loses it wherever its rebuild volumes reach
-**Open** (22 November 2026: a user's report that maps saved in the editor lose diagonal cover; read offline from the
-install's maps and three builds with [`diagonal-cover.py`](evidence/diagonal-cover.py), the counts in
-[`diagonal-cover-2026-11-22.json`](evidence/diagonal-cover-2026-11-22.json); seen in the game the same day in a hidden
-run of a grown CSmallScout_Farm, its tiles read from the run's save).
+### F-149: A tile the battle rebuilds loses its diagonal cover, so a build lost it wherever its rebuild volumes reached
+**Fixed for the tiles an edit's own tiles do not hold, and verified in the game; open for the tiles they do**
+(22 November 2026: a user's report that maps saved in the editor lose diagonal cover; read offline from the install's
+maps and four builds with [`diagonal-cover.py`](evidence/diagonal-cover.py), the counts in
+[`diagonal-cover-2026-11-22.json`](evidence/diagonal-cover-2026-11-22.json); three hidden runs of a grown
+CSmallScout_Farm the same day, the tiles read from each run's save: the build as it was, a first fix that failed,
+the fix).
 - **What diagonal cover is**: a tile whose cover flags carry `0x10000` (COVER_Diagonal) gives cover along the four
   diagonals, for a unit standing in the corner of a slanted wall. A map marks such tiles with `XComCoverSeed` actors
   (`bDiagonalCover`); the map's full build, in the game's own editor, writes the flag on each seed's tile before it
   works the cover out ([cover-build.md](native/cover-build.md), section 1).
-- **Where the game has it**: 18 of the install's maps carry it in their bake, 4 to 34 tiles each, a seed in every one:
-  the large scouts (19 to 34), the Overseer maps (19), CSmallScout_DirtRoad, CSmallScout_Farm and
-  LSmallScout_Rivervalley (8), the supply ships (4), EWI_ChryssalidHive (16). Five maps have seeds and no such tile
-  in their bake (CSmallScout_Badlands, _Marshlands, _Quagmire, _Roadhouse, LSmallScout_River): they play without it
-  as the game ships them.
-- **Why a build loses it**: the tile rebuild a battle runs when it starts, for each `XComRebuildWorldDataVolume`
+- **Where the game has it**: 19 of the install's maps carry it in their bake, 4 to 34 tiles each (299 in all), a seed
+  in every one: the large scouts (19 to 34), the Overseer maps (19), CSmallScout_DirtRoad, CSmallScout_Farm and
+  LSmallScout_Rivervalley (8), the supply ships (4), EWI_ChryssalidHive (16); on the ground and on upper decks (levels
+  0, 2, 5 to 7 and 9). Five maps have seeds and no such tile in their bake (CSmallScout_Badlands, _Marshlands,
+  _Quagmire, _Roadhouse, LSmallScout_River): they play without it as the game ships them.
+- **Why a build lost it**: the tile rebuild a battle runs when it starts, for each `XComRebuildWorldDataVolume`
   (`XGBattle.DoWorldDataRebuild`), clears each tile it takes (static flags, cover flags, floor data, cover location)
   and works it out again from what stands there. The pass that reads the seeds is the full build's alone, so the flag
-  does not come back. A build keeps the map's seeds and its baked flags (CSmallScout_Farm's 8 are in all three builds
-  read); it loses them in the battle, where its rebuild volumes reach:
-  - **a grown grid** (Map grid) gets one volume over the whole grid (`shell.py resize`): every diagonal tile of the
+  does not come back. A build keeps the map's seeds and its baked flags (CSmallScout_Farm's 8 are in every build
+  read); it lost them in the battle, where its rebuild volumes reached:
+  - **a grown grid** (Map grid) got one volume over the whole grid (`shell.py resize`): every diagonal tile of the
     map;
   - **a cleared map** gets one too, and its seeds are taken out with the pieces (`native_copy.CLEAR_OUT`), which is
     right: the walls are gone;
-  - **a copy, a made piece, a cover block, a deleted or moved piece, a moved mission object** get a volume over their
-    tiles, and the battle rebuilds further than the volume: its bounds' centre, the bounds' sphere radius either way
-    on every axis. The farm's ladder build's volume over 4 by 5 tiles, seven levels up, has a radius of 394: 4.1 tiles
-    each way from its centre, two tiles past its box. So an edit within a few tiles of a slanted corner takes its
-    diagonal cover, and inside a large scout (34 such tiles) most edits are.
-  A build with no rebuild volume near a diagonal tile keeps it (the farm's ladder build: 5 volumes, none reaching;
-  the four east tiles still had the flag in a save of its battle).
-- **In the game** (the hidden run: `CSmallScout__Farm_ec8f`, CSmallScout_Farm grown from 67 by 70 by 17 to 67 by 91
+  - **a copy, a made piece, a cover block, a deleted or moved piece, a moved mission object** got a volume over their
+    tiles, and the battle rebuilds much further than the volume's box: its brush's sphere times its largest scale
+    (F-150). The farm's ladder build's volumes, over 4 by 5 tiles and seven levels, reached 36 tiles from their
+    centres and took the scout's four west diagonal tiles some 30 tiles away (its save: those four without cover, the
+    four east ones, past the reach, with theirs); the farm's EXP-25 build's volumes reach all eight.
+- **In the game, before the fix** (`CSmallScout__Farm_ec8f`, CSmallScout_Farm grown from 67 by 70 by 17 to 67 by 91
   by 18, LWR, a save at turn 1 before any unit moved): of the 8 baked diagonal tiles none has `0x10000` and none has
   any cover entry at all. So a rebuilt diagonal tile gets no cover, not the straight cover the native reading
-  expected: why the straight test finds none there is not read. Each also lost its pathing bit toward the hull
-  (`0x43a824` to `0x43a820`, `0x53a830` to `0x53a820`). A soldier put on tiles (49, 22, 0) and (51, 20, 0), the scout's intact
-  north-east corners (by the console's teleport, then walked there by an ordered move), read `m_bInCover` False,
-  `m_iCurrentCoverValue` 0, `CurrentCoverPointFlags` 0 on each, both ways, and the pictures showed the empty shield;
-  the Sectoids the move revealed read `m_bInCover` True on their tiles. A second save after the moves read the same 8
-  tiles the same.
+  expected. The cover sweep's facing test explains it ([cover-build.md](native/cover-build.md), section 4, step 2): a
+  hit counts when `|normal · direction|` is 0.71 or more, and a wall at 45 degrees gives 0.7071 to every straight
+  direction, which is why such corners need the flag at all. Each also lost its pathing bit toward the hull
+  (`0x43a824` to `0x43a820`, `0x53a830` to `0x53a820`). A soldier put on tiles (49, 22, 0) and (51, 20, 0), the
+  scout's intact north-east corners (by the console's teleport, then walked there by an ordered move), read
+  `m_bInCover` False, `m_iCurrentCoverValue` 0, `CurrentCoverPointFlags` 0 on each, both ways, and the pictures
+  showed the empty shield; the Sectoids the move revealed read `m_bInCover` True on their tiles.
+- **The fix**: a rebuild volume whose reach would take a diagonal tile that its own box does not hold is made as
+  several smaller volumes that take the box's tiles and none of those, nor the two tiles over each (their
+  standing-room marks are the floor tile's): `native_copy.add_rebuild_volume` with `rebuild_spares`, the volumes
+  worked out by [`rebuild_fit.py`](../tools/bake/rebuild_fit.py) and placed by the sphere the game reads
+  (`reach_box`). A grown grid's whole-map volume leaves every diagonal tile out. A volume that reaches none is made
+  as before. The farm's grown build has 20 rebuild volumes in place of 3, and the Build's reading of the battle's
+  work (`rebuild_order`) is the old build's less those 8 tiles.
+- **What the fix leaves**: a diagonal tile **inside** an edit's own box is rebuilt and loses its cover, and the
+  Build's record and log name it (`diagonalRebuilt`). The box is the tiles the piece crosses and the ring of one
+  tile round them, with a quarter tile's margin: a tile left as baked beside a change would block or open an edge
+  the change did not. So an edit two tiles from a slanted corner keeps its cover and one on it or next to it takes
+  it. A slanted wall copied or moved, a prefab's stamp and a wall brought from another map have no diagonal cover
+  at their new place: it is in the map's tile data, not in a piece. Keeping, carrying and asking for diagonal cover
+  there is planned, not built.
+- **In the game, after the fix** (the same project built again, a save at turn 1): 7 of the 8 tiles have their baked
+  static and cover flags unchanged. The eighth, (41, 10, 0), was rebuilt by the game itself: a Meld canister stood at
+  (1295, -2737), tile (39, 8) (read in the running game), and its rebuild, 288 units each way, takes tiles 36 to 42 by 5 to
+  11: (41, 10) and not (39, 12).
+  Soldiers put on (49, 22, 0), (51, 20, 0) and (41, 22, 0), by teleport and then walked off and on again, read
+  `m_bInCover` True and a cover value of 50 each time, the pictures showing the full shield; on (41, 10, 0) False and
+  0. A second save after the moves reads the 8 tiles the same.
+  Across the whole map the two battles (the build before the fix and after) differ from their bakes on the same
+  tiles but for the scout's corners and their neighbours (11 tiles the first battle changed and the second left) and
+  for a few clusters of three by three tiles in different places (what each battle placed at random): the fix
+  takes nothing else out of the rebuild. A soldier walked nine tiles
+  into the grown strip (y 3407, then 3695), so the new area is still worked out.
+- **A first fix failed in the game**: its volumes were sized by the diagonal of their boxes, the Build's reading of
+  a volume's reach until then, and on the farm each reached 8.6 times further; all 8 tiles were rebuilt again. The
+  failure is what showed the rule (F-150).
 - **The game does it to itself too**: the same rebuild runs round a Meld canister and a radar array at the start
-  (three tiles each way), round a door that opens and wherever something is destroyed. In a save of the farm's ladder
-  build, four of the 8 tiles (the scout's west corners) had lost the flag and their cover, with no volume of ours near
-  them and only they and one neighbour each changed; which of the game's rebuilds took them is not read.
-- **A fix to try** (not built): keep the rebuild off a diagonal tile nothing of the project changed. A volume's reach
-  is a cube, so the Build would make the rebuilt region of smaller volumes that leave those tiles out; a grown grid
-  needs only its new area and the old edge rebuilt, not the whole map. Nothing in a map package can put the flag back
-  after a rebuild: no script function sets it.
-- **Known bug** [KB-14](../KNOWN-BUGS.md).
+  (288 units each way), round a door that opens and wherever something is destroyed (read from the scripts; the
+  canister's seen in the run above). A map's own diagonal cover is lost that way in the game as shipped, wherever
+  that battle's canister lands by a slanted corner.
+- **Known bug** [KB-14](../KNOWN-BUGS.md), for what the fix leaves.
+
+### F-150: A rebuild volume reaches its brush's sphere times its largest scale, not its box's diagonal
+**Verified against a battle's save; the Build's reading corrected** (22 November 2026: found when F-149's first fix
+failed in the game; read off the save of EXP-22's farm build; [`rebuild-reach.py`](evidence/rebuild-reach.py) over the
+install's base maps, [`rebuild-reach-2026-11-22.json`](evidence/rebuild-reach-2026-11-22.json)).
+- **What**: the battle rebuilds, for each rebuild volume, the cube its bounds' centre ± its bounds' sphere radius
+  (`XGBattle.DoWorldDataRebuild`). The Build took that radius to be the diagonal of the volume's scaled box
+  (`native_copy.volume_sphere`, and through it `rebuild_order`, `ladder_order` and the single-tile volume's "radius
+  24").
+- **Seen**: the farm's ladder build clones its volumes from a slab-shaped volume of the map (brush half-size 1008 by
+  1008 by 96, sphere 1428.8). Its three copy volumes are stretched over boxes of half-size 200 by 248 by 232: scales
+  0.198, 0.246 and 2.417. By the box's diagonal their radius is 394, 4.1 tiles. In the save of its battle the map's
+  edge tiles (a rebuilt edge tile loses its edge marks, so it shows) changed along y 0 for x 0 to 47, along y 69 for
+  x 0 to 42 and along x 0 for every y, on levels 1 and 2. That is the cubes of radius 3,453 (36.0 tiles), 1428.8
+  times 2.417, about the volumes' centres at x 12.0 and x 7.0, to the tile. The scout's four west diagonal cover
+  tiles (x 39, 41) lost their cover and the four east ones (x 49, 51) kept it: the same line.
+- **Why**: the engine moves a component's bounds with its transform (UE3's `FBoxSphereBounds::TransformBy`): the
+  box is transformed, the sphere's radius is multiplied by the largest scale of any axis, and nothing brings it back
+  down to the box. A flat brush stretched upward gets a sphere many times its box.
+- **How far off**: for a box of 3 by 3 tiles, four levels up from the grid's bottom (diagonal 254, 2.6 tiles), over
+  the 95 base maps with a volume to clone: 1.6 to 77.7 tiles from the centre, 5.1 at the median, over 10 tiles on 25
+  maps and over 30 on 4 (URB_StreetHurricane 63.5, its template 8 units thick; URB_TrainStation 54.1; CsmallScout_Farm
+  21.1; URB_Bar 4.4). Never short of the box: a brush's sphere is at least each of its half-sizes.
+- **What it meant**: every build asked the battle to rebuild more of the map than its record said, on some maps most
+  of it, which is how any edit took a map's diagonal cover (F-149). A ladder copy's single-tile volume took more than
+  its tile wherever the template is no cube (the farm's: radius 119, three tiles by three), so the order
+  `ladder_order` checked was not the game's; EXP-22's ladders climbed in the game all the same.
+- **Fix**: `volume_sphere` reads the sphere as the game does; `box_reach` gives the radius of a clone placed over a
+  box and `reach_box` the box that gives a wanted radius (the template's brush scaled alike on every axis);
+  `tile_volume` is placed by its sphere, 24 on every template; a volume's record gives the game's radius
+  (`rebuildExtent`). An ordinary rebuild volume is still placed over its box and reaches as the game makes it: only
+  one that would take a diagonal cover tile is made to measure (F-149).
+- **Left**: making every rebuild volume to measure, so a battle starts with fewer tiles to work out; not measured,
+  not built.
 
 ### F-114: Five flags on a piece decide how the game's tiles and mouse use it
 **Open** (16 November 2026: read from the decompiled scripts, the game's script packages and the native reading of

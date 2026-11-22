@@ -35,6 +35,8 @@ DEMOLITION, NO_DEMOLITION = labpaths.test_file('XCOM_DEMOLITION_UPK', labpaths.l
                                                'URB_Demolition_EWI.upk')
 # a map whose only plain volume with a brush of the fallback classes is its lightmass importance volume (F-77)
 INTRO, NO_INTRO = labpaths.install_map('Act1_IntroLevel')
+# a map with diagonal cover: the crashed small scout's eight slanted corners (F-149)
+FARM, NO_FARM = labpaths.install_map('CsmallScout_Farm')
 # the blank map, lit by one baked (not dominant) directional light (EXP-79 run D)
 BLANK, NO_BLANK = labpaths.test_file('XCOM_BLANK_UPK', labpaths.lwr_cooked('CB2_MP_Blank.upk'), 'CB2_MP_Blank.upk')
 PL = native_copy.PL
@@ -206,6 +208,114 @@ class RebuildTemplateIntro(unittest.TestCase):
             self.assertEqual(q.cls(vol['export']), 'XComRebuildWorldDataVolume')
             lo, hi = native_copy.brush_box(q, vol['export'])
             self.assertTrue(np.allclose([c for pair in zip(lo, hi) for c in pair], box, atol=0.01))
+
+
+@unittest.skipUnless(FARM and FARM.exists(), NO_FARM)
+class DiagonalCoverKept(unittest.TestCase):
+    """A rebuild volume near a tile with diagonal cover (CsmallScout_Farm's scout has eight, at its slanted corners):
+    a tile the battle rebuilds loses that cover for good, so a volume whose reach would take one its box is not there
+    for is made as several that take none (F-149)."""
+    @classmethod
+    def setUpClass(cls):
+        cls.p = lighting.Package(FARM)
+        cls.grid = native_copy.level_grid(cls.p)
+        cls.diagonal = native_copy.diagonal_tiles(cls.p)
+        _, cls.blob, _, cls.where = native_copy.static_flags(cls.p)
+
+    def box(self, tiles):
+        x0, x1, y0, y1, _, z1 = seed_map.world_of(tiles, self.grid)
+        return [x0, x1, y0, y1, self.grid['oz'] - seed_map.REBUILD_PAD, z1]
+
+    def queued(self, tile):
+        value, present = struct.unpack_from('<IB', self.blob, self.where[tile])
+        return present and value & 0xFFF
+
+    def written(self, *tile_boxes):
+        g = package_grow.Grower(str(FARM))
+        vols = [native_copy.add_rebuild_volume(g, self.p, self.box(t)) for t in tile_boxes]
+        native_copy.add_to_level(g, self.p, [v['export'] for v in vols])
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / Path(FARM).name
+            g.write(str(out))
+            q = lighting.Package(out)
+            listed = [a for a in native_copy.level_actors(q) if a > 0 and q.cls(a) == 'XComRebuildWorldDataVolume']
+            return vols, listed, native_copy.rebuild_order(q)
+
+    def test_the_farms_diagonal_tiles(self):
+        self.assertEqual(sorted(self.diagonal), [(39, 12, 0), (39, 20, 0), (41, 10, 0), (41, 22, 0), (49, 10, 0),
+                                                 (49, 22, 0), (51, 12, 0), (51, 20, 0)])
+
+    def test_a_volume_beside_one_is_made_as_several_that_leave_it(self):
+        # tiles 36..38 by 10..14, seven levels: the one volume's sphere (the template's flat brush stretched seven
+        # levels up, F-150) would reach 36 tiles from its centre, over all eight
+        tiles = (36, 38, 10, 14, 0, 6)
+        (vol,), listed, order = self.written(tiles)
+        self.assertEqual(vol['fitted']['spared'], [list(t) for t in sorted(self.diagonal)])
+        self.assertEqual(listed, vol['fitted']['volumes'])
+        self.assertEqual(listed[0], vol['export'])
+        self.assertGreater(len(listed), 1)
+        self.assertNotIn('diagonalRebuilt', vol)
+        self.assertEqual({(x, y, z + n) for x, y, z in self.diagonal for n in range(3)} & set(order), set())
+        need = [(x, y, z) for x in range(36, 39) for y in range(10, 15) for z in range(7)]
+        self.assertEqual([t for t in need if self.queued(t) and t not in order], [])
+
+    def test_a_volume_over_one_takes_it_and_says_so(self):
+        # the box holds (39, 12, 0): something on it or next to it changed, so it is rebuilt; the others are left
+        (vol,), listed, order = self.written((38, 40, 11, 13, 0, 3))
+        self.assertEqual(vol['diagonalRebuilt'], [[39, 12, 0]])
+        self.assertIn((39, 12, 0), order)
+        self.assertEqual({t for t in self.diagonal if t in order}, {(39, 12, 0)})
+        self.assertEqual(vol['fitted']['spared'], [list(t) for t in sorted(self.diagonal) if t != (39, 12, 0)])
+
+    def test_a_volume_far_from_them_is_one_as_before(self):
+        # (its sphere reaches 21 tiles from its centre: short of the scout)
+        (vol,), listed, order = self.written((2, 5, 2, 5, 0, 3))
+        self.assertNotIn('fitted', vol)
+        self.assertEqual(listed, [vol['export']])
+
+    def test_a_volumes_record_gives_the_radius_the_game_reads(self):
+        # the farm's template brush is a slab 2016 by 2016 by 192: a volume's sphere is the slab's own (1428.8) times
+        # the volume's largest scale, not its box's diagonal (F-150; the ladder build's volumes, read off its save)
+        g = package_grow.Grower(str(FARM))
+        box = self.box((2, 5, 2, 5, 0, 3))        # four levels up from the bottom: 272 high
+        vol = native_copy.add_rebuild_volume(g, self.p, box)
+        self.assertNotIn('fitted', vol)
+        native_copy.add_to_level(g, self.p, [vol['export']])
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / Path(FARM).name
+            g.write(str(out))
+            q = lighting.Package(out)
+            centre, radius = native_copy.volume_sphere(q, vol['export'])
+        self.assertAlmostEqual(radius, vol['rebuildExtent'], places=2)
+        self.assertAlmostEqual(radius, 1428.76 * ((box[5] - box[4]) / 2) / 96.0, delta=0.5)
+        self.assertGreater(radius, 2000.0)         # 21 tiles, where the box's own diagonal is 309
+
+    def test_a_tile_volume_takes_one_tile_on_a_flat_template(self):
+        g = package_grow.Grower(str(FARM))
+        vol = native_copy.tile_volume(g, self.p, [12, 22, 5])
+        native_copy.add_to_level(g, self.p, [vol['export']])
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / Path(FARM).name
+            g.write(str(out))
+            q = lighting.Package(out)
+            centre, radius = native_copy.volume_sphere(q, vol['export'])
+        self.assertAlmostEqual(radius, 24.0, places=3)
+        self.assertAlmostEqual(vol['rebuildExtent'], 24.0, places=3)
+        grid = self.grid
+        self.assertEqual([int((centre[k] - grid[('tx', 'ty', 'tz')[k]]) // (96, 96, 64)[k]) for k in range(3)], [12, 22, 5])
+
+    def test_two_volumes_keep_their_order(self):
+        # each fitted volume's others follow it in the level's list, so the volumes stay in the order they were given
+        vols, listed, _ = self.written((36, 38, 10, 14, 0, 6), (2, 5, 2, 5, 0, 3))
+        self.assertEqual(listed, vols[0]['fitted']['volumes'] + [vols[1]['export']])
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class NoDiagonalCover(unittest.TestCase):
+    def test_a_map_without_diagonal_cover_fits_nothing(self):
+        p = lighting.Package(BAR)
+        self.assertEqual(native_copy.diagonal_tiles(p), frozenset())
+        self.assertIsNone(native_copy.rebuild_spares(p, [0.0, 960.0, 0.0, 960.0, -8.0, 640.0], 800.0))
 
 
 @unittest.skipUnless(INTRO and INTRO.exists(), NO_INTRO)

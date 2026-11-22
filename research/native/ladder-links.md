@@ -184,6 +184,10 @@ inference: the flags at the new place were not read.
 
 ## The rebuild's work set, and a ladder copy's order (8 November 2026, step G5)
 
+> 22 November 2026: `SphereRadius` below is the volume's brush's sphere times the volume's largest scale, not the
+> diagonal of its scaled box (findings register F-150). The Build's reading of it (`native_copy.volume_sphere`) was
+> corrected that day, and the small volume over T′ is placed by its sphere since.
+
 Read from the executable copy for the cars, doors and ladders plan (step G5), by a
 helper agent and reviewed here; its full notes and dumps stayed in the session's scratch folder. Nothing was run in
 the game. It corrects recommendation 3 above for copies made in the map: there, every rebuild is queued by

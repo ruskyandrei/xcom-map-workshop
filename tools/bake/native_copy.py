@@ -767,6 +767,15 @@ def brush_bounds(p, volume):
     return list(v[:3]), list(v[3:])
 
 
+def brush_sphere(p, volume):
+    """A volume's brush model's local bounds' sphere radius (the float after its box's origin and extent)."""
+    model = p.own(volume, 'Brush', 0)
+    if model <= 0:
+        raise ValueError(f'{p.name(volume)} has no brush')
+    _, end = p.properties(model)
+    return struct.unpack_from('<7f', p.data, end)[6]
+
+
 def brush_box(p, volume, location=None, scale=None):
     """A volume's world box (lo, hi): its brush's bounds moved by its Location and scaled by its DrawScale3D (an
     unturned volume only)."""
@@ -968,29 +977,146 @@ def add_volume(g, p, box, cls_name, template, tag=None):
     return dict(export=mapping[ti], mapping=mapping, template=ti, location=location, scale=scale)
 
 
-def add_rebuild_volume(g, p, box, template=None):
+def box_reach(p, template, box):
+    """The sphere radius the game gives a clone of the volume `template` (its name in the persistent level) placed
+    over `box` (add_volume): the template's brush's sphere times the largest of the scales that stretch its brush
+    over the box (volume_sphere's rule)."""
+    ti = p.by_name[PL + template]
+    _, extent = brush_bounds(p, ti)
+    return brush_sphere(p, ti) * max((box[2 * k + 1] - box[2 * k]) / 2 / extent[k] for k in range(3))
+
+
+def reach_box(p, template, centre, radius):
+    """The box [x0, x1, y0, y1, z0, z1] to place a clone of `template` over so that the game's sphere for it has
+    `radius` about `centre`: the template's brush scaled alike on every axis."""
+    ti = p.by_name[PL + template]
+    _, extent = brush_bounds(p, ti)
+    scale = radius / brush_sphere(p, ti)
+    return [centre[k // 2] + (scale if k % 2 else -scale) * extent[k // 2] for k in range(6)]
+
+
+_DIAGONAL = weakref.WeakKeyDictionary()     # package -> its baked diagonal cover tiles (diagonal_tiles)
+COVER_DIAGONAL = 0x10000
+COVER_STORE = 1         # the container's second store: the cover flags (world_links.NAMES)
+# the tiles over a floor tile that carry its standing-room mark (0x80000, research/native/cover-build.md, section 2):
+# kept with a diagonal tile the rebuild leaves alone, since only the floor tile's own rebuild writes them
+STANDING_ROOM = 2
+
+
+def diagonal_tiles(p):
+    """The tiles of the map's bake whose cover flags carry COVER_Diagonal (frozenset of (x, y, z)): where a unit in
+    the corner of a slanted wall gets cover along the diagonals. The map's full build wrote the flag, from its cover
+    seeds; a tile the battle rebuilds loses it for good (F-149). Empty for a package with no tile data."""
+    found = _DIAGONAL.get(p)
+    if found is None:
+        try:
+            blob = static_flags(p)[1]
+        except ValueError:
+            found = frozenset()
+        else:
+            store = world_links.parse_container(blob)['stores'][COVER_STORE]
+            found = frozenset(t['tile'] for c in store['chunks'] for t in c['tiles']
+                              if t['present'] and struct.unpack_from('<I', blob, t['off'])[0] & COVER_DIAGONAL)
+        _DIAGONAL[p] = found
+    return found
+
+
+def rebuild_spares(p, box, radius, spare=False):
+    """What a rebuild volume over `box` (its bounds' sphere `radius`) must leave alone, or None when it reaches
+    nothing of the kind: dict(corner: the game's tile corner, need: the tile box it is put there for (the tiles whose
+    centres the box holds), forbidden: the tiles its volumes must not take, spared: the diagonal tiles among them the
+    one volume would have reached, rebuilt: the diagonal tiles inside the box, which the rebuild takes).
+
+    A diagonal tile outside the box is left alone, with the two tiles over it. One inside the box is rebuilt and
+    loses its diagonal cover: the box is there because something on those tiles or the tiles next to them changed
+    (a copy's box holds the ring of tiles round the piece, where its seeds go, and a hidden piece's the ring whose
+    cover and blocked edges it made), and a tile left as baked beside a change would block or open an edge the
+    change did not. With `spare` (a volume that is there for no change of the map's pieces: a grown grid's) the
+    ones inside are left alone as well."""
+    import rebuild_fit
+    diagonal = diagonal_tiles(p)
+    if not diagonal:
+        return None
+    grid = level_grid(p)
+    corner = (grid['tx'], grid['ty'], grid['tz'])
+    need = rebuild_fit.centred(box, corner)
+    if need is None:
+        return None
+    inside = lambda t: all(need[2 * k] <= t[k] <= need[2 * k + 1] for k in range(3))  # noqa: E731
+    kept = {t for t in diagonal if spare or not inside(t)}
+    forbidden = set(kept)
+    for x, y, z in kept:
+        forbidden |= {(x, y, z + n) for n in range(1, STANDING_ROOM + 1) if spare or not inside((x, y, z + n))}
+    reach = rebuild_fit.span([(box[2 * k] + box[2 * k + 1]) / 2 for k in range(3)], radius, corner)
+    reached = lambda t: all(reach[k][0] <= t[k] <= reach[k][1] for k in range(3))  # noqa: E731
+    rebuilt = sorted(t for t in diagonal if t not in kept)
+    if not any(reached(t) for t in forbidden):
+        return dict(corner=corner, need=need, forbidden=set(), spared=[], rebuilt=rebuilt) if rebuilt else None
+    return dict(corner=corner, need=need, forbidden=forbidden, spared=sorted(t for t in kept if reached(t)),
+                rebuilt=rebuilt)
+
+
+def add_rebuild_volume(g, p, box, template=None, spare=False):
     """An XComRebuildWorldDataVolume whose bounds are `box` (world [x0, x1, y0, y1, z0, z1]): the map's volume
     `template` (its actor and brush component) cloned, retyped, placed and scaled (add_volume). The battle rebuilds the
-    tiles within the bounds' sphere radius of their centre, in x and y and in z (XGBattle.DoWorldDataRebuild). Returns
-    dict(export, location, scale, bounds, rebuildExtent)."""
-    import math
+    tiles within the bounds' sphere radius of their centre, in x and y and in z (XGBattle.DoWorldDataRebuild), and
+    that sphere is the template's brush's times the largest scale (volume_sphere), often far past the box. Returns
+    dict(export, location, scale, bounds, rebuildExtent: that radius).
+
+    Where that reach would take a tile with diagonal cover that the box is not there for (rebuild_spares; F-149), the
+    box's tiles get several smaller volumes instead that reach none of them (rebuild_fit.fit). `export` is then the
+    first, and add_to_level lists the others after it wherever it is listed; the record gains `fitted`
+    (dict(volumes: the exports, spared: the diagonal tiles left alone)) and its location, scale and rebuildExtent are
+    the first volume's. A record of a box that holds diagonal tiles names them in `diagonalRebuilt`: the rebuild takes
+    their diagonal cover."""
+    import rebuild_fit
     template = template or rebuild_template(p)
-    made = add_volume(g, p, box, 'XComRebuildWorldDataVolume', template)
-    location, scale, mapping, ti = made['location'], made['scale'], made['mapping'], made['template']
-    half = [(box[2 * k + 1] - box[2 * k]) / 2 for k in range(3)]
-    radius = math.sqrt(sum(h * h for h in half))
-    return dict(export=mapping[ti], template=template, location=location, scale=scale, bounds=box,
-                rebuildExtent=radius)
+    radius = box_reach(p, template, box)
+    spares = rebuild_spares(p, box, radius, spare)
+    cubes = rebuild_fit.fit(spares['need'], spares['forbidden']) if spares and spares['forbidden'] else []
+    note = {'diagonalRebuilt': [list(t) for t in spares['rebuilt']]} if spares and spares['rebuilt'] else {}
+    if not cubes:
+        made = add_volume(g, p, box, 'XComRebuildWorldDataVolume', template)
+        return dict(export=made['mapping'][made['template']], template=template, location=made['location'],
+                    scale=made['scale'], bounds=box, rebuildExtent=radius, **note)
+    made, first = [], None
+    for cube in cubes:
+        centre, reach = rebuild_fit.pose(cube, spares['corner'])
+        one = add_volume(g, p, reach_box(p, template, centre, reach), 'XComRebuildWorldDataVolume', template)
+        made.append(one['mapping'][one['template']])
+        first = first or dict(one, reach=reach)
+    if not hasattr(g, 'rebuild_more'):
+        g.rebuild_more = {}
+    g.rebuild_more[made[0]] = made[1:]
+    return dict(export=made[0], template=template, location=first['location'], scale=first['scale'], bounds=box,
+                rebuildExtent=first['reach'], fitted=dict(volumes=made, spared=[list(t) for t in spares['spared']]),
+                **note)
+
+
+def diagonal_words(volume):
+    """What a rebuild volume's record says of the map's diagonal cover, for the Build's log: '' for most."""
+    fitted, lost = volume.get('fitted'), volume.get('diagonalRebuilt')
+    words = ''
+    if fitted:
+        more = len(fitted['volumes']) - 1
+        words = ((f" and {more} more" if more else '') + f" (fitted to its tiles: one volume over them would have "
+                 f"reached {len(fitted['spared'])} tiles with diagonal cover, which the rebuild takes away)")
+    if lost:
+        words += f"; tiles {', '.join(str(tuple(t)) for t in lost)} are rebuilt and lose their diagonal cover"
+    return words
 
 
 def tile_volume(g, p, tile, grid=None):
     """A small rebuild volume over one tile (x, y, z): its bounds' sphere (radius 24) stays inside the tile, so the
     battle's rebuild of it queues that tile alone. A ladder copy's linked top tile gets one, first among the
-    volumes the Build adds (research/native/ladder-links.md, "The rebuild's work set")."""
+    volumes the Build adds (research/native/ladder-links.md, "The rebuild's work set"). The volume is the template's
+    brush scaled alike on every axis to that sphere (reach_box): a box of 32 by 32 by 16 gave a sphere of 24 only
+    where the template's brush is a cube (F-150)."""
+    import rebuild_fit
     grid = grid or level_grid(p)
     c = [grid['ox'] + (tile[0] + 0.5) * seed_map.TILE, grid['oy'] + (tile[1] + 0.5) * seed_map.TILE,
          grid['oz'] + (tile[2] + 0.5) * seed_map.FLOOR]
-    return add_rebuild_volume(g, p, [c[0] - 16, c[0] + 16, c[1] - 16, c[1] + 16, c[2] - 8, c[2] + 8])
+    return add_rebuild_volume(g, p, reach_box(p, rebuild_template(p), c, rebuild_fit.SINGLE))
 
 
 def actor_list(p, data=None):
@@ -1014,12 +1140,14 @@ def level_actors(p):
 
 
 def volume_sphere(p, volume):
-    """(origin, radius) of a volume's bounds as the game reads them (its brush component's box and sphere)."""
-    import math
+    """(origin, radius) of a volume's bounds as the game reads them: its brush's bounds moved and scaled with the
+    actor, the sphere's radius the brush's own times the actor's largest scale on any axis (UE3's
+    FBoxSphereBounds::TransformBy; findings register F-150: read off a battle's save to the tile). It is not the
+    scaled box's diagonal: a flat brush stretched upward gets a sphere many times its box."""
     origin, extent = brush_bounds(p, volume)
     scale = [v * p.own(volume, 'DrawScale', 1.0) for v in p.own(volume, 'DrawScale3D', [1.0, 1.0, 1.0])]
     loc = p.own(volume, 'Location', [0.0, 0.0, 0.0])
-    radius = math.sqrt(sum((scale[k] * extent[k]) ** 2 for k in range(3)))
+    radius = brush_sphere(p, volume) * max(abs(v) for v in scale)
     if any(p.own(volume, 'Rotation', [0, 0, 0])):
         if any(abs(v) > 1e-3 for v in origin):
             raise ValueError(f'{p.name(volume)} is turned about an off-centre brush')
@@ -1743,7 +1871,11 @@ def hide_van_buildings(g, p, gone, edited=()):
 
 
 def add_to_level(g, p, actors, *, before_rebuild=()):
-    """Append actors and place any priority volumes before the first existing rebuild volume."""
+    """Append actors and place any priority volumes before the first existing rebuild volume. A rebuild volume made
+    as several (add_rebuild_volume's `fitted`) is listed with the others right after it."""
+    more = getattr(g, 'rebuild_more', {})
+    actors = [b for a in actors for b in [a] + more.get(a, [])]
+    before_rebuild = [b for a in before_rebuild for b in [a] + more.get(a, [])]
     data = bytearray(g.export_data(p.by_name['TheWorld.PersistentLevel']))
     level, at, listed = actor_list(p, data)
     count = len(listed)
@@ -3099,7 +3231,8 @@ def main():
         print(f"{c['actor']} -> {c['copy'].split('.')[-1]} at {[round(v, 1) for v in c['location']]} {c['rotation']}: "
               f"{len(c['exports'])} exports, {len(c['textures'])} lighting textures"
               + (f", tiles {t['tiles']} ({t['seeded']} seeded, {t['alreadyMarked']} already marked), rebuild volume "
-                 f"{t['volume']['export']}" if t else ', tiles with its assembly' if c.get('assembly') else ', no tiles')
+                 f"{t['volume']['export']}{diagonal_words(t['volume'])}" if t
+                 else ', tiles with its assembly' if c.get('assembly') else ', no tiles')
               + (f" (a {c['family']}, {c['assembly']})" if c.get('assembly') else '')
               + (f"; its {c['columns']['columns']} columns moved with it, {c['columns']['dropped']} entries of other "
                  f"pieces dropped" + (f", {c['columns']['carried']} now naming the copies made with it"
@@ -3114,10 +3247,11 @@ def main():
               + " at "
               f"{[round(v, 1) for v in c['location']]} {c['rotation']}: "
               + (f"tiles {t['tiles']} ({t['seeded']} seeded, {t['alreadyMarked']} already marked), rebuild volume "
-                 f"{t['volume']['export']}" if t else 'outside the map\'s tiles, no rebuild volume'))
+                 f"{t['volume']['export']}{diagonal_words(t['volume'])}" if t
+                 else 'outside the map\'s tiles, no rebuild volume'))
     for h in m['nativeCopies']['hidden']:
         print(f"hidden {h['name']}: out of the Level's list, "
-              + (f"tiles {h['tiles']} rebuilt by volume {h['volume']['export']}" if h['volume']
+              + (f"tiles {h['tiles']} rebuilt by volume {h['volume']['export']}{diagonal_words(h['volume'])}" if h['volume']
                  else 'outside the map\'s tiles, no rebuild volume')
               + (f", unlinked from {', '.join(h['unlinkedFrom'])}" if h['unlinkedFrom'] else ''))
     for key in ('effects', 'sounds', 'flares', 'spawns'):
