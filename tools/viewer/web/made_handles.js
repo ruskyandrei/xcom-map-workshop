@@ -214,7 +214,13 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   // ---- the handles
   const wallHandleLayer = new THREE.Group(); world.add(wallHandleLayer);
   const wallHandleMeshes = [];
-  const wallStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(24), 3)),
+  // the white handles' stems: a floor's or ground shape's six (four sides, top, bottom), a wall's five
+  const STEMS = 6;
+  // where along a wall its face and bottom handles stand: the first of these shares of its length that no gap spans
+  // within GAP_CLEAR units (else the first)
+  const ALONG_TRIES = { face: [0.25, 0.125, 0.375, 0.75, 0.875, 0.625, 0.5], bottom: [0.75, 0.875, 0.625, 0.25, 0.125, 0.375, 0.5] };
+  const GAP_CLEAR = 32;
+  const wallStems = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 2 * STEMS), 3)),
                                            new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthTest: false }));
   wallStems.renderOrder = 8; wallStems.raycast = () => {}; wallStems.frustumCulled = false; wallHandleLayer.add(wallStems);
   let wallHover = null;     // (wallDrag, and wallFocus, the opening whose handle was last touched: editor_state.js)
@@ -423,11 +429,17 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
     out.push({ key: 'end:x1', kind: 'end', part: 'x1', at: toView(w.x1, 0, mid), dir: axis(1, 0, 0) });
     // the top: up or down (M2; any height in the free form)
     out.push({ key: 'end:top', kind: 'end', part: 'top', at: toView((x0 + w.x1) / 2, 0, top0), dir: axis(0, 0, 1) });
-    // (design A: its bottom, under the floor line, and the face toward the camera for its thickness, each on a stem; a
-    // quarter along, clear of the top's and the gaps' handles)
-    out.push({ key: 'end:bottom', kind: 'end', part: 'z0', at: toView(x0 + (w.x1 - x0) * 0.75, 0, bottom0), dir: axis(0, 0, -1) });
+    // (design A: its bottom, under the floor line, and the face toward the camera for its thickness, each on a stem;
+    // a quarter along, clear of the top's handle, or the first place of `ALONG_TRIES` no gap spans, clear of the gaps'
+    // handles: a gap at a quarter along put its side handle within reach of the face's)
+    const openings = w.openings ?? [], gapFree = t => {
+      const x = x0 + (w.x1 - x0) * t;
+      return !openings.some(o => o.x0 - GAP_CLEAR < x && x < o.x1 + GAP_CLEAR);
+    };
+    const along = tries => x0 + (w.x1 - x0) * (tries.find(gapFree) ?? tries[0]);
+    out.push({ key: 'end:bottom', kind: 'end', part: 'z0', at: toView(along(ALONG_TRIES.bottom), 0, bottom0), dir: axis(0, 0, -1) });
     const facing = side > 0, faceY = free ? (facing ? w.y1 : w.y0) : (facing ? spec.through : -spec.through);
-    out.push({ key: 'end:face', kind: 'end', part: facing ? 'y1' : 'y0', at: toView(x0 + (w.x1 - x0) * 0.25, faceY, mid),
+    out.push({ key: 'end:face', kind: 'end', part: facing ? 'y1' : 'y0', at: toView(along(ALONG_TRIES.face), faceY, mid),
                dir: axis(0, facing ? 1 : -1, 0) });
     const floor = free ? Math.max(0, w.z0) : 0;
     // (its gaps a set at a time: the picked one's five handles, every other one's middle alone, which picks it)
@@ -471,9 +483,9 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
       mesh.userData.material.color.setHex(h.key === lit ? 0xffe27a : white || pickedPoint ? 0xffffff : focused ? 0x9fdcff : 0x4aa8ff);
       scaleMarker(mesh, camera, mesh.position);
       if (!white) mesh.scale.multiplyScalar(h.part === 'middle' ? 1 : h.kind === 'point' ? 0.7 : 0.8);
-      if (white && n < 8) { stems.setXYZ(n++, h.at.x, h.at.y, h.at.z); stems.setXYZ(n++, mesh.position.x, mesh.position.y, mesh.position.z); }
+      if (white && n < 2 * STEMS) { stems.setXYZ(n++, h.at.x, h.at.y, h.at.z); stems.setXYZ(n++, mesh.position.x, mesh.position.y, mesh.position.z); }
     });
-    for (; n < 8; n++) stems.setXYZ(n, 0, 0, 0);
+    for (; n < 2 * STEMS; n++) stems.setXYZ(n, 0, 0, 0);
     stems.needsUpdate = true;
   }
   function wallHandleNear(x, y) {

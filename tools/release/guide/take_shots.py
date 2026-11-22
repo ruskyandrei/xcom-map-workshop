@@ -999,8 +999,8 @@ class Shots:
         page = self.page
         steps = page.evaluate('viewer.gizmo.undoDepth()')
         (x, y, z), wall, second = self.made_corner()
-        # the doorway picked (a click on its middle): its five handles, the window's middle alone (the doorway, in the
-        # middle tile, keeps its side handles clear of the face's handle a quarter along)
+        # the doorway picked (a click on its middle): its five handles, the window's middle alone (the face's handle
+        # stands where no gap is, clear of their handles)
         h = page.evaluate('viewer.wallHandles()')
         window = min((k for k in h if k.endswith(':middle')), key=lambda k: page.evaluate(
             '([id, i]) => viewer.wallState(id).generated.wall.openings[i].z0', [wall, int(k.split(':')[1])]))

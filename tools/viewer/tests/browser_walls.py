@@ -561,7 +561,7 @@ OPEN_FLOOR = dict(kind='fracSlab', version=3, slab=dict(x0=0, x1=288, y0=0, y1=2
     dict(x0=0, x1=96, y0=0, y1=96), dict(x0=192, x1=288, y0=192, y1=288)]))
 SEEDED_ROCK = dict(kind='ground', version=4, ground=dict(shape='rock', x0=0, x1=192, y0=0, y1=192, height=96, seed=5))
 # a free-form wall, its faces and gaps put in place by check_wall_in_row (EXP-90's wall A's height and thickness)
-FREE_WALL = dict(kind='fracWall', version=5, wall=dict(free=1, x0=-100.0, x1=300.0, y0=-8.0, y1=8.0, z0=-16.0, z1=384.0,
+ROW_WALL = dict(kind='fracWall', version=5, wall=dict(free=1, x0=-100.0, x1=300.0, y0=-8.0, y1=8.0, z0=-16.0, z1=384.0,
                                                        tall='repeat', seed=901, openings=[]))
 # EXP-90's floor B in the free form, without its hole (F-147)
 FREE_FLOOR = dict(kind='fracSlab', version=4, slab=dict(free=1, x0=0.0, x1=230.5, y0=0.0, y1=170.25, z0=192.0, z1=194.0,
@@ -724,7 +724,7 @@ def check_wall_in_row(page):
     first gives the place; the wall's faces and gaps are then put where the row and its tiles' centres are."""
     made_edits = made_edits_module()
     along = 1536
-    probe = page.evaluate(MADE, [[FREE_WALL], along])['ids'][0]
+    probe = page.evaluate(MADE, [[ROW_WALL], along])['ids'][0]
     page.wait_for_function('id => viewer.wallMeshReady(id)', arg=probe, timeout=60000)
     state = page.evaluate('id => viewer.wallState(id)', probe)
     page.evaluate('id => viewer.select(id)', probe)
@@ -737,11 +737,11 @@ def check_wall_in_row(page):
     k = 1 if abs(d[0]) > 0.5 else 0             # the axis across the wall
     centre = origin[k] + 96.0 * (math.floor((loc[k] - origin[k]) / 96.0) + 0.5)
     v = (centre - loc[k]) * (d[0] if k == 1 else -d[1]) + 6.5       # across the wall, in its frame
-    crossings = [c for c in made_edits.grid_crossings(loc, rot, FREE_WALL['wall'], origin) if 40.0 <= c <= 150.0]
+    crossings = [c for c in made_edits.grid_crossings(loc, rot, ROW_WALL['wall'], origin) if 40.0 <= c <= 150.0]
     a = crossings[0]
     window, door = dict(x0=a - 36.0, x1=a + 36.0, z0=72.0, z1=168.0), dict(x0=a + 60.0, x1=a + 132.0, z0=-16.0, z1=160.0)
-    wall = dict(FREE_WALL['wall'], y0=v - 8.0, y1=v + 8.0, openings=[window, door])
-    made = page.evaluate(MADE, [[dict(FREE_WALL, wall=wall)], along])['ids'][0]
+    wall = dict(ROW_WALL['wall'], y0=v - 8.0, y1=v + 8.0, openings=[window, door])
+    made = page.evaluate(MADE, [[dict(ROW_WALL, wall=wall)], along])['ids'][0]
     page.wait_for_function('id => viewer.wallMeshReady(id)', arg=made, timeout=60000)
     assert page.evaluate('id => viewer.wallState(id)', made)['location'] == loc
     taken = made_edits.row_tiles(loc, rot, wall, origin)

@@ -368,7 +368,7 @@
           <label id="coverTypeRow" title="High cover: a unit beside it is in full cover, and it blocks sight. Low cover: half cover, and units see over it (one tile tall). None: a blocker, which units can't walk into and see past, and which gives no cover">Cover<select id="coverHeight"><option value="high">High</option><option value="low">Low</option><option value="block">None (blocks walking)</option></select></label>
         </div>
         <div id="coverSight" class="lightnote" title="Sight in the game is read from tiles one level above the floor (eye height): a high block stops it where it stands across the line between two tiles' centres there. A unit beside a wall still leans round its ends"></div>
-        <div id="coverSize" class="lightnote" title="Drag the white handles on its sides, top and bottom to size it: steps of 1 unit with snap off, 24 units at 24, whole tiles at 96"></div>
+        <div id="coverSize" class="lightnote" title="Drag the white handles on its sides, top and bottom to size it, in Snap's steps: smoothly with snap off, 24 units at 24, whole tiles and levels of 64 up at 96"></div>
         <div id="coverNote" class="lightnote"></div>
         <div class="row" id="coverFitRow" hidden><button id="coverFit" type="button" title="Raise or lower the floor so its top stands 1 unit over the ground at the tile centre where the ground is highest: the game looks for a tile's floor straight down through the tile's centre, so the floor is found there, as low as it can be">Fit to ground</button></div>
       </div>
@@ -395,7 +395,7 @@
           <label class="check" title="Line its pattern up with the pieces beside it: counted from the world's origin, not the piece's own, so it stays put in the world when the piece is moved"><input id="texWorld" type="checkbox"> Aligned to the world</label>
           <div class="row"><button id="texReset" type="button" title="Back to its look's own texture (Original): its size, turn, offset and flips forgotten; one undo step">Reset surface</button></div>
         </details>
-        <div id="wallSize" class="lightnote how" title="Drag the white handles at its ends to lengthen or shorten it by whole tiles: its gaps stay where they are, and one the wall no longer holds goes"></div>
+        <div id="wallSize" class="lightnote how" title="Drag the white handles at its ends, top, bottom and the face toward you to size it, in Snap's steps (smoothly with snap off): only the face dragged moves, its gaps stay where they are, and one the wall no longer holds goes"></div>
         <div id="wallTallRow" class="row walltall" hidden><span class="alignlabel">Taller than its look</span><div id="wallTall" class="seg" role="group" aria-label="How the wall is made taller than its look"><button type="button" data-value="repeat" title="Its look's storeys stacked, the top one shortened or lengthened by what is left: the bands repeat each storey">Repeat storeys</button><button type="button" data-value="stretch" title="One profile over the whole height: the bands at the bottom and top keep their sizes, the face takes the rest">Stretch</button></div></div>
         <div id="wallOpenings" class="wallopenings"></div>
         <div class="row">
@@ -422,7 +422,7 @@
         <div class="row lookrow"><span id="slabLookName" class="lookname"></span>
           <button id="slabLookChange" type="button" title="A look: any of the game's floors and roofs, from the list of every map's or picked in the view (I). It is made again in it where it stands; Ctrl+Z puts the old one back">Choose…</button>
           <button id="slabLookPlain" type="button" title="Back to no look: drawn plain, and the Build makes it in its kind's default look (and says so) until a look is chosen">Plain</button></div>
-        <div id="slabSize" class="lightnote how" title="Drag the white handles on its edges to grow or shrink it by whole tiles: its holes stay where they are, and one past the edge goes"></div>
+        <div id="slabSize" class="lightnote how" title="Drag the white handles on its edges, top and underside to size it, in Snap's steps (smoothly with snap off): only the edge dragged moves, its holes stay where they are, and one past the edge goes"></div>
         <div id="slabHoles" class="wallopenings"></div>
         <div class="row">
           <button id="slabHole" type="button" title="A hole one tile square in the free tile nearest the middle, for a ladder or stairs of the game's. Its handles (in blue) move and size it">Add hole</button>
@@ -446,7 +446,7 @@
         <div class="row lookrow"><span id="groundLookName" class="lookname"></span>
           <button id="groundLookChange" type="button" title="A look: any of the game's ground and rock materials, from the list of every map's (each card shows this shape made in it) or picked in the view (I). It is made again in it where it stands; Ctrl+Z puts the old one back">Choose…</button>
           <button id="groundLookPlain" type="button" title="Back to no look: drawn plain, and the Build makes it in its kind's default look (and says so) until a look is chosen">Plain</button></div>
-        <div id="groundSize" class="lightnote how" title="Drag the white handles on its edges to size it by whole tiles, the one on top to raise or lower it"></div>
+        <div id="groundSize" class="lightnote how" title="Drag the white handles on its edges to size it, the one on top to raise or lower it and the one under it to set its bottom, in Snap's steps (smoothly with snap off)"></div>
         <div id="groundSlope" class="lightnote" hidden></div>
         <div class="row">
           <button id="groundTurn" type="button" title="Turn the ramp a quarter turn on its footprint: it rises the next way round">Turn</button>
