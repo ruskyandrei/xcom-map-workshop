@@ -1188,8 +1188,11 @@ def add_rebuild_volume(g, p, box, template=None, spare=False, changed=None):
     the first volume's. A record of a box that holds diagonal tiles names them in `diagonalRebuilt`: the rebuild takes
     their diagonal cover; with `changed` (rebuild_spares) they are left out instead, the ones next to the change named
     in `diagonalWritten` and the ones it stands on in `diagonalWhole`, and the grower gathers them (`diagonal_writes`,
-    `diagonal_whole`) for the Build to write after (diagonal_keep.write)."""
+    `diagonal_whole`) for the Build to write after (diagonal_keep.write). The grower gathers the `changed` boxes too
+    (`change_boxes`), whose tiles the Build writes as the battle's rebuild will leave them (start_tiles.write)."""
     import rebuild_fit
+    if changed:
+        g.__dict__.setdefault('change_boxes', []).extend([float(v) for v in b] for b in changed)
     template = template or rebuild_template(p)
     radius = box_reach(p, template, box)
     spares = rebuild_spares(p, box, radius, spare, changed)
@@ -1322,13 +1325,14 @@ def volume_sphere(p, volume):
     return [loc[k] + scale[k] * origin[k] for k in range(3)], radius
 
 
-def rebuild_order(p):
+def rebuild_order(p, queued=True):
     """The battle's rebuild work set at level start, in order, as {tile: place}: XGBattle.DoWorldDataRebuild calls
     RebuildTileData(Origin, SphereRadius, SphereRadius) for every XComRebuildWorldDataVolume (AllActors: the
     persistent level's actor list first, the streamed levels' after), and each call adds the tiles of the box Origin ±
     SphereRadius, X outer, Y middle, Z inner, whose static flags have a bit in 0xFFF; a tile keeps the place it was
     first added at (research/native/ladder-links.md, G5). The streamed levels' volumes and LWR's mutator (which
-    queues its own first) are not read here."""
+    queues its own first) are not read here. With `queued` False, every tile of the boxes whatever its flags: the
+    tiles a seed bit would put in the work set (start_tiles.py)."""
     import math
     grid = level_grid(p)
     _, blob, dims, where = static_flags(p)
@@ -1353,7 +1357,7 @@ def rebuild_order(p):
         for x in range(span[0][0], span[0][1] + 1):
             for y in range(span[1][0], span[1][1] + 1):
                 for z in range(span[2][0], span[2][1] + 1):
-                    if (x, y, z) not in order and flags((x, y, z)) & 0xFFF:
+                    if (x, y, z) not in order and (not queued or flags((x, y, z)) & 0xFFF):
                         order[(x, y, z)] = len(order)
     return order
 
@@ -2466,6 +2470,7 @@ class BuildState:
     report: object = filled()           # the growing writer's report of the write
     q: object = filled()                # the written map, read again
     diagonal: object = filled()         # the diagonal cover tiles next to a change, written (diagonal_keep.write)
+    start_tiles: object = filled()      # the tiles near the changes written as the rebuild leaves them (start_tiles)
     forgot: object = filled()           # the tiles' references to actors taken out of the level, cleared (F-156)
     # what build makes between its steps
     groups: dict = filled(dict)         # the break groups linked (link_children): each group's clones
@@ -2558,6 +2563,7 @@ def manifest_parts(st, q, bake):
                                  for r in edit_records],
                   coverBlocks=[dict(c, copy=q.name(c['actor'])) for c in cover_records],
                   **({'diagonalCover': st.diagonal} if st.diagonal else {}),
+                  **({'startTiles': st.start_tiles} if st.start_tiles else {}),
                   **({'tilesForgot': st.forgot} if st.forgot else {}),
                   **({'generatedWalls': [dict(r, copy=q.name(r['copy']).split('.')[-1],
                                               **({'mesh': q.name(r['mesh'])} if r.get('mesh') else {}))
@@ -3094,32 +3100,40 @@ def taken_out(p):
     return {i for i in range(1, len(p.exports) + 1) if p.exports[i - 1]['outer'] == level and i not in listed}
 
 
-def forget_taken_out(path):
-    """The written map at `path` with no tile naming an actor the Build took out of the level (world_grid.forget):
-    the game frees such an actor once the map has loaded, and a tile that still named it made saving the battle crash
-    (F-156: a deleted building's floor volumes, deleted floor pieces, outside every rebuild volume). Written in place
-    when anything changed. Returns world_grid.forget's counts, {} when nothing named one."""
+def rewrite_tiles(path, boxes):
+    """The written map at `path` with its tile data rewritten once (written in place when anything changed):
+    - the tiles near its changes (`boxes`: the grower's change_boxes) and round the floors of the pieces taken out of
+      the level as the battle's rebuild will leave them (start_tiles.apply): the game places the terror civilians and
+      the pods' other aliens from the stored tiles before that rebuild runs (F-157);
+    - then no tile naming an actor the Build took out of the level (world_grid.forget): the game frees such an actor
+      once the map has loaded, and a tile that still named it made saving the battle crash (F-156: a deleted
+      building's floor volumes, deleted floor pieces, outside every rebuild volume).
+    Returns (start_tiles.apply's record, world_grid.forget's counts), each {} when it changed nothing."""
     import os
     import package_grow
+    import start_tiles
     import world_grid
     p = lighting.Package(Path(path))
     if not any(p.cls(i) == 'XComWorldDataContainer' for i in range(1, len(p.exports) + 1)):
-        return {}
+        return {}, {}
     index, blob = world_grid.container_of(p)
-    model = world_grid.decode(blob)
+    model, start = start_tiles.apply(p, boxes)
+    if model is None:
+        model = world_grid.decode(blob)
     counts = world_grid.forget(model, taken_out(p))
-    if not any(counts.values()):
-        return {}
+    counts = {k: v for k, v in counts.items() if v}
+    if not start and not counts:
+        return {}, {}
     encoded = world_grid.encode(model)
     if encoded[:world_links.HEADER] != blob[:world_links.HEADER]:
         raise ValueError('the tile data was not written back with its header')
     g = package_grow.Grower(str(path))
     g.relocate(index, encoded)
-    tmp = Path(str(path) + '.forget')
+    tmp = Path(str(path) + '.tiles')
     g.write(str(tmp))
     del g, p
     os.replace(tmp, path)
-    return {k: v for k, v in counts.items() if v}
+    return start, counts
 
 
 def write_and_verify(st):
@@ -3156,8 +3170,14 @@ def write_and_verify(st):
         import diagonal_keep
         st.diagonal = diagonal_keep.write(dst, getattr(g, 'diagonal_writes', set()), getattr(g, 'diagonal_whole', set()),
                                           getattr(g, 'diagonal_candidates', set()))
-    # no tile names an actor taken out of the level: the game frees those, and saving then crashed (F-156)
-    st.forgot = forget_taken_out(dst)
+    # the tile data rewritten once: the tiles near the changes as the battle's rebuild will leave them (the game
+    # places the terror civilians and the pods' other aliens from the stored tiles before it runs that rebuild,
+    # F-157), and no tile naming an actor taken out of the level (the game frees those, and saving crashed, F-156)
+    st.start_tiles, st.forgot = rewrite_tiles(dst, getattr(g, 'change_boxes', []))
+    if st.start_tiles:
+        print('tiles: %s near the changes written as the battle\'s rebuild will leave them (%s)'
+              % (st.start_tiles['written'], ', '.join('%s %s' % (k, v) for k, v in st.start_tiles.items()
+                                                      if k not in ('written',))))
     if st.forgot:
         print('tiles: %s' % ', '.join('%s %d' % (k, v) for k, v in st.forgot.items()) + ' named actors taken out of '
               'the level: cleared (a link or interact point dropped)')

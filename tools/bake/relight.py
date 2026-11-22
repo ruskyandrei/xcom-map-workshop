@@ -29,8 +29,9 @@ receivers come only from here.
 `--bake`, which runs this): the scene before the edit leaves it out, so the receivers around it take its shadows.
 Its own lightmap and its shadow maps hold the source's bake (cloned textures), and go from our light on the source
 where it stands, from the lights the source's lightmap lists, to our light on the copy where it stands, from the
-lights the copy's lightmap lists (`relight_component` with `source`). A texel buried at either place keeps the
-source's bake.
+lights the copy's lightmap lists (`relight_component` with `source`). A texel buried where the copy stands keeps the
+source's bake; one buried only where the source stands is relit (black in the source's bake, it takes our light where
+the copy stands: F-158).
 
 `--moved-in-place ACTOR=X,Y,Z,PITCH,YAW,ROLL` names an actor of the map moved where it is (native_spawns.py: a
 landing's grounded Skyranger carried by its zone, F-98), standing at its new pose in the map, with its old pose. The
@@ -793,12 +794,18 @@ def prepare_component(p, path, scene=None, checker=None, after=None, source=None
         geo = dict(geo, **{k: geo[k][~inside] for k in ('px', 'py', 'world', 'frames', 'triangle')})
         geo_b = geo
     elif scene is not None and source is not None:
-        # a texel buried where either stands keeps the source's bake (its neighbours' change spreads into it)
-        inside = (bounce.buried_texels(scene.occluder, geo_b['world'], geo_b['frames'], scene.level_scale) |
-                  bounce.buried_texels(after.occluder, geo['world'], geo['frames'], after.level_scale))
+        # a texel buried where the copy stands keeps the source's bake (its neighbours' change spreads into it). One
+        # buried only where the source stands (a floor under a staircase there) is relit: the source's bake is black
+        # there and our light before comes out near zero (its rays meet the back faces round it), so the change gives
+        # it our light where the copy stands, as for the floor under a removed piece. Kept, it showed black wherever
+        # that part of the copy lies in the open (F-158)
+        inside_before = bounce.buried_texels(scene.occluder, geo_b['world'], geo_b['frames'], scene.level_scale)
+        inside = bounce.buried_texels(after.occluder, geo['world'], geo['frames'], after.level_scale)
+        opened = inside_before & ~inside
         buried = int(inside.sum())
         if inside.all():
             raise Excluded(f'all {buried} texels of {path} lie inside geometry')
+        opened = opened[~inside]
         keys = ('px', 'py', 'world', 'frames', 'triangle')
         geo = dict(geo, **{k: geo[k][~inside] for k in keys})
         geo_b = dict(geo_b, **{k: geo_b[k][~inside] for k in keys})

@@ -12,12 +12,13 @@ Statuses:
 
 ## Open now
 
-- F-158 (22 November, a user's report): a baked copy of one of the map's own pieces shows black where something
-  stands on its source (a floor copied from under a staircase): a texel buried at either place keeps the source's
-  bake. Offline.
+- F-158 (22 November, a user's report): a baked copy of one of the map's own pieces showed black where something
+  stands on its source (a floor copied from under a staircase): a texel buried at either place kept the source's
+  bake. Fixed the same day (only a texel buried where the copy stands keeps it); verified in EXP-92 (no patch left).
 - F-157 (22 November, a user's report): terror civilians stand on the map's stored tiles before the battle's
-  rebuild runs, and a Build leaves a deleted piece's floors and cover points there for the rebuild to clear, so they
-  can start in the air where a UFO's floors were. Offline.
+  rebuild runs, and a Build left a deleted piece's floors and cover points there for the rebuild to clear, so they
+  could start in the air where a UFO's floors were. Fixed the same day (the Build writes the tiles near its changes
+  as the rebuild will leave them); verified in EXP-92 (2 of 18 in the air before, none of 36 after).
 - F-156 (22 November, EXP-91): a built map whose tiles still named actors the Build took out of the level (a deleted
   building's floor volumes, deleted floor pieces) crashed the game on saving; the Build now clears them. Verified:
   the reported project saves, loads and saves again.
@@ -201,8 +202,10 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
-### F-158: A baked copy of the map's own piece shows black where something stands on its source
-**Open** (22 November 2026: a user's report; read offline from the reported built map and the base map).
+### F-158: A baked copy of the map's own piece showed black where something stands on its source
+**Verified** (22 November 2026: a user's report; read offline from the reported built map and the base map; the fix
+checked offline the same day in the project rebuilt, and in the game in
+[EXP-92](experiments/EXP-92-civilians-and-copy-patch.md): the floor south of the helipad lit, no patch).
 - **Seen.** The same CLrgScout_City variant as F-157, a full Build with the bake: a black rectangle on the rubble
   floor south of the helipad, in the open, where nothing stands.
 - **Read.** It lies on `XComLevelActor_768`, the Build's copy of the map's own floor `XComLevelActor_526`
@@ -221,10 +224,17 @@ Statuses:
   wherever that part of it lands in the open. Not the deleted UFO, and deleting the staircase in the project would
   not help (the scene before the edit keeps it). The build ran 0.6.0's `relight.py` (its hash in the build's
   manifest); main has the same rule.
-- **Fix to try.** A texel buried where the source stands and open where the copy stands is lit from nothing at the
-  copy's place, as a piece of another map is (`--foreign-copy`, `fresh`); only a texel buried where the copy stands
-  keeps the source's bake.
-- **Known bug** [KB-19](../KNOWN-BUGS.md).
+- **The moon's shadow map** of such a copy has no such rule (`shadowmaps.relight_shadow_map` compares the source's
+  view of the light with the copy's), so it was right already.
+- **Fix** (22 November 2026, `relight.prepare_component`): only a texel buried where the copy stands keeps the
+  source's bake. One buried only where the source stands is relit as the floor under a removed piece is: our light
+  before comes out near zero there (its rays meet the back faces round it), as the source's bake is black, so the
+  change gives it our light where the copy stands; the record counts it in `texels.opened`. On the bar, a ground slab
+  copied 480 units east: its 1,857 texels buried where the source stands are lit about as the open slab round them
+  (`test_native_copy` `CopyBuriedWhereItsSourceStands`, which the old rule fails). The reported project rebuilt
+  with the bake: the copy's black texels in the three patches went from 897, 308 and 940 to 158, 0 and 140, the
+  ones left all under what stands on the copy now (a fog pod, an AC unit, a cover chunk), and a render of the
+  baked light from above shows the floor south of the helipad lit evenly.
 
 ### F-145: The game has no wall turned off the quarter turns, so no rule of its own for a turned wall's columns
 **Verified: a turned wall's columns run along its own line** (21 November 2026, offline: the wall audit,
@@ -306,8 +316,9 @@ same night, [frac-neighbours.md](native/frac-neighbours.md) section 2.3; the fix
 
 ## Tiles, cover and placement
 ### F-157: Terror civilians stand on the map's stored tiles before the battle's rebuild, so a deleted piece's raised floors put them in the air
-**Open** (22 November 2026: a user's report; read offline from the game's scripts and the reported built map, not
-played).
+**Verified** (22 November 2026: a user's report; read offline from the game's scripts and the reported built map;
+the fix played the same day in [EXP-92](experiments/EXP-92-civilians-and-copy-patch.md): on the build without it 2
+of 18 civilians started in the air, one at the deleted UFO's roof; on the fixed build none of 36 in two battles).
 - **Seen.** In a terror mission on a user's CLrgScout_City variant (its UFO deleted, an EXALT helipad copied onto
   the UFO's place, built with 0.6.0 and baked), civilians now and then start standing in the air, at the helipad's
   height beside it.
@@ -335,12 +346,19 @@ played).
 - **Also.** A moved piece's old place is the same. A new piece's floors come from the rebuild alone, so no civilian
   starts on the helipad's top. The pods' other aliens are put by `GetClosestValidLocation` from `InitPods`, inside
   `InitPlayers` too, so on the same stored tiles (not read further).
-- **Fix to try.** The Build writes the tiles it leaves to the rebuild as the rebuild would leave them: at least a
-  tile whose floor piece it took out of the level or moved loses its floor and cover where nothing else stands
-  (keeping a seed bit, so the rebuild still re-checks it); or every tile a change stands on is written whole by the
-  tile build that writes the diagonal tiles (F-155), which would also give new floors their cover points from the
-  start.
-- **Known bug** [KB-18](../KNOWN-BUGS.md).
+- **Also stale for good.** 32 tiles inside the deleted hull kept only bits the rebuild's queue test does not read
+  (`0x1000`, sight blocked upward, with the floor record standing room had taken the flag from), so the battle
+  never worked them out at all.
+- **Fix** (22 November 2026, [`start_tiles.py`](../tools/bake/start_tiles.py)): the Build writes the tiles near its
+  changes as the rebuild will leave them. For every tile a rebuild volume reaches that lies near a change (the boxes
+  its rebuild volumes were made for, a tile round them, a level under and two over) or round a floor whose piece it
+  took out of the level, passes 1 and 2 of the tile build (F-152) run against the built map; a tile whose stored
+  state differs gets the result and a seed bit. The battle's rebuild clears a queued tile and works it out afresh
+  ([cover-build.md](native/cover-build.md), section 1), so it still has the last word; what changes is what the game
+  reads before it. The reported project rebuilt (quick, main): no cover point above the ground on a deleted piece's
+  floor (56 within a pod's reach before), the tiles beside the helipad open air, its top a floor (z 66) with cover
+  points at its edges, the 32 tiles above seeded; 6,693 of 15,015 tiles written, in 4.0 s. The Build rewrites the
+  map's tile data once for this and F-156's clean-up together (`native_copy.rewrite_tiles`).
 
 ### F-146: A made wall standing inside a tile row takes those tiles; beside it the cover is the compiler's
 **Verified; explained, and the editor says it** (21 November 2026, [EXP-90](experiments/EXP-90-free-form-pieces.md)

@@ -653,7 +653,8 @@ class NativeCopy(unittest.TestCase):
     def test_a_build_decodes_its_map_once(self):
         # the map a build writes is read back from the source's decoded blocks and kept (follow-ups item 1.1): a
         # build decodes the bar once, and neither the writer's check nor the readers after it decode the written map
-        # whole (before, the check did: two decodes)
+        # whole (before, the check did: two decodes). It writes the map, then its tile data once more: the tiles near
+        # the copy as the battle's rebuild will leave them (native_copy.rewrite_tiles, F-157)
         copy = dict(actor='XComLevelActor_37', location=[-1155.0, -1874.4, 0.0], rotation=[0, 0, 0])
         with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ):
             for name in (decomp.WORK_ENV, decomp.KEEP_ENV):
@@ -662,7 +663,7 @@ class NativeCopy(unittest.TestCase):
             before = dict(decomp.STATS)
             native_copy.build(native_copy.BuildState(BAR, d, 'URB_BarOneCopy', [copy]))
             self.assertEqual({k: decomp.STATS[k] - before[k] for k in ('decoded', 'written')},
-                             dict(decoded=1, written=1))
+                             dict(decoded=1, written=2))
 
     def test_a_sky_dome_collides_with_nothing_so_its_copy_seeds_no_tiles(self):
         # F-93: the Bar's two sky domes save no collision; its pieces collide
@@ -1561,6 +1562,44 @@ class NativeCopy(unittest.TestCase):
                                                 before.level_scale, source=(comp, shadowmaps.shadow_maps(q, comp)[0]))
             self.assertIsNotNone(got)
             self.assertEqual(got['report']['copyOf'], p.name(comp))
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class CopyBuriedWhereItsSourceStands(unittest.TestCase):
+    """(F-158) A copy of a ground slab moved 480 units east: the part of it buried where the source stands (under
+    what stands on the slab there, black in the source's bake) lies in the open at the copy, and takes our light there.
+    It used to keep the source's black bake, and a copied floor showed the footprint of what stood on its source."""
+
+    def test_the_part_buried_only_where_the_source_stands_is_lit_where_the_copy_stands(self):
+        p = lighting.Package(BAR)
+        old = p.by_name[PL + 'XComLevelActor_131']
+        comp = p.own(old, 'StaticMeshComponent')
+        loc = p.own(old, 'Location', [0.0, 0.0, 0.0])
+        where, rotation = (loc[0] + 480.0, loc[1], loc[2] + 2.0), p.own(old, 'Rotation', [0, 0, 0])
+        g = package_grow.Grower(str(BAR))
+        info = native_copy.clone_actor(g, p, old, where, rotation, own_lighting=True)
+        native_copy.add_to_level(g, p, [info['actor']])
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d) / 'URB_Bar.upk'
+            g.write(str(out))
+            lighting.link_caches(d, BAR.parent)
+            q = lighting.Package(out)
+            copy = q.name(info['actor']).split('.')[-1]
+            before = relight.Scene(q, samples=8, bounce_rays=0, emissive=False, remove_casters=[copy])
+            after = relight.Scene(q, samples=8, bounce_rays=0, emissive=False)
+            path = q.name(info['mapping'][comp])
+            work = relight.prepare_component(q, path, before, after=after, source=p.name(comp))
+            r = relight.assemble_component(q, work, relight.compute_component(work, before, after), before, after)
+            # nearly all of the slab's buried texels open up (3 are buried where the copy stands)
+            self.assertGreater(r['report']['texels']['opened'], 1500)
+            geo = work['geo']
+            x0, y0 = geo['rect'][:2]
+            iy, ix = geo['py'] - y0, geo['px'] - x0
+            src, now = r['before'].sum(2)[iy, ix], r['after'].sum(2)[iy, ix]
+            opened = work['opened']
+            # black in the source's bake, lit about as the open slab round them where the copy stands
+            self.assertLess(float(np.median(src[opened])), 0.05 * float(np.median(src[~opened])))
+            self.assertGreater(float(np.median(now[opened])), 0.5 * float(np.median(now[~opened])))
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
