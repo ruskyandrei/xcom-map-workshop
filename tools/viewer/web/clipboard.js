@@ -35,7 +35,7 @@ import { makeMarker, paintMarker, valuesOf } from './lights_view.js';
 import { fromOf, MADE_KINDS, optionsOf, stateOfRoot } from './piece_records.js';
 import { collectPieces } from './pieces.js';
 import { buildingKey, groupKey, memberKey, pruneGroups, targetKey, uuid } from './project.js';
-import { droppedAcross } from './snap_steps.js';
+import { droppedAcross, stepped, stepsOf } from './snap_steps.js';
 import { remember } from './storage.js';
 import { plural, short, text } from './dom_words.js';
 
@@ -272,6 +272,9 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     // grid): its pivot is a tile corner at ground level
     if (clip.gridLocked) return [px + Math.round((x - px) / TILE) * TILE, py + Math.round((y - py) / TILE) * TILE, clip.pivot[2] + Math.round((z - clip.pivot[2]) / LEVEL) * LEVEL];
     [x, y] = droppedAcross([x, y], [px, py], snapMode);
+    // a prefab from the library (its pivot on the tile grid's base): up and down in the snap's steps from there too, so
+    // its pieces with a pose rule keep their height on the grid under a snap; snap off, as picked
+    if (clip.wrap && stepsOf(snapMode).up) z = clip.pivot[2] + stepped(z - clip.pivot[2], stepsOf(snapMode).up);
     // a light from the Add panel: at its template's height above what is under the cursor
     if (clip.lightHeight != null) z += clip.lightHeight;
     // an invisible floor from the Add panel: its top just over the ground at the centre of the tile under its pivot (its

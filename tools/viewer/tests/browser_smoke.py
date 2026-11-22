@@ -5051,7 +5051,9 @@ def prefab_library(browser, url):
     assert taken['revision'] == 1 and len(listed()) == 2
     before = page.evaluate('viewer.roots.size')
     clip = page.evaluate("id => viewer.choosePrefab(viewer.prefabs.list().find(p => p.id === id) ?? { id, name: 'Two cars' }).then(c => ({ entries: c.entries.length, left: c.left, locked: c.gridLocked }))", twin['id'])
-    assert clip == dict(entries=2 * ids['parts'], left=[], locked=True), clip
+    # (placed as the snap setting says: a prefab of pieces with a pose rule is held to whole tiles no longer, since
+    # 21 November 2026; Align to game pose puts a piece on its rule; a prefab with floor boxes still goes by tiles)
+    assert clip == dict(entries=2 * ids['parts'], left=[], locked=False), clip
     click_placement(spot(0.55, 0.45))
     assert page.evaluate('viewer.roots.size') == before + 2 * ids['parts']
     fresh = [e for e in page.evaluate('viewer.editState().added') if e.get('from') and e['from']['actor'] in car['members']][-2 * ids['cars']:]
@@ -5125,6 +5127,9 @@ def prefab_library(browser, url):
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && Boolean(viewer.data.tileGrid?.origin)"):
         return skip('prefabs', f'placed in another map: {other} has no tile grid', page)
     count = page.evaluate('viewer.roots.size')
+    # (placed under tile snap, as the user keeps pieces with a pose rule on the grid: a prefab of such pieces follows
+    # the snap setting since 21 November 2026, smoothly with snap off)
+    page.evaluate("viewer.setSnapMode('tile')")
     page.keyboard.press('p')
     choose(page, 'libScope', 'prefabs')
     page.wait_for_selector('#prefabList .libitem')
@@ -5151,6 +5156,7 @@ def prefab_library(browser, url):
     assert page.evaluate("[...viewer.roots.values()].filter(r => r.userData.source.foreign).length") == ids['parts'] + 1
     # every piece that keeps the pose rule stands on this map's grid as it stood on its own
     assert page.evaluate("[...viewer.roots.values()].filter(r => r.userData.source.added).every(r => { const m = viewer.gridNow(r.userData.source.id); return !m || m.valid; })")
+    page.evaluate("viewer.setSnapMode('off')")
     page.keyboard.press('p')
     page.keyboard.press('Control+s')
     page.wait_for_selector('#fileDialog:not([hidden])')
@@ -5965,7 +5971,7 @@ ALL_RUNS = (
                                                                         'grid-panel,made-break,made-openings,rock-corner,select-kind,'
                                                                         'flags-gate,prepare-routes']),
     dict(name='documents', map='URB_Bar', smoke=['--projects', '--only', 'documents']),
-    dict(name='police', map='URB_PoliceStation', smoke=['--projects', '--only', 'walls,looks,room-buttons,light-bar']),
+    dict(name='police', map='URB_PoliceStation', smoke=['--projects', '--only', 'walls,looks,room-buttons,light-bar,free-handles,texture-mapping']),
     dict(name='temple', map='TempleShip', smoke=['--only', 'temple-interior,temple-look']),
     dict(name='map-picture', map='URB_Bar', script='browser_map_picture.py'),
     dict(name='maps', map='URB_Bar', script='browser_maps_smoke.py'),
