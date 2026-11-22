@@ -121,6 +121,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -136,6 +137,7 @@ import atomic_files  # noqa: E402
 import builds as build_runs  # noqa: E402
 import compiler  # noqa: E402
 import decomp  # noqa: E402
+import folder_scrub  # noqa: E402
 import installs  # noqa: E402
 import maplist  # noqa: E402
 import mapsini  # noqa: E402
@@ -287,6 +289,10 @@ def long_paths():
         return False
 
 
+# lightmaps inside one built map worth a warning (smaller built maps plan, decision D4; EXP-86 played 135 MB)
+LARGE_LIGHTMAPS = 100 * 1000 * 1000
+
+
 def cache_name(variant):
     """The variant's texture cache: <Variant>_Lighting (outputnames.cache_name), its own as its map name is, so a
     rebuild replaces its own. The name is added to the map's name table before the relight writes it (native_copy.py,
@@ -295,12 +301,28 @@ def cache_name(variant):
     return outputnames.cache_name(variant)
 
 
+def lightmaps_held(path):
+    """What the built map at `path` holds of lightmaps inside it (tools/bake/lighting_size.py inside: textures, bytes,
+    cached, whole)."""
+    paths.use('bake')
+    import lighting_size
+    return lighting_size.inside(path)
+
+
+class NotNamed(Exception):
+    """No texture of the map names the cache (inline_lighting.NotNamed): nothing to put inside."""
+
+
 def inline_map(src, dst, cache, tfc):
     """dst: the map `src` with the lightmaps of its cache `cache` (the file `tfc`) inside it (inline_lighting.inline):
-    {cache, textures, mips, bytes, sha256}. An error when it can't be done (the map is then left as it is)."""
+    {cache, textures, mips, bytes, sha256}. NotNamed when no texture of the map names the cache; another error when it
+    can't be done (the map is then left as it is)."""
     paths.use('bake')
     import inline_lighting
-    return inline_lighting.inline(src, dst, cache, tfc, echo=lambda *_: None)
+    try:
+        return inline_lighting.inline(src, dst, cache, tfc, echo=lambda *_: None)
+    except inline_lighting.NotNamed as error:
+        raise NotNamed(str(error)) from None
 
 
 def owned_folder(output, variant, project_id):
@@ -1740,27 +1762,50 @@ class Build:
         F-140): every texture that names the build's cache holds all its mips inline, NeverStream, so the package has no
         texture cache to go beside the map, in CookedPCConsole or in a map pack's folder. A map that can't take them in
         ships its cache beside it, as builds did before, and the stage says why. Sets self.inside ({cache, textures,
-        mips, bytes}) or None."""
+        mips, bytes: what was moved; held: the map's lightmaps inside it, lighting_held}) or None.
+
+        Where every texture the relight wrote is in the map already (a copy's own, sized to what it reads, F-151, or
+        the map's own small ones), no cache was written, or none of the map's textures names it: the lightmaps are
+        inside all the same, none moved."""
         self.inside = None
         if not self.cache_name:     # a quick build, or the lighting unchanged: no cache
             return
         tfc = self.lit / ('%s.tfc' % self.cache_name)
-        if not tfc.is_file():
-            return
         target = cooked_dir / ('%s.upk' % self.variant)
         out = self.work / 'inside' / target.name
-        try:
-            done = inline_map(target, out, self.cache_name, tfc)
-        except Exception as error:      # any failure: the map as it is, its cache beside it
-            shutil.copyfile(tfc, cooked_dir / tfc.name)
-            note = ('its lightmaps could not be put inside the map (%s): they are in %s, which goes in CookedPCConsole '
-                    'itself beside the map' % (error, tfc.name))
-            self.echo('note: %s' % note)
-            self.stage('inside', cache=self.cache_name, note=note)
-            return
-        atomic_files.replace(out, target)       # (tried again while another program holds the map a moment)
-        self.inside = {k: done[k] for k in ('cache', 'textures', 'mips', 'bytes')}
+        done = dict(cache=self.cache_name, textures=0, mips=0, bytes=0)
+        if tfc.is_file():
+            try:
+                done = inline_map(target, out, self.cache_name, tfc)
+                atomic_files.replace(out, target)       # (tried again while another program holds the map a moment)
+            except NotNamed:
+                pass
+            except Exception as error:      # any failure: the map as it is, its cache beside it
+                shutil.copyfile(tfc, cooked_dir / tfc.name)
+                note = ('its lightmaps could not be put inside the map (%s): they are in %s, which goes in '
+                        'CookedPCConsole itself beside the map' % (error, tfc.name))
+                self.echo('note: %s' % note)
+                self.stage('inside', cache=self.cache_name, note=note)
+                return
+        self.inside = dict({k: done[k] for k in ('cache', 'textures', 'mips', 'bytes')}, held=self.lighting_held(target))
         self.stage('inside', **self.inside)
+
+    def lighting_held(self, target):
+        """What the built map `target` holds of lightmaps inside it (tools/bake/lighting_size.py inside: textures,
+        bytes, whole), said in the log; a warning where it passes LARGE_LIGHTMAPS (decision D4 of the smaller built
+        maps plan): the game keeps those in memory for the whole battle. None where it can't be read (said too)."""
+        try:
+            held = lightmaps_held(target)
+        except Exception as error:      # the count is a report: a map it can't read builds all the same
+            self.echo('note: the lightmaps inside the map could not be counted (%s)' % error)
+            return None
+        held = {k: held[k] for k in ('textures', 'bytes', 'whole')}
+        self.echo('lightmaps inside the map: %.1f MB in %d textures' % (held['bytes'] / 1e6, held['textures']))
+        if held['bytes'] > LARGE_LIGHTMAPS:
+            self.echo('warning: the map holds %.0f MB of lightmaps (%d whole 1,024-texel atlases): the game loads them '
+                      'with the map and keeps them in memory for the whole battle, so it loads slower and needs that '
+                      'much more video memory' % (held['bytes'] / 1e6, held['whole']))
+        return held
 
     def package(self):
         staging = self.work / 'package'
@@ -1840,7 +1885,15 @@ class Build:
                  **({'picture': self.pictured} if self.pictured else {}),
                  **({'pictureNote': self.picture_note} if self.picture_note else {}),
                  stages=self.stages, seconds=seconds, times=times, work=str(self.work), tools=tools)
-        (staging / 'manifest.json').write_text(json.dumps(m, indent=1) + '\n', encoding='utf-8', newline='\n')
+        # the package's manifest names no folder of this computer (a user may zip the folder and pass it on): each
+        # folder the build knows by a placeholder, any other by <folder> (folder_scrub; smaller built maps plan, P2).
+        # The record with its folders stays in the work folder, build-log.json, and is what the build returns
+        scrub = folder_scrub.scrubber(dict(builds=self.output, projects=self.projects, project=self.project_path.parent,
+                                           install=self.lwr, cache=self.cache, udk=self.udk, temp=tempfile.gettempdir(),
+                                           home=Path.home()))
+        (staging / 'manifest.json').write_text(json.dumps(folder_scrub.scrubbed(m, scrub), indent=1) + '\n',
+                                               encoding='utf-8', newline='\n')
+        (self.work / 'build-log.json').write_text(json.dumps(m, indent=1) + '\n', encoding='utf-8', newline='\n')
         (staging / 'README.txt').write_bytes(readme(m).encode('latin-1', 'replace'))
         with publish_lock(self.output, self.variant):
             # checked again as the package goes in: the folder is this project's, and no name it holds is taken now

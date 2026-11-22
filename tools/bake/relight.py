@@ -769,10 +769,14 @@ def prepare_component(p, path, scene=None, checker=None, after=None, source=None
         if si is None:
             raise ValueError(f'no export {source}')
         src_fields = lightmap_fields.component_fields(p, si)['lods'][0]['lightmap']
-        if p.effective(si, 'StaticMesh', 0) != p.effective(ci, 'StaticMesh', 0) or any(
-                src_fields[k] != fields[k] for k in ('coordinateScale', 'coordinateBias')):
+        src_top = lightmap_fields.texture_fields(p, src_fields['slots'][1]['index'])['mips'][0]
+        # the copy's own texture holds the box of its source's that it reads (native_copy.lighting_boxes): the same
+        # rectangle, moved by whole texels
+        if p.effective(si, 'StaticMesh', 0) != p.effective(ci, 'StaticMesh', 0) or not lightmap_texels.moved_rect(
+                src_fields, [src_top['width'], src_top['height']], fields, size):
             raise ValueError(f'{path} is not laid out as its source {source}')
-        geo_b = lightmap_texels.rasterise(mesh, lightmap_texels.world_matrix(p, si), src_fields, size)
+        # the source where it stands, texel for texel as the copy lays it out
+        geo_b = lightmap_texels.rasterise(mesh, lightmap_texels.world_matrix(p, si), fields, size)
         if not (np.array_equal(geo_b['px'], geo['px']) and np.array_equal(geo_b['py'], geo['py'])):
             raise ValueError(f'{path}: its texels are not its source\'s')
         src_guids = lighting.component_record(p, si)['lods'][0]['lightmap']['lightGuids']

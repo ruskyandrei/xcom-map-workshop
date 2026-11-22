@@ -330,9 +330,14 @@ def relight_shadow_map(p, ci, sm, light, before, after, level_scale=1.0, transit
     geo_b = geo
     if source is not None:
         si, ssm = source
-        if (ssm['scale'], ssm['bias']) != (sm['scale'], sm['bias']):
+        # the copy's own texture holds the box of its source's that it reads (native_copy.lighting_boxes): the same
+        # rectangle, moved by whole texels; the source's sub-samples are taken in the copy's layout
+        source_top = lightmap_fields.texture_fields(p, ssm['texture'])['mips'][0]
+        if not lightmap_texels.moved_rect(dict(coordinateScale=ssm['scale'], coordinateBias=ssm['bias']),
+                                          [source_top['width'], source_top['height']],
+                                          dict(coordinateScale=sm['scale'], coordinateBias=sm['bias']), size):
             raise ValueError(f'{p.name(ci)}: its shadow map is not laid out as its source\'s')
-        geo_b = sub_samples(p, si, ssm, size)
+        geo_b = sub_samples(p, si, sm, size)
         if not (np.array_equal(geo_b['px'], geo['px']) and np.array_equal(geo_b['py'], geo['py'])):
             raise ValueError(f'{p.name(ci)}: its sub-samples are not its source\'s')
     seen_b = lit(before, light['toLight'], geo_b, level_scale)

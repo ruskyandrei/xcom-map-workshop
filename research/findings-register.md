@@ -22,8 +22,9 @@ Statuses:
   the 293 marked tiles it works on their baked diagonal cover exactly; the marks themselves follow no rule (a finder
   for corners a project changes takes 245 of 289 and 111 unmarked). Offline; the Build asks it of made pieces'
   tiles since F-155.
-- F-151 (22 November, a user's report): a map with many copies builds to hundreds of megabytes: each copy clones
-  its source's whole lightmap atlases and shadow maps, held inside the map uncompressed; read offline, not fixed; KB-15.
+- F-151 (22 November, a user's report): a map with many copies built to hundreds of megabytes: each copy cloned its
+  source's whole lightmap atlases and shadow maps, held inside the map uncompressed. Fixed the same day (a copy's
+  textures the size of what it reads): the reported project 340.8 MB to 55.8 MB, every copy's texels the same; offline.
 - F-149 (22 November, a user's report): a tile the battle rebuilds loses its diagonal cover (the seeds are read by the
   map's full build alone). Fixed and seen in the game for the tiles an edit's own tiles do not hold (a grown
   CSmallScout_Farm keeps 7 of 8, the eighth taken by the game's own rebuild round a Meld canister) and for a tile next
@@ -3521,7 +3522,8 @@ and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15
   has no case.
 
 ### F-151: Every copy clones its source's whole lightmap atlases, and the map holds them uncompressed
-**Open** (22 November 2026, a user's report: a map pack whose map was 336 MB; read offline from the pack).
+**Fixed** (22 November 2026, a user's report: a map pack whose map was 336 MB; read offline from the pack; fixed the
+same day offline, the smaller built maps plan; not played yet).
 - **Seen.** A large-city variant (CLrgScout_City, 166 copies of the map's pieces, 23 pieces brought from other maps,
   light edits) built by 0.6.0: the map file 336 MB, the game's own 13 MB. The Build's manifest: 511 textures, 1,985
   mips, 304 MB moved inside (`lightingInside`). Of the map's 678 lightmap and shadow-map textures (the game's map has
@@ -3535,10 +3537,28 @@ and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15
   build's cache names inline, uncompressed (the cache was written as literal LZO), NeverStream, so all of it is in
   the file and in texture memory for the battle (EXP-86 measured 132 MB resident on its largest map; this one is
   more than twice that, not played).
-- **Ways to fix, not built.** A copy's textures sized to its rectangle, or the copies of a build packed into shared
-  atlases (the follow-up for made pieces' shadow maps is the same work); compressed bulk data or a compressed
-  package for the file's size.
-- **Known bug** [KB-15](../KNOWN-BUGS.md).
+- **What the game's own maps do** (`research/evidence/lighting-texture-survey.py`, 18,906 textures in 138 maps):
+  small pieces have small textures of their own, 2,794 lightmaps of 32 by 32, 922 of 16 by 16, down to 4 by 4; those
+  up to 64 texels are held wholly inside the map (7,579); 28 are NeverStream with no cache name. A lightmap's mip
+  chain runs to one texel on its longer side with each side stored no smaller than 4 (URB_TruckStop_EWI's 32 by 4:
+  32x4, 16x4, 8x4, three of 4x4), MipTailBaseIdx its last mip; a shadow map's to 1 by 1.
+- **Fix.** A copy gets textures the size of what it reads: `native_copy.lighting_boxes` takes the rectangles its
+  records read with the writer's one-texel ring, on whole DXT1 blocks, a power of two each way
+  (`lightmap_textures.crop_box`), `cropped_texture` copies the source's top mip over that box as it is and makes its
+  lower mips from it, and the copy's lightmap records and ShadowMap2D coordinates are moved into it (`moved_record`,
+  exact in 32-bit floats). Pieces from other maps are cropped the same way; a made wall's, floor's or ground's
+  lightmap and shadow map are blank textures of its rectangle's size (`frac_walls.own_light`, `own_shadow_size`).
+  Each is held as inline_lighting.py holds a texture (NeverStream, no cache name). The relight reads a copy's source
+  in the copy's layout (`lightmap_texels.moved_rect`).
+- **Checked offline.** The reported project built on main and with the fix: 340.8 MB against 55.8 MB, the lightmaps
+  inside 23.6 MB in place of 306 MB (`lighting_size.py`); every one of its 166 copies' lightmap rectangles with their
+  ring (332 textures, 1.9 million texels) and shadow maps (140, 0.9 million texels) the same texel for texel, and the
+  map's 137 own lighting textures byte for byte. URB_Bar with five copies the same way (796,800 and 303,252 texels).
+  build_outputs.py: every package file of its 11 inputs byte for byte as before. Two lightmap textures of 2.7 KB that
+  nothing reads stay: the transplant brings them with a piece of another map; they are no clones.
+- **Left.** A copy's lower mips are made from its own texels, where they were the atlas's (its neighbours blended in
+  at the far zoom). Compressed storage was left out (the plan's decision D3).
+- **Known bug** KB-15, taken out with the fix.
 
 ## Toolchain
 

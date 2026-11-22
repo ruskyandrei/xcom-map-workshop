@@ -1463,26 +1463,51 @@ class NativeCopy(unittest.TestCase):
             new_comp = info['mapping'][comp]
             a = lightmap_fields.component_fields(p, comp)['lods'][0]
             b = lightmap_fields.component_fields(q, new_comp)['lods'][0]
-            # the lightmap: cloned textures, the same layout, the original's lights and then the added ones
+            # the lightmap: textures of its own the size of what it reads of the original's atlas (F-151), the
+            # same texels there, the original's lights and then the added ones
+            from lightmap_texels import rect_bounds
+            import lightmap_textures
             for sa, sb in zip(a['lightmap']['slots'][:2], b['lightmap']['slots'][:2]):
                 self.assertEqual(sb['index'], info['textures'][sa['index']])
                 self.assertEqual(q.cls(sb['index']), p.cls(sa['index']))
                 ta, tb = (lightmap_fields.texture_fields(x, s['index']) for x, s in ((p, sa), (q, sb)))
-                self.assertEqual([(m['width'], m['height'], m['bytes']) for m in ta['mips']],
-                                 [(m['width'], m['height'], m['bytes']) for m in tb['mips']])
+                (W, H), (w, h) = ((t['mips'][0]['width'], t['mips'][0]['height']) for t in (ta, tb))
+                self.assertLess(w * h, W * H)
+                self.assertEqual(info['boxes'][sa['index']][2:], (w, h))
+                # inside the map whole: every mip inline, NeverStream, no cache name
+                self.assertIsNone(tb['cache'])
+                self.assertIs(q.effective(sb['index'], 'NeverStream'), True)
+                self.assertTrue(all(m['inline'] and not m['flags'] for m in tb['mips']))
                 self.assertEqual(sb['scale'], sa['scale'])
-            for k in ('coordinateScale', 'coordinateBias'):
-                self.assertEqual(b['lightmap'][k], a['lightmap'][k])
+                ra = rect_bounds(a['lightmap'], W, H)
+                rb = rect_bounds(b['lightmap'], w, h)
+                x0, y0 = info['boxes'][sa['index']][:2]
+                self.assertEqual(rb, (ra[0] - x0, ra[1] - y0, ra[2] - x0, ra[3] - y0))
+                # the rectangle with its ring, texel for texel the original's bake
+                ring = (max(0, ra[0] - 1), max(0, ra[1] - 1), min(W, ra[2] + 1), min(H, ra[3] + 1))
+                np.testing.assert_array_equal(
+                    lightmap_textures.top_mip_rect(q, sb['index'], ring[0] - x0, ring[1] - y0, ring[2] - x0, ring[3] - y0),
+                    lightmap_textures.top_mip_rect(p, sa['index'], *ring))
             ga = lighting.component_record(p, comp)['lods'][0]['lightmap']['lightGuids']
             gb = lighting.component_record(q, new_comp)['lods'][0]['lightmap']['lightGuids']
             self.assertEqual(gb[:len(ga)], ga)
             self.assertEqual(len(gb), len(ga) + len(kept))
             added = {l['component'].split('.')[-2] for l in relight.component_lights(q, gb)}
             self.assertEqual(added, {'SpotLight_53', *kept})
-            # the moon's shadow map: the copy's own ShadowMap2D reading a cloned texture
+            # the moon's shadow map: the copy's own ShadowMap2D reading a texture of its own of the box it reads, the
+            # same field there
             sm_a, sm_b = shadowmaps.shadow_maps(p, comp), shadowmaps.shadow_maps(q, new_comp)
             self.assertEqual([s['texture'] for s in sm_b], [info['textures'][s['texture']] for s in sm_a])
             self.assertEqual([s['guid'] for s in sm_b], [s['guid'] for s in sm_a])
+            for sa, sb in zip(sm_a, sm_b):
+                (top_a, ta), (top_b, tb) = shadowmaps.texture_top(p, sa['texture']), shadowmaps.texture_top(q, sb['texture'])
+                W, H, w, h = top_a.shape[1], top_a.shape[0], top_b.shape[1], top_b.shape[0]
+                self.assertLess(w * h, W * H)
+                ra = rect_bounds(dict(coordinateScale=sa['scale'], coordinateBias=sa['bias']), W, H)
+                rb = rect_bounds(dict(coordinateScale=sb['scale'], coordinateBias=sb['bias']), w, h)
+                x0, y0 = info['boxes'][sa['texture']][:2]
+                self.assertEqual(rb, (ra[0] - x0, ra[1] - y0, ra[2] - x0, ra[3] - y0))
+                np.testing.assert_array_equal(top_b[rb[1]:rb[3], rb[0]:rb[2]], top_a[ra[1]:ra[3], ra[0]:ra[2]])
             # the original still reads the original textures
             self.assertEqual(lightmap_fields.component_fields(q, comp)['lods'][0]['lightmap']['slots'][0]['index'],
                              a['lightmap']['slots'][0]['index'])

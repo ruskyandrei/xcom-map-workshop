@@ -428,6 +428,11 @@ class Builds(unittest.TestCase):
         self.inside_fails = None
         self.addCleanup(setattr, build, 'inline_map', build.inline_map)
         build.inline_map = self.inline_map
+        # what the built map holds of lightmaps (lighting_size.py, tested on real maps in the bake suite): made up
+        self.held = dict(textures=3, bytes=1000, cached=0, whole=0)
+        self.no_cache = False       # the relight writes no cache: every texture it wrote is inside the map already
+        self.addCleanup(setattr, build, 'lightmaps_held', build.lightmaps_held)
+        build.lightmaps_held = lambda path: dict(self.held)
 
     def inline_map(self, src, dst, cache, tfc):
         if self.inside_fails: raise ValueError(self.inside_fails)
@@ -513,7 +518,8 @@ class Builds(unittest.TestCase):
             lit, variant, cache = Path(args[k + 2]), args[k + 3], args[args.index('--cache') + 1]
             lit.mkdir(parents=True, exist_ok=True)
             (lit / ('%s.upk' % variant)).write_bytes(b'relit map %d' % self.relit)
-            (lit / ('%s.tfc' % cache)).write_bytes(b'lightmaps')
+            if not self.no_cache:
+                (lit / ('%s.tfc' % cache)).write_bytes(b'lightmaps')
             native = args[k].endswith('native_copy.py')
             if native:
                 self.flag_fixture(args, lit, variant)
@@ -1033,7 +1039,10 @@ class Builds(unittest.TestCase):
         self.assertEqual(sorted(m['files']), sorted('CookedPCConsole/%s' % n for n in
                                                     ('%s.upk' % VARIANT, '%s.upk' % PATCH, '%s.upk' % INTRO)))
         # its lightmaps inside the map (inline_lighting.py): no texture cache goes with it
-        self.assertEqual((m['cache'], m['lightingInside']), (None, dict(cache=cache, textures=2, mips=8, bytes=9)))
+        self.assertEqual((m['cache'], m['lightingInside']), (None, dict(cache=cache, textures=2, mips=8, bytes=9,
+                                                                        held=dict(textures=3, bytes=1000, whole=0))))
+        self.assertIn('lightmaps inside the map: 0.0 MB in 3 textures', self.said)
+        self.assertFalse(any(line.startswith('warning: ') for line in self.said))
         self.assertIn('tools/bake/inline_lighting.py', m['tools'])
         # the variant's own landing intro, streamed in place of CIN_DropshipIntros
         self.assertEqual((pkg / 'CookedPCConsole' / ('%s.upk' % INTRO)).read_bytes(), b'intro copy of the landing intros')
@@ -1050,8 +1059,17 @@ class Builds(unittest.TestCase):
         self.assertEqual((pkg / 'CookedPCConsole' / ('%s.upk' % PATCH)).read_bytes(), b'cooked patch')
         for rel, digest in m['files'].items():
             self.assertEqual(build.sha256(pkg / rel), digest)
+        # the package's manifest names no folder of this computer (smaller built maps plan, P2): the record with its
+        # folders, which the build returns, is the work folder's build-log.json
         on_disk = json.loads((pkg / 'manifest.json').read_text(encoding='utf-8'))
-        self.assertEqual(on_disk, json.loads(json.dumps(m)))
+        self.assertEqual(json.loads((Path(m['work']) / 'build-log.json').read_text(encoding='utf-8')), json.loads(json.dumps(m)))
+        text = json.dumps(on_disk).replace('\\\\', '\\').lower()
+        for folder in (self.tmp.name, str(Path.home())):
+            self.assertNotIn(folder.lower(), text)
+        self.assertEqual(on_disk['work'], str(Path('<builds>') / '.work' / m['buildId']))
+        self.assertEqual(on_disk['project']['file'], str(Path('<projects>') / self.project.name))
+        for key in ('files', 'config', 'buildId', 'variant', 'lightingInside', 'tools'):
+            self.assertEqual(on_disk[key], json.loads(json.dumps(m[key])), key)
         self.assertEqual(m['schema'], build.SCHEMA)
         self.assertEqual(m['buildId'], '%s-20261107-110000' % VARIANT)
         self.assertEqual(m['streams'], [PATCH])
@@ -1820,6 +1838,48 @@ class Builds(unittest.TestCase):
         self.assertFalse((self.output / VARIANT / 'CookedPCConsole' / 'Lighting_4242.tfc').exists())
         self.assertFalse(list((self.output / VARIANT).rglob('*.tfc')))
         self.assertIn('its lightmaps inside the map', (self.output / VARIANT / 'README.txt').read_text(encoding='latin-1'))
+
+    def test_a_build_whose_lightmaps_are_all_in_the_map_already_moves_none(self):
+        """(smaller built maps plan, S3) A relight that writes only textures held inside the map (the copies' own,
+        sized to what they read) writes no cache, or a cache no texture names: the lightmaps are inside all the same,
+        none moved, no .tfc in the package, and the README says so."""
+        self.no_cache = True
+        m = self.make('110000').run()
+        named = VARIANT + '_Lighting'
+        self.assertEqual((m['cache'], m['lightingInside']),
+                         (None, dict(cache=named, textures=0, mips=0, bytes=0, held=dict(textures=3, bytes=1000, whole=0))))
+        self.assertFalse(list((self.output / VARIANT).rglob('*.tfc')))
+        self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % VARIANT)).read_bytes(), b'relit map 1 seeded')
+        self.assertIn('its lightmaps inside the map', (self.output / VARIANT / 'README.txt').read_text(encoding='latin-1'))
+        # a cache that no texture of the map names: the same
+        self.no_cache = False
+        saved = build.inline_map
+        build.inline_map = lambda src, dst, cache, tfc: (_ for _ in ()).throw(build.NotNamed('no texture names it'))
+        try:
+            m = self.make('111000').run()
+        finally:
+            build.inline_map = saved
+        self.assertEqual((m['cache'], m['lightingInside']['textures']), (None, 0))
+        self.assertFalse(list((self.output / VARIANT).rglob('*.tfc')))
+
+    def test_a_map_holding_many_lightmaps_says_so(self):
+        """(decision D4) More than 100 MB of lightmaps inside the map: a warning that says what it costs in the game;
+        a map the count can't read builds all the same, with a note."""
+        self.held = dict(textures=600, bytes=150 * 1000 * 1000, cached=0, whole=290)
+        m = self.make('110000').run()
+        warning, = [line for line in self.said if line.startswith('warning: ')]
+        self.assertIn('150 MB of lightmaps (290 whole 1,024-texel atlases)', warning)
+        self.assertIn('keeps them in memory for the whole battle', warning)
+        self.assertEqual(m['lightingInside']['held']['bytes'], 150 * 1000 * 1000)
+        self.said.clear()
+        saved = build.lightmaps_held
+        build.lightmaps_held = lambda path: (_ for _ in ()).throw(ValueError('not a package'))
+        try:
+            m = self.make('111000').run()
+        finally:
+            build.lightmaps_held = saved
+        self.assertIsNone(m['lightingInside']['held'])
+        self.assertIn('note: the lightmaps inside the map could not be counted (not a package)', self.said)
 
     def test_a_map_that_cannot_take_its_lightmaps_in_ships_its_cache_beside_it(self):
         """The fallback: the map as the relight made it, its <Variant>_Lighting.tfc in the package as before, and a

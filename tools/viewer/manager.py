@@ -74,6 +74,7 @@ if str(Path(__file__).resolve().parents[1]) not in sys.path:
     sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
 import paths  # noqa: E402
 import atomic_files
+from folder_scrub import EXAMPLE_GAME, UNKNOWN_FOLDER, USER_FOLDER, scrubbed, scrubber  # noqa: F401  (the pack's guard)
 import installs
 import packs
 import spawnrules
@@ -320,7 +321,7 @@ def pack_readme(pack, parts):
         'install it finds). On an install without map pack cards it keeps a copy of DefaultMaps.ini as it is, copies the',
         'maps\' files and adds the lines below. Uninstall.cmd takes the pack out again: the lines it added go, the lines it',
         'commented out come back and its files are deleted, and it says whether DefaultMaps.ini is then exactly as it was.',
-        'Both can be given the game folder instead: Install.cmd "D:\\Steam\\steamapps\\common\\XCom-Enemy-Unknown".',
+        f'Both can be given the game folder instead: Install.cmd "{EXAMPLE_GAME}".',
         'What the scripts did is written down in <game>\\XCOM Map Workshop\\packs, with the copies of the files from before.',
         'A map whose base map this game has no record for is left out, and so is one the game already has a record for.',
         '',
@@ -426,29 +427,6 @@ PUBLIC_MANIFEST = ('schema', 'schemaVersion', 'editorVersion', 'buildId', 'built
 PUBLIC_PROJECT = ('id', 'name', 'revision', 'savedAt')
 PUBLIC_SOURCE = ('map', 'sha256', 'exporterVersion')
 PUBLIC_DONOR = ('map', 'sha256', 'pieces', 'effects', 'flares', 'objectsBrought', 'objectsReused', 'cut', 'sizes', 'bytes')
-
-
-def scrubber(roots):
-    """A function putting a placeholder (<name>) in place of each folder of `roots` ({name: folder}) in a text, either
-    slash and any case, the longest first: the last guard that no text of a pack names a folder of this computer (an
-    error's words in a warning, a README) (review finding 14)."""
-    found = sorted(((name, str(Path(root))) for name, root in roots.items() if root and len(str(Path(root))) > 3),
-                   key=lambda pair: -len(pair[1]))
-    patterns = [(re.compile(r'[\\/]'.join(re.escape(part) for part in re.split(r'[\\/]', text)), re.IGNORECASE), f'<{name}>')
-                for name, text in found]
-
-    def scrub(text):
-        for pattern, placeholder in patterns: text = pattern.sub(lambda _: placeholder, text)
-        return text
-    return scrub
-
-
-def scrubbed(value, scrub):
-    """A JSON value with every text in it (keys too) scrubbed."""
-    if isinstance(value, str): return scrub(value)
-    if isinstance(value, list): return [scrubbed(v, scrub) for v in value]
-    if isinstance(value, dict): return {scrub(k) if isinstance(k, str) else k: scrubbed(v, scrub) for k, v in value.items()}
-    return value
 
 
 def public_manifest(m, scrub=lambda text: text):
@@ -802,6 +780,9 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
         raise ProjectError(500, f'Not made: the zip could not be written ({error}).')
     finally:
         temp.unlink(missing_ok=True)        # a zip that failed part-way is not left behind (review finding 46)
+    if scrub.unknown:
+        notes.append(f'{scrub.unknown} text{"s" if scrub.unknown > 1 else ""} of the pack named a folder of this computer '
+                     'that the editor was not told of: <folder> or <user> stands in its place in the zip.')
     packs.save(projects.root, record)
     return dict(zip=str(target), name=name, mode=mode, size=target.stat().st_size, folder=pack_folder, card=record['card'],
                 version=record['version'], notes=notes,

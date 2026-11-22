@@ -312,21 +312,22 @@ class Built(SharedPart, unittest.TestCase):
                     self.assertTrue(w['shadowMap']['irrelevant'])
 
     def test_a_baked_build_gives_each_wall_its_own_rectangle_of_its_size(self):
-        # (M2) set_light on the donor's own record: the rectangle the wall's mesh asks for, at the donor's corner
-        # (texel 193, down to the block at 192) or the atlas's where it doesn't fit (the source map's record: no build)
+        # (M2; smaller built maps plan, F-151) set_light on the donor's own record: its slots pointed at textures of
+        # the wall's own (own_light's) and the rectangle the wall's mesh asks for one texel in from their corner (the
+        # source map's record: no build)
         p = self.p
         comp = p.own(p.by_name[PL + DONOR], 'FracturedStaticMeshComponent')
         e = p.exports[comp - 1]
         data = bytes(p.data[e['off']:e['off'] + e['size']])
         at = p.properties(comp)[1] - e['off']
         self.assertEqual(frac_walls.atlas_size(p, comp), (1024, 1024))
-        for rect, corner in (((80, 208), (192, 192)), ((900, 200), (0, 192))):
-            out = frac_walls.set_light(data, at, dict(kind='rect', rect=rect, atlas=(1024, 1024)), p)
+        for rect, size in (((80, 208), (128, 256)), ((900, 200), (1024, 256))):
+            out = frac_walls.set_light(data, at, dict(kind='rect', rect=rect, textures=[7, 8, 0], size=size), p)
             self.assertEqual(len(out), len(data))
             lm = frac_walls.lightmap_offsets(out, at, p)
-            self.assertEqual(struct.unpack_from('<2f', out, lm['scale']), (rect[0] / 1024, rect[1] / 1024))
-            self.assertEqual(struct.unpack_from('<2f', out, lm['bias']), (corner[0] / 1024, corner[1] / 1024))
-            self.assertEqual(out[:lm['scale']], data[:lm['scale']])
+            self.assertEqual([struct.unpack_from('<i', out, t)[0] for t, _ in lm['slots'][:2]], [7, 8])
+            self.assertEqual(struct.unpack_from('<2f', out, lm['scale']), (rect[0] / size[0], rect[1] / size[1]))
+            self.assertEqual(struct.unpack_from('<2f', out, lm['bias']), (1 / size[0], 1 / size[1]))
 
     def test_the_columns_list_the_fragments_over_them(self):
         with self.part() as part:
@@ -408,6 +409,7 @@ class BakedLayout(unittest.TestCase):
 
     def test_each_wall_has_a_lightmap_rectangle_of_its_size_in_its_own_atlas(self):
         import lightmap_fields
+        import lightmap_textures
         p = __import__('package').Package(BAR)
         donor = lightmap_fields.component_fields(p, p.own(p.by_name[PL + DONOR], 'FracturedStaticMeshComponent'))
         donor_slots = {s['index'] for s in donor['lods'][0]['lightmap']['slots']}
@@ -418,8 +420,15 @@ class BakedLayout(unittest.TestCase):
             lm = lightmap_fields.component_fields(q, comp)['lods'][0]['lightmap']
             rw, rh = w['lightmapRect']
             self.assertEqual(w['light'], dict(kind='rect', rect=w['lightmapRect']))
-            self.assertEqual(lm['coordinateScale'], [rw / 1024, rh / 1024])
-            self.assertEqual(lm['coordinateBias'], [192 / 1024, 192 / 1024])
+            # (F-151) textures of its own, the rectangle's size with a texel's ring, a power of two each way, inside
+            # the map whole; the rectangle one texel in from their corner
+            size = (lightmap_textures.power_of_two(rw + 2, 4), lightmap_textures.power_of_two(rh + 2, 4))
+            for s in lm['slots'][:2]:
+                self.assertEqual((q.own(s['index'], 'SizeX'), q.own(s['index'], 'SizeY')), size)
+                self.assertIs(q.effective(s['index'], 'NeverStream'), True)
+                self.assertTrue(all(m['inline'] for m in lightmap_fields.texture_fields(q, s['index'])['mips']))
+            self.assertEqual(lm['coordinateScale'], [rw / size[0], rh / size[1]])
+            self.assertEqual(lm['coordinateBias'], [1 / size[0], 1 / size[1]])
             self.assertFalse({s['index'] for s in lm['slots'] if s['index'] > 0} & donor_slots)
             rects.append(rw * rh)
         # sixteen tiles of wall take about eight times the texels of two (the ends and trims are the same)
@@ -441,8 +450,10 @@ class BakedLayout(unittest.TestCase):
             self.assertEqual(q.cls(sm['texture']), 'ShadowMapTexture2D')
             size = (q.own(sm['texture'], 'SizeX'), q.own(sm['texture'], 'SizeY'))
             rw, rh = w['lightmapRect']
+            # (F-151) a texture of its own, the rectangle's size with its ring
+            self.assertEqual(size, frac_walls.own_shadow_size(w['lightmapRect']))
             self.assertEqual(sm['scale'], [rw / size[0], rh / size[1]])
-            self.assertEqual(sm['bias'], [0.0, 0.0])
+            self.assertEqual(sm['bias'], [1 / size[0], 1 / size[1]])
             textures.add(sm['texture'])
             self.assertTrue(w['shadowMap']['own'])
             # the donor lists the moon irrelevant (an inside wall): the made wall doesn't
@@ -466,7 +477,8 @@ class BakedLayout(unittest.TestCase):
         self.assertEqual((sm['guid'], sm['factor'], q.exports[sm['export'] - 1]['outer']), (moon, False, comp))
         size = (q.own(sm['texture'], 'SizeX'), q.own(sm['texture'], 'SizeY'))
         rw, rh = b['lightmapRect']
-        self.assertEqual((sm['scale'], sm['bias']), ([rw / size[0], rh / size[1]], [0.0, 0.0]))
+        self.assertEqual(size, frac_walls.own_shadow_size(b['lightmapRect']))
+        self.assertEqual((sm['scale'], sm['bias']), ([rw / size[0], rh / size[1]], [1 / size[0], 1 / size[1]]))
         self.assertTrue(b['shadowMap']['own'])
         self.assertEqual(b['shadowMap']['donorMapsLeftOut'], [donor_maps[0]['path'].split('.')[-1]])
         # no clone of the donor's map (no other shadow map under the block's component) nor of its texture
@@ -960,8 +972,9 @@ class GroundShapes(unittest.TestCase):
 
     def test_each_lists_its_own_shadow_map_of_the_moon_alone_which_the_relight_fills(self):
         # (follow-ups 2.2, 4.6b) both donors stand outdoors and list a shadow map of the moon laid out for their own
-        # mesh, which the copy leaves out: each shape lists its own map alone, its lightmap rectangle's size at the
-        # corner of its own cloned texture, and the relight traces that one from nothing (--fresh-copy), and no other
+        # mesh, which the copy leaves out: each shape lists its own map alone, its lightmap rectangle's size one texel
+        # in from the corner of a texture of its own of that size (F-151), and the relight traces that one from nothing
+        # (--fresh-copy), and no other
         import shadowmaps
         q = self.q
         moon = frac_walls.dominant_shadow(q)['guid'].hex()
@@ -975,20 +988,21 @@ class GroundShapes(unittest.TestCase):
                 self.assertEqual((sm['guid'], sm['factor'], q.exports[sm['export'] - 1]['outer']), (moon, False, comp))
                 w, h = q.own(sm['texture'], 'SizeX'), q.own(sm['texture'], 'SizeY')
                 rw, rh = r['lightmapRect']
-                self.assertEqual((sm['scale'], sm['bias']), ([rw / w, rh / h], [0.0, 0.0]))
+                self.assertEqual((w, h), frac_walls.own_shadow_size(r['lightmapRect']))
+                self.assertEqual((sm['scale'], sm['bias']), ([rw / w, rh / h], [1 / w, 1 / h]))
                 self.assertEqual(len(r['shadowMap']['donorMapsLeftOut']), 1)
                 (s,) = traced[q.name(comp)]
-                self.assertEqual((s['shadowMap'], s.get('fresh'), s['rect']), (sm['path'], True, [0, 0, rw, rh]))
+                self.assertEqual((s['shadowMap'], s.get('fresh'), s['rect']), (sm['path'], True, [1, 1, rw + 1, rh + 1]))
                 self.assertGreater(s['texelsWritten'], 0)
 
-    def test_the_relight_writes_each_shapes_lightmap_into_its_own_cloned_atlas(self):
-        # (4.6b: --fresh-copy's writer on cloned atlases) each shape's two lightmap textures are clones of its donor's
-        # atlas, of its size; the relight lit the shape from nothing over its lightmap rectangle and wrote both images
-        # there, into the clones: moved to the variant's texture cache, or kept in the map where the atlas's mips all
-        # lie in it (the plain asphalt's 64 x 32)
+    def test_the_relight_writes_each_shapes_lightmap_into_textures_of_its_own(self):
+        # (4.6b: --fresh-copy's writer; F-151) each shape's two lightmap textures are its own, of its rectangle's size
+        # with a texel's ring, every mip inside the map; the relight lit the shape from nothing over its lightmap
+        # rectangle and wrote both images there, in place (no texture cache)
         import json
         import re
         import lightmap_fields
+        import lightmap_textures
         p, q = self.p, self.q
         relit = {c['component']: c for c in self.relit()['components']}
         edits = [e['what'] for e in json.loads((Path(self.tmp.name) / 'Ground.fixture.json').read_text(encoding='utf-8'))['edits']]
@@ -1004,11 +1018,11 @@ class GroundShapes(unittest.TestCase):
                 for k in (0, 1):
                     mine, theirs = lm['slots'][k]['index'], donor['slots'][k]['index']
                     self.assertNotEqual(q.name(mine), p.name(theirs))
-                    t, d = lightmap_fields.texture_fields(q, mine), lightmap_fields.texture_fields(p, theirs)
+                    t = lightmap_fields.texture_fields(q, mine)
+                    rw, rh = r['lightmapRect']
                     self.assertEqual((t['mips'][0]['width'], t['mips'][0]['height']),
-                                     (d['mips'][0]['width'], d['mips'][0]['height']))
-                    live = [m for m in t['mips'] if m['bytes'] and not m['flags'] & 32]
-                    self.assertTrue(t['cache'] == 'Ground_Lighting' or all(m['inline'] for m in live), t['cache'])
+                                     (lightmap_textures.power_of_two(rw + 2, 4), lightmap_textures.power_of_two(rh + 2, 4)))
+                    self.assertTrue(t['cache'] is None and all(m['inline'] for m in t['mips']), t['cache'])
                     name = q.name(mine).split('.')[-1]
                     wrote = [e for e in edits if re.match(r'image %s slot %d \(%s\): \d+ texels in \[%d, %d\) x \[%d, %d\)$'
                                                          % (re.escape(q.name(comp)), k, re.escape(name), x0, x1, y0, y1), e)]

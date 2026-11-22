@@ -4,8 +4,9 @@ memory and the packages it decoded.
 
   python -B tools/bake/profile_build.py <package folder | manifest.json | work folder> [--pieces 10]
 
-A package folder is <builds>/<Variant>; its manifest names the build's work folder, where the relight's record is
-(<work>/lit/<Variant>.relight.json). A work folder alone gives the relight's part.
+A package folder is <builds>/<Variant>; its manifest names the build's work folder (from the builds folder, which it
+writes <builds>), where the relight's record is (<work>/lit/<Variant>.relight.json). A work folder alone gives the
+relight's part.
 """
 import argparse
 import json
@@ -16,10 +17,14 @@ def load(path):
     path = Path(path)
     manifest = None
     if path.is_file():
-        manifest = json.loads(path.read_text(encoding='utf-8'))
+        manifest, folder = json.loads(path.read_text(encoding='utf-8')), path.parent
     elif (path / 'manifest.json').is_file():
-        manifest = json.loads((path / 'manifest.json').read_text(encoding='utf-8'))
+        manifest, folder = json.loads((path / 'manifest.json').read_text(encoding='utf-8')), path
     work = Path(manifest['work']) if manifest else path
+    if manifest and manifest['work'].startswith('<builds>'):
+        # a package's manifest names the builds folder by a placeholder (tools/viewer/folder_scrub.py): the folder
+        # the package lies in
+        work = folder.parent / manifest['work'][len('<builds>'):].lstrip('\\/')
     records = sorted((work / 'lit').glob('*.relight.json')) if (work / 'lit').is_dir() else []
     relight = json.loads(records[0].read_text(encoding='utf-8')) if records else None
     return manifest, relight

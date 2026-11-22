@@ -227,6 +227,76 @@ def lighting_textures(p, tree):
     return list(dict.fromkeys(out))
 
 
+def lighting_boxes(p, tree, made=()):
+    """The texture of its own a copy gets for each lighting texture the exports of `tree` read (lighting_textures):
+    the box of the texture its records read (lightmap_textures.crop_box over their rectangles), so the copy carries
+    the part of an atlas it uses and not the whole sheet (smaller built maps plan, F-151). A lightmap record's slots
+    share one coordinate scale and bias, so the textures one record reads take one box, over every record that reads
+    any of them; where they differ in size, or a shadow map saves no coordinates, they are cloned whole (box None).
+
+    The LOD 0 lightmaps of `made` (mesh components that get a mesh made from numbers, frac_walls.made_component)
+    don't count: frac_walls.add_walls gives each textures of its own. A texture only they read is not cloned at all.
+
+    Returns (boxes {texture: (x0, y0, w, h) or None}, sizes {texture: (width, height)}, skip {texture})."""
+    from lightmap_texels import rect_bounds
+    sizes, fmts, rects, groups, whole, others, seen = {}, {}, {}, {}, set(), set(), set()
+    records = {}        # texture -> [(coordinate scale, bias)] of the records that read it
+
+    def size(t):
+        if t not in sizes:
+            top = lightmap_fields.texture_fields(p, t)['mips'][0]
+            sizes[t], fmts[t] = (top['width'], top['height']), p.effective(t, 'Format')
+        return sizes[t]
+
+    def find(t):
+        while groups.get(t, t) != t:
+            t = groups[t]
+        return t
+
+    for i in tree:
+        if static_mesh(p, i) > 0:
+            for lod_index, lod in enumerate(lightmap_fields.component_fields(p, i)['lods']):
+                lm = lod['lightmap']
+                ts = [s['index'] for s in lm.get('slots', []) if s['index'] > 0] if lm['type'] == 2 else []
+                seen.update(ts)
+                if not ts or (i in made and lod_index == 0):
+                    continue
+                others.update(ts)
+                for t in ts:
+                    rects.setdefault(t, []).append(rect_bounds(lm, *size(t)))
+                    records.setdefault(t, []).append((lm['coordinateScale'], lm['coordinateBias']))
+                    groups[find(t)] = find(ts[0])
+        elif p.cls(i) == 'ShadowMap2D':
+            t = p.own(i, 'Texture', 0)
+            if t <= 0:
+                continue
+            seen.add(t)
+            others.add(t)
+            scale, bias = p.own(i, 'CoordinateScale'), p.own(i, 'CoordinateBias')
+            if not isinstance(scale, (bytes, bytearray)) or not isinstance(bias, (bytes, bytearray)):
+                whole.add(t)
+                continue
+            rec = dict(coordinateScale=struct.unpack('<2f', scale), coordinateBias=struct.unpack('<2f', bias))
+            rects.setdefault(t, []).append(rect_bounds(rec, *size(t)))
+            records.setdefault(t, []).append((rec['coordinateScale'], rec['coordinateBias']))
+    members = {}
+    for t in others:
+        members.setdefault(find(t), []).append(t)
+    boxes = {}
+    for ts in members.values():
+        box = None
+        if len({(sizes.get(t), fmts.get(t)) for t in ts}) == 1 and not whole & set(ts) and ts[0] in sizes:
+            box = lightmap_textures.crop_box([r for t in ts for r in rects.get(t, [])], *sizes[ts[0]], fmts[ts[0]])
+        try:        # every record that reads them must move into the box exactly, or they are cloned whole
+            for t in ts if box else ():
+                for scale, bias in records.get(t, []):
+                    lightmap_textures.moved_record(scale, bias, sizes[t], box)
+        except ValueError:
+            box = None
+        boxes.update({t: box for t in ts})
+    return boxes, sizes, seen - others
+
+
 def vertex_lightmaps(p, index):
     """The vertex lightmaps (lightmap type 1) of mesh component `index`, one per LOD that has one, as
     lightmap_fields locates them: `ownerOffset` and `owner` (the component itself in the cooked maps), and
@@ -423,9 +493,18 @@ def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=()
 
     `made` are the mesh components that get a mesh made from numbers (frac_walls.made_component): their shadow maps
     of the dominant light (made_shadow_maps) are not cloned, nor their textures. The component's clone still names the
-    donor's own map there until frac_walls.add_walls writes its list; each member's dict gives them as `uncloned`."""
+    donor's own map there until frac_walls.add_walls writes its list; each member's dict gives them as `uncloned`.
+    Their LOD 0 lightmap's textures are not cloned either where nothing else reads them (lighting_boxes): add_walls
+    gives the made piece textures of its own (it must, or the relight would write into the donor's).
+
+    A lighting texture is cloned as a texture the size of what the copy reads of it (lighting_boxes,
+    lightmap_textures.cropped_texture, holding the source's bake there), and the copy's lightmap records and shadow
+    maps get the coordinate scale and bias that point into it (lightmap_textures.moved_record): the same texels, so
+    the relight reads and writes what it did in a clone of the whole atlas. Each member's dict gives the boxes as
+    `boxes` ({original texture: (x0, y0, w, h)}, the ones cut)."""
     walker = Walker(p, g)
     fresh = set(fresh)
+    made = set(made)
     extra_guids = extra_guids or {}
     uncloned = made_shadow_maps(p, made, fresh, dominant_guid(p)) if made else set()
     at = len(g.entries) + 1
@@ -434,15 +513,16 @@ def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=()
         tree = [i for i in subtree(p, actor) if i not in uncloned]
         mapping = {old: at + k for k, old in enumerate(tree)}
         at += len(tree)
-        textures = lighting_textures(p, tree) if own_lighting else []
+        boxes, sizes, skip = lighting_boxes(p, tree, made) if own_lighting else ({}, {}, set())
+        textures = [t for t in lighting_textures(p, tree) if t not in skip] if own_lighting else []
         tex_map = {t: at + j for j, t in enumerate(textures)}
         at += len(textures)
         if set(mapping) & set(everyone):
             raise ValueError(f'{p.name(actor)} is cloned twice in one assembly')
         everyone.update(mapping)
-        plans.append((actor, location, rotation, tree, mapping, textures, tex_map))
+        plans.append((actor, location, rotation, tree, mapping, textures, tex_map, boxes, sizes))
     infos = []
-    for actor, location, rotation, tree, mapping, textures, tex_map in plans:
+    for actor, location, rotation, tree, mapping, textures, tex_map, boxes, sizes in plans:
         remap = {**everyone, **tex_map}
         remapped = []
         for old in tree:
@@ -480,6 +560,15 @@ def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=()
                             if s['index'] in tex_map:
                                 struct.pack_into('<i', data, s['textureOffset'] - off, tex_map[s['index']])
                                 remapped.append((p.name(old), f'LOD{lod_index}.LightMap.Textures({j})'))
+                        cut = [s['index'] for s in lm['slots'] if boxes.get(s['index']) and s['index'] in tex_map]
+                        if cut and not (old in made and lod_index == 0):
+                            # the record points into the copy's own texture of the box (lighting_boxes: one box for
+                            # all the textures of a record)
+                            scale, bias = lightmap_textures.moved_record(lm['coordinateScale'], lm['coordinateBias'],
+                                                                         sizes[cut[0]], boxes[cut[0]])
+                            struct.pack_into('<2f', data, lm['coordinateScaleOffset'] - off, *scale)
+                            struct.pack_into('<2f', data, lm['coordinateBiasOffset'] - off, *bias)
+                            remapped.append((p.name(old), f'LOD{lod_index}.LightMap.Coordinates: its own texture'))
                         if old in fresh:
                             # a piece of another map: its list is this map's lights alone
                             if bulks:
@@ -498,6 +587,14 @@ def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=()
                     and not p.own(old, 'bIsShadowFactorTexture', False)):
                 data = set_struct(walker, g, data, start, 'LightGuid', 'Guid', '<16s', [shadow_guid])
                 remapped.append((p.name(old), 'LightGuid: this map\'s dominant light'))
+            texture = p.own(old, 'Texture', 0) if cls == 'ShadowMap2D' else 0
+            if texture in tex_map and boxes.get(texture):
+                scale, bias = lightmap_textures.moved_record(struct.unpack('<2f', p.own(old, 'CoordinateScale')),
+                                                             struct.unpack('<2f', p.own(old, 'CoordinateBias')),
+                                                             sizes[texture], boxes[texture])
+                data = set_struct(walker, g, data, start, 'CoordinateScale', 'Vector2D', '<2f', scale)
+                data = set_struct(walker, g, data, start, 'CoordinateBias', 'Vector2D', '<2f', bias)
+                remapped.append((p.name(old), 'Coordinates: its own texture'))
             g.fresh_net_index(old, data, at=start - 4)
             if old == actor:
                 # set in place, or added before the closing None when the original stands at the default (0)
@@ -528,9 +625,12 @@ def clone_assembly(g, p, members, own_lighting=False, extra_guids=None, fresh=()
             if outer in mapping:
                 g.entries[new - 1].put('<i', 8, mapping[outer])
         for t in textures:
-            if lightmap_textures.clone_texture(g, p, t) != tex_map[t]:
+            new = (lightmap_textures.cropped_texture(g, p, t, boxes[t]) if boxes.get(t)
+                   else lightmap_textures.clone_texture(g, p, t))
+            if new != tex_map[t]:
                 raise ValueError('the texture clones did not get the planned indices')
-        info = dict(actor=mapping[actor], mapping=mapping, textures=tex_map, remapped=remapped)
+        info = dict(actor=mapping[actor], mapping=mapping, textures=tex_map, remapped=remapped,
+                    boxes={t: boxes[t] for t in textures if boxes.get(t)})
         left = sorted(i for i in subtree(p, actor) if i in uncloned)
         if left:
             info['uncloned'] = left

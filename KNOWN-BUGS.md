@@ -91,15 +91,15 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Cause.** The editor looks for `XComEW.exe` in the process list.
 - **Finding.** [F-84](research/findings-register.md).
 
-### KB-15: A map with many copied pieces builds to a very large file
+### KB-16: A map pack made by 0.6.0 or before names folders of the computer that made it
 
-- **What happens.** A baked Build of a map with many copied, pasted or brought-in pieces makes a map file hundreds
-  of megabytes large, where the game's own map is about 13 MB: a reported pack's large-city variant with 166 copies
-  and 23 pieces from other maps was 336 MB, of which 304 MB were lightmaps. Its map pack zips to about 138 MB. The
-  lightmaps all stay in texture memory for the whole battle.
-- **Since.** 0.6.0 for the file's size (the lightmaps moved inside the map, F-140); the clones themselves since copies
-  got lighting of their own.
-- **Workaround.** Fewer copies of pieces; a quick build (no baked light) has no lightmaps of its own.
-- **Cause.** Each copy gets a clone of every lightmap and shadow-map texture its source uses, a whole 1024 atlas
-  though the copy uses a small rectangle of it, and the Build stores every mip of them inside the map uncompressed.
-- **Finding.** [F-151](research/findings-register.md).
+- **What happens.** In the pack's zip, `packages\<map>\manifest.json` is the build's manifest as it was: it names the
+  project file's folder (under the Windows user folder, so with the account name), the game install, the build's work
+  folder and the files each stage read. Whoever gets the pack can read them.
+- **Since.** Every version that exports map packs, up to 0.6.0. Fixed on main since 20 November 2026 (the pack writes a
+  manifest of public fields, every text scrubbed of the editor's folders) and since 22 November with a guard for any
+  other folder; in no release yet.
+- **Workaround.** Delete `packages\<map>\manifest.json` from the zip before sharing it (nothing reads it: Install.cmd
+  and the game use `pack.json` and the map files), or export the pack again with a version after 0.6.0.
+- **Cause.** The pack export copied each build's manifest whole.
+- **Finding.** None in the register: the editor review's finding 14, and the smaller built maps plan's P1 to P3.

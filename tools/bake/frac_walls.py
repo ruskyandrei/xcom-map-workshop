@@ -13,15 +13,16 @@ columns moved by move_columns), then add_walls changes it:
                      game saves them (research/evidence/frac-wall-audit.py, F0); its painted vertex colours (the
                      donor's LOD 0 overrides the mesh's, which the blend materials read) one for each new vertex, each
                      the colour of the donor's nearest vertex of the same slot;
-                   - its lightmap (custom geometry plan, M2): in a baked Build, the rectangle of its own cloned atlas is
-                     the mesh's lightmap rectangle (frac_wall's `lightmapRect`, at the donor's density) at the donor
-                     rectangle's corner (or the atlas's, where it doesn't fit), which the relight then fills; in a
+                   - its lightmap (custom geometry plan, M2): in a baked Build, textures of its own the size of the
+                     mesh's lightmap rectangle (frac_wall's `lightmapRect`, at the donor's density) with a texel's ring
+                     (own_light; smaller built maps plan, F-151), which the relight then fills; in a
                      Build without baking (D9), one texel of the lightmap of the map's nearest lit piece, the one
                      nearest its median light, for the whole wall (a coordinate scale of 0): one even light, the
                      map's near it, in place of the donor's bake laid out for another shape (even_light);
                    - the map's dominant light (M2 item 2): in a baked Build, a shadow map of its own (a clone of one of
-                     the map's ShadowMap2D of that light and of its distance-field texture, its rectangle the
-                     lightmap's size at the clone's corner), which the relight fills as a piece of another map's, and
+                     the map's ShadowMap2D of that light, its distance-field texture a blank one of the lightmap
+                     rectangle's size with its ring, own_shadow_size), which the relight fills as a piece of another
+                     map's, and
                      the light taken off the component's IrrelevantLights (the donor, an inside wall, lists the Bar's
                      moon there); without baking, the shadow map of the piece the even light comes from, at the same
                      texel (a scale of 0), or, where that piece has none, the light listed irrelevant, as that piece
@@ -119,6 +120,7 @@ TILE, STOREY = 96.0, 192.0
 # the shortest wall (its tile edges' distance): a solid of 24 between its ends' insets
 MIN_LENGTH = 24 + 2 * int(frac_wall.RECIPE['endInset'])
 FORCED_EXPORT = 0x1
+OWN_MAX = 1024      # a made piece's own lightmap and shadow map textures: no larger than the game's largest
 
 
 def check(generated):
@@ -612,12 +614,37 @@ def lightmap_offsets(data, at, objects):
                 scale=lm['coordinateScaleOffset'], bias=lm['coordinateBiasOffset'])
 
 
+def own_light(g, p, comp, rect):
+    """A made piece's lightmap of its own in a baked Build (smaller built maps plan, F-151): for each slot of the
+    donor component `comp`'s LOD 0 lightmap that has a texture, a blank texture of the rectangle `rect` (w, h) with
+    its one-texel ring, each side a power of two (lightmap_textures.blank_texture), which the relight fills. Before,
+    the rectangle went in a clone of the donor's whole atlas. dict(kind 'rect', rect, textures [one for each slot, 0
+    where the donor has none], size (width, height) of the textures): set_light puts the rectangle one texel in from
+    their corner. None for a donor with no texture lightmap at LOD 0."""
+    import lightmap_fields
+    import lightmap_textures
+    lods = lightmap_fields.component_fields(p, comp)['lods']
+    lm = lods[0]['lightmap'] if lods else {}
+    if lm.get('type') != 2 or not any(s['index'] > 0 for s in lm['slots']):
+        return None
+    w = lightmap_textures.power_of_two(rect[0] + 2, lightmap_textures.SMALLEST['PF_DXT1'])
+    h = lightmap_textures.power_of_two(rect[1] + 2, lightmap_textures.SMALLEST['PF_DXT1'])
+    textures = [lightmap_textures.blank_texture(g, p, s['index'], w, h) if s['index'] > 0 else 0 for s in lm['slots']]
+    return dict(kind='rect', rect=tuple(rect), textures=textures, size=(w, h))
+
+
+def own_shadow_size(rect):
+    """The size of a made piece's shadow map of its own (shadow_map_export, blank): its lightmap rectangle `rect`
+    with a texel's ring, each side a power of two and at least the game's smallest."""
+    import lightmap_textures
+    return tuple(lightmap_textures.power_of_two(v + 2, lightmap_textures.SMALLEST['PF_G8']) for v in rect)
+
+
 def set_light(data, at, light, objects):
-    """`data` with LOD 0's texture lightmap set as `light` says: dict(kind 'rect', rect (w, h), atlas (w, h)) puts
-    the rectangle (w by h texels) at the corner the record has (down to a whole block), or at the atlas's corner where
-    it doesn't fit; dict(kind
-    'even', textures [3], scales [3 x 3], bias (u, v)) points every vertex at one texel of those textures. `objects`:
-    lod0's."""
+    """`data` with LOD 0's texture lightmap set as `light` says: dict(kind 'rect', rect (w, h), textures, size (w, h))
+    points its slots at the textures (own_light's) and puts the rectangle (w by h texels) one texel in from their
+    corner; dict(kind 'even', textures [3], scales [3 x 3], bias (u, v)) points every vertex at one texel of those
+    textures. `objects`: lod0's."""
     if not light:
         return data
     o = lightmap_offsets(data, at, objects)
@@ -625,15 +652,12 @@ def set_light(data, at, light, objects):
         return data
     data = bytearray(data)
     if light['kind'] == 'rect':
-        (w, h), (aw, ah) = light['rect'], light['atlas']
-        bu, bv = struct.unpack_from('<2f', data, o['bias'])
-        x0, y0 = 4 * (int(round(bu * aw)) // 4), 4 * (int(round(bv * ah)) // 4)      # on whole DXT1 blocks
-        if x0 + w > aw:
-            x0 = 0
-        if y0 + h > ah:
-            y0 = 0
-        struct.pack_into('<2f', data, o['scale'], w / aw, h / ah)
-        struct.pack_into('<2f', data, o['bias'], x0 / aw, y0 / ah)
+        (w, h), (tw, th) = light['rect'], light['size']
+        for (tex, _), index in zip(o['slots'], light['textures']):
+            if index > 0:
+                struct.pack_into('<i', data, tex, index)
+        struct.pack_into('<2f', data, o['scale'], w / tw, h / th)
+        struct.pack_into('<2f', data, o['bias'], 1 / tw, 1 / th)
     else:
         for (tex, scale), index, value in zip(o['slots'], light['textures'], light['scales']):
             struct.pack_into('<i', data, tex, index)
@@ -763,14 +787,16 @@ def piece_shadow(p, piece, guid, light):
 
 def shadow_map_export(g, p, walker, component, shadow):
     """A new ShadowMap2D under `component` (an export index of the grown map) for the dominant light: a clone of
-    `shadow['source']` (shadowmaps' dict) with its coordinate scale and bias `shadow`'s, and its texture a clone of
-    the source's own (`shadow['clone']` true: the relight writes it) or the source's (false). Returns its index."""
+    `shadow['source']` (shadowmaps' dict) with its coordinate scale and bias `shadow`'s, and its texture one of its
+    own (`shadow['clone']` true: the relight writes it), blank of `shadow['size']` (lightmap_textures.blank_texture,
+    of the source's class and format), or the source's (false). Returns its index."""
     import lightmap_textures
     import native_copy
     src = shadow['source']['export']
     texture = shadow['source']['texture']
     if shadow.get('clone'):
-        texture = lightmap_textures.clone_texture(g, p, texture)
+        texture = (lightmap_textures.blank_texture(g, p, texture, *shadow['size']) if shadow.get('size')
+                   else lightmap_textures.clone_texture(g, p, texture))
     e = p.exports[src - 1]
     data = bytearray(p.data[e['off']:e['off'] + e['size']])
     start = legacy_props.props_start(p.data, e, p.names) - e['off']
@@ -1335,14 +1361,14 @@ def add_walls(g, p, items, grid, bake=True):
         shadow, sm = None, None
         if bake:
             atlas = atlas_size(p, comp_old)
-            out['lightmapRect'] = fit_rect(out['lightmapRect'], atlas)
-            light = dict(kind='rect', rect=out['lightmapRect'], atlas=atlas) if atlas else None
+            # (at its donor's density, as before; its own textures are no larger than the game's largest, its ring in)
+            out['lightmapRect'] = fit_rect(fit_rect(out['lightmapRect'], atlas), (OWN_MAX - 2, OWN_MAX - 2))
+            light = own_light(g, p, comp_old, out['lightmapRect'])
             if dominant and dominant['source']:
-                t = dominant['source']['texture']
-                w, h = p.own(t, 'SizeX'), p.own(t, 'SizeY')
                 rw, rh = out['lightmapRect']
-                if rw <= w and rh <= h:
-                    sm = dict(source=dominant['source'], scale=(rw / w, rh / h), bias=(0.0, 0.0), clone=True)
+                sw, sh = own_shadow_size(out['lightmapRect'])
+                sm = dict(source=dominant['source'], size=(sw, sh), scale=(rw / sw, rh / sh), bias=(1 / sw, 1 / sh),
+                          clone=True)
         else:
             light = even_light(p, wall_box)
             if dominant and light:

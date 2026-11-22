@@ -76,6 +76,21 @@ def rect_bounds(lightmap, width, height):
             int(np.ceil((bx + sx) * width - 1e-6)), int(np.ceil((by + sy) * height - 1e-6)))
 
 
+def moved_rect(source, source_size, record, size):
+    """Whether the lightmap or shadow-map record `record` over a texture of `size` (width, height) reads the texels
+    `source` reads over one of `source_size`, moved by whole texels: a copy's own texture of the box of its source's
+    (lightmap_textures.moved_record), or a whole clone (moved by none). The rectangle the same size in texels, its
+    corner a whole number of texels away. (Records hold 32-bit floats and the sizes are powers of two: these sums are
+    exact.)"""
+    for k in (0, 1):
+        if source['coordinateScale'][k] * source_size[k] != record['coordinateScale'][k] * size[k]:
+            return False
+        moved = source['coordinateBias'][k] * source_size[k] - record['coordinateBias'][k] * size[k]
+        if moved != int(moved):
+            return False
+    return True
+
+
 def rasterise(mesh, matrix, lightmap, size):
     """Texels of the atlas (size = [width, height]) whose centres lie on the mesh, inside the component's rectangle.
 

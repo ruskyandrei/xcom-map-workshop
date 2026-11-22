@@ -125,6 +125,45 @@ class PackExport(unittest.TestCase):
         # the build's own manifest is as it was
         self.assertEqual(self.manifest(VARIANT)[1]['work'], str(self.output / '.work' / VARIANT))
 
+    def test_a_folder_the_editor_was_not_told_of_is_taken_out_too(self):
+        """(smaller built maps plan, P1) A folder of no root the scrubber knows (another drive, a share, a user's
+        folder) in a public manifest field, a README line and a warning: <folder> or <user> in the zip, and the export
+        says so. A saved project names no folder (its map by name and hash), so the projects go as they are."""
+        self.package()
+        path, m = self.manifest(VARIANT)
+        m['pictureNote'] = 'the picture D:\\Games\\Somebody Else\\pic.png was not found'
+        m['lights'] = dict(note='read from \\\\server\\Sentinelshare\\lights.json and /home/user/x and /Users/Sentineltwo/y')
+        path.write_text(json.dumps(m), encoding='utf-8')
+        readme = self.output / VARIANT / 'README.txt'
+        readme.write_bytes(b'Made from C:\\Games\\Stash\\Bar.upk.\r\n')
+        r = manager.pack(self.store, self.builds, self.player(), dict(projects=[ID], mode='additional', name='Unknown', projectFiles=True))
+        entries = self.entries(r['zip'])
+        public = json.loads(entries[f'packages/{VARIANT}/manifest.json'])
+        self.assertEqual(public['pictureNote'], 'the picture <folder> Else\\pic.png was not found')
+        self.assertEqual(public['lights']['note'], 'read from <folder> and /home/<user>/x and /Users/<user>/y')
+        self.assertIn('Made from <folder>', entries[f'packages/{VARIANT}/README.txt'].decode('latin-1'))
+        for name, data in entries.items():
+            if name.lower().endswith(TEXT):
+                text = data.decode('utf-8', 'replace')
+                for leak in ('Somebody', 'Sentinelshare', 'Sentineltwo', 'Stash'):
+                    self.assertNotIn(leak, text, f'{name} names {leak}')
+        self.assertTrue(any('not told of' in n for n in r['notes']), r['notes'])
+        # the project files go byte for byte, and name no folder
+        projects = {n: d for n, d in entries.items() if n.startswith('projects/')}
+        self.assertTrue(projects)
+        for name, data in projects.items():
+            text = data.decode('utf-8')
+            self.assertIsNone(manager.UNKNOWN_FOLDER.search(text), name)
+            self.assertIsNone(manager.USER_FOLDER.search(text), name)
+
+    def test_the_guard_leaves_what_is_no_folder(self):
+        scrub = manager.scrubber({})
+        for text in ('https://example.com/a/b', 'CookedPCConsole/URB_Bar.upk', '12:30', 'note: a C++ thing',
+                     'XComGame\\CookedPCConsole', '<LWR install>\\XComGame',
+                     f'give the game folder instead: Install.cmd "{manager.EXAMPLE_GAME}".'):
+            self.assertEqual(scrub(text), text)
+        self.assertEqual(scrub.unknown, 0)
+
     def test_a_zip_that_fails_answers_why_and_leaves_nothing(self):
         self.package()
         with mock.patch('zipfile.ZipFile.write', side_effect=OSError('the disk is full')):
