@@ -211,7 +211,8 @@ game install, LWR or plain Enemy Within, and takes it back out:
 - it never changes a line the install had, except when the project manager puts a variant in the base map's place.
 
 Play in game ([`play.py`](tools/viewer/play.py), [`gamelaunch.py`](tools/viewer/gamelaunch.py)) installs one build
-with a record no campaign draws and starts a battle on it. The project manager ([`manager.py`](tools/viewer/manager.py))
+with a record no campaign draws, under play names of its own ([`play_names.py`](tools/viewer/play_names.py)), and starts
+a battle on it. The project manager ([`manager.py`](tools/viewer/manager.py))
 puts builds into the campaigns' rotation, beside the base map or in its place, and zips them into map packs
 ([`packs.py`](tools/viewer/packs.py)).
 

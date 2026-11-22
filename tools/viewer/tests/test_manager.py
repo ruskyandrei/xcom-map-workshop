@@ -27,7 +27,7 @@ sys.path.insert(0, str(HERE.parents[1] / 'upk'))
 import pack_card  # noqa: E402
 import maplist  # noqa: E402
 from projects import ProjectError  # noqa: E402
-from viewer_fixtures import (ID, MUTATOR_LOADER, RANDOM_SPAWNS, VARIANT, ManagerInstalls, document,  # noqa: E402
+from viewer_fixtures import (ID, MUTATOR_LOADER, PLAY, RANDOM_SPAWNS, VARIANT, ManagerInstalls, document,  # noqa: E402
                              record)
 from viewer_fixtures import SECOND_ID as OTHER_ID, SECOND_VARIANT as OTHER  # noqa: E402
 from viewer import Handler, LocalServer  # noqa: E402
@@ -168,11 +168,13 @@ class Manager(ManagerInstalls, unittest.TestCase):
                          [f'{VARIANT} (Bar remix, Abduction) |0', f'{VARIANT} (Bar remix, Terror) |0', 'URB_Bar_Bomb (Bomb) |0'])
         self.assertEqual(installs.maps_text(self.lwr).encode('latin-1'), before['DefaultMaps.ini'])
         self.assertEqual(len(maplist.lwr_maps(self.lwr)['URB_Bar']['missions']), 3)       # the editor still reads Bar
-        # Play in game's record goes in beside them and stays first, and comes out without touching them
+        # Play in game's record goes in beside them under its play name (play_names.py), and comes out without
+        # touching them
         player.play(dict(project=ID))
         self.settle(player)
-        mine = self.records(self.lwr, VARIANT)
-        self.assertEqual((len(mine), dep.field(mine[0], 'DisplayName')), (4, f'{VARIANT} (XCOM Map Workshop) |0'))
+        self.assertEqual(len(self.records(self.lwr, VARIANT)), 3)
+        mine, = self.records(self.lwr, PLAY)
+        self.assertEqual(dep.field(mine, 'DisplayName'), f'{PLAY} (XCOM Map Workshop) |0')
         self.assertEqual(self.row(manager.listing(self.store, self.builds, player))['inGame']['play'], True)
         # Bar itself still plays alone: with its records commented out it gets a copy for the play, named apart
         r = player.play(dict(map='URB_Bar'))
@@ -183,10 +185,10 @@ class Manager(ManagerInstalls, unittest.TestCase):
         # back to additional: Bar's records are live again
         manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
         self.assertEqual(self.records(self.lwr, 'URB_Bar')[:3], [record('bar'), terror, council])
-        self.assertEqual(dep.field(self.records(self.lwr, VARIANT)[0], 'DisplayName'), f'{VARIANT} (XCOM Map Workshop) |0')
+        self.assertEqual(len(self.records(self.lwr, PLAY)), 1)
         # Game maps undoes the build: its records for campaigns, Play in game's record and its landing zones
         r = gamemaps.undo(player, dict(variants=[VARIANT]))
-        self.assertEqual((r['undone'], self.records(self.lwr, VARIANT)), ([VARIANT], []))
+        self.assertEqual((r['undone'], self.records(self.lwr, VARIANT), self.records(self.lwr, PLAY)), ([VARIANT, PLAY], [], []))
         self.assertEqual(self.files(self.lwr)['DefaultLZMutator.ini'], before['DefaultLZMutator.ini'])
         self.assertIsNone(self.row(manager.listing(self.store, self.builds, player))['inGame'])
         manager.install(self.store, self.builds, player, dict(projects=[ID], mode='replace'))

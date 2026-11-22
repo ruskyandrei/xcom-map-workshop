@@ -15,7 +15,7 @@ import installs  # noqa: E402  (it puts tools/bake on the path)
 import deploy_fixture  # noqa: E402
 import mapsini as dep  # noqa: E402
 import procs  # noqa: E402
-from viewer_fixtures import VARIANT, ManagerInstalls, PlayInstalls, game_folder  # noqa: E402
+from viewer_fixtures import PLAY, VARIANT, ManagerInstalls, PlayInstalls, game_folder  # noqa: E402
 
 
 class Killed(BaseException):
@@ -275,18 +275,18 @@ class Removal(unittest.TestCase):
         own = self.cooked(game)
         installs.install_package(game, self.output / VARIANT)
         played = self.cooked(game)
-        self.edit_record(game, VARIANT)
+        self.edit_record(game, PLAY)                                        # (a play's names: play_names.py)
         done = installs.clear_play(game)
         self.assertEqual(done['records'], 0)
         self.assertEqual(self.cooked(game), played)                         # the variant's files stay
-        self.assertTrue(any(f'record for {VARIANT}' in n for n in done['left']))
-        self.assertTrue(any(n.startswith(f'{VARIANT}.upk stays') for n in done['left']))
+        self.assertTrue(any(f'record for {PLAY}' in n for n in done['left']))
+        self.assertTrue(any(n.startswith(f'{PLAY}.upk stays') for n in done['left']))
         ledger = installs.read_ledger(game)
-        self.assertEqual([b['variant'] for b in ledger['records']], [VARIANT])
+        self.assertEqual([b['variant'] for b in ledger['records']], [PLAY])
         self.assertEqual(set(ledger['playFiles']), set(played) - set(own))   # still noted as the editor's
-        self.assertIn(VARIANT, ledger['installed'])
+        self.assertIn(PLAY, ledger['installed'])
         # the record taken out by hand: the next clear-up takes the files
-        self.drop_records(game, VARIANT)
+        self.drop_records(game, PLAY)
         done = installs.clear_play(game)
         self.assertEqual(self.cooked(game), own)
         self.assertEqual(done['left'], [])
@@ -330,10 +330,10 @@ class Removal(unittest.TestCase):
         game = self.fresh('zones')
         installs.install_package(game, self.output / VARIANT)
         lz = installs.config(game, installs.LZ)
-        lz.write_bytes(lz.read_bytes().replace(f'MapName="{VARIANT}"'.encode(), f'MapName="{VARIANT}" '.encode()))
+        lz.write_bytes(lz.read_bytes().replace(f'MapName="{PLAY}"'.encode(), f'MapName="{PLAY}" '.encode()))
         done = installs.reset(game)
         self.assertTrue(any('landing-zone lines' in n for n in done['left']))
-        self.assertEqual([b['variant'] for b in installs.read_ledger(game)['playZones']], [VARIANT])
+        self.assertEqual([b['variant'] for b in installs.read_ledger(game)['playZones']], [PLAY])
 
 
 if __name__ == '__main__':

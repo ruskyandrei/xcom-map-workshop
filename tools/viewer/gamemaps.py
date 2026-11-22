@@ -16,8 +16,8 @@ while it does.
   GET  /gamemaps.json     the install, its records by map, and what the editor has in it
   POST /gamemaps/use      {"records": [id...], "use": true | false}: the install's own records switched on or off
   POST /gamemaps/undo     {"variants": [name...]}: everything of these builds taken out of DefaultMaps.ini and the
-                          landing zones (their records for campaigns, Play in game's record), the maps they replaced
-                          live again; their files stay until everything is undone
+                          landing zones (their records for campaigns, Play in game's record under its play name), the
+                          maps they replaced live again; their files stay until everything is undone
 Undo everything is Play in game's POST /play/remove (installs.reset): records, landing zones, files, the lot.
 """
 import hashlib

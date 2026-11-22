@@ -966,6 +966,12 @@ rules are in [the editor contracts](../../research/editor-contracts.md).
     under that name (the project's own, when it has `landingZones`: see Clear map, the ground grid and landing
     zones). The record is an abduction whatever kind the base map's is (Temple Ship's is the final
     mission's); a Temple Ship variant hasn't been played this way.
+  - **Under play names** ([`play_names.py`](play_names.py), F-161): every package of the build goes in under its name
+    with `_Play` after it (`_Play2` and on when one of those names is in the install already, a map pack's folder
+    included), the intro copies with their map-name switches naming the play's map, and the record, landing zones
+    and drop-in exclusion name it too. So a map pack of the same map (a drop-in folder or one installed with
+    Install.cmd) never meets the play, and a play never touches the project's campaign install. A texture cache keeps
+    its name: a play refuses one that differs from the campaign install's of that name.
   - It opens Build's panel first ([`build_options.js`](web/build_options.js)), with the same **Bake the lighting**
     choice, off by default.
     - **Build and play** builds (saving first if there are unsaved changes), and installs and plays the package when

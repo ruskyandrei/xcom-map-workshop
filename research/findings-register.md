@@ -12,6 +12,9 @@ Statuses:
 
 ## Open now
 
+- F-161 (22 November, a report): Play in game of a project whose map a map pack had installed in the game failed:
+  the play installed the build under the project's own names, which the pack's copy holds too. Fixed: a play installs
+  under play names of its own (<Map>_Play). Not played yet.
 - F-160 (22 November, the triggers investigation): a map's background sound is one level-loaded sound with no
   target (88 of 97 base maps, 26 beds); a bed of another map comes into a map as an asset with its nodes and waves,
   and the map's sound pointed at it reads back. Verified in EXP-94: it plays across the map and after a load; none
@@ -209,6 +212,29 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-161: A play under the project's own names met a map pack of the same map
+**Fixed** (22 November 2026, offline: `test_play_names`, a real intro copy renamed and read back; not played yet).
+Reported by a player (relayed): with the same map installed in the game through a map pack, the project could not
+be played from the editor. Play in game installed the build under the names the Build gave it, the project's own,
+and so does a pack made from the project:
+- **A drop-in pack** (LWR 3's: a folder of CookedPCConsole with the maps and a card). The game finds a package by its
+  file name in any folder of CookedPCConsole, so each of the map's packages was there twice, and which one loads is
+  the engine's pick. Long War merges a pack's lines into the map list by DisplayName (`LWRMergeInto`, read from
+  beta 15's code: a line whose display name the list has replaces that entry when its Name or bInRotation differs):
+  the pack's line, of the same display name, took the place of the play's record, out of rotation as it is.
+- **A pack installed the classic way** (Install.cmd, for plain Enemy Within and LWR 2): records of the map's name in
+  DefaultMaps.ini and the files in CookedPCConsole itself, none of them the editor's, so the install step refused the
+  play ("didn't put it there", "neither the editor nor patchtool wrote").
+- **Fix.** A play installs every package of the build under its name with a play suffix,
+  [play_names.py](../tools/viewer/play_names.py): `_Play`, or `_Play2` and on when any of the names is in the
+  install (a file anywhere under CookedPCConsole, a map name of DefaultMaps.ini, the editor's ledgers). A package's
+  name is its file's (the map, its patch and its copies name none of each other: their name tables were read), so
+  each is copied as it is; the intro copies' Switch Strings, which pick the landing by the map's exact name, get the
+  play's name (`intro_copy.make` with the map's name as the base). The record is the Build's line under the play's
+  name, its display name starting with it; landing zones and the drop-in exclusion name it too. A texture cache keeps
+  its name (textures find it by name), so a play refuses one that differs from a campaign install's of that name.
+- **Left to see in the game**: a play beside a pack of the same map loads the play's map and lands as the build does.
 
 ### F-160: A map's background sound is one level-loaded sound with no target; another map's bed can be brought
 **Verified: the editor sets it** (22 November 2026: offline, and in the game in

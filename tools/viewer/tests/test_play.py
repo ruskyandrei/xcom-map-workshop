@@ -24,8 +24,8 @@ import maplist  # noqa: E402
 import missions  # noqa: E402
 import playsaves  # noqa: E402
 from projects import ProjectError  # noqa: E402
-from viewer_fixtures import (ID, MUTATOR_LOADER, OTHER, RANDOM_SPAWNS, VARIANT, PlayInstalls, game_folder,  # noqa: E402
-                             record)
+from viewer_fixtures import (ID, MUTATOR_LOADER, OTHER, PLAY, RANDOM_SPAWNS, VARIANT, PlayInstalls,  # noqa: E402
+                             game_folder, record)
 from viewer import Handler, LocalServer  # noqa: E402
 
 
@@ -120,7 +120,7 @@ class Play(PlayInstalls, unittest.TestCase):
             self.assertEqual((error.exception.status, error.exception.extra['buildId']), (409, f'{VARIANT}-2'))
             self.assertIn('another build now', error.exception.message)
         self.assertEqual(self.started, [])
-        self.assertEqual(self.records(self.lwr, VARIANT), [])
+        self.assertEqual(self.records(self.lwr, PLAY), [])
         for bad in (dict(project=ID, buildId=3), dict(map='URB_Bar', buildId='x')):
             with self.assertRaises(ProjectError) as error: player.play(bad)
             self.assertEqual(error.exception.status, 400)
@@ -136,45 +136,51 @@ class Play(PlayInstalls, unittest.TestCase):
         self.assertEqual(self.started, [])
         self.package()
         r = player.play(dict(project=ID))
-        self.assertEqual((r['played']['map'], r['played']['project']['revision'], r['played']['quick']), (VARIANT, 1, False))
+        # under the play's names (play_names.py): the map's with _Play after it
+        self.assertEqual((r['played']['map'], r['played']['variant'], r['played']['project']['revision'], r['played']['quick']),
+                         (PLAY, VARIANT, 1, False))
         self.assertEqual(self.started[-1][0][1], f'-EXEC={installs.PLAY_FILE}')
-        self.assertIn(f'open {VARIANT}\n', (self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii'))
+        self.assertIn(f'open {PLAY}\n', (self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii'))
         # a record of its own after Bar's, out of rotation, streaming its own copy of the landing intro
         maps = dep.lines_of(self.files(self.lwr)['DefaultMaps.ini'])
-        mine, = self.records(self.lwr, VARIANT)
+        mine, = self.records(self.lwr, PLAY)
+        self.assertEqual(self.records(self.lwr, VARIANT), [])
         at = maps.index(mine)
         self.assertEqual(maps[at - 2], record('bar'))
-        self.assertTrue(maps[at - 1].startswith(b'; ' + VARIANT.encode()))
+        self.assertTrue(maps[at - 1].startswith(b'; ' + PLAY.encode()))
         self.assertEqual((dep.field(mine, 'DisplayName'), dep.unquoted(mine, 'bInRotation'), dep.unquoted(mine, 'MissionType')),
-                         (f'{VARIANT} (XCOM Map Workshop) |0', 'False', 'eMission_Abduction'))
-        self.assertIn(f'CIN_DropshipIntros_{VARIANT}', dep.slot_streams(mine))
+                         (f'{PLAY} (XCOM Map Workshop) |0', 'False', 'eMission_Abduction'))
+        self.assertIn(f'CIN_DropshipIntros_{PLAY}', dep.slot_streams(mine))
         self.assertNotIn('CIN_DropshipIntros', dep.slot_streams(mine))
         # the game's own lines are untouched: its first mission, and Bar's record
         self.assertEqual(dep.test_slot(self.lwr), self.default)
         self.assertEqual([l for l in maps if l not in maps[at - 1:at + 1]], dep.lines_of(before['DefaultMaps.ini']))
         cooked = self.lwr / 'XEW/XComGame/CookedPCConsole'
-        self.assertEqual((cooked / f'{VARIANT}.upk').read_bytes(), b'relit map 1')
-        self.assertIn(f'MapName="{VARIANT}"'.encode(), self.files(self.lwr)['DefaultLZMutator.ini'])
-        self.assertEqual([i['project']['name'] for i in r['game']['installed']], ['Bar remix'])
+        self.assertEqual((cooked / f'{PLAY}.upk').read_bytes(), b'relit map 1')
+        self.assertEqual((cooked / f'CIN_DropshipIntros_{PLAY}.upk').read_bytes(), b'intro copy')    # (names no map)
+        self.assertEqual((cooked / 'Lighting_4242.tfc').read_bytes(), b'lightmaps')          # a cache keeps its name
+        self.assertFalse((cooked / f'{VARIANT}.upk').exists())
+        self.assertIn(f'MapName="{PLAY}"'.encode(), self.files(self.lwr)['DefaultLZMutator.ini'])
+        self.assertEqual([(i['project']['name'], i['map'], i['variant']) for i in r['game']['installed']], [('Bar remix', PLAY, VARIANT)])
         # what the editor reads of the install is the game's own: the variant is no map, and Bar has its one record
         self.assertEqual(installs.maps_text(self.lwr).encode('latin-1'), before['DefaultMaps.ini'])
-        self.assertNotIn(VARIANT, maplist.lwr_maps(self.lwr))
+        self.assertNotIn(PLAY, maplist.lwr_maps(self.lwr))
         self.assertEqual(len(maplist.lwr_maps(self.lwr)['URB_Bar']['missions']), 1)
         # a rebuild installs over the earlier one; a quick build's installs as any other, and the record says quick
         self.settle(player)
         self.package(revision=2, quick=True)
         r = player.play(dict(project=ID))
         self.assertTrue(r['played']['quick'] and r['game']['installed'][0]['quick'])
-        self.assertEqual((cooked / f'{VARIANT}.upk').read_bytes(), b'relit map 2')
-        self.assertEqual(len(self.records(self.lwr, VARIANT)), 1)
-        self.assertEqual(self.files(self.lwr)['DefaultLZMutator.ini'].count(f'MapName="{VARIANT}"'.encode()), 1)
+        self.assertEqual((cooked / f'{PLAY}.upk').read_bytes(), b'relit map 2')
+        self.assertEqual(len(self.records(self.lwr, PLAY)), 1)
+        self.assertEqual(self.files(self.lwr)['DefaultLZMutator.ini'].count(f'MapName="{PLAY}"'.encode()), 1)
         self.assertTrue((self.lwr / 'XCOM Map Workshop' / 'installs.json').is_file())      # the record lives in the install
         self.settle(player)
         done = player.remove()['removed']
         self.assertEqual((done['records'], done['landingZones'], sorted(done['files']), done['playFile']),
-                         (1, 1, sorted(['Lighting_4242.tfc', f'{VARIANT}.upk', f'CIN_DropshipIntros_{VARIANT}.upk']), True))
+                         (1, 1, sorted(['Lighting_4242.tfc', f'{PLAY}.upk', f'CIN_DropshipIntros_{PLAY}.upk']), True))
         self.assertEqual(self.files(self.lwr), before)
-        self.assertFalse((cooked / f'{VARIANT}.upk').exists())
+        self.assertFalse((cooked / f'{PLAY}.upk').exists())
         self.assertFalse(any(player.remove()['removed'][k] for k in ('records', 'landingZones', 'files', 'playFile')))
 
     def build_line(self, base_line, label):
@@ -185,6 +191,14 @@ class Play(PlayInstalls, unittest.TestCase):
                                                                         f'Bar remix, {label}', ' |0'))
         line = dep.set_field(line, 'bInRotation', 'False', quoted=False)
         return line.replace(b'MapName="CIN_DropshipIntros"', f'MapName="CIN_DropshipIntros_{VARIANT}"'.encode()).decode('latin-1')
+
+    @staticmethod
+    def play_line(line):
+        """The Build's record as a play installs it (play_names.py): under the play's name, its display name starting
+        with it, streaming the play's copy of the intro."""
+        line = dep.set_field(line, 'Name', PLAY)
+        line = dep.set_field(line, 'DisplayName', PLAY + dep.field(line, 'DisplayName')[len(VARIANT):])
+        return line.replace(f'MapName="CIN_DropshipIntros_{VARIANT}"', f'MapName="CIN_DropshipIntros_{PLAY}"').encode('latin-1')
 
     def two_missions(self, game):
         """Bar with an abduction and a council bomb record in `game`'s DefaultMaps.ini, the bomb's stream in its
@@ -200,25 +214,26 @@ class Play(PlayInstalls, unittest.TestCase):
         self.package(maps=lines, record_missions=[[0], [1]])
         player = self.player()
         r = player.play(dict(project=ID, mission=1))
-        # the Build's own line for the bomb, byte for byte: its kind, council type and streams, no abduction rewrite
-        mine, = self.records(self.lwr, VARIANT)
-        self.assertEqual(mine, lines[1].encode('latin-1'))
+        # the Build's own line for the bomb under the play's names: its kind, council type and streams, no abduction
+        # rewrite
+        mine, = self.records(self.lwr, PLAY)
+        self.assertEqual(mine, self.play_line(lines[1]))
         self.assertEqual((dep.unquoted(mine, 'MissionType'), dep.unquoted(mine, 'CouncilType')), ('eMission_Special', 'eFCMType_Bomb'))
-        self.assertEqual(dep.field(mine, 'DisplayName'), f'{VARIANT}_Bomb (Bar remix, Council bomb) |0')    # Long War's _Bomb kept
-        self.assertIn('URB_Slaughterhouse_Stream', dep.slot_streams(mine))
+        self.assertEqual(dep.field(mine, 'DisplayName'), f'{PLAY}_Bomb (Bar remix, Council bomb) |0')    # Long War's _Bomb kept
+        self.assertTrue({'CIN_DropshipIntros_' + PLAY, 'URB_Slaughterhouse_Stream'} <= set(dep.slot_streams(mine)))
         maps = dep.lines_of(self.files(self.lwr)['DefaultMaps.ini'])
-        self.assertTrue(maps[maps.index(mine) - 1].startswith(f"; {VARIANT}: the build's Council bomb record, out of rotation".encode()))
+        self.assertTrue(maps[maps.index(mine) - 1].startswith(f"; {PLAY}: the build's Council bomb record, out of rotation".encode()))
         m = r['played']['mission']
         self.assertEqual((m['id'], m['label'], m['kind'], m['state']), (1, 'Council bomb', 'Special/Bomb', 'works'))
         self.assertEqual(m['notes'], [missions.PODS_NOTE])
         self.assertNotIn('record', r['played'])
         self.assertEqual(r['game']['installed'][0]['mission'], dict(id=1, label='Council bomb'))
         text = (self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii')
-        self.assertTrue(text.endswith(f'\nopen {VARIANT}\n'))
+        self.assertTrue(text.endswith(f'\nopen {PLAY}\n'))
         # absent, the first: the abduction's line
         r = player.play(dict(project=ID))
-        mine, = self.records(self.lwr, VARIANT)
-        self.assertEqual((mine, r['played']['mission']['label']), (lines[0].encode('latin-1'), 'Abduction'))
+        mine, = self.records(self.lwr, PLAY)
+        self.assertEqual((mine, r['played']['mission']['label']), (self.play_line(lines[0]), 'Abduction'))
         # a mission the build hasn't, or no mission at all
         for bad, status in ((5, 409), ('TerrorSite', 409), (-1, 400), (True, 400), ('a kind?', 400)):
             with self.assertRaises(ProjectError) as error: player.play(dict(project=ID, mission=bad))
@@ -230,14 +245,14 @@ class Play(PlayInstalls, unittest.TestCase):
         # a build from before the manifest named them: one Build record per base record, picked by its index
         self.package(maps=lines)
         player.play(dict(project=ID, mission=1))
-        self.assertEqual(self.records(self.lwr, VARIANT), [lines[1].encode('latin-1')])
+        self.assertEqual(self.records(self.lwr, PLAY), [self.play_line(lines[1])])
         player.remove()
-        # with no records in the manifest: the base map's record at that index, under the variant's name, of its kind
+        # with no records in the manifest: the base map's record at that index, under the play's name, of its kind
         self.package()
         player.play(dict(project=ID, mission=1))
-        mine, = self.records(self.lwr, VARIANT)
+        mine, = self.records(self.lwr, PLAY)
         self.assertEqual((dep.unquoted(mine, 'MissionType'), dep.field(mine, 'DisplayName')),
-                         ('eMission_Special', f'{VARIANT}_Bomb (XCOM Map Workshop) |0'))
+                         ('eMission_Special', f'{PLAY}_Bomb (XCOM Map Workshop) |0'))
         player.remove()
         self.assertEqual(self.files(self.lwr), before)
 
@@ -427,12 +442,12 @@ class Play(PlayInstalls, unittest.TestCase):
         (folder / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
         installs.install_package(self.lwr, folder)
         now = dep.lines_of(maps.read_bytes())
-        mine, = self.records(self.lwr, intro_variant)
+        mine, = self.records(self.lwr, intro_variant + '_Play')
         self.assertEqual(now.index(mine), 4)
         self.assertEqual(now[2], record('intro_abduction'))
         self.assertEqual(self.records(self.lwr, 'Act1_IntroLevel'), [])       # no live record for the map itself
         self.assertIn('Act1_IntroLevel', maplist.lwr_maps(self.lwr))
-        self.assertNotIn(intro_variant, maplist.lwr_maps(self.lwr))
+        self.assertNotIn(intro_variant + '_Play', maplist.lwr_maps(self.lwr))
         installs.reset(self.lwr)
         self.assertEqual(self.files(self.lwr), before)
 
@@ -470,42 +485,38 @@ class Play(PlayInstalls, unittest.TestCase):
         self.assertEqual(done['records'], 1)
         self.assertEqual(self.files(self.lwr), before)
 
-    def test_a_patchtool_record_of_the_variant_is_stood_in_for_and_put_back(self):
-        # the lab's patchtool deploy of an earlier test of the project left a record of the variant (with landing zones)
+    def test_a_record_of_the_maps_own_name_stays_and_the_play_goes_beside_it(self):
+        """A record of the map's own name that the editor didn't write (the lab's patchtool deploy of an earlier test
+        of the project, or a map pack installed the classic way) stays as it is, with its landing zones: the play goes
+        beside it under its play name, and Remove from game leaves the files byte for byte as they were."""
         maps = self.lwr / 'XEW/XComGame/Config/DefaultMaps.ini'
         theirs = dep.set_field(dep.set_field(record('bar'), 'Name', VARIANT), 'DisplayName', f'{VARIANT} (Bar remix) |0')
         comment = f"; {VARIANT}: URB_Bar's record under its own name, streaming patch_x in StreamingMaps[2] (patchtool, 6 Nov 2026)".encode()
         lines = dep.lines_of(maps.read_bytes())
         lines[2:2] = [comment, theirs]
-        maps.write_bytes(dep.EOL.join(lines))
         lz = self.lwr / 'XEW/XComGame/Config/DefaultLZMutator.ini'
         lz.write_bytes(lz.read_bytes() + f'LZArray=(MapName="{VARIANT}",StartLoc=(X=1,Y=2,Z=3))'.encode() + dep.EOL)
-        before = self.files(self.lwr)
         player = self.player()
         self.package()
-        r = player.play(dict(project=ID))
-        self.assertEqual(r['played']['map'], VARIANT)
-        # the editor's record in its place, nothing else changed; the landing zones there already are kept as they are
-        now = dep.lines_of(self.files(self.lwr)['DefaultMaps.ini'])
-        mine, = self.records(self.lwr, VARIANT)
-        self.assertEqual(now.index(mine), 3)
-        self.assertTrue(now[2].startswith(f'; {VARIANT}: URB_Bar\'s Abduction record under its own name, out of rotation (XCOM Map Workshop'.encode()))
-        self.assertEqual(now[:2] + now[4:], lines[:2] + lines[4:])
-        self.assertEqual(self.files(self.lwr)['DefaultLZMutator.ini'], before['DefaultLZMutator.ini'])
-        self.assertEqual(installs.maps_text(self.lwr).encode('latin-1'), before['DefaultMaps.ini'])
-        # a rebuild stands in for it again; Remove from game puts patchtool's record back byte for byte
-        self.settle(player)
-        self.package(revision=2)
-        player.play(dict(project=ID))
-        self.assertEqual(len(self.records(self.lwr, VARIANT)), 1)
-        self.settle(player)
-        self.assertEqual(player.remove()['removed']['records'], 1)
-        self.assertEqual(self.files(self.lwr), before)
-        # a record of the variant that patchtool's comment doesn't vouch for is still refused
-        lines[2] = b'; someone else'
-        maps.write_bytes(dep.EOL.join(lines))
-        with self.assertRaises(ProjectError) as error: player.play(dict(project=ID))
-        self.assertIn('neither the editor nor patchtool wrote', error.exception.message)
+        for say in (comment, b'; someone else'):        # patchtool's comment, and none that vouches for it
+            with self.subTest(say=say):
+                lines[2] = say
+                maps.write_bytes(dep.EOL.join(lines))
+                before = self.files(self.lwr)
+                r = player.play(dict(project=ID))
+                self.assertEqual(r['played']['map'], PLAY)
+                # the play's record after Bar's; theirs and its landing zone untouched
+                now = dep.lines_of(self.files(self.lwr)['DefaultMaps.ini'])
+                mine, = self.records(self.lwr, PLAY)
+                self.assertEqual(now.index(mine), 3)
+                self.assertEqual(now[:2] + now[4:], lines)
+                self.assertEqual(self.records(self.lwr, VARIANT), [theirs])
+                zones = self.files(self.lwr)['DefaultLZMutator.ini']
+                self.assertEqual((zones.count(f'MapName="{VARIANT}"'.encode()), zones.count(f'MapName="{PLAY}"'.encode())), (1, 1))
+                self.assertEqual(installs.maps_text(self.lwr).encode('latin-1'), before['DefaultMaps.ini'])
+                self.settle(player)
+                self.assertEqual(player.remove()['removed']['records'], 1)
+                self.assertEqual(self.files(self.lwr), before)
 
     def test_the_projects_own_landing_zones_go_in_and_come_out_byte_for_byte(self):
         """Clear map plan, step C7: a project that set its landing zones installs its own lines, not a copy of the
@@ -517,19 +528,19 @@ class Play(PlayInstalls, unittest.TestCase):
         self.package(zones=lines)
         player.play(dict(project=ID))
         lz = dep.lines_of(self.files(self.lwr)['DefaultLZMutator.ini'])
-        mine = [l for l in lz if f'MapName="{VARIANT}"'.encode() in l]
-        self.assertEqual(mine, [l.encode() for l in lines])
+        mine = [l for l in lz if f'MapName="{PLAY}"'.encode() in l]
+        self.assertEqual(mine, [l.replace(VARIANT, PLAY).encode() for l in lines])         # naming the play's map
         # after Bar's line, under a note of its own; Bar's own line is untouched and not copied
         at = lz.index(mine[0])
         self.assertIn(b'URB_Bar', lz[at - 2])
-        self.assertTrue(lz[at - 1].startswith(b';' + VARIANT.encode()))
+        self.assertTrue(lz[at - 1].startswith(b';' + PLAY.encode()))
         self.settle(player)
         self.assertEqual(player.remove()['removed']['landingZones'], 1)
         self.assertEqual(self.files(self.lwr), before)
         # an empty list writes no line
         self.package(revision=2, zones=[])
         player.play(dict(project=ID))
-        self.assertNotIn(f'MapName="{VARIANT}"'.encode(), self.files(self.lwr)['DefaultLZMutator.ini'])
+        self.assertNotIn(f'MapName="{PLAY}"'.encode(), self.files(self.lwr)['DefaultLZMutator.ini'])
         self.settle(player)
         player.remove()
         self.assertEqual(self.files(self.lwr), before)
@@ -552,28 +563,30 @@ class Play(PlayInstalls, unittest.TestCase):
         r = player.play(dict(project=ID))
         self.assertEqual(r['played']['dropInExclusion'], dict(written=True))
         lines = dep.lines_of(rs.read_bytes())
-        at = lines.index(f'ExcludeMaps = "{VARIANT}"'.encode())
+        at = lines.index(f'ExcludeMaps = "{PLAY}"'.encode())                 # the play's map's name
         self.assertEqual(lines[at - 2], b';ExcludeMaps = "DLC2_2_Deluge"')
-        self.assertTrue(lines[at - 1].startswith(f';{VARIANT}: scripted drop-ins land where placed (XCOM Map Workshop'.encode()), lines[at - 1])
+        self.assertTrue(lines[at - 1].startswith(f';{PLAY}: scripted drop-ins land where placed (XCOM Map Workshop'.encode()), lines[at - 1])
         self.assertIn(b'project Bar remix', lines[at - 1])
-        self.assertTrue(spawnrules.excluded(spawnrules.random_spawns(rs.read_bytes())['excludeMaps'], VARIANT))
-        self.assertEqual([b['variant'] for b in installs.read_ledger(self.lwr)['playExclusions']], [VARIANT])
+        self.assertTrue(spawnrules.excluded(spawnrules.random_spawns(rs.read_bytes())['excludeMaps'], PLAY))
+        self.assertEqual([b['variant'] for b in installs.read_ledger(self.lwr)['playExclusions']], [PLAY])
         self.settle(player)
         self.assertEqual(player.remove()['removed']['dropInExclusions'], 1)
         self.assertEqual(rs.read_bytes(), before)
         self.assertEqual(self.files(self.lwr), maps)
-        # played, then installed for campaigns: the play's line is the campaign's; a rebuild played adds none
+        # played, then installed for campaigns: each has a line of its own (the play's under its play name), and the
+        # play's goes with the play; a rebuild played adds its own again
         quiet = self.player()
         quiet.play(dict(project=ID))
         self.settle(quiet)
         manager.install(self.store, self.builds, quiet, dict(projects=[ID], mode='additional'))
         ledger = installs.read_ledger(self.lwr)
-        self.assertEqual(([b['variant'] for b in ledger.get('dropInExclusions') or []], ledger.get('playExclusions')), ([VARIANT], []))
-        self.assertEqual(installs.clear_play(self.lwr)['dropInExclusions'], 0)
+        self.assertEqual(([b['variant'] for b in ledger.get('dropInExclusions') or []],
+                          [b['variant'] for b in ledger.get('playExclusions') or []]), ([VARIANT], [PLAY]))
+        self.assertEqual(installs.clear_play(self.lwr)['dropInExclusions'], 1)
         self.package(revision=2, exclusion=True)
         r = quiet.play(dict(project=ID))
-        self.assertEqual(r['played']['dropInExclusion'], dict(written=False))
-        self.assertEqual(rs.read_bytes().count(f'ExcludeMaps = "{VARIANT}"'.encode()), 1)
+        self.assertEqual(r['played']['dropInExclusion'], dict(written=True))
+        self.assertEqual([rs.read_bytes().count(f'ExcludeMaps = "{n}"'.encode()) for n in (VARIANT, PLAY)], [1, 1])
         self.settle(quiet)
         installs.reset(self.lwr)
         self.assertEqual(rs.read_bytes(), before)
@@ -596,13 +609,13 @@ class Play(PlayInstalls, unittest.TestCase):
         with self.assertRaises(ProjectError): player.play(dict(map='URB_Bar', zone='a'))
         r = player.play(dict(project=ID, zone='b'))
         lz = dep.lines_of(self.files(self.lwr)['DefaultLZMutator.ini'])
-        self.assertEqual([l for l in lz if f'MapName="{VARIANT}"'.encode() in l], [lines[1].encode()])
+        self.assertEqual([l for l in lz if f'MapName="{PLAY}"'.encode() in l], [lines[1].replace(VARIANT, PLAY).encode()])
         self.assertNotIn('?SpawnGroup', (self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii'))
         self.settle(player)
         player.remove()
         r = player.play(dict(project=ID, zone='a'))
         self.assertEqual(r['played']['spawnGroup'], 'Group0')
-        self.assertIn(f'open {VARIANT}?SpawnGroup=Group0' + chr(10), (self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii'))
+        self.assertIn(f'open {PLAY}?SpawnGroup=Group0' + chr(10), (self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii'))
         self.settle(player)
         player.remove()
 
@@ -620,9 +633,9 @@ class Play(PlayInstalls, unittest.TestCase):
         self.assertFalse(r['played']['squad'])
         self.assertEqual((plain / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii'),
                          f'set XComContentManager bAllowJITLoad True\n'
-                         f'set XComOnlineProfileSettingsDataBlob m_eAlienType eChar_Sectoid\nopen {VARIANT}\n')
-        mine, = self.records(plain, VARIANT)
-        self.assertEqual(dep.field(mine, 'DisplayName'), f'{VARIANT} (XCOM Map Workshop)')
+                         f'set XComOnlineProfileSettingsDataBlob m_eAlienType eChar_Sectoid\nopen {PLAY}\n')
+        mine, = self.records(plain, PLAY)
+        self.assertEqual(dep.field(mine, 'DisplayName'), f'{PLAY} (XCOM Map Workshop)')
         self.assertFalse((plain / 'XEW/XComGame/Config/DefaultLZMutator.ini').exists())
         self.settle(player)
         self.assertEqual(player.remove()['removed']['landingZones'], 0)
@@ -755,7 +768,7 @@ class Play(PlayInstalls, unittest.TestCase):
         player = self.player(self.copy)
         self.package()
         r = player.play(dict(project=ID))
-        self.assertEqual(len(self.records(self.copy, VARIANT)), 1)
+        self.assertEqual(len(self.records(self.copy, PLAY)), 1)
         self.assertEqual(self.files(self.lwr)['DefaultMaps.ini'].count(VARIANT.encode()), 0)
         self.assertEqual(Path(self.started[-1][0][0]).parents[3], self.copy)
         self.assertNotIn('note', r['played'])
@@ -776,12 +789,16 @@ class Play(PlayInstalls, unittest.TestCase):
         done = player.remove()['removed']
         self.assertTrue((cooked / 'Lighting_4242.tfc').exists())
         self.assertTrue(any('Lighting_4242.tfc' in note for note in done['left']))
-        self.assertEqual((done['records'], len(self.records(self.lwr, VARIANT))), (0, 1))
-        self.assertTrue(any('record for ' + VARIANT in note for note in done['left']))
-        # a record of that name the editor didn't write: a build of the project isn't installed over it
+        self.assertEqual((done['records'], len(self.records(self.lwr, PLAY))), (0, 1))
+        self.assertTrue(any('record for ' + PLAY in note for note in done['left']))
+        # the next play goes under the next play name: the record left in the game holds the first; the cache changed
+        # since is still the play's, and stops it until it is moved away
         self.package(revision=3)
         with self.assertRaises(ProjectError) as error: player.play(dict(project=ID))
-        self.assertIn('neither the editor nor patchtool wrote', error.exception.message)
+        self.assertIn('Lighting_4242.tfc has changed since the editor installed it', error.exception.message)
+        (cooked / 'Lighting_4242.tfc').unlink()
+        self.assertEqual(player.play(dict(project=ID))['played']['map'], VARIANT + '_Play2')
+        self.assertEqual(len(self.records(self.lwr, PLAY)), 1)
 
     def snapshot(self, game):
         """The install's config files and every file of its CookedPCConsole with its bytes."""
@@ -789,9 +806,10 @@ class Play(PlayInstalls, unittest.TestCase):
         return self.files(game), {p.name: p.read_bytes() for p in cooked.iterdir()}
 
     def test_another_projects_variant_or_files_are_never_replaced(self):
-        """Output names plan 3.4: a play's install and a campaign install check the whole package before anything is
-        written; a variant installed for another project, a file the editor didn't put there (named in any case) and
-        one changed since are refused, and the install is left exactly as it was."""
+        """Output names plan 3.4: a campaign install checks the whole package before anything is written; a variant
+        installed for another project, a file the editor didn't put there (named in any case) and one changed since
+        are refused, and the install is left exactly as it was. A play goes under its play names beside all of them,
+        and leaves them as they are; a file it keeps the name of (a texture cache) is refused for it the same way."""
         self.package()
         folder, cooked = self.output / VARIANT, self.lwr / 'XEW/XComGame/CookedPCConsole'
         intro = f'CIN_DropshipIntros_{VARIANT}.upk'
@@ -808,18 +826,25 @@ class Play(PlayInstalls, unittest.TestCase):
              lambda: ((cooked / intro).write_bytes(b'whose?'),
                       installs.write_ledger(self.lwr, dict(playFiles={intro: installs.sha256(cooked / intro)})))),
         ]
-        for what, says, make in cases:
-            for install in (lambda: installs.install_package(self.lwr, folder),
-                            lambda: installs.install_rotation(self.lwr, folder, 'additional')):
+        cache = ('a texture cache put there by hand', 'didn\'t put it there', lambda: (cooked / 'Lighting_4242.tfc').write_bytes(b'by hand'))
+        for what, says, make in cases + [cache]:
+            plays = (what, says, make) == cache
+            for install, refused in ((lambda: installs.install_package(self.lwr, folder), plays),
+                                     (lambda: installs.install_rotation(self.lwr, folder, 'additional'), True)):
                 with self.subTest(what):
                     make()
                     try:
                         before = self.snapshot(self.lwr)
-                        with self.assertRaisesRegex(installs.InstallError, says): install()
-                        self.assertEqual(self.snapshot(self.lwr), before)
+                        if refused:
+                            with self.assertRaisesRegex(installs.InstallError, says): install()
+                            self.assertEqual(self.snapshot(self.lwr), before)
+                        else:
+                            self.assertEqual(install()['map'], PLAY)
+                            after = self.snapshot(self.lwr)[1]
+                            self.assertEqual({n: b for n, b in after.items() if n in before[1]}, before[1])
                     finally:
                         installs.reset(self.lwr)
-                        for p in (cooked / f'{VARIANT.lower()}.upk', cooked / intro): p.unlink(missing_ok=True)
+                        for p in (cooked / f'{VARIANT.lower()}.upk', cooked / intro, cooked / 'Lighting_4242.tfc'): p.unlink(missing_ok=True)
                         (self.lwr / 'XCOM Map Workshop/play.json').unlink(missing_ok=True)
 
     def test_a_projects_own_files_are_replaced_and_others_identical_ones_kept(self):
@@ -864,12 +889,13 @@ class Play(PlayInstalls, unittest.TestCase):
         with self.assertRaisesRegex(installs.InstallError, 'for another project'): installs.install_package(self.lwr, folder)
         installs.reset(self.lwr)
         # a file the editor never put there with the package's bytes: used, not noted, and left by Remove from game
-        (cooked / f'CIN_DropshipIntros_{VARIANT}.upk').write_bytes(b'intro copy')
+        # (a play's texture cache: the one file it keeps the name of)
+        (cooked / 'Lighting_4242.tfc').write_bytes(b'lightmaps')
         installs.install_package(self.lwr, folder)
-        self.assertNotIn(f'CIN_DropshipIntros_{VARIANT}.upk', installs.read_ledger(self.lwr)['playFiles'])
+        self.assertNotIn('Lighting_4242.tfc', installs.read_ledger(self.lwr)['playFiles'])
         installs.reset(self.lwr)
-        self.assertEqual((cooked / f'CIN_DropshipIntros_{VARIANT}.upk').read_bytes(), b'intro copy')
-        self.assertFalse((cooked / f'{VARIANT}.upk').exists())
+        self.assertEqual((cooked / 'Lighting_4242.tfc').read_bytes(), b'lightmaps')
+        self.assertFalse((cooked / f'{PLAY}.upk').exists())
 
     def lab(self, files):
         """A lab whose bake fixtures' installer put `files` (paths in a game) there with the bytes they have now, and
@@ -886,9 +912,10 @@ class Play(PlayInstalls, unittest.TestCase):
 
     def test_the_labs_earlier_tests_of_a_project_are_replaced_kept_and_put_back(self):
         """A file of the package's own names that the lab's deploy tools put in the lab copy before the editor could
-        install is an earlier test of the project: a play and a campaign install replace it, keeping it in the change's
-        backup folder, and it goes back when the editor's file comes out (the play's end, Remove from game). Outside the
-        lab copy, or changed since the lab put it there, it is refused as any file the editor didn't put there."""
+        install is an earlier test of the project: a campaign install replaces it, keeping it in the change's backup
+        folder, and it goes back when the editor's file comes out (Remove from game). Outside the lab copy, or changed
+        since the lab put it there, it is refused as any file the editor didn't put there. A play goes under its play
+        names and leaves it as it is."""
         self.package()
         folder, cooked = self.output / VARIANT, self.lwr / 'XEW/XComGame/CookedPCConsole'
         earlier, intro = cooked / f'{VARIANT}.upk', cooked / f'CIN_DropshipIntros_{VARIANT}.upk'
@@ -898,26 +925,29 @@ class Play(PlayInstalls, unittest.TestCase):
         lab_bytes = {p.name: p.read_bytes() for p in (earlier, intro)}
         # not the lab copy (no marker): refused
         before = self.snapshot(self.lwr)
-        with self.assertRaisesRegex(installs.InstallError, 'didn\'t put it there'): installs.install_package(self.lwr, folder)
+        with self.assertRaisesRegex(installs.InstallError, 'didn\'t put it there'):
+            installs.install_rotation(self.lwr, folder, 'additional')
         self.assertEqual(self.snapshot(self.lwr), before)
         (self.lwr / 'XComLab-copy.txt').write_text('lab')
-        for install, out in ((lambda: installs.install_package(self.lwr, folder), lambda: installs.clear_play(self.lwr)),
-                             (lambda: installs.install_rotation(self.lwr, folder, 'additional'), lambda: installs.reset(self.lwr))):
-            with self.subTest(install=install):
-                install()
-                self.assertEqual(earlier.read_bytes(), b'relit map 1')
-                ledger = installs.read_ledger(self.lwr)
-                self.assertEqual(set(ledger['labFiles']), set(lab_bytes))
-                self.assertEqual({n: (self.lwr / p).read_bytes() for n, p in ledger['labFiles'].items()}, lab_bytes)
-                self.assertTrue(all(p.startswith(installs.LEDGER_FOLDER) for p in ledger['labFiles'].values()))
-                out()
-                self.assertEqual({p.name: p.read_bytes() for p in (earlier, intro)}, lab_bytes)
-                self.assertFalse(installs.read_ledger(self.lwr).get('labFiles'))
+        installs.install_package(self.lwr, folder)
+        self.assertEqual({p.name: p.read_bytes() for p in (earlier, intro)}, lab_bytes)
+        self.assertEqual((cooked / f'{PLAY}.upk').read_bytes(), b'relit map 1')
+        self.assertFalse(installs.read_ledger(self.lwr).get('labFiles'))
+        installs.clear_play(self.lwr)
+        installs.install_rotation(self.lwr, folder, 'additional')
+        self.assertEqual(earlier.read_bytes(), b'relit map 1')
+        ledger = installs.read_ledger(self.lwr)
+        self.assertEqual(set(ledger['labFiles']), set(lab_bytes))
+        self.assertEqual({n: (self.lwr / p).read_bytes() for n, p in ledger['labFiles'].items()}, lab_bytes)
+        self.assertTrue(all(p.startswith(installs.LEDGER_FOLDER) for p in ledger['labFiles'].values()))
+        installs.reset(self.lwr)
+        self.assertEqual({p.name: p.read_bytes() for p in (earlier, intro)}, lab_bytes)
+        self.assertFalse(installs.read_ledger(self.lwr).get('labFiles'))
         # changed since the lab put it there: refused, nothing written
         earlier.write_bytes(b'edited by hand since')
         before = self.snapshot(self.lwr)
         with self.assertRaisesRegex(installs.InstallError, f'{VARIANT}.upk is in CookedPCConsole and the editor didn\'t put it there'):
-            installs.install_package(self.lwr, folder)
+            installs.install_rotation(self.lwr, folder, 'additional')
         self.assertEqual(self.snapshot(self.lwr), before)
 
     def test_what_the_lab_deployed(self):
@@ -991,21 +1021,21 @@ class Play(PlayInstalls, unittest.TestCase):
         player = self.player(cleanup=True, appear=30)
         r = player.play(dict(project=ID))
         # while the game is up the build is in: its record, landing zones and files, noted in the play's own ledger
-        self.assertEqual(len(self.records(self.lwr, VARIANT)), 1)
-        self.assertTrue((cooked / f'{VARIANT}.upk').is_file())
+        self.assertEqual(len(self.records(self.lwr, PLAY)), 1)
+        self.assertTrue((cooked / f'{PLAY}.upk').is_file())
         play = json.loads((self.lwr / 'XCOM Map Workshop/play.json').read_text(encoding='utf-8'))
         main = json.loads((self.lwr / 'XCOM Map Workshop/installs.json').read_text(encoding='utf-8'))
         self.assertEqual((play['schema'], [b['variant'] for b in play['records']], sorted(play['playFiles']), len(play['playZones'])),
-                         (installs.PLAY_SCHEMA, [VARIANT], sorted(['Lighting_4242.tfc', f'{VARIANT}.upk', f'CIN_DropshipIntros_{VARIANT}.upk']), 1))
+                         (installs.PLAY_SCHEMA, [PLAY], sorted(['Lighting_4242.tfc', f'{PLAY}.upk', f'CIN_DropshipIntros_{PLAY}.upk']), 1))
         self.assertFalse(any(main.get(k) for k in installs.PLAY_KEYS + ('files', 'landingZones', 'rotation')))
         self.assertTrue(r['game']['play'])
         # the game closes: all of it is out, and the config files are byte for byte as they were
         self.close_game(player)
         self.assertEqual(self.files(self.lwr), before)
-        self.assertFalse((cooked / f'{VARIANT}.upk').exists())
+        self.assertFalse((cooked / f'{PLAY}.upk').exists())
         self.assertFalse((self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).exists())
         s = player.status()['game']
-        self.assertEqual((s['installed'], s['play'], s['anything'], s['lastPlay']['map']), ([], False, False, VARIANT))
+        self.assertEqual((s['installed'], s['play'], s['anything'], s['lastPlay']['map']), ([], False, False, PLAY))
         # a map alone: its commands file goes too
         player.play(dict(map='URB_Bar'))
         self.close_game(player)
@@ -1023,31 +1053,44 @@ class Play(PlayInstalls, unittest.TestCase):
         self.close_game(player)
         manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))
         campaign = self.files(self.lwr)
-        # a play of the same build beside it: its record goes when the game closes, the campaign's stay, files and all
+        self.assertIn(f'MapName="{VARIANT}"'.encode(), campaign['DefaultLZMutator.ini'])
+        # a play of the same build beside it, under its play names: its record and files go when the game closes, the
+        # campaign's stay; the texture cache, the one file a play keeps the name of, is the campaign's and stays
         player.play(dict(project=ID))
-        self.assertEqual(len(self.records(self.lwr, VARIANT)), 2)
+        self.assertEqual((len(self.records(self.lwr, VARIANT)), len(self.records(self.lwr, PLAY))), (1, 1))
         self.close_game(player)
         self.assertEqual(self.files(self.lwr), campaign)
-        self.assertTrue((cooked / f'{VARIANT}.upk').is_file())
-        self.assertIn(f'MapName="{VARIANT}"'.encode(), campaign['DefaultLZMutator.ini'])
-        # a play of a newer build of it: the newer file is the campaign's now and stays
+        self.assertTrue((cooked / f'{VARIANT}.upk').is_file() and (cooked / 'Lighting_4242.tfc').is_file())
+        self.assertFalse((cooked / f'{PLAY}.upk').exists())
+        # a play of a newer build of it: the campaign's build is left as it is
         self.package(revision=2)
         player.play(dict(project=ID))
+        self.assertEqual((cooked / f'{PLAY}.upk').read_bytes(), b'relit map 2')
         self.close_game(player)
-        self.assertEqual((cooked / f'{VARIANT}.upk').read_bytes(), b'relit map 2')
+        self.assertEqual((cooked / f'{VARIANT}.upk').read_bytes(), b'relit map 1')
         self.assertEqual(self.files(self.lwr), campaign)
-        # the other way round: in the game from a play, then installed for campaigns before the game closes... the
-        # play's files and landing zones become the campaign's
+        # ...but not with a texture cache of its own under the campaign's cache's name, which the campaign's map reads
+        folder = self.output / VARIANT
+        (folder / 'CookedPCConsole' / 'Lighting_4242.tfc').write_bytes(b'newer lightmaps')
+        m = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+        m['files']['CookedPCConsole/Lighting_4242.tfc'] = hashlib.sha256(b'newer lightmaps').hexdigest()
+        (folder / 'manifest.json').write_text(json.dumps(m), encoding='utf-8')
+        with self.assertRaises(ProjectError) as error: player.play(dict(project=ID))
+        self.assertIn('Lighting_4242.tfc is the lighting of the build installed for campaigns', error.exception.message)
+        self.assertEqual((cooked / 'Lighting_4242.tfc').read_bytes(), b'lightmaps')
+        # the other way round: in the game from a play, then installed for campaigns before the game closes: the
+        # campaign takes the play's cache over, and the play's own files go when the play is cleared
         installs.reset(self.lwr)
         self.assertEqual(self.files(self.lwr), before)
+        self.package()
         quiet = self.player()                                       # no cleanup: the play's things stay in
         quiet.play(dict(project=ID))
         self.settle(quiet)
         manager.install(self.store, self.builds, quiet, dict(projects=[ID], mode='additional'))
-        self.assertEqual(installs.clear_play(self.lwr)['files'], [])
-        self.assertTrue((cooked / f'{VARIANT}.upk').is_file())
+        self.assertEqual(sorted(installs.clear_play(self.lwr)['files']), sorted([f'{PLAY}.upk', f'CIN_DropshipIntros_{PLAY}.upk']))
+        self.assertTrue((cooked / f'{VARIANT}.upk').is_file() and (cooked / 'Lighting_4242.tfc').is_file())
         self.assertIn(f'MapName="{VARIANT}"'.encode(), self.files(self.lwr)['DefaultLZMutator.ini'])
-        self.assertEqual(len(self.records(self.lwr, VARIANT)), 1)
+        self.assertEqual((len(self.records(self.lwr, VARIANT)), len(self.records(self.lwr, PLAY))), (1, 0))
         installs.reset(self.lwr)
         self.assertEqual(self.files(self.lwr), before)
         self.assertFalse((cooked / f'{VARIANT}.upk').exists())

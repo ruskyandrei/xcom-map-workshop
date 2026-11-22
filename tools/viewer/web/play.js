@@ -73,5 +73,5 @@ export function renderInstalls(el, status, mapLabel) {
         : launch.how === 'direct' ? 'The game folder is in no Steam library, so its XComEW.exe is started with the map to open' : '',
       !launch.how);
   row('In the game', inGame(game, mapLabel) ?? (status.gameError ? `Not known: ${status.gameError}` : 'Not known'),
-      game ? `What the editor has installed there: a project's build is installed under its own name, with a map record of its own that no campaign draws. A map of the game's needs nothing installed, but for one whose records the game comments out (the tutorial's map), which gets a copy of one. Game maps (the arrow beside Play) shows it and takes any of it out${game.configKept ? '. The game\'s XComContent.ini is kept aside for a play and goes back once the game has closed' : ''}` : '');
+      game ? `What the editor has installed there: a project's build is installed under a play name of its own (its map's name with _Play after it), with a map record of its own that no campaign draws. A map of the game's needs nothing installed, but for one whose records the game comments out (the tutorial's map), which gets a copy of one. Game maps (the arrow beside Play) shows it and takes any of it out${game.configKept ? '. The game\'s XComContent.ini is kept aside for a play and goes back once the game has closed' : ''}` : '');
 }

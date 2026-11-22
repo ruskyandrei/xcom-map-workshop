@@ -241,7 +241,7 @@ export function createBuildPlay({ $, bakeNote, banner, builderDocument, builderR
     saving.disabled = Boolean(forced) || play.disabled;
     savingRow.title = forced ?? savingHelp(playStatus?.saveKey ?? 'F5');
     play.title = cantPlay ? `Not now: ${cantPlay}`
-      : `Install this build in ${playStatus?.install?.sameAsLwr === false ? 'the install under Installs' : 'the game install'} under its own name and start the game in a battle on it: no campaign to start, and nothing of the game's own is changed`;
+      : `Install this build in ${playStatus?.install?.sameAsLwr === false ? 'the install under Installs' : 'the game install'} under a play name of its own and start the game in a battle on it: no campaign to start, and nothing of the game's own is changed`;
     $('buildCopy').hidden = !(built && pkg);
     $('buildPrepare').hidden = !wantsPrepare;
     $('buildClose').classList.toggle('primary', !wantsPrepare);
@@ -431,7 +431,7 @@ export function createBuildPlay({ $, bakeNote, banner, builderDocument, builderR
     const zoneAt = playZone ? zonesNow().findIndex(z => z.id === playZone) : -1;
     buildOptions.show({
       title: `Play ${project.doc.name} in the game${zoneAt >= 0 ? `, landing at zone ${zoneAt + 1}` : ''}`,
-      note: `${what} installed in ${where} under its own name, and the game started in a battle on it. ${current
+      note: `${what} installed in ${where} under a play name of its own, and the game started in a battle on it. ${current
         ? `Its last build (lighting ${current.quick ? 'not baked' : 'baked'}) can be played as it is, or it can be built again first.`
         : 'It is built first and played when the build ends.'}`,
       times: lastBuild?.package?.times ?? {}, bakeNote: bakeNote(),

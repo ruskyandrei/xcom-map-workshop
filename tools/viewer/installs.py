@@ -9,15 +9,16 @@ landing streams from the first DefaultMaps.ini record with that Name. So:
   the tutorial's map, whose records LWR comments out (maplist.SWITCHED_OFF): opened with no record, the game crashed
   8 s into the battle (EXP-30 run 1), so a play of it gets a live copy of its abduction record, out of rotation
   (install_map_record);
-- a variant package (tools/editor/build.py) gets a record of its own, added after the base map's records: one of the
-  base map's records (its abduction where it has one) under the variant's name and out of rotation, so no campaign
-  draws it, streaming the package's patch and its own copy of the landing intro in place of the original. The
+- a variant package (tools/editor/build.py) gets a record of its own, added after the base map's records: the Build's
+  line for the mission played (or one of the base map's records under the variant's name), out of rotation, so no
+  campaign draws it, streaming the package's patch and its own copy of the landing intro in place of the original. The
   package's files are copied into CookedPCConsole (each checked against the manifest first) and the base map's landing
   zones are added under the variant's name in DefaultLZMutator.ini (Long War's file: an install without it, plain EW,
-  gets no landing-zone lines).
-No line the install had is changed: the first mission of a new campaign stays the game's own. The one exception is a
-record of the same variant that the lab's patchtool deploy wrote (an earlier test of the same project, its comment line
-saying so: patchtool_record): the editor's record takes its place, and Remove from game puts it back.
+  gets no landing-zone lines). A play installs it under play names (play_names.py: <Map>_Play and its copies the
+  same), which nothing else in the install has, so a map pack carrying the same map never meets it.
+No line the install had is changed: the first mission of a new campaign stays the game's own. A play from before play
+names could take the place of a record of the same variant that the lab's patchtool deploy wrote (patchtool_record);
+taking that play out puts the record back.
 
 The project manager (manager.py) installs builds for campaigns instead (install_rotation): a variant gets a record for
 each record of its base map, in or out of rotation as the base map's is, after the base map's records and after any
@@ -78,11 +79,13 @@ from pathlib import Path
 import re
 import shutil
 import sys
+import tempfile
 import threading
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'bake'))
 
 import atomic_files  # noqa: E402
+import play_names  # noqa: E402
 import settings  # noqa: E402
 
 LEDGER_FOLDER = 'XCOM Map Workshop'
@@ -659,12 +662,13 @@ def recorded_variants(ledger):
 
 def _owner(ledger, name, m, files):
     """The project whose a file the editor noted is: as `owners` says, else (a ledger from before owners were noted)
-    the project the ledger says installed this package's variant, for a file of this package's own list (the
-    variant's names are its project's, so that is the earlier build of it). None when nothing says."""
+    the project the ledger says installed this package's variant (a play's: the map's own name), for a file of this
+    package's own list (the variant's names are its project's, so that is the earlier build of it). None when nothing
+    says."""
     owner = file_owners(ledger).get(name.lower())
     if owner: return owner
     if not any(dst.name.lower() == name.lower() for _, dst, _ in files): return None
-    variant = m['variant'].lower()
+    variant = (m.get('playOf') or m['variant']).lower()
     return next((p for v, p in recorded_variants(ledger).items() if v.lower() == variant and p), None)
 
 
@@ -675,7 +679,9 @@ def preflight(game, ledger, m, files):
     from before, _owner), unchanged since it was copied; a file the editor never put there is left alone, and stays
     whoever's it is when it already has the package's bytes. The one exception: a file of the package's own names that
     the lab's deploy tools put there, with the bytes they gave it (lab_deploys), is an earlier test of the project and
-    may be replaced (_copy_files keeps it first)."""
+    may be replaced (_copy_files keeps it first). A play (play_names.for_play's manifest) never replaces a file a
+    campaign install holds: the one file a play keeps the name of is a texture cache, which the build installed for
+    campaigns reads by that name."""
     project = (m.get('project') or {}).get('id')
     variant = m['variant']
     problems = []
@@ -707,6 +713,10 @@ def preflight(game, ledger, m, files):
         elif current != digest and current != entry[1]:
             problems.append(f'{path.name} has changed since the editor installed it; it is left alone (move it '
                             f'away to install this build)')
+        elif current != digest and m.get('playOf') and dst.name.lower() in {k.lower() for k in ledger.get('files') or {}}:
+            problems.append(f'{path.name} is the lighting of the build installed for campaigns, and this build\'s '
+                            f'differs; install this build for campaigns first, or build the project again (a build '
+                            f'now keeps its lighting inside the map)')
     if problems:
         raise InstallError('Not installed: ' + '; '.join(problems) + '.')
 
@@ -1229,19 +1239,62 @@ def install_package(game, folder, now=None, **options):
 
 def _install_package(game, folder, now=None, *, expected=None, test=None, zone=None, mission=None):
     """Install a variant package (a folder with manifest.json) so that the game can open it by name; returns what was
-    installed. An earlier build of the same variant, of the same project, is replaced; anything of another project's,
-    or a file the editor didn't put there, is never replaced (preflight, before anything is written). `mission` (mission_id): which of the package's
+    installed. A play installs it under names of its own (play_names.py: <Map>_Play, its copies and patch the same),
+    so that a map pack of the same map, or anything else of the build's names in the install, never meets it; the
+    result's `map` is the play's map name and `variant` the map's own. A prefab test's package is installed under its
+    own names, which are the test's alone. An earlier install of the same names, of the same project, is replaced;
+    anything of another project's, or a file the editor didn't put there, is never replaced (preflight, before
+    anything is written). `mission` (mission_id): which of the package's
     missions the record is (build_record: the Build's own line for it; None, its first); a prefab test's is
     plan_record's with TEST_MISSION. The result's `record` is the record's text, for the play's commands
     (missions.play_setup), and `mission` its id and label. `zone` (Land here: one of the project's landing
     zones, by id): under LWR that zone's line alone goes in; for a zone that is one of the map's own landings the
     result's `spawnGroup` names its group, for the play's open command (a plain install plays no lines)."""
-    import mapsini as dep
     game, folder = Path(game), Path(folder)
     m, files = read_package(folder, game)
     if expected is not None and m != expected:
         raise InstallError('The package changed since the prefab test verified it.')
     _check_ready(game)
+    if test:
+        return _install_variant(game, m, files, now, test=test)
+    with tempfile.TemporaryDirectory(prefix='xmw-play-') as scratch:
+        try: m, files = play_names.for_play(m, files, play_taken(game, (m.get('project') or {}).get('id')), scratch, sha256)
+        except play_names.PlayNameError as error: raise InstallError(str(error)) from None
+        return _install_variant(game, m, files, now, zone=zone, mission=mission)
+
+
+def play_taken(game, project):
+    """The names (lower case) a play of `project` (its id) may not give its packages in `game` (play_names.for_play):
+    every file's name without its extension anywhere under CookedPCConsole (a map pack's folder too), every map name of
+    DefaultMaps.ini's records (the maps and the streams they load, the editor's own among them), and the variants and
+    files the editor's ledgers note. What the project's own earlier play holds, as written, is left out: a play not
+    cleared out yet (a dry play's, or one whose game was never seen to close) is replaced by the next, as any install
+    replaces its own; what of it was changed since stays taken."""
+    import mapsini as dep
+    ledger = read_ledger(game)
+    plays = {name for name, entry in (ledger.get('installed') or {}).items()
+             if entry.get('variant') and project and (entry.get('project') or {}).get('id') == project}
+    owners = file_owners(ledger)
+    mine = {k.lower(): v for k, v in (ledger.get('playFiles') or {}).items() if project and owners.get(k.lower()) == project}
+    root = cooked(game)
+    names = set()
+    for path in (root.rglob('*') if root.is_dir() else ()):
+        if path.is_file() and not (path.parent == root and path.name.lower() in mine and sha256(path) == mine[path.name.lower()]):
+            names.add(path.stem.lower())
+    lines = dep.lines_of(config(game, 'DefaultMaps.ini').read_bytes())
+    _strip_records(lines, [b for b in ledger.get('records') or [] if b['variant'] in plays])
+    for line in lines:
+        if dep.is_record(line):
+            names.update(n.lower() for n in [dep.field(line, 'Name')] + dep.slot_streams(line) if n)
+    names.update(v.lower() for v in recorded_variants(ledger) if v not in plays)
+    names.update(Path(k).stem.lower() for key in ('files', 'playFiles') for k in ledger.get(key) or {}
+                 if not (key == 'playFiles' and k.lower() in mine))
+    return names
+
+
+def _install_variant(game, m, files, now=None, *, test=None, zone=None, mission=None):
+    """_install_package's install of a package's manifest and files (read_package's, a play's under its play names)."""
+    import mapsini as dep
     variant, base = m['variant'], m['source']['map']
     ledger = read_ledger(game)
     if test and any(entry['variant'] == variant for entry in ledger.get('rotation') or []):
@@ -1252,9 +1305,9 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
     lz = dep.lines_of(config(game, LZ).read_bytes()) if config(game, LZ).is_file() else None
     pristine = pristine_lines(game, maps)
     foreign = [i for i, l in enumerate(pristine) if dep.is_record(l) and (dep.field(l, 'Name') or '').lower() == variant.lower()]
-    if foreign and patchtool_record(pristine, variant) is None:
-        raise InstallError(f'DefaultMaps.ini has a record named {variant} (line {foreign[0] + 1}) that neither the editor '
-                           'nor patchtool wrote; take it out first')
+    if foreign:
+        raise InstallError(f'DefaultMaps.ini has a record named {variant} (line {foreign[0] + 1}) that the editor didn\'t '
+                           'write; take it out first')
     if test:
         _, block = plan_record(pristine, base, variant, streams=m.get('streams') or [], replace=m.get('replaceStreams') or {},
                                note=note, mission=TEST_MISSION)
@@ -1272,21 +1325,15 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
     # the variant's drop-in exclusion line (the project's spawn rule, SP8), planned against this install's file
     rs = dep.lines_of(config(game, RANDOM_SPAWNS).read_bytes()) if config(game, RANDOM_SPAWNS).is_file() else None
     rs_at, rs_new, rs_why = plan_variant_exclusion(game, rs, m, exclusion_note(note, m))
-    # DefaultMaps.ini: an earlier build's record of this variant out (what it stood in for back), the new record in
-    # place of a patchtool record of the variant, else after the base map's last one
+    # DefaultMaps.ini: an earlier install's record of these names out, the new record after the base map's last one
     new_maps = list(maps)
     records = ledger.get('records') or []
     for old in [b for b in records if b['variant'] == variant]:
         if not _take_out(new_maps, old): raise InstallError(f'the record the editor wrote for {variant} has changed; take it out by hand')
     entry = dict(variant=variant, lines=[l.decode('latin-1') for l in block])
-    stands_in = patchtool_record(new_maps, variant)
-    if stands_in is not None:
-        entry['original'] = [l.decode('latin-1') for l in new_maps[stands_in:stands_in + 2]]
-        new_maps[stands_in:stands_in + 2] = block
-    else:
-        at = _after_base(new_maps, ledger, base)
-        if at is None: raise InstallError(f'DefaultMaps.ini has no record for {base}')
-        new_maps[at:at] = block
+    at = _after_base(new_maps, ledger, base)
+    if at is None: raise InstallError(f'DefaultMaps.ini has no record for {base}')
+    new_maps[at:at] = block
     # the result without the editor's lines must be the install's own lines
     check = list(new_maps)
     _strip_records(check, [entry] + [b for b in records if b['variant'] != variant])
@@ -1327,21 +1374,20 @@ def _install_package(game, folder, now=None, *, expected=None, test=None, zone=N
         project = m.get('project') or {}
         installed = dict(kind='project', map=variant, base=base, buildId=m.get('buildId'), installedAt=now.isoformat(timespec='seconds'),
                          project=dict(id=project.get('id'), name=project.get('name'), revision=project.get('revision')),
-                         quick=bool(m.get('quick')))     # a quick build: its lighting not baked
+                         quick=bool(m.get('quick')),     # a quick build: its lighting not baked
+                         **({'variant': m['playOf']} if m.get('playOf') else {}))    # (a play's: the map's own name)
         if test:
             installed['prefabTest'] = test
         if chosen:
             installed['mission'] = chosen
         ledger.setdefault('installed', {})[variant] = installed
-        ledger.setdefault('history', []).append(dict(at=installed['installedAt'], installed=variant, buildId=m.get('buildId'),
-                                                     **({'standsInFor': 'patchtool'} if 'original' in entry else {})))
+        ledger.setdefault('history', []).append(dict(at=installed['installedAt'], installed=variant, buildId=m.get('buildId')))
         write_ledger(game, ledger)
     if test:
         test_install_path(game).unlink()
     group = next((g['group'] for g in (m.get('config') or {}).get('ownLandingGroups') or [] if g['zone'] == zone), None) \
         if zone is not None else None
-    return dict(installed, standsInFor='patchtool' if 'original' in entry else None,
-                record=block[1].decode('latin-1'),
+    return dict(installed, record=block[1].decode('latin-1'),
                 **({'dropInExclusion': dict(written=bool(rs_new), **({'why': rs_why} if rs_why else {}))}
                    if (m.get('config') or {}).get('dropInExclusion') else {}),
                 **({'zone': zone} if zone is not None else {}), **({'spawnGroup': group} if group else {}))
@@ -1760,13 +1806,17 @@ def _install_rotation(game, folder, mode, now=None):
 def remove_rotation(game, variants, now=None, everything=False):
     """Take these variants' records out of the rotation again (install_rotation's), and uncomment a base map's own
     records once no variant replaces it. everything: also the record Play in game added for each (install_package's,
-    or install_map_record's for a map's name) and their landing zones. Their files stay (reset takes everything out).
+    or install_map_record's for a map's name) and their landing zones, a play under its play name among them (an
+    install's `variant` names the map it plays: play_names.py). Their files stay (reset takes everything out).
     Returns the variants something was taken out for."""
     import mapsini as dep
     game = Path(game)
     recover_change(game)
     ledger = read_ledger(game)
     variants = list(dict.fromkeys(variants))
+    if everything:
+        variants += [name for name, entry in (ledger.get('installed') or {}).items()
+                     if entry.get('variant') in variants and name not in variants]
     mine = [e['variant'] for e in ledger.get('rotation') or [] if e['variant'] in variants]
     played = [b for b in ledger.get('records') or [] if b['variant'] in variants] if everything else []
     zones = [b for key in ('landingZones', 'playZones', 'dropInExclusions', 'playExclusions') for b in ledger.get(key) or []

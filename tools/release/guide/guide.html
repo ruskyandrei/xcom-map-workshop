@@ -2477,8 +2477,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="2"><b>Bake the lighting,</b> as in <a href="#build">Build</a>: leave it off while the layout is
       changing.</li>
     <li data-n="3"><b>Enable saving:</b> a battle you can save and load. <a href="#play-saving">More</a></li>
-    <li data-n="4"><b>Build and play</b> builds the project, installs the build in the game under its own name and
-      starts XCOM. <b class="ui">Play last build</b> shows beside it when the last build is of what is on screen. On
+    <li data-n="4"><b>Build and play</b> builds the project, installs the build in the game under a play name of its
+      own and starts XCOM. <b class="ui">Play last build</b> shows beside it when the last build is of what is on screen. On
       the left, about how long the build takes.</li>
   </ol>
 </div>
@@ -2520,8 +2520,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     Long War without Rebalance, soldiers.</li>
 </ul>
 <p><b>What Play in game changes.</b> It copies the build's files into the game and adds one line to
-  <code>DefaultMaps.ini</code>: a record for your variant under its own name, kept out of the rotation, so no
-  campaign ever draws it (with Long War, it also adds landing-zone lines). No line the game had is changed, and it
+  <code>DefaultMaps.ini</code>: a record for your variant, kept out of the rotation, so no campaign ever draws it
+  (with Long War, it also adds landing-zone lines). The files and the record take a play name, your map's name with
+  <code>_Play</code> after it, so a map pack with the same map in the game doesn't get in the way. No line the game had is changed, and it
   keeps a backup of every file it changes in <code>&lt;game folder&gt;\XCOM Map Workshop\</code>. While you play, the
   game rewrites one of its own settings files (<code>XComContent.ini</code>) with the test squad in it: the editor
   keeps the file aside first and puts it back when the game closes, so leave the editor open until then. If it was

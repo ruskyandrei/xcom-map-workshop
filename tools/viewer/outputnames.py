@@ -260,7 +260,7 @@ class Claims:
             record = off.group(1) if off else line.strip() if line.lstrip().startswith('Maps=(') else None
             if record is None: continue
             name = mapsini.field(record, 'Name')
-            # a record of the lab's patchtool deploy (installs.patchtool_record): the editor stands in for it
+            # a record of the lab's patchtool deploy (installs.patchtool_record): an earlier test of a project
             lab = bool(name and not off) and installs.patchtool_record(
                 [l.encode('latin-1', 'replace') for l in lines[max(0, k - 1):k + 1]], name) is not None
             self.add(name, f'a map record of {game.name}\'s DefaultMaps.ini', soft=lab)

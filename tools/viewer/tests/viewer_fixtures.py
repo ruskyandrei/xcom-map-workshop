@@ -63,6 +63,7 @@ SECOND_ID, SECOND_VARIANT = '1a2b3c4d-1d2a-4b6c-8e9f-123456789abc', 'URB_Bar_Sec
 # ---------------------------------------------------------------- the temporary game installs (test_play's)
 
 VARIANT = 'URB_Bar_Remix_0f8b'
+PLAY = VARIANT + '_Play'       # the name a play installs it under (play_names.py)
 # Long War's loader with the drop-in mutator, and its drop-in settings (editor spawns plan, SP8)
 MUTATOR_LOADER = b'[XComMutator.XComMutatorLoader]\r\narrTacticalMutators="XComLZMutator.XComSpawnAlienMutator"\r\n'
 RANDOM_SPAWNS = dep.EOL.join([b'[XComLZMutator.XComSpawnAlienMutator]', b'MAX_DROP_DIST = 32', b'ExcludeMaps = "EWI_ChryssalidHive"',

@@ -5,7 +5,8 @@ game's own changed (gamelaunch.py, EXP-29). The work on the install is installs.
 name: the install setting, else the game install the editor reads (settings.install_game; LWR or plain Enemy Within).
 With a project open, the page asks for the project's last package, once Build's panel has built it (baked or not) or
 the user chose to play the last build as it is (offered when that is of what is on screen): the package is installed
-under its own name first. With a map alone, the original map plays (no edits), and nothing is installed, but for a map
+first, under play names of its own (play_names.py: <Map>_Play), so that a map pack of the same map in the install never
+meets the play. With a map alone, the original map plays (no edits), and nothing is installed, but for a map
 whose records the install comments out (the tutorial's map: installs.install_map_record). Remove from
 game takes everything the editor put in the install back out. (The JSON keeps the names lwr and sameAsLwr for the game
 install.)

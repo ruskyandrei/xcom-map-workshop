@@ -6,7 +6,7 @@ written through a temporary file.
 The files are Windows text in the game's code page: lines end CRLF (a mixed file or one with a byte-order mark is
 refused), and a field's value is read and written as Latin-1. The files' functions take and give lines of bytes, so
 a file written back keeps every byte it had outside the planned change. A record's readers and writers (field,
-unquoted, set_field, stream_slots, add_stream, slot_streams, slot_record) take a line of bytes or of text (a line
+unquoted, set_field, stream_slots, add_stream, slot_streams, renamed_maps, slot_record) take a line of bytes or of text (a line
 read as Latin-1, as the Build reads the install's config) and give a line back in the kind they were given; a value
 read is text either way. They are the one reader and writer of a record's fields: every other module reads and
 writes a `Maps=(...)` record through them.
@@ -103,6 +103,16 @@ def slot_record(lines, bases):
 
 def slot_streams(line):
     return re.findall(r'MapName="([^"]+)"', _text(line))
+
+
+def renamed_maps(line, names):
+    """The line with each MapName that `names` ({old: new}, the old name matched whatever its case) has naming the new
+    one, written as the game's records write it: a record's streams, a landing-zone line's map."""
+    lookup = {old.lower(): new for old, new in names.items()}
+    out = re.sub(_field_re('MapName', True),
+                 lambda m: 'MapName="%s"' % lookup[m.group(1).lower()] if m.group(1).lower() in lookup else m.group(0),
+                 _text(line), flags=re.ASCII)
+    return _like(out, line)
 
 
 def plan_lz(lines, base, variant, note):

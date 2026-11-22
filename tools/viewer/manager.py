@@ -144,7 +144,8 @@ def listing(projects, builds, player):
         why = installs.ready(game)
         try: status = installs.status(game)
         except (OSError, ValueError, installs.InstallError): status = None
-    played = {i.get('map'): i for i in (status or {}).get('installed') or [] if i.get('kind') == 'project'}
+    # (a play installs under play names: its `variant` is the map's own, play_names.py)
+    played = {i.get('variant') or i.get('map'): i for i in (status or {}).get('installed') or [] if i.get('kind') == 'project'}
     rotation = {e['variant']: e for e in (status or {}).get('rotation') or []}
     # being built now, or about to be (the build queue's next): the shared active-writer query
     building = builds.active_projects()
