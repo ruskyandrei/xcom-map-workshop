@@ -109,6 +109,86 @@ class Split(unittest.TestCase):
         self.assertEqual(inside, [(0.0, 1), (190.0, 2), (402.0, 3), (594.0, 4)])
 
 
+class SlabTiles(unittest.TestCase):
+    """Which tiles a made slab is floor on, those it covers in part, and a turned one's steps (F-147, EXP-90 checks 2
+    and 5): the cases web/floors.js passes too (slab_tiles_cases.json, shared_cases_test.mjs)."""
+
+    @staticmethod
+    def solids(case, holes=True):
+        return [dict(outline=made_cursors.outline(s['location'], s['rotation'], s['slab']),
+                     holes=[made_cursors.outline(s['location'], s['rotation'], h) for h in s['slab']['holes']] if holes else [])
+                for s in case['solids']]
+
+    def test_the_cases(self):
+        cases = json.loads((HERE / 'slab_tiles_cases.json').read_text(encoding='utf-8'))['cases']
+        self.assertGreaterEqual(len(cases), 7)
+        for c in cases:
+            got = made_cursors.tiles(self.solids(c), c['corner'])
+            self.assertEqual(got, dict(floor=c['floor'], part=c['part']), c['case'])
+            self.assertEqual(made_cursors.steps(self.solids(c, holes=False), c['z'][0], c['z'][1], c['corner']), c['steps'],
+                             c['case'])
+
+    def test_exp90_s_readings(self):
+        # B (check 2): floor where a soldier stood, (-1681, -1009), none on the 29% and 24% tiles the cursor read the
+        # ground on; E (check 5): floor where the cursor read its top, none at the box's corners off it
+        cases = json.loads((HERE / 'slab_tiles_cases.json').read_text(encoding='utf-8'))['cases']
+        at = lambda t: [-2785.0 + 96 * t[0] + 48, -1921.0 + 96 * t[1] + 48]  # noqa: E731
+        b = made_cursors.tiles(self.solids(next(c for c in cases if 'floor B' in c['case'])), [-2785.0, -1921.0])
+        self.assertIn([-1681.0, -1009.0], [at(t) for t in b['floor']])
+        self.assertEqual({tuple(at(t)): t[2] for t in b['part']}[(-1681.0, -913.0)], 0.289)
+        self.assertEqual({tuple(at(t)): t[2] for t in b['part']}[(-1585.0, -1009.0)], 0.242)
+        e = next(c for c in cases if 'floor E' in c['case'])
+        t = made_cursors.tiles(self.solids(e), e['corner'])
+        self.assertTrue({(-337.0, -1297.0), (-433.0, -1297.0)} <= {tuple(at(x)) for x in t['floor']})
+        self.assertTrue({(-433.0, -1393.0), (-145.0, -1201.0), (-433.0, -1201.0)} <= {tuple(at(x)[:2]) for x in t['part']})
+
+    def test_the_steps_stay_over_the_turned_slab(self):
+        # E's twelve steps cover it all and only the parts of the tiles it reaches: 13,587 of the box round it beside
+        # it against 38,507
+        e = [c for c in json.loads((HERE / 'slab_tiles_cases.json').read_text(encoding='utf-8'))['cases'] if 'turned 20' in c['case']][0]
+        boxes = made_cursors.steps(self.solids(e, holes=False), 192.0, 194.0, e['corner'])
+        self.assertEqual(len(boxes), 12)
+        self.assertLess(sum(area(b) for b in boxes) - 288 * 192, 14000)
+        for b in boxes:
+            for other in boxes:
+                if b is not other:
+                    self.assertFalse(min(b[3], other[3]) - max(b[0], other[0]) > 1e-6 and min(b[4], other[4]) - max(b[1], other[1]) > 1e-6)
+        s = made_cursors.split(BAR, [dict(box=b, label='E') for b in boxes])
+        self.assertTrue(all(v['box'][2] in (0.0, 190.0, 402.0, 594.0) for v in s['volumes'] if v['over']))
+
+    def test_turned_is_yaw_alone(self):
+        self.assertTrue(made_cursors.turned([0, 3641, 0]))
+        self.assertFalse(made_cursors.turned([0, 16384, 0]))
+        self.assertFalse(made_cursors.turned([0, -32768, 0]))
+        self.assertFalse(made_cursors.turned([2048, 3000, 0]))       # (pitched: the compiler's made-tilted)
+
+
+class BuildSlabs(unittest.TestCase):
+    """The Build's made slabs for the cursor floors (build_slabs): an unturned slab's box as the Build made it, as
+    before; a turned one's steps from its copy's pose and numbers, on the map's tile grid."""
+
+    def test_unturned_box_and_turned_steps(self):
+        from unittest import mock
+        import native_copy
+        records = [dict(kind='fracSlab', label='B', box=[-1840.25, -1609.75, -1103.5, -933.25, 192.0, 194.0]),
+                   dict(kind='fracWall', label='A', box=[0, 1, 0, 1, 0, 1]),
+                   dict(kind='fracSlab', label='E', box=[-466.17, -129.87, -1440.25, -1161.325, 192.0, 194.0])]
+        copies = [dict(label='B', location=[-1840.25, -1103.5, 0.0], rotation=[0, 0, 0],
+                       generated=dict(kind='fracSlab', slab=dict(free=1, x0=0.0, x1=230.5, y0=0.0, y1=170.25))),
+                  dict(label='E', location=[-400.5, -1440.25, 0.0], rotation=[0, 3641, 0],
+                       generated=dict(kind='fracSlab', slab=dict(free=1, x0=0.0, x1=288.0, y0=0.0, y1=192.0)))]
+        with mock.patch.object(native_copy, 'level_grid', return_value=dict(tx=-2785.0, ty=-1921.0)) as grid:
+            got = made_cursors.build_slabs(object(), records, copies)
+        grid.assert_called_once()
+        self.assertEqual(got[0], dict(box=[-1840.25, -1103.5, 192.0, -1609.75, -933.25, 194.0], label='B'))
+        e = [dict(outline=made_cursors.outline(copies[1]['location'], copies[1]['rotation'], copies[1]['generated']['slab']), holes=[])]
+        self.assertEqual(got[1:], [dict(box=b, label='E') for b in made_cursors.steps(e, 192.0, 194.0, (-2785.0, -1921.0))])
+        # no turned slab: the grid is never read
+        with mock.patch.object(native_copy, 'level_grid') as grid:
+            self.assertEqual(len(made_cursors.build_slabs(object(), records[:2], copies)), 1)
+        grid.assert_not_called()
+
+
 class Rectangles(unittest.TestCase):
     def test_a_ring_of_cells_is_four_rectangles(self):
         xs = ys = [0.0, 1.0, 2.0, 3.0]
@@ -126,7 +206,12 @@ class Twin(unittest.TestCase):
                  dict(volumes=BAR, slabs=[slab(194.0), slab(386.0, foot=[192.0, 96.0, 768.0, 480.0])], grid=None),
                  dict(volumes=[], slabs=[slab(194.0)], grid=[-1000.0, -1000.0, 0.0, 1000.0, 1000.0, 768.0]),
                  dict(volumes=BAR, slabs=[slab(214.0), slab(60.0)], grid=None),
-                 dict(volumes=BAR, slabs=[slab(210.0, thick=32.0)], grid=None)]
+                 dict(volumes=BAR, slabs=[slab(210.0, thick=32.0)], grid=None),
+                 # (a turned slab's steps, EXP-90's E: twelve boxes)
+                 dict(volumes=BAR, slabs=[dict(box=b, label='E') for b in made_cursors.steps(
+                     [dict(outline=made_cursors.outline([-400.5, -1440.25, 0.0], [0, 3641, 0],
+                                                        dict(x0=0.0, x1=288.0, y0=0.0, y1=192.0)), holes=[])],
+                     192.0, 194.0, (-2785.0, -1921.0))], grid=None)]
         script = ("import('%s').then(m => { const cases = JSON.parse(process.argv[1]);"
                   " console.log(JSON.stringify(cases.map(c => m.madeStoreys("
                   "c.volumes.map(v => ({ floor: v.floor, box: v.box, made: false })), c.slabs, c.grid)"

@@ -35,7 +35,7 @@ export const gridOrigin = () => data?.tileGrid?.origin?.slice(0, 2) ?? null;
 export const tileCorner = () => data?.tileGrid?.tiles ?? data?.tileGrid?.origin?.map(v => v - 1) ?? null;
 
 export function createMapGrid({ $, alongLine, boxOf, controls, flashHint, gizmo, groundWords, isMadeSlab,
-                                projectChanged, rayAt, refreshGroundGrid, renderer, showPop, sizeNotes, world }) {
+                                projectChanged, rayAt, refreshGroundGrid, renderer, showPop, sizeNotes, slabStepsOf, world }) {
   // The play area: the map's level volume (playableBounds), the box the game's tile grid fills, which units can't leave.
   // Drawn light: its edges as lines and its four sides as faint see-through walls, from the lowest tile level up to the
   // top of the highest, never picked and never cut by Interior or the floor cutaway. View options' Play area, or B,
@@ -156,9 +156,10 @@ export function createMapGrid({ $, alongLine, boxOf, controls, flashHint, gizmo,
     return { axes: [0, 1, 2], min: cleared ? [1, 1, 1] : [...own.dims], max: stageMax(own.dims) };
   }
   // The cursor's floors on the grid as the project has it (floors.js cursorStoreys; the Build's shell.py), with the made
-  // floors' and roofs' own over their footprints (floors.js madeStoreys; the Build's made_cursors.py)
+  // floors' and roofs' own over their footprints (floors.js madeStoreys; the Build's made_cursors.py): a slab turned off
+  // the quarter turns in steps square to the world (made_handles.js slabStepsOf)
   const madeSlabBoxes = () => [...roots.values()].filter(r => !r.userData.deleted && isMadeSlab(r.userData.source))
-    .map(r => boxOf(r)).filter(Boolean).map(b => ({ box: [b[0], b[2], b[4], b[1], b[3], b[5]] }));
+    .flatMap(r => { const b = boxOf(r); return !b ? [] : slabStepsOf(r, b[4], b[5]) ?? [{ box: [b[0], b[2], b[4], b[1], b[3], b[5]] }]; });
   let storeysKept = null;
   const storeysNow = () => {
     const own = ownSize()?.dims ?? null, slabs = madeSlabBoxes();

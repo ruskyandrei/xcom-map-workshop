@@ -9,9 +9,10 @@ floor past the sizes the game is known to take is cut into pieces (made_pieces),
 `parts`), `slabs`, each made floor's or roof's, and `wholes`, each made wall as drawn; `broken_wholes` says how many
 blasts a cut piece's whole was given. Once every copy is made, the compiler's run asks for the checks: made walls that
 meet (join_made_walls, wall_joins), that stand on another (made_walls_stacked) and their gaps (made_wall_openings,
-opening_play); made floors and roofs in a building but in none of its floors (made_slabs_in_floors), and over the
-map's cursor volumes or too near its floor (made_slab_cursors). The cursor's floors over the made slabs are the
-floor family's (floor_edits.py: with_made_slabs reads `slabs`).
+opening_play); made floors and roofs in a building but in none of its floors (made_slabs_in_floors), over the map's
+cursor volumes or too near its floor (made_slab_cursors), turned or tilted (made_tilted), and covering tiles at their
+edges in part (made_slab_tiles). The cursor's floors over the made slabs are the floor family's (floor_edits.py:
+with_made_slabs reads made_slab_boxes, a turned slab's in steps).
 
 This family was moved out of compiler.Compiler as SpawnEdits was (review finding 23). A MadeEdits works for one
 Compiler: it reads the scene, the meshes, the copies and hides made so far, the buildings and the floor tiles from it,
@@ -31,8 +32,8 @@ from pathlib import Path
 
 # (compiler_tables puts tools/viewer on the path, for export_math, and tools/bake, for the Build's looks, ground
 # shapes, blasts, made floors' cursors and cuts, and a made wall's storeys)
-from compiler_tables import (FRAC_SLAB_LOOKS, GROUND_LOOKS, HEADROOM, MADE_KINDS, TILE, donor_shape, game_round,
-                             keyable, made_wall_along, short, tidy, union, wall_heights, world_box)
+from compiler_tables import (FRAC_SLAB_LOOKS, GROUND_LOOKS, HEADROOM, MADE_KINDS, STOREY, TILE, donor_shape, game_round,
+                             keyable, made_wall_along, short, tidy, tile_corner, union, wall_heights, world_box)
 from export_math import transform
 import looks
 import ground as ground_shapes
@@ -828,9 +829,21 @@ class MadeEdits:
         return out
 
     def made_slab_boxes(self):
-        """The made floors and roofs as made_cursors takes them: [dict(box [x0, y0, z0, x1, y1, z1], label)]."""
-        return [dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=c['label'])
-                for c, _ in self.slabs for b in [c.get('box')] if b]
+        """The made floors and roofs as made_cursors takes them: [dict(box [x0, y0, z0, x1, y1, z1], label)], each one's
+        box, or one turned off the quarter turns in steps on the game's tile grid (made_cursors.steps), as the Build's
+        made_cursors.build_slabs gives them."""
+        corner = tile_corner(self.c.scene.get('tileGrid'))
+        out = []
+        for c, _ in self.slabs:
+            b = c.get('box')
+            if not b:
+                continue
+            if corner and made_cursors.turned(c['rotation']):
+                solid = dict(outline=made_cursors.outline(c['location'], c['rotation'], c['generated']['slab']), holes=[])
+                out += [dict(box=s, label=c['label']) for s in made_cursors.steps([solid], b[4], b[5], corner)]
+            else:
+                out.append(dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=c['label']))
+        return out
 
     def made_slab_cursors(self):
         """The made floors' and roofs' own cursor floors (custom geometry plan, M5b; F-128): the Build gives each its
@@ -875,9 +888,15 @@ class MadeEdits:
         builds as drawn, and what is not made for it is warned of once per piece as drawn:
         - made-tilted: pitched or rolled: its cursor floor (a floor's or roof's) is the box round it, and a floor
           steeper than about 10 degrees gives no cover (F-81), past 45 none to stand on;
-        - slab-turned: a floor or roof turned about the vertical off the quarter turns: its cursor floor is the box round
-          it, so at its corners the cursor may land beside it."""
+        - slab-turned, a note: a floor or roof turned about the vertical off the quarter turns has its cursor floors in
+          steps square to the world, a box round its part of each tile it reaches (made_slab_boxes), so they stay over
+          it (EXP-90 check 5: the box round it laid its floors' break over the corners beside it)."""
         seen = set()
+        steps = {}      # a turned slab as drawn: how many boxes its cursor floors stand in
+        if any(made_cursors.turned(c['rotation']) for c, _ in self.slabs):
+            whole = {c['label']: c.get('whole') or c['label'] for c, _ in self.slabs}
+            for s in self.made_slab_boxes():
+                steps[whole[s['label']]] = steps.get(whole[s['label']], 0) + 1
         for c in self.c.copies:
             g = c.get('generated')
             if not g or g.get('kind') not in ('fracSlab', 'ground') or c.get('member') in seen:
@@ -892,9 +911,40 @@ class MadeEdits:
                     name, round(tilt), "its cursor floor is the box round it, so the cursor may not land on it where it "
                     "slopes; " if g['kind'] == 'fracSlab' else '', 'a floor steeper than about 10 degrees gives a unit on it '
                     'no cover, and past 45 it is no floor to stand on' if tilt > 10 else 'units walk on it as on flat ground'), **where)
-            elif g['kind'] == 'fracSlab' and yaw % 16384:
-                self.c.warn('slab-turned', "%s is turned off the tile grid's quarter turns: its cursor floor is the box round it, "
-                            'so at its corners the cursor may land beside it' % name, **where)
+            elif g['kind'] == 'fracSlab' and yaw % 16384 and steps.get(name):
+                self.c.note('slab-turned', "%s is turned off the tile grid's quarter turns: its cursor floors stand over it "
+                            "in %d boxes square to the world, one round its part of each tile it reaches" % (
+                                name, steps[name]), **where)
+
+    def made_slab_tiles(self):
+        """A note for each made floor or roof, as drawn, that covers tiles at its edge in part short of their centres
+        (made_cursors.tiles, F-147): the game looks for a tile's floor with one line down through its centre, so those
+        tiles are no floor at its height (EXP-90 check 2: a soldier sent onto one went down to the ground). A slab
+        pitched or rolled is made-tilted's. The note's tiles are the game's, at the level of the slab's top."""
+        corner = tile_corner(self.c.scene.get('tileGrid'))
+        if not corner or not self.slabs:
+            return
+        wholes = {}
+        for c, where in self.slabs:
+            pitch, _, roll = (round(v) for v in c['rotation'])
+            if pitch % 65536 or roll % 65536 or not c.get('box'):
+                continue
+            n = c['generated']['slab']
+            w = wholes.setdefault(c.get('whole') or c['label'], dict(solids=[], where=where, top=c['box'][5]))
+            w['solids'].append(dict(outline=made_cursors.outline(c['location'], c['rotation'], n),
+                                    holes=[made_cursors.outline(c['location'], c['rotation'], h) for h in n.get('holes') or []]))
+        for name, w in wholes.items():
+            t = made_cursors.tiles(w['solids'], corner)
+            if not t['part']:
+                continue
+            # (the game's floor trace for a level runs from 62 over its bottom to 2 under it)
+            level = math.floor((w['top'] - corner[2] + 2) / STOREY)
+            many = len(t['part']) > 1
+            self.c.note('slab-edge-tiles', "%s covers %d %s at its edge in part, short of %s centre: the game finds a "
+                        "tile's floor at its centre, so %s no floor at its height (it is floor on %d %s)" % (
+                            name, len(t['part']), 'tiles' if many else 'tile', 'their' if many else 'its',
+                            'they are' if many else 'it is', len(t['floor']), 'tile' if len(t['floor']) == 1 else 'tiles'),
+                        tiles=[[i, j, level] for i, j, _ in t['part']][:12], **w['where'])
 
     def made_slabs_in_floors(self):
         """A warning for each floor or roof made from numbers that stands in a building but counts for none of its

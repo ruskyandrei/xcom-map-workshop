@@ -2,10 +2,11 @@
 // the Build's building-floor cases are shared_cases_test.mjs's): floors and decorations (a rug on a floor, an 18-unit
 // sidewalk on the asphalt, a plate on the sidewalk, a plane on nothing, a wall), the yawed and scaled box of a piece,
 // saved floors, floor stamps (one component only), the level height, the floor under a point, a building floor's
-// walking height and the building for a floor. Run: node tools/viewer/tests/floor_rules_test.mjs
+// walking height and the building for a floor; a made floor's tiles in words, and whether a slab is turned.
+// Run: node tools/viewer/tests/floor_rules_test.mjs
 import assert from 'node:assert/strict';
-import { buildingWithFloor, classifyFloors, floorIndex, floorStamps, floorUnder, levelHeight, nearestLevel, ownedFloors, stampSignature,
-         storeyHeight, worldBox } from '../web/floors.js';
+import { buildingWithFloor, classifyFloors, floorIndex, floorStamps, floorUnder, levelHeight, nearestLevel, ownedFloors, slabTileWords,
+         slabTurned, stampSignature, storeyHeight, worldBox } from '../web/floors.js';
 
 // boxes [x0, y0, z0, x1, y1, z1]
 const kinds = classifyFloors([
@@ -63,4 +64,14 @@ const v = (x0, x1) => ({ boxes: [{ min: [x0, 0, 0], max: [x1, 960, 200] }] });
 const bs = [{ floors: [v(0, 960), v(0, 960)] }, { floors: [v(2000, 2960)] }];
 assert.deepEqual([buildingWithFloor(bs, 1, 2500, 100), buildingWithFloor(bs, 0, 2500, 100), buildingWithFloor(bs, 0, 1500, 100),
                   buildingWithFloor(bs, 0, 500, 100), buildingWithFloor(bs, 5, 0, 0)], [0, 1, 1, 0, -1]);
+
+// a made floor's tiles in words (F-147): nothing when it covers no tile in part; a turned slab is yaw alone
+assert.equal(slabTileWords({ floor: [[1, 1]], part: [] }), null);
+const words = slabTileWords({ floor: [[10, 9], [11, 9]], part: [[11, 10, 0.289], [12, 9, 0.242]] });
+assert.equal(words.short, 'floor on 2 of 4 tiles');
+assert.ok(words.long.startsWith("It is floor on 2 tiles: a tile is floor where it covers the tile's centre"), words.long);
+assert.ok(words.long.endsWith('so the 2 tiles at its edge it covers in part are no floor at its height.'), words.long);
+assert.ok(slabTileWords({ floor: [], part: [[0, 0, 0.1]] }).long.includes('the 1 tile at its edge it covers in part is no floor'));
+assert.deepEqual([slabTurned([0, 3641, 0]), slabTurned([0, 16384, 0]), slabTurned([0, -32768, 0]), slabTurned([2048, 3000, 0])],
+                 [true, false, false, false]);
 console.log('floor rules: ok');

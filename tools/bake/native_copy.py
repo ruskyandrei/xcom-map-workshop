@@ -2967,12 +2967,11 @@ def floors_and_cursors(st):
                                                 building_records)
     # the made floors' and roofs' own cursor floors over their footprints (made_cursors.py; custom geometry plan M5b,
     # F-128): the map's cursor volumes they cross taken out and stood again round them, and floors breaking at
-    # their tops over them
+    # their tops over them (a slab turned off the quarter turns: in steps, made_cursors.build_slabs)
     cursor_record, cursor_clones = None, []
-    made_slabs = [dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=r['label'])
-                  for r in generated_records if r['kind'] == 'fracSlab' for b in [r['box']]]
-    if made_slabs:
+    if any(r['kind'] == 'fracSlab' for r in generated_records):
         import made_cursors
+        made_slabs = made_cursors.build_slabs(p, generated_records, st.copies)
         cursor_record, cursor_clones = made_cursors.apply(g, p, made_slabs)
         if cursor_record:
             print("    the made floors' and roofs' cursor floors: %d of the map's cursor volumes taken out (%s), %d made "

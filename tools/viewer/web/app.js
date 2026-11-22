@@ -561,7 +561,8 @@ const { drawPlayArea, endGridDrag, gridHandleAt, gridHandles, gridHit, moveGridD
   $, alongLine, boxOf, controls, flashHint, gizmo, projectChanged, rayAt, renderer, showPop, world,
   // (made further down: called through, since they are not made yet while this runs)
   groundWords: levels => groundWords(levels), isMadeSlab: o => isMadeSlab(o),
-  refreshGroundGrid: force => refreshGroundGrid(force), sizeNotes: (dims, zoneList) => sizeNotes(dims, zoneList) });
+  refreshGroundGrid: force => refreshGroundGrid(force), sizeNotes: (dims, zoneList) => sizeNotes(dims, zoneList),
+  slabStepsOf: (root, z0, z1) => slabStepsOf(root, z0, z1) });
 
 // Take from the view (LWR map packs plan, 4.5): the 3D view as it is now, on a canvas of its own. The renderer keeps no
 // drawing buffer, so a frame is drawn here and copied at once (as pieces.paintThumbs copies its pictures), with the
@@ -734,8 +735,8 @@ const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, 
 // handles and drags; the modules below are given its functions.
 const { applyWall, applyWallSoon, cancelPointDrag, changeWall, dropQueuedWall, endWallDrag, handleWall, hoverWallHandle,
         isMade, isMadeGround, isMadeSlab, isMadeWall, lookWall, madeRoot, madeWallRoot, moveWallDrag, placePointGizmo,
-        pointGizmo, releaseRockPoint, rockCorners, setWall, startWallDrag, updateWallHandles, wallHandleNear,
-        wallHandlePoint, wallHandlesNow, wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
+        pointGizmo, releaseRockPoint, rockCorners, setWall, slabStepsOf, slabTilesOf, startWallDrag, updateWallHandles,
+        wallHandleNear, wallHandlePoint, wallHandlesNow, wallLookOf, wallPiecesWords, wallState, wallTemplate } = createMadeHandles({
   actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo, gltfLoader, HANDLE_PICK,
   libraryTemplate, movedMatrix, partsOf, pickables, projector, rayAt, refreshHighlight, renderer, restingHint,
   sceneChanged, select, showPop, track, volumeHint, world,
@@ -772,7 +773,7 @@ const { addWallOpening, deleteWallOpening, groundPanel, roomOfSelection, slabPan
         wallPanel } = createMadePanel({
   $, boxOf, changeWall, flashHint, gizmo, handleWall, isMadeGround, isMadeSlab, isMadeWall, isPlain, liveKeys,
   liveMembers, lookRow, madeRoot, madeWallRoot, openLookPicker, originalOf, plainLook, selectionGroup, setMadeLook,
-  setWall, texturePanel, wallLookOf, wallPiecesWords, wallState,
+  setWall, slabTilesOf, texturePanel, wallLookOf, wallPiecesWords, wallState,
   // (made further down: called through, since it is not made yet while this runs)
   breakRow: (kind, g, keeps) => breakRow(kind, g, keeps) });
 // Break and Repair (made_breaking.js): blasts set off on a made wall, floor or roof, or on one of the map's own
@@ -794,7 +795,7 @@ $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.bl
 const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions,
         updateTileGrid } = createCutaway({
   $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial, listingsNow, movedLandingActors,
-  rayAt, refreshPickBox, segButton, select, touchShadows, viewport, world });
+  rayAt, refreshPickBox, segButton, select, slabTilesOf, touchShadows, viewport, world });
 async function open() {
   stopPickBox();
   setBoxesShownValue(false); setNormalLightsValue(false); setLightsOn(false); setLightsShownValue(false); setZonesOn(false);
@@ -914,8 +915,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     setPickedSpawn, setPickTool, setSnapMode, setSolo, setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown,
     setVolumeTool, setZones, setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
     textureHandleScreens, textureSurfaceAt, spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer, spawnVolumeHandle, startBuild,
-    startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, streamObjects, sun,
-    syncSpawnFilters, takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
+    startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, storeysNow, streamObjects,
+    sun, syncSpawnFilters, takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
     world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
   // every refresh the edit hub's runs list is registered by now (edit_hub.js): a lost one fails here, not silently
   checkHub();
