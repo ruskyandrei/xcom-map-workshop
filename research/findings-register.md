@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- F-151 (22 November, a user's report): a map with many copies builds to hundreds of megabytes: each copy clones
+  its source's whole lightmap atlases and shadow maps, held inside the map uncompressed; read offline, not fixed; KB-15.
 - F-149 (22 November, a user's report): a tile the battle rebuilds loses its diagonal cover (the seeds are read by the
   map's full build alone). Fixed and seen in the game for the tiles an edit's own tiles do not hold (a grown
   CSmallScout_Farm keeps 7 of 8, the eighth taken by the game's own rebuild round a Meld canister); a tile an edit is
@@ -3349,6 +3351,26 @@ and [EXP-86](experiments/EXP-86-lighting-inside-the-map.md), LWR 3.00.00 beta 15
   and needs none.
 - **Left.** Without any copy on LWR 3, LWR's code would have to fall back to the line's `MapFamily` when a map's name
   has no case.
+
+### F-151: Every copy clones its source's whole lightmap atlases, and the map holds them uncompressed
+**Open** (22 November 2026, a user's report: a map pack whose map was 336 MB; read offline from the pack).
+- **Seen.** A large-city variant (CLrgScout_City, 166 copies of the map's pieces, 23 pieces brought from other maps,
+  light edits) built by 0.6.0: the map file 336 MB, the game's own 13 MB. The Build's manifest: 511 textures, 1,985
+  mips, 304 MB moved inside (`lightingInside`). Of the map's 678 lightmap and shadow-map textures (the game's map has
+  137), 468 are new exports: 328 lightmaps (189 MB, 256 of them DXT1 1024 by 1024) and 140 shadow maps (102 MB, G8,
+  100 of them 1024 by 512 and 22 of them 1024 by 1024). The map's own relit textures are 43 (16 MB). The pack zips to
+  138 MB.
+- **Why.** `native_copy.clone_assembly` (`own_lighting`) gives each copy a clone of every texture its source's lightmap and shadow maps
+  use (`lightmap_textures.clone_texture`), and a texture is an atlas the source shares with many components: a copy
+  of a crate carries a whole 1024 atlas pair and its shadow map, about 1.5 MB, for a rectangle of a few dozen texels.
+  Copies of one source each get their own. `inline_lighting.inline` then stores every mip of every texture the
+  build's cache names inline, uncompressed (the cache was written as literal LZO), NeverStream, so all of it is in
+  the file and in texture memory for the battle (EXP-86 measured 132 MB resident on its largest map; this one is
+  more than twice that, not played).
+- **Ways to fix, not built.** A copy's textures sized to its rectangle, or the copies of a build packed into shared
+  atlases (the follow-up for made pieces' shadow maps is the same work); compressed bulk data or a compressed
+  package for the file's size.
+- **Known bug** [KB-15](../KNOWN-BUGS.md).
 
 ## Toolchain
 
