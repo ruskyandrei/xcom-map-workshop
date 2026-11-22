@@ -103,3 +103,29 @@ line, and its finding in the [findings register](research/findings-register.md) 
   and the game use `pack.json` and the map files), or export the pack again with a version after 0.6.0.
 - **Cause.** The pack export copied each build's manifest whole.
 - **Finding.** None in the register: the editor review's finding 14, and the smaller built maps plan's P1 to P3.
+
+### KB-18: Terror civilians can start in the air where deleted pieces had floors
+
+- **What happens.** In a terror mission on a built map whose project deleted or moved pieces with floors above the
+  ground (a UFO's hull and roof, a building's upper storeys), a civilian now and then starts standing in the air
+  where such a floor was, or inside a new piece standing on a deleted one's place. They stay there until they move.
+- **Since.** Every version that builds terror missions.
+- **Workaround.** The game looks for the civilians' places within 960 units of the alien pods: pods kept further than
+  that from where the deleted floors were keep civilians off them. Otherwise none.
+- **Cause.** The game places the civilians on the map's stored cover points before the battle's tile rebuild runs,
+  and a Build leaves a deleted piece's tiles (their floors and cover points) for that rebuild to clear.
+- **Finding.** [F-157](research/findings-register.md), which names the fix to try: the Build clears those tiles
+  itself.
+
+### KB-19: A baked copy of the map's own piece can show a black patch
+
+- **What happens.** After a Build with **Bake the lighting**, a copy of one of the map's own pieces (seen on a large
+  floor) can show a black patch in the open: the shape of whatever stands on the original piece (a staircase, a
+  debris pile), wherever that part of the copy lands.
+- **Since.** Every version that bakes copies.
+- **Workaround.** Use a piece brought from another map instead (it is lit from nothing), place the copy so that
+  part lies under something, or cover the patch with another piece. Building without baking keeps the original's
+  whole lightmap on the copy, the patch included.
+- **Cause.** The bake lights such a copy as a change on its original's lightmap and keeps the original's light on
+  any part that is buried where the original stands; that light is black.
+- **Finding.** [F-158](research/findings-register.md), which names the fix to try: such texels are lit from nothing.
