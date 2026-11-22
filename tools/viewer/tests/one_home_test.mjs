@@ -18,6 +18,7 @@ const ALLOWED = {
     'api.js': [3, 'the one home: call, ask and sendPng'],
     'effects_wiring.js': [1, "the wave's range probe: one byte asked again for the server's words on a wave the browser could not play"],
     'loading.js': [1, "the scene's layout read with its progress (call reads an answer whole)"],
+    'map_settings.js': [1, "the background sound's range probe: one byte asked again for the server's words on a wave the browser could not play"],
     'map_picture.js': [2, "the project's kept picture and a map's own picture, read as blobs"],
     'prefabs.js': [1, "a prefab's picture read as a blob, for its duplicate"],
   },

@@ -96,7 +96,10 @@ class CatalogueTests(unittest.TestCase):
             if path is None:
                 continue
             with self.subTest(row['cue']):
-                self.assertEqual(bs.background_sound(Package(path))['cue'], row['cue'])
+                p = Package(path)
+                self.assertEqual(bs.background_sound(p)['cue'], row['cue'])
+                # the waves the Map settings window plays for it (each a SoundNodeWave the cue's nodes reach)
+                self.assertEqual(bs.waves(p, p.by_name[row['cue']]), row['waves'])
                 checked += 1
         self.assertGreater(checked, 20)
 

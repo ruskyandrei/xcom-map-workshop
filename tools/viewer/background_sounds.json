@@ -1,161 +1,245 @@
 {
- "about": "The game's background sounds (the sound a map's script starts when the level loads, for the player and at no place): each cue, a base map whose package holds it (the Build brings the cue from there), its label, and how many of the install's base maps play it. Read from every base map's level-loaded sound (tools/viewer/background_sound.py); test_background_sound.py checks each against the install where it has the map.",
+ "about": "The game's background sounds (the sound a map's script starts when the level loads, for the player and at no place): each cue, a base map whose package holds it (the Build brings the cue from there), its label, how many of the install's base maps play it, and the waves it plays (the Map settings window's play button plays them together). Read from every base map's level-loaded sound (tools/viewer/background_sound.py); test_background_sound.py checks each against the install where it has the map.",
  "sounds": [
   {
    "cue": "SoundAmbience-NorthAmerica.ForestAmbienceCue",
    "map": "CLrgScout_DeepWoods",
    "label": "Forest",
-   "maps": 13
+   "maps": 13,
+   "waves": [
+    "SoundAmbience-NorthAmerica.ForestAmbience"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.DirtRoadAmbienceCue",
    "map": "CAbductor_Cliffside",
    "label": "Dirt road",
-   "maps": 9
+   "maps": 9,
+   "waves": [
+    "SoundAmbience-NorthAmerica.DirtRoadAmbience"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.LightWindTrafficPaperCue",
    "map": "CSmallScout_NukedCity",
    "label": "Light wind, traffic and paper",
-   "maps": 9
+   "maps": 9,
+   "waves": [
+    "SoundAmbience-NorthAmerica.LightWindAndTraffic",
+    "SoundAmbience-NorthAmerica.FlyingPaperLoop"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.MediumCityTrafficCue",
    "map": "URB_CommercialAlley",
    "label": "City traffic",
-   "maps": 9
+   "maps": 9,
+   "waves": [
+    "SoundAmbience-NorthAmerica.MediumCityTraffic"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.LightCityTrafficCue",
    "map": "DLC2_1_Portent",
    "label": "Light city traffic",
-   "maps": 6
+   "maps": 6,
+   "waves": [
+    "SoundAmbience-NorthAmerica.LightCityTraffic"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.LightWindAndTrafficCue",
    "map": "URB_Boulevard",
    "label": "Light wind and traffic",
-   "maps": 4
+   "maps": 4,
+   "waves": [
+    "SoundAmbience-NorthAmerica.LightWindAndTraffic"
+   ]
   },
   {
    "cue": "SoundHarbor.HarborAmbienceCue",
    "map": "Act2_Pier",
    "label": "Harbour",
-   "maps": 4
+   "maps": 4,
+   "waves": [
+    "SoundHarbor.HarborAmbience"
+   ]
   },
   {
    "cue": "SoundAmbience-LightWind.Ambience-LightWindCue",
    "map": "CSmallScout_Farm",
    "label": "Light wind",
-   "maps": 3
+   "maps": 3,
+   "waves": [
+    "SoundAmbience-LightWind.LightWindCicadasBirds",
+    "SoundAmbience-NorthAmerica.NightAmbienceNorthAmerica"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.MediumWindTrafficandPaperDebrisCue",
    "map": "URB_CommercialRestaurant",
    "label": "Wind, traffic and paper debris",
-   "maps": 3
+   "maps": 3,
+   "waves": [
+    "SoundAmbience-NorthAmerica.WindAndPaperLoop",
+    "SoundAmbience-NorthAmerica.MediumCityTraffic"
+   ]
   },
   {
    "cue": "SoundAmbience.RooftopWind01Cue",
    "map": "CLrgScout_City",
    "label": "Rooftop wind",
-   "maps": 3
+   "maps": 3,
+   "waves": [
+    "SoundAmbience.RooftopWind01"
+   ]
   },
   {
    "cue": "SoundCemetery.CemeteryWithTrafficCue",
    "map": "DLC1_1_LowFriends",
    "label": "Cemetery with traffic",
-   "maps": 3
+   "maps": 3,
+   "waves": [
+    "SoundCemetery.CemeteryAmbiance",
+    "SoundCemetery.LightCityTraffic"
+   ]
   },
   {
    "cue": "SoundHurricane.HurricaneLoopCue",
    "map": "DLC1_3_Gangplank",
    "label": "Hurricane",
-   "maps": 3
+   "maps": 3,
+   "waves": [
+    "SoundHurricane.HurricaneLoop"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.MediumWindandPaperDebrisCue",
    "map": "URB_GasStation_EWI",
    "label": "Wind and paper debris",
-   "maps": 2
+   "maps": 2,
+   "waves": [
+    "SoundAmbience-NorthAmerica.WindAndPaperLoop"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.NightAmbienceCue",
    "map": "CSmallScout_Roadhouse",
    "label": "Night",
-   "maps": 2
+   "maps": 2,
+   "waves": [
+    "SoundAmbience-NorthAmerica.NightAmbienceNorthAmerica"
+   ]
   },
   {
    "cue": "SoundDLC90_FX.DamAmbience_Cue",
    "map": "DEMO_SonOfFacemelt",
    "label": "Dam",
-   "maps": 2
+   "maps": 2,
+   "waves": [
+    "SoundDLC90_FX.DamAmbience"
+   ]
   },
   {
    "cue": "SoundHiveHarbor.HiveHarborAmbienceCue",
    "map": "EWI_ChryssalidHive",
    "label": "Harbour at the hive",
-   "maps": 2
+   "maps": 2,
+   "waves": [
+    "SoundHiveHarbor.HiveHarborAmbience"
+   ]
   },
   {
    "cue": "SoundTrainStation.SubwayAmbienceCue",
    "map": "DLC1_2_CnfndLight",
    "label": "Subway",
-   "maps": 2
+   "maps": 2,
+   "waves": [
+    "SoundTrainStation.SubwayAmbience"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.BridgeWindCue",
    "map": "URB_HighwayBridge",
    "label": "Bridge wind",
-   "maps": 1
+   "maps": 1,
+   "waves": [
+    "SoundAmbience-NorthAmerica.HighwayBridgeAmbience"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.NightAmbienceWithTrafficCue",
    "map": "URB_StreetOverpass_EWI",
    "label": "Night with traffic",
-   "maps": 1
+   "maps": 1,
+   "waves": [
+    "SoundAmbience-NorthAmerica.NightAmbienceNorthAmerica",
+    "SoundAmbience-NorthAmerica.LightCityTraffic"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.RiverValleyCue",
    "map": "LSmallScout_RiverValley",
    "label": "River valley",
-   "maps": 1
+   "maps": 1,
+   "waves": [
+    "SoundAmbience-NorthAmerica.RiverValley"
+   ]
   },
   {
    "cue": "SoundAmbience-NorthAmerica.RockyGorgeCue",
    "map": "LSupplyShip_RockyGorge",
    "label": "Rocky gorge",
-   "maps": 1
+   "maps": 1,
+   "waves": [
+    "SoundAmbience-NorthAmerica.DirtRoadAmbience",
+    "SoundAmbience.StreamFlowing"
+   ]
   },
   {
    "cue": "SoundAmbience.RooftopWind02Cue",
    "map": "EWI_ExaltHQAssault",
    "label": "Rooftop wind 2",
-   "maps": 1
+   "maps": 1,
+   "waves": [
+    "SoundAmbience.RooftopWind02"
+   ]
   },
   {
    "cue": "SoundCollapsedBridge.CollapsedBridgeAmbienceCue",
    "map": "URB_HighwayFallen",
    "label": "Collapsed bridge",
-   "maps": 1
+   "maps": 1,
+   "waves": [
+    "SoundCollapsedBridge.CollapsedBridgeAmbience"
+   ]
   },
   {
    "cue": "SoundDLC90_FX.Blizzard_Cue",
    "map": "DLC2_3_Furies",
    "label": "Blizzard",
-   "maps": 1
+   "maps": 1,
+   "waves": [
+    "SoundDLC90_FX.Blizzard"
+   ]
   },
   {
    "cue": "SoundHQAssaultAmbience.HQAssaultAmbienceCue",
    "map": "EWI_HQAssault",
    "label": "Base under attack",
-   "maps": 1
+   "maps": 1,
+   "waves": [
+    "SoundHQAssaultAmbience.HQAssaultAmbience"
+   ]
   },
   {
    "cue": "SoundTrainyard.TrainyardAmbienceCue",
    "map": "URB_Trainyard",
    "label": "Train yard",
-   "maps": 1
+   "maps": 1,
+   "waves": [
+    "SoundTrainyard.TrainyardAmbience"
+   ]
   }
  ]
 }

@@ -32,7 +32,7 @@ import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
 import { createBuilderSession } from './builder_session.js';
 import { createPrefabPlace } from './prefab_place.js';
-import { AREA_SHOWN, createLightsWiring, REACH_SHOWN, SKY_SHOWN } from './lights_wiring.js';
+import { AREA_SHOWN, createLightsWiring, REACH_SHOWN } from './lights_wiring.js';
 import { createEffectsWiring } from './effects_wiring.js';
 import { createSpawnsWiring } from './spawns_wiring.js';
 import { createZonesWiring } from './zones_wiring.js';
@@ -53,6 +53,7 @@ import { createMadeBreaking } from './made_breaking.js';
 import { createMapGrid, gridOrigin, tileCorner } from './map_grid.js';
 import { createMapFamilies } from './map_families.js';
 import { createClearMap } from './clear_map.js';
+import { createMapSettings } from './map_settings.js';
 import { actorPose, createScenePieces, movedMatrix } from './scene_pieces.js';
 import { isPlain, madeRequest, plainLook } from './made_requests.js';
 import { createCutaway } from './cutaway.js';
@@ -603,6 +604,10 @@ const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight
   setMissionMoves: next => setMissionMoves(next),
   spawnFamilyBuilds: () => spawnFamilyBuilds(), spawnsAvailable: () => spawnsAvailable(),
   zoneSoldiers: (z, st) => zoneSoldiers(z, st), zoneState: () => zoneState() });
+// Map settings (map_settings.js): the window of what the map has everywhere and at no place, its sun, moon and sky
+// listed and its background sound chosen, played here and set louder or softer; made after Clear map, beside the Map
+// menu's other windows, once the gizmo (its undo steps) is made.
+const { mapSettingsState, showMapSettings, startMapSettings } = createMapSettings({ $, gizmo, projectsAvailable, showPop });
 
 // The landing zones' layer, shown as View options' Landing zones says (the Landing zones view: zones_wiring.js,
 // made below; the Spawns view, made just below, shows the zones too).
@@ -856,6 +861,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // Configure light data before the first lit material compiles.
   setLighting(createMapLighting({ world, sun, hemisphere, scene: data, maxTextureSize:renderer.capabilities.maxTextureSize }));
   showSceneMenus($);
+  startMapSettings();
   setOwnGrid(null);
   readLandingLines();
   drawPlayArea();
@@ -904,7 +910,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
-    alignToGamePose, alignToGrid, alignToLevel, memberOf, missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup, newBuilding,
+    mapSettingsState, alignToGamePose, alignToGrid, alignToLevel, memberOf, missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup, newBuilding,
     openLookPicker, openPrefabDocument, outsideBox, ownVolumeLayer, pasteSnapshot, pasteVolumes, pick, pickables,
     pickBoxEdge, pickEffect, pickLight, pickMovePoint, pickVolumeEdge, pickZone, placeMove, placeSpawn, plainLook,
     playArea, playWave, pointGizmo, prefabClip, prefabPlacementProblem, prefabRecords, projector, recipeOf,
@@ -913,7 +919,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     setBoxesShown, setCover, setEffectsShown, setEffectStays, setGridTool, setLibraryScope,
     setLightsShown, setLikeness, setMadeLook, setNormalEffects, setNormalLights, setNormalSpawns, setNormalView,
     setPickedSpawn, setPickTool, setSnapMode, setSolo, setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown,
-    setVolumeTool, setZones, setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
+    setVolumeTool, setZones, setZonesShown, showClearMap, showMapSettings, showMissions, showPieces, showPrepare, showSpawn, snapshot,
     textureHandleScreens, textureSurfaceAt, spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer, spawnVolumeHandle, startBuild,
     startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, storeysNow, streamObjects,
     sun, syncSpawnFilters, takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
@@ -1240,9 +1246,6 @@ $('reachToggle').onchange = e => {
   setReachShown(e.target.checked); remember(REACH_SHOWN, reachShown ? '1' : '0'); e.target.blur();
   setReachKey(''); refreshLightShapes(); lightPanel();   // drawn again with or without the outlines
 };
-$('skyToggle').checked = recall(SKY_SHOWN) === '1';
-$('skyList').hidden = !$('skyToggle').checked;
-$('skyToggle').onchange = e => { $('skyList').hidden = !e.target.checked; remember(SKY_SHOWN, e.target.checked ? '1' : '0'); e.target.blur(); };
 
 // The camera, snap and keys (navigation.js): the framing, the camera's keys, look-drag, wheel and speeds, the gizmo's
 // buttons with the pivot and snap (and the edit hub's tools refresh), and the editor's keys; made where the camera's

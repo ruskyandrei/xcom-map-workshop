@@ -17,8 +17,8 @@
 // camera and the view's layers, the panel's helpers, the other views' switches and the Effects view's handles' needs.
 // Its own state is inside it (the shapes' keys, the handles' hover, the fixed lights, the owners' index); what other
 // areas read or set (the views' switches, Solo, the drag, the handles, the reach, the area lights' copies, the lights'
-// sync) is editor_state.js's. The view's storage keys (View options' Area lights, reach outlines and sun and sky
-// list: AREA_SHOWN, REACH_SHOWN, SKY_SHOWN) are plain exports at the top, before the factory: app.js reads the
+// sync) is editor_state.js's. The view's storage keys (View options' Area lights and reach outlines:
+// AREA_SHOWN, REACH_SHOWN) are plain exports at the top, before the factory: app.js reads the
 // switches from them as the page loads and its View options' handlers write them.
 import * as THREE from 'three';
 import { PL, QUARTER } from './constants.js';
@@ -39,7 +39,7 @@ import { isStream, optionsOf, recordOf } from './piece_records.js';
 import { targetKey, uuid } from './project.js';
 
 // The Lights view's storage keys.
-export const AREA_SHOWN = 'workshop.areaLights', SKY_SHOWN = 'workshop.sunSky', REACH_SHOWN = 'workshop.lightReach';
+export const AREA_SHOWN = 'workshop.areaLights', REACH_SHOWN = 'workshop.lightReach';
 
 export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMatrix, camera, copyable, drawEffectShape,
                                     editChanged, effectNow, effectsShown, effectValuesEditable, flashHint, gizmo,
@@ -861,7 +861,7 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
     $('lightCount').textContent = $('lighting').value === 'neutral' ? '' : `${result.local} local lights`;
   }
   // The lights of a map once its pieces are built: placed, area, toggleable and streamed levels' lights with a place; the
-  // sun and sky without one (listed in View options).
+  // sun and sky without one (listed in the Map settings window, map_settings.js, which View options' row opens).
   function buildLights(streamLights) {
     const all = [...(data.lights ?? []), ...streamLights];
     fixedLights = (data.lights ?? []).filter(l => !['point', 'spot'].includes(l.kind));

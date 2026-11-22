@@ -274,8 +274,10 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     const built = data ? savedBuildings().length : 0;
     // a mission's objects moved in their streams (mission types plan, Part E), and the base spawn points edited (SP6)
     const spawns = [...missionMoves.values()].filter(m => m.stream === null || m.stream === 'copy').length, missions = missionMoves.size - spawns;
-    return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, flags: flagged.size, broken: broken.size,
-             total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + flagged.size + broken.size };
+    // the map's background sound changed (Map settings: schema 5)
+    const sound = projectBackgroundSound ? 1 : 0;
+    return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, sound, flags: flagged.size, broken: broken.size,
+             total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + sound + flagged.size + broken.size };
   }
 
   return { applyState, changes, editState, editStateNow, projectNote };

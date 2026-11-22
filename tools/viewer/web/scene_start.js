@@ -26,6 +26,9 @@ export function showMapMenu($) {
   $('projectClear').hidden = !projectsAvailable();
   $('projectMissions').hidden = !projectsAvailable();
   $('projectPicture').hidden = !projectsAvailable();
+  // Map settings (map_settings.js): any map, a preview's too (it lists its sun and sky; its sound is changed only on a
+  // map as it is), never the prefab builder
+  $('mapSettingsOpen').hidden = builderMode || data?.scope !== 'map';
 }
 // The import notes: their count on the header's button and their list.
 export function showImportNotes($) {

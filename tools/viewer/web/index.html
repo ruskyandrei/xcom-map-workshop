@@ -176,6 +176,7 @@
       <div class="menuitems" role="menu" aria-label="Map">
         <button id="mapChange" type="button" role="menuitem" title="Choose the base map from every map the game install plays"><span>Change map…</span><kbd>M</kbd></button>
         <hr>
+        <button id="mapSettingsOpen" type="button" hidden role="menuitem" title="What the map has everywhere and at no place: its sun, moon and sky light, and its background sound, which can be another of the game's sound beds or none"><span>Map settings…</span></button>
         <button id="projectMissions" type="button" hidden role="menuitem" title="The missions the project is for: the base map's missions the Build writes a record for, and the kinds a record alone can give the map (abduction, terror, a bomb mission under Long War, a UFO mission with a UFO building)"><span>Missions…</span></button>
         <button id="projectPicture" type="button" hidden role="menuitem" title="The picture the game shows for the map on its mission screens: choose an image, set its frame, and the Build writes it into the map. Long War Rebalance 3 shows a map's own picture"><span>Map picture…</span></button>
         <button id="projectSize" type="button" hidden role="menuitem" title="The map's tile grid, made larger (or, once the map is cleared, smaller) by dragging the play area's handles: the rail's Map grid"><span>Map grid</span></button>
@@ -551,7 +552,7 @@
       <h3>Lights</h3>
       <label class="check" title="The lights the bake made for glowing surfaces: view only; they follow the piece they glow from"><input id="areaToggle" type="checkbox"> Area lights</label>
       <label class="check" title="Outlines the pieces the selected light lights: the ones its bake lists it in (teal), or once it is moved, changed or added, the ones its new reach touches (orange), which a full build relights"><input id="reachToggle" type="checkbox"> Outline the pieces a light reaches</label>
-      <div id="skyRow" hidden><label class="check" title="The lights without a place: the sun or moon, and the sky light"><input id="skyToggle" type="checkbox"> Sun, moon and sky</label><div id="skyList" class="skylist" hidden></div></div>
+      <div id="skyRow" class="menuitems skyrow" hidden><button id="skyOpen" type="button" title="The lights without a place, the sun or moon and the sky light, with the map's background sound: the Map menu's Map settings"><span>Sun, moon and sky…</span><small>Map settings</small></button></div>
       <h3>Show</h3>
       <label class="check" title="A faint grid on the ground's plane (the landing zones' height), drawn only where the map has no floor: over holes on a map as it is, everywhere on a cleared one. Floor pieces laid at ground level cover it; a piece placed over nothing lands on it"><input id="groundGridToggle" type="checkbox" checked> Ground grid</label>
       <label class="check" id="landingRow" title="The landing zones: where the squad lands, drawn as the drop zone's frame, the evac zone, the six soldier points and an arrow for the way it faces, each with its number. Picked, moved and turned in the Landing zones view (Shift+Z)"><input id="landingToggle" type="checkbox" checked> Landing zones</label>
@@ -753,6 +754,21 @@
       </div>
       <p id="mapPictureStatus" class="optionsnote" role="status" hidden></p>
       <div class="buildoptionsfoot"><span class="buildestimate"></span><button id="mapPictureRemove" type="button" title="Take the project's own picture away: the map shows the base map's again">Remove picture</button><button id="mapPictureUse" class="primary" type="submit">Use this picture</button></div>
+    </form>
+  </div>
+  <div id="mapSettings" class="modal" hidden>
+    <form id="mapSettingsForm" class="panel filedialog buildoptions mapsettings" role="dialog" aria-modal="true" aria-labelledby="mapSettingsTitle" novalidate>
+      <div class="dialoghead"><h2 id="mapSettingsTitle">Map settings</h2><button id="mapSettingsClose" class="icon" type="button" title="Close (Esc)" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></div>
+      <h3 class="settingshead">Sun, moon and sky</h3>
+      <div id="skyList" class="skylist"></div>
+      <section id="mapSoundSection" class="mapsound" aria-labelledby="mapSoundTitle">
+        <h3 id="mapSoundTitle" class="settingshead">Background sound</h3>
+        <p id="mapSoundNote" class="optionsnote"></p>
+        <div class="soundrow"><select id="mapSound" aria-label="Background sound" title="The map's own sound, another of the game's sound beds (the Build brings it from the map that plays it) or none. One undo step"></select><button id="mapSoundPlay" type="button" title="Play the sound chosen here, looping (again to stop). The game plays it at the same volume everywhere on the map">Play</button></div>
+        <label class="slider" title="The sound's volume in the game: 100% is the bed's own. One undo step on release"><span>Volume</span><input id="mapSoundVolume" type="range"><output id="mapSoundVolumeValue"></output></label>
+        <p id="mapSoundStatus" class="optionsnote" role="status" hidden></p>
+      </section>
+      <div class="buildoptionsfoot"><span class="buildestimate"></span><button id="mapSettingsDone" class="primary" type="submit">Done</button></div>
     </form>
   </div>
   <div id="clearMap" class="modal" hidden>

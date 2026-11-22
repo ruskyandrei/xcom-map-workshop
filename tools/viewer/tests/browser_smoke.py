@@ -1689,6 +1689,75 @@ def check_clear_map(page):
     assert not page.evaluate('viewer.clearKeepsTriggers()') and not page.evaluate('viewer.editState()')['clearKeepsTriggers']
 
 
+def check_map_settings(page):
+    """The Map settings window (map_settings.js; export 39), the user's design B with the volume as a bar: opened from
+    the Map menu and from View options' "Sun, moon and sky…"; it lists the sun and sky light; its background sound
+    offers the map's own first, the game's other beds and None; a choice and a volume are each one undo step, kept as
+    the project's backgroundSound and counted in the header; the server serves each wave of a bed for Play; Esc closes
+    it. Nothing is saved."""
+    if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 39"):
+        return skip('map-settings', 'needs a map (not a preview) of export 39 or later', whole=True)
+    own = page.evaluate('viewer.data.backgroundSound')
+    page.evaluate("document.getElementById('mapButton').click()")
+    page.locator('#mapSettingsOpen').click()
+    page.wait_for_function('viewer.mapSettings().open && (viewer.mapSettings().choices.length > 0 || !viewer.data.backgroundSound)',
+                           timeout=10000)
+    assert page.locator('#mapSettings').is_visible() and page.locator('#skyList').inner_text().strip()
+    st = page.evaluate('viewer.mapSettings()')
+    if not own:
+        assert 'no background sound' in st['note'] and page.locator('#mapSound').is_disabled(), st
+        page.keyboard.press('Escape')
+        return
+    choices = st['choices']
+    assert choices[0]['value'] == own['cue'] and "(this map's)" in choices[0]['label'], choices[:2]
+    assert choices[-1] == dict(value='', label='None') and len(choices) >= 27, len(choices)
+    assert st['choice'] == own['cue'] and abs(st['volume'] - (own['volume'] or 1)) < 1e-6, st
+    other = next(c['value'] for c in choices[1:] if c['value'])
+    # a bed chosen: one undo step, kept and counted
+    steps = page.evaluate('viewer.gizmo.canUndo()')
+    page.select_option('#mapSound', other)
+    assert page.evaluate('viewer.backgroundSound()') == dict(cue=other)
+    assert page.evaluate('viewer.editState()')['backgroundSound'] == dict(cue=other)
+    assert page.evaluate('viewer.changes()')['sound'] == 1 and 'background sound changed' in page.locator('#editCount').inner_text()
+    # its volume, set by the bar under the choice: one step on release
+    page.evaluate("""() => { const v = document.getElementById('mapSoundVolume'); v.value = '0.5';
+                             v.dispatchEvent(new Event('input')); v.dispatchEvent(new Event('change')); }""")
+    assert page.evaluate('viewer.backgroundSound()') == dict(cue=other, volume=0.5)
+    assert page.locator('#mapSoundVolumeValue').inner_text() == '50%'
+    # Play: the server serves every wave of the bed (an Ogg stream); the button plays and stops
+    waves = page.evaluate("""async cue => { const beds = (await (await fetch('/background-sounds.json')).json()).sounds;
+                                            const row = beds.find(b => b.cue === cue);
+                                            return Promise.all(row.waves.map(async (_, k) => { const r = await fetch(`/background-sound.ogg?cue=${encodeURIComponent(cue)}&wave=${k}`, { method: 'HEAD' });
+                                                                                               return [r.status, r.headers.get('content-type')]; })); }""", other)
+    assert waves and all(w == [200, 'audio/ogg'] for w in waves), waves
+    # (a bed the list lacks is 404: the page's log of it is expected)
+    bogus = page.evaluate("location.origin + '/background-sound.ogg?cue=No.SuchCue&wave=0'")
+    EXPECTED.update({'Failed to load resource: the server responded with a status of 404 (Not Found)', f'HTTP 404: {bogus}'})
+    assert page.evaluate("u => fetch(u, { method: 'HEAD' }).then(r => r.status)", bogus) == 404
+    page.locator('#mapSoundPlay').click()
+    assert page.evaluate('viewer.mapSettings().playing') == other or page.evaluate('viewer.mapSettings().status'), page.evaluate('viewer.mapSettings()')
+    if page.evaluate('viewer.mapSettings().playing'):
+        page.locator('#mapSoundPlay').click()
+        assert page.evaluate('viewer.mapSettings().playing') is None
+    # None: no volume of its own, and the bar can't be moved
+    page.select_option('#mapSound', '')
+    assert page.evaluate('viewer.backgroundSound()') == dict(cue=None) and page.locator('#mapSoundVolume').is_disabled()
+    # three steps, undone: the map's own again, and the window follows
+    for _ in range(3):
+        page.evaluate('viewer.gizmo.undo()')
+    assert page.evaluate('viewer.backgroundSound()') is None and page.evaluate('viewer.changes()')['sound'] == 0
+    assert page.evaluate('viewer.mapSettings().choice') == own['cue']
+    assert page.evaluate('viewer.gizmo.canUndo()') == steps
+    page.keyboard.press('Escape')
+    assert not page.evaluate('viewer.mapSettings().open')
+    # View options' row opens it too
+    page.evaluate("document.getElementById('viewButton').click()")
+    page.locator('#skyOpen').click()
+    assert page.evaluate('viewer.mapSettings().open')
+    page.keyboard.press('Escape')
+    assert not page.evaluate('viewer.mapSettings().open')
+
+
 def check_floor_boxes(page):
     """View options' Floor boxes: off at first; on, the project's floor boxes are drawn in the normal view, where a
     click on a box's edge or the select box takes the whole building. It moves by whole tiles and turns by quarter
@@ -5776,6 +5845,7 @@ CHECKS = (
     Check('floor-boxes', on_page(check_floor_boxes), 'buildings\' floor boxes'),
     Check('map-buildings', on_page(check_map_buildings), 'the map\'s own buildings edited'),
     Check('clear-map', on_page(check_clear_map), 'Clear map, the map grid and the landing zones'),
+    Check('map-settings', on_page(check_map_settings), 'Map settings: the sun and sky listed, the background sound and its volume'),
     Check('align', on_page(check_align), 'Align'),
     Check('library', lambda c: check_library(c.page, c.is_bar), 'the Add panel: this map\'s pieces'),
     Check('cover', on_page(check_cover), 'cover blocks and invisible floors'),

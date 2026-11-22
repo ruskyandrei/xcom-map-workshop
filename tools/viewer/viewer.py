@@ -26,6 +26,7 @@ from gamesetup import GameSetup
 from families import FamilyCache
 from collision import CollisionCache
 from audio import OggError, WaveCache, byte_range
+import background_sound
 from generated import GeneratedError, Meshes as GeneratedMeshes
 import looks as made_looks
 from library import LibraryRunner, pieces_root
@@ -644,6 +645,31 @@ class Handler(SimpleHTTPRequestHandler):
             else: self.send_wave(data, f'"{etag}"', method == 'GET')
         return True
 
+    # The map's background sound (background_sound.py; the Map settings window): GET /background-sounds.json lists the
+    # game's beds the window offers (background_sounds.json: each cue, its label, the map that plays it, its waves); GET
+    # or HEAD /background-sound.ogg?cue=<cue>&wave=<n> is a bed's n-th wave, read from the map that plays it in the
+    # install, checked and kept as any wave (audio.py). A cue or wave the list lacks is 404, a wave it can't serve 422.
+    def handle_background_sound(self, method):
+        split = urlsplit(self.path)
+        if split.path == '/background-sounds.json':
+            if method != 'GET': self.send_json(405, dict(error='Not allowed.'))
+            else: self.send_json(200, dict(sounds=background_sound.catalogue()))
+            return True
+        if split.path != '/background-sound.ogg': return False
+        query = parse_qs(split.query)
+        cue, index = (query.get('cue') or [''])[0], (query.get('wave') or ['0'])[0]
+        if method not in ('GET', 'HEAD'): self.send_json(405, dict(error='Not allowed.'))
+        else:
+            try:
+                path, scene, wave_id = background_sound.wave_source(cue, int(index) if index.isdigit() else -1)
+                data, etag, _ = self.wave_cache.get('background:' + scene['name'], scene, wave_id, lambda: path, lambda name: None)
+            except KeyError: self.send_json(404, dict(error='That is not one of the background sounds.'), body=method == 'GET')
+            except OggError as error: self.send_json(422, dict(error=f'The sound can\'t be played: {error}'), body=method == 'GET')
+            except ProjectError as error: self.send_json(error.status, dict(error=error.message, **error.extra), body=method == 'GET')
+            except (OSError, ValueError) as error: self.send_json(500, dict(error=f'Could not read the sound: {error}'), body=method == 'GET')
+            else: self.send_wave(data, f'"{etag}"', method == 'GET')
+        return True
+
     def send_wave(self, data, etag, body):
         if etag in [t.strip() for t in self.headers.get('If-None-Match', '').split(',')]:
             self.send_response(304)
@@ -987,7 +1013,7 @@ class Handler(SimpleHTTPRequestHandler):
     def route_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
-        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_generated, self.handle_looks, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
+        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_background_sound, self.handle_generated, self.handle_looks, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
     def do_PUT(self): self.answer('PUT', self.route_PUT)
@@ -1010,7 +1036,7 @@ class Handler(SimpleHTTPRequestHandler):
     def route_HEAD(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue(body=False)
         elif urlsplit(self.path).path == '/guide.html': self.user_guide(body=False)
-        elif not self.handle_wave('HEAD'): super().do_HEAD()
+        elif not (self.handle_wave('HEAD') or self.handle_background_sound('HEAD')): super().do_HEAD()
 
     def translate_path(self, path):
         request = unquote(urlsplit(path).path)
