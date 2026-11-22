@@ -154,6 +154,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
           <li><a href="#clearmap">Clear map and landing zones</a></li>
           <li><a href="#spawns">Spawn points</a></li>
           <li><a href="#missions">Missions</a></li>
+          <li><a href="#map-settings">Map settings</a></li>
           <li><a href="#map-picture">Map picture</a></li>
         </ol>
       </li>
@@ -609,8 +610,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><th>Menu</th><th>Opened by</th><th>What it holds</th></tr>
   <tr><td><a href="#project">Project</a></td><td>The Project button</td><td>Save, Save as…, Open…, Close project, the
     recent projects, and Manage projects….</td></tr>
-  <tr><td><a href="#map-menu">Map</a></td><td>The Map button</td><td>Change map…, Missions…, Map picture…, Map grid,
-    and Clear map….</td></tr>
+  <tr><td><a href="#map-menu">Map</a></td><td>The Map button</td><td>Change map…, Map settings…, Missions…, Map
+    picture…, Map grid, and Clear map….</td></tr>
   <tr><td><a href="#game-menu">Game</a></td><td>The arrow joined to Play</td><td>Test squad setup…, Game maps…, and
     the Installs.</td></tr>
   <tr><td><a href="#settings">Settings</a></td><td>The gear</td><td>Game install and checks…, and Cache
@@ -618,18 +619,20 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </table>
 <h4 id="map-menu">The Map menu</h4>
 <div class="split">
-  <figure><img src="shots/map-menu.webp" width="284" height="276" alt="The Map menu, its five items numbered"></figure>
+  <figure><img src="shots/map-menu.webp" width="284" height="304" alt="The Map menu, its six items numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>Change map…</b> (<kbd>M</kbd>) opens the <a href="#maps">map browser</a>.</li>
-    <li data-n="2"><b>Missions…</b> chooses the missions the project is for. <a href="#missions">More</a></li>
-    <li data-n="3"><b>Map picture…</b> sets the picture the game shows for the map on its mission screens.
+    <li data-n="2"><b>Map settings…</b> lists the sun, moon and sky light and sets the map's background sound.
+      <a href="#map-settings">More</a></li>
+    <li data-n="3"><b>Missions…</b> chooses the missions the project is for. <a href="#missions">More</a></li>
+    <li data-n="4"><b>Map picture…</b> sets the picture the game shows for the map on its mission screens.
       <a href="#map-picture">More</a></li>
-    <li data-n="4"><b>Map grid</b> shows the play area's handles, as the tool strip's button does.
+    <li data-n="5"><b>Map grid</b> shows the play area's handles, as the tool strip's button does.
       <a href="#mapgrid">More</a></li>
-    <li data-n="5"><b>Clear map…</b> takes every piece off the map. <a href="#clearmap">More</a></li>
+    <li data-n="6"><b>Clear map…</b> takes every piece off the map. <a href="#clearmap">More</a></li>
   </ol>
 </div>
-<p>Items 2 to 5 are the map's own. In the prefab builder, where there is only the map to change, the button opens the
+<p>Items 2 to 6 are the map's own. In the prefab builder, where there is only the map to change, the button opens the
   map browser at once.</p>
 
 <h3 id="tools">Tool strip</h3>
@@ -765,7 +768,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="viewoptions">View options</h3>
 <div class="split">
-  <figure><img src="shots/view-options.webp" width="332" height="633" alt="The View options menu, its sixteen items numbered"></figure>
+  <figure><img src="shots/view-options.webp" width="332" height="665" alt="The View options menu, its sixteen items numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>Lighting:</b> <b class="ui">Neutral</b> is plain, even light, best for editing. <b class="ui">Map</b>
       uses the map's own lights, as edited; <b class="ui">No area</b> is the same without the glow of lit surfaces. Both
@@ -782,7 +785,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="7"><b>Area lights:</b> also show the lights that stand for glowing surfaces. View only.</li>
     <li data-n="8"><b>Outline the pieces a light reaches:</b> for the selected light, in teal the pieces it is baked
       into, in orange the ones it reaches after your change.</li>
-    <li data-n="9"><b>Sun, moon and sky:</b> lists the lights that have no place. View only.</li>
+    <li data-n="9"><b>Sun, moon and sky…</b> opens <a href="#map-settings">Map settings</a>, which lists the lights
+      that have no place.</li>
     <li data-n="10"><b>Play area</b> (<kbd>B</kbd>): faint amber walls round the area the game plays on, its level volume:
       units can't leave it.</li>
     <li data-n="11"><b>Tile grid</b> around the selection.</li>
@@ -2119,6 +2123,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     too. Here
     the play area is the map's own, and the new grid where it reaches further, so pieces the new grid brings into play
     still go. So does a piece across the edge. The window counts what stays. The tick is remembered.</li>
+  <li><b class="ui">Keep the map's triggers and scripts</b> leaves the map's triggers, which the editor doesn't show:
+    the touch volumes that set animals going or play a narration (a crashed UFO's "entering the ship"), the water
+    volumes that make units wade, and the spots that speak when a soldier sees them. Without it the Build takes them
+    out and switches off what they would start, so nothing of the old map acts on the new one. The window counts them;
+    on a map without any the tick is not shown. A mission's own streamed objects keep theirs. The tick is remembered.
+    The map's background sound stays either way: change it in <a href="#map-settings">Map settings</a>.</li>
   <li><b>Effects and ambient sounds go with the clear</b>, except the Skyranger's, which stay with it, and the ones
     outside that the tick keeps. One you moved yourself in the <a href="#effects">Effects view</a> stays, and so do
     your copies.</li>
@@ -2311,6 +2321,20 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="3"><b>OK</b> needs one ticked; the change is one undo step.</li>
   </ol>
 </div>
+<h3 id="map-settings">Map settings</h3>
+<p><b class="ui">Map settings…</b> in the <a href="#map-menu">Map menu</a> (or <b class="ui">Sun, moon and sky…</b> in
+  <a href="#viewoptions">View options</a>) opens a window of what the map has everywhere and at no place.</p>
+<ul>
+  <li><b>Sun, moon and sky</b> lists the map's lights that have no place, with their brightness. View only.</li>
+  <li><b>Background sound</b> is the sound the map plays everywhere from the start: wind and traffic on the Bar,
+    birds in a forest, crickets at night. Choose the map's own, another of the game's 26 sound beds (the Build brings
+    it from the map that plays it), or <b class="ui">None</b>. <b class="ui">Play</b> plays the choice here, looping,
+    until you press it again or close the window. The <b class="ui">Volume</b> bar under it sets how loud it is in the
+    game, 100% being the sound's own.</li>
+  <li><b>Each change is one undo step</b> and is saved with the project; the header counts it. A map that starts no
+    background sound (the alien bases, the battleships, the Temple Ship and a few others) has none to change.</li>
+</ul>
+
 <h3 id="map-picture">Map picture</h3>
 <p><b class="ui">Map picture…</b> in the <a href="#map-menu">Map menu</a> gives the project a picture of its own for
   the game's mission screens. Long War Rebalance 3 shows a map's own picture; plain Enemy Within and earlier Long War

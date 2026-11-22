@@ -296,7 +296,8 @@ class Shots:
         self.close_pops()
         page.locator('#mapButton').click()
         page.wait_for_timeout(300)
-        rows = [(1, '#mapChange'), (2, '#projectMissions'), (3, '#projectPicture'), (4, '#projectSize'), (5, '#projectClear')]
+        rows = [(1, '#mapChange'), (2, '#mapSettingsOpen'), (3, '#projectMissions'), (4, '#projectPicture'), (5, '#projectSize'),
+                (6, '#projectClear')]
         self.shot('map-menu', self.panel_rows('#mapMenu', rows, side='right'),
                   clip=self.around('#mapButton', '#mapMenu', pad=(10, 6, 44, 12)))
         self.close_pops()
@@ -759,7 +760,7 @@ class Shots:
         page.locator('#viewButton').click()
         page.wait_for_timeout(400)
         rows = [(1, '#lighting'), (2, '#exposure'), (3, '#flyKeys'), (4, '#moveSpeed'), (5, '#turnSpeed'), (6, '#dragSpeed'),
-                (7, '#areaToggle'), (8, '#reachToggle'), (9, '#skyToggle'), (10, '#playAreaToggle'), (11, '#grid'),
+                (7, '#areaToggle'), (8, '#reachToggle'), (9, '#skyOpen'), (10, '#playAreaToggle'), (11, '#grid'),
                 (12, '#floorTiles'), (13, '#likenessToggle'), (14, '#wire'), (15, '#hideHelpers'), (16, '#statsToggle')]
         hidden = [s for _, s in rows if not page.locator(s).is_visible()]
         if hidden: raise SystemExit('View options lacks %s on %s: the guide numbers them all' % (', '.join(hidden), MAP))
