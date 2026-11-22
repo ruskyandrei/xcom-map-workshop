@@ -72,9 +72,7 @@ def _floor_record(raw):
 
 
 def _encode_floor(rec):
-    out = struct.pack('<3f', *rec['loc']) + struct.pack('<3f', *rec['normal'])
-    out += struct.pack('<I', len(rec['links'])) + b''.join(world_links.encode_link(l) for l in rec['links'])
-    return out + struct.pack('<Bii', rec['ramp'], rec['actor'], rec['volume'])
+    return world_links.encode_floor(rec)
 
 
 def _link_blocked(flags, dx, dy):

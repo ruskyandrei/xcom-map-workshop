@@ -295,6 +295,46 @@ def resize(model, nx, ny, corner, floor, nz=None):
     return model
 
 
+INTERACT_STORE = 4
+
+
+def forget(model, gone):
+    """The model (decode's) with no tile naming an object of `gone` (export indices: the actors a Build took out of
+    the level). A tile's floor piece or floor volume among them becomes 0 (none, as the bake has a tile with no floor
+    piece or outside every floor volume); a neighbour link whose path object is among them is dropped, as an
+    interact point whose actor is (a tile left with none saves none, as the bake's do). The game frees an actor that
+    is not in the level's list once the map has loaded, and the tile data it named points at freed memory: saving the
+    battle then crashes (F-156). Returns {floorActor, floorVolume, links, interactPoints: how many were cleared or
+    dropped} (each 0 when nothing named one)."""
+    gone = set(gone)
+    out = dict(floorActor=0, floorVolume=0, links=0, interactPoints=0)
+    floors = model['stores'][FLOOR_STORE]
+    for t, (raw, present) in list(floors.items()):
+        if not present:
+            continue
+        rec, _ = world_links.parse_element('floor', raw, 0)
+        kept = [l for l in rec['links'] if l['obj'] not in gone]
+        hit = (rec['actor'] in gone, rec['volume'] in gone, len(rec['links']) - len(kept))
+        if not any(hit):
+            continue
+        out['floorActor'] += hit[0]
+        out['floorVolume'] += hit[1]
+        out['links'] += hit[2]
+        rec = dict(rec, links=kept, actor=0 if hit[0] else rec['actor'], volume=0 if hit[1] else rec['volume'])
+        floors[t] = (world_links.encode_floor(rec), present)
+    points = model['stores'][INTERACT_STORE]
+    for t, (raw, present) in list(points.items()):
+        if not present:
+            continue
+        pts, _ = world_links.parse_element('interact', raw, 0)
+        kept = [pt for pt in pts if pt['actor'] not in gone]
+        if len(kept) == len(pts):
+            continue
+        out['interactPoints'] += len(pts) - len(kept)
+        points[t] = (world_links.encode_interact(kept), 1 if kept else 0)
+    return out
+
+
 def container_of(p):
     found = [i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'XComWorldDataContainer']
     if len(found) != 1:

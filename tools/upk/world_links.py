@@ -67,6 +67,21 @@ def encode_link(l):
     return out
 
 
+def encode_floor(rec):
+    """A floor store element's bytes from its fields (parse_element's 'floor' dict): the place, the normal, the
+    neighbour list, the ramp byte, the floor piece and the floor volume (export indices, 0 for none)."""
+    out = struct.pack('<3f', *rec['loc']) + struct.pack('<3f', *rec['normal'])
+    out += struct.pack('<I', len(rec['links'])) + b''.join(encode_link(l) for l in rec['links'])
+    return out + struct.pack('<Bii', rec['ramp'], rec['actor'], rec['volume'])
+
+
+def encode_interact(points):
+    """An interact store element's bytes from its points (parse_element's 'interact' list)."""
+    return struct.pack('<I', len(points)) + b''.join(
+        struct.pack('<3f3i4i', *pt['loc'], *pt['rot'], pt['actor'], pt['socket'][0], pt['socket'][1], pt['flags'])
+        for pt in points)
+
+
 def parse_element(kind, b, o):
     """One tile's element of a store kind at o (the present byte not included): (value, end offset)."""
     if kind == 'flags':

@@ -249,5 +249,75 @@ class BlankMap(unittest.TestCase):
             world_grid.resize(self.model, 0, 36, CORNER, None)
 
 
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class Forget(unittest.TestCase):
+    """(F-156) No tile names an actor a Build took out of the level: a floor piece or floor volume becomes none, a
+    link through a path object or an interact point of an actor is dropped; nothing else changes."""
+
+    @classmethod
+    def setUpClass(cls):
+        _, cls.blob = world_grid.container_of(Package(BAR))
+
+    def model(self):
+        return world_grid.decode(self.blob)
+
+    def floors(self, model):
+        return {t: world_links.parse_element('floor', raw, 0)[0]
+                for t, (raw, present) in model['stores'][world_grid.FLOOR_STORE].items() if present}
+
+    def test_the_elements_encode_back_to_their_bytes(self):
+        model = self.model()
+        for t, (raw, present) in model['stores'][world_grid.FLOOR_STORE].items():
+            if present:
+                self.assertEqual(world_links.encode_floor(world_links.parse_element('floor', raw, 0)[0]), raw, t)
+        for t, (raw, present) in model['stores'][world_grid.INTERACT_STORE].items():
+            if present:
+                self.assertEqual(world_links.encode_interact(world_links.parse_element('interact', raw, 0)[0]), raw, t)
+
+    def test_nothing_gone_changes_nothing(self):
+        model = self.model()
+        self.assertEqual(world_grid.forget(model, set()), dict(floorActor=0, floorVolume=0, links=0, interactPoints=0))
+        self.assertEqual(world_grid.encode(model), self.blob)
+
+    def test_a_floor_piece_and_a_floor_volume_become_none(self):
+        before = self.floors(self.model())
+        actor = max({r['actor'] for r in before.values()} - {0},
+                    key=lambda a: sum(r['actor'] == a for r in before.values()))
+        volume = next(r['volume'] for r in before.values() if r['volume'])
+        model = self.model()
+        got = world_grid.forget(model, {actor, volume})
+        after = self.floors(model)
+        self.assertEqual(got['floorActor'], sum(r['actor'] == actor for r in before.values()))
+        self.assertEqual(got['floorVolume'], sum(r['volume'] == volume for r in before.values()))
+        self.assertGreater(got['floorActor'], 0)
+        for t, r in before.items():
+            want = dict(r, actor=0 if r['actor'] == actor else r['actor'], volume=0 if r['volume'] == volume else r['volume'])
+            self.assertEqual({k: after[t][k] for k in ('actor', 'volume', 'loc', 'ramp')},
+                             {k: want[k] for k in ('actor', 'volume', 'loc', 'ramp')})
+            self.assertEqual(len(after[t]['links']), len(r['links']))
+        world_links.parse_container(world_grid.encode(model))         # every store still parses
+
+    def test_a_link_through_a_path_object_and_its_actors_interact_points_are_dropped(self):
+        before = self.floors(self.model())
+        obj = next(l['obj'] for r in before.values() for l in r['links'] if l['obj'])
+        points = {t: world_links.parse_element('interact', raw, 0)[0]
+                  for t, (raw, present) in self.model()['stores'][world_grid.INTERACT_STORE].items() if present}
+        actor = next(pt['actor'] for pts in points.values() for pt in pts)
+        model = self.model()
+        got = world_grid.forget(model, {obj, actor})
+        # (a door's interact points' actor is the path object of the links through it too)
+        self.assertEqual(got['links'], sum(l['obj'] in (obj, actor) for r in before.values() for l in r['links']))
+        self.assertEqual(got['interactPoints'], sum(pt['actor'] == actor for pts in points.values() for pt in pts))
+        wd = world_links.parse_container(world_grid.encode(model))
+        self.assertFalse([l for t in wd['floor'].values() for l in t['value']['links'] if l['obj'] in (obj, actor)])
+        for c in wd['stores'][world_grid.INTERACT_STORE]['chunks']:
+            for t in c['tiles']:
+                self.assertFalse([pt for pt in t['value'] if pt['actor'] == actor])
+                if t['tile'] in points:
+                    # a tile left with no point saves none, as the bake's do
+                    left = [pt for pt in points[t['tile']] if pt['actor'] != actor]
+                    self.assertEqual((t['present'], len(t['value'])), (1 if left else 0, len(left)))
+
+
 if __name__ == '__main__':
     unittest.main()

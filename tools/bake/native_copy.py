@@ -2466,6 +2466,7 @@ class BuildState:
     report: object = filled()           # the growing writer's report of the write
     q: object = filled()                # the written map, read again
     diagonal: object = filled()         # the diagonal cover tiles next to a change, written (diagonal_keep.write)
+    forgot: object = filled()           # the tiles' references to actors taken out of the level, cleared (F-156)
     # what build makes between its steps
     groups: dict = filled(dict)         # the break groups linked (link_children): each group's clones
     children: dict = filled(dict)       # each clone's parts linked to it (link_children)
@@ -2557,6 +2558,7 @@ def manifest_parts(st, q, bake):
                                  for r in edit_records],
                   coverBlocks=[dict(c, copy=q.name(c['actor'])) for c in cover_records],
                   **({'diagonalCover': st.diagonal} if st.diagonal else {}),
+                  **({'tilesForgot': st.forgot} if st.forgot else {}),
                   **({'generatedWalls': [dict(r, copy=q.name(r['copy']).split('.')[-1],
                                               **({'mesh': q.name(r['mesh'])} if r.get('mesh') else {}))
                                          for r in generated_records]} if generated_records else {}),
@@ -3083,6 +3085,43 @@ def floors_and_cursors(st):
     st.floor_emitters, st.cursor_record, st.cursor_clones = floor_emitters, cursor_record, cursor_clones
 
 
+def taken_out(p):
+    """The exports directly under the persistent level that are not in its actor list: the actors the Build took out
+    of the level (a deleted piece, building, floor volume, light or effect), and the few objects the game's maps
+    keep there that are no actors (its Kismet's main sequence)."""
+    level = p.by_name['TheWorld.PersistentLevel']
+    listed = set(level_actors(p))
+    return {i for i in range(1, len(p.exports) + 1) if p.exports[i - 1]['outer'] == level and i not in listed}
+
+
+def forget_taken_out(path):
+    """The written map at `path` with no tile naming an actor the Build took out of the level (world_grid.forget):
+    the game frees such an actor once the map has loaded, and a tile that still named it made saving the battle crash
+    (F-156: a deleted building's floor volumes, deleted floor pieces, outside every rebuild volume). Written in place
+    when anything changed. Returns world_grid.forget's counts, {} when nothing named one."""
+    import os
+    import package_grow
+    import world_grid
+    p = lighting.Package(Path(path))
+    if not any(p.cls(i) == 'XComWorldDataContainer' for i in range(1, len(p.exports) + 1)):
+        return {}
+    index, blob = world_grid.container_of(p)
+    model = world_grid.decode(blob)
+    counts = world_grid.forget(model, taken_out(p))
+    if not any(counts.values()):
+        return {}
+    encoded = world_grid.encode(model)
+    if encoded[:world_links.HEADER] != blob[:world_links.HEADER]:
+        raise ValueError('the tile data was not written back with its header')
+    g = package_grow.Grower(str(path))
+    g.relocate(index, encoded)
+    tmp = Path(str(path) + '.forget')
+    g.write(str(tmp))
+    del g, p
+    os.replace(tmp, path)
+    return {k: v for k, v in counts.items() if v}
+
+
 def write_and_verify(st):
     """The variant map written and read back (BuildState `st`): every new actor in the level's list (add_to_level),
     the map written by the growing writer (<out>/<variant>.upk, or with bake the grown map in <out>/grown, its name
@@ -3117,6 +3156,11 @@ def write_and_verify(st):
         import diagonal_keep
         st.diagonal = diagonal_keep.write(dst, getattr(g, 'diagonal_writes', set()), getattr(g, 'diagonal_whole', set()),
                                           getattr(g, 'diagonal_candidates', set()))
+    # no tile names an actor taken out of the level: the game frees those, and saving then crashed (F-156)
+    st.forgot = forget_taken_out(dst)
+    if st.forgot:
+        print('tiles: %s' % ', '.join('%s %d' % (k, v) for k, v in st.forgot.items()) + ' named actors taken out of '
+              'the level: cleared (a link or interact point dropped)')
     q = lighting.Package(dst)
     for m in made:
         check_vertex_lightmaps(q, m['info']['mapping'])

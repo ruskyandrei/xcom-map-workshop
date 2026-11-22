@@ -103,14 +103,3 @@ line, and its finding in the [findings register](research/findings-register.md) 
   and the game use `pack.json` and the map files), or export the pack again with a version after 0.6.0.
 - **Cause.** The pack export copied each build's manifest whole.
 - **Finding.** None in the register: the editor review's finding 14, and the smaller built maps plan's P1 to P3.
-
-### KB-17: A quicksave on a reported large city variant crashes the game
-
-- **What happens.** On the built map of a reported user's project (a CLrgScout_City variant with 166 copies, 119 of
-  them pieces of other maps), pressing the quicksave key in the battle crashes the game at once. Seen in hidden test
-  runs on LWR 2.06; the game's own CLrgScout_City saves and loads there.
-- **Since.** Found 22 November 2026 with the editor of that day; the build from before F-151's fix crashes the same
-  way. Other maps were not tried.
-- **Workaround.** None known: play the map without saving.
-- **Cause.** Not known: the crash is in the save's checkpoint serialisation.
-- **Finding.** [F-156](research/findings-register.md).

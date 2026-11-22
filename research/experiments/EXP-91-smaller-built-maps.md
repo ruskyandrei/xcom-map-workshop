@@ -2,8 +2,9 @@
 
 Date: 22 November 2026. Status: **played: the map built with the fix loads, its copies look as the build from before
 the change shows them, near and at the far zoom, and the game holds 275 MiB less in textures and about 300 MiB less
-private memory; a quicksave crashes the game on this project's map in both builds ([F-156](../findings-register.md),
-KB-17), not on the game's own map**. The smaller built maps plan's stage S4 ([F-151](../findings-register.md)).
+private memory; a quicksave crashed the game on this project's map in both builds, not on the game's own map: the
+map's tiles named actors the Build took out of the level ([F-156](../findings-register.md)), and with the Build
+clearing them the map saves, loads and saves again**. The smaller built maps plan's stage S4 ([F-151](../findings-register.md)).
 Played unattended in the lab copy (the game-test skill), one pass of each check and at most one second take.
 
 ## The questions
@@ -53,7 +54,28 @@ again pulled back to 3,000 at -60; `ListTextures`; the game's private memory at 
 The hidden run's `send`, `aim` and `goto` read the log of the folder Steam runs unless given `--game` too (the skill
 names it on the start command only): with the user's copy there, they printed its log (only read) until given it.
 
+## The save crash (F-156), the same day
+
+The crash site is `UObject::IsA` given freed memory, called by the save archive's writer of an actor reference.
+Read offline, the built map's tile data named actors the Build had taken out of the level: the deleted building's
+two floor volumes (1,233 tiles) and deleted floor pieces (3,102 tiles), some outside every rebuild volume, and 66
+interact points of deleted interactive pieces. No tile of the install's 96 maps names anything outside its level.
+
+| Run | Map | Quicksave |
+| --- | --- | --- |
+| control | the game's own CLrgScout_City | saved and loaded |
+| B save | the project built on main before F-151's fix | crashed (`+0xa0ff2b`) |
+| quick | a quick build of the project | crashed (`+0xa0ff2b`) |
+| quick, tiles cleared | the same with every such tile reference set to none, nothing else | saved and loaded |
+| full, fixed | a full build with the Build's own clearing (F-156's fix) and F-151's | saved, loaded, saved again |
+
+After the fixed build's load the helipad looked as before the save, near the copies at the first place. The saves'
+thumbnails in the load list are the game's badge, where the control's is a picture of the map: the game has no
+picture for the variant's name.
+
 ## What it settled
 
 F-151's fix plays: the map loads, its copies look as before, and the battle holds 275 MiB less in textures. F-151 is
-verified. Saving this project's map crashes the game whatever the change: F-156, open.
+verified. The save crash was the tiles naming actors the Build took out of the level, in every build of a project
+that deletes such pieces, with or without F-151's fix; the Build clears them now and the map saves: F-156 is
+verified.

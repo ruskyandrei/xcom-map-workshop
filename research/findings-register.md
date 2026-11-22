@@ -12,8 +12,9 @@ Statuses:
 
 ## Open now
 
-- F-156 (22 November, EXP-91): a quicksave on the reported city project's built map crashes the game in the
-  checkpoint's serialisation, with or without F-151's fix; the game's own map saves. Cause not known; KB-17.
+- F-156 (22 November, EXP-91): a built map whose tiles still named actors the Build took out of the level (a deleted
+  building's floor volumes, deleted floor pieces) crashed the game on saving; the Build now clears them. Verified:
+  the reported project saves, loads and saves again.
 - F-155 (22 November, the diagonal cover plan): the Build writes a whole tile as the game's build would (every
   seeded tile of the install's maps comes back as baked); seeded tiles under a change are written whole, copied
   corners carry their marks, made walls and cover blocks get the finder's corners. Verified in a hidden run (six
@@ -1371,20 +1372,35 @@ alone. The user's note: "looks good". Found in EXP-05 run 16.
   record is applied. `ReleaseBlasts` puts them back a second later, marked as fired if the save says they had. A car
   saved burning still explodes later.
 
-### F-156: A quicksave on the reported city project's built map crashes the game, in the checkpoint's serialisation
-**Open** (22 November 2026, [EXP-91](experiments/EXP-91-smaller-built-maps.md); found while checking F-151's fix).
-- **Seen.** The reported user's project (a CLrgScout_City variant: 166 copies, 119 of them pieces of other maps, 268
-  pieces hidden, light and effect edits), built with and without F-151's fix, in hidden runs on the lab copy (LWR
-  2.06, `--saving`, no aliens): F10 right after turn 1 with nothing moved, and the game ends 0.2 s later (an access
-  violation) after `--- CHECKPOINT STARTING ASYNC WORK (Serialization) ---`. Three times, both builds, the same
-  place: `XComEW.exe+0xa0ff2b` reading 0x1004c or 0x1004e, stack `+0xadcb36 +0x54c5f2 +0x54c5f2 +0xccc1be +0x908df7
-  +0x526124 +0xf2fd5b` (the stand-in input's crash log). The game's own CLrgScout_City saves and loads in the same
-  setup. Not the hypervisor (T-07: none runs).
-- **Not known.** Which of the project's edits does it (the reading address looks like a small index taken for a
-  pointer); whether other editor-built maps crash the same way (none was tried that day; built maps with made walls
-  and floors saved, and loaded, in hidden runs before: EXP-73, EXP-76); whether the game crashes the same way outside
-  a hidden run.
-- **Known bug** [KB-17](../KNOWN-BUGS.md).
+### F-156: A built map whose tiles still named actors the Build took out of the level crashed the game on saving
+**Verified** (22 November 2026, [EXP-91](experiments/EXP-91-smaller-built-maps.md): found while checking F-151's fix,
+the cause proved by a patched map and the fix played the same day: save, load and save again).
+- **Seen.** The reported user's project (a CLrgScout_City variant: 166 copies, 119 of them pieces of other maps, 328
+  pieces deleted, one of them a building, light and effect edits), built with and without F-151's fix, in hidden runs
+  on the lab copy (LWR 2.06, `--saving`, no aliens): F10 right after turn 1 with nothing moved, and the game ends
+  0.2 s later (an access violation) after `--- CHECKPOINT STARTING ASYNC WORK (Serialization) ---`, at
+  `XComEW.exe+0xa0ff2b`. The game's own CLrgScout_City saves and loads in the same setup. Not the hypervisor (T-07).
+- **Where.** `XComEW.exe+0xa0ff2b` (0xE0FF10) is `UObject::IsA`, walking `this->Class` (+0x34) up its super classes
+  (+0x48); `this` held 0x10004 or 0x10006 where its class should be: freed memory. Its caller (0xEDCB00) is the save
+  archive's writer of an object reference: if the object is an Actor, it looks it up by name.
+- **Cause.** The map's tile data (XComWorldDataContainer, written natively) names actors by export index: each floor
+  tile its floor piece and floor volume, each neighbour link its path object, each interact point its actor. A Build
+  that deletes a piece takes it out of the level's actor list and leaves its export; the tiles still named it. The
+  game frees an actor that is not in the level's list once the map has loaded (the tiles' native references don't
+  keep it), and where the battle's start-up rebuild does not work a tile out again (no rebuild volume reaches it),
+  the tile still points there when the save writes the tile data. Here: 1,233 floor-volume references to the deleted
+  building's two floor volumes and 3,102 floor-piece references to deleted pieces, 61 and 143 of them outside every
+  rebuild volume; 66 interact points of deleted interactive pieces.
+- **Proved.** A quick build of the project crashed the same way; the same build with every such reference set to none
+  (no other change) saved and loaded.
+- **Fix.** The Build clears them after it writes the map (`native_copy.forget_taken_out`, `world_grid.forget`): a
+  floor piece or floor volume taken out of the level becomes none (as the bake has a tile with no floor piece or
+  outside every floor volume), a link through a path object taken out is dropped, as an interact point of an actor
+  taken out (a tile left with no point saves none). Across the install's 96 maps no tile names anything outside its
+  level, so this changes no map but a Build's. The full build of the project with it: save, load, save again.
+- **Left.** A tile outside every rebuild volume whose floor piece was deleted keeps its floor (now with no piece
+  named): the Build's rebuild volumes decide which tiles the battle works out again, as before. The rewritten tile
+  data goes at the package's end and the old bytes stay (3.3 MB in this map), as for the diagonal tiles.
 
 ## Removing map pieces (EXP-07)
 

@@ -607,6 +607,30 @@ class NativeCopy(unittest.TestCase):
         g.write(str(out))
         return got, lighting.Package(out)
 
+    def test_no_tile_names_an_actor_taken_out_of_the_level(self):
+        """(F-156) The game frees an actor that is not in the level's list once the map has loaded, and a tile that
+        named one made saving the battle crash. In the shared builds (a ladder moved, a door and a prop deleted, a van
+        and a strip copied) no floor tile, link or interact point names one; the build records what it cleared."""
+        import world_grid
+        builds = {id(b): b for b in self.shared.values()}.values()
+        native = [b.made for b in builds if b.made is not None and 'nativeCopies' in b.made[0]]
+        self.assertEqual(len(native), 2)
+        cleared = []
+        for manifest, q in native:
+            with self.subTest(map=q.path.name):
+                gone = native_copy.taken_out(q)
+                self.assertTrue(gone)
+                wd = world_links.parse_container(world_grid.container_of(q)[1])
+                for t in wd['floor'].values():
+                    v = t['value']
+                    self.assertFalse({v['actor'], v['volume'], *(l['obj'] for l in v['links'])} & gone, t['tile'])
+                for c in wd['stores'][world_grid.INTERACT_STORE]['chunks']:
+                    for t in c['tiles']:
+                        self.assertFalse({pt['actor'] for pt in t['value']} & gone, t['tile'])
+                cleared.append(manifest['nativeCopies'].get('tilesForgot'))
+        # the first deletes door 7 and its frame and hides the ladder's original: their tiles named them
+        self.assertTrue(cleared[0], cleared)
+
     def test_the_shared_builds_maps_read_back_as_a_whole_decode_reads_them(self):
         # the growing writer's check (follow-ups item 1.1) decodes only the blocks a write made and takes the rest
         # from the source's image: on the three maps the class wrote, that is the image a whole decode gives
