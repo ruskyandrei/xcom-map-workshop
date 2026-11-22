@@ -12,16 +12,12 @@ Statuses:
 
 ## Open now
 
-- F-145 (21 November, EXP-90): a made wall at a free angle (30 degrees) seemed to break in its middle, away from the
-  blast. Read offline the same night: its lower rows broke from its start, its top band stood where its fragments
-  start over 128 above the hit (the game's rule, as on any wall), and its columns, cut on the world's axes, broke two
-  fragments by its far corner outside the blast's square. Fixed offline (columns along the wall's own line); the game
-  rerun is open.
 - F-146 (21 November, EXP-90): a made wall standing inside a tile row takes those tiles (the game's occupancy box);
   the editor reads and says it since 22 November (offline), not played since.
 - F-147 (21 November, EXP-90): a made floor is a tile's floor only where it covers the tile's centre (the game's floor
   trace); the editor says which tiles since the same night (offline), and a turned floor's cursor floors stand in
-  steps; not played since.
+  steps; EXP-90 run 2 (22 November) read the turned floor's cursor over the steps as in run 1; the fractional
+  floor's tiles not played since.
 
 - F-143 (20 November, EXP-88): a cover block grouped with a made wall keeps its cover when the wall's columns break
   (the block is invincible and the columns reach it only by damage); a prop in the same kind of group goes.
@@ -176,10 +172,10 @@ Statuses:
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
 ### F-145: The game has no wall turned off the quarter turns, so no rule of its own for a turned wall's columns
-**Fixed offline: a turned wall's columns run along its own line; the game rerun is open** (21 November 2026,
-offline: the wall audit, `research/evidence/frac-wall-audit.py`, over every map the install lists; in the game:
+**Verified: a turned wall's columns run along its own line** (21 November 2026, offline: the wall audit,
+`research/evidence/frac-wall-audit.py`, over every map the install lists; in the game:
 [EXP-90](experiments/EXP-90-free-form-pieces.md) run 1; the cause read from the built package and the exe copy the
-same night, [frac-neighbours.md](native/frac-neighbours.md) section 2.3).
+same night, [frac-neighbours.md](native/frac-neighbours.md) section 2.3; the fix verified in EXP-90 run 2, 22 November).
 - **What**: a made wall can now stand at any angle (the custom geometry improvements plan, stage 2), and its fracture
   columns are made by the rule measured on the game's walls (`frac_walls.columns`: a tile along the wall's longer world
   axis, a storey up, the wall's whole reach across). The plan asked first whether the game's own maps hold walls at a
@@ -226,6 +222,11 @@ same night, [frac-neighbours.md](native/frac-neighbours.md) section 2.3).
   rule on the world's axes, byte for byte. C1 at the run's blast now breaks fragments 0 to 5 and 8, as on yaw 0
   (`test_turned_walls.TurnedColumns`). The top band's look from above at the same blast is the game's rule and stays:
   a rerun reads the wall from the side, or under the band (fragments 10 and 11, the corner's lower rows, now stand).
+- **Verified** (EXP-90 run 2, 22 November, the project built after the fix): an HE grenade landing at run 1's point
+  (-1170.18, -1528.38) damaged the same two made walls. From above C1 looked as in run 1; from the outside, its corner
+  part beside C2 stood its full height down to the pavement (fragments 10 and 11, broken in run 1), the wall was open
+  to the ground from there to its start, and only the top band stood over that gap from the start to about 170 along.
+  So it broke where hit and nowhere else.
 - **Left**: a box round a slanting stretch reaches further than the stretch (a 96-long stretch of a 24-thick wall at 30
   degrees has a box 95 by 69), so a turned wall can still break a fragment further beyond a blast's square than a
   wall on a quarter turn (over hits round a 30-degree wall: as far as 174 against 100, in 78 of 696 hits more than
@@ -306,7 +307,10 @@ run 1, check 2; the cause read offline the same night from the built package and
   part, as at any made floor's edge; none shows the box's corners themselves, where the made floors' break at 190
   against the map's 210 moves nothing standing in the car park. The Build now gives a turned floor's cursor floors in
   steps, a box round its part of each tile it reaches (12 for this floor, the area beside it from 38,507 square units
-  to 13,587), so they stay over it.
+  to 13,587), so they stay over it. Played in EXP-90 run 2 (22 November): the readings are run 1's (its top over the
+  two centre-covered tiles, the ground over (-145, -1201) and (-433, -1201), and over (-433, -1393) z 262 aimed from
+  the north-east, the ground aimed from the floor), so the steps change nothing a player sees there, as expected; a
+  soldier on it stood at z 264.
 - **What the editor does**: the compiler notes `slab-edge-tiles` for a made floor covering tiles at its edge in part,
   short of their centres (no floor at its height, the tiles named), and `slab-turned` (a note now) how many boxes a
   turned floor's cursor floors stand in; the Floor section's line says "floor on N of M tiles" and its notes why; the

@@ -1,6 +1,8 @@
 # EXP-90: made pieces in the free form in the game
 
-Date: 21 November 2026. Status: **run 1 played: the mitred corner, the thick and tall walls, the turned floor and the texture mapping passed; the turned wall broke in its middle, away from the blast ([F-145](../findings-register.md) failed); a wall standing in a tile row takes those tiles ([F-146](../findings-register.md)); a tile a floor covers under about a third of is no floor ([F-147](../findings-register.md))**. The custom geometry improvements plan's
+Date: 21 November 2026. Status: **run 1 played: the mitred corner, the thick and tall walls, the turned floor and the texture mapping passed; the turned wall broke in its middle, away from the blast ([F-145](../findings-register.md) failed); a wall standing in a tile row takes those tiles ([F-146](../findings-register.md)); a tile a floor covers under about a third of is no floor ([F-147](../findings-register.md)); run 2 (22 November)
+after the fix: the turned wall breaks where hit, its corner standing (F-145 verified), and the turned floor's cursor
+reads as in run 1 over its stepped cursor floors**. The custom geometry improvements plan's
 game runs (its section 7, "What needs the game"): made walls and floors at any place, size, angle and height
 (the free form: `fracWall` 5, `fracSlab` 4, numbers with `free: 1`), mitred corners, tall walls made both ways, a
 thick wall, a turned floor, and a texture mapping. Everything else in the plan is checked offline. Played unattended
@@ -156,3 +158,39 @@ The game reads them back in that frame: F1 and F2 look lit alike in check 6. The
 - A's tiles: a wall over a tile's middle meets the game's occupancy box there and takes the tile; its window's tile
   is no one's, so nothing vaults through it ([F-146](../findings-register.md)). The editor now reads such a wall's
   openings so and notes the tiles it takes.
+
+## Run 2 (hidden game, 22 November): the turned wall's columns and the turned floor's steps
+
+The project built again from the branch as merged on 22 November (the F-145 fix, a turned wall's columns along its
+own line; a turned floor's cursor floors in steps), baked, in a test server's scratch store: no compile error; the
+warnings as run 1's, `slab-turned` now saying E's cursor floors stand in 12 boxes, one round its part of each tile it
+reaches (108 cursor floors made, 40 over the made slabs); C1 13 fragments and 15 columns. Staged the same way (the
+`--dry-play` test server's Play in game into the parked lab copy, now allowed while another copy's game runs) and
+played unattended while another copy's game ran. The test squad was put into the play file by hand (the scratch store's
+own squad was another); the squad landed at URB_Bar's own landing this time, and everything checked was placed by
+teleport. Out folder `<lab>\hidden-runs\exp90-2`, its `report.md` holding each step; the shots and the report were
+read against each other. One pass of each check, one second take (one aim in check 2).
+
+1. **C1 broken where hit: passed (F-145 verified).** Alpha at (-817, -1201) threw an HE grenade with run 1's camera;
+   the aim landed at (-1170.18, -1528.38), run 1's point to a tenth of a unit, and the log showed the same two made
+   pieces damaged (`FracLevelActor ... Explosion / Amount:500` twice). From above (run 1's camera) C1 looked as in run 1:
+   standing from its start to about 170 along, open from about 170 to about 270, standing from there to the corner. From
+   the outside, at run 1's oblique camera, a low one and a close one: C1's corner part, beside C2, stands its full height
+   with its tiled face down to the pavement; next to it the wall is open to the ground, C2's inner face showing through;
+   towards C1's start only the top band stands, in the air over the gap, the pavement and the aliens beyond seen under
+   it. So the lower rows broke from the start to about 270 along under a top band that stood (the game's rule), and the
+   corner's two lower fragments, which broke in run 1, stood. Side note, not followed: a soldier ordered afterwards to
+   the corner's outside tile (-913, -1297), where run 1's soldier stood in high cover, did not move, and the cursor
+   would not settle on that tile (it went to the next one, where a soldier stood); fire from the blast burned on that
+   side of the corner.
+2. **E's cursor over its steps: passed, with run 1's one reading unchanged.** From a soldier off E at (-241, -1009),
+   storey 1: over (-337, -1297) and (-433, -1297), whose centres are on E, the cursor read 258 (E's top); over
+   (-145, -1201) the ground (64); over (-433, -1201) it first went to the tile north of it, and aimed from E it read the
+   ground. Over (-433, -1393) (34% covered, its centre 14 off E) it read 262, E's height, from the north-east, as in run
+   1, and the ground aimed from E (as in run 1). So the steps changed no reading: the one at E's height over a tile it
+   covers in part, from one side, is the mouse's ray meeting E's top inside that tile's square
+   ([F-147](../findings-register.md)).
+3. **A soldier on E: passed.** Put on E at (-337, -1297), he stood at (-337.05, -1296.96, 264.18), crouched on the
+   turned plate.
+
+The game was closed with `quit`; no game of the lab copy was left and no `d3d9.dll` beside its exe.
