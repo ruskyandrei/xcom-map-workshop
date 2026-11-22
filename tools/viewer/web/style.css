@@ -398,6 +398,10 @@ canvas { display: block; width: 100%; height: 100%; }
 /* The effect panel the same way: its controls first, the sentences about it folded under About; value rows on one
    grid (name, slider, number), so a slider's field and a colour's three fields line up. */
 #effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel { scrollbar-gutter: stable; scrollbar-width: thin; padding-right: 6px; gap: 7px; overflow-x: hidden; }
+/* One column no wider than the panel: an implicit grid column is as wide as its widest unwrapped line, and an About
+   fold's one-line summary (a copy's "A copy of Emitter_74: …") made the rows wider than the panel, cutting off their
+   number fields (Discord B6). */
+:is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) { grid-template-columns: minmax(0, 1fr); }
 :is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) .row { margin: 0; flex-wrap: wrap; }
 :is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) .row:not(:has(> :not([hidden]))) { display: none; }
 :is(#effectPanel, #spawnPanel, #volumePanel, #landingPanel, #gridPanel) .row button { min-height: 26px; padding: 3px 10px; white-space: nowrap; }

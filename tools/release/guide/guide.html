@@ -867,7 +867,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Group of 2</td><td>It is in a <a href="#groups">group</a>.</td></tr>
   <tr><td>Glows · 3 lights</td><td>A glowing piece: its glow lights the map, and moves, copies and goes with it.</td></tr>
   <tr><td>Carries an effect</td><td>A particle effect stands on it, such as a Skyranger's lights or a claw machine's, or the effects a prefab of the map placed round it (an alien vapour pod's smoke). The editor and the Build move, copy and delete them with the piece. A click on the chip opens the <a href="#effects">Effects view</a> on them.</td></tr>
-  <tr><td>Mission loot · Not loot</td><td>A collectible such as a UFO power core. A copy breaks like the original, but the game doesn't count it as loot.</td></tr>
+  <tr><td>Mission loot</td><td>A collectible such as a UFO power core: the game counts it as loot at the mission's end, a damaged one as the damaged item. A copy counts too, and breaks like the original. A moved one still counts once; a deleted one no longer counts.</td></tr>
   <tr><td>Mission script</td><td>The map's mission script uses this piece. Moved or deleted, the script still acts on the original, not on the copy: the Build warns.</td></tr>
   <tr><td>Landing zone</td><td>One of the pieces Long War spawns the dropship's landing from. Moved or deleted, the landing breaks: the Build warns. A copy is an ordinary piece.</td></tr>
   <tr><td>A package's name</td><td>The piece comes from a mission or from Long War Rebalance's patch, not from the map. It can be looked at, not edited.</td></tr>
@@ -2749,7 +2749,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><th>Kind</th><th>Examples</th><th>How it moves</th><th>Builds</th></tr>
   <tr><td>Scenery, destructible props</td><td>Tables, crates, dumpsters, windows, signs</td><td>Freely, on every axis</td><td>Yes</td></tr>
   <tr><td>Physics props</td><td>Bodies, loose objects</td><td>Freely</td><td>Yes</td></tr>
-  <tr><td>Collectibles</td><td>UFO power cores</td><td>Freely</td><td>Yes; a copy isn't loot</td></tr>
+  <tr><td>Collectibles</td><td>UFO power cores</td><td>Freely</td><td>Yes; a copy counts as loot too</td></tr>
   <tr><td>Cars and vans</td><td>With their glass, doors and light bars</td><td>Freely, all parts together; surest on <a href="#grid-rule">the grid</a></td><td>Yes</td></tr>
   <tr><td>Doors with a frame</td><td>Building doors</td><td>Freely, leaf and frame together; surest on the grid</td><td>Yes</td></tr>
   <tr><td>Doors without a frame</td><td>UFO and alien doors</td><td>Freely; surest on the grid</td><td>Yes</td></tr>

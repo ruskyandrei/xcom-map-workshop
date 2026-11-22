@@ -809,6 +809,9 @@ def check_adding(page, is_bar):
         page.evaluate('id => viewer.select(id)', core)
         details = page.locator('#details').inner_text()
         assert 'Builds from' not in details and 'Mission loot' in details, details
+    # a collectible's copy is loot too, as the Build makes it (compiler.py LOOT_NOTES; Discord S15: the chip said not)
+    copy_note = page.evaluate("async () => (await import('/pieces.js')).lootNote({ actorClass: 'XComCollectible', added: {} })")
+    assert copy_note['label'] == 'Mission loot' and 'counts it as mission loot' in copy_note['title'], copy_note
     page.evaluate('id => viewer.select(id)', original)
 
 
@@ -2437,6 +2440,13 @@ def check_effect_values(browser, url):
     page.wait_for_function("id => viewer.gizmo.active && viewer.gizmo.active !== id && viewer.effectRoots.get(viewer.gizmo.active)?.userData.source.added", arg=fx)
     copy = page.evaluate('viewer.gizmo.active')
     assert page.evaluate('id => viewer.effectState(id).values', copy) == page.evaluate('id => viewer.effectState(id).values', fx)
+    # the copy's panel, its About line a long one: every value row and field inside the panel, none cut off at its
+    # right edge (Discord B6: the rows were laid out as wide as that line)
+    page.wait_for_function("() => document.getElementById('effectAboutSum').textContent.startsWith('A copy of')")
+    over = page.evaluate("""() => { const p = document.getElementById('effectPanel'), right = p.getBoundingClientRect().right;
+      return { wider: p.scrollWidth - p.clientWidth, cut: [...document.querySelectorAll('#effectValues .effectvalue, #effectValues input')]
+        .filter(e => e.getBoundingClientRect().right > right + 0.5).length }; }""")
+    assert over == dict(wider=0, cut=0), over
     # a simple sound: its outer radius dragged, its volume and pitch set
     sound = root('AmbientSoundSimple_0')
     page.evaluate(f'viewer.pickEffect({sound!r})')

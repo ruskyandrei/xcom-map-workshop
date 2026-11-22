@@ -22,12 +22,14 @@ const pieceFamily = obj => assemblyFamily(obj) ?? (obj.partner ? 'car' : familie
 const familyRecord = obj => families?.families[pieceFamily(obj)] ?? null;
 /** Whether the piece keeps the pose rule (poserule.js): whole tiles, storeys and quarter turns from its original. */
 export const pieceGrid = obj => Boolean(familyRecord(obj)?.grid);
-// A collectible (a UFO power core and the like) is mission loot while it stands. Its copy is a destructible prop that
-// breaks at its first damage, as the original does, but isn't loot; a moved or deleted original is hidden, not
-// destroyed, so it may still count (the compiler warns the same: LOOT_NOTES in tools/editor/compiler.py).
+// A collectible (a UFO power core and the like) is mission loot: at a mission's end the game counts every collectible
+// in the level's actor list, an intact one as its item and a damaged one as the damaged item. The Build makes a
+// collectible's copy a collectible in that list, so a copy counts too; a moved original still counts once, and a
+// deleted one is taken out of the list, so it no longer counts (the compiler notes the same: LOOT_NOTES in
+// tools/editor/compiler.py; native_edit.py).
 export const lootNote = obj => (obj.actorClass !== 'XComCollectible' ? null
-  : obj.added ? { label: 'Not loot', title: 'A copy of a collectible: it breaks at its first damage, as the original does, but it is not mission loot' }
-  : { label: 'Mission loot', title: 'A collectible: the game counts it as loot while it stands. Copies of it are not loot, and if it is moved or deleted it is hidden, so it may still count as loot' });
+  : obj.added ? { label: 'Mission loot', title: 'A copy of a collectible: the Build makes it a collectible too, so the game counts it as mission loot, as it does the original. Its first damage destroys it, and a damaged one counts as the damaged item' }
+  : { label: 'Mission loot', title: 'A collectible: the game counts it as mission loot at the mission\'s end, a damaged one as the damaged item. Its copies count too; moved, it still counts once; deleted, it no longer counts' });
 // What the game's damage does to a piece: export 17's `destruction` (the toughness the piece names, its health and
 // flags; tools/viewer/scene_metadata.py has the game's rules), as the panel's Destructible and Health lines.
 const FRACTURING_DAMAGE = 'explosions, fire, lasers, plasma, heavy guns and melee';
