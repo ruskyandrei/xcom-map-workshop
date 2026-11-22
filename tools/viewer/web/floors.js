@@ -12,6 +12,7 @@
 
 import { POSE_SLACK, turned } from './poserule.js';
 import { LEVEL as STOREY, QUARTER } from './constants.js';
+import { plural } from './dom_words.js';
 
 const FLAT = 48;        // units: a floor piece is at most this tall
 const THIN = 8;         // units: a decoration (rug, plate) is at most this thick
@@ -377,6 +378,109 @@ export function madeStoreys(storeys, slabs, grid = null) {
   const gone = new Set(s.hidden);
   return [...storeys.filter((_, k) => !gone.has(k)),
           ...s.volumes.map(v => ({ floor: v.floor, box: v.box, made: v.source == null || storeys[v.source].made, ...(v.over ? { slab: true } : {}) }))];
+}
+
+// A made slab against the game's tiles (F-147; EXP-90 checks 2 and 5): made_cursors.py's outline, tiles and steps are
+// the twins, with the cases both sides read (tools/bake/tests/slab_tiles_cases.json).
+const SLAB_TILE = 96;
+// a made slab reaching into a tile by no more than this covers none of it (the editor's tile lines, where a slab drawn
+// with the snap on stands, are a unit inside the game's: tileGrid.origin against tileGrid.tiles)
+const SLAB_TILE_EDGE = 2;
+const halfUp3 = v => { const r = Math.floor(v * 1000 + 0.5) / 1000; return r === 0 ? 0 : r; };
+/** Whether a made slab's rotator turns it off the quarter turns about the vertical alone. */
+export function slabTurned(rotation) {
+  const [pitch, yaw, roll] = rotation.map(v => Math.round(v));
+  return yaw % 16384 !== 0 && pitch % 65536 === 0 && roll % 65536 === 0;
+}
+/** A made slab's footprint, or a hole of it, in the world: the four corners [[x, y]] round the rectangle `n` (x0, x1,
+ *  y0, y1 in the piece's frame), the frame turned by the rotator's yaw as the package holds it (a whole number). */
+export function slabOutline(location, rotation, n) {
+  const yaw = Math.round(rotation[1]) * 2 * Math.PI / 65536, c = Math.cos(yaw), s = Math.sin(yaw);
+  return [[n.x0, n.y0], [n.x1, n.y0], [n.x1, n.y1], [n.x0, n.y1]].map(([x, y]) => [location[0] + c * x - s * y, location[1] + s * x + c * y]);
+}
+function insideConvex(poly, p) {
+  let sign = 0;
+  for (let k = 0; k < poly.length; k++) {
+    const [ax, ay] = poly[k], [bx, by] = poly[(k + 1) % poly.length];
+    const cross = (bx - ax) * (p[1] - ay) - (by - ay) * (p[0] - ax);
+    if (Math.abs(cross) <= 1e-9) continue;
+    if (sign === 0) sign = cross > 0 ? 1 : -1;
+    else if ((cross > 0) !== (sign > 0)) return false;
+  }
+  return true;
+}
+function clipConvex(poly, x0, y0, x1, y1) {
+  let pts = [...poly];
+  for (const [k, v, keep] of [[0, x0, 1], [0, x1, -1], [1, y0, 1], [1, y1, -1]]) {
+    const out = [];
+    pts.forEach((b, i) => {
+      const a = pts[(i + pts.length - 1) % pts.length], ina = (a[k] - v) * keep >= 0, inb = (b[k] - v) * keep >= 0;
+      if (ina !== inb) {
+        const t = (v - a[k]) / (b[k] - a[k]), cut = a[1 - k] + (b[1 - k] - a[1 - k]) * t;
+        out.push(k === 0 ? [v, cut] : [cut, v]);
+      }
+      if (inb) out.push(b);
+    });
+    pts = out;
+    if (!pts.length) break;
+  }
+  return pts;
+}
+function polygonArea(pts) {
+  if (pts.length < 3) return 0;
+  let sum = 0;
+  pts.forEach((p, i) => { const a = pts[(i + pts.length - 1) % pts.length]; sum += a[0] * p[1] - p[0] * a[1]; });
+  return Math.abs(sum) / 2;
+}
+function tileSpan(points, corner, k) {
+  const lo = Math.floor((Math.min(...points.map(p => p[k])) - corner[k]) / SLAB_TILE), hi = Math.floor((Math.max(...points.map(p => p[k])) - corner[k]) / SLAB_TILE);
+  return Array.from({ length: hi - lo + 1 }, (_, n) => lo + n);
+}
+/** Which tiles of the game's grid a made floor or roof is floor on, by the game's rule (one line down through each
+ *  tile's centre: a slab is a tile's floor only where it covers the centre, out of its holes). `solids` [{ outline,
+ *  holes }] (slabOutline's corners, each hole's too), `corner` where the game counts its tiles from (map_grid.js
+ *  tileCorner). Gives { floor: [[i, j]], part: [[i, j, share]] (the tiles it reaches into by more than SLAB_TILE_EDGE
+ *  short of their centre, share: how much of the tile its footprint covers, to a thousandth) }, by tile. */
+export function slabFloorTiles(solids, corner) {
+  const pts = solids.flatMap(s => s.outline), floor = [], part = [];
+  if (!pts.length) return { floor, part };
+  for (const i of tileSpan(pts, corner, 0)) for (const j of tileSpan(pts, corner, 1)) {
+    const x0 = corner[0] + SLAB_TILE * i, y0 = corner[1] + SLAB_TILE * j, centre = [x0 + SLAB_TILE / 2, y0 + SLAB_TILE / 2];
+    const on = solids.filter(s => insideConvex(s.outline, centre));
+    if (on.some(s => !(s.holes ?? []).some(h => insideConvex(h, centre)))) floor.push([i, j]);
+    else if (!on.length && solids.some(s => polygonArea(clipConvex(s.outline, x0 + SLAB_TILE_EDGE, y0 + SLAB_TILE_EDGE, x0 + SLAB_TILE - SLAB_TILE_EDGE,
+                                                                     y0 + SLAB_TILE - SLAB_TILE_EDGE)) > 1e-9)) {
+      let share = 0;
+      for (const s of solids) share += polygonArea(clipConvex(s.outline, x0, y0, x0 + SLAB_TILE, y0 + SLAB_TILE));
+      part.push([i, j, halfUp3(share / (SLAB_TILE * SLAB_TILE))]);
+    }
+  }
+  return { floor, part };
+}
+/** A made floor's tiles (slabFloorTiles' answer) in words, for its section's line and its notes: null when it covers no
+ *  tile in part. */
+export function slabTileWords(t) {
+  if (!t?.part.length) return null;
+  const n = t.floor.length, m = t.part.length;
+  return { short: `floor on ${n} of ${n + m} tiles`,
+           long: `It is floor on ${plural(n, 'tile')}: a tile is floor where it covers the tile's centre, as the game looks for a `
+             + `tile's floor there, so the ${plural(m, 'tile')} at its edge it covers in part ${m === 1 ? 'is' : 'are'} no floor at its height.` };
+}
+/** A made slab turned off the quarter turns as boxes square to the world over its footprint, the slabs madeStoreys
+ *  takes: for each tile of the game's grid its footprint reaches into by more than SLAB_TILE_EDGE, the box round its
+ *  part of that tile [x0, y0, z0, x1, y1, z1], to a thousandth, by tile (holes not taken out, as an unturned slab's box
+ *  keeps them). */
+export function slabSteps(solids, z0, z1, corner) {
+  const pts = solids.flatMap(s => s.outline), out = [], e = SLAB_TILE_EDGE;
+  if (!pts.length) return out;
+  for (const i of tileSpan(pts, corner, 0)) for (const j of tileSpan(pts, corner, 1)) {
+    const x0 = corner[0] + SLAB_TILE * i, y0 = corner[1] + SLAB_TILE * j;
+    const q = solids.filter(s => polygonArea(clipConvex(s.outline, x0 + e, y0 + e, x0 + SLAB_TILE - e, y0 + SLAB_TILE - e)) > 1e-9)
+      .map(s => clipConvex(s.outline, x0, y0, x0 + SLAB_TILE, y0 + SLAB_TILE)).flat();
+    if (q.length) out.push([halfUp3(Math.min(...q.map(p => p[0]))), halfUp3(Math.min(...q.map(p => p[1]))), z0,
+                            halfUp3(Math.max(...q.map(p => p[0]))), halfUp3(Math.max(...q.map(p => p[1]))), z1]);
+  }
+  return out;
 }
 
 /** Where the cursor's floors start over a box's footprint: [{ z, top, floor }] from the lowest up, one for each

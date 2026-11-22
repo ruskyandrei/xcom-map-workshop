@@ -24,7 +24,10 @@ The made pieces' other paths (the refactor's follow-ups, item 4.6), each a check
   mends it, one undo step.
 - made-openings (any such map): with the second of a wall's two gaps last touched (its row pointed at), Delete takes
   that gap out and leaves the wall; with the first one's handle clicked, Delete takes that one; a floor's hole the same
-  way; each one undo step.
+  way; each one undo step. A free-form floor off the tile lines: its Floor section and the tile grid say on which
+  tiles it is floor and that those it covers in part are not, as the Build's rule has it (F-147), and turned, its
+  cursor floors stand in steps. A free-form wall standing in a tile row: its Wall section says it takes the tiles it
+  stands over, its window's tile taken (no climbing through) and its doorway's walked, as the compiler reads it (F-146).
 - rock-corner (any such map): a rock's corner point clicked takes the point gizmo; its arrow dragged moves the corner
   along it (the snap off: by what was dragged), one undo step; Escape lets it go.
 - room-buttons (the police station, its ground): a room drawn from the Build menu and picked whole: Lower and Taller
@@ -536,6 +539,19 @@ MADE = """async ([made, along]) => {
   await viewer.pasteSnapshot({ entries, pivotIndex: 0, name: 'made pieces' }, new T.Matrix4().makeTranslation(0, 0, along));
   return { ids: viewer.gizmo.picks().ids, keeps: Boolean(frac.userData.source.keepsPieces) };
 }"""
+# the same, each piece turned `angle` (radians) about the vertical where it stands: their ids
+MADE_TURNED = """async ([made, along, angle]) => {
+  const T = await import('/vendor/three/three.module.js');
+  const fracs = [...viewer.roots.values()].filter(r => !r.userData.source.added && !r.userData.deleted && r.visible
+    && ['XComFracLevelActor', 'XComDecoFracLevelActor'].includes(r.userData.source.actorClass)
+    && viewer.data.meshes[r.userData.source.mesh]?.sections?.some(s => s.fragments?.length));
+  const frac = fracs.find(r => r.userData.source.keepsPieces) ?? fracs[0];
+  const entries = made.map(generated => ({ source: frac.userData.source,
+    matrix: frac.matrix.clone().multiply(new T.Matrix4().makeRotationY(angle)),
+    state: { tinted: false, flags: null, generated, blasts: null, breaksFurther: false } }));
+  await viewer.pasteSnapshot({ entries, pivotIndex: 0, name: 'made pieces' }, new T.Matrix4().makeTranslation(0, 0, along));
+  return viewer.gizmo.picks().ids;
+}"""
 BREAK_WALL = dict(kind='fracWall', version=4, wall=dict(x0=0, x1=288, openings=[], seed=3))
 BREAK_FLOOR = dict(kind='fracSlab', version=3, slab=dict(x0=0, x1=192, y0=0, y1=192, holes=[], seed=1, look='floor'))
 BREAK_ROOF = dict(kind='fracSlab', version=3, slab=dict(x0=0, x1=192, y0=0, y1=192, holes=[], seed=2))      # (no look: the roof)
@@ -544,6 +560,12 @@ OPEN_WALL = dict(kind='fracWall', version=4, wall=dict(x0=0, x1=480, seed=3, ope
 OPEN_FLOOR = dict(kind='fracSlab', version=3, slab=dict(x0=0, x1=288, y0=0, y1=288, seed=1, look='floor', holes=[
     dict(x0=0, x1=96, y0=0, y1=96), dict(x0=192, x1=288, y0=192, y1=288)]))
 SEEDED_ROCK = dict(kind='ground', version=4, ground=dict(shape='rock', x0=0, x1=192, y0=0, y1=192, height=96, seed=5))
+# a free-form wall, its faces and gaps put in place by check_wall_in_row (EXP-90's wall A's height and thickness)
+FREE_WALL = dict(kind='fracWall', version=5, wall=dict(free=1, x0=-100.0, x1=300.0, y0=-8.0, y1=8.0, z0=-16.0, z1=384.0,
+                                                       tall='repeat', seed=901, openings=[]))
+# EXP-90's floor B in the free form, without its hole (F-147)
+FREE_FLOOR = dict(kind='fracSlab', version=4, slab=dict(free=1, x0=0.0, x1=230.5, y0=0.0, y1=170.25, z0=192.0, z1=194.0,
+                                                        holes=[], seed=902, look='floor'))
 
 
 def made_pieces(page, made):
@@ -676,9 +698,120 @@ def check_made_openings(browser, url, open_viewer):
     assert 'Filled the hole' in page.locator('#dragHint').inner_text(), page.locator('#dragHint').inner_text()
     key(page, 'Control+z')
     assert holes() == OPEN_FLOOR['slab']['holes'], holes()
+    floor_tiles = check_free_floor_tiles(page)
+    in_row = check_wall_in_row(page)
     page.close()
     assert not errors, errors
-    return dict(gaps=len(OPEN_WALL['wall']['openings']), holes=len(OPEN_FLOOR['slab']['holes']))
+    return dict(gaps=len(OPEN_WALL['wall']['openings']), holes=len(OPEN_FLOOR['slab']['holes']), floorTiles=floor_tiles,
+                inRow=in_row)
+
+
+def made_edits_module():
+    """tools/editor/made_edits.py, the compiler's reading of a made wall's openings, for the page's words to be held to."""
+    import sys
+    from pathlib import Path
+    editor = str(Path(__file__).resolve().parents[2] / 'editor')
+    if editor not in sys.path:
+        sys.path.append(editor)
+    import made_edits
+    return made_edits
+
+
+def check_wall_in_row(page):
+    """A free-form wall standing in a tile row, 6.5 off its centre line as EXP-90's wall A (F-146): its Wall section says
+    it takes the tiles it stands over, its window's tile is taken with no climbing through, and its doorway's tile is
+    stood in and walked through, as the compiler reads it (made_edits.row_tiles and opening_play). A probe wall pasted
+    first gives the place; the wall's faces and gaps are then put where the row and its tiles' centres are."""
+    made_edits = made_edits_module()
+    along = 1536
+    probe = page.evaluate(MADE, [[FREE_WALL], along])['ids'][0]
+    page.wait_for_function('id => viewer.wallMeshReady(id)', arg=probe, timeout=60000)
+    state = page.evaluate('id => viewer.wallState(id)', probe)
+    page.evaluate('id => viewer.select(id)', probe)
+    key(page, 'Delete')
+    origin = page.evaluate('viewer.data.tileGrid.origin.slice(0, 2)')
+    loc, rot = state['location'], state['rotation']
+    yaw = round(rot[1]) * 2 * math.pi / 65536
+    d = (math.cos(yaw), math.sin(yaw))
+    assert abs(abs(d[0]) - 1) < 1e-6 or abs(abs(d[1]) - 1) < 1e-6, rot     # (the map's fracturing pieces stand square)
+    k = 1 if abs(d[0]) > 0.5 else 0             # the axis across the wall
+    centre = origin[k] + 96.0 * (math.floor((loc[k] - origin[k]) / 96.0) + 0.5)
+    v = (centre - loc[k]) * (d[0] if k == 1 else -d[1]) + 6.5       # across the wall, in its frame
+    crossings = [c for c in made_edits.grid_crossings(loc, rot, FREE_WALL['wall'], origin) if 40.0 <= c <= 150.0]
+    a = crossings[0]
+    window, door = dict(x0=a - 36.0, x1=a + 36.0, z0=72.0, z1=168.0), dict(x0=a + 60.0, x1=a + 132.0, z0=-16.0, z1=160.0)
+    wall = dict(FREE_WALL['wall'], y0=v - 8.0, y1=v + 8.0, openings=[window, door])
+    made = page.evaluate(MADE, [[dict(FREE_WALL, wall=wall)], along])['ids'][0]
+    page.wait_for_function('id => viewer.wallMeshReady(id)', arg=made, timeout=60000)
+    assert page.evaluate('id => viewer.wallState(id)', made)['location'] == loc
+    taken = made_edits.row_tiles(loc, rot, wall, origin)
+    every = made_edits.grid_crossings(loc, rot, wall, origin)
+    plays = [made_edits.opening_play(wall, o, every, taken) for o in (window, door)]
+    assert taken and plays[0].get('inside') and not plays[0]['walk'] and not plays[0]['climb'] and plays[1]['walk'], (taken, plays)
+    page.evaluate('id => viewer.select(id)', made)
+    page.wait_for_selector('#wallBox:not([hidden]) #wallOpenings .wallopening')
+    rows = page.locator('#wallOpenings .wallopening small').all_inner_texts()
+    assert rows[0].startswith("Its tile is taken, as the wall stands over the tile's middle") and 'climb' not in rows[0], rows
+    assert rows[1].startswith('Units stand in its tile and walk through it'), rows
+    text = page.evaluate('viewer.wallPanelText()')
+    assert 'It stands over the middle of %d tiles, not on the tile edges: it takes %d of them' % (len(taken), len(taken) - 1) in text, text
+    return dict(taken=len(taken))
+
+
+def made_cursors_module():
+    """tools/bake/made_cursors.py, the Build's rule for a made slab's tiles, for the page's answers to be held to."""
+    import sys
+    from pathlib import Path
+    bake = str(Path(__file__).resolve().parents[2] / 'bake')
+    if bake not in sys.path:
+        sys.path.append(bake)
+    import made_cursors
+    return made_cursors
+
+
+def check_free_floor_tiles(page):
+    """A free-form floor 230.5 by 170.25 (EXP-90's B, F-147), off the tile lines: its section's line and notes say on
+    how many tiles it is floor and that those it covers in part are not, and the tile grid fills the tiles it is floor
+    on and outlines the others, as the Build's rule (made_cursors.tiles) has them for where it stands."""
+    made_cursors = made_cursors_module()
+    (slab,), _ = made_pieces(page, [FREE_FLOOR])
+    page.evaluate('id => viewer.select(id)', slab)
+    page.wait_for_selector('#slabBox:not([hidden])')
+    state = page.evaluate('id => viewer.wallState(id)', slab)
+    corner = page.evaluate('viewer.data.tileGrid.tiles ?? viewer.data.tileGrid.origin.map(v => v - 1)')
+    want = made_cursors.tiles([dict(outline=made_cursors.outline(state['location'], state['rotation'], state['generated']['slab']),
+                                    holes=[])], corner)
+    assert want['part'], (state, corner, want)       # (a floor of this size covers some tile in part wherever it stands)
+    n, m = len(want['floor']), len(want['part'])
+    line = page.locator('#slabState').inner_text()
+    assert line.endswith('floor on %d of %d tiles' % (n, n + m)), line
+    text = page.evaluate('viewer.slabPanelText()')
+    assert 'at its edge it covers in part %s no floor at its height' % ('is' if m == 1 else 'are') in text, text
+    grid = page.evaluate('viewer.tileGrid()')
+    assert sorted(grid['tiles']) == sorted('%d,%d' % (i, j) for i, j in want['floor']), (grid, want)
+    assert sorted(grid['edges']) == sorted('%d,%d' % (i, j) for i, j, _ in want['part']), (grid, want)
+    note = page.locator('#tileNote').inner_text()
+    assert note.startswith('%d floor tile' % n) and ('%d in part: no floor' % m) in note, note
+    # turned 20 degrees about the vertical (EXP-90's E), a storey and a half lower so that its floor's break is one of
+    # its own: its cursor floors stand in steps (made_cursors.steps), each floor of them over the steps' area, not
+    # over the box round it
+    turned = dict(FREE_FLOOR, slab=dict(FREE_FLOOR['slab'], x1=288.0, y1=192.0, z0=140.0, z1=142.0))
+    ids = page.evaluate(MADE_TURNED, [[turned], 1152, 0.349])
+    page.wait_for_function('id => viewer.wallMeshReady(id)', arg=ids[0], timeout=60000)
+    state = page.evaluate('id => viewer.wallState(id)', ids[0])
+    assert made_cursors.turned(state['rotation']), state['rotation']
+    steps = made_cursors.steps([dict(outline=made_cursors.outline(state['location'], state['rotation'], state['generated']['slab']),
+                                     holes=[])], 0.0, 1.0, corner)
+    want = sum((b[3] - b[0]) * (b[4] - b[1]) for b in steps)
+    lo = [min(b[k] for b in steps) - 0.01 for k in (0, 1)]
+    hi = [max(b[k + 3] for b in steps) + 0.01 for k in (0, 1)]
+    bands = {}
+    for s in page.evaluate('viewer.cursorStoreys()') or []:
+        b = s['box']
+        if s.get('slab') and lo[0] <= b[0] and b[3] <= hi[0] and lo[1] <= b[1] and b[4] <= hi[1]:
+            bands[round(b[2], 3)] = bands.get(round(b[2], 3), 0.0) + (b[3] - b[0]) * (b[4] - b[1])
+    assert bands and all(abs(a - want) < 1.0 for a in bands.values()), (bands, want, len(steps))
+    return dict(floor=n, part=m, steps=len(steps))
 
 
 # The point gizmo's arrow along the rock's own x on the screen, for the corner it stands on: [x, y] at `a` and at `b`

@@ -14,8 +14,11 @@ Statuses:
 
 - F-145 (21 November, EXP-90): a made wall at a free angle (30 degrees) broke in its middle, away from the blast,
   while the part nearest the blast stood: the columns' rule measured on square walls misplaces a turned wall's break.
-- F-146, F-147 (21 November, EXP-90): a made wall standing inside a tile row takes those tiles; a tile a made floor
-  covers under about a third of is no floor. Neither is warned of yet.
+- F-146 (21 November, EXP-90): a made wall standing inside a tile row takes those tiles (the game's occupancy box);
+  the editor reads and says it since 22 November (offline), not played since.
+- F-147 (21 November, EXP-90): a made floor is a tile's floor only where it covers the tile's centre (the game's floor
+  trace); the editor says which tiles since the same night (offline), and a turned floor's cursor floors stand in
+  steps; not played since.
 
 - F-143 (20 November, EXP-88): a cover block grouped with a made wall keeps its cover when the wall's columns break
   (the block is invincible and the columns reach it only by damage); a prop in the same kind of group goes.
@@ -208,7 +211,8 @@ run 1).
 
 ## Tiles, cover and placement
 ### F-146: A made wall standing inside a tile row takes those tiles; beside it the cover is the compiler's
-**Verified** (21 November 2026, [EXP-90](experiments/EXP-90-free-form-pieces.md) run 1, check 1).
+**Verified; explained, and the editor says it** (21 November 2026, [EXP-90](experiments/EXP-90-free-form-pieces.md)
+run 1, check 1; the cause read offline on 22 November).
 - **What**: a free-form made wall (two storeys, 16 thick) along x at y -1111.5, 6.5 from the game tiles' centre line
   y -1105, its start 30.25 off a tile line; a window and a doorway in it.
 - **Seen**: the tiles of that row it covers can't be stood on: the one its west part covers (64.75 of 96 of the tile's
@@ -218,19 +222,58 @@ run 1).
   game put him 44 off his tile's centre against the wall's end). A grenade later opened the window's and the west tile.
 - **So**: a wall drawn off the tile edges, over a tile row's centres, takes that row's tiles and gives cover to the rows
   either side, as a wall on the tile edge does to its two neighbours; its window is a tile no one stands on, and no unit
-  was seen to vault through it (the compiler's `climb` reading assumes a wall on a tile edge). Not warned of yet.
+  was seen to vault through it (the compiler's `climb` reading assumed a wall on a tile edge).
+- **Why**: the game's tile rebuild takes a tile wholly, with no floor and no one standing there, when a piece's
+  collision meets a box 40 by 40 round the tile's centre from 60 to 92 over the level's bottom (the occupancy's small
+  call, [native/cover-build.md](native/cover-build.md) section 2). The wall's faces (y -1119.5 to -1103.5) reach over the
+  row's centre line, so they meet that box in each tile of the row it stands over; under its window it stands to 72,
+  so the window's tile is taken; its doorway (to 160, and wider than the box) leaves the box clear, so that tile is
+  stood in and walked through. A vault (the tile rebuild's ClimbOver) goes between two tiles over a low piece on their
+  shared edge; a window over a tile no one stands on has no such pair of tiles, so no unit vaults through it. The cover
+  sweeps from the tiles either side (124 long, 44 to 60 up, and the high one at 96) cross the wall as they cross a wall
+  on the edge, so the cover there is the opening's, as read.
+- **What the editor does** (22 November, offline): `made_edits.row_tiles` (walls.js `rowTiles`) finds where a
+  free-form wall stands over a tile's middle; `opening_play` (`openingPlay`) reads an opening there as its own tile,
+  free when it clears that box, else taken, and never climbed through; the opening's words say so ("Its tile is taken,
+  as the wall stands over the tile's middle"); the compiler notes `wall-in-row` (the tiles it takes and gives cover
+  beside) and warns `wall-doorway-low` with that reason for a doorway that leaves no room in its tile. A wall on the
+  tile edges reads as before. The box's height is read over the wall's floor (a unit from the level's bottom on the
+  ground), and its reach along a turned wall as along the wall (exact for walls along the axes). Not played since.
 
-### F-147: A tile a made floor covers under about a third of is no floor
-**Verified** (21 November 2026, [EXP-90](experiments/EXP-90-free-form-pieces.md) run 1, check 2).
+### F-147: A made floor is a tile's floor only where it covers the tile's centre
+**Explained: the game's own rule; the editor says it** (21 November 2026: seen in [EXP-90](experiments/EXP-90-free-form-pieces.md)
+run 1, check 2; the cause read offline the same night from the built package and the native code notes).
 - **What**: a free-form made upper floor 230.5 by 170.25 (top 194) off the tile lines, standing alone outdoors.
 - **Seen**: over the tile it covers whole the cursor landed on its top (z 258) and a soldier stood on it (z 264); over
   tiles it covers 29% and 24% the cursor landed on the ground, and the soldier ordered from the floor onto the 29% tile
   went down to the ground. With a soldier standing under the floor the cursor stayed on the ground at every storey.
-- **A turned floor** (check 5, 20 degrees): a soldier stood on it; over one tile inside the box round it and off it the
-  cursor landed once at the floor's height (the `slab-turned` warning's case), over two others on the ground. What its
-  cursor volumes cover is not read.
-- **So**: a made floor's partly covered edge tiles are floor only above some share of the tile (between 29% and 100%,
-  not narrowed down); the editor does not say which.
+- **Why**: the game's tile rebuild looks for a tile's floor with one line down through the tile's centre
+  ([native code notes](native-code-notes.md), "Where a tile's floor and cover are looked for"; F-82), so a made floor
+  is a tile's floor only where it covers the tile's centre. Nothing of ours rounds it to tiles: in the package the
+  floor's collision is its exact shape (four boxes round its hole, x 0 to 230.5, y 0 to 170.25, 192 to 194 up), and its
+  cursor floors are its footprint's box exactly (x -1840.25 to -1609.75, y -1103.5 to -933.25; floor 2 from 190 over
+  it, from 210 round it). The 29% tile's centre (-1681, -913) is 20 past its edge at -933.25 and the 24% tile's
+  (-1585, -1009) 25 past its edge at -1609.75, so the line there finds the ground. Across a straight edge a tile is floor
+  when the floor covers more than half of it; this floor is floor on 2 tiles and covers 10 more in part.
+- **A turned floor** (check 5, 20 degrees; its numbers in [EXP-90](experiments/EXP-90-free-form-pieces.md)): its
+  collision is one box 288 by 192 turned with it; its cursor floors were the box round it (`XComCursorVolume_32` to
+  `_35`, x -466.17 to -129.87, y -1440.25 to -1161.325: floors from 0, 190, 402 and 594, where the map's round it
+  break at 210). By the same rule it is floor on 5 tiles and covers 7 in part. The readings: (-337, -1297) and (-433,
+  -1297) have their centres on it, and the cursor read its top; (-433, -1393), its centre 14 off it and 34% of the tile
+  under it, is no floor (a soldier sent there went to the ground), and the cursor read about its height there once,
+  aimed from the north-east, where the mouse's ray meets its top inside that tile's square before the ground (outdoors
+  the first walkable hit along the ray is picked, F-135; the reading, z 262, is 4 over its top's), and the ground aimed
+  from it; (-145, -1201) (13%) and (-433, -1201) (5%) read the ground. So the readings are those of tiles it covers in
+  part, as at any made floor's edge; none shows the box's corners themselves, where the made floors' break at 190
+  against the map's 210 moves nothing standing in the car park. The Build now gives a turned floor's cursor floors in
+  steps, a box round its part of each tile it reaches (12 for this floor, the area beside it from 38,507 square units
+  to 13,587), so they stay over it.
+- **What the editor does**: the compiler notes `slab-edge-tiles` for a made floor covering tiles at its edge in part,
+  short of their centres (no floor at its height, the tiles named), and `slab-turned` (a note now) how many boxes a
+  turned floor's cursor floors stand in; the Floor section's line says "floor on N of M tiles" and its notes why; the
+  tile grid round a picked made floor fills the tiles it is floor on and outlines the others
+  (`tools/bake/made_cursors.py` `tiles` and `steps`, `web/floors.js` `slabFloorTiles` and `slabSteps`, with shared cases).
+  Not played since.
 
 ### F-114: Five flags on a piece decide how the game's tiles and mouse use it
 **Open** (16 November 2026: read from the decompiled scripts, the game's script packages and the native reading of

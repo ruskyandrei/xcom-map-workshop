@@ -15,13 +15,144 @@ footprint:
   the slab's top inside its own volume;
 - stair and turned volumes stay as they are; a footprint over one is reported.
 
+A slab's footprint is its box; a slab turned off the quarter turns about the vertical stands in steps instead (steps:
+a box round its part of each tile it reaches), so its floors' break stays over it rather than over the corners of the
+box round it (EXP-90 check 5). Which tiles a made slab is floor on is the game's rule, one line down through each
+tile's centre (tiles; F-147): the cursor's floors over a tile it covers in part give it no floor there.
+
 split() is the rule, on plain numbers: the compiler runs it on its cursor_storeys and the page's twin is
-web/floors.js madeStoreys. apply() is the Build's writer (native_copy, after the made pieces are written)."""
+web/floors.js madeStoreys (outline, tiles and steps: slabOutline, slabFloorTiles and slabSteps, with the cases both read,
+tests/slab_tiles_cases.json). apply() is the Build's writer (native_copy, after the made pieces are written), given
+the slabs by build_slabs."""
+import math
 
 HALF = 96.0         # a slab's break takes a map break this near it (half a storey)
 EDGE = 1.0          # an overlap thinner than this is none
 TOP_SLACK = 2.0     # a slab's break this near the column's top adds no floor
 UNDER = 2.0         # a slab's floor starts this far under its underside
+TILE = 96.0         # a tile of the game's grid, across
+# a made slab reaching into a tile by no more than this covers none of it (the editor's tile lines, where a slab
+# drawn with the snap on stands, are a unit inside the game's: tileGrid.origin against tileGrid.tiles)
+TILE_EDGE = 2.0
+
+
+def turned(rotation):
+    """Whether a made slab's rotator turns it off the quarter turns about the vertical alone (pitched or rolled, it is
+    the compiler's made-tilted, and keeps its box)."""
+    pitch, yaw, roll = (round(v) for v in rotation)
+    return bool(yaw % 16384) and not pitch % 65536 and not roll % 65536
+
+
+def outline(location, rotation, n):
+    """A made slab's footprint, or a hole of it, in the world: the four corners [(x, y)] round the rectangle n (x0, x1,
+    y0, y1 in the piece's frame), the frame turned by the rotator's yaw as the package holds it (a whole number). The
+    made pieces' numbers stand in their actor's frame (as the compiler's grid_crossings and mapping_origin read them)."""
+    yaw = round(rotation[1]) * 2 * math.pi / 65536
+    c, s = math.cos(yaw), math.sin(yaw)
+    lx, ly = float(location[0]), float(location[1])
+    return [(lx + c * x - s * y, ly + s * x + c * y)
+            for x, y in ((n['x0'], n['y0']), (n['x1'], n['y0']), (n['x1'], n['y1']), (n['x0'], n['y1']))]
+
+
+def _half_up(v, places=3):
+    k = 10 ** places
+    r = math.floor(v * k + 0.5) / k
+    return 0.0 if r == 0 else r
+
+
+def _inside(poly, p):
+    """Whether the point p is in the convex polygon poly (corners either way round); on an edge counts."""
+    sign = 0
+    for k, (ax, ay) in enumerate(poly):
+        bx, by = poly[(k + 1) % len(poly)]
+        cross = (bx - ax) * (p[1] - ay) - (by - ay) * (p[0] - ax)
+        if abs(cross) <= 1e-9:
+            continue
+        if sign == 0:
+            sign = 1 if cross > 0 else -1
+        elif (cross > 0) != (sign > 0):
+            return False
+    return True
+
+
+def _clip(poly, x0, y0, x1, y1):
+    """The convex polygon poly cut to the box [x0, x1] by [y0, y1]: its corners (none when nothing is left)."""
+    pts = list(poly)
+    for k, v, keep in ((0, x0, 1.0), (0, x1, -1.0), (1, y0, 1.0), (1, y1, -1.0)):
+        out = []
+        for i, b in enumerate(pts):
+            a = pts[i - 1]
+            ina, inb = (a[k] - v) * keep >= 0, (b[k] - v) * keep >= 0
+            if ina != inb:
+                t = (v - a[k]) / (b[k] - a[k])
+                cut = a[1 - k] + (b[1 - k] - a[1 - k]) * t
+                out.append((v, cut) if k == 0 else (cut, v))
+            if inb:
+                out.append(b)
+        pts = out
+        if not pts:
+            break
+    return pts
+
+
+def _area(pts):
+    if len(pts) < 3:
+        return 0.0
+    return abs(sum(pts[i - 1][0] * p[1] - p[0] * pts[i - 1][1] for i, p in enumerate(pts))) / 2
+
+
+def _tile_span(points, corner, k):
+    return range(math.floor((min(p[k] for p in points) - corner[k]) / TILE),
+                 math.floor((max(p[k] for p in points) - corner[k]) / TILE) + 1)
+
+
+def tiles(solids, corner):
+    """Which tiles of the game's grid a made floor or roof is floor on, by the game's rule: the tile rebuild looks for
+    a tile's floor with one line down through the tile's centre (research/native-code-notes.md, "Where a tile's floor
+    and cover are looked for"; F-82, F-147), so a slab is a tile's floor only where it covers the tile's centre, out of
+    its holes. `solids`: [dict(outline, holes)] (outline()'s corners, each hole's too), the pieces of one slab; `corner`:
+    where the game counts its tiles from (x, y; the compiler's tile_corner). Gives dict(floor: [[i, j]] the tiles it is
+    floor on, part: [[i, j, share]] those it reaches into by more than TILE_EDGE short of their centre (share: how much
+    of the tile its footprint covers, to a thousandth)), by tile. A tile whose centre is in a hole is in neither."""
+    pts = [p for s in solids for p in s['outline']]
+    floor, part = [], []
+    if not pts:
+        return dict(floor=floor, part=part)
+    for i in _tile_span(pts, corner, 0):
+        for j in _tile_span(pts, corner, 1):
+            x0, y0 = corner[0] + TILE * i, corner[1] + TILE * j
+            centre = (x0 + TILE / 2, y0 + TILE / 2)
+            on = [s for s in solids if _inside(s['outline'], centre)]
+            if any(not any(_inside(h, centre) for h in s.get('holes') or []) for s in on):
+                floor.append([i, j])
+            elif not on and any(_area(_clip(s['outline'], x0 + TILE_EDGE, y0 + TILE_EDGE, x0 + TILE - TILE_EDGE,
+                                            y0 + TILE - TILE_EDGE)) > 1e-9 for s in solids):
+                share = sum(_area(_clip(s['outline'], x0, y0, x0 + TILE, y0 + TILE)) for s in solids) / (TILE * TILE)
+                part.append([i, j, _half_up(share)])
+    return dict(floor=floor, part=part)
+
+
+def steps(solids, z0, z1, corner):
+    """A made slab turned off the quarter turns as boxes square to the world over its footprint, the slabs split()
+    takes: for each tile of the game's grid that its footprint reaches into by more than TILE_EDGE, the box round its
+    part of that tile [x0, y0, z0, x1, y1, z1], each number to a thousandth, by tile. One box round it would lay its
+    floors' break over the box's corners beside it too. Its holes are not taken out, as an unturned slab's box keeps
+    them."""
+    pts = [p for s in solids for p in s['outline']]
+    out = []
+    if not pts:
+        return out
+    for i in _tile_span(pts, corner, 0):
+        for j in _tile_span(pts, corner, 1):
+            x0, y0 = corner[0] + TILE * i, corner[1] + TILE * j
+            inner = (x0 + TILE_EDGE, y0 + TILE_EDGE, x0 + TILE - TILE_EDGE, y0 + TILE - TILE_EDGE)
+            parts = [p for s in solids if _area(_clip(s['outline'], *inner)) > 1e-9
+                     for p in [_clip(s['outline'], x0, y0, x0 + TILE, y0 + TILE)]]
+            if parts:
+                q = [p for c in parts for p in c]
+                out.append([_half_up(min(p[0] for p in q)), _half_up(min(p[1] for p in q)), z0,
+                            _half_up(max(p[0] for p in q)), _half_up(max(p[1] for p in q)), z1])
+    return out
 
 
 def slab_break(box):
@@ -185,6 +316,29 @@ def storeys(volumes, slabs, grid=None):
     gone = set(s['hidden'])
     kept = [(v['floor'], list(v['box'])) for v in volumes if v['key'] not in gone and not v.get('stair') and not v.get('turned')]
     return kept + [(v['floor'], v['box']) for v in s['volumes']]
+
+
+def build_slabs(p, records, copies):
+    """The made floors and roofs as split() takes them in the Build, as the compiler's made_edits.made_slab_boxes gives
+    them: each one's box as the Build made it (`records`, frac_walls.add_walls'), [x0, y0, z0, x1, y1, z1]; one turned
+    off the quarter turns its steps on the map's tile grid (native_copy.level_grid's tile corner), from its copy's pose
+    and numbers in the native edit (`copies`, by label)."""
+    by_label = {c.get('label'): c for c in copies}
+    out, corner = [], None
+    for r in records:
+        if r['kind'] != 'fracSlab':
+            continue
+        b, c = r['box'], by_label.get(r['label'])
+        if c is not None and c.get('rotation') is not None and turned(c['rotation']):
+            if corner is None:
+                import native_copy
+                grid = native_copy.level_grid(p)
+                corner = (grid['tx'], grid['ty'])
+            solid = dict(outline=outline(c['location'], c['rotation'], c['generated']['slab']), holes=[])
+            out += [dict(box=s, label=r['label']) for s in steps([solid], b[4], b[5], corner)]
+        else:
+            out.append(dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=r['label']))
+    return out
 
 
 def apply(g, p, slabs):

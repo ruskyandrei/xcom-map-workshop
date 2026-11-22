@@ -4,6 +4,7 @@
  "effectValues": {"scale": [0.015625, 64], "radiusMax": 65536, "volumeMax": 16, "pitch": [0.0625, 16], "parameterMax": 1000000},
  "madeWall": {"minLength": 40, "maxLength": 12288},
  "endInsets": {"free": 8, "line": 0, "through": -8},
+ "wallRoom": {"half": 20, "z": [60, 92]},
  "ground": {"maxTiles": 64, "maxHeight": 384, "rockSeeds": 2147483648, "sloped": 10.002557807737931, "steep": 45},
  "landing": {"quarter": 16384, "ground": 64, "insideBack": 288,
              "offsets": {"playerStart": [8, 189, 16], "volume": [0, -47, 32], "frame": [0, 0, -64], "point": [-240, 432, -64]},

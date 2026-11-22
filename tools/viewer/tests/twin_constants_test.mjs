@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { LIGHT_LIMITS } from '../web/light_rules.js';
 import { VALUE_LIMITS } from '../web/effects_rules.js';
-import { FRAC_WALL, END_INSETS } from '../web/walls.js';
+import { FRAC_WALL, END_INSETS, WALL_ROOM } from '../web/walls.js';
 import { GROUND, ROCK_SEEDS } from '../web/ground.js';
 import { EVAC_SIZE, GROUND as LANDING_GROUND, INSIDE_BACK, OFFSETS, SOLDIERS } from '../web/spawns.js';
 import { QUARTER } from '../web/constants.js';
@@ -25,6 +25,8 @@ assert.deepEqual({ scale: VALUE_LIMITS.scale, radiusMax: VALUE_LIMITS.radius[1],
 assert.deepEqual([VALUE_LIMITS.radius[0], VALUE_LIMITS.volume[0]], [0, 0]);
 assert.deepEqual({ minLength: FRAC_WALL.minLength, maxLength: FRAC_WALL.maxLength }, twin.madeWall);
 assert.deepEqual(END_INSETS, twin.endInsets);
+// the box round a tile's centre a wall standing over it fills to take it (F-146: made_edits.py WALL_ROOM)
+assert.deepEqual(WALL_ROOM, twin.wallRoom);
 const { sloped, ...ground } = twin.ground;
 assert.deepEqual({ maxTiles: GROUND.maxTiles, maxHeight: GROUND.maxHeight, rockSeeds: ROCK_SEEDS, steep: GROUND.steep }, ground);
 assert.ok(Math.abs(GROUND.sloped - sloped) < 1e-9, GROUND.sloped);

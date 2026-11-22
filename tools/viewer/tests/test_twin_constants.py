@@ -27,6 +27,8 @@ class TwinConstants(unittest.TestCase):
         import ground
         self.assertEqual(dict(minLength=generated.MIN_LENGTH, maxLength=generated.MAX_LENGTH), TWIN['madeWall'])
         self.assertEqual(dict(frac_wall.END_INSETS), TWIN['endInsets'])
+        import made_edits
+        self.assertEqual(dict(half=made_edits.WALL_ROOM['half'], z=list(made_edits.WALL_ROOM['z'])), TWIN['wallRoom'])
         want = dict(TWIN['ground'])
         self.assertAlmostEqual(ground.SLOPED, want.pop('sloped'), places=9)
         self.assertEqual(dict(maxTiles=ground.MAX_TILES, maxHeight=ground.MAX_HEIGHT, rockSeeds=ground.ROCK_SEEDS, steep=ground.STEEP), want)

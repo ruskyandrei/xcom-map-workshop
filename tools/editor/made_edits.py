@@ -9,9 +9,10 @@ floor past the sizes the game is known to take is cut into pieces (made_pieces),
 `parts`), `slabs`, each made floor's or roof's, and `wholes`, each made wall as drawn; `broken_wholes` says how many
 blasts a cut piece's whole was given. Once every copy is made, the compiler's run asks for the checks: made walls that
 meet (join_made_walls, wall_joins), that stand on another (made_walls_stacked) and their gaps (made_wall_openings,
-opening_play); made floors and roofs in a building but in none of its floors (made_slabs_in_floors), and over the
-map's cursor volumes or too near its floor (made_slab_cursors). The cursor's floors over the made slabs are the
-floor family's (floor_edits.py: with_made_slabs reads `slabs`).
+opening_play); made floors and roofs in a building but in none of its floors (made_slabs_in_floors), over the map's
+cursor volumes or too near its floor (made_slab_cursors), turned or tilted (made_tilted), and covering tiles at their
+edges in part (made_slab_tiles). The cursor's floors over the made slabs are the floor family's (floor_edits.py:
+with_made_slabs reads made_slab_boxes, a turned slab's in steps).
 
 This family was moved out of compiler.Compiler as SpawnEdits was (review finding 23). A MadeEdits works for one
 Compiler: it reads the scene, the meshes, the copies and hides made so far, the buildings and the floor tiles from it,
@@ -31,8 +32,8 @@ from pathlib import Path
 
 # (compiler_tables puts tools/viewer on the path, for export_math, and tools/bake, for the Build's looks, ground
 # shapes, blasts, made floors' cursors and cuts, and a made wall's storeys)
-from compiler_tables import (FRAC_SLAB_LOOKS, GROUND_LOOKS, HEADROOM, MADE_KINDS, TILE, donor_shape, game_round,
-                             keyable, made_wall_along, short, tidy, union, wall_heights, world_box)
+from compiler_tables import (FRAC_SLAB_LOOKS, GROUND_LOOKS, HEADROOM, MADE_KINDS, STOREY, TILE, donor_shape, game_round,
+                             keyable, made_wall_along, short, tidy, tile_corner, union, wall_heights, world_box)
 from export_math import transform
 import looks
 import ground as ground_shapes
@@ -260,17 +261,69 @@ def grid_crossings(location, rotation, wall, origin):
     return sorted(x for x in out if x0 - 1e-6 <= x <= x1 + 1e-6)
 
 
-def opening_play(wall, o, centres=None):
+# Where a made wall stands over a tile's middle it takes that tile (F-146, EXP-90 check 1): the game's tile rebuild
+# calls a tile wholly taken, with no floor to stand on, when a piece's collision meets a box 40 by 40 round the tile's
+# centre from 60 to 92 over the level's bottom (research/native/cover-build.md, section 2: the occupancy's small call;
+# read here over the wall's floor). walls.js WALL_ROOM is the twin (tools/viewer/tests/twin_constants.json).
+WALL_ROOM = dict(half=20.0, z=(60.0, 92.0))
+
+
+def row_tiles(location, rotation, wall, origin):
+    """Where a free-form made wall stands over a tile's middle, so takes that tile (F-146; walls.js rowTiles is the
+    twin): of the places grid_crossings gives, those where its solid, measured along the crossing line, meets
+    WALL_ROOM's box round the centre of a tile on that line, the wall as high as that box. A wall on a tile edge
+    stands over none; one in a tile row, over that row's tiles. The rounded rotator's yaw, as the package holds it."""
+    if not (float(wall['z0']) < WALL_ROOM['z'][1] and float(wall['z1']) > WALL_ROOM['z'][0]):
+        return []
+    yaw = round(rotation[1]) * 2 * math.pi / 65536
+    d = (math.cos(yaw), math.sin(yaw))
+    x0, x1 = float(wall['x0']), float(wall['x1'])
+    faces = (float(wall['y0']), float(wall['y1']))
+    h = WALL_ROOM['half']
+    out = []
+    for k in (0, 1):
+        if abs(d[k]) < 1e-9:
+            continue
+        j = 1 - k
+        a, b = sorted((location[k] + d[k] * x0, location[k] + d[k] * x1))
+        first = math.ceil((a - origin[k]) / 96.0 - 0.5 - 1e-9)
+        last = math.floor((b - origin[k]) / 96.0 - 0.5 + 1e-9)
+        for i in range(first, last + 1):
+            t = round((origin[k] + 96.0 * (i + 0.5) - location[k]) / d[k], 6)
+            if not x0 - 1e-6 <= t <= x1 + 1e-6:
+                continue
+            # (the crossing on the wall's centre line, and its faces, along the crossing line: a face y across the
+            # wall is y / d[k] along a line of x (k 0), -y / d[k] along a line of y)
+            at = location[j] + d[j] * t
+            lo, hi = sorted(at + (1.0 if k == 0 else -1.0) * f / d[k] for f in faces)
+            m = math.floor((at - origin[j]) / 96.0)
+            if any(min(hi, c + h) - max(lo, c - h) > 0 for c in (origin[j] + 96.0 * (q + 0.5) for q in (m - 1, m, m + 1))):
+                out.append(t)
+    return sorted(out)
+
+
+def room_left(o, c):
+    """Whether the opening o leaves room to stand in the tile whose centre is c along the wall: WALL_ROOM's box round
+    it clear of the wall (walls.js roomLeft is the twin)."""
+    r = WALL_ROOM
+    return o['z0'] <= r['z'][0] and o['z1'] >= r['z'][1] and o['x0'] <= c - r['half'] and o['x1'] >= c + r['half']
+
+
+def opening_play(wall, o, centres=None, taken=None):
     """What the game does at an opening of a made wall (walls.js openingPlay is the twin): dict(tiles (how many tiles'
     centre lines pass through it), walk, climb (units vault through it: low cover under it, which the game's tile
     rebuild gives its ClimbOver, F-126), sight, cover: 'none', 'low', 'high' or 'whole' (the wall's own cover at those
     tiles)). `centres`: where those lines cross the wall in its frame (grid_crossings: a free-form wall's, on the map's
-    grid); left out, a tile's middle every 96 from its start, as an older wall stands on the tile lines."""
+    grid); left out, a tile's middle every 96 from its start, as an older wall stands on the tile lines. `taken`: the
+    crossings where the wall stands over a tile's middle (row_tiles, F-146): there the opening's tile is the wall's own,
+    free to stand in and walk through when the opening clears WALL_ROOM's box round its centre, else taken, and no unit
+    vaults through it (the game gives no ClimbOver to a tile no one stands on); the answer then has `inside` True when
+    every tile through the opening is such a tile."""
     length = float(wall['x1']) - float(wall['x0'])
     if centres is None:
         centres = [float(wall['x0']) + 96.0 * (k + 0.5) for k in range(int(round(length / 96.0)))]
-    tiles = sum(1 for c in centres if o['x0'] + 1 < c < o['x1'] - 1)
-    if not tiles:
+    through = [c for c in centres if o['x0'] + 1 < c < o['x1'] - 1]
+    if not through:
         return dict(tiles=0, walk=False, climb=False, sight=False, cover='whole')
     s = WALL_SWEEPS
 
@@ -279,8 +332,17 @@ def opening_play(wall, o, centres=None):
     cover_hit, high_hit = not spans(*s['cover']), not spans(*s['high'])
     walk = spans(s['walk'] - s['half'], s['walk'] + s['half'])
     cover = 'none' if not cover_hit else 'high' if high_hit else 'low'
-    return dict(tiles=tiles, walk=walk, climb=not walk and cover == 'low',
-                sight=spans(s['sight'] - s['half'], s['sight'] + s['half']), cover=cover)
+    sight = spans(s['sight'] - s['half'], s['sight'] + s['half'])
+    inside = [c for c in through if c in (taken or ())]
+    if not inside:
+        return dict(tiles=len(through), walk=walk, climb=not walk and cover == 'low', sight=sight, cover=cover)
+    free = any(room_left(o, c) for c in inside)
+    edge = len(inside) < len(through)
+    walked = (edge and walk) or free
+    out = dict(tiles=len(through), walk=walked, climb=edge and not walked and cover == 'low', sight=sight, cover=cover)
+    if not edge:
+        out['inside'] = True
+    return out
 
 
 # How made walls meet (custom geometry plan, M3 item 2; walls.js wallJoins is the twin): an end's style for its solid
@@ -831,9 +893,21 @@ class MadeEdits:
         return out
 
     def made_slab_boxes(self):
-        """The made floors and roofs as made_cursors takes them: [dict(box [x0, y0, z0, x1, y1, z1], label)]."""
-        return [dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=c['label'])
-                for c, _ in self.slabs for b in [c.get('box')] if b]
+        """The made floors and roofs as made_cursors takes them: [dict(box [x0, y0, z0, x1, y1, z1], label)], each one's
+        box, or one turned off the quarter turns in steps on the game's tile grid (made_cursors.steps), as the Build's
+        made_cursors.build_slabs gives them."""
+        corner = tile_corner(self.c.scene.get('tileGrid'))
+        out = []
+        for c, _ in self.slabs:
+            b = c.get('box')
+            if not b:
+                continue
+            if corner and made_cursors.turned(c['rotation']):
+                solid = dict(outline=made_cursors.outline(c['location'], c['rotation'], c['generated']['slab']), holes=[])
+                out += [dict(box=s, label=c['label']) for s in made_cursors.steps([solid], b[4], b[5], corner)]
+            else:
+                out.append(dict(box=[b[0], b[2], b[4], b[1], b[3], b[5]], label=c['label']))
+        return out
 
     def made_slab_cursors(self):
         """The made floors' and roofs' own cursor floors (custom geometry plan, M5b; F-128): the Build gives each its
@@ -878,9 +952,15 @@ class MadeEdits:
         builds as drawn, and what is not made for it is warned of once per piece as drawn:
         - made-tilted: pitched or rolled: its cursor floor (a floor's or roof's) is the box round it, and a floor
           steeper than about 10 degrees gives no cover (F-81), past 45 none to stand on;
-        - slab-turned: a floor or roof turned about the vertical off the quarter turns: its cursor floor is the box round
-          it, so at its corners the cursor may land beside it."""
+        - slab-turned, a note: a floor or roof turned about the vertical off the quarter turns has its cursor floors in
+          steps square to the world, a box round its part of each tile it reaches (made_slab_boxes), so they stay over
+          it (EXP-90 check 5: the box round it laid its floors' break over the corners beside it)."""
         seen = set()
+        steps = {}      # a turned slab as drawn: how many boxes its cursor floors stand in
+        if any(made_cursors.turned(c['rotation']) for c, _ in self.slabs):
+            whole = {c['label']: c.get('whole') or c['label'] for c, _ in self.slabs}
+            for s in self.made_slab_boxes():
+                steps[whole[s['label']]] = steps.get(whole[s['label']], 0) + 1
         for c in self.c.copies:
             g = c.get('generated')
             if not g or g.get('kind') not in ('fracSlab', 'ground') or c.get('member') in seen:
@@ -895,9 +975,40 @@ class MadeEdits:
                     name, round(tilt), "its cursor floor is the box round it, so the cursor may not land on it where it "
                     "slopes; " if g['kind'] == 'fracSlab' else '', 'a floor steeper than about 10 degrees gives a unit on it '
                     'no cover, and past 45 it is no floor to stand on' if tilt > 10 else 'units walk on it as on flat ground'), **where)
-            elif g['kind'] == 'fracSlab' and yaw % 16384:
-                self.c.warn('slab-turned', "%s is turned off the tile grid's quarter turns: its cursor floor is the box round it, "
-                            'so at its corners the cursor may land beside it' % name, **where)
+            elif g['kind'] == 'fracSlab' and yaw % 16384 and steps.get(name):
+                self.c.note('slab-turned', "%s is turned off the tile grid's quarter turns: its cursor floors stand over it "
+                            "in %d boxes square to the world, one round its part of each tile it reaches" % (
+                                name, steps[name]), **where)
+
+    def made_slab_tiles(self):
+        """A note for each made floor or roof, as drawn, that covers tiles at its edge in part short of their centres
+        (made_cursors.tiles, F-147): the game looks for a tile's floor with one line down through its centre, so those
+        tiles are no floor at its height (EXP-90 check 2: a soldier sent onto one went down to the ground). A slab
+        pitched or rolled is made-tilted's. The note's tiles are the game's, at the level of the slab's top."""
+        corner = tile_corner(self.c.scene.get('tileGrid'))
+        if not corner or not self.slabs:
+            return
+        wholes = {}
+        for c, where in self.slabs:
+            pitch, _, roll = (round(v) for v in c['rotation'])
+            if pitch % 65536 or roll % 65536 or not c.get('box'):
+                continue
+            n = c['generated']['slab']
+            w = wholes.setdefault(c.get('whole') or c['label'], dict(solids=[], where=where, top=c['box'][5]))
+            w['solids'].append(dict(outline=made_cursors.outline(c['location'], c['rotation'], n),
+                                    holes=[made_cursors.outline(c['location'], c['rotation'], h) for h in n.get('holes') or []]))
+        for name, w in wholes.items():
+            t = made_cursors.tiles(w['solids'], corner)
+            if not t['part']:
+                continue
+            # (the game's floor trace for a level runs from 62 over its bottom to 2 under it)
+            level = math.floor((w['top'] - corner[2] + 2) / STOREY)
+            many = len(t['part']) > 1
+            self.c.note('slab-edge-tiles', "%s covers %d %s at its edge in part, short of %s centre: the game finds a "
+                        "tile's floor at its centre, so %s no floor at its height (it is floor on %d %s)" % (
+                            name, len(t['part']), 'tiles' if many else 'tile', 'their' if many else 'its',
+                            'they are' if many else 'it is', len(t['floor']), 'tile' if len(t['floor']) == 1 else 'tiles'),
+                        tiles=[[i, j, level] for i, j, _ in t['part']][:12], **w['where'])
 
     def made_slabs_in_floors(self):
         """A warning for each floor or roof made from numbers that stands in a building but counts for none of its
@@ -974,10 +1085,15 @@ class MadeEdits:
         for copy, where in self.wholes:
             wall = copy['generated']['wall']
             name = copy['label']
-            # (a free-form wall's gaps are read on the map's grid, where the game's lines cross it)
-            centres = grid_crossings(copy['location'], copy['rotation'], wall, origin) if wall.get('free') == 1 else None
+            # (a free-form wall's gaps are read on the map's grid, where the game's lines cross it, and where it
+            # stands over the tiles' middles, F-146)
+            free = wall.get('free') == 1
+            centres = grid_crossings(copy['location'], copy['rotation'], wall, origin) if free else None
+            taken = row_tiles(copy['location'], copy['rotation'], wall, origin) if free else []
+            freed = set()
             for o in wall.get('openings') or []:
-                play = opening_play(wall, o, centres)
+                play = opening_play(wall, o, centres, taken)
+                freed.update(c for c in taken if room_left(o, c))
                 low = o['z0'] < WALL_SWEEPS['cover'][0]
                 what = "%s's gap at %g to %g along it" % (name, o['x0'], o['x1'])
                 if not play['tiles']:
@@ -994,12 +1110,25 @@ class MadeEdits:
                     if not any(overlaps_by(box, d, 8.0) for d in doors):
                         self.c.warn('wall-doorway-no-door', '%s: a unit in this gap has cover toward its sides: put a '
                                   "door in it, as the game's doorways have" % what, **where)
+                elif low and play.get('inside'):
+                    self.c.warn('wall-doorway-low', "%s: units can't stand in its tile or walk through it: the wall "
+                              "stands over the tile's middle, and the game takes a tile where a wall fills the middle "
+                              '%g by %g of it from %g to %g over the floor' % (
+                                  what, 2 * WALL_ROOM['half'], 2 * WALL_ROOM['half'], *WALL_ROOM['z']), **where)
                 elif low:
                     self.c.warn('wall-doorway-low', "%s: units can't walk through it: its top is under the game's "
                               'walking line, %g over the floor' % (what, WALL_SWEEPS['walk']), **where)
                 if not low and not play['walk'] and not play['sight']:
                     self.c.warn('wall-window-blind', "%s: units can't see through it: it doesn't reach across the "
                               "game's sight line, %g over the floor" % (what, WALL_SWEEPS['sight']), **where)
+            if taken:
+                held = len([c for c in taken if c not in freed])
+                self.c.note('wall-in-row', "%s stands over the middle of %d %s, not on the tile edges: it takes %s (no one "
+                            "stands there%s), and gives cover to the tiles either side, as a wall on a tile edge gives "
+                            'its two neighbours' % (
+                                name, len(taken), 'tile' if len(taken) == 1 else 'tiles',
+                                ('it' if held == 1 else 'them') if held == len(taken) else '%d of them' % held,
+                                '' if held == len(taken) else ', its gaps that leave room to stand excepted'), **where)
 
     def blasts_valid(self, rec, parts, where, name=None):
         """Whether an override's or added copy's `blasts` are well formed (made_blasts.check) and on a fracturing

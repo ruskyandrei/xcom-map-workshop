@@ -26,7 +26,7 @@ import { isStream } from './piece_records.js';
 
 export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial,
                                 listingsNow, movedLandingActors, rayAt, refreshPickBox, segButton, select,
-                                touchShadows, viewport, world }) {
+                                slabTilesOf, touchShadows, viewport, world }) {
   const WHOLE_OVERHANG = 4 * TILE;    // four tiles
   // the pieces' edits the cutaway last followed (floor_listings.js's editedKey), so the edit hub runs it again only
   // when they changed
@@ -127,7 +127,9 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     const targets = tileTargets();
     // Children too: the footprint is read from each mesh's own world matrix.
     for (const t of targets) t.updateWorldMatrix(true, true);
-    const key = targets.map(t => t.uuid + ':' + t.matrixWorld.elements.map(v => v.toFixed(2)).join(',')).join('|');
+    // (a made piece's numbers too: a made floor's tiles follow them)
+    const key = targets.map(t => t.uuid + ':' + t.matrixWorld.elements.map(v => v.toFixed(2)).join(',')
+      + (t.userData.source?.added?.generated ? `:${JSON.stringify(t.userData.source.added.generated)}` : '')).join('|');
     if (key === tileKey) return;
     setTileKey(key);
     for (const child of [...grid.children]) {
@@ -137,12 +139,20 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     const note = $('tileNote'), foot = targets.length ? footprintOf(targets, data) : null;
     note.hidden = !foot;
     if (!foot) return;
+    // A made floor alone: the tiles it is floor on filled and those it covers in part outlined, as the game finds a
+    // tile's floor at its centre (made_handles.js slabTilesOf; F-147). A floor stands over the ground by its nature.
+    const slab = targets.length === 1 && !placing ? slabTilesOf(targets[0]) : null;
+    if (slab) {
+      foot.tiles = new Set(slab.floor.map(([i, j]) => `${i},${j}`));
+      foot.edges = new Set(slab.part.map(([i, j]) => `${i},${j}`));
+    }
     const local = tileGridAround(foot, data, floorActors);
     grid.add(local);
     const { tiles, edges, level, gap, floating } = local.userData;
-    note.textContent = `${plural(tiles.length, 'tile')}${edges.length ? ` + ${edges.length} at the edge` : ''} · level ${level}`
-      + (floating ? ` · ${Math.round(gap)} above the floor: may give no cover` : '');
-    note.classList.toggle('floating', floating);
+    note.textContent = slab ? `${plural(tiles.length, 'floor tile')}${edges.length ? ` + ${edges.length} in part: no floor` : ''} · level ${level}`
+      : `${plural(tiles.length, 'tile')}${edges.length ? ` + ${edges.length} at the edge` : ''} · level ${level}`
+        + (floating ? ` · ${Math.round(gap)} above the floor: may give no cover` : '');
+    note.classList.toggle('floating', floating && !slab);
   }
   // The Floor tiles overlay (View options; view_layout.js floorTilesOverlay): the map's saved floor tiles, coloured by the
   // piece that carries each (one colour per kind of piece: copies of one piece share it), hatched grey where

@@ -1810,6 +1810,7 @@ class Compiler:
             self.made_edits.made_slabs_in_floors()
             self.made_edits.made_slab_cursors()
             self.made_edits.made_tilted()
+            self.made_edits.made_slab_tiles()
             self.mission_edits.landing_zones()
             self.mission_edits.missions_check()
             self.mission_edits.stage_outside()

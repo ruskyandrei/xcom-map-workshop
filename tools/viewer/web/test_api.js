@@ -52,7 +52,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
                                 setZonesShown, showClearMap, showMissions, showPieces, showPrepare, showSpawn, snapshot,
                                 textureHandleScreens, textureSurfaceAt, spawnAddEntries, spawnAt, spawnBoxNow, spawnDeleted, spawnEntry, spawnLayer,
                                 spawnVolumeHandle, startBuild, startLookPick, startSpawnPlacing, startWallDrawing,
-                                stopWallDrawing, stopWave, storedLook, streamObjects, sun, syncSpawnFilters,
+                                stopWallDrawing, stopWave, storedLook, storeysNow, streamObjects, sun, syncSpawnFilters,
                                 takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow,
                                 wallState, world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow }) {
   // Where a game point is drawn in the view's canvas, in client pixels (clientAt and screenOf). Not the handles'
@@ -131,6 +131,9 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
     missionGizmo: () => ({ enabled: missionGizmo.enabled, at: [missionProxy.position.x, missionProxy.position.z, missionProxy.position.y] }),
     missions: () => projectMissions, showMissions, missionsPanel,
     tileGrid: () => { updateTileGrid(); return grid.children[0]?.userData ?? null; },
+    // the cursor's floors as the project has them, the made slabs' own over them (map_grid.js storeysNow: [{ floor,
+    // box, made, slab }], a turned slab's in steps)
+    cursorStoreys: () => storeysNow(),
     // (the dialogs' keys and a state put on the map, for the browser checks: browser_editing.py)
     showPrepare, applyState,
     pick, changes, pickables, pieces, showPieces, library, setLibraryScope, libraryTemplate, setSnapMode, families: () => families, playArea,

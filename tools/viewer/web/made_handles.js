@@ -28,7 +28,9 @@ import { coverDrag, data, effectsOn, geometryCache, lightsOn, placing, rockPoint
          wallFocus, zonesOn } from './editor_state.js';
 import { groundBounds, groundBox as groundShapeBox, groundWords as groundShapeWords, madeGroundNumbers, movedPoint,
          ROCK, toolGround, versionedGround } from './ground.js';
+import { slabFloorTiles, slabOutline, slabSteps, slabTurned } from './floors.js';
 import { scaleMarker } from './lights_view.js';
+import { tileCorner } from './map_grid.js';
 import { freeBox, freeMesh, freeRequest, freeSizeWords, isFree, movedFreeHole, resizedFace, toolFree } from './made_free.js';
 import { moveWords, stepped, stepsOf, stepWords } from './snap_steps.js';
 import { targetKey } from './project.js';
@@ -75,6 +77,25 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   }
   // ---- the wall as it is now, and changing it
   const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
+  // A made floor against the game's tiles (F-147; floors.js slabFloorTiles: the tiles it is floor on, by their centres, and
+  // those it covers in part), or null when it is pitched or rolled or the map has no tile grid; and a slab turned off
+  // the quarter turns as the steps its cursor floors stand in (floors.js slabSteps, between z0 and z1), else null.
+  function slabSolid(root, holes) {
+    const s = root?.userData.source?.added?.generated?.slab, corner = tileCorner();
+    if (!s || !corner) return null;
+    const { location, rotation } = actorPose(root.userData.source, root.matrix);
+    return { s, corner, rotation, solid: { outline: slabOutline(location, rotation, s),
+                                           holes: holes ? (s.holes ?? []).map(h => slabOutline(location, rotation, h)) : [] } };
+  }
+  function slabTilesOf(root) {
+    const at = slabSolid(root, true);
+    if (!at || Math.round(at.rotation[0]) % 65536 || Math.round(at.rotation[2]) % 65536) return null;
+    return slabFloorTiles([at.solid], at.corner);
+  }
+  function slabStepsOf(root, z0, z1) {
+    const at = slabSolid(root, false);
+    return at && slabTurned(at.rotation) ? slabSteps([at.solid], z0, z1, at.corner).map(box => ({ box })) : null;
+  }
   // The mesh record for a made wall's numbers (as madeShape makes it) and end styles, its key; `pose` where it stands
   // ({ location, rotation }: a free-form piece's surface aligned to the world is drawn from there).
   function madeMesh(o, generated, ends = null, pose = null) {
@@ -676,6 +697,6 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   return { applyWall, applyWallSoon, cancelPointDrag, changeWall, dropQueuedWall, endWallDrag, handleWall,
            hoverWallHandle, isMade, isMadeGround, isMadeSlab, isMadeWall, lookWall, madeRoot, madeWallRoot,
            moveWallDrag, placePointGizmo, pointGizmo, refreshJoins, releaseRockPoint, rockCorners, setWall,
-           startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint, wallHandlesNow, wallLookOf,
-           wallPiecesWords, wallState, wallTemplate };
+           slabStepsOf, slabTilesOf, startWallDrag, updateWallHandles, wallHandleNear, wallHandlePoint,
+           wallHandlesNow, wallLookOf, wallPiecesWords, wallState, wallTemplate };
 }

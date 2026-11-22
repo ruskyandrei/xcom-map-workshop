@@ -20,12 +20,13 @@ import { onHub } from './edit_hub.js';
 import { data, roots, selected, setWallFocus, volumeRoots, wallFocus } from './editor_state.js';
 import { anotherRock, GROUND, groundLookOf, groundWords as groundShapeWords, resetRock, slopeOf, slopeWords, toolGround,
          turnedGround } from './ground.js';
+import { slabTileWords } from './floors.js';
 import { catalogued, madeLookName } from './looks.js';
 import { gridOrigin } from './map_grid.js';
 import { freeRequest, freeSizeWords, pivotedToCorner, toolFree } from './made_free.js';
 import { actorMatrix } from './gizmo.js';
-import { flippedWall, gridCrossings, holeWords, joinedEnds, joinWords, openingPlay, openingWords, playWords, reshuffled, reshuffledSlab, SLAB,
-         slabLookOf, slabTiles, slabWords, sortedOpenings, steppedStoreys, storeysOf, storeyWords, toolSlab, toolWall,
+import { flippedWall, gridCrossings, holeWords, joinedEnds, joinWords, openingPlay, openingWords, playWords, reshuffled, reshuffledSlab,
+         rowTiles, rowWords, SLAB, slabLookOf, slabTiles, slabWords, sortedOpenings, steppedStoreys, storeysOf, storeyWords, toolSlab, toolWall,
          WALL, wallSpec, wallTop, wallWords, withHole, withOpening, withoutHole, withoutOpening,
          withStoreys } from './walls.js';
 import { plural, segmented } from './dom_words.js';
@@ -33,7 +34,7 @@ import { plural, segmented } from './dom_words.js';
 export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, gizmo, handleWall, isMadeGround,
                                   isMadeSlab, isMadeWall, isPlain, liveKeys, liveMembers, lookRow, madeRoot,
                                   madeWallRoot, openLookPicker, originalOf, plainLook, selectionGroup, setMadeLook,
-                                  setWall, texturePanel, wallLookOf, wallPiecesWords, wallState }) {
+                                  setWall, slabTilesOf, texturePanel, wallLookOf, wallPiecesWords, wallState }) {
   // ---- the piece panel's Wall section
   // A made wall's look name, for its Wall section and its room: its look's, its catalogue entry's or its donor's mesh
   const wallLookName = o => madeLookName(wallLookOf(o), catalogued('wall', o.added.generated.wall?.look),
@@ -54,17 +55,21 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     if (joined) $('wallSize').textContent += ` ${joined}`;
     const list = $('wallOpenings'), openings = sortedOpenings(w.openings ?? []);
     const doors = doorBoxes(root);
-    // (a free-form wall's gaps are read on the map's grid, where the game's lines between tiles' centres cross it)
+    // (a free-form wall's gaps are read on the map's grid, where the game's lines between tiles' centres cross it, and
+    // where it stands over the tiles' middles, which it takes: F-146)
     const pose = wallState(root), origin = gridOrigin();
     const centres = w.free === 1 && origin ? gridCrossings(pose.location, pose.rotation, w, origin) : null;
+    const taken = w.free === 1 && origin ? rowTiles(pose.location, pose.rotation, w, origin) : null;
+    const row = rowWords(w, taken);
+    if (row) $('wallSize').textContent += ` ${row}`;
     list.replaceChildren(...openings.map((p, index) => {
       const row = document.createElement('div');
       row.className = 'wallopening';
       row.classList.toggle('on', wallFocus?.id === o.id && wallFocus.index === index);
       // (a gap units walk through, with no wall under it to give cover, is a doorway: it wants a door; one they walk
       // through over a wall that gives cover, or one they neither walk through nor see through, plays oddly)
-      const play = openingPlay(w, p, centres), door = play.walk && doors.some(b => boxesMeet(openingWorldBox(root, p), b, 8));
-      const words = playWords(w, p, { door, centres });
+      const play = openingPlay(w, p, centres, taken), door = play.walk && doors.some(b => boxesMeet(openingWorldBox(root, p), b, 8));
+      const words = playWords(w, p, { door, centres, taken });
       const warn = !play.tiles || (play.walk ? play.cover !== 'none' || !door : play.cover === 'none' || !play.sight);
       row.append(Object.assign(document.createElement('strong'), { textContent: openingWords(p, w) }),
                  Object.assign(document.createElement('small'), { textContent: words, className: warn ? 'warn' : '' }));
@@ -114,9 +119,11 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     const cut = slabTiles(s).some(n => n > SLAB.pieceTiles)
       ? ` The Build makes it as slabs of at most ${SLAB.pieceTiles} by ${SLAB.pieceTiles} tiles side by side: they break as one.` : '';
     breakRow('slab', o.added.generated, o.keepsPieces);
-    $('slabState').textContent = free ? freeSizeWords(s) : tool ? slabWords(s) : 'Made elsewhere: no handles here';
-    $('slabSize').textContent = tool ? `${free ? freeSizeWords(s) : slabWords(s)}. Its white handles grow or shrink it as the snap setting says.${cut}`
-      : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.';
+    // (the tiles it covers in part, short of their centres, are no floor: F-147)
+    const tiles = slabTileWords(slabTilesOf(root));
+    $('slabState').textContent = (free ? freeSizeWords(s) : tool ? slabWords(s) : 'Made elsewhere: no handles here') + (tiles ? ` · ${tiles.short}` : '');
+    $('slabSize').textContent = (tool ? `${free ? freeSizeWords(s) : slabWords(s)}. Its white handles grow or shrink it as the snap setting says.${cut}`
+      : 'Numbers this tool doesn\'t draw (made elsewhere), so it has no handles here; the Build makes it as it is.') + (tiles ? ` ${tiles.long}` : '');
     const holes = s.holes ?? [];
     $('slabHoles').replaceChildren(...holes.map((h, index) => {
       const row = document.createElement('div');
@@ -138,7 +145,8 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     $('slabNote').textContent = `Made from numbers on ${look ? `${look.package}'s` : 'its donor\'s'} materials: it breaks as the game's `
       + `${look?.role === 'roof' ? 'roofs do' : 'floors do'}, a piece at a time, and a break passes to the walls and pieces it touches. `
       + (look?.role === 'roof' ? 'It is cut away with its building\'s top floor when the cursor is inside, and takes no clicks.'
-        : 'Units walk on it where there is standing room over it; a hole in it is no floor.');
+        : 'Units walk on it on the tiles whose centre it covers, where the game looks for a tile\'s floor, and where there is '
+          + 'standing room over it; a hole in it is no floor.');
   }
   $('slabHole').onclick = () => {
     const root = madeRoot(selected);

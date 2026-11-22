@@ -140,3 +140,14 @@ and a mesh's tangents follow its texture coordinates, so a turned mapping turns 
 The game reads them back in that frame: F1 and F2 look lit alike in check 6. The albedo is one value per material
 (`albedo.Albedo`: a diffuse texture's mean), and a made piece is relit in every build, never taken from the piece cache
 (`relight.PieceCache`: copies are always relit), so the mapping needs no place in the cache's key.
+
+## After the run (offline, 21 and 22 November)
+
+- B's and E's collision and cursor volumes read from the built package, against the game's floor trace through each
+  tile's centre: a made floor is a tile's floor only where it covers the tile's centre, and E's readings near its
+  corners are those of tiles it covers in part, not of the box its cursor floors stood in
+  ([F-147](../findings-register.md)). The editor now says which tiles a made floor is floor on, and a turned floor's
+  cursor floors stand in steps.
+- A's tiles: a wall over a tile's middle meets the game's occupancy box there and takes the tile; its window's tile
+  is no one's, so nothing vaults through it ([F-146](../findings-register.md)). The editor now reads such a wall's
+  openings so and notes the tiles it takes.
