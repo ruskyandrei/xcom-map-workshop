@@ -384,8 +384,10 @@ run of a grown CSmallScout_Farm, its tiles read from the run's save).
   any cover entry at all. So a rebuilt diagonal tile gets no cover, not the straight cover the native reading
   expected: why the straight test finds none there is not read. Each also lost its pathing bit toward the hull
   (`0x43a824` to `0x43a820`, `0x53a830` to `0x53a820`). A soldier put on tiles (49, 22, 0) and (51, 20, 0), the scout's intact
-  north-east corners (by the console's teleport), read `m_bInCover` False, `m_iCurrentCoverValue` 0,
-  `CurrentCoverPointFlags` 0 on each, and the pictures showed the empty shield.
+  north-east corners (by the console's teleport, then walked there by an ordered move), read `m_bInCover` False,
+  `m_iCurrentCoverValue` 0, `CurrentCoverPointFlags` 0 on each, both ways, and the pictures showed the empty shield;
+  the Sectoids the move revealed read `m_bInCover` True on their tiles. A second save after the moves read the same 8
+  tiles the same.
 - **The game does it to itself too**: the same rebuild runs round a Meld canister and a radar array at the start
   (three tiles each way), round a door that opens and wherever something is destroyed. In a save of the farm's ladder
   build, four of the 8 tiles (the scout's west corners) had lost the flag and their cover, with no volume of ours near

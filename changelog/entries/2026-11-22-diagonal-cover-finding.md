@@ -20,7 +20,7 @@ built.
 
 Checked: the script run over the 26 maps, two builds of CSmallScout_Farm and two saves; a hidden game run of a grown
 CSmallScout_Farm (LWR), whose save at turn 1 has none of the map's 8 diagonal tiles with any cover, and a soldier
-put on two of them read no cover. The `repo` suite.
+put on two of them (teleported, then walked there) read no cover. The `repo` suite.
 
 Known gaps: why the rebuild's straight cover test finds nothing on those tiles is not read; plain Enemy Within was
 not played (the code read is the exe both share).
