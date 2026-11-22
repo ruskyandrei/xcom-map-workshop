@@ -593,7 +593,7 @@ class DoorInMadeWall(unittest.TestCase):
     """(M3 item 4) A door standing in a made wall's doorway is listed in the wall's columns, so the two break together:
     URB_Bar's door 7 and its frame (XComInteractiveLevelActor_7, XComDestructibleActor_65, listed in the inner wall
     XComDecoFracLevelActor_16's columns where they stand) copied into the doorway of a made wall on the pavement (a
-    half turn, as the wall's yaw is the door's wall's turned), as one door: native_copy.edit_columns lists them where
+    half turn, as the wall's yaw is the door's wall's turned), as one door: frac_columns.edit_columns lists them where
     their original's listing lands, now in the made wall's columns."""
     DOOR = ['XComInteractiveLevelActor_7', 'XComDestructibleActor_65']
     WALL = dict(actor=DONOR, location=[-1728.0, -192.0, 16.0], rotation=[0, 0, 0], label='Made',

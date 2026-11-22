@@ -11,6 +11,7 @@ import unittest
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
+import frac_columns  # noqa: E402
 import native_copy  # noqa: E402
 import lighting_records as lighting  # noqa: E402
 import package_grow  # noqa: E402
@@ -118,7 +119,7 @@ class NameNewToTheMap(unittest.TestCase):
         _, tag, value, size = native_copy.find_prop(native_copy.Walker(self.p), b, start, len(b), 'FragmentColumns[0]')
         g.relocate(info['actor'], bytes(b[:tag] + b[value + size:]))
         self.mouse_off(g, actor, info)
-        self.assertIsNone(native_copy.move_columns(g, self.p, actor, info['actor'], before, after, {info['actor']}))
+        self.assertIsNone(frac_columns.move_columns(g, self.p, actor, info['actor'], before, after, {info['actor']}))
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)

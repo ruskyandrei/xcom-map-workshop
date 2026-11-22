@@ -61,7 +61,7 @@ generated wall's box (wall_box).
 
 A door standing in a made wall's opening goes when the wall round it breaks (custom geometry plan, M3 item 4): a door
 copied from one of the map's own walls is listed in the made wall's columns where its original's listing lands
-(native_copy.edit_columns); one that nothing lists yet (a door of another map, or one that stood in no wall) is listed
+(frac_columns.edit_columns); one that nothing lists yet (a door of another map, or one that stood in no wall) is listed
 by door_columns in the wall's columns within a tile of it along the wall, on every storey, as the game's walls list
 their doors (URB_Bar's door 7 in four tiles' columns, both storeys). The props and cover blocks of a group that breaks
 together with a made wall are listed by group_columns in the columns they stand by (M3 item 4, F-101's limit), so they
@@ -1092,10 +1092,11 @@ def group_columns(g, p, walls, groups, pad=24.0):
 
 def _list_in_columns(g, p, walls, pick):
     """Pieces listed in made walls' columns: for each made wall of `walls` (add_walls' records), pick(wall, its
-    columns (native_copy.fragment_columns'), the axis along it) gives [(piece export, its world box, the export whose
+    columns (frac_columns.fragment_columns'), the axis along it) gives [(piece export, its world box, the export whose
     class its entry copies, column indices)]; each gets a copy of one of the map's own DestructibleCache entries for a
     piece of that class (its MinZ the piece's lowest point less one, as the game's frames save it; its CutdownFloor 0,
     as a door's) in those columns. Returns [dict(wall, piece, original, columns)]."""
+    import frac_columns
     import native_copy
     walker = native_copy.Walker(p, g)
     level = p.by_name['TheWorld.PersistentLevel']
@@ -1104,7 +1105,7 @@ def _list_in_columns(g, p, walls, pick):
         if p.cls(i) in native_copy.FRACTURING and p.exports[i - 1]['outer'] == level:
             e = p.exports[i - 1]
             start = legacy_props.props_start(p.data, e, p.names) - e['off']
-            parsed = native_copy.fragment_columns(walker, p.data[e['off']:e['off'] + e['size']], start)
+            parsed = frac_columns.fragment_columns(walker, p.data[e['off']:e['off'] + e['size']], start)
             for c in (parsed[1] if parsed else []):
                 for x in c['entries']:
                     if x['actor'] > 0 and x['actorAt'] is not None:
@@ -1118,7 +1119,7 @@ def _list_in_columns(g, p, walls, pick):
         e = p.exports[w['original'] - 1]
         start = legacy_props.props_start(p.data, e, p.names) - e['off']
         b = bytearray(g.export_data(w['copy']))
-        parsed = native_copy.fragment_columns(walker, b, start)
+        parsed = frac_columns.fragment_columns(walker, b, start)
         if parsed is None:
             continue
         field, columns = parsed
@@ -1137,7 +1138,7 @@ def _list_in_columns(g, p, walls, pick):
                 lists[k].append(bytes(raw))
             out.append(dict(wall=w['copy'], piece=piece, original=original, columns=hit))
         if picked:
-            parts = [native_copy.column_with(g, walker, b, c, new) for c, new in zip(columns, lists)]
+            parts = [frac_columns.column_with(g, walker, b, c, new) for c, new in zip(columns, lists)]
             g.relocate(w['copy'], native_copy.rebuilt(b, field, parts))
     return out
 
@@ -1172,6 +1173,7 @@ def neighbour_columns(g, p, walls, pieces):
     and along, so the heights are what matter: FragmentBoundsMinZ and MaxZ))]. A made wall's bounds are its box.
     Listings between two of the map's own pieces are the map's, left as they are. Returns [dict(wall, other, lists (the
     wall's listings of the other's columns), listed (the other's of the wall's))]."""
+    import frac_columns
     import native_copy
     walker = native_copy.Walker(p, g)
     made = [dict(export=w['copy'], original=w['original'], bounds=list(w['box']), made=True)
@@ -1183,7 +1185,7 @@ def neighbour_columns(g, p, walls, pieces):
         e = p.exports[x['original'] - 1]
         x['start'] = legacy_props.props_start(p.data, e, p.names) - e['off']
         x['bytes'] = bytearray(g.export_data(x['export']))
-        parsed = native_copy.fragment_columns(walker, x['bytes'], x['start'])
+        parsed = frac_columns.fragment_columns(walker, x['bytes'], x['start'])
         x['field'], x['columns'] = parsed if parsed else (None, [])
         lo = [min(c['box'][2 * k] for c in x['columns']) for k in range(3)] if x['columns'] else None
         hi = [max(c['box'][2 * k + 1] for c in x['columns']) for k in range(3)] if x['columns'] else None
@@ -1225,7 +1227,7 @@ def neighbour_columns(g, p, walls, pieces):
                     raws.append(_tag(g, 'FracActor', 'ObjectProperty', 4) + struct.pack('<i', actor)
                                 + (_tag(g, 'ColumnIndex', 'IntProperty', 4) + struct.pack('<i', index) if index else b'')
                                 + _none(g))
-            parts.append(native_copy.column_with(g, walker, x['bytes'], c, [e['raw'] for e in c['entries']], raws))
+            parts.append(frac_columns.column_with(g, walker, x['bytes'], c, [e['raw'] for e in c['entries']], raws))
         g.relocate(x['export'], native_copy.rebuilt(x['bytes'], x['field'], parts))
     return out
 
@@ -1243,6 +1245,7 @@ def add_walls(g, p, items, grid, bake=True):
     copy, generated, location, rotation, label)]) made in the map being grown: returns a record for each (dict(kind,
     copy, mesh, bodySetup, fragments, columns, vertices, triangles, box, light)). `bake`: the Build bakes the lighting
     (each wall's lightmap its own rectangle, which the relight fills); without, each wall gets an even light."""
+    import frac_columns
     import native_copy
     walker = native_copy.Walker(p, g)
     built, records = [], []
@@ -1366,7 +1369,7 @@ def add_walls(g, p, items, grid, bake=True):
         e = p.exports[item['original'] - 1]
         start = legacy_props.props_start(p.data, e, p.names) - e['off']
         b = bytearray(g.export_data(actor))
-        parsed = native_copy.fragment_columns(walker, b, start)
+        parsed = frac_columns.fragment_columns(walker, b, start)
         if parsed is None:
             raise ValueError('%s saves no fragment columns to write over' % p.name(item['original']))
         field, old = parsed
