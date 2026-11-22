@@ -441,7 +441,7 @@ function tileSpan(points, corner, k) {
  *  holes }] (slabOutline's corners, each hole's too), `corner` where the game counts its tiles from (map_grid.js
  *  tileCorner). Gives { floor: [[i, j]], part: [[i, j, share]] (the tiles it reaches into by more than SLAB_TILE_EDGE
  *  short of their centre, share: how much of the tile its footprint covers, to a thousandth) }, by tile. */
-export function slabTiles(solids, corner) {
+export function slabFloorTiles(solids, corner) {
   const pts = solids.flatMap(s => s.outline), floor = [], part = [];
   if (!pts.length) return { floor, part };
   for (const i of tileSpan(pts, corner, 0)) for (const j of tileSpan(pts, corner, 1)) {
@@ -457,7 +457,7 @@ export function slabTiles(solids, corner) {
   }
   return { floor, part };
 }
-/** A made floor's tiles (slabTiles' answer) in words, for its section's line and its notes: null when it covers no
+/** A made floor's tiles (slabFloorTiles' answer) in words, for its section's line and its notes: null when it covers no
  *  tile in part. */
 export function slabTileWords(t) {
   if (!t?.part.length) return null;

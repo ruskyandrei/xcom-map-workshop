@@ -45,6 +45,10 @@ export const PRESETS = { doorway: { width: TILE, z0: OPENING.sill, z1: 160 }, wi
 // line-of-sight.md): cover 44 to 60, high or low cover 88 to 104, walking 64 (half a unit thick), sight from the eye
 // tile, 96 over the floor's level.
 export const SWEEP = { cover: [44, 60], high: [88, 104], walk: 64, sight: 96, half: 0.5 };
+// Where a wall stands over a tile's middle it takes that tile (F-146): the game calls a tile wholly taken, with no floor
+// to stand on, when a piece meets a box 40 by 40 round its centre from 60 to 92 over its floor (research/native/
+// cover-build.md, section 2; made_edits.py WALL_ROOM, pinned in twin_constants.json).
+export const WALL_ROOM = { half: 20, z: [60, 92] };
 
 const round = (v, step) => step * Math.round(v / step);
 const sign = v => (v < 0 ? -1 : 1);
@@ -439,6 +443,30 @@ export function gridCrossings(location, rotation, wall, origin) {
   }
   return out.filter(x => wall.x0 - 1e-6 <= x && x <= wall.x1 + 1e-6).sort((p, q) => p - q);
 }
+/** Where a free-form wall stands over a tile's middle, so takes that tile (F-146; made_edits.py row_tiles is the twin):
+ *  of the places gridCrossings gives, those where its solid, measured along the crossing line, meets WALL_ROOM's box
+ *  round the centre of a tile on that line, the wall as high as that box. A wall on a tile edge stands over none. */
+export function rowTiles(location, rotation, wall, origin) {
+  if (!(wall.z0 < WALL_ROOM.z[1] && wall.z1 > WALL_ROOM.z[0])) return [];
+  const yaw = Math.round(rotation[1]) * 2 * Math.PI / 65536, d = [Math.cos(yaw), Math.sin(yaw)], h = WALL_ROOM.half, out = [];
+  for (const k of [0, 1]) {
+    if (Math.abs(d[k]) < 1e-9) continue;
+    const j = 1 - k, [a, b] = [location[k] + d[k] * wall.x0, location[k] + d[k] * wall.x1].sort((p, q) => p - q);
+    const first = Math.ceil((a - origin[k]) / TILE - 0.5 - 1e-9), last = Math.floor((b - origin[k]) / TILE - 0.5 + 1e-9);
+    for (let i = first; i <= last; i++) {
+      const t = Math.round((origin[k] + TILE * (i + 0.5) - location[k]) / d[k] * 1e6) / 1e6;
+      if (!(wall.x0 - 1e-6 <= t && t <= wall.x1 + 1e-6)) continue;
+      // (the crossing on the wall's centre line, and its faces, along the crossing line)
+      const at = location[j] + d[j] * t, [lo, hi] = [wall.y0, wall.y1].map(f => at + (k === 0 ? 1 : -1) * f / d[k]).sort((p, q) => p - q);
+      const m = Math.floor((at - origin[j]) / TILE);
+      if ([m - 1, m, m + 1].some(q => { const c = origin[j] + TILE * (q + 0.5); return Math.min(hi, c + h) - Math.max(lo, c - h) > 0; })) out.push(t);
+    }
+  }
+  return out.sort((p, q) => p - q);
+}
+/** Whether the opening `o` leaves room to stand in the tile whose centre is `c` along the wall (WALL_ROOM's box clear;
+ *  made_edits.py room_left). */
+const roomLeft = (o, c) => o.z0 <= WALL_ROOM.z[0] && o.z1 >= WALL_ROOM.z[1] && o.x0 <= c - WALL_ROOM.half && o.x1 >= c + WALL_ROOM.half;
 /** The centres along the wall (in its frame) of the tiles whose centre line passes through the opening: `centres`
  *  where the lines cross it (gridCrossings, a free-form wall's), or a tile's middle every 96 from 0 (an older wall). */
 const centresThrough = (wall, o, centres = null) => (centres ?? [...Array(tilesOf(wall)).keys()].map(k => (k + 0.5) * TILE))
@@ -446,14 +474,20 @@ const centresThrough = (wall, o, centres = null) => (centres ?? [...Array(tilesO
 /** What the game does at an opening, by its sweeps at the tile centres it spans: { tiles, walk, climb, sight, cover
  *  ('none' | 'low' | 'high' | 'whole': the wall's own cover at those tiles) }. `climb`: units vault through it, as
  *  through the game's windows: the wall under it is low cover, and the game gives a low-cover tile its ClimbOver
- *  (EXP-73, F-126). `centres`: as centresThrough's. */
-export function openingPlay(wall, o, centres = null) {
-  const tiles = centresThrough(wall, o, centres).length;
+ *  (EXP-73, F-126). `centres`: as centresThrough's. `taken`: the crossings where the wall stands over a tile's middle
+ *  (rowTiles, F-146): there the opening's tile is the wall's own, free to stand in and walk through when it leaves room
+ *  (roomLeft), else taken, and no unit vaults through it; `inside` true when every tile through it is such a tile. */
+export function openingPlay(wall, o, centres = null, taken = null) {
+  const through = centresThrough(wall, o, centres), tiles = through.length;
   const spans = (a, b) => o.z0 < a && o.z1 > b;
   if (!tiles) return { tiles, walk: false, climb: false, sight: false, cover: 'whole' };
   const coverHit = !spans(SWEEP.cover[0], SWEEP.cover[1]), highHit = !spans(SWEEP.high[0], SWEEP.high[1]);
   const walk = spans(SWEEP.walk - SWEEP.half, SWEEP.walk + SWEEP.half), cover = !coverHit ? 'none' : highHit ? 'high' : 'low';
-  return { tiles, walk, climb: !walk && cover === 'low', sight: spans(SWEEP.sight - SWEEP.half, SWEEP.sight + SWEEP.half), cover };
+  const sight = spans(SWEEP.sight - SWEEP.half, SWEEP.sight + SWEEP.half);
+  const inside = through.filter(c => (taken ?? []).includes(c));
+  if (!inside.length) return { tiles, walk, climb: !walk && cover === 'low', sight, cover };
+  const edge = inside.length < tiles, walked = (edge && walk) || inside.some(c => roomLeft(o, c));
+  return { tiles, walk: walked, climb: edge && !walked && cover === 'low', sight, cover, ...(edge ? {} : { inside: true }) };
 }
 const size = v => (v % TILE === 0 ? `${plural(v / TILE, 'tile')} wide` : `${Math.round(v)} wide`);
 /** A gap in words, for the piece panel's list: "Gap, 1 tile wide, from 8 over the floor to 160", "Gap, 1 tile wide,
@@ -463,17 +497,28 @@ export function openingWords(o, wall) {
   const from = e.bottom ? 'from the wall\'s bottom' : `from ${Math.round(o.z0)} over the floor`;
   return `Gap, ${size(o.x1 - o.x0)}, ${from} to ${e.top ? 'its top' : Math.round(o.z1)}${ends.length ? `, at ${ends.join(' and ')}` : ''}`;
 }
-/** What the game does there, in a sentence or two (`door`: a door stands in it). */
-export function playWords(wall, o, { door = false, centres = null } = {}) {
-  const p = openingPlay(wall, o, centres);
+/** What the game does there, in a sentence or two (`door`: a door stands in it; `centres` and `taken` as openingPlay's). */
+export function playWords(wall, o, { door = false, centres = null, taken = null } = {}) {
+  const p = openingPlay(wall, o, centres, taken);
   if (!p.tiles) return 'No tile\'s centre line passes through it: units can\'t walk or see through it, and the wall gives cover there as if whole.';
   const out = [];
-  out.push(p.walk ? 'units walk through it' : p.climb ? 'units climb through it' : 'units can\'t walk through it');
-  out.push(p.sight ? 'see and shoot through it' : 'don\'t see through it');
   const cover = { none: 'it gives no cover', low: 'the wall under it gives low cover', high: 'the wall under it gives high cover' }[p.cover];
+  // (the wall stands over the tile's middle, F-146: the tile is no one's, and no unit vaults through it)
+  if (p.inside && !p.walk) return `Its tile is taken, as the wall stands over the tile's middle: no one stands in it or goes through it; units ${p.sight ? 'see and shoot through it' : 'don\'t see through it'}; ${cover}.`;
+  out.push(p.inside ? 'units stand in its tile and walk through it' : p.walk ? 'units walk through it' : p.climb ? 'units climb through it' : 'units can\'t walk through it');
+  out.push(p.sight ? 'see and shoot through it' : 'don\'t see through it');
   let words = `${out.join(', ')}; ${cover}.`;
   if (p.walk && p.cover === 'none' && !door) words += ' A unit in a gap with no door has cover toward its sides: put a door in it (a door from the Add panel), as the game\'s doorways have.';
   return words[0].toUpperCase() + words.slice(1);
+}
+/** A free-form wall standing over tiles' middles (rowTiles' answer), in words for its section, as the compiler's
+ *  wall-in-row note says it; null when it stands over none. */
+export function rowWords(wall, taken) {
+  if (!taken?.length) return null;
+  const n = taken.length, held = taken.filter(c => !(wall.openings ?? []).some(o => roomLeft(o, c))).length;
+  return `It stands over the middle of ${plural(n, 'tile')}, not on the tile edges: it takes ${held === n ? (n === 1 ? 'it' : 'them') : `${held} of them`} `
+    + `(no one stands there${held === n ? '' : ', its gaps that leave room to stand excepted'}), and gives cover to the tiles either side, `
+    + 'as a wall on a tile edge gives its two neighbours.';
 }
 // ---- joints (custom geometry plan, M3 item 2; made_edits.py wall_joins is the twin)
 // An end's style for its solid (frac_wall.END_INSETS: how far in from its tile edge it stops) and how it meets: the

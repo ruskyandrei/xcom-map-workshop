@@ -5791,7 +5791,8 @@ CHECKS = (
     Check('made-break', lambda c: __import__('browser_walls').check_made_break(c.browser, c.page.url, open_viewer, skip),
           'Break, Breaks further and Repair on a made wall, floor and roof', when=ON_MAP, full=False),
     Check('made-openings', lambda c: __import__('browser_walls').check_made_openings(c.browser, c.page.url, open_viewer),
-          'Delete takes out the gap or hole last touched', when=ON_MAP, full=False),
+          'Delete takes out the gap or hole last touched; a free floor\'s tiles and a turned one\'s cursor steps; a wall in '
+          'a tile row', when=ON_MAP, full=False),
     Check('rock-corner', lambda c: __import__('browser_walls').check_rock_corner(c.browser, c.page.url, open_viewer),
           'a rock\'s corner moved with the point gizmo', when=ON_MAP, full=False),
     Check('room-buttons', lambda c: __import__('browser_walls').check_room_buttons(c.browser, c.page.url, open_viewer),

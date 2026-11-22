@@ -28,7 +28,7 @@ import { coverDrag, data, effectsOn, geometryCache, lightsOn, placing, rockPoint
          wallFocus, zonesOn } from './editor_state.js';
 import { groundBounds, groundBox as groundShapeBox, groundWords as groundShapeWords, madeGroundNumbers, movedPoint,
          ROCK, toolGround, versionedGround } from './ground.js';
-import { slabOutline, slabSteps, slabTiles, slabTurned } from './floors.js';
+import { slabFloorTiles, slabOutline, slabSteps, slabTurned } from './floors.js';
 import { scaleMarker } from './lights_view.js';
 import { tileCorner } from './map_grid.js';
 import { freeBox, freeMesh, freeRequest, freeSizeWords, isFree, movedFreeHole, resizedFace, toolFree } from './made_free.js';
@@ -77,7 +77,7 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   }
   // ---- the wall as it is now, and changing it
   const wallState = root => ({ generated: structuredClone(root.userData.source.added.generated), ...actorPose(root.userData.source, root.matrix) });
-  // A made floor against the game's tiles (F-147; floors.js slabTiles: the tiles it is floor on, by their centres, and
+  // A made floor against the game's tiles (F-147; floors.js slabFloorTiles: the tiles it is floor on, by their centres, and
   // those it covers in part), or null when it is pitched or rolled or the map has no tile grid; and a slab turned off
   // the quarter turns as the steps its cursor floors stand in (floors.js slabSteps, between z0 and z1), else null.
   function slabSolid(root, holes) {
@@ -90,7 +90,7 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   function slabTilesOf(root) {
     const at = slabSolid(root, true);
     if (!at || Math.round(at.rotation[0]) % 65536 || Math.round(at.rotation[2]) % 65536) return null;
-    return slabTiles([at.solid], at.corner);
+    return slabFloorTiles([at.solid], at.corner);
   }
   function slabStepsOf(root, z0, z1) {
     const at = slabSolid(root, false);

@@ -201,6 +201,68 @@ class SlabTilesTests(unittest.TestCase):
         self.assertIn([24, 5, 3], n['tiles'])
 
 
+# EXP-90's wall A (exp90_projects.py): along x, its line 6.5 off the game's tile row centre line (7.5 off the grid's
+# origin's), a window 64 to 136 along it and a doorway 156 to 268
+WALL_A = dict(kind='fracWall', version=5, wall=dict(free=1, x0=0.0, x1=287.5, y0=-8.0, y1=8.0, z0=-16.0, z1=384.0,
+                                                    tall='repeat', seed=901, openings=[
+                                                        dict(x0=64.0, x1=136.0, z0=72.0, z1=168.0),
+                                                        dict(x0=156.0, x1=268.0, z0=-16.0, z1=160.0)]))
+
+
+class InRowTests(unittest.TestCase):
+    """A free-form wall standing over the tiles' middles takes those tiles (F-146, EXP-90 check 1; made_edits.row_tiles
+    and opening_play): its window's tile is taken and nobody climbs through it, its doorway's is walked; a note says it
+    takes the tiles. A wall on the tile edges reads as before."""
+
+    def test_the_cases_the_page_passes_too(self):
+        # (opening_play_cases.json, shared_cases_test.mjs: walls.js gridCrossings, rowTiles and openingPlay)
+        cases = json.loads(Path(__file__).with_name('opening_play_cases.json').read_text(encoding='utf-8'))['cases']
+        self.assertGreaterEqual(len(cases), 9)
+        for c in cases:
+            w = c['wall']
+            crossings = made_edits.grid_crossings(c['location'], c['rotation'], w, c['origin'])
+            taken = made_edits.row_tiles(c['location'], c['rotation'], w, c['origin'])
+            self.assertEqual([crossings, taken], [c['crossings'], c['taken']], c['case'])
+            self.assertEqual([made_edits.opening_play(w, o, crossings, taken) for o in w['openings']], c['plays'], c['case'])
+
+    def test_wall_a_as_exp90_played_it(self):
+        w = WALL_A['wall']
+        loc, rot, origin = [-1889.75, -1111.5, 0.0], [0, 0, 0], [-2784.0, -1920.0]
+        crossings = made_edits.grid_crossings(loc, rot, w, origin)
+        taken = made_edits.row_tiles(loc, rot, w, origin)
+        self.assertEqual(taken, crossings)          # it stands over its row's three tiles
+        window, door = (made_edits.opening_play(w, o, crossings, taken) for o in w['openings'])
+        # the window's tile could not be stood on, nobody was seen to vault; low cover beside it (30); the doorway
+        # walked through, no cover (0)
+        self.assertEqual(window, dict(tiles=1, walk=False, climb=False, sight=True, cover='low', inside=True))
+        self.assertEqual(door, dict(tiles=1, walk=True, climb=False, sight=True, cover='none', inside=True))
+        # on the tile edge the same wall reads as an edge wall: its window climbed through
+        edge = [loc[0], -1152.0, 0.0]
+        self.assertEqual(made_edits.row_tiles(edge, rot, w, origin), [])
+        self.assertTrue(made_edits.opening_play(w, w['openings'][0], made_edits.grid_crossings(edge, rot, w, origin), [])['climb'])
+
+    def test_the_compiler_notes_the_tiles_it_takes(self):
+        _, report = compiled([made(WALL_A, at=(-1889.75, -1111.5, 0.0))])
+        self.assertTrue(report['ok'], refused(report))
+        (n,) = [d for d in report['notes'] if d['code'] == 'wall-in-row']
+        self.assertIn('stands over the middle of 3 tiles, not on the tile edges: it takes 2 of them (no one stands there, '
+                      'its gaps that leave room to stand excepted), and gives cover to the tiles either side', n['message'])
+        self.assertEqual(warned(report, 'wall-'), ['wall-doorway-no-door'])
+        self.assertNotIn('wall-in-row', warned(report))
+        # on the tile edge: no note
+        _, report = compiled([made(WALL_A, at=(-1889.75, -1152.0, 0.0))])
+        self.assertNotIn('wall-in-row', noted(report))
+        self.assertEqual(warned(report, 'wall-'), ['wall-doorway-no-door'])
+
+    def test_a_doorway_that_leaves_no_room_in_its_tile_is_warned_so(self):
+        narrow = dict(WALL_A, wall=dict(WALL_A['wall'], openings=[dict(x0=99.0, x1=129.0, z0=-16.0, z1=160.0)]))
+        _, report = compiled([made(narrow, at=(-1889.75, -1111.5, 0.0))])
+        (w,) = [d['message'] for d in report['warnings'] if d['code'] == 'wall-doorway-low']
+        self.assertIn("units can't stand in its tile or walk through it: the wall stands over the tile's middle", w)
+        (n,) = [d['message'] for d in report['notes'] if d['code'] == 'wall-in-row']
+        self.assertIn('it takes them (no one stands there)', n)
+
+
 class FreeJoinTests(unittest.TestCase):
     def test_the_cases_the_page_passes_too(self):
         # (free_join_cases.json, shared_cases_test.mjs: walls.js freeWallJoins is the twin)

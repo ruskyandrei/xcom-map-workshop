@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { drawnPoint, drawnRect, drawnRoomAt, drawnSlabAt, drawnWall, drawnWallAt, flippedWall, freeWallJoins, gridCrossings, joinedEnds, movedOpening, openingEdges, openingParts, openingPlay, openingWords, playWords,
          PRESETS, raisedWall, resizedWall, reshuffled, shiftedLocation, storeysOf, toolWall, topMostOf, wallDirection, wallRotation,
-         levelsOf, storeyCounts, steppedStoreys,
+         levelsOf, storeyCounts, steppedStoreys, rowTiles, rowWords,
          wallTop, wallWords, withStoreys, wallJoins, joinWords, END_INSETS, drawnRoom,
          withOpening, withoutOpening, WALL, WALL_LOOKS,
          SLAB, SLAB_LOOKS, drawnSlab, resizedSlab, withHole, withoutHole, movedHole, toolSlab, slabWords, holeWords, roomRoof } from '../web/walls.js';
@@ -341,6 +341,26 @@ assert.deepEqual([PRESETS.doorway.z0, PRESETS.doorway.z1], [8, 160]);
   // a gap between two crossings holds none
   assert.equal(openingPlay(w, { x0: 60, x1: 130, z0: -16, z1: 160 }, [48, 144, 240]).tiles, 0);
   assert.equal(openingPlay(w, { x0: 100, x1: 200, z0: -16, z1: 160 }, [48, 144, 240]).tiles, 1);
+}
+// ---- a free-form wall standing over the tiles' middles takes them (F-146): EXP-90's wall A
+{
+  const window = { x0: 64, x1: 136, z0: 72, z1: 168 }, door = { x0: 156, x1: 268, z0: -16, z1: 160 };
+  const a = { free: 1, x0: 0, x1: 287.5, y0: -8, y1: 8, z0: -16, z1: 384, openings: [window, door] };
+  const at = [-1889.75, -1111.5, 0], origin = [-2784, -1920];
+  const centres = gridCrossings(at, [0, 0, 0], a, origin), taken = rowTiles(at, [0, 0, 0], a, origin);
+  assert.deepEqual(taken, centres);
+  assert.equal(playWords(a, window, { centres, taken }), "Its tile is taken, as the wall stands over the tile's middle: no one stands in it "
+    + 'or goes through it; units see and shoot through it; the wall under it gives low cover.');
+  assert.ok(!/climb/.test(playWords(a, window, { centres, taken })));
+  assert.ok(playWords(a, door, { centres, taken }).startsWith('Units stand in its tile and walk through it, see and shoot through it; it gives no cover. A unit in a gap with no door'));
+  assert.equal(rowWords(a, taken), 'It stands over the middle of 3 tiles, not on the tile edges: it takes 2 of them (no one stands there, '
+    + 'its gaps that leave room to stand excepted), and gives cover to the tiles either side, as a wall on a tile edge gives its two neighbours.');
+  assert.ok(rowWords({ ...a, openings: [] }, taken).includes('it takes them (no one stands there)'));
+  // on the tile edge: none stood over, and the window is climbed through as before
+  const edge = [-1889.75, -1152, 0], edgeCentres = gridCrossings(edge, [0, 0, 0], a, origin);
+  assert.deepEqual(rowTiles(edge, [0, 0, 0], a, origin), []);
+  assert.equal(rowWords(a, []), null);
+  assert.ok(playWords(a, window, { centres: edgeCentres, taken: [] }).startsWith('Units climb through it'));
 }
 // ---- Join ends (the improvements plan, 4.2): each wall's nearer end to where their lines cross, the origins kept
 {

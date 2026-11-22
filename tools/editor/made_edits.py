@@ -261,17 +261,69 @@ def grid_crossings(location, rotation, wall, origin):
     return sorted(x for x in out if x0 - 1e-6 <= x <= x1 + 1e-6)
 
 
-def opening_play(wall, o, centres=None):
+# Where a made wall stands over a tile's middle it takes that tile (F-146, EXP-90 check 1): the game's tile rebuild
+# calls a tile wholly taken, with no floor to stand on, when a piece's collision meets a box 40 by 40 round the tile's
+# centre from 60 to 92 over the level's bottom (research/native/cover-build.md, section 2: the occupancy's small call;
+# read here over the wall's floor). walls.js WALL_ROOM is the twin (tools/viewer/tests/twin_constants.json).
+WALL_ROOM = dict(half=20.0, z=(60.0, 92.0))
+
+
+def row_tiles(location, rotation, wall, origin):
+    """Where a free-form made wall stands over a tile's middle, so takes that tile (F-146; walls.js rowTiles is the
+    twin): of the places grid_crossings gives, those where its solid, measured along the crossing line, meets
+    WALL_ROOM's box round the centre of a tile on that line, the wall as high as that box. A wall on a tile edge
+    stands over none; one in a tile row, over that row's tiles. The rounded rotator's yaw, as the package holds it."""
+    if not (float(wall['z0']) < WALL_ROOM['z'][1] and float(wall['z1']) > WALL_ROOM['z'][0]):
+        return []
+    yaw = round(rotation[1]) * 2 * math.pi / 65536
+    d = (math.cos(yaw), math.sin(yaw))
+    x0, x1 = float(wall['x0']), float(wall['x1'])
+    faces = (float(wall['y0']), float(wall['y1']))
+    h = WALL_ROOM['half']
+    out = []
+    for k in (0, 1):
+        if abs(d[k]) < 1e-9:
+            continue
+        j = 1 - k
+        a, b = sorted((location[k] + d[k] * x0, location[k] + d[k] * x1))
+        first = math.ceil((a - origin[k]) / 96.0 - 0.5 - 1e-9)
+        last = math.floor((b - origin[k]) / 96.0 - 0.5 + 1e-9)
+        for i in range(first, last + 1):
+            t = round((origin[k] + 96.0 * (i + 0.5) - location[k]) / d[k], 6)
+            if not x0 - 1e-6 <= t <= x1 + 1e-6:
+                continue
+            # (the crossing on the wall's centre line, and its faces, along the crossing line: a face y across the
+            # wall is y / d[k] along a line of x (k 0), -y / d[k] along a line of y)
+            at = location[j] + d[j] * t
+            lo, hi = sorted(at + (1.0 if k == 0 else -1.0) * f / d[k] for f in faces)
+            m = math.floor((at - origin[j]) / 96.0)
+            if any(min(hi, c + h) - max(lo, c - h) > 0 for c in (origin[j] + 96.0 * (q + 0.5) for q in (m - 1, m, m + 1))):
+                out.append(t)
+    return sorted(out)
+
+
+def room_left(o, c):
+    """Whether the opening o leaves room to stand in the tile whose centre is c along the wall: WALL_ROOM's box round
+    it clear of the wall (walls.js roomLeft is the twin)."""
+    r = WALL_ROOM
+    return o['z0'] <= r['z'][0] and o['z1'] >= r['z'][1] and o['x0'] <= c - r['half'] and o['x1'] >= c + r['half']
+
+
+def opening_play(wall, o, centres=None, taken=None):
     """What the game does at an opening of a made wall (walls.js openingPlay is the twin): dict(tiles (how many tiles'
     centre lines pass through it), walk, climb (units vault through it: low cover under it, which the game's tile
     rebuild gives its ClimbOver, F-126), sight, cover: 'none', 'low', 'high' or 'whole' (the wall's own cover at those
     tiles)). `centres`: where those lines cross the wall in its frame (grid_crossings: a free-form wall's, on the map's
-    grid); left out, a tile's middle every 96 from its start, as an older wall stands on the tile lines."""
+    grid); left out, a tile's middle every 96 from its start, as an older wall stands on the tile lines. `taken`: the
+    crossings where the wall stands over a tile's middle (row_tiles, F-146): there the opening's tile is the wall's own,
+    free to stand in and walk through when the opening clears WALL_ROOM's box round its centre, else taken, and no unit
+    vaults through it (the game gives no ClimbOver to a tile no one stands on); the answer then has `inside` True when
+    every tile through the opening is such a tile."""
     length = float(wall['x1']) - float(wall['x0'])
     if centres is None:
         centres = [float(wall['x0']) + 96.0 * (k + 0.5) for k in range(int(round(length / 96.0)))]
-    tiles = sum(1 for c in centres if o['x0'] + 1 < c < o['x1'] - 1)
-    if not tiles:
+    through = [c for c in centres if o['x0'] + 1 < c < o['x1'] - 1]
+    if not through:
         return dict(tiles=0, walk=False, climb=False, sight=False, cover='whole')
     s = WALL_SWEEPS
 
@@ -280,8 +332,17 @@ def opening_play(wall, o, centres=None):
     cover_hit, high_hit = not spans(*s['cover']), not spans(*s['high'])
     walk = spans(s['walk'] - s['half'], s['walk'] + s['half'])
     cover = 'none' if not cover_hit else 'high' if high_hit else 'low'
-    return dict(tiles=tiles, walk=walk, climb=not walk and cover == 'low',
-                sight=spans(s['sight'] - s['half'], s['sight'] + s['half']), cover=cover)
+    sight = spans(s['sight'] - s['half'], s['sight'] + s['half'])
+    inside = [c for c in through if c in (taken or ())]
+    if not inside:
+        return dict(tiles=len(through), walk=walk, climb=not walk and cover == 'low', sight=sight, cover=cover)
+    free = any(room_left(o, c) for c in inside)
+    edge = len(inside) < len(through)
+    walked = (edge and walk) or free
+    out = dict(tiles=len(through), walk=walked, climb=edge and not walked and cover == 'low', sight=sight, cover=cover)
+    if not edge:
+        out['inside'] = True
+    return out
 
 
 # How made walls meet (custom geometry plan, M3 item 2; walls.js wallJoins is the twin): an end's style for its solid
@@ -1021,10 +1082,15 @@ class MadeEdits:
         for copy, where in self.wholes:
             wall = copy['generated']['wall']
             name = copy['label']
-            # (a free-form wall's gaps are read on the map's grid, where the game's lines cross it)
-            centres = grid_crossings(copy['location'], copy['rotation'], wall, origin) if wall.get('free') == 1 else None
+            # (a free-form wall's gaps are read on the map's grid, where the game's lines cross it, and where it
+            # stands over the tiles' middles, F-146)
+            free = wall.get('free') == 1
+            centres = grid_crossings(copy['location'], copy['rotation'], wall, origin) if free else None
+            taken = row_tiles(copy['location'], copy['rotation'], wall, origin) if free else []
+            freed = set()
             for o in wall.get('openings') or []:
-                play = opening_play(wall, o, centres)
+                play = opening_play(wall, o, centres, taken)
+                freed.update(c for c in taken if room_left(o, c))
                 low = o['z0'] < WALL_SWEEPS['cover'][0]
                 what = "%s's gap at %g to %g along it" % (name, o['x0'], o['x1'])
                 if not play['tiles']:
@@ -1041,12 +1107,25 @@ class MadeEdits:
                     if not any(overlaps_by(box, d, 8.0) for d in doors):
                         self.c.warn('wall-doorway-no-door', '%s: a unit in this gap has cover toward its sides: put a '
                                   "door in it, as the game's doorways have" % what, **where)
+                elif low and play.get('inside'):
+                    self.c.warn('wall-doorway-low', "%s: units can't stand in its tile or walk through it: the wall "
+                              "stands over the tile's middle, and the game takes a tile where a wall fills the middle "
+                              '%g by %g of it from %g to %g over the floor' % (
+                                  what, 2 * WALL_ROOM['half'], 2 * WALL_ROOM['half'], *WALL_ROOM['z']), **where)
                 elif low:
                     self.c.warn('wall-doorway-low', "%s: units can't walk through it: its top is under the game's "
                               'walking line, %g over the floor' % (what, WALL_SWEEPS['walk']), **where)
                 if not low and not play['walk'] and not play['sight']:
                     self.c.warn('wall-window-blind', "%s: units can't see through it: it doesn't reach across the "
                               "game's sight line, %g over the floor" % (what, WALL_SWEEPS['sight']), **where)
+            if taken:
+                held = len([c for c in taken if c not in freed])
+                self.c.note('wall-in-row', "%s stands over the middle of %d %s, not on the tile edges: it takes %s (no one "
+                            "stands there%s), and gives cover to the tiles either side, as a wall on a tile edge gives "
+                            'its two neighbours' % (
+                                name, len(taken), 'tile' if len(taken) == 1 else 'tiles',
+                                ('it' if held == 1 else 'them') if held == len(taken) else '%d of them' % held,
+                                '' if held == len(taken) else ', its gaps that leave room to stand excepted'), **where)
 
     def blasts_valid(self, rec, parts, where, name=None):
         """Whether an override's or added copy's `blasts` are well formed (made_blasts.check) and on a fracturing

@@ -10,16 +10,18 @@
 // - tools/editor/tests/free_join_cases.json: walls.js freeWallJoins (made_edits.free_wall_joins in test_compiler_free.py);
 // - tools/editor/tests/mapping_origin_cases.json: made_mapping.js mappingOrigin (made_edits.mapping_origin in
 //   test_compiler_free.py);
-// - tools/bake/tests/slab_tiles_cases.json: floors.js slabOutline, slabTiles and slabSteps (made_cursors.outline,
-//   tiles and steps in test_made_cursors.py).
+// - tools/bake/tests/slab_tiles_cases.json: floors.js slabOutline, slabFloorTiles and slabSteps (made_cursors.outline,
+//   tiles and steps in test_made_cursors.py);
+// - tools/editor/tests/opening_play_cases.json: walls.js gridCrossings, rowTiles and openingPlay (made_edits.grid_crossings,
+//   row_tiles and opening_play in test_compiler_free.py).
 // Run: node tools/viewer/tests/shared_cases_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { effectiveCone } from '../web/light_rules.js';
 import { gridMove, nearestGridPose } from '../web/poserule.js';
-import { copyFloors, floorAt, slabOutline, slabSteps, slabTiles } from '../web/floors.js';
+import { copyFloors, floorAt, slabFloorTiles, slabOutline, slabSteps } from '../web/floors.js';
 import { prefabStageLevels } from '../web/prefab_document.js';
-import { freeWallJoins, wallJoins } from '../web/walls.js';
+import { freeWallJoins, gridCrossings, openingPlay, rowTiles, wallJoins } from '../web/walls.js';
 import { mappingOrigin } from '../web/made_mapping.js';
 
 const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
@@ -89,9 +91,17 @@ assert.ok(slabCases.length >= 7);
 for (const c of slabCases) {
   const solids = holes => c.solids.map(s => ({ outline: slabOutline(s.location, s.rotation, s.slab),
                                                holes: holes ? s.slab.holes.map(h => slabOutline(s.location, s.rotation, h)) : [] }));
-  assert.deepEqual(slabTiles(solids(true), c.corner), { floor: c.floor, part: c.part }, c.case);
+  assert.deepEqual(slabFloorTiles(solids(true), c.corner), { floor: c.floor, part: c.part }, c.case);
   assert.deepEqual(slabSteps(solids(false), c.z[0], c.z[1], c.corner), c.steps, c.case);
+}
+// a free-form wall against the game's tiles: made_edits' crossings, the tiles it stands over and its openings' play
+const openingCases = read('../../editor/tests/opening_play_cases.json').cases;
+assert.ok(openingCases.length >= 9);
+for (const c of openingCases) {
+  const crossings = gridCrossings(c.location, c.rotation, c.wall, c.origin), taken = rowTiles(c.location, c.rotation, c.wall, c.origin);
+  assert.deepEqual([crossings, taken], [c.crossings, c.taken], c.case);
+  assert.deepEqual(c.wall.openings.map(o => openingPlay(c.wall, o, crossings, taken)), c.plays, c.case);
 }
 console.log(`shared_cases_test: ok (${cones.length} cones, ${poses.length} poses, ${floors.floorAt.length + floors.copyFloors.length} floor `
   + `cases, ${stages.length} stage heights, ${joints.length} wall joints, ${freeJoints.length} free-form joints, `
-  + `${origins.length} texture origins, ${slabCases.length} made slabs' tiles)`);
+  + `${origins.length} texture origins, ${slabCases.length} made slabs' tiles, ${openingCases.length} walls' openings)`);

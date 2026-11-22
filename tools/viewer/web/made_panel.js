@@ -25,8 +25,8 @@ import { catalogued, madeLookName } from './looks.js';
 import { gridOrigin } from './map_grid.js';
 import { freeRequest, freeSizeWords, pivotedToCorner, toolFree } from './made_free.js';
 import { actorMatrix } from './gizmo.js';
-import { flippedWall, gridCrossings, holeWords, joinedEnds, joinWords, openingPlay, openingWords, playWords, reshuffled, reshuffledSlab, SLAB,
-         slabLookOf, slabTiles, slabWords, sortedOpenings, steppedStoreys, storeysOf, storeyWords, toolSlab, toolWall,
+import { flippedWall, gridCrossings, holeWords, joinedEnds, joinWords, openingPlay, openingWords, playWords, reshuffled, reshuffledSlab,
+         rowTiles, rowWords, SLAB, slabLookOf, slabTiles, slabWords, sortedOpenings, steppedStoreys, storeysOf, storeyWords, toolSlab, toolWall,
          WALL, wallSpec, wallTop, wallWords, withHole, withOpening, withoutHole, withoutOpening,
          withStoreys } from './walls.js';
 import { plural, segmented } from './dom_words.js';
@@ -55,17 +55,21 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     if (joined) $('wallSize').textContent += ` ${joined}`;
     const list = $('wallOpenings'), openings = sortedOpenings(w.openings ?? []);
     const doors = doorBoxes(root);
-    // (a free-form wall's gaps are read on the map's grid, where the game's lines between tiles' centres cross it)
+    // (a free-form wall's gaps are read on the map's grid, where the game's lines between tiles' centres cross it, and
+    // where it stands over the tiles' middles, which it takes: F-146)
     const pose = wallState(root), origin = gridOrigin();
     const centres = w.free === 1 && origin ? gridCrossings(pose.location, pose.rotation, w, origin) : null;
+    const taken = w.free === 1 && origin ? rowTiles(pose.location, pose.rotation, w, origin) : null;
+    const row = rowWords(w, taken);
+    if (row) $('wallSize').textContent += ` ${row}`;
     list.replaceChildren(...openings.map((p, index) => {
       const row = document.createElement('div');
       row.className = 'wallopening';
       row.classList.toggle('on', wallFocus?.id === o.id && wallFocus.index === index);
       // (a gap units walk through, with no wall under it to give cover, is a doorway: it wants a door; one they walk
       // through over a wall that gives cover, or one they neither walk through nor see through, plays oddly)
-      const play = openingPlay(w, p, centres), door = play.walk && doors.some(b => boxesMeet(openingWorldBox(root, p), b, 8));
-      const words = playWords(w, p, { door, centres });
+      const play = openingPlay(w, p, centres, taken), door = play.walk && doors.some(b => boxesMeet(openingWorldBox(root, p), b, 8));
+      const words = playWords(w, p, { door, centres, taken });
       const warn = !play.tiles || (play.walk ? play.cover !== 'none' || !door : play.cover === 'none' || !play.sight);
       row.append(Object.assign(document.createElement('strong'), { textContent: openingWords(p, w) }),
                  Object.assign(document.createElement('small'), { textContent: words, className: warn ? 'warn' : '' }));

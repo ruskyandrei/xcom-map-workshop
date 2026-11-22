@@ -21,7 +21,7 @@ box round it (EXP-90 check 5). Which tiles a made slab is floor on is the game's
 tile's centre (tiles; F-147): the cursor's floors over a tile it covers in part give it no floor there.
 
 split() is the rule, on plain numbers: the compiler runs it on its cursor_storeys and the page's twin is
-web/floors.js madeStoreys (outline, tiles and steps: slabOutline, slabTiles and slabSteps, with the cases both read,
+web/floors.js madeStoreys (outline, tiles and steps: slabOutline, slabFloorTiles and slabSteps, with the cases both read,
 tests/slab_tiles_cases.json). apply() is the Build's writer (native_copy, after the made pieces are written), given
 the slabs by build_slabs."""
 import math

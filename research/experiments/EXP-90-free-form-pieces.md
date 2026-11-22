@@ -129,3 +129,14 @@ report and the shots were read against each other.
 Side notes: the A grenade's alien turn ran at once when every soldier had acted; a `SAVING...` badge showed for a while
 in turn 2 (no save was asked for). The parked lab copy was used (`--game`, and the test server's `--install`): the
 folder Steam runs held the LWR3 copy.
+
+## After the run (offline, 21 and 22 November)
+
+- B's and E's collision and cursor volumes read from the built package, against the game's floor trace through each
+  tile's centre: a made floor is a tile's floor only where it covers the tile's centre, and E's readings near its
+  corners are those of tiles it covers in part, not of the box its cursor floors stood in
+  ([F-147](../findings-register.md)). The editor now says which tiles a made floor is floor on, and a turned floor's
+  cursor floors stand in steps.
+- A's tiles: a wall over a tile's middle meets the game's occupancy box there and takes the tile; its window's tile
+  is no one's, so nothing vaults through it ([F-146](../findings-register.md)). The editor now reads such a wall's
+  openings so and notes the tiles it takes.
