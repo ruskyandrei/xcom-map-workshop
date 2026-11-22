@@ -1121,5 +1121,64 @@ class FreshLight(unittest.TestCase):
         self.assertGreater(len(self.relit['components']), 2)
 
 
+DEEP_WOODS, NO_DEEP_WOODS = labpaths.install_map('CLrgScout_DeepWoods')
+FOREST = 'SoundAmbience-NorthAmerica.ForestAmbienceCue'
+
+
+@unittest.skipUnless(BAR and BAR.exists() and DEEP_WOODS and DEEP_WOODS.exists(), NO_BAR or NO_DEEP_WOODS)
+class StagedBackgroundSound(unittest.TestCase):
+    """The map's background sound given another map's bed (the native edit's `backgroundSound` with a donor): the
+    cue brought into the Bar as an asset, with its nodes and waves, and the Bar's level-loaded sound pointed at it
+    (native_sounds.background); none, and a volume, made in the Bar as it is."""
+
+    @classmethod
+    def setUpClass(cls):
+        import background_sound
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.out = Path(cls.tmp.name)
+        cls.own = background_sound.background_sound(Package(BAR))
+        cls.lane = dict(op=cls.own['op'], cue=FOREST, donor=dict(package='CLrgScout_DeepWoods'))
+        cls.staged, cls.new_edit, cls.report = transplant.stage_edit(
+            BAR, cls.out, dict(copies=[], backgroundSound=cls.lane), schema=game_schema())
+        cls.manifest = native_copy.build(native_copy.BuildState(cls.staged, cls.out / 'build', 'URB_BarSound', [],
+                                                                background_sound=cls.new_edit['backgroundSound']))
+        cls.q = Package(cls.out / 'build' / 'URB_BarSound.upk')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_cue_comes_with_its_nodes_and_waves(self):
+        sound = self.report['backgroundSound']
+        self.assertEqual((sound['cue'], sound['map']), (FOREST, 'CLrgScout_DeepWoods'))
+        classes = collections.Counter(b['cls'] for b in sound['brought'])
+        self.assertEqual(classes['SoundCue'], 1)
+        self.assertGreater(classes['SoundNodeWave'], 0)
+        self.assertFalse(any(b['staged'] for b in sound['brought']))           # assets, not the level's
+        self.assertEqual((self.report['donors'], self.report['foreignPieces']), ([], 0))
+        self.assertEqual(self.new_edit['backgroundSound'], self.lane)           # the cue keeps its path
+
+    def test_the_level_loaded_sound_plays_it(self):
+        q = self.q
+        cue = q.own(q.by_name[self.own['op']], 'PlaySound')
+        self.assertEqual((q.name(cue), q.cls(cue)), (FOREST, 'SoundCue'))
+        self.assertEqual(self.manifest['nativeCopies']['backgroundSound']['cue'], FOREST)
+        import background_sound
+        self.assertEqual(background_sound.background_sound(q)['cue'], FOREST)
+
+    def test_none_and_a_volume_in_the_map_as_it_is(self):
+        out = self.out / 'plain'
+        manifest = native_copy.build(native_copy.BuildState(
+            BAR, out, 'URB_BarQuiet', [], background_sound=dict(op=self.own['op'], cue=None, volume=0.5)))
+        q = Package(out / 'URB_BarQuiet.upk')
+        op = q.by_name[self.own['op']]
+        self.assertEqual((q.own(op, 'PlaySound', 0), round(q.own(op, 'VolumeMultiplier'), 4)), (0, 0.5))
+        self.assertEqual(manifest['nativeCopies']['backgroundSound'], dict(op=self.own['op'], cue=None, export=0, volume=0.5))
+        # a cue the map doesn't hold is refused: it must be brought first
+        with self.assertRaisesRegex(ValueError, 'bring it from its map first'):
+            native_copy.build(native_copy.BuildState(BAR, self.out / 'refused', 'URB_BarNo', [],
+                                                     background_sound=dict(op=self.own['op'], cue=FOREST)))
+
+
 if __name__ == '__main__':
     unittest.main()

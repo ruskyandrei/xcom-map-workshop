@@ -8,14 +8,14 @@
 import * as THREE from 'three';
 import { TILE } from './constants.js';
 import { normalCover } from './cover.js';
-import { activeMapId, areaBindings, boxesShown, builderMode, buildings, buildTool, cleared, clearKeepsOutside,
+import { activeMapId, areaBindings, boxesShown, builderMode, buildings, buildTool, cleared, clearKeepsOutside, clearKeepsTriggers,
          clipboard, copySerial, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, families,
          floorTileLayer, geometryCache, gridTool, groupIndex, groups, handleDefs, landingLines, lastBuild, lastClearMs,
          library, lightDrag, lighting, lightRoots, lightsOn, lightsShown, likenessCount, likenessOn,
          likenessThin, lineCollision, lineCollisionFailed, lookPicker, lookPicking, missionIndex, missionMoves,
          missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet, pickBox, pickedEffect,
          pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, prefabTab, project, projectMissions,
-         projectSpawnRules, reachNow, rockPoint, roots, selected, setPickBoxValue, setPickToolValue, setSpawnFilters,
+         projectBackgroundSound, projectSpawnRules, reachNow, rockPoint, roots, selected, setPickBoxValue, setPickToolValue, setSpawnFilters,
          soloOn, spawnEntriesNow, spawnFilters, spawnPlacing, spawnRulesData, spawnsOn, stage, textureDrag,
          texturePicked, volumeRoots, volumesOn, wallDrawing, wavePlayer, zonesOn } from './editor_state.js';
 import { catalogued, lookFromEntry } from './looks.js';
@@ -171,7 +171,8 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
     setGridTool, gridHandleAt: axis => { const v = gridHandleAt(axis); return [v.x, v.z, v.y]; },
     zoneGizmo: () => ({ enabled: zoneGizmo.enabled, shown: zoneGizmoHelper.visible, axis: zoneGizmo.axis, mode: zoneGizmo.mode,
                         dragging: zoneGizmo.dragging, at: [zoneProxy.position.x, zoneProxy.position.z, zoneProxy.position.y] }),
-    clearMap, showClearMap, cleared: () => cleared, clearKeepsOutside: () => clearKeepsOutside, stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
+    clearMap, showClearMap, cleared: () => cleared, clearKeepsOutside: () => clearKeepsOutside, clearKeepsTriggers: () => clearKeepsTriggers,
+    backgroundSound: () => projectBackgroundSound, stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
     groundGrid: () => ({ shown: groundGrid.visible, ...groundGrid.userData, ground: groundHeight() }), pickZone, pickedZone: () => pickedZone,
     lastClearMs: () => lastClearMs, landingLayer, setZones, setZonesShown, zonesOn: () => zonesOn,
     // the Spawns view (spawns plan, SP3): the entries drawn now, with where each marker stands and its screen point

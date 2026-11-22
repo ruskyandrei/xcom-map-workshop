@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { EFFECT_KINDS, SCHEMA_VERSION, sortState, stateKey, validAdded, validOverride } from '../web/project.js';
 
-assert.equal(SCHEMA_VERSION, 4);      // 4: the spawns plan's records (project_spawns_test.mjs)
+assert.equal(SCHEMA_VERSION, 5);      // 4: the spawns plan's records (project_spawns_test.mjs); 5: the background sound
 assert.deepEqual(EFFECT_KINDS, ['effect', 'sound', 'flare']);
 const target = { package: 'URB_Bar', level: 'base', actor: 'TheWorld.PersistentLevel.Emitter_13' };
 const pose = { location: [600, 600, 300], rotation: [0, 0, 0] };

@@ -1603,14 +1603,21 @@ KEEP_OUTSIDE = ('Emitter', 'DecalActor', 'DecalActorMovable', 'LensFlareSource',
                 'AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundNonLoop', 'AmbientSoundMovable',
                 'PointLightToggleable', 'SpotLight', 'SpotLightMovable', 'SpotLightToggleable', 'GeneratedMeshAreaLight',
                 'XComPointLight', 'XComSpotLight')
+# What a clear takes out unless the project keeps them (`keepTriggers`, the Clear map window's "Keep the map's triggers
+# and scripts"; findings register F-159): the map's trigger volumes (touch triggers, water volumes units wade in, the
+# empty ones) and sight points. Left, a cleared map's water still makes units wade where the stream was, a crashed
+# UFO's entry narration plays on the empty field and a console's narration when its place is seen. A trigger volume
+# taken out has its events switched off too (switch_off_events). A mission stream's are the mission's, and stay.
+CLEAR_TRIGGERS = ('TriggerVolume', 'XComSquadVisiblePoint')
+KEEP_OUTSIDE = KEEP_OUTSIDE + CLEAR_TRIGGERS
 # What a clear leaves (section 2's "Stay" rows), so an actor of a class on neither list is named in the report
 CLEAR_KEEP = (
     'DominantDirectionalLight', 'DirectionalLight', 'DirectionalLightToggleable', 'SkyLight', 'SkyLightToggleable',
     'XComLevelVolume', 'XComCursorVolume', 'LightmassImportanceVolume', 'PostProcessVolume', 'WorldInfo', 'PlayerStart', 'PointInSpace',
     'XComSpawnPoint', 'XComSpawnPoint_Alien', 'XComAlienPod', 'XComAlienPod_Abduction', 'XComAlienPathNode',
-    'XComMeldContainerSpawnPoint', 'XComNoSpawnVolume', 'TriggerVolume', 'XComRebuildWorldDataVolume',
+    'XComMeldContainerSpawnPoint', 'XComNoSpawnVolume', 'XComRebuildWorldDataVolume',
     'XComAlienPod_Terror', 'XComAlienPod_Hunter', 'XComAlienSpawnVolume', 'XComWaveSystem', 'XComRainVolume',
-    'XComWeatherControl', 'XComSquadVisiblePoint',
+    'XComWeatherControl',
     # a prefab's instance stays: the native picks the squad's spawn group from the points prefabs hold (F-96)
     'PrefabInstance', 'VisGroupActor', 'Note', 'KActor', 'CameraActor', 'XComCapturePointVolume',
     'XComDropshipAudioActor', 'XComTacticalSoundManager', 'XComInteractPoint', 'XComExtractionVolume',
@@ -1634,16 +1641,18 @@ def landing_actor(p, i):
     return scene_metadata.landing_archetype(archetype_path(p, i))
 
 
-def clear_level(g, p, gone=(), keep=(), outside=None):
+def clear_level(g, p, gone=(), keep=(), outside=None, keep_triggers=False):
     """A cleared map (Clear map plan, section 7): every actor of CLEAR_OUT's classes in the persistent level's actor
-    list taken out (empty_slots, as a delete is made), but for the landing's prefabs' actors and those already gone
+    list taken out (empty_slots, as a delete is made), and those of CLEAR_TRIGGERS unless `keep_triggers` (their touch
+    events switched off: switch_off_events), but for the landing's prefabs' actors and those already gone
     (`gone`: export indices the edit takes out itself) and those the edit keeps on purpose (`keep`: the volumes of the
     map's buildings it edits in place) and, with `outside` ([x0, y0, x1, y1]: the play area of a clear that keeps
     the scenery outside it), the actors of KEEP_OUTSIDE's classes whose Location is outside that box; and one
     rebuild volume over the whole tile grid, all its
     levels, in place of one for each delete: the tiles the old pieces stood on carry the bake's marks, so the battle
     works them out again. Returns (the report: {out: {class: count}, kept: {class: count}, odd: {class: [names]},
-    landing: [names], outside: {class: count}, rebuildVolume}, the volume's export to add to the level)."""
+    landing: [names], outside: {class: count}, eventsOff: [names], rebuildVolume}, the volume's export to add to the
+    level)."""
     gone = set(gone)
     out, kept, odd, landing, take, beyond = {}, {}, {}, [], set(), {}
     # the actor list as the edit has left it so far (a van's or an emptied building's volumes may be out already)
@@ -1658,12 +1667,15 @@ def clear_level(g, p, gone=(), keep=(), outside=None):
         if landing_actor(p, i):
             landing.append(p.name(i).split('.')[-1])
             continue
+        if cls in CLEAR_TRIGGERS and keep_triggers:
+            kept[cls] = kept.get(cls, 0) + 1
+            continue
         if outside and cls in KEEP_OUTSIDE:
             x, y = p.own(i, 'Location', [0.0, 0.0, 0.0])[:2]
             if x < outside[0] or x > outside[2] or y < outside[1] or y > outside[3]:
                 beyond[cls] = beyond.get(cls, 0) + 1
                 continue
-        if cls in CLEAR_OUT:
+        if cls in CLEAR_OUT or cls in CLEAR_TRIGGERS:
             take.add(i)
             out[cls] = out.get(cls, 0) + 1
         elif cls in CLEAR_KEEP:
@@ -1672,6 +1684,7 @@ def clear_level(g, p, gone=(), keep=(), outside=None):
             odd.setdefault(cls, []).append(p.name(i).split('.')[-1])
     if take:
         empty_slots(g, p, take)
+    events_off = switch_off_events(g, p, [i for i in take if p.cls(i) == 'TriggerVolume'])
     grid = level_grid(p)
     box = [grid['ox'], grid['ox'] + seed_map.TILE * grid['nx'], grid['oy'], grid['oy'] + seed_map.TILE * grid['ny'],
            grid['oz'] - seed_map.REBUILD_PAD, grid['oz'] + seed_map.FLOOR * grid['nz']]
@@ -1679,9 +1692,31 @@ def clear_level(g, p, gone=(), keep=(), outside=None):
     report = dict(out=dict(sorted(out.items())), kept=dict(sorted(kept.items())),
                   odd={k: sorted(v) for k, v in sorted(odd.items())}, landing=sorted(landing),
                   **({'outside': dict(sorted(beyond.items()))} if outside else {}),
-                  taken=sorted(p.name(i).split('.')[-1] for i in take),
+                  taken=sorted(p.name(i).split('.')[-1] for i in take), eventsOff=events_off,
                   rebuildVolume=dict(bounds=volume['bounds'], extent=volume['rebuildExtent']))
     return report, volume['export']
+
+
+def switch_off_events(g, p, volumes):
+    """The sequence events whose Originator is one of `volumes` (export indices of the map `p`, grown by `g`) switched
+    off (bEnabled false, written in place or added): a trigger volume out of the level's list can no longer be touched,
+    and its events then cannot fire by any other road either. Returns their short names, sorted."""
+    import native_lights
+    volumes = set(volumes)
+    if not volumes:
+        return []
+    walker = Walker(p, g)
+    off = []
+    for i in range(1, len(p.exports) + 1):
+        if not p.cls(i).startswith('SeqEvent') or p.own(i, 'Originator') not in volumes:
+            continue
+        e = p.exports[i - 1]
+        data = bytearray(g.export_data(i))
+        start = legacy_props.props_start(p.data, e, p.names) - e['off']
+        data = native_lights.set_property(walker, g, data, start, 'bEnabled', 'BoolProperty', None, b'\x00')
+        g.relocate(i, bytes(data))
+        off.append(p.name(i).split('.')[-1])
+    return sorted(off)
 
 
 FRACTURING = ('XComDecoFracLevelActor', 'XComFracLevelActor')
@@ -2409,6 +2444,7 @@ class BuildState:
     sounds: object = None           # sounds
     flares: object = None           # flares
     spawns: object = None           # spawns
+    background_sound: object = None     # backgroundSound
     piece_blasts: tuple = ()        # pieceBlasts
     # what build fills, as it goes
     p: object = filled()                # the pristine map read (build, first)
@@ -2450,6 +2486,7 @@ class BuildState:
     effect_moved: set = filled(set)     # the effects moved (carried or by a lane), which a clear keeps
     registration: object = filled()     # the light edits listed in the receivers' lightmaps (baked), or None
     landing_record: object = filled()   # the map's landings moved (native_spawns.apply), or None
+    sound_record: object = filled()     # the map's background sound written (native_sounds.background), or None
     flag_record: object = filled()      # the map's own pieces' flags written (flags_in_place), or None
     blast_record: object = filled()     # the map's own pieces broken where they stand (blasts_in_place), or None
     stream_record: list = filled(list)  # a mission's pieces' tiles moved in their stream
@@ -2550,6 +2587,7 @@ def manifest_parts(st, q, bake):
                   **({'floorEmitters': [dict(effect=q.name(f['effect']).split('.')[-1],
                                              building=q.name(f['building']).split('.')[-1], floor=f['floor'],
                                              how=f['how']) for f in floor_emitters]} if floor_emitters else {}),
+                  **({'backgroundSound': st.sound_record} if st.sound_record else {}),
                   floorCaches=floor_caches, hiddenBuildings=hidden_buildings,
                   buildings=[dict(b, copy=q.name(b['building']).split('.')[-1],
                                   floors=[dict(f, volumes=[q.name(v).split('.')[-1] for v in f['volumes']],
@@ -3014,9 +3052,13 @@ def edits_in_place(st):
         keep = {p.by_name[PL + n] for e in building_edits if not e.get('deleted')
                 for n in [e['actor']] + [v for f in e.get('floors') or [] for v in f.get('volumes') or [] if v]
                 if PL + n in p.by_name} | effect_moved      # a moved piece's effects stay with it
-        cleared_record, clear_volume = clear_level(g, p, taken, keep, cleared.get('keepOutside'))
+        cleared_record, clear_volume = clear_level(g, p, taken, keep, cleared.get('keepOutside'),
+                                                   cleared.get('keepTriggers') is True)
         st.cleared_record = cleared_record
         hide_volumes = hide_volumes + [clear_volume]
+    # the map's background sound: its level-loaded sound given another cue, none, or another volume
+    import native_sounds
+    st.sound_record = native_sounds.background(g, p, st.background_sound)
     landing_record = None
     if landing_zones:
         import native_spawns
@@ -3194,6 +3236,9 @@ def write_and_verify(st):
         native_sounds.verify(r, lane_sounds)
         native_flares.verify(r, lane_flares)
         native_spawns.verify(r, lane_spawns, p)
+    if st.sound_record:
+        from package import Package as Reader
+        native_sounds.verify_background(Reader(dst), st.sound_record)
     # the made floors' cursor volumes read back
     if cursor_record and cursor_record['added']:
         import made_cursors
@@ -3248,7 +3293,7 @@ def build(st):
     lightmaps list this map's lights alone, its shadow maps name this map's dominant light, and the relight gives
     it the light of where it stands (relight.py --foreign-copy), with the staged actor left out of both scenes.
 
-    `cleared` (the compiler's: {grid, keepOutside?}) says the map was cleared (Clear map plan, section 7): the hides get no rebuild
+    `cleared` (the compiler's: {grid, keepOutside?, keepTriggers?}) says the map was cleared (Clear map plan, section 7): the hides get no rebuild
     volume of their own, and clear_level takes out what the editor never showed and puts one volume over the grid,
     after the hides and the building edits. The manifest's `cleared` section counts what it took by class.
 
@@ -3270,6 +3315,10 @@ def build(st):
     `spawns` (the compiler's lane: {moves, values}; the editor spawns plan, SP6) moves the base map's pods, Meld points
     and drop-in points in place and sets their values (native_spawns.apply_lane); the manifest's `spawns` section
     says what was done, read back (native_spawns.verify).
+
+    `background_sound` (the compiler's `backgroundSound`: {op, cue, volume?}) gives the map's level-loaded sound another
+    cue, none or another volume (native_sounds.background), read back (native_sounds.verify_background); the manifest's
+    `backgroundSound` says what was written.
 
     `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
     theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
@@ -3392,7 +3441,7 @@ def edit_state(src, out, variant, doc, **options):
     state's other inputs (bake, cache, receivers_near, jobs, tiles, edit_spec, piece_cache, base). Each lane goes to
     its field as it is, and each copy through copy_record."""
     copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
-    cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = None
+    cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = background_sound = None
     stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
     if isinstance(doc, dict):
         assemblies = doc.get('assemblies') or []
@@ -3405,6 +3454,7 @@ def edit_state(src, out, variant, doc, **options):
         carried_effects = doc.get('carriedEffects')
         effects, sounds, flares = doc.get('effects'), doc.get('sounds'), doc.get('flares')
         spawns = doc.get('spawns')
+        background_sound = doc.get('backgroundSound')
         stream_tiles = doc.get('streamTiles') or []
         piece_flags = doc.get('pieceFlags') or []
         flag_ladders = doc.get('pieceFlagLadders') or []
@@ -3416,7 +3466,7 @@ def edit_state(src, out, variant, doc, **options):
                       lights=lights, covers=covers, buildings=buildings, building_edits=edits, cleared=cleared,
                       landing_zones=landing_zones, carried_effects=carried_effects, stream_tiles=stream_tiles,
                       piece_flags=piece_flags, flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares,
-                      spawns=spawns, piece_blasts=piece_blasts, **options)
+                      spawns=spawns, background_sound=background_sound, piece_blasts=piece_blasts, **options)
 
 
 def main():
@@ -3469,7 +3519,7 @@ def main():
     if not st.copies and not st.hides and not st.covers and not st.buildings and not st.building_edits \
             and not st.cleared and not st.landing_zones and not st.stream_tiles and not st.piece_flags \
             and native_lights.is_empty(st.lights) and not st.effects and not st.sounds and not st.flares \
-            and not st.spawns and not st.piece_blasts:
+            and not st.spawns and not st.background_sound and not st.piece_blasts:
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')

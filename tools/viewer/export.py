@@ -18,8 +18,9 @@ from texture import export_texture
 from materials import coordinates, profile, static_switches, constant_color, approximate_colour, opacity_input, BY_KIND
 from PIL import Image
 from export_math import multiply, transform, view_matrix
+import background_sound
 from scene_metadata import (building_metadata, cursor_volumes, effect_metadata, landing_metadata, destruction, fragment_breaks, kismet_references, prefab_members, tile_grid,
-                            tactical_metadata, spawn_metadata, donor_objects, BOMB_DONOR)
+                            tactical_metadata, spawn_metadata, donor_objects, BOMB_DONOR, trigger_counts)
 from resolver import resolve_scene
 from composition import compose_scene,content_records
 from lights import light_metadata, light_records
@@ -91,7 +92,10 @@ import settings
 # 38: the map's diagonal cover tiles (`tactical.diagonalCover`: each tile its seeds marked, its floor's height, its
 #     cover location and the diagonals it gives cover toward; scene_metadata.saved_diagonal_tiles), for View options'
 #     Diagonal cover (findings register F-149)
-EXPORT_VERSION = 38
+# 39: the map's background sound (`backgroundSound`: the sound its script starts when the level loads, for the player;
+#     background_sound.py) and its triggers counted (`triggerCounts`: the trigger volumes, water volumes and sight
+#     points a clear takes out unless kept; scene_metadata.trigger_counts, F-159)
+EXPORT_VERSION = 39
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -661,12 +665,16 @@ class Exporter:
         effects = self.effects()
         # the map's spawn points (export 33): [] for a map with none, absent for a streamed or previewed package
         spawns = {} if self.prefix else dict(spawns=spawn_metadata(p, self.landings, self.warn))
+        # its background sound and its triggers counted (export 39), absent for a streamed or previewed package
+        sound = {} if self.prefix else dict(
+            backgroundSound=self.guarded('background sound', lambda: background_sound.background_sound(p), None),
+            triggerCounts=self.guarded('trigger counts', lambda: trigger_counts(p), None))
         return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope,
                     playableBounds=bounds[1] if bounds else None,
                     tileGrid=grid, tactical=tactical,
                     buildings=buildings,
                     cursorVolumes=[] if self.prefix else self.guarded('cursor volumes', lambda: cursor_volumes(p), []),
-                    landings=self.landings, **spawns,
+                    landings=self.landings, **spawns, **sound,
                     effects=effects['effects'], sounds=effects['sounds'], flares=effects['flares'],
                     effectSystems=effects['systems'], soundWaves=effects['waves'],
                     lighting="dynamic", lightMetadata=dict(version=LIGHT_METADATA_VERSION, areaMatcher=self.area_matcher),

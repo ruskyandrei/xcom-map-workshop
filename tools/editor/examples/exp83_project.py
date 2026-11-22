@@ -71,7 +71,7 @@ def main():
         output.pop('reason', None)
     overrides = [dict(target=target(ROOF), blasts=ROOF_BLASTS),
                  dict(target=target(ROOF_B), blasts=ROOF_B_BLASTS, breaksFurther=True)]
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=overrides, added=[], groups=[], nextSerial=1,
                view=dict(camera=[-1400, 700, 1300], target=[-560, 576, 400]))

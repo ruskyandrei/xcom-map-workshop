@@ -106,7 +106,7 @@ def main():
         output.pop('reason', None)
     pieces = added(s, game, scene)
     overrides = [dict(target=dict(package=MAP, level='base', actor=PL + n), deleted=True) for n in DELETED]
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=overrides, added=pieces, groups=[], buildings=[], nextSerial=len(pieces) + 1,
                view=dict(camera=[600, -1200, 1400], target=[900, -2000, -100]))

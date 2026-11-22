@@ -838,6 +838,7 @@ class Build:
         self.stage_kept = True
         self.covers = self.buildings = self.building_edits = self.any_buildings = None
         self.piece_flags = self.piece_blasts = self.flags_edit = self.spawn_edits = self.effects_edit = None
+        self.background_sound = self.sound_brought = None
         self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = None
         self.has_lights, self.lights, self.moves_landings = False, None, False
         self.stream_moves = self.stream_tiles = self.spec = self.copies = None
@@ -1071,8 +1072,11 @@ class Build:
         # the base map's spawn points moved or given values (the editor spawns plan, SP6) are the same: settings and
         # places the game reads, no light, so they go with the effects (made by native_copy.py, lighting kept)
         self.spawn_edits = {op: len((self.native.get('spawns') or {}).get(op) or []) for op in ('moves', 'values', 'copies', 'deletes')}
-        self.effects_edit = any((self.native.get(k) or {}).get(op) for k in EFFECT_LANES + ('spawns',)
-                                for op in ('moves', 'deletes', 'copies', 'values'))
+        # the map's background sound given another cue, none or another volume (native_sounds.background): a setting
+        # of its script, no light, so it goes with the effects too
+        self.background_sound = self.native.get('backgroundSound')
+        self.effects_edit = bool(self.background_sound) or any(
+            (self.native.get(k) or {}).get(op) for k in EFFECT_LANES + ('spawns',) for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])
         # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build
         self.has_lights = has_light_edits(self.native)
@@ -1098,8 +1102,8 @@ class Build:
                     'its one edit is' if len(self.left_out) == 1 else 'its %d edits are' % len(self.left_out),
                     '; '.join(row['message'] for row in self.left_out[:3]) + ('; ...' if len(self.left_out) > 3 else '')))
             raise BuildError('the project changes nothing in the map: no piece, effect, sound, lens flare or spawn point is moved, deleted or '
-                             'added, no light or flag is changed, no building is made, the map keeps its size, no '
-                             'spawn rule is set, the missions are the map\'s and it has no map picture')
+                             'added, no light or flag is changed, no building is made, the map keeps its size and its '
+                             'background sound, no spawn rule is set, the missions are the map\'s and it has no map picture')
         self.spec = self.work / ('%s.json' % self.patch)
         compiler.write_json(self.spec, patch_spec)
         self.copies = self.work / 'native-edit.json'
@@ -1380,10 +1384,12 @@ class Build:
         `effects`, `sounds` and `flares` lanes' copies with a donor: the effects and sounds plan, stage FX4): each staged in a
         copy of the base map, with what it depends on (tools/bake/transplant.py). The copier then reads the staged map
         and the edit naming the staged actors. Without such a piece nothing is done."""
-        self.source, self.donors = self.base, []
+        self.source, self.donors, self.sound_brought = self.base, [], None
         foreign_effects = any(c.get('donor') for k in EFFECT_LANES
                               for c in (self.native.get(k) or {}).get('copies') or [])
-        if not (any(c.get('donor') for c in self.natives) or foreign_effects):
+        # the background sound's cue from another map (its `donor`): brought as an asset into the staged map
+        foreign_sound = bool((self.background_sound or {}).get('donor'))
+        if not (any(c.get('donor') for c in self.natives) or foreign_effects or foreign_sound):
             return
         out = self.work / 'transplant'
         self.tool(None, [sys.executable, '-B', '-u', TRANSPLANT, self.base, out, '--edit', self.copies, '--cooked',
@@ -1399,10 +1405,14 @@ class Build:
                             effects=d.get('effects', 0), flares=d.get('flares', 0), objectsBrought=d['objectsBrought'],
                             objectsReused=d['objectsReused'], cut=d['cut'], sizes=d.get('sizes', []),
                             bytes=d['bytes']) for d in report['donors']]
+        sound = report.get('backgroundSound')
+        self.sound_brought = sound and dict(cue=sound['cue'], map=sound['map'], objectsBrought=sound['objectsBrought'],
+                                            **({'bytes': sound['bytes']} if 'bytes' in sound else {}))
         self.stage('transplant', staged=str(self.source), foreignPieces=report['foreignPieces'],
                    donors=[dict(map=d['map'], pieces=d['pieces'], effects=d['effects'], flares=d['flares'],
                                 objectsBrought=d['objectsBrought'],
-                                bytes=d['bytes'], cut=len(d['cut']), otherSizes=len(d['sizes'])) for d in self.donors])
+                                bytes=d['bytes'], cut=len(d['cut']), otherSizes=len(d['sizes'])) for d in self.donors],
+                   **({'backgroundSound': self.sound_brought} if self.sound_brought else {}))
 
     def light(self):
         self.lit = self.work / 'lit'
@@ -1876,6 +1886,11 @@ class Build:
                  **({'spawnEdits': dict(moved=self.spawn_edits['moves'], valued=self.spawn_edits['values'],
                                         added=self.spawn_edits['copies'], deleted=self.spawn_edits['deletes'])}
                     if any(self.spawn_edits.values()) else {}),
+                 # the map's background sound as the variant plays it (cue None: none), and the map its cue came from
+                 **({'backgroundSound': dict(cue=self.background_sound.get('cue'),
+                                             **({'volume': self.background_sound['volume']} if 'volume' in self.background_sound else {}),
+                                             **({'from': self.sound_brought['map']} if self.sound_brought else {}))}
+                    if self.background_sound else {}),
                  buildings=len(self.buildings), buildingEdits=len(self.building_edits),
                  donors=self.donors, foreignPieces=sum(d['pieces'] for d in self.donors),
                  foreignEffects=sum(d.get('effects', 0) for d in self.donors),

@@ -106,6 +106,7 @@ class MissionEdits:
         # drop-in rule; stage the larger grid; landing_zones the zones and the map's own landings. Each keeps these
         # values when the stage doesn't run (a document that stops earlier).
         self.cleared, self.keep_outside = False, False
+        self.keep_triggers = False  # the clear kept the map's triggers (cleared_mark)
         self.spawn_rules = None
         self.stage_grid = None
         self.zones, self.own_landings_found, self.own_count = None, None, None
@@ -252,6 +253,16 @@ class MissionEdits:
                            record='clearKeepsOutside')
             keeps = False
         self.keep_outside = self.cleared and keeps is True
+        # `clearKeepsTriggers` (the Clear map window's "Keep the map's triggers and scripts"): the Build's clear_level
+        # leaves the map's trigger volumes and sight points, which it takes out otherwise (F-159). Without `cleared` it
+        # says nothing.
+        keeps = self.c.doc.get('clearKeepsTriggers', False)
+        if not isinstance(keeps, bool):
+            self.c.leave_out('cleared-shape', '"clearKeepsTriggers" must be true or false: it is left out%s'
+                           % (', and the clear takes out the map\'s triggers' if cleared is True else ''),
+                           record='clearKeepsTriggers')
+            keeps = False
+        self.keep_triggers = self.cleared and keeps is True
         if self.cleared and not (self.c.scene.get('tileGrid') or {}).get('dimensions'):
             self.c.error('cleared-grid', 'the export of %s has no tile grid, which a cleared map\'s Build covers with its '
                        'cursor and rebuild volumes' % self.c.map)

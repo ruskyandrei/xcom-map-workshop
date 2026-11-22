@@ -116,7 +116,7 @@ def main():
     pieces = added(scene)
     buildings = [dict(id='00000000-0000-4000-8000-0000000e76b1', name='EXP-76 room', kind='building',
                       floors=[dict(boxes=[box]) for box in ROOM_FLOORS])]
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=[], added=pieces, groups=[], buildings=buildings, nextSerial=len(pieces) + 1,
                view=dict(camera=[-1100, 900, -1500], target=[-1500, 0, -900]))

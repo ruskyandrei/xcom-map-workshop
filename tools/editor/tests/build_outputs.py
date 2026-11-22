@@ -71,7 +71,7 @@ KINDS = ('quick', 'baked')
 # required too.
 LANES = ('copies', 'breakOriginals', 'hides', 'lights', 'covers', 'pieceFlags', 'pieceFlagLadders', 'pieceBlasts',
          'buildings', 'buildingEdits', 'assemblies', 'streamHides', 'streamMoves', 'streamTiles', 'cleared',
-         'landingZones', 'spawnRules', 'carriedEffects', 'effects', 'sounds', 'flares', 'spawns')
+         'landingZones', 'spawnRules', 'carriedEffects', 'effects', 'sounds', 'flares', 'spawns', 'backgroundSound')
 BUILD_LANES = ('streamTiles',)      # added by the Build (Build.compile), not by the compiler
 OPS = ('moves', 'deletes', 'copies', 'values')
 LIGHT_OPS = ('deletes', 'changes', 'adds', 'area')
@@ -107,8 +107,9 @@ INPUTS = [
          what='URB_Bar: made walls that break with a prop and a cover block; cover blocks that break with their group, '
               'the map\'s own pieces among them; the map\'s own buildings edited; an invisible floor'),
     dict(name='bar-clear', maps=BAR, parts=[part('clear_bar_project.py', '{out}', '--grid', '60', '45', '12', '--zones',
-                                                 '--compile')],
-         what='URB_Bar cleared, on a larger grid (60 by 45 by 12), with two landing zones (its own moved, one added)'),
+                                                 '--sound', 'SoundAmbience-NorthAmerica.ForestAmbienceCue', '--compile')],
+         what='URB_Bar cleared (its triggers taken out), on a larger grid (60 by 45 by 12), with two landing zones (its '
+              'own moved, one added) and another map\'s background sound (the forest\'s, brought from CLrgScout_DeepWoods)'),
     dict(name='bar-foreign', maps=BAR, parts=[part('exp40_project.py', *OUT)],
          what='URB_Bar: a car, a door with its frame and a ladder from other maps'),
     dict(name='bar-flags', maps=BAR, parts=[part('exp62_project.py', *OUT), part('exp76_project.py', *STORE),

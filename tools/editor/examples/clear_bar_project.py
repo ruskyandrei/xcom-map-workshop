@@ -2,7 +2,8 @@
 them (all the base level's pieces but the landing's, the hidden ones and the sky backdrop), `cleared` set, and
 optionally a size.
 
-Usage: clear_bar_project.py <out> [--grid NX NY NZ] [--zones] [--keep-outside] [--quick | --full | --compile]
+Usage: clear_bar_project.py <out> [--grid NX NY NZ] [--zones] [--keep-outside] [--keep-triggers]
+                            [--sound CUE|none] [--volume V] [--cache <cache>] [--quick | --full | --compile]
 
 The project goes to <out>/project.json and the build under <out>/builds; the game and the cache are the settings'.
 Bar must have been opened once in the editor at export 21 or newer. --compile only compiles (the report beside the
@@ -11,7 +12,11 @@ map's own landing moved four tiles east and turned to face west (its Skyranger, 
 the grid), and one added on the car park, facing north. --keep-outside is the Clear map window's "Keep the scenery
 outside the play area": the pieces whose place is outside Bar's play area (here by the actor's place, where the page
 goes by each part's box) are not deleted, and the project says `clearKeepsOutside`, so the Build keeps the lights,
-smoke and stains out there too."""
+smoke and stains out there too. Without --keep-triggers (the window's "Keep the map's triggers and scripts",
+`clearKeepsTriggers`) the Build takes out Bar's two touch triggers (its rats) and turns their events off (F-159).
+--sound gives the map another background sound (`backgroundSound`, schema 5: a cue of
+tools/viewer/background_sounds.json, brought from its map, or none) and --volume its volume; Bar must then have been
+opened at export 39 or newer. --cache exports from another cache than the settings' (a scratch one)."""
 import argparse
 import hashlib
 from pathlib import Path
@@ -57,13 +62,19 @@ def cleared_overrides(scene, keep_outside=False):
     return sorted(out, key=lambda r: r['target']['actor'])
 
 
-def document(sha, scene, grid=None, zones=None, added=(), keep_outside=False):
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=1, id=PROJECT_ID, name='Bar cleared', mode='edit',
+def document(sha, scene, grid=None, zones=None, added=(), keep_outside=False, keep_triggers=False, sound=None):
+    newer = keep_triggers or sound is not None
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=compiler.SCHEMA_VERSION if newer else 1, id=PROJECT_ID,
+               name='Bar cleared', mode='edit',
                revision=1, source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=dict(shipAs='URB_Bar_Cleared_c1ea', patch='patch_urb_bar_cleared_c1ea'),
                overrides=cleared_overrides(scene, keep_outside), added=list(added), nextSerial=len(added), cleared=True)
     if keep_outside:
         doc['clearKeepsOutside'] = True
+    if keep_triggers:
+        doc['clearKeepsTriggers'] = True
+    if sound is not None:
+        doc['backgroundSound'] = sound
     if grid:
         doc['stage'] = dict(grid=list(grid))
     if zones is not None:
@@ -77,6 +88,10 @@ def main(argv=None):
     a.add_argument('--grid', nargs=3, type=int, metavar=('NX', 'NY', 'NZ'))
     a.add_argument('--zones', action='store_true', help="two landing zones: the map's own moved and turned, one added")
     a.add_argument('--keep-outside', action='store_true', help='keep the scenery outside the play area')
+    a.add_argument('--keep-triggers', action='store_true', help="keep the map's triggers and scripts")
+    a.add_argument('--sound', help="the map's background sound: a cue's path, or none")
+    a.add_argument('--volume', type=float, help="the background sound's volume (with --sound)")
+    a.add_argument('--cache', type=Path, help="the viewer cache to read Bar's export from (default: the settings')")
     mode = a.add_mutually_exclusive_group()
     mode.add_argument('--quick', action='store_true')
     mode.add_argument('--full', action='store_true')
@@ -84,23 +99,31 @@ def main(argv=None):
     args = a.parse_args(argv)
     s = settings_module.load_settings()
     game = settings_module.resolve_game(s['game'])[0]
-    sha, scene = scene_of(s['cache'], game)
-    doc = document(sha, scene, args.grid, ZONES if args.zones else None, keep_outside=args.keep_outside)
+    cache = args.cache or s['cache']
+    sha, scene = scene_of(cache, game)
+    sound = None
+    if args.sound:
+        sound = dict(cue=None if args.sound.lower() == 'none' else args.sound,
+                     **({'volume': args.volume} if args.volume is not None else {}))
+    doc = document(sha, scene, args.grid, ZONES if args.zones else None, keep_outside=args.keep_outside,
+                   keep_triggers=args.keep_triggers, sound=sound)
     args.out.mkdir(parents=True, exist_ok=True)
     project = args.out / 'project.json'
     compiler.write_json(project, doc)
     t = time.time()
-    spec, report = compiler.compile_project(doc, scene, library=compiler.Library(s['cache'], game))
+    spec, report = compiler.compile_project(doc, scene, library=compiler.Library(cache, game))
     compiler.write_json(args.out / 'compile-report.json', report)
     print('compiled in %.2f s: %d deleted, %d errors, warnings %s' % (
         time.time() - t, report['counts']['deleted'], report['counts']['errors'],
         sorted({w['code'] for w in report['warnings']})))
     for e in report['errors'][:10]:
         print('  error:', e['message'])
+    for e in report['leftOut'][:10]:
+        print('  left out:', e['message'])
     if args.compile or spec is None:
         return 0 if spec else 1
     t = time.time()
-    m = build.Build(build.BuildInputs(project, s['cache'], args.out / 'builds', game, s['udk'],
+    m = build.Build(build.BuildInputs(project, cache, args.out / 'builds', game, s['udk'],
                                       quick=not args.full)).run()
     print('built in %.1f s: %s' % (time.time() - t, m.get('buildId')))
     return 0

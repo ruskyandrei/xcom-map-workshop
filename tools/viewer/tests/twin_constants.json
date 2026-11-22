@@ -15,5 +15,5 @@
  "listedClasses": ["XComLevelActor", "XComOpacityFadeLevelActor", "XComDestructibleActor", "XComFracLevelActor", "XComDecoFracLevelActor",
                    "XComInteractiveLevelActor", "XComLadder", "XComCollectible", "KAsset"],
  "ladders": {"topReach": 76, "footBack": 16, "endLift": 8, "turn": 65536, "floorThick": 40, "headroom": 150},
- "schemaVersions": {"project": 4, "prefab": 4}
+ "schemaVersions": {"project": 5, "prefab": 4}
 }

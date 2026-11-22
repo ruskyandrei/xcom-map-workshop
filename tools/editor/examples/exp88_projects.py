@@ -172,7 +172,7 @@ def main():
         claims = outputnames.Claims(store.root, str(args.builds), [game])
         output = outputnames.allocate(name, claims.taken, outputnames.base_streams(game, m))
         output.pop('reason', None)
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=m, package=m + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=made['overrides'], added=made['added'], groups=made['groups'], buildings=[],
                nextSerial=len(made['added']) + 1, view=made['view'])

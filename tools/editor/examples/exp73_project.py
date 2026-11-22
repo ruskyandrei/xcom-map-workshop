@@ -85,7 +85,7 @@ def main():
         output = outputnames.allocate(name, claims.taken, outputnames.base_streams(game, MAP))
         output.pop('reason', None)
     walls = added()
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=[], added=walls, groups=[], nextSerial=len(walls) + 1,
                view=dict(camera=[-900, 1000, -1500], target=[-1200, 16, -2200]))

@@ -327,7 +327,7 @@ def main():
              for k, (_, f) in enumerate(pieces)]
     overrides = [] if args.which == 'eyedropper' else \
         [dict(target=dict(package=MAP, level='base', actor=PL + n), deleted=True) for n in DELETED]
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=the_map, package=the_map + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=overrides, added=added, groups=[], buildings=[],
                nextSerial=len(added) + 1, view=dict(camera=[origin[0] - 600, 1500, origin[1] - 600],

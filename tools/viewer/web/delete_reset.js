@@ -10,8 +10,9 @@
 // the map's buildings changed and restored, the map's size, the cleared mark's follow-ups, the spawn moves and rule, a
 // broken piece drawn and the hints. What the other areas draw after a step follows the edit hub's runs (clear,
 // landing-zones, project-missions: edit_hub.js). It keeps no state of its own.
-import { areaBindings, buildingMeta, cleared, clearKeepsOutside, effectRoots, groups, hintTimer, landingZones,
-         lightRoots, missionMoves, ownSet, pickedEffect, projectMissions, projectSpawnRules, roots, setAreaBindings,
+import { areaBindings, buildingMeta, cleared, clearKeepsOutside, clearKeepsTriggers, effectRoots, groups, hintTimer, landingZones,
+         lightRoots, missionMoves, ownSet, pickedEffect, projectBackgroundSound, projectMissions, projectSpawnRules, roots,
+         setAreaBindings, setClearKeepsTriggers, setProjectBackgroundSound,
          setCleared, setClearKeepsOutside, setGroups, setLandingZones, setLightsDirty, setMergedBuildings, setPickedZone,
          setProjectMissions, setProjectSpawnRules, stage, volumesOn } from './editor_state.js';
 import { runHub } from './edit_hub.js';
@@ -118,14 +119,16 @@ export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, bas
     const ownBoxes = liveVolumes().filter(r => !buildingMeta.get(r.userData.volume.building)?.map);
     if (!added.length && !deleted.length && !moved.length && !flagged.length && !broken.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
         && !addedEffects.length && !stays.length && !valued.length
-        && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size && !projectSpawnRules) return;
+        && !ownBoxes.length && !stage && !landingZones && !cleared && !projectMissions && !missionMoves.size && !projectSpawnRules
+        && !projectBackgroundSound) return;
     const before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r)), picks = gizmo.picks();
     // the map's own grid, landing zones and no clear mark
     const map = { stage, zones: landingZones ? landingZones.map(z => ({ ...z })) : null, cleared, keeps: clearKeepsOutside,
                   missions: projectMissions ? projectMissions.map(e => ({ ...e })) : null, moves: new Map(missionMoves),
-                  rules: projectSpawnRules };
+                  rules: projectSpawnRules, keepsTriggers: clearKeepsTriggers, sound: projectBackgroundSound };
     const mapState = m => {
       setCleared(m.cleared); setClearKeepsOutside(m.keeps); setLandingZones(m.zones ? m.zones.map(z => ({ ...z })) : null);
+      setClearKeepsTriggers(m.keepsTriggers === true); setProjectBackgroundSound(m.sound ?? null);
       setProjectMissions(m.missions ? m.missions.map(e => ({ ...e })) : null);
       setMissionMoves(new Map(m.moves ?? []));
       setProjectSpawnRules(m.rules ?? null); syncSpawnRule();

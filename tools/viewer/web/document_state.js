@@ -14,11 +14,12 @@
 // The shared state it reads and writes is editor_state.js's.
 import * as THREE from 'three';
 import { COVER_KIND } from './cover.js';
-import { areaBindings, builder, builderMode, cleared, clearKeepsOutside, copySerial, data, effectRoots, eventMemo,
-         landingZones, library, lightIndex, lightRoots, loadErrorCount, missionMoves, projectMissions, projectPicture,
-         projectSpawnRules, roots, setCleared, setClearKeepsOutside, setCopySerial, setGroups, setLandingZones,
-         setLiveCache, setLoadErrorCount, setMergedBuildings, setProjectMissions, setProjectPicture,
-         setProjectSpawnRules, stage, volumeRoots } from './editor_state.js';
+import { areaBindings, builder, builderMode, cleared, clearKeepsOutside, clearKeepsTriggers, copySerial, data, effectRoots,
+         eventMemo, landingZones, library, lightIndex, lightRoots, loadErrorCount, missionMoves, projectBackgroundSound,
+         projectMissions, projectPicture, projectSpawnRules, roots, setCleared, setClearKeepsOutside, setClearKeepsTriggers,
+         setCopySerial, setGroups, setLandingZones, setLiveCache, setLoadErrorCount, setMergedBuildings,
+         setProjectBackgroundSound, setProjectMissions, setProjectPicture, setProjectSpawnRules, stage,
+         volumeRoots } from './editor_state.js';
 import { cloneBlasts, isStream, optionsOf, recordOf, sourceKey, stateOfRoot } from './piece_records.js';
 import { memberKey, pruneGroups, sortState, targetKey, validBuilding, validPicture, validPrefabMark, validStage } from './project.js';
 import { NEW_VOLUME, SPAWN_COPY_KINDS, copyEntryOf, spawnEntryOf, spawnKey } from './spawns_view.js';
@@ -72,8 +73,8 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     const kept = [...pruneGroups(saved).values()].map(g => ({ id: g.id, locked: g.locked, breakTogether: g.breakTogether, members: [...g.members.values()],
                                                                ...(g.prefab ? { prefab: g.prefab } : {}) }));
     return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values(), ...spawnCopyRecords()], groups: kept, areaLightBindings, stage,
-                      buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, missions: projectMissions,
-                      spawnRules: projectSpawnRules, picture: projectPicture });
+                      buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, clearKeepsTriggers, missions: projectMissions,
+                      spawnRules: projectSpawnRules, picture: projectPicture, backgroundSound: projectBackgroundSound });
   }
   // Put a project state on the map: originals moved or deleted, copies added. Records naming pieces this export does
   // not have are returned, to be kept and saved back unchanged; nothing is matched by short name.
@@ -84,6 +85,8 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
       if (!foreignNoted.has(message)) { foreignNoted.add(message); projectNote(`${message}: its copies are kept and saved back unchanged.`); }
     clearEdits();
     setCleared(state.cleared === true); setClearKeepsOutside(cleared && state.clearKeepsOutside === true); setMergedBuildings(null);
+    setClearKeepsTriggers(cleared && state.clearKeepsTriggers === true);
+    setProjectBackgroundSound(state.backgroundSound ?? null);
     setLandingZones(Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null);
     setProjectMissions(Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null);
     setProjectPicture(validPicture(state.picture) ? { sha256: state.picture.sha256 } : null);
@@ -241,6 +244,7 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     clearLightEdits();
     clearEffectEdits();
     setCleared(false); setClearKeepsOutside(false); setLandingZones(null); setMergedBuildings(null); setProjectMissions(null);
+    setClearKeepsTriggers(false); setProjectBackgroundSound(null);
     setProjectPicture(null);
     setProjectSpawnRules(null); syncSpawnRule();
     setMissionMoves(new Map());

@@ -21,7 +21,9 @@ install's maps. It uses the package readers in [`tools/viewer/package.py`](tools
 [`tools/upk`](tools/upk). It writes a generation folder in the cache (`<cache>/<Map>/<generation>/`). That folder holds
 `scene.json`, with the pieces, lights, effects, sounds, spawn points, buildings, missions and the tile grid, and the
 meshes, materials and textures the page draws. [`scene_metadata.py`](tools/viewer/scene_metadata.py) works out the
-records that need more than reading, such as what an effect is carried by or who uses a spawn point. The contract is
+records that need more than reading, such as what an effect is carried by or who uses a spawn point, and
+[`background_sound.py`](tools/viewer/background_sound.py) the map's background sound from its script, with the beds
+the editor offers (`background_sounds.json`). The contract is
 `EXPORT_VERSION` in `export.py`, raised for every change of what an export holds, each raise listed beside it. An
 export older than the editor's version is made again. The server picks its exports when it starts.
 

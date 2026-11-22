@@ -24,10 +24,10 @@ import * as THREE from 'three';
 import { call } from './api.js';
 import { LEVEL, TILE } from './constants.js';
 import { onHub, runHub } from './edit_hub.js';
-import { activeMapId, areaBindings, askedPick, builderMode, cleared, clearKeepsOutside, data, effectRoots,
+import { activeMapId, areaBindings, askedPick, builderMode, cleared, clearKeepsOutside, clearKeepsTriggers, data, effectRoots,
          landingActors, landingLines, landingZones, lightRoots, missionIndex, missionMoves, missionPickValue,
          playStatus, project, projectMissions, projectPicture, roots, setAreaBindings, setAskedPick, setCleared,
-         setClearKeepsOutside, setGroups, setLandingLines, setLandingRead, setLandingZones, setLastClearMs,
+         setClearKeepsOutside, setClearKeepsTriggers, setGroups, setLandingLines, setLandingRead, setLandingZones, setLastClearMs,
          setLightsDirty, setMergedBuildings, setMissionIndex, setMissionPickValue, setPickedZone, setProjectMissions,
          setProjectPicture, setStartingCache, setStreamSet, stage, startingCache } from './editor_state.js';
 import { survivesClear } from './effects_rules.js';
@@ -217,9 +217,20 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     }
     return { effects, sounds, landing };
   }
-  const clearDialog = { root: $('clearMap'), keep: $('clearMapKeepOutside') };
-  const CLEAR_KEEP_OUTSIDE = 'workshop.clearKeepOutside';
+  const clearDialog = { root: $('clearMap'), keep: $('clearMapKeepOutside'), keepTriggers: $('clearMapKeepTriggers') };
+  const CLEAR_KEEP_OUTSIDE = 'workshop.clearKeepOutside', CLEAR_KEEP_TRIGGERS = 'workshop.clearKeepTriggers';
   clearDialog.keep.checked = recall(CLEAR_KEEP_OUTSIDE) === '1';
+  clearDialog.keepTriggers.checked = recall(CLEAR_KEEP_TRIGGERS) === '1';
+  // The map's triggers a clear takes out unless kept (F-159; export 39's triggerCounts): its touch and water volumes and
+  // its sight points, none of which the editor shows. In words for the window, or '' for a map with none (an older export
+  // says nothing of them).
+  function triggerWords() {
+    const t = data?.triggerCounts;
+    if (!t || !(t.volumes + t.sight)) return '';
+    const touch = t.volumes - t.water;
+    return [touch && plural(touch, 'touch trigger'), t.water && plural(t.water, 'water volume'), t.sight && plural(t.sight, 'sight point')]
+      .filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1');
+  }
   // The window's counts and notes, at the grid's size now (a clear keeps it; the rail's Map grid changes it)
   function clearSize() {
     const v = [...data.tileGrid.dimensions], notes = [];
@@ -244,13 +255,19 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     const scenery = clearDialog.keep.checked ? `, ${plural(plan.outside, 'piece')} and ${plural(plan.lightsOutside, 'light')} outside the play area` : '';
     const sp = clearedSpawns(), points = sp.deleted.length + sp.copies, fx = clearedEffects(clearDialog.keep.checked ? v : null);
     const and = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0]);
+    const triggers = triggerWords(), keepTriggers = clearDialog.keepTriggers.checked;
     const gone = [plural(plan.pieces, 'piece'), plural(plan.lights, 'light'), points && `${plural(points, 'spawn point')} (pods, Meld points and drop-in points)`,
-                  fx.effects && plural(fx.effects, 'effect'), fx.sounds && plural(fx.sounds, 'ambient sound')].filter(Boolean);
+                  fx.effects && plural(fx.effects, 'effect'), fx.sounds && plural(fx.sounds, 'ambient sound'),
+                  !keepTriggers && triggers && `the map's ${triggers}`].filter(Boolean);
     $('clearMapPlan').textContent = `Removes ${and(gone)}. `
       + `Keeps the landing's ${plural(plan.landing, 'piece')}${fx.landing ? ` and its ${fx.landing === 1 ? 'effect' : `${fx.landing} effects and sounds`}` : ''}, `
       + `${kept ? `one landing zone (${zones.findIndex(z => z.id === kept.id) === 0 ? 'the first' : `zone ${zones.findIndex(z => z.id === kept.id) + 1}`}, the map's own landing${zones.length > 1 ? `; the other ${zones.length - 1} go` : ''})` : 'no landing zone'}`
       + `${scenery}${sp.volumes ? `, the ${plural(sp.volumes, 'no-spawn volume')}` : ''}${sun ? ', the sun' : ''}${sky ? ' and the sky light' : ''}.`
-      + (sp.named.length ? ` ${plural(sp.named.length, 'spawn point')} the map's script names ${sp.named.length === 1 ? 'stays' : 'stay'} (${sp.named.slice(0, 4).map(o => short(o.actor)).join(', ')}${sp.named.length > 4 ? ` and ${sp.named.length - 4} more` : ''}).` : '');
+      + (sp.named.length ? ` ${plural(sp.named.length, 'spawn point')} the map's script names ${sp.named.length === 1 ? 'stays' : 'stay'} (${sp.named.slice(0, 4).map(o => short(o.actor)).join(', ')}${sp.named.length > 4 ? ` and ${sp.named.length - 4} more` : ''}).` : '')
+      + (keepTriggers && triggers ? ` The map's ${triggers} stay.` : '')
+      + (data.backgroundSound ? ' Its background sound stays.' : '');
+    // (the tick says nothing on a map without triggers)
+    clearDialog.keepTriggers.closest('label').hidden = !triggers;
     // the kinds a record alone gives the map, and the base map's missions that bring objects in their streams
     const brought = (data.missions ?? []).filter(m => (m.streams ?? []).some(s => data.streams?.[s]?.missionObjects?.length));
     const words = { Abduction: 'an abduction', TerrorSite: 'a terror site', 'Special/Bomb': lwrInstall() ? 'a bomb mission' : 'a bomb mission (on Long War only)', Crash: 'a UFO mission (with a UFO placed)' };
@@ -266,7 +283,11 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
   }
   function hideClearMap() { clearDialog.root.hidden = true; }
   clearDialog.keep.onchange = () => { remember(CLEAR_KEEP_OUTSIDE, clearDialog.keep.checked ? '1' : '0'); clearSize(); };
-  $('clearMapForm').onsubmit = e => { e.preventDefault(); clearDialog.root.hidden = true; clearMap(null, clearDialog.keep.checked); };
+  clearDialog.keepTriggers.onchange = () => { remember(CLEAR_KEEP_TRIGGERS, clearDialog.keepTriggers.checked ? '1' : '0'); clearSize(); };
+  $('clearMapForm').onsubmit = e => {
+    e.preventDefault(); clearDialog.root.hidden = true;
+    clearMap(null, clearDialog.keep.checked, clearDialog.keepTriggers.checked && Boolean(triggerWords()));
+  };
   $('clearMapClose').onclick = $('clearMapCancel').onclick = hideClearMap;
   clearDialog.root.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideClearMap(); } });
   $('projectClear').onclick = showClearMap;
@@ -281,8 +302,11 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     const { lwr, ew, ...rest } = z;
     return { ...rest, ...(ownLandings(data).length ? { ew: true } : {}) };
   }
-  function clearMap(size, keepOutside = false) {
+  // `keepTriggers`: the map's triggers and sight points stay (the project's clearKeepsTriggers); without it the Build
+  // takes them out (F-159)
+  function clearMap(size, keepOutside = false, keepTriggers = false) {
     const own = ownSize(), plan = clearPlan(keepOutside ? (size ?? [...data.tileGrid.dimensions]) : null), keepsBefore = clearKeepsOutside;
+    const triggersBefore = clearKeepsTriggers;
     const kept = clearKeptZone(), zonesBefore = landingZones ? landingZones.map(z => ({ ...z })) : null;
     // a size given (the tests, scripts) is the clear's; none keeps the grid as it is now
     const next = size ? (size.some((v, k) => v !== own.dims[k]) ? { grid: [...size] } : null)
@@ -301,7 +325,7 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
         setMissionMoves(new Map(spawnsAfter));
         for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = true;
         setAreaBindings(new Map()); setGroups(new Map());
-        setCleared(true); setClearKeepsOutside(keepOutside); setMergedBuildings(null); setStage(next); clearedChanged();
+        setCleared(true); setClearKeepsOutside(keepOutside); setClearKeepsTriggers(keepTriggers); setMergedBuildings(null); setStage(next); clearedChanged();
         setProjectMissions(missionsCleared.map(e => ({ ...e }))); refreshMissionPicker();
         if (kept) { setLandingZones([{ ...kept }]); setPickedZone(null); runHub('landing-zones'); }
         runHub('clear'); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
@@ -311,7 +335,7 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
         setMissionMoves(new Map(spawnsBefore));
         for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = false;
         setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore));
-        setCleared(clearedBefore); setClearKeepsOutside(keepsBefore); setMergedBuildings(null); setStage(stageBefore); clearedChanged();
+        setCleared(clearedBefore); setClearKeepsOutside(keepsBefore); setClearKeepsTriggers(triggersBefore); setMergedBuildings(null); setStage(stageBefore); clearedChanged();
         setProjectMissions(missionsBefore ? missionsBefore.map(e => ({ ...e })) : null); refreshMissionPicker();
         if (kept) { setLandingZones(zonesBefore ? zonesBefore.map(z => ({ ...z })) : null); setPickedZone(null); runHub('landing-zones'); }
         runHub('clear'); setLightsDirty(true); gizmo.setSelection(picks.ids, picks.active); sceneChanged();

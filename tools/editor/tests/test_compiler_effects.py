@@ -103,9 +103,10 @@ class Gates(unittest.TestCase):
         self.assertEqual(report['counts']['sounds'], dict(moved=1, deleted=0, added=0, valued=0))
 
     def test_schema_three(self):
-        # schema 3 brought effects' and sounds' records; 4 (the spawns plan, SP8) reads them as 3 does
-        self.assertEqual((compiler.SCHEMA_VERSION, compiler.READ_VERSIONS), (4, (1, 2, 3, 4)))
-        _, report = compile_project(document([], schemaVersion=5), effects_scene())
+        # schema 3 brought effects' and sounds' records; 4 (the spawns plan, SP8) and 5 (the background sound and a
+        # clear that keeps the triggers) read them as 3 does; a schema past them is refused
+        self.assertEqual((compiler.SCHEMA_VERSION, compiler.READ_VERSIONS), (5, (1, 2, 3, 4, 5)))
+        _, report = compile_project(document([], schemaVersion=6), effects_scene())
         self.assertEqual(codes(report), ['schema'])
 
 
@@ -612,6 +613,57 @@ class Values(unittest.TestCase):
         _, report = compile_project(doc([], [dict(foreign('Emitter_10', 1, (0, 0, 0)), effect=dict(parameters=[dict(name='Opacity', value=3)]))]),
                                     effects_scene(), self.ON, library)
         self.assertEqual(codes(report), ['malformed'])
+
+
+class BackgroundSound(unittest.TestCase):
+    """The project's `backgroundSound` (schema 5): the map's level-loaded sound given another of the game's beds (with
+    the map it comes from as the donor), none, or another volume; left out where it can't be built."""
+    OP = PL + 'Main_Sequence.SeqAct_PlaySound_0'
+    BAR = 'SoundAmbience-NorthAmerica.LightWindTrafficPaperCue'
+    FOREST = 'SoundAmbience-NorthAmerica.ForestAmbienceCue'
+
+    def scene(self, version=39, playing=True):
+        s = effects_scene()
+        s['exporterVersion'] = version
+        s['backgroundSound'] = dict(event=PL + 'Main_Sequence.SeqEvent_LevelLoaded_0', op=self.OP, cue=self.BAR,
+                                    volume=None, fadeIn=None) if playing else None
+        return s
+
+    def build(self, sound, **scene):
+        spec, report = compile_project(document([], schemaVersion=5, backgroundSound=sound), self.scene(**scene))
+        native = native_split(stream_only(spec))[1] if spec else None
+        return report, native
+
+    def test_another_bed_comes_from_its_map(self):
+        report, native = self.build(dict(cue=self.FOREST))
+        self.assertEqual(codes(report), [])
+        self.assertEqual(native['backgroundSound'], dict(op=self.OP, cue=self.FOREST, donor=dict(package='CLrgScout_DeepWoods')))
+        self.assertEqual(report['backgroundSound'], native['backgroundSound'])
+
+    def test_none_and_a_volume_need_no_donor(self):
+        report, native = self.build(dict(cue=None))
+        self.assertEqual(native['backgroundSound'], dict(op=self.OP, cue=None))
+        self.assertIn('background-sound-off', [n['code'] for n in report['notes']])
+        report, native = self.build(dict(cue=self.BAR, volume=0.5))
+        self.assertEqual(native['backgroundSound'], dict(op=self.OP, cue=self.BAR, volume=0.5))
+
+    def test_the_maps_own_changes_nothing(self):
+        report, native = self.build(dict(cue=self.BAR, volume=1))
+        self.assertNotIn('backgroundSound', native)
+        self.assertIn('background-sound-same', [n['code'] for n in report['notes']])
+
+    def test_what_is_left_out(self):
+        for sound, scene, code in [(dict(cue='Some.OtherCue'), {}, 'background-sound-cue'),
+                                   (dict(cue=self.FOREST, volume=9), {}, 'background-sound-shape'),
+                                   (dict(cue=self.FOREST, loop=True), {}, 'background-sound-shape'),
+                                   (dict(volume=1), {}, 'background-sound-shape'),
+                                   (dict(cue=self.FOREST), dict(version=38), 'background-sound-export'),
+                                   (dict(cue=self.FOREST), dict(playing=False), 'background-sound-none')]:
+            with self.subTest(code=code, sound=sound):
+                report, native = self.build(sound, **scene)
+                self.assertEqual(codes(report), [code])
+                self.assertTrue(report['ok'])
+                self.assertNotIn('backgroundSound', native or {})
 
 
 if __name__ == '__main__':

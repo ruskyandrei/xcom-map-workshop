@@ -164,7 +164,7 @@ def main():
     pieces, labels = added(scene, s['cache'], game)
     deletes = lot_deletes(scene)
     print('deleted from the car park: %d pieces of its cars and vans' % len(deletes))
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=deletes, added=pieces, groups=[], buildings=[],
                nextSerial=len(pieces) + 1, view=dict(camera=[-700, 1400, -2600], target=[-700, 0, -900]))

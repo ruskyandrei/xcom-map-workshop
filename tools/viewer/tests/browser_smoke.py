@@ -1665,6 +1665,28 @@ def check_clear_map(page):
         assert state['cleared'] is True and state['clearKeepsOutside'] is True
         page.keyboard.press('Control+z')
         assert not page.evaluate('viewer.clearKeepsOutside()') and not page.evaluate('viewer.editState()')['clearKeepsOutside']
+    # the map's triggers (F-159; export 39's triggerCounts): the plan names them as going; the window's tick keeps them
+    # and the plan says so; a clear that keeps them saves the mark; undone, it goes back. A map without them hides it
+    counts = page.evaluate('viewer.data.triggerCounts ?? null')
+    page.evaluate("document.getElementById('projectClear').click()")
+    tick = page.locator('#clearMapKeepTriggers')
+    if not counts or not counts['volumes'] + counts['sight']:
+        assert not tick.is_visible()
+        page.keyboard.press('Escape')
+        return
+    if tick.is_checked(): tick.uncheck()
+    text = page.locator('#clearMapPlan').inner_text()
+    assert "the map's" in text and 'trigger' in text and 'stay.' not in text.split('Keeps')[0], text
+    tick.check()
+    text = page.locator('#clearMapPlan').inner_text()
+    assert 'stay.' in text and "the map's" not in text.split('Keeps')[0], text
+    tick.uncheck()                                      # (remembered: left as it was at first)
+    page.keyboard.press('Escape')
+    page.evaluate('dims => viewer.clearMap(dims, false, true)', dims)
+    state = page.evaluate('viewer.editState()')
+    assert state['cleared'] is True and state['clearKeepsTriggers'] is True and page.evaluate('viewer.clearKeepsTriggers()')
+    page.keyboard.press('Control+z')
+    assert not page.evaluate('viewer.clearKeepsTriggers()') and not page.evaluate('viewer.editState()')['clearKeepsTriggers']
 
 
 def check_floor_boxes(page):

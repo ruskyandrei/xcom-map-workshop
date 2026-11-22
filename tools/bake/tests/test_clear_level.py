@@ -1,6 +1,6 @@
 """A cleared map in the Build (private/plans/done/clear-map-plan.md, section 7): the shell stage's cursor storeys in
-place of the map's own (shell.py --clear) and native_copy.clear_level. Read on the configured install's URB_Bar; they
-skip without it."""
+place of the map's own (shell.py --clear) and native_copy.clear_level, its triggers among what it takes (F-159). Read on
+the configured install's URB_Bar and CSmallScout_Roadhouse; they skip without them."""
 from pathlib import Path
 import sys
 import tempfile
@@ -20,6 +20,7 @@ import shell  # noqa: E402
 from package import Package  # noqa: E402
 
 BAR, NO_BAR = labpaths.install_map('URB_Bar')
+ROADHOUSE, NO_ROADHOUSE = labpaths.install_map('CSmallScout_Roadhouse')
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
@@ -150,6 +151,63 @@ class ClearLevelKeepingOutside(unittest.TestCase):
                 stayed[cls] = stayed.get(cls, 0) + 1
         self.assertEqual(self.report['outside'], dict(sorted(stayed.items())))
         print('\nclear_level on URB_Bar, keeping what stands outside the grid:', self.report['outside'])
+
+
+
+@unittest.skipUnless(ROADHOUSE and ROADHOUSE.exists(), NO_ROADHOUSE)
+class ClearLevelTriggers(unittest.TestCase):
+    """clear_level on CSmallScout_Roadhouse (F-159): its trigger volumes (eight water volumes, the UFO's entry and a
+    hologram's touch triggers, three empty ones) and its sight point out of the level's list, the touch triggers' events
+    switched off and the map's other events left; with keep_triggers they all stay."""
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.p = Package(ROADHOUSE)
+        cls.built = {}
+        for keep in (False, True):
+            g = package_grow.Grower(str(ROADHOUSE))
+            report, volume = native_copy.clear_level(g, cls.p, keep_triggers=keep)
+            native_copy.add_to_level(g, cls.p, [volume])
+            out = Path(cls.tmp.name) / ('kept' if keep else 'taken') / Path(ROADHOUSE).name
+            out.parent.mkdir()
+            g.write(str(out))
+            cls.built[keep] = (report, Package(out))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def placed(self, q, cls):
+        level = q.by_name['TheWorld.PersistentLevel']
+        return [i for i in range(1, len(q.exports) + 1) if q.cls(i) == cls and q.exports[i - 1]['outer'] == level]
+
+    def events(self, q, volumes):
+        return {q.name(i).rsplit('.', 1)[-1]: q.own(i, 'bEnabled')
+                for i in range(1, len(q.exports) + 1) if q.cls(i).startswith('SeqEvent') and q.own(i, 'Originator') in volumes}
+
+    def test_taken_out_with_their_events_off(self):
+        report, q = self.built[False]
+        live, volumes = set(native_copy.level_actors(q)), self.placed(q, 'TriggerVolume')
+        self.assertEqual(report['out'].get('TriggerVolume'), 13)
+        self.assertEqual(report['out'].get('XComSquadVisiblePoint'), 1)
+        self.assertFalse(live & set(volumes + self.placed(q, 'XComSquadVisiblePoint')))
+        # the two touch triggers' events, off; every other event of the map as it was
+        events = self.events(q, set(volumes))
+        self.assertEqual(sorted(events), report['eventsOff'])
+        self.assertEqual(len(events), 2)
+        self.assertTrue(all(v is False for v in events.values()), events)
+        for i in range(1, len(self.p.exports) + 1):
+            if self.p.cls(i).startswith('SeqEvent') and self.p.own(i, 'Originator') not in set(volumes):
+                a, b = self.p.exports[i - 1], q.exports[i - 1]
+                self.assertEqual(q.data[b['off']:b['off'] + b['size']], self.p.data[a['off']:a['off'] + a['size']], self.p.name(i))
+
+    def test_kept_when_the_project_keeps_them(self):
+        report, q = self.built[True]
+        live = set(native_copy.level_actors(q))
+        self.assertNotIn('TriggerVolume', report['out'])
+        self.assertEqual((report['kept'].get('TriggerVolume'), report['kept'].get('XComSquadVisiblePoint')), (13, 1))
+        self.assertEqual(report['eventsOff'], [])
+        self.assertTrue(set(self.placed(q, 'TriggerVolume')) <= live)
 
 
 if __name__ == '__main__':

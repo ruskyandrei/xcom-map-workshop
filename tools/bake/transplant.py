@@ -13,6 +13,10 @@ rewritten, and everything it refers to that this map lacks with it.
   stage_edit(map, out, edit, cooked)            a native edit's foreign copies staged: the staged map, the edit
                                                 rewritten for native_copy.py, and transplant.json
 
+A root may also be an asset (`assets`): the map's background sound's cue, brought from another map with its nodes and
+waves, under its own package, for tools/bake/native_sounds.py to point the map's level-loaded sound at (the edit's
+`backgroundSound` with a `donor`).
+
 `roots` are actors of the donor's level. Each comes in as a **staged actor**: the actor and everything under it, and
 the baked textures they read, as new exports under this map's level with names of their own, not in the Level's actor
 list (the state a deleted piece is in). The assets they reference come in under their own packages, with their own
@@ -214,15 +218,19 @@ class Plan:
         self.bring, self.staged, self.reuse, self.cut, self.sizes, self.shelled = [], set(), {}, [], [], []
 
 
-def closure(donor, roots, dest, shared=None, shells=True):
+def closure(donor, roots, dest, shared=None, shells=True, assets=False):
     """`shared`: baked textures of the donor an earlier bring staged here already ({donor export: this map's}).
     `shells` off follows a Prefab's lists as any object's (SHELLS): what the library asks to learn whether a piece
-    could come with its whole Prefab."""
+    could come with its whole Prefab. `assets`: the roots are assets of the donor (a sound cue), not its level's actors."""
     p = donor.p
     shared = shared or {}
     plan = Plan()
     own = set()
     for root in roots:
+        if assets:
+            if not donor.is_asset(root):
+                raise ValueError('%s is not an asset of the donor' % p.name(root))
+            continue
         if p.exports[root - 1]['outer'] != donor.level:
             raise ValueError('%s is not an actor of the donor\'s level' % p.name(root))
         own.update(donor.subtree(root))
@@ -282,14 +290,14 @@ def van_volumes(p, members):
     return [found[0]['building']] + found[0]['volumes'] if found else []
 
 
-def bring(g, dest, donor, roots, shared=None):
+def bring(g, dest, donor, roots, shared=None, assets=False):
     """The donor's actors `roots` (export indices) staged in the map `g` grows (`dest`, a Destination over the same
     map), with what they need. Roots brought together keep their references to each other; a reference to an actor
     brought by another call is cut. `shared` ({}) carries the donor's baked textures from one call to the next, so
     pieces brought one by one share them as they do at home. Returns dict(staged {donor actor path: staged actor path}, mapping {donor export: new
     export}, brought, reused, cut, sizes, bytes, newNames, addedImports)."""
     p = donor.p
-    plan = closure(donor, roots, dest, shared)
+    plan = closure(donor, roots, dest, shared, assets=assets)
     names_before, imports_before, start = len(g.names), len(g.imports), g.next_offset()
     new = {d: len(g.entries) + 1 + k for k, d in enumerate(plan.bring)}
     cut = {ref for _, ref in plan.cut} | {ref for _, ref in plan.shelled}
@@ -418,7 +426,10 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
     report = dict(map=str(map_path), staged=None, donors=[], foreignPieces=0)
     if foreign_area.keys() - wanted.keys():
         raise DonorError('no-donor', 'a generated area light has no piece from its donor in the edit')
-    if not wanted and not effects_wanted:
+    # the map's background sound's cue, from another map (its `donor`): brought as an asset, unless the map has it
+    sound = edit.get('backgroundSound') if isinstance(edit, dict) else None
+    sound = sound if sound and sound.get('donor') and sound.get('cue') else None
+    if not wanted and not effects_wanted and not sound:
         return map_path, edit, report
     if schema is None:
         schema = schema_module.Schema(schema_module.build(cooked))
@@ -511,6 +522,21 @@ def stage_edit(map_path, out, edit, cooked=None, schema=None):
         names[key] = staged
         report['donors'].append(row)
         report['foreignPieces'] += len(actors) + len(effect_actors)
+    if sound:
+        path = donor_file(cooked, sound['donor']['package'])
+        if sound['donor'].get('sha256') and sound['donor']['sha256'].lower() != sha256(path):
+            raise DonorError('donor-changed', 'the map %s is not the file the background sound was taken from' % path.name)
+        donor = Donor(path, schema)
+        cue = donor.p.by_name.get(sound['cue'])
+        if cue is None or donor.p.cls(cue) != 'SoundCue':
+            raise DonorError('donor-changed', '%s holds no sound cue %s' % (path.name, sound['cue']))
+        if dest.assets.get(donor.key(cue)) is None:
+            r = bring(dest.g, dest, donor, [cue], assets=True)
+            report['backgroundSound'] = dict(cue=sound['cue'], map=path.stem, file=str(path), objectsBrought=len(r['brought']),
+                                             objectsReused=r['reused'], bytes=r['bytes'], brought=r['brought'])
+        else:
+            report['backgroundSound'] = dict(cue=sound['cue'], map=path.stem, file=str(path), objectsBrought=0,
+                                             already=True)
     target = out / 'staged' / map_path.name
     target.parent.mkdir(parents=True, exist_ok=True)
     report['writer'] = dest.g.write(str(target))

@@ -1,6 +1,6 @@
 """The editor's compiler for static pieces (first-editor plan, slice E3).
 
-Turns a saved project (research/editor-contracts.md, schema 1 to 4: READ_VERSIONS) and the viewer export of its source map into a
+Turns a saved project (research/editor-contracts.md, schema 1 to 5: READ_VERSIONS) and the viewer export of its source map into a
 patchtool spec (tools/patch/README.md) plus a report. The spec is a snapshot of one project revision: the same
 project and export always give the same spec, byte for byte.
 
@@ -202,10 +202,11 @@ def ground_slope(g):
     return math.degrees(math.atan2(rise, float(g['x1']) - float(g['x0'])))
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (piece flags plan); 3: effects and sounds (overrides and added records of their own: the effects and
-# sounds plan, Part C); 4: the spawns plan's (`spawnRules`, SP8; the base map's spawn points' records, SP6 and SP7).
-# A project of schema 1 to 3 builds as it did.
-SCHEMA_VERSION = 4
-READ_VERSIONS = (1, 2, 3, 4)
+# sounds plan, Part C); 4: the spawns plan's (`spawnRules`, SP8; the base map's spawn points' records, SP6 and SP7);
+# 5: the map's background sound (`backgroundSound`) and a clear that keeps the map's triggers (`clearKeepsTriggers`;
+# a cleared project of schema 1 to 4 now has its triggers taken out, F-159). A project of schema 1 to 4 builds as it did.
+SCHEMA_VERSION = 5
+READ_VERSIONS = (1, 2, 3, 4, 5)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
@@ -1725,6 +1726,8 @@ class Compiler:
             box = self.mission_edits.outside_box() if self.mission_edits.keep_outside else None
             if box:
                 extra['cleared']['keepOutside'] = box
+            if self.mission_edits.keep_triggers:
+                extra['cleared']['keepTriggers'] = True
         # the effects the map's pieces carry (export 23; tools/bake/native_effects.py): each follows its piece's move,
         # copy or delete in the Build ({piece: [effect]}, short names), but for one the project moves, deletes or
         # detaches itself (the effects and sounds plan, Part C: a record of its own takes it from its piece)
@@ -1738,6 +1741,9 @@ class Compiler:
         # the project's spawn rules (spawns plan, SP8): the Build writes the variant's ExcludeMaps line
         if self.mission_edits.spawn_rules:
             extra['spawnRules'] = dict(self.mission_edits.spawn_rules)
+        # the map's background sound (schema 5): its script's sound given another cue, none or another volume
+        if self.effect_edits.background:
+            extra['backgroundSound'] = dict(self.effect_edits.background)
         if self.mission_edits.zones is not None:
             extra['landingZones'] = dict(zones=self.mission_edits.zones,
                                          own=spawns.own_slots(self.mission_edits.zones, self.mission_edits.own_count),
@@ -1754,7 +1760,7 @@ class Compiler:
 
     def has_edits(self):
         return any(self.doc.get(k) for k in ('overrides', 'added', 'areaLightBindings', 'buildings', 'cleared',
-                                             'landingZones', 'stage', 'spawnRules'))
+                                             'landingZones', 'stage', 'spawnRules', 'backgroundSound'))
 
     # ---------------------------------------------------------------- the mission family's, by name
     def stage(self):
@@ -1796,6 +1802,7 @@ class Compiler:
             self.index_export()
             self.mission_edits.cleared_mark()
             self.mission_edits.spawn_rules_mark()
+            self.effect_edits.background_sound_mark()
             self.overrides()
             self.added()
             self.made_edits.join_made_walls()
@@ -1840,8 +1847,10 @@ class Compiler:
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
                       errors=self.errors, warnings=self.warnings, notes=self.notes,
                       stageGrid=self.mission_edits.stage_grid, cleared=self.mission_edits.cleared,
-                      clearKeepsOutside=self.mission_edits.keep_outside, landingZones=self.mission_edits.zones,
+                      clearKeepsOutside=self.mission_edits.keep_outside,
+                      clearKeepsTriggers=self.mission_edits.keep_triggers, landingZones=self.mission_edits.zones,
                       ownLandings=self.mission_edits.own_count, spawnRules=self.mission_edits.spawn_rules,
+                      backgroundSound=self.effect_edits.background,
                       missions=self.mission_edits.missions_kept()[0] if self.map is not None else None,
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']))
                                  for b in self.building_edits.new_buildings],

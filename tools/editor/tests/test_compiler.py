@@ -926,7 +926,7 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
 
     def test_schema_source_and_output_are_checked(self):
-        for doc, code in [(document(schemaVersion=5), 'schema'),
+        for doc, code in [(document(schemaVersion=6), 'schema'),
                           (document(source=dict(map='URB_Bar', sha256='b' * 64)), 'source-mismatch'),
                           (document(output=dict(shipAs='URB_Bar', patch='patch_x')), 'output'),
                           (document(output=dict(shipAs='Bad name', patch='patch_x')), 'output'),
@@ -1310,6 +1310,22 @@ class ClearTests(unittest.TestCase):
         spec, report = compile_project(document(clearKeepsOutside=True), s)
         self.assertFalse(report['clearKeepsOutside'])
         _, report = compile_project(document(cleared=True, clearKeepsOutside='yes'), s)
+        self.assertEqual(codes(report), ['cleared-shape'])
+
+    def test_a_clear_takes_the_maps_triggers_unless_it_keeps_them(self):
+        # F-159: the Build's clear_level takes the map's trigger volumes and sight points out, unless `clearKeepsTriggers`
+        s = clear_scene()
+        spec, report = compile_project(document(everything(s), cleared=True), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertNotIn('keepTriggers', compiler.native_split(spec)[1]['cleared'])
+        self.assertFalse(report['clearKeepsTriggers'])
+        spec, report = compile_project(document(everything(s), cleared=True, clearKeepsTriggers=True), s)
+        self.assertIs(compiler.native_split(spec)[1]['cleared']['keepTriggers'], True)
+        self.assertTrue(report['clearKeepsTriggers'])
+        # without the clear it says nothing; a value not true or false is left out
+        _, report = compile_project(document(clearKeepsTriggers=True), s)
+        self.assertFalse(report['clearKeepsTriggers'])
+        _, report = compile_project(document(cleared=True, clearKeepsTriggers='yes'), s)
         self.assertEqual(codes(report), ['cleared-shape'])
 
     def test_a_map_as_it_is_only_grows(self):

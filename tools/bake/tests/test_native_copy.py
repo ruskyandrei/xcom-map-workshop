@@ -85,7 +85,7 @@ class CommandLine(unittest.TestCase):
     LANES = dict(breakOriginals='break_originals', hides='hides', assemblies='assemblies', lights='lights',
                  covers='covers', buildings='buildings', buildingEdits='building_edits', cleared='cleared',
                  landingZones='landing_zones', carriedEffects='carried_effects', effects='effects', sounds='sounds',
-                 flares='flares', spawns='spawns', streamTiles='stream_tiles', pieceFlags='piece_flags',
+                 flares='flares', spawns='spawns', backgroundSound='background_sound', streamTiles='stream_tiles', pieceFlags='piece_flags',
                  pieceFlagLadders='flag_ladders', pieceBlasts='piece_blasts')
 
     def run_main(self, doc, *more):

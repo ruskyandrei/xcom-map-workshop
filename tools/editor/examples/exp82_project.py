@@ -88,7 +88,7 @@ def main():
              dict(id='00000000-0000-4000-8000-0000000e8202', actor=PL + ROOF + '_copy2', **{'from': target(ROOF)},
                   components=[roof['component']], location=[-1920.0, -1440.0, 192.0], rotation=[0, 0, 0],
                   prefab=None, partner=None, generated=MADE_ROOF)]
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=overrides, added=added, groups=[], nextSerial=3,
                view=dict(camera=[-1400, 700, 1300], target=[-1056, 0, 1007]))

@@ -170,7 +170,7 @@ def main():
     print('deleted from the car park: %d pieces of its cars and vans' % len(deletes))
     print('map pieces standing on the groups\' ground:', json.dumps(in_the_way(scene, deletes)))
     print('C1 ends at %s: C2 starts there' % c1_end())
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=deletes, added=pieces, groups=[], buildings=[],
                nextSerial=len(pieces) + 1, view=dict(camera=[-900, 1400, -2600], target=[-900, 0, -900]))

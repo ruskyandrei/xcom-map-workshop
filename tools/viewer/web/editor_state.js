@@ -66,6 +66,10 @@ export function setLandingZones(next) { landingZones = next; }
 // the lights, smoke, stains and glints placed out there, and so does the view
 export let clearKeepsOutside = false;
 export function setClearKeepsOutside(next) { clearKeepsOutside = next; }
+// The clear kept the map's triggers and sight points (the Clear map window's "Keep the map's triggers and scripts"):
+// the project's `clearKeepsTriggers`; without it the Build takes them out (F-159)
+export let clearKeepsTriggers = false;
+export function setClearKeepsTriggers(next) { clearKeepsTriggers = next; }
 // The missions the project is for (mission types plan, D1): null, every mission of the base map; else the list of
 // {record: i} and {kind, ship?} entries the Build writes records for (the Missions panel, Clear map's question)
 export let projectMissions = null;
@@ -76,6 +80,9 @@ export function setProjectPicture(next) { projectPicture = next; }
 // the project's spawn rules (spawns plan, SP8): null, or { dropIns: 'placed' } (a malformed one is carried as saved)
 export let projectSpawnRules = null;
 export function setProjectSpawnRules(next) { projectSpawnRules = next; }
+// The project's background sound (schema 5; project.js validBackgroundSound): null, the map's own
+export let projectBackgroundSound = null;
+export function setProjectBackgroundSound(next) { projectBackgroundSound = next; }
 
 // The buildings drawn as boxes and edited (project.js validBuilding; buildings_wiring.js's setBuildings draws them):
 // the project's, made from nothing by the Build, and the map's own that can be edited, each as the project's are (map

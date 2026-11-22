@@ -12,6 +12,14 @@ Statuses:
 
 ## Open now
 
+- F-160 (22 November, the triggers investigation): a map's background sound is one level-loaded sound with no
+  target (88 of 97 base maps, 26 beds); a bed of another map comes into a map as an asset with its nodes and waves,
+  and the map's sound pointed at it reads back. Verified in EXP-94: it plays across the map and after a load; none
+  plays nothing.
+- F-159 (22 November, the triggers investigation): a cleared map kept its triggers, which still act (a water volume
+  makes units wade where the stream was, the UFO entry narration plays on an empty field, a sight point speaks).
+  Fixed the same day: the Build's clear takes them out and switches their events off, unless the project keeps them.
+  Verified in EXP-94: the cleared Bar's rat events read off in the game, and its quicksave loads.
 - F-158 (22 November, a user's report): a baked copy of one of the map's own pieces showed black where something
   stands on its source (a floor copied from under a staircase): a texel buried at either place kept the source's
   bake. Fixed the same day (only a texel buried where the copy stands keeps it); verified in EXP-92 (no patch left).
@@ -201,6 +209,50 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-160: A map's background sound is one level-loaded sound with no target; another map's bed can be brought
+**Verified: the editor sets it** (22 November 2026: offline, and in the game in
+[EXP-94](experiments/EXP-94-background-sound-and-clear.md): the forest bed brought into a cleared Bar plays across the
+map at 0.60 and again after a load; set to none, the map loads and plays no bed).
+Found reading the install's maps' Kismet for the triggers investigation (the reference branch `editor-triggers`,
+its `kismet_chains.py` and triggers audit, read over 97 base maps and 134 streamed packages).
+- **What the maps have.** 88 of the 97 base maps start exactly one sound from a `SeqEvent_LevelLoaded`, through a
+  `SeqAct_PlaySound` with no variable linked (so it plays for the player, not at a place), and nothing stops it.
+  26 cues over the install, each in one of the game's sound packages that the map holds as forced exports
+  (`SoundAmbience-NorthAmerica.ForestAmbienceCue`: a `SoundCue`, a `SoundNodeLooping`, a `SoundNodeWave`). 32 set a
+  fade-in, 3 a volume. The alien bases, the battleships, the Temple Ship and three others have none. On a few maps
+  the same event also starts a Matinee or sets a material parameter, which stays.
+- **Read by** [background_sound.py](../tools/viewer/background_sound.py) (export 39); the beds the editor offers are
+  [background_sounds.json](../tools/viewer/background_sounds.json), each with the base map that plays it and a label
+  (checked against every map it names: `test_background_sound`).
+- **Another map's bed.** A cue is an asset (under its own package, not the level), so it is brought as one:
+  `transplant.closure` with `assets` takes the cue, follows its references and reuses what the map holds by path.
+  Bar given DeepWoods' forest: 3 objects, 557 KB; the level-loaded `SeqAct_PlaySound`'s `PlaySound` (and
+  `VolumeMultiplier`) written with the growing writer and read back (`native_sounds.background`,
+  `test_transplant` `StagedBackgroundSound`). None is a `PlaySound` of 0: the action plays nothing.
+
+### F-159: A cleared map kept its triggers, which still act
+**Verified** (22 November 2026; offline: `test_clear_level` `ClearLevelTriggers`, a cleared Bar built and read back;
+in the game in [EXP-94](experiments/EXP-94-background-sound-and-clear.md): the cleared Bar's two rat events read
+`bEnabled` False and `TriggerCount` 0, and a quicksave loads). Found reading the install's maps' Kismet for
+the triggers investigation (the reference branch `editor-triggers`).
+- **What the maps have.** 551 touch volumes on 63 base maps (a `TriggerVolume` that is a touch event's
+  Originator): 507 set animals' particle systems going (Bar's two set rats going), 22 play the narration
+  `IntroUFOEntry` once for a soldier or SHIV, 15 make units wade by script, the rest switch a trigger or a lens
+  flare. 43 water volumes on 7 maps: `XGLevel.InitWaterVolumes` collects every `TriggerVolume` that saves
+  `bWaterVolume`, and a unit inside one wades. 221 sight points (`XComSquadVisiblePoint`): seen by a soldier, one
+  plays its narration once and fires its remote event.
+- **Cause.** `native_copy.CLEAR_KEEP` kept `TriggerVolume` and `XComSquadVisiblePoint`, and the page never showed
+  them, so a clear left them all. The animals' triggers then did nothing (their emitters go), but a water volume
+  still made units wade where the stream was, the UFO entry narration played on the empty field, and a sight point
+  still spoke when seen.
+- **Fix.** The Build's `clear_level` takes the level's trigger volumes and sight points out (`CLEAR_TRIGGERS`: off
+  the level's list, their slots emptied) and switches off every `SeqEvent` whose Originator is a volume it took
+  (`switch_off_events`: `bEnabled` false), unless the project says `clearKeepsTriggers` (the Clear map window's
+  "Keep the map's triggers and scripts"). A cleared project saved before rebuilds with them taken out. Roadhouse
+  cleared: its 13 listed volumes and its sight point out, the two events of its touch volumes off, every other
+  sequence object byte for byte; kept, all 14 stay. The cleared Bar built: no trigger listed, its two rat events
+  off.
 
 ### F-158: A baked copy of the map's own piece showed black where something stands on its source
 **Verified** (22 November 2026: a user's report; read offline from the reported built map and the base map; the fix

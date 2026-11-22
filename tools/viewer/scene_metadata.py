@@ -299,6 +299,25 @@ def prefab_members(p, warn=None):
     return members
 
 
+def trigger_counts(p):
+    """What a clear takes out of the map's triggers unless the project keeps them (export 39; native_copy.CLEAR_TRIGGERS,
+    findings register F-159): {volumes, water, sight}, the trigger volumes in the level's actor list (the water volumes
+    units wade in counted apart) and the sight points (XComSquadVisiblePoint)."""
+    level, listed = p.by_name.get(LEVEL_PATH), level_list(p)
+    out = dict(volumes=0, water=0, sight=0)
+    if level is None:
+        return out
+    for i in range(1, len(p.exports) + 1):
+        if p.exports[i - 1]['outer'] != level or (listed is not None and i not in listed):
+            continue
+        cls = p.cls(i)
+        if cls == 'TriggerVolume':
+            out['water' if p.own(i, 'bWaterVolume', False) else 'volumes'] += 1
+        elif cls == 'XComSquadVisiblePoint':
+            out['sight'] += 1
+    return out
+
+
 def kismet_references(p, warn=None):
     """Placed actor (export index) -> what of the package's Kismet names it, sorted (private/plans/done/cars-doors-ladders-plan.md,
     3.5): the op that uses it, with the link, where a variable holds it ("SeqAct_ToggleHidden_1 Target"), else the

@@ -9,6 +9,11 @@ is checked against the export's `can` and `why` (export 28), and goes into `ops`
 group member keys of the copies, and `own` the effects a record of the project's own takes from the piece that carries
 them (they leave the spec's carriedEffects).
 
+The map's background sound (the project's `backgroundSound`, schema 5: the sound bed the map's script starts when the
+level loads, export 39's `backgroundSound`) is this family's too (background_sound_mark): another of the game's beds
+(tools/viewer/background_sounds.json), none, or another volume, for the spec's `backgroundSound` (tools/bake/
+native_sounds.py background), with the map the cue comes from as its `donor` (transplant.stage_edit brings it).
+
 This family was moved out of compiler.Compiler as SpawnEdits was (review finding 23). An EffectEdits works for one
 Compiler: it reads the map, the scene, the export's effects (effect_actors), the building floors and the library from
 it, asks it whether a family builds (builds) and for a pose (pose), and says what it finds through its error, warn and
@@ -54,6 +59,9 @@ SOUND_PITCH = (1 / 16, 16.0)
 # a parameter the effect doesn't save gets from its system's distribution
 PARAMETER_TYPES = {'PSPT_Scalar': 'scalar', 'PSPT_Vector': 'vector', 'PSPT_Color': 'colour'}
 DISTRIBUTION_TYPES = {'scalar': 'PSPT_Scalar', 'vector': 'PSPT_Vector'}
+# the map's background sound (export 39): its volume multiplier (the game's maps leave it at 1, or 0.5 to 2)
+BACKGROUND_EXPORT = 39
+BACKGROUND_VOLUME = (0.0, 4.0)
 
 
 class EffectEdits:
@@ -65,6 +73,8 @@ class EffectEdits:
         self.ops = {k: dict(moves=[], deletes=[], copies=[], values=[]) for k in EFFECT_KINDS}
         self.members = set()
         self.own = set()
+        # the spec's `backgroundSound` ({op, cue, volume?, donor?}), or None (background_sound_mark)
+        self.background = None
 
     def effect_of(self, target):
         """The export's effect, sound or flare a target {package, level, actor} names (its record with `kind`), or
@@ -464,6 +474,56 @@ class EffectEdits:
         self.c.entities.append(dict(kind=kind, op='add', entity=out, id=rec['id'], actorClass=source['actorClass'],
                                   template=src['actor'], location=loc, rotation=rot,
                                   rotationRounding=tidy(rounding, 6), **({'donor': donor} if donor else {})))
+
+    def background_sound_mark(self):
+        """The project's `backgroundSound` (schema 5): {"cue": a cue's path, or null for none, "volume": a multiplier
+        (optional)}. The cue is the map's own or one of the game's beds the editor offers (background_sounds.json),
+        brought from the map that plays it. Left out (the map keeps its own sound) where the shape is wrong, the
+        export is older than 39, the map starts no background sound, or the cue is neither; a value equal to the map's
+        own changes nothing (a note). Sets self.background to the spec's object, or None."""
+        self.background = None
+        rec = self.c.doc.get('backgroundSound')
+        if rec is None:
+            return
+        where = dict(record='backgroundSound')
+        keep = 'it is left out, and the map keeps its own background sound'
+        volume = rec.get('volume') if isinstance(rec, dict) else None
+        if not (isinstance(rec, dict) and set(rec) <= {'cue', 'volume'} and 'cue' in rec
+                and (rec['cue'] is None or isinstance(rec['cue'], str) and rec['cue'])
+                and (volume is None or isinstance(volume, (int, float)) and not isinstance(volume, bool)
+                     and BACKGROUND_VOLUME[0] <= volume <= BACKGROUND_VOLUME[1])):
+            self.c.leave_out('background-sound-shape', 'the project\'s background sound must be {"cue": a sound\'s path or '
+                             'null, "volume": %g to %g (optional)}: %s' % (*BACKGROUND_VOLUME, keep), **where)
+            return
+        if (self.c.scene.get('exporterVersion') or 0) < BACKGROUND_EXPORT:
+            self.c.leave_out('background-sound-export', 'the export of %s is older than %d and doesn\'t say which sound '
+                             'the map plays (open the map in the editor to export it again): %s'
+                             % (self.c.map, BACKGROUND_EXPORT, keep), **where)
+            return
+        own = self.c.scene.get('backgroundSound')
+        if not own:
+            self.c.leave_out('background-sound-none', '%s starts no background sound when it loads, so there is none to '
+                             'change: %s' % (self.c.map, keep), **where)
+            return
+        import background_sound
+        cue, donor = rec['cue'], None
+        if cue is not None and cue != own['cue']:
+            row = next((r for r in background_sound.catalogue() if r['cue'] == cue), None)
+            if row is None:
+                self.c.leave_out('background-sound-cue', '%s is none of the game\'s background sounds the editor offers: %s'
+                                 % (cue, keep), **where)
+                return
+            donor = dict(package=row['map'])
+        own_volume = own.get('volume') if own.get('volume') is not None else 1.0
+        if cue == own['cue'] and (volume is None or abs(volume - own_volume) < 1e-4):
+            self.c.note('background-sound-same', 'the background sound is the map\'s own (%s)%s: the Build changes nothing'
+                        % (background_sound.words(cue), '' if volume is None else ' at its own volume'), **where)
+            return
+        self.background = dict(op=own['op'], cue=cue, **({'volume': tidy(volume, 4)} if volume is not None else {}),
+                               **({'donor': donor} if donor else {}))
+        if cue is None:
+            self.c.note('background-sound-off', '%s plays no background sound: its script\'s sound is left with none'
+                        % self.c.out['shipAs'], **where)
 
     def foreign_effect(self, src, name, where):
         """(record, donor, systems) of the effect, ambient sound or lens flare of another map a copy names (the effects

@@ -7,9 +7,10 @@ import { call } from './api.js';
 
 // 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (the effects and sounds
 // plan, Part C: an override of an effect or a sound, and an added record with a `kind`); 4: the spawns plan's
-// (`spawnRules`, SP8; the base map's spawn points' overrides and added records, SP6 and SP7). A project of schema 1
-// to 3 opens, and saves as 4.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 4;
+// (`spawnRules`, SP8; the base map's spawn points' overrides and added records, SP6 and SP7); 5: the map's background
+// sound (`backgroundSound`) and a clear that keeps the map's triggers (`clearKeepsTriggers`). A project of schema 1
+// to 4 opens, and saves as 5.
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 5;
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;
@@ -55,7 +56,8 @@ const tidyGroup = g => ({ id: g.id, locked: g.locked !== false, breakTogether: g
 export const stateKey = state => JSON.stringify([state.overrides, state.added, state.groups ?? [], state.areaLightBindings ?? [], state.stage ?? null,
                                                  state.buildings ?? [], state.cleared === true, state.landingZones ?? null,
                                                  state.cleared === true && state.clearKeepsOutside === true, state.missions ?? null,
-                                                 state.spawnRules ?? null, state.picture?.sha256 ?? null]);
+                                                 state.spawnRules ?? null, state.picture?.sha256 ?? null,
+                                                 state.cleared === true && state.clearKeepsTriggers === true, state.backgroundSound ?? null]);
 // The project's map picture (LWR map packs plan, 4.3): null, or { sha256 }, the SHA-256 of the 512 x 256 picture the
 // server keeps with the project (tools/viewer/pictures.py); the Build writes it into the map.
 export const validPicture = p => Boolean(p) && typeof p === 'object' && !Array.isArray(p) && Object.keys(p).length === 1
@@ -63,6 +65,15 @@ export const validPicture = p => Boolean(p) && typeof p === 'object' && !Array.i
 // The project's spawn rules (spawns plan, SP8): null (the install's behaviour) or { dropIns: 'placed' } (Long War's
 // scripted drop-ins land where placed: the Build excludes the variant from its drop-in mutator). Nothing else is read.
 export const validSpawnRules = r => r && typeof r === 'object' && !Array.isArray(r) && Object.keys(r).length === 1 && r.dropIns === 'placed';
+// The map's background sound (schema 5): null (the map's own), or { cue: a cue's path or null (none), volume?: a
+// multiplier, 0 to 4 }, the sound bed its script starts when it loads; the compiler checks the cue against the beds the
+// editor offers (tools/viewer/background_sounds.json). The server takes any { cue, volume? } (projects.py), so one of
+// that shape the page can't read is carried as it is, for the compiler to leave out; any other is dropped.
+export const BACKGROUND_VOLUME = [0, 4];
+const soundShape = s => Boolean(s) && typeof s === 'object' && !Array.isArray(s) && 'cue' in s && Object.keys(s).every(k => k === 'cue' || k === 'volume');
+export const validBackgroundSound = s => soundShape(s) && (s.cue === null || (typeof s.cue === 'string' && s.cue !== ''))
+  && (s.volume === undefined || (Number.isFinite(s.volume) && s.volume >= BACKGROUND_VOLUME[0] && s.volume <= BACKGROUND_VOLUME[1]));
+const tidyBackgroundSound = s => ({ cue: s.cue, ...(s.volume !== undefined ? { volume: Number(s.volume.toFixed(4)) + 0 } : {}) });
 // A building the Build makes from nothing (prefab plan 5.1; building_edits.py BuildingEdits.buildings): { id, name,
 // kind: 'building' | 'ufo', floors: [{ boxes: [[x0, y0, z0, x1, y1, z1]] }] }, floor 0 first, game units, unturned.
 // Which pieces each floor lists is not saved: the Build works it out from where the pieces stand.
@@ -165,12 +176,17 @@ export function sortState(state) {
            cleared: state.cleared === true,
            // the clear kept the scenery outside the play area: the Build leaves the lights, smoke and stains out there
            clearKeepsOutside: state.cleared === true && state.clearKeepsOutside === true,
+           // the clear kept the map's triggers and sight points (F-159): the Build leaves them; without it they go
+           clearKeepsTriggers: state.cleared === true && state.clearKeepsTriggers === true,
            // the landing zones keep their order (it says which are the map's own); a malformed one is carried in place
            landingZones: Array.isArray(state.landingZones) ? state.landingZones.map(z => (validLandingZone(z) ? tidyLandingZone(z) : z)) : null,
            // the missions the variant serves (mission types plan, D1): null, every mission of the base map
            missions: Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null,
            // the spawn rules (SP8): a malformed one is carried as it is, for the compiler to refuse
            spawnRules: validSpawnRules(state.spawnRules) ? { dropIns: 'placed' } : (state.spawnRules ?? null),
+           // the background sound (schema 5): one the page can't read is carried as it is when the server takes it
+           backgroundSound: validBackgroundSound(state.backgroundSound) ? tidyBackgroundSound(state.backgroundSound)
+             : soundShape(state.backgroundSound) ? { ...state.backgroundSound } : null,
            // the map picture: a malformed one is dropped (the server would refuse the save)
            picture: validPicture(state.picture) ? { sha256: state.picture.sha256 } : null };
 }

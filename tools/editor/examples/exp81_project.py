@@ -132,7 +132,7 @@ def main():
     print('deleted from the car park: %d pieces of its cars and vans' % len(deletes))
     buildings = [dict(id='00000000-0000-4000-8000-0000000e81b1', name='EXP-81 room', kind='building',
                       floors=[dict(boxes=[box]) for box in ROOM_FLOORS])]
-    doc = dict(schema='xcom-map-workshop/project', schemaVersion=4, id=project_id, name=name, mode='edit',
+    doc = dict(schema='xcom-map-workshop/project', schemaVersion=projects.SCHEMA_VERSION, id=project_id, name=name, mode='edit',
                source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=output, overrides=deletes, added=pieces, groups=[], buildings=buildings,
                nextSerial=len(pieces) + 1, view=dict(camera=[-700, 1400, -2600], target=[-700, 0, -900]))

@@ -32,9 +32,10 @@ import atomic_files
 SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (records of their own:
 # the effects and sounds plan, Part C); 4: the spawns plan's records (`spawnRules`, SP8; the base map's spawn points'
-# overrides and added records, SP6 and SP7). 1 to 3 are read too, and saved as 4.
-SCHEMA_VERSION = 4
-READ_VERSIONS = (1, 2, 3, 4)
+# overrides and added records, SP6 and SP7); 5: the map's background sound (`backgroundSound`) and a clear that keeps
+# the map's triggers (`clearKeepsTriggers`). 1 to 4 are read too, and saved as 5.
+SCHEMA_VERSION = 5
+READ_VERSIONS = (1, 2, 3, 4, 5)
 MAX_BYTES = 32 << 20
 ID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 SHA256 = re.compile(r'[0-9a-f]{64}')
@@ -133,7 +134,13 @@ def validate(document, project_id):
         raise ProjectError(422, '"cleared" must be true or false.')
     if not isinstance(document.get('clearKeepsOutside', False), bool):
         raise ProjectError(422, '"clearKeepsOutside" must be true or false.')
-    zones = document.get('landingZones', [])
+    if not isinstance(document.get('clearKeepsTriggers', False), bool):
+        raise ProjectError(422, '"clearKeepsTriggers" must be true or false.')
+    # The map's background sound (schema 5): optional, {cue, volume?}; the compiler checks the cue and the volume.
+    sound = document.get('backgroundSound')
+    if sound is not None and not (isinstance(sound, dict) and 'cue' in sound and set(sound) <= {'cue', 'volume'}):
+        raise ProjectError(422, '"backgroundSound" must be {cue, volume}: a sound\'s path or null, and a volume.')
+    zones =document.get('landingZones', [])
     if not isinstance(zones, list) or not all(isinstance(item, dict) for item in zones):
         raise ProjectError(422, '"landingZones" must be a list of records.')
     # The missions the variant serves (mission types plan, D1): optional; the compiler checks the entries.
