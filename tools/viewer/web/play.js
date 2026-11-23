@@ -22,7 +22,8 @@ export function playedMessage(r, mapLabel) {
     : `${mapLabel(p.map)} (original map)`) + (p.mission?.label ? `, ${p.mission.label}` : '');
   return [
     p.how === 'dry' ? `Starting XCOM is left out here (serve --dry-play): ${what}.` : `Starting XCOM: ${what}.`,
-    p.how === 'steam' ? 'Pick Enemy Within if the game\'s launcher asks.' : null,
+    p.how === 'steam' ? 'Pick Enemy Within if the game\'s launcher asks.'
+      : p.how === 'beside' ? 'Another copy of XCOM is open, so this one starts beside it.' : null,
     p.saving ? `At the main menu, press ${p.saving.key} to start the battle.` : null,
     p.squad ? `Squad: ${p.squad.name}, ${p.squad.count} unit${p.squad.count === 1 ? '' : 's'}${p.squad.warnings?.length
       ? ` (${p.squad.warnings.length} warning${p.squad.warnings.length === 1 ? '' : 's'}: Test squad setup lists them)` : ''}.` : null,
@@ -68,9 +69,11 @@ export function renderInstalls(el, status, mapLabel) {
       `The install Play in game starts, and installs a project's build into (${install.source}; python tools/viewer/viewer.py settings --install <game folder> picks another). It does both only while XCOM is closed`,
       !install.ready);
   if (launch) row('Started', launch.how === 'steam' ? 'Through Steam' : launch.how === 'direct' ? 'By its own XComEW.exe'
+      : launch.how === 'beside' ? 'By its own XComEW.exe, beside the copy of XCOM that is open'
       : launch.how === 'dry' ? 'Not at all: this server only prepares a play (serve --dry-play)' : `Not possible: ${launch.why}`,
       launch.how === 'steam' ? 'Steam starts the game with the map to open; if the game\'s launcher asks which game, pick Enemy Within'
-        : launch.how === 'direct' ? 'The game folder is in no Steam library, so its XComEW.exe is started with the map to open' : '',
+        : launch.how === 'direct' ? 'The game folder is in no Steam library, so its XComEW.exe is started with the map to open'
+        : launch.how === 'beside' ? 'Another install\'s XCOM is open, and Steam starts only one: the editor starts this install\'s XComEW.exe itself, with the map to open, as a second game' : '',
       !launch.how);
   row('In the game', inGame(game, mapLabel) ?? (status.gameError ? `Not known: ${status.gameError}` : 'Not known'),
       game ? `What the editor has installed there: a project's build is installed under a play name of its own (its map's name with _Play after it), with a map record of its own that no campaign draws. A map of the game's needs nothing installed, but for one whose records the game comments out (the tutorial's map), which gets a copy of one. Game maps (the arrow beside Play) shows it and takes any of it out${game.configKept ? '. The game\'s XComContent.ini is kept aside for a play and goes back once the game has closed' : ''}` : '');

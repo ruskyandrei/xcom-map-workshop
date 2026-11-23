@@ -18,14 +18,24 @@ Through Steam the game is started with `steam.exe -applaunch 200510 -EXEC=<file>
 Steam hands the argument on, and the game's own launcher (where Enemy Within is picked) hands it to XComEW.exe. An install
 whose launcher was replaced starts the game at once: a stand-in that starts XComEW.exe keeps the process name
 installs.game_running looks for, a copy of XComEW.exe under the launcher's name would not (F-84). Steam
-runs the folder its manifest names, so a game folder parked under another name beside it is refused. A game folder
-outside a Steam library is started by its XComEW.exe (not tried).
+runs the folder its manifest names, so a game folder parked under another name beside it is refused.
+
+Steam starts none of XCOM's while a game of any copy runs ("game is already running"), and the game itself allows one
+instance per Windows session (T-52). So while another install's game is open (the user's own play of another copy:
+procs.running_elsewhere), the play starts this install's XComEW.exe itself, beside it: side_by_side.py, the lab's
+XComSideBySide trick (the one-instance check changed in the new process's memory, no file changed), with
+-FROMLAUNCHER as the launcher passes it and Steam's two variables (F-84). The game of the install played in is never
+started twice: installs.ready refuses a play while it runs. A game folder outside a Steam library is started the same
+way, by its XComEW.exe. A game started beside shares the user's Documents settings and saves with the other one when
+that one keeps its own there too (a copy started with -nohomedir keeps them in its folder).
 """
 from pathlib import Path
 import re
 import subprocess
 import sys
 
+import procs
+import side_by_side
 from settings import ew_folder, game_config
 
 APP_ID = '200510'       # XCOM: Enemy Unknown, which Enemy Within is launched from
@@ -130,15 +140,23 @@ def steam_folder(steamapps):
     return found.group(1) if found else None
 
 
-def command(game, file_name, steam=steam_exe):
-    """(the program and its arguments, the folder to start it in or None, 'steam' or 'direct') to start the game in
-    `game` with the commands file `file_name` (in its XEW\\Binaries). A LaunchError says why it can't be started."""
+def other_game_running(game):
+    """Whether another install's game (XComEW.exe from outside `game`) is open."""
+    return procs.running_elsewhere('XComEW.exe', game)
+
+
+def command(game, file_name, steam=steam_exe, others=None):
+    """(the program and its arguments, the folder to start it in or None, how: 'steam', 'beside' or 'direct') to start
+    the game in `game` with the commands file `file_name` (in its XEW\\Binaries): through Steam, or by its own
+    XComEW.exe beside another install's open game (`others`, other_game_running when None) or outside a Steam library.
+    A LaunchError says why it can't be started."""
     game = Path(game)
+    exe = game / 'XEW' / 'Binaries' / 'Win32' / 'XComEW.exe'
     library = steam_library(game)
-    if library is None:
-        exe = game / 'XEW' / 'Binaries' / 'Win32' / 'XComEW.exe'
+    beside = library is not None and (others or other_game_running)(game)
+    if library is None or beside:
         if not exe.is_file(): raise LaunchError(f'{game} has no XEW\\Binaries\\Win32\\XComEW.exe')
-        return [str(exe), f'-EXEC={file_name}'], exe.parent, 'direct'
+        return [str(exe), '-FROMLAUNCHER', f'-EXEC={file_name}'], exe.parent, 'beside' if beside else 'direct'
     runs = steam_folder(library)
     if runs is None: raise LaunchError(f'Steam has no XCOM: Enemy Unknown in {library} (no appmanifest_{APP_ID}.acf)')
     if runs.lower() != game.name.lower():
@@ -149,8 +167,13 @@ def command(game, file_name, steam=steam_exe):
     return [str(program), '-applaunch', APP_ID, f'-EXEC={file_name}'], None, 'steam'
 
 
-def start(argv, cwd=None):
-    """Start the game (or Steam, which starts it) and leave it running on its own."""
+def start(argv, cwd=None, how='steam'):
+    """Start the game (or Steam, which starts it) and leave it running on its own: command's argv, cwd and how (its
+    own XComEW.exe, 'beside' or 'direct', is started by side_by_side.py)."""
+    if how in ('beside', 'direct'):
+        try: side_by_side.start(argv[0], argv[1:], cwd)
+        except side_by_side.SideBySideError as error: raise LaunchError(f'XCOM was not started: {error}') from None
+        return
     flags = getattr(subprocess, 'DETACHED_PROCESS', 0) | getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0)
     subprocess.Popen(argv, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      creationflags=flags, close_fds=True)

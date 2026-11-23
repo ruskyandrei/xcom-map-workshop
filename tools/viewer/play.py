@@ -99,8 +99,8 @@ class Player:
         return game, note, 'the install setting' if self.settings['install'] is not None else 'the game install'
 
     def launch(self, game):
-        """How the game would be started: dict(how='steam' or 'direct', why=None), or how None and why not ('dry':
-        this server starts nothing)."""
+        """How the game would be started: dict(how='steam', 'beside' (another install's game is open) or 'direct',
+        why=None), or how None and why not ('dry': this server starts nothing)."""
         try: return dict(how=self.command(game, installs.PLAY_FILE, self.steam)[2], why=None)
         except gamelaunch.LaunchError as error: return dict(how=None, why=str(error))
 
@@ -247,7 +247,7 @@ class Player:
                                            + (gamelaunch.saving_config(game, home) if saving else []))
                     # a play's saves land on save1 without the login (F-89): kept apart from a campaign's afterwards
                     installs.keep_saves(game, playsaves.folders(game, home))
-                self.start(argv, cwd)
+                self.start(argv, cwd, how)
             except (OSError, ValueError, installs.InstallError, gamelaunch.LaunchError) as error:
                 cleanup = None
                 if test and changed:

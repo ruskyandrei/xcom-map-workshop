@@ -90,7 +90,7 @@ class Play(PlayInstalls, unittest.TestCase):
         self.assertEqual((r['played']['kind'], r['played']['map'], r['played']['how'], r['played']['squad']), ('map', 'URB_Bar', 'direct', None))
         self.assertEqual(self.files(self.lwr), before)                         # no config line changed
         exe = self.lwr / 'XEW/Binaries/Win32/XComEW.exe'
-        self.assertEqual(self.started, [([str(exe), f'-EXEC={installs.PLAY_FILE}'], exe.parent)])
+        self.assertEqual(self.started, [([str(exe), '-FROMLAUNCHER', f'-EXEC={installs.PLAY_FILE}'], exe.parent)])
         lines = (self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii').split('\n')
         self.assertEqual((lines[0], lines[-2], lines[-1]), ('set XComContentManager bAllowJITLoad True', 'open URB_Bar', ''))
         self.assertEqual(lines[1], 'set XComOnlineProfileSettingsDataBlob m_eAlienType eChar_Sectoid')
@@ -139,7 +139,7 @@ class Play(PlayInstalls, unittest.TestCase):
         # under the play's names (play_names.py): the map's with _Play after it
         self.assertEqual((r['played']['map'], r['played']['variant'], r['played']['project']['revision'], r['played']['quick']),
                          (PLAY, VARIANT, 1, False))
-        self.assertEqual(self.started[-1][0][1], f'-EXEC={installs.PLAY_FILE}')
+        self.assertEqual(self.started[-1][0][1:], ['-FROMLAUNCHER', f'-EXEC={installs.PLAY_FILE}'])
         self.assertIn(f'open {PLAY}\n', (self.lwr / 'XEW/Binaries' / installs.PLAY_FILE).read_text(encoding='ascii'))
         # a record of its own after Bar's, out of rotation, streaming its own copy of the landing intro
         maps = dep.lines_of(self.files(self.lwr)['DefaultMaps.ini'])
@@ -372,7 +372,7 @@ class Play(PlayInstalls, unittest.TestCase):
         own = {p: p.read_bytes() for p in (config / 'XComInput.ini', save_data / 'profile.bin')}
         player = self.player(cleanup=True, appear=5)
 
-        def start(argv, cwd=None):      # the game comes up, binds the key, logs in and writes the profile
+        def start(argv, cwd=None, how=None):      # the game comes up, binds the key, logs in and writes the profile
             self.started.append((argv, cwd))
             self.running = True
             (config / 'XComInput.ini').write_bytes(b'[XComUIShell.XComShellInput]\r\nBindings=(Name="F5",Command="exec ...")\r\n')
@@ -394,7 +394,7 @@ class Play(PlayInstalls, unittest.TestCase):
         self.assertFalse((self.lwr / 'XEW/XComGame/SaveData/profile.bin').exists())
         self.assertFalse(play_file.exists() or start_file.exists())
         # saving off: the play's own file starts the game, and no start file
-        player.start = lambda argv, cwd=None: self.started.append((argv, cwd))
+        player.start = lambda argv, cwd=None, how=None: self.started.append((argv, cwd))
         quiet = self.player()
         quiet.start = player.start
         r = quiet.play(dict(map='URB_Bar'))
@@ -645,7 +645,7 @@ class Play(PlayInstalls, unittest.TestCase):
         player = self.player(appear=5)
         self.started = None      # the start stands in for the game: it comes up and writes its config
 
-        def start(argv, cwd=None):
+        def start(argv, cwd=None, how=None):
             self.running = True
             self.content.write_bytes(own + b'bAllowJITLoad=True\r\n')
         player.start = start
@@ -664,13 +664,13 @@ class Play(PlayInstalls, unittest.TestCase):
         self.assertEqual(list((self.lwr / 'XCOM Map Workshop' / 'play').iterdir()), [])
         # a file the game made during the play is taken away, so the game makes it afresh
         local = self.lwr / 'XEW/XComGame/Config/XComContent.ini'
-        player.start = lambda argv, cwd=None: local.write_bytes(b'made during the play')
+        player.start = lambda argv, cwd=None, how=None: local.write_bytes(b'made during the play')
         player.play(dict(map='URB_Bar'))
         self.settle(player)
         self.assertFalse(local.exists())
         # a server that went away during a play: the next one puts the config back as it starts (recover); a look at
         # the install (GET /play.json) changes nothing (review finding 45)
-        player.start = lambda argv, cwd=None: None
+        player.start = lambda argv, cwd=None, how=None: None
         installs.backup_config(self.lwr, gamelaunch.user_config(self.lwr, self.documents))
         self.content.write_bytes(b'changed by the game')
         fresh = self.player()
@@ -717,7 +717,7 @@ class Play(PlayInstalls, unittest.TestCase):
         player = self.player(appear=5)
         self.started = None
 
-        def start(argv, cwd=None):      # the game comes up, and its saves land
+        def start(argv, cwd=None, how=None):      # the game comes up, and its saves land
             self.running = True
             (mine / 'save1').write_bytes(stuck)
             (mine / 'save4').write_bytes(logged_in)
@@ -994,7 +994,7 @@ class Play(PlayInstalls, unittest.TestCase):
         before = self.files(self.lwr)
         self.running = True
         player = self.player()
-        self.assertEqual(player.status()['install']['why'], 'XCOM is running')
+        self.assertTrue(player.status()['install']['why'].startswith('XCOM is running from this install'))
         for change in (lambda: player.play(dict(map='URB_Bar')), player.remove):
             with self.assertRaises(ProjectError) as error: change()
             self.assertEqual(error.exception.status, 409)
@@ -1244,22 +1244,50 @@ class Launch(unittest.TestCase):
             game, parked = library / 'common' / 'XCom-Enemy-Unknown', library / 'common' / 'XCom-Enemy-Unknown.LWR'
             for folder in (game, parked): (folder / 'XEW/Binaries/Win32').mkdir(parents=True)
             steam = lambda: Path('C:/Steam/steam.exe')  # noqa: E731
-            with self.assertRaises(gamelaunch.LaunchError) as error: gamelaunch.command(game, 'play.txt', steam)
+            alone_here = lambda _: False  # noqa: E731 (no other install's game open, whatever runs on this computer)
+            with self.assertRaises(gamelaunch.LaunchError) as error: gamelaunch.command(game, 'play.txt', steam, alone_here)
             self.assertIn('appmanifest_200510.acf', str(error.exception))
             (library / 'appmanifest_200510.acf').write_text('"AppState"\n{\n\t"appid"\t\t"200510"\n\t"installdir"\t\t"XCom-Enemy-Unknown"\n}\n', encoding='utf-8')
-            argv, cwd, how = gamelaunch.command(game, 'play.txt', steam)
+            argv, cwd, how = gamelaunch.command(game, 'play.txt', steam, alone_here)
             self.assertEqual((argv, cwd, how), ([str(Path('C:/Steam/steam.exe')), '-applaunch', '200510', '-EXEC=play.txt'], None, 'steam'))
-            with self.assertRaises(gamelaunch.LaunchError) as error: gamelaunch.command(parked, 'play.txt', steam)
+            with self.assertRaises(gamelaunch.LaunchError) as error: gamelaunch.command(parked, 'play.txt', steam, alone_here)
             self.assertIn('Steam runs', str(error.exception))
-            with self.assertRaises(gamelaunch.LaunchError) as error: gamelaunch.command(game, 'play.txt', lambda: None)
+            with self.assertRaises(gamelaunch.LaunchError) as error: gamelaunch.command(game, 'play.txt', lambda: None, alone_here)
             self.assertIn('Steam was not found', str(error.exception))
-            # outside a Steam library: the game's own program
+            # another install's game open: Steam would refuse ("game is already running"), so the install's own
+            # XComEW.exe starts beside it, from any folder of the library, and without a manifest or Steam's program
+            asked = []
+            beside = lambda folder: asked.append(folder) or True  # noqa: E731
+            with self.assertRaises(gamelaunch.LaunchError) as error: gamelaunch.command(game, 'play.txt', steam, beside)
+            self.assertIn('XComEW.exe', str(error.exception))
+            self.assertEqual(asked, [game])
+            for folder in (game, parked):
+                (folder / 'XEW/Binaries/Win32/XComEW.exe').write_bytes(b'')
+                argv, cwd, how = gamelaunch.command(folder, 'play.txt', lambda: None, beside)
+                exe = folder / 'XEW/Binaries/Win32/XComEW.exe'
+                self.assertEqual((argv, cwd, how), ([str(exe), '-FROMLAUNCHER', '-EXEC=play.txt'], exe.parent, 'beside'))
+            # outside a Steam library: the game's own program (whatever else is open: the same start)
             alone = Path(temp) / 'Games' / 'XCOM'
-            with self.assertRaises(gamelaunch.LaunchError): gamelaunch.command(alone, 'play.txt', steam)
+            with self.assertRaises(gamelaunch.LaunchError): gamelaunch.command(alone, 'play.txt', steam, alone_here)
             (alone / 'XEW/Binaries/Win32').mkdir(parents=True)
             (alone / 'XEW/Binaries/Win32/XComEW.exe').write_bytes(b'')
-            argv, cwd, how = gamelaunch.command(alone, 'play.txt', steam)
-            self.assertEqual((argv[1:], cwd, how), (['-EXEC=play.txt'], alone / 'XEW/Binaries/Win32', 'direct'))
+            argv, cwd, how = gamelaunch.command(alone, 'play.txt', steam, beside)
+            self.assertEqual((argv[1:], cwd, how), (['-FROMLAUNCHER', '-EXEC=play.txt'], alone / 'XEW/Binaries/Win32', 'direct'))
+
+    def test_the_games_own_exe_is_started_by_the_side_by_side_start(self):
+        calls = []
+        real = gamelaunch.side_by_side.start
+        self.addCleanup(setattr, gamelaunch.side_by_side, 'start', real)
+        gamelaunch.side_by_side.start = lambda exe, args, cwd=None: calls.append((exe, args, cwd))
+        for how in ('beside', 'direct'):
+            gamelaunch.start(['game/XComEW.exe', '-FROMLAUNCHER', '-EXEC=play.txt'], 'game', how)
+        self.assertEqual(calls, [('game/XComEW.exe', ['-FROMLAUNCHER', '-EXEC=play.txt'], 'game')] * 2)
+
+        def refuse(*_):
+            raise gamelaunch.side_by_side.SideBySideError('this XComEW.exe differs')
+        gamelaunch.side_by_side.start = refuse
+        with self.assertRaises(gamelaunch.LaunchError) as error: gamelaunch.start(['x.exe'], None, 'beside')
+        self.assertIn('XCOM was not started: this XComEW.exe differs', str(error.exception))
 
 
 if __name__ == '__main__':

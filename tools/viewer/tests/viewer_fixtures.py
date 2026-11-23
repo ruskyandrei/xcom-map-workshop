@@ -118,7 +118,7 @@ class PlayInstalls:
         # cleanup off: these tests look at what a play installs, which a real play takes out again once the game has
         # closed (the tests of that pass cleanup=True)
         return Player(dict(self.settings, install=install), self.builds, self.catalogue, self.store,
-                      start=lambda argv, cwd=None: self.started.append((argv, cwd)), steam=lambda: Path('steam.exe'),
+                      start=lambda argv, cwd=None, how=None: self.started.append((argv, cwd)), steam=lambda: Path('steam.exe'),
                       user_documents=self.documents, **dict(dict(appear=0, every=0.01, cleanup=False), **more))
 
     def package(self, revision=1, quick=False, zones=None, ids=None, groups=None, maps=None, record_missions=None, exclusion=False,

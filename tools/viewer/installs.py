@@ -405,7 +405,7 @@ def ready(game):
         read_ledger(game)
     except (OSError, ValueError, InstallError) as error:
         return f'its DefaultMaps.ini or the editor\'s record of it can\'t be read ({error})'
-    if game_running(game): return 'XCOM is running'
+    if game_running(game): return 'XCOM is running from this install: close it first (another copy\'s may run beside)'
     # a change of the install's files that was stopped part-way is undone before anything else looks at them
     try: recover_change(game)
     except (OSError, ValueError, InstallError) as error:

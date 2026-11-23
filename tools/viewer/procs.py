@@ -298,6 +298,25 @@ def running(image, folder=None):
     return False
 
 
+def running_elsewhere(image, folder):
+    """Whether a process whose exe is named `image` (any case) runs from outside `folder`: another install's game,
+    beside which a game of `folder` is started by side_by_side.py (T-52). A process whose exe's path can't be read is
+    running() in the folder's, not here; a table that can't be read, and anywhere but Windows, say False."""
+    if not WINDOWS:
+        return False
+    try:
+        table = _processes()
+    except OSError:
+        return False
+    root = os.path.join(os.path.normcase(os.path.abspath(folder)), '')
+    for pid, (_, name) in table.items():
+        if name.lower() != image.lower(): continue
+        path = exe_path(pid)
+        if path is not None and not os.path.normcase(os.path.abspath(path)).startswith(root):
+            return True
+    return False
+
+
 class Contained:
     """A launched process tree: `proc` (its subprocess.Popen), `pid`, `created` (identity)."""
 

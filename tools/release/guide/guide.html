@@ -2643,6 +2643,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   closed, the file goes back the next time the editor starts.</p>
 <p><b>Through Steam.</b> The editor asks Steam to start the game on the map, so nothing needs setting up in Steam.
   The game folder the editor plays in must be the one Steam runs.</p>
+<p><b>Beside another copy of XCOM.</b> Steam starts only one XCOM at a time. When the game of another game folder is
+  open (another copy you play), the editor starts its own folder's game itself, as a second game beside it, and
+  the play window says so. XCOM from the folder the editor plays in must still be closed: Play in game says so
+  until it is. Two games that keep their settings and saves in Documents share them, so close the other one first if
+  it is a campaign you care about and wasn't started with <code>-nohomedir</code>.</p>
 <p><b>To compare with the original:</b> close the project and choose Play. The same map plays as the game
   has it, and nothing is installed for its first mission. Another of its missions gets a copy of that mission's
   record ahead of the map's own while the game runs, taken out when it closes (Basic Training, the tutorial's map,
