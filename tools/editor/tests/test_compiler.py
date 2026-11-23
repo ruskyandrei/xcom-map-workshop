@@ -1122,16 +1122,38 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         for o in s['objects']:
             if o['actor'] == PL + 'XComLevelActor_2':
                 o['referencedBy'] = ['SeqAct_ToggleHidden_1 Target']
-        for rec in (dict(target=target('XComLevelActor_2'), location=[96, 96, 0], rotation=[0, 0, 0]),
-                    dict(target=target('XComLevelActor_2'), deleted=True)):
+        moved, deleted = (dict(target=target('XComLevelActor_2'), location=[96, 96, 0], rotation=[0, 0, 0]),
+                          dict(target=target('XComLevelActor_2'), deleted=True))
+        for rec in (moved, deleted):
             spec, report = compile_project(document([rec]), s)
             self.assertIsNotNone(spec)
-            self.assertEqual((codes(report), warned(report, 'mission')), ([], ['mission-linked']))
-            self.assertIn('SeqAct_ToggleHidden_1 Target', report['warnings'][0]['message'])
             _, native = compiler.native_split(compiler.stream_only(spec))
             self.assertEqual([h['name'] for h in native['hides']], ['XComLevelActor_2'])
+        # moved: a warning, the script misses the copy at its new place
+        _, report = compile_project(document([moved]), s)
+        self.assertEqual((codes(report), warned(report, 'mission')), ([], ['mission-linked']))
+        self.assertIn('XComLevelActor_2 is moved', report['warnings'][0]['message'])
+        self.assertIn('SeqAct_ToggleHidden_1 Target', report['warnings'][0]['message'])
+        # deleted, the script only acting on it: a note (the piece is gone; a cleared map deletes many such pieces)
+        _, report = compile_project(document([deleted]), s)
+        self.assertEqual((warned(report, 'mission'), noted(report, 'mission')), ([], ['mission-linked']))
+        # deleted and copied from the original: a warning naming the copy, which the script misses
+        _, report = compile_project(document([deleted], [add('XComLevelActor_2', 1, (96, 192, 0))]), s)
+        self.assertEqual(warned(report, 'mission'), ['mission-linked'])
+        w = next(w for w in report['warnings'] if w['code'] == 'mission-linked')
+        self.assertEqual(w['copies'], ['XComLevelActor_2_copy1'])
+        self.assertIn('deleted and copied (XComLevelActor_2_copy1)', w['message'])
+        # deleted, and the script waits on it (an event's originator): a warning
+        for o in s['objects']:
+            if o['actor'] == PL + 'XComLevelActor_2':
+                o['referencedBy'] = ['SeqAct_ToggleHidden_1 Target', 'SeqEvent_Destroyed_0 Originator']
+        _, report = compile_project(document([deleted]), s)
+        self.assertEqual(warned(report, 'mission'), ['mission-linked'])
+        self.assertIn('waits on it (SeqEvent_Destroyed_0 Originator)', report['warnings'][0]['message'])
+        # copied alone (the original stays): nothing
         spec, report = compile_project(document([], [add('XComLevelActor_2', 1, (96, 192, 0))]), s)
         self.assertTrue(report['ok'], refused(report))
+        self.assertEqual(warned(report, 'mission') + noted(report, 'mission'), [])
 
     def test_landing_zone_pieces_are_moved_with_a_warning(self):
         # F-45: LWR's landing-zone mutator spawns the landing from the map's own pieces of the landing prefabs, told by

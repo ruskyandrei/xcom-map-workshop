@@ -1085,6 +1085,36 @@ class Compiler:
                               'the mission\'s script and Long War\'s handlers don\'t expect' % (
                                   missions.group_words(group), stream, len(members)), stream=stream, group=group)
 
+    def kismet_named(self, target, rec, name, named, where):
+        """A moved or deleted original the map's Kismet names (`named`: the export's referencedBy, F-63): its script acts
+        on the original, which the Build takes out of the level. Said (map buildings plan, section 3: never refused):
+        - moved: a warning, the script acts on the hidden original, not on the copy at its new place;
+        - deleted, and the script waits on it (an event's or a condition's): a warning, what it waits for may not come;
+        - deleted, and copied by the project from the original: a warning naming the copies, which the script misses;
+        - deleted, the script only acting on it: a note (the piece is gone, and what the script does to it shows
+          nowhere; a cleared map deletes many such pieces)."""
+        said = '; '.join(named)
+        if rec.get('deleted') is not True:
+            self.warn('mission-linked', "%s is moved, and the map's Kismet acts on it (%s): the script acts on the hidden "
+                      "original, not on the copy at its new place" % (name, said), **where)
+            return
+        waits = [r for r in named if r.split(' ', 1)[0].startswith(('SeqEvent', 'SeqCond', 'XComSeqEvent', 'XComSeqCond'))]
+        if waits:
+            self.warn('mission-linked', "%s is deleted, and the map's Kismet waits on it (%s): what the script waits for "
+                      "may not come" % (name, '; '.join(waits)), **where)
+            return
+        same = lambda f: (isinstance(f, dict) and f.get('actor') == target['actor'] and f.get('level') == target.get('level')  # noqa: E731
+                          and str(f.get('package') or '').casefold() == str(target.get('package') or '').casefold())
+        copies = sorted(short(a['actor']) for a in self.doc.get('added') or []
+                        if isinstance(a, dict) and isinstance(a.get('actor'), str) and same(a.get('from')))
+        if copies:
+            self.warn('mission-linked', "%s is deleted and copied (%s), and the map's Kismet acts on it (%s): the script "
+                      "acts on the deleted original, not on the %s" % (
+                          name, ', '.join(copies), said, 'copy' if len(copies) == 1 else 'copies'), copies=copies, **where)
+            return
+        self.note('mission-linked', "%s is deleted; the map's Kismet acts on it (%s), on a piece that is no longer in the "
+                  "map" % (name, said), **where)
+
     def moved_object(self, stream, o):
         """Where a mission object stands with the project's moves: (location, its offset from the export's place, or
         None when it isn't moved)."""
@@ -1102,10 +1132,7 @@ class Compiler:
         name = short(target['actor'])
         named = sorted({r for o in parts for r in o.get('referencedBy') or []})
         if named:
-            # the map's Kismet acts on the original (plan section 3.5): moved or deleted, its script acts on a piece out
-            # of the level and misses the copy. A warning, not a refusal (map buildings plan, section 3: the user)
-            self.warn('mission-linked', "%s is named by the map's Kismet (%s): moved or deleted, its mission script acts "
-                      "on the hidden original, not on the copy" % (name, '; '.join(named)), **where)
+            self.kismet_named(target, rec, name, named, where)
         if any(is_landing(o) for o in parts):
             self.warn('landing-zone', "%s is one of the map's landing-zone pieces (%s): LWR's landing-zone mutator spawns "
                       "the landing from the original pieces, so moved or deleted the dropship's landing breaks (F-45)"

@@ -185,9 +185,9 @@ export function createBuildPlay({ $, bakeNote, banner, builderDocument, builderR
     if (warned) {
       text(missionList, 'li', warned.head, 'head');
       for (const [mission, rows] of warned.missions) {
-        text(missionList, 'li', mission ?? 'A mission', 'mission');
+        text(missionList, 'li', mission, 'mission');
         for (const row of rows) {
-          const li = text(missionList, 'li', row.message.replace(/^[^:]*: /, ''), row.actor ? 'pick' : '');
+          const li = text(missionList, 'li', row.text, row.actor ? 'pick' : '');
           if (row.actor) { li.title = `Show ${short(row.actor)} (its marker, the Normal button's Spawn points and objectives)`; li.onclick = () => showSpawn(row.actor, row.stream ?? null); }
         }
       }

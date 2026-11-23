@@ -117,16 +117,29 @@ export function leftOutList(status) {
            rows: gone.slice(0, 50), more: count > shown ? `… and ${count - shown} more (the build's compile-report.json has them all)` : null };
 }
 
-/** What the edit does to the missions the variant keeps (the compiler's mission warnings, mission types plan C3), by
- *  mission: null for none, else { head, missions: [[mission, rows]], more }. Warnings only: the build goes on. */
+/** What the edit does to the missions the variant keeps and to the map's own script (the compiler's mission and
+ *  script warnings, mission types plan C3), by mission: null for none, else { head, missions: [[label, rows]], more },
+ *  each row { text, actor?, stream? }. A warning that names no mission is the map's script's (its Kismet), under
+ *  SCRIPT_LABEL. A row's text drops its mission's name where it starts with it, never a piece's. Warnings only: the
+ *  build goes on. */
+export const SCRIPT_LABEL = "The map's own script (Kismet)";
 export function missionWarnings(status) {
   const compiled = (status.job.stages || []).find(s => s.stage === 'compile');
   const warned = compiled?.missionWarnings ?? [];
   if (!warned.length) return null;
   const count = compiled.missionWarningCount ?? warned.length, byMission = new Map();
-  for (const row of warned) { if (!byMission.has(row.mission)) byMission.set(row.mission, []); byMission.get(row.mission).push(row); }
-  return { head: `${plural(count, 'mission warning')}: what the edit does to ${byMission.size === 1 ? 'a mission' : `${byMission.size} missions`} the variant keeps. The build goes on; move the piece, or drop the mission from the project.`,
-           missions: [...byMission], more: count > warned.length ? `… and ${count - warned.length} more (the build's compile-report.json has them all)` : null };
+  for (const row of warned) {
+    const label = row.mission ?? SCRIPT_LABEL;
+    if (!byMission.has(label)) byMission.set(label, []);
+    const text = row.mission && row.message.startsWith(`${row.mission}: `) ? row.message.slice(row.mission.length + 2) : row.message;
+    byMission.get(label).push({ ...row, text });
+  }
+  const missions = [...byMission.keys()].filter(k => k !== SCRIPT_LABEL).length;
+  const head = missions
+    ? `${plural(count, 'mission warning')}: what the edit does to ${missions === 1 ? 'a mission' : `${missions} missions`} the variant keeps`
+      + `${byMission.has(SCRIPT_LABEL) ? ' and to what the map\'s own script acts on' : ''}. The build goes on; move the piece, or drop the mission from the project.`
+    : `${plural(count, 'warning')} about the map's own script: it acts on pieces this edit moves, copies or keeps. The build goes on.`;
+  return { head, missions: [...byMission], more: count > warned.length ? `… and ${count - warned.length} more (the build's compile-report.json has them all)` : null };
 }
 
 /** The bar: the time so far against the last build's of the same kind (`estimate`, seconds, or none), or a moving bar

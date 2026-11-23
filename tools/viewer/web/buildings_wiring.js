@@ -774,7 +774,6 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     $('volumeOwn').textContent = ownCount ? `${ownCount === 1 ? 'One building of the map stays' : `${ownCount} buildings of the map stay`} as the map has `
       + `${ownCount === 1 ? 'it' : 'them'}, in grey: a van's goes with its van${data.exporterVersion >= 21 ? '' : ' (this export predates editing the map\'s buildings: prepare the map again)'}. `
       + 'Click a grey box to read it.' : '';
-    mapChangesList();
     $('volumeAround').hidden = !aroundIds.length;
     $('volumeAround').textContent = `Boxes around the ${aroundIds.length === 1 ? 'piece' : `${aroundIds.length} pieces`} selected`;
     const own = ownPicked?.userData.own, readOnly = !targets.length && Boolean(own);
@@ -903,7 +902,8 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   };
   // Restore the map's (map buildings plan, section 1): a changed or deleted building of the map back as the map has
   // it, its boxes made again from the export and its record gone, as one undo step. (A deleted one has no box left to
-  // click: the Buildings view lists the changed and deleted ones, mapChangesList.)
+  // click: Ctrl+Z or Reset all bring it back. The view's list of every changed and deleted one went on 23 November
+  // 2026 at the user's word: a cleared map listed dozens.)
   function mapRestoreChange(ids) {
     const targets = liveVolumes().filter(r => ids.includes(r.userData.volume.building)), made = [];
     for (const id of ids) {
@@ -925,27 +925,6 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     flashHint(`${ids.length === 1 ? short(buildingMeta.get(ids[0]).map.actor) : plural(ids.length, 'building')} as the map has ${ids.length === 1 ? 'it' : 'them'} · Ctrl+Z undoes it`);
   }
   $('volumeRestore').onclick = () => { const b = pickedVolumes()[0]?.userData.volume.building; if (b) restoreMapBuildings([b]); };
-  // The Buildings view's list of the map's buildings the project changed or deleted, each with Restore.
-  let mapChangesKey = '';
-  function mapChangesList() {
-    const edits = mapEdits(), list = $('volumeChanged');
-    const ids = volumesOn ? [...edits.changed, ...edits.gone].sort() : [];
-    const key = ids.map(id => `${id}:${edits.gone.has(id)}`).join();
-    if (key === mapChangesKey) return;
-    mapChangesKey = key;
-    list.hidden = !ids.length;
-    list.replaceChildren();
-    if (!ids.length) return;
-    text(list, 'div', 'The map\'s buildings this project changes:', 'lightnote');
-    for (const id of ids) {
-      const row = text(list, 'div', '', 'row');
-      text(row, 'span', `${short(buildingMeta.get(id).map.actor)} · ${edits.gone.has(id) ? 'deleted' : 'changed'}`);
-      const button = text(row, 'button', 'Restore the map\'s');
-      button.type = 'button';
-      button.title = 'Back as the map has it: its boxes made again, its name and kind the map\'s (Ctrl+Z undoes it)';
-      button.onclick = () => restoreMapBuildings([id]);
-    }
-  }
   $('volumeNew').onclick = () => setVolumeTool(volumeTool === 'new' ? null : 'new');
   $('volumeAround').onclick = volumesAround;
   $('volumeCopy').onclick = () => (volumesOn ? copyVolumes() : copySelection());

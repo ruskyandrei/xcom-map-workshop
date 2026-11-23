@@ -1318,12 +1318,13 @@ def check_map_buildings(page):
     assert None in [v for f in rec['floors'] for v in f['volumes']], rec
     page.keyboard.press('Control+z')
     assert page.evaluate(saved) == '[]'
-    # deleted (its boxes all gone: a deleted record), listed in the view with Restore, restored, both undone
+    # deleted (its boxes all gone: a deleted record), with no list of changed buildings in the view (taken out at the
+    # user's word, 23 November 2026), restored, both undone
     page.evaluate('ids => { viewer.gizmo.setSelection(ids, ids[0]); viewer.deleteVolumes(); }', [i for i, _ in page.evaluate(box_of, target)])
     assert page.evaluate('viewer.savedBuildings()') == [{'id': target, 'replaces': rec['replaces'], 'deleted': True}]
-    assert page.locator('#volumeChanged').is_visible() and 'deleted' in page.locator('#volumeChanged').inner_text()
-    page.locator('#volumeChanged button').first.click()
-    assert page.evaluate(saved) == '[]' and page.locator('#volumeChanged').is_hidden()
+    assert page.locator('#volumeChanged').count() == 0 and 'Restore the map' not in page.locator('#volumePanel').inner_text()
+    page.evaluate('id => viewer.restoreMapBuildings([id])', target)
+    assert page.evaluate(saved) == '[]'
     page.keyboard.press('Control+z')
     assert page.evaluate('viewer.mapEdits()')['gone'] == [target]
     page.keyboard.press('Control+z')

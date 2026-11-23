@@ -3,7 +3,7 @@
 // left out and the mission warnings with their counts, the bar against the last build's time, and the log's lines.
 // Run: node tools/viewer/tests/build_window_test.mjs
 import assert from 'node:assert/strict';
-import { BUILD_ROWS, buildBar, buildSteps, flagWords, leftOutList, lightWords, logText, missionWarnings, secondsBetween,
+import { BUILD_ROWS, buildBar, buildSteps, flagWords, leftOutList, lightWords, logText, missionWarnings, SCRIPT_LABEL, secondsBetween,
          stepDetail } from '../web/build_window.js';
 
 const at = s => new Date(Date.UTC(2026, 10, 20, 12, 0, s)).toISOString();
@@ -65,10 +65,17 @@ assert.deepEqual([gone.head, gone.more], ['1 piece left out of this build: it ca
 // mission warnings by mission
 assert.equal(missionWarnings(running), null);
 const warned = missionWarnings({ job: { stages: [{ stage: 'compile', missionWarningCount: 4, missionWarnings: [
-  { mission: 'Bomb', message: 'Bomb: a node is under a piece' }, { mission: 'Bomb', message: 'Bomb: another' }, { mission: null, message: 'x' }] }] } });
-assert.match(warned.head, /^4 mission warnings: what the edit does to 2 missions the variant keeps\./);
-assert.deepEqual(warned.missions.map(([m, rows]) => [m, rows.length]), [['Bomb', 2], [null, 1]]);
+  { mission: 'Bomb', message: 'Bomb: a node is under a piece' }, { mission: 'Bomb', message: 'Bomb: another' },
+  { mission: null, message: "XComDestructibleActor_11 is deleted and copied (XComDestructibleActor_11_copy24), and the map's Kismet acts on it (SeqAct_SetMaterial_3 Target): the script acts on the deleted original, not on the copy" }] }] } });
+assert.match(warned.head, /^4 mission warnings: what the edit does to a mission the variant keeps and to what the map's own script acts on\./);
+assert.deepEqual(warned.missions.map(([m, rows]) => [m, rows.length]), [['Bomb', 2], [SCRIPT_LABEL, 1]]);
+// a mission's name is dropped from its rows; a script row keeps its piece's name whole
+assert.deepEqual(warned.missions[0][1].map(r => r.text), ['a node is under a piece', 'another']);
+assert.match(warned.missions[1][1][0].text, /^XComDestructibleActor_11 is deleted and copied/);
 assert.equal(warned.more, '… and 1 more (the build\'s compile-report.json has them all)');
+// only the map's script: said as such
+const scripted = missionWarnings({ job: { stages: [{ stage: 'compile', missionWarnings: [{ mission: null, message: 'XComLevelActor_2 is moved, ...' }] }] } });
+assert.equal(scripted.head, "1 warning about the map's own script: it acts on pieces this edit moves, copies or keeps. The build goes on.");
 
 // the bar
 assert.deepEqual(buildBar(running, null, 20), { className: 'buildbar running indeterminate', share: 0.3,
