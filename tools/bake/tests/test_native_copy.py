@@ -111,6 +111,14 @@ class CommandLine(unittest.TestCase):
                 sys.argv, native_copy.build = argv, real
         return got['state']
 
+    def test_an_edit_of_diagonal_marks_alone_runs(self):
+        # a project whose only change is a diagonal cover mark (or a map's mark taken away): the copy tool runs for it
+        # (a user's intro map build stopped with "give --copy, --copies", 23 November 2026)
+        lane = dict(marks=[dict(at=[48.0, 48.0, 32.0], toward=[[1, 1]])], pageCarries=True)
+        self.assertEqual(self.run_main(dict(copies=[], diagonalCover=lane)).diagonal_cover, lane)
+        lane = dict(removed=[[48.0, 48.0, 32.0]])
+        self.assertEqual(self.run_main(dict(copies=[], diagonalCover=lane)).diagonal_cover, lane)
+
     def test_copy_records_reach_build_whole(self):
         st = self.run_main(dict(copies=[self.WALL, self.PROP, self.STAGED],
                                 breakOriginals=[{'name': 'XComLevelActor_2', 'group': 1}]))

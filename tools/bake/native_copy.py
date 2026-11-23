@@ -3570,7 +3570,7 @@ def main():
     if not st.copies and not st.hides and not st.covers and not st.buildings and not st.building_edits \
             and not st.cleared and not st.landing_zones and not st.stream_tiles and not st.piece_flags \
             and native_lights.is_empty(st.lights) and not st.effects and not st.sounds and not st.flares \
-            and not st.spawns and not st.background_sound and not st.piece_blasts:
+            and not st.spawns and not st.background_sound and not st.piece_blasts             and not ((st.diagonal_cover or {}).get('marks') or (st.diagonal_cover or {}).get('removed')):
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')
