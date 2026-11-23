@@ -176,7 +176,7 @@
       <div class="menuitems" role="menu" aria-label="Map">
         <button id="mapChange" type="button" role="menuitem" title="Choose the base map from every map the game install plays"><span>Change map…</span><kbd>M</kbd></button>
         <hr>
-        <button id="mapSettingsOpen" type="button" hidden role="menuitem" title="What the map has everywhere and at no place: its sun, moon and sky light, and its background sound, which can be another of the game's sound beds or none"><span>Map settings…</span></button>
+        <button id="mapSettingsOpen" type="button" hidden role="menuitem" title="What the map has everywhere and at no place: its sun, moon and sky light, its background sound, which can be another of the game's sound beds or none, and what Long War Rebalance is told of it (the largest abduction it suits, Hold the Line kept off it)"><span>Map settings…</span></button>
         <button id="projectMissions" type="button" hidden role="menuitem" title="The missions the project is for: the base map's missions the Build writes a record for, and the kinds a record alone can give the map (abduction, terror, a bomb mission under Long War, a UFO mission with a UFO building)"><span>Missions…</span></button>
         <button id="projectPicture" type="button" hidden role="menuitem" title="The picture the game shows for the map on its mission screens: choose an image, set its frame, and the Build writes it into the map. Long War Rebalance 3 shows a map's own picture"><span>Map picture…</span></button>
         <button id="projectSize" type="button" hidden role="menuitem" title="The map's tile grid, made larger (or, once the map is cleared, smaller) by dragging the play area's handles: the rail's Map grid"><span>Map grid</span></button>
@@ -767,6 +767,12 @@
         <div class="soundrow"><select id="mapSound" aria-label="Background sound" title="The map's own sound, another of the game's sound beds (the Build brings it from the map that plays it) or none. One undo step"></select><button id="mapSoundPlay" type="button" title="Play the sound chosen here, looping (again to stop). The game plays it at the same volume everywhere on the map">Play</button></div>
         <label class="slider" title="The sound's volume in the game: 100% is the bed's own. One undo step on release"><span>Volume</span><input id="mapSoundVolume" type="range"><output id="mapSoundVolumeValue"></output></label>
         <p id="mapSoundStatus" class="optionsnote" role="status" hidden></p>
+      </section>
+      <section id="mapLwrSection" class="maplwr" aria-labelledby="mapLwrTitle">
+        <h3 id="mapLwrTitle" class="settingshead">Long War Rebalance</h3>
+        <p id="mapLwrNote" class="optionsnote"></p>
+        <label class="lwrrow" title="The largest abduction this map suits. Long War Rebalance moves a larger abduction to another map. Not set: any size, or, for a map that takes a vanilla map's place in a pack, that map's own limit. One undo step"><span>Largest abduction</span><select id="mapLwrDensity" aria-label="Largest abduction"></select></label>
+        <label class="check" title="Hold the Line (some abductions and terror missions become a stand against waves of aliens) never happens on this map. Off, it can happen here as on any map. One undo step"><input id="mapLwrNoHold" type="checkbox"> Keep Hold the Line off this map</label>
       </section>
       <div class="buildoptionsfoot"><span class="buildestimate"></span><button id="mapSettingsDone" class="primary" type="submit">Done</button></div>
     </form>

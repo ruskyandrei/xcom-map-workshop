@@ -1800,6 +1800,11 @@ def _install_rotation(game, folder, mode, now=None):
         warnings.append(f'{", ".join(rivals)} replace{"s" if len(rivals) == 1 else ""} {base} too: for a mission the game asks for by name, it plays one of them.')
     if rs_why:
         warnings.append(f'The project leaves scripted drop-ins where placed; nothing is written for it: {rs_why}.')
+    if (m.get('config') or {}).get('mapInfo') and settings.game_kind(game) == 'lwr':
+        # (LWR 3.00.00 beta 17's map info: a map pack's block or card carries it; this install writes DefaultMaps.ini's
+        # records alone)
+        warnings.append('What Long War Rebalance is told of the map (its largest abduction, Hold the Line) is not written '
+                        'by this install: LWR takes the map as any other. A map pack (Manage projects, Export map pack) carries it.')
     return dict({k: v for k, v in entry.items() if k not in ('lines', 'standsFor')},
                 switchedOff=sum(1 for c in ledger.get('linesOff') or [] if c.get('base') == base) if mode == 'replace' else 0,
                 warnings=warnings)

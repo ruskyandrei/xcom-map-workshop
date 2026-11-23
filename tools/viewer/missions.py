@@ -152,6 +152,36 @@ UFO_TYPES = ('eShip_UFOSmallScout', 'eShip_UFOLargeScout', 'eShip_UFOAbductor', 
              'eShip_UFOEthereal')
 OPTION, VALUE = re.compile(r'[A-Za-z][A-Za-z0-9]{0,31}'), re.compile(r'[A-Za-z0-9]{1,32}')
 
+# What Long War Rebalance is told of a map (the project's `lwrMapInfo`, schema 6): LWR 3.00.00 beta 17's map info, a
+# line per key in a map pack's block or card (MapInfo=(Map="...", Key="...", Value="...")). Each of the project's
+# keys with LWR's key and the values LWR takes, as its guide and its DefaultMaps.ini ([XComMutator.LWRMapInfo]) spell
+# them. AlienDensity: the largest abduction the map suits (the abduction sizes; a larger one is moved to another
+# map). HoldTheLine: No keeps Hold the Line off the map, Yes lets it happen there. A key the map has no line for is
+# Unknown to LWR: any abduction size, Hold the Line can happen, and for a map that takes a vanilla map's place in a
+# pack, that map's own value. The page's twin is web/missions.js's MAP_INFO (tests/twin_constants.json).
+MAP_INFO = {'alienDensity': ('AlienDensity', ('Light', 'Moderate', 'Heavy', 'Swarming')),
+            'holdTheLine': ('HoldTheLine', ('No', 'Yes'))}
+MAP_INFO_SINCE = 'Long War Rebalance 3.00.00 beta 17'
+
+
+def valid_map_info(info):
+    """Whether a project's `lwrMapInfo` is one the editor builds: a record of MAP_INFO's keys, each with one of its
+    key's values (an empty record says nothing, as leaving it out does)."""
+    return isinstance(info, dict) and all(k in MAP_INFO and isinstance(v, str) and v in MAP_INFO[k][1] for k, v in info.items())
+
+
+def map_info_lines(variant, info):
+    """The map info lines of a variant (texts, in MAP_INFO's order), as LWR's own lines are written."""
+    return ['MapInfo=(Map="%s", Key="%s", Value="%s")' % (variant, MAP_INFO[k][0], info[k]) for k in MAP_INFO if k in (info or {})]
+
+
+def map_info_words(info):
+    """A project's map info in words: 'abductions up to Moderate, no Hold the Line'."""
+    words = []
+    if 'alienDensity' in (info or {}): words.append('abductions up to %s' % info['alienDensity'])
+    if 'holdTheLine' in (info or {}): words.append('no Hold the Line' if info['holdTheLine'] == 'No' else 'Hold the Line allowed')
+    return ', '.join(words)
+
 
 def kind_key(record):
     """A record's kind (a KINDS key) from its text (str or bytes), by the map list's rule (maplist.record_kind)."""

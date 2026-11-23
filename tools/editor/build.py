@@ -735,6 +735,9 @@ def readme(m):
                   'placed: Long War\'s drop-in mutator leaves the variant alone):' % (ex['file'], ex['section']), ex['line']]
     if c['miniMods']:
         lines += ['', 'DefaultMiniMods.ini, beside %s\'s rules (optional):' % m['source']['map']] + c['miniMods']
+    if c.get('mapInfo'):
+        lines += ['', '%s or later, what it is told of the map (a map pack made in the editor carries these on its card; by '
+                  'hand they go in the pack\'s block in DefaultLWRMapPacks.ini):' % mission_kinds.MAP_INFO_SINCE] + c['mapInfo']
     base = m['source']['map']
     lines += [
         '',
@@ -836,7 +839,7 @@ class Build:
         self.covers = self.buildings = self.building_edits = self.any_buildings = None
         self.piece_flags = self.piece_blasts = self.flags_edit = self.spawn_edits = self.effects_edit = None
         self.background_sound = self.sound_brought = None
-        self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = None
+        self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = self.map_info = None
         self.has_lights, self.lights, self.moves_landings = False, None, False
         self.stream_moves = self.stream_tiles = self.spec = self.copies = None
         self.untried_dropped = []
@@ -1048,6 +1051,9 @@ class Build:
         self.stage_kept = not any(e.get('record') == 'stage' for e in report.get('leftOut') or [])
         listed = self.doc.get('missions')
         self.missions_listed = report['missions'] if 'missions' in report else listed if isinstance(listed, list) else None
+        # what Long War Rebalance is told of the map (schema 6; the compiler's reading of `lwrMapInfo`): the variant's
+        # MapInfo lines, a change of their own that changes nothing in the map
+        self.map_info = report.get('lwrMapInfo') or None
         patch_spec, self.native = compiler.native_split(compiler.stream_only(spec))
         self.natives = self.native['copies']
         self.covers = self.native.get('covers') or []
@@ -1100,7 +1106,8 @@ class Build:
                     '; '.join(row['message'] for row in self.left_out[:3]) + ('; ...' if len(self.left_out) > 3 else '')))
             raise BuildError('the project changes nothing in the map: no piece, effect, sound, lens flare or spawn point is moved, deleted or '
                              'added, no light or flag is changed, no building is made, the map keeps its size and its '
-                             'background sound, no spawn rule is set, the missions are the map\'s and it has no map picture')
+                             'background sound, no spawn rule is set, Long War Rebalance is told nothing of it, the missions '
+                             'are the map\'s and it has no map picture')
         self.spec = self.work / ('%s.json' % self.patch)
         compiler.write_json(self.spec, patch_spec)
         self.copies = self.work / 'native-edit.json'
@@ -1138,14 +1145,15 @@ class Build:
 
     def has_work(self):
         """Whether the edit leaves the Build something to make: a piece, light, flag, effect, sound, flare or spawn
-        point changed, a building, a size, a clear, landing zones, a mission's objects moved, a spawn rule, the
-        project's own list of missions (the records the variant gets are a change of their own) or a map picture (a
+        point changed, a building, a size, a clear, landing zones, a mission's objects moved, a spawn rule, what Long
+        War Rebalance is told of the map, the project's own list of missions (the records the variant gets are a
+        change of their own) or a map picture (a
         project that only gives its map a picture builds: LWR map packs plan). The compile step's test, and the one
         drop_untried asks again after it drops copies."""
         return bool(self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
                     or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
                     or self.stream_moves or self.native.get('streamHides') or self.flags_edit or self.effects_edit
-                    or self.spawn_rules or self.missions_listed is not None or pictures.named(self.doc))
+                    or self.spawn_rules or self.map_info or self.missions_listed is not None or pictures.named(self.doc))
 
     def claims(self):
         """Who holds which names now (outputnames.Claims), this project's own left out."""
@@ -1843,6 +1851,9 @@ class Build:
             lines['dropInExclusion'] = drop_in_exclusion(self.lwr, self.variant)
             if lines['dropInExclusion'].get('why'):
                 self.echo('spawn rule: nothing to write on this install: %s' % lines['dropInExclusion']['why'])
+        if self.map_info:
+            # what Long War Rebalance is told of the map: lines for a map pack's block, which a pack's card carries
+            lines['mapInfo'] = mission_kinds.map_info_lines(self.variant, self.map_info)
         if self.landing_zones and self.landing_zones.get('own'):
             # Land here on a plain install (Play in game with one zone): the spawn group each own zone's landing is
             lines['ownLandingGroups'] = self.own_landing_groups()

@@ -121,7 +121,8 @@ class PlayInstalls:
                       start=lambda argv, cwd=None: self.started.append((argv, cwd)), steam=lambda: Path('steam.exe'),
                       user_documents=self.documents, **dict(dict(appear=0, every=0.01, cleanup=False), **more))
 
-    def package(self, revision=1, quick=False, zones=None, ids=None, groups=None, maps=None, record_missions=None, exclusion=False):
+    def package(self, revision=1, quick=False, zones=None, ids=None, groups=None, maps=None, record_missions=None, exclusion=False,
+                map_info=None):
         """A built package: the relit map (its lightmaps inside it, as every build's) and its own copy of the landing
         intro, streamed in its place. `zones`: the project's own landing-zone lines (config.landingZonesFromProject).
         `maps`: the Build's records (config.maps, text), with `record_missions` (config.recordMissions) when given."""
@@ -141,6 +142,8 @@ class PlayInstalls:
         if exclusion:       # the project leaves scripted drop-ins where placed (build.drop_in_exclusion)
             m.setdefault('config', {})['dropInExclusion'] = dict(file='DefaultRandomSpawns.ini', section='XComLZMutator.XComSpawnAlienMutator',
                                                                line=f'ExcludeMaps = "{VARIANT}"')
+        if map_info:        # what Long War Rebalance is told of the map (the Build's config.mapInfo)
+            m.setdefault('config', {})['mapInfo'] = missions.map_info_lines(VARIANT, map_info)
         if maps is not None:
             m.setdefault('config', {}).update(maps=maps, missions=[missions.label(missions.kind_key(r)) for r in maps],
                                               **({'recordMissions': record_missions} if record_missions is not None else {}))

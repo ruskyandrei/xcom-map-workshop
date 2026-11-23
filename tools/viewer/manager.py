@@ -257,6 +257,19 @@ def _safe(name):
     return re.sub(r'\s+', ' ', re.sub(r'[^A-Za-z0-9 _.()-]', '', name or '')).strip(' .')[:60]
 
 
+def _info_words(line, short=False):
+    """A map info line in a README's words: 'abductions up to Moderate' (with what LWR does with a larger one, unless
+    `short`), 'no Hold the Line'."""
+    paths.use('upk')
+    import pack_card
+    fields = pack_card.parse_record(line).fields
+    key, value = fields.get('Key'), fields.get('Value')
+    if key == 'AlienDensity':
+        return 'abductions up to %s%s' % (value, '' if short else ' (a larger one is moved to another map)')
+    if key == 'HoldTheLine': return 'no Hold the Line' if value == 'No' else 'Hold the Line allowed'
+    return '%s %s' % (key, value)
+
+
 def pack_readme(pack, parts):
     """The map pack's README: what is in it, how it goes into a game with cards (LWR 3: copy the folder) and into any
     other (Install.cmd, or by hand). parts: one per build, dict(name, variant, base, mode, files, records (text lines),
@@ -307,6 +320,11 @@ def pack_readme(pack, parts):
     lines += ['  %s: its own' % p['variant'] for p in own]
     lines += ['  %s: %s\'s (%s)' % (p['variant'], p['base'], p['pictureFrom']) for p in borrowed]
     lines += ['  %s: none ("No satellite imagery"): the game has no picture of %s' % (p['variant'], p['base']) for p in none]
+    told = [p for p in parts if p.get('mapInfo')]
+    if told:
+        lines += ['', 'What Long War Rebalance is told of the maps (3.00.00 beta 17 or later reads these from the card; an earlier',
+                  'beta passes over them, and takes the map as any other):']
+        lines += ['  %s: %s' % (p['variant'], ', '.join(_info_words(l) for l in p['mapInfo'])) for p in told]
     lines += [
         '',
         'Landing zones: once a map has landing lines in a pack, its built-in landing zone is no longer used, and some kinds',
@@ -400,8 +418,11 @@ def folder_readme(pack, parts):
              % (record['name'], record['version'], pack['editorVersion'])]
     if record.get('author'): lines += ['By %s.' % record['author']]
     lines += ['', 'This folder lies in ...\\XEW\\XComGame\\CookedPCConsole. Its card is %s.' % pack['card']['file'], '', 'Maps:']
-    lines += ['  %s: %s, a variant of %s (%s)' % (p['variant'], p['name'], p['base'],
-                                                'in its place' if p['mode'] == 'replace' else 'beside it') for p in parts]
+    # (what Long War Rebalance is told of a map, from beta 17, after the map's line)
+    lines += ['  %s: %s, a variant of %s (%s)%s' % (p['variant'], p['name'], p['base'],
+                                                  'in its place' if p['mode'] == 'replace' else 'beside it',
+                                                  '; LWR beta 17 or later: %s' % ', '.join(_info_words(l, short=True) for l in p['mapInfo'])
+                                                  if p.get('mapInfo') else '') for p in parts]
     lines += ['  %s: the landing intro (%s) of %s' % (file, intro['stream'], ', '.join(intro['maps']))
               for file, intro in (pack.get('introFiles') or {}).items()]
     lines += ['', 'Files of this folder:'] + ['  %s' % n for n in pack['folderFiles']]
@@ -582,7 +603,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
     stamp = now.strftime('%Y%m%d-%H%M%S')
     note = f'{installs.RECORD_NOTE}, {stamp[:8]}'
     parts, skipped, files = [], [], {}
-    card_pictures, card_zones = [], []
+    card_pictures, card_zones, card_info = [], [], []
     # each project's files, card lines and picture are staged on their own and join the pack only once the whole
     # project has passed, so a project left out leaves nothing in it (review finding 13)
     for project_id, name, m, folder, why, its in chosen:
@@ -630,8 +651,10 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
             mine = [l.decode('latin-1') for l in on_card['block'] if pack_card.parse_record(l) is not None]
             zone_lines = [l.decode('latin-1') for l in zones if pack_card.parse_record(l) is not None]
             picture_lines = [f'Pictures=(Map="{variant}", Picture="{library}.{base}")'] if library else []
+            # what Long War Rebalance is told of the map (the manifest's config.mapInfo: LWR 3.00.00 beta 17's map info)
+            info_lines = [l for l in (m.get('config') or {}).get('mapInfo') or [] if pack_card.parse_record(l) is not None]
             # the card's lines typed now: one the card can't hold leaves this project out, with why (review finding 44)
-            pack_card.from_lines('check', mine + picture_lines + zone_lines)
+            pack_card.from_lines('check', mine + picture_lines + zone_lines + info_lines)
             part = dict(id=project_id, name=name, variant=variant, base=base, mode=its, quick=bool(m.get('quick')),
                               intros=_intros_of(m), introActions=_intro_actions(m),
                               revision=(m.get('project') or {}).get('revision'), buildId=m.get('buildId'), folder=folder,
@@ -639,6 +662,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
                               records=[l.decode('latin-1') for l in plan['block']], switch=switch, keep=keep,
                               cardLines=mine, ownPicture=own, pictureFrom=f'{library}.{base}' if library else None,
                               landingZones=[l.decode('latin-1') for l in zones] or None,
+                              **({'mapInfo': info_lines} if info_lines else {}),
                               **({'dropInExclusion': exclusion} if exclusion else {}),
                               **({'ownZones': True} if (m.get('config') or {}).get('landingZonesFromProject') else {}),
                               # the maps its pieces of other maps came from, for the record (no folder of this PC)
@@ -650,6 +674,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
         files.update(staged)
         card_zones += zone_lines
         card_pictures += picture_lines
+        card_info += info_lines
         parts.append(part)
     if not parts:
         raise ProjectError(409, 'Not made: none of the chosen projects has a build to pack. '
@@ -682,7 +707,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
     # one copy of each landing intro for all the maps, in place of each build's own (F-142); the lines then stream it
     intro_files = _shared_intros(parts, files, work, record, cooked)
     card_maps = [l for p in parts for l in p['cardLines']]
-    card_lines = card_maps + card_pictures + card_zones
+    card_lines = card_maps + card_pictures + card_zones + card_info
     try: card_data, card_notes = pack_card.from_lines(pack_name, card_lines)
     except ValueError as error: raise ProjectError(409, f'Not made: the pack\'s card could not be written ({error}).')
     card_file = pack_card.file_name(record['card'])
@@ -705,6 +730,7 @@ def _pack(projects, builds, player, request, chosen, mode, now, work):
                                               'records', 'switch', 'keep', 'landingZones', 'donors', 'warnings', 'cardLines',
                                               'ownPicture', 'pictureFrom')},
                            **({'ownZones': True} if p.get('ownZones') else {}),
+                           **({'mapInfo': p['mapInfo']} if p.get('mapInfo') else {}),
                            **({'introShared': p['introShared']} if p.get('introShared') else {}),
                            **({'introOwn': p['introOwn']} if p.get('introOwn') else {}),
                            **({'dropInExclusion': p['dropInExclusion']} if p.get('dropInExclusion') else {})} for p in parts],

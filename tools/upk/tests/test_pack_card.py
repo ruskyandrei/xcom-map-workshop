@@ -138,7 +138,41 @@ class Cards(unittest.TestCase):
 
     def test_an_empty_card(self):
         data = card('Nothing v1')
-        self.assertEqual(read(data), dict(PackName='Nothing v1', Format=1, version=845, licensee=0, Maps=[], Pictures=[], LZArray=[]))
+        self.assertEqual(read(data), dict(PackName='Nothing v1', Format=1, version=845, licensee=0, Maps=[], Pictures=[], LZArray=[],
+                                          MapInfo=[]))
+
+    # map info (LWR 3.00.00 beta 17): what LWR knows of a map, a card's fourth kind of line
+    def test_map_info_lines_go_through_a_card(self):
+        density = pack_card.info_text('EXP_Market', 'AlienDensity', 'Moderate')
+        self.assertEqual(density, 'MapInfo=(Map="EXP_Market", Key="AlienDensity", Value="Moderate")')     # as LWR's guide writes it
+        hold = 'mapinfo=( map="EXP_Farm", key="HoldTheLine", value="No" )'
+        self.assertEqual(parse_record(hold), pack_card.Record('MapInfo', dict(Map='EXP_Farm', Key='HoldTheLine', Value='No')))
+        data, warnings = from_lines('P', [MARKET, density, ZONE, hold])
+        self.assertEqual(warnings, [])
+        held = read(data)
+        self.assertEqual(held['MapInfo'], [dict(Map='EXP_Market', Key='AlienDensity', Value='Moderate'),
+                                           dict(Map='EXP_Farm', Key='HoldTheLine', Value='No')])
+        self.assertEqual(len(held['Maps']), 1)
+        self.assertEqual(len(held['LZArray']), 1)
+        self.assertEqual(held['Format'], 1)       # still format 1: an older LWR skips the field
+        self.assertEqual(pack_card.info_warnings(held), [])
+        self.assertEqual(data, card('P', [parse_record(MARKET).fields], zones=[parse_record(ZONE).fields],
+                                    info=[dict(Map='EXP_Market', Key='AlienDensity', Value='Moderate'),
+                                          dict(Map='EXP_Farm', Key='HoldTheLine', Value='No')]))
+
+    def test_a_card_without_map_info_is_what_it_was(self):
+        # the MapInfo array is written only when there is a line: every card made before keeps its bytes
+        plain, with_info = from_lines('P', [MARKET, ZONE])[0], from_lines('P', [MARKET, ZONE, 'MapInfo=(Map="A", Key="HoldTheLine", Value="No")'])[0]
+        self.assertNotIn(b'MapInfo\0', plain)
+        self.assertIn(b'MapInfo\0', with_info)
+        self.assertEqual(hashlib.sha256(card('Nothing v1')).hexdigest(), hashlib.sha256(card('Nothing v1', info=[])).hexdigest())
+
+    def test_map_info_lwr_does_not_know_is_named(self):
+        held = dict(MapInfo=[dict(Map='A', Key='AlienDensity', Value='Heavy'), dict(Map='A', Key='AlienDensity', Value='Huge'),
+                             dict(Map='A', Key='HoldTheLine', Value='Never'), dict(Map='B', Key='Weather', Value='Rain')])
+        self.assertEqual(pack_card.info_warnings(held), ['map info of A: AlienDensity is Light, Moderate, Heavy or Swarming, not Huge',
+                                                         'map info of A: HoldTheLine is No or Yes, not Never',
+                                                         'map info of B: LWR has no key Weather'])
 
     def test_the_package_layout(self):
         data = card('P', [parse_record(MARKET).fields])

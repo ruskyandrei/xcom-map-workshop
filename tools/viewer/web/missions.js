@@ -50,3 +50,38 @@ export const ADDED_KINDS = {
 };
 /** An added kind's mission as the export writes one ({type, label, streams}), for kindKey and the play dialog. */
 export const addedMission = kind => ({ type: kind.split('/')[0], label: ADDED_KINDS[kind]?.label ?? kind, streams: [], added: true });
+
+// What Long War Rebalance is told of a map (the project's `lwrMapInfo`, schema 6; missions.py's MAP_INFO, pinned by
+// tests/twin_constants.json): LWR 3.00.00 beta 17's map info, which a map pack's card carries. Each of the project's
+// keys with LWR's key and the values LWR takes. alienDensity: the largest abduction the map suits (a larger one is
+// moved to another map). holdTheLine: No keeps Hold the Line off the map. A key left out is Unknown to LWR: any
+// abduction size, Hold the Line can happen, and for a map that takes a vanilla map's place in a pack, that map's own.
+export const MAP_INFO = { alienDensity: ['AlienDensity', ['Light', 'Moderate', 'Heavy', 'Swarming']], holdTheLine: ['HoldTheLine', ['No', 'Yes']] };
+export const MAP_INFO_SINCE = 'Long War Rebalance 3.00.00 beta 17';
+const infoShape = i => Boolean(i) && typeof i === 'object' && !Array.isArray(i);
+/** Whether a project's map info is one the page reads: a record of MAP_INFO's keys, each with one of its values. */
+export const validMapInfo = i => infoShape(i) && Object.entries(i).every(([k, v]) => MAP_INFO[k]?.[1].includes(v));
+/** A map info one the server takes (a record of texts) but the page can't read: carried as saved, for the compiler
+ * to leave out. */
+export const carriedMapInfo = i => infoShape(i) && Object.values(i).every(v => typeof v === 'string');
+/** A valid map info with its keys in MAP_INFO's order; null for an empty one (which says nothing). */
+export function tidyMapInfo(info) {
+  const out = {};
+  for (const key of Object.keys(MAP_INFO)) if (info[key] !== undefined) out[key] = info[key];
+  return Object.keys(out).length ? out : null;
+}
+/** The project's map info for the Map settings controls: the largest abduction chosen ('' for none) and whether
+ * Hold the Line is kept off the map. A Yes the project has (written by hand) stays while Hold the Line is not kept
+ * off. null when nothing is told. */
+export function mapInfoRecord(density, noHold, before = null) {
+  const kept = validMapInfo(before) && before.holdTheLine === 'Yes' ? 'Yes' : undefined;
+  return tidyMapInfo({ alienDensity: MAP_INFO.alienDensity[1].includes(density) ? density : undefined,
+                       holdTheLine: noHold ? 'No' : kept });
+}
+/** A map info in words: 'abductions up to Moderate, no Hold the Line'. */
+export function mapInfoWords(info) {
+  const words = [];
+  if (info?.alienDensity) words.push(`abductions up to ${info.alienDensity}`);
+  if (info?.holdTheLine) words.push(info.holdTheLine === 'No' ? 'no Hold the Line' : 'Hold the Line allowed');
+  return words.join(', ');
+}

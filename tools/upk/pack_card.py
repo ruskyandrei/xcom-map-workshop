@@ -2,8 +2,9 @@
 
 LWR 3.00.00 beta 15 and later look, once per game session, for LWRMapPack_0000.upk to LWRMapPack_9999.upk anywhere
 the engine finds packages (so in any folder under CookedPCConsole), and take the lines of each card's one object,
-Card (class XComMutator.LWRMapPackCard), as if they stood in DefaultLWRMapPacks.ini: map records, borrowed pictures
-and landing zones. A folder with a card and its maps is therefore a map pack that installs by being copied in.
+Card (class XComMutator.LWRMapPackCard), as if they stood in DefaultLWRMapPacks.ini: map records, borrowed pictures,
+landing zones and, since beta 17, map info (what LWR knows of a map: the largest abduction it suits, Hold the Line
+kept off it). A folder with a card and its maps is therefore a map pack that installs by being copied in.
 
 The card is a small uncompressed package (version 845, licensee 0): seven names first, two imports (the package
 XComMutator and the class LWRMapPackCard in it), one export, an empty depends entry, then the export's data: int32 0
@@ -18,6 +19,9 @@ from the engine's package format:
   Pictures  array of      Map, Picture (a texture's path, package.object)
   LZArray   array of      MapName, MissionType, CouncilType, StartLoc, StartDir (name), ESpawnLoc (name), AltSpawnLoc,
                           AltSpawnDir (name)
+  MapInfo   array of      Map, Key, Value (texts; LWR 3.00.00 beta 17: AlienDensity is Light, Moderate, Heavy or
+                          Swarming, HoldTheLine is No or Yes). Still format 1: an older LWR skips the field. Written
+                          only when the card has such a line, so a card without one is byte for byte what it was.
 
 Every field of every line is written: LWR's guide says a field left out may load as 0, False or empty and not as an
 ini line's default. The defaults used for a field a line does not give are the script's own (bInRotation and NewMap
@@ -27,11 +31,15 @@ Names. The engine keeps a name ending in _<number> (no leading zero) as a base a
 made from text at run time is split that way; a name stored whole in a package would then never equal it. Every value
 that is a name (MapFamily, the enum values, the landing directions) is stored split.
 
-  parse_record(text)                    one Maps=( ... ), Pictures=( ... ) or LZArray=( ... ) line -> Record or None
-  map_line / picture_line / zone_line   a Record's fields -> the line as the card holds it (every field, typed)
-  card(pack_name, maps, pictures, zones)    -> the card file's bytes
+  parse_record(text)                    one Maps=( ... ), Pictures=( ... ), LZArray=( ... ) or MapInfo=( ... ) line
+                                        -> Record or None
+  map_line / picture_line / zone_line / info_line   a Record's fields -> the line as the card holds it (every field,
+                                        typed)
+  info_text(map, key, value)            a MapInfo line's text
+  card(pack_name, maps, pictures, zones, info=...)    -> the card file's bytes
   from_lines(pack_name, lines)          the same from ini text lines (other lines are passed over) -> (bytes, warnings)
-  read(data)                            a card file's bytes -> dict(PackName, Format, Maps, Pictures, LZArray)
+  read(data)                            a card file's bytes -> dict(PackName, Format, Maps, Pictures, LZArray, MapInfo)
+  info_warnings(card)                   the map info lines LWR does not know
   enum_warnings(card, enums)            the enum values the game's script does not have
 
   python tools/upk/pack_card.py read <LWRMapPack_NNNN.upk>
@@ -74,12 +82,16 @@ ZONE_FIELDS = (('MapName', 'str', ''), ('MissionType', 'EMissionType', 'eMission
                ('StartDir', 'name', 'None'), ('ESpawnLoc', 'name', 'None'), ('AltSpawnLoc', 'vector', (0.0, 0.0, 0.0)),
                ('AltSpawnDir', 'name', 'None'))
 PICTURE_FIELDS = (('Map', 'str', ''), ('Picture', 'str', ''))
+INFO_FIELDS = (('Map', 'str', ''), ('Key', 'str', ''), ('Value', 'str', ''))
+# the map info LWR 3.00.00 beta 17 reads (its DefaultMaps.ini, [XComMutator.LWRMapInfo]): key -> the values it knows
+INFO_VALUES = {'AlienDensity': ('Light', 'Moderate', 'Heavy', 'Swarming'), 'HoldTheLine': ('No', 'Yes')}
 # the highest StreamingMaps slot a line may give: the game's own records use a handful, and each slot up to the highest
 # is written, so StreamingMaps[100000] made a 12 MB card (review finding 44)
 MAX_STREAM_SLOT = 99
-KINDS = {'maps': 'Maps', 'pictures': 'Pictures', 'lzarray': 'LZArray'}
+KINDS = {'maps': 'Maps', 'pictures': 'Pictures', 'lzarray': 'LZArray', 'mapinfo': 'MapInfo'}
 KEYS = {'Maps': [f for f, _, _ in MAP_FIELDS] + ['DynamicAliens', 'StreamingMaps'],
-        'Pictures': [f for f, _, _ in PICTURE_FIELDS], 'LZArray': [f for f, _, _ in ZONE_FIELDS]}
+        'Pictures': [f for f, _, _ in PICTURE_FIELDS], 'LZArray': [f for f, _, _ in ZONE_FIELDS],
+        'MapInfo': [f for f, _, _ in INFO_FIELDS]}
 
 Record = namedtuple('Record', 'kind fields')
 
@@ -93,7 +105,7 @@ class CardError(ValueError):
 # ---------------------------------------------------------------------------------------------------------------------
 _KEY = re.compile(r'([A-Za-z_]\w*)\s*(?:\[\s*(\d+)\s*\])?\s*=')
 _BARE = re.compile(r'[^,)\s]+')
-_HEAD = re.compile(r'\s*[+.]?\s*(Maps|Pictures|LZArray)\s*=\s*\(', re.I)
+_HEAD = re.compile(r'\s*[+.]?\s*(Maps|Pictures|LZArray|MapInfo)\s*=\s*\(', re.I)
 
 
 def _value(text, at):
@@ -131,9 +143,10 @@ def _canonical(fields, known):
 
 
 def parse_record(text):
-    """A Maps=( ... ), Pictures=( ... ) or LZArray=( ... ) ini line as Record(kind, fields): values as their text,
-    nested brackets as dicts, key[n] as {n: value}; the known keys in their own spelling. None for any other line
-    (comments, section names, blank lines). A line of one of the three kinds that can't be read raises CardError."""
+    """A Maps=( ... ), Pictures=( ... ), LZArray=( ... ) or MapInfo=( ... ) ini line as Record(kind, fields): values as
+    their text, nested brackets as dicts, key[n] as {n: value}; the known keys in their own spelling. None for any
+    other line (comments, section names, blank lines). A line of one of the four kinds that can't be read raises
+    CardError."""
     if isinstance(text, bytes): text = text.decode('latin-1')
     m = _HEAD.match(text)
     if not m: return None
@@ -247,6 +260,15 @@ def picture_line(fields):
     return _line(fields, PICTURE_FIELDS)
 
 
+def info_line(fields):
+    return _line(fields, INFO_FIELDS)
+
+
+def info_text(map_name, key, value):
+    """A map info line as an ini block has it, written as LWR's own are."""
+    return 'MapInfo=(Map="%s", Key="%s", Value="%s")' % (map_name, key, value)
+
+
 def unknown_keys(record):
     """The keys of a Record that no card line carries."""
     return [k for k in record.fields if k not in KEYS[record.kind]]
@@ -319,17 +341,20 @@ class _Writer:
         return out + self.array('StreamingMaps', streams)
 
 
-def card(pack_name, maps=(), pictures=(), zones=(), fmt=FORMAT):
-    """The card file's bytes. maps, pictures, zones: lines as map_line, picture_line and zone_line make them, or the
-    fields those take. The same lines give the same bytes (the package's GUID is made from its contents)."""
+def card(pack_name, maps=(), pictures=(), zones=(), fmt=FORMAT, info=()):
+    """The card file's bytes. maps, pictures, zones, info: lines as map_line, picture_line, zone_line and info_line
+    make them, or the fields those take. The same lines give the same bytes (the package's GUID is made from its
+    contents). The MapInfo array is written only when there is such a line (the module's note)."""
     maps = [map_line(m) for m in maps]
     pictures = [picture_line(p) for p in pictures]
     zones = [zone_line(z) for z in zones]
+    info = [info_line(i) for i in info]
     w = _Writer()
     props = w.value('PackName', 'str', str(pack_name)) + w.value('Format', 'int', int(fmt))
     props += w.array('Maps', [w.map(m) for m in maps])
     props += w.array('Pictures', [w.fields(p, PICTURE_FIELDS) for p in pictures])
     props += w.array('LZArray', [w.fields(z, ZONE_FIELDS) for z in zones])
+    if info: props += w.array('MapInfo', [w.fields(i, INFO_FIELDS) for i in info])
     data = struct.pack('<i', 0) + props + w.fname('None')         # the net index, then the tagged properties
     names = b''.join(fstring(n) + struct.pack('<Q', NAME_FLAGS) for n in w.names)
     imports = (w.fname('Core') + w.fname('Package') + struct.pack('<i', 0) + w.fname('XComMutator')
@@ -359,9 +384,9 @@ def card(pack_name, maps=(), pictures=(), zones=(), fmt=FORMAT):
 
 
 def from_lines(pack_name, lines, fmt=FORMAT):
-    """(the card's bytes, warnings) from ini text lines: the Maps, Pictures and LZArray lines in their order, every
-    other line passed over. A warning names a key no card line carries."""
-    maps, pictures, zones, warnings = [], [], [], []
+    """(the card's bytes, warnings) from ini text lines: the Maps, Pictures, LZArray and MapInfo lines in their order,
+    every other line passed over. A warning names a key no card line carries."""
+    maps, pictures, zones, info, warnings = [], [], [], [], []
     for text in lines:
         record = parse_record(text)
         if record is None: continue
@@ -370,8 +395,8 @@ def from_lines(pack_name, lines, fmt=FORMAT):
             warnings.append('%s line %s: a card has no field %s' % (
                 record.kind, record.fields.get('Name') or record.fields.get('MapName') or record.fields.get('Map') or '',
                 ', '.join(extra)))
-        {'Maps': maps, 'Pictures': pictures, 'LZArray': zones}[record.kind].append(record.fields)
-    return card(pack_name, maps, pictures, zones, fmt), warnings
+        {'Maps': maps, 'Pictures': pictures, 'LZArray': zones, 'MapInfo': info}[record.kind].append(record.fields)
+    return card(pack_name, maps, pictures, zones, fmt, info), warnings
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -440,8 +465,9 @@ def _properties(names, r, end, arrays):
 
 
 def read(data):
-    """A card file's bytes -> dict(PackName, Format, Maps, Pictures, LZArray), each line as map_line, picture_line
-    and zone_line give it (a field the file does not hold takes the script's default). CardError when it is not a card."""
+    """A card file's bytes -> dict(PackName, Format, Maps, Pictures, LZArray, MapInfo), each line as map_line,
+    picture_line, zone_line and info_line give it (a field the file does not hold takes the script's default; a card
+    without map info has an empty MapInfo). CardError when it is not a card."""
     if isinstance(data, (str, Path)): data = Path(data).read_bytes()
     r = _Reader(data)
     tag, version, licensee = r.unpack('<IHH')
@@ -469,12 +495,13 @@ def read(data):
             raise CardError('the object Card is not an LWRMapPackCard')
         body = _Reader(data)
         body.at = offset + 4
-        props = _properties(names, body, offset + size, ('Maps', 'Pictures', 'LZArray', 'StreamingMaps'))
+        props = _properties(names, body, offset + size, ('Maps', 'Pictures', 'LZArray', 'MapInfo', 'StreamingMaps'))
         if body.at != offset + size: raise CardError(f'the properties end at {body.at}, the object at {offset + size}')
         return dict(PackName=props.get('PackName', ''), Format=props.get('Format', 0), version=version, licensee=licensee,
                     Maps=[map_line(m) for m in props.get('Maps') or []],
                     Pictures=[picture_line(p) for p in props.get('Pictures') or []],
-                    LZArray=[zone_line(z) for z in props.get('LZArray') or []])
+                    LZArray=[zone_line(z) for z in props.get('LZArray') or []],
+                    MapInfo=[info_line(i) for i in props.get('MapInfo') or []])
     raise CardError('no object named Card')
 
 
@@ -487,6 +514,19 @@ def number_of(file_name):
 def file_name(number):
     if not 0 <= int(number) <= 9999: raise CardError('a card\'s number is 0 to 9999')
     return 'LWRMapPack_%04d.upk' % int(number)
+
+
+def info_warnings(held):
+    """The map info lines of a card (as read or as lines) that LWR 3.00.00 beta 17 does not know: another key, or
+    another value of a key it has (INFO_VALUES, spelled as LWR's own lines spell them)."""
+    out = []
+    for i in held.get('MapInfo') or []:
+        i = info_line(i)
+        known = INFO_VALUES.get(i['Key'])
+        if known is None: out.append(f'map info of {i["Map"]}: LWR has no key {i["Key"]}')
+        elif i['Value'] not in known:
+            out.append('map info of %s: %s is %s or %s, not %s' % (i['Map'], i['Key'], ', '.join(known[:-1]), known[-1], i['Value']))
+    return out
 
 
 def enum_warnings(held, enums):
@@ -519,8 +559,8 @@ def main(argv):
         target.write_bytes(data)
         held = read(data)
         print(target, '-', len(held['Maps']), 'map line(s),', len(held['Pictures']), 'picture line(s),',
-              len(held['LZArray']), 'landing line(s)')
-        for w in warnings: print('note:', w)
+              len(held['LZArray']), 'landing line(s),', len(held['MapInfo']), 'map info line(s)')
+        for w in warnings + info_warnings(held): print('note:', w)
     else:
         print(__doc__)
         return 2

@@ -632,6 +632,29 @@ class Builds(unittest.TestCase):
         with self.assertRaisesRegex(build.BuildError, 'no spawn rule is set'):
             self.make('112000').run()
 
+    def test_what_long_war_rebalance_is_told_of_the_map_builds_as_its_lines(self):
+        """Schema 6's lwrMapInfo (LWR 3.00.00 beta 17's map info): the compiler's reading of it (the report's) becomes
+        the variant's MapInfo lines in the manifest's config and the README, in LWR's own spelling; a project whose
+        one change it is builds the map with the lighting unchanged. Without it the manifest has no such lines."""
+        m = self.make().run()
+        self.assertNotIn('mapInfo', m['config'])
+        self.assertNotIn('MapInfo=', (self.output / VARIANT / 'README.txt').read_text('latin-1'))
+        self.spec['objects'] = []
+        self.report['lwrMapInfo'] = dict(alienDensity='Moderate', holdTheLine='No')
+        m = self.make('111500').run()
+        lines = ['MapInfo=(Map="%s", Key="AlienDensity", Value="Moderate")' % VARIANT,
+                 'MapInfo=(Map="%s", Key="HoldTheLine", Value="No")' % VARIANT]
+        self.assertEqual(m['config']['mapInfo'], lines)
+        self.assertTrue(m['lightingUnchanged'])
+        readme = (self.output / VARIANT / 'README.txt').read_text('latin-1')
+        self.assertIn('Long War Rebalance 3.00.00 beta 17 or later, what it is told of the map', readme)
+        for line in lines: self.assertIn('\n%s\n' % line, readme)
+        # the lines are ones a card holds
+        sys.path.insert(0, str(Path(build.__file__).resolve().parents[1] / 'upk'))
+        import pack_card
+        self.assertEqual([pack_card.parse_record(l).kind for l in lines], ['MapInfo', 'MapInfo'])
+        self.assertEqual(pack_card.info_warnings(dict(MapInfo=[pack_card.parse_record(l).fields for l in lines])), [])
+
     def test_a_baked_build_that_changes_nothing_in_the_map_records_its_lighting_unchanged(self):
         """A baked Build of landing-zone lines alone, or of a spawn rule alone, relights nothing and keeps the map's
         own lightmaps: its light stage says so as a baked Build of cover blocks alone does (baked, lighting unchanged,

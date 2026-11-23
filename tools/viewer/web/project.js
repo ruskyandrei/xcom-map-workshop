@@ -3,14 +3,16 @@
 // level and actor; added pieces, each a copy of a source actor's components under its own output name and pose; and
 // the user's groups of pieces, with their lock and options. The viewer's server stores it (tools/viewer/projects.py). Nothing here touches the game.
 import { validFlags } from './piece_flags.js';
+import { carriedMapInfo, tidyMapInfo, validMapInfo } from './missions.js';
 import { call } from './api.js';
 
 // 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (the effects and sounds
 // plan, Part C: an override of an effect or a sound, and an added record with a `kind`); 4: the spawns plan's
 // (`spawnRules`, SP8; the base map's spawn points' overrides and added records, SP6 and SP7); 5: the map's background
-// sound (`backgroundSound`) and a clear that keeps the map's triggers (`clearKeepsTriggers`). A project of schema 1
-// to 4 opens, and saves as 5.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 5;
+// sound (`backgroundSound`) and a clear that keeps the map's triggers (`clearKeepsTriggers`); 6: what Long War
+// Rebalance is told of the map (`lwrMapInfo`; missions.js's MAP_INFO). A project of schema 1 to 5 opens, and saves
+// as 6.
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 6;
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;
@@ -57,7 +59,8 @@ export const stateKey = state => JSON.stringify([state.overrides, state.added, s
                                                  state.buildings ?? [], state.cleared === true, state.landingZones ?? null,
                                                  state.cleared === true && state.clearKeepsOutside === true, state.missions ?? null,
                                                  state.spawnRules ?? null, state.picture?.sha256 ?? null,
-                                                 state.cleared === true && state.clearKeepsTriggers === true, state.backgroundSound ?? null]);
+                                                 state.cleared === true && state.clearKeepsTriggers === true, state.backgroundSound ?? null,
+                                                 state.lwrMapInfo ?? null]);
 // The project's map picture (LWR map packs plan, 4.3): null, or { sha256 }, the SHA-256 of the 512 x 256 picture the
 // server keeps with the project (tools/viewer/pictures.py); the Build writes it into the map.
 export const validPicture = p => Boolean(p) && typeof p === 'object' && !Array.isArray(p) && Object.keys(p).length === 1
@@ -187,6 +190,10 @@ export function sortState(state) {
            // the background sound (schema 5): one the page can't read is carried as it is when the server takes it
            backgroundSound: validBackgroundSound(state.backgroundSound) ? tidyBackgroundSound(state.backgroundSound)
              : soundShape(state.backgroundSound) ? { ...state.backgroundSound } : null,
+           // what Long War Rebalance is told of the map (schema 6): one the page can't read is carried as it is when
+           // the server takes it, for the compiler to leave out; an empty one says nothing
+           lwrMapInfo: validMapInfo(state.lwrMapInfo) ? tidyMapInfo(state.lwrMapInfo)
+             : carriedMapInfo(state.lwrMapInfo) && Object.keys(state.lwrMapInfo).length ? { ...state.lwrMapInfo } : null,
            // the map picture: a malformed one is dropped (the server would refuse the save)
            picture: validPicture(state.picture) ? { sha256: state.picture.sha256 } : null };
 }

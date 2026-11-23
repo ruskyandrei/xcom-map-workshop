@@ -3,7 +3,8 @@
 // ADDED_KINDS), and the project's missions in its state (project.js). Run: node tools/viewer/tests/missions_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ADDED_KINDS, addedMission, kindKey, missionNote, missionTypes, zoneServes } from '../web/missions.js';
+import { ADDED_KINDS, addedMission, carriedMapInfo, kindKey, mapInfoRecord, mapInfoWords, missionNote, missionTypes, tidyMapInfo,
+         validMapInfo, zoneServes } from '../web/missions.js';
 import { sortState, stateKey } from '../web/project.js';
 
 // ---- the kind of an export's mission
@@ -52,4 +53,36 @@ assert.deepEqual(some.missions, [{ record: 0 }, { kind: 'Crash', ship: 'eShip_UF
 assert.notEqual(stateKey(plain), stateKey(some));
 assert.notEqual(stateKey(some), stateKey(sortState({ overrides: [], added: [], missions: [{ record: 0 }] })));
 assert.equal(stateKey(plain), stateKey(sortState({ overrides: [], added: [], missions: null })));
+
+// ---- what Long War Rebalance is told of the map (the project's lwrMapInfo, schema 6; Map settings)
+for (const good of [{}, { alienDensity: 'Light' }, { holdTheLine: 'No' }, { alienDensity: 'Swarming', holdTheLine: 'Yes' }]) assert.ok(validMapInfo(good), JSON.stringify(good));
+for (const bad of [null, undefined, 'Moderate', ['Moderate'], { alienDensity: 'Huge' }, { alienDensity: 'moderate' }, { holdTheLine: false },
+                   { alienDensity: 'Light', weather: 'Rain' }]) assert.ok(!validMapInfo(bad), JSON.stringify(bad));
+// (one of texts the page can't read is carried; any other shape is dropped)
+assert.ok(carriedMapInfo({ alienDensity: 'Huge' }) && carriedMapInfo({ weather: 'Rain' }));
+assert.ok(!carriedMapInfo({ holdTheLine: false }) && !carriedMapInfo('Moderate') && !carriedMapInfo(null));
+assert.deepEqual(Object.keys(tidyMapInfo({ holdTheLine: 'No', alienDensity: 'Heavy' })), ['alienDensity', 'holdTheLine']);
+assert.equal(tidyMapInfo({}), null);
+// the window's controls: a size or none, Hold the Line kept off or not
+assert.equal(mapInfoRecord('', false), null);
+assert.deepEqual(mapInfoRecord('Moderate', false), { alienDensity: 'Moderate' });
+assert.deepEqual(mapInfoRecord('', true), { holdTheLine: 'No' });
+assert.deepEqual(mapInfoRecord('Heavy', true, { alienDensity: 'Light' }), { alienDensity: 'Heavy', holdTheLine: 'No' });
+assert.equal(mapInfoRecord('Enormous', false), null);
+// (a Yes written by hand stays while Hold the Line is not kept off, and goes when it is)
+assert.deepEqual(mapInfoRecord('Light', false, { holdTheLine: 'Yes' }), { alienDensity: 'Light', holdTheLine: 'Yes' });
+assert.deepEqual(mapInfoRecord('', true, { holdTheLine: 'Yes' }), { holdTheLine: 'No' });
+assert.equal(mapInfoWords({ alienDensity: 'Moderate', holdTheLine: 'No' }), 'abductions up to Moderate, no Hold the Line');
+assert.equal(mapInfoWords(null), '');
+// in the project's state: absent is null, an empty one says nothing, and it is part of the key
+assert.equal(plain.lwrMapInfo, null);
+assert.equal(sortState({ overrides: [], added: [], lwrMapInfo: {} }).lwrMapInfo, null);
+const told = sortState({ overrides: [], added: [], lwrMapInfo: { holdTheLine: 'No', alienDensity: 'Moderate' } });
+assert.deepEqual(told.lwrMapInfo, { alienDensity: 'Moderate', holdTheLine: 'No' });
+assert.notEqual(stateKey(plain), stateKey(told));
+assert.equal(stateKey(told), stateKey(sortState({ overrides: [], added: [], lwrMapInfo: { alienDensity: 'Moderate', holdTheLine: 'No' } })));
+assert.notEqual(stateKey(told), stateKey(sortState({ overrides: [], added: [], lwrMapInfo: { alienDensity: 'Moderate' } })));
+// one a newer editor wrote is carried as saved; another shape is dropped
+assert.deepEqual(sortState({ overrides: [], added: [], lwrMapInfo: { alienDensity: 'Huge' } }).lwrMapInfo, { alienDensity: 'Huge' });
+assert.equal(sortState({ overrides: [], added: [], lwrMapInfo: 'Moderate' }).lwrMapInfo, null);
 console.log('missions_test: ok');

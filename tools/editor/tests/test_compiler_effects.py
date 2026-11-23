@@ -103,10 +103,11 @@ class Gates(unittest.TestCase):
         self.assertEqual(report['counts']['sounds'], dict(moved=1, deleted=0, added=0, valued=0))
 
     def test_schema_three(self):
-        # schema 3 brought effects' and sounds' records; 4 (the spawns plan, SP8) and 5 (the background sound and a
-        # clear that keeps the triggers) read them as 3 does; a schema past them is refused
-        self.assertEqual((compiler.SCHEMA_VERSION, compiler.READ_VERSIONS), (5, (1, 2, 3, 4, 5)))
-        _, report = compile_project(document([], schemaVersion=6), effects_scene())
+        # schema 3 brought effects' and sounds' records; 4 (the spawns plan, SP8), 5 (the background sound and a
+        # clear that keeps the triggers) and 6 (what Long War Rebalance is told of the map) read them as 3 does; a
+        # schema past them is refused
+        self.assertEqual((compiler.SCHEMA_VERSION, compiler.READ_VERSIONS), (6, (1, 2, 3, 4, 5, 6)))
+        _, report = compile_project(document([], schemaVersion=7), effects_scene())
         self.assertEqual(codes(report), ['schema'])
 
 

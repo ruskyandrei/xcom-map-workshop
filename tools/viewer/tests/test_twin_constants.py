@@ -6,7 +6,7 @@ import sys
 import unittest
 
 TOOLS = Path(__file__).resolve().parents[2]
-for folder in (TOOLS / 'viewer', TOOLS / 'editor', TOOLS / 'bake'):
+for folder in (TOOLS / 'viewer', TOOLS / 'editor', TOOLS / 'bake', TOOLS / 'upk'):
     if str(folder) not in sys.path:
         sys.path.append(str(folder))
 
@@ -51,6 +51,20 @@ class TwinConstants(unittest.TestCase):
         self.assertEqual(dict(topReach=ladders.TOP_REACH, footBack=ladders.FOOT_BACK, endLift=ladders.END_LIFT,
                               turn=ladders.TURN, floorThick=compiler_tables.FLOOR_THICK,
                               headroom=compiler_tables.HEADROOM), TWIN['ladders'])
+
+    def test_what_long_war_rebalance_is_told_of_a_map(self):
+        # the project's lwrMapInfo keys with LWR's keys and values (web/missions.js MAP_INFO); the card's writer
+        # knows the same keys and values (pack_card.INFO_VALUES)
+        import missions
+        import pack_card
+        self.assertEqual({k: [key, list(values)] for k, (key, values) in missions.MAP_INFO.items()}, TWIN['lwrMapInfo'])
+        self.assertEqual(list(missions.MAP_INFO), list(TWIN['lwrMapInfo']))
+        self.assertEqual({key: values for key, values in missions.MAP_INFO.values()}, pack_card.INFO_VALUES)
+        self.assertEqual(missions.map_info_lines('EXP_Market', dict(holdTheLine='No', alienDensity='Moderate')),
+                         [pack_card.info_text('EXP_Market', 'AlienDensity', 'Moderate'), pack_card.info_text('EXP_Market', 'HoldTheLine', 'No')])
+        self.assertTrue(missions.valid_map_info({}))
+        self.assertFalse(missions.valid_map_info(dict(alienDensity='Huge')))
+        self.assertEqual(missions.map_info_words(dict(alienDensity='Heavy', holdTheLine='No')), 'abductions up to Heavy, no Hold the Line')
 
     def test_schema_versions(self):
         # the document versions the server's stores save (web/project.js and web/prefabs.js save the same)

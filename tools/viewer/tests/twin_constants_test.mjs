@@ -10,6 +10,7 @@ import { GROUND, ROCK_SEEDS } from '../web/ground.js';
 import { EVAC_SIZE, GROUND as LANDING_GROUND, INSIDE_BACK, OFFSETS, SOLDIERS } from '../web/spawns.js';
 import { QUARTER } from '../web/constants.js';
 import { SHIPS } from '../web/missions_panel.js';
+import { MAP_INFO } from '../web/missions.js';
 import { SOFT } from '../web/piece_categories.js';
 import { LISTED_CLASSES } from '../web/floors.js';
 import { END_LIFT, FLOOR_THICK, FOOT_BACK, HEADROOM, TOP_REACH, TURN } from '../web/ladders.js';
@@ -38,6 +39,9 @@ assert.deepEqual([...LISTED_CLASSES], twin.listedClasses);
 // a ladder's climb ends (ladders.py ends) and the floor the project's flat pieces give (compiler_tables.py)
 assert.deepEqual({ topReach: TOP_REACH, footBack: FOOT_BACK, endLift: END_LIFT, turn: TURN, floorThick: FLOOR_THICK,
                    headroom: HEADROOM }, twin.ladders);
+// what Long War Rebalance is told of a map: the project's keys with LWR's keys and values (missions.py MAP_INFO)
+assert.deepEqual(MAP_INFO, twin.lwrMapInfo);
+assert.deepEqual(Object.keys(MAP_INFO), Object.keys(twin.lwrMapInfo));
 // the document versions the page saves (projects.py and prefabs.py read and save the same)
 assert.deepEqual({ project: PROJECT_VERSION, prefab: PREFAB_VERSION }, twin.schemaVersions);
 console.log('twin_constants_test: ok');

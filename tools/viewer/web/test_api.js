@@ -15,7 +15,7 @@ import { activeMapId, areaBindings, boxesShown, builderMode, buildings, buildToo
          likenessThin, lineCollision, lineCollisionFailed, lookPicker, lookPicking, missionIndex, missionMoves,
          missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet, pickBox, pickedEffect,
          pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, prefabTab, project, projectMissions,
-         projectBackgroundSound, projectSpawnRules, reachNow, rockPoint, roots, selected, setPickBoxValue, setPickToolValue, setSpawnFilters,
+         projectBackgroundSound, projectMapInfo, projectSpawnRules, reachNow, rockPoint, roots, selected, setPickBoxValue, setPickToolValue, setSpawnFilters,
          soloOn, spawnEntriesNow, spawnFilters, spawnPlacing, spawnRulesData, spawnsOn, stage, textureDrag,
          texturePicked, volumeRoots, volumesOn, wallDrawing, wavePlayer, zonesOn } from './editor_state.js';
 import { catalogued, lookFromEntry } from './looks.js';
@@ -172,7 +172,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
     zoneGizmo: () => ({ enabled: zoneGizmo.enabled, shown: zoneGizmoHelper.visible, axis: zoneGizmo.axis, mode: zoneGizmo.mode,
                         dragging: zoneGizmo.dragging, at: [zoneProxy.position.x, zoneProxy.position.z, zoneProxy.position.y] }),
     clearMap, showClearMap, cleared: () => cleared, clearKeepsOutside: () => clearKeepsOutside, clearKeepsTriggers: () => clearKeepsTriggers,
-    backgroundSound: () => projectBackgroundSound, showMapSettings, mapSettings: () => mapSettingsState(), stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
+    backgroundSound: () => projectBackgroundSound, lwrMapInfo: () => projectMapInfo, showMapSettings, mapSettings: () => mapSettingsState(), stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
     groundGrid: () => ({ shown: groundGrid.visible, ...groundGrid.userData, ground: groundHeight() }), pickZone, pickedZone: () => pickedZone,
     lastClearMs: () => lastClearMs, landingLayer, setZones, setZonesShown, zonesOn: () => zonesOn,
     // the Spawns view (spawns plan, SP3): the entries drawn now, with where each marker stands and its screen point

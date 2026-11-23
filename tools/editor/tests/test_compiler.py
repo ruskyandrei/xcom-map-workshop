@@ -252,6 +252,34 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         spec, report = compile_project(document([dict(target=target('XComLevelActor_2'), deleted=True)]), s)
         self.assertEqual((noted(report, 'dropins'), report['spawnRules'], native_split(spec)[1].get('spawnRules')), ([], None, None))
 
+    def test_what_long_war_rebalance_is_told_of_the_map(self):
+        # schema 6's lwrMapInfo (Map settings' Long War Rebalance section; LWR 3.00.00 beta 17's map info): the
+        # compiler's reading of it goes to the Build in the report, and the spec is the same without it
+        s = scene()
+        plain, _ = compile_project(document(), s)
+        for info, want in ((dict(alienDensity='Moderate'), dict(alienDensity='Moderate')),
+                           (dict(holdTheLine='No', alienDensity='Swarming'), dict(alienDensity='Swarming', holdTheLine='No')),
+                           (dict(holdTheLine='Yes'), dict(holdTheLine='Yes'))):
+            spec, report = compile_project(document(lwrMapInfo=info), s)
+            self.assertTrue(report['ok'], refused(report))
+            self.assertEqual(report['lwrMapInfo'], want)
+            self.assertEqual(list(report['lwrMapInfo']), [k for k in ('alienDensity', 'holdTheLine') if k in want])
+            self.assertEqual(spec, plain)
+            self.assertEqual([n['code'] for n in report['notes'] if n['code'].startswith('lwr')], ['lwr-map-info-set'])
+        note = next(n for n in report['notes'] if n['code'] == 'lwr-map-info-set')
+        self.assertIn('Long War Rebalance 3.00.00 beta 17', note['message'])
+        # none, null or empty: nothing told, no note
+        for doc in (document(), document(lwrMapInfo=None), document(lwrMapInfo={})):
+            _, report = compile_project(doc, s)
+            self.assertEqual((report['lwrMapInfo'], noted(report, 'lwr')), (None, []))
+        # a key or a value this editor doesn't know: left out whole, and the rest of the project builds
+        for bad in (dict(alienDensity='Huge'), dict(alienDensity='moderate'), dict(holdTheLine=False),
+                    dict(alienDensity='Light', weather='Rain'), 'Moderate', ['Moderate']):
+            _, report = compile_project(document([dict(target=target('XComLevelActor_2'), deleted=True)], lwrMapInfo=bad), s)
+            self.assertEqual(codes(report), ['lwr-map-info'], bad)
+            self.assertTrue(report['ok'], bad)
+            self.assertIsNone(report['lwrMapInfo'])
+
     def test_a_map_long_war_excludes_says_its_variant_is_not(self):
         # spawns plan SP8: the install's ExcludeMaps names the base map (the Chryssalid Hive's case): with no rule, a note
         # that the variant, under its own name, gets the drop-in mutator
@@ -926,7 +954,7 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
 
     def test_schema_source_and_output_are_checked(self):
-        for doc, code in [(document(schemaVersion=6), 'schema'),
+        for doc, code in [(document(schemaVersion=7), 'schema'),
                           (document(source=dict(map='URB_Bar', sha256='b' * 64)), 'source-mismatch'),
                           (document(output=dict(shipAs='URB_Bar', patch='patch_x')), 'output'),
                           (document(output=dict(shipAs='Bad name', patch='patch_x')), 'output'),

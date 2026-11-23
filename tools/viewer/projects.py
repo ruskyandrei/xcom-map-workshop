@@ -33,9 +33,10 @@ SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (records of their own:
 # the effects and sounds plan, Part C); 4: the spawns plan's records (`spawnRules`, SP8; the base map's spawn points'
 # overrides and added records, SP6 and SP7); 5: the map's background sound (`backgroundSound`) and a clear that keeps
-# the map's triggers (`clearKeepsTriggers`). 1 to 4 are read too, and saved as 5.
-SCHEMA_VERSION = 5
-READ_VERSIONS = (1, 2, 3, 4, 5)
+# the map's triggers (`clearKeepsTriggers`); 6: what Long War Rebalance is told of the map (`lwrMapInfo`). 1 to 5 are
+# read too, and saved as 6.
+SCHEMA_VERSION = 6
+READ_VERSIONS = (1, 2, 3, 4, 5, 6)
 MAX_BYTES = 32 << 20
 ID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 SHA256 = re.compile(r'[0-9a-f]{64}')
@@ -140,6 +141,11 @@ def validate(document, project_id):
     sound = document.get('backgroundSound')
     if sound is not None and not (isinstance(sound, dict) and 'cue' in sound and set(sound) <= {'cue', 'volume'}):
         raise ProjectError(422, '"backgroundSound" must be {cue, volume}: a sound\'s path or null, and a volume.')
+    # What Long War Rebalance is told of the map (schema 6): optional, a record of texts; the compiler checks the keys
+    # and their values.
+    info = document.get('lwrMapInfo')
+    if info is not None and not (isinstance(info, dict) and all(isinstance(v, str) for v in info.values())):
+        raise ProjectError(422, '"lwrMapInfo" must be a record of texts.')
     zones =document.get('landingZones', [])
     if not isinstance(zones, list) or not all(isinstance(item, dict) for item in zones):
         raise ProjectError(422, '"landingZones" must be a list of records.')

@@ -1694,7 +1694,8 @@ def check_map_settings(page):
     the Map menu and from View options' "Sun, moon and sky…"; it lists the sun and sky light; its background sound
     offers the map's own first, the game's other beds and None; a choice and a volume are each one undo step, kept as
     the project's backgroundSound and counted in the header; the server serves each wave of a bed for Play; Esc closes
-    it. Nothing is saved."""
+    it. Its Long War Rebalance section (the project's lwrMapInfo, schema 6): the largest abduction and Hold the Line
+    kept off the map, each one undo step, counted in the header. Nothing is saved."""
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 39"):
         return skip('map-settings', 'needs a map (not a preview) of export 39 or later', whole=True)
     own = page.evaluate('viewer.data.backgroundSound')
@@ -1748,6 +1749,29 @@ def check_map_settings(page):
     assert page.evaluate('viewer.backgroundSound()') is None and page.evaluate('viewer.changes()')['sound'] == 0
     assert page.evaluate('viewer.mapSettings().choice') == own['cue']
     assert page.evaluate('viewer.gizmo.canUndo()') == steps
+    # what Long War Rebalance is told of the map: nothing at first; a size and Hold the Line kept off are a step each
+    lwr = page.evaluate('viewer.mapSettings().lwr')
+    assert page.evaluate('viewer.lwrMapInfo()') is None and (lwr['density'], lwr['noHold']) == ('', False), lwr
+    assert [c['value'] for c in lwr['choices']] == ['', 'Light', 'Moderate', 'Heavy', 'Swarming'], lwr['choices']
+    assert 'beta 17' in lwr['note'], lwr['note']
+    if lwr['shown'] and not lwr['disabled']:
+        assert page.locator('#mapLwrSection').is_visible()
+        page.select_option('#mapLwrDensity', 'Moderate')
+        assert page.evaluate('viewer.lwrMapInfo()') == dict(alienDensity='Moderate')
+        page.locator('#mapLwrNoHold').check()
+        assert page.evaluate('viewer.lwrMapInfo()') == dict(alienDensity='Moderate', holdTheLine='No')
+        assert page.evaluate('viewer.editState()')['lwrMapInfo'] == dict(alienDensity='Moderate', holdTheLine='No')
+        assert page.evaluate('viewer.changes()')['info'] == 1 and 'Long War Rebalance map info set' in page.locator('#editCount').inner_text()
+        page.select_option('#mapLwrDensity', '')
+        assert page.evaluate('viewer.lwrMapInfo()') == dict(holdTheLine='No')
+        for _ in range(3):
+            page.evaluate('viewer.gizmo.undo()')
+        lwr = page.evaluate('viewer.mapSettings().lwr')
+        assert page.evaluate('viewer.lwrMapInfo()') is None and (lwr['density'], lwr['noHold']) == ('', False), lwr
+        assert page.evaluate('viewer.changes()')['info'] == 0 and page.evaluate('viewer.gizmo.canUndo()') == steps
+    else:
+        # plain Enemy Within reads none of it: no section there until a project tells something
+        assert not lwr['shown'] and page.evaluate("viewer.landingLines().kind === 'ew'"), lwr
     page.keyboard.press('Escape')
     assert not page.evaluate('viewer.mapSettings().open')
     # View options' row opens it too
@@ -5845,7 +5869,8 @@ CHECKS = (
     Check('floor-boxes', on_page(check_floor_boxes), 'buildings\' floor boxes'),
     Check('map-buildings', on_page(check_map_buildings), 'the map\'s own buildings edited'),
     Check('clear-map', on_page(check_clear_map), 'Clear map, the map grid and the landing zones'),
-    Check('map-settings', on_page(check_map_settings), 'Map settings: the sun and sky listed, the background sound and its volume'),
+    Check('map-settings', on_page(check_map_settings), 'Map settings: the sun and sky listed, the background sound and its volume, what '
+                                                             'Long War Rebalance is told of the map'),
     Check('align', on_page(check_align), 'Align'),
     Check('library', lambda c: check_library(c.page, c.is_bar), 'the Add panel: this map\'s pieces'),
     Check('cover', on_page(check_cover), 'cover blocks and invisible floors'),

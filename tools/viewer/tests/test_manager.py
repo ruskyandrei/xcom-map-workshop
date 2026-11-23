@@ -717,6 +717,42 @@ class Manager(ManagerInstalls, unittest.TestCase):
         self.assertEqual(self.files(self.copy), before)
 
     @unittest.skipUnless(sys.platform == 'win32' and shutil.which('powershell'), 'the pack\'s scripts run with Windows PowerShell')
+    def test_a_pack_carries_what_long_war_rebalance_is_told_of_its_maps(self):
+        """LWR 3.00.00 beta 17's map info: a build whose project says the largest abduction its map suits, or keeps Hold
+        the Line off it, has MapInfo lines (config.mapInfo); the pack's card carries them, pack.json and the README say
+        them. A campaign install made by the editor writes DefaultMaps.ini's records alone, and says so."""
+        self.package(map_info=dict(alienDensity='Moderate', holdTheLine='No'))
+        player = self.player()
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional', name='Told'))
+        with zipfile.ZipFile(r['zip']) as z:
+            described = json.loads(z.read('pack.json'))
+            held = pack_card.read(z.read(f'CookedPCConsole/Told/{described["card"]["file"]}'))
+            readme = z.read('README.txt').decode('latin-1')
+            inside = z.read('CookedPCConsole/Told/README.txt').decode('latin-1')
+        self.assertIn('(beside it); LWR beta 17 or later: abductions up to Moderate, no Hold the Line', inside)
+        self.assertEqual(held['MapInfo'], [dict(Map=VARIANT, Key='AlienDensity', Value='Moderate'),
+                                           dict(Map=VARIANT, Key='HoldTheLine', Value='No')])
+        self.assertEqual(held['Format'], 1)
+        self.assertEqual(pack_card.info_warnings(held), [])
+        lines = [f'MapInfo=(Map="{VARIANT}", Key="AlienDensity", Value="Moderate")', f'MapInfo=(Map="{VARIANT}", Key="HoldTheLine", Value="No")']
+        self.assertEqual(described['maps'][0]['mapInfo'], lines)
+        self.assertEqual(described['card']['lines'][-2:], lines)
+        self.assertIn(f'  {VARIANT}: abductions up to Moderate (a larger one is moved to another map), no Hold the Line', readme)
+        self.assertIn('3.00.00 beta 17 or later', readme)
+        self.assertEqual(r['notes'], [])
+        done = manager.install(self.store, self.builds, player, dict(projects=[ID], mode='additional'))['results'][0]
+        self.assertTrue(any('is not written by this install' in w for w in done['warnings']), done['warnings'])
+        # a build without it: a card as before, and no such word
+        self.package(revision=2)
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional', pack='Told'))
+        with zipfile.ZipFile(r['zip']) as z:
+            described = json.loads(z.read('pack.json'))
+            data = z.read(f'CookedPCConsole/Told/{described["card"]["file"]}')
+            self.assertNotIn('told of the maps', z.read('README.txt').decode('latin-1'))
+        self.assertEqual(pack_card.read(data)['MapInfo'], [])
+        self.assertNotIn(b'MapInfo', data)
+        self.assertNotIn('mapInfo', described['maps'][0])
+
     def test_a_packs_scripts_and_the_editor_write_a_projects_drop_in_exclusion_alike(self):
         """Editor spawns plan, SP8: a project that leaves scripted drop-ins where placed: pack.json carries the variant's
         ExcludeMaps lines, the README a step for DefaultRandomSpawns.ini, and the pack's scripts and the editor's

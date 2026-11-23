@@ -6,14 +6,23 @@
 // slider under the choice. A change of the choice or of the volume (on the slider's release) is one undo step; the
 // rules are background_sound_rules.js's. The user chose this design on 22 November 2026 (mock design B, the volume as
 // a bar).
+// Below them, what Long War Rebalance is told of the map (the project's `lwrMapInfo`, schema 6; missions.js's
+// MAP_INFO): the largest abduction it suits and Hold the Line kept off it, which LWR 3.00.00 beta 17 and later reads
+// from the map's pack. Each change is one undo step. The section is not shown where the game set is plain Enemy
+// Within and the project tells nothing (the user, 23 November 2026: a section for Long War Rebalance alone, with
+// room for what it reads later).
 import { bedLabel, ownVolume, previewVolume, soundChoices, soundNow, soundRecord, VOLUME_SLIDER, volumeWords } from './background_sound_rules.js';
 import { ask } from './api.js';
-import { builderMode, data, projectBackgroundSound, setProjectBackgroundSound } from './editor_state.js';
+import { builderMode, data, landingLines, projectBackgroundSound, projectMapInfo, setProjectBackgroundSound,
+         setProjectMapInfo } from './editor_state.js';
+import { MAP_INFO, MAP_INFO_SINCE, mapInfoRecord, validMapInfo } from './missions.js';
 
 export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
   const els = { root: $('mapSettings'), form: $('mapSettingsForm'), close: $('mapSettingsClose'), sound: $('mapSoundSection'),
                 note: $('mapSoundNote'), choice: $('mapSound'), play: $('mapSoundPlay'), volume: $('mapSoundVolume'),
-                volumeValue: $('mapSoundVolumeValue'), status: $('mapSoundStatus') };
+                volumeValue: $('mapSoundVolumeValue'), status: $('mapSoundStatus'), lwr: $('mapLwrSection'),
+                lwrNote: $('mapLwrNote'), density: $('mapLwrDensity'), noHold: $('mapLwrNoHold') };
+  els.density.append(new Option('Not set (any size)', ''), ...MAP_INFO.alienDensity[1].map(v => new Option(v, v)));
   Object.assign(els.volume, { min: VOLUME_SLIDER.min, max: VOLUME_SLIDER.max, step: VOLUME_SLIDER.step });
   let beds = null, bedsWhy = null, player = null, lastFocus = null;
 
@@ -59,6 +68,28 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
     gizmo.record({ redo: () => { setProjectBackgroundSound(next); paint(); },
                    undo: () => { setProjectBackgroundSound(before); paint(); } });
   }
+
+  // What Long War Rebalance is told of the map, as the project has it now
+  function paintLwr() {
+    const told = projectMapInfo, readable = told === null || validMapInfo(told), editable = projectsAvailable() && readable;
+    // (plain Enemy Within reads none of it: the section shows there only for a project that tells something)
+    els.lwr.hidden = landingLines?.kind === 'ew' && !told;
+    els.density.disabled = els.noHold.disabled = !editable;
+    els.density.value = readable ? told?.alienDensity ?? '' : '';
+    els.noHold.checked = readable && told?.holdTheLine === 'No';
+    els.lwrNote.textContent = `What ${MAP_INFO_SINCE} and later is told of this map. It travels with the map in a map pack (Manage projects, Export map pack).`
+      + (landingLines?.kind === 'ew' ? ' Plain Enemy Within reads none of it.' : '')
+      + (!readable ? ' This project\'s was written by a newer editor: it is kept as saved, and this editor\'s Build leaves it out.' : '')
+      + (!projectsAvailable() ? ' It is set on a map opened from the map browser, not a preview.' : '');
+  }
+  function commitLwr() {
+    const before = projectMapInfo, next = mapInfoRecord(els.density.value, els.noHold.checked, before);
+    if (JSON.stringify(next) === JSON.stringify(before)) return;
+    gizmo.record({ redo: () => { setProjectMapInfo(next); paintLwr(); },
+                   undo: () => { setProjectMapInfo(before); paintLwr(); } });
+  }
+  els.density.onchange = commitLwr;
+  els.noHold.onchange = commitLwr;
 
   // The preview: every wave of the chosen bed at once, looping, at the volume set (a choice of None plays nothing)
   function stopSound() {
@@ -114,7 +145,7 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
     els.choice.replaceChildren();
     els.sound.hidden = false;
     els.root.hidden = false;
-    paint();
+    paint(); paintLwr();
     if (own()) { await loadBeds(); if (!els.root.hidden) paint(); }
     setTimeout(() => $('mapSettingsDone').focus(), 0);
   }
@@ -138,6 +169,9 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
   // What the browser checks read
   const mapSettingsState = () => ({ open: !els.root.hidden, choices: [...els.choice.options].map(o => ({ value: o.value, label: o.text })),
                                     choice: els.choice.value, volume: Number(els.volume.value), playing: player?.cue ?? null,
-                                    note: els.note.textContent, status: els.status.hidden ? '' : els.status.textContent });
+                                    note: els.note.textContent, status: els.status.hidden ? '' : els.status.textContent,
+                                    lwr: { shown: !els.lwr.hidden, density: els.density.value, noHold: els.noHold.checked,
+                                           disabled: els.density.disabled, note: els.lwrNote.textContent,
+                                           choices: [...els.density.options].map(o => ({ value: o.value, label: o.text })) } });
   return { hideMapSettings, mapSettingsState, showMapSettings, startMapSettings, stopSound };
 }

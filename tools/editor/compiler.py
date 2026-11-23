@@ -1,6 +1,6 @@
 """The editor's compiler for static pieces (first-editor plan, slice E3).
 
-Turns a saved project (research/editor-contracts.md, schema 1 to 5: READ_VERSIONS) and the viewer export of its source map into a
+Turns a saved project (research/editor-contracts.md, schema 1 to 6: READ_VERSIONS) and the viewer export of its source map into a
 patchtool spec (tools/patch/README.md) plus a report. The spec is a snapshot of one project revision: the same
 project and export always give the same spec, byte for byte.
 
@@ -204,9 +204,11 @@ SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (piece flags plan); 3: effects and sounds (overrides and added records of their own: the effects and
 # sounds plan, Part C); 4: the spawns plan's (`spawnRules`, SP8; the base map's spawn points' records, SP6 and SP7);
 # 5: the map's background sound (`backgroundSound`) and a clear that keeps the map's triggers (`clearKeepsTriggers`;
-# a cleared project of schema 1 to 4 now has its triggers taken out, F-159). A project of schema 1 to 4 builds as it did.
-SCHEMA_VERSION = 5
-READ_VERSIONS = (1, 2, 3, 4, 5)
+# a cleared project of schema 1 to 4 now has its triggers taken out, F-159). A project of schema 1 to 4 builds as it did;
+# 6: what Long War Rebalance is told of the map (`lwrMapInfo`: the largest abduction it suits, Hold the Line kept off
+# it). A project of schema 5 builds as it did.
+SCHEMA_VERSION = 6
+READ_VERSIONS = (1, 2, 3, 4, 5, 6)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
@@ -1760,7 +1762,7 @@ class Compiler:
 
     def has_edits(self):
         return any(self.doc.get(k) for k in ('overrides', 'added', 'areaLightBindings', 'buildings', 'cleared',
-                                             'landingZones', 'stage', 'spawnRules', 'backgroundSound'))
+                                             'landingZones', 'stage', 'spawnRules', 'backgroundSound', 'lwrMapInfo'))
 
     # ---------------------------------------------------------------- the mission family's, by name
     def stage(self):
@@ -1802,6 +1804,7 @@ class Compiler:
             self.index_export()
             self.mission_edits.cleared_mark()
             self.mission_edits.spawn_rules_mark()
+            self.mission_edits.map_info_mark()
             self.effect_edits.background_sound_mark()
             self.overrides()
             self.added()
@@ -1851,6 +1854,9 @@ class Compiler:
                       clearKeepsTriggers=self.mission_edits.keep_triggers, landingZones=self.mission_edits.zones,
                       ownLandings=self.mission_edits.own_count, spawnRules=self.mission_edits.spawn_rules,
                       backgroundSound=self.effect_edits.background,
+                      # what Long War Rebalance is told of the map (schema 6): the Build writes the variant's MapInfo
+                      # lines from it (it changes nothing in the map, so the spec does not carry it)
+                      lwrMapInfo=self.mission_edits.map_info,
                       missions=self.mission_edits.missions_kept()[0] if self.map is not None else None,
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']))
                                  for b in self.building_edits.new_buildings],

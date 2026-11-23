@@ -108,6 +108,7 @@ class MissionEdits:
         self.cleared, self.keep_outside = False, False
         self.keep_triggers = False  # the clear kept the map's triggers (cleared_mark)
         self.spawn_rules = None
+        self.map_info = None        # what Long War Rebalance is told of the map (map_info_mark)
         self.stage_grid = None
         self.zones, self.own_landings_found, self.own_count = None, None, None
         # the missions the project keeps (missions_kept), made the first time they are asked for, then kept
@@ -193,6 +194,27 @@ class MissionEdits:
                            'install plays them' % json.dumps(rules)[:160], record='spawnRules')
             return
         self.spawn_rules = dict(dropIns='placed')
+
+    def map_info_mark(self):
+        """The project's `lwrMapInfo` (schema 6; Map settings' Long War Rebalance section): what LWR 3.00.00 beta 17
+        and later is told of the map, {"alienDensity"?: Light, Moderate, Heavy or Swarming (the largest abduction the
+        map suits), "holdTheLine"?: No or Yes} (missions.MAP_INFO). The Build writes a MapInfo line for each into the
+        manifest's config.mapInfo, and a map pack's card carries them; the map itself is not changed. Left out, null
+        or empty: no line, so LWR takes the map as any other. Anything else (a newer editor's key or value) is left
+        out whole (lwr-map-info)."""
+        self.map_info = None
+        info = self.c.doc.get('lwrMapInfo')
+        if info is None or info == {}:
+            return
+        if not missions.valid_map_info(info):
+            self.c.leave_out('lwr-map-info', 'the project\'s Long War Rebalance map info must be {%s}, each left out or one '
+                             'of its values; it has %s, which this editor can\'t build: it is left out, and LWR takes the '
+                             'map as any other' % (', '.join('"%s": %s' % (k, ' | '.join(values)) for k, (_, values) in missions.MAP_INFO.items()),
+                                                    json.dumps(info)[:160]), record='lwrMapInfo')
+            return
+        self.map_info = {k: info[k] for k in missions.MAP_INFO if k in info}
+        self.c.note('lwr-map-info-set', '%s reads the map\'s info from its map pack (%s): a pack exported from Manage projects '
+                    'carries it on its card' % (missions.MAP_INFO_SINCE, missions.map_info_words(self.map_info)))
 
     def spawn_rules_notes(self):
         """Notes on the spawn rule (spawns plan, SP8): dropins-placed says what it covers, the scripted actions that

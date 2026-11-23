@@ -83,6 +83,9 @@ export function setProjectSpawnRules(next) { projectSpawnRules = next; }
 // The project's background sound (schema 5; project.js validBackgroundSound): null, the map's own
 export let projectBackgroundSound = null;
 export function setProjectBackgroundSound(next) { projectBackgroundSound = next; }
+// What the project tells Long War Rebalance of the map (schema 6; missions.js validMapInfo): null, nothing
+export let projectMapInfo = null;
+export function setProjectMapInfo(next) { projectMapInfo = next; }
 
 // The buildings drawn as boxes and edited (project.js validBuilding; buildings_wiring.js's setBuildings draws them):
 // the project's, made from nothing by the Build, and the map's own that can be edited, each as the project's are (map

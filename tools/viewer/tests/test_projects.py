@@ -208,7 +208,7 @@ class StoreTests(unittest.TestCase):
         self.assertIn('older than the editor', error.exception.message)
         self.assertTrue(error.exception.extra.get('stale'))
         self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION), old['revision'])
-        self.assertEqual(self.store.load(ID)['schemaVersion'], 5)
+        self.assertEqual(self.store.load(ID)['schemaVersion'], 6)
         # schema 3 adds effects' and sounds' records (the effects and sounds plan): a schema 2 project opens, and a
         # page that saves schema 2 is as stale
         with self.assertRaises(ProjectError) as error:
@@ -223,8 +223,20 @@ class StoreTests(unittest.TestCase):
         with self.assertRaises(ProjectError) as error:
             self.store.save(ID, dict(old, schemaVersion=4), self.store.load(ID)['revision'])
         self.assertTrue(error.exception.extra.get('stale'))
+        # schema 6 adds what Long War Rebalance is told of the map: a page that saves schema 5 is as stale
+        with self.assertRaises(ProjectError) as error:
+            self.store.save(ID, dict(old, schemaVersion=5), self.store.load(ID)['revision'])
+        self.assertTrue(error.exception.extra.get('stale'))
         self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION, spawnRules=dict(dropIns='placed')), self.store.load(ID)['revision'])
         self.assertEqual(self.store.load(ID)['spawnRules'], dict(dropIns='placed'))
+        # the map info is carried as the document has it (the compiler checks its keys and values); another shape is refused
+        info = dict(alienDensity='Moderate', holdTheLine='No')
+        self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION, lwrMapInfo=info), self.store.load(ID)['revision'])
+        self.assertEqual(self.store.load(ID)['lwrMapInfo'], info)
+        for bad in ('Moderate', ['Moderate'], dict(alienDensity=3)):
+            with self.assertRaises(ProjectError) as error:
+                self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION, lwrMapInfo=bad), self.store.load(ID)['revision'])
+            self.assertEqual(error.exception.status, 422, bad)
         # a flags-only override and an added piece's flags are carried as the document has them
         flags = dict(overrides=[dict(target=dict(package='URB_Bar', level='base', actor='TheWorld.PersistentLevel.XComLevelActor_1'),
                                      flags=dict(walking=False, cover=False))])
@@ -232,9 +244,9 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.load(ID)['overrides'], flags['overrides'])
 
     def test_other_schema_versions_and_bad_documents_are_refused(self):
-        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=6), 0)
+        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=7), 0)
         self.assertEqual(error.exception.status, 409)
-        self.assertIn('schema 6', error.exception.message)
+        self.assertIn('schema 7', error.exception.message)
         self.root.mkdir(parents=True)
         (self.root / 'Bar remix.json').write_text(json.dumps(document(schemaVersion=0)), encoding='utf8', newline='\n')
         with self.assertRaises(ProjectError) as error: self.store.load(ID)
