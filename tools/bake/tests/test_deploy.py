@@ -169,6 +169,10 @@ class DeployRestore(unittest.TestCase):
         # an abduction map keeps its own family
         at, old, new = dep.plan_maps([record('liquorstore'), slot], 'URB_LiquorStore', 'URB_LiquorStore_X_1')
         self.assertEqual(dep.field(new, 'MapFamily'), 'URB_LiquorStore')
+        # the base map's name matches whatever its case, as the game matches it (the farm's file is CsmallScout_Farm.upk,
+        # its records name CSmallScout_Farm; EXP-95's staging)
+        at, old, new = dep.plan_maps([record('templeship'), slot], 'templeship', 'TempleShip_X_1')
+        self.assertEqual(dep.field(new, 'Name'), 'TempleShip_X_1')
 
     def test_a_variants_own_intro_is_streamed_in_place_of_the_original(self):
         slot = dep.set_field(record('bar'), 'DisplayName', dep.TEST_SLOT)

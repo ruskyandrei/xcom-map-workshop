@@ -120,7 +120,9 @@ def plan_maps(lines, base, variant, slot_name=TEST_SLOT, streams=(), replace=Non
     is left out (another record of the map lands by the other intro); a `replace` the record streams none of is an
     error."""
     slot = slot_index(lines, slot_name)
-    bases = [i for i, l in enumerate(lines) if is_record(l) and field(l, 'Name') == base]
+    # (the name matches whatever its case, as the game matches it: installs.same_map; the farm's file is
+    # CsmallScout_Farm.upk, its records name CSmallScout_Farm)
+    bases = [i for i, l in enumerate(lines) if is_record(l) and installs.same_map(field(l, 'Name'), base)]
     if not bases:
         raise ValueError(f'no record for {base}')
     old = lines[slot]
