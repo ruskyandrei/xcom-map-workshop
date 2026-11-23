@@ -1,4 +1,4 @@
-"""A map's pieces as the game's tile build traces them (private/plans/todo/diagonal-cover-plan.md, stage C1):
+"""A map's pieces as the game's tile build traces them (private/plans/done/diagonal-cover-plan.md, stage C1):
 their collision in world space and the flags the traces filter on, with a box sweep and a line check against them.
 research/native/cover-build.md is the reading of the exe this follows; its section numbers are cited.
 

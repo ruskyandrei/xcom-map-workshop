@@ -103,3 +103,18 @@ line, and its finding in the [findings register](research/findings-register.md) 
   and the game use `pack.json` and the map files), or export the pack again with a version after 0.6.0.
 - **Cause.** The pack export copied each build's manifest whole.
 - **Finding.** None in the register: the editor review's finding 14, and the smaller built maps plan's P1 to P3.
+
+### KB-20: A door in a slanted wall gives diagonal cover against its jambs
+
+- **What happens.** In a built map, a unit standing in the door opening of a wall at 45 degrees (a UFO's inner door)
+  shows cover shields against both sides of the door frame and counts as in cover there. The game's own maps give no
+  cover in such a door. The same can show at a column or a further tile along a slanted wall. It happens only where
+  the wall is a piece with no place of its own in the map: a piece brought from another map, a made wall, a cover
+  block. The map's own walls keep the makers' marks, which a moved or copied wall takes along.
+- **Since.** 0.7.0, which made the Build give diagonal cover to new slanted corners by itself.
+- **Workaround.** None in the editor.
+- **Cause.** The Build's finder takes a tile when a diagonal sweep meets a high face square-on and the straight rule
+  gives no cover; a door jamb is such a face. Over the game's own maps it takes 25 door openings the makers left
+  unmarked.
+- **Finding.** [F-153](research/findings-register.md) (the count by kind, added 23 November 2026). The fix planned:
+  the finder goes, and diagonal cover is placed by hand in a view of its own.

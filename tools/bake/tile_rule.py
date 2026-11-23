@@ -1,5 +1,5 @@
 """The game's cover rule for one tile, worked out against a map's pieces (tile_world.World), and the diagonal cover
-finder (private/plans/todo/diagonal-cover-plan.md, stages C1 and C2). research/native/cover-build.md is the reading
+finder (private/plans/done/diagonal-cover-plan.md, stages C1 and C2). research/native/cover-build.md is the reading
 of the exe this follows: its sections 3 (which directions) and 4 (one direction, steps 1 to 13), cited by step.
 
   cover(world, tile, ...)     a tile's cover flags, static bits and cover location, straight or diagonal

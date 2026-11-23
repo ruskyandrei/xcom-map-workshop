@@ -760,6 +760,16 @@ round the marked tiles and three sampled boxes a map, the record in
 - **So, for the Build**: a tile nothing of a project changes keeps its bake (the designers' marks as they are, the
   five scouts without). The finder's condition (the fourth row) decides only for tiles a project changes or adds:
   a corner of the kind the designers usually marked, where the straight rule gives no cover at all.
+- **The unmarked tiles by kind** (23 November 2026, after a user's report of cover in a UFO door, KNOWN-BUGS.md KB-20;
+  counted from the same record): of the 111, 25 are door openings (the tile between a door's two jambs, on 11 large
+  scout maps), 31 are further tiles along a slanted wall the makers marked elsewhere (energy fields 20, inner walls
+  11), 52 are columns (small scouts 27, supply ships 15, Abductors 10) and 3 are odd ones. What tells a door
+  opening: two opposite diagonals pass on 17 of the 25 and on none of the 245 marked tiles the finder takes, and its
+  face lies 37.8 to 46.4 from the tile's middle where a marked tile's lies 46.6 to 65.2. Both step-outs are free on
+  80 of the 111 and on 10 of the 245 (small scout columns and a crash corner). So two conditions (no two opposite
+  diagonals, the face no closer than 46) would drop 30 unmarked tiles, the 25 door openings among them, and no mark,
+  by a margin of 0.2 unit, and 81 unmarked tiles would stay: the finder is to leave the Build and diagonal cover to be
+  placed by hand.
 - **Inputs not read** (none met on a marked tile): pieces of streamed levels, pawns, PathBlockingVolumes, terrain,
   a fracturing piece's lost fragments. Over the 97 maps the world reading met 371 per-triangle meshes, 55 cover
   pieces without a BodySetup and 4 sphere or capsule elements.
