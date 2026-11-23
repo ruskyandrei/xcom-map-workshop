@@ -213,6 +213,27 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
+### F-164: A building's own cursor floors play as written; the camera's floor height lags a step across their edge
+**Verified, the game's own rule for the lag** (23 November 2026, [EXP-96](experiments/EXP-96-building-cursor-floors.md)
+runs 1 and 2; the decompiled scripts).
+- **What was built**: a building of the project's with `cursorFloors` gets the cursor's floors of its own over its
+  boxes ([made_cursors.py](../tools/bake/made_cursors.py)), in place of the map's there.
+- **Seen**: over the building the mouse wheel stops once a floor, each stop's camera floor and cutdown height the
+  building's volume's bottom and top (the reported boat: -108/276, 276/404, 404/596, 596/768, a fifth step staying on
+  the top floor); the cutaway follows the stops. Off the building on a floor it lacks (URB_Bar's fourth, 594/768) and
+  carried onto it without a step, the floor number stays, the cutdown becomes the building's top (352), and the next
+  step down goes to the building's highest floor, then the one under it: nothing sticks, and a soldier is moved as
+  before.
+- **The lag**: carried across the building's edge without a step of the wheel, the cutdown height follows the new
+  place's volume at once, but the camera's floor height (`m_fLogicalCameraFloorHeight`, the camera's and the mouse
+  plane's height) keeps the last one (158 on the bar's floor 2, 594 on the building, -2 off it) until the next step.
+  It is the game's script for any map whose cursor volumes differ from place to place:
+  `XCom3DCursorMouseForCursorVolumes.CursorSnapToFloor` sets only the cutdown height; the camera's is set only in
+  `AscendFloor` and `DescendFloor`. Left as the game has it.
+- **A roof's box**: a roof slab whose body lies in the floor below's box (the boat's, 564 to 598, in the cabin's box,
+  406 to 598) is listed on that floor (F-87) and drawn with it; the roof's floor box starts under the slab to cut it
+  away with the roof. The guide says so.
+
 ### F-163: Long War's patch levels are mostly scripts that change the base map as it loads; a cleared map keeps them
 **Read, not played** (23 November 2026: every `patch_*.upk` of an LWR install tallied by class, `patch_farm`'s
 and `patch_hide_randomized_objects`' Kismet read with `tools/upk/kismet_links.py`, CSmallScout_Farm's export 40).

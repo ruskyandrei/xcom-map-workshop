@@ -2018,6 +2018,15 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>A map made from nothing has none.</b> The Build gives it four over the whole map, 192 units each from the
     ground up: the lines at 0, 192, 384 and 576. So build in storeys of 192 there.</li>
 </ul>
+<p><b>Or let a building bring its own.</b> Tick <b class="ui">Cursor stops at its floors</b> in the box panel of a
+  building of yours, and its floor boxes become the cursor's floors over it: the mouse wheel stops once for each of
+  its floors there, at the height its box starts, whatever the heights. The yellow lines over it then follow its
+  boxes, and the panel says where its floors start. Start each floor's box at the floor's walking surface (a deck,
+  a hold, a cabin's floor), the next floor's box where that floor ends; a roof's box starts under the roof's slab,
+  so the slab is cut away with the roof's floor (a slab whose body lies in the floor below is drawn with that
+  floor). Off the building the cursor's floors stay
+  the map's. A floor that starts at or under the one before it is warned of, as the wheel cannot stop at it there.
+  The map's own buildings have no tick.</p>
 <p>A map opened before this was added prepares again the first time it is opened: the cursor volumes are read
   with the rest of the map.</p>
 

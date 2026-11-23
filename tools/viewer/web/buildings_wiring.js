@@ -53,8 +53,9 @@ import { isStream } from './piece_records.js';
 import { gameToView, HANDLE_PICK } from './handles.js';
 
 // A building made in this view has its floors as the cursor's (`cursorFloors`; the building cursor floors plan, decision
-// D2) from the start when this is true; the panel's tick sets it on any building made from nothing.
-const NEW_CURSOR_FLOORS = false;
+// D2) from the start: on since EXP-96 passed (23 November 2026). The panel's tick sets it on any building made from
+// nothing; buildings saved before keep theirs.
+const NEW_CURSOR_FLOORS = true;
 
 export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenStorey, copySelection, deleteSelection,
                                         editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,

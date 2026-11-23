@@ -1795,9 +1795,10 @@ def check_map_settings(page):
 
 def check_cursor_floors(page):
     """A building's floors as the cursor's (the building cursor floors plan): the Buildings view's tick on a building of
-    the project's, off at first; on, the cursor's floors over it are its own (each 2 under its box's bottom, the
-    building's floor numbers), the panel says where they start and warns of none for the map's, the record says
-    cursorFloors and the project keeps it; Ctrl+Z takes it off. A floor starting under the one before it is warned of."""
+    the project's, on for a new one (decision D2, since EXP-96); off, the cursor's floors over it are the map's; on, its
+    own (each 2 under its box's bottom, the building's floor numbers), the panel says where they start and warns of
+    none for the map's, the record says cursorFloors and the project keeps it; Ctrl+Z takes it off again. A floor
+    starting under the one before it is warned of."""
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && Boolean(viewer.data.tileGrid?.origin)"
                          " && viewer.data.exporterVersion >= 20"):
         return skip('cursor-floors', 'needs a map (not a preview) with a tile grid and cursor floors', whole=True)
@@ -1810,7 +1811,10 @@ def check_cursor_floors(page):
                         ".map(r => r.userData.source.id)", [low, high])
     page.evaluate('id => viewer.select(id)', ids[0])
     mine = "() => viewer.buildings().filter(b => !b.replaces)"
-    assert page.locator('#volumeCursorRow').is_visible() and not page.locator('#volumeCursor').is_checked()
+    # a new building has it on; taken off (one undo step), the map's floors are over it
+    assert page.locator('#volumeCursorRow').is_visible() and page.locator('#volumeCursor').is_checked()
+    assert page.evaluate(mine)[0].get('cursorFloors') is True
+    page.locator('#volumeCursor').uncheck()
     assert 'cursorFloors' not in page.evaluate(mine)[0]
     over = "([x, y]) => viewer.cursorStoreys().filter(s => s.box[0] <= x && x <= s.box[3] && s.box[1] <= y && y <= s.box[4])" \
            ".map(s => [Math.round(s.box[2]), s.floor, s.building ?? null]).sort((a, b) => a[0] - b[0])"
@@ -1851,10 +1855,12 @@ def check_cursor_floors(page):
     page.evaluate('viewer.select(null)')
     page.evaluate('viewer.setBoxesShown(false)')
     page.evaluate('viewer.setVolumesShown(true)')
-    # Ctrl+Z takes the tick off
+    # Ctrl+Z takes the tick off, and once more puts it back on as the building was made
     page.keyboard.press('Control+z')
     assert 'cursorFloors' not in page.evaluate(mine)[0]
     assert page.evaluate(over, mid) == before
+    page.keyboard.press('Control+z')
+    assert page.evaluate(mine)[0].get('cursorFloors') is True
     page.keyboard.press('Control+z')
     assert page.evaluate(mine) == []
     page.evaluate('viewer.select(null)')
