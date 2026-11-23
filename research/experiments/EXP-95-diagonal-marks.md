@@ -1,10 +1,10 @@
 # EXP-95: diagonal cover marked by hand, in the game
 
-Date: 23 November 2026. Status: **played: six checks of seven passed; one copied corner, (53, 40, 0), had no cover in the game though the Build wrote it** ([F-162](../findings-register.md), KNOWN-BUGS.md KB-21). Played unattended in the lab copy (the game-test skill), one pass of each check and a second take of the one that failed.
+Date: 23 November 2026. Status: **played: six checks of seven passed; one copied corner, (53, 40, 0), had no cover in the game, explained the same day: a meld container Long War placed at random beside it reworked its tile, not the Build** ([F-162](../findings-register.md)). Played unattended in the lab copy (the game-test skill), one pass of each check and a second take of the one that failed.
 
 ## The questions
 
-The plan for diagonal cover placed by hand (private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, stage M4,
+The plan for diagonal cover placed by hand (private/plans/done/diagonal-cover-by-hand-and-views-plan.md, stage M4,
 and M5's one case; KNOWN-BUGS.md KB-20):
 
 1. Does a tile the project marks at a wall give the cover the Build wrote for it?
@@ -66,9 +66,11 @@ which kept its mark. The levels over both marks are reached alike.
 - A mark the project makes is written as marked and the game plays it: high cover from the written word, a corner
   with no wall included (it plays as high cover against nothing, as the plan's decision 3 chose), and a map's mark
   taken away gives none.
-- A copy's carried marks are written as the page carried them, and one of the two held in the game. What reached the
-  other is not known (F-162): the rebuild work set's reading, the copy's own pieces, or a rebuild the game starts
-  besides the level's volumes.
+- A copy's carried marks are written as the page carried them, and both are in the game as written until the
+  battle starts. The one lost was reworked by a meld container Long War put at tile (55, 39, 0), whose rebuild box
+  (± 144 across, ± 64 up) takes it (F-162): under Long War, a random container beside any diagonal tile takes its
+  cover for that mission. Read the same day from the save: the streamed patch levels' rebuild volumes, which the
+  Build's reading leaves out, rework their tiles too (KNOWN-BUGS.md KB-22).
 
 ## Tools
 

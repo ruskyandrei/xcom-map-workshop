@@ -213,21 +213,31 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
-### F-162: A copy's carried diagonal cover mark at the edge of its fitted rebuild volumes was worked out again by the battle
-**Open** (23 November 2026: EXP-95, a hidden run of a farm build; [EXP-95](experiments/EXP-95-diagonal-marks.md)).
-- **What**: of the two marks a copy of the scout's hull chunk carries (written by the Build from the page's records,
-  `pageCarries`), (51, 42, 0) held in the game and (53, 40, 0) did not: the soldier on it reads no cover, and the
-  quicksave holds the tile worked out again (bit 0x2 of its static flags gone, no cover word, no cover location).
-  Its neighbours (52, 39), (53, 39) and (54, 39) were worked out again too, as the copy's fitted volume over x 53 to
-  54 and y 38 to 39 should do.
-- **What the Build's reading says**: no rebuild volume reaches (53, 40, 0) (`native_copy.rebuild_order`, the volumes'
-  spheres by F-150): that volume stops 0.08 of a tile (7.7 units) short of y 40. The volume short of (51, 42) stops
-  as close, and that mark held. The levels over both marks are reached alike.
-- **Not known**: whether the game's sphere for a fitted volume is a few units larger than F-150's reading, the copy's
-  own pieces start a rebuild of their own, or something else of the battle's start queues the tile. To read next: the
-  volumes' spheres in the save or the game (`getall XComRebuildWorldDataVolume`), and a build with the fitted cubes
-  kept a tile further from a mark.
-- **Left as** KNOWN-BUGS.md KB-21.
+### F-162: A carried diagonal cover mark lost in EXP-95: a meld container Long War placed beside it reworked its tile
+**Explained: not the Build** (23 November 2026: EXP-95's quicksave read against the built map tile by tile, the run's
+log, the meld mutator's source; [EXP-95](experiments/EXP-95-diagonal-marks.md)).
+- **What**: of the two marks a copy of the scout's hull chunk carries, (51, 42, 0) held in the game and (53, 40, 0)
+  did not: the soldier on it read no cover, and the save holds the tile worked out again (bit 0x2 of its static flags
+  gone, no cover word, no cover location). Plain tiles round it changed too: (55, 37..39, 0..1) and (56, 39, 1).
+- **Not the volumes**: a tile with a bit only a map's full build writes (an edge bit of its static flags, 0x800000 to
+  0x4000000, or the diagonal flag) loses it when the battle reworks it, so such tiles show the reworked set exactly.
+  Of 607 such tiles in the build, 61 were reworked; the volumes' boxes by F-150's rule (the base level's and those of
+  the streamed patch levels `patch_farm` and `patch_hide_randomized_objects`, which `native_copy.rebuild_order` does
+  not read) take all 61 bar (53, 40, 0), and none of the 546 kept. No shift or margin of the boxes takes (53, 40, 0)
+  without taking one that kept its bit. The box-to-tile conversion is the game's own floor from WorldBounds' corner
+  (`GetTileCoordinatesFromPosition`, 0x5D0730, read that day), as the Build has it.
+- **The cause**: the log shows three rebuilds before the volumes', of 18, 18 and 23 tiles, and the same three when the
+  save loads, each as an `XComMeldContainerActor` is applied. Long War's `XComMeldSpawnMutator` destroys the map's
+  meld spawn points and puts new ones at random floor places, one to a section of the grid, keeping off only the
+  landing zone and each other (`XComSpawnMutator.GetRandomLocations`); each container queues the tiles of its place
+  ± 144 across and ± 64 up as it spawns. The save holds the three at tiles (38, 17, 5), (55, 39, 0) and (6, 31, 2);
+  the second's box is x 53 to 56, y 37 to 40, levels 0 and 1: every reworked tile near the copy, (53, 40, 0) among
+  them. The others match the save's two other clusters of reworked tiles.
+- **So**: under Long War with meld on, a container placed at random next to any diagonal tile, a map's own or a
+  project's, takes its cover for that mission. Nothing the Build writes can stop it; the guide's in-game limits say
+  so. The plain game's containers stand at the map's own points.
+- **Found on the way**: the streamed patch levels' volumes rework their tiles at every battle's start; a project's
+  mark inside one loses its cover in every mission, and the Build doesn't read them (KNOWN-BUGS.md KB-22).
 
 ### F-161: A play under the project's own names met a map pack of the same map
 **Fixed** (22 November 2026, offline: `test_play_names`, a real intro copy renamed and read back; not played yet).

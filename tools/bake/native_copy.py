@@ -1133,7 +1133,7 @@ def diagonal_edit(p, lane):
     map's grid (level_grid): dict(marks {tile: the cover bits of its corners (0x1 to 0x8), with the low bit (0x10 to
     0x80) of each half one}, removed (the map's marked tiles that lose their diagonal cover; a tile the project marks
     again is a mark), outside (the places off the grid or with no corner, left out)), or None for none. Diagonal
-    cover by hand: private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, section 3.3."""
+    cover by hand: private/plans/done/diagonal-cover-by-hand-and-views-plan.md, section 3.3."""
     if not lane or not (lane.get('marks') or lane.get('removed')):
         return None
     grid = level_grid(p)
@@ -1375,9 +1375,10 @@ def rebuild_order(p, queued=True):
     RebuildTileData(Origin, SphereRadius, SphereRadius) for every XComRebuildWorldDataVolume (AllActors: the
     persistent level's actor list first, the streamed levels' after), and each call adds the tiles of the box Origin ±
     SphereRadius, X outer, Y middle, Z inner, whose static flags have a bit in 0xFFF; a tile keeps the place it was
-    first added at (research/native/ladder-links.md, G5). The streamed levels' volumes and LWR's mutator (which
-    queues its own first) are not read here. With `queued` False, every tile of the boxes whatever its flags: the
-    tiles a seed bit would put in the work set (start_tiles.py)."""
+    first added at (research/native/ladder-links.md, G5). Not read here: the streamed levels' volumes (a map's patch
+    levels: KNOWN-BUGS.md KB-22), and what queues before them, LWR's meld containers (each its place ± 144 across and
+    ± 64 up, at random places: F-162) and its bomb mutator. With `queued` False, every tile of the boxes whatever its
+    flags: the tiles a seed bit would put in the work set (start_tiles.py)."""
     import math
     grid = level_grid(p)
     _, blob, dims, where = static_flags(p)

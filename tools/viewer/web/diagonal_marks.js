@@ -1,4 +1,4 @@
-// Diagonal cover marks (private/plans/todo/diagonal-cover-by-hand-and-views-plan.md; KNOWN-BUGS.md KB-20): the rules,
+// Diagonal cover marks (private/plans/done/diagonal-cover-by-hand-and-views-plan.md; KNOWN-BUGS.md KB-20): the rules,
 // records and words of the Diagonal cover view, with no page (diagonal_marks_test.mjs). diagonal_wiring.js draws them
 // and edits them.
 //

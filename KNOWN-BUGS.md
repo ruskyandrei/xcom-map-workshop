@@ -104,28 +104,16 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Cause.** The pack export copied each build's manifest whole.
 - **Finding.** None in the register: the editor review's finding 14, and the smaller built maps plan's P1 to P3.
 
-### KB-20: A door in a slanted wall gives diagonal cover against its jambs
+### KB-22: A diagonal cover mark inside a patch level's rebuild volume gets no cover in the game
 
-- **What happens.** In a built map, a unit standing in the door opening of a wall at 45 degrees (a UFO's inner door)
-  shows cover shields against both sides of the door frame and counts as in cover there. The game's own maps give no
-  cover in such a door. The same can show at a column or a further tile along a slanted wall. It happens only where
-  the wall is a piece with no place of its own in the map: a piece brought from another map, a made wall, a cover
-  block. The map's own walls keep the makers' marks, which a moved or copied wall takes along.
-- **Since.** 0.7.0, which made the Build give diagonal cover to new slanted corners by itself.
-- **Workaround.** None in the editor.
-- **Cause.** The Build's finder takes a tile when a diagonal sweep meets a high face square-on and the straight rule
-  gives no cover; a door jamb is such a face. Over the game's own maps it takes 25 door openings the makers left
-  unmarked.
-- **Finding.** [F-153](research/findings-register.md) (the count by kind, added 23 November 2026). The fix planned:
-  the finder goes, and diagonal cover is placed by hand in a view of its own.
-
-### KB-21: A copied slanted wall's diagonal cover can be lost at one of its corners
-
-- **What happens.** A copy of one of a map's slanted walls carries the map's diagonal cover marks to its new place,
-  and the Build writes them; in the game one of them can come out with no cover: a soldier there reads none. Seen once,
-  on one of the two corners of a copied UFO hull chunk on the farm.
-- **Since.** The branch that places diagonal cover by hand (23 November 2026); the earlier carry had the same writer.
-- **Workaround.** Check the corner in the game; moving the copy a tile can change which corner holds.
-- **Cause.** Not known: the battle's tile rebuild worked the tile out again, though by the Build's reading no rebuild
-  volume reaches it (one stops 7.7 units short).
-- **Finding.** [F-162](research/findings-register.md) (EXP-95).
+- **What happens.** A mark on a tile that one of the map's streamed patch levels reworks at the battle's start (for
+  CSmallScout_Farm, `patch_farm`'s eight volumes: around tiles (42..48, 24..30), (59..65, 37..43) and six more) is
+  written by the Build and then worked out again by the game, which never writes diagonal cover back: no cover there,
+  in every mission. The view and the Build say nothing of it.
+- **Since.** The branch that places diagonal cover by hand (23 November 2026); the map's own marks are not affected
+  (their makers kept the patch volumes off them).
+- **Workaround.** None in the editor: keep marks off the areas a map's patch levels rework (not shown in the editor).
+- **Cause.** The Build's reading of the battle's rebuild (`native_copy.rebuild_order`) takes the base level's volumes
+  only, and the export counts a patch level's volumes without their places; with them added, the rule matches every
+  tile EXP-95's save shows reworked bar one, a meld container's.
+- **Finding.** [F-162](research/findings-register.md) (EXP-95's save read tile by tile).

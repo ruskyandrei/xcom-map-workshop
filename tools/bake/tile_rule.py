@@ -5,7 +5,7 @@ exe this follows: its sections 3 (which directions) and 4 (one direction, steps 
   cover(world, tile, ...)     a tile's cover flags, static bits and cover location, straight or diagonal
 
 The diagonal cover finder that once stood here (F-153) is research/evidence/diagonal-finder.py's now: the Build no
-longer finds diagonal cover by itself, the project marks it (private/plans/todo/diagonal-cover-by-hand-and-views-
+longer finds diagonal cover by itself, the project marks it (private/plans/done/diagonal-cover-by-hand-and-views-
 plan.md, KNOWN-BUGS.md KB-20).
 
 A tile's inputs come from a `Tiles` view: its static flags and floor (from the map's bake, or worked out), and the

@@ -1,5 +1,5 @@
 """Which piece each of a map's diagonal cover marks takes its cover from (diagonal cover by hand, stage M5: marks follow
-their pieces; private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, section 5).
+their pieces; private/plans/done/diagonal-cover-by-hand-and-views-plan.md, section 5).
 
 A marked tile's cover is worked out as the game's build works out a seeded tile (tile_rule.cover along the four
 diagonals, against the map's pieces and its baked tile data: diagonal_keep.Loaded), and each diagonal that gives cover

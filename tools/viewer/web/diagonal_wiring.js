@@ -1,4 +1,4 @@
-// The Diagonal cover view (Shift+C; private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, section 4;
+// The Diagonal cover view (Shift+C; private/plans/done/diagonal-cover-by-hand-and-views-plan.md, section 4;
 // KNOWN-BUGS.md KB-20). It behaves as the Landing zones and Spawns views do (the user, 23 November 2026). Here:
 // - the marks drawn (diagonal_marks.js marksNow): in the view over everything, and picked there alone; in the normal
 //   view with View options' Diagonal cover, drawn and never picked. A half-cover corner's arrow is drawn half as long

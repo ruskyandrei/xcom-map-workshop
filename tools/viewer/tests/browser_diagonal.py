@@ -1,4 +1,4 @@
-"""The Diagonal cover view in the browser (private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, stages M3 and
+"""The Diagonal cover view in the browser (private/plans/done/diagonal-cover-by-hand-and-views-plan.md, stages M3 and
 M5; KNOWN-BUGS.md KB-20), on a test server: run through browser_smoke.py --only diagonal (it opens CsmallScout_Farm,
 whose scout has eight marked corners, on a page of its own: the server exports it the first time).
 

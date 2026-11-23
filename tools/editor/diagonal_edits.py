@@ -1,4 +1,4 @@
-"""Diagonal cover placed by hand in a project (private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, stage M2;
+"""Diagonal cover placed by hand in a project (private/plans/done/diagonal-cover-by-hand-and-views-plan.md, stage M2;
 KNOWN-BUGS.md KB-20), for the compiler.
 
 The project's `diagonalCover` (schema 7): {"marks": [{"at": [x, y, z], "toward": [[sx, sy], ...], "low"?: [[sx, sy], ...],

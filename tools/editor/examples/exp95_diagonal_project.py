@@ -1,4 +1,4 @@
-"""EXP-95's project: diagonal cover marked by hand, on CsmallScout_Farm (private/plans/todo/diagonal-cover-by-hand-and-
+"""EXP-95's project: diagonal cover marked by hand, on CsmallScout_Farm (private/plans/done/diagonal-cover-by-hand-and-
 views-plan.md, stages M4 and M5; KNOWN-BUGS.md KB-20). Schema 7, so the Build carries no mark of its own: it writes
 the marks the project names, as the editor's Diagonal cover view saves them.
 
