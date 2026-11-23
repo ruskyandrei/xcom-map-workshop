@@ -1384,7 +1384,7 @@ def check_clear_map(page):
                              s = Math.max(b.max[0] - b.min[0], b.max[2] - b.min[2]);
                              viewer.camera.position.set(c[0] + s * 0.55, s * 0.95, c[2] - s * 0.75); viewer.controls.target.set(c[0], 0, c[2]); viewer.controls.update(); }""")
     settled(page, CAMERA)
-    page.locator('#editGrid').click()
+    page.locator('#viewsButton').hover(); page.locator('#editGrid').click(); page.mouse.move(5, 300)
     g = page.evaluate('viewer.gridTool()')
     assert g['on'] and g['handles'] == [0, 1, 2] and page.locator('#gridPanel').is_visible(), g
     grown = drag_grid(0, 140)
@@ -1528,7 +1528,7 @@ def check_clear_map(page):
     page.locator('#libKind').select_option('all')
     page.keyboard.press('p')
     # the Map grid on the cleared map: the top too, and smaller as well as larger
-    page.locator('#editGrid').click()
+    page.locator('#viewsButton').hover(); page.locator('#editGrid').click(); page.mouse.move(5, 300)
     assert page.evaluate('viewer.gridTool()')['handles'] == [0, 1, 2]
     lower = drag_grid(2, -90)
     assert lower[2] < small[2] and lower[:2] == small[:2], (lower, small)
@@ -1801,7 +1801,8 @@ def check_floor_boxes(page):
     shown = "ids => ids.map(id => viewer.volumeRoots.get(id).visible)"
     assert page.evaluate(shown, ids) == [False, False] and page.evaluate('([x, y]) => viewer.pickVolumeEdge(x, y)', [10, 10]) is None
     # on: drawn, and an edge picks the building whole
-    page.locator('#editNormal').hover()
+    # (the Normal view's switches stand under its row in the rail's Views list, shown while the pointer is over it)
+    page.locator('#viewsButton').hover()
     assert page.locator('#normalFlyout').is_visible()
     page.locator('#boxesToggle').check()
     page.mouse.move(700, 500)
@@ -1928,7 +1929,7 @@ def check_floor_boxes(page):
     lamp = page.evaluate("[...viewer.lightRoots.values()].find(r => r.userData.source.role === 'static' && r.userData.source.layer === 'base'"
                          " && !r.userData.source.referencedBy?.length)?.userData.source")
     if lamp:
-        page.locator('#editNormal').hover()
+        page.locator('#viewsButton').hover()
         page.locator('#normalLights').check()
         page.mouse.move(700, 500)
         assert page.evaluate('viewer.normalLights() && viewer.lightsShown() && !viewer.lightsOn()')
@@ -1968,7 +1969,7 @@ def check_floor_boxes(page):
         page.evaluate('viewer.select(null)')
     # off: the boxes go from the view and from the selection, the piece stays
     page.evaluate('([a, b]) => { viewer.select(a); viewer.select(b, true); }', [piece, ids[0]])
-    page.locator('#editNormal').hover()
+    page.locator('#viewsButton').hover()
     page.locator('#boxesToggle').uncheck()
     page.mouse.move(700, 500)
     assert page.evaluate(shown, ids) == [False, False] and page.evaluate(picked) == [piece]

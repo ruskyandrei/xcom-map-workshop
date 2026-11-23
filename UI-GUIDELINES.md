@@ -21,8 +21,8 @@ for controls, a new style) writes the pattern here in the same commit.
   step with it on, for handles, gizmos and fields alike.
 - **Keep the view readable.** Every handle and marker added makes the others harder to see and to click:
   - Only what is picked shows its handles. Nothing unpicked carries controls.
-  - A kind of thing with many markers has a view of its own, shown when its rail button is on, and steps aside in the
-    others. A new kind of marker joins the view it belongs to, or gets one, before it is drawn in the normal view.
+  - A kind of thing with many markers has a view of its own, shown when its row in the rail's Views list is on, and
+    steps aside in the others. A new kind of marker joins the view it belongs to, or gets one, before it is drawn in the normal view.
   - Handles that would sit on each other are spread out, put on a stem or shown one set at a time. Two handles are
     never closer than they can be told apart by the pick distance (`HANDLE_PICK` in
     [`handles.js`](tools/viewer/web/handles.js)).
@@ -52,7 +52,10 @@ for controls, a new style) writes the pattern here in the same commit.
   spawn panel's button opens the Landing zones view), never a second set of controls for the same edit.
 - **Each kind of control has its place:**
   - the header: the project, the map, Build and Play, and the menus;
-  - the rail: the tools, the views and the modifiers (snap, pivot, axes);
+  - the rail: the tools, the Views button and the modifiers (snap, pivot, axes). The Views button (since 23 November
+    2026) shows the icon of the view that is on; its list has a row for each view with its key, the switches of the
+    view that is on under its row, and the Map grid. A new view is a row of `views.js`'s VIEWS and of that list, never
+    a button of its own on the rail;
   - the panel on the right: what is picked, and only that;
   - the Add panel: what can be placed;
   - a dialog: work apart from the map (files, a build, the project manager, settings);

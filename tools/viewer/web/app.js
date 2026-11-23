@@ -700,7 +700,7 @@ const { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshHighlig
 // Switching the views (views.js): the normal view, whether lights are drawn and what stays selected after a view or a
 // switch changed, and the views' buttons; after the selection, the last factory whose functions it calls (nothing of
 // it runs as the page loads), so the five views made before it are given its functions as functions that call them.
-const { lightButton, setNormalView, syncLights } = createViews({
+const { lightButton, setNormalView, syncLights, viewByKey } = createViews({
   $, gizmo, refreshLightShapes, refreshLightVisibility, refreshPickBox, refreshVolumes, select, setEffectsShown,
   setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnPanel, spawnsShown });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
@@ -1261,7 +1261,7 @@ const { frame, panCamera, setSnapMode } = createNavigation({
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,
   showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,
-  TURNED_KINDS, turnZone, undoStep, volumePanel, wallGhost, wallHint, zoneGizmo,
+  TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel, wallGhost, wallHint, zoneGizmo,
   // (a let startScene sets: called through)
   applyLighting: () => applyLighting() });
 window.addEventListener('beforeunload', e => { if (!leaving && unsavedDocument()) e.preventDefault(); });

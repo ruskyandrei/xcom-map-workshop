@@ -879,7 +879,8 @@ def check_grid_panel(browser, url, open_viewer):
             for first in ('panel', 'tool'):
                 where = (width, panel, first)
                 if first == 'panel': page.evaluate(show, things.get(given))
-                page.locator('#editGrid').click()
+                # (the Map grid's row is in the rail's Views list, shown while the pointer is over it)
+                page.locator('#viewsButton').hover(); page.locator('#editGrid').click(); page.mouse.move(5, 300)
                 if first == 'tool': page.evaluate(show, things.get(given))
                 assert page.evaluate('viewer.gridTool().on') and page.locator('#gridPanel').is_visible() \
                     and page.locator(f'#{panel}').is_visible(), where
@@ -895,7 +896,7 @@ def check_grid_panel(browser, url, open_viewer):
                 # what is picked is kept: the tool only adds its panel
                 assert page.locator(f'#{panel}').is_visible(), where
                 if panel == 'inspector': assert page.evaluate('viewer.gizmo.active') == things['piece'], where
-                page.locator('#editNormal').click()
+                page.locator('#viewsButton').hover(); page.locator('#editNormal').click(); page.mouse.move(5, 300)
                 page.evaluate('viewer.select(null)')
                 assert page.locator(f'#{panel}').is_hidden(), where
             out[f'{width} {panel}'] = dict(grid=[round(grid['x']), round(grid['width'])], panel=[round(beside['x']), round(beside['width'])])

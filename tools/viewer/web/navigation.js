@@ -15,9 +15,8 @@ import { onHub, runHub } from './edit_hub.js';
 import { allRoots, assigning, breaking, builder, builderMode, coverDrag, data, effectsOn, gridDrag, gridTool, hintTimer,
          lightDrag, lightRadius, lightRoots, lightsOn, lookPicking, ownPicked, ownSet, pickBox, pickDrag,
          pickedEffect, pickedSpawn, pickedZone, pickTool, pieces, placing, rockPoint, roots, selected, setAssigning,
-         setGhostDirty, setLightRadius, setOwnPickedValue, setSnapModeValue, snapMode, soloOn, spawnPlacing, spawnsOn,
-         spawnZonePick, textureDrag, texturePicked, volumeDrag, volumesOn, volumeTool, wallDrag, wallDrawing,
-         zonePlacing, zonesOn } from './editor_state.js';
+         setGhostDirty, setLightRadius, setOwnPickedValue, setSnapModeValue, snapMode, soloOn, spawnPlacing, spawnZonePick, textureDrag, texturePicked, volumeDrag, volumesOn, volumeTool, wallDrag, wallDrawing,
+         zonePlacing } from './editor_state.js';
 import { recall, remember } from './storage.js';
 import { focusBounds, visibleBounds } from './view_layout.js';
 import { modalOpen } from './modal.js';
@@ -39,13 +38,13 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
                                    endVolumeDrag, endWallDrag, flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall,
                                    lightPanel, madeRoot, mapBreakable, missionGizmo, openBuild, paste, pick, pickEffect,
                                    pickZone, playArea, projectsAvailable, rayAt, refreshVolumes, releaseRockPoint,
-                                   renderer, restingHint, saveProject, select, setEffectsShown, setGridTool,
-                                   alignToGrid, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn,
-                                   setPickTool, setPlayArea, setSolo, setSpawnsShown, setVolumesShown, setVolumeTool,
-                                   setZoneGizmoMode, setZonesShown, showFileDialog, showMapBrowser, showPieces, showPop,
+                                   renderer, restingHint, saveProject, select, setGridTool,
+                                   alignToGrid, setOwnPicked, setPickedSpawn,
+                                   setPickTool, setPlayArea, setSolo, setVolumeTool,
+                                   setZoneGizmoMode, showFileDialog, showMapBrowser, showPieces, showPop,
                                    spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
                                    stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing,
-                                   stopZonePlacing, sun, takePickBox, TURNED_KINDS, turnZone, undoStep, volumePanel,
+                                   stopZonePlacing, sun, takePickBox, TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel,
                                    wallGhost, wallHint, zoneGizmo }) {
   onHub('edit', 'tools', () => {
     for (const [id, m] of [['editMove','translate'],['editRotate','rotate'],['editOff','off']]) $(id).classList.toggle('on', gizmo.mode === m);
@@ -277,8 +276,8 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
   // The editor's keys (index.html's help panel lists them for users): V select, T box select, G move, R rotate (while
   // placing, R and Shift+R turn the piece), P the Add panel, M the map browser, X world or local axes, C the pivot
   // (origin or centre), F frame, L Align to grid, O solo the selected lights, B Break on a picked wall, floor or roof that
-  // breaks (else the play area), I the eyedropper while drawing; Shift+N, B, L, Z, U and X the six views (in the
-  // Buildings view N draws a new box); arrow keys and WASD move the camera and Q and E turn it; Escape cancels a drag,
+  // breaks (else the play area), I the eyedropper while drawing; Shift and a view's key the views (views.js VIEWS:
+  // Shift+N, B, L, Z, X and U; in the Buildings view N draws a new box); arrow keys and WASD move the camera and Q and E turn it; Escape cancels a drag,
   // stops placing, drawing or a pick, closes a menu or, when there is none of those, clears the selection; Tab, with a
   // made piece's Texture mapping fold open and nothing focused, picks its next surface (Shift+Tab the one before); Ctrl+Z /
   // Ctrl+Y (or Ctrl+Shift+Z) undo and redo, Ctrl+C / X / V copy, cut and paste, Ctrl+G groups the selection and
@@ -390,6 +389,8 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       else return;
     }
     else if (e.altKey) return;
+    // a view's key with Shift (views.js VIEWS): the view on, or off again
+    else if (e.shiftKey && viewByKey(key)) { /* switched */ }
     else if (PAN_KEYS[key] || TURN_KEYS[key]) { panKeys.add(key); panFast = e.shiftKey; }
     else if (key === 'p') { if (data) showPieces(!pieces.open); }
     else if (key === 'm') showMapBrowser();
@@ -402,16 +403,10 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
     else if (key === 'v') gizmo.setMode('off');
     else if (key === 't') { if (data && !e.repeat) setPickTool(!(pickTool || pickBox)); }
     else if (key === 'g') gizmo.setMode('translate');
-    else if (key === 'x') { if (e.shiftKey) { if (data) setEffectsShown(!effectsOn); } else gizmo.toggleSpace(); }
+    else if (key === 'x') gizmo.toggleSpace();
     else if (key === 'c') togglePivot();
-    else if (key === 'b') {
-      if (e.shiftKey) { if (data) setVolumesShown(!volumesOn); }
-      else { if (!playArea.children.length) return; setPlayArea(!playArea.visible); }
-    }
-    else if (key === 'l') { if (e.shiftKey) { if (data) setLightsShown(!lightsOn); } else if (!e.repeat) alignToGrid(); }
-    else if (key === 'n') { if (!e.shiftKey || !data) return; setNormalView(); }
-    else if (key === 'z') { if (!e.shiftKey || !data) return; setZonesShown(!zonesOn); }
-    else if (key === 'u') { if (!e.shiftKey || !data) return; setSpawnsShown(!spawnsOn); }
+    else if (key === 'b') { if (!playArea.children.length) return; setPlayArea(!playArea.visible); }
+    else if (key === 'l') { if (!e.repeat) alignToGrid(); }
     else if (key === 'o') { if (!lightRoots.has(selected)) return; setSolo(!soloOn); }
     else if (key === 'f') { if (!(effectsOn && frameEffect())) frame(selected ? allRoots.get(selected) : undefined); }
     else return;
