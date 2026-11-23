@@ -710,7 +710,7 @@ const { lightButton, setNormalView, syncLights, viewByKey } = createViews({
 // The Diagonal cover view (diagonal_wiring.js): the marks drawn, picked, switched, moved and deleted, its panel; after
 // the views, whose switches it calls.
 const { diagonalClick, diagonalDrag, diagonalKey, drawDiagonal, endDiagonalDrag, hoverDiagonal, moveDiagonalDrag,
-        pickedMarks, refreshDiagonal, setDiagonalShown, startDiagonalDrag } = createDiagonalWiring({
+        pickedMarks, setDiagonalShown, startDiagonalDrag } = createDiagonalWiring({
   $, camera, flashHint, gizmo, lightButton, pickables, projector, projectsAvailable, rayAt, renderer, select, setEffectsShown,
   setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, stopPickBox, world });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the

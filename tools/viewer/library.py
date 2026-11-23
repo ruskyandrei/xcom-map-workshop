@@ -74,7 +74,8 @@ INDEX_VERSION = 10      # 2: an entry says what blocks it (`blocked`), and the f
                         # 7: vans come with their buildings, and EXP-41's two ways are switched on;
                         # 8: vans switched on (EXP-42); 9: the base maps' effects and ambient sounds (FX4: the
                         # number itself stayed 8 until FX6b); 10: the base maps' lens flares (FX6b)
-PIECE_VERSION = 10      # 8: recipe identity for each member of a piece or assembly; 9: each member's own piece flags
+PIECE_VERSION = 11      # 8: recipe identity for each member of a piece or assembly; 9: each member's own piece flags;
+                        # 11: the diagonal cover marks the piece gives in its home map (`diagonal`: mark_walls.marks)
                         # (export 27's pieceFlags) and its meshes' collision facts; 10: those flags really written (the
                         # exporter had left them out of every prefixed export, the library's too, 19 November 2026)
 # the assemblies that are one entry (compiler.assemblies' families with more than one piece)
@@ -908,6 +909,18 @@ def _make_piece(cache, actor, shared, path, digest, generation, folder, record):
             if len(members) > 1:
                 recipe['member'] = describe(p, member)['key']
             recipes[p.name(member)] = recipe
+    # the diagonal cover marks the piece (an assembly: any of its members) takes in its home map: a copy placed here
+    # brings them, as a copy of this map's own piece brings its marks (diagonal cover by hand, stage M5)
+    diagonal = []
+    try:
+        known = shared.setdefault('diagonal_marks', {})
+        if str(path) not in known:
+            import mark_walls      # (tools/bake is on the path: the folders above)
+            known[str(path)] = mark_walls.marks(p)
+        names = {p.name(m) for m in members}
+        diagonal = [m for m in known[str(path)] if m['wall'] in names]
+    except Exception as error:  # noqa: BLE001 (a donor the tile world can't read: the piece brings no marks)
+        exporter.warn(actor, 'diagonal cover marks unavailable: %s' % error)
     out = dict(version=PIECE_VERSION, exporterVersion=EXPORT_VERSION, key=what.get('key'), recipes=recipes,
                grid=grid_origin(p),
                **({'assembly': dict(family=assembly['family'], members=assembly['members'], pivot=assembly['pivot'],
@@ -915,7 +928,8 @@ def _make_piece(cache, actor, shared, path, digest, generation, folder, record):
                source=dict(kind='map', package=path.stem, level='base', actor=actor, sha256=digest),
                base='/cache-library/%s/%s/' % (path.stem, generation), objects=objects, meshes=exporter.meshes,
                materials=exporter.materials, textures={k: v for k, v in exporter.textures.items() if v},
-               diagnostics=exporter.diagnostics, collision=collision, buildings=source_buildings, areaLights=area)
+               diagnostics=exporter.diagnostics, collision=collision, buildings=source_buildings, areaLights=area,
+               **({'diagonal': diagonal} if diagonal else {}))
     atomic_files.write_text(record, json.dumps(out) + '\n', temp=part_of(record))
     return out
 

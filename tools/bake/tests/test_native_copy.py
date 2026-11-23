@@ -448,6 +448,21 @@ class DiagonalCoverKept(unittest.TestCase):
         self.assertEqual(cover & 0x1000F, 0x1000C, '%06x' % cover)
         self.assertNotIn((39, 12, 0), order)
 
+    def test_the_page_carries_the_marks(self):
+        # a project whose page worked out the marks its pieces carry (pageCarries): the Build carries none of its own,
+        # and writes the page's marks where the copy's corners are, as the view shows them
+        copies = [dict(actor='XComLevelActor_3', location=[2448.0, 912.0, -128.0], rotation=[0, -16384, 0])]
+        nc, order, tiles = self.built('Farm_PageNone', copies, diagonal=dict(pageCarries=True))
+        self.assertFalse([r for r in (nc.get('diagonalCover') or {}).get('whole', []) if r.get('newCorner')])
+        marks = [dict(at=self.at(t), toward=[[-1, -1]]) for t in ((45, 42, 0), (47, 40, 0))]
+        nc, order, tiles = self.built('Farm_PageMarks', copies, diagonal=dict(marks=marks, pageCarries=True))
+        whole = {tuple(r['tile']): r for r in nc['diagonalCover']['whole']}
+        self.assertEqual({t: (r.get('mark'), r.get('noWall'), r.get('newCorner')) for t, r in whole.items()},
+                         {(45, 42, 0): ([[-1, -1]], None, None), (47, 40, 0): ([[-1, -1]], None, None)})
+        for t in whole:
+            self.assertNotIn(t, order)
+            self.assertTrue(tiles[t][1] & 0x10000 and tiles[t][1] & 0x4, '%s %06x' % (t, tiles[t][1]))
+
     def test_a_removed_mark_is_not_carried(self):
         # the hull chunk copied as in test_a_copied_corner_carries_its_diagonal_cover, with one of its two seeded
         # corners taken away by the project: the copy carries the other alone

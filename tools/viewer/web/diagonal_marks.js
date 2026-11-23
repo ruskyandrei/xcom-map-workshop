@@ -29,11 +29,36 @@ export const tileOf = (point, corner) => [0, 1, 2].map(k => Math.floor((point[k]
 /** A tile's middle in the world (the level's middle in height): the place a project names it by. */
 export const middleOf = (tile, corner) => [0, 1, 2].map(k => Number((corner[k] + TILE_SIZE[k] * (tile[k] + 0.5)).toFixed(4)));
 
-/** The map's own marks, from the export's tactical.diagonalCover: [{ tile, toward, floor, low }]. */
+/** The map's own marks, from the export's tactical.diagonalCover: [{ tile, toward, floor, low, wall (the actor path of
+ *  the piece its first corner takes its cover from, export 40; null where none) }]. */
 export function ownMarks(scene) {
   return (scene?.preview ? [] : scene?.tactical?.diagonalCover ?? []).map(t => ({
     tile: [...t.tile], floor: t.floor ?? null, toward: sortCorners((t.directions ?? []).map(d => d.toward)),
-    low: (t.directions ?? []).filter(d => d.low).map(d => d.toward) }));
+    low: (t.directions ?? []).filter(d => d.low).map(d => d.toward), wall: (t.directions ?? []).find(d => d.wall)?.wall ?? null }));
+}
+
+// A point or a direction through a view-space matrix (column-major 4 by 4, three.js's elements), in game axes: the view
+// is the game's [x, z, y] (handles.js gameToView).
+const through = (m, g, w) => {
+  const v = [g[0], g[2], g[1], w], o = [0, 1, 2].map(r => m[r] * v[0] + m[4 + r] * v[1] + m[8 + r] * v[2] + m[12 + r] * v[3]);
+  return [o[0], o[2], o[1]];
+};
+const SKEW = Math.cos(3 * Math.PI / 180);      // a turn more than 3 degrees off a quarter turn leaves the diagonals
+
+/** A mark carried by a piece's move (`m`: the view-space matrix that takes the piece from where the mark was made to
+ *  where it stands now): its tile there and its corners turned with it, { at, toward, skew }. A corner the move turns
+ *  off the tiles' diagonals is taken to the nearest (skew: true; the game gives diagonal cover along a tile's
+ *  diagonals alone). */
+export function carryMark(m, home, toward, corner) {
+  const at = middleOf(tileOf(through(m, home, 1), corner), corner);
+  let skew = false;
+  const turned = toward.map(c => {
+    const d = through(m, [c[0], c[1], 0], 0), len = Math.hypot(d[0], d[1]) || 1;
+    const snapped = [d[0] < 0 ? -1 : 1, d[1] < 0 ? -1 : 1];
+    if ((d[0] * snapped[0] + d[1] * snapped[1]) / (len * Math.SQRT2) < SKEW) skew = true;
+    return snapped;
+  });
+  return { at, toward: sortCorners(turned), ...(skew ? { skew: true } : {}) };
 }
 
 /** A hand state as saved (null for none), its marks and places sorted, its corners in the table's order. */
@@ -63,7 +88,9 @@ export function handFromSaved(saved) {
 export function savedDiagonal(hand, carried = [], carriedOver = []) {
   const own = tidyHand(hand);
   const marks = [...(own?.marks ?? []), ...carried.map(m => ({ at: [...m.at], toward: sortCorners(m.toward),
-                                                            ...(m.from ? { from: [...m.from] } : {}), by: m.by })), ...carriedOver];
+                                                            ...(m.from ? { from: [...m.from] } : {}), by: m.by,
+                                                            ...(m.moves ? { moves: true } : {}), ...(m.gone ? { gone: true } : {}) })),
+                 ...carriedOver];
   const removed = own?.removed ?? [];
   return marks.length || removed.length ? { marks, removed } : null;
 }
@@ -83,16 +110,18 @@ export function marksNow(scene, hand, corner, carried = []) {
     if (removed.has(k)) out.push({ key: k, tile: o.tile, at: at(o.tile), toward: o.toward, kind: 'deleted', from: o.tile, own: o });
     else if (h) out.push({ key: tileKey(h.tile), tile: h.tile, at: at(h.tile), toward: h.toward, own: o, from: o.tile,
                            kind: tileKey(h.tile) === k ? 'changed' : 'moved' });
-    else if (carriedFrom.has(k) && carriedFrom.get(k).moves) continue;       // (its piece moved it: listed with the carried)
+    else if (carriedFrom.has(k) && (carriedFrom.get(k).moves || carriedFrom.get(k).gone)) continue;       // (its piece moved
+    // it, listed with the carried; or its piece is deleted, and it goes with it)
     else out.push({ key: k, tile: o.tile, at: at(o.tile), toward: o.toward, kind: 'map', from: o.tile, own: o });
   }
   for (const h of handMarks) if (!h.home) out.push({ key: tileKey(h.tile), tile: h.tile, at: at(h.tile), toward: h.toward, kind: 'added' });
   const taken = new Set(out.filter(m => m.kind !== 'deleted').map(m => m.key));
   for (const c of carried) {
+    if (c.gone) continue;
     const t = tileOf(c.at, corner), k = tileKey(t);
     if (taken.has(k)) continue;          // (a mark of the project's own on the tile wins: the Build does the same)
     const home = c.from ? tileOf(c.from, corner) : null;
-    out.push({ key: k, tile: t, at: at(t), toward: sortCorners(c.toward), kind: 'carried', by: c.by,
+    out.push({ key: k, tile: t, at: at(t), toward: sortCorners(c.toward), kind: 'carried', by: c.by, ...(c.skew ? { skew: true } : {}),
                ...(home ? { from: home, own: own.find(o => tileKey(o.tile) === tileKey(home)) } : {}) });
     taken.add(k);
   }

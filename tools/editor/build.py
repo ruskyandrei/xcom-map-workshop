@@ -1081,7 +1081,8 @@ class Build:
         self.background_sound = self.native.get('backgroundSound')
         # the diagonal cover the project marks (schema 7; native_copy.diagonal_edit, diagonal_keep.write): tiles the
         # writer works out, no light, so it goes with the effects
-        self.marks_edit = bool(self.native.get('diagonalCover'))
+        marks = self.native.get('diagonalCover') or {}
+        self.marks_edit = bool(marks.get('marks') or marks.get('removed'))
         self.effects_edit = bool(self.background_sound) or any(
             (self.native.get(k) or {}).get(op) for k in EFFECT_LANES + ('spawns',) for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])

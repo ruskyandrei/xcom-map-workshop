@@ -2857,7 +2857,8 @@ def clone_copies(st):
         if tile_info:
             # where a copy of the map's own piece carries a slanted corner with diagonal cover (diagonal_keep.write)
             for c, ai, location, rotation, _ in members:
-                if has_mesh(p, ai) and (collides(p, ai) or ai in walked) and not (c.get('generated') or c.get('staged')):
+                if has_mesh(p, ai) and (collides(p, ai) or ai in walked) and not (c.get('generated') or c.get('staged')) \
+                        and getattr(g, 'diagonal_carries', True):
                     diagonal_candidates(g, p, piece_box(p, ai, location, rotation), tile_info['grid'], (ai, location, rotation))
         actors += ([info['actor'] for info in infos] + [info['actor'] for info in volume_infos]
                    + ([tile_info['volume']['export']] if tile_info else []))
@@ -3391,6 +3392,8 @@ def build(st):
     # the project's diagonal cover marks, as tiles: every rebuild volume keeps off its marks, and the writer writes them
     # and the tiles it takes diagonal cover from (diagonal_keep.write)
     g.diagonal_edit = diagonal_edit(p, st.diagonal_cover)
+    # (a project whose page worked out the marks its pieces carry, pageCarries: the Build carries none of its own)
+    g.diagonal_carries = not (st.diagonal_cover or {}).get('pageCarries')
     # the light edits: resolved against the pristine map, then made in the map (plan 4.3, steps 1 and 2)
     st.light_state = None if native_lights.is_empty(st.lights) else native_lights.prepare(p, st.lights)
     st.light_result = native_lights.apply(g, p, st.light_state) if st.light_state else None

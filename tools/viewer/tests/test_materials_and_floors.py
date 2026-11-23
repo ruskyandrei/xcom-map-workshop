@@ -241,3 +241,14 @@ class DiagonalCoverTests(unittest.TestCase):
         self.assertEqual(first['directions'], [dict(name='E', toward=[-1, -1], low=False)])
         self.assertAlmostEqual(first['location'][0], 1287.4055, places=3)
         self.assertAlmostEqual(first['floor'], -116.9514, places=3)
+        # export 40: each direction's wall, the piece the game's cover rule meets along it (scene_metadata.diagonal_walls;
+        # the scout's four hull chunks, two corners each), which the editor carries the mark with
+        from scene_metadata import diagonal_walls
+        walls = [[d.get('wall', '').rsplit('.', 1)[-1] for d in t['directions']] for t in diagonal_walls(p, tiles)]
+        self.assertEqual(walls, [['XComLevelActor_3'], ['XComLevelActor_12'], ['XComLevelActor_3'], ['XComLevelActor_12'],
+                                 ['XComLevelActor_13'], ['XComLevelActor_1'], ['XComLevelActor_13'], ['XComLevelActor_1']])
+        # and a piece of it placed in another map brings its marks, as the library records them (mark_walls.marks)
+        import mark_walls
+        marks = [m for m in mark_walls.marks(p) if m['wall'].endswith('.XComLevelActor_3')]
+        self.assertEqual([(m['at'], m['toward']) for m in marks], [([1295.0, -2353.0, -97.0], [[-1, -1]]),
+                                                                    ([1487.0, -2545.0, -97.0], [[-1, -1]])])

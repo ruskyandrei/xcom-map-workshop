@@ -95,7 +95,10 @@ import settings
 # 39: the map's background sound (`backgroundSound`: the sound its script starts when the level loads, for the player;
 #     background_sound.py) and its triggers counted (`triggerCounts`: the trigger volumes, water volumes and sight
 #     points a clear takes out unless kept; scene_metadata.trigger_counts, F-159)
-EXPORT_VERSION = 39
+# 40: each diagonal cover tile's directions name their `wall` (scene_metadata.diagonal_walls, tools/bake/mark_walls.py:
+#     the piece the game's cover rule meets along that diagonal), so a mark follows its piece in the editor (diagonal
+#     cover by hand, stage M5)
+EXPORT_VERSION = 40
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the

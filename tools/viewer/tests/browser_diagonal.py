@@ -8,7 +8,8 @@ a corner dot gives the map's mark that corner too (one undo step: the project's 
 the panel's chip and its four corner buttons, two on); undo and redo; a drag of its middle dot moves it a tile (Moved,
 its home named), and Reset puts it back, picked at home; Delete deletes it (pale with Deleted marks, picked: Deleted,
 Reset); a corner dot of an empty tile adds a mark there; the project's state names them as the compiler reads them;
-Escape lets the picked go; Shift+C leaves the view and Shift+L turns it off for the Lights view."""
+Escape lets the picked go; Shift+C leaves the view and Shift+L turns it off for the Lights view. Then the marks follow
+their pieces (stage M5): the hull chunk moved, turned a quarter and 30 degrees, and deleted."""
 
 
 def check_diagonal(browser, url, open_viewer):
@@ -28,6 +29,8 @@ def check_diagonal(browser, url, open_viewer):
     # the scout's corner seen from above, its first floor cut
     page.evaluate("""() => { viewer.controls.target.set(1295, -117, -2353); viewer.camera.position.set(1375, 350, -2653);
                              viewer.controls.update(); }""")
+    # (the Floor picker's buttons come once the map's buildings are read)
+    page.wait_for_selector('#floor button[data-value="1"]', state='visible', timeout=60000)
     page.locator('#floor button[data-value="1"]').click()
     page.wait_for_timeout(400)
 
@@ -87,6 +90,29 @@ def check_diagonal(browser, url, open_viewer):
     page.evaluate('id => viewer.select(id)', piece)
     assert not page.evaluate('viewer.diagonalOn()')
     page.keyboard.press('Control+z')         # (the mark added, taken back: the page is left as it opened)
+    # marks follow their pieces (stage M5, export 40's walls): the hull chunk XComLevelActor_3 makes the corners (39, 12)
+    # and (41, 10); moved two tiles along x and one along y, they go with it; turned a quarter, their corner turns; a
+    # turn of 30 degrees leaves the diagonals (skew); deleted, they go; the project names them for the Build
+    walls = page.evaluate("viewer.data.tactical.diagonalCover.map(t => t.directions[0].wall?.split('.').pop())")
+    assert walls[0] == 'XComLevelActor_3', walls
+    chunk = page.evaluate("[...viewer.roots.values()].find(r => r.userData.source.actor.endsWith('.XComLevelActor_3') && !r.userData.source.added).userData.source.id")
+    page.evaluate('id => viewer.select(id)', chunk)
+    pose = page.evaluate('viewer.gizmo.pose()')
+    page.evaluate('l => viewer.gizmo.setPose(l, null)', [pose['location'][0] + 192, pose['location'][1] + 96, pose['location'][2]])
+    carried = "viewer.diagonalMarks().filter(m => m.kind === 'carried').map(m => m.key + ':' + m.toward.map(c => c.join('/')).join('+') + (m.skew ? ':skew' : '')).sort()"
+    assert page.evaluate(carried) == ['41,13,0:-1/-1', '43,11,0:-1/-1'], page.evaluate(carried)
+    saved = page.evaluate('viewer.editState().diagonalCover')
+    assert sorted(m['by'].rsplit('.', 1)[-1] for m in saved['marks']) == ['XComLevelActor_3'] * 2 and all(m.get('moves') for m in saved['marks']), saved
+    page.evaluate('r => viewer.gizmo.setPose(null, r)', [pose['rotation'][0], pose['rotation'][1] + 90, pose['rotation'][2]])
+    assert all(k.endswith(':1/-1') for k in page.evaluate(carried)), page.evaluate(carried)
+    page.evaluate('r => viewer.gizmo.setPose(null, r)', [pose['rotation'][0], pose['rotation'][1] + 30, pose['rotation'][2]])
+    assert all(k.endswith(':skew') for k in page.evaluate(carried)), page.evaluate(carried)
+    page.keyboard.press('Delete')
+    assert page.evaluate(carried) == [] and '39,12,0' not in page.evaluate('viewer.diagonalMarks().map(m => m.key)')
+    assert all(m.get('gone') for m in page.evaluate('viewer.editState().diagonalCover')['marks'])
+    for _ in range(4):
+        page.keyboard.press('Control+z')
+    assert page.evaluate(carried) == [] and page.evaluate('viewer.editState().diagonalCover') is None
     assert not errors, errors
     page.close()
     return dict(marks=len(marks))

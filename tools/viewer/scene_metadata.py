@@ -174,7 +174,8 @@ DIAGONAL_DIRECTIONS = (('N', 0x1, 0x10, (-1, 1)), ('S', 0x2, 0x20, (1, -1)), ('E
 def saved_diagonal_tiles(p, container, dimensions=None):
     """The tiles of a world data container whose cover flags carry diagonal cover (0x10000, the map's cover seeds;
     findings register F-149): [dict(tile, floor (its floor's height, or None), location (the cover location),
-    directions [dict(name, toward (the diagonal it faces, game axes), low)])]."""
+    directions [dict(name, toward (the diagonal it faces, game axes), low)])]. mark_walls adds each direction's
+    `wall` (diagonal_walls)."""
     import world_links
     reader = p.native(container)
     blob, offset = reader.take(reader.end - reader.pos), 0
@@ -198,6 +199,31 @@ def saved_diagonal_tiles(p, container, dimensions=None):
                         directions=[dict(name=n, toward=list(d), low=bool(cover & low))
                                     for n, bit, low, d in DIAGONAL_DIRECTIONS if cover & bit]))
     return out
+
+
+def diagonal_walls(p, tiles, warn=None):
+    """`tiles` (saved_diagonal_tiles') with each direction's `wall`, the actor path of the piece it takes its cover from
+    (tools/bake/mark_walls.py: the game's cover rule against the map's pieces), where the rule finds one: the editor's
+    Diagonal cover view carries a mark with that piece when the piece moves, is copied or is deleted (diagonal cover by
+    hand, stage M5). Unchanged, with a warning, when the pieces can't be read."""
+    if not tiles:
+        return tiles
+    import paths
+    paths.use('bake')
+    try:
+        import mark_walls
+        found = mark_walls.walls(p)
+    except Exception as error:      # (a map the tile world can't read keeps its marks, which then follow nothing)
+        if warn:
+            warn(p.path.stem if hasattr(p, 'path') else 'map', f'Diagonal cover walls unavailable: {error}')
+        return tiles
+    for t in tiles:
+        corners = found.get(tuple(t['tile'])) or {}
+        for d in t['directions']:
+            wall = corners.get(tuple(d['toward']))
+            if wall:
+                d['wall'] = wall
+    return tiles
 
 
 CHANGE_MARGIN = 24.0      # a quarter tile: the margin round a change's box (seed_map.MARGIN, a copy's seeds)
@@ -254,6 +280,7 @@ def tactical_metadata(p, objects, meshes, grid, warn):
             except (ValueError, struct.error, IndexError) as error:
                 warn(p.name(i), f'Diagonal cover tiles unavailable: {error}')
                 diagonal = []
+            diagonal = diagonal_walls(p, diagonal, warn)
             return dict(source='original-baked-floor-data',floorTiles=floors,diagonalCover=diagonal,
                         focusBounds=dict(min=view_min,max=view_max),
                         recommendedView='interior' if shell else 'full',

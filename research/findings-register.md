@@ -653,8 +653,13 @@ the fix).
   marks are written whole with the same writer, along their marked corners only (`mark_cover`; a marked corner with
   no wall gets cover as marked). The tests on the farm (`test_native_copy.py`) mark a turned cover block's corner,
   two corners with one against nothing, a map's corner turned and one taken away.
-- **Left**: a piece brought from another map does not carry its home map's marks; a volume
-  made without the change's boxes (a ladder's tile volume, a cleared map's) still rebuilds what it reaches; the
+- **Since 23 November 2026, later the same day, the editor carries the marks** (export 40): the cover rule names each
+  marked corner's wall piece (`mark_walls.py`), the page moves a mark with its piece, turns it with a quarter turn,
+  takes it away with a delete and gives each copy one, and a piece of another map brings the marks it gives at home
+  (the library's piece record 11). A project of schema 7 saves them, and its Build carries none of its own
+  (`pageCarries`): it writes the marks the view shows. On the farm, a copy of the hull chunk placed where the Build's
+  own carry put its corners, (45, 42, 0) and (47, 40, 0), gets the same two tiles from the page.
+- **Left**: a volume made without the change's boxes (a ladder's tile volume, a cleared map's) still rebuilds what it reaches; the
   game's own rebuilds during play take a written tile like one of its own (F-149).
 
 ### F-154: The neighbour links read from the exe: 99.96% of the bakes' links worked out, every typed link

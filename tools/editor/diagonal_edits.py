@@ -72,11 +72,14 @@ class DiagonalEdits:
 
     def marks(self):
         """The project's `diagonalCover` checked and resolved into the lane: a map's marked tile a mark names as its
-        `from`, or `removed` names, loses its own; marks on one tile join their corners. A mark or a place that can't
-        be read is left out (diagonal-mark), the rest builds."""
+        `from`, or `removed` names, or a mark `gone` with its piece, loses its own; marks on one tile join their
+        corners. A mark or a place that can't be read is left out (diagonal-mark), the rest builds. A project of
+        schema 7 or later has the lane's pageCarries even with no mark (page_carries)."""
         self.lane = None
         rec = self.c.doc.get('diagonalCover')
         if rec is None or rec == {}:
+            if self.page_carries():
+                self.lane = dict(pageCarries=True)
             return
         where = dict(record='diagonalCover')
         if not isinstance(rec, dict):
@@ -92,6 +95,12 @@ class DiagonalEdits:
         own = {tuple(t['tile']) for t in (self.c.scene.get('tactical') or {}).get('diagonalCover') or []}
         marks, removed = {}, {}
         for i, m in enumerate(rec.get('marks') or []):
+            # a map's mark whose piece the project deletes (the page's carried record): its tile loses the mark
+            if isinstance(m, dict) and m.get('gone'):
+                came = _place(m.get('from'))
+                if came is not None and self.tile(came) in own:
+                    removed[self.tile(came)] = came
+                continue
             at = _place(m.get('at')) if isinstance(m, dict) else None
             corners = _corners(m.get('toward')) if isinstance(m, dict) else None
             if at is None or corners is None:
@@ -122,15 +131,25 @@ class DiagonalEdits:
         for t in marks:
             removed.pop(t, None)
         self.no_floor(marks)
+        carries = self.page_carries()
         if not marks and not removed:
+            if carries:
+                self.lane = dict(pageCarries=True)
             return
         self.lane = dict(marks=[dict(at=marks[t]['at'], toward=[list(c) for c in marks[t]['toward']]) for t in sorted(marks)],
-                         removed=[removed[t] for t in sorted(removed)])
+                         removed=[removed[t] for t in sorted(removed)], **({'pageCarries': True} if carries else {}))
         self.counts = dict(marks=len(marks), removed=len(removed))
         self.c.note('diagonal-marks', 'The Build gives %d tile%s the diagonal cover the project marks, and takes it from %d of '
                     'the map\'s own: a mark gets what the game gives a marked corner along each of its corners, and cover '
                     'as marked toward a corner with no wall there'
                     % (len(marks), '' if len(marks) == 1 else 's', len(removed)))
+
+    def page_carries(self):
+        """Whether the page worked out the marks the map's pieces carry (a project of schema 7 or later: its
+        `diagonalCover` holds them, `by` the piece each follows), so the Build carries none of its own (pageCarries):
+        it writes what the view shows. An older project's Build still carries the map's marks with copies of their
+        pieces (native_copy.diagonal_candidates)."""
+        return isinstance(self.c.doc.get('schemaVersion'), int) and self.c.doc['schemaVersion'] >= 7
 
     def no_floor(self, marks):
         """A warning for a mark on a tile the map as exported has no floor on and no piece the project adds stands near:

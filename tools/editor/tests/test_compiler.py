@@ -135,6 +135,16 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         spec, report = compile_project(document([dict(target=target('XComLevelActor_1'), deleted=True)]), s)
         self.assertNotIn('diagonalCover', spec)
         self.assertNotIn('diagonalCover', report)
+        # a mark gone with its deleted piece (the page's carried record) takes the map's mark away; a project of schema 7
+        # says the page carries the marks (pageCarries: the Build carries none of its own), with marks or none
+        doc = document([dict(target=target('XComLevelActor_1'), deleted=True)], schemaVersion=7)
+        doc['diagonalCover'] = dict(marks=[{'at': at([14, 10, 0]), 'toward': [[1, 1]], 'from': at([14, 10, 0]),
+                                            'by': 'TheWorld.PersistentLevel.XComLevelActor_1', 'gone': True}])
+        spec, _ = compile_project(doc, s)
+        self.assertEqual(spec['diagonalCover'], dict(marks=[], removed=[at([14, 10, 0])], pageCarries=True))
+        doc = document([dict(target=target('XComLevelActor_1'), deleted=True)], schemaVersion=7)
+        spec, _ = compile_project(doc, s)
+        self.assertEqual(spec['diagonalCover'], dict(pageCarries=True))
 
     def test_a_map_the_game_knows_by_name_gets_a_note(self):
         # mission types plan, Part B: Zhang and the mission's script are tied to Low Friends' name

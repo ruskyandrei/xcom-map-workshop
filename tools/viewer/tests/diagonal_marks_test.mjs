@@ -3,7 +3,7 @@
 // build's words for a mark.
 // Run: node tools/viewer/tests/diagonal_marks_test.mjs
 import assert from 'node:assert/strict';
-import { builtWords, CORNERS, deleteMark, handFromSaved, marksNow, middleOf, moveMark, ownMarks, resetMark, savedDiagonal,
+import { builtWords, carryMark, CORNERS, deleteMark, handFromSaved, marksNow, middleOf, moveMark, ownMarks, resetMark, savedDiagonal,
          tileOf, tidyHand, toggleCorner } from '../web/diagonal_marks.js';
 
 const corner = [-1001, -2001, -65];
@@ -88,4 +88,26 @@ assert.equal(builtWords({ marks: [{ at, cover: '012022' }] }, at), 'Last build: 
 assert.match(builtWords({ marks: [{ at, cover: '010003', noWall: [[-1, 1]] }] }, at), /no wall toward one corner/);
 assert.equal(builtWords({ marks: [{ at, cover: '010000', noFloor: true }] }, at), 'Last build: no floor on this tile, so no cover.');
 assert.equal(builtWords(null, at), '');
+// a mark carried by its piece's move (a view-space matrix, three.js's column-major elements; the view is the game's
+// [x, z, y]): moved two tiles along x, one along y and a level up, its tile goes with it and its corners stay
+const moveBy = (dx, dy, dz) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, dx, dz, dy, 1];
+assert.deepEqual(carryMark(moveBy(192, 96, 64), middleOf([10, 10, 0], corner), [[-1, -1]], corner),
+                 { at: middleOf([12, 11, 1], corner), toward: [[-1, -1]] });
+// a quarter turn about the mark's tile (about the view's up): the tile stays and the corner turns with it
+const turnAbout = (g, deg) => {
+  const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), [x, z] = [g[0], g[1]];
+  // T(g) R T(-g), R about the view's y: (x, z) -> (x c + z s, -x s + z c)
+  return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, x - (x * c + z * s), 0, z - (-x * s + z * c), 1];
+};
+const home = middleOf([10, 10, 0], corner);
+assert.deepEqual(carryMark(turnAbout(home, 90), home, [[-1, -1]], corner), { at: home, toward: [[-1, 1]] });
+assert.deepEqual(carryMark(turnAbout(home, 180), home, [[-1, -1], [1, 1]], corner).toward, [[-1, -1], [1, 1]]);
+// a turn off the quarter turns takes the corner to the nearest diagonal, and says so
+const skewed = carryMark(turnAbout(home, 30), home, [[-1, -1]], corner);
+assert.equal(skewed.skew, true);
+assert.deepEqual(carryMark(turnAbout(home, 2), home, [[-1, -1]], corner), { at: home, toward: [[-1, -1]] });
+// a carried mark whose piece is deleted: the map's mark goes, and nothing is listed for it
+const goneWith = [{ at: middleOf([10, 10, 0], corner), toward: [[-1, -1]], from: middleOf([10, 10, 0], corner), by: "XComLevelActor_3", gone: true }];
+assert.deepEqual(marksNow(scene, null, corner, goneWith).map(m => m.key), ['12,10,0']);
+assert.equal(savedDiagonal(null, goneWith).marks[0].gone, true);
 console.log('diagonal_marks: ok');
