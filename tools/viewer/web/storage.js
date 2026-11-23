@@ -29,5 +29,6 @@ export const forget = key => { try { localStorage.removeItem(key); } catch { /* 
 // prepared again once already. The same keys, and missing or blocked storage alike: null read, a write dropped.
 /** The value this tab keeps under `key`, or null. */
 export const recallSession = key => { try { return sessionStorage.getItem(key); } catch { return null; } };
-export const rememberSession = (key, value) => { try { sessionStorage.setItem(key, value); } catch { /* not kept */ } };
+// (rememberSession says whether it was kept: a value over the tab's quota is not)
+export const rememberSession = (key, value) => { try { sessionStorage.setItem(key, value); return true; } catch { return false; } };
 export const forgetSession = key => { try { sessionStorage.removeItem(key); } catch { /* not kept */ } };

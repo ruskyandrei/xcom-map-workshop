@@ -283,3 +283,185 @@ def check_step_views(browser, url, open_viewer):
     assert not errors, errors
     page.close()
     return out
+
+
+# What a project (or the prefab builder's document) holds of added things, comparable across maps: each record's kind
+# and home (a piece's map and actor, a made piece's kind, a recipe's kind), the buildings' boxes' sizes and the groups'
+# sizes (a prefab's group marked)
+SUMMARY = """records => { const short = a => a.split('.').pop();
+  return records.map(p => p.generated ? `made:${p.generated.kind}` : p.template ? `template:${p.template.kind}`
+    : p.kind ? `${p.kind}:${p.from.package}:${short(p.from.actor)}` : `piece:${p.from.package}:${short(p.from.actor)}`).sort(); }"""
+SHAPES = """doc => ({ buildings: (doc.buildings ?? []).map(b => b.floors.map(f => f.boxes.map(x => [x[3] - x[0], x[4] - x[1], x[5] - x[2]].join('x')).join(',')).join('|')).sort(),
+  groups: (doc.groups ?? []).map(g => String(g.members.length) + (g.prefab ? ':prefab' : '')).sort() })"""
+
+
+def check_carried_copy(browser, url, open_viewer):
+    """The copy carried to another map or prefab (Part C, Discord S17), on Bar and Police Station: two of Bar's pieces
+    grouped, a made wall, a cover block, a light, an effect and a building copied on Bar are placed on Police Station by
+    Ctrl+V after the map changed, as Save as prefab's records have them but without a prefab's group, and the project
+    saved there compiles; the same copy placed in the prefab builder, and copied there, placed on Bar; a cut carried;
+    an Add panel entry chosen last not carried; what can't be carried named and the rest placed; the Buildings view's
+    boxes carried."""
+    import json
+    import subprocess
+    import sys
+    import tempfile
+    from pathlib import Path
+    import browser_walls as bw
+    base = url.split('?')[0]
+    errors = []
+    # (the piece of a map the install doesn't have, asked for below, is the check's own 404)
+    page = open_viewer(browser, base + '?map=URB_Bar', errors, expected=(404,))
+    hint = page.locator('#dragHint')
+
+    def leave(query):
+        """The page changed to another map or prefab (unsaved work discarded), and the new page opened."""
+        page.evaluate('q => { void viewer.goTo(q); }', query)
+        try: page.locator('#leaveDiscard').click(timeout=4000)
+        except Exception: pass      # (nothing unsaved: no question)
+        key, value = next(iter(query.items()))
+        page.wait_for_function('([k, v]) => new URLSearchParams(location.search).get(k) === v', arg=[key, value], timeout=60000)
+        page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=180000)
+        page.wait_for_timeout(500)
+
+    def blur(): page.evaluate('document.activeElement?.blur?.()')
+
+    def place(at=(0.5, 0.55)):
+        """Ctrl+V and a click in the view: the roots the copy made."""
+        before = set(page.evaluate('[...viewer.roots.keys(), ...viewer.lightRoots.keys(), ...viewer.effectRoots.keys(), ...viewer.volumeRoots.keys()]'))
+        blur(); page.keyboard.press('Control+v')
+        page.wait_for_function('viewer.placing()', timeout=180000)
+        box = page.locator('#viewport > canvas').bounding_box()
+        point = (box['x'] + box['width'] * at[0], box['y'] + box['height'] * at[1])
+        page.mouse.move(*point)
+        page.wait_for_function('viewer.placing()?.ghost.visible', timeout=30000)
+        page.mouse.click(*point)
+        page.wait_for_function('!viewer.placing()', timeout=180000)
+        page.wait_for_timeout(300)
+        return [i for i in page.evaluate('[...viewer.roots.keys(), ...viewer.lightRoots.keys(), ...viewer.effectRoots.keys(), ...viewer.volumeRoots.keys()]') if i not in before]
+
+    def summary(builder=False):
+        doc = page.evaluate('viewer.builderDocument()' if builder else 'viewer.editState()')
+        return page.evaluate(SUMMARY, doc['pieces'] if builder else doc['added']), page.evaluate(SHAPES, doc)
+
+    # On Bar: two of its pieces grouped, a made wall, a cover block, a light, an effect and a building
+    o = page.evaluate('viewer.data.tileGrid.origin')
+    spot = [o[0] + 12 * 96, o[1] + 12 * 96, o[2]]
+    bw.start_build(page, 'wall'); bw.look_at(page, spot)
+    bw.drag(page, bw.ground_point(page, spot), bw.ground_point(page, [spot[0] + 288, spot[1], spot[2]]))
+    page.wait_for_function("viewer.wallState(viewer.gizmo.active)?.generated?.kind === 'fracWall'", timeout=60000)
+    wall = page.evaluate('viewer.gizmo.active')
+    page.keyboard.press('Escape'); page.evaluate('viewer.select(null)')
+    page.evaluate('viewer.showPieces(true); viewer.setLibraryScope("map")')
+    cover_row = page.evaluate("viewer.pieces.entries().find(e => e.cover && e.cover.type !== 'floor').id")
+    page.locator(f'#libList .libitem[data-id="{cover_row}"]').click()
+    canvas = page.locator('#viewport > canvas').bounding_box()
+    at = (canvas['x'] + canvas['width'] * 0.4, canvas['y'] + canvas['height'] * 0.6)
+    page.mouse.move(*at); page.wait_for_function('viewer.placing()?.ghost.visible', timeout=30000); page.mouse.click(*at)
+    page.wait_for_function('[...viewer.roots.values()].some(r => r.userData.source.cover)')
+    cover = page.evaluate('[...viewer.roots.values()].find(r => r.userData.source.cover).userData.source.id')
+    page.evaluate('viewer.showPieces(false)')
+    pair = page.evaluate('''() => [...viewer.roots.values()].filter(r => !r.userData.deleted && !r.userData.source.added && !r.userData.source.hidden
+      && !r.userData.source.environment && r.userData.source.layer === 'base' && viewer.gizmo.linkedCount(r.userData.source.id) === 0)
+      .slice(0, 2).map(r => r.userData.source.id)''')
+    page.evaluate('ids => viewer.gizmo.setSelection(ids)', pair)
+    blur(); page.keyboard.press('Control+g')
+    light = page.evaluate("[...viewer.lightRoots.values()].find(r => !r.userData.source.added && r.userData.source.role !== 'area' && r.visible)?.userData.source.id")
+    effect = page.evaluate("[...viewer.effectRoots.values()].find(r => !r.userData.source.added && !r.userData.source.carriedBy && r.userData.source.layer === 'base' && !viewer.effectState(r.userData.source.id).viewOnly)?.userData.source.id")
+    assert light and effect, (light, effect)
+    page.evaluate('b => viewer.addVolumes(b)', [dict(box=[spot[0], spot[1] + 192, spot[2], spot[0] + 192, spot[1] + 384, spot[2] + 192], floor=0)])
+    volume = page.evaluate('[...viewer.volumeRoots.values()].filter(r => !r.userData.deleted).at(-1).userData.source.id')
+    page.evaluate('viewer.setBoxesShown(true)')
+    page.evaluate('ids => viewer.gizmo.setSelection(ids)', [*pair, wall, cover, light, effect, volume])
+    expected = page.evaluate('() => { const r = viewer.prefabRecords(); return { pieces: r.pieces, buildings: r.buildings, groups: r.groups }; }')
+    want = page.evaluate(SUMMARY, expected['pieces']), page.evaluate(SHAPES, expected)
+    assert len(want[0]) == 6 and want[1]['buildings'] and want[1]['groups'] == ['2'], want
+    blur(); page.keyboard.press('Control+c')
+    # On Police Station: the copy came along; Ctrl+V and a click place it as Save as prefab's records have it, without a
+    # prefab's group round it
+    leave({'map': 'URB_PoliceStation'})
+    assert hint.inner_text() == 'The copy came along: Ctrl+V places it here', hint.inner_text()
+    place()
+    got = summary()
+    assert got == want, (got, want)
+    # the project saved there compiles (the pieces brought from Bar as pieces of other maps are)
+    project = page.evaluate('''async () => { const name = 'Carried ' + Date.now(), names = await fetch('/projects/output-names', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, map: viewer.mapId, target: null})}).then(r => r.json());
+      if (!await viewer.saveProject({name, output: names.output})) throw Error('Project not saved'); return viewer.project().doc; }''')
+    settings = json.loads(Path(page.evaluate("fetch('/setup.json?checks=0').then(r => r.json()).then(s => s.settingsFile)")).read_text(encoding='utf-8'))
+    with tempfile.TemporaryDirectory() as folder:
+        doc = Path(folder) / 'project.json'
+        doc.write_text(json.dumps(project), encoding='utf-8', newline='\n')
+        compiler = Path(__file__).resolve().parents[2] / 'editor' / 'compiler.py'
+        # (the game folder the settings name, resolved to its install, as the server's Library takes it)
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from settings import resolve_game
+        game = resolve_game(settings['game'])[0] if settings.get('game') else None
+        done = subprocess.run([sys.executable, '-B', str(compiler), str(doc), '--cache', settings['cache'], '--out', str(Path(folder) / 'spec.json'),
+                               *(['--game', str(game)] if game else [])], capture_output=True, text=True)
+        report_file = Path(folder) / 'spec-report.json'
+        report = json.loads(report_file.read_text(encoding='utf-8')) if report_file.is_file() else {'errors': ['no report'], 'counts': {}}
+    assert done.returncode == 0 and not report['errors'], (done.stdout, done.stderr, report['errors'])
+    compiled = report['counts']
+    # Into the prefab builder: the copy carried on as it came
+    leave({'prefab': 'new'})
+    place()
+    got = summary(builder=True)
+    assert got == want, (got, want)
+    # Copied in the builder and placed on Bar
+    page.evaluate('viewer.gizmo.setSelection([...viewer.roots.values(), ...viewer.lightRoots.values(), ...viewer.effectRoots.values(), ...viewer.volumeRoots.values()]'
+                  '.filter(r => !r.userData.deleted).map(r => r.userData.source.id))')
+    blur(); page.keyboard.press('Control+c')
+    leave({'map': 'URB_Bar'})
+    place()
+    got = summary()
+    assert got == want, (got, want)
+    # A cut is carried: one piece cut on Bar, placed on Police Station
+    one = page.evaluate("[...viewer.roots.values()].find(r => r.userData.source.added && !r.userData.source.cover && !r.userData.source.added.generated).userData.source.id")
+    page.evaluate('id => viewer.gizmo.setSelection([id])', one)
+    cut = page.evaluate(SUMMARY, page.evaluate('viewer.prefabRecords().pieces'))       # (with its group, as a pick takes it)
+    blur(); page.keyboard.press('Control+x')
+    assert not page.evaluate('id => viewer.roots.has(id)', one)
+    leave({'map': 'URB_PoliceStation'})
+    assert len(page.evaluate('viewer.editState()')['added']) == 0
+    place()
+    assert page.evaluate(SUMMARY, page.evaluate('viewer.editState()')['added']) == cut, cut
+    # An Add panel entry chosen last is not carried
+    page.evaluate('viewer.showPieces(true); viewer.setLibraryScope("map")')
+    row = page.evaluate('viewer.pieces.entries().find(e => !e.light && !e.zone && !e.spawnAdd && !e.diagonal && !e.cover).id')
+    page.locator(f'#libList .libitem[data-id="{row}"]').click()
+    page.keyboard.press('Escape'); page.evaluate('viewer.showPieces(false)')
+    leave({'map': 'URB_Bar'})
+    blur(); page.keyboard.press('Control+v')
+    assert hint.inner_text() == 'Nothing copied yet: select a piece and press Ctrl+C', hint.inner_text()
+    assert not page.evaluate('viewer.placing()')
+    # What can't be carried is said and the rest placed: a carried copy holding a piece of a level a mission streams in
+    # (left out as it was packed) and one of a map the install doesn't have
+    real = page.evaluate('''() => { const r = [...viewer.roots.values()].find(r => !r.userData.deleted && !r.userData.source.added && !r.userData.source.hidden
+      && r.userData.source.layer === 'base' && viewer.gizmo.linkedCount(r.userData.source.id) === 0);
+      viewer.gizmo.setSelection([r.userData.source.id]); const p = viewer.prefabRecords().pieces[0]; viewer.select(null); return p; }''')
+    lost = {**real, 'actor': 'TheWorld.PersistentLevel.Nothing_copy9', 'from': dict(package='NoSuchMapAnywhere', level='base', actor='TheWorld.PersistentLevel.Nothing'),
+            'components': ['TheWorld.PersistentLevel.Nothing.StaticMeshComponent_0']}
+    page.evaluate('d => sessionStorage.setItem("workshop.clip", JSON.stringify(d))', dict(
+        format=1, id='left-check', **{'from': {}}, name='Test copy', words='2 pieces', pivot=real['location'], pivotActor=real['actor'], pieces=[real, lost],
+        groups=[], buildings=[], donors=[], left=['Lamp_A: a piece of a level the mission streams in, not of a map']))
+    place()
+    banner = page.locator('#projectBanner').inner_text()
+    assert 'Test copy: 2 pieces could not be brought here. Lamp_A: a piece of a level the mission streams in' in banner, banner
+    assert len(page.evaluate('viewer.editState()')['added']) == 1
+    # The Buildings view's boxes are carried: copied on Bar, placed on Police Station as a building of their own
+    page.evaluate('viewer.setVolumesShown(true)')
+    page.evaluate('b => viewer.addVolumes(b)', [dict(box=[spot[0], spot[1], spot[2], spot[0] + 288, spot[1] + 192, spot[2] + 128], floor=0)])
+    box = page.evaluate('[...viewer.volumeRoots.values()].filter(r => !r.userData.deleted).at(-1).userData.source.id')
+    page.evaluate('id => viewer.gizmo.setSelection([id])', box)
+    blur(); page.keyboard.press('Control+c')
+    leave({'map': 'URB_PoliceStation'})
+    page.evaluate('viewer.setVolumesShown(true)')
+    before = page.evaluate('viewer.buildings().length')
+    blur(); page.keyboard.press('Control+v')
+    page.wait_for_function('n => viewer.buildings().length === n + 1', arg=before, timeout=10000)
+    sizes = page.evaluate(SHAPES, page.evaluate('viewer.editState()'))['buildings']
+    assert '288x192x128' in sizes, sizes
+    assert not errors, errors
+    page.close()
+    return dict(pieces=want[0], compiled=compiled)

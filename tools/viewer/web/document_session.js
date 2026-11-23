@@ -28,7 +28,7 @@ export const projectsAvailable = () => !builderMode && Boolean(data) && data.sco
 
 export function createDocumentSession({ $, applyState, bombHelperFix, builderDocument, builderKey, builderTitle, camera,
                                         changes, controls, documentWrites, editChanged, editState, flashHint,
-                                        followBuild, gizmo, loadingState, openingProgress, ownSize, problemsPaint,
+                                        carryCopy, followBuild, gizmo, loadingState, openingProgress, ownSize, problemsPaint,
                                         projectNote, refreshBuilder, renderPlayItems, saveBuilder, savedBuildings,
                                         SESSION, setLastBuild, setMissionMoves, showFileDialog, touchRecent }) {
   // a switch of document under way (asking, saving, leaving): no other starts, and no draft is kept meanwhile
@@ -142,6 +142,8 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
           if (!saved || (builderMode ? dirty() : !project || dirty())) return false;
         }
       }
+      // (what was copied goes along, for Ctrl+V in the map or prefab opened next: clipboard.js carryCopy)
+      carryCopy();
       await discardAndGo(change); return true;
     } catch (error) { banner(`Could not leave: ${error.message}`); return false; }
     finally { navigating = false; }

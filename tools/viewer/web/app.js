@@ -388,6 +388,8 @@ const { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensu
         loadProject, openProject, projectChanged, saveProject, saveState, unsavedDocument } = createDocumentSession({
   $, SESSION, applyState, camera, changes, controls, documentWrites, editChanged, editState, flashHint, gizmo,
   loadingState, openingProgress, projectNote,
+  // (made with the clipboard, further down: called through, since it is not made yet while this runs)
+  carryCopy: () => carryCopy(),
   // (made with the Project menu, further down: called through, since it is not made yet while this runs)
   showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave), touchRecent: id => touchRecent(id),
   // (made with the map grid, further down: called through, since it is not made yet while this runs)
@@ -673,7 +675,7 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
         PICK_SLACK, boxEdgesAt, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
         refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
         setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
-        takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint, volumesAt,
+        takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeCopy, volumeHandleNear, volumeHint, volumesAt,
         volumePanel } = createBuildingsWiring({
   $, boxOf, builderBounds, camera, chosenStorey, editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
   editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, lightViewOnly, missionGizmo, pick, projectListings,
@@ -733,7 +735,7 @@ const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNo
 // Copy, paste and placing (clipboard.js): a clip of the selection, a paste, the preview placed with a click,
 // the Add panel shown and an entry of it placed, and a copy dragged off with Shift; after the cover blocks,
 // whose floor's clearance it reads, and the Buildings view, whose own buildings' layer it reads.
-const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
+const { announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
         groupTree, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste, pasteSnapshot,
         pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot, startPlacing,
         stopPlacing } = createClipboard({
@@ -743,10 +745,10 @@ const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, 
   ghostEdges, ghostLikeness, ghostLine, gizmo, gridOrigin, groundAt, groundHeight, groupChain, hoverLikeness,
   isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly, loaded, madeShape,
   makeVolume, materialCache, materialKey, memberOf, memberRecord, newBuildingId, nextFrame, ownerRoot, ownVolumeLayer,
-  partsOf, pasteVolumes, pick, prefabPlacementProblem, rayAt, removeEffectRoots, removeLightRoots,
+  partsOf, pasteVolumes, pick, prefabClip, prefabPlacementProblem, prefabRecords, rayAt, removeEffectRoots, removeLightRoots,
   removeRoots, restingHint, sceneChanged, selectionWords, setLightsShown, setNormalLights, setVolumeBox,
   spawnAddEntries, startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopZonePlacing, unscaled,
-  volumeBox, world, zoneEntries, diagonalEntries, startDiagonalPlacing, stopDiagonalPlacing,
+  volumeBox, volumeCopy, world, zoneEntries, diagonalEntries, startDiagonalPlacing, stopDiagonalPlacing,
   // (made further down: called through, since they are not made yet while this runs)
   deleteSelection: quiet => deleteSelection(quiet), stopWallDrawing: () => stopWallDrawing() });
 // The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The
@@ -915,6 +917,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     await openPrefabDocument(prefabParameter);
     void prefabTest.reconnect();
   } else if (parameters.get('project')) await openProject(parameters.get('project'));
+  // a copy carried from the last map or prefab: the hint says once that Ctrl+V places it here (clipboard.js)
+  announceCarried();
   window.viewer = createTestApi({
     setDiagonalShown, pickedMarks, diagonalGizmo, diagonalWarnings,
     $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState, bombHelperFix, boxOf, BUILD_TOOLS,

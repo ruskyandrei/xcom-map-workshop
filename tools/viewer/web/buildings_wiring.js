@@ -29,6 +29,8 @@
 // around, the panel's counts, the cursor rings' key); what other areas read or set (the Normal button's switch, the
 // buildings' names and kinds, the map's own selected or picked, the tool, a drag, box select's tool, box, drag and
 // hits) is editor_state.js's.
+import { CARRIED_KEY, unpackCarried } from './carried_clip.js';
+import { recallSession } from './storage.js';
 import * as THREE from 'three';
 import { LEVEL, TILE } from './constants.js';
 import { projectsAvailable } from './document_session.js';
@@ -392,15 +394,29 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     if (cut) deleteVolumes();
     flashHint(`${boxCount(targets.length)} ${cut ? 'cut' : 'copied'} · Ctrl+V puts ${targets.length === 1 ? 'a copy' : 'copies'} on top, as the next floor`);
   }
+  // The view's copy as the copy carried to another map or prefab takes it (clipboard.js carryCopy, carried_clip.js):
+  // each box relative to the tile grid's corner, with its building's name and kind; null with none.
+  function volumeCopy() {
+    if (!volumeClip?.length) return null;
+    const o = volumeGrid()?.origin ?? [0, 0, 0];
+    return volumeClip.map(c => ({ box: c.box.map((v, k) => v - o[k % 3]), building: c.building, floor: c.floor, meta: { ...(buildingMeta.get(c.building) ?? {}) } }));
+  }
+  // The boxes the tab carried from the last map or prefab, on this map's tile grid, where the view has no copy of its own
+  function carriedBoxes() {
+    const boxes = unpackCarried(recallSession(CARRIED_KEY))?.doc?.boxes ?? [], o = volumeGrid()?.origin ?? [0, 0, 0];
+    return boxes.map(c => ({ box: c.box.map((v, k) => v + o[k % 3]), building: c.building, floor: c.floor }));
+  }
   // Paste: each copied box again on top of where it was copied from, as the floor above it in its building (a building
   // that is gone gets the boxes as a new one). Moved from there with the gizmo. One undo step, whatever the buildings
-  // (review finding 34: it was one a building), which takes the new buildings' names back too.
+  // (review finding 34: it was one a building), which takes the new buildings' names back too. With no copy of its own,
+  // the boxes the tab carried from the last map or prefab (in a building of their own there, unless this map has it).
   function pasteVolumes() {
-    if (!volumeClip?.length) { flashHint('Nothing copied yet: select a box and press Ctrl+C'); return; }
+    const clip = volumeClip?.length ? volumeClip : carriedBoxes();
+    if (!clip?.length) { flashHint('Nothing copied yet: select a box and press Ctrl+C'); return; }
     const live = new Set(liveVolumes().map(r => r.userData.volume.building)), grid = volumeGrid();
     const top = grid && !builderMode ? grid.origin[2] + grid.dimensions[2] * grid.size[2] : Infinity;
     const byBuilding = new Map();
-    for (const c of volumeClip) { if (!byBuilding.has(c.building)) byBuilding.set(c.building, []); byBuilding.get(c.building).push(c); }
+    for (const c of clip) { if (!byBuilding.has(c.building)) byBuilding.set(c.building, []); byBuilding.get(c.building).push(c); }
     const made = [], fresh = new Map(), names = new Set([...buildingMeta.values()].map(m => m.name));
     let last = null;
     for (const [building, clips] of byBuilding) {
@@ -1204,6 +1220,6 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
            PICK_SLACK, boxEdgesAt, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
            refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
            setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
-           takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint, volumesAt,
+           takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeCopy, volumeHandleNear, volumeHint, volumesAt,
            volumePanel };
 }

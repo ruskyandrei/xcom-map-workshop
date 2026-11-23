@@ -57,16 +57,19 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
   // (a map's package -> its SHA-256, donorHashes: editor_state.js)
   const gridBase = () => (data?.tileGrid?.origin?.length === 3 ? data.tileGrid.origin : [0, 0, 0]);
   // The selection as a prefab's records: { tiles, pieces, groups, buildings, donors, left (what won't go into it, as
-  // sentences), offGrid (the pieces that keep the pose rule and stand off the grid), counts, clip, box }, or null with
-  // nothing to save.
-  function prefabRecords({ complete = false } = {}) {
+  // sentences), offGrid (the pieces that keep the pose rule and stand off the grid), counts, clip, box, base (the
+  // map's point the records' 0 stands at), names (each copied actor's record name) }, or null with nothing to save.
+  // `clip`: a copy's own clip in place of the selection (the copy carried to another map, clipboard.js carryCopy): its
+  // entries are read as they were copied, their roots gone or not (a cut), and its footprint goes by where they stand.
+  function prefabRecords({ complete = false, clip: given = null } = {}) {
     if (complete) return builderRecords();
-    const clip = snapshot();
+    const clip = given ?? snapshot();
     if (!clip) return null;
     const grid = gridBase(), low = [Infinity, Infinity, Infinity], high = [-Infinity, -Infinity, -Infinity];
     const grow = b => { for (let k = 0; k < 3; k++) { low[k] = Math.min(low[k], b[k]); high[k] = Math.max(high[k], b[k + 3]); } };
     const offGrid = [];
-    for (const r of copyable()) {
+    for (const e of given ? clip.entries : []) { const p = new THREE.Vector3().setFromMatrixPosition(e.matrix); grow([p.x, p.z, p.y, p.x, p.z, p.y]); }
+    for (const r of given ? [] : copyable()) {
       // (an effect, a sound or a lens flare is where it stands: a sound's reach is no part of the footprint)
       if (r.userData.effect) { const p = actorPose(r.userData.source, r.matrix).location; grow([...p, ...p]); continue; }
       if (r.userData.light) { const p = lightPose(r).location; grow([...p, ...p]); continue; }
@@ -164,13 +167,16 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
     const groups = [...groupTree(copied, mapChain).values()].map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: [...g.members.values()] }));
     const normalized = normalizePrefab({ pieces, groups, buildings }, [['Selection', [...low, ...high].map((v, k) => v - origin[k % 3])]]);
     return { ...normalized, groups, donors: [...donors.values()].sort((a, b) => a.package.localeCompare(b.package)), left, offGrid, clip,
+             base: [0, 1, 2].map(k => origin[k] + normalized.origin[k]), names,
       counts: { pieces: pieces.length - lights - effects - sounds - flares, lights, effects, sounds, flares, buildings: buildings.length, tiles: normalized.tiles },
              box: new THREE.Box3(new THREE.Vector3(low[0], low[2], low[1]), new THREE.Vector3(high[0], high[2], high[1])) };
   }
   // A prefab as a clip to place in this map: its records put on the map's tile grid (the prefab's origin on the grid's
   // corner; the placing moves it from there), each piece from its template, read from its home map when it is another
-  // map's. `left`: what can't be had here, as sentences.
-  async function prefabClip(doc, step = null) {
+  // map's. `left`: what can't be had here, as sentences. `plain` ({ pivot, pivotActor }: the copy carried from another
+  // map or prefab, carried_clip.js): a copy's clip, not a prefab's (no group round it, no prefab mark), held by its own
+  // pivot (in the records' space) and its pivot piece's record.
+  async function prefabClip(doc, step = null, { plain = null } = {}) {
     const base = gridBase(), here = v => v.map((x, k) => x + base[k]), left = [];
     const records = doc.pieces.map(p => ({ ...p, location: here(p.location) }));
     const foreign = [...new Map(records.filter(p => !p.template && !p.kind && isForeignTarget(p.from)).map(p => [targetKey(p.from), p.from])).values()];
@@ -242,9 +248,14 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
       meta[b.id] = { name: b.name ?? '', kind: b.kind ?? 'building', ...(b.cursorFloors === true ? { cursorFloors: true } : {}) };
       b.floors.forEach((floor, k) => { for (const box of floor.boxes) volumes.push({ matrix: boxMatrix(box.map((v, i) => v + base[i % 3])), building: b.id, floor: k }); });
     }
+    const groups = (doc.groups ?? []).map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: g.members.map(memberKey) }));
+    if (plain) {
+      return { entries, volumes, buildingMeta: meta, left, name: doc.name, groups, pivot: plain.pivot.map((v, k) => v + base[k]),
+               pivotIndex: Math.max(0, entries.findIndex(e => e.unit === plain.pivotActor)), gridLocked: volumes.length > 0 };
+    }
     const tiles = doc.floor?.tiles ?? [1, 1], mark = { id: doc.id, name: doc.name, revision: doc.revision ?? 0 };
     return { entries, volumes, buildingMeta: meta, left, name: doc.name, prefab: mark, wrap: mark, pivotIndex: 0,
-             groups: (doc.groups ?? []).map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: g.members.map(memberKey) })),
+             groups,
              // held by the middle of its footprint, on a tile corner
              pivot: [base[0] + Math.round(tiles[0] / 2) * TILE, base[1] + Math.round(tiles[1] / 2) * TILE, base[2]],
              gridLocked: volumes.length > 0 };

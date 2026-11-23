@@ -262,6 +262,22 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </div>
 
 <div class="task">
+<h3 id="carry-copy">Bring pieces from one map to another</h3>
+<ol class="steps">
+  <li>Select what you want, in a map or in the <a href="#prefab-builder">prefab builder</a>, and press
+    <kbd>Ctrl</kbd>+<kbd>C</kbd> (or <kbd>Ctrl</kbd>+<kbd>X</kbd>).</li>
+  <li>Open the other map (<kbd>M</kbd>) or a prefab. The hint says the copy came along.</li>
+  <li>Press <kbd>Ctrl</kbd>+<kbd>V</kbd>: the copy follows the cursor, and a click places it, as after any copy.</li>
+</ol>
+<p>It brings what a copy holds: pieces with their tint, flags and drawn shapes, cover blocks, lights, effects, sounds
+  and lens flares, the buildings selected with them and the groups among them; the Buildings view's copied boxes
+  too. The first paste in a map reads the pieces of other maps, as <a href="#add-all">All maps</a> does, and takes a
+  moment; the Build brings them from their home map. What can't come (a piece of a level a mission streams in, a light
+  the editor has no recipe for) is named in a banner, and the rest is placed. The copy is kept by this browser tab
+  only, until the next copy; for something to keep or pass on, save a <a href="#prefabs">prefab</a>.</p>
+</div>
+
+<div class="task">
 <h3>Rearrange a room</h3>
 <ol class="steps">
   <li>Cut down to the room's floor with <b class="ui">Floors</b>.</li>

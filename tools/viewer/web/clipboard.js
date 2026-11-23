@@ -11,6 +11,8 @@
 //   map's pieces, a light, a cover block or a recipe (chooseEntry, entryParts), or one of All maps (chooseLibraryEntry,
 //   chooseLibraryEffect);
 // - a copy dragged off with Shift on a move handle (copyDragBegin, copyDragEnd);
+// - the copy carried to another map or prefab (carried_clip.js: carryCopy as the page leaves, bringCarried on paste,
+//   announceCarried as the next page opens);
 // - a drawn-only copy of some pieces (previewGroup: the placing preview, the Add panel's thumbnails), and the Add
 //   panel's recipes of the areas that make them (pieceRecipes: lights, cover blocks, landing zones, spawn points).
 //
@@ -24,9 +26,10 @@ import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { LEVEL, PL, QUARTER, TILE } from './constants.js';
 import { isFloor } from './cover.js';
-import { allRoots, boxesShown, builderMode, buildingMeta, chooseToken, clipboard, copySerial, data, effectRoots,
+import { CARRIED_KEY, CARRIED_TOLD, CARRIED_WORDS, packCarried, unpackCarried } from './carried_clip.js';
+import { activeMapId, allRoots, boxesShown, builder, builderMode, buildingMeta, chooseToken, clipboard, copySerial, data, effectRoots,
          geometryCache, groupIndex, hintTimer, library, libraryScope, lightsShown, nextChooseToken,
-         nextCopySerial, ownSet, pickedEffect, pieces, placing, pointer, prefabTab, roots, setClipboard, setGhostDirty,
+         nextCopySerial, ownSet, pickedEffect, pieces, placing, pointer, prefabTab, project, roots, setClipboard, setGhostDirty,
          setGroups, setLibraryScopeValue, setPlacing, snapMode, volumesOn } from './editor_state.js';
 import { onHub } from './edit_hub.js';
 import { recordName } from './effects_rules.js';
@@ -37,7 +40,7 @@ import { fromOf, MADE_KINDS, optionsOf, stateOfRoot } from './piece_records.js';
 import { collectPieces } from './pieces.js';
 import { buildingKey, groupKey, memberKey, pruneGroups, targetKey, uuid } from './project.js';
 import { droppedAcross, stepped, stepsOf } from './snap_steps.js';
-import { remember } from './storage.js';
+import { forgetSession, recallSession, remember, rememberSession } from './storage.js';
 import { plural, short, text } from './dom_words.js';
 
 export function createClipboard({ $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots,
@@ -49,11 +52,11 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
                                   isForeignTarget, libraryTemplate, lightClip, lightEntries, lightViewOnly,
                                   loaded, madeShape, makeVolume, materialCache, materialKey, memberOf,
                                   memberRecord, newBuildingId, nextFrame, ownerRoot, ownVolumeLayer, partsOf,
-                                  pasteVolumes, pick, prefabPlacementProblem, rayAt, removeEffectRoots,
+                                  pasteVolumes, pick, prefabClip, prefabPlacementProblem, prefabRecords, rayAt, removeEffectRoots,
                                   removeLightRoots, removeRoots, restingHint, sceneChanged, selectionWords,
                                   setLightsShown, setNormalLights, setVolumeBox, spawnAddEntries, startSpawnPlacing,
                                   startZonePlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing,
-                                  unscaled, volumeBox, world, zoneEntries, diagonalEntries, startDiagonalPlacing,
+                                  unscaled, volumeBox, volumeCopy, world, zoneEntries, diagonalEntries, startDiagonalPlacing,
                                   stopDiagonalPlacing }) {
   // What the selection is now (moved pieces at their moved pose), with the pivot piece's game location and a name
   // for hints.
@@ -252,7 +255,8 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
       flashHint(fx ? `It isn't copied: ${effectViewOnly(fx.userData.source, 'copy') ?? 'it is deleted'}` : 'Select a piece, light or floor box to copy');
       return;
     }
-    setClipboard(clip);
+    // (a copy: what the tab carries to another map or prefab, carryCopy)
+    setClipboard({ ...clip, copied: true });
     const made = new Set(clip.volumes.map(v => v.building)).size;
     if (cut) deleteSelection(true);
     flashHint(`${cut ? 'Cut' : 'Copied'} ${clip.words}${made ? ` and ${plural(made, 'building')}` : ''} · Ctrl+V to place a copy`);
@@ -302,7 +306,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   function paste() {
     if (placing) { if (pointer) placeAt(pointer, false); return; }
     if (volumesOn) { pasteVolumes(); return; }
-    if (!clipboard) { flashHint('Nothing copied yet: select a piece and press Ctrl+C'); return; }
+    if (!clipboard) { void bringCarried(); return; }
     // a large copy's preview takes a moment to make: the busy mark meanwhile
     if (clipboard.entries.length >= BUSY_PIECES) {
       const clip = clipboard;
@@ -557,6 +561,63 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     if (delta) flashHint(`Copied ${clip.name}`);
   }
 
+  // ---- The copy carried to another map or prefab (Discord S17; carried_clip.js). What Ctrl+V would place, when it is a
+  // copy (Ctrl+C or Ctrl+X: pieces, lights, effects, sounds, flares and buildings; and the Buildings view's boxes), is
+  // packed as the page leaves for another map or prefab (document_session.js goTo) and kept by the tab, for the tab
+  // alone. Ctrl+V there, with nothing copied of its own, brings it: its pieces read as the Add panel's All maps reads
+  // another map's, the destination's own pieces its own again, what can't be had said. An Add panel entry or a prefab
+  // chosen last is not carried (a click away in any map), and the tab then carries nothing; with nothing on the
+  // clipboard, what the tab carries stays for the next map.
+  function carryCopy() {
+    const boxes = volumeCopy(), live = clipboard?.copied ? clipboard : null;
+    if (!live && !boxes) { if (clipboard) forgetSession(CARRIED_KEY); return; }
+    // (the copy brought here and not copied again: carried on as it came)
+    if (live?.carried && !boxes) { rememberSession(CARRIED_KEY, live.carried); return; }
+    // (the copy's records as a prefab's, its pivot in their space: prefab_place.js, run on the clip's own entries)
+    const records = live ? prefabRecords({ clip: live }) : null, pivotEntry = live?.entries[live.pivotIndex], id = uuid();
+    const name = live?.name ?? (boxes.length === 1 ? 'The floor box' : 'The floor boxes');
+    const packed = packCarried({ id, name, words: live?.words ?? '',
+      from: { map: activeMapId ?? data?.name ?? null, prefab: builderMode ? builder.doc?.id ?? null : null, project: project?.doc?.id ?? null },
+      pivot: records ? live.pivot.map((v, k) => v - records.base[k]) : [0, 0, 0],
+      pivotActor: records && pivotEntry ? records.names.get(pivotEntry.source.actor) ?? null : null,
+      pieces: records?.pieces, groups: records?.groups, buildings: records?.buildings, donors: records?.donors, left: records?.left, boxes });
+    // (too large for the tab's storage: a marker, which says so on arrival)
+    if (!(packed.text && rememberSession(CARRIED_KEY, packed.text))) rememberSession(CARRIED_KEY, packed.tooLarge ?? packCarried({ id, name }, 0).tooLarge);
+  }
+  // Ctrl+V with nothing copied in this page: the copy the tab carried from the last map or prefab, made into a clip
+  // (prefab_place.js prefabClip, as a copy's: no group round it, held by its own pivot) and placed as any copy is. The
+  // first time its pieces are read from the game's maps, under the busy mark; the clip made is the page's own then, so
+  // the next Ctrl+V is at once.
+  async function bringCarried() {
+    const text = recallSession(CARRIED_KEY), carried = unpackCarried(text);
+    if (carried?.error) { flashHint(carried.error); return; }
+    if (carried?.tooLarge !== undefined) { flashHint(CARRIED_WORDS.tooLarge(carried.tooLarge)); return; }
+    const doc = carried?.doc;
+    if (!doc || (!doc.pieces.length && !doc.buildings.length)) {
+      flashHint(doc?.boxes?.length ? 'The copy is floor boxes: Ctrl+V places them in the Buildings view (Shift+B)' : 'Nothing copied yet: select a piece and press Ctrl+C');
+      return;
+    }
+    const token = nextChooseToken();
+    let clip;
+    try {
+      clip = await busy(`Bringing ${doc.name}: pieces read`, step => prefabClip(doc, step, { plain: { pivot: doc.pivot, pivotActor: doc.pivotActor } }), { now: true });
+    } catch (error) { console.error(error); flashHint(`${doc.name} could not be brought here: ${error?.message ?? error}`); return; }
+    if (token !== chooseToken || clipboard) return;       // (something else was copied or chosen meanwhile)
+    const left = [...doc.left, ...clip.left];
+    if (left.length) banner(`${doc.name}: ${plural(left.length, 'piece')} could not be brought here. ${left[0]}`);
+    if (!clip.entries.length && !clip.volumes.length) return;
+    setClipboard({ ...clip, words: doc.words, copied: true, carried: text });
+    startPlacing(clipboard);
+  }
+  // As a page opens: the hint says once that a copy came along (or was too large to)
+  function announceCarried() {
+    if (clipboard) return;
+    const carried = unpackCarried(recallSession(CARRIED_KEY)), id = carried?.doc?.id ?? carried?.id;
+    if (!id || recallSession(CARRIED_TOLD) === id) return;
+    rememberSession(CARRIED_TOLD, id);
+    flashHint(carried.doc ? CARRIED_WORDS.arrived : CARRIED_WORDS.tooLarge(carried.tooLarge));
+  }
+
   // This prefab follows the prefab: a piece added, deleted, moved or changed shows without closing the panel, the list
   // collected again once a frame at most while the tab is shown
   let recollect = false;
@@ -569,7 +630,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     });
   });
 
-  return { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget,
+  return { announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget,
            entryParts, groupTree, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,
            pasteSnapshot, pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot,
            startPlacing, stopPlacing };
