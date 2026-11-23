@@ -1128,9 +1128,10 @@ DIAGONAL_BITS = {(-1, 1): 0x1, (1, -1): 0x2, (-1, -1): 0x4, (1, 1): 0x8}
 
 
 def diagonal_edit(p, lane):
-    """The project's diagonal cover (the native edit's `diagonalCover`: `marks` [{at, toward}], `removed` [at], each
-    `at` a world place in a tile, its middle) as tiles of the map's grid (level_grid): dict(marks {tile: the cover
-    bits of its corners}, removed (the map's marked tiles that lose their diagonal cover; a tile the project marks
+    """The project's diagonal cover (the native edit's `diagonalCover`: `marks` [{at, toward, low?}], `removed` [at],
+    each `at` a world place in a tile, its middle; `low` the corners of `toward` that are half cover) as tiles of the
+    map's grid (level_grid): dict(marks {tile: the cover bits of its corners (0x1 to 0x8), with the low bit (0x10 to
+    0x80) of each half one}, removed (the map's marked tiles that lose their diagonal cover; a tile the project marks
     again is a mark), outside (the places off the grid or with no corner, left out)), or None for none. Diagonal
     cover by hand: private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, section 3.3."""
     if not lane or not (lane.get('marks') or lane.get('removed')):
@@ -1147,6 +1148,8 @@ def diagonal_edit(p, lane):
         bits = 0
         for d in m.get('toward') or []:
             bits |= DIAGONAL_BITS.get((int(d[0]), int(d[1])), 0)
+        for d in m.get('low') or []:
+            bits |= (DIAGONAL_BITS.get((int(d[0]), int(d[1])), 0) & bits) << 4       # (half: the corner's low bit)
         if not bits or not all(0 <= t[k] < dims[k] for k in range(3)):
             outside.append([float(v) for v in m['at']])
             continue
@@ -3570,7 +3573,8 @@ def main():
     if not st.copies and not st.hides and not st.covers and not st.buildings and not st.building_edits \
             and not st.cleared and not st.landing_zones and not st.stream_tiles and not st.piece_flags \
             and native_lights.is_empty(st.lights) and not st.effects and not st.sounds and not st.flares \
-            and not st.spawns and not st.background_sound and not st.piece_blasts             and not ((st.diagonal_cover or {}).get('marks') or (st.diagonal_cover or {}).get('removed')):
+            and not st.spawns and not st.background_sound and not st.piece_blasts \
+            and not ((st.diagonal_cover or {}).get('marks') or (st.diagonal_cover or {}).get('removed')):
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')

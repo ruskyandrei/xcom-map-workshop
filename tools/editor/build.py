@@ -1584,7 +1584,7 @@ class Build:
         except (OSError, ValueError, KeyError, AttributeError):
             return {}
         whole = d.get('whole') or []
-        marks = [dict(at=r.get('at'), tile=r['tile'], toward=r['mark'], cover=r['cover'],
+        marks = [dict(at=r.get('at'), tile=r['tile'], toward=r['mark'], cover=r['cover'], **({'half': r['half']} if r.get('half') else {}),
                       **({'noWall': r['noWall']} if r.get('noWall') else {}), **({'noFloor': True} if r.get('noFloor') else {}))
                  for r in whole if r.get('mark')]
         record = dict(marks=marks, removed=sum(1 for r in whole if r.get('removed')),

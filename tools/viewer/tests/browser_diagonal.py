@@ -75,6 +75,14 @@ def check_diagonal(browser, url, open_viewer):
     page.keyboard.press(']')
     assert page.evaluate(hand)['marks'][0]['toward'] == [[-1, 1], [1, -1]], page.evaluate(hand)
     page.keyboard.press('Control+z')
+    # Cover: full, as the scout's mark is; Half makes both its corners half cover, one undo step
+    assert page.locator('#diagonalHeight').input_value() == 'full'
+    page.locator('#diagonalHeight').select_option('half')
+    h = page.evaluate(hand)
+    assert h['marks'][0]['low'] == [[-1, -1], [1, 1]] == h['marks'][0]['toward'], h
+    assert page.locator('#diagonalHeight').input_value() == 'half'
+    page.keyboard.press('Control+z')
+    assert 'low' not in page.evaluate(hand)['marks'][0] and page.locator('#diagonalHeight').input_value() == 'full'
     # the gizmo's X arrow dragged: whole tiles along x, whatever Snap says (here off); Reset puts it back, picked at home
     page.evaluate("viewer.setSnapMode('off')")
     g = page.evaluate('viewer.diagonalGizmo()')

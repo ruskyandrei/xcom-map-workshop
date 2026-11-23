@@ -2367,7 +2367,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     piece, the piece.</li>
   <li data-n="9"><b>Its corners</b> as four buttons, laid out as the view shows them: a click switches one, as its dot
     does.</li>
-  <li data-n="10"><b>Delete</b> (<kbd>Del</kbd>) deletes the picked marks. <b>Reset</b> puts a map's mark you changed,
+  <li data-n="10"><b>Cover:</b> full or half cover toward the picked marks' corners (below).</li>
+  <li data-n="11"><b>Delete</b> (<kbd>Del</kbd>) deletes the picked marks. <b>Reset</b> puts a map's mark you changed,
     moved or deleted back as the map has it.</li>
 </ol>
 <ul>
@@ -2377,7 +2378,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     deletes, pale and dashed: pick one and choose Reset to bring it back.</li>
   <li><b>After a build,</b> the panel says what the last build gave the picked mark: high or low cover, its
     step-outs, and a corner with no wall.</li>
-  <li><b>A corner with no wall</b> still gives cover: high cover against nothing, without the step-outs a wall gives.
+  <li><b>Cover</b> makes the picked marks' corners full or half cover, the shield a unit
+    there shows. A new mark gives full cover, and the map's own marks show what the map gives (<i>Full and half</i>
+    where their corners differ). In the view, a half corner's arrow is half as long.</li>
+  <li><b>A corner with no wall</b> still gives cover: full or half cover against nothing, as Cover says, without the
+    step-outs a wall gives.
     The Build warns of it, and of a mark on a tile with no floor, which gives no cover. The build window's light step
     says how many tiles were marked.</li>
   <li><b>Box select doesn't take marks:</b> <kbd>Ctrl</kbd>+click picks several, and the gizmo,
@@ -3126,6 +3131,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     inside a row of tiles takes those tiles: <a href="#floor-tiles">floors</a>, <a href="#wall-in-row">walls</a>.</li>
   <li><b>Diagonal cover is only where a mark is.</b> A slanted wall you draw, or a cover block at 45°, gives none in
     its corners until you <a href="#diagonal">mark them</a>.</li>
+  <li><b>A blast takes diagonal cover away.</b> When something is destroyed, the game works the tiles round it out
+    again from what still stands, and that never gives diagonal cover back: a marked tile it reaches loses its
+    cover, even where the slanted wall still stands. The maps' own marks go the same way.</li>
   <li><b>The squad may land on a new piece.</b> Keep copies off the soldier tiles, or
     <a href="#landingzones">move the landing zone</a>.</li>
   <li><b>A quick build's lighting is wrong on purpose.</b> Copies are lit as their originals were and cast no shadows,

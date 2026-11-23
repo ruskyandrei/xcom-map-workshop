@@ -1,22 +1,24 @@
 """Diagonal cover placed by hand in a project (private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, stage M2;
 KNOWN-BUGS.md KB-20), for the compiler.
 
-The project's `diagonalCover` (schema 7): {"marks": [{"at": [x, y, z], "toward": [[sx, sy], ...], "from"?: [x, y, z]}],
-"removed": [[x, y, z], ...]}. Each place is a point in a tile, its middle, in the world: the game's tile corner
+The project's `diagonalCover` (schema 7): {"marks": [{"at": [x, y, z], "toward": [[sx, sy], ...], "low"?: [[sx, sy], ...],
+"from"?: [x, y, z]}], "removed": [[x, y, z], ...]}. Each place is a point in a tile, its middle, in the world: the game's tile corner
 (tileGrid.tiles) counts the tiles, so a grid grown by whole tiles leaves a place on its tile.
 - A mark gives its tile diagonal cover toward its corners ((sx, sy), each +1 or -1, game axes: the diagonal table's
   N (-1, 1), S (1, -1), E (-1, -1) and W (1, 1); research/native/cover-build.md, section 4), in place of whatever the
-  map has there. `from` names the map's marked tile it was (a map's mark moved or turned), which loses its own.
+  map has there. `low` names the corners that are half cover (the panel's Cover: Half), the others full: the game
+  keeps a low bit for each corner. `from` names the map's marked tile it was (a map's mark moved or turned), which
+  loses its own.
 - `removed` names the map's marked tiles (the export's tactical.diagonalCover) the project takes diagonal cover from.
 Other fields of a mark are the page's (what it follows, how it came) and are not read here.
 
-The Build gives a mark's tile what the game's build gives a seeded tile, along the marked corners only, and a marked
-corner with no wall cover as marked (tools/bake/diagonal_keep.py mark_cover): what a corner's wall gives (high or
-low, the step-outs) is known at the Build, not here.
+The Build gives a mark's tile what the game's build gives a seeded tile, along the marked corners only, each corner
+as high or low as the mark says, and a marked corner with no wall cover as marked (tools/bake/diagonal_keep.py
+mark_cover): what a corner's wall gives besides (the step-outs, the cover location) is known at the Build, not here.
 
 A DiagonalEdits works for one Compiler, as the other families do: it reads the document and the scene from it and
 says what it finds through its leave_out, warn and note. `lane` is the spec's `diagonalCover` (compiler.native_split
-hands it to the Build: tools/bake/native_copy.py diagonal_edit): {marks [{at, toward}], removed [at]}, or None.
+hands it to the Build: tools/bake/native_copy.py diagonal_edit): {marks [{at, toward, low?}], removed [at]}, or None.
 """
 import json
 import math
@@ -103,16 +105,18 @@ class DiagonalEdits:
                 continue
             at = _place(m.get('at')) if isinstance(m, dict) else None
             corners = _corners(m.get('toward')) if isinstance(m, dict) else None
-            if at is None or corners is None:
-                self.c.leave_out('diagonal-mark', 'A diagonal cover mark must name a place [x, y, z] and one to four corners, '
-                                 'each [1 or -1, 1 or -1]; mark %d has %s: it is left out' % (i + 1, json.dumps(m)[:160]),
-                                 record='diagonalCover.marks[%d]' % i)
+            low = [] if not isinstance(m, dict) or m.get('low') in (None, []) else _corners(m.get('low'))
+            if at is None or corners is None or low is None or not set(low) <= set(corners):
+                self.c.leave_out('diagonal-mark', 'A diagonal cover mark must name a place [x, y, z], one to four corners, '
+                                 'each [1 or -1, 1 or -1], and as `low` the ones of them that are half cover; mark %d has '
+                                 '%s: it is left out' % (i + 1, json.dumps(m)[:160]), record='diagonalCover.marks[%d]' % i)
                 continue
             t = self.tile(at)
             if t in marks:
                 marks[t]['toward'] = sorted(set(marks[t]['toward']) | set(corners))
+                marks[t]['low'] = sorted(set(marks[t]['low']) | set(low))
             else:
-                marks[t] = dict(at=at, toward=corners)
+                marks[t] = dict(at=at, toward=corners, low=low)
             came = _place(m.get('from')) if m.get('from') is not None else None
             if came is not None and self.tile(came) in own and self.tile(came) != t:
                 removed[self.tile(came)] = came
@@ -136,12 +140,14 @@ class DiagonalEdits:
             if carries:
                 self.lane = dict(pageCarries=True)
             return
-        self.lane = dict(marks=[dict(at=marks[t]['at'], toward=[list(c) for c in marks[t]['toward']]) for t in sorted(marks)],
+        self.lane = dict(marks=[dict(at=marks[t]['at'], toward=[list(c) for c in marks[t]['toward']],
+                                     **({'low': [list(c) for c in marks[t]['low']]} if marks[t]['low'] else {}))
+                                for t in sorted(marks)],
                          removed=[removed[t] for t in sorted(removed)], **({'pageCarries': True} if carries else {}))
         self.counts = dict(marks=len(marks), removed=len(removed))
         self.c.note('diagonal-marks', 'The Build gives %d tile%s the diagonal cover the project marks, and takes it from %d of '
-                    'the map\'s own: a mark gets what the game gives a marked corner along each of its corners, and cover '
-                    'as marked toward a corner with no wall there'
+                    'the map\'s own: a mark gets what the game gives a marked corner along each of its corners, full or half '
+                    'cover as the mark says, and cover as marked toward a corner with no wall there'
                     % (len(marks), '' if len(marks) == 1 else 's', len(removed)))
 
     def page_carries(self):

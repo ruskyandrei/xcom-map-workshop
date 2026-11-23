@@ -1387,8 +1387,8 @@ class Shots:
         """The Diagonal cover view on the farm's crashed scout, cut to its first floor, at its south-east corner: the
         Add panel's Diagonal cover entry chosen, its ghost mark at the pointer (diagonal-add), then put down there; the
         map's mark of the hull's corner given a second corner and picked, with its gizmo, corner dots and panel, beside
-        another mark of the map as it is (diagonal). Undone after (no project is saved: a project whose one change is
-        its marks doesn't build yet, so the panel's line of what the last build gave the mark isn't in the picture)."""
+        another mark of the map as it is (diagonal). Undone after (no project is saved or built, so the panel's line of
+        what the last build gave the mark isn't in the picture)."""
         page = self.page
         page.goto('%s?map=%s' % (self.server, FARM))
         page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=300000)
@@ -1441,7 +1441,7 @@ class Shots:
                  dict(n=5, rect=at(self.diagonal_at(MAP_MARK), 18), side='bottom', gap=60, inset=3),
                  dict(n=6, rect=at(self.diagonal_at(NEW_MARK), 18), side='top', gap=60, inset=3)]
         marks += self.panel_rows('#diagonalPanel', [(7, '#diagonalChip'), (8, '#diagonalWhere'), (9, '#diagonalCorners'),
-                                                    (10, '#diagonalDelete')])
+                                                    (10, '#diagonalHeightRow'), (11, '#diagonalDelete')])
         self.shot('diagonal', marks, resize=0.75)
         page.keyboard.press('Escape')
         while page.evaluate('viewer.gizmo.undoDepth()') > steps: page.keyboard.press('Control+z')

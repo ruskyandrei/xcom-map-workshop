@@ -69,7 +69,7 @@ export function createLibraryTemplates({ boundsOf, buildRoot, collisionMesh, eff
         // where the piece stands on its home map's tile grid, said on this map's (the compiler does the same): the
         // pose rule's snap then works as for one of the map's own pieces
         const here = data.tileGrid?.origin, shift = record.grid && here?.length === 3 ? here.map((v, k) => v - record.grid[k]) : [0, 0, 0];
-        // (its diagonal cover marks in its home map, piece record 11, shifted as its pieces are: a copy brings them,
+        // (its diagonal cover marks in its home map, piece record 12, shifted as its pieces are: a copy brings them,
         // diagonal_wiring.js carriedNow)
         const foreign = { package: record.source.package, key: record.key, buildings: record.buildings ?? [], areaLights: record.areaLights ?? {},
                           diagonal: (record.diagonal ?? []).map(m => ({ ...m, at: m.at.map((v, k) => v + shift[k]) })) };

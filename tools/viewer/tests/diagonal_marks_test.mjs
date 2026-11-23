@@ -3,8 +3,8 @@
 // build's words for a mark.
 // Run: node tools/viewer/tests/diagonal_marks_test.mjs
 import assert from 'node:assert/strict';
-import { addMark, builtWords, carryMark, CORNERS, cornerNear, deleteMark, handFromSaved, marksNow, middleOf, moveMark, ownMarks, resetMark, savedDiagonal,
-         setCorners, tileOf, tidyHand, toggleCorner, turnedCorners } from '../web/diagonal_marks.js';
+import { addMark, builtWords, carryMark, CORNERS, cornerNear, deleteMark, handFromSaved, heightOf, marksNow, middleOf, moveMark, ownMarks, resetMark,
+         savedDiagonal, setCorners, setHalf, tileOf, tidyHand, toggleCorner, turnedCorners } from '../web/diagonal_marks.js';
 
 const corner = [-1001, -2001, -65];
 const scene = { tactical: { diagonalCover: [
@@ -122,4 +122,40 @@ const set = setCorners(scene, null, corner, [10, 10, 0], [[1, -1]]);
 assert.deepEqual(set.marks, [{ at: middleOf([10, 10, 0], corner), toward: [[1, -1]], from: middleOf([10, 10, 0], corner) }]);
 assert.equal(tidyHand(setCorners(scene, set, corner, [10, 10, 0], [[-1, -1]])), null);
 assert.equal(setCorners(scene, null, corner, [30, 30, 0], [[1, 1]]), null);
+
+// Cover, full or half: the map's marks as the map has them (its W corner half), a mark set half and back
+const listed = tile => marksNow(scene, null, corner).find(m => m.key === tile);
+assert.deepEqual(listed('12,10,0').low, [[1, 1]]);
+assert.equal(heightOf(listed('12,10,0')), 'half');
+assert.equal(heightOf(listed('10,10,0')), 'full');
+assert.equal(heightOf({ toward: [[1, 1], [-1, -1]], low: [[1, 1]] }), 'mixed');
+let half = setHalf(scene, null, corner, [10, 10, 0], true);
+assert.deepEqual(half.marks, [{ at: home, toward: [[-1, -1]], low: [[-1, -1]], from: home }]);
+assert.equal(marksNow(scene, half, corner).find(m => m.key === '10,10,0').kind, 'changed');
+assert.equal(tidyHand(setHalf(scene, half, corner, [10, 10, 0], false)), null);      // full again: the map's own
+assert.equal(setHalf(scene, null, corner, [10, 10, 0], false), null);                // full already: nothing
+const full = setHalf(scene, null, corner, [12, 10, 0], false);
+assert.deepEqual(full.marks, [{ at: middleOf([12, 10, 0], corner), toward: [[1, 1]], from: middleOf([12, 10, 0], corner) }]);
+// a corner switched on a mark that is all half comes on half; on a mixed or full one, full
+half = setHalf(scene, toggleCorner(scene, null, corner, [20, 20, 0], [1, -1]), corner, [20, 20, 0], true);
+half = toggleCorner(scene, half, corner, [20, 20, 0], [-1, 1]);
+assert.deepEqual(half.marks[0], { at: spot, toward: [[-1, 1], [1, -1]], low: [[-1, 1], [1, -1]] });
+const fuller = toggleCorner(scene, setCorners(scene, half, corner, [20, 20, 0], [[-1, 1], [1, -1]], [], [[1, -1]]), corner, [20, 20, 0], [1, 1]);
+assert.deepEqual(fuller.marks[0].low, [[1, -1]]);
+// turned and moved, the half corners go with their corners; the map's half mark moved home is the map's own again
+const turned = setCorners(scene, half, corner, [20, 20, 0], turnedCorners([[-1, 1], [1, -1]], 1), [], turnedCorners([[1, -1]], 1));
+assert.deepEqual(turned.marks[0].toward, [[-1, -1], [1, 1]]);
+assert.deepEqual(turned.marks[0].low, [[1, 1]]);
+const movedHalf = moveMark(scene, null, corner, [12, 10, 0], [12, 11, 0]);
+assert.deepEqual(movedHalf.marks[0].low, [[1, 1]]);
+assert.equal(tidyHand(moveMark(scene, movedHalf, corner, [12, 11, 0], [12, 10, 0])), null);
+// saved and read back with their half corners; half corners a mark doesn't have are dropped, and bad ones refused
+assert.deepEqual(tidyHand({ marks: [{ at: spot, toward: [[1, -1]], low: [[1, 1], [1, -1]] }] }).marks[0].low, [[1, -1]]);
+const savedHalf = savedDiagonal(half, [{ at: middleOf([40, 40, 0], corner), toward: [[1, 1]], low: [[1, 1]], by: 'X_copy1' }]);
+assert.deepEqual(savedHalf.marks[1].low, [[1, 1]]);
+assert.deepEqual(handFromSaved(savedHalf).hand, tidyHand(half));
+assert.deepEqual(handFromSaved({ marks: [{ at: spot, toward: [[1, 1]], low: 'all' }] }).carriedOver.length, 1);
+// a carried mark turns its half corners with it
+assert.deepEqual(carryMark(turnAbout(home, 90), home, [[-1, -1], [1, 1]], corner, [[1, 1]]),
+                 { at: home, toward: [[-1, 1], [1, -1]], low: [[1, -1]] });
 console.log('diagonal_marks: ok');

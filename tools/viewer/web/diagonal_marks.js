@@ -3,17 +3,18 @@
 // and edits them.
 //
 // A mark is a floor tile and one to four of its corners: a unit on the tile gets cover toward those corners, along the
-// tile's diagonals. A corner is [sx, sy], each +1 or -1, in game axes (the diagonal table's N [-1, 1], S [1, -1],
-// E [-1, -1], W [1, 1]: research/native/cover-build.md, section 4).
+// tile's diagonals, full or half for each (`low`: the corners that are half, as the game's low bit for each). A corner
+// is [sx, sy], each +1 or -1, in game axes (the diagonal table's N [-1, 1], S [1, -1], E [-1, -1], W [1, 1]:
+// research/native/cover-build.md, section 4).
 // - The map's own marks are the export's tactical.diagonalCover (the tiles its makers' seeds marked), each with the
 //   corners the game's build gave it, counted from the game's tile corner (map_grid.js tileCorner).
-// - The project's own (`hand`: the editor state's projectDiagonal) is { marks: [{ at, toward, from? }], removed: [at] }
+// - The project's own (`hand`: the editor state's projectDiagonal) is { marks: [{ at, toward, low?, from? }], removed: [at] }
 //   or null: a mark the project adds, or one of the map's it moves or turns (`from`: the map's tile it was); and the
 //   map's marks it deletes. Places (`at`, `from`, `removed`) are a tile's middle in the world, the level's middle in
 //   height, so a grid grown by whole tiles leaves each on its tile (the compiler and the Build count tiles so too:
 //   tools/editor/diagonal_edits.py, tools/bake/native_copy.py diagonal_edit).
 // - The marks that follow their pieces (`carried`: worked out by the wiring from the pieces as they stand; plan,
-//   section 5) are [{ at, toward, from?, by }]: saved with the project for the Build, worked out again when it opens.
+//   section 5) are [{ at, toward, low?, from?, by }]: saved with the project for the Build, worked out again when it opens.
 // Every edit here returns a new `hand` (the old one is the undo), null for no edit at all.
 
 export const TILE_SIZE = [96, 96, 64];
@@ -22,6 +23,8 @@ export const CORNERS = [[-1, 1], [1, -1], [-1, -1], [1, 1]];
 export const cornerKey = c => `${c[0]},${c[1]}`;
 const sameCorner = (a, b) => a[0] === b[0] && a[1] === b[1];
 const sortCorners = list => CORNERS.filter(c => list.some(d => sameCorner(c, d)));
+// a mark's half corners: those of `low` it has, in the table's order
+const lowOf = (low, toward) => sortCorners((low ?? []).filter(c => toward.some(d => sameCorner(c, d))));
 export const tileKey = t => t.join(',');
 
 /** The tile a world point [x, y, z] is in, counted from the game's tile corner. */
@@ -49,22 +52,25 @@ const SKEW = Math.cos(3 * Math.PI / 180);      // a turn more than 3 degrees off
  *  where it stands now): its tile there and its corners turned with it, { at, toward, skew }. A corner the move turns
  *  off the tiles' diagonals is taken to the nearest (skew: true; the game gives diagonal cover along a tile's
  *  diagonals alone). */
-export function carryMark(m, home, toward, corner) {
+export function carryMark(m, home, toward, corner, low = []) {
   const at = middleOf(tileOf(through(m, home, 1), corner), corner);
   let skew = false;
-  const turned = toward.map(c => {
+  const turn = c => {
     const d = through(m, [c[0], c[1], 0], 0), len = Math.hypot(d[0], d[1]) || 1;
     const snapped = [d[0] < 0 ? -1 : 1, d[1] < 0 ? -1 : 1];
     if ((d[0] * snapped[0] + d[1] * snapped[1]) / (len * Math.SQRT2) < SKEW) skew = true;
     return snapped;
-  });
-  return { at, toward: sortCorners(turned), ...(skew ? { skew: true } : {}) };
+  };
+  const turned = sortCorners(toward.map(turn)), half = lowOf(low.map(turn), turned);
+  return { at, toward: turned, ...(half.length ? { low: half } : {}), ...(skew ? { skew: true } : {}) };
 }
 
 /** A hand state as saved (null for none), its marks and places sorted, its corners in the table's order. */
 export function tidyHand(hand) {
-  const marks = (hand?.marks ?? []).filter(m => m.toward?.length).map(m => ({ at: [...m.at], toward: sortCorners(m.toward),
-                                                                            ...(m.from ? { from: [...m.from] } : {}) }));
+  const marks = (hand?.marks ?? []).filter(m => m.toward?.length).map(m => {
+    const toward = sortCorners(m.toward), low = lowOf(m.low, toward);
+    return { at: [...m.at], toward, ...(low.length ? { low } : {}), ...(m.from ? { from: [...m.from] } : {}) };
+  });
   const removed = (hand?.removed ?? []).map(a => [...a]);
   if (!marks.length && !removed.length) return null;
   const byPlace = (a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b));
@@ -74,8 +80,9 @@ export function tidyHand(hand) {
 /** A project record's diagonalCover read as the hand state (the marks a piece carries are worked out again: dropped
  *  here, as are records this editor can't read, which stay in `carriedOver` for the save). */
 export function handFromSaved(saved) {
+  const corners = list => list.every(c => Array.isArray(c) && CORNERS.some(d => sameCorner(c, d)));
   const ok = m => m && Array.isArray(m.at) && m.at.length === 3 && m.at.every(Number.isFinite) && Array.isArray(m.toward) && m.toward.length
-    && m.toward.every(c => Array.isArray(c) && CORNERS.some(d => sameCorner(c, d)))
+    && corners(m.toward) && (m.low === undefined || (Array.isArray(m.low) && corners(m.low)))
     && (m.from === undefined || (Array.isArray(m.from) && m.from.length === 3 && m.from.every(Number.isFinite)));
   const marks = (saved?.marks ?? []).filter(m => ok(m) && m.by === undefined);
   const carriedOver = (saved?.marks ?? []).filter(m => !ok(m));
@@ -88,6 +95,7 @@ export function handFromSaved(saved) {
 export function savedDiagonal(hand, carried = [], carriedOver = []) {
   const own = tidyHand(hand);
   const marks = [...(own?.marks ?? []), ...carried.map(m => ({ at: [...m.at], toward: sortCorners(m.toward),
+                                                            ...(lowOf(m.low, m.toward).length ? { low: lowOf(m.low, m.toward) } : {}),
                                                             ...(m.from ? { from: [...m.from] } : {}), by: m.by,
                                                             ...(m.moves ? { moves: true } : {}), ...(m.gone ? { gone: true } : {}) })),
                  ...carriedOver];
@@ -95,9 +103,9 @@ export function savedDiagonal(hand, carried = [], carriedOver = []) {
   return marks.length || removed.length ? { marks, removed } : null;
 }
 
-/** The marks as the view shows them: [{ key (the tile's), tile, at, toward, kind ('map' | 'changed' | 'moved' | 'added'
- *  | 'carried' | 'deleted'), from (a map mark's home tile), own (the map's mark it is or was), by }]. A deleted map
- *  mark is listed with kind 'deleted' at its home. */
+/** The marks as the view shows them: [{ key (the tile's), tile, at, toward, low (its half corners), kind ('map' |
+ *  'changed' | 'moved' | 'added' | 'carried' | 'deleted'), from (a map mark's home tile), own (the map's mark it is or
+ *  was), by }]. A deleted map mark is listed with kind 'deleted' at its home. */
 export function marksNow(scene, hand, corner, carried = []) {
   if (!corner) return [];
   const own = ownMarks(scene), out = [], at = t => middleOf(t, corner);
@@ -107,21 +115,21 @@ export function marksNow(scene, hand, corner, carried = []) {
   const carriedFrom = new Map(carried.filter(m => m.from).map(m => [tileKey(tileOf(m.from, corner)), m]));
   for (const o of own) {
     const k = tileKey(o.tile), h = changedFrom.get(k);
-    if (removed.has(k)) out.push({ key: k, tile: o.tile, at: at(o.tile), toward: o.toward, kind: 'deleted', from: o.tile, own: o });
-    else if (h) out.push({ key: tileKey(h.tile), tile: h.tile, at: at(h.tile), toward: h.toward, own: o, from: o.tile,
+    if (removed.has(k)) out.push({ key: k, tile: o.tile, at: at(o.tile), toward: o.toward, low: lowOf(o.low, o.toward), kind: 'deleted', from: o.tile, own: o });
+    else if (h) out.push({ key: tileKey(h.tile), tile: h.tile, at: at(h.tile), toward: h.toward, low: lowOf(h.low, h.toward), own: o, from: o.tile,
                            kind: tileKey(h.tile) === k ? 'changed' : 'moved' });
     else if (carriedFrom.has(k) && (carriedFrom.get(k).moves || carriedFrom.get(k).gone)) continue;       // (its piece moved
     // it, listed with the carried; or its piece is deleted, and it goes with it)
-    else out.push({ key: k, tile: o.tile, at: at(o.tile), toward: o.toward, kind: 'map', from: o.tile, own: o });
+    else out.push({ key: k, tile: o.tile, at: at(o.tile), toward: o.toward, low: lowOf(o.low, o.toward), kind: 'map', from: o.tile, own: o });
   }
-  for (const h of handMarks) if (!h.home) out.push({ key: tileKey(h.tile), tile: h.tile, at: at(h.tile), toward: h.toward, kind: 'added' });
+  for (const h of handMarks) if (!h.home) out.push({ key: tileKey(h.tile), tile: h.tile, at: at(h.tile), toward: h.toward, low: lowOf(h.low, h.toward), kind: 'added' });
   const taken = new Set(out.filter(m => m.kind !== 'deleted').map(m => m.key));
   for (const c of carried) {
     if (c.gone) continue;
     const t = tileOf(c.at, corner), k = tileKey(t);
     if (taken.has(k)) continue;          // (a mark of the project's own on the tile wins: the Build does the same)
     const home = c.from ? tileOf(c.from, corner) : null;
-    out.push({ key: k, tile: t, at: at(t), toward: sortCorners(c.toward), kind: 'carried', by: c.by, ...(c.skew ? { skew: true } : {}),
+    out.push({ key: k, tile: t, at: at(t), toward: sortCorners(c.toward), low: lowOf(c.low, c.toward), kind: 'carried', by: c.by, ...(c.skew ? { skew: true } : {}),
                ...(home ? { from: home, own: own.find(o => tileKey(o.tile) === tileKey(home)) } : {}) });
     taken.add(k);
   }
@@ -145,7 +153,8 @@ export function toggleCorner(scene, hand, corner, tile, c, carried = []) {
     if (deleted) {
       next = withoutHand(hand, () => false);
       next.removed = next.removed.filter(a => tileKey(tileOf(a, corner)) !== k);
-      if (!sameToward([c], deleted.own.toward)) next.marks.push({ at: place, toward: [c], from: place });
+      const low = lowOf(deleted.own.low, [c]);
+      if (!sameToward([c], deleted.own.toward)) next.marks.push({ at: place, toward: [c], ...(low.length ? { low } : {}), from: place });
     } else next = { marks: [...(hand?.marks ?? []), { at: place, toward: [c] }], removed: [...(hand?.removed ?? [])] };
     return tidyHand(next) ?? { marks: [], removed: [] };
   }
@@ -153,20 +162,35 @@ export function toggleCorner(scene, hand, corner, tile, c, carried = []) {
   return setCorners(scene, hand, corner, tile, on ? m.toward.filter(d => !sameCorner(d, c)) : [...m.toward, c], carried);
 }
 
-/** The corners of the mark on a tile set to `toward` (none: the mark deleted). A map's mark keeps its own record where
- *  its corners come back to the map's; a carried mark set by hand is the project's own (the wiring carries no map mark
- *  the hand names by its `from`, and a mark of the project's own on a tile wins over a copy's). Null where the tile has
- *  no mark. */
-export function setCorners(scene, hand, corner, tile, toward, carried = []) {
+/** The corners of the mark on a tile set to `toward` (none: the mark deleted), the half ones `low` (by default: the
+ *  ones it had of them, and a corner switched on half where all it had were half). A map's mark keeps its own record
+ *  where its corners and their heights come back to the map's; a carried mark set by hand is the project's own (the
+ *  wiring carries no map mark the hand names by its `from`, and a mark of the project's own on a tile wins over a
+ *  copy's). Null where the tile has no mark. */
+export function setCorners(scene, hand, corner, tile, toward, carried = [], low = null) {
   const marks = marksNow(scene, hand, corner, carried), m = markAt(marks, tile), k = tileKey(tile), place = middleOf(tile, corner);
   if (!m) return null;
   toward = sortCorners(toward);
   if (!toward.length) return deleteMark(scene, hand, corner, tile, carried);
+  const allHalf = m.toward.length > 0 && m.low.length === m.toward.length;
+  low = lowOf(low ?? toward.filter(c => m.low.some(d => sameCorner(c, d)) || (allHalf && !m.toward.some(d => sameCorner(c, d)))), toward);
   const home = m.from ? middleOf(m.from, corner) : null;
   const next = withoutHand(hand, h => tileKey(tileOf(h.at, corner)) === k);
-  if (m.kind !== 'carried' && m.own && m.kind !== 'moved' && sameToward(toward, m.own.toward) && m.key === tileKey(m.from)) { /* back to the map's */ }
-  else next.marks.push({ at: place, toward, ...(home ? { from: home } : {}) });
+  if (m.kind !== 'carried' && m.own && m.kind !== 'moved' && sameToward(toward, m.own.toward) && sameToward(low, lowOf(m.own.low, m.own.toward))
+      && m.key === tileKey(m.from)) { /* back to the map's */ }
+  else next.marks.push({ at: place, toward, ...(low.length ? { low } : {}), ...(home ? { from: home } : {}) });
   return tidyHand(next) ?? { marks: [], removed: [] };
+}
+
+/** A mark's cover, for the panel: 'full', 'half', or 'mixed' where some corners are half and some full. */
+export const heightOf = m => (!m.low?.length ? 'full' : m.low.length === m.toward.length ? 'half' : 'mixed');
+
+/** The mark on a tile set to half cover toward every corner (`half`), or full: null where the tile has no mark or it
+ *  is so already. */
+export function setHalf(scene, hand, corner, tile, half, carried = []) {
+  const m = markAt(marksNow(scene, hand, corner, carried), tile);
+  if (!m || heightOf(m) === (half ? 'half' : 'full')) return null;
+  return setCorners(scene, hand, corner, tile, m.toward, carried, half ? m.toward : []);
 }
 
 /** The corners a quarter turn takes a mark's to: `way` 1 turns them counter-clockwise in game axes (x to y), -1
@@ -194,8 +218,8 @@ export function moveMark(scene, hand, corner, from, to, carried = []) {
   if (!m || tileKey(from) === tileKey(to) || markAt(marks, to)) return null;
   const k = tileKey(from), place = middleOf(to, corner), home = m.from ? middleOf(m.from, corner) : null;
   const next = withoutHand(hand, h => tileKey(tileOf(h.at, corner)) === k);
-  if (m.own && tileKey(to) === tileKey(m.from) && sameToward(m.toward, m.own.toward)) { /* home: the map's own again */ }
-  else next.marks.push({ at: place, toward: [...m.toward], ...(home ? { from: home } : {}) });
+  if (m.own && tileKey(to) === tileKey(m.from) && sameToward(m.toward, m.own.toward) && sameToward(m.low, lowOf(m.own.low, m.own.toward))) { /* home: the map's own again */ }
+  else next.marks.push({ at: place, toward: [...m.toward], ...(m.low.length ? { low: [...m.low] } : {}), ...(home ? { from: home } : {}) });
   return tidyHand(next) ?? { marks: [], removed: [] };
 }
 

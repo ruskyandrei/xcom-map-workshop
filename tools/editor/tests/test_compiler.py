@@ -145,6 +145,19 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         doc = document([dict(target=target('XComLevelActor_1'), deleted=True)], schemaVersion=7)
         spec, _ = compile_project(doc, s)
         self.assertEqual(spec['diagonalCover'], dict(pageCarries=True))
+        # half cover: a mark's `low` corners go to the lane (joined on one tile as its corners are); a low corner the
+        # mark doesn't have, or one that isn't a corner, leaves the mark out
+        doc = document([dict(target=target('XComLevelActor_1'), deleted=True)])
+        doc['diagonalCover'] = dict(marks=[dict(at=at([20, 20, 0]), toward=[[1, 1]], low=[[1, 1]]),
+                                           dict(at=at([20, 20, 0]), toward=[[-1, -1]]),
+                                           dict(at=at([21, 20, 0]), toward=[[1, 1]], low=[]),
+                                           dict(at=at([22, 20, 0]), toward=[[1, 1]], low=[[-1, -1]]),
+                                           dict(at=at([23, 20, 0]), toward=[[1, 1]], low='all')])
+        spec, report = compile_project(doc, s)
+        self.assertEqual(spec['diagonalCover']['marks'], [dict(at=at([20, 20, 0]), toward=[[-1, -1], [1, 1]], low=[[1, 1]]),
+                                                          dict(at=at([21, 20, 0]), toward=[[1, 1]])])
+        self.assertEqual(sorted(e['record'] for e in report['leftOut'] if e['code'] == 'diagonal-mark'),
+                         ['diagonalCover.marks[3]', 'diagonalCover.marks[4]'])
 
     def test_a_map_the_game_knows_by_name_gets_a_note(self):
         # mission types plan, Part B: Zhang and the mission's script are tied to Low Friends' name

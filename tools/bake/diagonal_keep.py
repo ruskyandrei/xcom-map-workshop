@@ -209,26 +209,31 @@ def toward(i):
 
 
 def mark_cover(world, view, t, bits):
-    """A tile the project marks with diagonal cover toward the corners `bits` names (cover bits 0x1 to 0x8): its cover
-    worked out as the game's build works out a seeded tile, along those corners only (tile_rule.cover). A marked
-    corner where the rule finds no wall is written as marked: its cover bit, high, no step-outs, no climbing, no
-    blocking bit, its point tile_rule.NO_WALL_POINT from the tile's middle toward the corner (the plan's decision 3:
-    the game gives the unit cover that way, against nothing). dict(flags, static, location, parts, noWall: the
-    indices into TABLE of the corners with no wall)."""
+    """A tile the project marks with diagonal cover toward the corners `bits` names (cover bits 0x1 to 0x8), each half
+    cover where `bits` has its low bit too (0x10 to 0x80) and full where not: its cover worked out as the game's build
+    works out a seeded tile, along those corners only (tile_rule.cover), with each corner's height as the mark says
+    (the wall's own decides nothing; full cover never climbs). A marked corner where the rule finds no wall is written
+    as marked: its cover bit, its height, no step-outs, no climbing, no blocking bit, its point
+    tile_rule.NO_WALL_POINT from the tile's middle toward the corner (the plan's decision 3: the game gives the unit
+    cover that way, against nothing). dict(flags, static, location, parts, noWall: the indices into TABLE of the
+    corners with no wall)."""
     dirs = [i for i, e in enumerate(tile_rule.TABLE) if bits & e['cover']]
     c = tile_rule.cover(world, view, t, True, directions=dirs)
     no_wall = [i for i in dirs if tile_rule.TABLE[i]['name'] not in c['parts']]
-    if not no_wall:
-        return dict(c, noWall=[])
-    flags, points = c['flags'], [r['point'] for r in c['parts'].values()]
-    p0 = view.position(t)
-    z = float(view.floor[tuple(t)]['loc'][2])
-    for i in no_wall:
-        dd = tile_rule.TABLE[i]['dd']
-        flags |= tile_rule.TABLE[i]['cover']
-        points.append((p0[0] + dd[0] * tile_rule.NO_WALL_POINT, p0[1] + dd[1] * tile_rule.NO_WALL_POINT, z))
-    mean = [sum(pt[k] for pt in points) / len(points) for k in range(3)]
-    location = tuple(float(min(max(mean[k], p0[k] - lim), p0[k] + lim)) for k, lim in enumerate((44.0, 44.0, 32.0)))
+    flags, location = c['flags'], c['location']
+    if no_wall:
+        points = [r['point'] for r in c['parts'].values()]
+        p0 = view.position(t)
+        z = float(view.floor[tuple(t)]['loc'][2])
+        for i in no_wall:
+            dd = tile_rule.TABLE[i]['dd']
+            flags |= tile_rule.TABLE[i]['cover']
+            points.append((p0[0] + dd[0] * tile_rule.NO_WALL_POINT, p0[1] + dd[1] * tile_rule.NO_WALL_POINT, z))
+        mean = [sum(pt[k] for pt in points) / len(points) for k in range(3)]
+        location = tuple(float(min(max(mean[k], p0[k] - lim), p0[k] + lim)) for k, lim in enumerate((44.0, 44.0, 32.0)))
+    for i in dirs:
+        e = tile_rule.TABLE[i]
+        flags = flags | e['low'] if bits & e['low'] else flags & ~(e['low'] | e['onto'] | e['over'])
     return dict(c, flags=flags, location=location, noWall=no_wall)
 
 
@@ -454,6 +459,9 @@ def write(path, tiles, whole=(), candidates=(), edit=None):
             one['newCorner'] = 'carried'
         if t in marks:
             one['mark'] = [toward(i) for i, e in enumerate(tile_rule.TABLE) if marks[t] & e['cover']]
+            half = [toward(i) for i, e in enumerate(tile_rule.TABLE) if marks[t] & e['low']]
+            if half:
+                one['half'] = half
             # (its middle in the world, as the project names it: the page finds its mark's record by it)
             one['at'] = [round(corner[k] + size * (t[k] + 0.5), 2) for k, size in enumerate((96.0, 96.0, 64.0))]
         if t in removed:

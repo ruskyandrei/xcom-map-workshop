@@ -1,7 +1,8 @@
 // The Diagonal cover view (Shift+C; private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, section 4;
 // KNOWN-BUGS.md KB-20). It behaves as the Landing zones and Spawns views do (the user, 23 November 2026). Here:
 // - the marks drawn (diagonal_marks.js marksNow): in the view over everything, and picked there alone; in the normal
-//   view with View options' Diagonal cover, drawn and never picked. Amber: the map's own as it is; the accent colour:
+//   view with View options' Diagonal cover, drawn and never picked. A half-cover corner's arrow is drawn half as long
+//   as a full one's. Amber: the map's own as it is; the accent colour:
 //   added or changed by the project, or following its piece; pale and dashed (the view's Deleted marks): a map's mark
 //   the project deleted;
 // - the view on and off (setDiagonalShown): the other views step aside (and it steps aside for them: views.js
@@ -14,13 +15,13 @@
 //   follows the pointer over the tiles with its corner toward the quarter of the tile the pointer is in, and a click
 //   puts it down (startDiagonalPlacing, placeDiagonal);
 // - the panel of the picked marks (#diagonalPanel): one mark's kind, tile and level, its corners as four buttons laid
-//   out as the view shows them, what the last build wrote for it; Delete; Reset for a map's mark changed, moved or
-//   deleted;
+//   out as the view shows them, Cover (full or half, for all the picked marks' corners), what the last build wrote for
+//   it; Delete; Reset for a map's mark changed, moved or deleted;
 // - the marks that follow their pieces (carried: the plan's section 5), worked out after each edit (carriedNow): a
 //   map's mark whose wall piece (export 40's `wall`) is moved goes with it, turned with it (a turn off the quarter
 //   turns takes its corners to the nearest diagonals, drawn in the warning colour); one whose piece is deleted goes;
 //   each copy of the piece carries one of its own, and so does each copy of a piece of another map that gives one in
-//   its home map (the library's piece record 11, `foreign.diagonal`). A mark the project moved, turned or deleted by
+//   its home map (the library's piece record 12, `foreign.diagonal`). A mark the project moved, turned or deleted by
 //   hand follows nothing.
 // Each edit is one undo step (gizmo.record): the edit hub's edit run draws the marks again and fills the panel.
 //
@@ -36,7 +37,7 @@ import { data, diagonalCarried, diagonalOn, effectsOn, foreignTemplates, lastBui
          roots, setDiagonalCarried, setDiagonalOnValue, setProjectDiagonal, spawnsOn, volumesOn,
          zonesOn } from './editor_state.js';
 import { CORNERS, KIND_WORDS, TILE_SIZE, addMark, builtWords, carryMark, cornerKey, cornerNear, deleteMark, marksNow,
-         middleOf, moveMark, ownMarks, resetMark, setCorners, tileKey, tileOf, toggleCorner,
+         heightOf, middleOf, moveMark, ownMarks, resetMark, setCorners, setHalf, tileKey, tileOf, toggleCorner,
          turnedCorners } from './diagonal_marks.js';
 import { fromOf, isStream } from './piece_records.js';
 import { targetKey } from './project.js';
@@ -95,10 +96,11 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     const p = [[inset, inset], [1 - inset, inset], [1 - inset, 1 - inset], [inset, 1 - inset]].map(([x, y]) => at(tile, x, y, z));
     for (let i = 0; i < 4; i++) out.push(p[i], p[(i + 1) % 4]);
   }
-  function arrows(out, tile, z, toward) {
+  function arrows(out, tile, z, toward, low = []) {
     const c = at(tile, 0.5, 0.5, z);
     for (const d of toward) {
-      const u = new THREE.Vector3(d[0], 0, d[1]).normalize(), tip = c.clone().addScaledVector(u, ARROW);
+      const half = low.some(x => cornerKey(x) === cornerKey(d));
+      const u = new THREE.Vector3(d[0], 0, d[1]).normalize(), tip = c.clone().addScaledVector(u, half ? ARROW / 2 : ARROW);
       out.push(c, tip);
       const side = new THREE.Vector3(-u.z, 0, u.x);
       for (const s of [-1, 1]) out.push(tip, tip.clone().addScaledVector(u, -12).addScaledVector(side, s * 8));
@@ -126,11 +128,11 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
       if (m.kind === 'deleted' && !(diagonalOn && showDeleted())) continue;
       const z = floorOf(m.tile, m.own), key = diagonalOn && picked.has(m.key) ? 'picked' : m.kind === 'map' ? 'map'
         : m.kind === 'deleted' ? 'deleted' : m.skew ? 'skew' : 'project';
-      outline(out[key], m.tile, z); arrows(out[key], m.tile, z, m.toward);
+      outline(out[key], m.tile, z); arrows(out[key], m.tile, z, m.toward, m.low);
       if (over === m.key && key !== 'picked') outline(out.hover, m.tile, z, 0);     // (the mark a click would pick)
       if (moving && picked.has(m.key)) {
         const to = [m.tile[0] + moving[0], m.tile[1] + moving[1], m.tile[2] + moving[2]];
-        outline(out.project, to, floorOf(to)); arrows(out.project, to, floorOf(to), m.toward);
+        outline(out.project, to, floorOf(to)); arrows(out.project, to, floorOf(to), m.toward, m.low);
       }
     }
     // the ghost of a mark being added: on the tile under the pointer, toward the corner nearest it
@@ -238,7 +240,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     if (!editable() || !picked.size) return false;
     let next = projectDiagonal, count = 0;
     for (const m of marks().filter(x => picked.has(x.key) && x.kind !== 'deleted')) {
-      const r = setCorners(data, next, corner(), m.tile, turnedCorners(m.toward, way), diagonalCarried);
+      const r = setCorners(data, next, corner(), m.tile, turnedCorners(m.toward, way), diagonalCarried, turnedCorners(m.low, way));
       if (r) { next = r; count++; }
     }
     if (count) commit(next, `Turned ${count === 1 ? 'the mark' : `${count} marks`} a quarter`);
@@ -259,6 +261,17 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     }
     commit(next, `${count === 1 ? 'A mark' : `${count} marks`} deleted · Ctrl+Z brings ${count === 1 ? 'it' : 'them'} back`, []);
     return true;
+  }
+  // Cover: the picked marks' corners all half cover (`half`) or all full
+  function halfPicked(half) {
+    if (!editable() || !picked.size) return;
+    let next = projectDiagonal, count = 0;
+    for (const m of marks().filter(x => picked.has(x.key) && x.kind !== 'deleted')) {
+      const r = setHalf(data, next, corner(), m.tile, half, diagonalCarried);
+      if (r) { next = r; count++; }
+    }
+    if (count) commit(next, `${count === 1 ? 'The mark gives' : `${count} marks give`} ${half ? 'half' : 'full'} cover`);
+    else panel();
   }
   // the picked marks of the map put back as the map has them, and picked at home
   function resetPicked() {
@@ -344,7 +357,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     const count = marks().filter(m => m.kind !== 'deleted').length;
     return [{ key: 'diagonal', id: 'diagonal-new', diagonal: true, name: 'Diagonal cover', kind: 'Diagonal cover',
               pkg: 'cover toward a corner of a tile', detail: 'Put on a floor tile; turned and moved in the Diagonal cover view', count, builds: true,
-              title: 'A new diagonal cover mark: click the floor tile it is to stand on, nearest the corner a unit there is to get cover toward (along the tile\'s diagonal). The Build gives that corner what the wall there gives, and high cover against nothing where no wall stands',
+              title: 'A new diagonal cover mark: click the floor tile it is to stand on, nearest the corner a unit there is to get cover toward (along the tile\'s diagonal). It gives full cover, or half with the panel\'s Cover; where no wall stands, cover against nothing',
               sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
               text: 'diagonal cover corner slanted wall ufo hull mark' }];
   }
@@ -423,7 +436,8 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
 
   // ---------------------------------------------------------------- the panel
   const els = { panel: $('diagonalPanel'), chip: $('diagonalChip'), where: $('diagonalWhere'), corners: $('diagonalCorners'),
-                built: $('diagonalBuilt'), del: $('diagonalDelete'), reset: $('diagonalReset'), title: $('diagonalTitle') };
+                built: $('diagonalBuilt'), del: $('diagonalDelete'), reset: $('diagonalReset'), title: $('diagonalTitle'),
+                height: $('diagonalHeight'), heightRow: $('diagonalHeightRow') };
   function panel() {
     const all = marks(), list = all.filter(m => picked.has(m.key));
     els.panel.hidden = !diagonalOn || !list.length;
@@ -437,6 +451,12 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
       + (one.kind === 'carried' ? ` · follows ${String(one.by ?? '').split('.').pop()}` : '') : 'The gizmo moves them all; Delete deletes them all.';
     els.corners.hidden = !one || one.kind === 'deleted';
     if (one && one.kind !== 'deleted') layoutCorners(one);
+    // Cover: the picked marks' as one (Full and half where they differ, which only a choice changes)
+    const standing = list.filter(m => m.kind !== 'deleted'), heights = new Set(standing.map(heightOf));
+    els.heightRow.hidden = !standing.length;
+    els.height.value = heights.size === 1 ? [...heights][0] : 'mixed';
+    els.height.querySelector('option[value="mixed"]').hidden = els.height.value !== 'mixed';
+    els.height.disabled = !editable();
     const built = one && one.kind !== 'deleted' ? builtWords(lastBuild?.package?.diagonalCover, middleOf(one.tile, corner())) : '';
     els.built.textContent = built; els.built.hidden = !built;
     els.del.disabled = !editable() || list.every(m => m.kind === 'deleted' || withCopy(m));
@@ -466,11 +486,12 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
       return b;
     }));
   }
+  els.height.onchange = e => { if (e.target.value !== 'mixed') halfPicked(e.target.value === 'half'); e.target.blur(); };
   els.del.onclick = () => deletePicked();
   els.reset.onclick = () => resetPicked();
   $('diagonalShowDeleted').onchange = e => { draw(); panel(); e.target.blur(); };
 
-  // The marks that follow their pieces, as the pieces stand now (the plan's section 5): [{ at, toward, from?, by,
+  // The marks that follow their pieces, as the pieces stand now (the plan's section 5): [{ at, toward, low?, from?, by,
   // moves?, gone?, skew? }] (diagonal_marks.js marksNow and savedDiagonal read them).
   function carriedNow() {
     const c = corner();
@@ -496,10 +517,10 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
       const home = middleOf(own.tile, c), piece = own.wall && originals.get(own.wall);
       if (!piece || homes.has(tileKey(own.tile))) continue;
       if (piece.userData.deleted) { out.push({ at: home, toward: own.toward, from: home, by: own.wall, gone: true }); continue; }
-      if (piece.userData.edit) out.push({ ...carryMark(piece.userData.edit.elements, home, own.toward, c), from: home, by: own.wall, moves: true });
+      if (piece.userData.edit) out.push({ ...carryMark(piece.userData.edit.elements, home, own.toward, c, own.low), from: home, by: own.wall, moves: true });
       const back = base(piece).invert();
       for (const copy of copies.get(own.wall) ?? []) {
-        const m = carryMark(copy.matrix.clone().multiply(back).elements, home, own.toward, c);
+        const m = carryMark(copy.matrix.clone().multiply(back).elements, home, own.toward, c, own.low);
         if (!handTiles.has(tileKey(tileOf(m.at, c)))) out.push({ ...m, by: copy.userData.source.actor });
       }
     }
@@ -509,7 +530,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
       if (!template) continue;
       const move = r.matrix.clone().multiply(new THREE.Matrix4().fromArray(template.matrix).invert()).elements;
       for (const d of o.foreign.diagonal.filter(x => x.wall === fromOf(o).actor)) {
-        const m = carryMark(move, d.at, d.toward, c);
+        const m = carryMark(move, d.at, d.toward, c, d.low ?? []);
         if (!handTiles.has(tileKey(tileOf(m.at, c)))) out.push({ ...m, by: actor });
       }
     }

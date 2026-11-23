@@ -434,6 +434,25 @@ class DiagonalCoverKept(unittest.TestCase):
         self.assertEqual(cover & 0x1100, 0, '%06x' % cover)                  # no step-out toward the empty corner
         self.assertEqual(cover & (0x20000 | 0x200000), 0, '%06x' % cover)    # nor a climb
 
+    def test_marks_set_half_are_written_half(self):
+        # (45, 40, 0) marked toward the block (its wall high cover) and toward the empty corner, both half (Cover:
+        # Half): each corner's low bit set, whatever the wall's height, and no climb from the wall's
+        nc, order, tiles = self.built('Farm_Half', covers=[self.BLOCK],
+                                      diagonal=dict(marks=[dict(at=self.at((45, 40, 0)), toward=[[1, -1], [-1, 1]],
+                                                                low=[[1, -1], [-1, 1]])]))
+        (r,) = nc['diagonalCover']['whole']
+        self.assertEqual((r['half'], r['noWall']), ([[-1, 1], [1, -1]], [[-1, 1]]))
+        cover = tiles[(45, 40, 0)][1]
+        self.assertEqual(cover & 0x100FF, 0x10033, '%06x' % cover)           # diagonal, N and S, both low
+
+    def test_the_lane_packs_each_half_corner_as_its_low_bit(self):
+        at = self.at
+        edit = native_copy.diagonal_edit(self.p, dict(marks=[
+            dict(at=at((45, 40, 0)), toward=[[1, -1], [-1, 1]], low=[[1, -1]]),
+            dict(at=at((46, 40, 0)), toward=[[1, 1]], low=[[-1, -1]]),          # (not its corner: no low bit)
+            dict(at=at((47, 40, 0)), toward=[[-1, -1]])]))
+        self.assertEqual(edit['marks'], {(45, 40, 0): 0x23, (46, 40, 0): 0x8, (47, 40, 0): 0x4})
+
     def test_a_removed_mark_loses_its_diagonal_cover(self):
         # the project takes the scout's corner (39, 12, 0) away, and changes nothing else: the tile is written whole
         # by the straight rule (as the game's build makes it without its seed: no cover at a wall at 45 degrees)

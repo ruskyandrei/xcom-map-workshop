@@ -74,8 +74,9 @@ INDEX_VERSION = 10      # 2: an entry says what blocks it (`blocked`), and the f
                         # 7: vans come with their buildings, and EXP-41's two ways are switched on;
                         # 8: vans switched on (EXP-42); 9: the base maps' effects and ambient sounds (FX4: the
                         # number itself stayed 8 until FX6b); 10: the base maps' lens flares (FX6b)
-PIECE_VERSION = 11      # 8: recipe identity for each member of a piece or assembly; 9: each member's own piece flags;
-                        # 11: the diagonal cover marks the piece gives in its home map (`diagonal`: mark_walls.marks)
+PIECE_VERSION = 12      # 8: recipe identity for each member of a piece or assembly; 9: each member's own piece flags;
+                        # 11: the diagonal cover marks the piece gives in its home map (`diagonal`: mark_walls.marks);
+                        # 12: each of those marks' half-cover corners (`low`)
                         # (export 27's pieceFlags) and its meshes' collision facts; 10: those flags really written (the
                         # exporter had left them out of every prefixed export, the library's too, 19 November 2026)
 # the assemblies that are one entry (compiler.assemblies' families with more than one piece)
