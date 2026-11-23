@@ -61,6 +61,16 @@ checks, if something seems wrong.
 
 Each of these has its own section in the user guide, with pictures.
 
+New in 0.7.0:
+- **Walls, floors, roofs and ground at any size and angle**, sized by white handles, walls meeting in mitred
+  corners, and a **Texture mapping** of your own on each surface.
+- **The Snap setting governs every move, size and turn**, smooth with snap off. **Align to grid, level and game
+  pose** (the piece panel's Align section, or the L key) replace Level snap and the recipe snap.
+- **Diagonal cover** is shown in View options and kept by the Build.
+- **Map settings…** (Map menu): the sun, moon and sky, and the map's background sound.
+- **Clear map** takes the map's triggers out unless you keep them, and **Play in game** installs under names of its
+  own, beside a map pack of the same map.
+
 New in 0.6.0:
 - **Walls, rooms, floors, roofs and ground of your own**, drawn from the Build menu on the Add button. The **look
   picker** gives them the look of any of the game's, and **Break** and **Repair** start the battle with damage.

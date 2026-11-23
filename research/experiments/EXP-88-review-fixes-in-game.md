@@ -8,19 +8,19 @@ check, one second take for the one that stayed unclear.
 ## What was checked
 
 1. **A made wall's break group reaches the Build** (review finding 36,
-   [the ledger](../../changelog/entries/2026-11-20-made-wall-break-group-reaches-the-build.md)): before, the Build
+   [the ledger](../../changelog/2026-11.md)): before, the Build
    left out the made wall's break group, so a group of a made wall and one prop, or a made wall and a cover block,
    stopped the Build, and with two props none was tied to the wall's columns.
 2. **A copy with "Mouse picks it" off builds and loads** (finding 37, first case,
-   [the ledger](../../changelog/entries/2026-11-20-walker-reads-the-growers-names.md)): before, the Build stopped in
+   [the ledger](../../changelog/2026-11.md)): before, the Build stopped in
    `link_children` on URB_HighwayFallen.
 3. **Changed lights build and show** (finding 37, second case): before, the Build stopped in `native_lights.apply` on
    CsmallScout_Farm for a point light's falloff exponent.
 4. **A moved piece's shadow after a baked Build** (finding 44, the relight's part,
-   [the ledger](../../changelog/entries/2026-11-20-relight-workers-cache-key-and-zero-sizes.md)): the dominant
+   [the ledger](../../changelog/2026-11.md)): the dominant
    light's shadow-map test now reads a source angle of 0 as 0.
 5. **A prefab with a made wall and a broken copy through Test in game** (finding 6,
-   [the ledger](../../changelog/entries/2026-11-20-made-pieces-kept-in-prefabs.md)): before, a prefab saved from a
+   [the ledger](../../changelog/2026-11.md)): before, a prefab saved from a
    selection lost the made wall's numbers and the copy's blasts.
 
 ## The projects

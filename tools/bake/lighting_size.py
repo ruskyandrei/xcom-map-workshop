@@ -5,7 +5,7 @@ For each lighting texture of a map (LightMapTexture2D, DXT1; ShadowMapTexture2D,
 hold inside the map and in a texture cache, the records that read it (a mesh component's lightmap at each LOD, a
 ShadowMap2D) and the box they read (lightmap_textures.crop_box: their rectangles with the writer's ring, on whole
 blocks, a power of two each way), and what a texture of that box would hold with its mips. A built map whose copies
-clone whole atlases (editor 0.6.0, 0.6.1) shows it at once: hundreds of 1,024-texel textures inside it, each read in
+clone whole atlases (editor 0.6.0 and earlier) shows it at once: hundreds of 1,024-texel textures inside it, each read in
 a small rectangle.
 
 `inside` is the quick count the Build prints after it puts the lightmaps inside the map: the textures and the bytes
