@@ -1,21 +1,26 @@
 <#
-Switches which XCOM install Steam runs: the live LWR install, the lab copy or the third copy (LWR v3 beta).
+Switches which XCOM install Steam runs: the live LWR install, the lab copy, the third copy (LWR v3 beta, the user's
+own play) or the fourth (the LWR v3 beta lab copy).
 
 All of them live side by side in Steam's steamapps\common (the lwr setting, or the folder holding the game folder it
 names: tools\lab\LabSettings.ps1). The active one is always named XCom-Enemy-Unknown (the folder Steam launches);
-the parked ones are XCom-Enemy-Unknown.LWR, XCom-Enemy-Unknown.Lab and XCom-Enemy-Unknown.LWR3.
-The copies are recognised by XComLab-copy.txt in their root, which also makes XComLabWrapper.exe add -nohomedir so
-their settings and saves stay inside the copy; a line "copy=lwr3" in it marks the third copy (LWR v3 beta, made
-19 November 2026), a marker without a copy= line is the lab copy.
+the parked ones are XCom-Enemy-Unknown.LWR, XCom-Enemy-Unknown.Lab, XCom-Enemy-Unknown.LWR3 and
+XCom-Enemy-Unknown.Lab3. The copies are recognised by XComLab-copy.txt in their root, which also makes
+XComLabWrapper.exe add -nohomedir so their settings and saves stay inside the copy; a line "copy=lwr3" in it marks
+the third copy (LWR v3 beta, made 19 November 2026), "copy=lab3" the fourth (the LWR v3 beta lab copy, made
+23 November 2026), and a marker without a copy= line is the lab copy (LWR 2.x).
 
   pwsh -File tools\lab\switch_install.ps1 status
   pwsh -File tools\lab\switch_install.ps1 lab    # Steam now runs the lab copy
   pwsh -File tools\lab\switch_install.ps1 lwr3   # Steam now runs the third copy (LWR v3 beta)
+  pwsh -File tools\lab\switch_install.ps1 lab3   # Steam now runs the LWR v3 beta lab copy
   pwsh -File tools\lab\switch_install.ps1 lwr    # back to normal play; verifies LWR against the baseline
+
+Hidden runs need no switch: hidden_game.py --game names a parked copy.
 
 Recovers a half-finished switch (no active folder) by completing it towards the requested target.
 #>
-param([Parameter(Mandatory)][ValidateSet('status', 'lab', 'lwr', 'lwr3')][string]$Target)
+param([Parameter(Mandatory)][ValidateSet('status', 'lab', 'lwr', 'lwr3', 'lab3')][string]$Target)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'LabSettings.ps1')
 $common = Get-SteamCommon
@@ -24,6 +29,7 @@ $parked = [ordered]@{
     lwr  = Join-Path $common 'XCom-Enemy-Unknown.LWR'
     lab  = Join-Path $common 'XCom-Enemy-Unknown.Lab'
     lwr3 = Join-Path $common 'XCom-Enemy-Unknown.LWR3'
+    lab3 = Join-Path $common 'XCom-Enemy-Unknown.Lab3'
 }
 $marker = 'XComLab-copy.txt'
 

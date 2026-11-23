@@ -42,9 +42,10 @@ Every `<...>` in a path or a command stands for something you fill in. Never typ
 - **The live install.** The copy of the game the user plays. Hidden runs never touch it.
 - **The lab copy.** A full copy of the game folder (with LWR in it) kept for experiments. It is recognised by a
   **marker file**, `XComLab-copy.txt`, in its root folder. `hidden_game.py` refuses to run any folder without the
-  marker. A third copy (LWR v3 beta, marker line `copy=lwr3`) may exist; it is used only when the user asks.
+  marker. Two more copies may exist: the user's own LWR v3 beta copy (marker line `copy=lwr3`), never used unless
+  the user asks, and the LWR v3 beta lab copy (marker line `copy=lab3`), the lab copy for checks of LWR v3.
 - **Active, parked, switching.** Steam always runs the folder named `XCom-Enemy-Unknown`. The other copies wait beside
-  it under other names (`XCom-Enemy-Unknown.LWR`, `.Lab`, `.LWR3`): they are **parked**. Switching renames the
+  it under other names (`XCom-Enemy-Unknown.LWR`, `.Lab`, `.LWR3`, `.Lab3`): they are **parked**. Switching renames the
   folders so that another copy becomes the active one (section 4.4).
 - **Unreal console.** The game's one-line command prompt, opened with the backslash key `\` in this game. It takes
   Unreal Engine 3 commands: `getall <Class> <Property>` prints a property of every object of a class to the log,

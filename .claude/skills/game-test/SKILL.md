@@ -69,9 +69,11 @@ Each check ends as **passed**, **failed** or **unclear**, with the evidence in a
   But `lab_install.py` and `deploy_fixture.py` stage into the folder Steam runs, and take any copy with an
   `XComLab-copy.txt` for the lab copy, the user's LWR3 copy too: while another copy is the one Steam runs, stage with
   `lab_install.install(<package folder>, game=<the lab copy's folder>)` from Python, never the command line.
-- A third copy, `XCom-Enemy-Unknown.LWR3` (LWR v3.00.00 beta 15; its marker has `copy=lwr3`), is for checks on the
-  LWR v3 beta. It is switched in with `switch_install.ps1 lwr3` only when the user asks; `hidden_game.py --game`
-  can name it parked.
+- Which copy: the lab copy (`XCom-Enemy-Unknown.Lab`, LWR 2.x, a marker without a `copy=` line) unless the check is
+  of LWR v3; then the LWR v3 lab copy, `XCom-Enemy-Unknown.Lab3` (LWR v3.00.00 beta 17; its marker has
+  `copy=lab3`), named with `--game` on every command. Both are lab copies: stage, deploy and play there freely.
+- `XCom-Enemy-Unknown.LWR3` (its marker has `copy=lwr3`) is the user's own LWR v3 copy, with their campaign: never
+  run, stage into or change it unless the user asks. It is often the folder Steam runs.
 - DXVK unpacked at `<lab>\dxvk\<version>\x32\d3d9.dll`. The tool puts the DLL beside the game for the run and takes
   it out after, and puts back every config file the run changed.
 - The map must be in the lab copy: a game map as it is, or the project's map staged there the way its experiment

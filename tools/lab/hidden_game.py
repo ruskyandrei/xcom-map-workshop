@@ -11,7 +11,8 @@ DXVK's 32-bit d3d9.dll (DirectX 9 over Vulkan) stands beside XComEW.exe and is t
 the game there and does the steps (its header lists them: wait, waitlog, console, type, shot, key; no mouse).
 
 - Which game: the folder Steam runs (<Steam common>\\XCom-Enemy-Unknown) and only while it is the lab copy (its
-  marker XComLab-copy.txt); --game names another lab copy. Steam must be running, this copy's game must not be.
+  marker XComLab-copy.txt); --game names another lab copy (the LWR v3 beta one: XCom-Enemy-Unknown.Lab3). Steam
+  must be running, this copy's game must not be.
   Another copy's game (the user's own play) may run beside the run when it was started by XComSideBySide.exe
   (XComSideBySide.cs): the game allows one instance per Windows session by a named mutex, and a game started that
   way never makes it (T-52). One started the usual way stops the run before it starts, with the reason.
