@@ -186,6 +186,9 @@ prefab and placed again, and Test in game, make those pieces as the project has 
 converts a piece's record one way everywhere (`tools/viewer/web/piece_records.js`: the clipboard, a project, a prefab
 saved and placed, the builder). The server reads prefab schema 1 to 4 and stores 4; it checks a made piece's numbers
 as data only (its kind, and numbers, words and short texts, bounded), and the compiler checks what they mean.
+Prefab schema 5 (23 November 2026; the building cursor floors plan) lets a prefab's building carry `cursorFloors`
+(true or false), as a project's does; the server reads 1 to 5 and stores 5, and an editor of before it says such a
+prefab is newer.
 Since 21 November 2026 a made piece's `generated` may be in the free form: `fracWall` version 5, `fracSlab` version 4,
 `ground` version 5, whose numbers carry `free: 1` and say everything in fields: the extents at any size in the piece's
 own frame (`x0`..`x1`, `y0`..`y1`, `z0`..`z1`: a wall's ends, faces and bottom and top; a slab's footprint and plate; a

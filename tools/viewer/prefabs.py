@@ -51,9 +51,11 @@ SCHEMA = 'xcom-map-workshop/prefab'
 # 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`; the effects and
 # sounds plan, stage FX6a; a lens flare is one more `kind` since stage FX6b, with no values object: an editor of
 # before FX6b says it doesn't know the kind). 4: a piece made from numbers (`generated`: a drawn wall, floor or roof, or
-# ground shape) and a broken copy's `blasts` and `breaksFurther` (review finding 6). 1 to 3 are read too
-SCHEMA_VERSION = 4
-READ_VERSIONS = (1, 2, 3, 4)
+# ground shape) and a broken copy's `blasts` and `breaksFurther` (review finding 6). 5: a building's floors as the
+# cursor's (`buildings[].cursorFloors`; the building cursor floors plan: an editor of before it says the prefab is
+# newer rather than refusing the key). 1 to 4 are read too
+SCHEMA_VERSION = 5
+READ_VERSIONS = (1, 2, 3, 4, 5)
 EFFECT_KINDS = ('effect', 'sound', 'flare')
 MAX_PARAMETERS = 64
 FLAG_ROLES = ('walking', 'cover', 'sight', 'floor', 'mouse')
@@ -465,13 +467,14 @@ def _validate(document, prefab_id):
     buildings = set()
     for k, building in enumerate(listed(document.get('buildings', []), MAX_BUILDINGS, 'its buildings')):
         what = f'building {k + 1}'
-        record(building, ('id', 'floors'), ('name', 'kind'), what)
+        record(building, ('id', 'floors'), ('name', 'kind', 'cursorFloors'), what)
         named(building['id'], KEY, f'{what}\'s id')
         if building['id'] in buildings: raise bad('two buildings have one id.')
         buildings.add(building['id'])
         label = building.get('name', '')
         if not isinstance(label, str) or len(label) > 120 or any(ord(c) < 32 for c in label): raise bad(f'{what}\'s name is not a name.')
         if building.get('kind', 'building') not in BUILDING_KINDS: raise bad(f'{what} is of a kind this editor doesn\'t know.')
+        if not isinstance(building.get('cursorFloors', False), bool): raise bad(f'{what}\'s cursorFloors is not true or false.')
         for floor in listed(building['floors'], MAX_FLOORS, f'{what}\'s floors', 1):
             record(floor, ('boxes',), (), f'{what}\'s floor')
             for box in listed(floor['boxes'], MAX_BOXES, f'{what}\'s boxes', 1):

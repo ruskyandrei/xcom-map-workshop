@@ -1832,6 +1832,25 @@ def check_cursor_floors(page):
     page.evaluate('id => viewer.select(id)', ids[0])
     assert 'does not stop at it there' in page.locator('#volumeWarn').text_content()
     page.keyboard.press('Control+z')
+    # saved as a prefab, the prefab's building has it; copied and pasted, the copy has it (prefab plan's clip)
+    page.evaluate('viewer.select(null)')
+    page.evaluate('viewer.setVolumesShown(false)')
+    page.evaluate('viewer.setBoxesShown(true)')
+    page.evaluate('id => viewer.select(id)', ids[0])
+    doc = page.evaluate('viewer.prefabRecords()')
+    assert [b.get('cursorFloors') for b in doc['buildings']] == [True], doc['buildings']
+    page.keyboard.press('Control+c')
+    page.keyboard.press('Control+v')
+    view = page.locator('#viewport > canvas').first.bounding_box()
+    page.mouse.click(view['x'] + view['width'] / 2, view['y'] + view['height'] / 2)
+    page.wait_for_function('viewer.buildings().filter(b => !b.replaces).length === 2')
+    copy = next(b for b in page.evaluate(mine) if b['name'].endswith(' copy'))
+    assert copy.get('cursorFloors') is True, copy
+    page.keyboard.press('Control+z')
+    assert len(page.evaluate(mine)) == 1
+    page.evaluate('viewer.select(null)')
+    page.evaluate('viewer.setBoxesShown(false)')
+    page.evaluate('viewer.setVolumesShown(true)')
     # Ctrl+Z takes the tick off
     page.keyboard.press('Control+z')
     assert 'cursorFloors' not in page.evaluate(mine)[0]

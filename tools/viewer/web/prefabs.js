@@ -10,7 +10,7 @@ import { draftQuery } from './project.js';
 import { call, sendPng } from './api.js';
 import { plural } from './dom_words.js';
 
-export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 4;
+export const SCHEMA = 'xcom-map-workshop/prefab', SCHEMA_VERSION = 5;
 
 const at = id => `/prefabs/${encodeURIComponent(id)}`;
 export const api = {

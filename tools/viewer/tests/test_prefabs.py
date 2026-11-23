@@ -121,7 +121,7 @@ class StoreTests(unittest.TestCase):
     def test_other_schemas_and_versions_are_refused(self):
         for doc, status, words in ((None, 422, 'not an XCOM Map Workshop prefab'), ([], 422, 'not an XCOM Map Workshop prefab'),
                                    (prefab(schema='xcom-map-workshop/project'), 422, 'not an XCOM Map Workshop prefab'),
-                                   (prefab(schemaVersion=5), 409, 'A newer editor is needed'),
+                                   (prefab(schemaVersion=6), 409, 'A newer editor is needed'),
                                    (prefab(id='../../evil'), 422, 'no valid id')):
             with self.assertRaises(ProjectError) as refused: self.store.import_file(doc)
             self.assertEqual(refused.exception.status, status, doc)
@@ -187,7 +187,7 @@ class StoreTests(unittest.TestCase):
         doc['pieces'] += [other, glare]
         doc['groups'].append(dict(id='g-flare', members=[dict(added=glare['actor']), dict(added=other['actor'])]))
         self.assertEqual(validate(doc, ID), [])
-        self.assertEqual(doc['schemaVersion'], 4)
+        self.assertEqual(doc['schemaVersion'], 5)
         self.store.save(ID, doc, 0)
         self.assertEqual(self.store.load(ID)['pieces'][-1], glare)
         row = self.store.list()[0]
@@ -243,11 +243,12 @@ class StoreTests(unittest.TestCase):
             with self.assertRaises(ProjectError, msg=(k, path, value)):
                 validate(changed(at(k) + path, value, doc), ID)
 
-    def test_schema_1_is_read_imported_as_4_and_a_stale_page_cant_save(self):
-        # schema 2 adds a copied piece's flags (piece flags plan), 3 effects and sounds, 4 made pieces and blasts
+    def test_schema_1_is_read_imported_as_5_and_a_stale_page_cant_save(self):
+        # schema 2 adds a copied piece's flags (piece flags plan), 3 effects and sounds, 4 made pieces and blasts, 5 a
+        # building's floors as the cursor's
         stored = self.store.import_file(prefab(schemaVersion=1))
-        self.assertEqual(self.store.load(stored['id'])['schemaVersion'], 4)
-        for version in (2, 3):
+        self.assertEqual(self.store.load(stored['id'])['schemaVersion'], 5)
+        for version in (2, 3, 4):
             with self.assertRaises(ProjectError) as refused: self.store.save(ID, prefab(schemaVersion=version), 1)
             self.assertIn('older than the editor', refused.exception.message)
         with self.assertRaises(ProjectError) as refused: self.store.save(ID, prefab(schemaVersion=1), 1)
@@ -313,7 +314,7 @@ class StoreTests(unittest.TestCase):
             (['buildings', 0, 'floors', 0, 'boxes'], [[0, 0, 0, 96, 96]]), (['buildings', 0, 'floors', 0, 'boxes'], [[0, 0, 0, 96, 96, 0]]),
             (['buildings', 0, 'floors', 0, 'boxes'], [[0, 0, 0, 96, 96, float('inf')]]), (['buildings', 0, 'name'], long),
             (['buildings', 0, 'id'], 'b 1'), (['buildings', 0, 'floors', 0, 'height'], dict(a=1)),
-            (['buildings', 0, 'bad key!'], 1), (['pieces', 0, 'more'], float('nan')),
+            (['buildings', 0, 'bad key!'], 1), (['buildings', 0, 'cursorFloors'], 'yes'), (['pieces', 0, 'more'], float('nan')),
             (['donors', 0, 'package'], 'C:\\maps\\URB_Bar'), (['donors', 0, 'sha256'], 'abc'), (['donors', 1, 'package'], 'urb_bar'),
             (['donors', 0, 'path'], list(range(17))), (['created'], 5),
         ]
@@ -326,6 +327,9 @@ class StoreTests(unittest.TestCase):
             with self.assertRaises(ProjectError): self.store.save(ID, changed(path, value), 0)
         self.assertFalse(self.root.exists())
         validate(prefab(), ID)
+        # a building's floors as the cursor's (schema 5): true or false
+        validate(changed(['buildings', 0, 'cursorFloors'], True), ID)
+        validate(changed(['buildings', 0, 'cursorFloors'], False), ID)
         # what is optional can be left out, and a prefab can be of pieces only
         validate(changed(['pieces', 0, 'recipe'], DROP), ID)
         validate(prefab(groups=[], buildings=[], donors=[]), ID)
