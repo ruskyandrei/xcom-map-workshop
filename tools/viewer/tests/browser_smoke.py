@@ -1409,19 +1409,31 @@ def check_clear_map(page):
         assert drag_grid(2, -120) == dims and page.evaluate('viewer.stage()') is None
     page.locator('#gridDone').click()
     assert not page.evaluate('viewer.gridTool()')['on'] and page.locator('#gridPanel').is_hidden()
-    # the dialog: what goes and stays (no size: a clear keeps the grid)
+    # the dialog: a short count of what goes, one line, no breakdown (the user, 23 November 2026: a site recon map's
+    # window listed a screenful; no size: a clear keeps the grid)
     page.evaluate("document.getElementById('projectClear').click()")
     text = page.locator('#clearMap').inner_text()
-    assert 'Removes %d piece' % plan['pieces'] in text and 'one landing zone' in text, text
+    line = page.locator('#clearMapPlan').inner_text()
+    assert 'one landing zone' in text and line.startswith('Removes %d piece' % plan['pieces']), text
+    assert line.count('.') == 1 and line.endswith('.') and len(line) < 120 and 'SeqAct_' not in text, line
     assert page.locator('#clearMap input[type=number]').count() == 0
-    # Long War's patch levels go whole with a clear (KB-23): the dialog names them
-    patches = page.evaluate("Object.keys(viewer.data.streams ?? {}).filter(s => viewer.data.streams[s].kind === 'lwr')")
-    if patches:
-        assert ("Long War's patch level") in text and patches[0] in text, text
     # the map's ambient sounds go with the clear, but the landing's (the user, 18 November 2026)
     sounds = page.evaluate("[...viewer.effectRoots.values()].map(r => r.userData.source).filter(o => o.kind === 'sound' && !o.landingActor && !o.stream && !o.added).length")
     if sounds:
-        assert ('%d ambient sound' % sounds) in text, text
+        assert ('%d ambient sound' % sounds) in line, line
+    # a window taller than the screen (a large zoom) scrolls under its buttons, which stay in view
+    size = page.viewport_size
+    tall = page.evaluate("document.getElementById('clearMapForm').scrollHeight")
+    low = max(150, int(tall * 0.6))
+    page.set_viewport_size(dict(width=1280, height=low))
+    form = page.evaluate("(() => { const f = document.getElementById('clearMapForm'); f.scrollTop = 0; return [f.scrollHeight, f.clientHeight]; })()")
+    assert form[0] > form[1], form
+    for at in (0, 10 ** 5):
+        page.evaluate("t => { document.getElementById('clearMapForm').scrollTop = t; }", at)
+        box = page.locator('#clearMapOk').bounding_box()
+        assert box and box['y'] >= 0 and box['y'] + box['height'] <= low, (at, box)
+        assert page.evaluate("(() => { const b = document.getElementById('clearMapOk').getBoundingClientRect(); return document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2)?.id; })()") == 'clearMapOk'
+    page.set_viewport_size(size)
     page.keyboard.press('Escape')
     # what the cleared map is for (mission types plan, D2): the dialog says it asks; a clear from the dialog asks "What
     # is this map for?", the header's abduction or terror ticked (else an abduction); OK sets the missions, one undo
@@ -1687,14 +1699,15 @@ def check_clear_map(page):
     assert not page.evaluate('viewer.cleared()')
     # keeping the scenery outside the play area: the window's tick changes its counts; the clear leaves the pieces
     # wholly outside and the lights placed outside, and saves the mark; undone, all of it goes back
-    keep = page.evaluate('dims => viewer.clearPlan(dims)', dims)
+    keep, whole = page.evaluate('dims => viewer.clearPlan(dims)', dims), page.evaluate('viewer.clearPlan()')
     page.evaluate("document.getElementById('projectClear').click()")
     tick = page.locator('#clearMapKeepOutside')
     if tick.is_checked(): tick.uncheck()
-    assert 'outside the play area' not in page.locator('#clearMapPlan').inner_text()
+    text = page.locator('#clearMapPlan').inner_text()
+    assert text.startswith('Removes %d piece' % whole['pieces']), text
     tick.check()
     text = page.locator('#clearMapPlan').inner_text()
-    assert ('Removes %d piece' % keep['pieces']) in text and 'outside the play area' in text, text
+    assert text.startswith('Removes %d piece' % keep['pieces']), text
     tick.uncheck()                                      # (remembered: left as it was at first)
     page.keyboard.press('Escape')
     if keep['outside']:
@@ -1704,8 +1717,8 @@ def check_clear_map(page):
         assert state['cleared'] is True and state['clearKeepsOutside'] is True
         page.keyboard.press('Control+z')
         assert not page.evaluate('viewer.clearKeepsOutside()') and not page.evaluate('viewer.editState()')['clearKeepsOutside']
-    # the map's triggers (F-159; export 39's triggerCounts): the plan names them as going; the window's tick keeps them
-    # and the plan says so; a clear that keeps them saves the mark; undone, it goes back. A map without them hides it
+    # the map's triggers (F-159; export 39's triggerCounts): the window's tick keeps them (its count stays a count of
+    # pieces and the like); a clear that keeps them saves the mark; undone, it goes back. A map without them hides it
     counts = page.evaluate('viewer.data.triggerCounts ?? null')
     page.evaluate("document.getElementById('projectClear').click()")
     tick = page.locator('#clearMapKeepTriggers')
@@ -1713,12 +1726,11 @@ def check_clear_map(page):
         assert not tick.is_visible()
         page.keyboard.press('Escape')
         return
+    assert tick.is_visible()
     if tick.is_checked(): tick.uncheck()
     text = page.locator('#clearMapPlan').inner_text()
-    assert "the map's" in text and 'trigger' in text and 'stay.' not in text.split('Keeps')[0], text
     tick.check()
-    text = page.locator('#clearMapPlan').inner_text()
-    assert 'stay.' in text and "the map's" not in text.split('Keeps')[0], text
+    assert page.locator('#clearMapPlan').inner_text() == text and 'trigger' not in text, text
     tick.uncheck()                                      # (remembered: left as it was at first)
     page.keyboard.press('Escape')
     page.evaluate('dims => viewer.clearMap(dims, false, true)', dims)

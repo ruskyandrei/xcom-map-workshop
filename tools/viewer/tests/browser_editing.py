@@ -461,11 +461,6 @@ def check_failed_reads(browser, url):
     page.wait_for_function(BANNER_SAYS, arg="landing lines for this map couldn't be read (check: no answer)", timeout=30000)
     lines = page.evaluate('viewer.landingLines()')
     assert lines['kind'] is None and lines['failed'] == 'check: no answer', lines
-    page.evaluate('viewer.showClearMap()')
-    page.wait_for_selector('#clearMap:not([hidden])')
-    clear = page.locator('#clearMapMissions').text_content()
-    assert 'a bomb mission (on Long War only)' in clear, clear
-    page.locator('#clearMapCancel').click()
     page.evaluate('viewer.showMissions()')
     page.wait_for_selector('#missionsDialog:not([hidden])')
     bomb = page.evaluate("""() => { const row = [...document.querySelectorAll('#missionsList .missionrow')].find(r => r.textContent.includes('Council bomb (added)'));

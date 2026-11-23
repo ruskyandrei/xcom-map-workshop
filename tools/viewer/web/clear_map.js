@@ -38,7 +38,7 @@ import { validLandingZone } from './project.js';
 import { groundOf, ownLandings, startingZones } from './spawns.js';
 import { deletedEntry, spawnEditable, spawnKey, spawnNamed } from './spawns_view.js';
 import { recall, remember } from './storage.js';
-import { plural, short } from './dom_words.js';
+import { plural } from './dom_words.js';
 import { fromOf, isStream } from './piece_records.js';
 
 export function createClearMap({ $, addEffectRoots, addLightRoots, addRoots, allBuildings, banner, clearedChanged, cloneGroups,
@@ -261,43 +261,17 @@ export function createClearMap({ $, addEffectRoots, addLightRoots, addRoots, all
     clearDialog.root.hidden = false;
     setTimeout(() => $('clearMapOk').focus(), 0);
   }
-  // The window's counts, for the size `v` (the play area a clear keeping the scenery outside goes by follows it)
+  // The window's count of what goes, for the size `v` (the play area a clear keeping the scenery outside goes by follows
+  // it): one short line, the window's note and ticks saying the rest (the user, 23 November 2026: "just give a very
+  // brief count of removed pieces, no need for a detailed breakdown")
   function clearWords(v) {
-    const plan = clearPlan(clearDialog.keep.checked ? v : null), zones = zonesNow(), kept = clearKeptZone();
-    // (the sun or moon and the sky light have no marker: the export's list says whether the map has them)
-    const placeless = (data.lights ?? []).filter(l => l.layer === 'base');
-    const sky = placeless.some(l => l.role === 'sky' || l.kind === 'sky'), sun = placeless.some(l => l.kind === 'directional');
-    const scenery = clearDialog.keep.checked ? `, ${plural(plan.outside, 'piece')} and ${plural(plan.lightsOutside, 'light')} outside the play area` : '';
-    const sp = clearedSpawns(), points = sp.deleted.length + sp.copies, fx = clearedEffects(clearDialog.keep.checked ? v : null);
-    const and = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0]);
-    const triggers = triggerWords(), keepTriggers = clearDialog.keepTriggers.checked;
-    // Long War's patch levels for the map: the cleared map's build streams none of them (KB-23)
-    const patches = Object.keys(data.streams ?? {}).filter(s => data.streams[s]?.kind === 'lwr');
-    const gone = [plural(plan.pieces, 'piece'), plural(plan.lights, 'light'), points && `${plural(points, 'spawn point')} (pods, Meld points and drop-in points)`,
-                  fx.effects && plural(fx.effects, 'effect'), fx.sounds && plural(fx.sounds, 'ambient sound'),
-                  !keepTriggers && triggers && `the map's ${triggers}`,
-                  patches.length && `Long War's ${patches.length === 1 ? 'patch level' : 'patch levels'} for it (${patches.join(', ')})`].filter(Boolean);
-    $('clearMapPlan').textContent = `Removes ${and(gone)}. `
-      + `Keeps the landing's ${plural(plan.landing, 'piece')}${fx.landing ? ` and its ${fx.landing === 1 ? 'effect' : `${fx.landing} effects and sounds`}` : ''}, `
-      + `${kept ? `one landing zone (${zones.findIndex(z => z.id === kept.id) === 0 ? 'the first' : `zone ${zones.findIndex(z => z.id === kept.id) + 1}`}, the map's own landing${zones.length > 1 ? `; the other ${zones.length - 1} go` : ''})` : 'no landing zone'}`
-      + `${scenery}${sp.volumes ? `, the ${plural(sp.volumes, 'no-spawn volume')}` : ''}${sun ? ', the sun' : ''}${sky ? ' and the sky light' : ''}.`
-      + (sp.named.length ? ` ${plural(sp.named.length, 'spawn point')} the map's script names ${sp.named.length === 1 ? 'stays' : 'stay'} (${sp.named.slice(0, 4).map(o => short(o.actor)).join(', ')}${sp.named.length > 4 ? ` and ${sp.named.length - 4} more` : ''}).` : '')
-      + (keepTriggers && triggers ? ` The map's ${triggers} stay.` : '')
-      + (data.backgroundSound ? ' Its background sound stays.' : '');
+    const plan = clearPlan(clearDialog.keep.checked ? v : null), sp = clearedSpawns(), fx = clearedEffects(clearDialog.keep.checked ? v : null);
+    const points = sp.deleted.length + sp.copies;
+    const gone = [plural(plan.pieces, 'piece'), plan.lights && plural(plan.lights, 'light'), points && plural(points, 'spawn point'),
+                  fx.effects && plural(fx.effects, 'effect'), fx.sounds && plural(fx.sounds, 'ambient sound')].filter(Boolean);
+    $('clearMapPlan').textContent = `Removes ${gone.length > 1 ? `${gone.slice(0, -1).join(', ')} and ${gone.at(-1)}` : gone[0]}.`;
     // (the tick says nothing on a map without triggers)
-    clearDialog.keepTriggers.closest('label').hidden = !triggers;
-    // the kinds a record alone gives the map, and the base map's missions that bring objects in their streams
-    const brought = (data.missions ?? []).filter(m => (m.streams ?? []).some(s => data.streams?.[s]?.missionObjects?.length));
-    const words = { Abduction: 'an abduction', TerrorSite: 'a terror site', 'Special/Bomb': lwrInstall() ? 'a bomb mission' : 'a bomb mission (on Long War only)', Crash: 'a UFO mission (with a UFO placed)' };
-    const added = Object.keys(words).filter(k => !(k === 'Special/Bomb' && (plainEw() || baseHas(k))) && !brought.some(m => kindKey(m) === k)).map(k => words[k]);
-    const listed = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} or ${list.at(-1)}` : list[0]);
-    $('clearMapMissions').hidden = false;
-    $('clearMapMissions').textContent = `Then it asks what the cleared map is for: ${listed(added)}`
-      + (brought.length ? `; or the base map's ${listed(missionLabels(brought))}, ${brought.length === 1 ? 'its' : 'their'} objects standing where the original map has them until moved.` : '.');
-    const named = plan.script;
-    $('clearMapScript').hidden = !named.length;
-    $('clearMapScript').textContent = named.length ? `${plural(named.length, 'piece')} the mission's script shows or hides go${named.length === 1 ? 'es' : ''} too: `
-      + named.map(([actor, by]) => `${short(actor)} (${by.join('; ')})`).join(', ') + '.' : '';
+    clearDialog.keepTriggers.closest('label').hidden = !triggerWords();
   }
   function hideClearMap() { clearDialog.root.hidden = true; }
   clearDialog.keep.onchange = () => { remember(CLEAR_KEEP_OUTSIDE, clearDialog.keep.checked ? '1' : '0'); clearSize(); };
