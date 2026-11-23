@@ -305,6 +305,42 @@ def volume_bounds(p, actor):
                 max=[max(v[j] for v in corners) for j in range(3)])
 
 
+def rebuild_spheres(p, warn=None):
+    """The level's XComRebuildWorldDataVolumes as the battle reads them at its start (export 41; KNOWN-BUGS.md KB-22):
+    [dict(actor, centre, radius)], each the box of its brush's bounds moved and scaled with the actor and the radius
+    of its brush's sphere times the actor's largest scale on any axis (UE3's FBoxSphereBounds::TransformBy, findings
+    register F-150; tools/bake/native_copy.py volume_sphere reads it the same way). The battle reworks the tiles of
+    centre ± radius on every axis (XGBattle.DoWorldDataRebuild), and the game never writes diagonal cover back. A volume
+    turned about an off-centre brush, or one that can't be read, is left out and said to `warn`."""
+    level = p.by_name.get("TheWorld.PersistentLevel")
+    out = []
+    for index, name in enumerate(p.paths, 1):
+        if p.cls(index) != "XComRebuildWorldDataVolume" or p.exports[index - 1]["outer"] != level:
+            continue
+        try:
+            brush = p.effective(index, "Brush", 0) or 0
+            if brush <= 0:
+                raise ValueError("it has no brush")
+            bounds = p.native(brush).unpack("7f")
+            scale = [float(v) * float(p.effective(index, "DrawScale", 1.0) or 1.0)
+                     for v in p.effective(index, "DrawScale3D", [1.0, 1.0, 1.0])]
+            location = [float(v) for v in p.effective(index, "Location", [0.0, 0.0, 0.0])]
+            radius = float(bounds[6]) * max(abs(v) for v in scale)
+            if any(p.effective(index, "Rotation", [0, 0, 0])):
+                if any(abs(v) > 1e-3 for v in bounds[:3]):
+                    raise ValueError("it is turned about an off-centre brush")
+                centre = location
+            else:
+                centre = [location[k] + scale[k] * float(bounds[k]) for k in range(3)]
+            if not (math.isfinite(radius) and all(math.isfinite(v) for v in centre)):
+                raise ValueError("its bounds are not numbers")
+        except (ValueError, struct.error, TypeError) as error:
+            if warn: warn(name, f"rebuild volume not read: {error}")
+            continue
+        out.append(dict(actor=name, centre=[round(v, 3) for v in centre], radius=round(radius, 3)))
+    return out
+
+
 def prefab_members(p, warn=None):
     """Placed actor -> the prefab instance that placed it (a car's body, glass and light bar share one).
 

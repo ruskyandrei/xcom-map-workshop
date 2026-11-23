@@ -711,7 +711,7 @@ const { lightButton, setNormalView, syncLights, viewByKey } = createViews({
 // deleted, the Add panel's Diagonal cover entry and its placing, its panel; after
 // the views, whose switches it calls.
 const { diagonalClick, diagonalEntries, diagonalGizmo, diagonalGizmoBusy, diagonalKey, drawDiagonal, hoverDiagonal,
-        pickedMarks, setDiagonalShown, startDiagonalPlacing, stopDiagonalPlacing } = createDiagonalWiring({
+        diagonalWarnings, pickedMarks, setDiagonalShown, startDiagonalPlacing, stopDiagonalPlacing } = createDiagonalWiring({
   $, camera, controls, flashHint, gizmo, lightButton, pickables, projector, projectsAvailable, rayAt, renderer,
   restingHint: () => restingHint(), select, setEffectsShown,
   setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, stopPickBox, world });
@@ -914,7 +914,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     void prefabTest.reconnect();
   } else if (parameters.get('project')) await openProject(parameters.get('project'));
   window.viewer = createTestApi({
-    setDiagonalShown, pickedMarks, diagonalGizmo,
+    setDiagonalShown, pickedMarks, diagonalGizmo, diagonalWarnings,
     $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState, bombHelperFix, boxOf, BUILD_TOOLS,
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
     clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,

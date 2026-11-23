@@ -261,3 +261,48 @@ export function builtWords(built, at) {
   return `Last build: ${high && low ? 'high and low' : low ? 'low' : 'high'} cover${steps ? `, ${steps === 1 ? 'a step-out' : `${steps} step-outs`}` : ''}`
     + (r.noWall?.length ? `; no wall toward ${r.noWall.length === 1 ? 'one corner' : `${r.noWall.length} corners`} (cover against nothing).` : '.');
 }
+
+// ---------------------------------------------------------------- the areas a streamed level reworks (KB-22)
+// A map's streamed levels (Long War's patch levels, a mission's own) rework the tiles of their rebuild volumes at the
+// battle's start, and the game never writes diagonal cover back: a mark there gets none in the game. The export (41)
+// gives each streamed level's volumes as the battle reads them (streams[<name>].rebuildSpheres: centre and radius,
+// findings register F-150); the battle takes the tiles of centre ± radius on every axis, counted from the game's tile
+// corner as the game counts them (GetTileCoordinatesFromPosition: floored).
+
+/** The areas the map's streamed levels rework, as tile boxes [{ stream, kind ('lwr' or 'mission'), actor, lo, hi,
+ *  missions (the labels of the map's missions that stream it) }], none on a preview. A cleared map streams none of
+ *  Long War's patch levels (KB-23), so it has none of theirs. */
+export function reworkAreas(scene, corner, cleared = false) {
+  if (!corner || !scene || scene.preview) return [];
+  const out = [];
+  for (const [stream, s] of Object.entries(scene.streams ?? {})) {
+    if (cleared && s.kind === 'lwr') continue;
+    const missions = (scene.missions ?? []).filter(m => (m.streams ?? []).includes(stream)).map(m => m.label);
+    for (const v of s.rebuildSpheres ?? []) {
+      const lo = [0, 1, 2].map(k => Math.floor((v.centre[k] - v.radius - corner[k]) / TILE_SIZE[k]));
+      const hi = [0, 1, 2].map(k => Math.floor((v.centre[k] + v.radius - corner[k]) / TILE_SIZE[k]));
+      out.push({ stream, kind: s.kind, actor: v.actor, lo, hi, missions });
+    }
+  }
+  return out;
+}
+/** The areas of `areas` that hold `tile`. */
+export const reworkedBy = (areas, tile) => areas.filter(a => tile.every((v, k) => v >= a.lo[k] && v <= a.hi[k]));
+
+// a streamed level by name, as the words say it: Long War's patch by its name, a mission's own with its missions
+function streamWords(a) {
+  return a.kind === 'lwr' ? `Long War's ${a.stream}` : `${a.stream} (streamed by ${a.missions.length ? a.missions.join(' and ') : 'a mission'})`;
+}
+/** Why a mark on a tile these areas (reworkedBy's) hold gets no diagonal cover in the game: a sentence for the panel
+ *  (`count` the picked marks it is said of), or a short one for the tooltip; '' for none. */
+export function reworkWords(hits, short = false, count = 1) {
+  const named = [...new Map(hits.map(a => [a.stream, a])).values()];
+  if (!named.length) return '';
+  const who = named.map(streamWords).join(' and '), one = named.length === 1, tiles = count > 1 ? 'their tiles' : 'this tile';
+  const when = named.every(a => a.kind === 'lwr') ? "at every battle's start" : "at the battle's start";
+  if (short) return `No cover in the game: ${who} rework${one ? 's' : ''} ${tiles} ${when}`;
+  return `${count > 1 ? `${count} of these marks get no cover in the game: ` : ''}${who} rework${one ? 's' : ''} ${tiles} ${when}, `
+    + `and the game never writes diagonal cover back. Move ${count > 1 ? 'them' : 'the mark'} off the area drawn dashed.`;
+}
+/** The label of an area drawn in the view. */
+export const areaWords = a => `${a.stream} reworks this area`;

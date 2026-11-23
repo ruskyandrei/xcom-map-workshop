@@ -17,6 +17,10 @@
 // - the panel of the picked marks (#diagonalPanel): one mark's kind, tile and level, its corners as four buttons laid
 //   out as the view shows them, Cover (full or half, for all the picked marks' corners), what the last build wrote for
 //   it; Delete; Reset for a map's mark changed, moved or deleted;
+// - a mark on a tile one of the map's streamed levels reworks at the battle's start (Long War's patch levels, a
+//   mission's own: diagonal_marks.js reworkAreas, export 41; KNOWN-BUGS.md KB-22) gets no cover in the game: a yellow
+//   warning triangle stands on its tile wherever the marks are drawn; picked in the view, the areas that take it are
+//   drawn dashed with their level's name, the triangle tells why on hover, and the panel says so;
 // - the marks that follow their pieces (carried: the plan's section 5), worked out after each edit (carriedNow): a
 //   map's mark whose wall piece (export 40's `wall`) is moved goes with it, turned with it (a turn off the quarter
 //   turns takes its corners to the nearest diagonals, drawn in the warning colour); one whose piece is deleted goes;
@@ -33,12 +37,12 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { onHub } from './edit_hub.js';
-import { data, diagonalCarried, diagonalOn, effectsOn, foreignTemplates, lastBuild, lightsOn, pieces, projectDiagonal,
-         roots, setDiagonalCarried, setDiagonalOnValue, setProjectDiagonal, spawnsOn, volumesOn,
+import { cleared, data, diagonalCarried, diagonalOn, effectsOn, foreignTemplates, lastBuild, lightsOn, pieces,
+         projectDiagonal, roots, setDiagonalCarried, setDiagonalOnValue, setProjectDiagonal, spawnsOn, volumesOn,
          zonesOn } from './editor_state.js';
-import { CORNERS, KIND_WORDS, TILE_SIZE, addMark, builtWords, carryMark, cornerKey, cornerNear, deleteMark, marksNow,
-         heightOf, middleOf, moveMark, ownMarks, resetMark, setCorners, setHalf, tileKey, tileOf, toggleCorner,
-         turnedCorners } from './diagonal_marks.js';
+import { CORNERS, KIND_WORDS, TILE_SIZE, addMark, areaWords, builtWords, carryMark, cornerKey, cornerNear, deleteMark,
+         marksNow, heightOf, middleOf, moveMark, ownMarks, resetMark, reworkAreas, reworkWords, reworkedBy, setCorners,
+         setHalf, tileKey, tileOf, toggleCorner, turnedCorners } from './diagonal_marks.js';
 import { fromOf, isStream } from './piece_records.js';
 import { targetKey } from './project.js';
 import { HANDLE_PICK, gameToView } from './handles.js';
@@ -46,6 +50,20 @@ import { tileCorner } from './map_grid.js';
 
 const MAP = 0xf0b84a, PROJECT = 0x82d5ce, DELETED = 0x6f7f88, PICKED = 0xffffff, HOVER = 0xb4f0e7, SKEWED = 0xe7c594;
 const INSET = 0.06, ARROW = 40, DOT = 0.42;       // the outline's inset and the arrows' length (of a tile), the dots' place
+// a mark the battle's rework takes (KB-22): its warning triangle (its size on the screen, its place from the tile's
+// middle toward a corner the mark has no arrow to, the pointer's reach for its tooltip) and the areas' labels
+const WARN = 0xf2c94c, WARN_PX = 20, WARN_AT = 0.24, AREA_LABEL_PX = 18, TIP_PX = 13;
+let warnTexture = null;
+function warnMap() {
+  if (warnTexture) return warnTexture;
+  const canvas = Object.assign(document.createElement('canvas'), { width: 64, height: 64 }), c = canvas.getContext('2d');
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(32, 5); c.lineTo(60, 56); c.lineTo(4, 56); c.closePath();
+  c.fillStyle = '#f2c94c'; c.fill(); c.strokeStyle = '#2a2110'; c.lineWidth = 4; c.stroke();
+  c.lineWidth = 6.5; c.beginPath(); c.moveTo(32, 23); c.lineTo(32, 39); c.moveTo(32, 48); c.lineTo(32, 48.5); c.stroke();
+  warnTexture = new THREE.CanvasTexture(canvas);
+  return warnTexture;
+}
 
 export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, lightButton, pickables, projector,
                                        projectsAvailable, rayAt, renderer, restingHint, select, setEffectsShown,
@@ -58,6 +76,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
   let hover = null;                  // { tile, z, point, corner (the picked mark's corner dot under it, or -1) }
   let adding = false;                // a new mark asked for from the Add panel and not put down yet
   let drag = null;                   // the gizmo's drag: { from (a tile), to (a tile), at (the proxy's start) }
+  let badges = [];                   // the warning triangles drawn now (KB-22): { key, point, hits }
   const corner = () => tileCorner();
   const marks = () => marksNow(data, projectDiagonal, corner(), diagonalCarried);
   const editable = () => projectsAvailable() && Boolean(corner());
@@ -80,7 +99,12 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
 
   // ---------------------------------------------------------------- drawing
   function clear() {
-    for (const o of [...layer.children]) { layer.remove(o); o.geometry?.dispose(); o.material?.dispose(); }
+    for (const o of [...layer.children]) {
+      layer.remove(o); o.geometry?.dispose();
+      if (o.userData.ownMap) o.material?.map?.dispose();
+      o.material?.dispose();
+    }
+    badges = [];
   }
   function lines(points, color, dashed = false) {
     if (!points.length) return;
@@ -119,6 +143,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     clear();
     if (!data || !corner()) return;
     const shown = diagonalOn || $('diagonalCover')?.checked;
+    if (!diagonalOn && renderer.domElement.title) renderer.domElement.title = '';
     if (!shown) return;
     floorsNow();
     const all = marks(), out = { map: [], project: [], deleted: [], picked: [], skew: [], hover: [] };
@@ -142,6 +167,9 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     }
     lines(out.map, MAP); lines(out.project, PROJECT); lines(out.deleted, DELETED, true); lines(out.picked, PICKED); lines(out.skew, SKEWED);
     lines(out.hover, HOVER);
+    reworked(all);
+    // (a triangle's tooltip goes with its mark's pick)
+    if (renderer.domElement.title && !badges.some(b => diagonalOn && picked.has(b.key))) renderer.domElement.title = '';
     // the picked mark's four corner dots (filled where it has that corner): a click on one switches it
     const one = diagonalOn && !adding && !drag ? onePicked() : null;
     if (one && editable()) {
@@ -149,6 +177,86 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
       CORNERS.forEach((c, i) => disc(one.tile, c, z, hover?.corner === i ? PICKED : PROJECT,
                                      one.toward.some(d => cornerKey(d) === cornerKey(c)), hover?.corner === i ? 9 : 7));
     }
+  }
+
+  // ---------------------------------------------------------------- the battle's rework (KB-22)
+  // The marks the map's streamed levels rework at the battle's start: a warning triangle on each one's tile, drawn
+  // wherever the marks are (badges keeps where each stands, for the tooltip); picked in the view, the areas that take
+  // the picked marks dashed at their floor's height, clipped to the grid, each level's name at the corner of its areas
+  // lowest on the screen.
+  const areas = () => reworkAreas(data, corner(), cleared);
+  // a sprite's scale for `px` pixels high whatever its distance (sizeAttenuation off: scale times the distance)
+  const screenScale = px => px / Math.max(1, renderer.domElement.clientHeight) * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov ?? 50) / 2);
+  function sprite(material, px, point, centre = [0.5, 0.5]) {
+    const s = new THREE.Sprite(material), image = material.map.image;
+    s.scale.set(screenScale(px) * image.width / image.height, screenScale(px), 1);
+    s.center.set(centre[0], centre[1]); s.position.copy(point); s.renderOrder = 10; s.raycast = () => {};
+    layer.add(s);
+    return s;
+  }
+  function badgeAt(m, z) {
+    const free = CORNERS.find(c => !m.toward.some(d => cornerKey(d) === cornerKey(c))) ?? CORNERS[0];
+    return at(m.tile, 0.5 + free[0] * WARN_AT, 0.5 + free[1] * WARN_AT, z);
+  }
+  function areaLabel(text, point) {
+    const font = '600 26px system-ui, Segoe UI, sans-serif', probe = document.createElement('canvas').getContext('2d');
+    probe.font = font;
+    const w = Math.ceil(probe.measureText(text).width) + 24, canvas = Object.assign(document.createElement('canvas'), { width: w, height: 40 });
+    const c = canvas.getContext('2d');
+    c.fillStyle = 'rgba(28, 26, 20, 0.88)'; c.beginPath(); c.roundRect(1, 1, w - 2, 38, 7); c.fill();
+    c.strokeStyle = '#6f5a35'; c.lineWidth = 2; c.stroke();
+    c.fillStyle = '#f2c94c'; c.font = font; c.textBaseline = 'middle'; c.fillText(text, 12, 21);
+    const map = new THREE.CanvasTexture(canvas);
+    const s = sprite(new THREE.SpriteMaterial({ map, depthTest: false, transparent: true, sizeAttenuation: false }),
+                     AREA_LABEL_PX, point, [0.5, -0.25]);
+    s.userData.ownMap = true;
+  }
+  function reworked(all) {
+    const list = areas();
+    if (!list.length) return;
+    const material = new THREE.SpriteMaterial({ map: warnMap(), depthTest: false, transparent: true, sizeAttenuation: false });
+    const takes = [];
+    for (const m of all) {
+      if (m.kind === 'deleted') continue;
+      const hits = reworkedBy(list, m.tile);
+      if (!hits.length) continue;
+      const z = floorOf(m.tile, m.own), point = badgeAt(m, z);
+      sprite(material, WARN_PX, point).userData.warn = m.key;
+      badges.push({ key: m.key, point, hits });
+      if (diagonalOn && picked.has(m.key)) takes.push({ hits, z });
+    }
+    if (!badges.length) material.dispose();
+    // the areas that take the picked marks, each once, at the floor of the first picked mark it takes
+    const dims = data.tileGrid?.dimensions ?? [Infinity, Infinity, Infinity], seen = new Set(), dashed = [], named = new Map();
+    const screen = projector();
+    for (const { hits, z } of takes) {
+      for (const a of hits) {
+        const key = `${a.stream}|${a.actor}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const x0 = Math.max(0, a.lo[0]), y0 = Math.max(0, a.lo[1]), x1 = Math.min(dims[0], a.hi[0] + 1), y1 = Math.min(dims[1], a.hi[1] + 1);
+        if (x1 <= x0 || y1 <= y0) continue;
+        const p = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => at([x, y, 0], 0, 0, z));
+        for (let i = 0; i < 4; i++) dashed.push(p[i], p[(i + 1) % 4]);
+        for (const q of p) {
+          const s = screen(q), best = named.get(a.stream);
+          if (s && (!best || s[1] > best.y)) named.set(a.stream, { y: s[1], q });
+        }
+      }
+    }
+    if (!dashed.length) return;
+    const seg = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(dashed),
+                                       new THREE.LineDashedMaterial({ color: WARN, dashSize: 10, gapSize: 7, depthTest: false, transparent: true }));
+    seg.computeLineDistances(); seg.renderOrder = 8; seg.raycast = () => {}; seg.userData.reworkArea = true;
+    layer.add(seg);
+    for (const [stream, { q }] of named) areaLabel(areaWords({ stream }), q);
+  }
+  // The tooltip of a picked mark's triangle under the pointer (the canvas's title), or none.
+  function warnTip(clientX, clientY) {
+    const screen = projector();
+    const near = badges.find(b => picked.has(b.key) && (s => Boolean(s) && Math.hypot(s[0] - clientX, s[1] - clientY) <= TIP_PX)(screen(b.point)));
+    const words = near ? reworkWords(near.hits, true) : '';
+    if (renderer.domElement.title !== words) renderer.domElement.title = words;
   }
 
   // ---------------------------------------------------------------- the tile under the pointer
@@ -195,6 +303,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     const was = JSON.stringify(hover);
     hover = hoverAt(e.clientX, e.clientY);
     if (JSON.stringify(hover) !== was) { draw(); hint(); }
+    warnTip(e.clientX, e.clientY);
   }
   function hint() {
     if (!diagonalOn) return;
@@ -426,7 +535,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
       if (effectsOn) setEffectsShown(false);
       stopPickBox(); select(null);
     } else {
-      cancelGizmo(); stopDiagonalPlacing(); picked.clear(); hover = null;
+      cancelGizmo(); stopDiagonalPlacing(); picked.clear(); hover = null; renderer.domElement.title = '';
       $('dragHint').hidden = true; restingHint?.();
     }
     setDiagonalOnValue(on);
@@ -437,7 +546,8 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
   // ---------------------------------------------------------------- the panel
   const els = { panel: $('diagonalPanel'), chip: $('diagonalChip'), where: $('diagonalWhere'), corners: $('diagonalCorners'),
                 built: $('diagonalBuilt'), del: $('diagonalDelete'), reset: $('diagonalReset'), title: $('diagonalTitle'),
-                height: $('diagonalHeight'), heightRow: $('diagonalHeightRow') };
+                height: $('diagonalHeight'), heightRow: $('diagonalHeightRow'), rework: $('diagonalRework'),
+                reworkText: $('diagonalReworkText') };
   function panel() {
     const all = marks(), list = all.filter(m => picked.has(m.key));
     els.panel.hidden = !diagonalOn || !list.length;
@@ -451,6 +561,10 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
       + (one.kind === 'carried' ? ` · follows ${String(one.by ?? '').split('.').pop()}` : '') : 'The gizmo moves them all; Delete deletes them all.';
     els.corners.hidden = !one || one.kind === 'deleted';
     if (one && one.kind !== 'deleted') layoutCorners(one);
+    // the battle's rework (KB-22): why the picked marks it takes get no cover in the game
+    const zone = areas(), taken = list.filter(m => m.kind !== 'deleted').map(m => reworkedBy(zone, m.tile)).filter(h => h.length);
+    els.rework.hidden = !taken.length;
+    if (taken.length) els.reworkText.textContent = reworkWords(taken.flat(), false, one ? 1 : taken.length);
     // Cover: the picked marks' as one (Full and half where they differ, which only a choice changes)
     const standing = list.filter(m => m.kind !== 'deleted'), heights = new Set(standing.map(heightOf));
     els.heightRow.hidden = !standing.length;
@@ -551,6 +665,9 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
                                                                     axis: markGizmo.axis, dragging: markGizmo.dragging,
                                                                     at: [proxy.position.x, proxy.position.z, proxy.position.y] }),
            diagonalGizmoBusy: gizmoBusy, diagonalKey, diagonalPlacing: () => adding, drawDiagonal: draw, hoverDiagonal,
-           pickedMarks: () => [...picked], refreshDiagonal: refresh, setDiagonalShown, startDiagonalPlacing,
+           pickedMarks: () => [...picked], diagonalWarnings: () => ({ badges: badges.map(b => ({ key: b.key, streams: [...new Set(b.hits.map(h => h.stream))],
+                                                                                    screen: projector()(b.point) })),
+                                                                  areas: layer.children.some(o => o.userData.reworkArea), title: renderer.domElement.title }),
+           refreshDiagonal: refresh, setDiagonalShown, startDiagonalPlacing,
            stopDiagonalPlacing };
 }

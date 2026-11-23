@@ -135,6 +135,7 @@ class DiagonalEdits:
         for t in marks:
             removed.pop(t, None)
         self.no_floor(marks)
+        self.reworked(marks)
         carries = self.page_carries()
         if not marks and not removed:
             if carries:
@@ -156,6 +157,49 @@ class DiagonalEdits:
         it writes what the view shows. An older project's Build still carries the map's marks with copies of their
         pieces (native_copy.diagonal_candidates)."""
         return isinstance(self.c.doc.get('schemaVersion'), int) and self.c.doc['schemaVersion'] >= 7
+
+    def rework_areas(self):
+        """The areas the map's streamed levels rework at the battle's start (export 41's streams[].rebuildSpheres;
+        KNOWN-BUGS.md KB-22), as tile boxes [(stream, kind, lo, hi, missions)]: each volume's centre ± its sphere's
+        radius on every axis, floored from the game's tile corner as the game counts tiles (findings register F-150).
+        A cleared map streams none of Long War's patch levels (KB-23), so none of theirs. The page draws the same
+        (diagonal_marks.js reworkAreas)."""
+        corner = tile_corner(self.c.scene.get('tileGrid') or {})
+        if not corner:
+            return []
+        size, cleared, out = (TILE, TILE, LEVEL), self.c.doc.get('cleared') is True, []
+        for stream, s in sorted((self.c.scene.get('streams') or {}).items()):
+            if cleared and s.get('kind') == 'lwr':
+                continue
+            missions = [m.get('label') for m in self.c.scene.get('missions') or [] if stream in (m.get('streams') or [])]
+            for v in s.get('rebuildSpheres') or []:
+                c, r = v['centre'], v['radius']
+                lo = tuple(int(math.floor((c[k] - r - corner[k]) / size[k])) for k in range(3))
+                hi = tuple(int(math.floor((c[k] + r - corner[k]) / size[k])) for k in range(3))
+                out.append((stream, s.get('kind'), lo, hi, missions))
+        return out
+
+    def reworked(self, marks):
+        """A warning for the marks on tiles a streamed level reworks at the battle's start: the game works the tile out
+        again and never writes diagonal cover back, so the mark gives no cover there (KB-22). One warning a level."""
+        by = {}
+        for stream, kind, lo, hi, missions in self.rework_areas():
+            for t in marks:
+                if all(lo[k] <= t[k] <= hi[k] for k in range(3)):
+                    by.setdefault(stream, (kind, missions, set()))[2].add(t)
+        for stream, (kind, missions, tiles) in sorted(by.items()):
+            tiles = sorted(tiles)
+            who = ("Long War's %s" % stream if kind == 'lwr'
+                   else '%s (streamed by %s)' % (stream, ' and '.join(missions) if missions else 'a mission'))
+            self.c.warn('diagonal-mark-reworked', 'Diagonal cover is marked on %s that %s reworks at %s start (tile%s %s): the '
+                        'game works %s out again and never writes diagonal cover back, so %s no cover there. Move %s off '
+                        "the area the Diagonal cover view draws when %s picked" % (
+                            'a tile' if len(tiles) == 1 else '%d tiles' % len(tiles), who,
+                            "every battle's" if kind == 'lwr' else "the battle's", '' if len(tiles) == 1 else 's',
+                            ', '.join('(%d, %d, %d)' % x for x in tiles), 'it' if len(tiles) == 1 else 'them',
+                            'the mark gives' if len(tiles) == 1 else 'the marks give', 'it' if len(tiles) == 1 else 'them',
+                            'it is' if len(tiles) == 1 else 'one is'),
+                        stream=stream, tiles=[list(x) for x in tiles])
 
     def no_floor(self, marks):
         """A warning for a mark on a tile the map as exported has no floor on and no piece the project adds stands near:

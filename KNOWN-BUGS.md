@@ -109,11 +109,12 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **What happens.** A mark on a tile that one of the map's streamed patch levels reworks at the battle's start (for
   CSmallScout_Farm, `patch_farm`'s eight volumes: around tiles (42..48, 24..30), (59..65, 37..43) and six more) is
   written by the Build and then worked out again by the game, which never writes diagonal cover back: no cover there,
-  in every mission. The view and the Build say nothing of it.
+  in every mission. The Diagonal cover view puts a warning triangle on such a mark (picked: the area dashed, the
+  reason in its panel) and the Build warns of it, but the mark still gives no cover there.
 - **Since.** The branch that places diagonal cover by hand (23 November 2026); the map's own marks are not affected
   (their makers kept the patch volumes off them).
-- **Workaround.** None in the editor: keep marks off the areas a map's patch levels rework (not shown in the editor).
-  A cleared map is free of it: its build streams none of the map's patch levels.
+- **Workaround.** Move a mark with the warning triangle off the area its panel names (drawn dashed when it is
+  picked). A cleared map is free of it: its build streams none of the map's patch levels.
 - **Cause.** The Build's reading of the battle's rebuild (`native_copy.rebuild_order`) takes the base level's volumes
   only, and the export counts a patch level's volumes without their places; with them added, the rule matches every
   tile EXP-95's save shows reworked bar one, a meld container's.

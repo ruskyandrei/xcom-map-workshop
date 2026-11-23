@@ -48,7 +48,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
                                 recipeOf, recordVolumes, refreshEffects, refreshPickBox, refreshSpawnMarkers, renderer,
                                 resetBaseSpawn, restoreMapBuildings, rockCorners, roomOfSelection, saveBuilder,
                                 savedBuildings, savePrefab, saveProject, select, SESSION, setBinding, setBoxesShown,
-                                setCover, setDiagonalShown, pickedMarks, diagonalGizmo, setEffectsShown, setEffectStays, setGridTool, setLibraryScope,
+                                setCover, setDiagonalShown, pickedMarks, diagonalGizmo, diagonalWarnings, setEffectsShown, setEffectStays, setGridTool, setLibraryScope,
                                 setLightsShown, setLikeness, setMadeLook, setNormalEffects, setNormalLights,
                                 setNormalSpawns, setNormalView, setPickedSpawn, setPickTool, setSnapMode, setSolo,
                                 setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown, setVolumeTool, setZones,
@@ -179,6 +179,9 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
     // and a tile's middle or one of its corner dots in game units (at the tile's floor height `z`), for a check to
     // click at with clientAt
     diagonalOn: () => diagonalOn, setDiagonalShown, pickedMarks, diagonalGizmo, diagonalHand: () => projectDiagonal,
+    // the warning triangles drawn (KB-22: a mark a streamed level reworks), with their screen points, whether the
+    // areas are drawn, and the canvas's tooltip now
+    diagonalWarnings,
     diagonalMarks: () => marksNow(data, projectDiagonal, tileCorner(), diagonalCarried),
     diagonalPoint: (tile, z, corner = null) => {
       const m = middleOf(tile, tileCorner()), c = corner === null ? [0, 0] : CORNERS[corner];

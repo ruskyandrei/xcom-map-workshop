@@ -9,7 +9,9 @@ chip); a click on a corner dot gives it that corner too (one undo step: the proj
 count, the panel's corner buttons, two on); undo and redo; ] turns its corners a quarter; the gizmo's X arrow dragged
 moves it by whole tiles, whatever Snap says (Moved, its home named), and Reset puts it back, picked at home; Delete
 deletes it (pale with Deleted marks, picked: Deleted, Reset); the Add panel's Diagonal cover entry and a click on an
-empty tile add a mark there, toward the corner nearest the click; Escape lets the picked go; Shift+C leaves the view
+empty tile add a mark there, toward the corner nearest the click; Escape lets the picked go; a mark added where
+patch_farm reworks the tiles at the battle's start shows its warning triangle (KB-22), picked its area, panel line and
+tooltip; Shift+C leaves the view
 and Shift+L turns it off for the Lights view; a piece selected from a list leaves it. Then the marks follow their
 pieces (stage M5): the hull chunk moved, turned a quarter and 30 degrees, and deleted."""
 
@@ -131,6 +133,38 @@ def check_diagonal(browser, url, open_viewer):
     page.keyboard.press('p')
     page.keyboard.press('Escape')
     assert page.evaluate('viewer.pickedMarks()') == [] and page.locator('#diagonalPanel').is_hidden()
+    # KB-22 (export 41): a mark added in front of the scout's door, on a tile patch_farm reworks at the battle's start:
+    # its triangle stands on it, picked or not; picked, the area is drawn dashed, the panel says why and the
+    # triangle's tooltip says so on hover; let go, the triangle alone; undone, none
+    reworked = bool(page.evaluate('viewer.data.streams?.patch_farm?.rebuildSpheres?.length ?? 0'))
+    if reworked:
+        assert page.evaluate('viewer.diagonalWarnings().badges') == []      # (the map's marks and (37, 13): none)
+        floor = page.evaluate("viewer.data.tactical.floorTiles.find(f => f.tile.join() === '44,26,0')?.location[2] ?? -128")
+        page.evaluate("""z => { const c = viewer.diagonalPoint([44, 26, 0], z);
+                                 viewer.controls.target.set(c[0] - 40, c[2] + 40, c[1] - 40);
+                                 viewer.camera.position.set(c[0] - 520, c[2] + 990, c[1] + 1000); viewer.controls.update(); }""", floor)
+        page.wait_for_timeout(400)
+        page.keyboard.press('p')
+        page.wait_for_selector('#library:not([hidden])')
+        page.locator('#libKind').select_option('diagonal')
+        page.locator('#libList .libitem[data-id="diagonal-new"]').click()
+        click([44, 26, 0], 1, floor)
+        page.locator('#libKind').select_option('all')
+        page.keyboard.press('p')
+        assert page.evaluate('viewer.pickedMarks()') == ['44,26,0'], page.evaluate('viewer.pickedMarks()')
+        w = page.evaluate('viewer.diagonalWarnings()')
+        assert [b['key'] for b in w['badges']] == ['44,26,0'] and w['badges'][0]['streams'] == ['patch_farm'] and w['areas'], w
+        text = page.locator('#diagonalRework').inner_text()
+        assert page.locator('#diagonalRework').is_visible() and "Long War's patch_farm reworks this tile" in text, text
+        x, y = w['badges'][0]['screen']
+        page.mouse.move(x + 30, y + 30); page.mouse.move(x, y)
+        assert page.evaluate('viewer.diagonalWarnings().title').startswith("No cover in the game: Long War's patch_farm")
+        page.keyboard.press('Escape')
+        w = page.evaluate('viewer.diagonalWarnings()')
+        assert [b['key'] for b in w['badges']] == ['44,26,0'] and not w['areas'] and w['title'] == '', w
+        assert page.locator('#diagonalPanel').is_hidden()
+        page.keyboard.press('Control+z')
+        assert page.evaluate('viewer.diagonalWarnings().badges') == []
     # Shift+C leaves the view; on again, Shift+L turns it off for the Lights view; a piece picked from a list leaves it
     page.keyboard.press('Shift+C')
     assert not page.evaluate('viewer.diagonalOn()') and page.locator('#viewsIcon').get_attribute('href') == '#i-normal'
@@ -166,4 +200,4 @@ def check_diagonal(browser, url, open_viewer):
     assert page.evaluate(carried) == [] and page.evaluate('viewer.editState().diagonalCover') is None
     assert not errors, errors
     page.close()
-    return dict(marks=len(marks))
+    return dict(marks=len(marks), reworked=reworked)

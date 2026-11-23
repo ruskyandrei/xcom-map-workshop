@@ -3,8 +3,9 @@
 // build's words for a mark.
 // Run: node tools/viewer/tests/diagonal_marks_test.mjs
 import assert from 'node:assert/strict';
-import { addMark, builtWords, carryMark, CORNERS, cornerNear, deleteMark, handFromSaved, heightOf, marksNow, middleOf, moveMark, ownMarks, resetMark,
-         savedDiagonal, setCorners, setHalf, tileOf, tidyHand, toggleCorner, turnedCorners } from '../web/diagonal_marks.js';
+import { addMark, areaWords, builtWords, carryMark, CORNERS, cornerNear, deleteMark, handFromSaved, heightOf, marksNow, middleOf, moveMark,
+         ownMarks, resetMark, reworkAreas, reworkWords, reworkedBy, savedDiagonal, setCorners, setHalf, tileOf, tidyHand, toggleCorner,
+         turnedCorners } from '../web/diagonal_marks.js';
 
 const corner = [-1001, -2001, -65];
 const scene = { tactical: { diagonalCover: [
@@ -158,4 +159,31 @@ assert.deepEqual(handFromSaved({ marks: [{ at: spot, toward: [[1, 1]], low: 'all
 // a carried mark turns its half corners with it
 assert.deepEqual(carryMark(turnAbout(home, 90), home, [[-1, -1], [1, 1]], corner, [[1, 1]]),
                  { at: home, toward: [[-1, 1], [1, -1]], low: [[1, -1]] });
+// the areas a streamed level reworks at the battle's start (KB-22, export 41): centre ± radius, floored from the tile
+// corner; a cleared map has none of Long War's patch levels; a mission's stream names the missions that stream it
+const streamed = { ...scene, missions: [{ label: 'Abduction', streams: ['patch_map'] }, { label: 'Data recovery', streams: ['patch_map', 'Map_CNH'] }],
+  streams: { patch_map: { kind: 'lwr', rebuildSpheres: [{ actor: 'V_0', centre: [-1001 + 96 * 20.5, -2001 + 96 * 20.5, -65 + 100], radius: 200 }] },
+             Map_CNH: { kind: 'mission', rebuildSpheres: [{ actor: 'V_1', centre: [-1001 + 96 * 40, -2001 + 96 * 40, -65], radius: 10 }] },
+             patch_empty: { kind: 'lwr' } } };
+const areas = reworkAreas(streamed, corner);
+assert.deepEqual(areas.map(a => [a.stream, a.lo, a.hi, a.missions]), [
+  ['patch_map', [18, 18, -2], [22, 22, 4], ['Abduction', 'Data recovery']],
+  ['Map_CNH', [39, 39, -1], [40, 40, 0], ['Data recovery']]]);
+assert.deepEqual(reworkAreas(streamed, corner, true).map(a => a.stream), ['Map_CNH']);
+assert.deepEqual(reworkAreas({ ...streamed, preview: true }, corner), []);
+assert.deepEqual(reworkAreas(streamed, null), []);
+assert.deepEqual(reworkedBy(areas, [20, 20, 0]).map(a => a.actor), ['V_0']);
+assert.deepEqual(reworkedBy(areas, [22, 22, 4]).map(a => a.actor), ['V_0']);        // (its far edge's tiles too)
+assert.deepEqual(reworkedBy(areas, [23, 20, 0]), []);
+assert.deepEqual(reworkedBy(areas, [20, 20, 5]), []);
+// the words: the panel's, the tooltip's, several marks', a mission's stream's, none
+const hit = reworkedBy(areas, [20, 20, 0]);
+assert.equal(reworkWords(hit), "Long War's patch_map reworks this tile at every battle's start, and the game never writes diagonal "
+  + 'cover back. Move the mark off the area drawn dashed.');
+assert.equal(reworkWords(hit, true), "No cover in the game: Long War's patch_map reworks this tile at every battle's start");
+assert.ok(reworkWords(hit, false, 3).startsWith("3 of these marks get no cover in the game: Long War's patch_map reworks their tiles"));
+assert.equal(reworkWords(reworkedBy(areas, [40, 40, 0]), true),
+             "No cover in the game: Map_CNH (streamed by Data recovery) reworks this tile at the battle's start");
+assert.equal(reworkWords([]), '');
+assert.equal(areaWords(hit[0]), 'patch_map reworks this area');
 console.log('diagonal_marks: ok');

@@ -50,6 +50,21 @@ class Streams(unittest.TestCase):
         self.assertEqual((patch['kind'], patch['package'], patch['error']), ('lwr', 'patch_policestation.upk', None))
         # LWR's cover blocks: placed hidden in game
         self.assertEqual((len(patch['objects']), patch['hiddenComponents'], patch['rebuildVolumes']), (6, 6, 5))
+        # export 41 (KB-22): each rebuild volume as the battle reads it, the same as the Build's reading
+        # (tools/bake/native_copy.py volume_sphere: the two agree on all 409 of the install's patch levels' volumes)
+        spheres = patch['rebuildSpheres']
+        self.assertEqual(len(spheres), 5)
+        self.assertTrue(all(s['actor'].startswith('TheWorld.PersistentLevel.XComRebuildWorldDataVolume') and s['radius'] > 0
+                            and len(s['centre']) == 3 for s in spheres), spheres)
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'bake'))
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'upk'))
+        import audit_lighting
+        import native_copy
+        q = audit_lighting.Package(export.stream_package(POLICE, 'patch_policestation'))
+        for s in spheres:
+            centre, radius = native_copy.volume_sphere(q, q.by_name[s['actor']])
+            self.assertAlmostEqual(s['radius'], radius, places=2)
+            for k in range(3): self.assertAlmostEqual(s['centre'][k], centre[k], places=2)
         for o in patch['objects']:
             self.assertEqual((o['layer'], o['stream'], o['floors'], o['sceneryRole']), ('stream', 'patch_policestation', [], None))
             self.assertTrue(o['id'].startswith('stream-patch_policestation-'))

@@ -2393,6 +2393,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <kbd>Del</kbd>, <kbd>[</kbd> and <kbd>]</kbd> act on them all.</li>
   <li><b>Diagonal cover</b> in <a href="#viewoptions">View options</a> draws the marks in the normal view too, never
     picked there.</li>
+  <li id="diagonal-rework"><b>A yellow warning triangle on a mark</b> means the game takes its cover away: the map's
+    streamed levels, Long War's patch levels or a mission's own, work some areas of the map out again as every battle
+    starts, and that never gives diagonal cover back. Pick the mark to see the area drawn dashed with the level's name;
+    the panel says why, and so does the triangle when you point at it. Move the mark off the area. The Build warns of it
+    too. A cleared map streams no patch level, so their areas take nothing there.</li>
 </ul>
 <h4 id="diagonal-add">A new mark</h4>
 <p>New marks come from the <a href="#add">Add panel</a>: its Kind <b class="ui">Diagonal cover</b> has one entry.</p>
@@ -3139,7 +3144,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     again from what still stands, and that never gives diagonal cover back: a marked tile it reaches loses its
     cover, even where the slanted wall still stands. The maps' own marks go the same way. Under Long War a meld
     canister does it too: the game puts them in random places as a mission starts, and one next to a marked tile
-    takes that tile's diagonal cover for the mission.</li>
+    takes that tile's diagonal cover for the mission. So do the areas a map's streamed levels work out again as a
+    battle starts: the editor marks a mark there with a <a href="#diagonal-rework">warning triangle</a>.</li>
   <li><b>The squad may land on a new piece.</b> Keep copies off the soldier tiles, or
     <a href="#landingzones">move the landing zone</a>.</li>
   <li><b>A quick build's lighting is wrong on purpose.</b> Copies are lit as their originals were and cast no shadows,

@@ -128,6 +128,20 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         no_floor, = [w for w in report['warnings'] if w['code'] == 'diagonal-mark-no-floor']
         self.assertEqual(no_floor['tiles'], [[30, 30, 0]])
         self.assertEqual(noted(report, 'diagonal-removed-unmarked'), ['diagonal-removed-unmarked'])
+        # a mark on a tile a streamed level reworks at the battle's start gives no cover in the game (KB-22, export 41):
+        # warned, one warning a level; a cleared map streams no patch level (KB-23), so its patch's areas warn of nothing
+        s['missions'] = [dict(label='Abduction', streams=['patch_bar']), dict(label='Data recovery', streams=['patch_bar', 'URB_Bar_CNH'])]
+        s['streams'] = {'patch_bar': dict(kind='lwr', rebuildSpheres=[dict(actor='V_0', centre=at([20, 20, 0]), radius=150)]),
+                        'URB_Bar_CNH': dict(kind='mission', rebuildSpheres=[dict(actor='V_1', centre=at([14, 10, 0]), radius=10)])}
+        spec, report = compile_project(doc, s)
+        reworked = [w for w in report['warnings'] if w['code'] == 'diagonal-mark-reworked']
+        self.assertEqual([(w['stream'], w['tiles']) for w in reworked], [('URB_Bar_CNH', [[14, 10, 0]]), ('patch_bar', [[20, 20, 0]])])
+        self.assertIn("Long War's patch_bar reworks at every battle's start (tile (20, 20, 0))", reworked[1]['message'])
+        self.assertIn('URB_Bar_CNH (streamed by Data recovery)', reworked[0]['message'])
+        self.assertEqual(len(spec['diagonalCover']['marks']), 4)       # (warned, never left out)
+        spec, report = compile_project(dict(doc, cleared=True), s)
+        self.assertEqual([w['stream'] for w in report['warnings'] if w['code'] == 'diagonal-mark-reworked'], ['URB_Bar_CNH'])
+        s.pop('streams'); s.pop('missions')
         self.assertEqual(report['diagonalCover'], dict(marks=4, removed=2))
         # the Build takes it as the native edit's lane
         self.assertEqual(native_split(spec)[1]['diagonalCover'], lane)

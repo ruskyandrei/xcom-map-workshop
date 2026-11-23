@@ -98,7 +98,10 @@ import settings
 # 40: each diagonal cover tile's directions name their `wall` (scene_metadata.diagonal_walls, tools/bake/mark_walls.py:
 #     the piece the game's cover rule meets along that diagonal), so a mark follows its piece in the editor (diagonal
 #     cover by hand, stage M5)
-EXPORT_VERSION = 40
+# 41: each streamed package's rebuild volumes as the battle reads them (`streams[<name>].rebuildSpheres`: centre and
+#     sphere radius, scene_metadata.rebuild_spheres, F-150), so the Diagonal cover view and the Build warn of a mark
+#     whose tile a patch level reworks at the battle's start (KNOWN-BUGS.md KB-22)
+EXPORT_VERSION = 41
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -770,6 +773,10 @@ def stream_layers(p, result, stage, records, progress=None, base=None):
                      hiddenComponents=sum(bool(o['hidden']) for o in layer['objects']),
                      rebuildVolumes=sum(r.get('actorClass') == 'XComRebuildWorldDataVolume'
                                         for r in layer.get('content', [])))
+        # where the battle reworks the tiles as the level streams in (export 41, KB-22): a diagonal cover mark there
+        # gets none in the game, which the Diagonal cover view and the Build warn of
+        from scene_metadata import rebuild_spheres
+        entry['rebuildSpheres'] = rebuild_spheres(package, report_to)
         result['diagnostics'].extend(dict(d, source=f'{name}: {d["source"]}') for d in layer['diagnostics'])
     return streams
 
