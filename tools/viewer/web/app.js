@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo } from './gizmo.js';
 import { createPieceBrowser } from './pieces.js';
+import { createPickStep } from './pick_step.js';
 import { api as projectApi, uuid } from './project.js';
 import { createProjectDialog } from './project_files.js';
 import { createProjectManager } from './manager.js';
@@ -188,7 +189,7 @@ function readLooks() {
 // its template, a record's template and an original's recipe pose; made before the gizmo, which is given baseMatrix
 // (nothing of it runs as the page loads but a few tables and vectors made).
 const { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
-        materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, rayAt, recipeOf, removeRoots,
+        materialCache, materialKey, movedBox, originalOf, partsOf, pick, pickAll, placeObjects, rayAt, recipeOf, removeRoots,
         templateFor, texture, track, unscaled, vertexBox } = createScenePieces({
   camera, content, gltfLoader, gridOrigin, pickables, renderer, textureLoader, texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
@@ -321,7 +322,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         buildLights, changeLight, clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear,
         hoverHandle, lightClip, lightEdited,
         lightEntries, lightingModes, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
-        lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, recipeLight, refreshLightShapes,
+        lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, lightsAt, recipeLight, refreshLightShapes,
         refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
         setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
         withStorableCone } = createLightsWiring({
@@ -620,7 +621,7 @@ landingLayer.visible = recall(LANDING_SHOWN) !== '0';
 // gizmo, the project's moves and edits of spawn points and mission objects, and the spawn rule.
 const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
         editedSpawns, editSpawnCopy, loadSpawnRules, missionFloorLost, missionGizmo, missionGizmoWanted, missionKey,
-        missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker,
+        missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker, spawnMarkersAt,
         placeMissionGizmo, placeSpawn, refreshSpawnMarkers, resetBaseSpawn, scaleSpawnMarkers, setMissionMoves,
         setNormalSpawns, setPickedSpawn, setSpawnRule, setSpawnsShown, showSpawn, spawnAddEntries, spawnAt, spawnBoxNow,
         spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer, spawnMovable,
@@ -639,7 +640,7 @@ const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, 
 // The Effects view (effects_wiring.js): the map's effects, sounds and lens flares as roots, the view, the likeness,
 // the panel with the Wave preview and the values, and the project's records of effects and sounds.
 const { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffects, clearEffectEdits, drawEffectShape,
-        drawLikenessPane, effectAt, effectEdited, effectFollows, effectLayer, effectNow, effectPicture,
+        drawLikenessPane, effectAt, effectEdited, effectsAt, effectFollows, effectLayer, effectNow, effectPicture,
         effectShapes, effectSource, effectsShown, effectState, effectTip, effectValuesEditable, effectViewOnly,
         frameEffect, ghostLikeness, ghostLikenesses, hoverLikeness, likenesses, likenessLayer, likenessPane,
         numberField, pickEffect, pickEffectAt, playWave, refreshEffects, removeEffectRoots,
@@ -656,7 +657,7 @@ const { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffe
 // zones changed and added, and what follows a change of the cleared mark.
 const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
         placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,
-        stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
+        stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy, zonesAt,
         zoneSoldiers, zoneState } = createZonesWiring({
   $, banner, camera, controls, editChanged, flashHint, floorStays, gizmo, groundHeight, headerMission,
   isLanding, landHere, LANDING_SHOWN, landingLayer, ownSize, projectChanged, rayAt, renderer, restingHint,
@@ -669,10 +670,10 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
 const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag,
         endVolumeDrag, FACES, handlePoint, hoverVolumeHandle, liveVolumes, makeVolume, mapEdits, mapIdOf,
         mapRestoreChange, movePickDrag, moveVolumeDrag, newBuilding, newBuildingId, ownVolumeLayer, pasteVolumes,
-        PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
+        PICK_SLACK, boxEdgesAt, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
         refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
         setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
-        takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint,
+        takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint, volumesAt,
         volumePanel } = createBuildingsWiring({
   $, boxOf, builderBounds, camera, chosenStorey, editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
   editSpawnCopy, effectsShown, effectViewOnly, flashHint, gizmo, lightViewOnly, missionGizmo, pick, projectListings,
@@ -692,7 +693,7 @@ const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolum
 // (its highlight, its ladder's ends, its grid chip), and the selection's pieces that can be copied, lined up or
 // grouped; after the Buildings view, the last factory whose functions it calls (nothing of it runs as the page loads).
 const { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshHighlight, select, selectActors,
-        selectedBoxes } = createSelection({
+        selectedBoxes, selectStepped } = createSelection({
   $, actorPose, allBuildings, AREA_SHOWN, areaOwner, boxOf, editChanged, effectViewOnly, flagContract, flagSource,
   flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, ladderMarks, lightViewOnly,
   listingsNow, missionName, ownSize, pickEffect, recipeOf, setEffectsShown, setLightsShown,
@@ -1266,6 +1267,13 @@ $('reachToggle').onchange = e => {
   setReachKey(''); refreshLightShapes(); lightPanel();   // drawn again with or without the outlines
 };
 
+// Ctrl and the wheel stepping through what is under the cursor (pick_step.js): each notch selects the next thing a
+// click there could pick, the panel filled once the wheel rests; made after the views whose candidates it asks, before
+// navigation, whose wheel asks it first (it sets its Ctrl key's listeners up as the page loads; nothing else listens to
+// that key).
+const { wheel: stepWheel } = createPickStep({
+  boxEdgesAt, camera, effectsAt, effectsShown, flashHint, gizmo, lightsAt, pickAll, pickOwn, pickZone, select,
+  selectStepped, setOwnPicked, setPickedSpawn, spawnEntry, spawnMarkersAt, spawnsShown, volumesAt, zonesAt });
 // The camera, snap and keys (navigation.js): the framing, the camera's keys, look-drag, wheel and speeds, the gizmo's
 // buttons with the pivot and snap (and the edit hub's tools refresh), and the editor's keys; made where the camera's
 // keys were, the last of its runs, after every factory whose functions the keys call.
@@ -1277,7 +1285,7 @@ const { frame, panCamera, setSnapMode } = createNavigation({
   missionGizmo, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
   alignToGrid, setGridTool, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
-  setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,
+  setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog, stepWheel,
   showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,
   TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel, wallGhost, wallHint, zoneGizmo, diagonalKey,

@@ -32,7 +32,7 @@ import { drawable, leftOut, makeLikeness, SWAP, viewHeight } from './effects_pre
 import { effectRecords, keptValues, KIND_LABEL, parameterControls, parameterRows, recordChips, recordLines, recordName,
          savedValues, soundReach, survivesClear, tintOf, tintVector, VALUE_LIMITS, valuesViewOnly, withValues } from './effects_rules.js';
 import { LIMITS as LIKENESS_LIMITS, parametersOf } from './effects_sim.js';
-import { boxShape, makeEffectMarker, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
+import { boxShape, makeEffectMarker, markersNear, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
 import { actorMatrix } from './gizmo.js';
 import { setParagraphs } from './missions.js';
 import { isStream, optionsOf, recordOf } from './piece_records.js';
@@ -621,6 +621,10 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
     const m = nearestMarker(effectMarkers.filter(x => !x.userData.derived), camera, renderer.domElement.getBoundingClientRect(), clientX, clientY);
     return m ? m.userData.root : null;
   }
+  // Every effect, sound and lens flare marker near a screen point, as effectAt finds one: [{ root, distance (from the
+  // camera) }], nearest first (Ctrl and the wheel: pick_step.js).
+  const effectsAt = (clientX, clientY) => markersNear(effectMarkers.filter(x => !x.userData.derived), camera, renderer.domElement.getBoundingClientRect(),
+                                                      clientX, clientY).map(({ marker, distance }) => ({ root: marker.userData.root, distance }));
   function pickEffectAt(clientX, clientY, add = false) {
     const root = effectAt(clientX, clientY);
     if (root) select(root.userData.source.id, add); else if (!add) select(null);
@@ -886,7 +890,7 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
   onHub('select-none', 'effects', () => { paintEffects(); effectPanel(); drawEffectShape(); });
 
   return { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffects, clearEffectEdits,
-           drawEffectShape, drawLikenessPane, effectAt, effectEdited, effectFollows, effectLayer, effectNow,
+           drawEffectShape, drawLikenessPane, effectAt, effectEdited, effectsAt, effectFollows, effectLayer, effectNow,
            effectPicture, effectShapes, effectSource, effectsShown, effectState, effectTip, effectValuesEditable,
            effectViewOnly, frameEffect, ghostLikeness, ghostLikenesses, hoverLikeness, likenesses, likenessLayer,
            likenessPane, numberField, pickEffect, pickEffectAt, playWave, refreshEffects, removeEffectRoots,

@@ -19,8 +19,8 @@
 // the groups, their index and their pieces now (liveCache) are editor_state.js's.
 import { isFloor } from './cover.js';
 import { onHub } from './edit_hub.js';
-import { effectRoots, groupIndex, groups, lightRoots, liveCache, roots, selected, setGroups, setLiveCache,
-         volumeRoots } from './editor_state.js';
+import { effectRoots, effectsOn, groupIndex, groups, lightRoots, lightsOn, liveCache, roots, selected, setGroups,
+         setLiveCache, volumeRoots } from './editor_state.js';
 import { groupKey, memberKey, pruneGroups, uuid } from './project.js';
 import { plural } from './dom_words.js';
 import { isStream } from './piece_records.js';
@@ -135,7 +135,7 @@ export function createGroups({ $, flashHint, gizmo, groupables, groupChip, highl
   // The group section of the piece panel, the group chip and the colour of the selection box (gold for a group).
   const BREAK_TOGETHER_TITLE = $('groupBreakRow').title;
   function groupPanel() {
-    const box = $('groupBox'), { kind, group: g, count, groups: wholeGroups } = selectionGroup();
+    const box = $('groupBox'), { kind, group: g, count, groups: wholeGroups, units } = selectionGroup();
     box.hidden = !kind;
     groupChip.hidden = !g;
     highlight.material.color.set(g && kind === 'whole' ? 0xe8bd5c : 0x96e5d7);
@@ -160,7 +160,10 @@ export function createGroups({ $, flashHint, gizmo, groupables, groupChip, highl
     groupChip.title = 'Its pieces select and move as one (Ctrl+Shift+G ungroups it)';
     const inner = [...g.members.values()].filter(m => m.group !== undefined && groups.has(m.group)).length;
     $('groupTitle').textContent = `${g.prefab ? `Prefab · ${g.prefab.name}` : 'Group'} · ${keyWords(liveKeys(g))}${inner ? `, ${plural(inner, 'group')} inside` : ''}`;
-    $('groupText').textContent = (g.prefab ? `Placed from the prefab ${g.prefab.name} (revision ${g.prefab.revision}): a copy of its own, which changes to the prefab don't reach. ` : '')
+    // (some of its pieces picked on their own: Ctrl and the wheel, pick_step.js, or a light or effect in its own view)
+    $('groupText').textContent = kind === 'part'
+      ? `${units === 1 ? 'One' : units} of the ${n} pieces of this group, picked on ${units === 1 ? 'its' : 'their'} own${lightsOn || effectsOn ? '' : ' · a click picks the group'}`
+      : (g.prefab ? `Placed from the prefab ${g.prefab.name} (revision ${g.prefab.revision}): a copy of its own, which changes to the prefab don't reach. ` : '')
       + (inner
       ? 'Everything in it selects and moves as one, whether linked pieces are on or off. Ungroup it to get the groups inside it back on their own.'
       : 'Its pieces select and move as one, whether linked pieces are on or off. Ungroup it to move one on its own.');

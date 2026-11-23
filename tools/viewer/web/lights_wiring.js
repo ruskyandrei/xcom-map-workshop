@@ -167,22 +167,24 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   }
   // A light under a screen point: the nearest marker centre within 13 pixels, or null. (A spot's cone hangs from the light
   // along its direction: its centre is half a cone from the light.)
-  function pickLight(clientX, clientY) {
-    if (!lightsShown) return null;
-    const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
-    let best = null, bestD = 13;
+  // The light markers within 13 pixels of a screen point: [{ root, d (pixels), distance (from the camera) }], nearest
+  // the camera first (Ctrl and the wheel step through them: pick_step.js). A click takes the one nearest the pointer.
+  function lightsAt(clientX, clientY) {
+    if (!lightsShown) return [];
+    const rect = renderer.domElement.getBoundingClientRect(), out = [];
     for (const root of lightRoots.values()) {
       if (!root.visible) continue;
       const front = root.userData.marker.userData.front;
       if (!front.geometry.boundingSphere) front.geometry.computeBoundingSphere();
       front.updateWorldMatrix(true, false);
-      p.copy(front.geometry.boundingSphere.center).applyMatrix4(front.matrixWorld).project(camera);
+      const at = front.geometry.boundingSphere.center.clone().applyMatrix4(front.matrixWorld), p = at.clone().project(camera);
       if (p.z > 1 || p.z < -1) continue;
       const d = Math.hypot(rect.left + (p.x + 1) / 2 * rect.width - clientX, rect.top + (1 - p.y) / 2 * rect.height - clientY);
-      if (d < bestD) { bestD = d; best = root; }
+      if (d < 13) out.push({ root, d, distance: at.distanceTo(camera.position) });
     }
-    return best;
+    return out.sort((a, b) => a.distance - b.distance);
   }
+  const pickLight = (clientX, clientY) => lightsAt(clientX, clientY).reduce((best, c) => (!best || c.d < best.d ? c : best), null)?.root ?? null;
   // Markers keep one size on screen.
   const markerAt = new THREE.Vector3();
   function scaleMarkers() {
@@ -918,7 +920,7 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   return { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLighting, areaOwner, assignOwner,
            buildLights, changeLight, clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear,
            hoverHandle, lightClip, lightEdited, lightEntries, lightingModes, lightPanel, lightPose, lightRecords,
-           lightsBlocked, lightShapes, lightSource, lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight,
+           lightsAt, lightsBlocked, lightShapes, lightSource, lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight,
            recipeLight, refreshLightShapes, refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding,
            setLightsShown, setLightValues, setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
            withStorableCone };

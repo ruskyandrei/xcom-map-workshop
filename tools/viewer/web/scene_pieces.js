@@ -1,5 +1,6 @@
 // The scene's pieces (refactor stage P8): what the view draws of a piece and how it is found again. Here:
-// - picking: the mouse's ray (rayAt) and the first visible, unclipped piece under a screen point (pick);
+// - picking: the mouse's ray (rayAt) and the first visible, unclipped piece under a screen point (pick), or every one
+//   of them, nearest first (pickAll: Ctrl and the wheel step through them, pick_step.js);
 // - textures and materials: a texture read (texture), a material made from the export's record (material; a made
 //   piece's plain one, plainMaterial, PLAIN_MATERIAL) and the materials' cache by key (materialKey, materialCache);
 // - the meshes' and materials' loads, each once, shared by every piece that uses it (track, loaded) and the box round
@@ -59,12 +60,13 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
     ray.setFromCamera(new THREE.Vector2((clientX-rect.left)/rect.width*2-1, -(clientY-rect.top)/rect.height*2+1), camera);
     return ray;
   }
-  function pick(clientX, clientY) {
-    return rayAt(clientX, clientY).intersectObjects(pickables).find(h => {
-      const root = roots.get(h.object.userData.objectId);
-      return root?.visible && (root.userData.clippingPlanes || []).every(plane => plane.distanceToPoint(h.point) >= -0.01);
-    }) ?? null;
-  }
+  // (a hit on a piece drawn and not cut away where it falls)
+  const shownHit = h => {
+    const root = roots.get(h.object.userData.objectId);
+    return root?.visible && (root.userData.clippingPlanes || []).every(plane => plane.distanceToPoint(h.point) >= -0.01);
+  };
+  const pick = (clientX, clientY) => rayAt(clientX, clientY).intersectObjects(pickables).find(shownHit) ?? null;
+  const pickAll = (clientX, clientY) => rayAt(clientX, clientY).intersectObjects(pickables).filter(shownHit);
   async function texture(id, color = true, sampling = {channel:0,scale:[1,1]}) {
     if (!id || !data.textures[id]) return null;
     const key = `${id}:${color}:${JSON.stringify(sampling)}`;
@@ -387,6 +389,6 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
   }
 
   return { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
-           materialCache, materialKey, movedBox, originalOf, partsOf, pick, placeObjects, PLAIN_MATERIAL, rayAt,
+           materialCache, materialKey, movedBox, originalOf, partsOf, pick, pickAll, placeObjects, PLAIN_MATERIAL, rayAt,
            recipeOf, removeRoots, templateFor, texture, track, unscaled, vertexBox };
 }

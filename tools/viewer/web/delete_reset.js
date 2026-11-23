@@ -75,7 +75,7 @@ export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, bas
       undo: () => {
         addRoots(added); addLightRoots(addedLights); addEffectRoots(addedEffects);
         for (const r of [...originals, ...originalLights, ...originalEffects, ...boxes]) r.userData.deleted = false;
-        runHub('clear'); setLightsDirty(true); gizmo.setSelection(before.ids, before.active); sceneChanged();
+        runHub('clear'); setLightsDirty(true); gizmo.setSelection(before.ids, before.active, before.loose); sceneChanged();
       },
     });
     const what = selectionWords([...targets, ...boxes]);

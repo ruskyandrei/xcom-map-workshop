@@ -1,7 +1,8 @@
 // The selection (refactor stage P9): select, which picks a piece, a light, a building's box or an effect (or nothing)
 // and fills the piece panel for it, and the selected piece's marks. Here:
 // - select: the views stepping aside for what is picked and the piece panel for it, its name, chips and source fields;
-//   a cover block's or invisible floor's panel (showCover). Each area's own part of it (its section shown or hidden,
+//   a cover block's or invisible floor's panel (showCover). A selection the wheel steps to (pick_step.js) takes only
+//   its quick part at each notch (selectStepped), and select once the wheel rests. Each area's own part of it (its section shown or hidden,
 //   its panel, the flags chip) is run through the edit hub's select runs, where the area registers it (edit_hub.js);
 // - the selected piece's marks: its highlight (refreshHighlight), a ladder's ends and its chip (ladderNow, floorPlan,
 //   refreshLadder) and the grid chip of a piece off its pose rule (gridNow, refreshGrid), which the edit hub's
@@ -215,6 +216,20 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
     if (actors.length) field(dl, 'Moves with', actors.map(short).join('\n'));
     editChanged();
   }
+  // A selection the wheel stepped to (pick_step.js, the gizmo's selection set already): what select does at once, the
+  // selected id and the highlight in the plain colour (a piece picked on its own); the piece panel waits for select,
+  // once the wheel rests, so a quick turn through ten pieces doesn't build ten panels. `add`: Shift held, the selection
+  // before the stepping kept.
+  function selectStepped(add = false) {
+    const id = gizmo.active, root = roots.get(id);
+    if (id) setOwnPickedValue(null);
+    if (!add) ownSet.clear();
+    setSelected(id);
+    { const was = pickedEffect; setPickedEffect(effectRoots.has(id) ? id : null); if (was !== pickedEffect) setEffectsDirty(true); }
+    highlight.material.color.set(0x96e5d7);
+    ladderMarks.visible = false;
+    if (root) refreshHighlight(root); else highlight.visible = false;
+  }
   // A cover block's or invisible floor's panel: what it is, its size, height and cover (coverPanel), its actor and place.
   function showCover(root) {
     const obj = root.userData.source, details = $('details'), c = obj.cover, floor = isFloor(c);
@@ -374,5 +389,5 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
   onHub('snap', 'grid', root => { refreshGrid(root); });
 
   return { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshGrid, refreshHighlight, select,
-           selectActors, selectedBoxes };
+           selectActors, selectedBoxes, selectStepped };
 }

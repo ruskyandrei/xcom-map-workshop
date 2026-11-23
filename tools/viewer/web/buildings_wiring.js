@@ -425,7 +425,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     const ids = made.map(r => r.userData.source.id), before = gizmo.picks();
     gizmo.record({
       redo: () => { for (const [id, meta] of fresh) buildingMeta.set(id, { ...meta }); for (const r of made) r.userData.deleted = false; gizmo.setSelection(ids); },
-      undo: () => { for (const r of made) r.userData.deleted = true; for (const id of fresh.keys()) buildingMeta.delete(id); gizmo.setSelection(before.ids, before.active); },
+      undo: () => { for (const r of made) r.userData.deleted = true; for (const id of fresh.keys()) buildingMeta.delete(id); gizmo.setSelection(before.ids, before.active, before.loose); },
     });
     lastBuilding = last;
     flashHint(`${boxCount(made.length)} pasted`);
@@ -725,6 +725,18 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     else restingHint();
   }
   // A click in the view while it is on: the box under it, never a piece or a light.
+  // The Buildings view's boxes under a screen point, nearest first, each once: [{ distance, id (a box of the project's) or
+  // own (a mesh of one of the map's buildings) }] (a click takes the first; Ctrl and the wheel step through them).
+  function volumesAt(clientX, clientY) {
+    const seen = new Set(), out = [];
+    for (const hit of rayAt(clientX, clientY).intersectObjects([...[...volumeRoots.values()].filter(r => r.visible).map(r => r.userData.fill),
+                                                                 ...ownVolumeLayer.children.filter(c => c.userData.own)])) {
+      const id = hit.object.userData.volumeId, key = id ?? hit.object.uuid;
+      if (seen.has(key)) continue;
+      seen.add(key); out.push(id ? { id, distance: hit.distance } : { own: hit.object, distance: hit.distance });
+    }
+    return out;
+  }
   function volumeClick(e) {
     if (volumeTool) return;
     const add = e.ctrlKey || e.shiftKey || e.metaKey;
@@ -939,26 +951,31 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   $('boxesToggle').onchange = e => { setBoxesShown(e.target.checked); e.target.blur(); };
   // The box whose edge is under a screen point, in the normal view (a box's sides are see-through: the pieces inside
   // are picked through them).
-  function pickBoxEdge(x, y) {
-    if (!boxesShown || volumesOn || lightsOn) return null;
-    const project = projector();
-    let best = null;
+  // The boxes with an edge within 6 pixels of a screen point, each once at its nearest edge: [{ d (pixels), distance
+  // (from the camera, to that edge's nearest point), id (a box of the project's) or own (one of the map's buildings'
+  // boxes) }], nearest the camera first (Ctrl and the wheel: pick_step.js). A click takes the one nearest the pointer.
+  function boxEdgesAt(x, y) {
+    if (!boxesShown || volumesOn || lightsOn) return [];
+    const project = projector(), out = [];
     const near = (b, hit) => {
-      const corner = ([i, j, k]) => project(gameToView([b[i * 3], b[1 + j * 3], b[2 + k * 3]]));
+      const at = ([i, j, k]) => gameToView([b[i * 3], b[1 + j * 3], b[2 + k * 3]]), corner = c => project(at(c));
+      let best = null;
       for (const [lo, hi] of BOX_EDGES) {
         const p = corner(lo), q = corner(hi);
         if (!p || !q) continue;
         const dx = q[0] - p[0], dy = q[1] - p[1], length = dx * dx + dy * dy;
         const t = length ? Math.max(0, Math.min(1, ((x - p[0]) * dx + (y - p[1]) * dy) / length)) : 0;
         const d = Math.hypot(p[0] + t * dx - x, p[1] + t * dy - y);
-        if (d <= 6 && (!best || d < best.d)) best = { d, ...hit };
+        if (d <= 6 && (!best || d < best.d)) best = { d, distance: at(lo).lerp(at(hi), t).distanceTo(camera.position), ...hit };
       }
+      if (best) out.push(best);
     };
-    // the project's boxes first: one of the map's is taken only where it is nearer
     for (const root of volumeRoots.values()) if (root.visible) near(volumeBox(root), { id: root.userData.source.id });
     for (const mesh of ownVolumeLayer.children) if (mesh.userData.own) near(mesh.userData.own.box, { own: mesh });
-    return best;
+    return out.sort((a, b) => a.distance - b.distance);
   }
+  // (the project's boxes first: one of the map's is taken only where it is nearer)
+  const pickBoxEdge = (x, y) => boxEdgesAt(x, y).reduce((best, c) => (!best || c.d < best.d || (c.d === best.d && c.id && !best.id) ? c : best), null);
   const pickVolumeEdge = (x, y) => pickBoxEdge(x, y)?.id ?? null;
   // One of the map's own buildings picked in the normal view: with Ctrl or Shift, added to what is selected (or taken
   // out again); alone, shown to be read.
@@ -1184,9 +1201,9 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   return { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag,
            endVolumeDrag, FACES, handlePoint, hoverVolumeHandle, liveVolumes, makeVolume, mapEdits, mapIdOf,
            mapRestoreChange, movePickDrag, moveVolumeDrag, newBuilding, newBuildingId, ownVolumeLayer, pasteVolumes,
-           PICK_SLACK, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
+           PICK_SLACK, boxEdgesAt, pickBoxEdge, pickMoveNear, pickMovePoint, pickOwn, pickVolumeEdge, recordVolumes, refreshPickBox,
            refreshVolumes, restoreMapBuildings, savedBuildings, setBoxesShown, setBuildings, setOwnPicked, setPickTool,
            setVolumeBox, setVolumesShown, setVolumeTool, spawnVolumeHandle, startPickDrag, startVolumeDrag, stopPickBox,
-           takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint,
+           takePickBox, updateVolumeHandles, volumeBox, volumeClick, volumeHandleNear, volumeHint, volumesAt,
            volumePanel };
 }

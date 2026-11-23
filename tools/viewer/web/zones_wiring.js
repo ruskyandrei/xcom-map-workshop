@@ -308,6 +308,16 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     const hit = hits.find(h => h.object.userData.zoneBadge) ?? hits[0];
     return hit ? { id: hit.object.userData.zoneId, distance: hit.distance, point: hit.point, badge: Boolean(hit.object.userData.zoneBadge) } : null;
   }
+  // Every zone under a screen point, nearest first, each once: [{ id, distance }] (Ctrl and the wheel: pick_step.js).
+  function zonesAt(clientX, clientY) {
+    if (!landingLayer.visible || !landingLayer.children.length) return [];
+    const seen = new Map();
+    for (const h of rayAt(clientX, clientY).intersectObjects(landingLayer.children, true)) {
+      const id = h.object.userData.zoneId;
+      if (id && !seen.has(id)) seen.set(id, { id, distance: h.distance });
+    }
+    return [...seen.values()];
+  }
   // The panel for the picked zone: its number, whether it is one of the map's own landings, its kind and mission, notes
   function landingPanel() {
     const panel = $('landingPanel'), { zones, own, slots } = zoneState(), k = zones.findIndex(z => z.id === pickedZone);
@@ -460,6 +470,6 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
 
   return { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
            placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,
-           stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy,
+           stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy, zonesAt,
            zoneSoldiers, zoneState };
 }

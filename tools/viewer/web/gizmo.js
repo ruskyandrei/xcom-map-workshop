@@ -83,6 +83,10 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
   world.add(helper);
 
   let group = [], picked = [], active = null, linked = true, mode = 'translate', drag = null, cancelled = false;
+  // The picks taken out of their groups (Ctrl and the wheel: pick_step.js): such a pick takes its actor's parts, its
+  // assembly and its linked pieces, not its locked group. It stays a member of the group: the mark stays with the pick
+  // through moves, undo and redo, and goes with the next ordinary pick.
+  let loose = new Set();
   const holds = new Set();     // who holds the handles aside now (hold)
   let snap = 'off', rule = null, pivot = 'origin';
   const undo = [], redo = [];
@@ -119,14 +123,17 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
     }
     return find;
   }
-  function expand(ids, withLinks = linked) {
+  function expand(ids, withLinks = linked, apart = new Set()) {
     const all = [...roots.values()].filter(r => !r.userData.deleted && !fixed(sourceOf(r)));
-    const keys = ids.map(id => roots.get(id)).filter(Boolean).map(r => actorKey(sourceOf(r)));
-    const find = linkFinder(all, withLinks), groups = new Set(keys.map(find));
-    return all.filter(r => groups.has(find(actorKey(sourceOf(r)))));
+    const keysOf = list => list.map(id => roots.get(id)).filter(Boolean).map(r => actorKey(sourceOf(r)));
+    const whole = keysOf(ids.filter(id => !apart.has(id))), alone = keysOf(ids.filter(id => apart.has(id)));
+    const find = linkFinder(all, withLinks), groups = new Set(whole.map(find));
+    // (a pick taken out of its group: joined without the locked groups)
+    const findAlone = alone.length ? linkFinder(all, withLinks, false) : null, own = new Set(alone.map(k => findAlone(k)));
+    return all.filter(r => groups.has(find(actorKey(sourceOf(r)))) || own.has(findAlone?.(actorKey(sourceOf(r)))));
   }
   function regroup() {
-    group = expand(picked);
+    group = expand(picked, linked, loose);
     rule = ruleOf(group);
     placeProxy(); applySnap(); show();
   }
@@ -163,6 +170,7 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
   // After a command added or removed pieces: drop picks that are gone or deleted.
   function refresh() {
     picked = picked.filter(id => roots.has(id) && !roots.get(id).userData.deleted);
+    loose = new Set([...loose].filter(id => picked.includes(id)));
     if (!picked.includes(active)) active = picked.at(-1) ?? null;
     regroup();
   }
@@ -309,12 +317,13 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
   }
 
   const api = {
-    /** Select a piece; with add, toggle it in the selection instead. The last one picked holds the pivot. */
-    select(id, add = false) {
-      if (!id) picked = [];
-      else if (!add) picked = [id];
-      else if (picked.includes(id)) picked = picked.filter(p => p !== id);
-      else picked = [...picked, id];
+    /** Select a piece; with add, toggle it in the selection instead. The last one picked holds the pivot. `alone`: the
+     *  piece taken out of its group (its parts, assembly and linked pieces still with it). */
+    select(id, add = false, alone = false) {
+      if (!id) { picked = []; loose = new Set(); }
+      else if (!add) { picked = [id]; loose = new Set(alone ? [id] : []); }
+      else if (picked.includes(id)) { picked = picked.filter(p => p !== id); loose.delete(id); }
+      else { picked = [...picked, id]; if (alone) loose.add(id); }
       active = picked.includes(id) ? id : picked.at(-1) ?? null;
       regroup();
     },
@@ -322,13 +331,21 @@ export function createGizmo({ world, camera, dom, orbit, roots, baseMatrix, onEd
     /** Hide the handles and ignore them, keeping the selection (while the viewer places pieces, a rock's corner is
      * moved, or a made piece's Texture mapping fold is open). Each `who` holds apart: they show again once none does. */
     hold(on, who = 'tool') { if (on) holds.add(who); else holds.delete(who); show(); },
-    /** The picked ids (before linked pieces are added) and the one holding the pivot. */
-    picks() { return { ids: [...picked], active }; },
-    /** Replace the selection, for commands that add or remove pieces. */
-    setSelection(ids, pivot = ids.at(-1) ?? null) {
+    /** The picked ids (before linked pieces are added), the one holding the pivot and those taken out of their groups. */
+    picks() { return { ids: [...picked], active, loose: [...loose] }; },
+    /** Replace the selection, for commands that add or remove pieces (`apart`: the ids of it taken out of their groups,
+     *  as picks() gives them back to put a selection back). */
+    setSelection(ids, pivot = ids.at(-1) ?? null, apart = []) {
       picked = ids.filter(id => roots.has(id));
+      loose = new Set(apart.filter(id => picked.includes(id)));
       active = picked.includes(pivot) ? pivot : picked.at(-1) ?? null;
       regroup();
+    },
+    /** For each of these ids, the key of what a pick of it alone takes (its actor's parts, its assembly, its linked
+     *  pieces with that switch on, never the user's groups): a Map id -> key. Two ids of one key select the same. */
+    looseKeys(ids) {
+      const find = linkFinder([...roots.values()].filter(r => !r.userData.deleted && !fixed(sourceOf(r))), linked, false);
+      return new Map(ids.filter(id => roots.has(id)).map(id => [id, find(actorKey(sourceOf(roots.get(id))))]));
     },
     /** Run a viewer command now and make it one undo step. */
     record(command) { command.redo(); undo.push(command); redo.length = 0; refresh(); onEdit(); },

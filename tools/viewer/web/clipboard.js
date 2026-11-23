@@ -238,7 +238,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
         // (the copied buildings' names go with them, so the next paste isn't named "copy 2": review finding 34)
         for (const { id } of twins.values()) buildingMeta.delete(id);
         if (newGroups.length) { const next = cloneGroups(); for (const g of newGroups) next.delete(g.id); setGroups(next); }
-        gizmo.setSelection(before.ids, before.active); sceneChanged();
+        gizmo.setSelection(before.ids, before.active, before.loose); sceneChanged();
       },
     });
     return built;

@@ -593,21 +593,23 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
     if (!missionDrag) return;
     missionDrag.cancelled = true; setMissionDragView(null); placeStreamRoots(); refreshSpawnMarkers();
   }
-  // the marker nearest the click within a few pixels, as a light's is picked: its key, or null
-  function pickSpawnMarker(clientX, clientY) {
-    if (!spawnLayer.visible || !spawnLayer.children.length) return null;
-    const rect = renderer.domElement.getBoundingClientRect(), p = new THREE.Vector3();
-    let best = null, bestD = 18;          // (about the halo's size on screen)
+  // The spawn markers within 18 pixels of a screen point (about the halo's size on screen): [{ key, d (pixels),
+  // distance (from the camera) }], nearest the camera first (Ctrl and the wheel: pick_step.js). A click takes the one
+  // nearest the pointer.
+  function spawnMarkersAt(clientX, clientY) {
+    if (!spawnLayer.visible || !spawnLayer.children.length) return [];
+    const rect = renderer.domElement.getBoundingClientRect(), out = [];
     for (const marker of spawnLayer.children) {
       if (!marker.userData.spawn) continue;       // (a volume's box: its marker is picked)
       marker.updateWorldMatrix(true, false);
-      p.setFromMatrixPosition(marker.matrixWorld).project(camera);
+      const at = new THREE.Vector3().setFromMatrixPosition(marker.matrixWorld), p = at.clone().project(camera);
       if (p.z > 1 || p.z < -1) continue;
       const d = Math.hypot(rect.left + (p.x + 1) / 2 * rect.width - clientX, rect.top + (1 - p.y) / 2 * rect.height - clientY);
-      if (d < bestD) { bestD = d; best = marker.userData.spawn; }
+      if (d < 18) out.push({ key: marker.userData.spawn, d, distance: at.distanceTo(camera.position) });
     }
-    return best;
+    return out.sort((a, b) => a.distance - b.distance);
   }
+  const pickSpawnMarker = (clientX, clientY) => spawnMarkersAt(clientX, clientY).reduce((best, c) => (!best || c.d < best.d ? c : best), null)?.key ?? null;
   // A click in the Spawns view: a marker, else a landing zone to describe, else the picked one let go
   function spawnClick(e) {
     const key = pickSpawnMarker(e.clientX, e.clientY);
@@ -769,7 +771,7 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
 
   return { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
            editedSpawns, editSpawnCopy, loadSpawnRules, missionFloorLost, missionGizmo, missionGizmoWanted, missionKey,
-           missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker,
+           missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker, spawnMarkersAt,
            placeMissionGizmo, placeSpawn, refreshSpawnMarkers, resetBaseSpawn, scaleSpawnMarkers, setMissionMoves,
            setNormalSpawns, setPickedSpawn, setSpawnRule, setSpawnsShown, showSpawn, spawnAddEntries, spawnAt,
            spawnBoxNow, spawnClick, spawnCopyRecords, spawnDeleted, spawnEntry, spawnFamilyBuilds, spawnLayer,

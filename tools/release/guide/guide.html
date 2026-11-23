@@ -957,6 +957,25 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   out. Selecting changes nothing in the project and is not an undo step. A picked effect or sound has a Select all of
   its own: <a href="#effects">Effects and sounds</a>.</p>
 
+<h4 id="step-pick">The piece behind: Ctrl and the wheel</h4>
+<p>Where pieces stand in front of each other, hold <kbd>Ctrl</kbd> and turn the wheel over them: each notch selects
+  the next thing under the cursor, nearest first (wheel down goes further, up comes nearer, and it goes round at either
+  end). The hint line says which it is, as in <i>2 of 5 under the cursor: Desk_A</i>. After a click took the front
+  piece, one notch takes the one behind it; a piece behind the gizmo's handles is reached the same way. What is
+  selected can be copied, moved or deleted at once, with <kbd>Ctrl</kbd> still down or not; the panel fills once the
+  wheel rests. Moving the pointer or the camera starts again from the new place.</p>
+<ul>
+  <li><b>A piece of a group on its own.</b> A click picks a <a href="#groups">group</a> whole; the wheel picks one
+    piece of it, which then moves, turns, copies and deletes alone. It stays in the group: the next click on it picks
+    the whole group again, the piece where you moved it. What always goes together still does: an actor's parts and
+    a car's body and glass, and linked pieces with that switch on.</li>
+  <li><b>With <kbd>Shift</kbd> as well</b>, what was selected stays selected and the piece stopped on is added to it.</li>
+  <li><b>In a view of its own</b> (Lights, Effects, Buildings, Landing zones, Spawns) the wheel steps through that
+    view's things.</li>
+  <li><b>Over a panel</b>, <kbd>Ctrl</kbd> and the wheel are the browser's zoom, and a touchpad's pinch still zooms
+    the view.</li>
+</ul>
+
 <h3 id="boxselect">Box select</h3>
 <p>To select many pieces at once, a whole house for one, draw a box around them.</p>
 <figure class="zoom">

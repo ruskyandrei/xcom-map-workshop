@@ -40,7 +40,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
                                    pickZone, playArea, projectsAvailable, rayAt, refreshVolumes, releaseRockPoint,
                                    renderer, restingHint, saveProject, select, setGridTool,
                                    alignToGrid, setOwnPicked, setPickedSpawn,
-                                   setPickTool, setPlayArea, setSolo, setVolumeTool,
+                                   setPickTool, setPlayArea, setSolo, setVolumeTool, stepWheel,
                                    setZoneGizmoMode, showFileDialog, showMapBrowser, showPieces, showPop,
                                    spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
                                    stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing,
@@ -243,6 +243,8 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
   }
   function wheelZoom(e) {
     e.preventDefault();
+    // (with the Ctrl key held, the wheel steps through what is under the cursor instead: pick_step.js)
+    if (stepWheel(e)) return;
     if (gizmo.controls.dragging) return;
     // pixels, lines or pages to notches (a mouse notch is about 100 pixels; a touchpad sends many small ones)
     const pixels = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 800 : 1);

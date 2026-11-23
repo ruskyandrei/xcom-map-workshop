@@ -4420,14 +4420,14 @@ def check_project_menu(page):
     assert page.locator('#projectRecent .projectitem').count() <= 3
     page.keyboard.press('Escape')
     assert page.locator('#projectMenu').is_hidden()
-    # the Map menu, next: Change map and, on a whole map, its missions, picture, grid and Clear map (elsewhere the
-    # button opens the map browser itself)
+    # the Map menu, next: Change map and, on a whole map, its settings, missions, picture, grid and Clear map (elsewhere
+    # the button opens the map browser itself)
     assert page.evaluate("document.querySelector('#projectButton').nextElementSibling.id") == 'mapButton'
     page.locator('#mapButton').click()
     if page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'):
         assert page.locator('#mapMenu').is_visible() and page.locator('#mapDialog').is_hidden()
         labels = [t.strip() for t in page.locator('#mapMenu .menuitems button:visible span').all_inner_texts()]
-        assert labels == ['Change map…', 'Missions…', 'Map picture…', 'Map grid', 'Clear map…'], labels
+        assert labels == ['Change map…', 'Map settings…', 'Missions…', 'Map picture…', 'Map grid', 'Clear map…'], labels
         page.locator('#mapChange').click()
         assert page.locator('#mapMenu').is_hidden()
     page.wait_for_selector('#mapDialog:not([hidden])')
@@ -5492,7 +5492,8 @@ def prefab_effects(browser, url):
     row, = [p for p in listed() if p['id'] == saved['id']]
     assert (row['pieces'], row['lights'], row['effects'], row['sounds'], row['maps']) == (1, 0, 1, 1, [here]), row
     doc = page.evaluate('id => viewer.prefabApi.load(id)', saved['id'])
-    assert doc['schemaVersion'] == 4 and sorted(p.get('kind', 'piece') for p in doc['pieces']) == ['effect', 'piece', 'sound']
+    # (effects and sounds came with schema 4; later schemas keep them)
+    assert doc['schemaVersion'] >= 4 and sorted(p.get('kind', 'piece') for p in doc['pieces']) == ['effect', 'piece', 'sound']
     page.keyboard.press('p')
     choose(page, 'libScope', 'prefabs')
     page.wait_for_selector('#prefabList .libitem')
@@ -6077,6 +6078,11 @@ CHECKS = (
     Check('ladder-floor', editing('ladder_floor'), 'a ladder\'s floor count', full=False),
     Check('small-defects', editing('small_defects'), 'small page defects', full=False),
     Check('grid-panel', editing('grid_panel'), 'the Map grid\'s panel beside each right-hand panel (1280, 1024 and 800 wide)', full=False),
+    Check('step-pick', lambda c: __import__('browser_controls').check_step_pick(c.browser, c.page.url, open_viewer),
+          'Ctrl and the wheel step through what is under the cursor, a piece of a group picked alone (in the prefab builder, '
+          "with Bar's and Police Station's pieces; and on Bar)", full=False),
+    Check('step-views', lambda c: __import__('browser_controls').check_step_views(c.browser, c.page.url, open_viewer),
+          'Ctrl and the wheel in the Lights, Effects, Buildings, Spawns and Landing zones views (on Bar)', full=False),
     Check('diagonal', lambda c: __import__('browser_diagonal').check_diagonal(c.browser, c.page.url, open_viewer),
           'the Diagonal cover view on the farm: corners switched, a mark moved, deleted, reset and added', full=False),
     Check('select-kind', editing('select_kind'), 'Select all of a kind on pieces, and their flags set together', when=ON_MAP, full=False),

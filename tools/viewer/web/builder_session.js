@@ -137,7 +137,7 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
     gizmo.setSelection(ids, plan.pivot);
     const pose = gizmo.pose();
     if (pose) gizmo.setPose(pose.location.map((v, k) => v + plan.delta[k]), null);
-    gizmo.setSelection(before.ids.filter(id => allRoots.has(id)), before.active);
+    gizmo.setSelection(before.ids.filter(id => allRoots.has(id)), before.active, before.loose);
     editChanged();
     flashHint(`Moved the prefab ${shiftWords(plan.delta)}: every door, ladder and fracturing piece is on the grid`);
     return Boolean(pose);

@@ -85,17 +85,21 @@ export function paintEffectMarker(sprite, { picked = false, dim = false } = {}) 
 
 /** The marker nearest a screen point within `radius` pixels, or null. */
 export function nearestMarker(markers, camera, rect, clientX, clientY, radius = 13) {
-  const p = new THREE.Vector3();
-  let best = null, bestD = radius;
+  return markersNear(markers, camera, rect, clientX, clientY, radius).reduce((best, c) => (!best || c.d < best.d ? c : best), null)?.marker ?? null;
+}
+/** The markers within `radius` pixels of a screen point: [{ marker, d (pixels), distance (from the camera) }], nearest
+ *  the camera first. */
+export function markersNear(markers, camera, rect, clientX, clientY, radius = 13) {
+  const out = [];
   for (const m of markers) {
     if (!m.visible) continue;
     m.updateWorldMatrix(true, false);
-    p.setFromMatrixPosition(m.matrixWorld).project(camera);
+    const at = new THREE.Vector3().setFromMatrixPosition(m.matrixWorld), p = at.clone().project(camera);
     if (p.z > 1 || p.z < -1) continue;
     const d = Math.hypot(rect.left + (p.x + 1) / 2 * rect.width - clientX, rect.top + (1 - p.y) / 2 * rect.height - clientY);
-    if (d < bestD) { bestD = d; best = m; }
+    if (d < radius) out.push({ marker: m, d, distance: at.distanceTo(camera.position) });
   }
-  return best;
+  return out.sort((a, b) => a.distance - b.distance);
 }
 
 const lineMaterial = (colour, opacity) => new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity, depthTest: false });
