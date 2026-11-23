@@ -422,6 +422,14 @@ def build_slabs(p, records, copies):
     return out
 
 
+def build_areas(buildings):
+    """The buildings whose floors are the cursor's as split() takes them in the Build: the native edit's buildings
+    with `cursorFloors` ([dict(name, id, floors: [dict(boxes)])]), in order, as the compiler's
+    floor_edits.cursor_areas gives them."""
+    return [dict(label=b.get('name') or b.get('id'), floors=[[[float(v) for v in x] for x in f['boxes']] for f in b['floors']])
+            for b in buildings or [] if b.get('cursorFloors') is True]
+
+
 def apply(g, p, slabs, areas=None):
     """The Build's writer: the map `p` (being grown as `g`) given the made slabs' floors and the buildings' own.
     `slabs`: [dict(box, label)], world boxes [x0, y0, z0, x1, y1, z1]; `areas`: [dict(label, floors: [[box, ...]])],

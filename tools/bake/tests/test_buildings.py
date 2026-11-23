@@ -113,5 +113,67 @@ class Shed(unittest.TestCase):
         self.assertNotIn('XComFracLevelActor_55', b['unread'])
 
 
+@unittest.skipUnless(BAR, NO_BAR)
+class CursorFloors(unittest.TestCase):
+    """A building whose floors are the cursor's (the building cursor floors plan) written into URB_Bar by the Build's
+    writer (made_cursors.apply, as native_copy.floors_and_cursors calls it): the bar's four map-wide cursor volumes
+    stand again round it, its own three floors of uneven heights over it; read back, the map's listed cursor volumes
+    are the floors the compiler's rule gives (made_cursors.storeys)."""
+    # a three-floor building on the bar's lot: floors 0 to 160, 160 to 352 and 352 to 448, the top one over half of it
+    AREA = dict(label='Tower', floors=[[[-1728.0, -1056.0, 0.0, -1344.0, -768.0, 160.0]],
+                                       [[-1728.0, -1056.0, 160.0, -1344.0, -768.0, 352.0]],
+                                       [[-1728.0, -1056.0, 352.0, -1536.0, -768.0, 448.0]]])
+
+    @classmethod
+    def setUpClass(cls):
+        import made_cursors
+        import shell
+        cls.tmp = tempfile.TemporaryDirectory()
+        p = lighting.Package(BAR)
+        g = package_grow.Grower(str(BAR))
+        live = shell.listed(p)
+        cls.before = [dict(key=i, floor=p.effective(i, 'm_iFloorNumber') or 0,
+                           box=list(native_copy.brush_box(p, i)[0]) + list(native_copy.brush_box(p, i)[1]),
+                           stair=bool(p.effective(i, 'm_bTreatAsStair')))
+                      for i in shell.actors(p, 'XComCursorVolume') if i in live]
+        cls.areas = made_cursors.build_areas([dict(name='Tower', cursorFloors=True,
+                                                   floors=[dict(boxes=f) for f in cls.AREA['floors']]),
+                                              dict(name='Plain', floors=[dict(boxes=[[0, 0, 0, 96, 96, 192]])])])
+        cls.record, clones = made_cursors.apply(g, p, [], cls.areas)
+        native_copy.add_to_level(g, p, clones)
+        out = Path(cls.tmp.name) / Path(BAR).name
+        g.write(str(out))
+        lighting.link_caches(out.parent, Path(BAR).parent)
+        cls.q = lighting.Package(out)
+        cls.want = made_cursors.storeys(cls.before, [], shell.grid_box(p), cls.areas)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_only_the_ticked_building_is_an_area(self):
+        self.assertEqual([a['label'] for a in self.areas], ['Tower'])
+
+    def test_written_and_read_back_as_the_rule_gives(self):
+        import made_cursors
+        import shell
+        made_cursors.verify(self.q, self.record)
+        live = shell.listed(self.q)
+        got = sorted((self.q.effective(i, 'm_iFloorNumber') or 0,
+                      tuple(round(v, 1) for v in list(native_copy.brush_box(self.q, i)[0]) + list(native_copy.brush_box(self.q, i)[1])))
+                     for i in shell.actors(self.q, 'XComCursorVolume') if i in live
+                     and not self.q.effective(i, 'm_bTreatAsStair'))
+        self.assertEqual(got, sorted((f, tuple(round(v, 1) for v in b)) for f, b in self.want))
+
+    def test_over_the_building_its_floors_off_it_the_bars(self):
+        own = [a for a in self.record['added'] if a.get('building') == 'Tower']
+        at = lambda x, y: sorted((round(a['box'][2]), round(a['box'][5]), a['floor']) for a in own  # noqa: E731
+                                 if a['box'][0] <= x <= a['box'][3] and a['box'][1] <= y <= a['box'][4])
+        self.assertEqual(at(-1600, -900), [(-2, 158, 1), (158, 350, 2), (350, 448, 3)])
+        self.assertEqual(at(-1400, -900), [(-2, 158, 1), (158, 352, 2)])
+        self.assertEqual(len(self.record['hidden']), 4)
+        self.assertTrue(all(a['floor'] in (1, 2, 3, 4) for a in self.record['added'] if 'building' not in a))
+
+
 if __name__ == '__main__':
     unittest.main()

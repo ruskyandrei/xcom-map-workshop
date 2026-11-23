@@ -191,7 +191,7 @@ reads its fields and writes its results to fields `BuildState` names with the st
 - `edit_buildings`: the building floors, and the buildings made and edited;
 - `edits_in_place`: the map's own pieces edited where they stand (lights registered, the clear, landings, flags,
   blasts);
-- `floors_and_cursors`: the floors' effect lists and the made slabs' cursor floors;
+- `floors_and_cursors`: the floors' effect lists, and the cursor floors of the made slabs and of the buildings whose floors are the cursor's (`made_cursors.py`);
 - `write_and_verify`: the write, and what was written read back.
 
 Then the record: the manifest (`manifest_parts`) and, with `--bake`, the relight (`relight_command`). The growing

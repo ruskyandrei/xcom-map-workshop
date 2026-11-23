@@ -3147,8 +3147,9 @@ def edits_in_place(st):
 
 def floors_and_cursors(st):
     """The building floors' effect lists against the final effects and floors (native_effects.floor_lists), and the
-    made floors' and roofs' own cursor floors (made_cursors.py), after the copies, the buildings, the clear and the
-    landings (BuildState `st`). Fills the state's floor_emitters, cursor_record and cursor_clones."""
+    made floors' and roofs' own cursor floors and the buildings' whose floors are the cursor's (made_cursors.py), after
+    the copies, the buildings, the clear and the landings (BuildState `st`). Fills the state's floor_emitters,
+    cursor_record and cursor_clones."""
     import native_effects
     p, g, building_edits, building_records = st.p, st.g, st.building_edits, st.building_records
     effect_record, lane_effects, generated_records = st.effect_record, st.lane_effects, st.generated_records
@@ -3164,19 +3165,23 @@ def floors_and_cursors(st):
                                                 building_records)
     # the made floors' and roofs' own cursor floors over their footprints (made_cursors.py; custom geometry plan M5b,
     # F-128): the map's cursor volumes they cross taken out and stood again round them, and floors breaking at
-    # their tops over them (a slab turned off the quarter turns: in steps, made_cursors.build_slabs)
+    # their tops over them (a slab turned off the quarter turns: in steps, made_cursors.build_slabs); and the floors
+    # of the buildings whose floors are the cursor's over theirs (the building cursor floors plan)
     cursor_record, cursor_clones = None, []
-    if any(r['kind'] == 'fracSlab' for r in generated_records):
-        import made_cursors
+    import made_cursors
+    areas = made_cursors.build_areas(st.buildings)
+    if areas or any(r['kind'] == 'fracSlab' for r in generated_records):
         made_slabs = made_cursors.build_slabs(p, generated_records, st.copies)
-        cursor_record, cursor_clones = made_cursors.apply(g, p, made_slabs)
+        cursor_record, cursor_clones = made_cursors.apply(g, p, made_slabs, areas)
         if cursor_record:
-            print("    the made floors' and roofs' cursor floors: %d of the map's cursor volumes taken out (%s), %d made "
-                  '(%d over the made slabs)' % (len(cursor_record['hidden']), ', '.join(cursor_record['hidden']) or 'none',
-                                               len(cursor_record['added']), sum(a['over'] for a in cursor_record['added'])))
+            print("    the made floors' and buildings' cursor floors: %d of the map's cursor volumes taken out (%s), %d made "
+                  '(%d over the made slabs, %d the buildings\')' % (
+                      len(cursor_record['hidden']), ', '.join(cursor_record['hidden']) or 'none', len(cursor_record['added']),
+                      sum(a['over'] and 'building' not in a for a in cursor_record['added']),
+                      sum('building' in a for a in cursor_record['added'])))
             for c in cursor_record['crossed']:
                 print("    %s is over the map's %s cursor volume %s, left as it is" % (
-                    c['slab'], 'stair' if c['why'] == 'stair' else 'turned', c['volume']))
+                    c.get('slab') or c.get('building'), 'stair' if c['why'] == 'stair' else 'turned', c['volume']))
     st.floor_emitters, st.cursor_record, st.cursor_clones = floor_emitters, cursor_record, cursor_clones
 
 
