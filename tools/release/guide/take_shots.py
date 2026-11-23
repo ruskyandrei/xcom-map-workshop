@@ -14,10 +14,12 @@ with scratch projects, builds and squad, and stop the server after:
 
 The scratch projects folder must be empty (the demo project is saved under a fixed name), and so must the prefabs
 folder beside it (the prefabs shot saves two). It needs the Bar exported in the server's cache (the mission objects'
-shot opens URB_SlaughterhouseA, read from the game on its first open), Playwright (pip install playwright; it drives
-the installed Edge) and Pillow. The whole run takes about five minutes, most of it the manager's builds.
+shot opens URB_SlaughterhouseA and the diagonal cover shot CSmallScout_Farm, each read from the game on its first
+open), Playwright (pip install playwright; it drives the installed Edge) and Pillow. The whole run takes about five
+minutes, most of it the manager's builds.
 
-Some shots take more than one picture: project-menu also the Map menu and the Game menu (map-menu, game-menu), and
+Some shots take more than one picture: project-menu also the Map menu and the Game menu (map-menu, game-menu),
+diagonal also the Add panel's new mark (diagonal-add), and
 made-walls also the look picker (look-picker), whose cards' pictures the page draws and the server keeps, so a
 first run on a cache without them waits until every wall look's picture is drawn (some hundreds: minutes), and the
 picture shows the picker without its "Drawing pictures" count. made-walls and texture-mapping each draw the same two
@@ -62,6 +64,15 @@ SPAWN_VIEW = ([-1150, 650, 17], [480, -1180, 1000])
 SPAWN_VOLUME = ACTOR % 'XComNoSpawnVolume_0'
 VOLUME_VIEW = ([-560, -480, 100], [620, -780, 820])
 SPOT_NEAR = [375, 245, 297]
+# the Diagonal cover view's shots: the farm's crashed small scout, whose hull corners have eight marks of the map; at
+# its south-east corner, by tile (x, y, level): the hull corner's mark (changed and picked), the next one as the map has
+# it, and a hull tile with no mark, where a new one goes. The view looks north, so east is on the left; the corners by
+# their index in diagonal_marks.js's CORNERS, the one added to the picked mark with its dot clear of the mark's gizmo
+# (whose arrows run east and west, north, south and up)
+FARM = 'CSmallScout_Farm'
+PICKED_MARK, MAP_MARK, NEW_MARK = [51, 12, 0], [49, 10, 0], [49, 12, 0]
+PICKED_CORNER, NEW_CORNER = 0, 1                 # north-west (up and right in the view), south-east
+DIAGONAL_VIEW = ([2250, -2440, -117], [0, -560, 760])
 PROJECTS_FOLDER = r'C:\Users\you\AppData\Local\Programs\XCOM Map Workshop\projects'
 GAME_FOLDER = r'C:\Program Files (x86)\Steam\steamapps\common\XCom-Enemy-Unknown'
 
@@ -261,23 +272,49 @@ class Shots:
         self.shot('header-right', marks, clip=dict(x=count[0] - 16, y=0, width=WIDTH - count[0] + 16, height=h))
 
     def rail(self):
-        controls = ('#editOff', '#editMove', '#editRotate', '#editBox', '#editAdd', '#editNormal', '#editBuildings', '#editLights',
-                    '#editZones', '#editEffects', '#editSpawns', '#editGrid', '#editSpace', '#editPivot', '#editSnap', '#editLinked',
-                    '#selected')
+        self.page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the Views button, whose list shows under the pointer)
+        self.page.wait_for_timeout(300)
+        controls = ('#editOff', '#editMove', '#editRotate', '#editBox', '#editAdd', '#viewsButton', '#editSpace', '#editPivot',
+                    '#editSnap', '#editLinked', '#selected')
         marks = [dict(n=k + 1, sel=s, side='right', gap=20) for k, s in enumerate(controls)]
         self.shot('rail', marks, clip=self.around('#rail', pad=(8, 8, 40, 8)))
 
-    def normal_flyout(self):
-        """The Normal view button hovered: its flyout with the Lights, Floor boxes, Effects and sounds, and Spawn points
-        and objectives switches."""
+    def open_views(self):
+        """The Views button clicked: its list kept open (pinned) with the pointer off it."""
+        page = self.page
+        page.locator('#viewsButton').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)
+        page.wait_for_selector('#viewsFlyout', state='visible')
+        page.wait_for_timeout(400)
+
+    def close_views(self):
+        page = self.page
+        page.locator('#viewsButton').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)
+        page.wait_for_selector('#viewsFlyout', state='hidden')
+
+    def views_list(self):
+        """The Views button's list, kept open by a click: a row for each view, the Normal view on with its four switches
+        under its row, and Map grid."""
         page = self.page
         page.evaluate('viewer.select(null)')
-        page.locator('#editNormal').hover()
-        page.wait_for_timeout(400)
-        x, y, w, h = self.rect('#editNormal')
-        fx, fy, fw, fh = self.rect('#normalFlyout')
-        self.shot('normal-flyout', clip=dict(x=x - 8, y=min(y, fy) - 10, width=fx + fw - x + 18, height=max(h, fh) + 20))
-        page.mouse.move(WIDTH / 2, HEIGHT / 2)
+        self.open_views()
+        rows = [(1, '#editNormal'), (2, '#normalFlyout'), (3, '#editBuildings'), (4, '#editLights'), (5, '#editZones'),
+                (6, '#editEffects'), (7, '#editSpawns'), (8, '#editDiagonal'), (9, '#editGrid')]
+        self.shot('views-list', self.panel_rows('#viewsFlyout', rows, side='right'),
+                  clip=self.around('#rail', '#viewsFlyout', pad=(8, 8, 44, 8)))
+        self.close_views()
+
+    def view_switches(self, name, switch, sub):
+        """The Views list kept open with a view on (its switch, a test hook): that view's switches (sub) under its row."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.evaluate('s => viewer[s](true)', switch)
+        self.open_views()
+        page.wait_for_selector(sub, state='visible')
+        self.shot(name, clip=self.around('#rail', '#viewsFlyout', pad=(8, 8, 8, 8)))
+        self.close_views()
+        page.evaluate('s => viewer[s](false)', switch)
 
     def dock(self):
         self.page.evaluate('viewer.select(null)')
@@ -518,7 +555,7 @@ class Shots:
         by = {h['key']: h['screen'] for h in page.evaluate('viewer.lightHandles()')}
         marks = self.panel_rows('#inspector', [(5, '#lightColor'), (6, '#lightBrightness'), (7, '#lightInner'), (8, '#lightOn'),
                                                (9, '#lightReach'), (10, '#lightSolo')])
-        marks.append(dict(n=1, sel='#editLights', side='right', gap=20))
+        marks.append(dict(n=1, sel='#viewsButton', side='right', gap=20))
         for n, key, side in ((2, 'radius', 'bottom'), (3, 'outer', 'left'), (4, 'inner', 'right')):
             marks.append(dict(n=n, rect=[by[key][0] - 5, by[key][1] - 5, 10, 10], side=side, gap=24, inset=3))
         self.shot('lights', marks, resize=0.75)
@@ -540,7 +577,7 @@ class Shots:
         badge = page.evaluate("""id => { let b = null; viewer.landingLayer.traverse(o => { if (o.userData.zoneBadge && o.userData.zoneId === id) b = o; });
                                          const p = b.getWorldPosition(b.position.clone()); return viewer.screenOf([p.x, p.z, p.y]); }""", zone['id'])
         frame = page.evaluate('p => viewer.screenOf(p)', [x, y, z])
-        marks = [dict(n=1, sel='#editZones', side='right', gap=20),
+        marks = [dict(n=1, sel='#viewsButton', side='right', gap=20),
                  dict(n=2, rect=[badge[0] - 18, badge[1] - 18, 36, 36], side='top', gap=26, inset=3),
                  dict(n=3, rect=[frame[0] - 8, frame[1] - 8, 16, 16], side='bottom', gap=110, inset=3)]
         rows = [(4, '#landingKind'), (5, '#landingLwr'), (6, '#landingCopy')]
@@ -589,7 +626,7 @@ class Shots:
         """The Effects view on the car park: the taxi's idle sound picked, with its two spheres, their handles, its
         Wave preview and its values; an effect's, a sound's and a lens flare's markers round it."""
         handles = self.open_effects(TAXI_SOUND, SOUND_VIEW)
-        marks = [dict(n=1, sel='#editEffects', side='right', gap=20)]
+        marks = [dict(n=1, sel='#viewsButton', side='right', gap=20)]
         for n, actor, side in ((2, WEBBING, 'bottom'), (3, SHOP_SOUND, 'top'), (4, FLARE, 'bottom')):
             marks.append(dict(n=n, rect=self.marker(actor), side=side, gap=34, inset=3))
         for n, key in ((5, 'radiusMax'), (6, 'radiusMin')):
@@ -600,16 +637,9 @@ class Shots:
         self.shot('effects', marks, resize=0.75)
         self.close_effects()
 
-    def effects_flyout(self):
-        """The Effects view button hovered: its flyout with a switch for each kind."""
-        page = self.page
-        page.evaluate('viewer.select(null)')
-        page.locator('#editEffects').hover()
-        page.wait_for_timeout(400)
-        x, y, w, h = self.rect('#editEffects')
-        fx, fy, fw, fh = self.rect('#effectsFlyout')
-        self.shot('effects-flyout', clip=dict(x=x - 8, y=min(y, fy) - 10, width=fx + fw - x + 18, height=max(h, fh) + 20))
-        page.mouse.move(WIDTH / 2, HEIGHT / 2)
+    def effects_switches(self):
+        """The Views list with the Effects view on: a switch for each kind under its row."""
+        self.view_switches('effects-switches', 'setEffectsShown', '#effectsFlyout')
 
     # --- the Spawns view
     def spawns(self):
@@ -638,7 +668,7 @@ class Shots:
             if not shown: raise SystemExit('no %s marker shows near %s' % (kind, SPAWN_POD))
             return min(shown, key=lambda p: (p[0] - at[0]) ** 2 + (p[1] - at[1]) ** 2)
 
-        marks = [dict(n=1, sel='#editSpawns', side='right', gap=20),
+        marks = [dict(n=1, sel='#viewsButton', side='right', gap=20),
                  dict(n=2, rect=[at[0] - 24, at[1] - 24, 48, 48], side='bottom', gap=70, inset=3)]
         for n, kind in ((3, 'pod'), (4, 'meld')):
             s = nearest(kind)
@@ -676,17 +706,13 @@ class Shots:
         page.evaluate('viewer.pickSpawn(null); viewer.setSpawnsShown(false)')
         page.evaluate('on => { viewer.landingLayer.visible = on; }', zones)
 
-    def spawns_flyout(self):
-        """The Spawns view button hovered: its flyout with a switch for each family and Scripted drop-ins land where
-        placed."""
+    def spawns_switches(self):
+        """The Views list with the Spawns view on: a switch for each family, Deleted points and Scripted drop-ins land
+        where placed under its row."""
         page = self.page
-        page.evaluate('viewer.select(null)')
-        page.locator('#editSpawns').hover()
-        page.wait_for_timeout(400)
-        x, y, w, h = self.rect('#editSpawns')
-        fx, fy, fw, fh = self.rect('#spawnsFlyout')
-        self.shot('spawns-flyout', clip=dict(x=x - 8, y=min(y, fy) - 10, width=fx + fw - x + 18, height=max(h, fh) + 20))
-        page.mouse.move(WIDTH / 2, HEIGHT / 2)
+        zones = page.evaluate('viewer.landingLayer.visible')
+        self.view_switches('spawns-switches', 'setSpawnsShown', '#spawnsFlyout')
+        page.evaluate('on => { viewer.landingLayer.visible = on; }', zones)
 
     def effect_values(self):
         """An alien vapour pod's smoke picked: its likeness, its size handle and its panel with its values."""
@@ -736,10 +762,13 @@ class Shots:
         page.locator('#libraryClose').click()
 
     def map_grid(self):
-        """Map grid: the play area's handles on the Bar as it is, and the panel."""
+        """Map grid: the play area's handles on the Bar as it is, and the panel, with the Views list kept open on its
+        Map grid row."""
         page = self.page
         page.evaluate('viewer.select(null)')
+        page.locator('#viewsButton').click()
         page.locator('#editGrid').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)
         b = page.evaluate('viewer.data.playableBounds')
         cx, cy = (b['min'][0] + b['max'][0]) / 2, (b['min'][2] + b['max'][2]) / 2
         self.camera([cx, cy, 0], [2300, -4200, 3600])
@@ -752,7 +781,8 @@ class Shots:
             marks.append(dict(n=n, rect=[s[0] - 8, s[1] - 8, 16, 16], side=side, gap=34, inset=3))
         marks += self.panel_rows('#gridPanel', [(5, '#gridSize'), (6, '#gridGround'), (7, '#gridOwn')])
         self.shot('map-grid', marks, resize=0.75)
-        page.locator('#gridDone').click()
+        page.locator('#gridDone').click()          # (a click outside the list lets it go too)
+        page.wait_for_selector('#viewsFlyout', state='hidden')
 
     def view_options(self):
         page = self.page
@@ -760,8 +790,8 @@ class Shots:
         page.locator('#viewButton').click()
         page.wait_for_timeout(400)
         rows = [(1, '#lighting'), (2, '#exposure'), (3, '#flyKeys'), (4, '#moveSpeed'), (5, '#turnSpeed'), (6, '#dragSpeed'),
-                (7, '#areaToggle'), (8, '#reachToggle'), (9, '#skyOpen'), (10, '#playAreaToggle'), (11, '#grid'),
-                (12, '#floorTiles'), (13, '#likenessToggle'), (14, '#wire'), (15, '#hideHelpers'), (16, '#statsToggle')]
+                (7, '#skyOpen'), (8, '#playAreaToggle'), (9, '#grid'), (10, '#floorTiles'), (11, '#diagonalCover'),
+                (12, '#likenessToggle'), (13, '#wire'), (14, '#hideHelpers'), (15, '#statsToggle')]
         hidden = [s for _, s in rows if not page.locator(s).is_visible()]
         if hidden: raise SystemExit('View options lacks %s on %s: the guide numbers them all' % (', '.join(hidden), MAP))
         self.shot('view-options', self.panel_rows('#viewOptions', rows), clip=self.around('#viewButton', '#viewOptions', pad=(44, 6, 8, 12)))
@@ -812,7 +842,7 @@ class Shots:
         page.mouse.move(*b, steps=4)
         page.wait_for_timeout(600)
         self.shot('buildings-draw', [
-            dict(n=1, sel='#editBuildings', side='right', gap=20),
+            dict(n=1, sel='#viewsButton', side='right', gap=20),
             dict(n=2, sel='#volumeNew', side='left', gap=22),
             dict(n=3, rect=[a[0] - 5, a[1] - 5, 10, 10], side='left', gap=26),
             dict(n=4, rect=[b[0] - 5, b[1] - 5, 10, 10], side='right', gap=26),
@@ -1308,7 +1338,7 @@ class Shots:
         if index < 0: raise SystemExit('%s has no mission with %s' % (BOMB_MAP, BOMB_STREAM))
         page.locator('#mission').select_option(str(index))
         page.wait_for_timeout(1500)
-        page.evaluate('viewer.setNormalSpawns(true)')       # (the Normal button's Spawn points and objectives)
+        page.evaluate('viewer.setNormalSpawns(true)')       # (the Normal view's Spawn points and objectives)
         page.locator('#floor button[data-value="1"]').click()
         objects = page.evaluate('s => viewer.data.streams[s].missionObjects', BOMB_STREAM)
         bomb = next(o for o in objects if o['kind'] == 'bomb')
@@ -1340,6 +1370,82 @@ class Shots:
         self.shot('mission-objects', marks, resize=0.75)
         page.evaluate('viewer.setPickedMission(null)')
 
+    # --- the Diagonal cover view, on the crashed small scout's farm (another map: these shots come last)
+    def diagonal_at(self, tile, corner=None):
+        """Where a tile's middle, or one of its corner dots, is in the window (at the tile's saved floor)."""
+        return self.page.evaluate("""([t, c]) => { const f = (viewer.data.tactical.floorTiles ?? []).find(f => f.tile.every((v, k) => v === t[k]));
+          return viewer.clientAt(viewer.diagonalPoint(t, f ? f.location[2] : -117, c)); }""", [tile, corner])
+
+    def diagonal_click(self, tile, corner=None):
+        x, y = self.diagonal_at(tile, corner)
+        self.page.mouse.move(x - 2, y - 1)
+        self.page.mouse.move(x, y)
+        self.page.mouse.click(x, y)
+        self.page.wait_for_timeout(200)
+
+    def diagonal(self):
+        """The Diagonal cover view on the farm's crashed scout, cut to its first floor, at its south-east corner: the
+        Add panel's Diagonal cover entry chosen, its ghost mark at the pointer (diagonal-add), then put down there; the
+        map's mark of the hull's corner given a second corner and picked, with its gizmo, corner dots and panel, beside
+        another mark of the map as it is (diagonal). Undone after (no project is saved: a project whose one change is
+        its marks doesn't build yet, so the panel's line of what the last build gave the mark isn't in the picture)."""
+        page = self.page
+        page.goto('%s?map=%s' % (self.server, FARM))
+        page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=300000)
+        page.wait_for_timeout(1500)
+        if page.evaluate('viewer.diagonalMarks().length') < 8: raise SystemExit("%s has not its scout's eight marks" % FARM)
+        page.keyboard.press('Shift+C')
+        page.wait_for_function('viewer.diagonalOn()')
+        page.wait_for_selector('#floor button[data-value="1"]', state='visible', timeout=60000)
+        page.locator('#floor button[data-value="1"]').click()
+        self.camera(*DIAGONAL_VIEW)
+        self.settle(2500)
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        at = lambda p, r=8: [p[0] - r, p[1] - r, 2 * r, 2 * r]
+        # a new mark from the Add panel: its Diagonal cover kind's one entry, its ghost at the pointer, then put down
+        page.locator('#editAdd').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the button, whose Build menu shows under a resting pointer)
+        page.evaluate("viewer.setLibraryScope('map')")
+        kind = page.locator('#libKind').input_value()
+        page.locator('#libKind').select_option('diagonal')
+        page.locator('#libList .libitem[data-id="diagonal-new"]').click()
+        x, y = self.diagonal_at(NEW_MARK, NEW_CORNER)
+        page.mouse.move(x + 6, y + 4)
+        page.mouse.move(x, y, steps=3)
+        self.settle(1200)
+        marks = [dict(n=1, sel='#libKind', side='on', aty=0, dy=-2),
+                 dict(n=2, sel='#libList .libitem', side='right', gap=18),
+                 dict(n=3, rect=at([x, y], 10), side='bottom', gap=70, inset=3),
+                 dict(n=4, sel='#dragHint', side='bottom', gap=18)]
+        self.shot('diagonal-add', marks, resize=0.75)
+        page.mouse.click(x, y)
+        page.wait_for_function("viewer.diagonalMarks().some(m => m.kind === 'added')")
+        page.locator('#libKind').select_option(kind)
+        page.locator('#libraryClose').click()
+        page.keyboard.press('Escape')
+        # the hull corner's mark: a second corner, picked
+        self.diagonal_click(PICKED_MARK)
+        self.diagonal_click(PICKED_MARK, PICKED_CORNER)
+        if page.evaluate('viewer.changes().diagonal') != 2 or page.evaluate('viewer.pickedMarks()') != ['%d,%d,%d' % tuple(PICKED_MARK)]:
+            raise SystemExit('the marks did not take the clicks: %s' % page.evaluate('JSON.stringify(viewer.diagonalHand())'))
+        page.mouse.move(300, 760)                         # (over the ground beside the hull: no mark or dot lit as pointed at)
+        self.settle(1500)
+        g = page.evaluate('viewer.screenOf(viewer.diagonalGizmo().at)')
+        edge = page.evaluate("""([t]) => { const f = (viewer.data.tactical.floorTiles ?? []).find(f => f.tile.every((v, k) => v === t[k]));
+          const m = viewer.diagonalPoint(t, f ? f.location[2] : -117, null); return viewer.clientAt([m[0] - 42, m[1] - 42, m[2]]); }""", [PICKED_MARK])
+        dot = self.diagonal_at(PICKED_MARK, PICKED_CORNER)
+        marks = [dict(n=1, sel='#viewsButton', side='right', gap=20),
+                 dict(n=2, rect=at(edge, 4), side='bottom', gap=70, dx=40, inset=3),
+                 dict(n=3, rect=at(g, 10), side='top', gap=120, dx=-60, inset=3),
+                 dict(n=4, rect=at(dot, 7), side='right', gap=60, inset=3),
+                 dict(n=5, rect=at(self.diagonal_at(MAP_MARK), 18), side='bottom', gap=60, inset=3),
+                 dict(n=6, rect=at(self.diagonal_at(NEW_MARK), 18), side='top', gap=60, inset=3)]
+        marks += self.panel_rows('#diagonalPanel', [(7, '#diagonalChip'), (8, '#diagonalWhere'), (9, '#diagonalCorners'),
+                                                    (10, '#diagonalDelete')])
+        self.shot('diagonal', marks, resize=0.75)
+        page.keyboard.press('Escape')
+        while page.evaluate('viewer.gizmo.undoDepth()') > steps: page.keyboard.press('Control+z')
+        page.keyboard.press('Shift+C')
 
 def prefab_test_shot(browser, server, out):
     from PIL import Image
@@ -1356,12 +1462,13 @@ def prefab_test_shot(browser, server, out):
     page.close()
 
 
-# the manager runs builds and leaves its projects saved, and mission-objects opens another map: they come last
-# (project-menu also takes map-menu and game-menu; made-walls also takes look-picker)
-ORDER = ('window', 'header', 'rail', 'normal-flyout', 'build-menu', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
-         'landing-zones', 'effects', 'effects-flyout', 'effect-values', 'add-effects', 'spawns', 'spawns-volume', 'spawns-flyout', 'map-grid', 'view-options', 'build', 'play', 'floors', 'buildings', 'cover-blocks',
+# the manager runs builds and leaves its projects saved, and mission-objects and diagonal open other maps: they come
+# last (project-menu also takes map-menu and game-menu; made-walls also takes look-picker; diagonal also takes
+# diagonal-add)
+ORDER = ('window', 'header', 'rail', 'views-list', 'build-menu', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
+         'landing-zones', 'effects', 'effects-switches', 'effect-values', 'add-effects', 'spawns', 'spawns-volume', 'spawns-switches', 'map-grid', 'view-options', 'build', 'play', 'floors', 'buildings', 'cover-blocks',
          'made-walls', 'texture-mapping', 'made-ground', 'clear-map', 'missions', 'map-picture', 'squad',
-         'manager', 'save-as', 'mission-objects')
+         'manager', 'save-as', 'mission-objects', 'diagonal')
 
 
 def main():

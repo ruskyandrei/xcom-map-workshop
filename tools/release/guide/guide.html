@@ -153,6 +153,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
           <li><a href="#mapgrid">Map grid</a></li>
           <li><a href="#clearmap">Clear map and landing zones</a></li>
           <li><a href="#spawns">Spawn points</a></li>
+          <li><a href="#diagonal">Diagonal cover</a></li>
           <li><a href="#missions">Missions</a></li>
           <li><a href="#map-settings">Map settings</a></li>
           <li><a href="#map-picture">Map picture</a></li>
@@ -355,8 +356,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3>Take a building from one map to another</h3>
 <ol class="steps">
   <li>Open the map that has the building (<kbd>M</kbd>).</li>
-  <li>Hover the <b class="ui">Normal view</b> button and tick <b class="ui">Lights</b> and
-    <b class="ui">Floor boxes</b>, so its lamps and its building are taken too.</li>
+  <li>Rest the pointer on <b class="ui">Views</b> in the tool strip and, under <b class="ui">Normal</b>, tick
+    <b class="ui">Lights</b> and <b class="ui">Floor boxes</b>, so its lamps and its building are taken too.</li>
   <li>Press <kbd>T</kbd> and draw a box round the building. Check the white outlines, then choose
     <b class="ui">Select</b>.</li>
   <li>Choose <b class="ui">Save as prefab…</b> in the piece panel and give it a name. The window says what goes
@@ -397,6 +398,19 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     on the wall to size the pattern, the ring to turn it, the blue dot to slide it.</li>
 </ol>
 <p>More: <a href="#made-joins">Corners</a>, <a href="#texture">Texture mapping</a>.</p>
+</div>
+
+<div class="task" id="task-diagonal">
+<h3>Give cover in the corner of a slanted wall</h3>
+<ol class="steps">
+  <li>Press <kbd>Shift</kbd>+<kbd>C</kbd> for the Diagonal cover view. The map's own marks show in amber.</li>
+  <li>Press <kbd>P</kbd>, choose Kind: <b class="ui">Diagonal cover</b>, and click its entry.</li>
+  <li>Click the floor tile in the wall's corner, near the corner of the tile a unit there should get cover toward.</li>
+  <li>For cover toward another corner too, click that corner's dot on the picked mark. <kbd>[</kbd> and
+    <kbd>]</kbd> turn its corners a quarter.</li>
+  <li>Build. The build window's light step says how many tiles were marked.</li>
+</ol>
+<p>The Build gives diagonal cover only where a mark is. More: <a href="#diagonal">Diagonal cover</a>.</p>
 </div>
 
 <div class="task" id="task-ground">
@@ -463,8 +477,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <div class="task" id="task-grow">
 <h3>Make the map larger</h3>
 <ol class="steps">
-  <li>Choose <b class="ui">Map grid</b> in the tool strip. The play area shows with a handle on its far sides and
-    its top.</li>
+  <li>Choose <b class="ui">Map grid</b> in the tool strip's <a href="#views">Views list</a>. The play area shows with
+    a handle on its far sides and its top.</li>
   <li>Drag the red or the blue handle outwards by whole tiles, or the green one up by whole levels.</li>
   <li>Leave <b class="ui">Lay the map's ground over the new area</b> ticked where it is offered. Elsewhere, lay
     floor pieces over the new area yourself (<kbd>P</kbd>, Kind: <b class="ui">Floors</b>).</li>
@@ -478,8 +492,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <ol class="steps">
   <li>Open the map, click <b class="ui">Map</b> in the header and choose <b class="ui">Clear map…</b>.</li>
   <li>Click <b class="ui">Clear map</b>. The ground grid shows the empty ground.</li>
-  <li>Turn on <b class="ui">Map grid</b> on the left rail and drag the play area's handles to the size you want, in
-    tiles and levels.</li>
+  <li>Turn on <b class="ui">Map grid</b> (the Map menu, or the tool strip's Views list) and drag the play area's
+    handles to the size you want, in tiles and levels.</li>
   <li>Lay floors first (<kbd>P</kbd>, Kind: <b class="ui">Floors</b>, or the <a href="#made">Build menu</a>'s ground and
     floors, drawn to size), at least under the landing zones' soldier tiles, then walls, cover and prefabs.</li>
   <li>The clear leaves one landing zone. Click it to move or turn it with its gizmo, and copy it for more. Lay floor under its six tiles.</li>
@@ -560,7 +574,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </figure>
 <ol class="legend">
   <li data-n="A"><b>Header:</b> the project and the map with their menus, and on the right what has changed, undo, Build, Play, Settings and the view's menus. <a href="#header">More</a></li>
-  <li data-n="B"><b>Tool strip:</b> select, move, rotate, add and draw, the views (buildings, lights, landing zones, effects, spawn points), and how pieces snap. <a href="#tools">More</a></li>
+  <li data-n="B"><b>Tool strip:</b> select, move, rotate, add and draw, the Views list (buildings, lights, landing zones, effects, spawn points, diagonal cover, the map grid), and how pieces snap. <a href="#tools">More</a></li>
   <li data-n="C"><b>The view:</b> the map. The coloured arrows on the selected piece are the Move tool's handles. <a href="#view">More</a></li>
   <li data-n="D"><b>Piece panel:</b> what is selected, with Copy, Delete and its exact position. <a href="#piece">More</a></li>
   <li data-n="E"><b>Bottom bar:</b> frame the view, play area or everything, and which floor to cut down to. <a href="#bottom">More</a></li>
@@ -587,8 +601,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li data-n="4"><b>Undo</b> (<kbd>Ctrl</kbd>+<kbd>Z</kbd>).</li>
   <li data-n="5"><b>Redo</b> (<kbd>Ctrl</kbd>+<kbd>Y</kbd>).</li>
   <li data-n="6"><b>Reset all</b> puts the whole map back to the original: added pieces go, deleted ones return,
-    moved ones go home, groups end, your buildings go and the map's own are restored, effects and sounds go back as
-    the map has them, and the grid, the landing zones and a clear are undone. It is one undo step, so Undo brings your edits back.</li>
+    moved ones go home, groups end, your buildings go and the map's own are restored, effects and sounds and the
+    diagonal cover marks go back as the map has them, and the grid, the landing zones and a clear are undone. It is
+    one undo step, so Undo brings your edits back.</li>
   <li data-n="7"><b>Build</b> (<kbd>Ctrl</kbd>+<kbd>B</kbd>) makes the project's variant. It is greyed until the
     edits are saved as a project. <a href="#build">More</a></li>
   <li data-n="8"><b>Play</b> starts XCOM in a battle on the project's build, or with no project open, on the original
@@ -622,13 +637,13 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <figure><img src="shots/map-menu.webp" width="284" height="304" alt="The Map menu, its six items numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>Change map…</b> (<kbd>M</kbd>) opens the <a href="#maps">map browser</a>.</li>
-    <li data-n="2"><b>Map settings…</b> lists the sun, moon and sky light and sets the map's background sound.
-      <a href="#map-settings">More</a></li>
+    <li data-n="2"><b>Map settings…</b> lists the sun, moon and sky light, sets the map's background sound, and what
+      Long War Rebalance is told of the map. <a href="#map-settings">More</a></li>
     <li data-n="3"><b>Missions…</b> chooses the missions the project is for. <a href="#missions">More</a></li>
     <li data-n="4"><b>Map picture…</b> sets the picture the game shows for the map on its mission screens.
       <a href="#map-picture">More</a></li>
-    <li data-n="5"><b>Map grid</b> shows the play area's handles, as the tool strip's button does.
-      <a href="#mapgrid">More</a></li>
+    <li data-n="5"><b>Map grid</b> shows the play area's handles, as the last row of the tool strip's Views list
+      does. <a href="#mapgrid">More</a></li>
     <li data-n="6"><b>Clear map…</b> takes every piece off the map. <a href="#clearmap">More</a></li>
   </ol>
 </div>
@@ -637,7 +652,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="tools">Tool strip</h3>
 <div class="split">
-  <figure><img src="shots/rail.webp" width="94" height="706" alt="The tool strip, its seventeen buttons numbered"></figure>
+  <figure><img src="shots/rail.webp" width="94" height="478" alt="The tool strip, its eleven buttons numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>Select</b> (<kbd>V</kbd>): click pieces without any handles in the way.</li>
     <li data-n="2"><b>Move</b> (<kbd>G</kbd>): arrows on the selection. Drag an arrow to move along it, or a small
@@ -646,38 +661,55 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="4"><b>Box select</b> (<kbd>T</kbd>): draw a box around many pieces to select them all at once.
       <a href="#boxselect">More</a></li>
     <li data-n="5"><b>Add</b> (<kbd>P</kbd>) opens <a href="#add">the piece list</a>, to place more of any piece the map has, a <a href="#add-all">piece of another map</a>, or a new light. Hover it for the <a href="#made">Build menu</a>: walls, rooms, floors, roofs and ground drawn by dragging.</li>
-    <li data-n="6"><b>Normal view</b> (<kbd>Shift</kbd>+<kbd>N</kbd>): pieces are selected. It is one of six
-      views, with the next five; one is on at a time. Hover it for its four switches,
-      <a href="#normal-view">Lights, Floor boxes, Effects and sounds, and Spawn points and objectives</a>.</li>
-    <li data-n="7"><b>Buildings view</b> (<kbd>Shift</kbd>+<kbd>B</kbd>), where a building's floor boxes are drawn and fitted. While it is on, only boxes can be selected. <a href="#buildings">More</a></li>
-    <li data-n="8"><b>Lights view</b> (<kbd>Shift</kbd>+<kbd>L</kbd>) shows the map's lights as markers you can select and edit. While it is on, only lights can be selected. <a href="#lights">More</a></li>
-    <li data-n="9"><b>Landing zones view</b> (<kbd>Shift</kbd>+<kbd>Z</kbd>): only landing zones are selected,
-      drawn over everything. <a href="#landingzones">More</a></li>
-    <li data-n="10"><b>Effects view</b> (<kbd>Shift</kbd>+<kbd>X</kbd>): the map's effects, sounds and lens flares
-      as markers drawn over everything. While it is on, only they are selected. <a href="#effects">More</a></li>
-    <li data-n="11"><b>Spawns view</b> (<kbd>Shift</kbd>+<kbd>U</kbd>): the map's spawn points and the mission's
-      objectives as markers drawn over everything: where the aliens' pods start, the Meld, the drop-in points. While it
-      is on, only they are selected. <a href="#spawns">More</a></li>
-    <li data-n="12"><b>Map grid</b>: the play area's handles, to make the map's tile grid larger.
-      <a href="#mapgrid">More</a></li>
-    <li data-n="13"><b>Axes</b> (<kbd>X</kbd>): the handles follow the world's axes, or the piece's own (useful for a
+    <li data-n="6"><b>Views</b>: which view is on, by its icon (lit for any view but the normal one). Rest the
+      pointer on it for <a href="#views">the Views list</a>, or click it to keep the list open: the views, each with
+      its key, and Map grid.</li>
+    <li data-n="7"><b>Axes</b> (<kbd>X</kbd>): the handles follow the world's axes, or the piece's own (useful for a
       piece that stands at an angle).</li>
-    <li data-n="14"><b>Pivot</b> (<kbd>C</kbd>): where the handles sit, and what the selection turns about. At first,
+    <li data-n="8"><b>Pivot</b> (<kbd>C</kbd>): where the handles sit, and what the selection turns about. At first,
       the piece's own origin, usually one of its corners, so a turned piece swings round that corner. Lit, the middle of
       the selection, so a piece turns in place. With snap at <b>96</b>, the middle keeps to the nearest tile centre or
       corner, so pieces on the tiles stay on them (a piece one tile by two still moves half a tile when turned). A typed
       turn in the piece panel turns about the same point.</li>
-    <li data-n="15"><b>Snap</b> cycles through three settings; the button's corner shows which.
+    <li data-n="9"><b>Snap</b> cycles through three settings; the button's corner shows which.
       <b>Off</b>, smooth; <b>24</b>, steps of 24 units and 15°; <b>96</b>, whole tiles (96 across, 64 up) and quarter
       turns. It governs every move, size and turn: <a href="#snap">more</a>.</li>
-    <li data-n="16"><b>Linked pieces</b> (on at first): moving a piece also moves what was placed with it. Turn it
+    <li data-n="10"><b>Linked pieces</b> (on at first): moving a piece also moves what was placed with it. Turn it
       off to move one piece of a set. A car's parts, a van's, and a door with its frame always move together.</li>
-    <li data-n="17"><b>Frame the selection</b> (<kbd>F</kbd>, or double-click a piece): the camera goes to it.</li>
+    <li data-n="11"><b>Frame the selection</b> (<kbd>F</kbd>, or double-click a piece): the camera goes to it.</li>
   </ol>
 </div>
 <p>A lit button with an outline is on. Hover any button for a reminder of what it does.</p>
+<h4 id="views">The Views list</h4>
+<p>A view chooses what a click selects; all but the normal one draw their own things over everything. One view is
+  on at a time, and the Views button shows its icon. Rest the pointer on the button for the list, or click the button to keep it open until you
+  click elsewhere. A click on a row, or the row's key, turns that view on; pressing the key of the view that is on, or
+  <kbd>Shift</kbd>+<kbd>N</kbd>, goes back to the normal view.</p>
+<div class="split">
+  <figure><img src="shots/views-list.webp" width="356" height="478" alt="The Views list beside the tool strip: Normal on with its four switches under it, then Buildings, Lights, Landing zones, Effects, Spawns, Diagonal cover and Map grid"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>Normal</b> (<kbd>Shift</kbd>+<kbd>N</kbd>): pieces are selected.</li>
+    <li data-n="2"><b>The switches of the view that is on</b> stand under its row: here the Normal view's four,
+      <a href="#normal-view">Lights, Floor boxes, Effects and sounds, and Spawn points and objectives</a>.</li>
+    <li data-n="3"><b>Buildings</b> (<kbd>Shift</kbd>+<kbd>B</kbd>), where a building's floor boxes are drawn and
+      fitted. While it is on, only boxes can be selected. <a href="#buildings">More</a></li>
+    <li data-n="4"><b>Lights</b> (<kbd>Shift</kbd>+<kbd>L</kbd>) shows the map's lights as markers you can select and
+      edit. While it is on, only lights can be selected. <a href="#lights">More</a></li>
+    <li data-n="5"><b>Landing zones</b> (<kbd>Shift</kbd>+<kbd>Z</kbd>): only landing zones are selected, drawn over
+      everything. <a href="#landingzones">More</a></li>
+    <li data-n="6"><b>Effects</b> (<kbd>Shift</kbd>+<kbd>X</kbd>): the map's effects, sounds and lens flares as
+      markers drawn over everything. While it is on, only they are selected. <a href="#effects">More</a></li>
+    <li data-n="7"><b>Spawns</b> (<kbd>Shift</kbd>+<kbd>U</kbd>): the map's spawn points and the mission's objectives
+      as markers drawn over everything: where the aliens' pods start, the Meld, the drop-in points. While it is on, only
+      they are selected. <a href="#spawns">More</a></li>
+    <li data-n="8"><b>Diagonal cover</b> (<kbd>Shift</kbd>+<kbd>C</kbd>): the map's diagonal cover marks, drawn over
+      everything. While it is on, only marks are picked. <a href="#diagonal">More</a></li>
+    <li data-n="9"><b>Map grid</b>: the play area's handles, to make the map's tile grid larger. It is not a view: it
+      leaves the view on as it is. <a href="#mapgrid">More</a></li>
+  </ol>
+</div>
 <h4 id="snap">Snap: the steps of every move, size and turn</h4>
-<p>The Snap button (item 15) sets the steps of everything you move, size or turn in the view: the gizmo's arrows and
+<p>The Snap button (item 9) sets the steps of everything you move, size or turn in the view: the gizmo's arrows and
   rings, the white and blue handles of made pieces, gaps and cover blocks, a piece you place or paste, what you draw
   from the <a href="#made">Build menu</a>, and a position or turn typed in the piece panel.</p>
 <table>
@@ -694,32 +726,25 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>A typed position or turn</b> with snap on is taken as a move from where the piece stands, in the snap's steps;
     the hint line says so while you type. With snap off it is taken as typed.</li>
   <li><b>Some things keep to the tile grid whatever the snap:</b> a building's floor boxes (and a group or prefab with a
-    building in it), the map grid's sides, spawn points, and a landing zone's turn.</li>
+    building in it), the map grid's sides, spawn points, <a href="#diagonal">diagonal cover marks</a>, and a landing
+    zone's turn.</li>
 </ul>
-<h4 id="normal-view">The views, and the Normal view's switches</h4>
-<div class="split">
-  <figure><img src="shots/normal-flyout.webp" width="311" height="170" alt="The Normal view button with its flyout: Lights, Floor boxes, Effects and sounds, and Spawn points and objectives"></figure>
-  <div>
-    <p>Buttons 6 to 11 choose what a click selects: pieces in the <b>Normal view</b>, only floor boxes in the
-      <b>Buildings view</b>, only lights in the <b>Lights view</b>, only <a href="#landingzones">landing zones</a> in
-      the <b>Landing zones view</b>, only effects, sounds and lens flares in the <a href="#effects">Effects view</a>,
-      only spawn points and objectives in the <a href="#spawns">Spawns view</a>.
-      Pressing the view that is on, or <kbd>Shift</kbd>+<kbd>N</kbd>, goes back to the normal view.</p>
-    <p>Hover the Normal view button for four switches. They let the normal view show and select more than pieces,
-      so a house can be handled with its lamps, its building and its smoke in one go:</p>
-    <ul>
-      <li><b>Lights:</b> the lights are drawn and can be clicked, moved, copied and deleted with pieces. A light's
-        colour, radius and cones are still set in the Lights view.</li>
-      <li><b>Floor boxes:</b> your buildings' boxes are drawn, and a building is selected
-        <a href="#building-whole">whole</a>, by a click on a box's edge.</li>
-      <li><b>Effects and sounds:</b> their markers are drawn, and they are clicked, moved, copied, deleted and
-        grouped with pieces. Their values are still set in the Effects view.</li>
-      <li><b>Spawn points and objectives:</b> the <a href="#spawns">Spawns view</a>'s markers are drawn too. A click
-        on one picks it ahead of the piece behind it, to move and edit as in that view.</li>
-    </ul>
-    <p>All four are off whenever a map opens.</p>
-  </div>
-</div>
+<h4 id="normal-view">The Normal view's switches</h4>
+<p>With the Normal view on, four switches stand under its row in the Views list (item 2 above). They let the normal
+  view show and select more than pieces, so a house can be handled with its lamps, its building and its smoke in one
+  go:</p>
+<ul>
+  <li><b>Lights:</b> the lights are drawn and can be clicked, moved, copied and deleted with pieces. A light's
+    colour, radius and cones are still set in the Lights view.</li>
+  <li><b>Floor boxes:</b> your buildings' boxes are drawn, and a building is selected
+    <a href="#building-whole">whole</a>, by a click on a box's edge.</li>
+  <li><b>Effects and sounds:</b> their markers are drawn, and they are clicked, moved, copied, deleted and
+    grouped with pieces. Their values are still set in the Effects view.</li>
+  <li><b>Spawn points and objectives:</b> the <a href="#spawns">Spawns view</a>'s markers are drawn too. A click
+    on one picks it ahead of the piece behind it, to move and edit as in that view.</li>
+</ul>
+<p>All four are off whenever a map opens. The Lights, Effects, Spawns and Diagonal cover views have switches of their
+  own under their rows, shown while they are on: each is in that view's section.</p>
 
 <h3 id="view">The view and the camera</h3>
 <table>
@@ -768,7 +793,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="viewoptions">View options</h3>
 <div class="split">
-  <figure><img src="shots/view-options.webp" width="332" height="665" alt="The View options menu, its sixteen items numbered"></figure>
+  <figure><img src="shots/view-options.webp" width="332" height="622" alt="The View options menu, its fifteen items numbered"></figure>
   <ol class="legend">
     <li data-n="1"><b>Lighting:</b> <b class="ui">Neutral</b> is plain, even light, best for editing. <b class="ui">Map</b>
       uses the map's own lights, as edited; <b class="ui">No area</b> is the same without the glow of lit surfaces. Both
@@ -782,33 +807,28 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="5"><b>Key turn speed:</b> how fast <kbd>Q</kbd> and <kbd>E</kbd> turn the camera.</li>
     <li data-n="6"><b>Drag turn speed:</b> how fast a drag orbits, or looks round with Keys move along the view. The
       three speeds are kept on this computer; double-click a slider to put it back to ×1.</li>
-    <li data-n="7"><b>Area lights:</b> also show the lights that stand for glowing surfaces. View only.</li>
-    <li data-n="8"><b>Outline the pieces a light reaches:</b> for the selected light, in teal the pieces it is baked
-      into, in orange the ones it reaches after your change.</li>
-    <li data-n="9"><b>Sun, moon and sky…</b> opens <a href="#map-settings">Map settings</a>, which lists the lights
+    <li data-n="7"><b>Sun, moon and sky…</b> opens <a href="#map-settings">Map settings</a>, which lists the lights
       that have no place.</li>
-    <li data-n="10"><b>Play area</b> (<kbd>B</kbd>): faint amber walls round the area the game plays on, its level volume:
+    <li data-n="8"><b>Play area</b> (<kbd>B</kbd>): faint amber walls round the area the game plays on, its level volume:
       units can't leave it.</li>
-    <li data-n="11"><b>Tile grid</b> around the selection.</li>
-    <li data-n="12"><b>Floor tiles:</b> where the game has floor, coloured by the piece that carries each tile. Hover a
+    <li data-n="9"><b>Tile grid</b> around the selection.</li>
+    <li data-n="10"><b>Floor tiles:</b> where the game has floor, coloured by the piece that carries each tile. Hover a
       tile to name its piece; click to select it.</li>
-    <li data-n="13"><b>Effects as they look:</b> each effect drawn where it stands, moving. Untick it for a busy map on a
+    <li data-n="11" id="diagonal-cover"><b>Diagonal cover:</b> the diagonal cover marks drawn in the normal view too,
+      never picked there: amber the map's own as it is, teal the ones your project adds or changes, or that follow
+      their piece. They are edited in the <a href="#diagonal">Diagonal cover view</a>.</li>
+    <li data-n="12"><b>Effects as they look:</b> each effect drawn where it stands, moving. Untick it for a busy map on a
       slow computer; the markers and the editing stay. <a href="#effects-look">More</a></li>
-    <li data-n="14"><b>Wireframe.</b></li>
-    <li data-n="15"><b>Hide patch helpers:</b> untick to see Long War Rebalance's invisible cover and blockers, as a
+    <li data-n="13"><b>Wireframe.</b></li>
+    <li data-n="14"><b>Hide patch helpers:</b> untick to see Long War Rebalance's invisible cover and blockers, as a
       wireframe. Shown only on maps that have them.</li>
-    <li data-n="16"><b>Performance stats:</b> a line of counts (pieces, triangles, draw calls).</li>
+    <li data-n="15"><b>Performance stats:</b> a line of counts (pieces, triangles, draw calls).</li>
   </ol>
 </div>
 <p>Above Play area, on a whole map: <b class="ui">Ground grid</b> and <b class="ui">Landing zones</b>
-  (<a href="#clearmap">more</a>).</p>
-<p id="diagonal-cover">Below Floor tiles, <b class="ui">Diagonal cover</b> outlines the map's tiles where a unit in the
-  corner of a slanted wall gets cover along the diagonal (the map's makers marked them, mostly at UFO hull corners),
-  each with an arrow toward its wall. Amber: the Build keeps the tile as the map has it, also when you change
-  something next to it. Blue: something of your project stands on that tile (added, moved there, moved away or
-  deleted), so the Build works the tile out again as the game's own build would: it keeps its diagonal cover while its
-  slanted wall stands. A slanted wall you copy or move gets diagonal cover at its new place where the Build finds the
-  corners it makes (on both faces, for a wall that stands alone); the Build's log names those tiles.</p>
+  (<a href="#clearmap">more</a>). The Lights view's own switches, <b class="ui">Area lights</b> and
+  <b class="ui">Outline the pieces a light reaches</b>, are under its row in the <a href="#views">Views list</a>:
+  <a href="#lights">Lights</a>.</p>
 
 <h3 id="maps">Map browser</h3>
 <p><b class="ui">Change map…</b> in the header's <a href="#map-menu">Map menu</a> (or <kbd>M</kbd>) lists every map your install plays, in sections by mission type.
@@ -1071,7 +1091,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="2"><b>Kind</b> uses the same categories in This map, All maps and the prefab builder.
       <b>Floors</b> finds flat pieces that carry saved floor tiles. <b>Lights</b> has point and spot lights.
       <b>Invisible</b> has <a href="#cover">cover blocks and invisible floors</a>. <b>Spawn points</b> has a new pod
-      and a new Meld point (on a map with them) and a new no-spawn volume.</li>
+      and a new Meld point (on a map with them) and a new no-spawn volume. <b>Diagonal cover</b> has a
+      <a href="#diagonal-add">new mark</a>.</li>
     <li data-n="3"><b>Where:</b> the play area or the backdrop, on maps that have a backdrop.</li>
     <li data-n="4"><b>Sort:</b> A to Z, largest first, or most used.</li>
     <li data-n="5"><b>An entry:</b> its picture, name, kind, and size in game units (width × depth × height); on the
@@ -1552,7 +1573,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </div>
 <p><b>To save one:</b> select what should be in it, then press <b class="ui">Save as prefab…</b> at the top of the piece panel
   (or <b class="ui">Save selection…</b> here) and give it a name. <a href="#boxselect">Box select</a> takes a whole
-  building at once; with the Normal button's <a href="#normal-view">switches</a> on it takes the lights and the
+  building at once; with the Normal view's <a href="#normal-view">switches</a> on it takes the lights and the
   building's floor boxes too. The window says what goes in, and lists anything that can't. While it saves, a
   bar counts the pieces copied to the library (the first save of a map's pieces takes a while).</p>
 <ul>
@@ -1656,12 +1677,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h2 id="themap">The map</h2>
 <p class="partintro">What belongs to the map as a whole: its lights and effects, its buildings, its size, where the squad and
-  the aliens start, the missions it serves and the picture the game shows for it.</p>
+  the aliens start, its diagonal cover, the missions it serves and the picture the game shows for it.</p>
 
 <h3 id="lights">Lights</h3>
-<p>The map's placed lights can be edited as pieces are. The <b class="ui">Lights view</b> in the tool strip
-  (<kbd>Shift</kbd>+<kbd>L</kbd>) shows them as markers: a bulb for a point light, a cone for a spot light, each in its
-  light's colour. Grey markers are view only, hollow ones are switched off. While the view is on only lights can be
+<p>The map's placed lights can be edited as pieces are. The <b class="ui">Lights view</b> (its row in the tool
+  strip's <a href="#views">Views list</a>, or <kbd>Shift</kbd>+<kbd>L</kbd>) shows them as markers: a bulb for a
+  point light, a cone for a spot light, each in its light's colour. Grey markers are view only, hollow ones are switched off. While the view is on only lights can be
   selected, so a piece is never moved by accident; a light that is in a group moves on its own here. To handle
   lights together with pieces, use the Normal view's <a href="#normal-view">Lights switch</a> instead.</p>
 <figure class="zoom">
@@ -1669,8 +1690,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <figcaption>A spot light selected: its cones drawn in the view, and the light panel on the right.</figcaption>
 </figure>
 <ol class="legend">
-  <li data-n="1"><b>Lights view</b> turns the view on and off. Click a marker to select its light. Move, turn, copy and
-    delete it as you would a piece.</li>
+  <li data-n="1"><b>The Views button</b> shows the Lights view's bulb while it is on. Click a marker to select its
+    light. Move, turn, copy and delete it as you would a piece.</li>
   <li data-n="2"><b>Radius handle:</b> drag the white dot to change how far the light reaches.</li>
   <li data-n="3"><b>Outer cone handle</b> (spot lights): drag the dot on the left of the rim. Nothing is lit outside this cone.</li>
   <li data-n="4"><b>Inner cone handle:</b> the smaller dot on the right. Inside this cone the light is at full brightness.</li>
@@ -1689,6 +1710,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     placed as pieces are. Each starts as a copy of one of the map's lights of that kind; on a map with none, the
     editor makes its own.</li>
   <li>To see your light edits on the map itself, choose <b class="ui">Map</b> lighting in View options.</li>
+  <li><b>Two switches</b> stand under the Lights row of the <a href="#views">Views list</a> while the view is on:
+    <b class="ui">Area lights</b> also shows the lights that stand for glowing surfaces (view only), and
+    <b class="ui">Outline the pieces a light reaches</b> outlines, for the selected light, in teal the pieces it is
+    baked into, in orange the ones it reaches after your change.</li>
   <li><b>Glowing pieces</b> (a lit sign, a screen) carry their glow with them. Sometimes the editor can't tell which
     piece a glow belongs to; its panel then says "May glow". Before moving such a piece, select the glow's light and
     choose <b class="ui">Assign glowing piece</b> (then click the piece) or <b class="ui">Keep fixed</b>.</li>
@@ -1698,8 +1723,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3 id="effects">Effects and sounds</h3>
 <p>A map's <b>effects</b> are its particle systems: fires, smoke, steam, dripping water, blowing trash, moths round a
   lamp, a Skyranger's lights. Its <b>sounds</b> are the ambient sounds placed in it: a car's idle engine, a humming
-  machine, wind. Its <b>lens flares</b> are the glints round some lamps. The <b class="ui">Effects view</b> in the tool
-  strip (<kbd>Shift</kbd>+<kbd>X</kbd>) shows all three as markers drawn over everything, and they are edited there
+  machine, wind. Its <b>lens flares</b> are the glints round some lamps. The <b class="ui">Effects view</b> (its row
+  in the tool strip's <a href="#views">Views list</a>, or <kbd>Shift</kbd>+<kbd>X</kbd>) shows all three as markers
+  drawn over everything, and they are edited there
   as pieces are. While the view is on only they can be selected, so a piece is never moved by accident; to handle
   them together with pieces, use the Normal view's <a href="#normal-view">Effects and sounds switch</a>.</p>
 <figure class="zoom">
@@ -1707,7 +1733,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <figcaption>A car's idle sound picked: the spheres show where it is heard. Every spark is an effect.</figcaption>
 </figure>
 <ol class="legend">
-  <li data-n="1"><b>Effects view</b> turns the view on and off. Click a marker to select what it stands for.</li>
+  <li data-n="1"><b>The Views button</b> shows the Effects view's spark while it is on. Click a marker to select what
+    it stands for.</li>
   <li data-n="2"><b>An effect</b> is a spark (here a body's webbing).</li>
   <li data-n="3"><b>A sound</b> is a speaker.</li>
   <li data-n="4"><b>A lens flare</b> is a star (here on a street lamp).</li>
@@ -1743,10 +1770,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>A build of effects alone</b> needs no baked lighting: a quick build makes them.</li>
 </ul>
 <div class="split">
-  <figure><img src="shots/effects-flyout.webp" width="434" height="163" alt="The Effects view button with its flyout: Effects, Sounds and Lens flares"></figure>
+  <figure><img src="shots/effects-switches.webp" width="320" height="478" alt="The Views list with the Effects view on: Effects, Sounds and Lens flares under its row"></figure>
   <div>
-    <p>Hover the Effects view button for a switch for each kind: untick <b>Effects</b>, <b>Sounds</b> or
-      <b>Lens flares</b> to hide its markers while you work on the others.</p>
+    <p>While the Effects view is on, its row in the Views list has a switch for each kind: untick <b>Effects</b>,
+      <b>Sounds</b> or <b>Lens flares</b> to hide its markers while you work on the others.</p>
   </div>
 </div>
 
@@ -1855,8 +1882,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   inside happens under a roof you can't see through. Fences, walls and ruins with no roof need no boxes.</p>
 
 <h4>The Buildings view</h4>
-<p><b class="ui">Buildings</b> in the tool strip, between Add and Lights (<kbd>Shift</kbd>+<kbd>B</kbd>), turns the
-  view on and off. While it is on, only boxes can be selected: a click on a wall picks the box around it, never the
+<p><b class="ui">Buildings</b> in the tool strip's <a href="#views">Views list</a> (<kbd>Shift</kbd>+<kbd>B</kbd>)
+  turns the view on and off. While it is on, only boxes can be selected: a click on a wall picks the box around it, never the
   wall, so nothing of the building is moved by accident. Every building's boxes show in their floor's colour, the
   map's own as yours (<a href="#building-copy-map">The map's own buildings</a>); only the few that stay as the map has
   them are grey.</p>
@@ -1866,8 +1893,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <figcaption>A new box being drawn: the mouse button is still held.</figcaption>
 </figure>
 <ol class="legend">
-  <li data-n="1"><b>Buildings</b> in the tool strip turns the view on. The panel on the right appears, and pieces can
-    no longer be selected.</li>
+  <li data-n="1"><b>The Views button</b> shows the Buildings view's icon while it is on. The panel on the right
+    appears, and pieces can no longer be selected.</li>
   <li data-n="2"><b>New box</b> (<kbd>N</kbd>) arms the tool: the cursor becomes a cross.</li>
   <li data-n="3">Press where one corner of the floor is…</li>
   <li data-n="4">…and drag to the opposite corner. The box follows by whole tiles and stays see-through, so you can
@@ -1995,8 +2022,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   with the rest of the map.</p>
 
 <h4 id="building-whole">A building with its pieces: Floor boxes in the normal view</h4>
-<p>In the Buildings view only boxes can be selected. To handle a building together with its pieces, hover the
-  <a href="#normal-view">Normal view button</a> in the tool strip and tick <b class="ui">Floor boxes</b>: your
+<p>In the Buildings view only boxes can be selected. To handle a building together with its pieces, open the tool
+  strip's <a href="#views">Views list</a> and tick <b class="ui">Floor boxes</b> under <b class="ui">Normal</b>: your
   buildings' boxes are then drawn in the normal view as well. It is off whenever a map opens.</p>
 <ul>
   <li><b>Click a box's edge</b> to select its building. The sides are see-through to the mouse, so the pieces inside
@@ -2063,14 +2090,15 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   under floor 1's top), so it is floor 2's alone and hides.</p>
 
 <h3 id="mapgrid">Map grid</h3>
-<p>The map's tile grid is the box the game plays in: the play area. <b class="ui">Map grid</b> on the left rail (or
-  in the <a href="#map-menu">Map menu</a>) shows the play area with a handle on each side that can move. Drag a handle to resize the grid.
-  Click the button again, or press <kbd>Esc</kbd>, to put the handles away.</p>
+<p>The map's tile grid is the box the game plays in: the play area. <b class="ui">Map grid</b>, the last row of the
+  tool strip's <a href="#views">Views list</a> (or in the <a href="#map-menu">Map menu</a>), shows the play area with
+  a handle on each side that can move. Drag a handle to resize the grid. Click the row again, or press
+  <kbd>Esc</kbd>, to put the handles away.</p>
 <figure class="zoom">
   <img src="shots/map-grid.webp" width="1080" height="675" alt="Map grid on the Bar: the play area's box with its red, blue and green handles, and the panel">
 </figure>
 <ol class="legend">
-  <li data-n="1"><b>Map grid</b> on the tool strip.</li>
+  <li data-n="1"><b>Map grid</b> in the Views list, here kept open by a click on the Views button.</li>
   <li data-n="2"><b>The red handle</b> moves the far X side, by whole tiles.</li>
   <li data-n="3"><b>The blue handle</b> moves the far Y side, by whole tiles.</li>
   <li data-n="4"><b>The green handle</b> raises the top, by whole levels.</li>
@@ -2106,7 +2134,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p><b class="ui">Clear map…</b> in the <a href="#map-menu">Map menu</a> takes every piece off the map, the ground too, so that you can
   build a new map with pieces and prefabs on an old map's light and landing. It is meant for an unchanged map, but it
   works on any.</p>
-<figure><img src="shots/clear-map.webp" width="484" height="379" alt="The Clear map window on the Bar, with its counts and the tick to keep the scenery outside the play area"></figure>
+<figure><img src="shots/clear-map.webp" width="484" height="430" alt="The Clear map window on the Bar, with its counts and the ticks to keep the scenery outside the play area and the map's triggers"></figure>
 <ul>
   <li><b>A window comes first.</b> It warns what will go and counts it for this map: the pieces, the lights, the
     spawn points, the effects and ambient sounds, and the pieces the mission's script names. It also counts what
@@ -2160,7 +2188,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <img src="shots/landing-zones.webp" width="1080" height="675" alt="The Landing zones view on the Bar: its zone picked, with its gizmo and its panel">
 </figure>
 <ol class="legend">
-  <li data-n="1"><b>Landing zones view</b> on the tool strip (<kbd>Shift</kbd>+<kbd>Z</kbd>).</li>
+  <li data-n="1"><b>The Views button</b> shows the Landing zones view's icon while it is on
+    (<kbd>Shift</kbd>+<kbd>Z</kbd>).</li>
   <li data-n="2"><b>The zone's number.</b> Click it, or the zone, to pick the zone.</li>
   <li data-n="3"><b>The gizmo</b> on the picked zone: arrows to move it, <kbd>R</kbd> for its ring.</li>
   <li data-n="4"><b class="ui">Kind</b>: normal, or inside.</li>
@@ -2169,8 +2198,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li data-n="7"><b class="ui">Land here</b>: play the build with the squad landing at this zone.</li>
 </ol>
 <ul>
-  <li><b>Zones are edited in the Landing zones view</b> (<kbd>Shift</kbd>+<kbd>Z</kbd>, or its button in the
-    tool strip). There they are drawn over everything, even under a floor, and a click picks a zone, never a piece.
+  <li><b>Zones are edited in the Landing zones view</b> (<kbd>Shift</kbd>+<kbd>Z</kbd>, or its row in the tool
+    strip's <a href="#views">Views list</a>). There they are drawn over everything, even under a floor, and a click picks a zone, never a piece.
     In the normal view they are shown but not picked, and the landing's pieces are pieces.</li>
   <li><b>Click a zone</b> in that view to pick it. A gizmo appears on its drop zone, and its panel opens: <b class="ui">Kind</b> (normal, or inside: the squad stands further back, inside the evac zone),
     <b class="ui">Used by</b>, <b class="ui">Copy</b> (<kbd>Ctrl</kbd>+<kbd>D</kbd>) and <b class="ui">Delete</b>
@@ -2211,7 +2240,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   project's.</p>
 
 <h3 id="spawns">Spawn points: where the aliens start</h3>
-<p>The <b>Spawns view</b> (<kbd>Shift</kbd>+<kbd>U</kbd>, or its button on the tool strip) shows where the game puts
+<p>The <b>Spawns view</b> (<kbd>Shift</kbd>+<kbd>U</kbd>, or its row in the tool strip's
+  <a href="#views">Views list</a>) shows where the game puts
   things when a battle starts and while it goes on: the places the alien pods deploy at, where the Meld canisters can
   stand, the drop-in points where reinforcements come in, the soldiers' and other points, and the objectives of the
   mission the header shows (the bomb and its power nodes, capture points, radar arrays). They are markers drawn over
@@ -2220,7 +2250,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <img src="shots/spawns.webp" width="1080" height="675" alt="The Spawns view on the Bar's ground floor: a pod picked with its arrows and its panel, another pod and Meld points around it">
 </figure>
 <ol class="legend">
-  <li data-n="1"><b>Spawns view</b> on the tool strip (<kbd>Shift</kbd>+<kbd>U</kbd>).</li>
+  <li data-n="1"><b>The Views button</b> shows the Spawns view's pin while it is on (<kbd>Shift</kbd>+<kbd>U</kbd>).</li>
   <li data-n="2"><b>The picked pod</b> with its arrows: drag them to move it by whole tiles and levels.</li>
   <li data-n="3"><b>A pod</b> (an orange ring): a place the game can deploy a group of aliens at.</li>
   <li data-n="4"><b>A Meld point</b> (a green dot): a place a Meld canister can stand.</li>
@@ -2232,10 +2262,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <b class="ui">Use</b>; a Meld point has its difficulty, the turn it is destroyed on and its spawn group.</li>
 </ol>
 <div class="split">
-  <figure><img src="shots/spawns-flyout.webp" width="621" height="305" alt="The Spawns view button with its flyout: a switch for each kind of point, Deleted points, and Scripted drop-ins land where placed"></figure>
+  <figure><img src="shots/spawns-switches.webp" width="399" height="521" alt="The Views list with the Spawns view on: a switch for each kind of point, Deleted points, and Scripted drop-ins land where placed under its row"></figure>
   <div>
-    <p>Hover the Spawns view button for a switch for each kind: pods, Meld, drop-in points, soldier and start points,
-      objectives, other points and no-spawn volumes (the covert operative's, the VIP's and loot places, and the
+    <p>While the Spawns view is on, its row in the Views list has a switch for each kind: pods, Meld, drop-in points,
+      soldier and start points, objectives, other points and no-spawn volumes (the covert operative's, the VIP's and loot places, and the
       volumes), and patrol nodes, off at first. A map's starts for multiplayer teams are never shown: a single-player
       battle doesn't use them.</p>
     <p><b class="ui">Deleted points</b>, off at first, draws the map's points your project deletes, pale, so you can
@@ -2296,7 +2326,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>Meld:</b> the same. Long War puts the canisters at places of its own when it finds enough.</li>
   <li><b>Drop-in points:</b> a wave of reinforcements, such as a data recovery's, comes in at its points where you put
     them. A drop-in the map's script sends comes in near the squad under Long War, at a cover spot of Long War's
-    choosing. Tick <b class="ui">Scripted drop-ins land where placed</b> in the flyout to have every scripted drop-in of
+    choosing. Tick <b class="ui">Scripted drop-ins land where placed</b>, under the Spawns view's row in the Views
+    list, to have every scripted drop-in of
     the variant land on its own points: the Build adds the variant to the maps Long War leaves alone
     (<code>ExcludeMaps</code> in <code>DefaultRandomSpawns.ini</code>), and Play in game and the project manager write
     that line into the game. The box is greyed on plain Enemy Within, which lands them where placed anyway.</li>
@@ -2304,6 +2335,83 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     and your place is used when it doesn't.</li>
   <li><b>No-spawn volumes:</b> the game looks for them itself; nothing names them. Long War's own places for pods and
     Meld don't look at them, but a pod's aliens still deploy outside them.</li>
+</ul>
+
+<h3 id="diagonal">Diagonal cover</h3>
+<p>A unit standing in the corner of a slanted wall, inside a UFO's hull for one, can get cover along the tile's
+  diagonal, toward the wall. The game doesn't work that out from the pieces: the map's makers marked those tiles by
+  hand, each with the corners a unit there gets cover toward. The editor shows these <b>diagonal cover marks</b>, and
+  the Build gives diagonal cover only where a mark is: the map's own, and those your project adds, changes or carries
+  with a piece.</p>
+<p>The <b class="ui">Diagonal cover view</b> (<kbd>Shift</kbd>+<kbd>C</kbd>, or its row in the tool strip's
+  <a href="#views">Views list</a>) draws the marks over everything, each a tile's outline with an arrow toward each of
+  its corners. While it is on, only marks are picked, as zones are in the Landing zones view.</p>
+<figure class="zoom">
+  <img src="shots/diagonal.webp" width="1080" height="675" alt="The Diagonal cover view on the crashed small scout of Franklin's Farm: the mark of the hull's corner picked with its gizmo and corner dots, a mark of the map in amber, a new mark in teal, and the mark's panel">
+  <figcaption>The crashed small scout on Franklin's Farm, cut to its first floor: the mark in the hull's south-east
+    corner given a second corner and picked, a mark of the map as it is, and a new one.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>The Views button</b> shows the Diagonal cover view's icon while it is on.</li>
+  <li data-n="2"><b>The picked mark,</b> drawn in white. Click a mark to pick it; <kbd>Ctrl</kbd> or
+    <kbd>Shift</kbd>+click adds one to the picked, or takes it out. A click beside the marks lets them go.</li>
+  <li data-n="3"><b>Its gizmo</b> moves the picked marks by whole tiles across and levels up, whatever Snap says: a
+    mark belongs to a tile. <kbd>Esc</kbd> during a drag puts them back.</li>
+  <li data-n="4"><b>Its four corner dots,</b> filled where the mark has that corner: a click on one gives the tile
+    cover toward that corner, or takes it away. Taking the last one away deletes the mark.</li>
+  <li data-n="5"><b>A mark of the map</b> as the map has it, in amber.</li>
+  <li data-n="6"><b>A mark of your project,</b> in teal: added, changed, moved, or following its piece.</li>
+  <li data-n="7"><b>What it is:</b> <i>Map's own</i>, <i>Changed</i>, <i>Moved</i>, <i>Added</i>, <i>Follows its
+    piece</i> or <i>Deleted</i>.</li>
+  <li data-n="8"><b>Its tile and level;</b> for a moved mark, the tile it came from, and for one that follows its
+    piece, the piece.</li>
+  <li data-n="9"><b>Its corners</b> as four buttons, laid out as the view shows them: a click switches one, as its dot
+    does.</li>
+  <li data-n="10"><b>Delete</b> (<kbd>Del</kbd>) deletes the picked marks. <b>Reset</b> puts a map's mark you changed,
+    moved or deleted back as the map has it.</li>
+</ol>
+<ul>
+  <li><b><kbd>[</kbd> and <kbd>]</kbd></b> turn the picked marks' corners a quarter turn. Each edit is one undo
+    step.</li>
+  <li><b>Deleted marks,</b> the switch under the view's row in the Views list, draws the map's marks your project
+    deletes, pale and dashed: pick one and choose Reset to bring it back.</li>
+  <li><b>After a build,</b> the panel says what the last build gave the picked mark: high or low cover, its
+    step-outs, and a corner with no wall.</li>
+  <li><b>A corner with no wall</b> still gives cover: high cover against nothing, without the step-outs a wall gives.
+    The Build warns of it, and of a mark on a tile with no floor, which gives no cover. The build window's light step
+    says how many tiles were marked.</li>
+  <li><b>Box select doesn't take marks:</b> <kbd>Ctrl</kbd>+click picks several, and the gizmo,
+    <kbd>Del</kbd>, <kbd>[</kbd> and <kbd>]</kbd> act on them all.</li>
+  <li><b>Diagonal cover</b> in <a href="#viewoptions">View options</a> draws the marks in the normal view too, never
+    picked there.</li>
+</ul>
+<h4 id="diagonal-add">A new mark</h4>
+<p>New marks come from the <a href="#add">Add panel</a>: its Kind <b class="ui">Diagonal cover</b> has one entry.</p>
+<figure class="zoom">
+  <img src="shots/diagonal-add.webp" width="1080" height="675" alt="The Add panel with Kind set to Diagonal cover and its one entry chosen, the ghost of a new mark at the pointer on a tile of the scout's hull, and the hint above the view">
+  <figcaption>The entry chosen: the new mark follows the pointer.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Kind:</b> Diagonal cover, under This map.</li>
+  <li data-n="2"><b>Its one entry,</b> with how many marks the map has now. Click it: the Diagonal cover view comes
+    on.</li>
+  <li data-n="3"><b>The new mark</b> follows the pointer over the floor tiles, its arrow toward the corner of the tile
+    the pointer is nearest. A click puts it down there and picks it.</li>
+  <li data-n="4"><b>The hint</b> says what a click does. <kbd>Esc</kbd> stops.</li>
+</ol>
+<p>A tile holds one mark: on a marked tile, pick its mark and switch its corners instead.</p>
+<h4 id="diagonal-follow">Marks that follow their pieces</h4>
+<ul>
+  <li><b>A map's mark goes with its slanted wall:</b> moved with it, turned with it (a quarter turn turns its corners;
+    any other turn takes them to the nearest diagonals and draws the mark in the warning colour), deleted with it, and
+    each copy of the wall carries one of its own. Its panel says <i>Follows its piece</i> and names the piece.</li>
+  <li><b>A piece of another map,</b> placed from <a href="#add-all">All maps</a> or with a
+    <a href="#prefabs">prefab</a>, brings the marks it gives at home.</li>
+  <li><b>A mark you moved, turned or deleted by hand</b> follows nothing from then on. A mark a copy carries is turned
+    by hand, but moves and is deleted with its copy.</li>
+  <li><b>Anything else gets diagonal cover only where you mark it:</b> a wall you draw, a cover block, a piece standing
+    at 45°. A project saved with version 0.7.0, whose Build found such corners by itself, builds without them until
+    they are marked.</li>
 </ul>
 
 <h3 id="missions">Missions</h3>
@@ -2331,6 +2439,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     it from the map that plays it), or <b class="ui">None</b>. <b class="ui">Play</b> plays the choice here, looping,
     until you press it again or close the window. The <b class="ui">Volume</b> bar under it sets how loud it is in the
     game, 100% being the sound's own.</li>
+  <li><b>Long War Rebalance</b> is what Long War Rebalance 3 (from 3.00.00 beta 17) is told of the map.
+    <b class="ui">Largest abduction</b> is the largest abduction the map suits: Light, Moderate, Heavy or Swarming
+    (a larger one is moved to another map), or <i>Not set</i>, any size. <b class="ui">Keep Hold the Line off this
+    map</b> keeps those stands against waves of aliens off it. Both travel with the map in a
+    <a href="#map-packs">map pack</a>; a campaign install made by the project manager doesn't carry them, and says so.
+    Plain Enemy Within reads neither, and the section doesn't show there unless the project has them set.</li>
   <li><b>Each change is one undo step</b> and is saved with the project; the header counts it. A map that starts no
     background sound (the alien bases, the battleships, the Temple Ship and a few others) has none to change.</li>
 </ul>
@@ -2788,6 +2902,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Landing zones</td><td><a href="#landingzones">Where the squad lands</a></td><td>Freely; in the snap's steps with snap on; quarter turns</td><td>Yes</td></tr>
   <tr><td>Spawn points</td><td><a href="#spawns">Pods, Meld points, drop-in points</a>, <a href="#nospawn">no-spawn volumes</a></td><td>One at a time, whole tiles and levels, quarter turns (drop-in points); a volume's sides by its handles</td><td>Yes</td></tr>
   <tr><td>A mission's objects</td><td><a href="#mission-objects">The bomb and its power nodes, capture points</a></td><td>With their group, whole tiles and levels</td><td>Yes</td></tr>
+  <tr><td>Diagonal cover marks</td><td><a href="#diagonal">A tile's cover toward its corners</a></td><td>Whole tiles and levels, quarter turns; a map's mark with its wall</td><td>Yes</td></tr>
   <tr><td>Patch helpers</td><td>Long War Rebalance's invisible cover and blockers</td><td>Not at all</td><td>Left as they are</td></tr>
 </table>
 <p>"Freely" means in the <a href="#snap">snap setting's steps</a>, which govern every move and turn: with snap off,
@@ -2877,6 +2992,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><kbd>Shift</kbd>+<kbd>X</kbd></td><td>The <a href="#effects">Effects view</a> on or off (only effects, sounds and lens flares are selected)</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>U</kbd></td><td>The <a href="#spawns">Spawns view</a> on or off (only spawn points and objectives are selected)</td></tr>
   <tr><td><kbd>[</kbd> <kbd>]</kbd> · <kbd>Ctrl</kbd>+<kbd>D</kbd> · <kbd>Del</kbd></td><td>A picked spawn point: a quarter turn either way (a drop-in point) · copy it (a pod or a Meld point) · delete it</td></tr>
+  <tr><td><kbd>Shift</kbd>+<kbd>C</kbd></td><td>The <a href="#diagonal">Diagonal cover view</a> on or off (only diagonal cover marks are picked)</td></tr>
+  <tr><td><kbd>[</kbd> <kbd>]</kbd> · <kbd>Del</kbd></td><td>In the Diagonal cover view: turn the picked marks' corners a quarter either way · delete them</td></tr>
   <tr><td><kbd>Shift</kbd>+drag a move handle</td><td>Drag a copy of the selection; the original stays</td></tr>
   <tr><td><kbd>N</kbd></td><td>In the Buildings view: New box</td></tr>
   <tr><td><kbd>Shift</kbd> while drawing</td><td>From the <a href="#made">Build menu</a>: keep drawing after each wall, floor or ground shape (<kbd>Esc</kbd> stops)</td></tr>
@@ -2940,7 +3057,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <li><b>Under Long War, the aliens' pods and the Meld go where its rules put them</b> whenever it finds room for
         them, and so do the bomb and its power nodes. Your places for them play where it doesn't, and on plain Enemy
         Within: <a href="#spawns-game">what the game does with them</a>.</li>
-      <li><b>Cover, pathing and line of sight aren't shown or set by hand.</b> The game works them out from the pieces
+      <li><b>Cover, pathing and line of sight aren't shown or set by hand,</b> but for
+        <a href="#diagonal">diagonal cover</a>, which is marked by hand. The game works the rest out from the pieces
         when the map loads. The editor's tile grid is a guide, not the game's answer.</li>
       <li><b>No play-testing in the editor.</b> No units, no fog of war, no destruction. You test in the game.</li>
       <li><b>No campaign in a test battle.</b> Play in game starts the mission you pick, with the
@@ -3001,6 +3119,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     spawn points</a>.</li>
   <li><b>A drawn floor off the tile lines is floor only on the tiles whose middle it covers,</b> and a drawn wall
     inside a row of tiles takes those tiles: <a href="#floor-tiles">floors</a>, <a href="#wall-in-row">walls</a>.</li>
+  <li><b>Diagonal cover is only where a mark is.</b> A slanted wall you draw, or a cover block at 45°, gives none in
+    its corners until you <a href="#diagonal">mark them</a>.</li>
   <li><b>The squad may land on a new piece.</b> Keep copies off the soldier tiles, or
     <a href="#landingzones">move the landing zone</a>.</li>
   <li><b>A quick build's lighting is wrong on purpose.</b> Copies are lit as their originals were and cast no shadows,
