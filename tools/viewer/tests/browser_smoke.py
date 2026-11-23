@@ -1450,6 +1450,33 @@ def check_clear_map(page):
     before_zones = page.evaluate('viewer.zones()')
     assert page.locator('#clearMap').is_hidden()
     small = [max(1, dims[0] - 12), max(1, dims[1] - 9), max(1, dims[2] - 4)]
+    # the project's added effects go with a clear as its added pieces do, and a map effect it moved is deleted as a
+    # moved piece is (the user, 23 November 2026: a clear left a boat's 35 added effects standing)
+    fx = page.evaluate("""() => [...viewer.effectRoots.values()].map(r => r.userData.source)
+                            .filter(o => o.kind === 'effect' && !o.added && !o.stream && !o.landingActor && !o.carriedBy).slice(0, 2)
+                            .map(o => ({ actor: o.actor, location: o.location, rotation: o.rotation, id: o.id }))""")
+    if len(fx) == 2:
+        seeded = page.evaluate("""fx => { const s = viewer.editState(), pkg = viewer.data.name;
+            s.added = [...s.added, { id: 'c1ea0000-0000-4000-8000-000000000001', actor: fx[0].actor + '_copy901', kind: 'effect',
+                                     from: { package: pkg, level: 'base', actor: fx[0].actor },
+                                     location: [fx[0].location[0] + 96, fx[0].location[1], fx[0].location[2]], rotation: fx[0].rotation }];
+            s.overrides = [...s.overrides, { target: { package: pkg, level: 'base', actor: fx[1].actor },
+                                             location: [fx[1].location[0] + 96, fx[1].location[1], fx[1].location[2]], rotation: fx[1].rotation }];
+            return viewer.applyState(s).then(() => fx[0].actor + '_copy901'); }""", fx)
+        copied = "a => [...viewer.effectRoots.values()].some(r => r.userData.source.actor === a)"
+        assert page.evaluate(copied, seeded)
+        assert page.evaluate("id => viewer.effectState(id).moved", fx[1]['id'])
+        assert page.evaluate('viewer.clearPlan().addedEffects') == 1 and page.evaluate('viewer.clearPlan().movedEffects') == 1
+        page.evaluate('size => viewer.clearMap(size)', small)
+        assert not page.evaluate(copied, seeded)
+        assert page.evaluate("id => viewer.effectState(id).deleted", fx[1]['id'])
+        assert not [o for o in page.evaluate('viewer.editState().added') if o.get('kind') == 'effect']
+        page.keyboard.press('Control+z')
+        assert page.evaluate(copied, seeded) and not page.evaluate("id => viewer.effectState(id).deleted", fx[1]['id'])
+        # (the seeded edits out again: the check goes on from the map as it was)
+        page.evaluate("""() => { const s = viewer.editState(); s.added = s.added.filter(o => o.kind !== 'effect' || !o.actor.endsWith('_copy901'));
+                                 s.overrides = s.overrides.filter(o => !o.location || !String(o.target.actor).includes('Emitter'));
+                                 return viewer.applyState(s); }""")
     page.evaluate('size => viewer.clearMap(size)', small)
     assert page.evaluate('viewer.cleared()') and page.evaluate('viewer.stage()') == dict(grid=small)
     assert page.evaluate('viewer.data.tileGrid.dimensions') == small

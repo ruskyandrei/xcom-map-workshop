@@ -41,10 +41,10 @@ import { recall, remember } from './storage.js';
 import { plural, short } from './dom_words.js';
 import { fromOf, isStream } from './piece_records.js';
 
-export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banner, clearedChanged, cloneGroups,
+export function createClearMap({ $, addEffectRoots, addLightRoots, addRoots, allBuildings, banner, clearedChanged, cloneGroups,
                                  editedKey, explicitZones, flashHint, gizmo, grabView, lightViewOnly, liveVolumes,
                                  missionFloorLost, missionReached, ownSize, projectChanged, projectsAvailable,
-                                 refreshInstalls, removeLightRoots, removeRoots, sceneChanged, setMissionMoves,
+                                 refreshInstalls, removeEffectRoots, removeLightRoots, removeRoots, sceneChanged, setMissionMoves,
                                  setStage, showPop, spawnFamilyBuilds, spawnsAvailable, world, zoneSoldiers,
                                  zoneState }) {
   // The landing zone's pieces (compiler.LANDING_PREFIXES, F-45): from the server's families, else by their archetype.
@@ -174,8 +174,19 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
       // takes out (clear_level), and a cleared map draws none of them
       if (!lightViewOnly(o) && o.role !== 'area') originalLights.push(r);
     }
-    return { originals, added, originalLights, addedLights, pieces: actors.size + addedActors.size, lights: lightCount,
-             landing: landing.size, script: [...script], kept, boxes: liveVolumes(), outside: outside.size, lightsOutside };
+    // the effects, ambient sounds and lens flares (the user, 23 November 2026: a clear left a boat's 35 added effects
+    // standing): the project's added ones go as its added pieces do; the map's own go by the cleared mark
+    // (effects_rules.js survivesClear, the Build's clear_level), and one the project moved, which the mark keeps, is
+    // deleted here, as a moved piece is; the landing's and those outside a kept play area stay
+    const addedEffects = [], movedEffects = [];
+    for (const r of effectRoots.values()) {
+      const o = r.userData.source;
+      if (isStream(o) || r.userData.deleted || r.userData.derivedGone) continue;
+      if (o.added) { addedEffects.push(r); continue; }
+      if (r.userData.edit && !o.landingActor && !out(o.location[0], o.location[1])) movedEffects.push(r);
+    }
+    return { originals, added, originalLights, addedLights, addedEffects, movedEffects, pieces: actors.size + addedActors.size,
+             lights: lightCount, landing: landing.size, script: [...script], kept, boxes: liveVolumes(), outside: outside.size, lightsOutside };
   }
   // What a clear does to the spawn points (the user, 18 November 2026: "clear should also clear all of these"): the map's
   // pods, Meld points and drop-in points are deleted (their moves and values go), but for one something names (the Build
@@ -199,20 +210,24 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     }
     return { after, deleted, named, copies, volumes };
   }
-  // What a clear does to the effects, sounds and lens flares standing now (effects_rules.js survivesClear, the Build's
-  // clear_level): { effects (and flares) and sounds that go, landing: the landing's that stay (the Skyranger's lights,
-  // dust and sound) }. `keepOutside`: the grid size of a clear that keeps the scenery outside the play area.
+  // What a clear does to the effects, sounds and lens flares standing now (clearPlan's rule): { effects (and flares) and
+  // sounds that go (the project's added ones, the map's own but for the landing's and those outside a kept play area,
+  // a moved one among them), landing: the landing's that stay (the Skyranger's lights, dust and sound) }. `keepOutside`:
+  // the grid size of a clear that keeps the scenery outside the play area.
   function clearedEffects(keepOutside = null) {
     const area = keepOutside ? outsideBox(keepOutside) : null;
     const outside = (x, y) => Boolean(area) && (x < area[0] || x > area[2] || y < area[1] || y > area[3]);
     let effects = 0, sounds = 0, landing = 0;
     for (const root of effectRoots.values()) {
       const o = root.userData.source;
-      if (o.added || isStream(o) || root.userData.deleted || root.userData.derivedGone) continue;
-      const ctx = { carrierMoved: root.userData.carrierMoved, moved: Boolean(root.userData.edit) };
-      if (!survivesClear(o, { ...ctx, cleared, outside: pointOutside })) continue;      // (an earlier clear's)
-      if (survivesClear(o, { ...ctx, cleared: true, outside })) { if (o.landingActor) landing++; }
-      else if (o.kind === 'sound') sounds++;
+      if (isStream(o) || root.userData.deleted || root.userData.derivedGone) continue;
+      if (!o.added) {
+        const ctx = { carrierMoved: root.userData.carrierMoved, moved: Boolean(root.userData.edit) };
+        if (!survivesClear(o, { ...ctx, cleared, outside: pointOutside })) continue;      // (an earlier clear's)
+        if (o.landingActor) { landing++; continue; }
+        if (outside(o.location[0], o.location[1])) continue;
+      }
+      if (o.kind === 'sound') sounds++;
       else effects++;
     }
     return { effects, sounds, landing };
@@ -294,8 +309,8 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
   $('clearMapClose').onclick = $('clearMapCancel').onclick = hideClearMap;
   clearDialog.root.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideClearMap(); } });
   $('projectClear').onclick = showClearMap;
-  // The clear (section 1), one undo step: the added pieces and lights go, the originals and the editable lights are
-  // marked deleted but for the landing's, the sun and the sky light; the project's buildings (and the map's that can be
+  // The clear (section 1), one undo step: the added pieces, lights, effects, sounds and lens flares go, the originals,
+  // the editable lights and the moved effects are marked deleted but for the landing's, the sun and the sky light; the project's buildings (and the map's that can be
   // edited) are deleted, its groups and area-light bindings go; the size and the cleared mark are set.
   // The one landing zone a clear keeps (the user, 13 November: "just leave 1 LZ"): plain EW's first, the map's own
   // first landing (else the first zone), used by both games
@@ -324,9 +339,9 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     const started = performance.now();
     gizmo.record({
       redo: () => {
-        removeRoots(plan.added); removeLightRoots(plan.addedLights);
+        removeRoots(plan.added); removeLightRoots(plan.addedLights); removeEffectRoots(plan.addedEffects);
         setMissionMoves(new Map(spawnsAfter));
-        for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = true;
+        for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes, ...plan.movedEffects]) r.userData.deleted = true;
         setAreaBindings(new Map()); setGroups(new Map());
         setCleared(true); setClearKeepsOutside(keepOutside); setClearKeepsTriggers(keepTriggers); setMergedBuildings(null); setStage(next); clearedChanged();
         setProjectMissions(missionsCleared.map(e => ({ ...e }))); refreshMissionPicker();
@@ -334,9 +349,9 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
         runHub('clear'); setLightsDirty(true); gizmo.setSelection([]); sceneChanged();
       },
       undo: () => {
-        addRoots(plan.added); addLightRoots(plan.addedLights);
+        addRoots(plan.added); addLightRoots(plan.addedLights); addEffectRoots(plan.addedEffects);
         setMissionMoves(new Map(spawnsBefore));
-        for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes]) r.userData.deleted = false;
+        for (const r of [...plan.originals, ...plan.originalLights, ...plan.boxes, ...plan.movedEffects]) r.userData.deleted = false;
         setAreaBindings(new Map(bindingsBefore)); setGroups(cloneGroups(groupsBefore));
         setCleared(clearedBefore); setClearKeepsOutside(keepsBefore); setClearKeepsTriggers(triggersBefore); setMergedBuildings(null); setStage(stageBefore); clearedChanged();
         setProjectMissions(missionsBefore ? missionsBefore.map(e => ({ ...e })) : null); refreshMissionPicker();

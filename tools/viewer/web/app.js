@@ -600,6 +600,7 @@ const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight
   world,
   // (made further down: called through, since they are not made yet while this runs)
   allBuildings: () => allBuildings(), clearedChanged: () => clearedChanged(),
+  addEffectRoots: list => addEffectRoots(list), removeEffectRoots: list => removeEffectRoots(list),
   explicitZones: () => explicitZones(), liveVolumes: () => liveVolumes(),
   missionFloorLost: o => missionFloorLost(o), missionReached: o => missionReached(o),
   setMissionMoves: next => setMissionMoves(next),
