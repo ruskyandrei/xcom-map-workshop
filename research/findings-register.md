@@ -2647,7 +2647,11 @@ URB_ResearchOutpost's floor 2, a copy from another building's ground floor among
 - Fix: export 15 records what of the package's Kismet names each piece (`referencedBy`: the op and link using the
   variable that holds it, or the sequence object and property); the compiler refuses moving or deleting such a piece
   (`mission-linked`) and allows copying it; the inspector marks it (Mission script). Since 13 November 2026 a move or
-  delete builds, with the warning (map buildings plan, step E2b). On the five maps read (Bar,
+  delete builds, with the warning (map buildings plan, step E2b). Since 23 November 2026 the Build empties the Kismet's
+  references to a deleted piece (its variables, events' originators and object lists; an event left with no
+  originator switched off: [kismet_cut.py](../tools/bake/kismet_cut.py)), so its script acts on nothing in its place,
+  and the compiler says it in a note; a moved piece keeps its warning, and a deleted one the script waits on too, but
+  on a cleared map. On the five maps read (Bar,
   Police Station, the outpost, the farm, the forest trench) the Kismet names no ladder, door or car.
 
 ### F-64: A copied car's glass keeps its original's fragment columns where the original stands

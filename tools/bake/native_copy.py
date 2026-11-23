@@ -2493,6 +2493,7 @@ class BuildState:
     background_sound: object = None     # backgroundSound
     piece_blasts: tuple = ()        # pieceBlasts
     diagonal_cover: object = None   # diagonalCover (the project's diagonal cover marks, diagonal_edit)
+    kismet_cuts: tuple = ()         # kismetCuts (the deleted pieces the map's Kismet names: kismet_cut.py)
     # what build fills, as it goes
     p: object = filled()                # the pristine map read (build, first)
     g: object = filled()                # the variant map's growing writer (build, first)
@@ -2543,6 +2544,7 @@ class BuildState:
     lane_effects: list = filled(list)   # the effects lane's records (native_effects.apply)
     floor_emitters: list = filled(list)     # the effects listed in, or taken out of, the building floors' lists
     cursor_record: object = filled()    # the made slabs' cursor floors (made_cursors.apply), or None
+    kismet_record: object = filled()    # the map's Kismet let go of the deleted pieces (kismet_cut.cut), or None
     cursor_clones: list = filled(list)  # the cursor volumes made, for the level's list
     # the map written and read back (write_and_verify), and what it reads that build made
     effect_clones: list = filled(list)  # the effects, sounds, flares and spawn points copied, for the level's list
@@ -2648,6 +2650,7 @@ def manifest_parts(st, q, bake):
                                  for r in edit_records],
                   coverBlocks=[dict(c, copy=q.name(c['actor'])) for c in cover_records],
                   **({'diagonalCover': st.diagonal} if st.diagonal else {}),
+                  **({'kismetCuts': st.kismet_record} if st.kismet_record else {}),
                   **({'startTiles': st.start_tiles} if st.start_tiles else {}),
                   **({'tilesForgot': st.forgot} if st.forgot else {}),
                   **({'generatedWalls': [dict(r, copy=q.name(r['copy']).split('.')[-1],
@@ -3291,6 +3294,11 @@ def write_and_verify(st):
     if st.sound_record:
         from package import Package as Reader
         native_sounds.verify_background(Reader(dst), st.sound_record)
+    # the map's Kismet read back: none of the deleted pieces it let go of held
+    if st.kismet_record:
+        import kismet_cut
+        from package import Package as Reader
+        kismet_cut.verify(Reader(dst), st.kismet_record)
     # the made floors' cursor volumes read back
     if cursor_record and cursor_record['added']:
         import made_cursors
@@ -3422,6 +3430,20 @@ def build(st):
         g, p, st.made, st.break_originals,
         [(c['breakGroup'], c['actor']) for c in st.cover_records if c.get('breakGroup')], walled=st.walled)
     st.hidden, st.hide_volumes = hide_pieces(g, p, st.hides, volumes=not st.cleared) if st.hides else ([], [])
+    # the map's Kismet lets go of the deleted pieces it names (kismet_cut.py: its references emptied, an event left with
+    # no originator switched off), so its script acts on nothing that is no longer in the map
+    st.kismet_record = None
+    if st.kismet_cuts:
+        import kismet_cut
+        hidden_now = {h['export'] for h in st.hidden}
+        st.kismet_record = kismet_cut.cut(g, p, {p.by_name[PL + n] for n in st.kismet_cuts
+                                                 if PL + n in p.by_name and p.by_name[PL + n] in hidden_now})
+        if st.kismet_record:
+            print("    the map's Kismet lets go of %d deleted %s: %d references emptied, %d %s switched off" % (
+                len({r['actor'] for r in st.kismet_record['cut']}),
+                'piece' if len({r['actor'] for r in st.kismet_record['cut']}) == 1 else 'pieces',
+                len(st.kismet_record['cut']), len(st.kismet_record['off']),
+                'event' if len(st.kismet_record['off']) == 1 else 'events'))
     # the effects the moved, copied and deleted pieces carry (native_effects.py: a Skyranger's lights go with it)
     import native_effects
     st.effect_clones, effect_gone, st.effect_record = native_effects.carry(
@@ -3500,6 +3522,7 @@ def edit_state(src, out, variant, doc, **options):
     copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
     cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = background_sound = None
     diagonal_cover = None
+    kismet_cuts = []
     stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
     if isinstance(doc, dict):
         assemblies = doc.get('assemblies') or []
@@ -3518,6 +3541,7 @@ def edit_state(src, out, variant, doc, **options):
         flag_ladders = doc.get('pieceFlagLadders') or []
         piece_blasts = doc.get('pieceBlasts') or []
         diagonal_cover = doc.get('diagonalCover')
+        kismet_cuts = doc.get('kismetCuts') or []
         doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
     for c in doc:
         copies.append(copy_record(c))
@@ -3526,7 +3550,7 @@ def edit_state(src, out, variant, doc, **options):
                       landing_zones=landing_zones, carried_effects=carried_effects, stream_tiles=stream_tiles,
                       piece_flags=piece_flags, flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares,
                       spawns=spawns, background_sound=background_sound, piece_blasts=piece_blasts,
-                      diagonal_cover=diagonal_cover, **options)
+                      diagonal_cover=diagonal_cover, kismet_cuts=kismet_cuts, **options)
 
 
 def main():

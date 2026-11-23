@@ -504,6 +504,9 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         s['spawns'][0]['unread'] = 'bad bytes'
         _, report = compile_project(document([dict(target=target('XComAlienPod_0'), deleted=True)]), s, enable=['spawn'])
         self.assertEqual(warned(report, 'spawn-delete'), ['spawn-delete-named'])
+        # on a cleared map it stays the same, said in a note (the clear cuts the map's script off from its triggers)
+        _, report = compile_project(document([dict(target=target('XComAlienPod_0'), deleted=True)], cleared=True), s, enable=['spawn'])
+        self.assertEqual((warned(report, 'spawn-delete'), noted(report, 'spawn-delete')), ([], ['spawn-delete-named']))
 
     def test_no_spawn_volumes_are_sized_given_values_copied_made_and_deleted(self):
         # a no-spawn volume (export 34: its aliens and civilians switches) moves and is sized by its box, in place; a
@@ -1134,22 +1137,25 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         self.assertEqual((codes(report), warned(report, 'mission')), ([], ['mission-linked']))
         self.assertIn('XComLevelActor_2 is moved', report['warnings'][0]['message'])
         self.assertIn('SeqAct_ToggleHidden_1 Target', report['warnings'][0]['message'])
-        # deleted, the script only acting on it: a note (the piece is gone; a cleared map deletes many such pieces)
-        _, report = compile_project(document([deleted]), s)
+        # deleted: the Build takes it out of the script (the spec's kismetCuts), a note; a copy of it too
+        spec, report = compile_project(document([deleted]), s)
         self.assertEqual((warned(report, 'mission'), noted(report, 'mission')), ([], ['mission-linked']))
-        # deleted and copied from the original: a warning naming the copy, which the script misses
-        _, report = compile_project(document([deleted], [add('XComLevelActor_2', 1, (96, 192, 0))]), s)
-        self.assertEqual(warned(report, 'mission'), ['mission-linked'])
-        w = next(w for w in report['warnings'] if w['code'] == 'mission-linked')
-        self.assertEqual(w['copies'], ['XComLevelActor_2_copy1'])
-        self.assertIn('deleted and copied (XComLevelActor_2_copy1)', w['message'])
-        # deleted, and the script waits on it (an event's originator): a warning
+        self.assertEqual(native_split(spec)[1]['kismetCuts'], ['XComLevelActor_2'])
+        spec, report = compile_project(document([deleted], [add('XComLevelActor_2', 1, (96, 192, 0))]), s)
+        self.assertEqual((warned(report, 'mission'), noted(report, 'mission')), ([], ['mission-linked']))
+        self.assertIn('takes it out of the map\'s Kismet', next(n for n in report['notes'] if n['code'] == 'mission-linked')['message'])
+        # moved: no cut (the hidden original keeps its references)
+        spec, _ = compile_project(document([moved]), s)
+        self.assertNotIn('kismetCuts', native_split(spec)[1])
+        # deleted, and the script waits on it (an event's originator): a warning on a map as it is, a note on a cleared one
         for o in s['objects']:
             if o['actor'] == PL + 'XComLevelActor_2':
                 o['referencedBy'] = ['SeqAct_ToggleHidden_1 Target', 'SeqEvent_Destroyed_0 Originator']
         _, report = compile_project(document([deleted]), s)
         self.assertEqual(warned(report, 'mission'), ['mission-linked'])
         self.assertIn('waits on it (SeqEvent_Destroyed_0 Originator)', report['warnings'][0]['message'])
+        _, report = compile_project(document([deleted], cleared=True), s)
+        self.assertEqual((warned(report, 'mission'), noted(report, 'mission')), ([], ['mission-linked']))
         # copied alone (the original stays): nothing
         spec, report = compile_project(document([], [add('XComLevelActor_2', 1, (96, 192, 0))]), s)
         self.assertTrue(report['ok'], refused(report))

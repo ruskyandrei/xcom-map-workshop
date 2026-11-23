@@ -210,8 +210,11 @@ class SpawnEdits:
             why = ('the export could not read what uses it (%s)' % record['unread'] if record.get('unread') else
                    '%s %s' % ('; '.join(names[:4]) + ('; and %d more' % (len(names) - 4) if len(names) > 4 else ''),
                               'names it' if len(names) == 1 else 'name it'))
-            self.c.warn('spawn-delete-named', '%s stays: %s, and a deleted point would leave %s pointing at nothing'
-                        % (name, why, 'that' if len(names) <= 1 else 'them'), actor=target['actor'], **where)
+            # (on a cleared map, whose mission script the clear has cut off from its triggers, it is said only: the
+            # user, 23 November 2026)
+            say = self.c.note if self.c.mission_edits.cleared else self.c.warn
+            say('spawn-delete-named', '%s stays: %s, and a deleted point would leave %s pointing at nothing'
+                % (name, why, 'that' if len(names) <= 1 else 'them'), actor=target['actor'], **where)
             return
         self.ops['deletes'].append(dict(name=name, actorClass=record['actorClass'], kind=record['kind']))
         self.c.entities.append(dict(kind='spawn', op='delete', target=target['actor'], actorClass=record['actorClass']))
