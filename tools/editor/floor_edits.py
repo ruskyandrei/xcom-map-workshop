@@ -3,8 +3,8 @@ the floor the project's flat pieces give, ladders' climbs, the building floor a 
 the Build makes walkable, and the map's floor tiles still there.
 
 The cursor's floors of the map as the project has them (cursor_storeys, with grown_storeys for a grid made larger and
-with_made_slabs for the made floors and roofs; web/floors.js cursorStoreys is the twin), which the buildings family
-checks a building's floors against. The floor the project's flat pieces are expected to give (added_floors), and the
+with_made_slabs for the made floors and roofs and the buildings whose floors are the cursor's, cursor_areas;
+web/floors.js cursorStoreys is the twin), which the buildings family checks a building's floors against. The floor the project's flat pieces are expected to give (added_floors), and the
 warning for one with too little standing room over it (floor_headroom). Each moved or copied ladder's climb
 (ladder_ends), worked out once every copy, cover block and the stage are known (ladder_climbs, from `ladder_jobs`,
 which the compiler's override and add fill), and the map's own ladders near a piece whose flags change where it stands
@@ -85,11 +85,24 @@ class FloorEdits:
 
     def with_made_slabs(self, storeys, grid_box):
         """The cursor's floors `storeys` [(floor, box)] with the made floors' and roofs' own over their footprints, as
-        the Build gives them (made_cursors.storeys; M5b)."""
+        the Build gives them (made_cursors.storeys; M5b), and the buildings' whose floors are the cursor's over theirs
+        (cursor_areas)."""
         slabs = self.c.made_edits.made_slab_boxes() if self.c.made_edits.slabs else []
-        if not slabs:
+        areas = self.cursor_areas()
+        if not slabs and not areas:
             return storeys
-        return made_cursors.storeys([dict(key=k, floor=f, box=list(b)) for k, (f, b) in enumerate(storeys)], slabs, grid_box)
+        return made_cursors.storeys([dict(key=k, floor=f, box=list(b)) for k, (f, b) in enumerate(storeys)], slabs, grid_box,
+                                    areas)
+
+    def cursor_areas(self):
+        """The buildings whose floors are the cursor's (the building cursor floors plan): the project's buildings made
+        from nothing with `cursorFloors` true, in the project's order, as made_cursors takes them: [dict(label, id,
+        floors: [[box [x0, y0, z0, x1, y1, z1], ...], ...])]. The map's own buildings (a record with `replaces`) bring
+        none. web/floors.js cursorAreas is the twin."""
+        items, _ = self.c.building_edits.building_records()
+        return [dict(label=b.get('name') or b['id'], id=b['id'],
+                     floors=[[[float(v) for v in x] for x in f['boxes']] for f in b['floors']])
+                for b in items if b.get('cursorFloors') is True and b.get('replaces') is None and not b.get('deleted')]
 
     def grown_storeys(self, own, grid):
         """The map's own cursor floors `own` [(floor, box)] on the project's grid (cursor_storeys; shell.py

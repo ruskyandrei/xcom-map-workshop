@@ -1054,7 +1054,7 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
 
     def test_schema_source_and_output_are_checked(self):
-        for doc, code in [(document(schemaVersion=8), 'schema'),
+        for doc, code in [(document(schemaVersion=9), 'schema'),
                           (document(source=dict(map='URB_Bar', sha256='b' * 64)), 'source-mismatch'),
                           (document(output=dict(shipAs='URB_Bar', patch='patch_x')), 'output'),
                           (document(output=dict(shipAs='Bad name', patch='patch_x')), 'output'),
@@ -1912,6 +1912,65 @@ class BuildingTests(unittest.TestCase):
         stair = [dict(bar[0]), dict(bar[1], stair=True)]
         self.assertEqual(run(stair, at(0, 100), at(100, 300))[0]['starts'], [round(oz, 2)])
         self.assertEqual(run(bar, at(0, 100), at(100, 300), version=19), [])
+
+    def test_a_building_whose_floors_are_the_cursors(self):
+        """The building cursor floors plan: with `cursorFloors` a building's floor boxes are the cursor's floors over it
+        (made_cursors, FloorEdits.cursor_areas): it isn't held to the map's (building-cursor), the tick goes to the
+        native edit and the report, a note says where its floors start, and a floor out of order and a stair volume
+        under it are warned of."""
+        ox, oy, oz = scene()['tileGrid']['origin'][:3]
+        bar = [dict(name='c%d' % n, floor=n + 1, stair=False, box=dict(min=[ox, oy, oz + z0], max=[ox + 5000, oy + 4000, oz + z1]))
+               for n, (z0, z1) in enumerate(((0, 210), (210, 402), (402, 594)))]
+        at = lambda z0, z1: [[ox, oy, oz + z0, ox + 576, oy + 576, oz + z1]]  # noqa: E731
+
+        def sc(cursor=bar):
+            s = scene()
+            s['tileGrid'].update(dimensions=[52, 39, 12], size=[96, 96, 64])
+            s['exporterVersion'] = 20
+            s['cursorVolumes'] = cursor
+            return s
+
+        def run(*buildings, cursor=bar):
+            return compiler.compile_project(document(buildings=list(buildings)), sc(cursor), ('building',))
+        hut = self.hut(at(0, 176), at(176, 384), cursorFloors=True)
+        spec, report = run(hut)
+        self.assertEqual(codes(report), [])
+        self.assertEqual(warned(report, 'building-cursor'), [])         # (without the tick floor 1 would be: 176 is 34 off 210)
+        self.assertEqual(report['buildings'], [dict(id='b1', name='Hut', kind='building', floors=2, cursorFloors=True)])
+        self.assertTrue(native_split(spec)[1]['buildings'][0]['cursorFloors'])
+        notes = [n for n in report['notes'] if n['code'] == 'building-cursor-floors']
+        self.assertEqual(len(notes), 1)
+        self.assertIn('1 from %g, 2 from %g' % (oz, oz + 176), notes[0]['message'])
+        # the cursor's floors: over the hut its own, each 2 under its box; off it the bar's
+        c = compiler.Compiler(document(buildings=[hut]), sc())
+        c.map = 'URB_Bar'
+        c.stage()
+        got = c.cursor_storeys()
+        self.assertEqual(sorted((b[2], b[5], f) for f, b in got if b[0] <= ox + 100 <= b[3] and b[1] <= oy + 100 <= b[4]),
+                         [(oz - 2, oz + 174, 1), (oz + 174, oz + 384, 2)])
+        self.assertEqual(sorted((b[2], f) for f, b in got if b[0] <= ox + 1000 <= b[3] and b[1] <= oy + 100 <= b[4]),
+                         [(oz, 1), (oz + 210, 2), (oz + 402, 3)])
+        # without the tick: as before, held to the map's
+        spec, report = run(self.hut(at(0, 176), at(176, 384)))
+        self.assertEqual(warned(report, 'building-cursor'), ['building-cursor'])
+        self.assertNotIn('cursorFloors', native_split(spec)[1]['buildings'][0])
+        # a floor starting under the one before it
+        _, report = run(self.hut(at(100, 300), at(50, 250), at(300, 500), cursorFloors=True))
+        self.assertEqual([w['floors'] for w in report['warnings'] if w['code'] == 'building-cursor-order'], [[2]])
+        # a stair volume of the map under it stays
+        stair = bar + [dict(name='st', floor=2, stair=True, box=dict(min=[ox + 100, oy + 100, oz], max=[ox + 200, oy + 200, oz + 220]))]
+        _, report = run(hut, cursor=stair)
+        self.assertEqual(warned(report, 'building-cursor'), ['building-cursor-volume'])
+        # ... but not on a cleared map, whose own cursor volumes go
+        _, report = compiler.compile_project(document(buildings=[hut], cleared=True), sc(stair), ('building',))
+        self.assertEqual(warned(report, 'building-cursor'), [])
+        # the tick is a boolean: anything else leaves the record out
+        _, report = run(dict(hut, cursorFloors='yes'))
+        self.assertEqual(left_out(report), ['building-shape'])
+        # the map's own buildings bring none
+        doc = document(buildings=[dict(hut, replaces=dict(package='URB_Bar', level='base', actor='XComBuildingVolume_0'),
+                                       floors=[dict(f, volumes=[None]) for f in hut['floors']])])
+        self.assertEqual(compiler.Compiler(doc, sc()).floor_edits.cursor_areas(), [])
 
     def test_a_building_goes_to_the_native_edit(self):
         spec, report = self.run_buildings([self.hut()])

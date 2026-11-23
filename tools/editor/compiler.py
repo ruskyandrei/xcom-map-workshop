@@ -211,9 +211,10 @@ SCHEMA = 'xcom-map-workshop/project'
 # 6: what Long War Rebalance is told of the map (`lwrMapInfo`: the largest abduction it suits, Hold the Line kept off
 # it). A project of schema 5 builds as it did. 7: the diagonal cover the project marks (`diagonalCover`; KB-20: the
 # Build no longer finds diagonal cover by itself, so a project of schema 1 to 6 with a made wall or cover block at 45
-# degrees builds without the corners 0.7.0 found there).
-SCHEMA_VERSION = 7
-READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7)
+# degrees builds without the corners 0.7.0 found there). 8: a building's floors as the cursor's
+# (`buildings[].cursorFloors`: the building cursor floors plan); a project of schema 7 builds as it did.
+SCHEMA_VERSION = 8
+READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
@@ -1879,7 +1880,8 @@ class Compiler:
                       # the diagonal cover the project marks (schema 7): how many marks and tiles taken from the map
                       **({'diagonalCover': dict(self.diagonal_edits.counts)} if self.diagonal_edits.lane else {}),
                       missions=self.mission_edits.missions_kept()[0] if self.map is not None else None,
-                      buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']))
+                      buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']),
+                                      **({'cursorFloors': True} if b.get('cursorFloors') else {}))
                                  for b in self.building_edits.new_buildings],
                       mapBuildings=[dict(id=e['id'], actor=e['actor'], **({'deleted': True} if e['deleted'] else
                                                                            dict(floors=len(e['floors']), moved=e['moved'])))

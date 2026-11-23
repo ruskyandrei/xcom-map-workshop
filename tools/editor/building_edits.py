@@ -42,7 +42,8 @@ BUILDING_SAME = 0.01
 
 
 BUILDING_SHAPE = ('each building is {"id", "name", "kind": "building" or "ufo", "floors": [{"boxes": [[x0, y0, z0, x1, '
-                  'y1, z1]]}]}, each floor with at least one box that has room in it; one of the map\'s has "replaces": '
+                  'y1, z1]]}]}, each floor with at least one box that has room in it, and may have "cursorFloors": true '
+                  'or false; one of the map\'s has "replaces": '
                   '{"package", "level", "actor"} and each floor "volumes" as long as its boxes, or is {"id", "replaces", '
                   '"deleted": true}')
 
@@ -57,6 +58,8 @@ def building_well_formed(b):
     rep = b.get('replaces')
     if rep is not None and not (isinstance(rep, dict) and set(rep) == {'package', 'level', 'actor'}
                                 and all(isinstance(v, str) for v in rep.values())):
+        return False
+    if 'cursorFloors' in b and not isinstance(b['cursorFloors'], bool):
         return False
     if 'deleted' in b:
         return b['deleted'] is True and rep is not None and 'floors' not in b
@@ -236,7 +239,12 @@ class BuildingEdits:
         Nothing here stops a Build but an export with no tile grid: a record that can't be read, or that names a
         building an earlier one names, is left out (building-shape, building_records); a box outside the tile grid,
         two floors that meet, a floor away from the cursor's floors are warnings, and for the map's buildings only
-        where a box changed (the map's own overlaps, as exported, are not reported)."""
+        where a box changed (the map's own overlaps, as exported, are not reported).
+        - A building made from nothing with `cursorFloors` (the building cursor floors plan) has the cursor's floors of
+          its own over its boxes (made_cursors.py; FloorEdits.cursor_areas, cursor_storeys): it is not checked against
+          the map's (building-cursor) but for a floor that starts at or under the one before it somewhere
+          (building-cursor-order) and for a stair or turned cursor volume of the map under it (building-cursor-volume);
+          a note says where its floors start (building-cursor-floors)."""
         items, dropped = self.building_records()
         for where, why in dropped:
             self.c.leave_out('building-shape', '%s, so it is left out (a building of the map\'s stays as the map has it): %s'
@@ -256,6 +264,7 @@ class BuildingEdits:
         lo = [float(v) for v in origin[:3]]
         hi = [lo[k] + count[k] * size[k] for k in range(3)]
         storeys = self.c.floor_edits.cursor_storeys()
+        own_cursor = {a['id'] for a in self.cursor_floors()}
 
         def meet(a, b):
             return all(min(a[k + 3], b[k + 3]) - max(a[k], b[k]) > BUILDING_OVERLAP for k in range(3))
@@ -360,6 +369,8 @@ class BuildingEdits:
                 self.c.warn('building-overlap', 'floor %d of the building %s overlaps floor %d of %s: a piece in both is '
                           'listed by both, and a unit there may see either floor cut away' % (k + 1, label, other['floor'] + 1, whose),
                           **where)
+            if item['building'] in own_cursor:
+                continue
             starts = sorted({round(c[2], 2) for _, c in storeys or []
                              if min(c[3], x[3]) - max(c[0], x[0]) > 0 and min(c[4], x[4]) - max(c[1], x[1]) > 0})
             # (a map box at its volume's own height, moved sideways or stretched across, is as the map had it)
@@ -370,6 +381,44 @@ class BuildingEdits:
                           % (k + 1, label, x[2], ', '.join('%g' % z for z in starts)), starts=starts, **where)
         if self.c.errors:
             self.new_buildings, self.edits = [], []
+
+    def cursor_floors(self):
+        """The buildings whose floors are the cursor's (FloorEdits.cursor_areas), checked once: each one's floors left
+        out somewhere for starting at or under the one before (building-cursor-order), a stair or turned cursor volume
+        of the map under it (building-cursor-volume), and where its floors start (building-cursor-floors, a note).
+        Returns the areas."""
+        areas = self.c.floor_edits.cursor_areas()
+        if getattr(self, '_cursor_said', False) or not areas:
+            return areas
+        self._cursor_said = True
+        import made_cursors
+        volumes = [dict(key=v.get('name') or str(k), floor=v.get('floor'), box=list(v['box']['min']) + list(v['box']['max']),
+                        stair=bool(v.get('stair')))
+                   for k, v in enumerate(self.c.scene.get('cursorVolumes') or []) if v.get('box')] \
+            if not self.c.mission_edits.cleared else []
+        crossed = {}
+        for c in made_cursors.split(volumes, [], None, areas)['crossed']:
+            crossed.setdefault(c['building'], set()).add('%s (%s)' % (short(str(c['volume'])), "a stair's" if c['why'] == 'stair' else 'turned'))
+        for a in areas:
+            where = dict(building=a['id'])
+            starts = []
+            for k, boxes in enumerate(a['floors']):
+                starts.append('%d from %g' % (k + 1, min(x[2] for x in boxes)))
+            self.c.note('building-cursor-floors', "the cursor's floors over the building %s are its own: floor %s (each a "
+                        "little under its box's bottom, up to the next floor's)" % (a['label'], ', '.join(starts)), **where)
+            late = made_cursors.unordered(a)
+            if late:
+                self.c.warn('building-cursor-order', 'floor %s of the building %s starts at or under the floor before it '
+                            'over part of the building, so the mouse wheel does not stop at %s there: raise %s box'
+                            % (' and '.join(str(f) for f in late), a['label'], 'it' if len(late) == 1 else 'them',
+                               'its' if len(late) == 1 else 'their'), floors=late, **where)
+            names = crossed.get(a['label'])
+            if names:
+                self.c.warn('building-cursor-volume', "the building %s is over the map's cursor %s %s, which the Build leaves "
+                            "as %s over it: the cursor may keep to %s floor there rather than the building's" % (
+                                a['label'], 'volume' if len(names) == 1 else 'volumes', ', '.join(sorted(names)),
+                                'it is' if len(names) == 1 else 'they are', 'its' if len(names) == 1 else 'their'), **where)
+        return areas
 
     def new_building(self, b, boxes):
         """A building made from nothing (buildings()): into self.new_buildings, with `carry` {copy label: dict(saved:
@@ -397,5 +446,6 @@ class BuildingEdits:
                                   authored=bool(carry), changed=True))
         self.new_buildings.append(dict(id=b['id'], name=b.get('name') or '', kind=b.get('kind', 'building'),
                                        **({'carry': carry} if carry else {}),
+                                       **({'cursorFloors': True} if b.get('cursorFloors') is True else {}),
                                        floors=[dict(boxes=[[tidy(float(v), 3) for v in x] for x in f['boxes']])
                                                for f in b['floors']]))

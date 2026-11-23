@@ -12,7 +12,7 @@ import { call } from './api.js';
 // sound (`backgroundSound`) and a clear that keeps the map's triggers (`clearKeepsTriggers`); 6: what Long War
 // Rebalance is told of the map (`lwrMapInfo`; missions.js's MAP_INFO); 7: the diagonal cover the project marks
 // (`diagonalCover`; diagonal_marks.js). A project of schema 1 to 6 opens, and saves as 7.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 7;
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 8;
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;

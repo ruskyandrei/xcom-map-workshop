@@ -208,7 +208,7 @@ class StoreTests(unittest.TestCase):
         self.assertIn('older than the editor', error.exception.message)
         self.assertTrue(error.exception.extra.get('stale'))
         self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION), old['revision'])
-        self.assertEqual(self.store.load(ID)['schemaVersion'], 7)
+        self.assertEqual(self.store.load(ID)['schemaVersion'], 8)
         # schema 3 adds effects' and sounds' records (the effects and sounds plan): a schema 2 project opens, and a
         # page that saves schema 2 is as stale
         with self.assertRaises(ProjectError) as error:
@@ -256,9 +256,9 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.load(ID)['overrides'], flags['overrides'])
 
     def test_other_schema_versions_and_bad_documents_are_refused(self):
-        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=8), 0)
+        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=9), 0)
         self.assertEqual(error.exception.status, 409)
-        self.assertIn('schema 8', error.exception.message)
+        self.assertIn('schema 9', error.exception.message)
         self.root.mkdir(parents=True)
         (self.root / 'Bar remix.json').write_text(json.dumps(document(schemaVersion=0)), encoding='utf8', newline='\n')
         with self.assertRaises(ProjectError) as error: self.store.load(ID)

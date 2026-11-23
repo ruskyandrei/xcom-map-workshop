@@ -34,9 +34,10 @@ SCHEMA = 'xcom-map-workshop/project'
 # the effects and sounds plan, Part C); 4: the spawns plan's records (`spawnRules`, SP8; the base map's spawn points'
 # overrides and added records, SP6 and SP7); 5: the map's background sound (`backgroundSound`) and a clear that keeps
 # the map's triggers (`clearKeepsTriggers`); 6: what Long War Rebalance is told of the map (`lwrMapInfo`); 7: the
-# diagonal cover the project marks (`diagonalCover`). 1 to 6 are read too, and saved as 7.
-SCHEMA_VERSION = 7
-READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7)
+# diagonal cover the project marks (`diagonalCover`); 8: a building's floors as the cursor's (`buildings[].cursorFloors`).
+# 1 to 7 are read too, and saved as 8.
+SCHEMA_VERSION = 8
+READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8)
 MAX_BYTES = 32 << 20
 ID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 SHA256 = re.compile(r'[0-9a-f]{64}')
