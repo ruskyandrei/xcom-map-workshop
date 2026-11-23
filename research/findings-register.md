@@ -213,6 +213,22 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
+### F-162: A copy's carried diagonal cover mark at the edge of its fitted rebuild volumes was worked out again by the battle
+**Open** (23 November 2026: EXP-95, a hidden run of a farm build; [EXP-95](experiments/EXP-95-diagonal-marks.md)).
+- **What**: of the two marks a copy of the scout's hull chunk carries (written by the Build from the page's records,
+  `pageCarries`), (51, 42, 0) held in the game and (53, 40, 0) did not: the soldier on it reads no cover, and the
+  quicksave holds the tile worked out again (bit 0x2 of its static flags gone, no cover word, no cover location).
+  Its neighbours (52, 39), (53, 39) and (54, 39) were worked out again too, as the copy's fitted volume over x 53 to
+  54 and y 38 to 39 should do.
+- **What the Build's reading says**: no rebuild volume reaches (53, 40, 0) (`native_copy.rebuild_order`, the volumes'
+  spheres by F-150): that volume stops 0.08 of a tile (7.7 units) short of y 40. The volume short of (51, 42) stops
+  as close, and that mark held. The levels over both marks are reached alike.
+- **Not known**: whether the game's sphere for a fitted volume is a few units larger than F-150's reading, the copy's
+  own pieces start a rebuild of their own, or something else of the battle's start queues the tile. To read next: the
+  volumes' spheres in the save or the game (`getall XComRebuildWorldDataVolume`), and a build with the fitted cubes
+  kept a tile further from a mark.
+- **Left as** KNOWN-BUGS.md KB-21.
+
 ### F-161: A play under the project's own names met a map pack of the same map
 **Fixed** (22 November 2026, offline: `test_play_names`, a real intro copy renamed and read back; not played yet).
 Reported by a player (relayed): with the same map installed in the game through a map pack, the project could not

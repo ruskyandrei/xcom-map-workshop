@@ -118,3 +118,14 @@ line, and its finding in the [findings register](research/findings-register.md) 
   unmarked.
 - **Finding.** [F-153](research/findings-register.md) (the count by kind, added 23 November 2026). The fix planned:
   the finder goes, and diagonal cover is placed by hand in a view of its own.
+
+### KB-21: A copied slanted wall's diagonal cover can be lost at one of its corners
+
+- **What happens.** A copy of one of a map's slanted walls carries the map's diagonal cover marks to its new place,
+  and the Build writes them; in the game one of them can come out with no cover: a soldier there reads none. Seen once,
+  on one of the two corners of a copied UFO hull chunk on the farm.
+- **Since.** The branch that places diagonal cover by hand (23 November 2026); the earlier carry had the same writer.
+- **Workaround.** Check the corner in the game; moving the copy a tile can change which corner holds.
+- **Cause.** Not known: the battle's tile rebuild worked the tile out again, though by the Build's reading no rebuild
+  volume reaches it (one stops 7.7 units short).
+- **Finding.** [F-162](research/findings-register.md) (EXP-95).
