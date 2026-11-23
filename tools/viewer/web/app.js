@@ -26,7 +26,7 @@ import { activeMapId, allRoots, areaShown, assigning, breaking, builderMode, cac
          setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setReachKey, setReachShown,
          setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnPlacing,
          spawnsOn, streamSet, textureDrag, tipDirty, volumeDrag, volumesOn, wallDrag, wallDrawing, zonePlacing,
-         zonesOn } from './editor_state.js';
+         zonesOn, diagonalOn } from './editor_state.js';
 import { createDocumentSession, projectsAvailable } from './document_session.js';
 import { createDocumentState } from './document_state.js';
 import { createBuildPlay } from './build_play.js';
@@ -64,6 +64,7 @@ import { createPrepare } from './prepare.js';
 import { checkHub, editChangedNow, runHub } from './edit_hub.js';
 import { createSelection, rootName, selectionWords } from './selection.js';
 import { createViews } from './views.js';
+import { createDiagonalWiring } from './diagonal_wiring.js';
 import { createHandles, HANDLE_PICK } from './handles.js';
 import { showImportNotes, showLinked, showSceneMenus, showSceneTitle } from './scene_start.js';
 import { createTestApi } from './test_api.js';
@@ -695,6 +696,8 @@ const { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshHighlig
   flashHint, foreignCost, foreignNote, gizmo, gridOrigin, groupChip, highlight, isLanding, ladderMarks, lightViewOnly,
   listingsNow, missionName, ownSize, pickEffect, recipeOf, setEffectsShown, setLightsShown,
   setVolumesShown, setZonesShown, tileCorner,
+  // (the Diagonal cover view is made after the views: called through)
+  setDiagonalShown: on => setDiagonalShown(on),
   // (made with the camera, further down: called through, since it is not made yet while this runs)
   frame: root => frame(root) });
 // Switching the views (views.js): the normal view, whether lights are drawn and what stays selected after a view or a
@@ -702,7 +705,14 @@ const { copyable, copyablePieces, gridNow, groupables, ladderNow, refreshHighlig
 // it runs as the page loads), so the five views made before it are given its functions as functions that call them.
 const { lightButton, setNormalView, syncLights, viewByKey } = createViews({
   $, gizmo, refreshLightShapes, refreshLightVisibility, refreshPickBox, refreshVolumes, select, setEffectsShown,
-  setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnPanel, spawnsShown });
+  setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnPanel, spawnsShown,
+  setDiagonalShown: on => setDiagonalShown(on) });
+// The Diagonal cover view (diagonal_wiring.js): the marks drawn, picked, switched, moved and deleted, its panel; after
+// the views, whose switches it calls.
+const { diagonalClick, diagonalDrag, diagonalKey, drawDiagonal, endDiagonalDrag, hoverDiagonal, moveDiagonalDrag,
+        pickedMarks, refreshDiagonal, setDiagonalShown, startDiagonalDrag } = createDiagonalWiring({
+  $, camera, flashHint, gizmo, lightButton, pickables, projector, projectsAvailable, rayAt, renderer, select, setEffectsShown,
+  setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, stopPickBox, world });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
 const { kindButton, selectKind } = createSelectKind({
@@ -797,7 +807,7 @@ const { deleteNow, deleteSelection, resetAll, resetSelected, undoStep } = create
 $('playAreaToggle').onchange = e => { setPlayArea(e.target.checked); e.target.blur(); };
 // The cutaway, the tile grid and the Floor tiles overlay (cutaway.js): which pieces are drawn and how each is cut,
 // the tile grid round the selection, the saved floor tiles overlay, and the Floor picker's buttons.
-const { cutaway, drawDiagonalCover, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions,
+const { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions,
         updateTileGrid } = createCutaway({
   $, allBuildings, cutMaterials, editedKey, flashHint, gizmo, grid, helperMaterial, listingsNow, movedLandingActors,
   rayAt, refreshPickBox, segButton, select, slabTilesOf, touchShadows, viewport, world });
@@ -902,6 +912,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     void prefabTest.reconnect();
   } else if (parameters.get('project')) await openProject(parameters.get('project'));
   window.viewer = createTestApi({
+    setDiagonalShown, pickedMarks,
     $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState, bombHelperFix, boxOf, BUILD_TOOLS,
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
     clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
@@ -1002,7 +1013,8 @@ let pointerStart;
 // A cover piece's handles likewise (cover-block-handles-plan.md). A made piece's texture handles, while its Texture
 // mapping fold is open, before them all (they show alone).
 renderer.domElement.addEventListener('pointerdown', e => {
-  if (!startTextureDrag(e) && !startVolumeDrag(e) && !startCoverDrag(e) && !startWallDrag(e) && !startPickDrag(e)) return;
+  if (!startTextureDrag(e) && !startVolumeDrag(e) && !startCoverDrag(e) && !startWallDrag(e) && !startPickDrag(e)
+      && !startDiagonalDrag(e)) return;
   pointerStart = null; e.stopImmediatePropagation(); e.preventDefault();
 }, { capture: true });
 renderer.domElement.addEventListener('pointermove', e => {
@@ -1012,6 +1024,8 @@ renderer.domElement.addEventListener('pointermove', e => {
   if (wallDrag) { if (e.pointerId === wallDrag.pointerId) moveWallDrag(e); e.stopImmediatePropagation(); return; }
   if (wallDrawing?.start) { if (e.pointerId === wallDrawing.pointerId) moveWallDraw(e); e.stopImmediatePropagation(); return; }
   if (pickDrag) { if (e.pointerId === pickDrag.pointerId) movePickDrag(e); e.stopImmediatePropagation(); return; }
+  if (diagonalDrag()) { if (e.pointerId === diagonalDrag().pointerId) moveDiagonalDrag(e); e.stopImmediatePropagation(); return; }
+  if (diagonalOn && !gizmo.controls.dragging && e.buttons === 0) hoverDiagonal(e);
   if ((volumesOn || pickBox || spawnVolumeHandle()) && !gizmo.controls.dragging && e.buttons === 0)
     hoverVolumeHandle(volumeHandleNear(e.clientX, e.clientY) ?? (pickBox && pickMoveNear(e.clientX, e.clientY) ? 'move' : null));
   else if (!gizmo.controls.dragging && e.buttons === 0) {
@@ -1022,6 +1036,7 @@ renderer.domElement.addEventListener('pointermove', e => {
 renderer.domElement.addEventListener('pointerup', e => {
   if (textureDrag && e.pointerId === textureDrag.pointerId) { e.stopImmediatePropagation(); endTextureDrag(true); return; }
   if (pickDrag && e.pointerId === pickDrag.pointerId) { e.stopImmediatePropagation(); endPickDrag(true); return; }
+  if (diagonalDrag() && e.pointerId === diagonalDrag().pointerId) { e.stopImmediatePropagation(); endDiagonalDrag(true); return; }
   if (coverDrag && e.pointerId === coverDrag.pointerId) { e.stopImmediatePropagation(); endCoverDrag(true); return; }
   if (wallDrag && e.pointerId === wallDrag.pointerId) { e.stopImmediatePropagation(); endWallDrag(true); return; }
   if (wallDrawing?.start && e.pointerId === wallDrawing.pointerId) { e.stopImmediatePropagation(); endWallDraw(e.shiftKey); return; }
@@ -1029,7 +1044,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   e.stopImmediatePropagation(); endVolumeDrag(true);
 }, { capture: true });
 renderer.domElement.addEventListener('pointercancel', () => {
-  endTextureDrag(false); endVolumeDrag(false); endCoverDrag(false); endWallDrag(false); endPickDrag(false);
+  endTextureDrag(false); endVolumeDrag(false); endCoverDrag(false); endWallDrag(false); endPickDrag(false); endDiagonalDrag(false);
   if (wallDrawing?.start) { wallDrawing.start = null; wallDrawing.pointerId = null; wallGhost.visible = false; wallHint(); }
 });
 // A light's drag handle under the press takes it, ahead of the gizmo, the camera and picking (capture listeners run
@@ -1070,6 +1085,8 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (effectsOn) { if (e.button === 0) pickEffectAt(e.clientX, e.clientY, e.ctrlKey || e.shiftKey || e.metaKey); return; }
   // the Spawns view: only its markers (and, to describe them, landing zones) are picked, never a piece
   if (spawnsOn) { if (e.button === 0) spawnClick(e); return; }
+  // the Diagonal cover view: only its marks are picked, and a corner dot switches its tile's corner
+  if (diagonalOn) { if (e.button === 0) diagonalClick(e); return; }
   // a made piece's Texture mapping fold open: a click on it picks the surface it falls on
   if (e.button === 0 && pickSurface(e)) return;
   // with the Normal button's Effects switch, a marker is picked ahead of the light or piece behind it
@@ -1155,7 +1172,8 @@ setLibraryScopeValue(LIBRARY_SCOPES[recall('workshop.libraryScope')] ? recall('w
 $('libScope').value = libraryScope;
 $('editAdd').onclick = () => data && showPieces(!pieces.open);
 $('floorTiles').onchange = e => { drawFloorTiles(); e.target.blur(); };
-$('diagonalCover').onchange = e => { drawDiagonalCover(); e.target.blur(); };
+$('diagonalCover').onchange = e => { drawDiagonal(); e.target.blur(); };
+$('editDiagonal').onclick = () => data && setDiagonalShown(!diagonalOn);
 $('libraryClose').onclick = () => showPieces(false);
 toggleButton($('editLinked'), on => { gizmo.setLinked(on); select(selected, false, true); });
 $('projectSave').onclick = () => { showPop(null); saveProject(); };
@@ -1261,7 +1279,7 @@ const { frame, panCamera, setSnapMode } = createNavigation({
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog,
   showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,
-  TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel, wallGhost, wallHint, zoneGizmo,
+  TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel, wallGhost, wallHint, zoneGizmo, diagonalKey,
   // (a let startScene sets: called through)
   applyLighting: () => applyLighting() });
 window.addEventListener('beforeunload', e => { if (!leaving && unsavedDocument()) e.preventDefault(); });

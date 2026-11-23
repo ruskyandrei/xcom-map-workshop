@@ -30,7 +30,7 @@ import { recordName } from './effects_rules.js';
 import { allRoots, buildingMeta, data, effectRoots, effectsOn, families, lightRoots, lightsOn, lightsShown,
          normalEffects, ownSet, pickedEffect, roots, selected, setAreaShown, setEffectsDirty, setOwnPickedValue,
          setPickedEffect, setSelected, setWallFocus, volumeRoots, volumesOn, wallFocus,
-         zonesOn } from './editor_state.js';
+         zonesOn, diagonalOn } from './editor_state.js';
 import { placedPose } from './gizmo.js';
 import { addedFloors, ladderEnds } from './ladders.js';
 import { plan as planFlags, rawOf as flagRaw } from './piece_flags.js';
@@ -61,7 +61,8 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
                                   effectViewOnly, flagContract, flagSource, flashHint, foreignCost, foreignNote, frame,
                                   gizmo, gridOrigin, groupChip, highlight, isLanding, ladderMarks, lightViewOnly,
                                   listingsNow, missionName, ownSize, pickEffect, recipeOf,
-                                  setEffectsShown, setLightsShown, setVolumesShown, setZonesShown, tileCorner }) {
+                                  setDiagonalShown, setEffectsShown, setLightsShown, setVolumesShown, setZonesShown,
+                                  tileCorner }) {
   // The floor boxes selected with pieces in the normal view (View options' Floor boxes): each building's, whole.
   const selectedBoxes = () => (volumesOn ? [] : gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted));
   // The selection's pieces that can be copied or deleted: hidden helpers shown for inspection are left out.
@@ -83,6 +84,8 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
     if (volumesOn && id && !volumeRoots.has(id)) setVolumesShown(false);
     // the Landing zones view picks zones only: anything selected another way (a list, a paste, a placed piece) leaves it
     if (zonesOn && id) setZonesShown(false);
+    // (the Diagonal cover view picks its marks only: anything selected another way leaves it)
+    if (diagonalOn && id) setDiagonalShown(false);
     // (the Effects view picks its markers only; an effect selected another way, a paste or an undo, opens it unless the
     // normal view draws effects)
     if (effectsOn && id && !effectRoots.has(id)) setEffectsShown(false);

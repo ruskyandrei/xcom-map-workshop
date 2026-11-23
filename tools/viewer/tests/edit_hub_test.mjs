@@ -34,7 +34,7 @@ assert.throws(() => onHub('nowhere', 'lights', () => {}), /no lights in its nowh
 assert.throws(() => onHub('edit', 'flags', () => {}), /has its flags already/);
 
 // checkHub throws while a name has no refresh, naming each; with every one registered it passes
-assert.throws(() => checkHub(), /no refresh registered for scene\/cutaway, scene\/ground-grid, scene\/joins, scene\/textures, landing-zones\/zones,/);
+assert.throws(() => checkHub(), /no refresh registered for scene\/cutaway, scene\/ground-grid, scene\/joins, scene\/textures, scene\/diagonal, landing-zones\/zones,/);
 for (const [run, names] of Object.entries(RUNS))
   for (const name of names) if (!(run === 'edit' || (run === 'drag' && name === 'lights'))) onHub(run, name, () => {});
 assert.doesNotThrow(() => checkHub());

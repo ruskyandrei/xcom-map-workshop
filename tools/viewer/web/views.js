@@ -12,19 +12,22 @@
 // createViews takes what it needs of app.js as one argument object, when app.js makes it, after the selection: the
 // gizmo, the views' switches and refreshes, the Spawns view's layer and its panel (made before it: follow-up 3.24). It
 // keeps no state: which view is on and the switches are editor_state.js's.
-import { areaShown, boxesShown, data, effectsOn, lightRoots, lightsOn, lightsShown, normalEffects, normalLights,
+import { areaShown, boxesShown, data, diagonalOn, effectsOn, lightRoots, lightsOn, lightsShown, normalEffects, normalLights,
          normalSpawns, ownSet, pickBox, reachShown, setLightsShownValue, setOwnPickedValue, spawnsOn, volumeRoots,
          volumesOn, zonesOn } from './editor_state.js';
 
 // The views, in the list's order: the row's id, its name, its icon, its key (with Shift), whether it is on, and the
 // name of its switch among createViews' arguments (the normal view's: setNormalView).
 export const VIEWS = [
-  { id: 'editNormal', name: 'Normal', icon: 'i-normal', key: 'n', on: () => !volumesOn && !lightsOn && !zonesOn && !effectsOn && !spawnsOn, switch: null },
+  { id: 'editNormal', name: 'Normal', icon: 'i-normal', key: 'n', on: () => !volumesOn && !lightsOn && !zonesOn && !effectsOn && !spawnsOn && !diagonalOn,
+    switch: null },
   { id: 'editBuildings', name: 'Buildings', icon: 'i-building', key: 'b', on: () => volumesOn, switch: 'setVolumesShown' },
   { id: 'editLights', name: 'Lights', icon: 'i-light', key: 'l', on: () => lightsOn, switch: 'setLightsShown' },
   { id: 'editZones', name: 'Landing zones', icon: 'i-zone', key: 'z', on: () => zonesOn, switch: 'setZonesShown' },
   { id: 'editEffects', name: 'Effects', icon: 'i-effect', key: 'x', on: () => effectsOn, switch: 'setEffectsShown' },
   { id: 'editSpawns', name: 'Spawns', icon: 'i-spawn', key: 'u', on: () => spawnsOn, switch: 'setSpawnsShown' },
+  // (C for cover: Shift+D is the camera's fast pan right)
+  { id: 'editDiagonal', name: 'Diagonal cover', icon: 'i-diag', key: 'c', on: () => diagonalOn, switch: 'setDiagonalShown' },
 ];
 
 /** The words of the Views button's tooltip: the view that is on and the keys. */
@@ -34,9 +37,9 @@ export function viewsTitle(view) {
 }
 
 export function createViews({ $, gizmo, refreshLightShapes, refreshLightVisibility, refreshPickBox, refreshVolumes,
-                              select, setEffectsShown, setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown,
-                              spawnLayer, spawnPanel, spawnsShown }) {
-  const switches = { setEffectsShown, setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown };
+                              select, setDiagonalShown, setEffectsShown, setLightsShown, setSpawnsShown, setVolumesShown,
+                              setZonesShown, spawnLayer, spawnPanel, spawnsShown }) {
+  const switches = { setDiagonalShown, setEffectsShown, setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown };
   // The normal view: out of the Buildings view, the Lights view, the Landing zones view and the Effects view.
   function setNormalView() {
     for (const v of VIEWS) if (v.switch && v.on()) switches[v.switch](false);
@@ -61,6 +64,9 @@ export function createViews({ $, gizmo, refreshLightShapes, refreshLightVisibili
     if (data) select(gizmo.active, false, true);
   }
   function lightButton() {
+    // (the Diagonal cover view steps aside for another view turned on, which comes here once it is: its switch turns
+    // the others off itself)
+    if (diagonalOn && (volumesOn || lightsOn || zonesOn || effectsOn || spawnsOn)) { setDiagonalShown(false); return; }
     for (const v of VIEWS) {
       const on = v.on();
       $(v.id).classList.toggle('on', on); $(v.id).setAttribute('aria-pressed', on);

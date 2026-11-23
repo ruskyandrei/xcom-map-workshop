@@ -96,6 +96,9 @@ export let diagonalCarried = [];
 export function setDiagonalCarried(next) { diagonalCarried = next; }
 export let diagonalCarriedOver = [];
 export function setDiagonalCarriedOver(next) { diagonalCarriedOver = next; }
+// Whether the Diagonal cover view is on (diagonal_wiring.js setDiagonalShown; one view at a time, as the others)
+export let diagonalOn = false;
+export function setDiagonalOnValue(next) { diagonalOn = next; }
 
 // The buildings drawn as boxes and edited (project.js validBuilding; buildings_wiring.js's setBuildings draws them):
 // the project's, made from nothing by the Build, and the map's own that can be edited, each as the project's are (map

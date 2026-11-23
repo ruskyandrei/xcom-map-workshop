@@ -5949,6 +5949,8 @@ CHECKS = (
     Check('ladder-floor', editing('ladder_floor'), 'a ladder\'s floor count', full=False),
     Check('small-defects', editing('small_defects'), 'small page defects', full=False),
     Check('grid-panel', editing('grid_panel'), 'the Map grid\'s panel beside each right-hand panel (1280, 1024 and 800 wide)', full=False),
+    Check('diagonal', lambda c: __import__('browser_diagonal').check_diagonal(c.browser, c.page.url, open_viewer),
+          'the Diagonal cover view on the farm: corners switched, a mark moved, deleted, reset and added', full=False),
     Check('select-kind', editing('select_kind'), 'Select all of a kind on pieces, and their flags set together', when=ON_MAP, full=False),
     Check('flags-gate', editing('flags_gate'), 'the Flags group asks before opening a prop\'s pathing gate', when=ON_MAP, full=False),
     Check('prepare-routes', lambda c: check_prepare_routes(c.browser, c.page.url), 'Build\'s routes into Prepare, the build\'s '
@@ -6096,7 +6098,7 @@ ALL_RUNS = (
     dict(name='builder', map='URB_Bar', smoke=['--projects', '--only', 'builder,prefab-test']),
     dict(name='editing', map='URB_Bar', smoke=['--projects', '--only', 'made-prefab,modals,reset-all,draw-errors,look-undo,failed-reads,'
                                                                         'let-go,paste-buildings,squad-read,ladder-floor,small-defects,'
-                                                                        'grid-panel,made-break,made-openings,rock-corner,select-kind,'
+                                                                        'grid-panel,made-break,made-openings,rock-corner,select-kind,diagonal,'
                                                                         'flags-gate,prepare-routes']),
     dict(name='documents', map='URB_Bar', smoke=['--projects', '--only', 'documents']),
     dict(name='police', map='URB_PoliceStation', smoke=['--projects', '--only', 'walls,looks,room-buttons,light-bar,free-handles,texture-mapping']),

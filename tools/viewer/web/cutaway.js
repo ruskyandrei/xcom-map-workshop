@@ -5,8 +5,6 @@
 // - the tile grid round the selection or the piece being placed (tileTargets, updateTileGrid);
 // - View options' Floor tiles: the map's saved floor tiles coloured by the piece that carries each (drawFloorTiles),
 //   the tile under the pointer named (floorTileHit, floorTip) and a click on one selecting its piece (floorTileSelect);
-// - View options' Diagonal cover: the map's tiles with diagonal cover, blue where a change stands on one
-//   (drawDiagonalCover);
 // - the Floor picker's buttons up to the tallest building's floors (floorOptions).
 //
 // createCutaway takes what it needs of app.js as one argument object, when app.js makes it: the scene, the tile grid's
@@ -20,9 +18,9 @@ import { TILE } from './constants.js';
 import { onHub, STOP } from './edit_hub.js';
 import { builderMode, cleared, data, floorTileLayer, landingZones, loadErrorCount, pickBox, pickDrag, placing, pointer,
          roots, selected, setFloorTileLayer, setTileKey, setTipDirty, streamSet, tileKey } from './editor_state.js';
-import { changedTiles, stampSignature, worldBox } from './floors.js';
+import { stampSignature } from './floors.js';
 import { withLocalLights } from './lighting.js';
-import { diagonalCoverOverlay, floorTilesOverlay, focusBounds, footprintOf, interiorPlanes, tileGridAround } from './view_layout.js';
+import { floorTilesOverlay, focusBounds, footprintOf, interiorPlanes, tileGridAround } from './view_layout.js';
 import { plural, short, text } from './dom_words.js';
 import { isStream } from './piece_records.js';
 
@@ -111,7 +109,6 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
     // The tile grid follows the saved floors whose actors are shown: draw it again; and the Floor tiles overlay.
     floorActors=actors;setTileKey(null);
     drawFloorTiles();
-    drawDiagonalCover();
     if (selected) select(selected, false, true);
     const count=[...roots.values()].filter(r=>r.visible).length;
     $('status').textContent=`${count} visible pieces · ${data.counts.meshes} meshes · ${data.counts.textures} textures${loadErrorCount ? ` · ${loadErrorCount} display errors` : ''}`;
@@ -194,38 +191,6 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
       colorOf: a => owners.get(a)?.color ?? 0x82d5ce, gone: a => Boolean(owners.get(a)?.gone) }));
     world.add(floorTileLayer);
   }
-  // The Diagonal cover overlay (View options; view_layout.js diagonalCoverOverlay): the map's tiles with diagonal cover,
-  // blue where a change of the project stands on one, which the Build works out again (floors.js changedTiles, the
-  // Build's rule: the boxes of the pieces added, moved or deleted, at their places now and before). Drawn again with
-  // the cutaway.
-  let diagonalLayer = null;
-  function changedBoxes() {
-    const out = [], box = new THREE.Box3();
-    for (const r of roots.values()) {
-      const o = r.userData.source, moved = r.userData.edit, gone = r.userData.deleted;
-      if (!o || !(o.added || moved || gone)) continue;
-      if ((o.added || moved) && !gone) {
-        box.setFromObject(r);
-        if (!box.isEmpty()) out.push([box.min.x, box.min.z, box.min.y, box.max.x, box.max.z, box.max.y]);
-      }
-      if (!o.added && (moved || gone) && o.location) {
-        const b = worldBox([o], data.meshes);
-        if (Number.isFinite(b[0])) out.push(b);
-      }
-    }
-    return out;
-  }
-  function drawDiagonalCover() {
-    if (diagonalLayer) {
-      world.remove(diagonalLayer);
-      diagonalLayer.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
-      diagonalLayer = null;
-    }
-    if (!data || !$('diagonalCover')?.checked || !data.tactical?.diagonalCover?.length || !data.tileGrid?.origin) return;
-    const on = changedTiles(changedBoxes(), data.tileGrid.origin, data.tileGrid.dimensions, data.tileGrid.size ?? [TILE, TILE, 64]);
-    diagonalLayer = diagonalCoverOverlay(data, { changed: t => on.has(t.tile.join(',')) });
-    world.add(diagonalLayer);
-  }
   function floorTileHit(clientX, clientY) {
     const mesh = floorTileLayer?.getObjectByName('floorTiles');
     const hit = mesh && rayAt(clientX, clientY).intersectObject(mesh)[0];
@@ -292,5 +257,5 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
   onHub('zone-edit', 'cutaway', () => { cutaway(); });
   onHub('cleared', 'cutaway', () => { if (!builderMode) cutaway(); });
 
-  return { cutaway, drawDiagonalCover, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions, updateTileGrid };
+  return { cutaway, drawFloorTiles, floorOptions, floorTileSelect, floorTip, sceneViewOptions, updateTileGrid };
 }

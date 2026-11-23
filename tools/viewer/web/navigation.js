@@ -45,7 +45,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
                                    spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
                                    stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing,
                                    stopZonePlacing, sun, takePickBox, TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel,
-                                   wallGhost, wallHint, zoneGizmo }) {
+                                   wallGhost, wallHint, zoneGizmo, diagonalKey }) {
   onHub('edit', 'tools', () => {
     for (const [id, m] of [['editMove','translate'],['editRotate','rotate'],['editOff','off']]) $(id).classList.toggle('on', gizmo.mode === m);
     snapButton();
@@ -340,6 +340,8 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       }
       if (key === 'escape') { pickZone(null); e.preventDefault(); return; }
     }
+    // the Diagonal cover view: Delete deletes the picked marks, Escape lets them go or puts a drag back
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && !placing && diagonalKey(key)) { e.preventDefault(); return; }
     // the Effects view: Escape lets the picked marker go (a drag or a placing first gives way)
     if (effectsOn && pickedEffect && key === 'escape' && !e.ctrlKey && !e.metaKey && !e.altKey && !gizmo.busy() && !placing) { pickEffect(null); e.preventDefault(); return; }
     // a picked spawn marker (or a zone the Spawns view describes): Escape lets it go

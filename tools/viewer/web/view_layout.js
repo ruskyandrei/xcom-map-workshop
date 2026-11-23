@@ -177,41 +177,6 @@ export function floorTilesOverlay(scene,{shown=()=>true,colorOf=()=>0x82d5ce,gon
   return group;
 }
 
-// The Diagonal cover overlay (View options; findings register F-149): each of the map's tiles with diagonal cover (the
-// export's tactical.diagonalCover) outlined on its floor, with an arrow from its middle toward the slanted wall each of
-// its directions faces. Amber where the Build keeps the tile as the map has it; blue where changed(tile) (a change of
-// the project stands on the tile: the Build works it out again as the game's own build would, F-155). userData.tiles:
-// the tiles drawn.
-const DIAGONAL_KEPT=0xf0b84a, DIAGONAL_CHANGED=0x5fb4f0;
-export function diagonalCoverOverlay(scene,{changed=()=>false}={}) {
-  const {origin,size}=tileGridOf(scene),group=new THREE.Group(),tiles=[];
-  const lines={kept:[],changed:[]};
-  for(const t of scene.preview ? [] : scene.tactical?.diagonalCover || []){
-    const [tx,ty,tz]=t.tile,z=(t.floor ?? origin[2]+tz*size[2])+3;
-    const x0=origin[0]+(tx+0.06)*size[0],x1=origin[0]+(tx+0.94)*size[0],y0=origin[1]+(ty+0.06)*size[1],y1=origin[1]+(ty+0.94)*size[1];
-    const out=changed(t) ? lines.changed : lines.kept;
-    for(const [a,b] of [[[x0,y0],[x1,y0]],[[x1,y0],[x1,y1]],[[x1,y1],[x0,y1]],[[x0,y1],[x0,y0]]])out.push(a[0],z,a[1],b[0],z,b[1]);
-    const cx=origin[0]+(tx+0.5)*size[0],cy=origin[1]+(ty+0.5)*size[1];
-    for(const d of t.directions){
-      const ux=d.toward[0]/Math.SQRT2,uy=d.toward[1]/Math.SQRT2,tip=[cx+ux*40,cy+uy*40];
-      out.push(cx,z,cy,tip[0],z,tip[1]);
-      for(const side of [-1,1]){
-        const bx=tip[0]-ux*12+side*uy*8,by=tip[1]-uy*12-side*ux*8;
-        out.push(tip[0],z,tip[1],bx,z,by);
-      }
-    }
-    tiles.push(t);
-  }
-  for(const [key,color] of [['kept',DIAGONAL_KEPT],['changed',DIAGONAL_CHANGED]]){
-    if(!lines[key].length)continue;
-    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(lines[key],3));
-    const seg=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color,depthTest:false,transparent:true,opacity:0.95}));
-    seg.renderOrder=7;seg.raycast=()=>{};seg.name=`diagonalCover-${key}`;group.add(seg);
-  }
-  group.userData={tiles};
-  return group;
-}
-
 const GRID_COLOR=new THREE.Color(0x79d6ce), FOOT_COLOR=0xf2c46d, FLOAT_COLOR=0x8fb4ff;
 // A piece whose lowest point is more than this above the floor under it is drawn as floating (EXP-11: a fog pod lifted
 // 64 units gave no cover).

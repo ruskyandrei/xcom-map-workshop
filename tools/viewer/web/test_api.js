@@ -24,6 +24,9 @@ import { stateKey } from './project.js';
 import { ownLandings } from './spawns.js';
 import { spawnKey } from './spawns_view.js';
 import { gameToView } from './handles.js';
+import { diagonalCarried, diagonalOn, projectDiagonal } from './editor_state.js';
+import { CORNERS, marksNow, middleOf } from './diagonal_marks.js';
+import { tileCorner } from './map_grid.js';
 
 export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, alignToGrid, alignToLevel,
                                 allBuildings, applyPrefabDocument, applyState,
@@ -45,7 +48,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
                                 recipeOf, recordVolumes, refreshEffects, refreshPickBox, refreshSpawnMarkers, renderer,
                                 resetBaseSpawn, restoreMapBuildings, rockCorners, roomOfSelection, saveBuilder,
                                 savedBuildings, savePrefab, saveProject, select, SESSION, setBinding, setBoxesShown,
-                                setCover, setEffectsShown, setEffectStays, setGridTool, setLibraryScope,
+                                setCover, setDiagonalShown, pickedMarks, setEffectsShown, setEffectStays, setGridTool, setLibraryScope,
                                 setLightsShown, setLikeness, setMadeLook, setNormalEffects, setNormalLights,
                                 setNormalSpawns, setNormalView, setPickedSpawn, setPickTool, setSnapMode, setSolo,
                                 setSpawnRule, setSpawnsShown, setVolumeBox, setVolumesShown, setVolumeTool, setZones,
@@ -172,6 +175,15 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
     zoneGizmo: () => ({ enabled: zoneGizmo.enabled, shown: zoneGizmoHelper.visible, axis: zoneGizmo.axis, mode: zoneGizmo.mode,
                         dragging: zoneGizmo.dragging, at: [zoneProxy.position.x, zoneProxy.position.z, zoneProxy.position.y] }),
     clearMap, showClearMap, cleared: () => cleared, clearKeepsOutside: () => clearKeepsOutside, clearKeepsTriggers: () => clearKeepsTriggers,
+    // the Diagonal cover view (diagonal_wiring.js): on or off, the marks as it shows them, the project's own, the picked,
+    // and a tile's middle or one of its corner dots in game units (at the tile's floor height `z`), for a check to
+    // click at with clientAt
+    diagonalOn: () => diagonalOn, setDiagonalShown, pickedMarks, diagonalHand: () => projectDiagonal,
+    diagonalMarks: () => marksNow(data, projectDiagonal, tileCorner(), diagonalCarried),
+    diagonalPoint: (tile, z, corner = null) => {
+      const m = middleOf(tile, tileCorner()), c = corner === null ? [0, 0] : CORNERS[corner];
+      return [m[0] + c[0] * 0.36 * 96, m[1] + c[1] * 0.36 * 96, z + 3];
+    },
     backgroundSound: () => projectBackgroundSound, lwrMapInfo: () => projectMapInfo, showMapSettings, mapSettings: () => mapSettingsState(), stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
     groundGrid: () => ({ shown: groundGrid.visible, ...groundGrid.userData, ground: groundHeight() }), pickZone, pickedZone: () => pickedZone,
     lastClearMs: () => lastClearMs, landingLayer, setZones, setZonesShown, zonesOn: () => zonesOn,

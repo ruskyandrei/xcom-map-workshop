@@ -11,8 +11,8 @@ for controls, a new style) writes the pattern here in the same commit.
 ## 1. Edit in the view
 
 - **What has a place, a size, a direction or a reach in the map is edited in the 3D view:** with the gizmo, with drag
-  handles on the thing itself, or in a view of its own (Lights, Effects, Spawns, Landing zones, Buildings, the Map
-  grid). Number fields stand beside the visual control for an exact value; they are never the only way, and a dialog
+  handles on the thing itself, or in a view of its own (Lights, Effects, Spawns, Landing zones, Buildings, Diagonal
+  cover, the Map grid). Number fields stand beside the visual control for an exact value; they are never the only way, and a dialog
   of fields is not how a thing in the map is placed or sized.
 - **Show a value where it is.** A light's reach is a shape round the light, a piece's tiles are marked on the ground,
   a building's floor is a box, a landing zone is drawn on the map. A number in a panel that could be drawn in the view
