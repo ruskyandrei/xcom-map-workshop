@@ -873,7 +873,10 @@ class BuildRunner:
                     # transplant; effects and sounds since the effects and sounds plan's FX4)
                     foreignPieces=m.get('foreignPieces') or 0, foreignEffects=m.get('foreignEffects') or 0,
                     donors=[{k: d.get(k) for k in ('map', 'pieces', 'effects', 'bytes')} for d in m.get('donors') or []],
-                    revision=m['project'].get('revision'), files=sorted(Path(f).name for f in m.get('files') or {}))
+                    revision=m['project'].get('revision'), files=sorted(Path(f).name for f in m.get('files') or {}),
+                    # the diagonal cover the project marked, as the build wrote it (build.py diagonal_record): the
+                    # Diagonal cover view's panel says what the last build gave a mark
+                    **({'diagonalCover': m['diagonalCover']} if isinstance(m.get('diagonalCover'), dict) else {}))
 
     def status(self, project_id):
         # (polled every 2 s: the project's output names as the store last read them, not the file read again each

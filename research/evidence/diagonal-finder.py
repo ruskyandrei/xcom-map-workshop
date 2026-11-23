@@ -1,5 +1,5 @@
-"""Read-only: the diagonal cover rule and finder (tools/bake/tile_rule.py) against the game's own maps (diagonal cover
-plan, stage C1; findings register F-153).
+"""Read-only: the diagonal cover rule (tools/bake/tile_rule.py) and the finder (here: finder) against the game's own
+maps (diagonal cover plan, stage C1; findings register F-153).
 
 For every base map the install lists (tools/viewer/library.py donors), or the maps named, with its baked tile data as
 the inputs (static flags, floors), on every tile the build works cover out on (a floor, no ramp, not fully occupied):
@@ -52,6 +52,36 @@ def inputs(p):
     return tiles, store(1), store(3)
 
 
+SQUARE = 0.999          # the finder's wall: within 2.6 degrees of the diagonal
+
+
+def finder(world, tiles, tile, straight=False):
+    """Whether a tile is one to give diagonal cover (findings register F-153): a wall at 45 degrees crosses it (the
+    tile is partly occupied, and a diagonal's wall faces that diagonal to within 2.6 degrees, SQUARE) and gives high
+    cover there, and the straight rule gives the tile no cover. On the game's own maps this takes 245 of the 289
+    tiles the designers marked that a diagonal passes on, and 111 corners of the same kind they left unmarked; the
+    marks are the designers' choice, not a rule. The Build asked it of the tiles a project's own pieces stand on from
+    22 to 23 November 2026, and took door openings for corners (KNOWN-BUGS.md KB-20): it stands here now, for this
+    record alone, and a project marks its diagonal cover by hand.
+
+    dict(diagonal (the answer), cover (the diagonal cover), straight (the straight cover flags, or None when not
+    worked out), partly, facing (the best diagonal's), high, notes). With `straight`, the straight cover is worked
+    out on every tile a diagonal passes on, for a record."""
+    import tile_rule
+    notes = dict(diagonal={}, straight={})
+    diag = tile_rule.cover(world, tiles, tile, True, notes=notes['diagonal'])
+    f = tiles.flag(tile)
+    partly = bool(f & tile_rule.OCCUPIED and f & tile_rule.PARTLY)
+    facing = max((r['facing'] for r in diag['parts'].values()), default=0.0)
+    high = any(not r['low'] for r in diag['parts'].values())
+    shape = bool(diag['flags'] & 0xF) and partly and facing >= SQUARE and high
+    plain = (tile_rule.cover(world, tiles, tile, False, notes=notes['straight'])
+             if shape or (straight and diag['parts']) else None)
+    found = shape and not plain['flags'] & 0xF
+    return dict(diagonal=found, cover=diag, straight=plain['flags'] if plain else None, partly=partly, facing=facing,
+                high=high, notes=notes)
+
+
 def describe(world, tiles, tile, r):
     """A tile the finder or a mark names: its flags, each passing diagonal's wall (piece, mesh, facing, distance,
     high or low) and each straight direction's stopping step."""
@@ -102,7 +132,7 @@ def check(path):
                                    rule=None, why='no floor of its own: the seed sets the flag, no cover is worked out'))
             continue
         scanned += 1
-        r = tile_rule.finder(world, tiles, tile, straight=True)
+        r = finder(world, tiles, tile, straight=True)
         if r['cover']['parts']:
             for name, test in VARIANTS:
                 if test(r):

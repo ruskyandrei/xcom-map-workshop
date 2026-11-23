@@ -64,6 +64,7 @@ receivers they reach (the copies' too), and the relight gets their before and af
 import argparse
 import dataclasses
 import json
+import math
 from pathlib import Path
 import struct
 import subprocess
@@ -1121,6 +1122,48 @@ def diagonal_tiles(p):
     return found
 
 
+# a marked corner's cover bit: the diagonal facing (sx, sy) in game axes (research/native/cover-build.md, section 4's
+# diagonal table; scene_metadata.DIAGONAL_DIRECTIONS)
+DIAGONAL_BITS = {(-1, 1): 0x1, (1, -1): 0x2, (-1, -1): 0x4, (1, 1): 0x8}
+
+
+def diagonal_edit(p, lane):
+    """The project's diagonal cover (the native edit's `diagonalCover`: `marks` [{at, toward}], `removed` [at], each
+    `at` a world place in a tile, its middle) as tiles of the map's grid (level_grid): dict(marks {tile: the cover
+    bits of its corners}, removed (the map's marked tiles that lose their diagonal cover; a tile the project marks
+    again is a mark), outside (the places off the grid or with no corner, left out)), or None for none. Diagonal
+    cover by hand: private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, section 3.3."""
+    if not lane or not (lane.get('marks') or lane.get('removed')):
+        return None
+    grid = level_grid(p)
+    corner, dims = (grid['tx'], grid['ty'], grid['tz']), (grid['nx'], grid['ny'], grid['nz'])
+    size = (seed_map.TILE, seed_map.TILE, seed_map.FLOOR)
+
+    def tile(at):
+        return tuple(int(math.floor((float(at[k]) - corner[k]) / size[k])) for k in range(3))
+    marks, outside = {}, []
+    for m in lane.get('marks') or []:
+        t = tile(m['at'])
+        bits = 0
+        for d in m.get('toward') or []:
+            bits |= DIAGONAL_BITS.get((int(d[0]), int(d[1])), 0)
+        if not bits or not all(0 <= t[k] < dims[k] for k in range(3)):
+            outside.append([float(v) for v in m['at']])
+            continue
+        marks[t] = marks.get(t, 0) | bits
+    bake = diagonal_tiles(p)
+    removed = {t for t in (tile(a) for a in lane.get('removed') or []) if t in bake and t not in marks}
+    return dict(marks=marks, removed=removed, outside=outside)
+
+
+def diagonal_marked(g, p):
+    """The map's marked tiles (its bake's diagonal cover, diagonal_tiles) that the project leaves marked: less those
+    its `removed` names (the grower's diagonal_edit, diagonal_edit's record). A frozenset."""
+    edit = getattr(g, 'diagonal_edit', None)
+    bake = diagonal_tiles(p)
+    return frozenset(bake - edit['removed']) if edit else bake
+
+
 def changed_tiles(boxes, grid):
     """The tiles world boxes stand on (scene_metadata.changed_tiles, the rule's one home: the compiler and the page
     count them so too), on the grid level_grid gives."""
@@ -1128,7 +1171,7 @@ def changed_tiles(boxes, grid):
                                         (seed_map.TILE, seed_map.TILE, seed_map.FLOOR), seed_map.MARGIN)
 
 
-def rebuild_spares(p, box, radius, spare=False, changed=None):
+def rebuild_spares(p, box, radius, spare=False, changed=None, edit=None):
     """What a rebuild volume over `box` (its bounds' sphere `radius`) must leave alone, or None when it reaches
     nothing of the kind: dict(corner: the game's tile corner, need: the tile box it is put there for (the tiles whose
     centres the box holds), forbidden: the tiles its volumes must not take, spared: the diagonal tiles among them the
@@ -1143,9 +1186,12 @@ def rebuild_spares(p, box, radius, spare=False, changed=None):
     only, `written` (diagonal_keep.py works out what the change alters of it), and one they stand on is written
     `whole` (diagonal_keep works the tile out as the game's build would, its links included, F-154). With `spare` (a
     volume that is there for no change of the map's pieces: a grown grid's) the ones inside are left alone as they
-    are."""
+    are. `edit` (diagonal_edit's record): the project's diagonal cover, its marks among the diagonal tiles and its
+    removed ones out of them."""
     import rebuild_fit
     diagonal = diagonal_tiles(p)
+    if edit:
+        diagonal = (diagonal - edit['removed']) | frozenset(edit['marks'])
     if not diagonal:
         return None
     grid = level_grid(p)
@@ -1195,7 +1241,7 @@ def add_rebuild_volume(g, p, box, template=None, spare=False, changed=None):
         g.__dict__.setdefault('change_boxes', []).extend([float(v) for v in b] for b in changed)
     template = template or rebuild_template(p)
     radius = box_reach(p, template, box)
-    spares = rebuild_spares(p, box, radius, spare, changed)
+    spares = rebuild_spares(p, box, radius, spare, changed, getattr(g, 'diagonal_edit', None))
     cubes = rebuild_fit.fit(spares['need'], spares['forbidden']) if spares and spares['forbidden'] else []
     note = {'diagonalRebuilt': [list(t) for t in spares['rebuilt']]} if spares and spares['rebuilt'] else {}
     if spares and spares['written']:
@@ -1242,24 +1288,20 @@ def diagonal_words(volume):
     return words
 
 
-def diagonal_candidates(g, p, box, grid, carry=None):
-    """The tiles a new piece stands on (its world `box`; changed_tiles) where the Build may write a new corner with
-    diagonal cover (diagonal_keep.write's `candidates`, F-155), gathered in the grower's `diagonal_candidates` {tile:
-    'carried' | 'finder'}. A copy of one of the map's own pieces (`carry`: (actor, location, rotation), the original
-    and the copy's pose) carries the map's marks (diagonal cover plan, 5.4): a tile is 'carried' where its centre,
-    taken back through the copy's move, falls on a tile of the original's with diagonal cover in the bake, and
-    nothing elsewhere; a carried tile gets diagonal cover where a diagonal still gives some there, as a seeded tile
-    would. A piece with no place of its own in the map (`carry` None: made from numbers, a cover block, a piece
-    brought from another map, whose home map's marks are not read) leaves it to the finder ('finder', F-153)."""
+def diagonal_candidates(g, p, box, grid, carry):
+    """The tiles a copy of one of the map's own pieces stands on (its world `box`; changed_tiles) where the Build may
+    write a corner with diagonal cover the copy carries (diagonal_keep.write's `candidates`, F-155), gathered in the
+    grower's `diagonal_candidates` {tile: 'carried'}. The copy (`carry`: (actor, location, rotation), the original and
+    the copy's pose) carries the map's marks (diagonal cover plan, 5.4): a tile is 'carried' where its centre, taken
+    back through the copy's move, falls on a tile of the original's with diagonal cover in the bake that the project
+    leaves marked (diagonal_marked), and nothing elsewhere; a carried tile gets diagonal cover where a diagonal still
+    gives some there, as a seeded tile would. A piece with no place of its own in the map (made from numbers, a cover
+    block, a piece brought from another map) carries nothing: its diagonal cover is what the project marks (KB-20)."""
     import numpy as np
     from export_math import transform
     tiles = changed_tiles([box], grid)
     found = g.__dict__.setdefault('diagonal_candidates', {})
-    if carry is None:
-        for t in tiles:
-            found.setdefault(t, 'finder')
-        return
-    marked = diagonal_tiles(p)
+    marked = diagonal_marked(g, p)
     if not marked:
         return
     actor, location, rotation = carry
@@ -2446,6 +2488,7 @@ class BuildState:
     spawns: object = None           # spawns
     background_sound: object = None     # backgroundSound
     piece_blasts: tuple = ()        # pieceBlasts
+    diagonal_cover: object = None   # diagonalCover (the project's diagonal cover marks, diagonal_edit)
     # what build fills, as it goes
     p: object = filled()                # the pristine map read (build, first)
     g: object = filled()                # the variant map's growing writer (build, first)
@@ -2812,11 +2855,10 @@ def clone_copies(st):
                 box = frac_walls.wall_box(p, gen[0][1], gen[0][2], gen[0][3], gen[0][0]['generated']) or box
         tile_info = add_tiles_box(g, p, box) if box is not None else None
         if tile_info:
-            # where the copy may make a slanted corner with diagonal cover (diagonal_keep.write)
+            # where a copy of the map's own piece carries a slanted corner with diagonal cover (diagonal_keep.write)
             for c, ai, location, rotation, _ in members:
-                if has_mesh(p, ai) and (collides(p, ai) or ai in walked):
-                    own = None if c.get('generated') or c.get('staged') else (ai, location, rotation)
-                    diagonal_candidates(g, p, piece_box(p, ai, location, rotation), tile_info['grid'], own)
+                if has_mesh(p, ai) and (collides(p, ai) or ai in walked) and not (c.get('generated') or c.get('staged')):
+                    diagonal_candidates(g, p, piece_box(p, ai, location, rotation), tile_info['grid'], (ai, location, rotation))
         actors += ([info['actor'] for info in infos] + [info['actor'] for info in volume_infos]
                    + ([tile_info['volume']['export']] if tile_info else []))
         # a ladder's linked top tile rebuilt before anything reaches its foot (plan section 5.2, recipe 1)
@@ -3208,10 +3250,10 @@ def write_and_verify(st):
     # the diagonal cover tiles next to a change, left out of the rebuild: written now, against the built map
     # (diagonal_keep.py; findings register F-149)
     if getattr(g, 'diagonal_writes', None) or getattr(g, 'diagonal_whole', None) or \
-            getattr(g, 'diagonal_candidates', None):
+            getattr(g, 'diagonal_candidates', None) or g.diagonal_edit:
         import diagonal_keep
         st.diagonal = diagonal_keep.write(dst, getattr(g, 'diagonal_writes', set()), getattr(g, 'diagonal_whole', set()),
-                                          getattr(g, 'diagonal_candidates', set()))
+                                          getattr(g, 'diagonal_candidates', set()), g.diagonal_edit)
     # the tile data rewritten once: the tiles near the changes as the battle's rebuild will leave them (the game
     # places the terror civilians and the pods' other aliens from the stored tiles before it runs that rebuild,
     # F-157), and no tile naming an actor taken out of the level (the game frees those, and saving crashed, F-156)
@@ -3346,6 +3388,9 @@ def build(st):
         lightmap_writer.cache_fname(st.cache)     # a cache name that can be a file and an FName, before any work
     p = lighting.Package(st.src)
     g = package_grow.Grower(str(st.src))
+    # the project's diagonal cover marks, as tiles: every rebuild volume keeps off its marks, and the writer writes them
+    # and the tiles it takes diagonal cover from (diagonal_keep.write)
+    g.diagonal_edit = diagonal_edit(p, st.diagonal_cover)
     # the light edits: resolved against the pristine map, then made in the map (plan 4.3, steps 1 and 2)
     st.light_state = None if native_lights.is_empty(st.lights) else native_lights.prepare(p, st.lights)
     st.light_result = native_lights.apply(g, p, st.light_state) if st.light_state else None
@@ -3442,6 +3487,7 @@ def edit_state(src, out, variant, doc, **options):
     its field as it is, and each copy through copy_record."""
     copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
     cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = background_sound = None
+    diagonal_cover = None
     stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
     if isinstance(doc, dict):
         assemblies = doc.get('assemblies') or []
@@ -3459,6 +3505,7 @@ def edit_state(src, out, variant, doc, **options):
         piece_flags = doc.get('pieceFlags') or []
         flag_ladders = doc.get('pieceFlagLadders') or []
         piece_blasts = doc.get('pieceBlasts') or []
+        diagonal_cover = doc.get('diagonalCover')
         doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
     for c in doc:
         copies.append(copy_record(c))
@@ -3466,7 +3513,8 @@ def edit_state(src, out, variant, doc, **options):
                       lights=lights, covers=covers, buildings=buildings, building_edits=edits, cleared=cleared,
                       landing_zones=landing_zones, carried_effects=carried_effects, stream_tiles=stream_tiles,
                       piece_flags=piece_flags, flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares,
-                      spawns=spawns, background_sound=background_sound, piece_blasts=piece_blasts, **options)
+                      spawns=spawns, background_sound=background_sound, piece_blasts=piece_blasts,
+                      diagonal_cover=diagonal_cover, **options)
 
 
 def main():
@@ -3553,12 +3601,22 @@ def main():
               + (f"tiles {h['tiles']} rebuilt by volume {h['volume']['export']}{diagonal_words(h['volume'])}" if h['volume']
                  else 'outside the map\'s tiles, no rebuild volume')
               + (f", unlinked from {', '.join(h['unlinkedFrom'])}" if h['unlinkedFrom'] else ''))
-    corners = [r['tile'] for r in (m['nativeCopies'].get('diagonalCover') or {}).get('whole', []) if r.get('newCorner')]
+    whole = (m['nativeCopies'].get('diagonalCover') or {}).get('whole', [])
+    corners = [r['tile'] for r in whole if r.get('newCorner')]
+    marks = [r for r in whole if r.get('mark')]
+    removed = [r['tile'] for r in whole if r.get('removed')]
+    refitted = (m['nativeCopies'].get('diagonalCover') or {}).get('refitted') or []
     if corners:
-        refitted = m['nativeCopies']['diagonalCover'].get('refitted') or []
-        print(f"diagonal cover on new slanted corners: tiles {', '.join(str(tuple(t)) for t in corners)}"
-              + (f" (rebuild volumes refitted round them: {', '.join(r['volume'] + ' into ' + str(r['into']) for r in refitted)})"
-                 if refitted else ''))
+        print(f"diagonal cover carried to new slanted corners: tiles {', '.join(str(tuple(t)) for t in corners)}")
+    if marks:
+        print("diagonal cover marked by the project: " + '; '.join(
+            f"tile {tuple(r['tile'])} toward {', '.join(str(tuple(c)) for c in r['mark'])}"
+            + (f" (no wall toward {', '.join(str(tuple(c)) for c in r['noWall'])})" if r.get('noWall') else '')
+            + (' (no floor of its own)' if r.get('noFloor') else '') for r in marks))
+    if removed:
+        print(f"diagonal cover taken away by the project: tiles {', '.join(str(tuple(t)) for t in removed)}")
+    if refitted:
+        print(f"rebuild volumes refitted round them: {', '.join(r['volume'] + ' into ' + str(r['into']) for r in refitted)}")
     for key in ('effects', 'sounds', 'flares', 'spawns'):
         for r in m['nativeCopies'].get(key) or []:
             print(f"{key[:-1]} {r['actor']} {r['how']}" + (f" from {r['source']} -> {r['copy']}" if r['how'] == 'copied' else '')

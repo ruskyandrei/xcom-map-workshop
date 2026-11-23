@@ -15,11 +15,12 @@
 import * as THREE from 'three';
 import { COVER_KIND } from './cover.js';
 import { areaBindings, builder, builderMode, cleared, clearKeepsOutside, clearKeepsTriggers, copySerial, data, effectRoots,
-         eventMemo, landingZones, library, lightIndex, lightRoots, loadErrorCount, missionMoves, projectBackgroundSound,
-         projectMapInfo, projectMissions, projectPicture, projectSpawnRules, roots, setCleared, setClearKeepsOutside, setClearKeepsTriggers,
-         setCopySerial, setGroups, setLandingZones, setLiveCache, setLoadErrorCount, setMergedBuildings,
-         setProjectBackgroundSound, setProjectMapInfo, setProjectMissions, setProjectPicture, setProjectSpawnRules, stage,
-         volumeRoots } from './editor_state.js';
+         diagonalCarried, diagonalCarriedOver, eventMemo, landingZones, library, lightIndex, lightRoots, loadErrorCount,
+         missionMoves, projectBackgroundSound, projectDiagonal, projectMapInfo, projectMissions, projectPicture, projectSpawnRules, roots,
+         setCleared, setClearKeepsOutside, setClearKeepsTriggers, setCopySerial, setDiagonalCarriedOver, setGroups, setLandingZones,
+         setLiveCache, setLoadErrorCount, setMergedBuildings, setProjectBackgroundSound, setProjectDiagonal, setProjectMapInfo,
+         setProjectMissions, setProjectPicture, setProjectSpawnRules, stage, volumeRoots } from './editor_state.js';
+import { handFromSaved, savedDiagonal } from './diagonal_marks.js';
 import { cloneBlasts, isStream, optionsOf, recordOf, sourceKey, stateOfRoot } from './piece_records.js';
 import { memberKey, pruneGroups, sortState, targetKey, validBuilding, validPicture, validPrefabMark, validStage } from './project.js';
 import { NEW_VOLUME, SPAWN_COPY_KINDS, copyEntryOf, spawnEntryOf, spawnKey } from './spawns_view.js';
@@ -75,7 +76,8 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values(), ...spawnCopyRecords()], groups: kept, areaLightBindings, stage,
                       buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, clearKeepsTriggers, missions: projectMissions,
                       spawnRules: projectSpawnRules, picture: projectPicture, backgroundSound: projectBackgroundSound,
-                      lwrMapInfo: projectMapInfo });
+                      lwrMapInfo: projectMapInfo,
+                      diagonalCover: savedDiagonal(projectDiagonal, diagonalCarried, diagonalCarriedOver) });
   }
   // Put a project state on the map: originals moved or deleted, copies added. Records naming pieces this export does
   // not have are returned, to be kept and saved back unchanged; nothing is matched by short name.
@@ -89,6 +91,8 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     setClearKeepsTriggers(cleared && state.clearKeepsTriggers === true);
     setProjectBackgroundSound(state.backgroundSound ?? null);
     setProjectMapInfo(state.lwrMapInfo ?? null);
+    // the diagonal cover marks (schema 7): the project's own; the carried ones are worked out again from the pieces
+    { const read = handFromSaved(state.diagonalCover); setProjectDiagonal(read.hand); setDiagonalCarriedOver(read.carriedOver); }
     setLandingZones(Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null);
     setProjectMissions(Array.isArray(state.missions) ? state.missions.map(e => ({ ...e })) : null);
     setProjectPicture(validPicture(state.picture) ? { sha256: state.picture.sha256 } : null);
@@ -247,6 +251,7 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     clearEffectEdits();
     setCleared(false); setClearKeepsOutside(false); setLandingZones(null); setMergedBuildings(null); setProjectMissions(null);
     setClearKeepsTriggers(false); setProjectBackgroundSound(null); setProjectMapInfo(null);
+    setProjectDiagonal(null); setDiagonalCarriedOver([]);
     setProjectPicture(null);
     setProjectSpawnRules(null); syncSpawnRule();
     setMissionMoves(new Map());
@@ -280,8 +285,11 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     const sound = projectBackgroundSound ? 1 : 0;
     // what Long War Rebalance is told of the map (Map settings: schema 6)
     const info = projectMapInfo ? 1 : 0;
-    return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, sound, info, flags: flagged.size, broken: broken.size,
-             total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + sound + info + flagged.size + broken.size };
+    // the diagonal cover marks the project adds, changes or deletes (schema 7): each of its own records once
+    const diagonal = (projectDiagonal?.marks?.length ?? 0) + (projectDiagonal?.removed?.length ?? 0);
+    return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, sound, info, diagonal, flags: flagged.size, broken: broken.size,
+             total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + sound + info + diagonal
+               + flagged.size + broken.size };
   }
 
   return { applyState, changes, editState, editStateNow, projectNote };

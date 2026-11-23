@@ -33,10 +33,10 @@ SCHEMA = 'xcom-map-workshop/project'
 # 2: pieces' flags (overrides[].flags, added[].flags; piece flags plan); 3: effects and sounds (records of their own:
 # the effects and sounds plan, Part C); 4: the spawns plan's records (`spawnRules`, SP8; the base map's spawn points'
 # overrides and added records, SP6 and SP7); 5: the map's background sound (`backgroundSound`) and a clear that keeps
-# the map's triggers (`clearKeepsTriggers`); 6: what Long War Rebalance is told of the map (`lwrMapInfo`). 1 to 5 are
-# read too, and saved as 6.
-SCHEMA_VERSION = 6
-READ_VERSIONS = (1, 2, 3, 4, 5, 6)
+# the map's triggers (`clearKeepsTriggers`); 6: what Long War Rebalance is told of the map (`lwrMapInfo`); 7: the
+# diagonal cover the project marks (`diagonalCover`). 1 to 6 are read too, and saved as 7.
+SCHEMA_VERSION = 7
+READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7)
 MAX_BYTES = 32 << 20
 ID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 SHA256 = re.compile(r'[0-9a-f]{64}')
@@ -146,6 +146,14 @@ def validate(document, project_id):
     info = document.get('lwrMapInfo')
     if info is not None and not (isinstance(info, dict) and all(isinstance(v, str) for v in info.values())):
         raise ProjectError(422, '"lwrMapInfo" must be a record of texts.')
+    # The diagonal cover the project marks (schema 7): optional, {marks: [records], removed: [places]}; the compiler
+    # checks each mark and place.
+    diagonal = document.get('diagonalCover')
+    if diagonal is not None and not (isinstance(diagonal, dict) and set(diagonal) <= {'marks', 'removed'}
+                                     and isinstance(diagonal.get('marks', []), list)
+                                     and all(isinstance(m, dict) for m in diagonal.get('marks', []))
+                                     and isinstance(diagonal.get('removed', []), list)):
+        raise ProjectError(422, '"diagonalCover" must be {marks, removed}: a list of marks and a list of places.')
     zones =document.get('landingZones', [])
     if not isinstance(zones, list) or not all(isinstance(item, dict) for item in zones):
         raise ProjectError(422, '"landingZones" must be a list of records.')

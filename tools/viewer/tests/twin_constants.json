@@ -16,5 +16,5 @@
                    "XComInteractiveLevelActor", "XComLadder", "XComCollectible", "KAsset"],
  "ladders": {"topReach": 76, "footBack": 16, "endLift": 8, "turn": 65536, "floorThick": 40, "headroom": 150},
  "lwrMapInfo": {"alienDensity": ["AlienDensity", ["Light", "Moderate", "Heavy", "Swarming"]], "holdTheLine": ["HoldTheLine", ["No", "Yes"]]},
- "schemaVersions": {"project": 6, "prefab": 4}
+ "schemaVersions": {"project": 7, "prefab": 4}
 }

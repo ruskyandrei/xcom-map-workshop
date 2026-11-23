@@ -1,5 +1,6 @@
 """The game's cover rule and the diagonal cover finder against a map's pieces (tile_world.py, tile_rule.py; diagonal
-cover plan, stage C1; findings register F-153).
+cover plan, stage C1; findings register F-153). The finder is research/evidence/diagonal-finder.py's (the Build no
+longer asks it: KB-20); its tests stay, for the record it made.
 
 The sweeps and the rule are checked on pieces made here; the rule's answer on CsmallScout_Farm's eight marked tiles
 against the map's bake reads the install and skips without it."""
@@ -19,6 +20,19 @@ import tile_world  # noqa: E402
 
 FARM, NO_FARM = labpaths.install_map('CsmallScout_Farm')
 S = math.sqrt(0.5)
+
+
+def _finder_module():
+    """research/evidence/diagonal-finder.py, the finder's home (KB-20)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('diagonal_finder', HERE.parents[2] / 'research' / 'evidence'
+                                                  / 'diagonal-finder.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+FINDER = _finder_module()
 
 
 def box(lo, hi):
@@ -121,15 +135,15 @@ class Corner(unittest.TestCase):
         self.assertEqual(r['location'][2], 0.0)
 
     def test_the_straight_rule_gives_none_and_the_finder_takes_it(self):
-        r = tile_rule.finder(self.world, self.tiles, (1, 1, 0))
+        r = FINDER.finder(self.world, self.tiles, (1, 1, 0))
         self.assertTrue(r['diagonal'])
         self.assertEqual(r['straight'] & 0xF, 0)
         self.assertTrue(r['partly'])
-        self.assertGreaterEqual(r['facing'], tile_rule.SQUARE)
+        self.assertGreaterEqual(r['facing'], FINDER.SQUARE)
 
     def test_the_finder_leaves_a_tile_the_wall_does_not_cross(self):
         self.tiles.flags[(1, 1, 0)] &= ~(tile_rule.OCCUPIED | tile_rule.PARTLY)
-        self.assertFalse(tile_rule.finder(self.world, self.tiles, (1, 1, 0))['diagonal'])
+        self.assertFalse(FINDER.finder(self.world, self.tiles, (1, 1, 0))['diagonal'])
 
     def test_the_finder_leaves_a_wall_off_the_diagonal(self):
         self.world = tile_world.World.empty()
@@ -137,9 +151,9 @@ class Corner(unittest.TestCase):
         face = np.array([144, 144]) + 50 * np.array([S, S])
         self.world.add(tile_world.solid_piece('wall', 'XComLevelActor', [(turned_box(
             (face[0] + 6, face[1] + 6, 75), (8, 96, 75), math.pi / 4 + math.radians(10)), None, None)]))
-        r = tile_rule.finder(self.world, self.tiles, (1, 1, 0))
+        r = FINDER.finder(self.world, self.tiles, (1, 1, 0))
         self.assertFalse(r['diagonal'])
-        self.assertLess(r['facing'], tile_rule.SQUARE)
+        self.assertLess(r['facing'], FINDER.SQUARE)
 
     def test_a_low_wall_gives_low_cover_and_the_finder_leaves_it(self):
         self.world = tile_world.World.empty()
@@ -148,7 +162,7 @@ class Corner(unittest.TestCase):
         centre = face + 8 * np.array([S, S])
         self.world.add(tile_world.solid_piece('low', 'XComLevelActor', [(turned_box((centre[0], centre[1], 35),
                                                                                     (8, 96, 35), math.pi / 4), None, None)]))
-        r = tile_rule.finder(self.world, self.tiles, (1, 1, 0))
+        r = FINDER.finder(self.world, self.tiles, (1, 1, 0))
         self.assertEqual(r['cover']['flags'] & 0xFF, 0x88)  # W, low
         self.assertFalse(r['diagonal'])
 
@@ -167,15 +181,9 @@ class FarmMarks(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        sys.path.insert(0, str(HERE.parents[2] / 'research' / 'evidence'))
-        import importlib.util
         import lighting_records as lighting
-        spec = importlib.util.spec_from_file_location('diagonal_finder', HERE.parents[2] / 'research' / 'evidence'
-                                                      / 'diagonal-finder.py')
-        finder = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(finder)
         cls.p = lighting.Package(FARM)
-        cls.tiles, cls.cover, cls.locs = finder.inputs(cls.p)
+        cls.tiles, cls.cover, cls.locs = FINDER.inputs(cls.p)
         cls.world = tile_world.World(cls.p)
         cls.marked = sorted(t for t, v in cls.cover.items() if v & tile_rule.DIAGONAL)
 
@@ -193,8 +201,8 @@ class FarmMarks(unittest.TestCase):
     def test_the_finder_takes_the_marks_and_leaves_a_bulldozers_corner(self):
         for t in self.marked:
             with self.subTest(tile=t):
-                self.assertTrue(tile_rule.finder(self.world, self.tiles, t)['diagonal'])
-        r = tile_rule.finder(self.world, self.tiles, (49, 29, 0))
+                self.assertTrue(FINDER.finder(self.world, self.tiles, t)['diagonal'])
+        r = FINDER.finder(self.world, self.tiles, (49, 29, 0))
         self.assertTrue(r['cover']['flags'] & 0xF)       # a diagonal passes there
         self.assertFalse(r['diagonal'])
 

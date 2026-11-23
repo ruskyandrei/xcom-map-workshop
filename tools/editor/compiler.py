@@ -124,6 +124,8 @@ from light_edits import (LIGHT_RANGES, LIGHT_RECIPES, light_rule, light_value_pr
                          LightEdits)
 # the pieces' flags family (nothing reads its tables through the compiler)
 from flag_edits import FlagEdits  # noqa: E402
+# the diagonal cover the project marks (schema 7; nothing reads its tables through the compiler)
+from diagonal_edits import DiagonalEdits  # noqa: E402
 # the made walls, floors, roofs and ground shapes family, and its tables and helpers others read through the compiler
 # (the tests, the bake suite's agreement test, an example)
 from made_edits import (FRAC_SLAB_MAX_TILES, FRAC_WALL_LOOKS, FRAC_WALL_MIN_LENGTH, WALL_SWEEPS,  # noqa: E402,F401
@@ -206,9 +208,11 @@ SCHEMA = 'xcom-map-workshop/project'
 # 5: the map's background sound (`backgroundSound`) and a clear that keeps the map's triggers (`clearKeepsTriggers`;
 # a cleared project of schema 1 to 4 now has its triggers taken out, F-159). A project of schema 1 to 4 builds as it did;
 # 6: what Long War Rebalance is told of the map (`lwrMapInfo`: the largest abduction it suits, Hold the Line kept off
-# it). A project of schema 5 builds as it did.
-SCHEMA_VERSION = 6
-READ_VERSIONS = (1, 2, 3, 4, 5, 6)
+# it). A project of schema 5 builds as it did. 7: the diagonal cover the project marks (`diagonalCover`; KB-20: the
+# Build no longer finds diagonal cover by itself, so a project of schema 1 to 6 with a made wall or cover block at 45
+# degrees builds without the corners 0.7.0 found there).
+SCHEMA_VERSION = 7
+READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
@@ -586,6 +590,8 @@ class Compiler:
         # `pieceFlags` object), the actors whose floor such an edit takes away or gives, and the report's counts:
         # their own module (review finding 23)
         self.flag_edits = FlagEdits(self)
+        # the diagonal cover the project marks (schema 7): the spec's `diagonalCover`, its own module
+        self.diagonal_edits = DiagonalEdits(self)
         # what run()'s stages work out, in its order (review finding 23): check_document the map's package (it keeps
         # this value when the stage doesn't run: a document that stops earlier). The map grid, the clear, the drop-in
         # rule, the landing zones and the missions: their own module, which keeps what its stages work out
@@ -1746,6 +1752,9 @@ class Compiler:
         # the map's background sound (schema 5): its script's sound given another cue, none or another volume
         if self.effect_edits.background:
             extra['backgroundSound'] = dict(self.effect_edits.background)
+        # the diagonal cover the project marks (schema 7): the Build writes each mark and each tile it takes it from
+        if self.diagonal_edits.lane:
+            extra['diagonalCover'] = self.diagonal_edits.lane
         if self.mission_edits.zones is not None:
             extra['landingZones'] = dict(zones=self.mission_edits.zones,
                                          own=spawns.own_slots(self.mission_edits.zones, self.mission_edits.own_count),
@@ -1762,7 +1771,8 @@ class Compiler:
 
     def has_edits(self):
         return any(self.doc.get(k) for k in ('overrides', 'added', 'areaLightBindings', 'buildings', 'cleared',
-                                             'landingZones', 'stage', 'spawnRules', 'backgroundSound', 'lwrMapInfo'))
+                                             'landingZones', 'stage', 'spawnRules', 'backgroundSound', 'lwrMapInfo',
+                                             'diagonalCover'))
 
     # ---------------------------------------------------------------- the mission family's, by name
     def stage(self):
@@ -1825,6 +1835,7 @@ class Compiler:
             self.mission_edits.missions_check()
             self.mission_edits.stage_outside()
             self.floor_edits.diagonal_cover()
+            self.diagonal_edits.marks()
             # A moved original can also be another copy's template; only one hide per actor.
             seen = set()
             self.hides = [h for h in sorted(self.hides, key=lambda h: (h['name'], h['label'])) if not (h['name'] in seen or seen.add(h['name']))]
@@ -1857,6 +1868,8 @@ class Compiler:
                       # what Long War Rebalance is told of the map (schema 6): the Build writes the variant's MapInfo
                       # lines from it (it changes nothing in the map, so the spec does not carry it)
                       lwrMapInfo=self.mission_edits.map_info,
+                      # the diagonal cover the project marks (schema 7): how many marks and tiles taken from the map
+                      **({'diagonalCover': dict(self.diagonal_edits.counts)} if self.diagonal_edits.lane else {}),
                       missions=self.mission_edits.missions_kept()[0] if self.map is not None else None,
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']))
                                  for b in self.building_edits.new_buildings],

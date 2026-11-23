@@ -1,10 +1,12 @@
-"""The game's cover rule for one tile, worked out against a map's pieces (tile_world.World), and the diagonal cover
-finder (private/plans/done/diagonal-cover-plan.md, stages C1 and C2). research/native/cover-build.md is the reading
-of the exe this follows: its sections 3 (which directions) and 4 (one direction, steps 1 to 13), cited by step.
+"""The game's cover rule for one tile, worked out against a map's pieces (tile_world.World)
+(private/plans/done/diagonal-cover-plan.md, stages C1 and C2). research/native/cover-build.md is the reading of the
+exe this follows: its sections 3 (which directions) and 4 (one direction, steps 1 to 13), cited by step.
 
   cover(world, tile, ...)     a tile's cover flags, static bits and cover location, straight or diagonal
-  finder(world, tile, ...)    whether a tile is one the game's build would give diagonal cover: it gets no straight
-                              cover, and one of the four diagonals passes (the rule as a seeded tile has it)
+
+The diagonal cover finder that once stood here (F-153) is research/evidence/diagonal-finder.py's now: the Build no
+longer finds diagonal cover by itself, the project marks it (private/plans/todo/diagonal-cover-by-hand-and-views-
+plan.md, KNOWN-BUGS.md KB-20).
 
 A tile's inputs come from a `Tiles` view: its static flags and floor (from the map's bake, or worked out), and the
 grid. Nothing here reads a package."""
@@ -219,27 +221,15 @@ def candidate(tiles, tile):
     return bool(f & FLOOR) and not f & RAMP and tuple(tile) in tiles.floor and not (f & OCCUPIED and not f & PARTLY)
 
 
-SQUARE = 0.999          # the finder's wall: within 2.6 degrees of the diagonal
+# a corner a project marks with no wall along it (diagonal_keep.mark_cover): the cover location's point stands this far
+# from the tile's middle toward the corner
+NO_WALL_POINT = 20.0
 
 
-def finder(world, tiles, tile, straight=False):
-    """Whether a tile is one to give diagonal cover (findings register F-153): a wall at 45 degrees crosses it (the
-    tile is partly occupied, and a diagonal's wall faces that diagonal to within 2.6 degrees, SQUARE) and gives high
-    cover there, and the straight rule gives the tile no cover. On the game's own maps this takes 245 of the 289
-    tiles the designers marked that a diagonal passes on, and 111 corners of the same kind they left unmarked; the
-    marks are the designers' choice, not a rule, so the Build asks the finder only of tiles a project changes.
-
-    dict(diagonal (the answer), cover (the diagonal cover), straight (the straight cover flags, or None when not
-    worked out), partly, facing (the best diagonal's), high, notes). With `straight`, the straight cover is worked
-    out on every tile a diagonal passes on, for a record."""
-    notes = dict(diagonal={}, straight={})
-    diag = cover(world, tiles, tile, True, notes=notes['diagonal'])
-    f = tiles.flag(tile)
-    partly = bool(f & OCCUPIED and f & PARTLY)
-    facing = max((r['facing'] for r in diag['parts'].values()), default=0.0)
-    high = any(not r['low'] for r in diag['parts'].values())
-    shape = bool(diag['flags'] & 0xF) and partly and facing >= SQUARE and high
-    plain = cover(world, tiles, tile, False, notes=notes['straight']) if shape or (straight and diag['parts']) else None
-    found = shape and not plain['flags'] & 0xF
-    return dict(diagonal=found, cover=diag, straight=plain['flags'] if plain else None, partly=partly, facing=facing,
-                high=high, notes=notes)
+def diagonal_index(toward):
+    """The index into TABLE of the diagonal facing `toward` ((sx, sy), each +1 or -1, game axes): N (-1, 1), S (1, -1),
+    E (-1, -1), W (1, 1) (cover-build.md, section 4's diagonal table), or None for any other."""
+    for i, e in enumerate(TABLE):
+        if (round(e['dd'][0] / S), round(e['dd'][1] / S)) == tuple(int(v) for v in toward):
+            return i
+    return None

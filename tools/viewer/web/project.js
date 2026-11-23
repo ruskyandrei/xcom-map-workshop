@@ -10,9 +10,9 @@ import { call } from './api.js';
 // plan, Part C: an override of an effect or a sound, and an added record with a `kind`); 4: the spawns plan's
 // (`spawnRules`, SP8; the base map's spawn points' overrides and added records, SP6 and SP7); 5: the map's background
 // sound (`backgroundSound`) and a clear that keeps the map's triggers (`clearKeepsTriggers`); 6: what Long War
-// Rebalance is told of the map (`lwrMapInfo`; missions.js's MAP_INFO). A project of schema 1 to 5 opens, and saves
-// as 6.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 6;
+// Rebalance is told of the map (`lwrMapInfo`; missions.js's MAP_INFO); 7: the diagonal cover the project marks
+// (`diagonalCover`; diagonal_marks.js). A project of schema 1 to 6 opens, and saves as 7.
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 7;
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;
@@ -60,7 +60,7 @@ export const stateKey = state => JSON.stringify([state.overrides, state.added, s
                                                  state.cleared === true && state.clearKeepsOutside === true, state.missions ?? null,
                                                  state.spawnRules ?? null, state.picture?.sha256 ?? null,
                                                  state.cleared === true && state.clearKeepsTriggers === true, state.backgroundSound ?? null,
-                                                 state.lwrMapInfo ?? null]);
+                                                 state.lwrMapInfo ?? null, state.diagonalCover ?? null]);
 // The project's map picture (LWR map packs plan, 4.3): null, or { sha256 }, the SHA-256 of the 512 x 256 picture the
 // server keeps with the project (tools/viewer/pictures.py); the Build writes it into the map.
 export const validPicture = p => Boolean(p) && typeof p === 'object' && !Array.isArray(p) && Object.keys(p).length === 1
@@ -194,10 +194,18 @@ export function sortState(state) {
            // the server takes it, for the compiler to leave out; an empty one says nothing
            lwrMapInfo: validMapInfo(state.lwrMapInfo) ? tidyMapInfo(state.lwrMapInfo)
              : carriedMapInfo(state.lwrMapInfo) && Object.keys(state.lwrMapInfo).length ? { ...state.lwrMapInfo } : null,
+           // the diagonal cover the project marks (schema 7): diagonal_marks.js savedDiagonal made it, its marks and places
+           // in order; a record the page can't read is carried in it as saved, for the compiler to leave out
+           diagonalCover: diagonalShape(state.diagonalCover) ? { marks: state.diagonalCover.marks ?? [], removed: state.diagonalCover.removed ?? [] } : null,
            // the map picture: a malformed one is dropped (the server would refuse the save)
            picture: validPicture(state.picture) ? { sha256: state.picture.sha256 } : null };
 }
 
+// The diagonal cover a project marks (schema 7): { marks: [records], removed: [places] }, the frame the server takes
+// (projects.py); diagonal_marks.js reads the records. Anything else is dropped (the server would refuse the save).
+const diagonalShape = d => Boolean(d) && typeof d === 'object' && !Array.isArray(d) && Object.keys(d).every(k => ['marks', 'removed'].includes(k))
+  && (d.marks === undefined || (Array.isArray(d.marks) && d.marks.every(m => m && typeof m === 'object' && !Array.isArray(m))))
+  && (d.removed === undefined || Array.isArray(d.removed)) && Boolean(d.marks?.length || d.removed?.length);
 // A record the browser can apply: a known shape with finite numbers (the server checks only the document's frame).
 const finite3 = v => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
 const isTarget = t => t && typeof t.package === 'string' && typeof t.level === 'string' && typeof t.actor === 'string';

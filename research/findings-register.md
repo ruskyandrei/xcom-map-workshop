@@ -648,7 +648,12 @@ the fix).
   0x14004. A step off read no cover ((48, 40), (40, 12)), or the map's own half cover where a piece stands beside
   ((44, 42), as in the game's map). The written tiles' links carried every walk; both saves hold the six tiles as
   written.
-- **Left**: a piece brought from another map does not carry its home map's marks (the finder decides); a volume
+- **Since 23 November 2026** the finder decides nothing in the Build (it took door openings for corners, KB-20):
+  a piece with no place of its own in the map gets diagonal cover where the project marks it, and the project's
+  marks are written whole with the same writer, along their marked corners only (`mark_cover`; a marked corner with
+  no wall gets cover as marked). The tests on the farm (`test_native_copy.py`) mark a turned cover block's corner,
+  two corners with one against nothing, a map's corner turned and one taken away.
+- **Left**: a piece brought from another map does not carry its home map's marks; a volume
   made without the change's boxes (a ladder's tile volume, a cleared map's) still rebuilds what it reaches; the
   game's own rebuilds during play take a written tile like one of its own (F-149).
 
@@ -758,8 +763,10 @@ round the marked tiles and three sampled boxes a map, the record in
   of CSmallScout_Badlands, _Marshlands, _Quagmire, _Roadhouse and LSmallScout_River, which is why those five scouts
   have no diagonal cover as the game ships them; two more (Act2_Pier, URB_Bar) save `bDiagonalCover` off.
 - **So, for the Build**: a tile nothing of a project changes keeps its bake (the designers' marks as they are, the
-  five scouts without). The finder's condition (the fourth row) decides only for tiles a project changes or adds:
-  a corner of the kind the designers usually marked, where the straight rule gives no cover at all.
+  five scouts without). The finder's condition (the fourth row) decided, from 22 to 23 November 2026, only for tiles
+  a project's own pieces stood on: a corner of the kind the designers usually marked, where the straight rule gives
+  no cover at all. Since 23 November it decides nothing (KB-20, below): the finder lives in the research script, and
+  a project marks its diagonal cover by hand.
 - **The unmarked tiles by kind** (23 November 2026, after a user's report of cover in a UFO door, KNOWN-BUGS.md KB-20;
   counted from the same record): of the 111, 25 are door openings (the tile between a door's two jambs, on 11 large
   scout maps), 31 are further tiles along a slanted wall the makers marked elsewhere (energy fields 20, inner walls

@@ -86,6 +86,16 @@ export function setProjectBackgroundSound(next) { projectBackgroundSound = next;
 // What the project tells Long War Rebalance of the map (schema 6; missions.js validMapInfo): null, nothing
 export let projectMapInfo = null;
 export function setProjectMapInfo(next) { projectMapInfo = next; }
+// The diagonal cover the project marks (schema 7; diagonal_marks.js): its own marks and the map's it deletes ({ marks,
+// removed }, or null: the map's as it is), the marks that follow their pieces as the pieces stand now (worked out by
+// diagonal_wiring.js after each edit: saved with the project for the Build, worked out again when it opens), and the
+// records of a project this editor can't read (saved back as they were)
+export let projectDiagonal = null;
+export function setProjectDiagonal(next) { projectDiagonal = next; }
+export let diagonalCarried = [];
+export function setDiagonalCarried(next) { diagonalCarried = next; }
+export let diagonalCarriedOver = [];
+export function setDiagonalCarriedOver(next) { diagonalCarriedOver = next; }
 
 // The buildings drawn as boxes and edited (project.js validBuilding; buildings_wiring.js's setBuildings draws them):
 // the project's, made from nothing by the Build, and the map's own that can be edited, each as the project's are (map

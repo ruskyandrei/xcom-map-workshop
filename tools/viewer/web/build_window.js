@@ -32,6 +32,13 @@ export function flagWords(f) {
   return [`flags written on ${plural(pieces, 'piece')}`, f.regions && `${plural(f.regions, 'tile region')} worked out again`,
           f.refused?.length && `not written on ${f.refused.join(', ')}`].filter(Boolean).join(', ');
 }
+/** The light step's words for the diagonal cover the project marked (build.py diagonal_record's stage counts), or ''. */
+export function diagonalWords(d) {
+  if (!d || !(d.marks || d.removed)) return '';
+  return [d.marks && `diagonal cover marked on ${plural(d.marks, 'tile')}`,
+          d.noWall && `${d.noWall} toward a corner with no wall`, d.noFloor && `${d.noFloor} with no floor`,
+          d.removed && `taken from ${d.removed} of the map's`].filter(Boolean).join(', ');
+}
 /** A step's line under its name: what it made once done, or what it is doing while it runs (`running`). */
 export function stepDetail(key, stage, job, running) {
   if (key === 'compile' && stage) {
@@ -54,11 +61,14 @@ export function stepDetail(key, stage, job, running) {
   }
   if (key === 'light' && stage?.baked === false)    // a quick build's: the edit made, nothing relit
     return [stage.nativeCopies && `${copyCount(stage.nativeCopies)} made`, stage.hidden && `${stage.hidden} taken out`,
-            stage.lights && 'light edits made', flagWords(stage.pieceFlags), 'lighting not baked'].filter(Boolean).join(', ');
+            stage.lights && 'light edits made', flagWords(stage.pieceFlags), diagonalWords(stage.diagonalCover),
+            'lighting not baked'].filter(Boolean).join(', ');
   // a build whose light edits change no texel (a light added switched off) keeps the map's lighting
-  if (key === 'light' && stage?.lightingUnchanged) return ['lighting unchanged: no texel to relight', flagWords(stage.pieceFlags)].filter(Boolean).join('; ');
+  if (key === 'light' && stage?.lightingUnchanged) return ['lighting unchanged: no texel to relight', flagWords(stage.pieceFlags),
+                                                           diagonalWords(stage.diagonalCover)].filter(Boolean).join('; ');
   if (key === 'light' && stage) return [`${plural(stage.written, 'piece')} relit`, `${stage.unchanged} unchanged`,
                                         stage.hidden && `${stage.hidden} taken out`, flagWords(stage.pieceFlags),
+                                        diagonalWords(stage.diagonalCover),
                                         stage.otherPiecesChanged && `${plural(stage.otherPiecesChanged.count, 'piece')} not relit changed too (below)`]
     .filter(Boolean).join(', ');
   if (!running) return '';

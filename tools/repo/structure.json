@@ -2,6 +2,7 @@
   "compiler families": [
     "tools/editor/building_edits.py",
     "tools/editor/compiler_tables.py",
+    "tools/editor/diagonal_edits.py",
     "tools/editor/effect_edits.py",
     "tools/editor/flag_edits.py",
     "tools/editor/floor_edits.py",

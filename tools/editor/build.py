@@ -838,6 +838,7 @@ class Build:
         self.stage_kept = True
         self.covers = self.buildings = self.building_edits = self.any_buildings = None
         self.piece_flags = self.piece_blasts = self.flags_edit = self.spawn_edits = self.effects_edit = None
+        self.marks_edit, self.diagonal = None, None
         self.background_sound = self.sound_brought = None
         self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = self.map_info = None
         self.has_lights, self.lights, self.moves_landings = False, None, False
@@ -1078,6 +1079,9 @@ class Build:
         # the map's background sound given another cue, none or another volume (native_sounds.background): a setting
         # of its script, no light, so it goes with the effects too
         self.background_sound = self.native.get('backgroundSound')
+        # the diagonal cover the project marks (schema 7; native_copy.diagonal_edit, diagonal_keep.write): tiles the
+        # writer works out, no light, so it goes with the effects
+        self.marks_edit = bool(self.native.get('diagonalCover'))
         self.effects_edit = bool(self.background_sound) or any(
             (self.native.get(k) or {}).get(op) for k in EFFECT_LANES + ('spawns',) for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])
@@ -1153,7 +1157,7 @@ class Build:
         return bool(self.natives or self.native['hides'] or self.covers or self.has_patch or self.has_lights
                     or self.resizes or self.any_buildings or self.cleared or self.landing_zones is not None
                     or self.stream_moves or self.native.get('streamHides') or self.flags_edit or self.effects_edit
-                    or self.spawn_rules or self.map_info or self.missions_listed is not None or pictures.named(self.doc))
+                    or self.marks_edit or self.spawn_rules or self.map_info or self.missions_listed is not None or pictures.named(self.doc))
 
     def claims(self):
         """Who holds which names now (outputnames.Claims), this project's own left out."""
@@ -1423,12 +1427,14 @@ class Build:
         if self.quick:
             return self.edit_unbaked()
         if not (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
-                or self.moves_landings or self.has_patch or self.resizes or self.flags_edit or self.effects_edit):
+                or self.moves_landings or self.has_patch or self.resizes or self.flags_edit or self.effects_edit
+                or self.marks_edit):
             # landing-zone lines alone (Clear map plan, section 4), or a spawn rule (spawns plan, SP8): nothing in the
             # map changes, so nothing is relit, and the variant reads the map's own lightmaps (lighting unchanged; the
             # stage says so as cover blocks alone do, not as a quick build's)
             return self.edit_unbaked(unchanged=True)
-        if (self.covers or self.any_buildings or self.cleared or self.flags_edit or self.effects_edit) and not (
+        if (self.covers or self.any_buildings or self.cleared or self.flags_edit or self.effects_edit
+                or self.marks_edit) and not (
                 self.natives or self.native['hides'] or self.has_lights or self.has_patch or self.moves_landings):
             # cover blocks alone: hidden pieces change no baked light (a hidden actor casts no baked shadow,
             # shadows.py), so there is nothing to relight. The map is made as a quick build makes it and keeps the
@@ -1443,7 +1449,7 @@ class Build:
                       self.work / 'logs' / 'native-copy.log')
             self.relit = dict(written=0, unchanged=0, skipped=0, shadowMaps=0, copies=[], nativeCopies=[], hidden=0,
                               lightingUnchanged=True, coverBlocks=len(self.covers), **self.building_record(),
-                              **self.flag_record())
+                              **self.flag_record(), **self.diagonal_record())
             self.stage('light', cache=None, baked=True, **self.relit)
             return
         self.cache_name = cache_name(self.variant)
@@ -1490,6 +1496,7 @@ class Build:
             self.relit['lights'] = dict(self.lights, **self.light_record())
         self.relit.update(self.building_record())
         self.relit.update(self.flag_record())
+        self.relit.update(self.diagonal_record())
         self.stage('light', cache=self.cache_name, baked=True, **self.relit)
 
     def named_base(self):
@@ -1562,6 +1569,42 @@ class Build:
                                     regions=len(tiles.get('regions') or []), seeded=tiles.get('seeded', 0),
                                     ladders=sum(1 for l in m['nativeCopies'].get('ladders') or [] if l.get('inPlace'))))
 
+    def diagonal_record(self):
+        """What the writer's record says of the diagonal cover (the fixture manifest's nativeCopies `diagonalCover`,
+        diagonal_keep.write): the project's marks as written (each mark's place, its corners, its cover flags, the
+        corners with no wall toward them and whether its tile has no floor), how many of the map's marked tiles the
+        project took it from, how many corners copies carried, and the marks off the grid. A corner with no wall and a
+        mark with no floor are said in the log as warnings: the game gives a unit there cover against nothing, or no
+        cover. Kept for the manifest (self.diagonal), where the Diagonal cover view's panel reads it (builds.py's
+        package summary). {} without any."""
+        try:
+            m = json.loads((self.lit / ('%s.fixture.json' % self.variant)).read_text(encoding='utf-8'))
+            d = m['nativeCopies'].get('diagonalCover') or {}
+        except (OSError, ValueError, KeyError, AttributeError):
+            return {}
+        whole = d.get('whole') or []
+        marks = [dict(at=r.get('at'), tile=r['tile'], toward=r['mark'], cover=r['cover'],
+                      **({'noWall': r['noWall']} if r.get('noWall') else {}), **({'noFloor': True} if r.get('noFloor') else {}))
+                 for r in whole if r.get('mark')]
+        record = dict(marks=marks, removed=sum(1 for r in whole if r.get('removed')),
+                      carried=sum(1 for r in whole if r.get('newCorner')),
+                      **({'outside': d['outside']} if d.get('outside') else {}))
+        if not (marks or record['removed'] or record['carried'] or d.get('outside')):
+            return {}
+        for r in marks:
+            if r.get('noWall'):
+                self.echo('warning: diagonal cover on tile %s toward %s, where no wall stands: the game gives a unit there '
+                          'cover against nothing that way' % (tuple(r['tile']), ' and '.join(str(tuple(c)) for c in r['noWall'])))
+            if r.get('noFloor'):
+                self.echo('warning: diagonal cover marked on tile %s, which has no floor of its own: the game gives it no '
+                          'cover' % (tuple(r['tile']),))
+        for at in d.get('outside') or []:
+            self.echo('warning: a diagonal cover mark at %s is off the map\'s tile grid: left out' % ([round(v) for v in at],))
+        self.diagonal = record
+        return dict(diagonalCover=dict(marks=len(marks), noWall=sum(1 for r in marks if r.get('noWall')),
+                                       noFloor=sum(1 for r in marks if r.get('noFloor')), removed=record['removed'],
+                                       carried=record['carried']))
+
     def light_record(self):
         """What the writer's record says of the light edits (the fixture manifest's `lights`): the receivers each
         light was listed in, those in reach without a texture lightmap, and the imports recipe spots made."""
@@ -1584,7 +1627,7 @@ class Build:
         self.cache_name = None
         self.unchanged = unchanged
         if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
-                or self.moves_landings or self.stream_tiles or self.flags_edit or self.effects_edit):
+                or self.moves_landings or self.stream_tiles or self.flags_edit or self.effects_edit or self.marks_edit):
             # light edits too: the same actor and component changes as a full build's, receivers' lightmap lists left
             # as they are (editor lights plan, 4.3). The map is the base map, or the staged one with the pieces of
             # other maps in it (transplant)
@@ -1600,7 +1643,7 @@ class Build:
         self.stage('light', cache=None, baked=unchanged, nativeCopies=len(self.natives), hidden=len(self.native['hides']),
                    **({'lightingUnchanged': True} if unchanged else {}),
                    **({'coverBlocks': len(self.covers)} if self.covers else {}), **self.building_record(),
-                   **self.flag_record(),
+                   **self.flag_record(), **self.diagonal_record(),
                    **({'lights': dict(self.lights, **self.light_record())} if self.lights else {}))
 
     def seed(self, cooked_dir):
@@ -1895,6 +1938,8 @@ class Build:
                                              **({'from': self.sound_brought['map']} if self.sound_brought else {}))}
                     if self.background_sound else {}),
                  buildings=len(self.buildings), buildingEdits=len(self.building_edits),
+                 # the diagonal cover the writer wrote (diagonal_record): the project's marks, each as written
+                 **({'diagonalCover': self.diagonal} if self.diagonal else {}),
                  donors=self.donors, foreignPieces=sum(d['pieces'] for d in self.donors),
                  foreignEffects=sum(d.get('effects', 0) for d in self.donors),
                  lights=self.lights,

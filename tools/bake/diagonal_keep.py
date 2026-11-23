@@ -23,17 +23,20 @@ the level's list, the copies in):
   (rebuild_order), the bake's where it leaves them. A seeded tile is worked out as the build works out a seeded
   tile (its four diagonals only), so a change that takes its corner away takes its cover with it, as a full build
   would.
-- **New corners** (D2, D3): a tile a new piece stands on (`candidates`, native_copy.diagonal_candidates) with no
-  seed, written whole with diagonal cover where
-  - a copy of one of the map's own pieces carries a seed there (its tile on the original had diagonal cover) and a
-    diagonal gives cover at the new place, as on a seeded tile: the designers' marks move with their pieces;
-  - a piece with no place of its own in the map (made from numbers, a cover block, a piece from another map) makes
-    a corner the finder takes (tile_rule.finder: a wall at 45 degrees crossing the tile, high cover, no straight
-    cover; F-153).
-  A rebuild volume that would reach it is made as several that do not (refit, rebuild_fit), its place in the level's
-  list kept.
+- **Carried corners** (D2): a tile a copy of one of the map's own pieces stands on (`candidates`,
+  native_copy.diagonal_candidates) with no seed, written whole with diagonal cover where the copy carries a seed
+  there (its tile on the original had diagonal cover) and a diagonal gives cover at the new place, as on a seeded
+  tile: the designers' marks move with their pieces. A piece with no place of its own in the map carries nothing
+  (the finder that once decided those, F-153, took door openings for corners: KB-20).
+- **The project's marks** (`edit`, native_copy.diagonal_edit: diagonal cover placed by hand, private/plans/todo/
+  diagonal-cover-by-hand-and-views-plan.md, section 3.3): each marked tile written whole with diagonal cover along
+  its marked corners only (mark_cover): a corner's wall as the game's rule finds it, and a corner with no wall
+  written as marked; each of the map's marked tiles the project takes it from (`removed`) written whole by the
+  straight rule, as the game's build makes a tile without its seed.
+  A rebuild volume that would reach a carried corner or a mark is made as several that do not (refit, rebuild_fit),
+  its place in the level's list kept.
 
-  write(path, tiles, whole, candidates)   writes them into the package at `path`; returns the record
+  write(path, tiles, whole, candidates, edit)   writes them into the package at `path`; returns the record
 """
 import os
 import struct
@@ -171,22 +174,19 @@ def _region(view, t, down, up):
 
 
 def find_new(ld, candidates, marked):
-    """The new corners among `candidates` ({tile: 'carried' | 'finder'}, native_copy.diagonal_candidates) without a
-    seed (`marked`), against the built map, its tiles round each worked out afresh: a carried tile where a diagonal
-    gives cover (the seeded rule: the map's mark carried with its piece), a 'finder' one where the finder finds a
-    corner (tile_rule.finder, F-153). {tile: kind}."""
+    """The carried corners among `candidates` ({tile: 'carried'}, native_copy.diagonal_candidates) without a seed
+    (`marked`), against the built map, its tiles round each worked out afresh: a carried tile where a diagonal gives
+    cover (the seeded rule: the map's mark carried with its piece). {tile: 'carried'}."""
     out = {}
     probe = tile_rule.Tiles(ld.corner, ld.dims, {}, {})       # (pass 1 reads no other tile)
     if not isinstance(candidates, dict):
-        candidates = dict.fromkeys(candidates, 'finder')
+        candidates = dict.fromkeys(candidates, 'carried')
     for c in sorted(set(candidates) - set(marked), key=_order):
         kind = candidates[c]
         if not probe.inside(c):
             continue
         f = tile_build.first_pass(ld.world, probe, c)
         if not f & tile_rule.FLOOR or f & tile_rule.RAMP:
-            continue
-        if kind == 'finder' and not (f & tile_rule.OCCUPIED and f & tile_rule.PARTLY):
             continue
         here = ld.view()
         tile_build.first_pass(ld.world, here, c)
@@ -197,25 +197,54 @@ def find_new(ld, candidates, marked):
             tile_build.standing_room(here, n)
         if not tile_rule.candidate(here, c):
             continue
-        if kind == 'carried':
-            found = bool(tile_rule.cover(ld.world, here, c, True)['flags'] & 0xF)
-        else:
-            found = tile_rule.finder(ld.world, here, c)['diagonal']
-        if found:
+        if tile_rule.cover(ld.world, here, c, True)['flags'] & 0xF:
             out[c] = kind
     return out
 
 
-def plan_whole(ld, tiles, diagonal, rebuilt):
+def toward(i):
+    """The way TABLE's diagonal `i` faces, (sx, sy) in game axes."""
+    dd = tile_rule.TABLE[i]['dd']
+    return [round(dd[0] / tile_rule.S), round(dd[1] / tile_rule.S)]
+
+
+def mark_cover(world, view, t, bits):
+    """A tile the project marks with diagonal cover toward the corners `bits` names (cover bits 0x1 to 0x8): its cover
+    worked out as the game's build works out a seeded tile, along those corners only (tile_rule.cover). A marked
+    corner where the rule finds no wall is written as marked: its cover bit, high, no step-outs, no climbing, no
+    blocking bit, its point tile_rule.NO_WALL_POINT from the tile's middle toward the corner (the plan's decision 3:
+    the game gives the unit cover that way, against nothing). dict(flags, static, location, parts, noWall: the
+    indices into TABLE of the corners with no wall)."""
+    dirs = [i for i, e in enumerate(tile_rule.TABLE) if bits & e['cover']]
+    c = tile_rule.cover(world, view, t, True, directions=dirs)
+    no_wall = [i for i in dirs if tile_rule.TABLE[i]['name'] not in c['parts']]
+    if not no_wall:
+        return dict(c, noWall=[])
+    flags, points = c['flags'], [r['point'] for r in c['parts'].values()]
+    p0 = view.position(t)
+    z = float(view.floor[tuple(t)]['loc'][2])
+    for i in no_wall:
+        dd = tile_rule.TABLE[i]['dd']
+        flags |= tile_rule.TABLE[i]['cover']
+        points.append((p0[0] + dd[0] * tile_rule.NO_WALL_POINT, p0[1] + dd[1] * tile_rule.NO_WALL_POINT, z))
+    mean = [sum(pt[k] for pt in points) / len(points) for k in range(3)]
+    location = tuple(float(min(max(mean[k], p0[k] - lim), p0[k] + lim)) for k, lim in enumerate((44.0, 44.0, 32.0)))
+    return dict(c, flags=flags, location=location, noWall=no_wall)
+
+
+def plan_whole(ld, tiles, diagonal, rebuilt, marks=None):
     """Tiles a change stands on worked out whole (passes 1 and 2, F-152 and F-153; the link step and the ladders,
     F-154), against the built map, the tiles round each as the battle will have them: worked out where its rebuild
-    takes them (`rebuilt`, rebuild_order's set), the bake's where it leaves them. A tile of `diagonal` (a seed's, or
-    a corner the finder found) is worked out as the build works out a seeded tile: its four diagonals only, the flag
-    alone where it has no cover worked out (cover-build.md section 3); any other gets the straight rule. {tile:
-    dict(static, cover, location, floor (a floor record, or None for none), before)}."""
+    takes them (`rebuilt`, rebuild_order's set), the bake's where it leaves them. A tile of `diagonal` (a seed's, a
+    carried corner, a mark) is worked out as the build works out a seeded tile: its four diagonals only, or a mark's
+    (`marks` {tile: cover bits}) its marked corners only (mark_cover), the flag alone where it has no cover worked out
+    (cover-build.md section 3); any other gets the straight rule. {tile: dict(static, cover, location, floor (a floor
+    record, or None for none), before, noWall (a mark's corners with no wall, as (sx, sy)), noFloor (a diagonal tile
+    with no floor of its own: the flag alone))}."""
     import tile_links
     out = {}
     tiles = set(tiles)
+    marks = marks or {}
     for t in sorted(tiles, key=_order):
         view = ld.view()
         cover, location = dict(ld.cover), dict(ld.location)
@@ -228,9 +257,11 @@ def plan_whole(ld, tiles, diagonal, rebuilt):
             if u == t:
                 tile_build.standing_room(view, t)
                 if tile_rule.candidate(view, t):
-                    chosen = tile_rule.cover(ld.world, view, t, t in diagonal)
+                    chosen = (mark_cover(ld.world, view, t, marks[t]) if t in marks
+                              else tile_rule.cover(ld.world, view, t, t in diagonal))
                 else:
-                    chosen = dict(flags=tile_rule.DIAGONAL if t in diagonal else 0, static=0, location=None)
+                    chosen = dict(flags=tile_rule.DIAGONAL if t in diagonal else 0, static=0, location=None,
+                                  noFloor=t in diagonal)
                 view.flags[t] = view.flag(t) | chosen['static']
                 if near[t]:
                     view.flags[t] = view.flag(t) | tile_build.blocking(ld.world, view, t)
@@ -276,7 +307,8 @@ def plan_whole(ld, tiles, diagonal, rebuilt):
                          actor=actor, volume=rec['volume'] if rec else 0)
         out[t] = dict(static=static, cover=cover[t], location=location.get(t), floor=floor,
                       before=dict(static=old, cover=ld.cover.get(t), links=len(ld.floors[t]['record']['links'])
-                                  if t in ld.floors else None))
+                                  if t in ld.floors else None),
+                      noWall=[toward(i) for i in chosen.get('noWall') or []], noFloor=bool(chosen.get('noFloor')))
     return out
 
 
@@ -349,29 +381,36 @@ def _store(model, hybrid, whole):
                                   else (bytes(world_grid.SIZES['floor']), 0))
 
 
-def write(path, tiles, whole=(), candidates=()):
-    """The package at `path` with its diagonal tiles next to a change (`tiles`) and under one (`whole`) written, and
-    the new corners found among `candidates` ({tile: 'carried' | 'finder'}: find_new) written whole, its rebuild
-    volumes refitted round them. Returns the record, each part there only when it has something: written [{tile,
-    static, cover, location, before, dropped}], whole [{tile, static, cover, location, links, before}] (newCorner
-    'carried' or 'found' on a new one), refitted [{volume, into}], left (tiles next to a change with no floor of their
-    own: their seed's flag alone, as the bake has it), rebuilt (tiles a volume told nothing of the change still
-    takes); {} for nothing written."""
+def write(path, tiles, whole=(), candidates=(), edit=None):
+    """The package at `path` with its diagonal tiles next to a change (`tiles`) and under one (`whole`) written, the
+    carried corners among `candidates` ({tile: 'carried'}: find_new) written whole, and the project's diagonal cover
+    (`edit`, native_copy.diagonal_edit: its marks written whole along their corners, the map's marked tiles it
+    removes written whole by the straight rule), its rebuild volumes refitted round the carried corners and the
+    marks. Returns the record, each part there only when it has something: written [{tile, static, cover, location,
+    before, dropped}], whole [{tile, static, cover, location, links, before}] (newCorner 'carried' on a carried one;
+    a mark's with mark (its corners, as (sx, sy)), and noWall (those with no wall) and noFloor where so; a removed
+    one's with removed), refitted [{volume, into}], left (tiles next to a change with no floor of their own: their
+    seed's flag alone, as the bake has it), rebuilt (tiles a volume told nothing of the change still takes), outside
+    (marks off the grid, left out); {} for nothing written."""
     import lighting_records as lighting
     import native_copy
     import package_grow
     p = lighting.Package(Path(path))
-    marked = set(native_copy.diagonal_tiles(p))
+    marks = dict(edit['marks']) if edit else {}
+    removed = set(edit['removed']) if edit else set()
+    marked = set(native_copy.diagonal_tiles(p)) - removed
     ld = Loaded(p)
-    new = find_new(ld, candidates, marked) if candidates else {}
+    corner = ld.corner
+    new = find_new(ld, candidates, marked | set(marks)) if candidates else {}
     refitted = []
-    if new:
+    keep = set(new) | set(marks)
+    if keep:
         rebuilt = set(native_copy.rebuild_order(p))
-        if any(t in rebuilt for t in new):
-            # the new corners and the tiles over them no change stands on, and every seeded tile the volumes leave
-            # alone now, with the tiles over it
-            forbidden = set(new) | {(x, y, z + n) for x, y, z in new for n in range(1, STANDING_ROOM + 1)
-                                    if (x, y, z + n) not in candidates}
+        if any(t in rebuilt for t in keep):
+            # the carried corners and the marks and the tiles over them no change stands on, and every seeded tile
+            # the volumes leave alone now, with the tiles over it
+            forbidden = keep | {(x, y, z + n) for x, y, z in keep for n in range(1, STANDING_ROOM + 1)
+                                if (x, y, z + n) not in candidates}
             forbidden |= {(x, y, z + n) for x, y, z in marked for n in range(STANDING_ROOM + 1)
                           if (x, y, z + n) not in rebuilt}
             forbidden = {t for t in forbidden if all(0 <= t[k] < ld.dims[k] for k in range(3))}
@@ -380,11 +419,11 @@ def write(path, tiles, whole=(), candidates=()):
             p = lighting.Package(Path(path))
             ld = Loaded(p)
     rebuilt = set(native_copy.rebuild_order(p))
-    under = (set(whole) | set(new)) - rebuilt
-    hybrid, model = plan(p, set(tiles) - under - rebuilt, ld)
+    under = (set(whole) | set(new) | set(marks) | removed) - rebuilt
+    hybrid, model = plan(p, set(tiles) - under - rebuilt - removed, ld)
     for t, r in hybrid.items():           # the tiles round a whole tile see these as written
         ld.flags[t], ld.cover[t] = r['static'], r['cover']
-    planned = plan_whole(ld, under, marked | set(new), rebuilt)
+    planned = plan_whole(ld, under, marked | set(new) | set(marks), rebuilt, marks)
     if hybrid or planned:
         _store(model, hybrid, planned)
         index, blob = world_grid.container_of(p)
@@ -412,7 +451,17 @@ def write(path, tiles, whole=(), candidates=()):
                    before=dict(static=hexed(r['before']['static'], 7), cover=hexed(r['before']['cover'], 6),
                                links=r['before']['links']))
         if t in new:
-            one['newCorner'] = 'carried' if new[t] == 'carried' else 'found'
+            one['newCorner'] = 'carried'
+        if t in marks:
+            one['mark'] = [toward(i) for i, e in enumerate(tile_rule.TABLE) if marks[t] & e['cover']]
+            # (its middle in the world, as the project names it: the page finds its mark's record by it)
+            one['at'] = [round(corner[k] + size * (t[k] + 0.5), 2) for k, size in enumerate((96.0, 96.0, 64.0))]
+        if t in removed:
+            one['removed'] = True
+        if r['noWall']:
+            one['noWall'] = r['noWall']
+        if r['noFloor'] and t in marks:
+            one['noFloor'] = True
         whole_record.append(one)
     out = {}
     if written:
@@ -424,7 +473,9 @@ def write(path, tiles, whole=(), candidates=()):
         out['left'] = left
     if refitted:
         out['refitted'] = refitted
-    taken = sorted(list(t) for t in (set(whole) | set(tiles)) & rebuilt)
+    taken = sorted(list(t) for t in (set(whole) | set(tiles) | set(marks)) & rebuilt)
     if taken:
         out['rebuilt'] = taken
+    if edit and edit.get('outside'):
+        out['outside'] = edit['outside']
     return out

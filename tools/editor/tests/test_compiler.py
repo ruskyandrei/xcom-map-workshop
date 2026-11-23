@@ -93,6 +93,49 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         _, report = compile_project(document([dict(target=target('XComFracLevelActor_11'), deleted=True)]), s)
         self.assertEqual([n for n in report['notes'] if n['code'] == 'diagonal-cover-rewritten'], [])
 
+    def test_the_projects_diagonal_cover_goes_to_the_build(self):
+        # schema 7 (KB-20: diagonal cover placed by hand): a mark's place is a tile's middle, counted from the game's
+        # tile corner; a mark's `from` takes the map's own mark there away, and `removed` names the map's marks taken
+        # away; marks on one tile join their corners; a mark that can't be read is left out; a mark on a tile with no
+        # floor warns; a removed place the map gives no diagonal cover is a note
+        from compiler_tables import tile_corner
+        s = scene()
+        s['tileGrid'].update(dimensions=[52, 39, 12], size=[96, 96, 64])
+        c = tile_corner(s['tileGrid'])
+
+        def at(t):
+            return [c[0] + 96 * (t[0] + 0.5), c[1] + 96 * (t[1] + 0.5), c[2] + 64 * (t[2] + 0.5)]
+        own = [[10, 10, 0], [12, 10, 0], [14, 10, 0]]
+        s['tactical'] = dict(floorTiles=[dict(tile=t, location=at(t), normal=[0, 0, 1], actor=None)
+                                         for t in own + [[12, 11, 0], [20, 20, 0]]],
+                             diagonalCover=[dict(tile=t, floor=0.0, location=None, directions=[]) for t in own])
+        doc = document([])
+        doc['diagonalCover'] = dict(
+            marks=[dict(at=at([20, 20, 0]), toward=[[1, 1]]), dict(at=at([20, 20, 0]), toward=[[-1, -1], [1, 1]]),
+                   {'at': at([12, 11, 0]), 'toward': [[1, -1]], 'from': at([12, 10, 0])},
+                   dict(at=at([14, 10, 0]), toward=[[1, -1]]), dict(at=at([30, 30, 0]), toward=[[1, 1]]),
+                   dict(at=[1, 2], toward=[[1, 1]]), dict(at=at([5, 5, 0]), toward=[[2, 0]])],
+            removed=[at([10, 10, 0]), at([40, 30, 0])])
+        spec, report = compile_project(doc, s)
+        self.assertTrue(report['ok'], refused(report))
+        lane = spec['diagonalCover']
+        self.assertEqual([(m['at'], m['toward']) for m in lane['marks']],
+                         [(at([12, 11, 0]), [[1, -1]]), (at([14, 10, 0]), [[1, -1]]),
+                          (at([20, 20, 0]), [[-1, -1], [1, 1]]), (at([30, 30, 0]), [[1, 1]])])
+        self.assertEqual(lane['removed'], [at([10, 10, 0]), at([12, 10, 0])])
+        self.assertEqual(sorted(e['record'] for e in report['leftOut'] if e['code'] == 'diagonal-mark'),
+                         ['diagonalCover.marks[5]', 'diagonalCover.marks[6]'])
+        no_floor, = [w for w in report['warnings'] if w['code'] == 'diagonal-mark-no-floor']
+        self.assertEqual(no_floor['tiles'], [[30, 30, 0]])
+        self.assertEqual(noted(report, 'diagonal-removed-unmarked'), ['diagonal-removed-unmarked'])
+        self.assertEqual(report['diagonalCover'], dict(marks=4, removed=2))
+        # the Build takes it as the native edit's lane
+        self.assertEqual(native_split(spec)[1]['diagonalCover'], lane)
+        # none: no lane
+        spec, report = compile_project(document([dict(target=target('XComLevelActor_1'), deleted=True)]), s)
+        self.assertNotIn('diagonalCover', spec)
+        self.assertNotIn('diagonalCover', report)
+
     def test_a_map_the_game_knows_by_name_gets_a_note(self):
         # mission types plan, Part B: Zhang and the mission's script are tied to Low Friends' name
         s = dict(scene(), name='DLC1_1_LowFriends')
@@ -954,7 +997,7 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
 
     def test_schema_source_and_output_are_checked(self):
-        for doc, code in [(document(schemaVersion=7), 'schema'),
+        for doc, code in [(document(schemaVersion=8), 'schema'),
                           (document(source=dict(map='URB_Bar', sha256='b' * 64)), 'source-mismatch'),
                           (document(output=dict(shipAs='URB_Bar', patch='patch_x')), 'output'),
                           (document(output=dict(shipAs='Bad name', patch='patch_x')), 'output'),
