@@ -19,8 +19,9 @@ for controls, a new style) writes the pattern here in the same commit.
   is drawn, and the panel keeps the number for reading and typing.
 - **The Snap setting governs every such edit**, as [AGENTS.md](AGENTS.md) says: continuous with Snap off, the chosen
   step with it on, for handles, gizmos and fields alike. The exception is a thing the game keeps per tile, which has
-  no place between tiles: a diagonal cover mark moves by whole tiles and levels whatever Snap says (the user, 23
-  November 2026), and the hint says so while it moves.
+  no place between tiles: a diagonal cover mark, a spawn point and a mission object move by whole tiles and levels
+  whatever Snap says (the user, 23 November 2026). While one is picked the Snap button shows that step (its badge 96,
+  its tip saying why), and the user's own setting is back when it is let go; the mark's hint says so while it moves.
 - **Keep the view readable.** Every handle and marker added makes the others harder to see and to click:
   - Only what is picked shows its handles. Nothing unpicked carries controls.
   - A kind of thing with many markers has a view of its own, shown when its row in the rail's Views list is on, and
@@ -64,6 +65,32 @@ for controls, a new style) writes the pattern here in the same commit.
   - the hint line: what the pointer is doing now.
 
   A new control goes where its kind is. A new place is a larger change (section 4).
+- **The same controls on every thing** (since 23 November 2026, Discord S18). Everything that has a place in the map
+  (a piece, a light, an effect, a floor box, a landing zone, a spawn point, a mission object, a diagonal cover mark)
+  is picked, moved, turned, copied and deleted with one set of controls, meaning the same on each:
+
+  | Control | What it does, everywhere |
+  | --- | --- |
+  | Click | Picks. Ctrl or Shift+click adds or takes out, where several can be picked. A click on nothing, or Esc, lets go. |
+  | Ctrl+wheel | Steps through what is under the cursor, nearest first, each notch selecting the next. |
+  | G, the rail's Move | The gizmo's arrows. |
+  | R, the rail's Rotate | The gizmo's ring, where the thing turns (by quarters, where it turns by quarters only). Where it doesn't turn, a hint says so and the Rotate button is dimmed. |
+  | V, the rail's Select | The thing picked, no handles. |
+  | `[` and `]` | A quarter turn left or right, where the thing turns. |
+  | Shift+drag on an arrow | Drags off a copy: the original stays, the copy is put where the drag ends, picked, one undo step. Esc during the drag makes none. |
+  | Ctrl+C, the panel's Copy | Copies what is picked. |
+  | Ctrl+V | The copy on the cursor (or where the view's placing puts it); a click places it, Esc stops. |
+  | Ctrl+X | Copies and deletes. |
+  | Delete | Deletes; Ctrl+Z brings back. |
+  | Snap | Governs every move and turn. A thing with a least step of its own (whole tiles and levels) moves by that step, and the Snap button shows it while the thing is picked. |
+
+  - A new kind of thing in the view takes every control of the table it can, with the same keys, and names in a hint
+    the ones it can't. It adds no key or drag of its own for something the table already has (Ctrl+D, a copy at once
+    beside, is the landing zones' and spawn points' shortcut and stays theirs).
+  - A view's gizmo is made by [`view_gizmo.js`](tools/viewer/web/view_gizmo.js), so the rail's buttons, G, R and V,
+    Shift+drag, Esc, the press's busy test and the Snap button's step come with it. A `TransformControls` made by
+    hand in a view is a fault.
+  - A control that changes for one kind changes for all of them in the same commit, or the commit says why not.
 - **Use the stylesheet's parts.** [`style.css`](tools/viewer/web/style.css) has a panel (`.panel`), a folding section
   with its value shown when shut (`.fold`, `.foldval`), a row of buttons (`.row`), icon buttons (`.icon`, `.actions`),
   a chip for a state (`.chip`), a choice of a few (`.seg`), a tick box (`.check`), a note (`.lightnote`), a dialog
@@ -119,3 +146,4 @@ Before a commit that changes what a user sees:
 4. Is it built of the stylesheet's parts, with the names, icons and keys used elsewhere?
 5. Can anything in the panel go: a sentence, a repeated value, a section (section 3)? Do its buttons look like buttons?
 6. Is it a larger change? Then were the mock designs shown and one chosen (section 4)?
+7. Does the thing take the controls every other thing takes (section 2), and say why where it can't?

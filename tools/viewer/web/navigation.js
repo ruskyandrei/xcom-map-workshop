@@ -3,7 +3,10 @@
 //   turning it (panCamera, which the draw loop runs each frame), the look-drag along the view, the wheel's zoom to the
 //   point under the cursor, and View options' camera speeds and "Keys move along the view";
 // - the gizmo's buttons: Move, Rotate, Select and the axes, the pivot (remembered), and snap (setSnapMode and its
-//   button; SNAPS, the steps of snap_steps.js in words), kept up after each edit by the edit hub's `tools` refresh;
+//   button; SNAPS, the steps of snap_steps.js in words), kept up after each edit by the edit hub's `tools` refresh and
+//   as what is picked changes (syncTools, which the draw loop runs). Move, Rotate, Select and G, R and V drive the
+//   gizmo that is up (view_gizmo.js activeGizmo: a landing zone's, a spawn point's, a diagonal cover mark's, else the
+//   pieces'); the Snap button shows the step in force for what is picked;
 // - the editor's keys (index.html's help panel lists them), each calling the area that owns what it does.
 //
 // createNavigation takes what it needs of app.js as one argument object, when app.js makes it, where the camera's keys
@@ -12,12 +15,13 @@
 import * as THREE from 'three';
 import { QUARTER } from './constants.js';
 import { onHub, runHub } from './edit_hub.js';
-import { allRoots, assigning, breaking, builder, builderMode, coverDrag, data, effectsOn, gridDrag, gridTool, hintTimer,
+import { allRoots, assigning, breaking, builder, builderMode, coverDrag, data, diagonalOn, effectsOn, gridDrag, gridTool, hintTimer, viewGizmos,
          lightDrag, lightRadius, lightRoots, lightsOn, lookPicking, ownPicked, ownSet, pickBox, pickDrag,
          pickedEffect, pickedSpawn, pickedZone, pickTool, pieces, placing, rockPoint, roots, selected, setAssigning,
          setGhostDirty, setLightRadius, setOwnPickedValue, setSnapModeValue, snapMode, soloOn, spawnPlacing, spawnZonePick, textureDrag, texturePicked, volumeDrag, volumesOn, volumeTool, wallDrag, wallDrawing,
          zonePlacing } from './editor_state.js';
 import { recall, remember } from './storage.js';
+import { activeGizmo, cancelGizmoDrag } from './view_gizmo.js';
 import { focusBounds, visibleBounds } from './view_layout.js';
 import { modalOpen } from './modal.js';
 
@@ -31,24 +35,46 @@ const SNAPS = {
   tile: ['off', '96', 'Snap: whole tiles (96 across, 64 up) from where the piece stood, and 90° turns. Click to turn snap off'],
 };
 
-export function createNavigation({ $, applyLighting, builderRecords, camera, cancelMissionGizmo, cancelPointDrag,
-                                   cancelZoneGizmo, content, controls, copySelection, copySpawn, copyZone,
+export function createNavigation({ $, applyLighting, builderRecords, camera, cancelPointDrag,
+                                   content, controls, copySelection, copySpawn, copyZone,
                                    deleteSelection, deleteSpawn, deleteWallOpening, deleteZone, dragHint, editBaseSpawn,
                                    editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endTextureDrag,
                                    endVolumeDrag, endWallDrag, flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall,
-                                   lightPanel, madeRoot, mapBreakable, missionGizmo, openBuild, paste, pick, pickEffect,
+                                   lightPanel, madeRoot, mapBreakable, openBuild, paste, pick, pickEffect,
                                    pickZone, playArea, projectsAvailable, rayAt, refreshVolumes, releaseRockPoint,
                                    renderer, restingHint, saveProject, select, setGridTool,
                                    alignToGrid, setOwnPicked, setPickedSpawn,
                                    setPickTool, setPlayArea, setSolo, setVolumeTool, stepWheel,
-                                   setZoneGizmoMode, showFileDialog, showMapBrowser, showPieces, showPop,
+                                   showFileDialog, showMapBrowser, showPieces, showPop,
                                    spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
                                    stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing,
                                    stopZonePlacing, sun, takePickBox, TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel,
-                                   wallGhost, wallHint, zoneGizmo, diagonalKey }) {
-  onHub('edit', 'tools', () => {
-    for (const [id, m] of [['editMove','translate'],['editRotate','rotate'],['editOff','off']]) $(id).classList.toggle('on', gizmo.mode === m);
+                                   wallGhost, wallHint, diagonalKey }) {
+  // The gizmo's buttons by the gizmo that is up: its mode lit, Rotate dimmed (its click and R saying why) where what is
+  // picked doesn't turn, and the snap button's step in force
+  const ROTATE_TITLE = $('editRotate').title;
+  function toolButtons() {
+    const g = activeGizmo(), mode = g?.mode ?? gizmo.mode, turns = g?.turns !== false;
+    for (const [id, m] of [['editMove','translate'],['editRotate','rotate'],['editOff','off']]) $(id).classList.toggle('on', mode === m);
+    $('editRotate').classList.toggle('dim', !turns);
+    $('editRotate').title = turns ? ROTATE_TITLE : `Rotate (R): ${g.noTurn ?? 'what is picked doesn\'t turn'}`;
     snapButton();
+  }
+  // (as what is picked changes outside an edit, a zone or a spawn point picked: the draw loop asks each frame, and the
+  // buttons are drawn again when the gizmo that is up, its mode or its step changed)
+  let toolsKey = '';
+  function syncTools() {
+    const g = activeGizmo(), key = `${viewGizmos.indexOf(g)}|${g?.mode}|${g?.snap?.()}|${g?.turns}|${snapMode}`;
+    if (key !== toolsKey) { toolsKey = key; toolButtons(); }
+  }
+  // Move, Rotate and Select (the rail's buttons, G, R and V) on the gizmo that is up
+  function setGizmoMode(mode) {
+    const g = activeGizmo();
+    if (g) g.setMode(mode); else gizmo.setMode(mode);
+    toolButtons();
+  }
+  onHub('edit', 'tools', () => {
+    toolButtons();
     const world = gizmo.space === 'world';
     $('editSpace').querySelector('use').setAttribute('href', world ? '#i-world' : '#i-local');
     $('editSpace').title = world ? "World axes: click for the piece's own axes (X)" : "The piece's own axes: click for world axes (X)";
@@ -61,11 +87,16 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       : "Pivot: each piece's own origin. Click to move and turn about the selection's centre (C)";
     $('selected').disabled = !selected;
   });
+  // The snap button shows the step in force: where what is picked has a least step of its own coarser than the setting
+  // (a spawn point, a mission object, a diagonal cover mark: whole tiles), that step, and its tip says why; the setting
+  // itself is not changed, and is back when the thing is let go
+  const SETTING_WORDS = { off: 'snap off', fine: 'steps of 24', tile: 'whole tiles' };
+  const heldWords = g => `Whole tiles: ${g.what}. Your setting, ${SETTING_WORDS[snapMode]}, is back when it is let go`;
   function snapButton() {
-    const button = $('editSnap');
-    button.classList.toggle('on', snapMode !== 'off'); button.setAttribute('aria-pressed', snapMode !== 'off');
-    button.title = SNAPS[snapMode][2];
-    $('snapBadge').textContent = SNAPS[snapMode][1];
+    const button = $('editSnap'), g = activeGizmo(), inForce = g?.snap?.() ?? snapMode;
+    button.classList.toggle('on', inForce !== 'off'); button.setAttribute('aria-pressed', inForce !== 'off');
+    button.title = inForce !== snapMode ? heldWords(g) : SNAPS[snapMode][2];
+    $('snapBadge').textContent = SNAPS[inForce][1];
   }
   let frameNear = 2;    // the near plane the last framing set (the wheel zoom brings it in close up)
   function frame(root = content) {
@@ -98,9 +129,9 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       sun.shadow.camera.updateProjectionMatrix();applyLighting();
     }
   }
-  $('editMove').onclick = () => gizmo.setMode('translate');
-  $('editRotate').onclick = () => gizmo.setMode('rotate');
-  $('editOff').onclick = () => gizmo.setMode('off');
+  $('editMove').onclick = () => setGizmoMode('translate');
+  $('editRotate').onclick = () => setGizmoMode('rotate');
+  $('editOff').onclick = () => setGizmoMode('off');
   $('editSpace').onclick = () => gizmo.toggleSpace();
   // The pivot (C): each piece's own origin, or the selection's centre (Discord feedback S4); remembered on this computer.
   const PIVOT = 'workshop.pivot';
@@ -114,7 +145,11 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
     setSnapModeValue(next); gizmo.setSnap(next); setGhostDirty(true);
     snapButton(); runHub('snap', roots.get(selected));
   }
-  $('editSnap').onclick = () => setSnapMode(SNAPS[snapMode][0]);
+  $('editSnap').onclick = () => {
+    const g = activeGizmo();
+    if (g && g.snap() !== snapMode) { flashHint(heldWords(g)); return; }       // (the step in force is what is picked's)
+    setSnapMode(SNAPS[snapMode][0]);
+  };
   // The arrow keys and WASD move the camera while held. By default they pan across the map: Up/W and Down/S along the
   // view's direction laid flat, Left/A and Right/D across it, so the camera keeps its height and angle. With View
   // options' "Keys move along the view" ticked, Up/W and Down/S move forward and back the way the camera faces (climbing
@@ -311,8 +346,8 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       e.preventDefault(); return;
     }
     if (pickDrag) { if (key === 'escape') endPickDrag(false); e.preventDefault(); return; }
-    if (zoneGizmo.dragging) { if (key === 'escape') cancelZoneGizmo(); e.preventDefault(); return; }
-    if (missionGizmo.dragging) { if (key === 'escape') cancelMissionGizmo(); e.preventDefault(); return; }
+    // (a view's gizmo dragged: Escape puts it back, other keys wait)
+    if (viewGizmos.some(g => !g.pieces && g.dragging)) { if (key === 'escape') cancelGizmoDrag(); e.preventDefault(); return; }
     if (gridDrag) { if (key === 'escape') endGridDrag(false); e.preventDefault(); return; }
     if (gridTool && key === 'escape' && !pickedZone && !selected && !placing) { setGridTool(false); e.preventDefault(); return; }
     if (zonePlacing && key === 'escape') { stopZonePlacing(); e.preventDefault(); return; }
@@ -331,15 +366,12 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       startLookPick(wallDrawing.ground ? 'ground' : wallDrawing.slab ? 'slab' : 'wall');
       e.preventDefault(); return;
     }
-    // a picked landing zone: Delete, Ctrl+D copies, G and R its gizmo's arrows or ring, [ and ] turn it, Escape lets it
-    // go (Ctrl+Z undoes as for anything)
+    // a picked landing zone: Delete, Ctrl+D copies, [ and ] turn it, Escape lets it go (G, R and V its gizmo, below, as
+    // every thing's; Ctrl+Z undoes as for anything)
     if (pickedZone && !selected && !e.altKey) {
       if (key === 'delete' && !e.ctrlKey && !e.metaKey) { deleteZone(); e.preventDefault(); return; }
       if ((e.ctrlKey || e.metaKey) && key === 'd') { copyZone(); e.preventDefault(); return; }
       if (key === '[' || key === ']') { turnZone(key === '[' ? -1 : 1); e.preventDefault(); return; }
-      if ((key === 'g' || key === 'r') && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-        setZoneGizmoMode(key === 'r' ? 'rotate' : 'translate'); e.preventDefault(); return;
-      }
       if (key === 'escape') { pickZone(null); e.preventDefault(); return; }
     }
     // the Diagonal cover view: Delete deletes the picked marks, Escape lets them go or puts a drag back
@@ -372,20 +404,20 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       if (key === 'escape' && volumeTool) { setVolumeTool(null); e.preventDefault(); return; }
       if (key === 'escape' && ownPicked && !selected) { setOwnPicked(null); e.preventDefault(); return; }
       if (key === 'n' && !e.shiftKey) { setVolumeTool(volumeTool === 'new' ? null : 'new'); e.preventDefault(); return; }
-      if (key === 'r') { flashHint('A building\'s box is not turned'); e.preventDefault(); return; }
+      if (key === 'r' || key === '[' || key === ']') { flashHint('A building\'s box is not turned'); e.preventDefault(); return; }
     }
     if (e.ctrlKey || e.metaKey) {
       if (e.altKey) return;
       if (key === 'z' && !e.shiftKey) undoStep();
       else if (key === 'y' || (key === 'z' && e.shiftKey)) undoStep(true);
-      else if ((key === 'c' || key === 'x') && selected) copySelection(key === 'x');
+      else if ((key === 'c' || key === 'x') && (selected || pickedZone || pickedSpawn || diagonalOn)) copySelection(key === 'x');
       else if (key === 'v') paste();
       else if (key === 'g') { if (!e.repeat && !volumesOn && !lightsOn) groupShortcut(e.shiftKey); }
       else return;
     } else if (key === 'delete') { if (!selected && !ownSet.size) return; if (!deleteWallOpening()) deleteSelection(); }
     else if (key === 'escape') {
       if (assigning) { setAssigning(null); lightPanel(); flashHint('Assigning cancelled'); }
-      else if (gizmo.cancel()) dragHint(false);
+      else if (cancelGizmoDrag()) dragHint(false);
       else if (placing) stopPlacing();
       else if (document.querySelector('.pop:not([hidden])')) showPop(null);
       else if (selected) select(null);
@@ -400,13 +432,16 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
     else if (key === 'm') showMapBrowser();
     else if (key === 'r') {
       // While placing, R turns the piece a quarter turn about its pivot (Shift+R the other way); otherwise it is Rotate.
-      if (!placing) { gizmo.setMode('rotate'); e.preventDefault(); return; }
+      if (!placing) { setGizmoMode('rotate'); e.preventDefault(); return; }
       placing.turns = (placing.turns + (e.shiftKey ? 3 : 1)) % 4; setGhostDirty(true);
       clearTimeout(hintTimer); restingHint();
     }
-    else if (key === 'v') gizmo.setMode('off');
+    else if (key === 'v') setGizmoMode('off');
+    // [ and ]: the selection a quarter turn left or right about the gizmo's pivot, as a zone, a drop-in point and a mark
+    // turn (their own branches above)
+    else if (key === '[' || key === ']') { if (!turnSelection(key === ']' ? 1 : -1)) return; }
     else if (key === 't') { if (data && !e.repeat) setPickTool(!(pickTool || pickBox)); }
-    else if (key === 'g') gizmo.setMode('translate');
+    else if (key === 'g') setGizmoMode('translate');
     else if (key === 'x') gizmo.toggleSpace();
     else if (key === 'c') togglePivot();
     else if (key === 'b') { if (!playArea.children.length) return; setPlayArea(!playArea.visible); }
@@ -417,5 +452,14 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
     e.preventDefault();
   });
 
-  return { frame, panCamera, setSnapMode };
+  // A quarter turn of the selection about the gizmo's pivot (`way` 1: to the right as seen from above, the game's yaw;
+  // -1 to the left), one undo step, as a typed yaw turns it. False with nothing to turn.
+  function turnSelection(way) {
+    const pose = selected && gizmo.selection().length ? gizmo.pose() : null;
+    if (!pose) return false;
+    gizmo.setPose(null, [pose.rotation[0], pose.rotation[1] + 90 * way, pose.rotation[2]]);
+    flashHint(`Turned a quarter ${way > 0 ? 'right' : 'left'}`);
+    return true;
+  }
+  return { frame, panCamera, setSnapMode, syncTools };
 }

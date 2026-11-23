@@ -38,6 +38,7 @@ import { blastQuery, madeBounds, madeSlabNumbers, madeWallNumbers, movedOpening,
          openingWords, slabBounds, slabLookOf, sortedOpenings, storeysOf, storeyWords, toolSlab, toolWall, WALL,
          WALL_LOOKS, madeWallJoins, wallSpec, wallTop } from './walls.js';
 import { plural, short } from './dom_words.js';
+import { joinBusy } from './view_gizmo.js';
 
 export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, controls, editChanged, flashHint, gizmo,
                                     gltfLoader, groundPanel, HANDLE_PICK, libraryTemplate, movedMatrix, partsOf,
@@ -303,6 +304,8 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   pointGizmo.attach(pointProxy); pointGizmo.enabled = false; pointGizmo.setSpace('local'); pointGizmo.setMode('translate');
   const pointGizmoHelper = pointGizmo.getHelper(); pointGizmoHelper.visible = false; world.add(pointGizmoHelper);
   pointGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
+  // (it joins the gizmos' list for the press's busy test and Esc: view_gizmo.js; a point is neither copied nor turned)
+  joinBusy(pointGizmo, () => cancelPointDrag());
   // The picked rock's points now: its moved ones, else its seed's from the server (null until they are known).
   function rockPointsOf(g) { return g.points ?? rockCornersOf(g)?.points ?? null; }
   function pickRockPoint(root, index) {

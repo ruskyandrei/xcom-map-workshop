@@ -322,7 +322,8 @@ export function setTipDirty(next) { tipDirty = next; }
 //   spawnKey): a stream object's {stream, actor, location, rotation}; a base spawn point's, with the values it changes
 //   (stream null, saved as overrides of level "base"); a copy's (stream 'copy'); missionDragView: those moves while a
 //   drag lasts, drawn in their place, or null (setMissionMovesValue: the view's setMissionMoves also draws them);
-// - spawnPlacing: the kind of spawn point the next click places (the Add panel's Spawn points), or null.
+// - spawnPlacing: the kind of spawn point the next click places (the Add panel's Spawn points), a pasted copy's clip
+//   (spawns_wiring.js spawnClip: Ctrl+V), or null.
 export let normalSpawns = false, spawnFilters = {}, spawnZonePick = null, spawnRulesData = null, spawnEntriesNow = [];
 export function setNormalSpawnsValue(next) { normalSpawns = next; }
 export function setSpawnFilters(next) { spawnFilters = next; }
@@ -335,7 +336,8 @@ export function setMissionDragView(next) { missionDragView = next; }
 export function setSpawnPlacing(next) { spawnPlacing = next; }
 
 // What other areas read or set of the Landing zones view (zones_wiring.js; the keys and app.js's pointer handlers):
-// zonePlacing, whether the next click places a landing zone (the Add panel's Landing zones kind).
+// zonePlacing, whether the next click places a landing zone (the Add panel's Landing zones kind): true, a pasted copy's
+// zone (its fields but the place, Ctrl+V), or false.
 export let zonePlacing = false;
 export function setZonePlacing(next) { zonePlacing = next; }
 
@@ -427,6 +429,11 @@ export function setBreaking(next) { breaking = next; }
 // id of a piece of it, or null for the last one picked.
 export let alignTarget = null;
 export function setAlignTarget(next) { alignTarget = next; }
+
+// The gizmos in the view (view_gizmo.js: the views' own, made by createViewGizmo, and the pieces' and a rock point's
+// joined), each answering for its mode, its busy test and its cancel; navigation.js and app.js's press handler ask
+// through view_gizmo.js's activeGizmo, anyGizmoBusy and cancelGizmoDrag. Filled as the factories are made.
+export const viewGizmos = [];
 
 // Placing (clipboard.js), and what of it app.js's pointer handlers and draw loop and the keys read or set:
 // - ghostDirty: the preview of what is being placed is to be moved to the pointer again (the pointer handlers, the

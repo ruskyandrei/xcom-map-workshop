@@ -27,10 +27,10 @@ import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { LEVEL, PL, QUARTER, TILE } from './constants.js';
 import { isFloor } from './cover.js';
 import { CARRIED_KEY, CARRIED_TOLD, CARRIED_WORDS, packCarried, unpackCarried } from './carried_clip.js';
-import { activeMapId, allRoots, boxesShown, builder, builderMode, buildingMeta, chooseToken, clipboard, copySerial, data, effectRoots,
+import { activeMapId, allRoots, boxesShown, builder, builderMode, buildingMeta, chooseToken, clipboard, copySerial, data, diagonalOn, effectRoots,
          geometryCache, groupIndex, hintTimer, library, libraryScope, lightsShown, nextChooseToken,
-         nextCopySerial, ownSet, pickedEffect, pieces, placing, pointer, prefabTab, project, roots, setClipboard, setGhostDirty,
-         setGroups, setLibraryScopeValue, setPlacing, snapMode, volumesOn } from './editor_state.js';
+         nextCopySerial, ownSet, pickedEffect, pickedSpawn, pieces, placing, pointer, prefabTab, project, roots, setClipboard, setGhostDirty,
+         setGroups, setLibraryScopeValue, setPlacing, snapMode, spawnsOn, volumesOn, zonesOn } from './editor_state.js';
 import { onHub } from './edit_hub.js';
 import { recordName } from './effects_rules.js';
 import { makeEffectMarker } from './effects_view.js';
@@ -57,7 +57,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
                                   setLightsShown, setNormalLights, setVolumeBox, spawnAddEntries, startSpawnPlacing,
                                   startZonePlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing,
                                   unscaled, volumeBox, volumeCopy, world, zoneEntries, diagonalEntries, startDiagonalPlacing,
-                                  stopDiagonalPlacing }) {
+                                  stopDiagonalPlacing, zoneClip, spawnClip, markClip, deleteZone, deleteSpawn, deletePicked }) {
   // What the selection is now (moved pieces at their moved pose), with the pivot piece's game location and a name
   // for hints.
   function snapshot(selection = gizmo.selection(), own = ownSet) {
@@ -246,8 +246,28 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     });
     return built;
   }
+  // A landing zone, a spawn point or diagonal cover marks picked (they are no selection of the gizmo's): copied as a
+  // clip of their own kind, the one clipboard's (Ctrl+C, Ctrl+X, a zone panel's Copy); Ctrl+V places it with its
+  // view's own placing (pasteThing). False where none is picked.
+  function copyThing(cut = false) {
+    // (a piece selected is the copy, whatever was left picked in a view)
+    const clip = gizmo.selection().length ? null : zonesOn ? zoneClip() : spawnsOn || pickedSpawn ? spawnClip() : diagonalOn ? markClip() : null;
+    if (!clip) return false;
+    if (clip.why) { flashHint(`It isn't copied: ${clip.why}`); return true; }
+    setClipboard({ ...clip, copied: true });
+    if (cut) { if (clip.thing === 'zone') deleteZone(); else if (clip.thing === 'spawn') deleteSpawn(pickedSpawn); else deletePicked(); }
+    flashHint(`${cut ? 'Cut' : 'Copied'} ${clip.name} · Ctrl+V to place a copy`);
+    return true;
+  }
+  function pasteThing(clip) {
+    stopPlacing(); stopWallDrawing();
+    if (clip.thing === 'zone') { stopSpawnPlacing(); stopDiagonalPlacing(); startZonePlacing(clip.zone); }
+    else if (clip.thing === 'spawn') { stopZonePlacing(); stopDiagonalPlacing(); startSpawnPlacing(null, clip); }
+    else { stopZonePlacing(); stopSpawnPlacing(); startDiagonalPlacing(clip.marks); }
+  }
   function copySelection(cut = false) {
     if (volumesOn) { copyVolumes(cut); return; }
+    if (copyThing(cut)) return;
     const clip = snapshot();
     if (!clip) {
       // (a view-only effect is picked but no selection takes it in: the picked one says why)
@@ -307,6 +327,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     if (placing) { if (pointer) placeAt(pointer, false); return; }
     if (volumesOn) { pasteVolumes(); return; }
     if (!clipboard) { void bringCarried(); return; }
+    if (clipboard.thing) { pasteThing(clipboard); return; }
     // a large copy's preview takes a moment to make: the busy mark meanwhile
     if (clipboard.entries.length >= BUSY_PIECES) {
       const clip = clipboard;
@@ -530,9 +551,10 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   // The selection itself is what moves under the cursor, with the snaps of any drag, and a drawn-only stand-in keeps
   // its place; on release the selection is back where it was and the copy is pasted where it was dragged to, as any
   // paste is (one undo step, the copy selected). Escape, or a drag that went nowhere, makes no copy.
-  // Not in the Buildings view, where boxes are copied on their own (copyVolumes): there Shift is a plain move.
+  // In the Buildings view the boxes picked are copied into their own buildings on their own floors (boxCopy).
   function copyDragBegin() {
-    if (volumesOn || placing) return null;
+    if (placing) return null;
+    if (volumesOn) return boxCopyBegin();
     const clip = snapshot();
     if (!clip) return null;
     const stand = new THREE.Group(), here = new THREE.Matrix4();
@@ -545,7 +567,41 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     text(hint, 'kbd', 'Esc'); hint.append(' cancels the drag');
     return { clip, stand };
   }
-  async function copyDragEnd({ clip, stand }, delta) {
+  // The Buildings view's Shift+drag: the picked boxes, their stand-ins' outlines where they are
+  function boxCopyBegin() {
+    const boxes = gizmo.selection().filter(r => r.userData.volume && !r.userData.deleted);
+    if (!boxes.length) return null;
+    const clip = { volumes: boxes.map(r => ({ matrix: r.matrix.clone(), building: r.userData.volume.building, floor: r.userData.volume.floor })) };
+    const stand = new THREE.Group();
+    addBoxOutlines(stand, clip);
+    stand.matrixAutoUpdate = false; world.add(stand);
+    const hint = $('dragHint');
+    hint.hidden = false;
+    hint.replaceChildren(`Moving a copy of ${boxes.length === 1 ? 'the box' : `${boxes.length} boxes`} · `);
+    text(hint, 'kbd', 'Esc'); hint.append(' cancels the drag');
+    return { boxes: clip.volumes, stand };
+  }
+  // ...and on release: a copy of each where the drag ended, in its own building and floor, picked; one undo step
+  function boxCopyEnd({ boxes, stand }, delta) {
+    world.remove(stand);
+    if (!delta) return;
+    const made = boxes.map(v => {
+      const root = makeVolume([0, 0, 0, TILE, TILE, LEVEL], v.building, v.floor);
+      root.matrix.copy(delta.clone().multiply(v.matrix));
+      setVolumeBox(root, volumeBox(root));
+      root.userData.deleted = true;
+      return root;
+    });
+    const ids = made.map(r => r.userData.source.id), before = gizmo.picks();
+    gizmo.record({
+      redo: () => { for (const r of made) r.userData.deleted = false; gizmo.setSelection(ids); sceneChanged(); },
+      undo: () => { for (const r of made) r.userData.deleted = true; gizmo.setSelection(before.ids, before.active, before.loose); sceneChanged(); },
+    });
+    flashHint(`Copied ${made.length === 1 ? 'the box' : `${made.length} boxes`} into ${made.length === 1 ? 'its building, on its floor' : 'their buildings, on their floors'}`);
+  }
+  async function copyDragEnd(token, delta) {
+    if (token.boxes) { boxCopyEnd(token, delta); return; }
+    const { clip, stand } = token;
     try {
       const placed = delta && clip.entries.length >= BUSY_PIECES
         ? await busy('Placing the copy: pieces made', step => pasteSnapshot(clip, delta, step), { total: clip.entries.length, now: true })
@@ -570,6 +626,17 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   // clipboard, what the tab carries stays for the next map.
   function carryCopy() {
     const boxes = volumeCopy(), live = clipboard?.copied ? clipboard : null;
+    // (a landing zone or diagonal cover marks: plain data, the zone's place from the tile grid's corner; a spawn point is
+    // a copy of the map's own actor, and stays in its map)
+    if (live?.thing) {
+      const o = gridOrigin() ?? [0, 0, 0], id = uuid();
+      // (a zone's height may be unset: the ground's)
+      const thing = live.thing === 'zone' ? { kind: 'zone', zone: { ...live.zone, location: live.zone.location.map((v, k) => (v == null ? null : v - (o[k] ?? 0))) } }
+        : live.thing === 'marks' ? { kind: 'marks', marks: live.marks } : null;
+      if (!thing && !boxes) { forgetSession(CARRIED_KEY); return; }
+      rememberSession(CARRIED_KEY, packCarried({ id, name: live.name, from: { map: activeMapId ?? null }, pivot: [0, 0, 0], boxes, ...(thing ? { thing } : {}) }).text);
+      return;
+    }
     if (!live && !boxes) { if (clipboard) forgetSession(CARRIED_KEY); return; }
     // (the copy brought here and not copied again: carried on as it came)
     if (live?.carried && !boxes) { rememberSession(CARRIED_KEY, live.carried); return; }
@@ -593,6 +660,14 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     if (carried?.error) { flashHint(carried.error); return; }
     if (carried?.tooLarge !== undefined) { flashHint(CARRIED_WORDS.tooLarge(carried.tooLarge)); return; }
     const doc = carried?.doc;
+    // (a landing zone or marks carried: the clip of their kind again, on this map's grid, placed by its view)
+    if (doc?.thing?.kind === 'zone' || doc?.thing?.kind === 'marks') {
+      const o = gridOrigin() ?? [0, 0, 0];
+      setClipboard(doc.thing.kind === 'zone' ? { thing: 'zone', name: doc.name, copied: true, zone: { ...doc.thing.zone, location: doc.thing.zone.location.map((v, k) => (v == null ? null : v + (o[k] ?? 0))) } }
+        : { thing: 'marks', name: doc.name, copied: true, marks: doc.thing.marks });
+      pasteThing(clipboard);
+      return;
+    }
     if (!doc || (!doc.pieces.length && !doc.buildings.length)) {
       flashHint(doc?.boxes?.length ? 'The copy is floor boxes: Ctrl+V places them in the Buildings view (Shift+B)' : 'Nothing copied yet: select a piece and press Ctrl+C');
       return;
@@ -630,7 +705,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     });
   });
 
-  return { announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget,
+  return { announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, copyThing, dropTarget,
            entryParts, groupTree, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,
            pasteSnapshot, pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot,
            startPlacing, stopPlacing };

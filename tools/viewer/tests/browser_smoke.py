@@ -1670,7 +1670,10 @@ def check_clear_map(page):
     lwr = page.locator('#landingLwr').is_checked()
     page.locator('#landingLwr').click()
     assert (page.evaluate('viewer.zones()[0].lwr') is not False) == (not lwr)
+    # (the panel's Copy copies, as a piece's does: Ctrl+V and a click place it; Ctrl+D makes one beside at once)
     page.locator('#landingCopy').click()
+    assert page.evaluate('viewer.clipboard()?.thing') == 'zone' and len(page.evaluate('viewer.zones()')) == len(zones)
+    page.evaluate('document.activeElement?.blur?.()'); page.keyboard.press('Control+d')
     assert len(page.evaluate('viewer.zones()')) == len(zones) + 1
     assert not page.evaluate('viewer.zones().at(-1).ew')                # a copy is Long War's
     page.locator('#landingDelete').click()
@@ -6086,6 +6089,8 @@ CHECKS = (
     Check('carried-copy', lambda c: __import__('browser_controls').check_carried_copy(c.browser, c.page.url, open_viewer),
           'a copy carried to another map and to the prefab builder (Bar and Police Station), the project there compiled',
           needs=('projects',), full=False),
+    Check('same-controls', lambda c: __import__('browser_controls').check_same_controls(c.browser, c.page.url, open_viewer),
+          'the same controls on a landing zone, a spawn point, a floor box and a piece (Bar) and a diagonal cover mark (the farm)', full=False),
     Check('diagonal', lambda c: __import__('browser_diagonal').check_diagonal(c.browser, c.page.url, open_viewer),
           'the Diagonal cover view on the farm: corners switched, a mark moved, deleted, reset and added', full=False),
     Check('select-kind', editing('select_kind'), 'Select all of a kind on pieces, and their flags set together', when=ON_MAP, full=False),

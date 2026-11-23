@@ -35,7 +35,6 @@
 // state (the picked marks, the tile under the pointer, the placing, its gizmo's drag) is inside it; whether the view is
 // on and the project's marks are editor_state.js's.
 import * as THREE from 'three';
-import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { onHub } from './edit_hub.js';
 import { cleared, data, diagonalCarried, diagonalOn, effectsOn, foreignTemplates, lastBuild, lightsOn, missionMoves, pieces,
          projectDiagonal, projectMissions, roots, setDiagonalCarried, setDiagonalOnValue, setProjectDiagonal, spawnsOn,
@@ -49,6 +48,7 @@ import { spawnKey } from './spawns_view.js';
 import { targetKey } from './project.js';
 import { HANDLE_PICK, gameToView } from './handles.js';
 import { tileCorner } from './map_grid.js';
+import { createViewGizmo } from './view_gizmo.js';
 
 const MAP = 0xf0b84a, PROJECT = 0x82d5ce, DELETED = 0x6f7f88, PICKED = 0xffffff, HOVER = 0xb4f0e7, SKEWED = 0xe7c594;
 const INSET = 0.06, ARROW = 40, DOT = 0.42;       // the outline's inset and the arrows' length (of a tile), the dots' place
@@ -77,7 +77,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
   const picked = new Set();          // the picked marks' tiles (tileKey)
   let hover = null;                  // { tile, z, point, corner (the picked mark's corner dot under it, or -1) }
   let adding = false;                // a new mark asked for from the Add panel and not put down yet
-  let drag = null;                   // the gizmo's drag: { from (a tile), to (a tile), at (the proxy's start) }
+  let drag = null;                   // the gizmo's drag, as it moves: { from (a tile), to (a tile) }
   let badges = [];                   // the warning triangles drawn now (KB-22): { key, point, hits }
   const corner = () => tileCorner();
   const marks = () => marksNow(data, projectDiagonal, corner(), diagonalCarried);
@@ -350,11 +350,14 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     commit(toggleCorner(data, projectDiagonal, corner(), tile, CORNERS[i], diagonalCarried), null, [tileKey(tile)]);
   }
   // [ and ]: the picked marks' corners turned a quarter (way 1: counter-clockwise in game axes)
-  function turnPicked(way) {
+  // The picked marks' corners a quarter turn (`way` 1: the game's yaw, to the right as seen from above; -1 to the left),
+  // `times` over: one undo step
+  function turnPicked(way, times = 1) {
     if (!editable() || !picked.size) return false;
     let next = projectDiagonal, count = 0;
+    const turned = list => { let out = list; for (let n = 0; n < times; n++) out = turnedCorners(out, way); return out; };
     for (const m of marks().filter(x => picked.has(x.key) && x.kind !== 'deleted')) {
-      const r = setCorners(data, next, corner(), m.tile, turnedCorners(m.toward, way), diagonalCarried, turnedCorners(m.low, way));
+      const r = setCorners(data, next, corner(), m.tile, turned(m.toward), diagonalCarried, turned(m.low));
       if (r) { next = r; count++; }
     }
     if (count) commit(next, `Turned ${count === 1 ? 'the mark' : `${count} marks`} a quarter`);
@@ -399,6 +402,35 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     if (homes.length) commit(next, 'Put back as the map has it', homes);
   }
   // the picked marks moved by `delta` tiles, as one step; refused whole where one would land on a tile with a mark
+  // Copies of the picked marks `delta` tiles away (a Shift+drag on the gizmo's arrows), picked; one undo step. A copy
+  // can't land on a tile that has a mark.
+  const copyPicked = delta => placeMarks(marks().filter(m => picked.has(m.key) && m.kind !== 'deleted')
+    .map(m => ({ tile: [0, 1, 2].map(k => m.tile[k] + delta[k]), toward: m.toward, low: m.low })), 'copied');
+  // The picked marks as a copy carries them (Ctrl+C, Ctrl+X): each one's corners and its tile from the first one's;
+  // null with none picked.
+  function markClip() {
+    const list = diagonalOn ? marks().filter(m => picked.has(m.key) && m.kind !== 'deleted' && m.toward.length) : [];
+    if (!list.length) return null;
+    const first = list[0].tile;
+    return { thing: 'marks', name: list.length === 1 ? 'the mark' : `${list.length} marks`,
+             marks: list.map(m => ({ offset: [0, 1, 2].map(k => m.tile[k] - first[k]), toward: m.toward.map(c => [...c]), low: m.low.map(c => [...c]) })) };
+  }
+  // Pasted marks put down, the first on `tile` (Ctrl+V and a click), picked
+  function placeCopies(list, tile) {
+    if (placeMarks(list.map(m => ({ tile: [0, 1, 2].map(k => tile[k] + m.offset[k]), toward: m.toward, low: m.low })), 'placed')) stopDiagonalPlacing();
+  }
+  // Marks with these corners put on these tiles, picked; one undo step. Refused where a tile has a mark already.
+  function placeMarks(list, words) {
+    let next = projectDiagonal;
+    const keys = [];
+    for (const m of list) {
+      const added = addMark(data, next, corner(), m.tile, m.toward[0], diagonalCarried);
+      const shaped = added && setCorners(data, added, corner(), m.tile, m.toward, diagonalCarried, m.low);
+      if (!shaped) { flashHint(`Not ${words}: a tile has one mark, and a copy would land on another`); return false; }
+      next = shaped; keys.push(tileKey(m.tile));
+    }
+    return commit(next, `${list.length === 1 ? 'A copy of the mark' : `Copies of ${list.length} marks`} ${words}`, keys);
+  }
   function movePicked(delta) {
     const list = marks().filter(m => picked.has(m.key) && m.kind !== 'deleted');
     if (list.some(withCopy)) { flashHint('A mark a copy carries moves with the copy: move the copy'); return false; }
@@ -417,52 +449,32 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
   }
 
   // ---------------------------------------------------------------- the gizmo
-  // The picked marks move with a gizmo at the first one's middle, by whole tiles across and levels up (a mark belongs
-  // to a tile: the hint says Snap does not apply); a drag is one undo step, Escape during it puts it back.
-  const proxy = new THREE.Object3D(); world.add(proxy);
-  const markGizmo = new TransformControls(camera, renderer.domElement);
-  // (smaller than a piece's, so its handles stay clear of the corner dots at the tile's corners)
-  markGizmo.attach(proxy); markGizmo.enabled = false; markGizmo.setMode('translate'); markGizmo.setSize(0.6);
-  const markGizmoHelper = markGizmo.getHelper(); markGizmoHelper.visible = false; world.add(markGizmoHelper);
-  function placeGizmo() {
-    const list = diagonalOn && !adding ? marks().filter(m => picked.has(m.key) && m.kind !== 'deleted' && !withCopy(m)) : [];
-    const first = editable() ? list[0] : null;
-    markGizmo.enabled = markGizmoHelper.visible = Boolean(first);
-    if (!first || markGizmo.dragging) return;
-    proxy.position.copy(at(first.tile, 0.5, 0.5, floorOf(first.tile, first.own)));
-    proxy.quaternion.identity(); proxy.updateMatrixWorld(true);
-  }
-  markGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
-  markGizmo.addEventListener('mouseDown', () => {
-    const first = marks().find(m => picked.has(m.key) && m.kind !== 'deleted');
-    drag = first ? { from: first.tile, to: first.tile, at: proxy.position.clone() } : null;
-    hint();
-  });
-  markGizmo.addEventListener('objectChange', () => {
-    if (!drag || drag.cancelled) return;
-    const p = proxy.position, d = [p.x - drag.at.x, p.z - drag.at.z, p.y - drag.at.y];      // (game axes: x, y, up)
-    const steps = [Math.round(d[0] / TILE_SIZE[0]), Math.round(d[1] / TILE_SIZE[1]), Math.round(d[2] / TILE_SIZE[2])];
-    p.set(drag.at.x + steps[0] * TILE_SIZE[0], drag.at.y + steps[2] * TILE_SIZE[2], drag.at.z + steps[1] * TILE_SIZE[1]);
-    const to = [0, 1, 2].map(k => drag.from[k] + steps[k]);
-    if (tileKey(to) !== tileKey(drag.to)) { drag.to = to; draw(); }
-  });
-  markGizmo.addEventListener('mouseUp', () => {
-    const d = drag;
-    drag = null;
-    if (d && !d.cancelled) {
-      const delta = [0, 1, 2].map(k => d.to[k] - d.from[k]);
+  // The picked marks move with a gizmo at the first one's middle (view_gizmo.js, as every view's is), by whole tiles
+  // across and levels up whatever Snap says (a mark belongs to a tile: the Snap button shows the step, and the hint says
+  // so); its ring (R) turns their corners by quarters, as [ and ] do. A drag is one undo step, Escape during it puts it
+  // back, and Shift on an arrow drags off copies of the picked marks.
+  const firstPicked = () => marks().find(m => picked.has(m.key) && m.kind !== 'deleted' && !withCopy(m));
+  // (a drag's move in whole tiles of the grid)
+  const tilesOf = move => [0, 1, 2].map(k => Math.round(move[k] / TILE_SIZE[k]));
+  const markView = createViewGizmo({ camera, dom: renderer.domElement, world, orbit: controls, flashHint, size: 0.6,      // (smaller than a piece's, so its handles stay clear of the corner dots at the tile's corners)
+    at: () => { const first = diagonalOn && !adding && editable() ? firstPicked() : null; return first ? at(first.tile, 0.5, 0.5, floorOf(first.tile, first.own)) : null; },
+    modes: ['translate', 'rotate'], leastSnap: 'tile', what: 'a diagonal cover mark belongs to a tile',
+    step: move => tilesOf(move).map((n, k) => n * TILE_SIZE[k]),
+    preview: change => {
+      const first = firstPicked();
+      drag = change?.move && first ? { from: first.tile, to: [0, 1, 2].map(k => first.tile[k] + tilesOf(change.move)[k]) } : null;
+      draw(); hint();
+    },
+    commit: change => {
+      drag = null;
+      if (change.turns) { turnPicked(1, change.turns); return; }
+      const delta = tilesOf(change.move);
       if (!delta.some(Boolean) || !movePicked(delta)) draw();
-    } else draw();
-    setTimeout(placeGizmo, 0);       // (the controls end their drag after this event)
-    hint();
-  });
-  function cancelGizmo() {
-    if (!drag) return false;
-    drag.cancelled = true; drag.to = drag.from; draw();
-    return true;
-  }
-  // a press on the gizmo's handle never also picks or lets go (app.js's pointer handlers ask)
-  const gizmoBusy = () => markGizmo.enabled && (markGizmo.dragging || markGizmo.axis !== null);
+      hint();
+    },
+    revert: () => { drag = null; draw(); hint(); },
+    copy: change => { drag = null; if (!copyPicked(tilesOf(change.move))) draw(); hint(); } });
+  const { controls: markGizmo, helper: markGizmoHelper, proxy, place: placeGizmo, cancel: cancelGizmo } = markView;
 
   // ---------------------------------------------------------------- adding, from the Add panel
   // The Add panel's Diagonal cover kind: one entry, a new mark put down with a click (the one way to add one)
@@ -475,10 +487,11 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
               sources: [], pivotIndex: 0, materials: [], milestone: 1, role: null, size: [0, 0, 0], extent: 0, mesh: '',
               text: 'diagonal cover corner slanted wall ufo hull mark' }];
   }
-  function startDiagonalPlacing() {
+  // (`template`: pasted copies, markClip's marks, put down with the first on the tile clicked; none for a new mark)
+  function startDiagonalPlacing(template = null) {
     setDiagonalShown(true);
     if (!diagonalOn) return;
-    picked.clear(); adding = true; renderer.domElement.style.cursor = 'crosshair';
+    picked.clear(); adding = template ?? true; renderer.domElement.style.cursor = 'crosshair';
     draw(); panel(); placeGizmo(); hint();
   }
   function stopDiagonalPlacing() {
@@ -489,6 +502,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
   function placeDiagonal(clientX, clientY) {
     const t = tileAt(clientX, clientY);
     if (!t) { flashHint('Click a floor tile of the map\'s grid'); return; }
+    if (Array.isArray(adding)) { placeCopies(adding, t.tile); return; }
     const c = cornerNear(t.tile, t.point, corner());
     const next = addMark(data, projectDiagonal, corner(), t.tile, c, diagonalCarried);
     if (!next) { flashHint('That tile has a mark already: click it to pick it, and switch its corners there'); return; }
@@ -524,7 +538,7 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
     }
     if (drag) return true;
     if (key === 'delete' && picked.size) return deletePicked();
-    if ((key === '[' || key === ']') && picked.size) return turnPicked(key === '[' ? 1 : -1);
+    if ((key === '[' || key === ']') && picked.size) return turnPicked(key === '[' ? -1 : 1);
     return false;
   }
 
@@ -666,10 +680,10 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
   onHub('edit', 'diagonal', refresh);
   onHub('scene', 'diagonal', refresh);
 
-  return { diagonalClick, diagonalEntries, diagonalGizmo: () => ({ enabled: markGizmo.enabled, shown: markGizmoHelper.visible,
+  return { deletePicked, diagonalClick, diagonalEntries, markClip, diagonalGizmo: () => ({ enabled: markGizmo.enabled, shown: markGizmoHelper.visible,
                                                                     axis: markGizmo.axis, dragging: markGizmo.dragging,
                                                                     at: [proxy.position.x, proxy.position.z, proxy.position.y] }),
-           diagonalGizmoBusy: gizmoBusy, diagonalKey, diagonalPlacing: () => adding, drawDiagonal: draw, hoverDiagonal,
+           diagonalKey, diagonalPlacing: () => adding, drawDiagonal: draw, hoverDiagonal,
            pickedMarks: () => [...picked], diagonalWarnings: () => ({ badges: badges.map(b => ({ key: b.key, streams: [...new Set(b.hits.map(h => h.stream))],
                                                                                     screen: projector()(b.point) })),
                                                                   areas: layer.children.some(o => o.userData.reworkArea), title: renderer.domElement.title }),

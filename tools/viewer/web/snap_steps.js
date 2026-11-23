@@ -13,6 +13,10 @@ export const SNAP_STEPS = Object.freeze({
 });
 /** A snap setting's steps (an unknown one is snap off). */
 export const stepsOf = snap => SNAP_STEPS[snap] ?? SNAP_STEPS.off;
+/** The snap setting in force for a thing with a least step of its own (`least`: 'tile', whole tiles across and levels
+ *  up, for a thing the game keeps per tile: a spawn point, a mission object, a diagonal cover mark): the setting where
+ *  it is as coarse, else that least step. With no least step, the setting. */
+export const snapInForce = (snap, least = null) => (least === 'tile' && snap !== 'tile' ? 'tile' : snap);
 /** A distance in whole steps (the nearest; halves away from zero, as Math.round); a step of 0 leaves it as it is. */
 export const stepped = (delta, step) => (step > 0 ? Math.round(delta / step) * step + 0 : delta);
 /** A move [dx, dy, dz] (game axes: x and y across, z up) in the snap setting's steps. */

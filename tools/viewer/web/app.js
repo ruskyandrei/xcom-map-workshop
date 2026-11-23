@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createGizmo } from './gizmo.js';
 import { createPieceBrowser } from './pieces.js';
 import { createPickStep } from './pick_step.js';
+import { anyGizmoBusy, joinGizmo } from './view_gizmo.js';
 import { api as projectApi, uuid } from './project.js';
 import { createProjectDialog } from './project_files.js';
 import { createProjectManager } from './manager.js';
@@ -214,6 +215,8 @@ const gizmo = createGizmo({ world, camera, dom: renderer.domElement, orbit: cont
                             tiles: root => Boolean(root.userData.volume),
                             // Shift on a move handle drags a copy
                             copyDrag: { begin: () => copyDragBegin(), end: (token, delta) => copyDragEnd(token, delta) } });
+// (the pieces' gizmo in the gizmos' list, for the rail's buttons, the keys, the press's busy test and Esc: view_gizmo.js)
+joinGizmo(gizmo);
 // The map's families and assemblies (map_families.js): the families set as the map's arrive, each original's assembly
 // with its link tag, and a piece's assembly (the map's own, or another map's as its records are read); made where the
 // families' use was, after the gizmo, which it regroups (nothing of it runs as the page loads but its two tables made).
@@ -621,7 +624,7 @@ const landingLayer = new THREE.Group(); world.add(landingLayer);
 landingLayer.visible = recall(LANDING_SHOWN) !== '0';
 // The Spawns view and the mission moves (spawns_wiring.js): the markers, the view, the picked one's panel and
 // gizmo, the project's moves and edits of spawn points and mission objects, and the spawn rule.
-const { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
+const { spawnClip, baseSpawnOf, bombHelperFix, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
         editedSpawns, editSpawnCopy, loadSpawnRules, missionFloorLost, missionGizmo, missionGizmoWanted, missionKey,
         missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker, spawnMarkersAt,
         placeMissionGizmo, placeSpawn, refreshSpawnMarkers, resetBaseSpawn, scaleSpawnMarkers, setMissionMoves,
@@ -657,8 +660,8 @@ const { addedEffect, addedEffectOf, addEffectRoots, applyEffectRecord, buildEffe
   setZonesShown: on => setZonesShown(on), stopPickBox: () => stopPickBox(), zoneState: () => zoneState() });
 // The Landing zones view (zones_wiring.js): the zones drawn, the view, a zone picked with its gizmo and panel, the
 // zones changed and added, and what follows a change of the cleared mark.
-const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
-        placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,
+const { zoneClip, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
+        placeZone, placeZoneGizmo, refreshLandingZones, setZones, setZonesShown, startZonePlacing,
         stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy, zonesAt,
         zoneSoldiers, zoneState } = createZonesWiring({
   $, banner, camera, controls, editChanged, flashHint, floorStays, gizmo, groundHeight, headerMission,
@@ -666,7 +669,7 @@ const { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicit
   setEffectsShown, setLightsShown, setSpawnsShown, world, zonesNow,
   // (made further down: called through, since they are not made yet while this runs)
   select: (id, add, keep) => select(id, add, keep), lightButton: () => lightButton(),
-  setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox() });
+  setVolumesShown: on => setVolumesShown(on), stopPickBox: () => stopPickBox(), copyThing: cut => copyThing(cut) });
 // The Buildings view and box select (buildings_wiring.js): the project's buildings as boxes and the map's own, the
 // view, its handles, drags and panel, the Normal button's Floor boxes, and box select.
 const { addVolumes, allBuildings, buildingsFromVolumes, copyVolumes, deleteVolumes, drawCursorRings, endPickDrag,
@@ -714,7 +717,7 @@ const { lightButton, setNormalView, syncLights, viewByKey } = createViews({
 // The Diagonal cover view (diagonal_wiring.js): the marks drawn, picked, switched, turned, moved with its gizmo and
 // deleted, the Add panel's Diagonal cover entry and its placing, its panel; after
 // the views, whose switches it calls.
-const { diagonalClick, diagonalEntries, diagonalGizmo, diagonalGizmoBusy, diagonalKey, drawDiagonal, hoverDiagonal,
+const { deletePicked, markClip, diagonalClick, diagonalEntries, diagonalGizmo, diagonalKey, drawDiagonal, hoverDiagonal,
         diagonalWarnings, pickedMarks, setDiagonalShown, startDiagonalPlacing, stopDiagonalPlacing } = createDiagonalWiring({
   $, camera, controls, flashHint, gizmo, lightButton, pickables, projector, projectsAvailable, rayAt, renderer,
   restingHint: () => restingHint(), select, setEffectsShown,
@@ -735,7 +738,7 @@ const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNo
 // Copy, paste and placing (clipboard.js): a clip of the selection, a paste, the preview placed with a click,
 // the Add panel shown and an entry of it placed, and a copy dragged off with Shift; after the cover blocks,
 // whose floor's clearance it reads, and the Buildings view, whose own buildings' layer it reads.
-const { announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
+const { announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyThing, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
         groupTree, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste, pasteSnapshot,
         pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot, startPlacing,
         stopPlacing } = createClipboard({
@@ -748,7 +751,8 @@ const { announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, 
   partsOf, pasteVolumes, pick, prefabClip, prefabPlacementProblem, prefabRecords, rayAt, removeEffectRoots, removeLightRoots,
   removeRoots, restingHint, sceneChanged, selectionWords, setLightsShown, setNormalLights, setVolumeBox,
   spawnAddEntries, startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopZonePlacing, unscaled,
-  volumeBox, volumeCopy, world, zoneEntries, diagonalEntries, startDiagonalPlacing, stopDiagonalPlacing,
+  volumeBox, volumeCopy, world, zoneEntries, diagonalEntries, startDiagonalPlacing, stopDiagonalPlacing, zoneClip, spawnClip, markClip,
+  deleteZone, deleteSpawn, deletePicked,
   // (made further down: called through, since they are not made yet while this runs)
   deleteSelection: quiet => deleteSelection(quiet), stopWallDrawing: () => stopWallDrawing() });
 // The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The
@@ -1067,11 +1071,9 @@ renderer.domElement.addEventListener('pointerup', e => {
   e.stopImmediatePropagation(); endLightDrag(true);
 }, { capture: true });
 renderer.domElement.addEventListener('pointercancel', () => endLightDrag(false));
-// A press on a gizmo handle never also picks the piece behind it.
+// A press on a gizmo handle (any gizmo's: view_gizmo.js) never also picks the piece behind it.
 renderer.domElement.addEventListener('pointerdown', e => {
-  pointerStart = gizmo.busy() || (zoneGizmo.enabled && (zoneGizmo.dragging || zoneGizmo.axis !== null))
-    || (pointGizmo.enabled && (pointGizmo.dragging || pointGizmo.axis !== null))
-    || (missionGizmo.enabled && (missionGizmo.dragging || missionGizmo.axis !== null)) || diagonalGizmoBusy() ? null : [e.clientX,e.clientY];
+  pointerStart = anyGizmoBusy() ? null : [e.clientX, e.clientY];
 });
 renderer.domElement.addEventListener('pointerup', e => {
   if (!pointerStart || Math.hypot(e.clientX-pointerStart[0], e.clientY-pointerStart[1]) > 4) return;
@@ -1281,18 +1283,18 @@ const { wheel: stepWheel } = createPickStep({
 // The camera, snap and keys (navigation.js): the framing, the camera's keys, look-drag, wheel and speeds, the gizmo's
 // buttons with the pivot and snap (and the edit hub's tools refresh), and the editor's keys; made where the camera's
 // keys were, the last of its runs, after every factory whose functions the keys call.
-const { frame, panCamera, setSnapMode } = createNavigation({
-  $, builderRecords, camera, cancelMissionGizmo, cancelPointDrag, cancelZoneGizmo, content, controls,
+const { frame, panCamera, setSnapMode, syncTools } = createNavigation({
+  $, builderRecords, camera, cancelPointDrag, content, controls,
   copySelection, copySpawn, copyZone, deleteSelection, deleteSpawn, deleteWallOpening, deleteZone, dragHint,
   editBaseSpawn, editSpawnCopy, endCoverDrag, endGridDrag, endLightDrag, endPickDrag, endTextureDrag, endVolumeDrag,
   endWallDrag, flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
-  missionGizmo, openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
+  openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
   alignToGrid, setGridTool, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
-  setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZoneGizmoMode, setZonesShown, showFileDialog, stepWheel,
+  setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZonesShown, showFileDialog, stepWheel,
   showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,
-  TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel, wallGhost, wallHint, zoneGizmo, diagonalKey,
+  TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel, wallGhost, wallHint, diagonalKey,
   // (a let startScene sets: called through)
   applyLighting: () => applyLighting() });
 window.addEventListener('beforeunload', e => { if (!leaving && unsavedDocument()) e.preventDefault(); });
@@ -1305,6 +1307,7 @@ let builderRefresh = 0, builderTarget = '';
 renderer.setAnimationLoop(() => {
   if (zoneGizmo.enabled !== zoneGizmoWanted() && !zoneGizmo.dragging) placeZoneGizmo();     // (a view or placing began or ended)
   if (missionGizmo.enabled !== missionGizmoWanted() && !missionGizmo.dragging) placeMissionGizmo();
+  syncTools();     // (the rail's gizmo buttons and snap by what is picked: navigation.js)
   const now = performance.now(), sinceFrame = Math.min(0.05, (now - lastFrame) / 1000);
   panCamera(sinceFrame);
   lastFrame = now;

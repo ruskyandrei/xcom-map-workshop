@@ -17,7 +17,6 @@
 // the gizmo's mode and drag, the floor tiles' tops); what other areas read or set (the view's switch, the picked zone,
 // the project's zones, whether a click places one) is editor_state.js's.
 import * as THREE from 'three';
-import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { LEVEL, TILE } from './constants.js';
 import { projectsAvailable } from './document_session.js';
 import { onHub, runHub } from './edit_hub.js';
@@ -30,12 +29,12 @@ import { uuid } from './project.js';
 import { showMapMenu } from './scene_start.js';
 import { DIRECTIONS as ZONE_DIRECTIONS, draggedHeight, evacBox, explicitEw, groundOf, landingUnmoved, ownLandings,
          ownSlots, placedZone, soldierSpots, turn as turnBy, yawOf } from './spawns.js';
-import { steppedMove } from './snap_steps.js';
 import { remember } from './storage.js';
 import { plural } from './dom_words.js';
 import { gameToView } from './handles.js';
+import { createViewGizmo } from './view_gizmo.js';
 
-export function createZonesWiring({ $, banner, camera, controls, editChanged, flashHint, floorStays, gizmo,
+export function createZonesWiring({ $, banner, camera, controls, copyThing, editChanged, flashHint, floorStays, gizmo,
                                    groundHeight, headerMission, isLanding, landHere, LANDING_SHOWN, landingLayer,
                                    lightButton, ownSize, projectChanged, rayAt, renderer, restingHint, select,
                                    setEffectsShown, setLightsShown, setSpawnsShown, setVolumesShown, stopPickBox,
@@ -236,71 +235,38 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     if (id && selected) select(null);
     refreshLandingZones();
   }
-  // The picked zone's gizmo (the user, 13 November: a gizmo in place of the panel's buttons). Its handle stands on the
-  // drop zone's frame (StartLoc), on the ground. It moves the zone as the snap setting says (the user, 21 November:
-  // smoothly with snap off, as everything else; snap_steps.js steppedMove), and turns it by quarter turns about the
-  // vertical, whatever the snap: a zone faces one of four ways, all an LZArray line or the game's landing can take.
-  // G shows the arrows, R the ring; each drag is one undo step, Escape during one puts it back.
-  const zoneProxy = new THREE.Object3D(); world.add(zoneProxy);
-  const zoneGizmo = new TransformControls(camera, renderer.domElement);
-  zoneGizmo.attach(zoneProxy); zoneGizmo.enabled = false; zoneGizmo.setRotationSnap(Math.PI / 2);
-  const zoneGizmoHelper = zoneGizmo.getHelper(); zoneGizmoHelper.visible = false; world.add(zoneGizmoHelper);
-  let zoneGizmoMode = 'translate', zoneGizmoDrag = null;
-  const zoneGizmoWanted = () => Boolean(pickedZone && zonesOn && landingLayer.visible && !placing && !volumesOn && !lightsOn);
-  function placeZoneGizmo() {
-    const z = zoneGizmoWanted() ? zonesNow().find(v => v.id === pickedZone) : null;
-    zoneGizmo.enabled = zoneGizmoHelper.visible = Boolean(z);
-    if (!z || zoneGizmo.dragging) return;
-    zoneProxy.position.copy(gameToView([z.location[0], z.location[1], groundOf(z)]));
-    zoneProxy.quaternion.identity(); zoneProxy.updateMatrixWorld(true);
-    zoneGizmo.setMode(zoneGizmoMode);
-    zoneGizmo.showX = zoneGizmo.showZ = zoneGizmoMode !== 'rotate';
-  }
+  // The picked zone's gizmo (the user, 13 November: a gizmo in place of the panel's buttons), made by view_gizmo.js as
+  // every view's is. Its handle stands on the drop zone's frame (StartLoc), on the ground. It moves the zone as the snap
+  // setting says (the user, 21 November: smoothly with snap off, as everything else), and turns it by quarter turns
+  // about the vertical, whatever the snap: a zone faces one of four ways, all an LZArray line or the game's landing can
+  // take. G (the rail's Move) shows the arrows, R (Rotate) the ring, V (Select) neither; each drag is one undo step,
+  // Escape during one puts it back, and Shift on an arrow drags off a copy.
   // the hints' words for the snap setting's steps (snap_steps.js SNAP_STEPS, spawns.js placedZone)
   const ZONE_MOVE_WORDS = { off: 'smoothly', fine: 'in steps of 24 units', tile: 'by whole tiles across and storeys up' };
   const ZONE_PLACE_WORDS = { off: 'anywhere', fine: 'on steps of 24 units', tile: 'on a tile' };
-  function setZoneGizmoMode(mode) {
-    zoneGizmoMode = mode; placeZoneGizmo();
-    flashHint(mode === 'rotate'
+  const zoneGizmoWanted = () => Boolean(pickedZone && zonesOn && landingLayer.visible && !placing && !volumesOn && !lightsOn);
+  const pickedZoneNow = () => zonesNow().find(v => v.id === pickedZone);
+  // (a drag's change as the zone's own fields: the zone keeps its own height, moved by dz, and one saved under the grid
+  // comes onto it: draggedHeight)
+  const zoneChange = (z, change) => (change.move
+    ? { location: [z.location[0] + change.move[0], z.location[1] + change.move[1], draggedHeight(z.location[2], change.move[2], data.tileGrid?.origin?.[2] ?? null)] }
+    : { direction: ZONE_DIRECTIONS[(ZONE_DIRECTIONS.indexOf(z.direction) + change.turns) % 4] });
+  const zoneView = createViewGizmo({ camera, dom: renderer.domElement, world, orbit: controls, flashHint,
+    at: () => { const z = zoneGizmoWanted() ? pickedZoneNow() : null; return z ? gameToView([z.location[0], z.location[1], groundOf(z)]) : null; },
+    modes: ['translate', 'rotate'], what: 'a landing zone',
+    said: mode => (mode === 'rotate'
       ? 'Turn the landing zone by quarter turns: a zone faces north, east, south or west, the only ways LWR\'s lines and the game\'s landing take (G moves it)'
-      : `Move the landing zone ${ZONE_MOVE_WORDS[snapMode]}, as the snap setting (R turns it)`);
-  }
-  zoneGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
-  zoneGizmo.addEventListener('mouseDown', () => {
-    const z = zonesNow().find(v => v.id === pickedZone);
-    zoneGizmoDrag = z ? { id: z.id, from: z, at: zoneProxy.position.clone(), change: null, key: '' } : null;
-  });
-  zoneGizmo.addEventListener('objectChange', () => {
-    const d = zoneGizmoDrag;
-    if (!d || d.cancelled) return;
-    if (zoneGizmo.mode === 'translate') {
-      const p = zoneProxy.position, [dx, dz, dy] = steppedMove([p.x - d.at.x, p.z - d.at.z, p.y - d.at.y], snapMode);
-      p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
-      // the zone keeps its own height, moved by dy; one saved under the grid comes onto it (draggedHeight)
-      const l = d.from.location, z = draggedHeight(l[2], dy, data.tileGrid?.origin?.[2] ?? null);
-      d.change = dx || dy || dz ? { location: [l[0] + dx, l[1] + dz, z] } : null;
-    } else {
-      // a turn about the view's up is the opposite turn of the game's yaw (the view's basis is x, up, y)
-      const q = Math.round(2 * Math.atan2(zoneProxy.quaternion.y, zoneProxy.quaternion.w) / (Math.PI / 2));
-      zoneProxy.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), q * Math.PI / 2);
-      const turns = ((-q % 4) + 4) % 4;
-      d.change = turns ? { direction: ZONE_DIRECTIONS[(ZONE_DIRECTIONS.indexOf(d.from.direction) + turns) % 4] } : null;
-    }
-    const key = JSON.stringify(d.change);
-    if (key !== d.key) { d.key = key; zoneDragView = { id: d.id, change: d.change }; refreshLandingZones(); }
-  });
-  zoneGizmo.addEventListener('mouseUp', () => {
-    const d = zoneGizmoDrag;
-    zoneGizmoDrag = null; zoneDragView = null;
-    if (d?.change && !d.cancelled)
-      changeZone(d.id, (zones, k) => { zones[k] = { ...zones[k], ...d.change }; return zones; }, d.change.direction ? 'Turned the landing zone' : 'Moved the landing zone');
-    else refreshLandingZones();
-    setTimeout(placeZoneGizmo, 0);       // (the controls end their drag after this event)
-  });
-  function cancelZoneGizmo() {
-    if (!zoneGizmoDrag) return;
-    zoneGizmoDrag.cancelled = true; zoneDragView = null; refreshLandingZones();
-  }
+      : mode === 'translate' ? `Move the landing zone ${ZONE_MOVE_WORDS[snapMode]}, as the snap setting (R turns it)`
+      : 'The landing zone picked, without handles (G moves it, R turns it)'),
+    preview: change => { const z = pickedZoneNow(); zoneDragView = change && z ? { id: z.id, change: zoneChange(z, change) } : null; refreshLandingZones(); },
+    commit: change => {
+      const z = pickedZoneNow(), c = z ? zoneChange(z, change) : null;
+      zoneDragView = null;
+      if (c) changeZone(z.id, (zones, k) => { zones[k] = { ...zones[k], ...c }; return zones; }, c.direction ? 'Turned the landing zone' : 'Moved the landing zone');
+    },
+    revert: () => { zoneDragView = null; refreshLandingZones(); },
+    copy: change => { const z = pickedZoneNow(); zoneDragView = null; if (z) copyZone(zoneChange(z, change).location); } });
+  const { controls: zoneGizmo, helper: zoneGizmoHelper, proxy: zoneProxy, place: placeZoneGizmo } = zoneView;
   function zoneHit(clientX, clientY) {
     if (!landingLayer.visible || !landingLayer.children.length) return null;
     const hits = rayAt(clientX, clientY).intersectObjects(landingLayer.children, true).filter(h => h.object.userData.zoneId);
@@ -383,12 +349,21 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
   const zoneTurn = (k, dir) => (zones => { zones[k] = { ...zones[k], direction: ZONE_DIRECTIONS[(ZONE_DIRECTIONS.indexOf(zones[k].direction) + dir + 4) % 4] }; return zones; });
   $('landingPlay').onclick = landHere;
   const turnZone = dir => changeZone(pickedZone, (zones, k) => zoneTurn(k, dir)(zones), 'Turned the landing zone');
-  // A copy is played by Long War; plain EW keeps the zones it had
-  function copyZone() {
+  // The picked zone as a copy carries it (Ctrl+C, Ctrl+X, the panel's Copy): its fields but its name and the plain EW
+  // and Long War marks (a copy is Long War's, as copyZone makes it), and where it stands; null with none picked.
+  function zoneClip() {
+    const z = zonesOn ? pickedZoneNow() : null;
+    if (!z) return null;
+    const { id, lwr, ew, ...rest } = z;
+    return { thing: 'zone', name: 'the landing zone', zone: rest };
+  }
+  // A copy is played by Long War; plain EW keeps the zones it had. Ctrl+D's two tiles along x, or `at` (a Shift+drag's
+  // drop).
+  function copyZone(at = null) {
     const id = uuid();
     changeZone(pickedZone, (zones, k) => {
       const l = zones[k].location, { lwr, ew, ...rest } = zones[k];
-      zones.push({ ...rest, id, location: [l[0] + 192, l[1], l[2]] });
+      zones.push({ ...rest, id, location: at ? [...at] : [l[0] + 192, l[1], l[2]] });
       return zones;
     }, 'Copied the landing zone');
     pickZone(id);
@@ -404,7 +379,8 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
     if (moved) flashHint('Deleted the landing zone · zone 1 is now plain EW\'s · Ctrl+Z undoes');
     pickZone(null);
   }
-  $('landingCopy').onclick = copyZone;
+  // the panel's Copy copies, as a piece's does (Ctrl+V or a click then places it; Ctrl+D makes one beside at once)
+  $('landingCopy').onclick = () => copyThing();
   $('landingDelete').onclick = deleteZone;
   $('landingKind').onchange = e => changeZone(pickedZone, (zones, k) => { zones[k] = { ...zones[k], kind: e.target.value }; return zones; }, 'Changed the landing zone\'s kind');
   $('landingLwr').onchange = e => changeZone(pickedZone, (zones, k) => {
@@ -434,23 +410,27 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
   };
   // Add a landing zone (the piece list's Landing zones kind): the zones are shown, and the next click on the view places
   // one on the tile under it, at the ground grid's height
-  function startZonePlacing() {
+  // (`template`: a pasted copy's zone, its fields but the place; none for a new zone from the Add panel)
+  function startZonePlacing(template = null) {
     setZonesShown(true);
     if (!landingLayer.visible) { landingLayer.visible = true; $('landingToggle').checked = true; remember(LANDING_SHOWN, '1'); refreshLandingZones(); }
-    setZonePlacing(true); renderer.domElement.style.cursor = 'crosshair';
-    flashHint(`Click where the new landing zone is to stand (${ZONE_PLACE_WORDS[snapMode]}, as the snap setting) · Esc cancels`);
+    setZonePlacing(template ?? true); renderer.domElement.style.cursor = 'crosshair';
+    flashHint(`Click where the ${template ? 'copy of the landing zone' : 'new landing zone'} is to stand (${ZONE_PLACE_WORDS[snapMode]}, as the snap setting) · Esc cancels`);
   }
   function stopZonePlacing() {
     if (!zonePlacing) return;
     setZonePlacing(false); renderer.domElement.style.cursor = ''; pieces.setChosen?.(null); restingHint();
   }
   function placeZone(clientX, clientY) {
+    const template = typeof zonePlacing === 'object' ? zonePlacing : null;
     setZonePlacing(false); renderer.domElement.style.cursor = ''; pieces.setChosen?.(null);
     const ground = groundHeight(), at = rayAt(clientX, clientY).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -ground), new THREE.Vector3());
     if (!at) return;
     const first = zonesNow()[0], [x, y] = placedZone(at.x, at.z, data.tileGrid.origin, snapMode), id = uuid();
     const zones = explicitZones(), ew = !zones.some(z => z.ew) && ownLandings(data).length > 0;
-    setZones([...zones, { id, location: [x, y, ground + 64], direction: 'north', kind: first?.kind === 'inside' ? 'inside' : 'normal', ...(ew ? { ew: true } : {}) }], 'Added a landing zone');
+    setZones([...zones, template ? { ...template, id, location: [x, y, ground + 64] }
+      : { id, location: [x, y, ground + 64], direction: 'north', kind: first?.kind === 'inside' ? 'inside' : 'normal', ...(ew ? { ew: true } : {}) }],
+             template ? 'Placed a copy of the landing zone' : 'Added a landing zone');
     pickZone(id);
   }
   // After the cleared mark changes: the menu, the streamed patches' pieces and the view-only lights (a cleared map
@@ -468,8 +448,8 @@ export function createZonesWiring({ $, banner, camera, controls, editChanged, fl
   onHub('landing-zones', 'zones', () => { refreshLandingZones(); });
   onHub('cleared', 'zones', () => { refreshLandingZones(); });
 
-  return { cancelZoneGizmo, carried, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
-           placeZone, placeZoneGizmo, refreshLandingZones, setZoneGizmoMode, setZones, setZonesShown, startZonePlacing,
+  return { carried, zoneClip, clearedChanged, copyZone, deleteZone, explicitZones, movedLandingActors, pickZone,
+           placeZone, placeZoneGizmo, refreshLandingZones, setZones, setZonesShown, startZonePlacing,
            stopZonePlacing, turnZone, zoneEntries, zoneGizmo, zoneGizmoHelper, zoneGizmoWanted, zoneHit, zoneProxy, zonesAt,
            zoneSoldiers, zoneState };
 }

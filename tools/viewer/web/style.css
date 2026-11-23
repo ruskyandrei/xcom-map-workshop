@@ -78,6 +78,9 @@ canvas { display: block; width: 100%; height: 100%; }
 .rail button:hover:not(:disabled) { background: #25313a; }
 .rail button.on { background: var(--accent-bg); color: var(--accent-text); box-shadow: inset 0 0 0 1px var(--accent); }
 .rail button:disabled { opacity: .35; cursor: default; }
+/* a rail button whose action what is picked can't take (Rotate on a thing that doesn't turn): dimmed, and its click says
+   why (navigation.js toolButtons) */
+.rail button.dim { opacity: .35; }
 .rail.idle .modifier:not(.on) { opacity: .5; }
 .rail kbd { position: absolute; right: 2px; bottom: 0; font-size: 8px; }
 .rail .badge { position: absolute; right: 1px; bottom: 0; font-size: 8px; font-weight: 600; color: var(--accent-text); }

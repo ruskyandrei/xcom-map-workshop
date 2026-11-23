@@ -21,7 +21,6 @@
 // the moves and their drag, the entries drawn, the install's rules, a spawn point being placed, the zone described)
 // is editor_state.js's.
 import * as THREE from 'three';
-import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { ask } from './api.js';
 import { LEVEL, PL, QUARTER, TILE } from './constants.js';
 import { onHub } from './edit_hub.js';
@@ -43,6 +42,7 @@ import { forget, recall, remember } from './storage.js';
 import { plural, short, text } from './dom_words.js';
 import { isStream } from './piece_records.js';
 import { gameToView } from './handles.js';
+import { createViewGizmo } from './view_gizmo.js';
 
 export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays, gizmo, groundAt, groundHeight,
                                     headerMission, headerMissions, landingLayer, lightButton, movedMatrix, numberField,
@@ -189,19 +189,33 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   }
   // One undo step: a copy of a base pod or Meld point (or of a copy: its template's, with its values and turn), a tile
   // east of it, picked (SP7). Returns the copy's key, or null where it can't be copied.
-  function copySpawn(key) {
+  function copySpawn(key, delta = [TILE, 0, 0]) {
     const e = spawnEntry(key);
     const o = e?.layer === 'copy' ? copyTemplateOf(missionMoves.get(key)) : e?.layer === 'base' ? e.record : null;
     if (!o || copyTemplateWhy(o) || missionMoves.get(key)?.deleted) return null;
     const at = spawnAt(e), now = missionMoves.get(key);
     const actor = copyName(o), k = spawnKey('copy', actor), box = o.kind === 'noSpawn' ? spawnBoxNow(e) : null;
-    const entry = copyEntry(o, { id: uuid(), actor, location: [at[0] + TILE, at[1], at[2]], box: box && [box[0] + TILE, box[1], box[2], box[3] + TILE, box[4], box[5]],
+    const entry = copyEntry(o, { id: uuid(), actor, location: [0, 1, 2].map(k => at[k] + delta[k]), box: box && box.map((v, k) => v + delta[k % 3]),
                                  rotation: now?.rotation ?? (o.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: now?.spawn ?? {} });
     const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
     gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
     setPickedSpawn(k);
     flashHint(`Copied ${short(e.record.actor)} a tile east · drag its arrows to place it`);
     return k;
+  }
+  // The picked spawn point as a copy carries it (Ctrl+C, Ctrl+X): its template, its values and turn and where it stands,
+  // so a cut one is placed again; { why } where it isn't copied (a mission's object, a kind not copied), null with none
+  // picked.
+  function spawnClip(key = pickedSpawn) {
+    const e = key ? spawnEntry(key) : null;
+    if (!e) return null;
+    const o = e.layer === 'copy' ? copyTemplateOf(missionMoves.get(key)) : e.layer === 'base' ? e.record : null;
+    if (!o) return { why: 'A mission\'s object isn\'t copied: it is the mission\'s own' };
+    if (copyTemplateWhy(o)) return { why: copyTemplateWhy(o) };
+    const now = missionMoves.get(key);
+    return { thing: 'spawn', name: `${KINDS[o.kind]?.label ?? 'spawn point'} ${short(e.record.actor)}`, o, at: spawnAt(e),
+             box: o.kind === 'noSpawn' ? spawnBoxNow(e) : null, rotation: now?.rotation ?? (o.rotation ?? [0, 0, 0]).map(v => Math.round(v)),
+             spawn: now?.spawn ?? {} };
   }
   // a copy's template: the base record it copies, or NEW_VOLUME for a no-spawn volume made fresh (no `from`)
   const copyTemplateOf = m => (m?.stream !== 'copy' ? null : m.copy.from ? baseSpawnOf(m.copy.from) : m.copy.kind === 'noSpawn' ? NEW_VOLUME : null);
@@ -212,8 +226,10 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   // A new pod or Meld point from the Add panel (its Spawn points kind): the Spawns view is shown with the kind's family,
   // and the next click places a copy of the kind's template (spawns_view.js addTemplate) on the tile under it
   // (the kind being placed, spawnPlacing: editor_state.js)
-  function startSpawnPlacing(kind) {
-    const template = addTemplate(data?.spawns, kind);
+  // (`clip`: a pasted copy, spawnClip's: its kind's family shown, and the next click places it)
+  function startSpawnPlacing(kind, clip = null) {
+    if (clip) kind = clip.o.kind;
+    const template = clip ? clip.o : addTemplate(data?.spawns, kind);
     if (!template || !spawnFamilyBuilds()) return;
     setSpawnsShown(true);
     const family = KINDS[kind].family;
@@ -222,9 +238,9 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
     }
     // (the picked point goes, so its arrows are never under the click)
     if (pickedSpawn) setPickedSpawn(null);
-    setSpawnPlacing(kind); renderer.domElement.style.cursor = 'crosshair';
+    setSpawnPlacing(clip ?? kind); renderer.domElement.style.cursor = 'crosshair';
     placeMissionGizmo();
-    flashHint(`Click the tile the new ${KINDS[kind].label.toLowerCase()} is to stand ${kind === 'noSpawn' ? 'over' : 'on'} · Esc cancels`);
+    flashHint(`Click the tile the ${clip ? `copy of ${clip.name}` : `new ${KINDS[kind].label.toLowerCase()}`} is to stand ${kind === 'noSpawn' ? 'over' : 'on'} · Esc cancels`);
   }
   function stopSpawnPlacing() {
     if (!spawnPlacing) return;
@@ -233,8 +249,11 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   }
   // One undo step: the copy placed where the click falls (on a piece, else on the ground grid's plane), on the tile under
   // it by whole tiles from its template, at the template's height above its own floor; then picked
+  // (a pasted copy, spawnPlacing a clip: its template where it stood, with its values and turn, placed as the kind's is)
   function placeSpawn(clientX, clientY) {
-    const kind = spawnPlacing, template = addTemplate(data?.spawns, kind);
+    const clip = typeof spawnPlacing === 'object' ? spawnPlacing : null, kind = clip ? clip.o.kind : spawnPlacing;
+    const template = clip ? { ...clip.o, location: clip.at, rotation: clip.rotation, ...(clip.box ? { box: { min: clip.box.slice(0, 3), max: clip.box.slice(3) } } : {}) }
+      : addTemplate(data?.spawns, kind);
     stopSpawnPlacing();
     if (!template) return null;
     const hit = pick(clientX, clientY)?.point
@@ -246,17 +265,18 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
       // a volume: its box over whole tiles round the click, its bottom on the level of the surface under it
       const grid = { origin: data?.tileGrid?.origin ?? [0, 0, 0], size: data?.tileGrid?.size ?? [TILE, TILE, LEVEL] };
       const box = volumePlace(template, [hit.x, hit.z, hit.y], groundAt(hit.x, hit.z, hit.y + 64), grid);
-      entry = copyEntry(template, { id: uuid(), actor, box, spawn: {} });
+      entry = copyEntry(template, { id: uuid(), actor, box, spawn: clip?.spawn ?? {} });
     } else {
       const [tx, ty, tz] = template.location;
       const place0 = addPlace(template, [hit.x, hit.z, hit.y], null, null);
       const at = addPlace(template, [hit.x, hit.z, hit.y], groundAt(place0[0], place0[1], hit.y + 64), groundAt(tx, ty, tz + 64));
-      entry = copyEntry(template, { id: uuid(), actor, location: at, rotation: (template.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: {} });
+      entry = copyEntry(template, { id: uuid(), actor, location: at, rotation: (template.rotation ?? [0, 0, 0]).map(v => Math.round(v)), spawn: clip?.spawn ?? {} });
     }
     const before = new Map(missionMoves), after = new Map(missionMoves).set(k, entry);
     gizmo.record({ redo: () => setMissionMoves(after), undo: () => setMissionMoves(before) });
     setPickedSpawn(k);
-    flashHint(kind === 'noSpawn' ? `Added a no-spawn volume${template.fresh ? '' : `, a copy of ${short(template.actor)}`} · its arrows move it, its white handles stretch a side`
+    if (clip) flashHint(`Placed a copy of ${clip.name} · its arrows move it`);
+    else flashHint(kind === 'noSpawn' ? `Added a no-spawn volume${template.fresh ? '' : `, a copy of ${short(template.actor)}`} · its arrows move it, its white handles stretch a side`
       : `Added a ${KINDS[kind].label.toLowerCase()}, a copy of ${short(template.actor)} · its arrows move it`);
     return k;
   }
@@ -547,52 +567,45 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   const spawnMovable = e => Boolean(e) && (e.layer === 'stream' || e.layer === 'donor'
     || (e.layer === 'base' && spawnEditable(e.record) && spawnFamilyBuilds() && !spawnDeleted(e))
     || (e.layer === 'copy' && spawnFamilyBuilds()));
-  // The picked stream object's gizmo: arrows on its marker that move its group by whole tiles across and whole levels
-  // (64 units) up, as a landing zone's do. Escape during a drag puts it back.
-  const missionProxy = new THREE.Object3D(); world.add(missionProxy);
-  const missionGizmo = new TransformControls(camera, renderer.domElement);
-  missionGizmo.attach(missionProxy); missionGizmo.enabled = false; missionGizmo.setMode('translate');
-  const missionGizmoHelper = missionGizmo.getHelper(); missionGizmoHelper.visible = false; world.add(missionGizmoHelper);
-  let missionDrag = null;
+  // The picked spawn point's or mission object's gizmo, made by view_gizmo.js as every view's is: arrows on its marker
+  // that move it (a stream object with its group) by whole tiles across and whole levels (64 units) up, a landing
+  // zone's do, whatever Snap says: it stands on a tile, and the Snap button shows that step while it is picked. A drop-in
+  // point turns by quarters on its ring (R) as by [ and ]. Escape during a drag puts it back; Shift on an arrow drags off
+  // a copy of one of the map's pods, Meld points and no-spawn volumes, or of a copy.
   const missionGizmoWanted = () => Boolean(spawnMovable(spawnEntry(pickedSpawn)) && spawnsShown() && projectsAvailable() && !placing
     && !spawnPlacing && !volumesOn && !lightsOn && !zonesOn && !effectsOn);
-  function placeMissionGizmo() {
-    const e = missionGizmoWanted() ? spawnEntry(pickedSpawn) : null;
-    missionGizmo.enabled = missionGizmoHelper.visible = Boolean(e);
-    if (!e || missionGizmo.dragging) return;
-    missionProxy.position.copy(gameToView(spawnAt(e)));
-    missionProxy.quaternion.identity(); missionProxy.updateMatrixWorld(true);
-  }
-  missionGizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
-  missionGizmo.addEventListener('mouseDown', () => {
-    const e = spawnEntry(pickedSpawn);
-    missionDrag = spawnMovable(e) ? { stream: e.stream, actor: e.record.actor, at: missionProxy.position.clone(), delta: [0, 0, 0], key: '' } : null;
-  });
-  missionGizmo.addEventListener('objectChange', () => {
-    const d = missionDrag;
-    if (!d || d.cancelled) return;
-    const p = missionProxy.position, dx = Math.round((p.x - d.at.x) / TILE) * TILE, dz = Math.round((p.z - d.at.z) / TILE) * TILE,
-          dy = Math.round((p.y - d.at.y) / LEVEL) * LEVEL;
-    p.set(d.at.x + dx, d.at.y + dy, d.at.z + dz);
-    d.delta = [dx, dz, dy];                 // the view's basis is x, up, y
-    const key = d.delta.join(',');
-    if (key !== d.key) {
-      d.key = key;
-      setMissionDragView(movedMissions(d.stream, d.actor, d.delta));
+  // (a drop-in point of the map, or a copy, turns: a pod's facing aims nothing, the user, 18 November 2026)
+  const pickedTurns = () => { const e = spawnEntry(pickedSpawn); return Boolean(e) && ['base', 'copy'].includes(e.layer) && TURNED_KINDS.includes(e.record.kind) && spawnMovable(e); };
+  const missionView = createViewGizmo({ camera, dom: renderer.domElement, world, orbit: controls, flashHint, leastSnap: 'tile',
+    at: () => { const e = missionGizmoWanted() ? spawnEntry(pickedSpawn) : null; return e ? gameToView(spawnAt(e)) : null; },
+    modes: () => (pickedTurns() ? ['translate', 'rotate'] : ['translate']),
+    what: () => (['stream', 'donor'].includes(spawnEntry(pickedSpawn)?.layer) ? 'a mission object moves with its group by whole tiles' : 'a spawn point stands on a tile'),
+    noTurn: 'A pod\'s or Meld point\'s facing aims nothing: only a drop-in point turns',
+    noCopy: () => {
+      const e = spawnEntry(pickedSpawn);
+      if (!e || !['base', 'copy'].includes(e.layer)) return 'A mission\'s object isn\'t copied: it is the mission\'s own; moved, it takes its group along';
+      const o = e.layer === 'copy' ? copyTemplateOf(missionMoves.get(pickedSpawn)) : e.record;
+      return !o ? 'It isn\'t copied' : copyTemplateWhy(o);
+    },
+    preview: change => {
+      const e = spawnEntry(pickedSpawn);
+      setMissionDragView(change?.move && e ? movedMissions(e.stream, e.record.actor, change.move) : null);
       placeStreamRoots(); refreshSpawnMarkers();
-    }
-  });
-  missionGizmo.addEventListener('mouseUp', () => {
-    const d = missionDrag;
-    missionDrag = null; setMissionDragView(null);
-    if (d && !d.cancelled && moveMissionGroup(d.stream, d.actor, d.delta)) return;
-    placeStreamRoots(); refreshSpawnMarkers();
-    setTimeout(placeMissionGizmo, 0);       // (the controls end their drag after this event)
-  });
-  function cancelMissionGizmo() {
-    if (!missionDrag) return;
-    missionDrag.cancelled = true; setMissionDragView(null); placeStreamRoots(); refreshSpawnMarkers();
-  }
+    },
+    commit: change => {
+      const e = spawnEntry(pickedSpawn);
+      setMissionDragView(null);
+      if (e && change.move && moveMissionGroup(e.stream, e.record.actor, change.move)) return;
+      if (e && change.turns) {
+        const turn = change.turns * QUARTER, hint = `Turned a quarter ${change.turns === 3 ? 'left' : change.turns === 1 ? 'right' : 'twice'}`;
+        if (e.layer === 'copy') editSpawnCopy(e.record.actor, { turn }, hint); else editBaseSpawn(e.record.actor, { turn }, hint);
+        return;
+      }
+      placeStreamRoots(); refreshSpawnMarkers();
+    },
+    revert: () => { setMissionDragView(null); placeStreamRoots(); refreshSpawnMarkers(); },
+    copy: change => { setMissionDragView(null); placeStreamRoots(); copySpawn(pickedSpawn, change.move); } });
+  const { controls: missionGizmo, proxy: missionProxy, place: placeMissionGizmo } = missionView;
   // The spawn markers within 18 pixels of a screen point (about the halo's size on screen): [{ key, d (pixels),
   // distance (from the camera) }], nearest the camera first (Ctrl and the wheel: pick_step.js). A click takes the one
   // nearest the pointer.
@@ -769,7 +782,7 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   // A no-spawn volume's box dragged by a face handle (the edit hub's spawn-box run): the markers.
   onHub('spawn-box', 'spawns', () => { refreshSpawnMarkers(); });
 
-  return { baseSpawnOf, bombHelperFix, cancelMissionGizmo, copySpawn, deleteSpawn, editBaseSpawn, editedCopies,
+  return { baseSpawnOf, bombHelperFix, copySpawn, spawnClip, deleteSpawn, editBaseSpawn, editedCopies,
            editedSpawns, editSpawnCopy, loadSpawnRules, missionFloorLost, missionGizmo, missionGizmoWanted, missionKey,
            missionOverrides, missionProxy, missionReached, moveMissionGroup, NORMAL_SPAWNS, pickSpawnMarker, spawnMarkersAt,
            placeMissionGizmo, placeSpawn, refreshSpawnMarkers, resetBaseSpawn, scaleSpawnMarkers, setMissionMoves,

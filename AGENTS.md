@@ -39,6 +39,8 @@
   they use the selected linear or angular step. Apply the same rule to map and prefab editing. A tool may offer
   an explicit alignment command or preset. Never silently round an edit to a unit, tile, storey or quarter turn.
   If the game cannot represent an edit, explain the specific limitation and preserve the authored value.
+  A thing the game keeps per tile (a spawn point, a diagonal cover mark) moves by whole tiles, and the Snap button
+  shows that step while it is picked.
 - **No folder of one computer in anything checked in.** Code takes folders from the settings
   (`Documents\XCOM Map Workshop\settings.json`: `python tools/viewer/viewer.py settings`), from arguments, or relative
   to the repository; docs and usage lines write placeholders such as `<LWR install>`, `<cache>`, `<udk>` or `<lab>`.
@@ -59,5 +61,6 @@
 - **A change to what the editor's user sees or does follows [UI-GUIDELINES.md](UI-GUIDELINES.md):** edit in the 3D
   view with handles and gizmos where that can be done, without crowding it; one way to do a thing, in the stylesheet's
   parts; short panels, and buttons that look like buttons. For a larger change (a new window, panel or view, or one
-  laid out anew) show the user a few mock designs first and build the one chosen (its section 4).
+  laid out anew) show the user a few mock designs first and build the one chosen (its section 4). Every thing in the view takes
+  the same controls (its section 2's table); a view's gizmo is made by `view_gizmo.js`.
 - See [README.md](README.md) for the layout and the setup this depends on.

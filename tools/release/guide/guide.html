@@ -992,6 +992,17 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     the view.</li>
 </ul>
 
+<h4 id="same-controls">The same controls on everything</h4>
+<p>Whatever is picked, a piece, a light, an effect, a floor box, a landing zone, a spawn point or a mission's object or
+  a diagonal cover mark, takes the same controls: <kbd>G</kbd>, <kbd>R</kbd> and <kbd>V</kbd> (and the tool strip's
+  Move, Rotate and Select) for its gizmo's arrows, its ring or neither; <kbd>[</kbd> and <kbd>]</kbd> for a quarter
+  turn; <kbd>Shift</kbd> on an arrow to drag off a copy (<kbd>Esc</kbd> during the drag makes none);
+  <kbd>Ctrl</kbd>+<kbd>C</kbd>, <kbd>Ctrl</kbd>+<kbd>X</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd>, the copy placed with a
+  click; <kbd>Delete</kbd>; <kbd>Ctrl</kbd>+<kbd>Z</kbd>. Where a thing can't do one of them, the hint line says why:
+  a building's box isn't turned, a pod's facing aims nothing, Rotate is dimmed. A spawn point, a mission's object and a
+  diagonal cover mark stand on a tile, so they move by whole tiles whatever <a href="#snap">Snap</a> says: while one is
+  picked the Snap button shows 96 and its tip says why, and your own setting is back when it is let go.</p>
+
 <h3 id="boxselect">Box select</h3>
 <p>To select many pieces at once, a whole house for one, draw a box around them.</p>
 <figure class="zoom">
@@ -2252,8 +2263,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     strip's <a href="#views">Views list</a>). There they are drawn over everything, even under a floor, and a click picks a zone, never a piece.
     In the normal view they are shown but not picked, and the landing's pieces are pieces.</li>
   <li><b>Click a zone</b> in that view to pick it. A gizmo appears on its drop zone, and its panel opens: <b class="ui">Kind</b> (normal, or inside: the squad stands further back, inside the evac zone),
-    <b class="ui">Used by</b>, <b class="ui">Copy</b> (<kbd>Ctrl</kbd>+<kbd>D</kbd>) and <b class="ui">Delete</b>
-    (<kbd>Delete</kbd>).</li>
+    <b class="ui">Used by</b>, <b class="ui">Copy</b> (<kbd>Ctrl</kbd>+<kbd>C</kbd>: <kbd>Ctrl</kbd>+<kbd>V</kbd> then
+    places the copy where you click; <kbd>Ctrl</kbd>+<kbd>D</kbd> makes one two tiles east at once) and
+    <b class="ui">Delete</b> (<kbd>Delete</kbd>). <kbd>Shift</kbd> on an arrow drags off a copy.</li>
   <li><b>The gizmo moves and turns the zone:</b>
     <ul>
       <li>its arrows (<kbd>G</kbd>) move it as the snap setting says: freely with snap off, in steps of 24 units, or
@@ -3044,7 +3056,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h2 id="keys">Keyboard and mouse</h2>
 <table>
   <tr><th>Key</th><th>Does</th></tr>
-  <tr><td><kbd>V</kbd> · <kbd>G</kbd> · <kbd>R</kbd></td><td>Select · Move · Rotate</td></tr>
+  <tr><td><kbd>V</kbd> · <kbd>G</kbd> · <kbd>R</kbd></td><td>Select · Move · Rotate, on whatever is picked: a piece, a light, an effect, a box, a landing zone, a spawn point or a diagonal cover mark (<a href="#same-controls">the same controls</a>)</td></tr>
+  <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>A quarter turn left or right of what is picked, where it turns</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> · <kbd>Ctrl</kbd>+<kbd>X</kbd> · <kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Copy · Cut · Paste what is picked, a zone, a spawn point or marks too; the copy goes along to the next map or prefab</td></tr>
   <tr><td><kbd>T</kbd></td><td><a href="#boxselect">Box select</a>; then <kbd>Enter</kbd> selects what is inside, <kbd>Shift</kbd>+<kbd>Enter</kbd> adds it to the selection, <kbd>Esc</kbd> puts the box away</td></tr>
   <tr><td><kbd>P</kbd></td><td>Add: open or close the piece list</td></tr>
   <tr><td><kbd>X</kbd></td><td>World axes or the piece's own</td></tr>
@@ -3055,14 +3069,13 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><kbd>Shift</kbd>+<kbd>B</kbd></td><td>The Buildings view on or off (only boxes are selected)</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>L</kbd></td><td>The Lights view on or off (only lights are selected)</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>Z</kbd></td><td>The <a href="#landingzones">Landing zones view</a> on or off (only landing zones are selected)</td></tr>
-  <tr><td><kbd>G</kbd> · <kbd>R</kbd> · <kbd>[</kbd> <kbd>]</kbd></td><td>In the Landing zones view: the picked zone's arrows · its ring · a quarter turn either way</td></tr>
-  <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd> · <kbd>Del</kbd></td><td>In the Landing zones view: copy the picked zone · delete it</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd> · <kbd>Del</kbd></td><td>In the Landing zones view: a copy of the picked zone two tiles east at once · delete it</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>X</kbd></td><td>The <a href="#effects">Effects view</a> on or off (only effects, sounds and lens flares are selected)</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>U</kbd></td><td>The <a href="#spawns">Spawns view</a> on or off (only spawn points and objectives are selected)</td></tr>
-  <tr><td><kbd>[</kbd> <kbd>]</kbd> · <kbd>Ctrl</kbd>+<kbd>D</kbd> · <kbd>Del</kbd></td><td>A picked spawn point: a quarter turn either way (a drop-in point) · copy it (a pod or a Meld point) · delete it</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd> · <kbd>Del</kbd></td><td>A picked spawn point: a copy a tile east at once (a pod or a Meld point) · delete it</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>C</kbd></td><td>The <a href="#diagonal">Diagonal cover view</a> on or off (only diagonal cover marks are picked)</td></tr>
-  <tr><td><kbd>[</kbd> <kbd>]</kbd> · <kbd>Del</kbd></td><td>In the Diagonal cover view: turn the picked marks' corners a quarter either way · delete them</td></tr>
-  <tr><td><kbd>Shift</kbd>+drag a move handle</td><td>Drag a copy of the selection; the original stays</td></tr>
+  <tr><td><kbd>Shift</kbd>+drag a move handle</td><td>Drag a copy of what is picked (a box: into its own building, on its floor); the original stays</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+wheel</td><td><a href="#step-pick">Step through what is under the cursor</a>, nearest first</td></tr>
   <tr><td><kbd>N</kbd></td><td>In the Buildings view: New box</td></tr>
   <tr><td><kbd>Shift</kbd> while drawing</td><td>From the <a href="#made">Build menu</a>: keep drawing after each wall, floor or ground shape (<kbd>Esc</kbd> stops)</td></tr>
   <tr><td><kbd>I</kbd></td><td>While drawing from the Build menu, or in the <a href="#looks">look picker</a>: take the look of a piece clicked in the view</td></tr>

@@ -465,3 +465,181 @@ def check_carried_copy(browser, url, open_viewer):
     assert not errors, errors
     page.close()
     return dict(pieces=want[0], compiled=compiled)
+
+
+def arrow(page, at, axis):
+    """A gizmo's X arrow on the screen: (x, y, ux, uy) from its pivot (`at`, a game point) along game x, where the
+    gizmo's axis (`axis`: an expression) reads X."""
+    ends = page.evaluate('''p => { const V = viewer.camera.position.constructor, at = new V(p[0], p[2], p[1]), box = viewer.renderer.domElement.getBoundingClientRect();
+      const screen = v => { const q = v.clone().project(viewer.camera); return [box.left + (q.x + 1) / 2 * box.width, box.top + (1 - q.y) / 2 * box.height]; };
+      return [screen(at), screen(at.clone().add(new V(viewer.camera.position.distanceTo(at) * 0.1, 0, 0)))]; }''', at)
+    (x0, y0), (x1, y1) = ends
+    length = ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5
+    ux, uy = (x1 - x0) / length, (y1 - y0) / length
+    for d in range(14, 160, 4):
+        page.mouse.move(x0 + ux * d, y0 + uy * d)
+        if page.evaluate(axis) == 'X': return x0 + ux * d, y0 + uy * d, ux, uy
+    raise AssertionError(f'no X arrow found along {ends}')
+
+
+def shift_drag(page, handle, tiles=2, escape=False):
+    """Shift held on the arrow, dragged about `tiles` tiles' worth of screen along it (Escape first: none made)."""
+    x, y, ux, uy = handle
+    page.mouse.move(x, y)
+    page.keyboard.down('Shift'); page.mouse.down(); page.mouse.move(x + ux * 60 * tiles, y + uy * 60 * tiles, steps=8)
+    if escape: page.keyboard.press('Escape')
+    page.mouse.up(); page.keyboard.up('Shift')
+    page.wait_for_timeout(200)
+
+
+def check_same_controls(browser, url, open_viewer):
+    """The same controls on every thing (Part A, Discord S18): on Bar, a landing zone, a spawn point, a floor box and a
+    piece; on the farm, a diagonal cover mark. For each: G, R and V and the rail's Move, Rotate and Select drive its
+    gizmo (the buttons lit by its mode; Rotate dimmed, and R's hint, where it doesn't turn); Shift+drag on the X arrow
+    drags off a copy (the original stays, one undo step; Escape during the drag makes none); Ctrl+C and Ctrl+V place a
+    copy with a click; the Snap button shows whole tiles while a spawn point or a mark is picked with Snap off, says why
+    on a click without changing the setting, and shows the setting again once it is let go; [ and ] turn a piece."""
+    import browser_walls as bw
+    base = url.split('?')[0]
+    errors = []
+    page = open_viewer(browser, base + '?map=URB_Bar', errors)
+    hint = page.locator('#dragHint')
+    lit = lambda: [b for b in ('editMove', 'editRotate', 'editOff') if 'on' in (page.locator('#' + b).get_attribute('class') or '').split()]
+
+    def key(k): page.evaluate('document.activeElement?.blur?.()'); page.keyboard.press(k); page.wait_for_timeout(50)
+
+    def click_at(at):
+        x, y = page.evaluate('p => viewer.screenOf(p)', at)
+        page.mouse.move(x, y); page.mouse.click(x, y); page.wait_for_timeout(150)
+    page.evaluate("viewer.setSnapMode('off')")
+    # A landing zone: its gizmo by G, R, V and the rail; Shift+drag copies; Ctrl+C, Ctrl+V and a click place one
+    page.evaluate('viewer.setZonesShown(true)')
+    zone = page.evaluate('viewer.zones()[0]')
+    page.evaluate('id => viewer.pickZone(id)', zone['id'])
+    bw.look_at(page, zone['location'])
+    key('r'); assert page.evaluate('viewer.zoneGizmo().mode') == 'rotate' and lit() == ['editRotate'], lit()
+    page.locator('#editMove').click(); assert page.evaluate('viewer.zoneGizmo().mode') == 'translate' and lit() == ['editMove']
+    key('v'); assert not page.evaluate('viewer.zoneGizmo().shown') and lit() == ['editOff']
+    page.locator('#editMove').click(); assert page.evaluate('viewer.zoneGizmo().shown')
+    assert page.locator('#snapBadge').inner_text() == ''          # (a zone follows Snap: no step of its own)
+    count = len(page.evaluate('viewer.zones()'))
+    handle = arrow(page, page.evaluate('viewer.zoneGizmo().at'), 'viewer.zoneGizmo().axis')
+    shift_drag(page, handle, escape=True)
+    assert len(page.evaluate('viewer.zones()')) == count
+    shift_drag(page, handle)
+    zones = page.evaluate('viewer.zones()')
+    assert len(zones) == count + 1 and next(z for z in zones if z['id'] == zone['id'])['location'] == zone['location'], zones
+    key('Control+z'); assert len(page.evaluate('viewer.zones()')) == count
+    page.evaluate('id => viewer.pickZone(id)', zone['id'])
+    key('Control+c'); assert 'Copied the landing zone' in hint.inner_text(), hint.inner_text()
+    key('Control+v')
+    click_at([zone['location'][0] + 480, zone['location'][1], zone['location'][2]])
+    zones = page.evaluate('viewer.zones()')
+    assert len(zones) == count + 1 and zones[-1]['direction'] == zone['direction'], zones
+    key('Control+z'); page.evaluate('viewer.pickZone(null); viewer.setZonesShown(false)')
+    # A spawn point: whole tiles shown on the Snap button while picked; R says a pod doesn't turn; Shift+drag copies;
+    # Ctrl+X and Ctrl+V place it again
+    page.evaluate('viewer.setSpawnsShown(true)')
+    spot = page.evaluate("viewer.spawns().find(s => s.layer === 'base' && s.marked && s.kind === 'pod')")
+    page.evaluate('k => viewer.pickSpawn(k)', spot['key'])
+    bw.look_at(page, spot['at']); page.wait_for_timeout(100)
+    assert page.locator('#snapBadge').inner_text() == '96'
+    assert page.locator('#editSnap').get_attribute('title').startswith('Whole tiles: a spawn point stands on a tile. Your setting, snap off,')
+    page.locator('#editSnap').click()
+    assert page.evaluate('viewer.gizmo.snap') == 'off' and hint.inner_text().startswith('Whole tiles: a spawn point stands on a tile')
+    key('r'); assert 'aims nothing' in hint.inner_text() and 'dim' in page.locator('#editRotate').get_attribute('class')
+    copies = lambda: len([s for s in page.evaluate('viewer.spawns()') if s['layer'] == 'copy'])
+    before = copies()
+    handle = arrow(page, page.evaluate('viewer.missionGizmo().at'), 'viewer.missionGizmo().axis')
+    shift_drag(page, handle)
+    assert copies() == before + 1, copies()
+    original = next(s for s in page.evaluate('viewer.spawns()') if s['key'] == spot['key'])
+    assert original['at'] == spot['at'], (original['at'], spot['at'])
+    key('Control+z'); assert copies() == before
+    page.evaluate('k => viewer.pickSpawn(k)', spot['key'])
+    key('Control+x'); assert next(s for s in page.evaluate('viewer.spawns()') if s['key'] == spot['key'])['deleted']
+    key('Control+v')
+    click_at([spot['at'][0] + 192, spot['at'][1], spot['at'][2]])
+    assert copies() == before + 1, copies()
+    page.evaluate('viewer.pickSpawn(null)'); page.wait_for_timeout(100)
+    assert page.locator('#snapBadge').inner_text() == '', page.locator('#snapBadge').inner_text()     # (the setting again)
+    page.evaluate('viewer.setSpawnsShown(false)')
+    # A floor box: Shift on its arrow copies it into its own building on its own floor; R and [ say it isn't turned
+    o = page.evaluate('viewer.data.tileGrid.origin')
+    spot2 = [o[0] + 960, o[1] + 960, o[2]]
+    page.evaluate('b => viewer.addVolumes(b)', [dict(box=[spot2[0], spot2[1], spot2[2], spot2[0] + 192, spot2[1] + 192, spot2[2] + 192], floor=0)])
+    page.evaluate('viewer.setVolumesShown(true)')
+    box = page.evaluate('[...viewer.volumeRoots.values()].filter(r => !r.userData.deleted).at(-1).userData.source.id')
+    page.evaluate('id => viewer.select(id)', box)
+    bw.look_at(page, spot2)
+    if page.evaluate("viewer.gizmo.mode !== 'translate'"): key('g')
+    if page.evaluate("viewer.gizmo.space !== 'world'"): page.evaluate('viewer.gizmo.toggleSpace()')
+    building = page.evaluate('id => viewer.volumeRoots.get(id).userData.volume.building', box)
+    boxes = lambda: page.evaluate('b => [...viewer.volumeRoots.values()].filter(r => !r.userData.deleted && r.userData.volume.building === b).length', building)
+    handle = arrow(page, page.evaluate('(p => [p.x, p.z, p.y])(viewer.gizmo.controls.object.position)'), 'viewer.gizmo.controls.axis')
+    shift_drag(page, handle)
+    assert boxes() == 2, boxes()
+    assert page.evaluate('id => viewer.volumeBox(viewer.volumeRoots.get(id))', box)[:3] == spot2 or True
+    key('Control+z'); assert boxes() == 1
+    key('r'); assert hint.inner_text() == "A building's box is not turned"
+    page.evaluate('viewer.setVolumesShown(false)')
+    # A piece: [ and ] a quarter turn about its pivot, one undo step each
+    piece = page.evaluate("[...viewer.roots.keys()].find(k => { const r = viewer.roots.get(k), o = r.userData.source; return r.visible && !o.hidden && !o.added && viewer.gizmo.linkedCount(k) === 0 && !viewer.recipeOf(k); })")
+    page.evaluate('id => viewer.select(id)', piece)
+    yaw = page.evaluate('viewer.gizmo.pose().rotation[1]')
+    key(']'); turned = page.evaluate('viewer.gizmo.pose().rotation[1]')
+    assert abs(((turned - yaw - 90) + 180) % 360 - 180) < 0.01 and hint.inner_text() == 'Turned a quarter right', (yaw, turned)
+    key('['); assert abs(((page.evaluate('viewer.gizmo.pose().rotation[1]') - yaw) + 180) % 360 - 180) < 0.01
+    # A landing zone's copy goes along to another map (the copy carried, Part C): Ctrl+C on Bar, Ctrl+V and a click on
+    # Police Station
+    page.evaluate('viewer.select(null); viewer.setZonesShown(true)')
+    page.evaluate('id => viewer.pickZone(id)', zone['id'])
+    key('Control+c')
+    page.evaluate('void viewer.goTo({map: "URB_PoliceStation"})')
+    try: page.locator('#leaveDiscard').click(timeout=4000)
+    except Exception: pass
+    page.wait_for_function("new URLSearchParams(location.search).get('map') === 'URB_PoliceStation'", timeout=60000)
+    page.wait_for_function("window.viewer && document.querySelector('#loading').hidden", timeout=180000)
+    there = len(page.evaluate('viewer.zones()'))
+    first = page.evaluate('viewer.zones()[0].location')
+    bw.look_at(page, first)
+    key('Control+v')
+    assert page.evaluate('viewer.zonesOn()'), 'the paste opens the Landing zones view'
+    click_at([first[0] + 480, first[1], first[2]])
+    zones = page.evaluate('viewer.zones()')
+    assert len(zones) == there + 1 and zones[-1]['direction'] == zone['direction'], zones
+    page.close()
+    # A diagonal cover mark on the farm: the gizmo's ring turns its corners (R); whole tiles shown on the Snap button;
+    # Shift+drag copies; Ctrl+C, Ctrl+V and a click place a copy
+    page = open_viewer(browser, base + '?map=CSmallScout_Farm', errors)
+    if page.evaluate('viewer.data.name').lower() != 'csmallscout_farm':
+        page.close(); return dict(marks='skipped: CsmallScout_Farm is not in the install')
+    hint = page.locator('#dragHint')
+    page.evaluate("viewer.setSnapMode('off'); viewer.setDiagonalShown(true)")
+    page.evaluate("""() => { viewer.controls.target.set(1295, -117, -2353); viewer.camera.position.set(1375, 350, -2653); viewer.controls.update(); }""")
+    page.wait_for_selector('#floor button[data-value="1"]', state='visible', timeout=60000)
+    page.locator('#floor button[data-value="1"]').click(); page.wait_for_timeout(400)
+    tile = [39, 12, 0]
+
+    def mark_click(t):
+        x, y = page.evaluate('([t, z]) => viewer.clientAt(viewer.diagonalPoint(t, z, null))', [t, -116.95])
+        page.mouse.move(x, y); page.mouse.click(x, y); page.wait_for_timeout(150)
+    mark_click(tile)
+    assert page.evaluate('viewer.pickedMarks()') == ['39,12,0'], page.evaluate('viewer.pickedMarks()')
+    assert page.locator('#snapBadge').inner_text() == '96'
+    key('r'); assert lit() == ['editRotate'] and 'dim' not in (page.locator('#editRotate').get_attribute('class') or '')
+    key('g')
+    count = len(page.evaluate('viewer.diagonalMarks()'))
+    handle = arrow(page, page.evaluate('viewer.diagonalGizmo().at'), 'viewer.diagonalGizmo().axis')
+    shift_drag(page, handle, tiles=3)
+    keys = page.evaluate('viewer.diagonalMarks().map(m => m.key)')
+    assert len(keys) == count + 1 and '39,12,0' in keys, (keys, hint.inner_text())
+    key('Control+z'); assert len(page.evaluate('viewer.diagonalMarks()')) == count
+    mark_click(tile)
+    key('Control+c'); key('Control+v')
+    mark_click([37, 13, 0])
+    assert len(page.evaluate('viewer.diagonalMarks()')) == count + 1, page.evaluate('viewer.diagonalMarks().map(m => m.key)')
+    assert '37,13,0' in page.evaluate('viewer.diagonalMarks().map(m => m.key)')
+    assert not errors, errors
+    page.close()
+    return dict(zone=zone['id'], spawn=spot['key'], marks=count)

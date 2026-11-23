@@ -73,7 +73,8 @@ def check_diagonal(browser, url, open_viewer):
     assert page.evaluate(hand) is None
     page.keyboard.press('Control+y')
     assert page.evaluate(hand)['marks'][0]['toward'] == [[-1, -1], [1, 1]]
-    # ] turns its corners a quarter (clockwise in game axes): [-1, -1] and [1, 1] to [-1, 1] and [1, -1]
+    # ] turns its corners a quarter to the right as seen from above (the game's yaw, as a zone's ] turns it; [ to the
+    # left): [-1, -1] and [1, 1] to [-1, 1] and [1, -1]
     page.keyboard.press(']')
     assert page.evaluate(hand)['marks'][0]['toward'] == [[-1, 1], [1, -1]], page.evaluate(hand)
     page.keyboard.press('Control+z')

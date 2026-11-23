@@ -1,7 +1,7 @@
 // The one snap policy (snap_steps.js; the custom geometry improvements plan, section 3). Run: node
 // tools/viewer/tests/snap_steps_test.mjs
 import assert from 'node:assert/strict';
-import { droppedAcross, moveWords, SNAP_STEPS, stepped, steppedMove, steppedViewMove, stepsOf, stepWords, typedStep } from '../web/snap_steps.js';
+import { droppedAcross, moveWords, SNAP_STEPS, snapInForce, stepped, steppedMove, steppedViewMove, stepsOf, stepWords, typedStep } from '../web/snap_steps.js';
 
 // the table: off continuous, fine 24 and 15°, tile 96 across, 64 up and 90°
 assert.deepEqual(SNAP_STEPS.off, { across: 0, up: 0, turn: 0 });
@@ -9,6 +9,14 @@ assert.deepEqual(SNAP_STEPS.fine, { across: 24, up: 24, turn: 15 });
 assert.deepEqual(SNAP_STEPS.tile, { across: 96, up: 64, turn: 90 });
 assert.equal(stepsOf('nonsense'), SNAP_STEPS.off);
 assert.ok(Object.isFrozen(SNAP_STEPS.fine));
+
+// the setting in force for a thing with a least step of its own: whole tiles where the setting is finer; with none,
+// the setting
+assert.equal(snapInForce('off', 'tile'), 'tile');
+assert.equal(snapInForce('fine', 'tile'), 'tile');
+assert.equal(snapInForce('tile', 'tile'), 'tile');
+assert.equal(snapInForce('fine', null), 'fine');
+assert.equal(snapInForce('off'), 'off');
 
 // a distance in whole steps; a step of 0 leaves it, to fractions of a unit
 assert.equal(stepped(0.375, 0), 0.375);

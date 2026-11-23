@@ -24,6 +24,16 @@ assert.equal(back.boxes, undefined);
 const boxes = [{ box: [0, 0, 0, 96, 96, 64], building: 'b2', floor: 0, meta: { name: 'Hut', kind: 'building' } }];
 assert.deepEqual(unpackCarried(packCarried({ ...copy, boxes }).text).doc.boxes, boxes);
 
+// a landing zone or marks go along as `thing`; a broken one is refused
+const zone = { kind: 'zone', zone: { direction: 'east', kind: 'normal', location: [96, 192, 64] } };
+assert.deepEqual(unpackCarried(packCarried({ ...copy, pieces: [], groups: [], buildings: [], thing: zone }).text).doc.thing, zone);
+const marks = { kind: 'marks', marks: [{ offset: [0, 0, 0], toward: [[1, 1]], low: [] }, { offset: [1, 0, 0], toward: [[-1, 1]], low: [[-1, 1]] }] };
+assert.deepEqual(unpackCarried(packCarried({ ...copy, thing: marks }).text).doc.thing, marks);
+assert.deepEqual(unpackCarried(JSON.stringify({ ...JSON.parse(text), thing: { kind: 'zone', zone: {} } })), { error: CARRIED_WORDS.unread });
+// (a zone whose height is unset, the ground's, goes along as it is)
+const low = { kind: 'zone', zone: { direction: 'north', location: [96, 192, null] } };
+assert.deepEqual(unpackCarried(packCarried({ ...copy, thing: low }).text).doc.thing, low);
+
 // nothing kept: none; a text that isn't one, or of another format, is refused with its sentence
 assert.equal(unpackCarried(null), null);
 assert.equal(unpackCarried(''), null);
