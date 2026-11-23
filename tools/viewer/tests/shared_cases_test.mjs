@@ -16,6 +16,8 @@
 //   slope (uv_mapping.along_slope, slope_extent and uv, and the slope ground.py builds, in test_texture_mapping.py);
 // - tools/bake/tests/slab_tiles_cases.json: floors.js slabOutline, slabFloorTiles and slabSteps (made_cursors.outline,
 //   tiles and steps in test_made_cursors.py);
+// - tools/bake/tests/building_cursor_cases.json: floors.js madeStoreys with building areas and buildingUnordered
+//   (made_cursors.storeys and unordered in test_made_cursors.py);
 // - tools/editor/tests/opening_play_cases.json: walls.js gridCrossings, rowTiles and openingPlay (made_edits.grid_crossings,
 //   row_tiles and opening_play in test_compiler_free.py).
 // Run: node tools/viewer/tests/shared_cases_test.mjs
@@ -23,7 +25,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { effectiveCone } from '../web/light_rules.js';
 import { gridMove, nearestGridPose } from '../web/poserule.js';
-import { copyFloors, floorAt, slabFloorTiles, slabOutline, slabSteps } from '../web/floors.js';
+import { buildingUnordered, copyFloors, floorAt, madeStoreys, slabFloorTiles, slabOutline, slabSteps } from '../web/floors.js';
 import { prefabStageLevels } from '../web/prefab_document.js';
 import { freeWallJoins, gridCrossings, openingPlay, rowTiles, wallJoins } from '../web/walls.js';
 import { framePoint, mappingOrigin, materialTiling, surfaceAt, surfaceExtent, surfacePlane, uv } from '../web/made_mapping.js';
@@ -117,6 +119,19 @@ for (const c of slabCases) {
   assert.deepEqual(slabFloorTiles(solids(true), c.corner), { floor: c.floor, part: c.part }, c.case);
   assert.deepEqual(slabSteps(solids(false), c.z[0], c.z[1], c.corner), c.steps, c.case);
 }
+// a building whose floors are the cursor's: made_cursors.storeys' and unordered's cases (test_made_cursors.py)
+const areaCases = read('../../bake/tests/building_cursor_cases.json').cases;
+assert.ok(areaCases.length >= 9);
+const r3 = v => Math.round(v * 1000) / 1000;
+for (const c of areaCases) {
+  const got = madeStoreys(c.volumes.map(v => ({ floor: v.floor, box: v.box, made: false })), c.slabs, c.grid, c.areas)
+    .map(s => JSON.stringify([s.floor, s.box.map(r3)])).sort();
+  assert.deepEqual(got, c.storeys.map(s => JSON.stringify(s)).sort(), c.case);
+  const own = madeStoreys(c.volumes.map(v => ({ floor: v.floor, box: v.box, made: false })), c.slabs, c.grid, c.areas)
+    .filter(s => s.building !== undefined).map(s => JSON.stringify([s.building, s.floor, s.box.map(r3)])).sort();
+  assert.deepEqual(own, c.buildingVolumes.map(s => JSON.stringify(s)).sort(), `${c.case}: the building's own`);
+  assert.deepEqual(c.areas.map(buildingUnordered), c.unordered, `${c.case}: unordered`);
+}
 // a free-form wall against the game's tiles: made_edits' crossings, the tiles it stands over and its openings' play
 const openingCases = read('../../editor/tests/opening_play_cases.json').cases;
 assert.ok(openingCases.length >= 9);
@@ -128,4 +143,4 @@ for (const c of openingCases) {
 console.log(`shared_cases_test: ok (${cones.length} cones, ${poses.length} poses, ${floors.floorAt.length + floors.copyFloors.length} floor `
   + `cases, ${stages.length} stage heights, ${joints.length} wall joints, ${freeJoints.length} free-form joints, `
   + `${origins.length} texture origins, ${tilings.length} material tilings, ${slopes.length} ramp slopes, `
-  + `${slabCases.length} made slabs' tiles, ${openingCases.length} walls' openings)`);
+  + `${slabCases.length} made slabs' tiles, ${areaCases.length} buildings' cursor floors, ${openingCases.length} walls' openings)`);

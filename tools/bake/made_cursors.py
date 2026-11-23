@@ -15,6 +15,15 @@ footprint:
   the slab's top inside its own volume;
 - stair and turned volumes stay as they are; a footprint over one is reported.
 
+A building whose floors are the cursor's (a project building with `cursorFloors`: the building cursor floors plan,
+private/plans/done/building-cursor-floors-plan.md) is an `area`: its floor boxes are a footprint too, and over them
+the floors are its own, cell by cell (building_breaks): floor k starts UNDER under the bottom of its box over the cell
+and ends where the next floor over the cell starts, the last at its box's top, numbered as the building's floor
+(k + 1), so a cell an upper floor alone covers starts at that floor, as the game's own maps have it; a floor starting
+at or under the one before it there is left out (unordered says which). A made slab inside such a footprint brings no
+break of its own there, and of two such buildings over one cell the first has it. Nothing is laid over the top floor
+or under the first.
+
 A slab's footprint is its box; a slab turned off the quarter turns about the vertical stands in steps instead (steps:
 a box round its part of each tile it reaches), so its floors' break stays over it rather than over the corners of the
 box round it (EXP-90 check 5). Which tiles a made slab is floor on is the game's rule, one line down through each
@@ -236,6 +245,48 @@ def _column(cx, cy, plain, slabs, grid):
             tuple(m['source'] for m in marks))
 
 
+def area_boxes(area):
+    """A building area's floor boxes, every floor's, [x0, y0, z0, x1, y1, z1] each (those with room across)."""
+    return [b for boxes in area['floors'] for b in boxes if b[3] - b[0] > EDGE and b[4] - b[1] > EDGE]
+
+
+def building_breaks(area, cx, cy):
+    """The cursor's floors a building area gives the cell at (cx, cy): (((z0, z1, floor), ...) from the lowest up, or
+    None when no floor box of it is over the cell, [the floors left out there for starting at or under the floor
+    before]). Floor k (from 0) starts UNDER under the lowest bottom of its boxes over the cell (as a made slab's
+    floor starts under its underside: a surface on the start reads as the floor above it), ends where the next floor
+    kept starts, the last at the highest top of its boxes over the cell, and is the cursor's floor k + 1."""
+    marks, dropped = [], []
+    for k, boxes in enumerate(area['floors']):
+        over = [b for b in boxes if b[3] - b[0] > EDGE and b[4] - b[1] > EDGE and _covers(b, cx, cy)]
+        if not over:
+            continue
+        z0, top = min(b[2] for b in over) - UNDER, max(b[5] for b in over)
+        if marks and z0 <= marks[-1][0] + EDGE:
+            dropped.append(k + 1)
+            continue
+        marks.append((z0, top, k + 1))
+    if not marks:
+        return None, dropped
+    bands = tuple((round(z0, 3), round(marks[n + 1][0] if n + 1 < len(marks) else top, 3), floor)
+                  for n, (z0, top, floor) in enumerate(marks))
+    return bands, dropped
+
+
+def unordered(area):
+    """The floors of a building area that start at or under the floor before them over some part of its footprint,
+    and so are left out of the cursor's floors there: sorted floor numbers (from 1)."""
+    boxes = area_boxes(area)
+    xs = sorted({e for b in boxes for e in (b[0], b[3])})
+    ys = sorted({e for b in boxes for e in (b[1], b[4])})
+    out = set()
+    for i in range(len(xs) - 1):
+        for j in range(len(ys) - 1):
+            cx, cy = (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2
+            out.update(building_breaks(area, cx, cy)[1])
+    return sorted(out)
+
+
 def _moves(slab, plain, grid):
     """Whether a slab's break changes the floors over its centre (split's rule)."""
     b = slab['box']
@@ -251,30 +302,44 @@ def _moves(slab, plain, grid):
     return bottom + HALF < top_z < top - TOP_SLACK and not any(abs(z - top_z) <= EDGE for z in breaks)
 
 
-def split(volumes, slabs, grid=None):
-    """The map's cursor volumes with the made slabs' floors over their footprints.
+def _source(plain, cx, cy):
+    """The key of the plain volume a building's floor over (cx, cy) is cloned from: the lowest floor over it, or None
+    (any)."""
+    over = [v for v in plain if _covers(v['box'], cx, cy)]
+    return min(over, key=lambda v: (v['floor'] or 0, str(v['key'])))['key'] if over else None
+
+
+def split(volumes, slabs, grid=None, areas=None):
+    """The map's cursor volumes with the made slabs' floors over their footprints, and the buildings' own over theirs.
     - `volumes`: [dict(key, floor, box [x0, y0, z0, x1, y1, z1], stair, turned)], the map's (listed) cursor volumes;
     - `slabs`: [dict(box [x0, y0, z0, x1, y1, z1], label)], the made floors and roofs;
-    - `grid`: the tile grid's box, for footprint cells no volume is over.
+    - `grid`: the tile grid's box, for footprint cells no volume is over;
+    - `areas`: [dict(label, floors: [[box, ...], ...])], the buildings whose floors are the cursor's, in order.
     Returns dict(hidden: the keys of the volumes taken out, volumes: [dict(source: a key to clone, or None for any,
-    floor, box, over: True for a footprint's floor, False for what a hidden volume covered outside them)], crossed:
-    [dict(slab: label, volume: key, why: 'stair' or 'turned')]). Only the slabs whose tops change the floors over them
-    count (one on a break already, or within half a storey of the column's bottom, changes nothing)."""
+    floor, box, over: True for a footprint's floor, False for what a hidden volume covered outside them; building:
+    the area's label, for a building's floor)], crossed: [dict(slab or building: label, volume: key, why: 'stair' or
+    'turned')]). Only the slabs whose tops change the floors over them count (one on a break already, or within half a
+    storey of the column's bottom, changes nothing); a building area always does."""
     slabs = [s for s in slabs if s['box'][3] - s['box'][0] > EDGE and s['box'][4] - s['box'][1] > EDGE]
+    areas = [a for a in areas or [] if area_boxes(a)]
     out = dict(hidden=[], volumes=[], crossed=[])
     plain = [v for v in volumes if not v.get('stair') and not v.get('turned')]
     # the slabs that change the floors over them: a top inside the column's floors (over its centre), past half a
     # storey over its bottom, not on a break already
     moving = [s for s in slabs if _moves(s, plain, grid)]
-    if not moving:
+    if not moving and not areas:
         return out
     for v in volumes:
         if v.get('stair') or v.get('turned'):
+            why = 'stair' if v.get('stair') else 'turned'
             for s in moving:
                 if _overlap(v['box'], s['box']):
-                    out['crossed'].append(dict(slab=s.get('label'), volume=v['key'], why='stair' if v.get('stair') else 'turned'))
-    hit = [v for v in plain if any(_overlap(v['box'], s['box']) for s in moving)]
-    feet = [s['box'] for s in moving]
+                    out['crossed'].append(dict(slab=s.get('label'), volume=v['key'], why=why))
+            for a in areas:
+                if any(_overlap(v['box'], b) for b in area_boxes(a)):
+                    out['crossed'].append(dict(building=a.get('label'), volume=v['key'], why=why))
+    feet = [s['box'] for s in moving] + [b for a in areas for b in area_boxes(a)]
+    hit = [v for v in plain if any(_overlap(v['box'], f) for f in feet)]
 
     def inside(x, y):
         return any(f[0] < x < f[3] and f[1] < y < f[4] for f in feet)
@@ -292,11 +357,19 @@ def split(volumes, slabs, grid=None):
     xs = sorted({e for f in feet for e in (f[0], f[3])} | {e for v in hit for e in (v['box'][0], v['box'][3]) if lo[0] < e < hi[0]})
     ys = sorted({e for f in feet for e in (f[1], f[4])} | {e for v in hit for e in (v['box'][1], v['box'][4]) if lo[1] < e < hi[1]})
     sources = {}
+    owned = {}      # a building's cells: (i, j) -> {(area, (z0, z1, floor), source)}, laid floor by floor below
 
     def cell(i, j):
         cx, cy = (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2
         if not inside(cx, cy):
             return None
+        # a building's floors first (the first area over the cell), else the made slabs' over the map's
+        for n, a in enumerate(areas):
+            bands, _ = building_breaks(a, cx, cy)
+            if bands is not None:
+                source = _source(plain, cx, cy)
+                owned[(i, j)] = {(n, band, source) for band in bands}
+                return None
         bands, keys = _column(cx, cy, plain, slabs, grid)
         if bands is not None:
             sources.setdefault(bands, keys)
@@ -305,14 +378,22 @@ def split(volumes, slabs, grid=None):
     for bands, r in rectangles(xs, ys, cell):
         for (z0, z1, floor), key in zip(bands, sources[bands]):
             out['volumes'].append(dict(source=key, floor=floor, box=[r[0], r[1], z0, r[2], r[3], z1], over=True))
+    # each floor of a building as few boxes as its cells make (a floor the same over cells whose columns differ, as
+    # under a smaller floor above, stays one box)
+    for n, (z0, z1, floor), key in sorted({b for c in owned.values() for b in c},
+                                          key=lambda b: (b[0], b[1][2], b[1][0], b[1][1], str(b[2]))):
+        value = (n, (z0, z1, floor), key)
+        for _, r in rectangles(xs, ys, lambda i, j: 1 if value in owned.get((i, j), ()) else None):
+            out['volumes'].append(dict(source=key, floor=floor, box=[r[0], r[1], z0, r[2], r[3], z1], over=True,
+                                       building=areas[n].get('label')))
     out['hidden'] = [v['key'] for v in hit]
     return out
 
 
-def storeys(volumes, slabs, grid=None):
+def storeys(volumes, slabs, grid=None, areas=None):
     """The cursor's floors after split(): [(floor, box)], the volumes that stay and the new ones (the compiler's
     cursor_storeys form; stair and turned volumes left out)."""
-    s = split(volumes, slabs, grid)
+    s = split(volumes, slabs, grid, areas)
     gone = set(s['hidden'])
     kept = [(v['floor'], list(v['box'])) for v in volumes if v['key'] not in gone and not v.get('stair') and not v.get('turned')]
     return kept + [(v['floor'], v['box']) for v in s['volumes']]
@@ -341,15 +422,17 @@ def build_slabs(p, records, copies):
     return out
 
 
-def apply(g, p, slabs):
-    """The Build's writer: the map `p` (being grown as `g`) given the made slabs' floors. `slabs`: [dict(box, label)],
-    world boxes [x0, y0, z0, x1, y1, z1]. The hit volumes are taken out of the level's list, and clones of them, each
-    sized by its span and given its floor, are returned to be listed. Returns (record or None, the clones)."""
+def apply(g, p, slabs, areas=None):
+    """The Build's writer: the map `p` (being grown as `g`) given the made slabs' floors and the buildings' own.
+    `slabs`: [dict(box, label)], world boxes [x0, y0, z0, x1, y1, z1]; `areas`: [dict(label, floors: [[box, ...]])],
+    the buildings whose floors are the cursor's (split). The hit volumes are taken out of the level's list, and clones
+    of them, each sized by its span and given its floor, are returned to be listed. Returns (record or None, the
+    clones); an added volume of a building's floors names it (`building`)."""
     import native_copy
     import shell
     live = shell.listed(p)
     found = [i for i in shell.actors(p, 'XComCursorVolume') if i in live]
-    if not found or not slabs:
+    if not found or not (slabs or areas):
         return None, []
     volumes = []
     for i in found:
@@ -369,7 +452,7 @@ def apply(g, p, slabs):
         grid = shell.grid_box(p)
     except ValueError:
         grid = None
-    plan = split(volumes, slabs, grid)
+    plan = split(volumes, slabs, grid, areas)
     if not plan['hidden'] and not plan['volumes']:
         return (dict(hidden=[], added=[], crossed=[dict(c, volume=p.name(c['volume']).rsplit('.', 1)[-1]) for c in plan['crossed']])
                 if plan['crossed'] else None), []
@@ -388,7 +471,8 @@ def apply(g, p, slabs):
                              like=source, props={'m_iFloorNumber': v['floor']})
         clones.append(made['actor'])
         added.append(dict(export=made['actor'], clone=p.name(source).rsplit('.', 1)[-1], floor=v['floor'],
-                          box=[round(x, 3) for x in box], over=v['over']))
+                          box=[round(x, 3) for x in box], over=v['over'],
+                          **({'building': v['building']} if 'building' in v else {})))
     record = dict(hidden=sorted(p.name(i).rsplit('.', 1)[-1] for i in plan['hidden']), added=added,
                   crossed=[dict(c, volume=p.name(c['volume']).rsplit('.', 1)[-1]) for c in plan['crossed']])
     return record, clones

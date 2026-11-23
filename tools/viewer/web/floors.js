@@ -200,14 +200,15 @@ export const CURSOR_NEAR = 32, CURSOR_STOREY = 192, CURSOR_STOREYS = 4;
  *  shell.py grow_cursors leaves them: those reaching the old far X or Y side stretched to the new one, and with more
  *  levels even storeys over the whole grid from the top of its own to the new top. Stair volumes are left out.
  *  The made floors and roofs `slabs` ([{ box: [x0, y0, z0, x1, y1, z1] }]) bring floors of their own over their
- *  footprints (madeStoreys). floor_edits.py cursor_storeys is the twin. */
-export function cursorStoreys(data, { cleared = false, own: ownDims = null, slabs = null } = {}) {
+ *  footprints, and the buildings whose floors are the cursor's `areas` ([{ label, floors: [[box, ...]] }],
+ *  cursorAreas) theirs (madeStoreys). floor_edits.py cursor_storeys is the twin. */
+export function cursorStoreys(data, { cleared = false, own: ownDims = null, slabs = null, areas = null } = {}) {
   if (!(data?.exporterVersion >= 20)) return null;
   const grid = data.tileGrid;
   const size = grid?.size ?? [96, 96, 64];
   const gridBox = grid?.origin && grid.dimensions ? [0, 1, 2].map(k => grid.origin[k]).concat([0, 1, 2].map(k => grid.origin[k] + grid.dimensions[k] * size[k])) : null;
   const st = cursorStoreysOf(data, cleared, ownDims);
-  return slabs?.length && st ? madeStoreys(st, slabs, gridBox) : st;
+  return (slabs?.length || areas?.length) && st ? madeStoreys(st, slabs ?? [], gridBox, areas ?? []) : st;
 }
 function cursorStoreysOf(data, cleared, ownDims) {
   const own = (data.cursorVolumes ?? []).filter(v => v.box && !v.stair).map(v => ({ floor: v.floor, box: [...v.box.min, ...v.box.max], made: false }));
@@ -316,6 +317,46 @@ function madeColumn(cx, cy, plain, slabs, grid) {
   const ends = [...marks.slice(1).map(m => m.z), top];
   return { bands: marks.map((m, k) => [round3(m.z), round3(ends[k]), m.floor]), sources: marks.map(m => m.source) };
 }
+// A building whose floors are the cursor's (the building cursor floors plan; made_cursors.building_breaks,
+// area_boxes and unordered are the twins): its floor boxes are a footprint, over which the cursor's floors are its
+// own, each starting MADE_UNDER under its box's bottom.
+const areaBoxes = area => area.floors.flat().filter(b => b[3] - b[0] > MADE_EDGE && b[4] - b[1] > MADE_EDGE);
+/** The cursor's floors a building area gives the cell at (cx, cy): { bands: [[z0, z1, floor]] from the lowest up, or
+ *  null where no floor box of it is over the cell, dropped: [the floors left out for starting at or under the one
+ *  before] } (made_cursors.building_breaks). */
+export function buildingBreaks(area, cx, cy) {
+  const marks = [], dropped = [];
+  area.floors.forEach((boxes, k) => {
+    const over = boxes.filter(b => b[3] - b[0] > MADE_EDGE && b[4] - b[1] > MADE_EDGE && madeCovers(b, cx, cy));
+    if (!over.length) return;
+    const z0 = Math.min(...over.map(b => b[2])) - MADE_UNDER, top = Math.max(...over.map(b => b[5]));
+    if (marks.length && z0 <= marks.at(-1)[0] + MADE_EDGE) { dropped.push(k + 1); return; }
+    marks.push([z0, top, k + 1]);
+  });
+  if (!marks.length) return { bands: null, dropped };
+  return { bands: marks.map(([z0, top, floor], n) => [round3(z0), round3(n + 1 < marks.length ? marks[n + 1][0] : top), floor]), dropped };
+}
+/** The floors of a building area that start at or under the floor before them over some part of its footprint, and
+ *  so are left out of the cursor's floors there: sorted floor numbers from 1 (made_cursors.unordered). */
+export function buildingUnordered(area) {
+  const boxes = areaBoxes(area), out = new Set();
+  const xs = sortedUnique(boxes.flatMap(b => [b[0], b[3]])), ys = sortedUnique(boxes.flatMap(b => [b[1], b[4]]));
+  for (let i = 0; i + 1 < xs.length; i++) for (let j = 0; j + 1 < ys.length; j++) {
+    for (const f of buildingBreaks(area, (xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2).dropped) out.add(f);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+/** The buildings whose floors are the cursor's, as madeStoreys takes them: the project's buildings made from nothing
+ *  with `cursorFloors` ([{ id, name, floors: [{ boxes }] }]), in order (the compiler's floor_edits.cursor_areas). */
+export function cursorAreas(buildings) {
+  return (buildings ?? []).filter(b => b && b.cursorFloors === true && !b.replaces && !b.deleted && Array.isArray(b.floors))
+    .map(b => ({ label: b.name || b.id, id: b.id, floors: b.floors.map(f => (f.boxes ?? []).map(x => x.map(Number))) }));
+}
+const areaSource = (plain, cx, cy) => {
+  const over = plain.filter(v => madeCovers(v.box, cx, cy));
+  if (!over.length) return null;
+  return over.reduce((a, b) => ((b.floor || 0) < (a.floor || 0) || ((b.floor || 0) === (a.floor || 0) && String(b.key) < String(a.key)) ? b : a)).key;
+};
 function madeMoves(slab, plain, grid) {
   const b = slab.box, cx = (b[0] + b[3]) / 2, cy = (b[1] + b[4]) / 2, t = slabBreak(b);
   const over = plain.filter(v => madeCovers(v.box, cx, cy));
@@ -327,19 +368,23 @@ function madeMoves(slab, plain, grid) {
   else return false;
   return bottom + MADE_HALF < t && t < top - MADE_TOP_SLACK && !breaks.some(z => Math.abs(z - t) <= MADE_EDGE);
 }
-/** made_cursors.split: { hidden: [keys], volumes: [{ source, floor, box, over }], crossed: [{ slab, volume, why }] }
- *  for the cursor volumes [{ key, floor, box, stair, turned }] and the made slabs [{ box, label }]. */
-function madeSplit(volumes, slabs, grid = null) {
+/** made_cursors.split: { hidden: [keys], volumes: [{ source, floor, box, over, building? }], crossed: [{ slab or
+ *  building, volume, why }] } for the cursor volumes [{ key, floor, box, stair, turned }], the made slabs
+ *  [{ box, label }] and the building areas [{ label, floors }]. */
+function madeSplit(volumes, slabs, grid = null, areas = []) {
   slabs = (slabs ?? []).filter(s => s.box[3] - s.box[0] > MADE_EDGE && s.box[4] - s.box[1] > MADE_EDGE);
+  areas = (areas ?? []).filter(a => areaBoxes(a).length);
   const out = { hidden: [], volumes: [], crossed: [] };
   const plain = volumes.filter(v => !v.stair && !v.turned);
   const moving = slabs.filter(s => madeMoves(s, plain, grid));
-  if (!moving.length) return out;
+  if (!moving.length && !areas.length) return out;
   for (const v of volumes) if (v.stair || v.turned) {
-    for (const s of moving) if (madeOverlap(v.box, s.box)) out.crossed.push({ slab: s.label, volume: v.key, why: v.stair ? 'stair' : 'turned' });
+    const why = v.stair ? 'stair' : 'turned';
+    for (const s of moving) if (madeOverlap(v.box, s.box)) out.crossed.push({ slab: s.label, volume: v.key, why });
+    for (const a of areas) if (areaBoxes(a).some(b => madeOverlap(v.box, b))) out.crossed.push({ building: a.label, volume: v.key, why });
   }
-  const hit = plain.filter(v => moving.some(s => madeOverlap(v.box, s.box)));
-  const feet = moving.map(s => s.box);
+  const feet = [...moving.map(s => s.box), ...areas.flatMap(areaBoxes)];
+  const hit = plain.filter(v => feet.some(f => madeOverlap(v.box, f)));
   const inside = (x, y) => feet.some(f => f[0] < x && x < f[3] && f[1] < y && y < f[4]);
   for (const v of hit) {
     const b = v.box;
@@ -353,9 +398,24 @@ function madeSplit(volumes, slabs, grid = null) {
   const xs = sortedUnique([...feet.flatMap(f => [f[0], f[3]]), ...hit.flatMap(v => [v.box[0], v.box[3]]).filter(e => lo[0] < e && e < hi[0])]);
   const ys = sortedUnique([...feet.flatMap(f => [f[1], f[4]]), ...hit.flatMap(v => [v.box[1], v.box[4]]).filter(e => lo[1] < e && e < hi[1])]);
   const columns = new Map();
+  // a building's cells: `${i}|${j}` -> Set of band keys, laid floor by floor below
+  const owned = new Map(), bandOf = new Map();
   const cell = (i, j) => {
     const cx = (xs[i] + xs[i + 1]) / 2, cy = (ys[j] + ys[j + 1]) / 2;
     if (!inside(cx, cy)) return null;
+    // a building's floors first (the first area over the cell), else the made slabs' over the map's
+    for (let n = 0; n < areas.length; n++) {
+      const { bands } = buildingBreaks(areas[n], cx, cy);
+      if (!bands) continue;
+      const source = areaSource(plain, cx, cy), keys = new Set();
+      for (const band of bands) {
+        const key = JSON.stringify([n, band, source]);
+        bandOf.set(key, { n, band, source });
+        keys.add(key);
+      }
+      owned.set(`${i}|${j}`, keys);
+      return null;
+    }
     const c = madeColumn(cx, cy, plain, slabs, grid);
     if (!c) return null;
     const key = JSON.stringify(c.bands);
@@ -366,18 +426,28 @@ function madeSplit(volumes, slabs, grid = null) {
     const c = columns.get(key);
     c.bands.forEach(([z0, z1, floor], k) => out.volumes.push({ source: c.sources[k], floor, box: [r[0], r[1], z0, r[2], r[3], z1], over: true }));
   }
+  // each floor of a building as few boxes as its cells make (made_cursors.split)
+  const order = [...bandOf.entries()].sort(([, a], [, b]) => a.n - b.n || a.band[2] - b.band[2] || a.band[0] - b.band[0] || a.band[1] - b.band[1]
+                                           || (String(a.source) < String(b.source) ? -1 : String(a.source) > String(b.source) ? 1 : 0));
+  for (const [key, { n, band: [z0, z1, floor], source }] of order) {
+    for (const [, r] of madeRectangles(xs, ys, (i, j) => (owned.get(`${i}|${j}`)?.has(key) ? 1 : null))) {
+      out.volumes.push({ source, floor, box: [r[0], r[1], z0, r[2], r[3], z1], over: true, building: areas[n].label });
+    }
+  }
   out.hidden = hit.map(v => v.key);
   return out;
 }
 /** The cursor's floors `storeys` ([{ floor, box, made }], cursorStoreys) with the made slabs' own over their
- *  footprints (made_cursors.storeys). A floor over a made slab's footprint has `slab: true`. */
-export function madeStoreys(storeys, slabs, grid = null) {
+ *  footprints and the building areas' over theirs (made_cursors.storeys). A floor over a made slab's footprint has
+ *  `slab: true`; one of a building's floors, `building`: its label. */
+export function madeStoreys(storeys, slabs, grid = null, areas = []) {
   const volumes = storeys.map((s, k) => ({ key: k, floor: s.floor, box: s.box }));
-  const s = madeSplit(volumes, slabs, grid);
+  const s = madeSplit(volumes, slabs, grid, areas);
   if (!s.hidden.length && !s.volumes.length) return storeys;
   const gone = new Set(s.hidden);
   return [...storeys.filter((_, k) => !gone.has(k)),
-          ...s.volumes.map(v => ({ floor: v.floor, box: v.box, made: v.source == null || storeys[v.source].made, ...(v.over ? { slab: true } : {}) }))];
+          ...s.volumes.map(v => ({ floor: v.floor, box: v.box, made: v.source == null || storeys[v.source].made,
+                                   ...(v.building !== undefined ? { building: v.building } : v.over ? { slab: true } : {}) }))];
 }
 
 // A made slab against the game's tiles (F-147; EXP-90 checks 2 and 5): made_cursors.py's outline, tiles and steps are

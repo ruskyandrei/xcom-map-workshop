@@ -109,6 +109,64 @@ class Split(unittest.TestCase):
         self.assertEqual(inside, [(0.0, 1), (190.0, 2), (402.0, 3), (594.0, 4)])
 
 
+class BuildingAreas(unittest.TestCase):
+    """A building whose floors are the cursor's (the building cursor floors plan): its floor boxes make the cursor's
+    floors over its footprint. The cases web/floors.js passes too (building_cursor_cases.json, shared_cases_test.mjs)."""
+
+    @staticmethod
+    def cases():
+        return json.loads((HERE / 'building_cursor_cases.json').read_text(encoding='utf-8'))['cases']
+
+    def test_the_cases(self):
+        cases = self.cases()
+        self.assertGreaterEqual(len(cases), 9)
+        for c in cases:
+            vols = [dict(v, key=k) for k, v in enumerate(c['volumes'])]
+            got = sorted([f, [float(round(x, 3)) for x in b]] for f, b in made_cursors.storeys(vols, c['slabs'], c['grid'], c['areas']))
+            self.assertEqual(got, c['storeys'], c['case'])
+            s = made_cursors.split(vols, c['slabs'], c['grid'], c['areas'])
+            self.assertEqual(sorted([v['building'], v['floor'], [float(round(x, 3)) for x in v['box']]]
+                                    for v in s['volumes'] if 'building' in v), c['buildingVolumes'], c['case'])
+            self.assertEqual(s['crossed'], c['crossed'], c['case'])
+            self.assertEqual([made_cursors.unordered(a) for a in c['areas']], c['unordered'], c['case'])
+
+    def test_the_boat_has_four_floors_each_starting_under_its_box(self):
+        # the report of 23 November 2026: the hold (-106), the deck (278), the cabin (470) and its roof (598)
+        boat = self.cases()[0]
+        vols = [dict(v, key=k) for k, v in enumerate(boat['volumes'])]
+        cabin = [(b[2], b[5], f) for f, b in made_cursors.storeys(vols, [], None, boat['areas'])
+                 if b[0] <= -4100 <= b[3] and b[1] <= 2000 <= b[4]]
+        self.assertEqual(sorted(cabin), [(-108.0, 276.0, 1), (276.0, 468.0, 2), (468.0, 596.0, 3), (596.0, 768.0, 4)])
+        deck = sorted((b[2], b[5], f) for f, b in made_cursors.storeys(vols, [], None, boat['areas'])
+                      if b[0] <= -2500 <= b[3] and b[1] <= 2000 <= b[4])
+        self.assertEqual(deck, [(-108.0, 276.0, 1), (276.0, 470.0, 2)])
+        # off the boat, the map's even storeys
+        off = sorted((b[2], f) for f, b in made_cursors.storeys(vols, [], None, boat['areas']) if b[0] <= 0 <= b[3] and b[1] <= 0 <= b[4])
+        self.assertEqual(off, [(-192.0, 1), (0.0, 2), (192.0, 3), (384.0, 4), (576.0, 5), (768.0, 6)])
+
+    def test_nothing_overlaps_and_the_map_outside_is_as_it_was(self):
+        for c in self.cases():
+            vols = [dict(v, key=k) for k, v in enumerate(c['volumes'])]
+            boxes = [b for _, b in made_cursors.storeys(vols, c['slabs'], c['grid'], c['areas'])]
+            for n, a in enumerate(boxes):
+                for b in boxes[n + 1:]:
+                    self.assertFalse(all(min(a[k + 3], b[k + 3]) - max(a[k], b[k]) > 1e-6 for k in range(3)), (c['case'], a, b))
+        # a made slab half inside a building keeps its own break outside it: 2 under its underside, taking the bar's
+        # break at 210 (within half a storey), as it would with no building
+        c = next(c for c in self.cases() if 'half inside' in c['case'])
+        vols = [dict(v, key=k) for k, v in enumerate(c['volumes'])]
+        outside = sorted((b[2], f) for f, b in made_cursors.storeys(vols, c['slabs'], c['grid'], c['areas'])
+                         if b[0] <= 480 <= b[3] and b[1] <= 144 <= b[4])
+        self.assertEqual(outside, [(0.0, 1), (300.0, 2), (402.0, 3), (594.0, 4)])
+        alone = sorted((b[2], f) for f, b in made_cursors.storeys(vols, c['slabs'], c['grid'])
+                       if b[0] <= 480 <= b[3] and b[1] <= 144 <= b[4])
+        self.assertEqual(outside, alone)
+
+    def test_no_area_changes_nothing(self):
+        self.assertEqual(made_cursors.split(BAR, [], areas=[]), dict(hidden=[], volumes=[], crossed=[]))
+        self.assertEqual(made_cursors.split(BAR, [slab(194.0)], areas=None), made_cursors.split(BAR, [slab(194.0)]))
+
+
 class SlabTiles(unittest.TestCase):
     """Which tiles a made slab is floor on, those it covers in part, and a turned one's steps (F-147, EXP-90 checks 2
     and 5): the cases web/floors.js passes too (slab_tiles_cases.json, shared_cases_test.mjs)."""
