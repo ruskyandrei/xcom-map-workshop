@@ -22,10 +22,18 @@ def check_diagonal(browser, url, open_viewer):
         return dict(skipped='CsmallScout_Farm is not in the install')
     marks = page.evaluate('viewer.diagonalMarks().map(m => m.key)')
     assert '39,12,0' in marks and len(marks) == 8, marks
-    # the view: its row in the Views list, its key, the button's icon, the other views off
+    # the view: its row in the Views list (the list stays up while the pointer goes from the button to the row in small
+    # steps, over the gap between them: it closed there once), the button's icon, the other views off
     page.evaluate('viewer.setLightsShown(true)')
-    page.keyboard.press('Shift+C')
+    b, r = page.locator('#viewsButton').bounding_box(), None
+    page.mouse.move(b['x'] + b['width'] / 2, b['y'] + b['height'] / 2)
+    r = page.locator('#editDiagonal').bounding_box()
+    page.mouse.move(r['x'] + 30, r['y'] + r['height'] / 2, steps=25)
+    assert page.locator('#viewsFlyout').is_visible()
+    page.mouse.click(r['x'] + 30, r['y'] + r['height'] / 2)
     assert page.evaluate('viewer.diagonalOn() && !viewer.lightsOn()')
+    page.keyboard.press('Shift+C'); page.keyboard.press('Shift+C')       # (its key: off and on again)
+    assert page.evaluate('viewer.diagonalOn()')
     assert page.locator('#viewsIcon').get_attribute('href') == '#i-diag'
     assert page.locator('#editDiagonal').get_attribute('aria-pressed') == 'true'
     # the scout's corner seen from above, its first floor cut

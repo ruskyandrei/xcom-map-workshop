@@ -102,10 +102,12 @@ canvas { display: block; width: 100%; height: 100%; }
    under its own row as design C drew them; UI-GUIDELINES.md section 2): the list stands from the rail's top, so the
    longest view's switches fit; a click on the button keeps it open (pinned) until a click elsewhere */
 .railfly.viewsfly { position: static; }
-.rail .flyout.viewsflyout { top: -1px; padding: 8px 6px 6px; max-height: calc(100vh - 70px); overflow-y: auto; }
+.rail .flyout.viewsflyout { top: -1px; padding: 8px 6px 6px; }
 .railfly.pinned .flyout.viewsflyout { display: block; }
 .viewsflyout .flyhead { padding: 0 8px 4px; }
-.viewrows { display: flex; flex-direction: column; min-width: 236px; }
+/* (the rows scroll in a short window, not the list itself: a list that scrolls clips the bridge over the gap from the
+   button, and the list closed on the pointer's way to it) */
+.viewrows { display: flex; flex-direction: column; min-width: 236px; max-height: calc(100vh - 100px); overflow-y: auto; }
 .rail .viewrows > button { width: 100%; height: 28px; display: flex; align-items: center; justify-content: flex-start; gap: 9px; padding: 0 8px; font: inherit; font-size: 12px; color: #dbe7ec; }
 .rail .viewrows > button kbd { position: static; margin-left: auto; font-size: 11px; color: var(--muted); }
 .rail .viewrows > button.on kbd { color: var(--accent-text); }
