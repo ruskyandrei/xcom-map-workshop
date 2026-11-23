@@ -266,22 +266,54 @@ export function builtWords(built, at) {
 // A map's streamed levels (Long War's patch levels, a mission's own) rework the tiles of their rebuild volumes at the
 // battle's start, and the game never writes diagonal cover back: a mark there gets none in the game. The export (41)
 // gives each streamed level's volumes as the battle reads them (streams[<name>].rebuildSpheres: centre and radius,
-// findings register F-150); the battle takes the tiles of centre ± radius on every axis, counted from the game's tile
-// corner as the game counts them (GetTileCoordinatesFromPosition: floored).
+// findings register F-150), and (42) the bomb donor's an added bomb mission streams (donors[<kind>].rebuildSpheres);
+// the battle takes the tiles of centre ± radius on every axis, counted from the game's tile corner as the game counts
+// them (GetTileCoordinatesFromPosition: floored). A mission object's volume (a bomb's, a power node's, a capture
+// point's) moves with the project's move of it, as the Build moves it in the stream's copy, and goes with its delete.
 
-/** The areas the map's streamed levels rework, as tile boxes [{ stream, kind ('lwr' or 'mission'), actor, lo, hi,
- *  missions (the labels of the map's missions that stream it) }], none on a preview. A cleared map streams none of
- *  Long War's patch levels (KB-23), so it has none of theirs. */
-export function reworkAreas(scene, corner, cleared = false) {
+/** Where a mission object's rebuild volume stands with the project's move: its centre `centre` taken from the
+ *  object's place `from` (its export record: location, rotation) to the move's (location, rotation), its offset from
+ *  the actor turned by the move's turn about Z. */
+export function movedCentre(centre, from, move) {
+  const off = [0, 1, 2].map(k => centre[k] - from.location[k]);
+  const turn = ((move.rotation?.[1] ?? 0) - (from.rotation?.[1] ?? 0)) * Math.PI / 32768, c = Math.cos(turn), s = Math.sin(turn);
+  return [move.location[0] + off[0] * c - off[1] * s, move.location[1] + off[0] * s + off[1] * c, move.location[2] + off[2]];
+}
+
+/** The areas the variant's streamed levels rework, as tile boxes [{ stream, kind ('lwr' or 'mission'), actor, lo, hi,
+ *  missions (the labels of the kept missions that stream it), mutator (a bomb's or power node's volume, which Long
+ *  War's bomb mutator places with them) }], none on a preview. `cleared`: a cleared map streams none of Long War's
+ *  patch levels (KB-23). `missions`: the project's missions (editor state projectMissions: null, every record; else
+ *  the records it keeps and the kinds it adds, an added kind's donor stream with them). `moved(stream, actor)`: the
+ *  project's move of a mission object ({ location, rotation } or { deleted: true }), or none. `label(kind)`: an added
+ *  kind's words (missions.js ADDED_KINDS'). */
+export function reworkAreas(scene, corner, { cleared = false, missions = null, moved = null, label = k => k.split('/').pop() } = {}) {
   if (!corner || !scene || scene.preview) return [];
+  const records = scene.missions ?? [];
+  const kept = Array.isArray(missions) ? missions.filter(e => Number.isInteger(e?.record)).map(e => records[e.record]).filter(Boolean) : records;
+  const streams = new Map();
+  for (const m of kept) {
+    for (const name of m.streams ?? []) {
+      if (!streams.has(name)) streams.set(name, { entry: scene.streams?.[name], labels: [] });
+      streams.get(name).labels.push(m.label);
+    }
+  }
+  for (const e of Array.isArray(missions) ? missions : []) {
+    const donor = typeof e?.kind === 'string' ? scene.donors?.[e.kind] : null;
+    if (donor?.stream && !streams.has(donor.stream)) streams.set(donor.stream, { entry: { kind: 'mission', ...donor }, labels: [`${label(e.kind)} (added)`] });
+  }
   const out = [];
-  for (const [stream, s] of Object.entries(scene.streams ?? {})) {
-    if (cleared && s.kind === 'lwr') continue;
-    const missions = (scene.missions ?? []).filter(m => (m.streams ?? []).includes(stream)).map(m => m.label);
-    for (const v of s.rebuildSpheres ?? []) {
-      const lo = [0, 1, 2].map(k => Math.floor((v.centre[k] - v.radius - corner[k]) / TILE_SIZE[k]));
-      const hi = [0, 1, 2].map(k => Math.floor((v.centre[k] + v.radius - corner[k]) / TILE_SIZE[k]));
-      out.push({ stream, kind: s.kind, actor: v.actor, lo, hi, missions });
+  for (const [stream, { entry, labels }] of streams) {
+    if (!entry || (cleared && entry.kind === 'lwr')) continue;
+    const objects = new Map((entry.missionObjects ?? []).map(o => [o.actor, o]));
+    for (const v of entry.rebuildSpheres ?? []) {
+      const o = objects.get(v.actor), move = o ? moved?.(stream, v.actor) : null;
+      if (move?.deleted) continue;
+      const centre = move?.location ? movedCentre(v.centre, o, move) : v.centre;
+      const lo = [0, 1, 2].map(k => Math.floor((centre[k] - v.radius - corner[k]) / TILE_SIZE[k]));
+      const hi = [0, 1, 2].map(k => Math.floor((centre[k] + v.radius - corner[k]) / TILE_SIZE[k]));
+      out.push({ stream, kind: entry.kind, actor: v.actor, lo, hi, missions: [...new Set(labels)],
+                 mutator: o?.group === 'bomb' || String(o?.group ?? '').startsWith('node:') });
     }
   }
   return out;
@@ -302,7 +334,8 @@ export function reworkWords(hits, short = false, count = 1) {
   const when = named.every(a => a.kind === 'lwr') ? "at every battle's start" : "at the battle's start";
   if (short) return `No cover in the game: ${who} rework${one ? 's' : ''} ${tiles} ${when}`;
   return `${count > 1 ? `${count} of these marks get no cover in the game: ` : ''}${who} rework${one ? 's' : ''} ${tiles} ${when}, `
-    + `and the game never writes diagonal cover back. Move ${count > 1 ? 'them' : 'the mark'} off the area drawn dashed.`;
+    + `and the game never writes diagonal cover back. Move ${count > 1 ? 'them' : 'the mark'} off the area drawn dashed.`
+    + (hits.some(a => a.mutator) ? " Under Long War its bomb mutator places the bomb and its power nodes itself, and their areas go with them." : '');
 }
 /** The label of an area drawn in the view. */
 export const areaWords = a => `${a.stream} reworks this area`;

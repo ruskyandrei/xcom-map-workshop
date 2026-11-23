@@ -141,7 +141,27 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         self.assertEqual(len(spec['diagonalCover']['marks']), 4)       # (warned, never left out)
         spec, report = compile_project(dict(doc, cleared=True), s)
         self.assertEqual([w['stream'] for w in report['warnings'] if w['code'] == 'diagonal-mark-reworked'], ['URB_Bar_CNH'])
-        s.pop('streams'); s.pop('missions')
+        # a mission object's volume (a bomb's) goes where the project moves it, as the Build moves it in the stream's
+        # copy, and with its delete; a record the project drops streams nothing; an added bomb streams its donor's
+        volume = PL + 'XComRebuildWorldDataVolume_1'
+        s['streams']['URB_Bar_CNH'].update(rebuildSpheres=[dict(actor=volume, centre=at([14, 10, 0]), radius=10)], missionObjects=[
+            dict(actor=volume, actorClass='XComRebuildWorldDataVolume', kind='rebuild', location=at([14, 10, 0]), rotation=[0, 0, 0],
+                 group='bomb', role='rebuild', referencedBy=[])])
+        reworked = lambda r: sorted((w['stream'], w['tiles']) for w in r['warnings'] if w['code'] == 'diagonal-mark-reworked')  # noqa: E731
+        stream_target = dict(package='URB_Bar_CNH', level='stream', actor=volume)
+        moved = dict(doc, overrides=[dict(target=stream_target, location=at([30, 30, 0]), rotation=[0, 0, 0])])
+        _, report = compile_project(moved, s)
+        self.assertEqual(reworked(report), [('URB_Bar_CNH', [[30, 30, 0]]), ('patch_bar', [[20, 20, 0]])])
+        self.assertIn('bomb mutator places the bomb', next(w['message'] for w in report['warnings'] if w.get('stream') == 'URB_Bar_CNH'))
+        _, report = compile_project(dict(doc, overrides=[dict(target=stream_target, deleted=True)]), s)
+        self.assertEqual(reworked(report), [('patch_bar', [[20, 20, 0]])])
+        s['donors'] = {'Special/Bomb': dict(stream='URB_Slaughterhouse_Stream', missionObjects=[],
+                                            rebuildSpheres=[dict(actor=PL + 'XComRebuildWorldDataVolume_9', centre=at([12, 11, 0]), radius=10)])}
+        _, report = compile_project(dict(doc, missions=[dict(record=0), dict(kind='Special/Bomb')]), s)
+        self.assertEqual(reworked(report), [('URB_Slaughterhouse_Stream', [[12, 11, 0]]), ('patch_bar', [[20, 20, 0]])])
+        self.assertIn('URB_Slaughterhouse_Stream (streamed by Council bomb (added))', next(w['message'] for w in report['warnings']
+                                                                        if w.get('stream') == 'URB_Slaughterhouse_Stream'))
+        s.pop('streams'); s.pop('missions'); s.pop('donors')
         self.assertEqual(report['diagonalCover'], dict(marks=4, removed=2))
         # the Build takes it as the native edit's lane
         self.assertEqual(native_split(spec)[1]['diagonalCover'], lane)

@@ -37,13 +37,15 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { onHub } from './edit_hub.js';
-import { cleared, data, diagonalCarried, diagonalOn, effectsOn, foreignTemplates, lastBuild, lightsOn, pieces,
-         projectDiagonal, roots, setDiagonalCarried, setDiagonalOnValue, setProjectDiagonal, spawnsOn, volumesOn,
-         zonesOn } from './editor_state.js';
+import { cleared, data, diagonalCarried, diagonalOn, effectsOn, foreignTemplates, lastBuild, lightsOn, missionMoves, pieces,
+         projectDiagonal, projectMissions, roots, setDiagonalCarried, setDiagonalOnValue, setProjectDiagonal, spawnsOn,
+         volumesOn, zonesOn } from './editor_state.js';
 import { CORNERS, KIND_WORDS, TILE_SIZE, addMark, areaWords, builtWords, carryMark, cornerKey, cornerNear, deleteMark,
          marksNow, heightOf, middleOf, moveMark, ownMarks, resetMark, reworkAreas, reworkWords, reworkedBy, setCorners,
          setHalf, tileKey, tileOf, toggleCorner, turnedCorners } from './diagonal_marks.js';
 import { fromOf, isStream } from './piece_records.js';
+import { ADDED_KINDS } from './missions.js';
+import { spawnKey } from './spawns_view.js';
 import { targetKey } from './project.js';
 import { HANDLE_PICK, gameToView } from './handles.js';
 import { tileCorner } from './map_grid.js';
@@ -184,7 +186,10 @@ export function createDiagonalWiring({ $, camera, controls, flashHint, gizmo, li
   // wherever the marks are (badges keeps where each stands, for the tooltip); picked in the view, the areas that take
   // the picked marks dashed at their floor's height, clipped to the grid, each level's name at the corner of its areas
   // lowest on the screen.
-  const areas = () => reworkAreas(data, corner(), cleared);
+  // (the variant's missions' streams, a mission object's volume where the project's move puts it)
+  const areas = () => reworkAreas(data, corner(), { cleared, missions: projectMissions,
+                                                    moved: (stream, actor) => missionMoves.get(spawnKey(stream, actor)),
+                                                    label: kind => ADDED_KINDS[kind]?.label ?? kind });
   // a sprite's scale for `px` pixels high whatever its distance (sizeAttenuation off: scale times the distance)
   const screenScale = px => px / Math.max(1, renderer.domElement.clientHeight) * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov ?? 50) / 2);
   function sprite(material, px, point, centre = [0.5, 0.5]) {

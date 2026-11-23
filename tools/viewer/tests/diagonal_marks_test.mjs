@@ -4,8 +4,8 @@
 // Run: node tools/viewer/tests/diagonal_marks_test.mjs
 import assert from 'node:assert/strict';
 import { addMark, areaWords, builtWords, carryMark, CORNERS, cornerNear, deleteMark, handFromSaved, heightOf, marksNow, middleOf, moveMark,
-         ownMarks, resetMark, reworkAreas, reworkWords, reworkedBy, savedDiagonal, setCorners, setHalf, tileOf, tidyHand, toggleCorner,
-         turnedCorners } from '../web/diagonal_marks.js';
+         movedCentre, ownMarks, resetMark, reworkAreas, reworkWords, reworkedBy, savedDiagonal, setCorners, setHalf, tileOf, tidyHand,
+         toggleCorner, turnedCorners } from '../web/diagonal_marks.js';
 
 const corner = [-1001, -2001, -65];
 const scene = { tactical: { diagonalCover: [
@@ -169,7 +169,7 @@ const areas = reworkAreas(streamed, corner);
 assert.deepEqual(areas.map(a => [a.stream, a.lo, a.hi, a.missions]), [
   ['patch_map', [18, 18, -2], [22, 22, 4], ['Abduction', 'Data recovery']],
   ['Map_CNH', [39, 39, -1], [40, 40, 0], ['Data recovery']]]);
-assert.deepEqual(reworkAreas(streamed, corner, true).map(a => a.stream), ['Map_CNH']);
+assert.deepEqual(reworkAreas(streamed, corner, { cleared: true }).map(a => a.stream), ['Map_CNH']);
 assert.deepEqual(reworkAreas({ ...streamed, preview: true }, corner), []);
 assert.deepEqual(reworkAreas(streamed, null), []);
 assert.deepEqual(reworkedBy(areas, [20, 20, 0]).map(a => a.actor), ['V_0']);
@@ -186,4 +186,25 @@ assert.equal(reworkWords(reworkedBy(areas, [40, 40, 0]), true),
              "No cover in the game: Map_CNH (streamed by Data recovery) reworks this tile at the battle's start");
 assert.equal(reworkWords([]), '');
 assert.equal(areaWords(hit[0]), 'patch_map reworks this area');
+// the project's missions: a record it drops streams nothing; an added bomb brings its donor's volumes
+const bomb = { stream: 'Donor_Stream', missionObjects: [
+  { actor: 'D_V', location: [-1001 + 96 * 30.5, -2001 + 96 * 30.5, -65], rotation: [0, 0, 0], group: 'bomb', role: 'rebuild' }],
+  rebuildSpheres: [{ actor: 'D_V', centre: [-1001 + 96 * 30.5 + 20, -2001 + 96 * 30.5, -65], radius: 40 }] };
+const withDonor = { ...streamed, donors: { 'Special/Bomb': bomb } };
+assert.deepEqual(reworkAreas(withDonor, corner, { missions: [{ record: 0 }] }).map(a => a.stream), ['patch_map']);
+const added = reworkAreas(withDonor, corner, { missions: [{ record: 0 }, { kind: 'Special/Bomb' }] });
+assert.deepEqual(added.map(a => [a.stream, a.lo, a.hi, a.missions, a.mutator]), [
+  ['patch_map', [18, 18, -2], [22, 22, 4], ['Abduction'], false],
+  ['Donor_Stream', [30, 30, -1], [31, 30, 0], ['Bomb (added)'], true]]);
+assert.deepEqual(reworkAreas(withDonor, corner).map(a => a.stream), ['patch_map', 'Map_CNH']);     // (no added kind: no donor)
+// a mission object's volume follows the project's move: moved ten tiles along x and turned a quarter (its offset
+// from the actor turns with it), or deleted
+const movedTo = { location: [-1001 + 96 * 40.5, -2001 + 96 * 30.5, -65], rotation: [0, 16384, 0] };
+assert.deepEqual(movedCentre(bomb.rebuildSpheres[0].centre, bomb.missionObjects[0], movedTo).map(v => Math.round(v)),
+                 [-1001 + 96 * 40.5, -2001 + 96 * 30.5 + 20, -65].map(v => Math.round(v)));
+const follow = move => reworkAreas(withDonor, corner, { missions: [{ kind: 'Special/Bomb' }], moved: (s, a) => (s === 'Donor_Stream' && a === 'D_V' ? move : null) });
+assert.deepEqual(follow(movedTo).map(a => [a.lo, a.hi]), [[[40, 30, -1], [40, 31, 0]]]);
+assert.deepEqual(follow({ deleted: true }), []);
+assert.ok(reworkWords(added.slice(1)).endsWith('Under Long War its bomb mutator places the bomb and its power nodes itself, and their areas go with them.'));
+assert.ok(!reworkWords(added.slice(0, 1)).includes('mutator'));
 console.log('diagonal_marks: ok');

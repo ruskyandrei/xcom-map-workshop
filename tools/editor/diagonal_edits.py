@@ -159,35 +159,63 @@ class DiagonalEdits:
         return isinstance(self.c.doc.get('schemaVersion'), int) and self.c.doc['schemaVersion'] >= 7
 
     def rework_areas(self):
-        """The areas the map's streamed levels rework at the battle's start (export 41's streams[].rebuildSpheres;
-        KNOWN-BUGS.md KB-22), as tile boxes [(stream, kind, lo, hi, missions)]: each volume's centre ± its sphere's
-        radius on every axis, floored from the game's tile corner as the game counts tiles (findings register F-150).
-        A cleared map streams none of Long War's patch levels (KB-23), so none of theirs. The page draws the same
+        """The areas the variant's streamed levels rework at the battle's start (export 41's streams[].rebuildSpheres,
+        42's donors[].rebuildSpheres; KNOWN-BUGS.md KB-22), as tile boxes [(stream, kind, lo, hi, missions, mutator)]:
+        each volume's centre ± its sphere's radius on every axis, floored from the game's tile corner as the game counts
+        tiles (findings register F-150). The streams of the missions the variant keeps, and an added kind's donor stream
+        (the added bomb's Slaughterhouse stream); a cleared map streams none of Long War's patch levels (KB-23). A
+        mission object's volume (a bomb's, a power node's, a capture point's) stands where the project's move puts it, as
+        the Build moves it in the stream's copy, its offset from the actor turned with it, and goes with its delete;
+        `mutator` for a bomb's or node's, which Long War's bomb mutator places with them. The page works the same out
         (diagonal_marks.js reworkAreas)."""
+        import missions
         corner = tile_corner(self.c.scene.get('tileGrid') or {})
         if not corner:
             return []
-        size, cleared, out = (TILE, TILE, LEVEL), self.c.doc.get('cleared') is True, []
-        for stream, s in sorted((self.c.scene.get('streams') or {}).items()):
-            if cleared and s.get('kind') == 'lwr':
+        scene, me = self.c.scene, self.c.mission_edits
+        streams = {}
+        for index, m in me.kept_missions():
+            for name in m.get('streams') or []:
+                streams.setdefault(name, [(scene.get('streams') or {}).get(name), []])[1].append(m.get('label') or 'mission %d' % (index + 1))
+        for kind in sorted(self.c.added_kinds()):
+            donor = (scene.get('donors') or {}).get(kind)
+            if isinstance(donor, dict) and donor.get('stream') and donor['stream'] not in streams:
+                streams[donor['stream']] = [dict(donor, kind='mission'), ['%s (added)' % missions.label(kind)]]
+        size, out = (TILE, TILE, LEVEL), []
+        for stream, (s, labels) in sorted(streams.items()):
+            if not isinstance(s, dict) or (me.cleared and s.get('kind') == 'lwr'):
                 continue
-            missions = [m.get('label') for m in self.c.scene.get('missions') or [] if stream in (m.get('streams') or [])]
+            objects = {o.get('actor'): o for o in s.get('missionObjects') or [] if isinstance(o, dict)}
+            hidden = self.c.stream_hides.get(stream) or set()
             for v in s.get('rebuildSpheres') or []:
-                c, r = v['centre'], v['radius']
+                o, name = objects.get(v['actor']), str(v['actor']).rsplit('.', 1)[-1]
+                if o is not None and name in hidden:
+                    continue        # (a mission object the project deletes: out of the stream's copy)
+                c, r = list(v['centre']), v['radius']
+                move = next((x for x in self.c.stream_moves.get(stream) or [] if x['actor'] == name), None) if o else None
+                if move:
+                    off = [c[k] - o['location'][k] for k in range(3)]
+                    turn = (move['rotation'][1] - (o.get('rotation') or [0, 0, 0])[1]) * math.pi / 32768
+                    cos, sin = math.cos(turn), math.sin(turn)
+                    to = move['location']
+                    c = [to[0] + off[0] * cos - off[1] * sin, to[1] + off[0] * sin + off[1] * cos, to[2] + off[2]]
                 lo = tuple(int(math.floor((c[k] - r - corner[k]) / size[k])) for k in range(3))
                 hi = tuple(int(math.floor((c[k] + r - corner[k]) / size[k])) for k in range(3))
-                out.append((stream, s.get('kind'), lo, hi, missions))
+                group = str((o or {}).get('group') or '')
+                out.append((stream, s.get('kind'), lo, hi, list(dict.fromkeys(labels)), group == 'bomb' or group.startswith('node:')))
         return out
 
     def reworked(self, marks):
         """A warning for the marks on tiles a streamed level reworks at the battle's start: the game works the tile out
         again and never writes diagonal cover back, so the mark gives no cover there (KB-22). One warning a level."""
         by = {}
-        for stream, kind, lo, hi, missions in self.rework_areas():
+        for stream, kind, lo, hi, missions, mutator in self.rework_areas():
             for t in marks:
                 if all(lo[k] <= t[k] <= hi[k] for k in range(3)):
-                    by.setdefault(stream, (kind, missions, set()))[2].add(t)
-        for stream, (kind, missions, tiles) in sorted(by.items()):
+                    entry = by.setdefault(stream, [kind, missions, set(), False])
+                    entry[2].add(t)
+                    entry[3] = entry[3] or mutator
+        for stream, (kind, missions, tiles, mutator) in sorted(by.items()):
             tiles = sorted(tiles)
             who = ("Long War's %s" % stream if kind == 'lwr'
                    else '%s (streamed by %s)' % (stream, ' and '.join(missions) if missions else 'a mission'))
@@ -198,7 +226,9 @@ class DiagonalEdits:
                             "every battle's" if kind == 'lwr' else "the battle's", '' if len(tiles) == 1 else 's',
                             ', '.join('(%d, %d, %d)' % x for x in tiles), 'it' if len(tiles) == 1 else 'them',
                             'the mark gives' if len(tiles) == 1 else 'the marks give', 'it' if len(tiles) == 1 else 'them',
-                            'it is' if len(tiles) == 1 else 'one is'),
+                            'it is' if len(tiles) == 1 else 'one is')
+                        + ('. Under Long War its bomb mutator places the bomb and its power nodes itself, and their areas go '
+                           'with them' if mutator else ''),
                         stream=stream, tiles=[list(x) for x in tiles])
 
     def no_floor(self, marks):

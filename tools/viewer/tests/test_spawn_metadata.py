@@ -132,6 +132,13 @@ class StreamSpawns(unittest.TestCase):
         entry = donors['Special/Bomb']
         self.assertEqual((entry['stream'], entry['package']), ('URB_Slaughterhouse_Stream', 'URB_Slaughterhouse_Stream.upk'))
         self.assertEqual(sum(o['kind'] == 'powerNode' for o in entry['missionObjects']), 8)
+        # export 42 (KB-22): its rebuild volumes as the battle reads them, the bomb's and each node's among them, by the
+        # same actor names as their mission objects (the view and the Build move a volume with its object's move)
+        spheres = {s['actor']: s for s in entry['rebuildSpheres']}
+        grouped = [o['actor'] for o in entry['missionObjects'] if o.get('role') == 'rebuild']
+        self.assertEqual(len(grouped), 9)
+        self.assertTrue(set(grouped) <= set(spheres), set(grouped) - set(spheres))
+        self.assertTrue(all(s['radius'] > 0 for s in spheres.values()))
         self.assertEqual(scene_metadata.donor_objects(None), {})
         self.assertEqual(scene_metadata.donor_objects(COOKED / 'nowhere.upk'), {})
 

@@ -1268,15 +1268,18 @@ BOMB_DONOR = "URB_Slaughterhouse_Stream"
 
 def donor_objects(path, warn=None):
     """The bomb donor's mission objects (export 33, review item 7): {"Special/Bomb": dict(stream, package,
-    missionObjects)} read from the install's URB_Slaughterhouse_Stream (`path`, export.stream_package's), without its
-    pieces; {} where the package isn't there or doesn't read."""
+    missionObjects, rebuildSpheres)} read from the install's URB_Slaughterhouse_Stream (`path`, export.stream_package's),
+    without its pieces; {} where the package isn't there or doesn't read. rebuildSpheres (export 42): its rebuild
+    volumes as the battle reads them (rebuild_spheres), which an added bomb mission streams with it (KB-22)."""
     from pathlib import Path
     from package import Package
     if path is None or not Path(path).is_file(): return {}
     path = Path(path)
     try:
-        objects = mission_objects(Package(path), warn)
+        package = Package(path)
+        objects = mission_objects(package, warn)
+        spheres = rebuild_spheres(package, warn)
     except Exception as error:      # noqa: BLE001
         if warn: warn(BOMB_DONOR, f"bomb donor not read: {error}")
         return {}
-    return {"Special/Bomb": dict(stream=BOMB_DONOR, package=path.name, missionObjects=objects)}
+    return {"Special/Bomb": dict(stream=BOMB_DONOR, package=path.name, missionObjects=objects, rebuildSpheres=spheres)}

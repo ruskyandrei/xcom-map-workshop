@@ -101,7 +101,9 @@ import settings
 # 41: each streamed package's rebuild volumes as the battle reads them (`streams[<name>].rebuildSpheres`: centre and
 #     sphere radius, scene_metadata.rebuild_spheres, F-150), so the Diagonal cover view and the Build warn of a mark
 #     whose tile a patch level reworks at the battle's start (KNOWN-BUGS.md KB-22)
-EXPORT_VERSION = 41
+# 42: the bomb donor's too (`donors[<kind>].rebuildSpheres`), which an added bomb mission streams; the view and the
+#     Build move a mission object's volume with the project's move of it
+EXPORT_VERSION = 42
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
