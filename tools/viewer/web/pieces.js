@@ -2,10 +2,13 @@
 // An entry is what copying one placed instance takes along: the actor and its linked pieces (a car's body,
 // glass and light bar, a prefab's parts). Instances alike in every part (class, archetype, mesh, materials,
 // tint) make one entry, with a count. Only pieces the map has placed can be listed: the export holds no others.
+// In the prefab builder the same list is This prefab: the pieces the prefab holds now, each as it stands (S19).
 import * as THREE from 'three';
+import { builderMode } from './editor_state.js';
 import { withoutLocalLights } from './lighting.js';
 import { pieceKind, inKind, setKindOptions } from './piece_categories.js';
 import { short } from './dom_words.js';
+import { stateOfRoot } from './piece_records.js';
 // Every piece is in a family (the compiler's FAMILIES, served by tools/viewer/families.py with the map's assemblies),
 // which says whether the Build makes it and, while it doesn't, the milestone that will: static scenery, destructible
 // props, collectibles, ladders, doors, cars, vans, fracturing pieces (walls, storey floors) and physics props
@@ -141,13 +144,20 @@ const recipe = o => [o.actorClass, o.archetype, o.mesh, o.materials.join(','), (
 
 /** The map's distinct pieces. groups: the ids of the map's own pieces as copies take them along (deleted ones
  *  included: the list is the map as exported); frameOf(source): the matrix into that actor's own frame;
- *  boundsOf(sources, frame): their box in that frame. */
-export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
+ *  boundsOf(sources, frame): their box in that frame.
+ *  live(root), This prefab's (the builder's): an added piece's source as it stands now (its matrix and pose where it
+ *  was moved to). The list is then the prefab's own pieces, those deleted left out, each entry with its parts' states
+ *  (`states`: tint, flags, blasts, as a copy takes them) and the prefab's count; made pieces and cover blocks are left
+ *  out, each made to its own measure (the Build menu, the cover rows). */
+export function collectPieces({ roots, data, groups, frameOf, boundsOf, live = null }) {
   const byKey = new Map();
   const radius = s => data.meshes[s.mesh].bounds?.[6] ?? 0;
+  const kept = live ? ({ userData: { source: s, deleted } }) => s.added && !deleted && !s.hidden && !s.cover && !s.added.generated
+                    : ({ userData: { source: s } }) => !s.hidden && !s.environment && !s.added;
   for (const ids of groups) {
-    const sources = ids.map(i => roots.get(i).userData.source).filter(s => !s.hidden && !s.environment && !s.added);
-    if (!sources.length) continue;
+    const parts = ids.map(i => roots.get(i)).filter(kept);
+    if (!parts.length) continue;
+    const sources = parts.map(r => (live ? live(r) : r.userData.source));
     const key = sources.map(recipe).sort().join('\n');
     const known = byKey.get(key);
     if (known) { known.count++; continue; }
@@ -162,6 +172,7 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf }) {
     byKey.set(key, {
       key, id: `piece-${byKey.size}`, name: prefab ?? short(mesh), mesh, pkg: mesh.split('.')[0], kind, role: pivot.sceneryRole ?? 'interior',
       sources, pivotIndex: sources.indexOf(pivot), count: 1, materials,
+      ...(live ? { states: parts.map(r => stateOfRoot(r.userData)), inPrefab: true } : {}),
       // Viewer basis in the actor's frame: x is game X, y is up, z is game Y.
       frame, box, size: [size.x, size.z, size.y], extent: size.length(),
       text: [...sources.map(s => data.meshes[s.mesh].name), ...sources.map(s => s.archetype).filter(a => a !== 'None'),
@@ -230,7 +241,7 @@ export function pieceRow(entry, pixelRatio, choose) {
     // a cover block or invisible floor (cover_wiring.js coverEntries) is the editor's own piece: none in the map to
     // count
     tags: [entry.cover ? { textContent: 'Invisible', title: 'Hidden in the game' }
-                       : { textContent: `×${entry.count}`, title: `${entry.count} in this map` }],
+                       : { textContent: `×${entry.count}`, title: `${entry.count} in this ${entry.inPrefab ? 'prefab' : 'map'}` }],
     title: entry.title ?? [entry.mesh, ...[...new Set(entry.materials)].map(m => `Material: ${m}`)].join('\n'),
   });
 }
@@ -250,15 +261,22 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
   const view = new THREE.Vector3(1, 0.9, 1.3).normalize();
 
   function load(list) {
+    // (a list collected again, This prefab's as the prefab changes: a row whose count changed is made again, a row of
+    // an entry gone is let go, and the menus keep what they show)
+    const was = new Map((entries ?? []).map(e => [e.key, e.count])), now = new Map(list.map(e => [e.key, e.count]));
+    for (const k of [...rows.keys()]) if (now.get(k) !== was.get(k)) rows.delete(k);
     entries = list;
     setKindOptions(els.kind, entries);
-    const roles = [...new Set(entries.filter(e => !e.light && !e.zone && !e.spawnAdd).map(e => e.role))];
+    const roles = [...new Set(entries.filter(e => !e.light && !e.zone && !e.spawnAdd).map(e => e.role))], where = els.where.value;
     els.where.replaceChildren(new Option('Anywhere', 'all'), ...roles.map(r => new Option(ROLES[r] ?? r, r)));
+    if (roles.includes(where)) els.where.value = where;
     els.where.hidden = roles.length < 2;
   }
   function row(entry) {
     if (!rows.has(entry.key)) {
-      rows.set(entry.key, pieceRow(entry, renderer.getPixelRatio(), () => onChoose(chosen?.key === entry.key ? null : entry)));
+      // (a row stands for its key: a click chooses that key's entry as the list has it now)
+      const current = () => entries?.find(e => e.key === entry.key) ?? entry;
+      rows.set(entry.key, pieceRow(entry, renderer.getPixelRatio(), () => onChoose(chosen?.key === entry.key ? null : current())));
     }
     return rows.get(entry.key);
   }
@@ -276,7 +294,8 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
     const say = (n, of, what) => (n === of ? `${of} ${what}${of === 1 ? '' : 's'}` : `${n} of ${of} ${what}s`);
     const total = [count(shown, 'piece') && say(count(shown, 'piece'), count(entries, 'piece'), 'piece'),
                    count(shown, 'light') && say(count(shown, 'light'), count(entries, 'light'), 'light')].filter(Boolean).join(' and ');
-    els.foot.textContent = shown.length ? `${total} · click one, then click in the view to place it` : 'No piece matches';
+    els.foot.textContent = builderMode && !entries.some(e => e.inPrefab) ?'Nothing in the prefab yet: All maps has every piece of the game'
+      : shown.length ? `${total} · click one, then click in the view to place it` : 'No piece matches';
     queue = shown.filter(e => !row(e).thumb.dataset.drawn);
   }
   /** Draw pictures ({ object, box, thumb: a canvas } each) as the list's own are drawn; only while a frame is drawn,
@@ -353,9 +372,10 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
 
   return {
     get open() { return !els.panel.hidden; },
-    /** Show or hide the panel; collect() gives the entries the first time it opens. */
-    show(on, collect) {
-      if (on && !entries) load(collect());
+    /** Show or hide the panel; collect() gives the entries the first time it opens, and again with `fresh` (This
+     *  prefab: the prefab's pieces as they are now). */
+    show(on, collect, fresh = false) {
+      if (on && (!entries || fresh)) load(collect());
       els.panel.hidden = !on;
       if (on) render();
     },

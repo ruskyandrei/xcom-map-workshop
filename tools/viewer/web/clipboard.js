@@ -28,6 +28,7 @@ import { allRoots, boxesShown, builderMode, buildingMeta, chooseToken, clipboard
          geometryCache, groupIndex, hintTimer, library, libraryScope, lightsShown, nextChooseToken,
          nextCopySerial, ownSet, pickedEffect, pieces, placing, pointer, prefabTab, roots, setClipboard, setGhostDirty,
          setGroups, setLibraryScopeValue, setPlacing, snapMode, volumesOn } from './editor_state.js';
+import { onHub } from './edit_hub.js';
 import { recordName } from './effects_rules.js';
 import { makeEffectMarker } from './effects_view.js';
 import { actorMatrix, placedPose } from './gizmo.js';
@@ -361,11 +362,12 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   // (libraryScope, the All maps library, library, and chooseToken: editor_state.js)
   const LIBRARY_SCOPES = { map: 'libFilter', all: 'libAllFilter', prefabs: 'prefabFilter' };
   function setLibraryScope(scope) {
-    if (builderMode && scope === 'map') scope = 'all';
     setLibraryScopeValue(LIBRARY_SCOPES[scope] ? scope : 'map');
     remember('workshop.libraryScope', libraryScope);
     $('libScope').value = libraryScope;
     $('libMap').hidden = libraryScope !== 'map';
+    // (This prefab, the builder's first tab, lists the prefab as it is now)
+    if (builderMode && pieces.open && libraryScope === 'map') pieces.show(true, pieceEntries, true);
     library.show(pieces.open && libraryScope === 'all');
     prefabTab.show(pieces.open && libraryScope === 'prefabs');
     if (libraryScope !== 'all') hoverLikeness(null);
@@ -417,24 +419,32 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
                   name: entry.name, libraryEntry: entry });
     startPlacing(clipboard, entry);
   }
+  // The Add panel's first tab: This map, the map's pieces as exported; in the prefab builder This prefab, the pieces the
+  // prefab holds now, each where it stands with its state (S19). Floor pieces are marked (the Kind menu's Floors, and a
+  // search for "floor" finds them).
+  // (an added piece's source as it stands: its matrix and pose where it was moved to, so its row's picture and copy are
+  // the piece as it is)
+  const liveSource = r => ({ ...r.userData.source, matrix: r.matrix.toArray(), ...placedPose(r.userData.source, r.matrix) });
+  const pieceEntries = () => collectPieces({ roots, data, frameOf: s => actorMatrix(s.location, s.rotation).invert(), boundsOf,
+    ...(builderMode ? { groups: gizmo.linkedGroups([...roots.values()].filter(r => r.userData.source.added)), live: liveSource }
+                    : { groups: gizmo.linkedGroups([...roots.values()].filter(r => !r.userData.source.added)) }) })
+    .map(e => (floorSupportOf(e.sources) != null ? Object.assign(e, { floor: true, text: `${e.text} floor` }) : e))
+    .concat(pieceRecipes());
   function showPieces(on) {
     $('libMap').hidden = libraryScope !== 'map';
     library.show(on && libraryScope === 'all');
     prefabTab.show(on && libraryScope === 'prefabs');
-    // floor pieces are marked (the Kind menu's Floors, and a search for "floor" finds them)
-    pieces.show(on, () => collectPieces({ roots, data,
-      groups: gizmo.linkedGroups([...roots.values()].filter(r => !r.userData.source.added)),
-      frameOf: s => actorMatrix(s.location, s.rotation).invert(), boundsOf })
-      .map(e => (floorSupportOf(e.sources) != null ? Object.assign(e, { floor: true, text: `${e.text} floor` }) : e))
-      .concat(pieceRecipes()));
+    pieces.show(on, pieceEntries, builderMode);
     if (!on && placing?.entry) stopPlacing();
     if (!on) stopWallDrawing();
     // the hover pane goes with the panel or its All maps tab (closed with the pointer still on a row, it stayed)
     if (!on || libraryScope !== 'all') hoverLikeness(null);
     $('editAdd').classList.toggle('on', on); $('editAdd').setAttribute('aria-pressed', on);
   }
-  // The parts of a piece-list entry where the map has them.
-  const entryParts = entry => entry.sources.map(source => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix) }));
+  // The parts of a piece-list entry where the map has them (This prefab's: where the prefab has them, each with its
+  // state).
+  const entryParts = entry => entry.sources.map((source, k) => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix),
+                                                                 ...(entry.states ? { state: entry.states[k] } : {}) }));
   // Choosing an entry puts it on the clipboard and places it; choosing it again (null) stops.
   function chooseEntry(entry) {
     nextChooseToken();
@@ -453,8 +463,10 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     }
     // a cover block is placed by its first tile: the centre of the tile at its corner goes under the cursor
     const at = entry.sources[entry.pivotIndex].location;
+    // (a row of This prefab is a piece, not the groups it stands in: its copy is in none)
     setClipboard({ entries: entryParts(entry), pivot: entry.cover ? [at[0] + 48, at[1] + 48, at[2]] : [...at],
-                  pivotIndex: entry.pivotIndex, name: entry.name, groundFloor: isFloor(entry.cover) });
+                  pivotIndex: entry.pivotIndex, name: entry.name, groundFloor: isFloor(entry.cover),
+                  ...(entry.inPrefab ? { groups: [] } : {}) });
     if (clipboard.groundFloor) askLineCollision();     // the ground's collision on its way before the floor goes down
     startPlacing(clipboard, entry);
   }
@@ -544,6 +556,18 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     }
     if (delta) flashHint(`Copied ${clip.name}`);
   }
+
+  // This prefab follows the prefab: a piece added, deleted, moved or changed shows without closing the panel, the list
+  // collected again once a frame at most while the tab is shown
+  let recollect = false;
+  onHub('edit', 'add-panel', () => {
+    if (!builderMode || recollect || !pieces.open || libraryScope !== 'map') return;
+    recollect = true;
+    requestAnimationFrame(() => {
+      recollect = false;
+      if (pieces.open && libraryScope === 'map') pieces.show(true, pieceEntries, true);
+    });
+  });
 
   return { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, dropTarget,
            entryParts, groupTree, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,

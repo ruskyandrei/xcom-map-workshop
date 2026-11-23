@@ -1010,7 +1010,7 @@ canvas { display: block; width: 100%; height: 100%; }
 .prefab-builder #playMenu > h3:not(:first-child),
 .prefab-builder #notesButton, .prefab-builder #editResetAll, .prefab-builder #sceneryGroup,
 .prefab-builder #lighting, .prefab-builder #playAreaRow, .prefab-builder label:has(#floorTiles),
-.prefab-builder #libScope [data-value="map"], .prefab-builder label:has(#libAllElsewhere),
+.prefab-builder label:has(#libAllElsewhere),
 .prefab-builder label:has(#areaToggle), .prefab-builder #skyRow { display: none !important; }
 .builder-size { position: fixed; bottom: 12px; left: 76px; max-width: 55vw; padding: 7px 12px; font-size: 12px; pointer-events: none; z-index: 5; }
 /* the builder's off-grid warning, over the size (builder_session.js gridWarning) */

@@ -172,6 +172,7 @@ def main():
         result['navigation'] = check_navigation(browser, args.url, result['buildingOnly'], result['realSources']['project'])
         result['recoveryEdges'] = check_recovery_edges(browser, args.url, result['buildingOnly'])
         result['recipeRecovery'] = check_recipe_recovery(browser, args.url)
+        result['thisPrefab'] = check_this_prefab(browser, args.url)
         if args.large: result['large'] = check_large_builder(browser, args.url)
         print(json.dumps(result, indent=2)); browser.close()
 
@@ -317,6 +318,93 @@ def check_real_sources(browser, url, box_id, screenshot=None):
     if screenshot: screenshot.with_name('builder-project.json').write_text(json.dumps(project), encoding='utf8', newline='\n')
     assert not errors, errors; page.close()
     return dict(prefab=prefab_id, project=project['id'], size=size)
+
+
+def check_this_prefab(browser, url):
+    """The builder's This prefab tab (S19): an empty prefab says so; two pieces of one kind and one of another give two
+    rows with their counts; a row's click places another of that kind; deleting the last of a kind takes its row; a
+    made wall and a cover block give no row; the list follows the prefab without closing the panel. In a map, This map
+    is the map as exported."""
+    base = url.split('?')[0]; page = browser.new_page(viewport=dict(width=1600, height=1000)); errors = []
+    listen(page, errors); page.on('dialog', lambda d: d.accept())
+    def ready(): page.wait_for_function('window.viewer && document.querySelector("#loading").hidden', timeout=120000)
+    own = "viewer.pieces.entries().filter(e => e.inPrefab).map(e => e.count).sort()"
+    def rows(): return page.evaluate(own)
+    def follows(counts): page.wait_for_function(f'want => JSON.stringify({own}) === JSON.stringify(want)', arg=counts, timeout=20000)
+    page.goto(base + '?prefab=new'); ready()
+    tab = page.locator('#libScope [data-value="map"]')
+    page.evaluate('viewer.setLibraryScope("map"); viewer.showPieces(true)')
+    assert tab.is_visible() and tab.inner_text() == 'This prefab', tab.inner_text()
+    assert page.locator('#libFoot').inner_text() == 'Nothing in the prefab yet: All maps has every piece of the game'
+    assert rows() == []
+    # Two arcade machines of the Bar and a computer of the police station, read as the Add panel's All maps reads them
+    page.evaluate('viewer.setLibraryScope("all")'); page.wait_for_function('viewer.library.ready()', timeout=120000)
+    page.evaluate('''async () => {
+      const T = await import('three'), entries = viewer.library.entries();
+      const names = [['ArcadeMachineA', 'URB_Bar'], ['Computer_A', 'URB_PoliceStation'], ['ArcadeMachineA', 'URB_Bar']];
+      for (const [k, [name, map]] of names.entries()) {
+        const entry = entries.find(e => e.name === name && e.source.package === map);
+        if (!entry) throw Error('This prefab\\'s check needs Bar and Police Station in the library');
+        const t = await viewer.libraryTemplate(entry.source), at = [-960 + k * 960, -192, 192];
+        const delta = new T.Matrix4().makeTranslation(at[0], at[2], at[1]).multiply(t.frame);
+        await viewer.pasteSnapshot({entries: t.sources.map(source => ({source, matrix: new T.Matrix4().fromArray(source.matrix)})), volumes: [], pivotIndex: 0}, delta);
+      }
+    }''')
+    page.evaluate('viewer.setLibraryScope("map")')
+    assert rows() == [1, 2], rows()
+    assert page.locator('#libList .libitem .tag', has_text='×2').count() == 1
+    page.wait_for_function("Array.from(document.querySelectorAll('#libList canvas')).every(c => c.dataset.drawn)", timeout=30000)
+    assert 'in this prefab' in page.locator('#libList .libitem .tag', has_text='×2').get_attribute('title')
+    # A row's click puts a copy on the cursor; a click in the view places it, and the list follows
+    pair = page.evaluate('viewer.pieces.entries().find(e => e.inPrefab && e.count === 2).id')
+    page.locator(f'#libList .libitem[data-id="{pair}"]').click()
+    assert page.evaluate('Boolean(viewer.placing())')
+    page.evaluate('viewer.frame()')
+    box = page.locator('#viewport > canvas').bounding_box()
+    page.mouse.move(box['x'] + box['width'] * 0.3, box['y'] + box['height'] * 0.7)
+    page.wait_for_function('viewer.placing()?.ghost.visible')
+    page.mouse.click(box['x'] + box['width'] * 0.3, box['y'] + box['height'] * 0.7)
+    follows([1, 3])
+    # (the copy is in no group, as its original is in none: a row is a piece)
+    assert page.evaluate('viewer.groupList().length') == 0
+    # Deleting the last of a kind takes its row
+    lone = page.evaluate('viewer.pieces.entries().find(e => e.inPrefab && e.count === 1).sources.map(s => s.id)')
+    page.evaluate('ids => { viewer.gizmo.setSelection(ids, ids[0]); document.activeElement?.blur(); }', lone)
+    page.keyboard.press('Delete')
+    follows([3])
+    page.keyboard.press('Control+z')
+    follows([1, 3])
+    # A made wall and a cover block give no row
+    import browser_walls as bw
+    page.evaluate('viewer.showPieces(false)')
+    bw.start_build(page, 'wall'); bw.look_at(page, [0, 960, 0])
+    bw.drag(page, bw.ground_point(page, [-192, 960, 0]), bw.ground_point(page, [192, 960, 0]))
+    page.wait_for_function("viewer.wallState(viewer.gizmo.active)?.generated?.kind === 'fracWall'", timeout=60000)
+    page.keyboard.press('Escape')
+    page.evaluate('viewer.showPieces(true)')
+    cover = page.evaluate("viewer.pieces.entries().find(e => e.cover && e.cover.type !== 'floor').id")
+    page.locator(f'#libList .libitem[data-id="{cover}"]').click()
+    page.mouse.move(box['x'] + box['width'] * 0.6, box['y'] + box['height'] * 0.4)
+    page.wait_for_function('viewer.placing()?.ghost.visible')
+    page.mouse.click(box['x'] + box['width'] * 0.6, box['y'] + box['height'] * 0.4)
+    page.wait_for_function('[...viewer.roots.values()].some(r => r.userData.source.cover)')
+    page.wait_for_timeout(300)
+    assert rows() == [1, 3], rows()
+    page.close()
+    # In a map, This map is the map as exported: a copy placed adds no row, and none is the prefab's
+    page = browser.new_page(viewport=dict(width=1600, height=1000)); listen(page, errors); page.on('dialog', lambda d: d.accept())
+    page.goto(base + '?map=URB_Bar'); ready()
+    page.evaluate('viewer.setLibraryScope("map"); viewer.showPieces(true)')
+    assert page.locator('#libScope [data-value="map"]').inner_text() == 'This map'
+    before = page.evaluate('viewer.pieces.entries().map(e => [e.key, e.count])')
+    assert before and not page.evaluate('viewer.pieces.entries().some(e => e.inPrefab)')
+    page.evaluate('''async () => { const T = await import('three'); const r = [...viewer.roots.values()].find(r => !r.userData.source.added && !r.userData.source.hidden);
+      viewer.gizmo.setSelection([r.userData.source.id]); await viewer.pasteSnapshot(viewer.snapshot(), new T.Matrix4().makeTranslation(96, 0, 96)); }''')
+    page.evaluate('viewer.showPieces(false); viewer.showPieces(true)')
+    assert page.evaluate('viewer.pieces.entries().map(e => [e.key, e.count])') == before
+    assert not errors, errors
+    page.close()
+    return dict(rows=[1, 3])
 
 
 def check_navigation(browser, url, source_id, project_id):

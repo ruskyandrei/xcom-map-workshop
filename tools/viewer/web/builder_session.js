@@ -233,6 +233,8 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
     $('mapButton').querySelector('small').textContent = 'Prefab';
     $('mapButton').title = 'Open a map or prefab (M)';
     $('projectLoad').querySelector('span').textContent = 'Open…';
+    // the Add panel's first tab lists the prefab's own pieces (S19)
+    Object.assign($('libScope').querySelector('[data-value="map"]'), { textContent: 'This prefab', title: 'The pieces this prefab holds' });
     const loadProjectButton = text($('projectLoad').parentElement, 'button', 'Load project…');
     loadProjectButton.type = 'button'; loadProjectButton.onclick = () => showFileDialog('load');
   }

@@ -37,6 +37,7 @@ export const RUNS = {
     'room',          // made_panel.js: the Room section
     'tools',         // navigation.js: the gizmo's buttons, snap, the axes, the pivot and Selected
     'project',       // document_session.js: the project's title, its save state and its draft
+    'add-panel',     // clipboard.js: the prefab builder's This prefab tab follows the prefab's pieces
     'lights',        // lights_wiring.js: the lights drawn follow, and their warnings
   ],
   // While a gizmo handle is held, what is seen to move besides the pieces, the highlight and the pose fields

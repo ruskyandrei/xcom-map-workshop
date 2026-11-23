@@ -5908,13 +5908,15 @@ def editing(name, *more):
 
 
 def run_builder(ctx):
-    from browser_builder import check_builder, check_real_sources, check_navigation, check_recovery_edges, check_recipe_recovery
+    from browser_builder import (check_builder, check_real_sources, check_navigation, check_recovery_edges, check_recipe_recovery,
+                                 check_this_prefab)
     url = ctx.page.url
     result = check_builder(ctx.browser, url, ctx.args.screenshot)
     result['realSources'] = check_real_sources(ctx.browser, url, result['buildingOnly'], ctx.args.screenshot)
     result['navigation'] = check_navigation(ctx.browser, url, result['buildingOnly'], result['realSources']['project'])
     result['recoveryEdges'] = check_recovery_edges(ctx.browser, url, result['buildingOnly'])
     result['recipeRecovery'] = check_recipe_recovery(ctx.browser, url)
+    result['thisPrefab'] = check_this_prefab(ctx.browser, url)
     return result
 
 
@@ -6041,7 +6043,7 @@ CHECKS = (
     Check('library-assembly', lambda c: check_library_assembly(c.browser, c.page.url), 'assemblies from All maps',
           needs=('settings',), full=False),
     Check('output-names', run_output_names, 'maps named after the project', needs=('projects',), full=False),
-    Check('builder', run_builder, 'the prefab builder', needs=('projects',), full=False),
+    Check('builder', run_builder, 'the prefab builder and its This prefab tab', needs=('projects',), full=False),
     Check('prefab-test', lambda c: __import__('browser_prefab_test').check_prefab_test(c.browser, c.page.url, c.args.screenshot),
           'the builder\'s Test in game', needs=('projects',), full=False),
     Check('walls', lambda c: __import__('browser_walls').check_walls(c.browser, c.page.url, open_viewer, type_project_name, project_url),
