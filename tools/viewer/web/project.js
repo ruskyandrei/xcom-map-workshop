@@ -95,6 +95,7 @@ const validReplaces = r => r && typeof r === 'object' && typeof r.package === 's
 export const validBuilding = b => {
   if (!b || typeof b !== 'object' || typeof b.id !== 'string' || b.id === '' || typeof (b.name ?? '') !== 'string') return false;
   if (b.replaces !== undefined && !validReplaces(b.replaces)) return false;
+  if (b.cursorFloors !== undefined && typeof b.cursorFloors !== 'boolean') return false;
   if (b.deleted !== undefined) return b.deleted === true && b.replaces !== undefined && b.floors === undefined;
   return BUILDING_KINDS.includes(b.kind ?? 'building') && Array.isArray(b.floors) && b.floors.length >= 1 && b.floors.length <= BUILDING_FLOORS_MAX
     && b.floors.every(f => f && Array.isArray(f.boxes) && f.boxes.length >= 1 && f.boxes.every(validBox)
@@ -108,8 +109,11 @@ function tidyFloor(f, map) {
   const pairs = f.boxes.map((x, k) => [tidyBox(x), f.volumes[k]]).sort((a, b) => a[0].join().localeCompare(b[0].join()));
   return { boxes: pairs.map(p => p[0]), volumes: pairs.map(p => p[1]) };
 }
+// (`cursorFloors`, schema 8: the building's floors are the cursor's over it, the building cursor floors plan; kept on a
+// building made from nothing only, and only when true)
 export const tidyBuilding = b => (b.deleted ? { id: b.id, ...(b.name ? { name: b.name } : {}), replaces: { ...b.replaces }, deleted: true }
   : { id: b.id, name: b.name ?? '', kind: b.kind ?? 'building', ...(b.replaces ? { replaces: { ...b.replaces } } : {}),
+      ...(b.cursorFloors === true && !b.replaces ? { cursorFloors: true } : {}),
       floors: b.floors.map(f => tidyFloor(f, Boolean(b.replaces))) });
 // The map's size as the project sets it (prefab plan 5.11): { grid: [tiles along x, tiles along y] }, the map's tile
 // grid made that large from its own corner, or with a third number its levels, from its own bottom (5.6b), and

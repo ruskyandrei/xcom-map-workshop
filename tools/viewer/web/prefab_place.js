@@ -158,6 +158,7 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
       const numbers = [...new Set(list.map(x => x.floor))].sort((a, b) => a - b).slice(0, BUILDING_FLOORS_MAX), id = uuid();
       copied.push([buildingKey(was), { building: id }]);
       return tidyBuilding({ id, name: clip.buildingMeta[was]?.name ?? '', kind: clip.buildingMeta[was]?.kind ?? 'building',
+                            cursorFloors: clip.buildingMeta[was]?.cursorFloors === true && !clip.buildingMeta[was]?.map,
                             floors: numbers.map(f => ({ boxes: list.filter(x => x.floor === f).map(x => x.box) })) });
     });
     const groups = [...groupTree(copied, mapChain).values()].map(g => ({ id: g.id, breakTogether: g.breakTogether === true, members: [...g.members.values()] }));
@@ -238,7 +239,7 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
     }));
     const volumes = [], meta = {};
     for (const b of (doc.buildings ?? []).filter(validBuilding)) {
-      meta[b.id] = { name: b.name ?? '', kind: b.kind ?? 'building' };
+      meta[b.id] = { name: b.name ?? '', kind: b.kind ?? 'building', ...(b.cursorFloors === true ? { cursorFloors: true } : {}) };
       b.floors.forEach((floor, k) => { for (const box of floor.boxes) volumes.push({ matrix: boxMatrix(box.map((v, i) => v + base[i % 3])), building: b.id, floor: k }); });
     }
     const tiles = doc.floor?.tiles ?? [1, 1], mark = { id: doc.id, name: doc.name, revision: doc.revision ?? 0 };

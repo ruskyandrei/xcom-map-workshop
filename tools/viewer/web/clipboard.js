@@ -161,7 +161,8 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
         let name = base;
         for (let n = 2; names.has(name); n++) name = `${base} ${n}`;
         names.add(name);
-        twins.set(v.building, { id: newBuildingId(), meta: { name, kind: meta.kind ?? 'building' } });
+        twins.set(v.building, { id: newBuildingId(), meta: { name, kind: meta.kind ?? 'building',
+                                                             ...(meta.cursorFloors === true && !meta.map ? { cursorFloors: true } : {}) } });
       }
       const root = makeVolume([0, 0, 0, TILE, TILE, LEVEL], twins.get(v.building).id, v.floor);
       root.matrix.copy(delta.clone().multiply(v.matrix));

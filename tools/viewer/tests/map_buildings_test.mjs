@@ -31,6 +31,14 @@ assert.deepEqual(tidyBuilding(deleted), deleted);
 assert.ok(!validBuilding({ ...deleted, floors: changed.floors }));
 assert.ok(!validBuilding({ id: 'p', deleted: true }));
 assert.ok(!validBuilding({ ...deleted, deleted: false }));
+// a building's floors as the cursor's (schema 8, the building cursor floors plan): a boolean, kept when true on a
+// building made from nothing, never on one of the map's
+assert.ok(validBuilding({ id: 'p', cursorFloors: true, floors: [{ boxes: [box] }] }));
+assert.ok(validBuilding({ id: 'p', cursorFloors: false, floors: [{ boxes: [box] }] }));
+assert.ok(!validBuilding({ id: 'p', cursorFloors: 1, floors: [{ boxes: [box] }] }));
+assert.equal(tidyBuilding({ id: 'p', cursorFloors: true, floors: [{ boxes: [box] }] }).cursorFloors, true);
+assert.equal('cursorFloors' in tidyBuilding({ id: 'p', cursorFloors: false, floors: [{ boxes: [box] }] }), false);
+assert.equal('cursorFloors' in tidyBuilding({ ...changed, cursorFloors: true }), false);
 // malformed ones are carried as they are by sortState
 const odd = { id: 'map:x', replaces, floors: 'none' };
 assert.deepEqual(sortState({ overrides: [], added: [], buildings: [odd, changed] }).buildings, [tidyBuilding(changed), odd]);

@@ -20,9 +20,9 @@
 // call the drags; its View options' Play area calls setPlayArea.
 import * as THREE from 'three';
 import { LEVEL, TILE } from './constants.js';
-import { activeMapId, builderMode, cleared, data, gridDrag, gridTool, ownGrid, roots, setGridDrag, setGridToolValue,
+import { activeMapId, buildings, builderMode, cleared, data, gridDrag, gridTool, ownGrid, roots, setGridDrag, setGridToolValue,
          setOwnGrid, setStageValue, stage } from './editor_state.js';
-import { cursorStoreys } from './floors.js';
+import { cursorAreas, cursorStoreys } from './floors.js';
 import { STAGE_MAPS, stageMax, tidyStage, validStage } from './project.js';
 import { recall, remember } from './storage.js';
 
@@ -157,14 +157,15 @@ export function createMapGrid({ $, alongLine, boxOf, controls, flashHint, gizmo,
   }
   // The cursor's floors on the grid as the project has it (floors.js cursorStoreys; the Build's shell.py), with the made
   // floors' and roofs' own over their footprints (floors.js madeStoreys; the Build's made_cursors.py): a slab turned off
-  // the quarter turns in steps square to the world (made_handles.js slabStepsOf)
+  // the quarter turns in steps square to the world (made_handles.js slabStepsOf); and the floors of the buildings whose
+  // floors are the cursor's over theirs (floors.js cursorAreas)
   const madeSlabBoxes = () => [...roots.values()].filter(r => !r.userData.deleted && isMadeSlab(r.userData.source))
     .flatMap(r => { const b = boxOf(r); return !b ? [] : slabStepsOf(r, b[4], b[5]) ?? [{ box: [b[0], b[2], b[4], b[1], b[3], b[5]] }]; });
   let storeysKept = null;
   const storeysNow = () => {
-    const own = ownSize()?.dims ?? null, slabs = madeSlabBoxes();
-    const key = JSON.stringify([cleared, own, data?.tileGrid?.dimensions ?? null, slabs]);
-    if (storeysKept?.data !== data || storeysKept.key !== key) storeysKept = { data, key, value: cursorStoreys(data, { cleared, own, slabs }) };
+    const own = ownSize()?.dims ?? null, slabs = madeSlabBoxes(), areas = cursorAreas(buildings);
+    const key = JSON.stringify([cleared, own, data?.tileGrid?.dimensions ?? null, slabs, areas]);
+    if (storeysKept?.data !== data || storeysKept.key !== key) storeysKept = { data, key, value: cursorStoreys(data, { cleared, own, slabs, areas }) };
     return storeysKept.value;
   };
   // The stage a grid of `dims` asks for (null: the map's own)

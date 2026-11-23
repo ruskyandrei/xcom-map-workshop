@@ -1793,6 +1793,55 @@ def check_map_settings(page):
     assert not page.evaluate('viewer.mapSettings().open')
 
 
+def check_cursor_floors(page):
+    """A building's floors as the cursor's (the building cursor floors plan): the Buildings view's tick on a building of
+    the project's, off at first; on, the cursor's floors over it are its own (each 2 under its box's bottom, the
+    building's floor numbers), the panel says where they start and warns of none for the map's, the record says
+    cursorFloors and the project keeps it; Ctrl+Z takes it off. A floor starting under the one before it is warned of."""
+    if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && Boolean(viewer.data.tileGrid?.origin)"
+                         " && viewer.data.exporterVersion >= 20"):
+        return skip('cursor-floors', 'needs a map (not a preview) with a tile grid and cursor floors', whole=True)
+    page.evaluate('viewer.select(null)')
+    x0, y0, z0 = (round(v) for v in page.evaluate('viewer.data.tileGrid.origin'))
+    low = [x0 + 96 * 4, y0 + 96 * 4, z0, x0 + 96 * 6, y0 + 96 * 5, z0 + 160]         # floors 160 and 192 high
+    high = low[:2] + [z0 + 160] + low[3:5] + [z0 + 352]
+    page.evaluate('viewer.setVolumesShown(true)')
+    ids = page.evaluate("boxes => viewer.addVolumes(boxes.map((box, floor) => ({ box, floor })), viewer.newBuilding())"
+                        ".map(r => r.userData.source.id)", [low, high])
+    page.evaluate('id => viewer.select(id)', ids[0])
+    mine = "() => viewer.buildings().filter(b => !b.replaces)"
+    assert page.locator('#volumeCursorRow').is_visible() and not page.locator('#volumeCursor').is_checked()
+    assert 'cursorFloors' not in page.evaluate(mine)[0]
+    over = "([x, y]) => viewer.cursorStoreys().filter(s => s.box[0] <= x && x <= s.box[3] && s.box[1] <= y && y <= s.box[4])" \
+           ".map(s => [Math.round(s.box[2]), s.floor, s.building ?? null]).sort((a, b) => a[0] - b[0])"
+    mid = [low[0] + 96, low[1] + 48]
+    before = page.evaluate(over, mid)
+    assert all(b[2] is None for b in before), before
+    # ticked: one undo step; the floors over it its own, the panel's line says so
+    page.locator('#volumeCursor').check()
+    [rec] = page.evaluate(mine)
+    assert rec['cursorFloors'] is True, rec
+    assert page.evaluate(over, mid) == [[z0 - 2, 1, rec['name']], [z0 + 158, 2, rec['name']]], page.evaluate(over, mid)
+    note = page.locator('#volumeNote').text_content()
+    assert "are its own" in note and f'1 at {z0}, 2 at {z0 + 160}' in note, note
+    assert 'mouse wheel would not stop' not in (page.locator('#volumeWarn').text_content() or '')
+    assert page.evaluate('viewer.editState().buildings').__len__() >= 1
+    assert any(b.get('cursorFloors') for b in page.evaluate('viewer.editState().buildings'))
+    # a floor out of order is warned of: floor 2 dragged under floor 1's bottom
+    page.evaluate('([id, b]) => viewer.putVolume(id, [b[0], b[1], b[2] - 200, b[3], b[4], b[5]])', [ids[1], high])
+    page.evaluate('id => viewer.select(id)', ids[0])
+    assert 'does not stop at it there' in page.locator('#volumeWarn').text_content()
+    page.keyboard.press('Control+z')
+    # Ctrl+Z takes the tick off
+    page.keyboard.press('Control+z')
+    assert 'cursorFloors' not in page.evaluate(mine)[0]
+    assert page.evaluate(over, mid) == before
+    page.keyboard.press('Control+z')
+    assert page.evaluate(mine) == []
+    page.evaluate('viewer.select(null)')
+    page.evaluate('viewer.setVolumesShown(false)')
+
+
 def check_floor_boxes(page):
     """View options' Floor boxes: off at first; on, the project's floor boxes are drawn in the normal view, where a
     click on a box's edge or the select box takes the whole building. It moves by whole tiles and turns by quarter
@@ -5879,6 +5928,7 @@ CHECKS = (
     Check('copy-drag', on_page(check_copy_drag), 'a copy dragged off with Alt'),
     Check('box-select', on_page(check_box_select), 'box select'),
     Check('floor-boxes', on_page(check_floor_boxes), 'buildings\' floor boxes'),
+    Check('cursor-floors', on_page(check_cursor_floors), 'a building\'s floors as the cursor\'s'),
     Check('map-buildings', on_page(check_map_buildings), 'the map\'s own buildings edited'),
     Check('clear-map', on_page(check_clear_map), 'Clear map, the map grid and the landing zones'),
     Check('map-settings', on_page(check_map_settings), 'Map settings: the sun and sky listed, the background sound and its volume, what '

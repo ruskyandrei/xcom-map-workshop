@@ -325,6 +325,7 @@
           <label title="The building's name, for you">Name<input id="volumeName" type="text" maxlength="60"></label>
           <label title="Building for anything but the mission's alien ship. UFO marks the building as that ship: the game then places the battle's aliens in and around it. Both hide their roof and cut their walls down alike">Kind<select id="volumeKind"><option value="building">Building</option><option value="ufo">UFO</option></select></label>
         </div>
+        <label id="volumeCursorRow" class="check" title="The mouse wheel stops once for each of this building's floors over it, at the height its floor's box starts, whatever the heights: the Build gives the cursor these floors here in place of the map's. On each stop the building shows its floors up to that one. Off: the cursor's floors are the map's, and a floor should start where one of them does"><input id="volumeCursor" type="checkbox"> Cursor stops at its floors</label>
         <div id="volumeNote" class="lightnote"></div>
         <div id="volumeWarn" class="lightnote warn" hidden></div>
         <div class="row">

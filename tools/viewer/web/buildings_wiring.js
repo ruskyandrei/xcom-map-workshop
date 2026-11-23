@@ -40,8 +40,8 @@ import { allRoots, boxesShown, builderMode, buildingMeta, buildings, buildingsVe
          setOwnPickedValue, setPickBoxValue, setPickCentres, setPickDrag, setPickHits, setPickToolValue, setVolumeDrag,
          setVolumesOn, setVolumeToolValue, spawnPlacing, volumeDrag, volumeRoots, volumesOn, volumeTool,
          zonesOn } from './editor_state.js';
-import { buildingProblems, CURSOR_NEAR, cursorMiss, floorsAround, floorsOf, LISTED_CLASSES, STOREY_HEIGHT,
-         storeysOver, touchedFloors } from './floors.js';
+import { buildingProblems, buildingUnordered, CURSOR_NEAR, cursorAreas, cursorMiss, floorsAround, floorsOf, LISTED_CLASSES,
+         STOREY_HEIGHT, storeysOver, touchedFloors } from './floors.js';
 import { scaleMarker } from './lights_view.js';
 import { PREFAB_MAX_Z, PREFAB_MIN_Z } from './prefab_document.js';
 import { BUILDING_FLOORS_MAX, BUILDING_SAME, mapBuildingId, targetKey, tidyBuilding,
@@ -51,6 +51,10 @@ import { boxWords } from './spawns_view.js';
 import { plural, short, text } from './dom_words.js';
 import { isStream } from './piece_records.js';
 import { gameToView, HANDLE_PICK } from './handles.js';
+
+// A building made in this view has its floors as the cursor's (`cursorFloors`; the building cursor floors plan, decision
+// D2) from the start when this is true; the panel's tick sets it on any building made from nothing.
+const NEW_CURSOR_FLOORS = false;
 
 export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenStorey, copySelection, deleteSelection,
                                         editBaseSpawn, editChanged, editedCopies, editedKey, editedSpawns,
@@ -218,6 +222,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
       const floorRoots = numbers.map((n, k) => list.filter(r => r.userData.volume.effective === k));
       // one of the map's: `replaces` its building volume, each box with the floor volume it is (tidyBuilding sorts them)
       out.push(tidyBuilding({ id, name: meta.name, kind: meta.kind, ...(meta.map ? { replaces: mapTarget(meta.map) } : {}),
+        ...(meta.cursorFloors === true && !meta.map ? { cursorFloors: true } : {}),
         floors: floorRoots.map(rs => (meta.map
           ? { boxes: rs.map(volumeBox), volumes: rs.map(r => (r.userData.volume.home === id ? r.userData.volume.origin : null)) }
           : { boxes: rs.map(volumeBox).sort((a, b) => a.join().localeCompare(b.join())) })) }));
@@ -251,7 +256,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
         continue;
       }
       const tidy = tidyBuilding(b);
-      buildingMeta.set(tidy.id, { name: tidy.name, kind: tidy.kind });
+      buildingMeta.set(tidy.id, { name: tidy.name, kind: tidy.kind, ...(tidy.cursorFloors ? { cursorFloors: true } : {}) });
       tidy.floors.forEach((floor, k) => { for (const box of floor.boxes) makeVolume(box, tidy.id, k); });
     }
     for (const [key, e] of editable) {
@@ -354,7 +359,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     let n = 1;
     const names = new Set([...buildingMeta.values()].map(m => m.name));
     while (names.has(`Building ${n}`)) n++;
-    buildingMeta.set(id, { name: `Building ${n}`, kind: 'building' });
+    buildingMeta.set(id, { name: `Building ${n}`, kind: 'building', ...(NEW_CURSOR_FLOORS ? { cursorFloors: true } : {}) });
     return id;
   }
   // The building a new box joins: the one of the box selected (or made) last, while it still has a box.
@@ -566,6 +571,12 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
       }
     }
   }
+  // What the panel says of a building whose floors are the cursor's: where each floor starts (its lowest box).
+  function ownCursorLine(b) {
+    if (!b) return '';
+    const starts = b.floors.map((f, k) => `${k + 1} at ${Math.round(Math.min(...f.boxes.map(x => x[2])))}`);
+    return `The cursor's floors over this building are its own (the yellow lines): ${starts.join(', ')}. The mouse wheel stops once a floor here.`;
+  }
   // What the panel says of the cursor's floors over a box.
   function cursorLine(over, made) {
     if (!over.length) return 'No cursor volume of the map is over it: the cursor has no floors here.';
@@ -658,7 +669,8 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
       const at = alongAxis(e.clientX, e.clientY, facePoint(d.before, d.key), axis);
       if (at == null || d.from == null) return;
       const least = axis === 2 ? 16 : 24, box = [...d.before];
-      let value = snapTo((side < 0 ? d.before[axis] : d.before[axis + 3]) + at - d.from, axis, e.altKey, d.before);
+      const ownFloors = buildingMeta.get(d.root?.userData.volume.building)?.cursorFloors === true;
+      let value = snapTo((side < 0 ? d.before[axis] : d.before[axis + 3]) + at - d.from, axis, e.altKey, ownFloors ? null : d.before);
       if (side < 0) { value = Math.min(value, d.before[axis + 3] - least); box[axis] = value; }
       else { value = Math.max(value, d.before[axis] + least); box[axis + 3] = value; }
       setVolumeBox(d.root, box);
@@ -724,7 +736,8 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   }
   // ---- the panel: what the view is for and its tools, and the selected boxes' building and floor
   const volumeUi = { root: $('volumePanel'), picked: $('volumePicked'), title: $('volumeTitle'), bottom: $('volumeBottom'), top: $('volumeTop'),
-                     building: $('volumeBuilding'), name: $('volumeName'), kind: $('volumeKind'), floor: $('volumeFloor'), note: $('volumeNote'), warn: $('volumeWarn') };
+                     building: $('volumeBuilding'), name: $('volumeName'), kind: $('volumeKind'), floor: $('volumeFloor'), note: $('volumeNote'), warn: $('volumeWarn'),
+                     cursor: $('volumeCursor') };
   let volumeCountKey = '', volumeCountText = '';
   // How many pieces the boxes list, and of them how many cut down (worked out when nothing is being dragged).
   function volumeCounts(targets) {
@@ -767,6 +780,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     volumeUi.picked.hidden = !targets.length && !own;
     for (const input of [volumeUi.bottom, volumeUi.top, volumeUi.building, volumeUi.name, volumeUi.kind, volumeUi.floor]) input.disabled = readOnly;
     $('volumeCopy').hidden = $('volumeDelete').hidden = readOnly; volumeUi.kind.parentElement.hidden = readOnly;
+    volumeUi.cursor.parentElement.hidden = true;
     $('volumeRestore').hidden = true;
     $('volumePrefab').hidden = readOnly;      // floor boxes alone are saveable too
     volumeUi.name.parentElement.firstChild.textContent = readOnly ? 'Floor volume' : 'Name';
@@ -803,6 +817,10 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     if (active !== volumeUi.building) { volumeUi.building.replaceChildren(...options); volumeUi.building.value = building ?? ''; }
     put(volumeUi.name, meta?.name ?? ''); volumeUi.name.disabled = volumeUi.kind.disabled = !meta;
     if (active !== volumeUi.kind) volumeUi.kind.value = meta?.kind ?? 'building';
+    // the cursor's floors are the building's own (a building made from nothing: the map's own bring none)
+    volumeUi.cursor.parentElement.hidden = !meta || Boolean(meta.map);
+    volumeUi.cursor.checked = meta?.cursorFloors === true;
+    const ownCursor = Boolean(meta && !meta.map && meta.cursorFloors === true);
     const floor = same(r => r.userData.volume.floor);
     put(volumeUi.floor, floor == null ? '' : floor + 1);
     const dragging = gizmo.controls.dragging || volumeDrag;
@@ -821,8 +839,9 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
     }
     if (!dragging) notes.push(volumeCounts(targets));
     const storeys = storeysNow(), misses = [];
-    if (storeys && one) notes.push(cursorLine(storeysOver(storeys, boxes[0]), storeys.some(s => s.made)));
-    if (storeys && !dragging) for (const box of boxes) {
+    if (ownCursor) notes.push(ownCursorLine(buildings.find(b => b.id === building)));
+    else if (storeys && one) notes.push(cursorLine(storeysOver(storeys, boxes[0]), storeys.some(s => s.made)));
+    if (storeys && !dragging && !ownCursor) for (const box of boxes) {
       const over = storeysOver(storeys, box);
       if (cursorMiss(box, over)) misses.push(`${one ? 'This box' : 'A box'} starts at ${Math.round(box[2])}, away from where the cursor's floors start here `
         + `(${over.map(s => Math.round(s.z)).join(', ')}): the mouse wheel would not stop at this storey. Start it within ${CURSOR_NEAR} units of one.`);
@@ -838,6 +857,9 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
       });
       const others = allBuildings().filter(x => x.project !== b && x.id !== PROJECT_BUILDING + b.id && !(buildingMeta.get(b.id)?.map && x.id === buildingMeta.get(b.id).map.id));
       for (const p of buildingProblems(b, grid, others, authored, (k, n) => freshBox(b, k, n))) problems.add(`${b.name || 'the building'}: ${p}`);
+      const late = b.cursorFloors === true ? buildingUnordered(cursorAreas([b])[0]) : [];
+      if (late.length) problems.add(`${b.name || 'the building'}: floor ${late.join(' and ')} ${late.length === 1 ? 'starts' : 'start'} at or under the floor `
+        + `before over part of it, so the mouse wheel does not stop at ${late.length === 1 ? 'it' : 'them'} there`);
     }
     const said = [problems.size ? `This may behave oddly in the game (the Build builds it and warns): ${[...problems].join('; ')}.` : '', ...new Set(misses)].filter(Boolean);
     volumeUi.warn.hidden = !said.length;
@@ -870,6 +892,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   };
   volumeUi.name.onchange = () => { editMeta({ name: volumeUi.name.value.trim().slice(0, 60) }); volumeUi.name.blur(); };
   volumeUi.kind.onchange = () => { editMeta({ kind: volumeUi.kind.value }); volumeUi.kind.blur(); };
+  volumeUi.cursor.onchange = () => { editMeta({ cursorFloors: volumeUi.cursor.checked }); volumeUi.cursor.blur(); };
   volumeUi.floor.max = String(BUILDING_FLOORS_MAX);      // (the script's and the compiler's limit: review finding 34)
   volumeUi.floor.onchange = () => {
     const targets = pickedVolumes(), n = Number(volumeUi.floor.value);
