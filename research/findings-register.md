@@ -213,6 +213,32 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
+### F-163: Long War's patch levels are mostly scripts that change the base map as it loads; a cleared map keeps them
+**Read, not played** (23 November 2026: every `patch_*.upk` of an LWR install tallied by class, `patch_farm`'s
+and `patch_hide_randomized_objects`' Kismet read with `tools/upk/kismet_links.py`, CSmallScout_Farm's export 40).
+- **What the 90 patch levels hold**: 85 have rebuild volumes (409 in all), 80 a Kismet script run from a
+  level-loaded event, 60 pieces of their own (845 `XComLevelActor`, 86 destructibles in 6), 54 point lights (240), 30
+  ladders (81). The scripts find the base map's pieces by name (`SeqAct_GetActorByName`, 185), by class, archetype
+  or layer (`SeqAct_GetActorsByFilter`, 110; `SeqAct_GetAllActors`, 125) or by a volume they touch
+  (`SeqAct_GetActorsTouchingVolume`, 83, `…ByFilter`, 53), and remove them (`SeqAct_RemoveActor`, 111;
+  `SeqAct_RemoveAllActors`, 64), resize or move them (`SeqAct_SetScale3D`, 131; `SeqAct_SetLocation`, 17), hide them
+  (`SeqAct_ToggleHide`, 39), set their cover and sight blocking (`SeqAct_SetCover`, 43; `SeqAct_SetLOSBlocking`, 40)
+  or rewrite their destruction (`SeqAct_AddDestructibleActorEvent`, 149). The rebuild volumes rework the tiles after.
+- **`patch_farm`**: 13 point lights, 6 ladders, 8 rebuild volumes, and a script that takes every actor of archetype
+  `PRE_PickupTruckFull_Arc1` (its destruction cleared and written anew, "Breaking the windows destroys the car"),
+  removes one `XComInteractiveLevelActor` overlapping `XComRebuildWorldDataVolume_0` ("the alien door"; the volume
+  reaches tiles x 42..48, y 24..30) and sets the Z scale of every ladder of `ARC_LadderWoodA_192` and
+  `ARC_LadderMetalB_320` to 1.0001. Its volume 9 has a sphere of 1321.5: tiles x 2..29, y to 17, every level.
+- **`patch_hide_randomized_objects`** (119 records): filters by archetype, class and layer for bombs, energy nodes
+  and meld, branches on a Second Wave option (`SeqCond_SWOption`, index 29) and waits for the battle to run before it
+  hides and moves them: decided per mission, so it has no one end state. Its 10 rebuild volumes stand in a column at
+  world x -96, z 496 (on the farm's grid: x 23..26, y 48..69, levels 7 to 12).
+- **So**: a patch level can't be folded into a built map in general, and the editor, which shows a patch's pieces,
+  lights and spawn points, shows nothing of what its script does to the map's own pieces.
+- **A cleared map** streams its copy of the patch with the export's `objects` out (`mission_edits.py`; the farm's
+  six ladders): the lights, the rebuild volumes and the script stay, the script matching the new map's pieces by
+  archetype, class and place (KNOWN-BUGS.md KB-23).
+
 ### F-162: A carried diagonal cover mark lost in EXP-95: a meld container Long War placed beside it reworked its tile
 **Explained: not the Build** (23 November 2026: EXP-95's quicksave read against the built map tile by tile, the run's
 log, the meld mutator's source; [EXP-95](experiments/EXP-95-diagonal-marks.md)).
