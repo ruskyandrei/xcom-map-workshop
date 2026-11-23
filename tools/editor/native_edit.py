@@ -34,7 +34,8 @@ def native_split(spec):
     deleted, moved, floors of boxes and volumes, old: each floor's volumes and their boxes as exported); a ladder copy
     carries its `ladder` ends
     ({foot, top} tiles), and `streamHides` ({stream: [actor]}) the streamed patches' pieces to take out of the
-    variant's copies of them (a moved or deleted ladder's helpers), `lights` the light edits (plan 9.5: deletes,
+    variant's copies of them (a moved or deleted ladder's helpers), `dropPatches` (a cleared map) that the variant's
+    records stream none of LWR's patch levels, `lights` the light edits (plan 9.5: deletes,
     changes, adds and the area lights the piece edits take along), and `effects`, `sounds` and `flares` the effects',
     sounds' and lens flares' lanes (each `moves`, `deletes`, `copies` and `values`; the effects and sounds plan, Part D),
     and `backgroundSound` the map's background sound ({op, cue, volume?, donor?}: tools/bake/native_sounds.py), and
@@ -47,6 +48,7 @@ def native_split(spec):
     effect_lanes = {}
     stream_hides = out.pop('streamHides', None)
     stream_moves = out.pop('streamMoves', None)
+    drop_patches = out.pop('dropPatches', None)
     cleared, zones = out.pop('cleared', None), out.pop('landingZones', None)
     spawn_rules = out.pop('spawnRules', None)
     carried = out.pop('carriedEffects', None)
@@ -161,6 +163,8 @@ def native_split(spec):
         native['streamHides'] = stream_hides
     if stream_moves:
         native['streamMoves'] = stream_moves
+    if drop_patches:
+        native['dropPatches'] = True
     if cleared:
         native['cleared'] = cleared
     if zones is not None:

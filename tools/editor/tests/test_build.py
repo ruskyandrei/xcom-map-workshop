@@ -80,6 +80,20 @@ class ConfigLines(unittest.TestCase):
         self.assertEqual(c['landingZones'], ['LZArray=(MapName="%s",StartLoc=(X=1,Y=2,Z=3))' % VARIANT])
         self.assertEqual(c['miniMods'], ['AbductionMapRules=(iMaxDifficulty=eMissionDiff_Moderate, Map="%s")' % VARIANT])
 
+    def test_a_cleared_maps_records_stream_none_of_its_patch_levels(self):
+        # KB-23: patch_bar and patch_hide_randomized_objects out, before the intro copy and the patch go in
+        bar = record('bar')
+        c = build.config_lines(['[XComGame.XComMapManager]', bar], None, None, 'URB_Bar', VARIANT, PATCH,
+                               '%s (Test) |0' % VARIANT, intros={'CIN_DropshipIntros': INTRO}, drop_patches=True)
+        line, = c['maps']
+        self.assertEqual(c['droppedStreams'], ['patch_bar', 'patch_hide_randomized_objects'])
+        self.assertEqual(mapsini.slot_streams(line), [INTRO, PATCH])
+        self.assertEqual((mapsini.stream_slots(line), c['streamSlots']), ([0, 1], [1]))
+        # without it, as before, and the result has no droppedStreams
+        c = build.config_lines(['[XComGame.XComMapManager]', bar], None, None, 'URB_Bar', VARIANT, PATCH, '%s (Test) |0' % VARIANT)
+        self.assertNotIn('droppedStreams', c)
+        self.assertIn('MapName="patch_bar"', c['maps'][0])
+
     def test_the_base_map_is_found_whatever_the_case_of_its_name(self):
         # the farm's file is CsmallScout_Farm.upk and its records, landing zones and rules name CSmallScout_Farm: the
         # game matches names whatever their case, and so does the Build
@@ -1022,6 +1036,21 @@ class Builds(unittest.TestCase):
         self.assertIn('MapName="%s"' % copy, line)
         self.assertNotIn('MapName="patch_bar"', line)
         self.assertEqual((self.output / VARIANT / 'CookedPCConsole' / ('%s.upk' % copy)).read_bytes(), b'stream copy of the bar patch')
+
+    def test_a_cleared_maps_build_streams_none_of_its_patch_levels(self):
+        # KB-23: the compiler's dropPatches; the records leave patch_bar and patch_hide_randomized_objects out, the
+        # manifest says so for the installs (installs.plan_record), and the readme names them
+        self.spec = dict(self.spec, objects=[COPY], dropPatches=True)
+        m = self.make().run()
+        self.assertTrue(m['dropPatches'])
+        self.assertEqual(m['config']['droppedStreams'], ['patch_bar', 'patch_hide_randomized_objects'])
+        line, = m['config']['maps']
+        self.assertEqual([s for s in mapsini.slot_streams(line) if s.lower().startswith('patch_bar')], [])
+        self.assertNotIn('patch_hide_randomized_objects', line)
+        self.assertIn('MapName="%s"' % INTRO, line)
+        self.assertEqual(m['streamCopies'], [])
+        text = (self.output / VARIANT / 'README.txt').read_text(encoding='utf-8')
+        self.assertIn('streams none of patch_bar, patch_hide_randomized_objects', text)
 
     def test_a_missions_moved_objects_ship_in_a_copy_of_its_stream_for_that_mission_only(self):
         # mission types plan, Part E: the compiler's streamMoves; the Build copies the stream with the moves (and the map

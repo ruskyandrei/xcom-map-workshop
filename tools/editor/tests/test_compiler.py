@@ -1382,6 +1382,25 @@ class ClearTests(unittest.TestCase):
         # with the floor gone, the map's own landing stands on nothing: warned, never refused
         self.assertIn('landing-floor', warned(report))
 
+    def test_a_cleared_maps_records_stream_none_of_its_patch_levels(self):
+        # KB-23: Long War's patch levels go whole (pieces, lights, rebuild volumes, load scripts), so the Build makes
+        # no copy of one, even for a ladder's helper; a mission's stream is left as it is
+        s = clear_scene()
+        helper = part('XComLadder_11', cls='XComLadder', at=(436, 1276, 14), mesh='ladder', layer='stream',
+                      package='patch_bar', hidden=True)
+        s['streams'] = {'patch_bar': dict(kind='lwr', objects=[helper], lights=[]),
+                        'URB_Bar_CNH': dict(kind='mission', objects=[], lights=[], missionObjects=[])}
+        spec, report = compile_project(document(everything(s), cleared=True), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertTrue(spec['dropPatches'])
+        self.assertNotIn('patch_bar', spec.get('streamHides') or {})
+        patch, native = compiler.native_split(spec)
+        self.assertTrue(native['dropPatches'])
+        self.assertNotIn('dropPatches', patch)
+        # a map that isn't cleared streams them as before
+        spec, _ = compile_project(document(everything(s)), s)
+        self.assertNotIn('dropPatches', spec)
+
     def test_a_clear_that_keeps_the_scenery_outside_gives_the_build_the_play_area(self):
         s = clear_scene()
         o = s['tileGrid']['origin']

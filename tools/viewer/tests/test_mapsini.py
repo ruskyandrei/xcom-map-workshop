@@ -50,5 +50,39 @@ class Fields(unittest.TestCase):
                          written.decode('latin-1'))
 
 
+class PatchLevels(unittest.TestCase):
+    """drop_patches: a cleared map's record streams none of Long War's patch levels (KNOWN-BUGS.md KB-23)."""
+
+    def test_the_bars_patches_go_and_its_intro_stays_in_its_slot(self):
+        line = record('bar')
+        self.assertEqual(mapsini.slot_streams(line), ['CIN_DropshipIntros', 'patch_bar', 'patch_hide_randomized_objects'])
+        new, dropped = mapsini.drop_patches(line)
+        self.assertIsInstance(new, bytes)
+        self.assertEqual(dropped, ['patch_bar', 'patch_hide_randomized_objects'])
+        self.assertEqual((mapsini.slot_streams(new), mapsini.stream_slots(new)), (['CIN_DropshipIntros'], [0]))
+        # nothing else of the record changes, and it still reads (the closing parenthesis kept)
+        self.assertEqual(new.split(b'StreamingMaps')[0], line.split(b'StreamingMaps')[0])
+        self.assertTrue(new.rstrip().endswith(b')'))
+        self.assertEqual(new.count(b'('), new.count(b')'))
+        self.assertEqual(mapsini.field(new, 'Name'), 'URB_Bar')
+        # the edit patch then goes in the slot patch_bar had
+        self.assertEqual(mapsini.add_stream(new, 'patch_urb_bar_remix')[1], 1)
+        # a line of text likewise
+        self.assertEqual(mapsini.drop_patches(line.decode('latin-1')), (new.decode('latin-1'), dropped))
+
+    def test_a_stream_behind_a_taken_slot_moves_up_and_a_record_without_patches_is_left(self):
+        entry = lambda k, name: f'StreamingMaps[{k}]=( MapName="{name}", Loc=( X=0, Y=0, Z=0 ), Rot=( Pitch=0, Yaw=0, Roll=0 ) )'  # noqa: E731
+        line = ('Maps=( Name="Map", DisplayName="Map |0", ' + ', '.join(
+            [entry(0, 'Patch_Map'), entry(1, 'URB_Map_CNH'), entry(2, 'CIN_Intro'), entry(5, 'patch_hide_randomized_objects')]) + ' )')
+        new, dropped = mapsini.drop_patches(line)
+        self.assertEqual(dropped, ['Patch_Map', 'patch_hide_randomized_objects'])       # (any case)
+        # no gap is left before a stream: a travel loads only the slots before the first one (T-08)
+        self.assertEqual(list(zip(mapsini.stream_slots(new), mapsini.slot_streams(new))), [(0, 'URB_Map_CNH'), (1, 'CIN_Intro')])
+        self.assertTrue(new.startswith('Maps=( Name="Map", DisplayName="Map |0", StreamingMaps[0]=( MapName="URB_Map_CNH"'))
+        plain = 'Maps=( Name="Map", ' + entry(0, 'CIN_Intro') + ' )'
+        self.assertEqual(mapsini.drop_patches(plain), (plain, []))
+        self.assertEqual(mapsini.drop_patches('Maps=( Name="Map" )'), ('Maps=( Name="Map" )', []))
+
+
 if __name__ == '__main__':
     unittest.main()

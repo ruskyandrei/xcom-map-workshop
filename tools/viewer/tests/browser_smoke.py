@@ -1413,6 +1413,10 @@ def check_clear_map(page):
     text = page.locator('#clearMap').inner_text()
     assert 'Removes %d piece' % plan['pieces'] in text and 'one landing zone' in text, text
     assert page.locator('#clearMap input[type=number]').count() == 0
+    # Long War's patch levels go whole with a clear (KB-23): the dialog names them
+    patches = page.evaluate("Object.keys(viewer.data.streams ?? {}).filter(s => viewer.data.streams[s].kind === 'lwr')")
+    if patches:
+        assert ("Long War's patch level") in text and patches[0] in text, text
     # the map's ambient sounds go with the clear, but the landing's (the user, 18 November 2026)
     sounds = page.evaluate("[...viewer.effectRoots.values()].map(r => r.userData.source).filter(o => o.kind === 'sound' && !o.landingActor && !o.stream && !o.added).length")
     if sounds:
@@ -1452,6 +1456,13 @@ def check_clear_map(page):
     state = page.evaluate('viewer.editState()')
     assert state['cleared'] is True and sum(1 for o in state['overrides'] if o.get('deleted')) >= plan['pieces'], len(state['overrides'])
     assert page.evaluate('viewer.lastClearMs()') < 1000
+    # nothing of Long War's patch levels is drawn on the cleared map: their pieces, lights, effects and spawn points
+    # (its build streams none of them, KB-23)
+    lwr = "o => o?.stream && viewer.data.streams?.[o.stream]?.kind === 'lwr'"
+    assert not [s for s in page.evaluate('viewer.spawns()') if s['layer'] == 'patch']
+    assert page.evaluate(f"() => {{ const lwr = {lwr}; return [...viewer.lightRoots.values()].filter(r => r.visible && lwr(r.userData.source)).length; }}") == 0
+    page.evaluate('viewer.effectMarkers()')
+    assert page.evaluate(f"() => {{ const lwr = {lwr}; return [...viewer.effectRoots.values()].filter(r => r.userData.there && lwr(r.userData.source)).length; }}") == 0
     # the map's pods, Meld points and drop-in points go with it, but one something names; its no-spawn volumes stay; the
     # deleted points draw no marker (the user, 18 November 2026)
     if page.evaluate('viewer.spawnAddEntries().length'):

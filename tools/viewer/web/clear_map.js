@@ -29,7 +29,7 @@ import { activeMapId, areaBindings, askedPick, builderMode, cleared, clearKeepsO
          playStatus, project, projectMissions, projectPicture, roots, setAreaBindings, setAskedPick, setCleared,
          setClearKeepsOutside, setClearKeepsTriggers, setGroups, setLandingLines, setLandingRead, setLandingZones, setLastClearMs,
          setLightsDirty, setMergedBuildings, setMissionIndex, setMissionPickValue, setPickedZone, setProjectMissions,
-         setProjectPicture, setStartingCache, setStreamSet, stage, startingCache } from './editor_state.js';
+         setProjectPicture, setStartingCache, setStreamSet, stage, startingCache, streamSet } from './editor_state.js';
 import { survivesClear } from './effects_rules.js';
 import { createMapPicture } from './map_picture.js';
 import { ADDED_KINDS, addedMission, kindKey } from './missions.js';
@@ -256,9 +256,12 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     const sp = clearedSpawns(), points = sp.deleted.length + sp.copies, fx = clearedEffects(clearDialog.keep.checked ? v : null);
     const and = list => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0]);
     const triggers = triggerWords(), keepTriggers = clearDialog.keepTriggers.checked;
+    // Long War's patch levels for the map: the cleared map's build streams none of them (KB-23)
+    const patches = Object.keys(data.streams ?? {}).filter(s => data.streams[s]?.kind === 'lwr');
     const gone = [plural(plan.pieces, 'piece'), plural(plan.lights, 'light'), points && `${plural(points, 'spawn point')} (pods, Meld points and drop-in points)`,
                   fx.effects && plural(fx.effects, 'effect'), fx.sounds && plural(fx.sounds, 'ambient sound'),
-                  !keepTriggers && triggers && `the map's ${triggers}`].filter(Boolean);
+                  !keepTriggers && triggers && `the map's ${triggers}`,
+                  patches.length && `Long War's ${patches.length === 1 ? 'patch level' : 'patch levels'} for it (${patches.join(', ')})`].filter(Boolean);
     $('clearMapPlan').textContent = `Removes ${and(gone)}. `
       + `Keeps the landing's ${plural(plan.landing, 'piece')}${fx.landing ? ` and its ${fx.landing === 1 ? 'effect' : `${fx.landing} effects and sounds`}` : ''}, `
       + `${kept ? `one landing zone (${zones.findIndex(z => z.id === kept.id) === 0 ? 'the first' : `zone ${zones.findIndex(z => z.id === kept.id) + 1}`}, the map's own landing${zones.length > 1 ? `; the other ${zones.length - 1} go` : ''})` : 'no landing zone'}`
@@ -534,7 +537,10 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     $('mission').replaceChildren(...list.map(m => new Option(m.label, m.value)));
     if (!list.some(m => m.value === missionPickValue)) chooseMission(list[0]?.value ?? '0');
     $('mission').value = missionPickValue;
-    if (missionPickValue !== before) runHub('mission');
+    // (a clear done or undone changes the streams shown, the mission kept: a cleared map shows no patch level's)
+    const streams = shownStreams(), same = streams.size === streamSet.size && [...streams].every(s => streamSet.has(s));
+    if (!same) setStreamSet(streams);
+    if (missionPickValue !== before || !same) runHub('mission');
   }
   // The header's Mission picker as a map opens (app.js's startScene).
   function startMissionPicker() {
@@ -560,7 +566,13 @@ export function createClearMap({ $, addLightRoots, addRoots, allBuildings, banne
     const index = Number(v);
     setMissionIndex(Number.isInteger(index) && missions[index] ? index : 0);
     setMissionPickValue(String(missionIndex));
-    setStreamSet(new Set(missions[missionIndex]?.streams ?? []));
+    setStreamSet(shownStreams());
+  }
+  // The streams the mission picked shows: its record's, but on a cleared map none of LWR's patch levels, which its
+  // build streams none of (their pieces, lights, effects and spawn points were made for the map that is gone; KB-23).
+  function shownStreams() {
+    const names = missionIndex >= 0 ? (data?.preview ? [] : data?.missions ?? [])[missionIndex]?.streams ?? [] : [];
+    return new Set(names.filter(s => !(cleared && data.streams?.[s]?.kind === 'lwr')));
   }
 
   // The scene's pieces changed (the edit hub's scene run, edit_hub.js): the ground grid drawn again if its pieces did.

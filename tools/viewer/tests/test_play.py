@@ -1175,6 +1175,19 @@ class Launch(unittest.TestCase):
         self.assertEqual(dep.unquoted(new, 'MissionType'), 'eMission_Crash')
         self.assertEqual(installs.TEST_MISSION, 'eMission_Abduction')
 
+    def test_a_cleared_maps_record_made_from_the_games_streams_none_of_its_patch_levels(self):
+        # KB-23: a package whose manifest says dropPatches (a cleared map) gets a record without patch_bar and
+        # patch_hide_randomized_objects, the package's own patch streamed in their place, as its Build's records have it
+        lines = [b'[XComGame.XComMapManager]', record('bar'), b'']
+        _, (_, new) = installs.plan_record(lines, 'URB_Bar', 'URB_Bar_x', streams=['patch_urb_bar_x'], note='a test',
+                                           drop_patches=True)
+        self.assertEqual(dep.slot_streams(new), ['CIN_DropshipIntros', 'patch_urb_bar_x'])
+        m = dict(variant='URB_Bar_x', source=dict(map='URB_Bar'), streams=[], dropPatches=True)
+        found, _, _, own = installs.build_record(m, lines)
+        self.assertEqual((dep.slot_streams(found), own), (['CIN_DropshipIntros'], False))
+        _, (_, kept) = installs.plan_record(lines, 'URB_Bar', 'URB_Bar_x', note='a test')
+        self.assertIn('patch_bar', dep.slot_streams(kept))
+
     def test_the_base_map_is_found_whatever_the_case_of_its_name(self):
         # the farm's file is CsmallScout_Farm.upk and its records name CSmallScout_Farm: the game matches names whatever
         # their case, and so does Play in game (EXP-78 run F stopped with no record for CsmallScout_Farm)

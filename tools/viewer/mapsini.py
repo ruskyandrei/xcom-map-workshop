@@ -92,6 +92,40 @@ def add_stream(line, patch):
     return _like(text[:close].rstrip(' \t\n\r\x0b\x0c') + entry + text[close:], line), k
 
 
+PATCH_PREFIX = 'patch_'      # Long War's patch levels (LiQuiD911's patch_*.upk), which a cleared map streams none of
+
+
+def is_patch(name):
+    """Whether a streamed map is one of Long War's patch levels (its name starts patch_, whatever its case)."""
+    return name.lower().startswith(PATCH_PREFIX)
+
+
+def drop_patches(line):
+    """(the record line without any stream that is one of Long War's patch levels (is_patch), the names taken out in
+    order): a cleared map's record (KNOWN-BUGS.md KB-23, F-163), whose map the patches were made for is gone. The
+    streams left keep their order and their slots, renumbered from 0 only where a taken slot would leave a gap before
+    one of them (a travel loads only the slots before the first gap: T-08). None of LWR's records leaves one."""
+    text = _text(line)
+    # an entry: StreamingMaps[k]=( MapName="...", Loc=( ... ), Rot=( ... ) ), with the comma before it
+    entry = re.compile(r',?[ \t]*StreamingMaps\[\s*(\d+)\s*\]\s*=\s*\(\s*MapName\s*=\s*"([^"]*)"(?:[^()]|\([^()]*\))*\)',
+                       re.ASCII)
+    dropped, kept = [], []
+    for m in entry.finditer(text):
+        (dropped if is_patch(m.group(2)) else kept).append(m)
+    if not dropped:
+        return line, []
+    out = text
+    for m in sorted(dropped, key=lambda m: m.start(), reverse=True):
+        out = out[:m.start()] + out[m.end():]
+    slots = [int(m.group(1)) for m in kept]
+    if sorted(slots) != list(range(len(slots))):
+        order = {k: n for n, k in enumerate(sorted(slots))}
+        out = re.sub(r'StreamingMaps\[\s*(\d+)\s*\]', lambda m: 'StreamingMaps[%d]' % order[int(m.group(1))], out, flags=re.ASCII)
+    if any(is_patch(n) for n in slot_streams(out)) or len(slot_streams(out)) != len(kept):
+        raise ValueError('a record\'s streams could not be read to take its patch levels out')
+    return _like(out, line), [m.group(2) for m in dropped]
+
+
 def slot_record(lines, bases):
     """Which of a map's records (indices) the test slot plays: the first mission is an abduction, so the map's own
     abduction record if it has one, else its first record that is no council mission (whose type and streams a

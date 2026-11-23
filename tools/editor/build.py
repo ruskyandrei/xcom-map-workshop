@@ -542,7 +542,8 @@ def mission_entries(records, listed):
     return [dict(record=i) for i in picked] + added
 
 
-def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None, zones=None, missions_list=None):
+def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None, zones=None, missions_list=None,
+                 drop_patches=False):
     """The variant's config lines from the game install's (lists of lines): one DefaultMaps.ini record per record of
     the base map (its missions), each under the variant's name and out of rotation, streaming `patch` unless it is
     None and the variant's own intro copies in place of the originals (`intros`, {original: copy}); landing zones and
@@ -560,8 +561,9 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
     records in file order, the export's `missions` order, or an added kind), which Play in game picks a mission by
     (installs.build_record). missions_list: the project's `missions` (mission types plan, D1): records for those
     alone, an added kind's made from the base map's abduction record (missions.added_record); then the result says
-    missionsFromProject."""
-    records, missions, slots, stands, matched = [], [], [], [], []
+    missionsFromProject. drop_patches (a cleared map, KNOWN-BUGS.md KB-23): each record streams none of LWR's patch
+    levels (mapsini.drop_patches), and the result lists those it took out in droppedStreams."""
+    records, missions, slots, stands, matched, dropped = [], [], [], [], [], []
     found = base_records(maps, base)
     template = template_record(found)
     seen = {}
@@ -597,6 +599,9 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
             record = mapsini.set_field(mapsini.set_field(base_line, 'Name', variant), 'DisplayName', text)
             if mapsini.unquoted(record, 'bInRotation') is not None:
                 record = mapsini.set_field(record, 'bInRotation', 'False', quoted=False)
+            if drop_patches:
+                record, gone = mapsini.drop_patches(record)
+                dropped += [s for s in gone if s not in dropped]
             for original, copy in (intros or {}).items():
                 record = record.replace('MapName="%s"' % original, 'MapName="%s"' % copy)
             record, slot = mapsini.add_stream(record, patch) if patch else (record, None)
@@ -634,6 +639,7 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
                                            if rule.search(l) and not l.lstrip().startswith(';')]
     return dict(maps=records, missions=missions, recordMissions=stands, matchedNames=matched, streamSlots=slots,
                 landingZones=zones, miniMods=rules, **({'missionsFromProject': True} if isinstance(missions_list, list) else {}),
+                **({'droppedStreams': dropped} if drop_patches else {}),
                 **({'landingZonesFromProject': True, 'landingZoneIds': ids} if own is not None and lz is not None else {}))
 
 
@@ -707,7 +713,9 @@ def readme(m):
         '',
         'DefaultMaps.ini, in the [XComGame.XComMapManager] list (out of rotation%s%s)%s:'
         % ('; streams %s in slot %s' % (m['patch'], ' or '.join(map(str, slots))) if m['patch'] else '',
-           ''.join('; streams %s in place of %s' % (i['copy'], i['stream']) for i in intros),
+           ''.join('; streams %s in place of %s' % (i['copy'], i['stream']) for i in intros)
+           + ('; streams none of %s, the patch levels Long War made for the map the project clears'
+              % ', '.join(c['droppedStreams']) if c.get('droppedStreams') else ''),
            ('; one record for each mission the project is for (%s): keep the ones you want' % ', '.join(c['missions'])
             if c.get('missionsFromProject') else
             '; one record for each mission %s serves (%s): keep the ones you want' % (m['source']['map'], ', '.join(c['missions'])))
@@ -1890,7 +1898,10 @@ class Build:
         display = dict(tail=tail)       # each record keeps its base record's own words (config_lines)
         lines = config_lines(maps, cfg('DefaultLZMutator.ini'), cfg('DefaultMiniMods.ini'), self.map, self.variant,
                              patch, display, intros=replace, missions_list=listed,
-                             zones=(self.native.get('landingZones') or {}).get('zones') if 'landingZones' in self.native else None)
+                             zones=(self.native.get('landingZones') or {}).get('zones') if 'landingZones' in self.native else None,
+                             drop_patches=bool(self.native.get('dropPatches')))
+        if lines.get('droppedStreams'):
+            self.echo('records: stream none of the map\'s patch levels (a cleared map): %s' % ', '.join(lines['droppedStreams']))
         if self.spawn_rules:
             lines['dropInExclusion'] = drop_in_exclusion(self.lwr, self.variant)
             if lines['dropInExclusion'].get('why'):
@@ -1923,6 +1934,9 @@ class Build:
                  patch=patch, cache=None,
                  **({'lightingInside': self.inside} if self.inside else {}),
                  files=files, streams=[patch] if patch else [], config=lines,
+                 # a cleared map: its records stream none of LWR's patch levels (config.droppedStreams names them), and
+                 # a record an install makes from the game's own (installs.plan_record) leaves them out too
+                 **({'dropPatches': True} if self.native.get('dropPatches') else {}),
                  intros=[dict(stream=s, copy=c) for s, c in intros.items()], replaceStreams=replace,
                  streamCopies=[dict(stream=s, copy=c, hidden=(self.native.get('streamHides') or {}).get(s) or [],
                                     **({'moved': [m['actor'] for m in self.stream_moves[s]]} if self.stream_moves.get(s) else {}))

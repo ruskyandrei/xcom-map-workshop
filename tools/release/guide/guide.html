@@ -2163,8 +2163,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>The clear is one undo step.</b> <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings everything back, the size too. What
     your project had added goes as well, with its groups and buildings.</li>
   <li><b>After a clear, <a href="#mapgrid">Map grid</a></b> can also make the grid smaller and lower.</li>
-  <li><b>The Build takes out what the editor never showed</b> on a cleared map: the missions' streamed pieces, the
-    patch's helpers, the map's own floor storeys. It gives the new grid storeys of its own.</li>
+  <li><b>The Build takes out what the editor never showed</b> on a cleared map: the missions' streamed pieces and the
+    map's own floor storeys. It gives the new grid storeys of its own.</li>
+  <li><b>Long War's patch levels go with the clear.</b> Long War streams a patch level or two into most maps: pieces,
+    lights and a script that fixes up the old map as it loads. A cleared map's build streams none of them, so nothing
+    of them acts on yours, and the editor stops showing their pieces, lights and spawn points. The no-spawn volumes and
+    Meld points some of them carry go too. A mission's own streamed objects stay.</li>
   <li><b>The map's pods, Meld points and drop-in points go with the clear</b>, but one the map's script names (the
     window lists them): it stays where the map has it. The no-spawn volumes stay; they sit where the map had cars and
     props, so move or delete them in the <a href="#spawns">Spawns view</a>. Long War Rebalance puts its own pods and

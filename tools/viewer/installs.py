@@ -491,7 +491,7 @@ def _after_base(lines, ledger, base):
     return max(at) + 1 if at else None
 
 
-def plan_record(lines, base, variant, streams=(), replace=None, note='', mission=None, index=None):
+def plan_record(lines, base, variant, streams=(), replace=None, note='', mission=None, index=None, drop_patches=False):
     """(where to insert, [a comment line, the record]): one of the base map's records under the variant's name and
     out of rotation: the one at `index` (the base map's records in file order: the export's `missions` order), else
     mapsini.slot_record's (its abduction where it has one), streaming `streams` in free slots and each stream in
@@ -500,7 +500,8 @@ def plan_record(lines, base, variant, streams=(), replace=None, note='', mission
     map's last record (base_records: a switched-off map's commented-out one, made live in the copy). The DisplayName
     keeps the base record's " |n" ending (LWR's records have one) and the text the game matches in it (missions.py,
     '_Bomb'). The record keeps its kind (a play is the mission's own: mission types plan, A1); `mission` puts another
-    in its place (TEST_MISSION: a prefab test, whose map has no mission)."""
+    in its place (TEST_MISSION: a prefab test, whose map has no mission). drop_patches (a cleared map's package, its
+    manifest's dropPatches): the record streams none of LWR's patch levels (mapsini.drop_patches, KB-23)."""
     import mapsini as dep
     import missions
     found = base_records(lines, base)
@@ -515,6 +516,7 @@ def plan_record(lines, base, variant, streams=(), replace=None, note='', mission
     if dep.unquoted(new, 'bInRotation') is None: raise ValueError(f'{base}\'s record has no bInRotation to turn off')
     new = dep.set_field(new, 'bInRotation', 'False', quoted=False)
     if mission and dep.unquoted(new, 'MissionType') != mission: new = dep.set_field(new, 'MissionType', mission, quoted=False)
+    if drop_patches: new, _ = dep.drop_patches(new)
     for patch in streams:
         new, _ = dep.add_stream(new, patch)
     present = {was: now for was, now in (replace or {}).items() if f'MapName="{was}"'.encode() in new}
@@ -568,7 +570,8 @@ def build_record(m, pristine, mission=None):
         if record is not None: return record, index, missions.label(missions.kind_key(record)), True
     try:
         _, (_, record) = plan_record(pristine, base, variant, streams=m.get('streams') or [],
-                                     replace=m.get('replaceStreams') or {}, index=index)
+                                     replace=m.get('replaceStreams') or {}, index=index,
+                                     drop_patches=bool(m.get('dropPatches')))
     except ValueError as error: raise InstallError(str(error))
     return record, index, missions.label(missions.kind_key(record)), False
 
@@ -1312,7 +1315,7 @@ def _install_variant(game, m, files, now=None, *, test=None, zone=None, mission=
                            'write; take it out first')
     if test:
         _, block = plan_record(pristine, base, variant, streams=m.get('streams') or [], replace=m.get('replaceStreams') or {},
-                               note=note, mission=TEST_MISSION)
+                               note=note, mission=TEST_MISSION, drop_patches=bool(m.get('dropPatches')))
         chosen = None
     else:
         record, picked, label, own = build_record(m, pristine, mission)
@@ -1541,6 +1544,7 @@ def rotation_plan(lines, m, note='', mode='additional', cards=False):
             ending = re.search(r' \|\d+$', display)
             new = dep.set_field(new, 'DisplayName', missions_module.display_name(
                 display, variant, '%s%s' % (name, f', {mission}' if len(found) > 1 else ''), ending.group(0) if ending else ''))
+        if m.get('dropPatches'): new, _ = dep.drop_patches(new)
         for patch in m.get('streams') or []:
             new, _ = dep.add_stream(new, patch)
         for was, now in (m.get('replaceStreams') or {}).items():

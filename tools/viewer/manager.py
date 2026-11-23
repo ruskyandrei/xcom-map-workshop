@@ -435,7 +435,7 @@ def folder_readme(pack, parts):
 # project.file, source.file or work, no stages (each tool's report, with its paths), no donor's file (review finding
 # 14). The build's own manifest stays as it is in the builds folder.
 PUBLIC_MANIFEST = ('schema', 'schemaVersion', 'editorVersion', 'buildId', 'builtAt', 'quick', 'variant', 'patch', 'cache',
-                   'lightingInside', 'files', 'streams', 'config', 'intros', 'replaceStreams', 'streamCopies', 'families',
+                   'lightingInside', 'files', 'streams', 'config', 'intros', 'replaceStreams', 'streamCopies', 'dropPatches', 'families',
                    'nativeCopies', 'nativeHides', 'coverBlocks', 'pieceFlags', 'spawnEdits', 'buildings', 'buildingEdits',
                    'foreignPieces', 'foreignEffects', 'lights', 'lightingUnchanged', 'picture', 'pictureNote', 'leftOut',
                    'shell', 'tools')

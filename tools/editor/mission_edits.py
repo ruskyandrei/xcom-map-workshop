@@ -20,7 +20,7 @@ note, so the report and what is left out are the compiler's as before.
 Its own tables and helpers (STAGE_GRID_MAX, STAGE_LEVELS_MAX, stage_max, POD_DISTANCE, tidy_zone, zone_words,
 scripted_users and the others) are here, and the compiler names again those that others read through it
 (compiler.STAGE_GRID_MAX, compiler.STAGE_LEVELS_MAX, compiler.stage_max). What the family shares with the compiler
-(TILE, STOREY, HEADROOM, FLOOR_THICK, STAGE_MAPS, short, tidy, tile_corner) it takes from compiler_tables, so it
+(TILE, STOREY, HEADROOM, FLOOR_THICK, STAGE_MAPS, tidy, tile_corner) it takes from compiler_tables, so it
 never imports the compiler.
 """
 import json
@@ -28,7 +28,7 @@ import math
 from pathlib import Path
 
 # (compiler_tables puts tools/viewer and tools/bake on the path, for missions and spawns)
-from compiler_tables import FLOOR_THICK, HEADROOM, STAGE_MAPS, STOREY, TILE, short, tidy, tile_corner
+from compiler_tables import FLOOR_THICK, HEADROOM, STAGE_MAPS, STOREY, TILE, tidy, tile_corner
 import missions
 import spawns
 
@@ -107,6 +107,7 @@ class MissionEdits:
         # values when the stage doesn't run (a document that stops earlier).
         self.cleared, self.keep_outside = False, False
         self.keep_triggers = False  # the clear kept the map's triggers (cleared_mark)
+        self.drop_patches = False   # the records stream none of LWR's patch levels (cleared_mark: a cleared map)
         self.spawn_rules = None
         self.map_info = None        # what Long War Rebalance is told of the map (map_info_mark)
         self.stage_grid = None
@@ -288,13 +289,11 @@ class MissionEdits:
         if self.cleared and not (self.c.scene.get('tileGrid') or {}).get('dimensions'):
             self.c.error('cleared-grid', 'the export of %s has no tile grid, which a cleared map\'s Build covers with its '
                        'cursor and rebuild volumes' % self.c.map)
-        if self.cleared:
-            # LWR's patch levels for the map: every piece of them out of the variant's copies (section 7, step 4).
-            # The mission's own streamed levels are left.
-            for stream, info in sorted((self.c.scene.get('streams') or {}).items()):
-                if info.get('kind') == 'lwr':
-                    for o in info.get('objects') or []:
-                        self.c.stream_hides.setdefault(stream, set()).add(short(o['actor']))
+        # LWR's patch levels for the map (patch_*): a cleared map's records stream none of them (the Build's
+        # config_lines, `dropPatches`), their pieces, lights, rebuild volumes and load scripts all made for the map that
+        # is gone (KNOWN-BUGS.md KB-23, F-163); the no-spawn volumes and meld points some carry go with them. The
+        # mission's own streamed levels are left. (Before, a cleared map streamed copies with the pieces out.)
+        self.drop_patches = self.cleared
 
     def outside_box(self):
         """What a clear that keeps the scenery outside the play area counts as the play area, across: [x0, y0, x1, y1],

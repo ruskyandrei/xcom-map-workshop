@@ -104,6 +104,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'viewer'))
 from export_math import multiply, transform  # noqa: E402
 import ladders  # noqa: E402
+import mapsini  # noqa: E402
 import missions  # noqa: E402
 import piece_flags  # noqa: E402
 # (the Build's looks, after the viewer's and editor's own modules, so no module of the Build's stands in for one of them)
@@ -1721,9 +1722,16 @@ class Compiler:
             # the map's own buildings changed or deleted: edited in place by the Build's writer (buildings.edit)
             objects.append(dict(type='buildingEdits', edits=self.building_edits.edits))
         name = re.sub(r'[^\x20-\x7E]|"|\|', '', self.doc.get('name') or '').strip() or 'variant'
+        # A cleared map's records stream none of LWR's patch levels (mission_edits' drop_patches, KB-23), so the Build
+        # makes no copy of one either.
+        drop = self.mission_edits.drop_patches
+        if drop:
+            self.stream_hides = {k: v for k, v in self.stream_hides.items() if not mapsini.is_patch(k)}
         # The streamed patches' pieces the Build takes out of its copies of them ({stream: [actor]}): a moved or
         # deleted ladder's helpers (G6).
         extra = dict(streamHides={k: sorted(v) for k, v in sorted(self.stream_hides.items())}) if self.stream_hides else {}
+        if drop:
+            extra['dropPatches'] = True
         # a mission's objects moved in their streams (Part E): {stream: [move]}, moved in place in the stream's copy
         if self.stream_moves:
             extra['streamMoves'] = {k: sorted(v, key=lambda m: m['actor']) for k, v in sorted(self.stream_moves.items())}

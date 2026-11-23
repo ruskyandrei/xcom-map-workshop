@@ -235,9 +235,13 @@ and `patch_hide_randomized_objects`' Kismet read with `tools/upk/kismet_links.py
   world x -96, z 496 (on the farm's grid: x 23..26, y 48..69, levels 7 to 12).
 - **So**: a patch level can't be folded into a built map in general, and the editor, which shows a patch's pieces,
   lights and spawn points, shows nothing of what its script does to the map's own pieces.
-- **A cleared map** streams its copy of the patch with the export's `objects` out (`mission_edits.py`; the farm's
-  six ladders): the lights, the rebuild volumes and the script stay, the script matching the new map's pieces by
-  archetype, class and place (KNOWN-BUGS.md KB-23).
+- **A cleared map** streamed its copy of the patch with the export's `objects` out (`mission_edits.py`; the farm's
+  six ladders): the lights, the rebuild volumes and the script stayed, the script matching the new map's pieces by
+  archetype, class and place (KNOWN-BUGS.md KB-23). **Fixed** the same day: a cleared map's records stream none of
+  the map's patch levels (`mapsini.drop_patches`, the Build's `config_lines`), `patch_hide_randomized_objects`
+  included, at the user's word ("it's meant to be a clear map to build on"). Of the install's 187 records, 171 lose
+  one or more (87 patch names), and none is left with a gap before a stream; 16 records stream no patch already, so
+  a record without one is one the game plays. Checked offline; a cleared map's battle not played since.
 
 ### F-162: A carried diagonal cover mark lost in EXP-95: a meld container Long War placed beside it reworked its tile
 **Explained: not the Build** (23 November 2026: EXP-95's quicksave read against the built map tile by tile, the run's

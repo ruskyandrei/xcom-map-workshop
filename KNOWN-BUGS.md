@@ -113,23 +113,8 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Since.** The branch that places diagonal cover by hand (23 November 2026); the map's own marks are not affected
   (their makers kept the patch volumes off them).
 - **Workaround.** None in the editor: keep marks off the areas a map's patch levels rework (not shown in the editor).
+  A cleared map is free of it: its build streams none of the map's patch levels.
 - **Cause.** The Build's reading of the battle's rebuild (`native_copy.rebuild_order`) takes the base level's volumes
   only, and the export counts a patch level's volumes without their places; with them added, the rule matches every
   tile EXP-95's save shows reworked bar one, a meld container's.
 - **Finding.** [F-162](research/findings-register.md) (EXP-95's save read tile by tile).
-
-### KB-23: A cleared map still gets its Long War patch level's lights, rework and script
-
-- **What happens.** A cleared project's build streams its own copy of the map's patch level with the patch's pieces
-  out, and nothing else of it: the patch's lights stay where the old map had them (CSmallScout_Farm: 13 point
-  lights), its rebuild volumes still rework their tiles at every battle's start (the farm's eight, one of them over
-  about a quarter of the grid: KB-22 holds on a cleared map too), and its script still runs when the level loads and
-  acts on the new map's pieces that match what it looks for. The farm's removes a door or window standing in its
-  first volume (around tiles (42..48, 24..30)), gives every pickup truck of the farm's kind the patch's own
-  destruction, and rescales the wooden and metal ladders of two kinds by a hair.
-- **Since.** Clear map (13 November 2026). Read from the code and the patches (23 November 2026); not seen in the
-  game.
-- **Workaround.** None in the editor. Keep doors and windows off the places the old map's patch reworks.
-- **Cause.** `mission_edits.py` names the patch's exported pieces for `stream_copy.py` to take out, and a patch
-  level's lights, rebuild volumes and Kismet are not among them; 80 of Long War's 90 patch levels carry a script.
-- **Finding.** [F-163](research/findings-register.md).
