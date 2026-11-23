@@ -123,14 +123,19 @@ class FloorEdits:
         {tile: (the copy's label, what hangs over it)}). A copy counts when it is flat (no more than FLOOR_THICK
         high): each tile whose centre it covers, at the level of its top, is floor if nothing else the project adds
         hangs less than HEADROOM over it there (F-71: the game gives no floor to a tile without standing room);
-        the second answer holds the tiles that fail that. It is a guess from the drawn boxes: the game goes by the
-        piece's collision, and whether a piece can be stood on is the piece's own."""
+        the second answer holds the tiles that fail that. Only the tiles of the grid as the project has it count: a
+        tile outside it is none of the game's. It is a guess from the drawn boxes: the game goes by the piece's
+        collision, and whether a piece can be stood on is the piece's own."""
         grid = self.c.scene.get('tileGrid') or {}
         origin, dims = grid.get('origin'), grid.get('dimensions')
         if not origin:
             return {}, {}
-        # the levels as the project has them: a grid grown up has floor on its new levels too (once stage() has run)
-        levels = max(dims[2], (self.c.mission_edits.stage_grid or [0, 0, 0])[2]) if dims else None
+        # the grid as the project has it: a grid grown has floor on its new tiles and levels too (once stage() has
+        # run). A flat piece far larger than the map (a prefab's sea plane, 200 tiles square) is walked only where it
+        # lies over the grid: walking all of it made a reported project's compile take minutes (a prefab with twenty)
+        stage = self.c.mission_edits.stage_grid or [0, 0, 0]
+        span = [max(dims[k], stage[k]) for k in range(3)] if dims else None
+        levels = span[2] if span else None
         waiting = {id(job[0]) for job in self.ladder_jobs}
         # (a copy whose flags make it no floor, and that collides, gives none: piece flags plan, 6.1)
         flat = [c for c in self.c.copies if c.get('box') and not c.get('ladder') and c.get('actorClass') != 'XComLadder'
@@ -147,11 +152,21 @@ class FloorEdits:
             z = int(math.floor((b[5] + 2.0 - origin[2]) / 64.0))
             if z < 0 or (levels and z >= levels):
                 continue
-            for x in range(int(math.ceil((b[0] - origin[0]) / 96.0 - 0.5)), int(math.floor((b[1] - origin[0]) / 96.0 - 0.5)) + 1):
-                for y in range(int(math.ceil((b[2] - origin[1]) / 96.0 - 0.5)), int(math.floor((b[3] - origin[1]) / 96.0 - 0.5)) + 1):
+            x0, x1 = int(math.ceil((b[0] - origin[0]) / 96.0 - 0.5)), int(math.floor((b[1] - origin[0]) / 96.0 - 0.5))
+            y0, y1 = int(math.ceil((b[2] - origin[1]) / 96.0 - 0.5)), int(math.floor((b[3] - origin[1]) / 96.0 - 0.5))
+            if span:
+                x0, x1, y0, y1 = max(x0, 0), min(x1, span[0] - 1), max(y0, 0), min(y1, span[1] - 1)
+            if x0 > x1 or y0 > y1:
+                continue
+            # what may hang over it: the pieces whose bottom is in its standing room and whose box meets its own (a
+            # tile's centre is in its box; a unit spare for rounding), in their order, so the first found is the same
+            near = [o for o in flat if o is not c and b[5] + 8.0 < o['box'][4] < b[5] + HEADROOM
+                    and o['box'][0] <= b[1] + 1.0 and o['box'][1] >= b[0] - 1.0
+                    and o['box'][2] <= b[3] + 1.0 and o['box'][3] >= b[2] - 1.0]
+            for x in range(x0, x1 + 1):
+                for y in range(y0, y1 + 1):
                     cx, cy = origin[0] + 96.0 * (x + 0.5), origin[1] + 96.0 * (y + 0.5)
-                    over = next((o for o in flat if o is not c and o['box'][0] <= cx <= o['box'][1] and o['box'][2] <= cy <= o['box'][3]
-                                 and b[5] + 8.0 < o['box'][4] < b[5] + HEADROOM), None)
+                    over = next((o for o in near if o['box'][0] <= cx <= o['box'][1] and o['box'][2] <= cy <= o['box'][3]), None)
                     if over:
                         blocked[(x, y, z)] = (c['label'], over['label'])
                     else:

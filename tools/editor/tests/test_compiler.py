@@ -2417,6 +2417,32 @@ class FamilyTests(unittest.TestCase):
             c.mission_edits.stage_grid = None
             self.assertEqual(c.added_floors()[0], {})
 
+    def test_a_flat_piece_larger_than_the_map_gives_floor_only_over_the_grid(self):
+        # a prefab's sea plane, 200 tiles square round the map (a reported project had twenty, and their tiles outside
+        # the grid took its compile minutes): floor on the grid's tiles alone, a grown grid's new ones among them
+        s = assembly_scene()
+        ox, oy, oz = s['tileGrid']['origin'][:3]
+        nx, ny, nz = s['tileGrid']['dimensions']
+        c = compiler.Compiler(document(), s)
+        sea = dict(box=[ox - 96 * 100, ox + 96 * 100, oy - 96 * 100, oy + 96 * 100, oz - 2, oz + 2], label='sea')
+        c.copies.append(sea)
+        floor, blocked = c.added_floors()
+        self.assertEqual(set(floor), {(x, y, 0) for x in range(nx) for y in range(ny)})
+        self.assertEqual(blocked, {})
+        # a plate hanging a storey over one tile takes its standing room (and is floor on its own level); a sea wholly
+        # past the grid gives nothing, until the grid grows over it
+        c.copies.append(dict(box=[ox + 96 * 2, ox + 96 * 3, oy + 96 * 4, oy + 96 * 5, oz + 64, oz + 80], label='low'))
+        c.copies.append(dict(box=[ox + 96 * nx + 96, ox + 96 * nx + 9600, oy, oy + 96 * ny, oz - 2, oz + 2], label='past'))
+        floor, blocked = c.added_floors()
+        self.assertEqual(blocked, {(2, 4, 0): ('sea', 'low')})
+        self.assertEqual({t for t, label in floor.items() if label == 'sea'},
+                         {(x, y, 0) for x in range(nx) for y in range(ny)} - {(2, 4, 0)})
+        self.assertEqual({t: label for t, label in floor.items() if label != 'sea'}, {(2, 4, 1): 'low'})
+        c.mission_edits.stage_grid = [nx + 3, ny + 2, nz]
+        floor, _ = c.added_floors()
+        self.assertEqual(len([t for t in floor if t[2] == 0]), (nx + 3) * (ny + 2) - 1)
+        self.assertEqual({t for t, label in floor.items() if label == 'past'}, {(x, y, 0) for x in (nx + 1, nx + 2) for y in range(ny)})
+
     def test_a_moved_or_deleted_ladder_takes_its_patch_helper_with_it(self):
         def with_helper(at):
             s = assembly_scene()
