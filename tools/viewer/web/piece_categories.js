@@ -29,6 +29,7 @@ export function inKind(entry, kind) {
   if (kind === 'lights') return Boolean(entry.light);
   if (kind === 'landing') return Boolean(entry.zone);
   if (kind === 'spawns') return Boolean(entry.spawnAdd);
+  if (kind === 'diagonal') return Boolean(entry.diagonal);
   if (kind === 'effects') return entry.effect === 'effect';
   if (kind === 'sounds') return entry.effect === 'sound';
   if (kind === 'flares') return entry.effect === 'flare';
@@ -43,7 +44,7 @@ export function setKindOptions(select, entries) {
   const made = ['Walls'].filter(k => entries.some(e => e.kind === k));
   const counts = new Map();
   for (const entry of entries) {
-    const kind = entry.light ? 'lights' : entry.zone ? 'landing' : entry.spawnAdd ? 'spawns' : entry.kind;
+    const kind = entry.light ? 'lights' : entry.zone ? 'landing' : entry.spawnAdd ? 'spawns' : entry.diagonal ? 'diagonal' : entry.kind;
     counts.set(kind, (counts.get(kind) ?? 0) + 1);
     if (entry.floor) counts.set('floors', (counts.get('floors') ?? 0) + 1);
     if (entry.effect) counts.set(`${entry.effect}s`, (counts.get(`${entry.effect}s`) ?? 0) + 1);
@@ -54,6 +55,7 @@ export function setKindOptions(select, entries) {
   const flares = counts.get('flares') ? [['flares', 'Lens flares']] : [];
   select.replaceChildren(new Option('All kinds', 'all'),
     ...[...made.map(k => [k, k]), ['floors', 'Floors'], ['lights', 'Lights'], ['landing', 'Landing zones'], ...(counts.get('spawns') ? [['spawns', 'Spawn points']] : []),
+        ...(counts.get('diagonal') ? [['diagonal', 'Diagonal cover']] : []),
         ...kinds.map(k => [k, k]), ...effects, ...sounds, ...flares]
       .map(([key, label]) => new Option(`${label} (${(counts.get(key) ?? 0).toLocaleString()})`, key)));
   if ([...select.options].some(o => o.value === value)) select.value = value;

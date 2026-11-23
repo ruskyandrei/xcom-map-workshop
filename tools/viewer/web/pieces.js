@@ -107,6 +107,16 @@ function drawZoneIcon(canvas) {
   g.beginPath(); g.moveTo(24, 6); g.lineTo(20, 2); g.moveTo(24, 6); g.lineTo(28, 2); g.stroke();
   g.restore();
 }
+// A new diagonal cover mark's icon (diagonal_wiring.js diagonalEntries): a tile's outline with an arrow to its corner, in
+// the Diagonal cover view's teal
+function drawDiagonalIcon(canvas) {
+  const g = canvas.getContext('2d'), s = canvas.width;
+  g.fillStyle = '#1f2a33'; g.fillRect(0, 0, s, s);
+  g.save(); g.scale(s / 48, s / 48);
+  g.strokeStyle = '#82d5ce'; g.lineWidth = 2; g.strokeRect(9, 9, 30, 30);
+  g.beginPath(); g.moveTo(24, 24); g.lineTo(35, 13); g.moveTo(35, 13); g.lineTo(27, 13); g.moveTo(35, 13); g.lineTo(35, 21); g.stroke();
+  g.restore();
+}
 // A new spawn point's icon (spawns_wiring.js spawnAddEntries): the Spawns view's marker, an orange ring for a pod, a
 // green dot for a Meld point and a grey box for a no-spawn volume, in its halo
 function drawSpawnIcon(canvas, kind) {
@@ -188,6 +198,11 @@ export function pieceRow(entry, pixelRatio, choose) {
                             // Spawns view
     return listRow(entry, pixelRatio, choose, { draw: c => drawSpawnIcon(c, entry.spawnAdd), sub: `Spawn points · ${entry.pkg}`,
       detail: entry.detail, title: entry.title, tags: [{ textContent: `×${entry.count}`, title: `${entry.count} on this map` }] });
+  }
+  if (entry.diagonal) {     // the Diagonal cover kind (diagonal_wiring.js diagonalEntries): put down with a click in the
+                            // Diagonal cover view
+    return listRow(entry, pixelRatio, choose, { draw: drawDiagonalIcon, sub: `Diagonal cover · ${entry.pkg}`, detail: entry.detail,
+      title: entry.title, tags: [{ textContent: `×${entry.count}`, title: `${entry.count} diagonal cover mark${entry.count === 1 ? '' : 's'} on this map now` }] });
   }
   if (entry.zone) {     // the Landing zones kind (zones_wiring.js zoneEntries): placed with a click, as View options'
                         // button does

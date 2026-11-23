@@ -3,8 +3,8 @@
 // build's words for a mark.
 // Run: node tools/viewer/tests/diagonal_marks_test.mjs
 import assert from 'node:assert/strict';
-import { builtWords, carryMark, CORNERS, deleteMark, handFromSaved, marksNow, middleOf, moveMark, ownMarks, resetMark, savedDiagonal,
-         tileOf, tidyHand, toggleCorner } from '../web/diagonal_marks.js';
+import { addMark, builtWords, carryMark, CORNERS, cornerNear, deleteMark, handFromSaved, marksNow, middleOf, moveMark, ownMarks, resetMark, savedDiagonal,
+         setCorners, tileOf, tidyHand, toggleCorner, turnedCorners } from '../web/diagonal_marks.js';
 
 const corner = [-1001, -2001, -65];
 const scene = { tactical: { diagonalCover: [
@@ -110,4 +110,16 @@ assert.deepEqual(carryMark(turnAbout(home, 2), home, [[-1, -1]], corner), { at: 
 const goneWith = [{ at: middleOf([10, 10, 0], corner), toward: [[-1, -1]], from: middleOf([10, 10, 0], corner), by: "XComLevelActor_3", gone: true }];
 assert.deepEqual(marksNow(scene, null, corner, goneWith).map(m => m.key), ['12,10,0']);
 assert.equal(savedDiagonal(null, goneWith).marks[0].gone, true);
+// the Add panel's mark: on an empty tile, toward the corner nearest the click; none on a tile with a mark
+const spot = middleOf([20, 20, 0], corner);
+assert.deepEqual(cornerNear([20, 20, 0], [spot[0] + 30, spot[1] - 10, spot[2]], corner), [1, -1]);
+assert.deepEqual(addMark(scene, null, corner, [20, 20, 0], [1, -1]).marks, [{ at: spot, toward: [[1, -1]] }]);
+assert.equal(addMark(scene, null, corner, [10, 10, 0], [1, 1]), null);
+// a mark's corners set at once ([ and ] turn them a quarter): a map's mark set back to its own is the map's again
+assert.deepEqual(turnedCorners([[-1, -1], [1, 1]], -1), [[-1, 1], [1, -1]]);
+assert.deepEqual(turnedCorners([[-1, -1]], 1), [[1, -1]]);
+const set = setCorners(scene, null, corner, [10, 10, 0], [[1, -1]]);
+assert.deepEqual(set.marks, [{ at: middleOf([10, 10, 0], corner), toward: [[1, -1]], from: middleOf([10, 10, 0], corner) }]);
+assert.equal(tidyHand(setCorners(scene, set, corner, [10, 10, 0], [[-1, -1]])), null);
+assert.equal(setCorners(scene, null, corner, [30, 30, 0], [[1, 1]]), null);
 console.log('diagonal_marks: ok');

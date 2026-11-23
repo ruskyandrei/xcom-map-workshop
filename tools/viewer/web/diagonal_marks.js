@@ -150,15 +150,41 @@ export function toggleCorner(scene, hand, corner, tile, c, carried = []) {
     return tidyHand(next) ?? { marks: [], removed: [] };
   }
   const on = m.toward.some(d => sameCorner(d, c));
-  const toward = on ? m.toward.filter(d => !sameCorner(d, c)) : sortCorners([...m.toward, c]);
+  return setCorners(scene, hand, corner, tile, on ? m.toward.filter(d => !sameCorner(d, c)) : [...m.toward, c], carried);
+}
+
+/** The corners of the mark on a tile set to `toward` (none: the mark deleted). A map's mark keeps its own record where
+ *  its corners come back to the map's; a carried mark set by hand is the project's own (the wiring carries no map mark
+ *  the hand names by its `from`, and a mark of the project's own on a tile wins over a copy's). Null where the tile has
+ *  no mark. */
+export function setCorners(scene, hand, corner, tile, toward, carried = []) {
+  const marks = marksNow(scene, hand, corner, carried), m = markAt(marks, tile), k = tileKey(tile), place = middleOf(tile, corner);
+  if (!m) return null;
+  toward = sortCorners(toward);
   if (!toward.length) return deleteMark(scene, hand, corner, tile, carried);
   const home = m.from ? middleOf(m.from, corner) : null;
-  next = withoutHand(hand, h => tileKey(tileOf(h.at, corner)) === k);
-  // (a carried mark switched is the project's own: the wiring carries no map mark the hand names by its `from`)
-  if (m.kind === 'carried') next.marks.push({ at: place, toward, ...(home ? { from: home } : {}) });
-  else if (m.own && m.kind !== 'moved' && sameToward(toward, m.own.toward) && m.key === tileKey(m.from)) { /* back to the map's */ }
+  const next = withoutHand(hand, h => tileKey(tileOf(h.at, corner)) === k);
+  if (m.kind !== 'carried' && m.own && m.kind !== 'moved' && sameToward(toward, m.own.toward) && m.key === tileKey(m.from)) { /* back to the map's */ }
   else next.marks.push({ at: place, toward, ...(home ? { from: home } : {}) });
   return tidyHand(next) ?? { marks: [], removed: [] };
+}
+
+/** The corners a quarter turn takes a mark's to: `way` 1 turns them counter-clockwise in game axes (x to y), -1
+ *  clockwise. */
+export const turnedCorners = (toward, way) => toward.map(([x, y]) => (way > 0 ? [-y, x] : [y, -x]));
+
+/** A new mark on a tile with one corner (the Add panel's Diagonal cover): null where the tile has a mark already (a
+ *  tile has one mark); on a deleted map mark's tile, the map's mark comes back with that corner. */
+export function addMark(scene, hand, corner, tile, c, carried = []) {
+  const marks = marksNow(scene, hand, corner, carried);
+  if (markAt(marks, tile)) return null;
+  return toggleCorner(scene, hand, corner, tile, c, carried);
+}
+
+/** The corner of a tile nearest a point in it (game axes): the quarter of the tile the point falls in. */
+export function cornerNear(tile, point, corner) {
+  const m = middleOf(tile, corner);
+  return [point[0] < m[0] ? -1 : 1, point[1] < m[1] ? -1 : 1];
 }
 
 /** A mark moved from tile `from` to tile `to`, its corners kept: null where there is no mark at `from`, or one at

@@ -190,7 +190,8 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   // -- rows ------------------------------------------------------------------------------------------------------------
   function row(entry) {
     if (rows.has(entry.key)) return rows.get(entry.key);
-    if (entry.light || entry.cover || entry.zone || entry.spawnAdd) {     // the recipes: lights, cover, zones, spawn points
+    if (entry.light || entry.cover || entry.zone || entry.spawnAdd || entry.diagonal) {     // the recipes: lights, cover, zones,
+                                                                                           // spawn points, diagonal cover
       const item = pieceRow(entry, pixelRatio(), () => onChooseRecipe(chosen?.key === entry.key ? null : entry));
       item.classList.add('lib');
       item.dataset.key = entry.key;

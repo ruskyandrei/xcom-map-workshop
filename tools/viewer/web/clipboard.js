@@ -52,7 +52,8 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
                                   removeLightRoots, removeRoots, restingHint, sceneChanged, selectionWords,
                                   setLightsShown, setNormalLights, setVolumeBox, spawnAddEntries, startSpawnPlacing,
                                   startZonePlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing,
-                                  unscaled, volumeBox, world, zoneEntries }) {
+                                  unscaled, volumeBox, world, zoneEntries, diagonalEntries, startDiagonalPlacing,
+                                  stopDiagonalPlacing }) {
   // What the selection is now (moved pieces at their moved pose), with the pivot piece's game location and a name
   // for hints.
   function snapshot(selection = gizmo.selection(), own = ownSet) {
@@ -310,7 +311,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   }
 
   // (walls, floors, roofs and ground are drawn from the Build menu on the Add button, no longer listed here: B1)
-  const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries()];
+  const pieceRecipes = () => [...lightEntries(), ...coverEntries(), ...zoneEntries(), ...spawnAddEntries(), ...diagonalEntries()];
   // A drawn-only copy of some pieces (the placing preview, a piece-list thumbnail) from the loaded meshes and
   // materials, or `override` for every part. It is never picked. parts: { source, matrix }; `frame` moves them all.
   // (The clipboard's: it falls back on the clipboard's ghost material.)
@@ -436,10 +437,11 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   // Choosing an entry puts it on the clipboard and places it; choosing it again (null) stops.
   function chooseEntry(entry) {
     nextChooseToken();
-    if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopWallDrawing(); return; }
-    stopWallDrawing();
+    if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopDiagonalPlacing(); stopWallDrawing(); return; }
+    stopWallDrawing(); stopDiagonalPlacing();
     if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
     if (entry.spawnAdd) { stopPlacing(); stopZonePlacing(); startSpawnPlacing(entry.spawnAdd); return; }      // Spawn points
+    if (entry.diagonal) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); startDiagonalPlacing(); return; }     // Diagonal cover
     if (entry.light) {    // the Lights kind's Point Light and Spot Light
       const clip = lightClip(entry.light);
       if (!clip) return;

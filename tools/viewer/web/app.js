@@ -707,11 +707,13 @@ const { lightButton, setNormalView, syncLights, viewByKey } = createViews({
   $, gizmo, refreshLightShapes, refreshLightVisibility, refreshPickBox, refreshVolumes, select, setEffectsShown,
   setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, spawnLayer, spawnPanel, spawnsShown,
   setDiagonalShown: on => setDiagonalShown(on) });
-// The Diagonal cover view (diagonal_wiring.js): the marks drawn, picked, switched, moved and deleted, its panel; after
+// The Diagonal cover view (diagonal_wiring.js): the marks drawn, picked, switched, turned, moved with its gizmo and
+// deleted, the Add panel's Diagonal cover entry and its placing, its panel; after
 // the views, whose switches it calls.
-const { diagonalClick, diagonalDrag, diagonalKey, drawDiagonal, endDiagonalDrag, hoverDiagonal, moveDiagonalDrag,
-        pickedMarks, setDiagonalShown, startDiagonalDrag } = createDiagonalWiring({
-  $, camera, flashHint, gizmo, lightButton, pickables, projector, projectsAvailable, rayAt, renderer, select, setEffectsShown,
+const { diagonalClick, diagonalEntries, diagonalGizmo, diagonalGizmoBusy, diagonalKey, drawDiagonal, hoverDiagonal,
+        pickedMarks, setDiagonalShown, startDiagonalPlacing, stopDiagonalPlacing } = createDiagonalWiring({
+  $, camera, controls, flashHint, gizmo, lightButton, pickables, projector, projectsAvailable, rayAt, renderer,
+  restingHint: () => restingHint(), select, setEffectsShown,
   setLightsShown, setSpawnsShown, setVolumesShown, setZonesShown, stopPickBox, world });
 // Select all of a kind (select_kind.js): every drawn piece or effect of a picked one's kind, the button and the
 // selection made; after the Buildings view, whose box select's slack it reads.
@@ -742,7 +744,7 @@ const { boxMatrix, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, 
   partsOf, pasteVolumes, pick, prefabPlacementProblem, rayAt, removeEffectRoots, removeLightRoots,
   removeRoots, restingHint, sceneChanged, selectionWords, setLightsShown, setNormalLights, setVolumeBox,
   spawnAddEntries, startSpawnPlacing, startZonePlacing, stopSpawnPlacing, stopZonePlacing, unscaled,
-  volumeBox, world, zoneEntries,
+  volumeBox, world, zoneEntries, diagonalEntries, startDiagonalPlacing, stopDiagonalPlacing,
   // (made further down: called through, since they are not made yet while this runs)
   deleteSelection: quiet => deleteSelection(quiet), stopWallDrawing: () => stopWallDrawing() });
 // The made pieces (made_handles.js and the four modules below, made in their code's order: ARCHITECTURE.md, "The
@@ -912,7 +914,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     void prefabTest.reconnect();
   } else if (parameters.get('project')) await openProject(parameters.get('project'));
   window.viewer = createTestApi({
-    setDiagonalShown, pickedMarks,
+    setDiagonalShown, pickedMarks, diagonalGizmo,
     $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState, bombHelperFix, boxOf, BUILD_TOOLS,
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
     clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
@@ -1013,8 +1015,7 @@ let pointerStart;
 // A cover piece's handles likewise (cover-block-handles-plan.md). A made piece's texture handles, while its Texture
 // mapping fold is open, before them all (they show alone).
 renderer.domElement.addEventListener('pointerdown', e => {
-  if (!startTextureDrag(e) && !startVolumeDrag(e) && !startCoverDrag(e) && !startWallDrag(e) && !startPickDrag(e)
-      && !startDiagonalDrag(e)) return;
+  if (!startTextureDrag(e) && !startVolumeDrag(e) && !startCoverDrag(e) && !startWallDrag(e) && !startPickDrag(e)) return;
   pointerStart = null; e.stopImmediatePropagation(); e.preventDefault();
 }, { capture: true });
 renderer.domElement.addEventListener('pointermove', e => {
@@ -1024,7 +1025,6 @@ renderer.domElement.addEventListener('pointermove', e => {
   if (wallDrag) { if (e.pointerId === wallDrag.pointerId) moveWallDrag(e); e.stopImmediatePropagation(); return; }
   if (wallDrawing?.start) { if (e.pointerId === wallDrawing.pointerId) moveWallDraw(e); e.stopImmediatePropagation(); return; }
   if (pickDrag) { if (e.pointerId === pickDrag.pointerId) movePickDrag(e); e.stopImmediatePropagation(); return; }
-  if (diagonalDrag()) { if (e.pointerId === diagonalDrag().pointerId) moveDiagonalDrag(e); e.stopImmediatePropagation(); return; }
   if (diagonalOn && !gizmo.controls.dragging && e.buttons === 0) hoverDiagonal(e);
   if ((volumesOn || pickBox || spawnVolumeHandle()) && !gizmo.controls.dragging && e.buttons === 0)
     hoverVolumeHandle(volumeHandleNear(e.clientX, e.clientY) ?? (pickBox && pickMoveNear(e.clientX, e.clientY) ? 'move' : null));
@@ -1036,7 +1036,6 @@ renderer.domElement.addEventListener('pointermove', e => {
 renderer.domElement.addEventListener('pointerup', e => {
   if (textureDrag && e.pointerId === textureDrag.pointerId) { e.stopImmediatePropagation(); endTextureDrag(true); return; }
   if (pickDrag && e.pointerId === pickDrag.pointerId) { e.stopImmediatePropagation(); endPickDrag(true); return; }
-  if (diagonalDrag() && e.pointerId === diagonalDrag().pointerId) { e.stopImmediatePropagation(); endDiagonalDrag(true); return; }
   if (coverDrag && e.pointerId === coverDrag.pointerId) { e.stopImmediatePropagation(); endCoverDrag(true); return; }
   if (wallDrag && e.pointerId === wallDrag.pointerId) { e.stopImmediatePropagation(); endWallDrag(true); return; }
   if (wallDrawing?.start && e.pointerId === wallDrawing.pointerId) { e.stopImmediatePropagation(); endWallDraw(e.shiftKey); return; }
@@ -1044,7 +1043,7 @@ renderer.domElement.addEventListener('pointerup', e => {
   e.stopImmediatePropagation(); endVolumeDrag(true);
 }, { capture: true });
 renderer.domElement.addEventListener('pointercancel', () => {
-  endTextureDrag(false); endVolumeDrag(false); endCoverDrag(false); endWallDrag(false); endPickDrag(false); endDiagonalDrag(false);
+  endTextureDrag(false); endVolumeDrag(false); endCoverDrag(false); endWallDrag(false); endPickDrag(false);
   if (wallDrawing?.start) { wallDrawing.start = null; wallDrawing.pointerId = null; wallGhost.visible = false; wallHint(); }
 });
 // A light's drag handle under the press takes it, ahead of the gizmo, the camera and picking (capture listeners run
@@ -1066,7 +1065,7 @@ renderer.domElement.addEventListener('pointercancel', () => endLightDrag(false))
 renderer.domElement.addEventListener('pointerdown', e => {
   pointerStart = gizmo.busy() || (zoneGizmo.enabled && (zoneGizmo.dragging || zoneGizmo.axis !== null))
     || (pointGizmo.enabled && (pointGizmo.dragging || pointGizmo.axis !== null))
-    || (missionGizmo.enabled && (missionGizmo.dragging || missionGizmo.axis !== null)) ? null : [e.clientX,e.clientY];
+    || (missionGizmo.enabled && (missionGizmo.dragging || missionGizmo.axis !== null)) || diagonalGizmoBusy() ? null : [e.clientX,e.clientY];
 });
 renderer.domElement.addEventListener('pointerup', e => {
   if (!pointerStart || Math.hypot(e.clientX-pointerStart[0], e.clientY-pointerStart[1]) > 4) return;
@@ -1085,7 +1084,8 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (effectsOn) { if (e.button === 0) pickEffectAt(e.clientX, e.clientY, e.ctrlKey || e.shiftKey || e.metaKey); return; }
   // the Spawns view: only its markers (and, to describe them, landing zones) are picked, never a piece
   if (spawnsOn) { if (e.button === 0) spawnClick(e); return; }
-  // the Diagonal cover view: only its marks are picked, and a corner dot switches its tile's corner
+  // the Diagonal cover view: only its marks are picked (a picked mark's corner dot switches its corner), and a mark
+  // asked for from the Add panel is put down
   if (diagonalOn) { if (e.button === 0) diagonalClick(e); return; }
   // a made piece's Texture mapping fold open: a click on it picks the surface it falls on
   if (e.button === 0 && pickSurface(e)) return;

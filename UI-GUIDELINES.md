@@ -18,7 +18,9 @@ for controls, a new style) writes the pattern here in the same commit.
   a building's floor is a box, a landing zone is drawn on the map. A number in a panel that could be drawn in the view
   is drawn, and the panel keeps the number for reading and typing.
 - **The Snap setting governs every such edit**, as [AGENTS.md](AGENTS.md) says: continuous with Snap off, the chosen
-  step with it on, for handles, gizmos and fields alike.
+  step with it on, for handles, gizmos and fields alike. The exception is a thing the game keeps per tile, which has
+  no place between tiles: a diagonal cover mark moves by whole tiles and levels whatever Snap says (the user, 23
+  November 2026), and the hint says so while it moves.
 - **Keep the view readable.** Every handle and marker added makes the others harder to see and to click:
   - Only what is picked shows its handles. Nothing unpicked carries controls.
   - A kind of thing with many markers has a view of its own, shown when its row in the rail's Views list is on, and

@@ -1,15 +1,17 @@
-"""The Diagonal cover view in the browser (private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, stage M3;
-KNOWN-BUGS.md KB-20), on a test server: run through browser_smoke.py --only diagonal (it opens CsmallScout_Farm,
+"""The Diagonal cover view in the browser (private/plans/todo/diagonal-cover-by-hand-and-views-plan.md, stages M3 and
+M5; KNOWN-BUGS.md KB-20), on a test server: run through browser_smoke.py --only diagonal (it opens CsmallScout_Farm,
 whose scout has eight marked corners, on a page of its own: the server exports it the first time).
 
 The rail's Views list has the Diagonal cover row (Shift+C); on, the Views button shows its icon and the other views are
-off, and a piece selected from a list leaves it. On the scout's corner (39, 12, 0), cut to its first floor: a click on
-a corner dot gives the map's mark that corner too (one undo step: the project's own mark with its home, the edit count,
-the panel's chip and its four corner buttons, two on); undo and redo; a drag of its middle dot moves it a tile (Moved,
-its home named), and Reset puts it back, picked at home; Delete deletes it (pale with Deleted marks, picked: Deleted,
-Reset); a corner dot of an empty tile adds a mark there; the project's state names them as the compiler reads them;
-Escape lets the picked go; Shift+C leaves the view and Shift+L turns it off for the Lights view. Then the marks follow
-their pieces (stage M5): the hull chunk moved, turned a quarter and 30 degrees, and deleted."""
+off. It behaves as the other views do (the user, 23 November 2026): hovering a tile adds nothing. On the scout's corner
+(39, 12, 0), cut to its first floor: a click picks the mark (its gizmo and its four corner dots shown, the panel's
+chip); a click on a corner dot gives it that corner too (one undo step: the project's own mark with its home, the edit
+count, the panel's corner buttons, two on); undo and redo; ] turns its corners a quarter; the gizmo's X arrow dragged
+moves it by whole tiles, whatever Snap says (Moved, its home named), and Reset puts it back, picked at home; Delete
+deletes it (pale with Deleted marks, picked: Deleted, Reset); the Add panel's Diagonal cover entry and a click on an
+empty tile add a mark there, toward the corner nearest the click; Escape lets the picked go; Shift+C leaves the view
+and Shift+L turns it off for the Lights view; a piece selected from a list leaves it. Then the marks follow their
+pieces (stage M5): the hull chunk moved, turned a quarter and 30 degrees, and deleted."""
 
 
 def check_diagonal(browser, url, open_viewer):
@@ -43,24 +45,46 @@ def check_diagonal(browser, url, open_viewer):
         page.mouse.move(x, y); page.mouse.click(x, y)
 
     hand = 'viewer.diagonalHand()'
-    # a corner dot: the map's mark gets that corner too (corner 3: [1, 1]; its own is [-1, -1])
+    # hovering an empty tile and clicking it adds nothing, picks nothing
+    click([37, 13, 0], 1)
+    assert page.evaluate(hand) is None and page.evaluate('viewer.pickedMarks()') == []
+    # a click picks the scout's mark: its gizmo and its panel
+    click([39, 12, 0])
+    assert page.evaluate('viewer.pickedMarks()') == ['39,12,0']
+    assert page.evaluate('viewer.diagonalGizmo().shown') and page.locator('#diagonalChip').text_content() == "Map's own"
+    # its corner dot (corner 3: [1, 1]; its own is [-1, -1]) gives it that corner too
     click([39, 12, 0], 3)
     h = page.evaluate(hand)
     assert h['marks'] == [dict(at=[1295, -2353, -97], toward=[[-1, -1], [1, 1]], **{'from': [1295, -2353, -97]})], h
     assert page.evaluate('viewer.changes().diagonal') == 1
-    assert page.locator('#diagonalPanel').is_visible() and page.locator('#diagonalChip').text_content() == 'Changed'
-    assert page.locator('#diagonalCorners button').count() == 4
-    assert page.locator('#diagonalCorners button.on').count() == 2
+    assert page.locator('#diagonalChip').text_content() == 'Changed'
+    assert page.locator('#diagonalCorners button').count() == 4 and page.locator('#diagonalCorners button.on').count() == 2
     page.keyboard.press('Control+z')
     assert page.evaluate(hand) is None
     page.keyboard.press('Control+y')
     assert page.evaluate(hand)['marks'][0]['toward'] == [[-1, -1], [1, 1]]
-    # its middle dot dragged a tile on: moved, its home named; Reset puts it back, picked at home
-    x0, y0 = at([39, 12, 0])
-    x1, y1 = at([38, 11, 0])
-    page.mouse.move(x0, y0); page.mouse.down(); page.mouse.move((x0 + x1) / 2, (y0 + y1) / 2); page.mouse.move(x1, y1); page.mouse.up()
+    # ] turns its corners a quarter (clockwise in game axes): [-1, -1] and [1, 1] to [-1, 1] and [1, -1]
+    page.keyboard.press(']')
+    assert page.evaluate(hand)['marks'][0]['toward'] == [[-1, 1], [1, -1]], page.evaluate(hand)
+    page.keyboard.press('Control+z')
+    # the gizmo's X arrow dragged: whole tiles along x, whatever Snap says (here off); Reset puts it back, picked at home
+    page.evaluate("viewer.setSnapMode('off')")
+    g = page.evaluate('viewer.diagonalGizmo()')
+    p0 = page.evaluate('p => viewer.screenOf(p)', g['at'])
+    px = page.evaluate('p => viewer.screenOf([p[0] + 100, p[1], p[2]])', g['at'])
+    n = ((px[0] - p0[0]) ** 2 + (px[1] - p0[1]) ** 2) ** 0.5
+    d = [(px[0] - p0[0]) / n, (px[1] - p0[1]) / n]
+    for r in range(8, 160, 3):
+        pt = [p0[0] + d[0] * r, p0[1] + d[1] * r]
+        page.mouse.move(*pt)
+        if page.evaluate('viewer.diagonalGizmo().axis') == 'X':
+            break
+    else:
+        raise AssertionError("the mark gizmo's X handle not found")
+    tile_px = n * 0.96            # (a tile is 96 units: the screen length of 100 units, less a little)
+    page.mouse.down(); page.mouse.move(pt[0] + d[0] * tile_px * 2.2, pt[1] + d[1] * tile_px * 2.2, steps=12); page.mouse.up()
     kinds = page.evaluate("viewer.diagonalMarks().filter(m => m.kind !== 'map').map(m => m.key + ':' + m.kind)")
-    assert kinds == ['38,11,0:moved'], kinds
+    assert kinds == ['41,12,0:moved'], kinds
     assert page.locator('#diagonalChip').text_content() == 'Moved' and 'tile 39, 12' in page.locator('#diagonalWhere').text_content()
     page.locator('#diagonalReset').click()
     assert page.evaluate(hand) is None and page.evaluate('viewer.pickedMarks()') == ['39,12,0']
@@ -73,11 +97,22 @@ def check_diagonal(browser, url, open_viewer):
     assert page.locator('#diagonalDelete').is_disabled() and page.locator('#diagonalReset').is_visible()
     page.locator('#diagonalReset').click()
     assert page.evaluate(hand) is None
-    # a corner dot of an empty tile adds a mark there; the project's state names it as the compiler reads it
-    click([37, 13, 0], 1)
+    # the Add panel's Diagonal cover: a click on an empty tile near its corner [1, -1] adds a mark there, picked
+    page.evaluate('document.activeElement && document.activeElement.blur()')
+    page.keyboard.press('p')
+    page.wait_for_selector('#library:not([hidden])')
+    if page.locator('#libMap').is_hidden(): page.locator('#libScope button[data-value="map"]').click()
+    page.locator('#libKind').select_option('diagonal')
+    entry = page.locator('#libList .libitem[data-id="diagonal-new"]')
+    assert entry.count() == 1 and 'Diagonal cover' in entry.inner_text()
+    entry.click()
+    x, y = at([37, 13, 0], 1)
+    page.mouse.move(x, y); page.mouse.click(x, y)
     state = page.evaluate('viewer.editState().diagonalCover')
     assert state and len(state['marks']) == 1 and state['marks'][0]['toward'] == [[1, -1]] and 'from' not in state['marks'][0], state
-    assert page.locator('#diagonalChip').text_content() == 'Added'
+    assert page.locator('#diagonalChip').text_content() == 'Added' and page.evaluate('viewer.pickedMarks()') == ['37,13,0']
+    page.locator('#libKind').select_option('all')
+    page.keyboard.press('p')
     page.keyboard.press('Escape')
     assert page.evaluate('viewer.pickedMarks()') == [] and page.locator('#diagonalPanel').is_hidden()
     # Shift+C leaves the view; on again, Shift+L turns it off for the Lights view; a piece picked from a list leaves it
