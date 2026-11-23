@@ -68,8 +68,7 @@ New in 0.7.0:
   pose** (the piece panel's Align section, or the L key) replace Level snap and the recipe snap.
 - **Diagonal cover** is shown in View options and kept by the Build.
 - **Map settings…** (Map menu): the sun, moon and sky, and the map's background sound.
-- **Clear map** takes the map's triggers out unless you keep them, and **Play in game** installs under names of its
-  own, beside a map pack of the same map.
+- **Clear map** takes the map's triggers out unless you keep them.
 
 New in 0.6.0:
 - **Walls, rooms, floors, roofs and ground of your own**, drawn from the Build menu on the Add button. The **look
