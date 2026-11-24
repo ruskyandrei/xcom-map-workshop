@@ -435,12 +435,13 @@ class Handler(SimpleHTTPRequestHandler):
                 from prefab_bounds import measure
                 request = self.body_json()
                 document = request.get('document') if isinstance(request, dict) else None
-                self.prefabs.validate(document, document.get('id') if isinstance(document, dict) else None)
+                # (a read: a prefab saved by an earlier editor is placed as it is, not refused as a stale page's save)
+                self.prefabs.validate(document, document.get('id') if isinstance(document, dict) else None, writing=False)
                 self.send_json(200, measure(document, self.library))
             elif parts == ['prefabs', 'recover-sources'] and method == 'POST':
                 request = self.body_json()
                 document = request.get('document') if isinstance(request, dict) else None
-                self.prefabs.validate(document, document.get('id') if isinstance(document, dict) else None)
+                self.prefabs.validate(document, document.get('id') if isinstance(document, dict) else None, writing=False)
                 if self.library is None: raise ProjectError(409, 'The map catalogue is unavailable.')
                 self.send_json(200, self.library.recover_prefab(document))
             elif len(parts) == 3 and parts[2] == 'recovery.json' and method == 'GET':

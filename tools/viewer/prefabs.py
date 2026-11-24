@@ -554,9 +554,11 @@ class PrefabStore(ProjectStore):
     def _pictures(self, prefab_id, document, current, current_path, picture_from):
         return {}       # (a prefab's picture is the page's drawing: save_picture)
 
-    def validate(self, document, prefab_id):
-        """A save's check: the whole document, of the schema this editor writes."""
-        check_schema(document, writing=True)
+    def validate(self, document, prefab_id, writing=True):
+        """The whole document checked: for a save (`writing`) of the schema this editor writes; for a read (placing a
+        prefab, its size, recovering its pieces) of any schema it reads, since a file saved by an earlier editor keeps
+        its schema until it is saved again."""
+        if writing: check_schema(document, writing=True)
         validate(document, prefab_id)
 
     def load(self, prefab_id):

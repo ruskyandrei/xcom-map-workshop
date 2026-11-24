@@ -141,5 +141,23 @@ class BuilderRoutes(unittest.TestCase):
         card = next(p for p in self.call('GET', '/prefabs.json')[1]['prefabs'] if p['id'] == fixtures.ID)
         self.assertEqual((len(card['largeSize']), card['tall']), (1, True))
 
+    def test_an_earlier_editors_prefab_is_placed_as_it_is(self):
+        # Placing a prefab sends it as stored to /prefabs/size (and /prefabs/recover-sources): a file an earlier editor
+        # saved, of an older schema, is read there, not refused as a stale page's save ("This page is older than the
+        # editor's server", which a reload doesn't cure)
+        for version in (1, 2, 3, 4):
+            old = fixtures.prefab(schemaVersion=version)
+            status, size = self.call('POST', '/prefabs/size', dict(document=old))
+            self.assertEqual((status, size.get('supported')), (200, True), (version, size))
+            answer = self.call('POST', '/prefabs/recover-sources', dict(document=old))[1]
+            self.assertNotIn('older than the editor', answer.get('error', ''), version)
+        # a save of one is still refused: a page older than the server would drop the newer fields
+        status, refused = self.call('PUT', f'/prefabs/{fixtures.ID}/prefab.json',
+                                    dict(expectedRevision=0, document=fixtures.prefab(schemaVersion=4)))
+        self.assertEqual(status, 409); self.assertIn('older than the editor', refused['error'])
+        # and a schema this editor doesn't read is refused on placing too
+        status, refused = self.call('POST', '/prefabs/size', dict(document=fixtures.prefab(schemaVersion=99)))
+        self.assertEqual(status, 409); self.assertIn('newer editor', refused['error'])
+
 
 if __name__ == '__main__': unittest.main()

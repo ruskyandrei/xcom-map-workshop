@@ -193,6 +193,10 @@ as data only (its kind, and numbers, words and short texts, bounded), and the co
 Prefab schema 5 (23 November 2026; the building cursor floors plan) lets a prefab's building carry `cursorFloors`
 (true or false), as a project's does; the server reads 1 to 5 and stores 5, and an editor of before it says such a
 prefab is newer.
+Only a save is refused at an older number (it comes from a page older than the server). Opening and placing a prefab
+read it at any number the server reads, `POST /prefabs/size` and `POST /prefabs/recover-sources` included, and the file
+keeps its number until it is saved again; before 24 November 2026 those two refused it as a stale page's save, so a
+prefab saved by an earlier editor couldn't be placed until it was saved again in the builder.
 Since 21 November 2026 a made piece's `generated` may be in the free form: `fracWall` version 5, `fracSlab` version 4,
 `ground` version 5, whose numbers carry `free: 1` and say everything in fields: the extents at any size in the piece's
 own frame (`x0`..`x1`, `y0`..`y1`, `z0`..`z1`: a wall's ends, faces and bottom and top; a slab's footprint and plate; a
