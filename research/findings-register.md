@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-168 (24 November, research for a plan): what the game's picture is made of that the editor doesn't draw, and
+  where the game's files hold it: baked lightmaps on two thirds of a map's pieces (the baker's readers decode them),
+  each map's fog, colour grade and bloom in its world settings, 1,344 decals on 30 maps, sky domes, and the shaders
+  for all of it in the two shader caches. Open; a plan is written.
 - F-167 (24 November, a user's question): a material that blends its textures by vertex colour (ENV_ForestGround
   and the other ground and terrain masters) is drawn in the editor in one of its textures, picked by name, and the
   game mixes the layers by the vertex colours: a made ground in Rocks River Vert Paint is rock in the editor and
@@ -223,6 +227,36 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-168: What the game's picture has that the editor's doesn't, and where the game's files hold it
+**Open** (24 November 2026, research for a plan to draw the editor's view as the game shows it; read offline from
+the install and the cache's 38 exported maps, with one existing game shot of base CSmallScout_DirtRoad beside the
+editor's view of the same place; nothing played).
+- **Side by side.** The game's Dirt Road landing zone is a dark blue-purple night with a warm pool round the fire,
+  baked shadows, fog toward the edges and a gravel ground. The editor's default (neutral light) is an even daylight
+  on a striped brown ground; its Map lighting mode has the hue but is flat, darker, and without the map lights'
+  shadows.
+- **Baked light.** On Dirt Road 1,036 of 1,573 mesh components have a texture lightmap (none a vertex one) and 537
+  none; 94 pairs of 1024 by 1024 DXT1 atlases, a pair decoded in 0.1 s by the baker's readers
+  (`lighting_records.component_record`, `lightmap_textures.top_mip_rgb`, `lightmap_encode.decode`). The export
+  writes no lightmap record; each mesh's glTF already has the lightmap's UV channel.
+- **The map's own look.** `WorldInfo` holds `XComHeightFog` (density, height, falloff, two colours) on 37 of the 38
+  maps and `DefaultPostProcessSettings` with a colour grade (Scene_Colorize on 25 maps, Scene_Shadows on 27,
+  MidTones, HighLights and Desaturation on a few), bloom (Bloom_Threshold on 13, Bloom_Scale on 7), depth of field
+  and the fog of war's colours; 17 `PostProcessVolume`s on 11 maps change them by place. The export reads none of it.
+  The shaders that apply them are in `GlobalShaderCache-PC-D3D-SM3.bin` (816 pixel shaders, among them
+  `FUberPostProcessBlendPixelShader`, `FLUTBlenderPixelShader`, `FOneLayerFogPixelShader`,
+  `FGammaCorrectionPixelShader`).
+- **Materials.** 5,129 material records on 37 maps; 3,601 carry a normal map the page never draws. Mesh sections by
+  blend: 24,550 masked, 22,973 opaque, 3,261 translucent (drawn as one fixed glass), 339 modulate (a fixed grey), 21
+  additive. 390 blended-material warnings on 33 maps (F-167). In the RefShaderCache 22,367 of 64,104 pixel shaders
+  name `DiffuseOverrideParameter`, the mark that ends a material's colour.
+- **Not drawn at all.** 1,344 `DecalComponent`s on 30 of the 38 maps (each with render data after its properties,
+  4 bytes to 67 KB, not read yet; KB-3 is the same gap); 46 sky dome pieces, exported and hidden; lens flares
+  (markers only); beam, ribbon and trail emitters.
+- **Effects.** The likeness guesses texture roles for 528 of 749 emitters whose material graph the cook stripped
+  (the effects plan's count); the compiled shaders name them.
+- **No shader sources.** The lab's UDK has no `.usf` files, so the formulas come from the compiled shaders.
 
 ### F-167: The editor draws a blended ground material in one texture; the game mixes its layers by vertex colour
 **Open** (24 November 2026, a user's question: a made ground in COverseer_TheBarrens's `RocksRiver_VertPaint` drawn
