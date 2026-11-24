@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-167 (24 November, a user's question): a material that blends its textures by vertex colour (ENV_ForestGround
+  and the other ground and terrain masters) is drawn in the editor in one of its textures, picked by name, and the
+  game mixes the layers by the vertex colours: a made ground in Rocks River Vert Paint is rock in the editor and
+  grass in the game. The mix can be read from the compiled shaders. Open (KB-25); a plan is written.
 - F-166 (24 November, the clear-by-parts plan): a clear of the lights alone left the light of 39 channel-only
   lights on four maps baked into the pieces that stay (was KB-24). Fixed the same day: the Build hands them to the
   relight as taken away, and a lights clear relights. Checked offline on URB_SlaughterhouseA.
@@ -219,6 +223,36 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-167: The editor draws a blended ground material in one texture; the game mixes its layers by vertex colour
+**Open** (24 November 2026, a user's question: a made ground in COverseer_TheBarrens's `RocksRiver_VertPaint` drawn
+grey-brown in the editor and green in the game; read offline, not played). Recorded as KNOWN-BUGS.md KB-25.
+- **The material.** `RocksRiver_VertPaint` is an instance of `GEN_MaterialParents.Master_Materials.ENV_ForestGround`
+  with four colour textures: Rock (`Rock_B_DIFF`, grey-brown rock), Dirt (`chasm1_Dif`, grey), Leaves
+  (`Grass_New_Dark_DIFF`, a dark grass) and Grass (`GroundForestMudPlateauDirt_DIFF`, brown mud). The cooked material
+  keeps only its parameter nodes: the nodes that mix them are gone, as in every cooked material.
+- **What the game draws.** The material's compiled base-pass pixel shader, in the install's
+  `RefShaderCache-PC-D3D-SM3.upk` (the shader map named ENV_ForestGround with its Rock_DifNrm switch off, which this
+  instance takes; disassembled with Windows' D3DCompiler_47), samples Dirt, Leaves, Grass and their normals, and not
+  Rock. Its colour is Dirt, mixed toward Grass by saturate(2 × the vertex colour's red − Dirt's alpha), then toward
+  Leaves by saturate(Leaves' alpha × the vertex colour's green); blue and alpha are unused. Its specular is that
+  colour squared and half desaturated, times SpcColor_SpcValue's colour (22, 29, 9 on this instance), at power 55: a
+  strong green-yellow sheen where a light catches it. The shader map's own list of uniform expressions names each
+  sampler's texture parameter and each vector's.
+- **The made piece.** The Build gives a made ground's vertices one colour, the one its donor's colours mostly paint by
+  area (`ground.dominant_colour`). RocksVertPaint96x192 carries colours in its own mesh, which give B 0.98, G 0.89,
+  R 0.93: 86% mud over the dirt, then 89% grass over that. Worked out on the textures, the game's mean colour is sRGB
+  (86, 73, 43), olive grass with mud showing through.
+- **What the editor draws.** One colour texture per material, picked by name: no render profile name matched, so
+  `export.diffuse_parameter` took the first parameter whose texture is named _DIFF, Rock (mean sRGB 115, 103, 85), the
+  one texture this shader never samples. The page draws no vertex colours, and reads `SpcColor_SpcGloss`, not
+  `SpcColor_SpcValue`. Painted vertex colours of a placed piece (its component's LOD 0 override) are not exported.
+- **How widespread.** In the cache's exports: 16 instances of ENV_ForestGround on 13 maps, and other masters with
+  several colour layers: `VP_Terrain_Sharp`, `ENV_TerrainCliffKit`, `ENV_Terrain`, `VP_TwoDif_TwoNrm_Msk`,
+  `VP_Asphalt_Blend`, `SnowGround_VPaint`, `Terrain_Blend_MAT`, and the BLDG_ masters' `Diffuse_Mod`. Every base
+  material's ID is in the RefShaderCache (above), so the game's rule can be read for each from its compiled shader.
+- **Fix.** Not made. Planned: read each material's compiled pixel shader, take the part that makes its colour (and
+  its specular), and draw that in the editor with the pieces' vertex colours.
 
 ### F-166: A lights clear takes out lights the editor only shows; channel-only ones stayed baked into the pieces
 **Fixed** (24 November 2026, the same day: read offline for the clear-by-parts plan's survey, then a baked Build of

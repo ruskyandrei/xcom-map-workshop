@@ -104,6 +104,18 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Cause.** The pack export copied each build's manifest whole.
 - **Finding.** None in the register: the editor review's finding 14, and the smaller built maps plan's P1 to P3.
 
+### KB-25: A blended ground look shows one of its textures in the editor, not the game's mix
+
+- **What happens.** A piece in a material that blends textures by vertex colour (the forest and terrain grounds,
+  river banks, vertex-painted asphalt) is drawn in the editor in one of its textures, often not the one the game
+  shows. A made ground in Rocks River Vert Paint is grey-brown rock in the editor and green grass in the game; the
+  river bank pieces it comes from (COverseer_TheBarrens) are rock all over in the editor and, by the game's shader, a
+  mix of grass, mud and dirt in the game.
+- **Since.** Always: the editor has drawn one texture per material from the first.
+- **Workaround.** None in the editor: see the look in the game (Play in game), or on the map the piece comes from.
+- **Cause.** The editor draws one colour texture per material, picked by name, and no vertex colours; the game's
+  shader mixes the layers by them. [F-167](research/findings-register.md).
+
 ### KB-22: A diagonal cover mark inside a patch level's rebuild volume gets no cover in the game
 
 - **What happens.** A mark on a tile that one of the map's streamed patch levels reworks at the battle's start (for
