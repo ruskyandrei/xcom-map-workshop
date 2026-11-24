@@ -19,7 +19,7 @@
 // the groups, their index and their pieces now (liveCache) are editor_state.js's.
 import { isFloor } from './cover.js';
 import { onHub } from './edit_hub.js';
-import { effectRoots, effectsOn, groupIndex, groups, lightRoots, lightsOn, liveCache, roots, selected, setGroups,
+import { effectRoots, effectsOn, groupIndex, groups, lightRoots, lightsOn, liveCache, prefabLibrary, roots, selected, setGroups,
          setLiveCache, volumeRoots } from './editor_state.js';
 import { groupKey, memberKey, pruneGroups, uuid } from './project.js';
 import { plural } from './dom_words.js';
@@ -58,7 +58,7 @@ export const memberOf = o => memberKey(memberRecord(o));
 export const cloneGroup = g => ({ ...g, members: new Map(g.members) });
 export const cloneGroups = (from = groups) => new Map([...from].map(([id, g]) => [id, cloneGroup(g)]));
 
-export function createGroups({ $, flashHint, gizmo, groupables, groupChip, highlight, select }) {
+export function createGroups({ $, flashHint, gizmo, goTo, groupables, groupChip, highlight, select }) {
   // Groups' pieces on the map now (deleted ones left out): member key -> its roots. Remade after any change of pieces.
   // (that cache, liveCache: editor_state.js)
   function liveMembers() {
@@ -167,6 +167,14 @@ export function createGroups({ $, flashHint, gizmo, groupables, groupChip, highl
       + (inner
       ? 'Everything in it selects and moves as one, whether linked pieces are on or off. Ungroup it to get the groups inside it back on their own.'
       : 'Its pieces select and move as one, whether linked pieces are on or off. Ungroup it to move one on its own.');
+    // (a placed prefab's group: the prefab opened in the builder, while the library still has it: prefab_library.js)
+    const from = g.prefab && prefabLibrary?.byId(g.prefab.id), open = $('groupPrefabOpen');
+    open.hidden = !from;
+    if (from) {
+      open.textContent = `Open ${from.name} in the builder`;
+      open.title = `The prefab as it is in the library now (revision ${from.revision}): what is placed here stays as it is`;
+      open.onclick = () => goTo({ prefab: from.id });
+    }
     $('groupBreak').checked = g.breakTogether;
     const breakable = breakableCount(g), blocks = breakBlockCount(g), walls = breakWallCount(g);
     const can = breakable >= 2 || (breakable >= 1 && blocks >= 1) || (walls >= 1 && breakable + blocks >= 1);

@@ -27,7 +27,7 @@ import { plural, short, text } from './dom_words.js';
 
 export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner, boxMatrix, builderRecords, busy,
                                     busyPaint, busyStart, copyable, coverOf, coverVersion, effectTemplate,
-                                    effectViewOnly, flashHint, ghostEdges, ghostLine, gltfLoader, gridNow, groupTree,
+                                    effectViewOnly, flashHint, ghostEdges, ghostLine, gltfLoader, goTo, gridNow, groupTree,
                                     isForeignTarget, libraryTemplate, lightPose, lightsBlocked, linkOf, madeShape,
                                     mapChain, matrixBox, memberOf, movedMatrix, nextFrame, physicalBox, previewGroup,
                                     readEffectRecords, readLibraryRecords, recipeLight, recordId, rootName, saveBuilder,
@@ -433,7 +433,8 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
       const saved = await savePrefab(name, records, replace, { step, going: open });
       if (!saved) return;
       if (open()) hidePrefabDialog(true);
-      flashHint(`Saved the prefab ${saved.name}${replace ? ` (revision ${saved.revision})` : ''} · it is in the Add panel's Prefabs tab`);
+      banner(`Saved the prefab ${saved.name}${replace ? ` (revision ${saved.revision})` : ''}: the Add panel's Prefabs tab places it, the Map button's A prefab… opens it.`,
+             [['Edit in the builder', () => goTo({ prefab: saved.id })]], { timeout: 12000 });
     } catch (error) {
       if (prefabDialog.records !== records) { flashHint(`The prefab ${name} was not saved: ${error.message}`); return; }
       $('prefabOk').disabled = false; $('prefabStatus').textContent = `Not saved: ${error.message}`;

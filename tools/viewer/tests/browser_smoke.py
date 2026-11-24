@@ -5280,7 +5280,10 @@ def prefab_library(browser, url):
     page.locator('#prefabName').fill('Smoke prefab')
     page.locator('#prefabName').press('Enter')
     page.wait_for_selector('#prefabDialog', state='hidden')
-    assert 'Saved the prefab Smoke prefab' in page.locator('#dragHint').inner_text()
+    # the banner says so, with Edit in the builder (the prefab menus plan, P8)
+    banner = page.locator('#projectBanner')
+    assert banner.is_visible() and 'Saved the prefab Smoke prefab' in banner.inner_text(), banner.inner_text()
+    assert banner.get_by_role('button', name='Edit in the builder').is_visible()
     listed = lambda: page.evaluate("fetch('/prefabs.json').then(r => r.json())")['prefabs']
     saved, = listed()
     assert (saved['name'], saved['revision'], saved['pieces'], saved['lights'], saved['buildings'], saved['maps']) == ('Smoke prefab', 1, ids['cars'] + 1, lights, 1, [here]), saved
@@ -5356,6 +5359,8 @@ def prefab_library(browser, url):
     assert page.evaluate('viewer.gizmo.selection().length') == ids['parts'] + 1 + lights + 2
     assert page.locator('#groupTitle').inner_text().upper().startswith('PREFAB · SMOKE PREFAB')
     assert 'Placed from the prefab Smoke prefab (revision 3)' in page.locator('#groupText').inner_text()
+    # and offers the prefab in the builder while the library has it (the prefab menus plan)
+    assert page.locator('#groupPrefabOpen').is_visible() and page.locator('#groupPrefabOpen').inner_text() == 'Open Smoke prefab in the builder'
     # one undo step takes all of it back; redo brings it again
     page.keyboard.press('Control+z')
     assert page.evaluate('viewer.roots.size') == count and len(page.evaluate('viewer.editState().buildings')) == 1 and len(page.evaluate('viewer.groupList()')) == 1

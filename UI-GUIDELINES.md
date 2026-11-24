@@ -54,15 +54,19 @@ for controls, a new style) writes the pattern here in the same commit.
   more if it must. A second entry point is a shortcut to the first (the Map menu's Map grid starts the rail's tool; a
   spawn panel's button opens the Landing zones view), never a second set of controls for the same edit.
 - **Each kind of control has its place:**
-  - the header: the project, the map, Build and Play, and the menus;
+  - the header: the logo, the project, one button for the map or the prefab that is open (its menu holds what is
+    open and Open's two buttons, a map or a prefab), Build and Play, and the menus;
   - the rail: the tools, the Views button and the modifiers (snap, pivot, axes). The Views button (since 23 November
     2026) shows the icon of the view that is on; its list has a row for each view with its key, the switches of the
     view that is on under its row, and the Map grid; it opens beside the button, as the Build menu opens beside Add. A
     new view is a row of `views.js`'s VIEWS and of that list, never a button of its own on the rail;
   - the panel on the right: what is picked, and only that;
   - the Add panel: what can be placed (its maximise button makes it large, cards with large pictures, as the look
-    picker shows looks);
-  - a dialog: work apart from the map (files, a build, the project manager, settings);
+    picker shows looks; the Open window's prefabs are the same cards, `.cards` and `.card`);
+  - a dialog: work apart from the map (files, a build, the project manager, settings). Kinds of one job share a
+    window with sides: the Open window's Maps and Prefabs sides, a switch in each head, each side a browser made for
+    its kind. A library's files (rename, duplicate, export, delete, import) are managed in its window, not on the
+    rows of the panel that places from it;
   - the hint line: what the pointer is doing now.
 
   A new control goes where its kind is. A new place is a larger change (section 4).

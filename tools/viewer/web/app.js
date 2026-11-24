@@ -291,6 +291,8 @@ const { chosenStorey, floorBaseOf, floorData, floorSupportOf } = createLevelSnap
 const { addToGroup, changeGroups, groupShortcut, liveGroup, liveKeys, liveMembers, lockAsGroup,
         selectionGroup, ungroup } = createGroups({
   $, flashHint, gizmo, groupChip, highlight,
+  // (made with the document session, further down: called through, since it is not made yet while this runs)
+  goTo: change => goTo(change),
   // (made with the selection, further down: called through, since they are not made yet while this runs)
   groupables: () => groupables(), select: (id, add, keep) => select(id, add, keep) });
 
@@ -435,7 +437,7 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
 const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, prefabRecords, savePrefab,
         showPrefabDialog } = createPrefabPlace({
   $, BUSY_PIECES, actorPose, assetUrl, banner, builderRecords, busy, busyPaint, busyStart, effectTemplate,
-  flashHint, ghostEdges, ghostLine, gltfLoader, isForeignTarget, libraryTemplate, lightPose, lightsBlocked, madeShape,
+  flashHint, ghostEdges, ghostLine, gltfLoader, goTo, isForeignTarget, libraryTemplate, lightPose, lightsBlocked, madeShape,
   memberOf, movedMatrix, nextFrame, physicalBox, readEffectRecords, readLibraryRecords, recipeLight, recordId,
   rootName, saveBuilder, selectionGroup, templateFor, track, withStorableCone,
   // (made with the selection, further down: called through, since they are not made yet while this runs)

@@ -54,7 +54,7 @@ To switch between the prepared maps in one viewer, serve the cache root (with no
 python tools/viewer/viewer.py serve
 ```
 
-The header's **Map** button (or **M**) opens the map browser. Switching maps opens the original layout and resets
+The header's **Map** button's **A map…** (or **M**) opens the map browser, the **Open** window's Maps side. Switching maps opens the original layout and resets
 selection, search, floors and display controls; Temple Ship opens in its recommended interior view. URLs preserve
 the map choice, including through reload and browser back/forward. (The Layout selector, which chose an exported
 patch preview, went on 8 November: a preview opens by its address, `?map=URB_Bar&scene=preview-0.json`, and the
@@ -67,7 +67,9 @@ Terror, Council (rescue, bomb, assault, extraction), EXALT (covert extraction, d
 (alien bases, Temple Ship, base defence, the DLC and tutorial missions) and Other (multiplayer). A map that serves
 several mission types is listed under each (41 maps do). The chips at the top show one section; the search finds a
 map by its name, package or mission; **Prepared only** hides maps not exported yet. Each row says whether the map is
-**checked in the game** (Bar, Temple Ship), **ready** (exported) or not exported yet.
+**checked in the game** (Bar, Temple Ship), **ready** (exported) or not exported yet. It lists maps alone: the switch
+in its head, **Maps** and **Prefabs** with their counts, shows the window's Prefabs side in its place (see Prefab
+builder).
 
 **Export on first open.** A map not exported yet is exported the first time it is opened ([`exports.py`](exports.py)):
 the server runs `viewer.py export <package> --scope map` in the background into the cache it serves, one map at a
@@ -215,10 +217,13 @@ has been established by this first check; draw-call reduction and loading optimi
 
 The 3D view fills the window. The rest appears when it is needed, so the screen is not covered in text:
 
-- **Header:** the **Project** menu first after the name (Save, Save as, Open, Close project, the recent projects and
-  Manage projects: see Projects), then the **Map** menu (Change map, and on a whole map Missions, Map picture, Map
-  grid and Clear map; where it would hold Change map alone, the button opens the map browser), then the mission (see
-  What the missions stream, below).
+- **Header:** the logo (a shield over the grid, `web/logo.svg`, the tab's icon too), then the **Project** menu (Save,
+  Save as, Open, Close project, the recent projects and Manage projects: see Projects), then one button for the map or
+  the prefab that is open (a map and a prefab are never open together): **Map** and the map's name, or **Prefab** and
+  the prefab's. Its menu holds what is open (on a whole map Map settings, Missions, Map picture, Map grid and Clear map;
+  in the prefab builder Save, Save as, Export to a file and Find missing pieces), then **Open**'s two buttons, **A
+  map…** (M) and **A prefab…**, each with how many there are, each opening its side of the Open window, then **New
+  prefab**. Then the mission (see What the missions stream, below).
 - On the right, before the icons: **Build** and **Play**, and on the arrow joined to Play the **Game** menu (Test
   squad setup, Game maps and the Installs). **Settings** (the gear) holds Game install and checks and Cache
   everything. The header has no find box (Ctrl+F is the browser's own).
@@ -1460,12 +1465,24 @@ remain unchecked.
 
 ## Prefab builder
 
-Open **Add → Prefabs → New**, a row's **Edit**, or the map browser's **Prefabs** group. The builder uses the main
-editor window in place of a map. Its ground grows with the contents while snapping stays fixed. All maps supplies
+Open **New prefab** or **A prefab…** from the header's Map button, **Add → Prefabs → New**, a row's **Edit**, or a
+placed prefab's group's **Open … in the builder**. The builder uses the main editor window in place of a map.
+
+**A prefab…** (in the builder also **Ctrl+O**) opens the **Open** window on its Prefabs side
+([`prefab_browser.js`](web/prefab_browser.js)): every prefab as a card with its picture, what it holds, the maps its
+pieces come from, its revision and date, New prefab first; a filter by name or map and an order (last saved first, or
+by name); **Open** (Enter, a double-click) opens the chosen one in the builder. The chosen prefab's **Rename**,
+**Duplicate**, **Export** and **Delete**, and **Import…** with its question when the library has the file's prefab
+already, are there and nowhere else. The window's switch shows the maps instead. The Add panel's Prefabs tab is where a
+prefab is placed: a row's click places it, its **Edit** opens it, **All prefabs…** opens the window. All of them draw
+from one store of the library ([`prefab_library.js`](web/prefab_library.js)), so a change in one shows in the others.
+
+In the builder the header reads Project None and **Prefab** with the prefab's name; the Project menu holds Open… and
+the recent projects (opening one closes the prefab, asking to save first). Its ground grows with the contents while snapping stays fixed. All maps supplies
 pieces. Its Lights and Invisible categories offer point/spot lights and cover/floor recipes. Buildings, box selection,
 nested groups, copy/paste and undo work as in a map.
 
-The Prefab menu saves the complete document, including hidden lights/boxes and preserved unreadable pieces.
+The Prefab button's menu saves the complete document, including hidden lights/boxes and preserved unreadable pieces.
 Save as may explicitly replace a different prefab; the original stays unchanged. Opening another document asks
 Save/Discard/Cancel. Saved prefabs have complete recovery snapshots. Supported contents fit 256 by 256 tiles (the
 largest map the editor makes) and heights −192 to 2,112: the tile grid 0 to 1,920 (30 levels; height 0 is the drawn
@@ -1477,9 +1494,9 @@ all on it (one undo step; refused while unreadable pieces are kept, as they woul
 When you open or place a prefab with unreadable sources, the editor looks up their saved recipe keys in the
 current **All maps** catalogue and warns about pieces it still can't load. In the builder, matches preserve
 poses, groups and assembly links and can be undone in one step. Save to keep the new references. Unresolved
-records stay in the prefab. After rescanning **All maps**, use **Prefab → Find missing pieces** to try again.
+records stay in the prefab. After rescanning **All maps**, use the Prefab button's **Find missing pieces** to try again.
 
-**Prefab → Test in game** builds a private snapshot of the current workspace on CB2_MP_Blank, grown to at least 18
+**Test in game…** (in Play's place in the header) builds a private snapshot of the current workspace on CB2_MP_Blank, grown to at least 18
 levels (0 to 1,152, the tallest of the game's maps) and up to 30 for a taller prefab (`prefab_stage.stage_levels`),
 its ground hidden (still stood on) inside a noon sky above and below, and launches that build with no aliens. A
 neutral fill light illuminates the stage with or without baking. The dialog starts with Bake off, for a faster test.
