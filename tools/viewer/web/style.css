@@ -73,7 +73,8 @@ canvas { display: block; width: 100%; height: 100%; }
 .loadbar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s ease-out; }
 .loaddetail { margin-top: 6px; font-size: 11px; color: var(--muted); min-height: 1em; }
 .mapbar { width: 100%; margin: 0; }
-.rail { left: 12px; top: 12px; display: flex; flex-direction: column; gap: 2px; padding: 4px; }
+/* (over the other panels, so its Build and Views lists show over the dock and the Add panel) */
+.rail { left: 12px; top: 12px; display: flex; flex-direction: column; gap: 2px; padding: 4px; z-index: 5; }
 .rail button { position: relative; width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 4px; background: none; color: #c8d7df; cursor: pointer; }
 .rail button:hover:not(:disabled) { background: #25313a; }
 .rail button.on { background: var(--accent-bg); color: var(--accent-text); box-shadow: inset 0 0 0 1px var(--accent); }
@@ -102,10 +103,10 @@ canvas { display: block; width: 100%; height: 100%; }
 .rail .buildfly button { width: 100%; height: 28px; display: flex; align-items: center; justify-content: flex-start; gap: 9px; padding: 0 10px 0 8px; font: inherit; font-size: 12px; }
 .rail .buildfly hr { margin: 4px 6px; }
 /* The rail's Views button and its list (design A of the views' place, 23 November 2026, with each view's switches
-   under its own row as design C drew them; UI-GUIDELINES.md section 2): the list stands from the rail's top, so the
-   longest view's switches fit; a click on the button keeps it open (pinned) until a click elsewhere */
-.railfly.viewsfly { position: static; }
-.rail .flyout.viewsflyout { top: -1px; padding: 8px 6px 6px; }
+   under its own row as design C drew them; UI-GUIDELINES.md section 2): the list stands beside the button, as the Build
+   menu stands beside Add, lifted where it would run past the window's foot (views.js placeList); a click on the button
+   keeps it open (pinned) until a click elsewhere */
+.rail .flyout.viewsflyout { padding: 8px 6px 6px; }
 .railfly.pinned .flyout.viewsflyout { display: block; }
 .viewsflyout .flyhead { padding: 0 8px 4px; }
 /* (the rows scroll in a short window, not the list itself: a list that scrolls clips the bridge over the gap from the
@@ -188,6 +189,22 @@ canvas { display: block; width: 100%; height: 100%; }
 .libscan .loadbar { width: 100%; margin: 0; }
 .libspace { position: relative; overflow: hidden; }
 .libitem.lib { height: 61px; box-sizing: border-box; }
+/* The Add panel made large (its maximise button, the look picker's way: look picker plan L1): over most of the view
+   beside the rail, the filters in one line, each tab's pieces as cards in a grid, their pictures large (pieces.js
+   LARGE_THUMB, 168; a card 188 by 246 in All maps' rows: library.js CARD) */
+#library.large { right: 12px; width: auto; height: calc(100% - 80px); max-height: none; z-index: 4; }
+#library.large .libscope { max-width: 420px; }
+#library.large .libfilter { max-width: 560px; }
+#library.large .libtools { max-width: 720px; }
+#library.large .libchecks { max-width: 720px; }
+#library.large #libList, #library.large #prefabList { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); align-content: start; gap: 8px; padding: 8px; }
+#library.large .libwindow { display: grid; padding: 0 8px; column-gap: 8px; }
+#library.large .libitem { position: relative; flex-direction: column; align-items: stretch; gap: 6px; height: auto; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--field); }
+#library.large .libitem.lib { height: 238px; margin-top: 8px; }
+#library.large .libitem.on { box-shadow: 0 0 0 1px var(--accent); border-color: var(--accent); }
+#library.large .libitem canvas { width: 100%; height: auto; max-width: 168px; aspect-ratio: 1; align-self: center; background: #0d1318; }
+#library.large .libitem > span:nth-child(2) { min-height: 0; }
+#library.large .libitem .tags { position: absolute; top: 12px; right: 12px; align-self: auto; margin: 0; }
 .libitem.lib:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .libitem.lib.off strong, .libitem.lib.off small, .libitem.lib.missing strong { color: #74858f; }
 .libitem.lib.off canvas { opacity: .55; }
@@ -199,6 +216,9 @@ canvas { display: block; width: 100%; height: 100%; }
 .libitem.prefab canvas { margin-top: 2px; }
 .prefabacts { display: flex !important; gap: 4px; margin-top: 4px !important; overflow: visible !important; }
 .prefabacts .textbutton { padding: 1px 6px; font-size: 10px; }
+/* (on a card of the large Add panel a prefab's buttons wrap within it) */
+#library.large .prefabacts { flex-wrap: wrap; white-space: normal !important; }
+#library.large .libitem.prefab { min-height: 0; }
 .textbutton.warn { color: var(--warn); border-color: #6f5a35; }
 .prefabrename { width: 100%; box-sizing: border-box; background: var(--field); border: 1px solid #68b6ba; border-radius: 3px; color: #e3eaef; font: inherit; font-size: 12px; padding: 2px 5px; }
 .prefabname { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 10px; font-size: 12px; color: var(--muted); }

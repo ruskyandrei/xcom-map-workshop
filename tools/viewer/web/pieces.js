@@ -72,6 +72,8 @@ const SORTS = {
   count: (a, b) => b.count - a.count || a.name.localeCompare(b.name),
 };
 const THUMB = 48;   // thumbnail size, CSS pixels
+// a picture's size in the Add panel made large (its maximise button: the look picker's way, a grid of cards), CSS pixels
+export const LARGE_THUMB = 168;
 // The Lights kind: entries lights_wiring.js makes for a new point or spot light (editor lights plan 3.3), with `light` set to the
 // light's kind, `colour` (0 to 1) and `detail`; no sources and no thumbnail scene, an icon drawn instead.
 const LIGHTS = 'Lights';
@@ -184,11 +186,11 @@ export function collectPieces({ roots, data, groups, frameOf, boundsOf, live = n
 
 // One row of a list: its thumbnail (drawn here by `draw`, else by the list's painter later), the entry's name, two lines
 // under it (`detail`: words, or a small's properties) and its tags (each a tag's properties).
-function listRow(entry, pixelRatio, choose, { draw = null, sub, detail, tags, title }) {
+function listRow(entry, pixelRatio, choose, { draw = null, sub, detail, tags, title, size = THUMB }) {
   const button = document.createElement('button');
   button.type = 'button'; button.className = 'libitem'; button.dataset.id = entry.id;
   const thumb = document.createElement('canvas');
-  thumb.width = thumb.height = Math.round(THUMB * pixelRatio);
+  thumb.width = thumb.height = Math.round(size * pixelRatio);
   if (draw) { draw(thumb); thumb.dataset.drawn = '1'; }
   const label = document.createElement('span');
   label.append(Object.assign(document.createElement('strong'), { textContent: entry.name }),
@@ -203,33 +205,33 @@ function listRow(entry, pixelRatio, choose, { draw = null, sub, detail, tags, ti
   return button;
 }
 
-// Rows for pieces of This map and recipes in either scope.
-export function pieceRow(entry, pixelRatio, choose) {
+// Rows for pieces of This map and recipes in either scope (`size`: the picture's, CSS pixels).
+export function pieceRow(entry, pixelRatio, choose, size = THUMB) {
   if (entry.spawnAdd) {     // the Spawn points kind (spawns_wiring.js spawnAddEntries): placed with a click in the
                             // Spawns view
-    return listRow(entry, pixelRatio, choose, { draw: c => drawSpawnIcon(c, entry.spawnAdd), sub: `Spawn points · ${entry.pkg}`,
+    return listRow(entry, pixelRatio, choose, { size, draw: c => drawSpawnIcon(c, entry.spawnAdd), sub: `Spawn points · ${entry.pkg}`,
       detail: entry.detail, title: entry.title, tags: [{ textContent: `×${entry.count}`, title: `${entry.count} on this map` }] });
   }
   if (entry.diagonal) {     // the Diagonal cover kind (diagonal_wiring.js diagonalEntries): put down with a click in the
                             // Diagonal cover view
-    return listRow(entry, pixelRatio, choose, { draw: drawDiagonalIcon, sub: `Diagonal cover · ${entry.pkg}`, detail: entry.detail,
+    return listRow(entry, pixelRatio, choose, { size, draw: drawDiagonalIcon, sub: `Diagonal cover · ${entry.pkg}`, detail: entry.detail,
       title: entry.title, tags: [{ textContent: `×${entry.count}`, title: `${entry.count} diagonal cover mark${entry.count === 1 ? '' : 's'} on this map now` }] });
   }
   if (entry.zone) {     // the Landing zones kind (zones_wiring.js zoneEntries): placed with a click, as View options'
                         // button does
-    return listRow(entry, pixelRatio, choose, { draw: drawZoneIcon, sub: `Landing zones · ${entry.pkg}`, detail: entry.detail,
+    return listRow(entry, pixelRatio, choose, { size, draw: drawZoneIcon, sub: `Landing zones · ${entry.pkg}`, detail: entry.detail,
       title: entry.title, tags: [{ textContent: `×${entry.count}`,
                                    title: `${entry.count} landing zone${entry.count === 1 ? '' : 's'} on this map now` }] });
   }
   if (entry.light) {
-    return listRow(entry, pixelRatio, choose, { draw: c => drawLightIcon(c, entry.light, entry.colour), sub: `${LIGHTS} · ${entry.pkg}`,
+    return listRow(entry, pixelRatio, choose, { size, draw: c => drawLightIcon(c, entry.light, entry.colour), sub: `${LIGHTS} · ${entry.pkg}`,
       detail: entry.detail, title: entry.title, tags: [
         ...(entry.count ? [{ textContent: `×${entry.count}`, title: `${entry.count} ${entry.light} lights in this map` }] : []),
         ...(entry.builds ? [] : [{ className: 'tag test', textContent: 'Test', title: entry.note }])] });
   }
   const parts = entry.sources.length > 1 ? ` · ${entry.sources.length} parts` : '';
   const [w, d, h] = entry.size.map(Math.round);
-  return listRow(entry, pixelRatio, choose, {
+  return listRow(entry, pixelRatio, choose, { size,
     sub: `${entry.kind} · ${entry.pkg}${parts}`,
     detail: entry.cover
       ? (entry.cover.type === 'floor'
@@ -249,7 +251,7 @@ export function pieceRow(entry, pixelRatio, choose) {
 /** The panel: filter, kind, where and sort; rows with a thumbnail, name, kind, size and count.
  *  preview(entry) gives a drawn-only copy in the entry's frame (or null); onChoose(entry or null) on a click. */
 export function createPieceBrowser({ els, renderer, preview, onChoose }) {
-  let entries = null, chosen = null, queue = [];
+  let entries = null, chosen = null, queue = [], large = false;
   const rows = new Map();
   // Thumbnails use the main renderer so they share the view's tone mapping and colour.
   const scene = new THREE.Scene();
@@ -276,7 +278,7 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
     if (!rows.has(entry.key)) {
       // (a row stands for its key: a click chooses that key's entry as the list has it now)
       const current = () => entries?.find(e => e.key === entry.key) ?? entry;
-      rows.set(entry.key, pieceRow(entry, renderer.getPixelRatio(), () => onChoose(chosen?.key === entry.key ? null : current())));
+      rows.set(entry.key, pieceRow(entry, renderer.getPixelRatio(), () => onChoose(chosen?.key === entry.key ? null : current()), large ? LARGE_THUMB : THUMB));
     }
     return rows.get(entry.key);
   }
@@ -298,16 +300,17 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
       : shown.length ? `${total} · click one, then click in the view to place it` : 'No piece matches';
     queue = shown.filter(e => !row(e).thumb.dataset.drawn);
   }
-  /** Draw pictures ({ object, box, thumb: a canvas } each) as the list's own are drawn; only while a frame is drawn,
-   *  before the view. False when the view is too small to draw in. */
+  /** Draw pictures ({ object, box, thumb: a canvas } each) as the list's own are drawn, each at its canvas's size; only
+   *  while a frame is drawn, before the view. False when the view is too small to draw in. */
   function paintThumbs(jobs) {
-    const size = renderer.getSize(new THREE.Vector2()), canvas = renderer.domElement;
-    const px = Math.round(THUMB * renderer.getPixelRatio());
-    if (size.x < THUMB || size.y < THUMB) return false;
+    const size = renderer.getSize(new THREE.Vector2()), canvas = renderer.domElement, ratio = renderer.getPixelRatio();
+    const cssOf = thumb => Math.max(1, Math.round(thumb.width / ratio));
+    if (jobs.some(({ thumb }) => size.x < cssOf(thumb) || size.y < cssOf(thumb))) return false;
     renderer.setScissorTest(true);
-    renderer.setViewport(0, 0, THUMB, THUMB); renderer.setScissor(0, 0, THUMB, THUMB);
     withoutLocalLights(() => {
       for (const { object, box, thumb } of jobs) {
+        const css = cssOf(thumb), px = Math.round(css * ratio);
+        renderer.setViewport(0, 0, css, css); renderer.setScissor(0, 0, css, css);
         const sphere = box.getBoundingSphere(new THREE.Sphere()), r = Math.max(sphere.radius, 1);
         const distance = r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.02;
         camera.position.copy(sphere.center).addScaledVector(view, distance);
@@ -354,8 +357,8 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
   // Called each frame before the view is drawn.
   function drawThumbs() {
     if (!queue.length || els.panel.hidden) return;
-    const size = renderer.getSize(new THREE.Vector2()), jobs = [];
-    if (size.x < THUMB || size.y < THUMB) return;
+    const size = renderer.getSize(new THREE.Vector2()), jobs = [], need = large ? LARGE_THUMB : THUMB;
+    if (size.x < need || size.y < need) return;
     for (let n = 0; n < 4 && queue.length; n++) {
       const entry = queue.shift(), object = preview(entry);
       if (object) jobs.push({ object, box: entry.box, thumb: row(entry).thumb });
@@ -378,6 +381,12 @@ export function createPieceBrowser({ els, renderer, preview, onChoose }) {
       if (on && (!entries || fresh)) load(collect());
       els.panel.hidden = !on;
       if (on) render();
+    },
+    /** The panel made large or back (its maximise button): the rows' pictures drawn again at their size. */
+    setLarge(on) {
+      if (large === Boolean(on)) return;
+      large = Boolean(on); rows.clear();
+      if (!els.panel.hidden) render();
     },
     /** Mark the entry being placed (null: none). */
     setChosen(entry) {

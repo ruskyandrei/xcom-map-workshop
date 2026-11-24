@@ -643,3 +643,70 @@ def check_same_controls(browser, url, open_viewer):
     assert not errors, errors
     page.close()
     return dict(zone=zone['id'], spawn=spot['key'], marks=count)
+
+
+def check_rail_lists(browser, url, open_viewer):
+    """The rail's Views list beside its button, as the Build menu beside Add, lifted to stay in a short window and over
+    the dock; the Add panel made large by its maximise button (the look picker's way): cards with large pictures in This
+    map and All maps, back to its size when a card is chosen (placing begins), by Esc and by the button."""
+    errors = []
+    page = open_viewer(browser, url.split('?')[0] + '?map=URB_Bar', errors)
+    box = lambda sel: page.evaluate('s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }', sel)
+
+    def hover_views():
+        page.mouse.move(700, 500); page.wait_for_timeout(200)
+        b = box('#viewsButton')
+        page.mouse.move((b[0] + b[2]) / 2, (b[1] + b[3]) / 2); page.wait_for_timeout(400)
+        return b
+    # The Views list stands beside its button, its top with the button's (the Build menu's -5 pixels)
+    b = hover_views()
+    assert page.locator('#viewsFlyout').is_visible()
+    lst = box('#viewsFlyout')
+    assert abs(lst[1] - (b[1] - 5)) < 3 and lst[0] > b[2], (b, lst)
+    # In a short window, the Spawns view's long list is lifted to stay inside it, and stands over the dock
+    page.set_viewport_size(dict(width=1000, height=560))
+    page.evaluate('viewer.setSpawnsShown(true)')
+    hover_views()
+    lst, height = box('#viewsFlyout'), page.evaluate('innerHeight')
+    assert lst[3] <= height and lst[1] >= 0, (lst, height)
+    dock = box('.dock')
+    if dock[0] < lst[2] and dock[1] < lst[3]:
+        x, y = (max(dock[0], lst[0]) + min(dock[2], lst[2])) / 2, (max(dock[1], lst[1]) + min(dock[3], lst[3])) / 2
+        assert page.evaluate('([x, y]) => document.getElementById("viewsFlyout").contains(document.elementFromPoint(x, y))', [x, y])
+    page.mouse.move(700, 300)
+    page.evaluate('viewer.setSpawnsShown(false)')
+    page.set_viewport_size(dict(width=1600, height=1000))
+    # The Add panel made large: over most of the view, This map's pieces as cards with large pictures
+    page.evaluate("viewer.setLibraryScope('map'); viewer.showPieces(true)")
+    small = page.evaluate('document.querySelector("#libList canvas").width')
+    page.locator('#libraryLarge').click()
+    assert page.evaluate('document.getElementById("library").classList.contains("large")')
+    assert box('#library')[2] - box('#library')[0] > 1200
+    ratio = page.evaluate('viewer.renderer.getPixelRatio()')
+    assert page.evaluate('document.querySelector("#libList canvas").width') == round(168 * ratio) > small
+    page.wait_for_function('document.querySelectorAll("#libList canvas[data-drawn]").length >= 8', timeout=30000)
+    cards = page.evaluate('[...document.querySelectorAll("#libList .libitem")].slice(0, 2).map(c => c.getBoundingClientRect().top)')
+    assert abs(cards[0] - cards[1]) < 1, cards           # (cards side by side, not rows)
+    # a card chosen: back to its size, placing begun; Esc stops it, and Esc brings the large panel back to its size
+    page.locator('#libList .libitem').nth(1).click()
+    assert not page.evaluate('document.getElementById("library").classList.contains("large")') and page.evaluate('Boolean(viewer.placing())')
+    page.keyboard.press('Escape')
+    page.locator('#libraryLarge').click()
+    page.evaluate('document.activeElement?.blur?.()'); page.keyboard.press('Escape')
+    assert not page.evaluate('document.getElementById("library").classList.contains("large")') and page.evaluate('viewer.pieces.open')
+    # All maps: cards in rows, their pictures large, the rows in view drawn as the list scrolls
+    page.locator('#libraryLarge').click()
+    page.evaluate("viewer.setLibraryScope('all')")
+    page.wait_for_function('viewer.library.ready()', timeout=120000)
+    page.wait_for_function('document.querySelectorAll("#libAllList canvas[data-drawn]").length >= 4', timeout=60000)
+    assert page.evaluate('document.querySelector("#libAllList canvas").width') == round(168 * ratio)
+    page.evaluate('() => { const l = document.getElementById("libAllList"); l.scrollTop = 246 * 30; l.dispatchEvent(new Event("scroll")); }')
+    page.wait_for_timeout(300)
+    shown = page.evaluate('''() => { const l = document.getElementById("libAllList").getBoundingClientRect();
+      return [...document.querySelectorAll("#libAllList .libitem")].filter(i => { const r = i.getBoundingClientRect(); return r.bottom > l.top && r.top < l.bottom; }).length; }''')
+    assert shown >= 4, shown
+    page.locator('#libraryClose').click()
+    assert not page.evaluate('document.getElementById("library").classList.contains("large")')
+    assert not errors, errors
+    page.close()
+    return dict(cardsInView=shown)

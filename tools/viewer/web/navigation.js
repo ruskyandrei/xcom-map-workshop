@@ -44,7 +44,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
                                    pickZone, playArea, projectsAvailable, rayAt, refreshVolumes, releaseRockPoint,
                                    renderer, restingHint, saveProject, select, setGridTool,
                                    alignToGrid, setOwnPicked, setPickedSpawn,
-                                   setPickTool, setPlayArea, setSolo, setVolumeTool, stepWheel,
+                                   setPickTool, setPlayArea, setSolo, setVolumeTool, stepWheel, addLarge, setAddLarge,
                                    showFileDialog, showMapBrowser, showPieces, showPop,
                                    spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
                                    stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing,
@@ -420,6 +420,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       else if (cancelGizmoDrag()) dragHint(false);
       else if (placing) stopPlacing();
       else if (document.querySelector('.pop:not([hidden])')) showPop(null);
+      else if (addLarge()) setAddLarge(false);        // (the large Add panel back to its size)
       else if (selected) select(null);
       else if (ownSet.size || (ownPicked && !volumesOn)) { ownSet.clear(); setOwnPickedValue(null); refreshVolumes(); volumePanel(); }
       else return;

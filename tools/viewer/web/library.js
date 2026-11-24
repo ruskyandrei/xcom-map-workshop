@@ -12,7 +12,7 @@
 // (The look picker, which was a mode of this list, is a panel of its own: look_picker.js.)
 
 import { pieceKind, inKind, setKindOptions, effectKind, SOFT } from './piece_categories.js';
-import { pieceRow } from './pieces.js';
+import { LARGE_THUMB, pieceRow } from './pieces.js';
 import { drawEffectIcon } from './effects_view.js';
 import { call, hex16, sendPng } from './api.js';
 
@@ -26,6 +26,9 @@ const SOFT_TAGS = { hidden: ['Hidden', 'Hidden in its own map: a helper, not som
                     assembly: ['Linked', 'Linked to other pieces in its own map (a car\'s body and its glass, a prop and what it turns into).'] };
 const ROW = 61;         // a row's height, CSS pixels (style.css .libitem.lib)
 const THUMB = 48;
+// In the large panel (its maximise button) a card's size, CSS pixels (style.css #library.large .libitem.lib), and its
+// picture's (pieces.js LARGE_THUMB)
+const CARD = { width: 188, height: 246 };
 const RECENT = 30;
 const VIEW = 'workshop.libraryView';
 const SORTS = {
@@ -45,6 +48,8 @@ const json = (url, method = 'GET', body = undefined) => call(method, url, body, 
 // pictures made by an older one (the server keeps a picture under 16 hex digits)
 const PICTURE_VERSION = 2;
 const pictureKey = entry => (entry.effect ? hex16(`${entry.key}|likeness${PICTURE_VERSION}`) : entry.key);
+// (a large picture is kept under a key of its own)
+const largeKey = key => hex16(`${key}|large1`);
 /**
  * els: box (the scope's part of the panel), scan (the scan offer), filter, kind, home, sort, placeable, elsewhere,
  * favourites (checkboxes), list, foot.
@@ -58,6 +63,9 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   let index = null, entries = [], byKey = new Map(), shown = [], chosen = null, status = null, loading = null, scanTimer = null;
   let state = null, stateLoad = null, here = -1;
   let recipes = null;
+  // the large panel: its cards' columns and height (a row's in the list)
+  let large = false, cols = 1, rowHeight = ROW;
+  const keyOf = entry => (large ? largeKey(pictureKey(entry)) : pictureKey(entry));
   const kept = new Set(), failed = new Set(), pictures = new Map();   // thumbnails: on the server; not drawable; loaded images
   const rows = new Map(), toPaint = [];
   let making = false;
@@ -192,7 +200,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     if (rows.has(entry.key)) return rows.get(entry.key);
     if (entry.light || entry.cover || entry.zone || entry.spawnAdd || entry.diagonal) {     // the recipes: lights, cover, zones,
                                                                                            // spawn points, diagonal cover
-      const item = pieceRow(entry, pixelRatio(), () => onChooseRecipe(chosen?.key === entry.key ? null : entry));
+      const item = pieceRow(entry, pixelRatio(), () => onChooseRecipe(chosen?.key === entry.key ? null : entry), large ? LARGE_THUMB : THUMB);
       item.classList.add('lib');
       item.dataset.key = entry.key;
       rows.set(entry.key, item);
@@ -202,7 +210,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     const item = el('div', { className: `libitem lib${entry.placeable || soft ? '' : ' off'}${entry.missing ? ' missing' : ''}`, tabIndex: 0 });
     item.setAttribute('role', 'listitem'); item.dataset.id = entry.id; item.dataset.key = entry.key;
     const thumb = el('canvas');
-    thumb.width = thumb.height = Math.round(THUMB * pixelRatio());
+    thumb.width = thumb.height = Math.round((large ? LARGE_THUMB : THUMB) * pixelRatio());
     const star = el('button', { type: 'button', className: 'star', textContent: '★' });
     star.onclick = e => { e.stopPropagation(); toggleFavourite(entry); };
     if (entry.missing) {
@@ -292,7 +300,6 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     if (els.box.hidden) return;
     remember(VIEW, JSON.stringify({ sort: els.sort.value, placeable: els.placeable.checked, elsewhere: els.elsewhere.checked }));
     shown = filtered();
-    spacer.style.height = `${shown.length * ROW}px`;
     draw();
     const stale = status?.stale ? ` · the game's maps have changed since they were read`
       : index && !index.floorKinds ? ' · read the maps again to list their floors' : '';
@@ -313,10 +320,16 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     }
   }
   // The rows in view (and a few either side), and their pictures asked for.
+  // (in the large panel, rows of cards: as many columns as the list's width holds)
   function draw() {
-    const first = Math.max(0, Math.floor(els.list.scrollTop / ROW) - 4);
-    const last = Math.min(shown.length, Math.ceil((els.list.scrollTop + els.list.clientHeight) / ROW) + 4);
-    windowed.style.transform = `translateY(${first * ROW}px)`;
+    cols = large ? Math.max(1, Math.floor(els.list.clientWidth / CARD.width)) : 1;
+    rowHeight = large ? CARD.height : ROW;
+    spacer.style.height = `${Math.ceil(shown.length / cols) * rowHeight}px`;
+    windowed.style.gridTemplateColumns = large ? `repeat(${cols}, minmax(0, 1fr))` : '';
+    const firstRow = Math.max(0, Math.floor(els.list.scrollTop / rowHeight) - (large ? 1 : 4));
+    const lastRow = Math.ceil((els.list.scrollTop + els.list.clientHeight) / rowHeight) + (large ? 1 : 4);
+    const first = firstRow * cols, last = Math.min(shown.length, lastRow * cols);
+    windowed.style.transform = `translateY(${firstRow * rowHeight}px)`;
     const visible = shown.slice(first, last);
     windowed.replaceChildren(...visible.map(row));
     for (const e of visible) {
@@ -335,7 +348,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     if (entry.effect && !canvas.dataset.icon) { drawEffectIcon(entry.effect, entry.startsOn === false, canvas); canvas.dataset.icon = '1'; }
     if (entry.effect && (entry.effect !== 'effect' || !effectPicture)) { canvas.dataset.drawn = '1'; return; }
     if (failed.has(entry.key)) { if (entry.effect) canvas.dataset.drawn = '1'; return; }    // its marker stays
-    const k = pictureKey(entry);
+    const k = keyOf(entry);
     if (!kept.has(k)) return;       // make() draws it
     if (!pictures.has(k)) {
       const image = new Image();
@@ -355,7 +368,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   async function make() {
     if (making || els.box.hidden) return;
     const next = [...windowed.children].map(item => byKey.get(item.dataset.key))
-      .filter(e => e && (!e.effect || (e.effect === 'effect' && effectPicture && e.placeable)) && !kept.has(pictureKey(e)) && !failed.has(e.key)
+      .filter(e => e && (!e.effect || (e.effect === 'effect' && effectPicture && e.placeable)) && !kept.has(keyOf(e)) && !failed.has(e.key)
         && !rows.get(e.key).thumb.dataset.drawn).at(0);
     if (!next) return;
     making = true;
@@ -385,7 +398,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     }
     const job = toPaint.shift();
     if (!job) return;
-    const canvas = rows.get(job.entry.key)?.thumb, k = pictureKey(job.entry);
+    const canvas = rows.get(job.entry.key)?.thumb, k = keyOf(job.entry);
     making = false;
     if (canvas && (job.paintable ? paintObject(job.paintable.object, job.paintable.box, canvas) : paint(job.template, canvas))) {
       canvas.dataset.drawn = '1';
@@ -423,6 +436,13 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
       if (!state) loadState();
     },
     get open() { return !els.box.hidden; },
+    /** The panel made large or back (its maximise button): cards in rows, their pictures at the large size (kept by the
+     *  server under keys of their own, drawn as they come into view the first time). */
+    setLarge(on) {
+      if (large === Boolean(on)) return;
+      large = Boolean(on); rows.clear(); toPaint.length = 0; making = false;
+      if (!els.box.hidden) { render(); make(); }
+    },
     setChosen(entry) {
       chosen = entry?.library || entry?.light || entry?.cover ? entry : null;
       for (const [k, item] of rows) item.classList.toggle('on', k === chosen?.key);

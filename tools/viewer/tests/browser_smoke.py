@@ -6091,6 +6091,8 @@ CHECKS = (
           needs=('projects',), full=False),
     Check('same-controls', lambda c: __import__('browser_controls').check_same_controls(c.browser, c.page.url, open_viewer),
           'the same controls on a landing zone, a spawn point, a floor box and a piece (Bar) and a diagonal cover mark (the farm)', full=False),
+    Check('rail-lists', lambda c: __import__('browser_controls').check_rail_lists(c.browser, c.page.url, open_viewer),
+          'the Views list beside its button and over the dock; the Add panel made large, cards with large pictures', needs=('settings',), full=False),
     Check('diagonal', lambda c: __import__('browser_diagonal').check_diagonal(c.browser, c.page.url, open_viewer),
           'the Diagonal cover view on the farm: corners switched, a mark moved, deleted, reset and added', full=False),
     Check('select-kind', editing('select_kind'), 'Select all of a kind on pieces, and their flags set together', when=ON_MAP, full=False),

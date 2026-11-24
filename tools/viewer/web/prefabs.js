@@ -76,10 +76,11 @@ export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, down
   function row(p) {
     const item = el('div', { className: `libitem lib prefab${p.error ? ' off' : ''}`, tabIndex: 0 });
     item.setAttribute('role', 'listitem'); item.dataset.id = p.id;
-    const picture = el('canvas'); picture.width = picture.height = 96;
+    // (a prefab saved since 24 November 2026 has a picture 256 pixels square, the large panel's; an older one 96)
+    const picture = el('canvas'); picture.width = picture.height = 256;
     if (p.picture) {
       const image = new Image();
-      image.onload = () => picture.getContext('2d').drawImage(image, 0, 0, 96, 96);
+      image.onload = () => picture.getContext('2d').drawImage(image, 0, 0, 256, 256);
       image.src = api.picture(p.id, p.revision);
     }
     if (p.error) {

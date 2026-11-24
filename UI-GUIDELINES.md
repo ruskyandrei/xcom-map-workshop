@@ -57,10 +57,11 @@ for controls, a new style) writes the pattern here in the same commit.
   - the header: the project, the map, Build and Play, and the menus;
   - the rail: the tools, the Views button and the modifiers (snap, pivot, axes). The Views button (since 23 November
     2026) shows the icon of the view that is on; its list has a row for each view with its key, the switches of the
-    view that is on under its row, and the Map grid. A new view is a row of `views.js`'s VIEWS and of that list, never
-    a button of its own on the rail;
+    view that is on under its row, and the Map grid; it opens beside the button, as the Build menu opens beside Add. A
+    new view is a row of `views.js`'s VIEWS and of that list, never a button of its own on the rail;
   - the panel on the right: what is picked, and only that;
-  - the Add panel: what can be placed;
+  - the Add panel: what can be placed (its maximise button makes it large, cards with large pictures, as the look
+    picker shows looks);
   - a dialog: work apart from the map (files, a build, the project manager, settings);
   - the hint line: what the pointer is doing now.
 

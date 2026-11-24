@@ -738,9 +738,9 @@ const { askLineCollision, collisionMesh, commitCover, coverEntries, coverFacesNo
 // Copy, paste and placing (clipboard.js): a clip of the selection, a paste, the preview placed with a click,
 // the Add panel shown and an entry of it placed, and a copy dragged off with Shift; after the cover blocks,
 // whose floor's clearance it reads, and the Buildings view, whose own buildings' layer it reads.
-const { announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyThing, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
+const { addLarge, announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyThing, copyDragBegin, copyDragEnd, copySelection, dropTarget, entryParts,
         groupTree, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste, pasteSnapshot,
-        pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot, startPlacing,
+        pieceRecipes, placeAt, placeMove, previewGroup, setAddLarge, setLibraryScope, showPieces, snapshot, startPlacing,
         stopPlacing } = createClipboard({
   $, actorPose, addedEffect, addedLight, addedObject, addEffectRoots, addLightRoots, addRoots, askLineCollision,
   assemblyOf, banner, boundsOf, buildRoots, busy, BUSY_PIECES, busyStart, cloneGroup, cloneGroups,
@@ -1183,6 +1183,7 @@ $('floorTiles').onchange = e => { drawFloorTiles(); e.target.blur(); };
 $('diagonalCover').onchange = e => { drawDiagonal(); e.target.blur(); };
 $('editDiagonal').onclick = () => data && setDiagonalShown(!diagonalOn);
 $('libraryClose').onclick = () => showPieces(false);
+$('libraryLarge').onclick = () => setAddLarge(!addLarge());
 toggleButton($('editLinked'), on => { gizmo.setLinked(on); select(selected, false, true); });
 $('projectSave').onclick = () => { showPop(null); saveProject(); };
 $('projectSaveAs').onclick = () => showFileDialog('save');
@@ -1291,7 +1292,7 @@ const { frame, panCamera, setSnapMode, syncTools } = createNavigation({
   openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
   alignToGrid, setGridTool, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
-  setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZonesShown, showFileDialog, stepWheel,
+  setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZonesShown, showFileDialog, stepWheel, addLarge, setAddLarge,
   showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,
   TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel, wallGhost, wallHint, diagonalKey,

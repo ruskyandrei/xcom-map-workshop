@@ -455,7 +455,21 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
                     : { groups: gizmo.linkedGroups([...roots.values()].filter(r => !r.userData.source.added)) }) })
     .map(e => (floorSupportOf(e.sources) != null ? Object.assign(e, { floor: true, text: `${e.text} floor` }) : e))
     .concat(pieceRecipes());
+  // The Add panel made large (its maximise button): over most of the view, each tab's pieces as cards with large
+  // pictures, as the look picker shows looks. Back to its size by the button again, Esc, a row chosen (so the click
+  // that places it falls in the view) or the panel shut.
+  let large = false;
+  function setAddLarge(on) {
+    large = Boolean(on) && pieces.open;
+    $('library').classList.toggle('large', large);
+    const button = $('libraryLarge');
+    button.setAttribute('aria-pressed', String(large)); button.setAttribute('aria-label', large ? 'Back to its size' : 'Larger');
+    button.title = large ? 'Back to its size (Esc)' : 'Larger: the panel over most of the view, the pieces as cards with large pictures (a click on one, or Esc, brings it back to its size)';
+    button.querySelector('use').setAttribute('href', large ? '#i-restore' : '#i-maximise');
+    pieces.setLarge(large); library.setLarge(large);
+  }
   function showPieces(on) {
+    if (!on && large) setAddLarge(false);
     $('libMap').hidden = libraryScope !== 'map';
     library.show(on && libraryScope === 'all');
     prefabTab.show(on && libraryScope === 'prefabs');
@@ -473,6 +487,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   // Choosing an entry puts it on the clipboard and places it; choosing it again (null) stops.
   function chooseEntry(entry) {
     nextChooseToken();
+    if (entry && large) setAddLarge(false);
     if (!entry) { stopPlacing(); stopZonePlacing(); stopSpawnPlacing(); stopDiagonalPlacing(); stopWallDrawing(); return; }
     stopWallDrawing(); stopDiagonalPlacing();
     if (entry.zone) { stopPlacing(); stopSpawnPlacing(); startZonePlacing(); return; }      // the Landing zones kind
@@ -506,6 +521,7 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
   }
   function startPlacing(clip, entry = null) {
     stopPlacing(); stopWallDrawing();
+    if (entry && large) setAddLarge(false);       // (an Add panel row: the click that places it falls in the view)
     // a floor piece snaps by levels (dropTarget): its saved floor's height over its pivot
     clip.floor = clip.prefab || clip.entries.some(e => e.source.isLight || e.source.isEffect) ? null : floorSupportOf(clip.entries.map(e => e.source));
     const ghost = new THREE.Group(), here = new THREE.Matrix4();
@@ -705,8 +721,8 @@ export function createClipboard({ $, actorPose, addedEffect, addedLight, addedOb
     });
   });
 
-  return { announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, copyThing, dropTarget,
+  return { addLarge: () => large, announceCarried, boxMatrix, carryCopy, chooseEntry, chooseLibraryEntry, copyDragBegin, copyDragEnd, copySelection, copyThing, dropTarget,
            entryParts, groupTree, LIBRARY_SCOPES, linkOf, mapChain, matrixBox, moveGhost, paste,
-           pasteSnapshot, pieceRecipes, placeAt, placeMove, previewGroup, setLibraryScope, showPieces, snapshot,
+           pasteSnapshot, pieceRecipes, placeAt, placeMove, previewGroup, setAddLarge, setLibraryScope, showPieces, snapshot,
            startPlacing, stopPlacing };
 }

@@ -86,8 +86,20 @@ export function createViews({ $, gizmo, refreshLightShapes, refreshLightVisibili
   // The Views button: a click keeps its list open (pinned) until a click elsewhere, for a hand that would rather not
   // hover; the list shows while the pointer is over the button or the list as the rail's other lists do
   const fly = $('viewsFly');
-  function pin(on) { fly.classList.toggle('pinned', on); $('viewsButton').setAttribute('aria-expanded', String(on)); }
+  function pin(on) { fly.classList.toggle('pinned', on); $('viewsButton').setAttribute('aria-expanded', String(on)); if (on) placeList(); }
   $('viewsButton').onclick = () => pin(!fly.classList.contains('pinned'));
+  // The list stands beside its button, as the Build menu stands beside Add (the user, 24 November 2026); where it would
+  // run past the window's foot it is lifted, as far as the window's top. Measured as it shows (hidden, it has no size).
+  function placeList() {
+    const list = $('viewsFlyout');
+    requestAnimationFrame(() => {
+      const b = $('viewsButton').getBoundingClientRect(), h = list.getBoundingClientRect().height;
+      const over = b.top - 5 + h - (window.innerHeight - 12);
+      list.style.top = `${-5 - (over > 0 ? Math.min(over, Math.max(0, b.top - 17)) : 0)}px`;
+    });
+  }
+  fly.addEventListener('pointerenter', placeList);
+  window.addEventListener('resize', () => { if (fly.classList.contains('pinned')) placeList(); });
   document.addEventListener('pointerdown', e => { if (fly.classList.contains('pinned') && !fly.contains(e.target)) pin(false); });
 
   return { lightButton, setNormalView, syncLights, viewByKey };

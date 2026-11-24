@@ -308,8 +308,9 @@ export function createPrefabPlace({ $, BUSY_PIECES, actorPose, assetUrl, banner,
   function drawPrefabPictures() {
     const job = prefabPictures.shift();
     if (!job) return;
+    // (256 pixels square: the large Add panel's cards show it big)
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 96;
+    canvas.width = canvas.height = 256;
     const object = previewGroup(job.entries, null, new THREE.Matrix4());
     for (const v of job.volumes ?? []) {
       const line = new THREE.LineSegments(ghostEdges, ghostLine); line.matrix.copy(v.matrix); line.matrixAutoUpdate = false; object.add(line);
