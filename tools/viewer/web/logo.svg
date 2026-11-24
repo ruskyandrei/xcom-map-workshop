@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="XCOM Map Workshop">
+  <!-- The editor's logo (the prefab menus plan, chosen 24 November 2026): a shield, the sign of cover, over four tiles
+       of the map's grid, two of them lit. Original line art in the editor's colours (style.css :root: the accent, the
+       light line, a dim line); the header's brand and the page's tab icon. -->
+  <path d="M16 3l11 4v8c0 7-5 11.5-11 14C10 26.5 5 22 5 15V7z" fill="none" stroke="#c8d7df" stroke-width="1.8" stroke-linejoin="round"/>
+  <rect x="10" y="9.5" width="5.4" height="5.4" rx="1" fill="#82d5ce"/>
+  <rect x="16.6" y="9.5" width="5.4" height="5.4" rx="1" fill="none" stroke="#4a5d69" stroke-width="1.2"/>
+  <rect x="10" y="16.1" width="5.4" height="5.4" rx="1" fill="none" stroke="#4a5d69" stroke-width="1.2"/>
+  <rect x="16.6" y="16.1" width="5.4" height="5.4" rx="1" fill="#82d5ce"/>
+</svg>

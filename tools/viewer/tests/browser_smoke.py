@@ -4488,6 +4488,10 @@ def check_project_menu(page):
     """The header's menus (Project first after the name, then Map; Build, Play and the Game menu; Settings) and the
     Save and Open dialogs opened and cancelled (nothing saved)."""
     assert page.evaluate("document.querySelector('header .brand').nextElementSibling.id") == 'projectButton'
+    # the logo (logo.svg) drawn on the bar, the page's tab icon the same file, served as an SVG
+    assert page.evaluate("(() => { const i = document.querySelector('header .brand img.logo'); return i.complete && i.naturalWidth > 0; })()")
+    assert page.evaluate("document.querySelector('link[rel=icon]').getAttribute('href')") == 'logo.svg'
+    assert page.evaluate("fetch('logo.svg').then(r => r.headers.get('content-type'))") == 'image/svg+xml'
     kept = page.evaluate('viewer.gizmo.active')
     page.evaluate('id => viewer.select(id)', kept or page.evaluate('[...viewer.roots.keys()][0]'))
     changes = page.evaluate('viewer.changes()')

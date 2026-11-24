@@ -166,7 +166,8 @@ class Handler(SimpleHTTPRequestHandler):
     # Python's MIME guesses read the Windows registry, which can map .js to text/plain;
     # browsers refuse module scripts served that way. Fix the types the viewer serves.
     extensions_map = {".html": "text/html", ".js": "text/javascript", ".css": "text/css",
-                      ".json": "application/json", ".glb": "model/gltf-binary", ".png": "image/png"}
+                      ".json": "application/json", ".glb": "model/gltf-binary", ".png": "image/png",
+                      ".svg": "image/svg+xml"}
     # each map's families and assemblies (families.py), worked out once per server
     family_cache = FamilyCache()
     # each map's line-check collision by mesh (collision.py), its package read once per server
