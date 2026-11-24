@@ -239,13 +239,14 @@ export function createClearMap({ $, addEffectRoots, addLightRoots, addRoots, all
     }
     return { effects, sounds, landing };
   }
-  const clearDialog = { root: $('clearMap'), keep: $('clearMapKeepOutside'), keepTriggers: $('clearMapKeepTriggers') };
-  const CLEAR_KEEP_OUTSIDE = 'workshop.clearKeepOutside', CLEAR_KEEP_TRIGGERS = 'workshop.clearKeepTriggers';
+  // The Clear map window (the clear-by-parts plan, section 3: design A): a tick for each part with its count, the parts
+  // already cleared chipped, then "Keep the scenery outside the play area" and the notes of what the clear leaves.
+  const clearDialog = { root: $('clearMap'), keep: $('clearMapKeepOutside'),
+                        rows: new Map(WINDOW_PARTS.map(k => [k, $('clearMapParts').querySelector(`[data-part="${k}"]`)])) };
+  const CLEAR_KEEP_OUTSIDE = 'workshop.clearKeepOutside';
   clearDialog.keep.checked = recall(CLEAR_KEEP_OUTSIDE) === '1';
-  clearDialog.keepTriggers.checked = recall(CLEAR_KEEP_TRIGGERS) === '1';
-  // The map's triggers a clear takes out unless kept (F-159; export 39's triggerCounts): its touch and water volumes and
-  // its sight points, none of which the editor shows. In words for the window, or '' for a map with none (an older export
-  // says nothing of them).
+  // The map's triggers (F-159; export 39's triggerCounts): its touch and water volumes and its sight points, none of
+  // which the editor shows. In words for the window, or '' for a map with none (an older export says nothing of them).
   function triggerWords() {
     const t = data?.triggerCounts;
     if (!t || !(t.volumes + t.sight)) return '';
@@ -253,46 +254,91 @@ export function createClearMap({ $, addEffectRoots, addLightRoots, addRoots, all
     return [touch && plural(touch, 'touch trigger'), t.water && plural(t.water, 'water volume'), t.sight && plural(t.sight, 'sight point')]
       .filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1');
   }
-  // The window's counts and notes, at the grid's size now (a clear keeps it; the rail's Map grid changes it)
-  function clearSize() {
-    const v = [...data.tileGrid.dimensions], notes = [];
-    if (landingLines.kind === 'ew') notes.push('Plain Enemy Within puts the aliens at the map\'s pods and Meld points, and the clear deletes them: place new ones on your floors with the Add panel\'s Spawn points.');
-    $('clearMapWarn').hidden = !notes.length; $('clearMapWarn').textContent = notes.join(' ');
-    clearWords(v);
-    return v;
+  // What each part's clear takes now, at the grid's size (a clear keeps it; the rail's Map grid changes it), the scenery
+  // outside the play area kept or not: { part: { count, words } } (the user, 23 November 2026: "just give a very brief
+  // count"). A part already cleared counts what stands since; the triggers, which a project adds none of, then count
+  // none.
+  function partCounts(keepOutside) {
+    const dims = keepOutside ? [...data.tileGrid.dimensions] : null;
+    const plan = clearPlan(dims), sp = clearedSpawns(), fx = clearedEffects(dims), zones = zonesNow();
+    const points = sp.deleted.length + sp.copies, extraZones = Math.max(0, zones.length - 1);
+    // (an export before 39 doesn't count them: the row says nothing, and the Build takes what there is)
+    const t = data?.triggerCounts, triggers = partCleared(clearedParts, 'triggers') ? 0 : t ? t.volumes + t.sight : 1;
+    const fxWords = [fx.effects && plural(fx.effects, 'effect'), fx.sounds && plural(fx.sounds, 'sound')].filter(Boolean).join(', ');
+    return {
+      pieces: { count: plan.pieces, words: plural(plan.pieces, 'piece') },
+      lights: { count: plan.lights, words: plural(plan.lights, 'light') },
+      effects: { count: fx.effects + fx.sounds, words: fxWords },
+      spawns: { count: points, words: plural(points, 'point') },
+      zones: { count: extraZones, words: `${extraZones} of ${zones.length}, one kept` },
+      triggers: { count: triggers, words: t ? triggerWords() : '' },
+    };
+  }
+  // A part the window can't take: nothing of it stands, but the pieces before they are cleared (their clear also takes
+  // the map's volumes, cover and stains, and lets the grid shrink)
+  const partEmpty = (k, counts) => !counts[k].count && !(k === 'pieces' && !partCleared(clearedParts, 'pieces'));
+  let windowCounts = null;
+  // The rows' counts, chips and states again (`fresh`: the window opens, every part not yet cleared ticked; else the
+  // ticks are kept but on a part that can't be taken)
+  function refreshClearRows(fresh = false) {
+    windowCounts = partCounts(clearDialog.keep.checked);
+    for (const [k, row] of clearDialog.rows) {
+      const c = windowCounts[k], empty = partEmpty(k, windowCounts), box = row.querySelector('input');
+      row.querySelector('.tickval').textContent = empty || !c.count ? 'none' : c.words;
+      row.querySelector('.chip')?.toggleAttribute('hidden', !partCleared(clearedParts, k));
+      row.classList.toggle('none', empty);
+      box.disabled = empty;
+      if (empty) box.checked = false;
+      else if (fresh) box.checked = !partCleared(clearedParts, k);
+    }
+    clearWords();
+  }
+  const tickedParts = () => WINDOW_PARTS.filter(k => clearDialog.rows.get(k).querySelector('input').checked);
+  // The notes under the ticks: what the clear leaves standing that may surprise, each one sentence, shown only when
+  // true (section 2); and the button naming what it does
+  function clearWords() {
+    const asked = tickedParts(), counts = windowCounts, has = k => asked.includes(k);
+    const left = k => !has(k) && !partCleared(clearedParts, k) && counts[k].count > 0;
+    const notes = [], warn = [];
+    if (has('pieces')) {
+      if (!has('zones') && zonesNow().length) notes.push('The landing zones stay where they are, with no ground under them: lay floor there or move them in the Landing zones view.');
+      if (left('lights')) notes.push('The map\'s lights stay where they are, lighting what you build there.');
+      if (left('effects')) notes.push('The map\'s smoke, fire and sounds stay where their pieces were.');
+      if (left('spawns') && plainEw()) warn.push('The map\'s pods stay where the floor was: move them onto your floors in the Spawns view.');
+    }
+    if (has('lights')) {
+      if (!has('pieces') && !cleared) notes.push('The pieces keep the light baked into them until a Build with the bake.');
+      notes.push('The sun, moon and sky light stay.');
+    }
+    if (has('spawns') && plainEw()) warn.push('Plain Enemy Within puts the aliens at the map\'s pods and Meld points, and the clear deletes them: place new ones on your floors with the Add panel\'s Spawn points.');
+    $('clearMapPlan').textContent = notes.join(' '); $('clearMapPlan').hidden = !notes.length;
+    $('clearMapWarn').textContent = warn.join(' '); $('clearMapWarn').hidden = !warn.length;
+    $('clearMapMissions').hidden = !has('pieces');
+    const open = WINDOW_PARTS.filter(k => !clearDialog.rows.get(k).querySelector('input').disabled);
+    const ok = $('clearMapOk');
+    ok.disabled = !asked.length;
+    ok.textContent = asked.length && asked.length === open.length ? 'Clear map' : `Clear ${plural(asked.length, 'part')}`;
   }
   function showClearMap() {
     showPop(null);
     if (!projectsAvailable() || !ownSize()) { banner('Clear map is for a whole map, not a preview or the prefab builder.'); return; }
-    clearSize();
+    refreshClearRows(true);
     clearDialog.root.hidden = false;
     setTimeout(() => $('clearMapOk').focus(), 0);
   }
-  // The window's count of what goes, for the size `v` (the play area a clear keeping the scenery outside goes by follows
-  // it): one short line, the window's note and ticks saying the rest (the user, 23 November 2026: "just give a very
-  // brief count of removed pieces, no need for a detailed breakdown")
-  function clearWords(v) {
-    const plan = clearPlan(clearDialog.keep.checked ? v : null), sp = clearedSpawns(), fx = clearedEffects(clearDialog.keep.checked ? v : null);
-    const points = sp.deleted.length + sp.copies;
-    const gone = [plural(plan.pieces, 'piece'), plan.lights && plural(plan.lights, 'light'), points && plural(points, 'spawn point'),
-                  fx.effects && plural(fx.effects, 'effect'), fx.sounds && plural(fx.sounds, 'ambient sound')].filter(Boolean);
-    $('clearMapPlan').textContent = `Removes ${gone.length > 1 ? `${gone.slice(0, -1).join(', ')} and ${gone.at(-1)}` : gone[0]}.`;
-    // (the tick says nothing on a map without triggers)
-    clearDialog.keepTriggers.closest('label').hidden = !triggerWords();
-  }
   function hideClearMap() { clearDialog.root.hidden = true; }
-  clearDialog.keep.onchange = () => { remember(CLEAR_KEEP_OUTSIDE, clearDialog.keep.checked ? '1' : '0'); clearSize(); };
-  clearDialog.keepTriggers.onchange = () => { remember(CLEAR_KEEP_TRIGGERS, clearDialog.keepTriggers.checked ? '1' : '0'); clearSize(); };
+  clearDialog.keep.onchange = () => { remember(CLEAR_KEEP_OUTSIDE, clearDialog.keep.checked ? '1' : '0'); refreshClearRows(); };
+  for (const row of clearDialog.rows.values()) row.querySelector('input').onchange = () => clearWords();
   $('clearMapForm').onsubmit = e => {
-    e.preventDefault(); clearDialog.root.hidden = true;
-    clearMap(null, clearDialog.keep.checked, clearDialog.keepTriggers.checked && Boolean(triggerWords()));
+    e.preventDefault();
+    const asked = tickedParts();
+    if (!asked.length) return;
+    clearDialog.root.hidden = true;
+    clearParts(asked, { keepOutside: clearDialog.keep.checked });
   };
   $('clearMapClose').onclick = $('clearMapCancel').onclick = hideClearMap;
   clearDialog.root.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideClearMap(); } });
   $('projectClear').onclick = showClearMap;
-  // The clear (section 1), one undo step: the added pieces, lights, effects, sounds and lens flares go, the originals,
-  // the editable lights and the moved effects are marked deleted but for the landing's, the sun and the sky light; the project's buildings (and the map's that can be
-  // edited) are deleted, its groups and area-light bindings go; the size and the cleared mark are set.
   // The one landing zone a clear keeps (the user, 13 November: "just leave 1 LZ"): plain EW's first, the map's own
   // first landing (else the first zone), used by both games
   function clearKeptZone() {

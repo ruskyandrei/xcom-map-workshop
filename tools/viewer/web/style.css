@@ -951,6 +951,14 @@ canvas { display: block; width: 100%; height: 100%; }
 .pop p { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 10px 0 0; }
 .check { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #c7d9e2; margin-top: 7px; cursor: pointer; }
 .check input { accent-color: var(--accent); margin: 0; }
+/* A framed list of tick rows, each with its count or state at the right and a chip for a state beside its name (the
+   Clear map window's parts: clear_map.js). A row with nothing to act on is dimmed (.none) and its tick disabled. */
+.ticklist { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 4px; background: #151c23; }
+.ticklist .check { margin: 0; padding: 7px 10px; border-bottom: 1px solid #ffffff0a; }
+.ticklist .check:last-child { border-bottom: 0; }
+.ticklist .check .tickval { margin-left: auto; padding-left: 12px; color: #7f95a1; font-size: 11px; white-space: nowrap; }
+.ticklist .check .chip { padding: 1px 8px; font-size: 10px; }
+.ticklist .check.none { color: #7f95a1; cursor: default; }
 .slider { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #c7d9e2; margin-top: 9px; }
 .slider input { flex: 1; accent-color: var(--accent); }
 /* View options' camera speeds: names of one width, so the sliders line up, and each factor after its slider. */

@@ -94,7 +94,8 @@ for controls, a new style) writes the pattern here in the same commit.
   - A control that changes for one kind changes for all of them in the same commit, or the commit says why not.
 - **Use the stylesheet's parts.** [`style.css`](tools/viewer/web/style.css) has a panel (`.panel`), a folding section
   with its value shown when shut (`.fold`, `.foldval`), a row of buttons (`.row`), icon buttons (`.icon`, `.actions`),
-  a chip for a state (`.chip`), a choice of a few (`.seg`), a tick box (`.check`), a note (`.lightnote`), a dialog
+  a chip for a state (`.chip`), a choice of a few (`.seg`), a tick box (`.check`), a framed list of ticks each with its
+  count at the right (`.ticklist`, `.tickval`: Clear map's parts), a note (`.lightnote`), a dialog
   (`.modal`, `.dialoghead`) and the colours as variables on `:root`. A new part is built of these. A new colour, size
   or class is added only for something none of them is, in `style.css` with a comment saying what it is for.
 - **The same thing has the same name, icon and key everywhere:** in the panel, the menu, the tooltip, the hint and the

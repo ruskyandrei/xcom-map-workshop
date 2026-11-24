@@ -1355,9 +1355,10 @@ CLEAR_PARTS = ('pieces', 'lights', 'effects', 'triggers')
 
 def check_clear_map(page):
     """Clear map, the ground grid and the landing zones (private/plans/done/clear-map-plan.md, C2 to C4), on an export
-    22 map: the dialog's counts; a clear at a smaller size as one undo step (the pieces deleted but the landing's, the
-    grid, the ground grid over every tile); a landing zone turned, copied, deleted and undone; the clear undone and
-    redone. Nothing is saved."""
+    22 map: the dialog's parts and counts (the clear-by-parts plan, section 3); a clear at a smaller size as one undo step
+    (the pieces deleted but the landing's, the grid, the ground grid over every tile); a landing zone turned, copied,
+    deleted and undone; the clear undone and redone; each part alone and two clears over each other. Nothing is
+    saved."""
     if not page.evaluate("viewer.data.scope === 'map' && !viewer.data.preview && viewer.data.exporterVersion >= 22"):
         return skip('clear-map', 'needs a map (not a preview) of export 22 or later', whole=True)
     # (a piece a check before left selected, typed-pose's, stays selected: the Map grid's panel opens beside its panel,
@@ -1413,18 +1414,64 @@ def check_clear_map(page):
         assert drag_grid(2, -120) == dims and page.evaluate('viewer.stage()') is None
     page.locator('#gridDone').click()
     assert not page.evaluate('viewer.gridTool()')['on'] and page.locator('#gridPanel').is_hidden()
-    # the dialog: a short count of what goes, one line, no breakdown (the user, 23 November 2026: a site recon map's
-    # window listed a screenful; no size: a clear keeps the grid)
+    # the dialog (the clear-by-parts plan, section 3: design A): a tick for each part with a short count, every part
+    # ticked on a map with nothing cleared, the button saying it clears the map (the user, 23 November 2026: a short
+    # count, no breakdown; no size: a clear keeps the grid)
     page.evaluate("document.getElementById('projectClear').click()")
     text = page.locator('#clearMap').inner_text()
-    line = page.locator('#clearMapPlan').inner_text()
-    assert 'one landing zone' in text and line.startswith('Removes %d piece' % plan['pieces']), text
-    assert line.count('.') == 1 and line.endswith('.') and len(line) < 120 and 'SeqAct_' not in text, line
-    assert page.locator('#clearMap input[type=number]').count() == 0
-    # the map's ambient sounds go with the clear, but the landing's (the user, 18 November 2026)
+    rows = page.evaluate("""[...document.querySelectorAll('#clearMapParts .check')].map(r => ({ part: r.dataset.part,
+        ticked: r.querySelector('input').checked, open: !r.querySelector('input').disabled, words: r.querySelector('.tickval').textContent }))""")
+    assert [r['part'] for r in rows] == ['pieces', 'lights', 'effects', 'spawns', 'zones', 'triggers'], rows
+    assert all(r['ticked'] == r['open'] for r in rows), rows
+    assert rows[0]['words'] == ('%d piece%s' % (plan['pieces'], '' if plan['pieces'] == 1 else 's')), rows[0]
+    assert page.locator('#clearMapOk').inner_text() == 'Clear map'
+    assert 'SeqAct_' not in text and page.locator('#clearMap input[type=number]').count() == 0, text
+    # the map's ambient sounds go with the effects, but the landing's (the user, 18 November 2026)
     sounds = page.evaluate("[...viewer.effectRoots.values()].map(r => r.userData.source).filter(o => o.kind === 'sound' && !o.landingActor && !o.stream && !o.added).length")
     if sounds:
-        assert ('%d ambient sound' % sounds) in line, line
+        assert ('%d sound' % sounds) in rows[2]['words'], rows[2]
+    # the triggers' row counts them from the export (39), and has nothing to take on a map with none
+    counts = page.evaluate('viewer.data.triggerCounts ?? null')
+    if counts and not counts['volumes'] + counts['sight']:
+        assert rows[5]['words'] == 'none' and not rows[5]['open'], rows[5]
+    elif counts:
+        assert rows[5]['open'] and ('trigger' in rows[5]['words'] or 'sight point' in rows[5]['words']), rows[5]
+    # unticked, a part's leftovers that may surprise are said, and the button counts the parts
+    tick = lambda part, on: page.locator('#clearMapParts [data-part="%s"] input' % part).set_checked(on)  # noqa: E731
+    open_parts = [r['part'] for r in rows if r['open']]
+    for part in ('lights', 'effects'):
+        if part in open_parts:
+            tick(part, False)
+    notes = page.locator('#clearMapPlan').inner_text()
+    if 'lights' in open_parts and rows[1]['words'] != 'none':
+        assert "The map's lights stay where they are" in notes, notes
+    if 'effects' in open_parts and rows[2]['words'] != 'none':
+        assert 'smoke, fire and sounds stay' in notes, notes
+    assert page.locator('#clearMapOk').inner_text() == 'Clear %d parts' % (len(open_parts) - 2)
+    # the lights alone: the pieces keep their baked light, and nothing asks what the map is for
+    for r in rows:
+        if r['open']:
+            tick(r['part'], r['part'] == 'lights')
+    assert page.locator('#clearMapOk').inner_text() == 'Clear 1 part'
+    assert 'keep the light baked into them' in page.locator('#clearMapPlan').inner_text()
+    assert page.locator('#clearMapMissions').is_hidden()
+    for r in rows:
+        tick(r['part'], False) if r['open'] else None
+    assert page.locator('#clearMapOk').is_disabled()
+    page.keyboard.press('Escape')
+    page.evaluate("document.getElementById('projectClear').click()")
+    assert all(page.locator('#clearMapParts [data-part="%s"] input' % r['part']).is_checked() == r['open'] for r in rows)
+    # the window at the narrow widths (UI-GUIDELINES.md section 3): no part of it past the window's sides, its rows on
+    # one line each
+    size = page.viewport_size
+    for width in (1280, 1024, 800):
+        page.set_viewport_size(dict(width=width, height=size['height']))
+        box = page.locator('#clearMapForm').bounding_box()
+        assert box['x'] >= 0 and box['x'] + box['width'] <= width, (width, box)
+        assert page.evaluate("(() => { const f = document.getElementById('clearMapForm'); return f.scrollWidth <= f.clientWidth; })()"), width
+        heights = page.evaluate("[...document.querySelectorAll('#clearMapParts .check')].map(r => r.getBoundingClientRect().height)")
+        assert max(heights) < 40, (width, heights)
+    page.set_viewport_size(size)
     # a window taller than the screen (a large zoom) scrolls under its buttons, which stay in view
     size = page.viewport_size
     tall = page.evaluate("document.getElementById('clearMapForm').scrollHeight")
@@ -1709,12 +1756,11 @@ def check_clear_map(page):
     keep, whole = page.evaluate('dims => viewer.clearPlan(dims)', dims), page.evaluate('viewer.clearPlan()')
     page.evaluate("document.getElementById('projectClear').click()")
     tick = page.locator('#clearMapKeepOutside')
+    pieces_words = lambda: page.locator('#clearMapParts [data-part="pieces"] .tickval').inner_text()  # noqa: E731
     if tick.is_checked(): tick.uncheck()
-    text = page.locator('#clearMapPlan').inner_text()
-    assert text.startswith('Removes %d piece' % whole['pieces']), text
+    assert pieces_words().startswith('%d piece' % whole['pieces']), pieces_words()
     tick.check()
-    text = page.locator('#clearMapPlan').inner_text()
-    assert text.startswith('Removes %d piece' % keep['pieces']), text
+    assert pieces_words().startswith('%d piece' % keep['pieces']), pieces_words()
     tick.uncheck()                                      # (remembered: left as it was at first)
     page.keyboard.press('Escape')
     if keep['outside']:
@@ -1725,28 +1771,53 @@ def check_clear_map(page):
         assert state['cleared'] == {k: {'keepOutside': True} for k in CLEAR_PARTS}, state['cleared']
         page.keyboard.press('Control+z')
         assert page.evaluate('viewer.clearedParts()') is None and page.evaluate('viewer.editState()')['cleared'] is None
-    # the map's triggers (F-159; export 39's triggerCounts): the window's tick keeps them (its count stays a count of
-    # pieces and the like); a clear that keeps them saves the mark; undone, it goes back. A map without them hides it
-    counts = page.evaluate('viewer.data.triggerCounts ?? null')
-    page.evaluate("document.getElementById('projectClear').click()")
-    tick = page.locator('#clearMapKeepTriggers')
-    if not counts or not counts['volumes'] + counts['sight']:
-        assert not tick.is_visible()
-        page.keyboard.press('Escape')
-        return
-    assert tick.is_visible()
-    if tick.is_checked(): tick.uncheck()
-    text = page.locator('#clearMapPlan').inner_text()
-    tick.check()
-    assert page.locator('#clearMapPlan').inner_text() == text and 'trigger' not in text, text
-    tick.uncheck()                                      # (remembered: left as it was at first)
-    page.keyboard.press('Escape')
+    # the old clear that kept the triggers (the project's clearKeepsTriggers): every part but the triggers
     page.evaluate('dims => viewer.clearMap(dims, false, true)', dims)
     state = page.evaluate('viewer.editState()')
-    # (every part but the triggers)
     assert state['cleared'] == {k: {} for k in CLEAR_PARTS if k != 'triggers'}, state['cleared']
     page.keyboard.press('Control+z')
     assert page.evaluate('viewer.clearedParts()') is None and page.evaluate('viewer.editState()')['cleared'] is None
+    # each part alone (the clear-by-parts plan, section 2), each one undo step that leaves the rest as it was
+    pieces_gone = lambda: page.evaluate("[...viewer.roots.values()].filter(r => r.userData.deleted).length")  # noqa: E731
+    lights_gone = lambda: page.evaluate("[...viewer.lightRoots.values()].filter(r => r.userData.deleted).length")  # noqa: E731
+    editable = page.evaluate('viewer.clearPlan().editableLights')
+    # the lights: the editable ones deleted, the mark set; no piece, no grid, no missions touched; the window then shows
+    # the part cleared, counting none, and ticks the rest
+    page.evaluate("viewer.clearParts(['lights'])")
+    assert page.evaluate('viewer.clearedParts()') == {'lights': {}} and not page.evaluate('viewer.cleared()')
+    assert lights_gone() == editable and pieces_gone() == 0, (lights_gone(), editable, pieces_gone())
+    assert page.evaluate('viewer.missions()') is None and page.evaluate('viewer.stage()') is None
+    assert page.locator('#missionsDialog').is_hidden()
+    page.evaluate("document.getElementById('projectClear').click()")
+    row = page.locator('#clearMapParts [data-part="lights"]')
+    assert row.locator('.chip').is_visible() and not row.locator('input').is_checked(), row.inner_text()
+    assert page.locator('#clearMapParts [data-part="pieces"] input').is_checked()
+    page.keyboard.press('Escape')
+    # then the pieces over it: both marked; undone twice, nothing
+    page.evaluate('dims => viewer.clearParts(["pieces"], { size: dims })', dims)
+    assert page.evaluate('viewer.clearedParts()') == {'pieces': {}, 'lights': {}} and page.evaluate('viewer.cleared()')
+    assert pieces_gone() > 0 and lights_gone() == editable
+    page.keyboard.press('Control+z')
+    assert page.evaluate('viewer.clearedParts()') == {'lights': {}} and pieces_gone() == 0 and lights_gone() == editable
+    page.keyboard.press('Control+z')
+    assert page.evaluate('viewer.clearedParts()') is None and lights_gone() == 0
+    # the triggers alone: the mark only
+    page.evaluate("viewer.clearParts(['triggers'])")
+    assert page.evaluate('viewer.clearedParts()') == {'triggers': {}} and pieces_gone() == 0 and lights_gone() == 0
+    page.keyboard.press('Control+z')
+    assert page.evaluate('viewer.clearedParts()') is None
+    # the landing zones alone: one kept, no mark
+    page.evaluate("viewer.clearParts(['zones'])")
+    assert len(page.evaluate('viewer.zones()')) == 1 and page.evaluate('viewer.clearedParts()') is None
+    page.keyboard.press('Control+z')
+    assert [z['id'] for z in page.evaluate('viewer.zones()')] == [z['id'] for z in before_zones]
+    # the spawn points alone: the map's pods and the like deleted, no mark, no piece
+    if page.evaluate('viewer.spawnAddEntries().length'):
+        page.evaluate("viewer.clearParts(['spawns'])")
+        assert page.evaluate('viewer.clearedParts()') is None and pieces_gone() == 0
+        assert any(m.get('deleted') for m in page.evaluate('viewer.spawnEdits()'))
+        page.keyboard.press('Control+z')
+        assert not any(m.get('deleted') for m in page.evaluate('viewer.spawnEdits()'))
 
 
 def check_map_settings(page):

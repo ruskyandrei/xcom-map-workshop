@@ -192,7 +192,7 @@
         <button id="projectPicture" type="button" hidden role="menuitem" title="The picture the game shows for the map on its mission screens: choose an image, set its frame, and the Build writes it into the map. Long War Rebalance 3 shows a map's own picture"><span>Map picture…</span></button>
         <button id="projectSize" type="button" hidden role="menuitem" title="The map's tile grid, made larger (or, once the map is cleared, smaller) by dragging the play area's handles: the rail's Map grid"><span>Map grid</span></button>
         <hr>
-        <button id="projectClear" type="button" hidden role="menuitem" title="Take every piece off the map, the ground too, keeping its landing zones and its sun, moon and sky light, and set the grid's size: the start of a new map with this map's light and landing. One undo step"><span>Clear map…</span></button>
+        <button id="projectClear" type="button" hidden role="menuitem" title="Take parts of the map off it, or all of them: its pieces and ground, lights, effects and sounds, spawn points, landing zones (one stays), triggers and scripts. The sun, moon and sky light stay. One undo step"><span>Clear map…</span></button>
       </div>
     </section>
     <section id="playMenu" class="panel pop playmenu" aria-label="Game" hidden>
@@ -803,11 +803,18 @@
   <div id="clearMap" class="modal" hidden>
     <form id="clearMapForm" class="panel filedialog buildoptions" role="dialog" aria-modal="true" aria-labelledby="clearMapTitle" aria-describedby="clearMapNote" novalidate>
       <div class="dialoghead"><h2 id="clearMapTitle">Clear map</h2><button id="clearMapClose" class="icon" type="button" title="Cancel (Esc)" aria-label="Cancel"><svg class="i"><use href="#i-close"/></svg></button></div>
-      <p id="clearMapNote" class="optionsnote warn">This removes everything from the map, the ground too, but one landing zone and the sun, moon and sky light. Ctrl+Z brings it back.</p>
+      <p id="clearMapNote" class="optionsnote warn">Removes what is ticked from the map. Ctrl+Z brings it back.</p>
+      <div id="clearMapParts" class="ticklist" role="group" aria-label="What the clear removes">
+        <label class="check" data-part="pieces" title="Every piece of the map, the ground too, and its buildings, with what the Build takes with them: building and floor volumes, blocking volumes, cover, stains and the glowing pieces' own lights. The landing's pieces stay. With it the grid can be made smaller, and the map gets no ground and none of Long War's patch levels"><input type="checkbox" value="pieces"> <span>Pieces and ground</span><span class="chip" hidden>Cleared</span><span class="tickval"></span></label>
+        <label class="check" data-part="lights" title="The map's point and spot lights, and those the project added. The sun, moon and sky light stay, and so does a glowing piece's own light while its piece stays"><input type="checkbox" value="lights"> <span>Lights</span><span class="chip" hidden>Cleared</span><span class="tickval"></span></label>
+        <label class="check" data-part="effects" title="The map's smoke, fire, steam, animals, glints and ambient sounds, and those the project added. The landing's stay, and so does the background sound (Map settings)"><input type="checkbox" value="effects"> <span>Effects and sounds</span><span class="chip" hidden>Cleared</span><span class="tickval"></span></label>
+        <label class="check" data-part="spawns" title="The map's pods, Meld points and drop-in points, and the project's copies of them; a point the map's script names stays. No-spawn volumes stay"><input type="checkbox" value="spawns"> <span>Spawn points</span><span class="tickval"></span></label>
+        <label class="check" data-part="zones" title="Every landing zone but one: the map's own first landing, used by Long War and plain Enemy Within alike"><input type="checkbox" value="zones"> <span>Landing zones</span><span class="tickval"></span></label>
+        <label class="check" data-part="triggers" title="The map's touch triggers (animals that scatter, the UFO entry narration), the water volumes units wade in and the sight points that speak when seen, which the editor doesn't show; the scripts they start are switched off. The landing's intro script and the background sound stay"><input type="checkbox" value="triggers"> <span>Triggers and scripts</span><span class="chip" hidden>Cleared</span><span class="tickval"></span></label>
+      </div>
+      <label class="check" title="Leave the pieces that stand wholly outside the play area (the map's level volume, and the new grid where it reaches further), with the lights, smoke, stains and triggers placed out there: the backdrop the map is seen against. Pieces across the edge go"><input id="clearMapKeepOutside" type="checkbox"> Keep the scenery outside the play area</label>
       <p id="clearMapPlan" class="optionsnote"></p>
       <p id="clearMapMissions" class="optionsnote">Then it asks what the cleared map is for.</p>
-      <label class="check" title="Leave the pieces that stand wholly outside the play area (the map's level volume, and the new grid where it reaches further), with the lights, smoke and stains placed out there: the backdrop the map is seen against. Pieces across the edge go"><input id="clearMapKeepOutside" type="checkbox"> Keep the scenery outside the play area</label>
-      <label class="check" title="Leave the map's triggers, which the editor doesn't show: the touch volumes that set animals going or play a narration, the water volumes that make units wade, and the sight points that speak when seen. Without it the Build takes them out, so nothing of the old map acts on the cleared one"><input id="clearMapKeepTriggers" type="checkbox"> Keep the map's triggers and scripts</label>
       <p id="clearMapWarn" class="optionsnote warn" hidden></p>
       <div class="buildoptionsfoot"><span class="buildestimate" role="status"></span><button id="clearMapCancel" type="button">Cancel</button><button id="clearMapOk" class="primary" type="submit">Clear map</button></div>
     </form>
