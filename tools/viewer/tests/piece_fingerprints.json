@@ -1,0 +1,14 @@
+{
+ "pieceVersion": 12,
+ "maps": {
+  "a3ae5a73457c3c3f": {
+   "XComLevelActor_25": "90af848b52db0b5e",
+   "StaticMeshActor_0": "2e248404a6a617cf",
+   "XComDestructibleActor_340": "b1af0b230205851e",
+   "XComFracLevelActor_5": "3aba2ca473e57fda",
+   "XComInteractiveLevelActor_6": "5ebea991bc436ad3",
+   "XComDestructibleActor_63": "a826f6beed2630f7",
+   "KAsset_0": "0dc38e9c1a3fd063"
+  }
+ }
+}

@@ -6,7 +6,8 @@ placed can be placed in another map (tools/bake/transplant.py brings it and what
   scan(game, cache)            read every donor's placed pieces and write <cache>/library/index.json
   load_index(cache)            the index, or None
   piece(cache, game, source)   one piece as a template: its scene objects, meshes, materials and textures, exported
-                               into <cache>/library/pieces/<donor>/<sha16>-v<exporter>/ on first request
+                               into <cache>/library/pieces/<donor>/<sha16>-p<PIECE_VERSION>/ on first request
+                               (piece_folder; until 24 November 2026 the folder was named by the exporter's version)
   effect(cache, game, source)  one effect, ambient sound or lens flare as a template: its export 28 record, its
                                particle system or waves (the donor's described once, effects-v<n>.json in the same folder)
   load_state(), save_state()   the user's favourites and recently used pieces: library.json beside settings.json
@@ -79,6 +80,14 @@ PIECE_VERSION = 12      # 8: recipe identity for each member of a piece or assem
                         # 12: each of those marks' half-cover corners (`low`)
                         # (export 27's pieceFlags) and its meshes' collision facts; 10: those flags really written (the
                         # exporter had left them out of every prefixed export, the library's too, 19 November 2026)
+# A donor's pieces folder is named by PIECE_VERSION (piece_folder), not by the exporter's version (the user, 24 November
+# 2026: most exporter changes are about maps, and each had every piece read again). So raise PIECE_VERSION for any
+# change to what a piece carries: its record's fields, or the meshes, materials or textures the exporter writes for it
+# (export.py's version notes say so too); tests/test_piece_version.py fails when a sample piece's export changes and it
+# was not raised.
+# The exporter whose folders (<sha16>-v<exporter>, the naming until then) hold a piece version's records and files as
+# they are: such a folder is taken as that version's where its own is not there yet, rather than read again.
+ADOPTED_EXPORT = {12: 42}
 # the assemblies that are one entry (compiler.assemblies' families with more than one piece)
 GROUPED = ('car', 'van', 'door')
 STATE_SCHEMA = 'xcom-map-workshop/library-state'
@@ -679,6 +688,21 @@ def pieces_root(cache):
     return Path(cache) / 'library' / 'pieces'
 
 
+def piece_folder(cache, path, digest):
+    """A donor map file's pieces folder, by the file's digest and PIECE_VERSION: (its name, the folder), its name
+    <sha16>-p<PIECE_VERSION>. Where that is not there yet, the older folder named by the exporter that holds this piece
+    version (ADOPTED_EXPORT) is taken as it is (no renaming: a page may be reading from it), so what was read before
+    the naming changed is not read again. Its effect records, drawings and area lights are versioned by their own
+    files' names inside it."""
+    folder = pieces_root(cache) / Path(path).stem
+    name = '%s-p%d' % (digest[:16], PIECE_VERSION)
+    if not (folder / name).is_dir() and PIECE_VERSION in ADOPTED_EXPORT:
+        old = '%s-v%d' % (digest[:16], ADOPTED_EXPORT[PIECE_VERSION])
+        if (folder / old).is_dir():
+            name = old
+    return name, folder / name
+
+
 def grid_origin(p):
     """The corner of a map's tile grid, [x, y, z] (its level volume's; tiles are 96 by 96 by 64 from there), or None.
     A piece that keeps the pose rule stands in another map as it stood on its own grid."""
@@ -768,7 +792,6 @@ def piece(cache, game, source, shared=None):
     meshes, materials, textures, diagnostics). `grid` is its home map's tile grid origin (grid_origin). `key` is its recipe's, the index's entry key. `base` is the URL prefix of its folder; a mesh's and a texture's `url`
     are file names in it. Written on first request, read back after. `shared`: a dict a caller reading many pieces
     keeps between them (pieces()), for the install's map list and the packages opened."""
-    from export import EXPORT_VERSION
     package, actor = str(source.get('package') or ''), str(source.get('actor') or '')
     if not NAME.fullmatch(package) or not NAME.fullmatch(actor):
         raise ProjectError(400, 'A piece is named by its map and its actor.')
@@ -782,8 +805,7 @@ def piece(cache, game, source, shared=None):
         raise ProjectError(404, 'The map %s, which the piece comes from, is not in the game install.' % package,
                            code='donor-missing')
     digest = digest_of(path)
-    generation = '%s-v%d' % (digest[:16], EXPORT_VERSION)
-    folder = pieces_root(cache) / path.stem / generation
+    generation, folder = piece_folder(cache, path, digest)
     record = folder / (actor + '.json')
     kept = kept_piece(record)
     if kept is not None:
@@ -953,12 +975,11 @@ def effect_records(cache, game, package, shared=None):
     metadata, source {kind 'map', package, level, sha256}, effects, sounds, flares, systems, waves). `shared` as
     piece()'s."""
     import effects_metadata
-    from export import EXPORT_VERSION
     from package import Package
     shared = {} if shared is None else shared
     path = donor_path(game, package, shared)
     digest = digest_of(path)
-    folder = pieces_root(cache) / path.stem / ('%s-v%d' % (digest[:16], EXPORT_VERSION))
+    _, folder = piece_folder(cache, path, digest)
     record = folder / ('effects-v%d.json' % EFFECTS_VERSION)
     known = shared.setdefault('effects', {})
     if str(record) in known:
@@ -993,13 +1014,12 @@ def effect_draw(cache, game, package, system, shared=None):
     import copy
     import effects_draw
     import effects_metadata
-    from export import EXPORT_VERSION, Exporter, compiled_textures
+    from export import Exporter, compiled_textures
     from package import Package
     shared = {} if shared is None else shared
     path = donor_path(game, package, shared)
     digest = digest_of(path)
-    generation = '%s-v%d' % (digest[:16], EXPORT_VERSION)
-    folder = pieces_root(cache) / path.stem / generation
+    generation, folder = piece_folder(cache, path, digest)
     record = folder / ('draw-v%d-%s.json' % (effects_draw.DRAW_VERSION, system['fingerprint']))
     if record.is_file():
         try:
@@ -1095,7 +1115,6 @@ def piece_plan(cache, game, index):
     """What of the index's pieces the cache holds, by donor map as the install has it now:
     [dict(package, path, folder, actors, missing)], `actors` the index's pieces of the map and `missing` those with
     no record in the map's current generation. A donor the install lacks is left out."""
-    from export import EXPORT_VERSION
     have = {name.lower(): path for name, _, path in donors(game)}
     scanned = {d['package'].lower(): d for d in index['donors']}
     by = {}
@@ -1112,7 +1131,7 @@ def piece_plan(cache, game, index):
         stat, known = path.stat(), scanned.get(package.lower())
         same = known and (stat.st_size, int(stat.st_mtime)) == (known['size'], known['mtime'])
         digest = known['sha256'] if same else digest_of(path)
-        folder = pieces_root(cache) / path.stem / ('%s-v%d' % (digest[:16], EXPORT_VERSION))
+        _, folder = piece_folder(cache, path, digest)
         actors = sorted(set(actors))
         plan.append(dict(package=path.stem, path=path, folder=folder, actors=actors,
                          missing=[a for a in actors if not record_kept(folder / (a + '.json'))]))
@@ -1143,8 +1162,8 @@ def precache_donor(job):
 
 
 def precache(game, cache, jobs=None, progress=None, stop=None):
-    """Every piece of the index not in the cache yet, written to it; then each donor's older generations (another
-    file of the map, or an older exporter's) deleted. progress(done, total). Returns dict(pieces, kept, made, failed
+    """Every piece of the index not in the cache yet, written to it; then each donor's older generations of the same
+    file (an older piece version's, or a folder named by the exporter as they were before) deleted. progress(done, total). Returns dict(pieces, kept, made, failed
     [{package, actor, error}], pruned, seconds, stopped). The index must be there (scan()). `stop`: a file whose
     appearing stops the work after the pieces in hand (`stopped`: True; nothing is deleted then)."""
     import multiprocessing
@@ -1197,13 +1216,12 @@ def precache(game, cache, jobs=None, progress=None, stop=None):
     pruned = 0
     # each donor's older generations of the same file go (prune.py's rule); another file's, such as the other install's
     # copy of the map, stay as its own (review finding 18: switching installs exported them all again)
-    from prune import PIECES
+    from prune import piece_order
     for d in ([] if stopped else plan):
-        current = PIECES.match(d['folder'].name)
+        current = piece_order(d['folder'].name)
         for old in (d['folder'].parent.iterdir() if d['folder'].parent.is_dir() else ()):
-            m = PIECES.match(old.name)
-            if (old.is_dir() and old != d['folder'] and m and current and m.group('digest') == current.group('digest')
-                    and int(m.group('version')) < int(current.group('version'))):
+            m = piece_order(old.name)
+            if old.is_dir() and old != d['folder'] and m and current and m[0] == current[0] and m[1] < current[1]:
                 shutil.rmtree(old, ignore_errors=True)
                 pruned += 1
     pieces = sum(len(d['actors']) for d in plan)

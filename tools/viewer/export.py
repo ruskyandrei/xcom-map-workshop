@@ -103,6 +103,9 @@ import settings
 #     whose tile a patch level reworks at the battle's start (KNOWN-BUGS.md KB-22)
 # 42: the bomb donor's too (`donors[<kind>].rebuildSpheres`), which an added bomb mission streams; the view and the
 #     Build move a mission object's volume with the project's move of it
+# The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
+# what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
+# library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
 EXPORT_VERSION = 42
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by

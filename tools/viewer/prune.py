@@ -20,7 +20,8 @@ the Build take (catalogue.generation: the scene reads whole, of schema 1, of tha
 generation they serve is never the one deleted: a newer one whose scene.json is truncated or foreign is passed over and
 left as it is, never taken as the newest (review finding 17). Another package's (another install's copy of the map)
 stays as its own. In-progress folders (.export-*) and anything that is not a generation are left. The library's
-piece folders (library/pieces/<map>/<digest>-v<version>) go by the same rule, by their folders' time.
+piece folders (library/pieces/<map>/<digest>-p<piece version>, and <digest>-v<exporter version> as they were named
+until 24 November 2026: any -p is newer than any -v) go by the same rule, by their folders' time.
 
   python -B tools/viewer/prune.py [<cache>] [--dry-run]     what goes (and with --dry-run, nothing is deleted)
 """
@@ -31,7 +32,19 @@ import shutil
 import sys
 
 GENERATION = re.compile(r'^(?P<digest>[0-9a-f]{16})-v(?P<version>\d+)-(?P<scope>map|sample)(?:-[A-Za-z0-9_]+)?$')
-PIECES = re.compile(r'^(?P<digest>[0-9a-f]{16})-v(?P<version>\d+)$')
+PIECES = re.compile(r'^(?P<digest>[0-9a-f]{16})-(?P<scheme>[pv])(?P<version>\d+)$')
+
+
+def _order(m):
+    """A generation's place among its package's: its version, a piece folder named by the piece version (-p) after
+    every one named by the exporter's (-v)."""
+    return (m.groupdict().get('scheme') == 'p', int(m.group('version')))
+
+
+def piece_order(name):
+    """A piece folder's (digest, place) by its name (newer is greater), or None where it is not one."""
+    m = PIECES.match(name)
+    return (m.group('digest'), _order(m)) if m else None
 
 
 def _newest_first(folders, pattern, stamp):
@@ -42,7 +55,7 @@ def _newest_first(folders, pattern, stamp):
         if not m:
             continue
         key = (m.group('digest'), m.groupdict().get('scope'))
-        groups.setdefault(key, []).append((int(m.group('version')), stamp(folder), folder.name, folder))
+        groups.setdefault(key, []).append((_order(m), stamp(folder), folder.name, folder))
     return {k: [f for *_, f in sorted(v, reverse=True)] for k, v in groups.items()}
 
 

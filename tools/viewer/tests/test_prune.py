@@ -70,6 +70,16 @@ class Prune(unittest.TestCase):
         self.assertEqual(len(result['removed']), 2)
         self.assertTrue(old.exists() and farm_old.exists())
 
+    def test_a_piece_folder_named_by_the_piece_version_is_newer_than_any_named_by_the_exporter(self):
+        pieces = self.cache / 'library' / 'pieces' / 'URB_Bar'
+        for name in (f'{A}-v42', f'{A}-p12', f'{A}-p11', f'{B}-v42'):
+            (pieces / name).mkdir(parents=True)
+        os.utime(pieces / f'{A}-p12', (1, 1))         # (the oldest by time: its name says it is the newest)
+        self.assertEqual(sorted(p.name for p in prune.stale(self.cache)), [f'{A}-p11', f'{A}-v42'])
+        self.assertEqual(prune.piece_order(f'{A}-p12'), (A, (True, 12)))
+        self.assertGreater(prune.piece_order(f'{A}-p1')[1], prune.piece_order(f'{A}-v99')[1])
+        self.assertIsNone(prune.piece_order(f'{A}-v42-map'))
+
 
 SHA = A + '1' * 48
 

@@ -65,9 +65,9 @@ class Plans(unittest.TestCase):
         # a donor the install lacks is left out
         self.assertEqual([(d['package'], d['actors'], d['missing']) for d in plan],
                          [('URB_One', ['Crate_1', 'Crate_2'], ['Crate_1', 'Crate_2']), ('URB_Two', ['Wall_1'], ['Wall_1'])])
-        from export import EXPORT_VERSION
-        self.assertEqual(plan[0]['folder'].name, '%s-v%d' % ('a' * 16, EXPORT_VERSION))
-        self.assertEqual(plan[1]['folder'].name, '%s-v%d' % (library.sha256(self.maps['URB_Two'])[:16], EXPORT_VERSION))
+        # (a donor's folder is named by its file's digest and the piece version, not the exporter's)
+        self.assertEqual(plan[0]['folder'].name, '%s-p%d' % ('a' * 16, library.PIECE_VERSION))
+        self.assertEqual(plan[1]['folder'].name, '%s-p%d' % (library.sha256(self.maps['URB_Two'])[:16], library.PIECE_VERSION))
         # a record of this version is kept; one of another version, or one cut short, is not
         folder = plan[0]['folder']
         folder.mkdir(parents=True)
@@ -77,9 +77,38 @@ class Plans(unittest.TestCase):
         (folder / 'Crate_2.json').write_text('{"vers', encoding='utf-8')
         self.assertEqual(library.piece_plan(self.cache, self.game, self.index)[0]['missing'], ['Crate_2'])
 
+    def test_a_folder_the_exporter_named_that_holds_this_piece_version_is_taken_as_it_is(self):
+        # (the folders were named by the exporter's version until 24 November 2026: <sha16>-v42 holds piece version 12)
+        with mock.patch.dict(library.ADOPTED_EXPORT, {library.PIECE_VERSION: 42}, clear=True):
+            mine = self.cache / 'library' / 'pieces' / 'URB_One'
+            older = mine / ('a' * 16 + '-v41')
+            adopted = mine / ('a' * 16 + '-v42')
+            for folder in (older, adopted):
+                folder.mkdir(parents=True)
+            (adopted / 'Crate_1.json').write_text(json.dumps(dict(version=library.PIECE_VERSION)), encoding='utf-8')
+            name, folder = library.piece_folder(self.cache, self.maps['URB_One'], 'a' * 64)
+            self.assertEqual((name, folder), (adopted.name, adopted))
+            plan = library.piece_plan(self.cache, self.game, self.index)
+            self.assertEqual((plan[0]['folder'], plan[0]['missing']), (adopted, ['Crate_2']))
+            # what is read goes into it; its older ones go
+            result = library.precache(self.game, self.cache, jobs=1)
+            self.assertEqual(result['kept'], 1)
+            self.assertTrue(adopted.exists())
+            self.assertFalse(older.exists())
+            # once this version's own folder is there it is the one, and the adopted one is older than it
+            own = mine / ('a' * 16 + '-p%d' % library.PIECE_VERSION)
+            own.mkdir()
+            self.assertEqual(library.piece_folder(self.cache, self.maps['URB_One'], 'a' * 64), (own.name, own))
+            import prune
+            self.assertEqual([p.name for p in prune.stale(self.cache)], [adopted.name])
+        # a piece version no exporter's folder holds (raised since) takes no old folder
+        with mock.patch.dict(library.ADOPTED_EXPORT, {}, clear=True):
+            (mine / ('b' * 16 + '-v42')).mkdir(parents=True)
+            self.assertEqual(library.piece_folder(self.cache, self.maps['URB_One'], 'b' * 64)[0], 'b' * 16 + '-p%d' % library.PIECE_VERSION)
+
     def test_every_missing_piece_is_read_the_failed_named_and_old_generations_deleted(self):
         current = self.folder('URB_Two')
-        old = current.parent / (current.name.split('-v')[0] + '-v1')
+        old = current.parent / (current.name.split('-')[0] + '-v1')
         old.mkdir(parents=True)
         (old / 'Wall_1.json').write_text('{}', encoding='utf-8')
         # another file's generation (the other install's copy of the map) stays as its own (review finding 18)
@@ -103,7 +132,7 @@ class Plans(unittest.TestCase):
 class Stops(Plans):
     def test_a_stop_file_stops_between_pieces_and_nothing_is_deleted(self):
         current = self.folder('URB_Two')
-        old = current.parent / (current.name.split('-v')[0] + '-v1')
+        old = current.parent / (current.name.split('-')[0] + '-v1')
         old.mkdir(parents=True)
         stop = self.root / 'stop'
         plain = self.fake_piece
