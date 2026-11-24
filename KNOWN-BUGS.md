@@ -119,3 +119,15 @@ line, and its finding in the [findings register](research/findings-register.md) 
   only, and the export counts a patch level's volumes without their places; with them added, the rule matches every
   tile EXP-95's save shows reworked bar one, a meld container's.
 - **Finding.** [F-162](research/findings-register.md) (EXP-95's save read tile by tile).
+
+### KB-24: A lights clear leaves the light of a few channel-only lights baked into the pieces that stay
+
+- **What happens.** On four maps (DEMO_SonOfFacemelt, DLC2_2_Deluge, Act1_IntroLevel, URB_SlaughterhouseA) a clear of
+  the lights alone takes out 39 lights that light only their own lighting channels, but the pieces that stay keep the
+  light those lights had baked into them, with or without the bake. The editor shows them gone.
+- **Since.** Clear map by parts (24 November 2026). A clear of every part takes the pieces too, so the light has
+  nothing left to show on.
+- **Workaround.** Clear the pieces with the lights, or leave the lights on those maps.
+- **Cause.** The editor can't edit such a light, so the clear deletes no record of it and the Build's clear_level takes
+  it out by its class; the bake relights only for the lights the project's records change.
+- **Finding.** [F-166](research/findings-register.md).

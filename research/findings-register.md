@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- F-166 (24 November, the clear-by-parts plan): a clear of the lights alone leaves the light of 39 channel-only
+  lights on four maps baked into the pieces that stay (KB-24).
 - F-165 (24 November, the clear-by-parts plan): eleven of the 99 base maps have scripts the game starts at a moment
   of the battle, with no place and no name (the alien bases' closing narration when won, the Chryssalid Hive's and
   the Temple Ship's turn-by-turn mission scripts, a pod-reveal hook on one scout map that leads nowhere). A clear
@@ -216,6 +218,20 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-166: A lights clear takes out lights the editor only shows; channel-only ones stay baked into the pieces
+**Open** (24 November 2026; read offline for the clear-by-parts plan's survey: the cache's exports' lights by
+`light_edits.light_rule`, and the Build's relight inputs read; not baked or played).
+- **What the maps have.** Of the placed point and spot lights on the exported maps, 2,856 are lights the editor edits
+  and 6,046 are area lights the bake made for glowing pieces. The rest are lights it only shows: toggleable ones (lit
+  live), 36 in no lightmap, one the map's Kismet names and 58 that light only their own channels, 39 of which are
+  baked into pieces, on DEMO_SonOfFacemelt (18), DLC2_2_Deluge (18), Act1_IntroLevel (2) and URB_SlaughterhouseA (1).
+- **What a clear of the lights does.** The page deletes the editable ones by records, which the bake relights (the
+  relight gets the light edits' before and after states). The others the Build's clear_level takes out by class
+  (`CLEAR_PARTS['lights']`), and nothing tells the relight: the 39 channel-only lights' light stays baked into the
+  pieces that stay. An area light stays with its piece (it is the Pieces part's).
+- **Left** as KNOWN-BUGS.md KB-24. A fix would hand those lights to the relight as deleted (as light edits), or
+  refuse nothing and say it in the window for the four maps.
 
 ### F-165: Eleven base maps' scripts act at moments of the battle, with no place and no name; a clear leaves them
 **Set aside by the user** (24 November 2026; read offline from the install's 99 base maps: every sequence event of a
