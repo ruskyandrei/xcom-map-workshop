@@ -257,6 +257,51 @@ editor's view of the same place; nothing played).
 - **Effects.** The likeness guesses texture roles for 528 of 749 emitters whose material graph the cook stripped
   (the effects plan's count); the compiled shaders name them.
 - **No shader sources.** The lab's UDK has no `.usf` files, so the formulas come from the compiled shaders.
+- **The shader cache's layout** (read later the same day; the package opens in 4.3 s, 177 MB). One `ShaderCache`
+  export: 9 zero bytes, a count, then 68,841 shader records, each its type (a name), its ID (16 bytes), a hash (20),
+  a skip offset (the next record's file offset), a counted array of 16-bit words, two bytes (frequency, platform)
+  and the counted bytecode; every one starts with a `vs_3_0` or `ps_3_0` token (32,051 pixel, 36,790 vertex; 131
+  types). Then a count and 4,801 material shader maps, each keyed by a static parameter set (the base material's ID,
+  its switches with value and override, component masks, normal parameters), then 845 and 64, a skip offset and a
+  body: the shaders as (type, ID, type), the material's ID, its name as a string, and its uniform expressions (each
+  pixel vector, scalar and texture with its parameter name). Walking both lists by skip offset takes 0.1 s and ends
+  on the export's last byte. 4,245 distinct base materials; 537 maps have switches.
+- **Which input is which.** A pixel shader's constant table names its registers (`PixelTexture2D_n`,
+  `UniformPixelVector_n` by their place in the map's uniform expressions). Its texture coordinates are not the
+  mesh's by number: with a texture lightmap `texcoord0` is the lightmap UV and the mesh's first UV is `texcoord1`;
+  two UV channels can share one output, the second swapped. The paired vertex shader says which: the mesh's UV is
+  input `TEXCOORD`, the vertex colour `COLOR1`, the lightmap UV `COLOR0` (scaled and offset by
+  `LightmapCoordinateScaleBias`).
+- **The colour's mark varies.** Over every shader, `DiffuseOverrideParameter` is scaled and added in 18,323,
+  multiplied in 3,723 and used otherwise in 321; read more than once in 3,921 and behind a branch in about 1,970
+  (mostly light passes); 9,684 pixel shaders have none. A normal, a glow, a cut-out and an opacity have no named
+  constant. Counted by shader, 56 to 70% of the colour's code reads only UVs, vertex colours, the material's own
+  values and 2D textures; the rest reads the camera vector, the face's side, the screen or object position or cube
+  textures.
+- **The game's lightmap formula** (ENV_ForestGround's lightmap-texture base pass): with N the material's normalized
+  tangent-space normal, `b = saturate(dot(N, basis))` squared for the three directions (0, 0.8165, 0.5774),
+  (-0.7071, -0.4082, 0.5774), (0.7071, -0.4082, 0.5774); light = the colour atlas times its scale, times the dot of
+  (the direction atlas times its scale) with b; out = diffuse times light, plus glow, plus diffuse times the ambient
+  colour.
+- **The grade's formula** (the LUT blender of the global cache): subtract `Shadows` and clamp; times
+  `InverseHighLights`; to the power `MidTones`; times one less `Desaturation` plus its luminance by
+  `ScaledLuminanceWeights`; times `GammaColorScale` plus `GammaOverlayColor`; times `Colorize`; to the power of the
+  gamma's inverse times 2.2. The fog's shaders are the engine's (`FOneLayerFogPixelShader`,
+  `FFourLayerFogPixelShader`, `TExponentialHeightFogPixelShader`); `XComHeightFog`'s members are the exponential
+  height fog's.
+- **The look's structures.** `XComHeightFog` is a struct `XComHeightFogParameters`, `DefaultPostProcessSettings` and
+  a volume's `Settings` a `PostProcessSettings`: nested tagged members, only those that differ from the class's
+  defaults saved (CSmallScout_DirtRoad's fog saves four: no density, no height).
+- **Decals are stored as triangles.** After a `DecalComponent`'s properties (URB_Bar: 38 decals, 456 bytes to 186
+  KB): a count of receivers; for each, the receiving component, a counted array of 28-byte vertices (a position, a
+  packed tangent, a packed normal, 8 more bytes) and a counted array of 16-bit indices, with more after.
+- **A baked Build lights its own pieces.** In two baked Builds, the mesh components of the actors the Build added
+  carry texture lightmaps (118 of 128 in one, all 29 read in the other).
+- **Costs measured in the page** (CSmallScout_DirtRoad, 1,173 pieces): a frame 4.8 ms, 6.5 with the sun's shadow
+  pass, 1,873 draw calls, 22 shader programs, the same at 2560 by 1440 as at 1024 by 722 (bound by draw calls).
+  Every exported normal map switched on: 5.6 to 5.8 ms, and 187 MB more texture memory as decoded PNG. A map's
+  textures as the page uploads them today against all its materials' textures as the game stores them (DXT):
+  CSmallScout_DirtRoad 418 MB against 160, URB_Bar 690 against 246, URB_PoliceStation 767 against 280.
 
 ### F-167: The editor draws a blended ground material in one texture; the game mixes its layers by vertex colour
 **Open** (24 November 2026, a user's question: a made ground in COverseer_TheBarrens's `RocksRiver_VertPaint` drawn
