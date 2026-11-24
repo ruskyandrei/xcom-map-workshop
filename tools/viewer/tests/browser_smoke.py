@@ -4504,19 +4504,29 @@ def check_project_menu(page):
     assert page.locator('#projectRecent .projectitem').count() <= 3
     page.keyboard.press('Escape')
     assert page.locator('#projectMenu').is_hidden()
-    # the Map menu, next: Change map and, on a whole map, its settings, missions, picture, grid and Clear map (elsewhere
-    # the button opens the map browser itself)
+    # the menu of the map that is open, next (the prefab menus plan): the map's name, on a whole map its settings,
+    # missions, picture, grid and Clear map; then Open's two buttons, A map… and A prefab… with their counts, and New
+    # prefab; no prefab's items. A map… opens the map browser and gives the focus back to the button
     assert page.evaluate("document.querySelector('#projectButton').nextElementSibling.id") == 'mapButton'
+    assert page.locator('#mapButton small').inner_text().strip().lower() == 'map'
     page.locator('#mapButton').click()
+    assert page.locator('#mapMenu').is_visible() and page.locator('#mapDialog').is_hidden()
+    assert page.locator('#docHead').inner_text().strip().lower() == 'this map'
+    assert page.locator('#docInfo strong').inner_text() == page.locator('#mapTitle').inner_text()
     if page.evaluate('viewer.data.scope === "map" && !viewer.data.preview'):
-        assert page.locator('#mapMenu').is_visible() and page.locator('#mapDialog').is_hidden()
-        labels = [t.strip() for t in page.locator('#mapMenu .menuitems button:visible span').all_inner_texts()]
-        assert labels == ['Change map…', 'Map settings…', 'Missions…', 'Map picture…', 'Map grid', 'Clear map…'], labels
-        page.locator('#mapChange').click()
-        assert page.locator('#mapMenu').is_hidden()
+        labels = [t.strip() for t in page.locator('#mapItems button:visible span').all_inner_texts()]
+        assert labels == ['Map settings…', 'Missions…', 'Map picture…', 'Map grid', 'Clear map…'], labels
+    assert page.locator('#prefabItems').is_hidden()
+    assert [t.strip() for t in page.locator('.openpair button span').all_inner_texts()] == ['A map…', 'A prefab…']
+    page.wait_for_function("/^[0-9]+ prefabs?$/.test(document.getElementById('openPrefabsCount').textContent)")
+    assert page.locator('#openMapsCount').inner_text().endswith('maps')
+    assert page.locator('#docNewPrefab').is_visible()
+    page.locator('#openMaps').click()
+    assert page.locator('#mapMenu').is_hidden()
     page.wait_for_selector('#mapDialog:not([hidden])')
     page.keyboard.press('Escape')
     assert page.locator('#mapDialog').is_hidden()
+    assert page.evaluate('document.activeElement?.id') == 'mapButton'
     # Build and Play in the header, the Game menu on Play's arrow. Its Installs: the game install, the install plays
     # go to, how the game is started and what the editor has in it (or why they are not known)
     assert page.locator('#projectBuild').is_visible() and page.locator('#projectBuild').is_disabled() != project

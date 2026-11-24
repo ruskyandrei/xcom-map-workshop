@@ -28,8 +28,26 @@ def check_builder(browser, url, screenshot=None):
     opened('?prefab=new')
     assert page.evaluate('viewer.builderMode && viewer.roots.size === 0 && !viewer.dirty()')
     assert page.locator('#projectBuild').is_hidden() and page.locator('#notesButton').is_hidden()
-    # The map browser and Add panel both expose the new workspace; rows never offer Test in game.
+    # The bar in the builder (the prefab menus plan): Project says None, the second button is the prefab's, its menu
+    # the prefab's items and Open; the Project menu holds Open… and the recent projects, no Save
+    assert page.locator('#projectTitle').inner_text() == 'None'
+    assert page.locator('#mapButton small').inner_text().strip().lower() == 'prefab'
+    assert page.locator('#mapTitle').inner_text() == 'Untitled prefab'
+    page.locator('#projectButton').click()
+    labels = [t.strip() for t in page.locator('#projectMenu .menuitems button:visible span').all_inner_texts()]
+    assert labels == ['Open…'], labels
+    assert 'A prefab is open' in page.locator('#projectInfo').inner_text()
+    assert page.locator('#projectRecent').is_visible()
+    page.keyboard.press('Escape')
     page.locator('#mapButton').click()
+    assert page.locator('#docHead').inner_text().strip().lower() == 'this prefab'
+    assert page.locator('#mapItems').is_hidden() and page.locator('#prefabItems').is_visible()
+    labels = [t.strip() for t in page.locator('#prefabItems button:visible span').all_inner_texts()]
+    assert labels == ['Save', 'Save as…', 'Export to a file…'], labels
+    assert page.locator('#docPrefabExport').is_disabled()       # (nothing saved yet: the file is the saved revision)
+    assert page.locator('#openPrefabsKey').inner_text() == 'Ctrl+O'
+    # The map browser and Add panel both expose the new workspace; rows never offer Test in game.
+    page.locator('#openPrefabs').click()
     page.wait_for_selector('.maprow[data-id="prefab:new"]')
     page.locator('#mapCancel').click()
     page.evaluate('viewer.showPieces(true); viewer.setLibraryScope("prefabs")')
@@ -78,7 +96,7 @@ def check_builder(browser, url, screenshot=None):
     again = page.evaluate('id => viewer.prefabApi.load(id)', prefab_id)
     for key in ('pieces', 'groups', 'buildings', 'donors', 'floor'): assert saved[key] == again[key], key
     # Save as cannot replace itself, requires an explicit confirmation for another target, and can cancel.
-    page.locator('#projectButton').click(); page.locator('#projectSaveAs').click()
+    page.locator('#mapButton').click(); page.locator('#docPrefabSaveAs').click()
     page.locator('#prefabName').fill(name)
     page.wait_for_function('document.querySelector("#prefabOk").disabled')
     assert 'Use Save' in page.locator('#prefabStatus').inner_text()
@@ -423,7 +441,7 @@ def check_navigation(browser, url, source_id, project_id):
       d.id=crypto.randomUUID(); d.name='Replacement target '+Date.now(); await viewer.prefabApi.save(d.id,d,0); return d; }''')
     changed()
     def save_as(name):
-        page.locator('#projectButton').click(); page.locator('#projectSaveAs').click(); page.locator('#prefabName').fill(name)
+        page.locator('#mapButton').click(); page.locator('#docPrefabSaveAs').click(); page.locator('#prefabName').fill(name)
     save_as(target['name'])
     page.wait_for_function('document.querySelector("#prefabOk").textContent === "Replace"')
     page.locator('#prefabOk').click(); assert page.locator('#prefabOk').inner_text() == 'Confirm replacement'

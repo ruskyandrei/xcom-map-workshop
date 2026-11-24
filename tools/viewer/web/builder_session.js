@@ -32,7 +32,7 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
                                        draftWords, dropAdopted, editChanged, editState, flashHint, frame, gizmo,
                                        gridNow, gridOrigin, libraryTemplate, lightPose, loadingState, movedMatrix,
                                        openingProgress, prefabRecords, projectChanged, recipeOf, removeRoots, rootName,
-                                       sceneChanged, selectActors, showFileDialog, showPrefabDialog, snapshot,
+                                       sceneChanged, selectActors, showPrefabDialog, snapshot,
                                        templateFor, volumeBox, world }) {
   // The prefab builder uses the same roots, history and tools, with a complete document
   // instead of a delta against a map. Missing pieces remain members of that document.
@@ -227,16 +227,11 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
     document.body.classList.add('prefab-builder');
     $('builderSize').hidden = false;
     $('prefabTest').hidden = false;
-    $('projectButton').querySelector('small').textContent = 'Prefab';
-    $('projectMenu').querySelector('h3').textContent = 'Prefab';
-    $('projectButton').title = 'Prefab: Save and Open';
+    // the second button is the prefab's: its name (builderTitle), its menu the prefab's items and Open (map_menu.js)
     $('mapButton').querySelector('small').textContent = 'Prefab';
-    $('mapButton').title = 'Open a map or prefab (M)';
-    $('projectLoad').querySelector('span').textContent = 'Open…';
+    $('mapButton').title = 'The prefab that is open: Save, Save as and Export, and Open: a map or another prefab';
     // the Add panel's first tab lists the prefab's own pieces (S19)
     Object.assign($('libScope').querySelector('[data-value="map"]'), { textContent: 'This prefab', title: 'The pieces this prefab holds' });
-    const loadProjectButton = text($('projectLoad').parentElement, 'button', 'Load project…');
-    loadProjectButton.type = 'button'; loadProjectButton.onclick = () => showFileDialog('load');
   }
   async function openPrefabDocument(id) {
     // the loading overlay while a saved prefab is read and its pieces made (those of other maps are read from them)
@@ -342,10 +337,11 @@ export function createBuilderSession({ $, SESSION, actorPose, addRoots, addedObj
   }
 
   function builderTitle() {
-    $('projectTitle').textContent = builder.doc?.name ?? 'Untitled prefab';
+    // (Project says None: a prefab is open in a project's and a map's place; the prefab's button carries the mark)
+    $('projectTitle').textContent = 'None';
     $('mapTitle').textContent = builder.doc?.name ?? 'New prefab';
     document.title = `${builder.doc?.name ?? 'New prefab'} · Prefab · XCOM Map Workshop`;
-    $('projectButton').classList.toggle('unsaved', dirty());
+    $('mapButton').classList.toggle('unsaved', dirty());
   }
   async function saveBuilder({ name = null, replace = null } = {}) {
     if (saving || builder.loading || gizmo.controls.dragging) return false;

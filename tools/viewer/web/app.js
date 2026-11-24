@@ -318,7 +318,7 @@ const { showPop } = createPopups({
   $, viewport,
   // (made further down: called through, since they are not made yet while this runs)
   refreshInstalls: () => refreshInstalls(), refreshSquadLine: () => refreshSquadLine(),
-  renderProjectMenu: () => renderProjectMenu() });
+  renderMapMenu: () => renderMapMenu(), renderProjectMenu: () => renderProjectMenu() });
 // The Lights view (lights_wiring.js): the map's lights as roots, the view, the panel's light section, Solo, the
 // area lights following their glowing pieces, the reach, the drag handles (the picked effect's and sound's too),
 // and the project's light records.
@@ -423,8 +423,6 @@ const { applyPrefabDocument, builderBounds, builderDocument, builderKey, builder
   rootName, sceneChanged, templateFor, world,
   // (made with the selection, further down: called through, since they are not made yet while this runs)
   gridNow: root => gridNow(root), selectActors: names => selectActors(names),
-  // (made with the Project menu, further down: called through, since it is not made yet while this runs)
-  showFileDialog: (mode, waitForSave) => showFileDialog(mode, waitForSave),
   // (made with the camera, further down: called through, since it is not made yet while this runs)
   frame: root => frame(root),
   // (made with the Buildings view and the clipboard, further down: called through, since they are not made yet while
@@ -450,10 +448,11 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
   matrixBox: matrix => matrixBox(matrix), previewGroup: (parts, override, frame) => previewGroup(parts, override, frame),
   snapshot: (selection, own) => snapshot(selection, own), startPlacing: (clip, entry) => startPlacing(clip, entry),
   stopPlacing: () => stopPlacing() });
-// The map browser's wiring (map_menu.js): a map's name, the list brought up to the server's, the browser made as the
-// page opens, and the Map menu's button and Change map.
-const { makeMapBrowser, mapLabel, refreshMapList, showMapBrowser } = createMapMenu({
-  $, goTo, projectsAvailable, showPop,
+// The menu of the map or prefab that is open and the Open window's opener (map_menu.js): a map's name, the list brought
+// up to the server's, the map browser made as the page opens, the menu drawn as it opens with its items' handlers (a
+// prefab's Save, Save as, Export and Find missing pieces; Open's two buttons; New prefab).
+const { makeMapBrowser, mapLabel, refreshMapList, renderMapMenu, showOpen } = createMapMenu({
+  $, dirty, flashHint, goTo, recoverPrefabSources, saveProject, showPop, showPrefabDialog,
   // (made further down: called through, since it is not made yet while this runs)
   stopPlacing: () => stopPlacing() });
 // Build and Play in game (build_play.js): Build's panel and the window that follows a build, Play in game with its
@@ -851,7 +850,7 @@ async function open() {
     return;
   }
   $('mapTitle').textContent=activeMap?.label ?? 'None';
-  $('mapButton').title=activeMap ? `Base map: ${activeMap.label} (${activeMap.name})${activeMap.checked ? ', checked in the game' : ''}. Choose another (M)` : 'Choose a base map (M)';
+  $('mapButton').title=activeMap ? `The map that is open: ${activeMap.label} (${activeMap.name})${activeMap.checked ? ', checked in the game' : ''}. Its settings, missions and picture, and Open: another map or a prefab` : 'Open a map or a prefab';
   if(!activeMap || !activeMap.ready) {
     // A map not listed, or listed and not exported yet: the browser opens on it and prepares it (export on first open).
     loadingState(activeMap ? `Preparing ${activeMap.label}: the first open of a map takes about half a minute.` : 'Choose a base map.');
@@ -1196,10 +1195,8 @@ $('projectSaveAs').onclick = () => showFileDialog('save');
 $('projectBuild').onclick = () => { showPop(null); openBuild(); };
 $('projectPlay').onclick = () => playInGame();
 $('prefabTest').onclick = openPrefabTest;
-$('prefabRecover').onclick = () => { showPop(null); recoverPrefabSources(); };
 $('projectMaps').onclick = showGameMaps;
 $('projectLoad').onclick = () => showFileDialog('load');
-if (builderMode) $('projectLoad').onclick = () => { showPop(null); mapBrowser?.show(null, { prefabGroup: true }); };
 $('prefabNew').onclick = () => goTo({ prefab: 'new' });
 $('projectManage').onclick = showProjectManager;
 $('projectCache').onclick = showPrecache;
@@ -1299,7 +1296,7 @@ const { frame, panCamera, setSnapMode, syncTools } = createNavigation({
   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
   alignToGrid, setGridTool, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZonesShown, showFileDialog, stepWheel, addLarge, setAddLarge,
-  showMapBrowser, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
+  showOpen, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,
   TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel, wallGhost, wallHint, diagonalKey,
   // (a let startScene sets: called through)

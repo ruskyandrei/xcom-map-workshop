@@ -42,6 +42,7 @@
     <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.500 7V4.500h5V7M6.500 7l.8 12.500h9.400L17.500 7M10 10.500v6M14 10.500v6"/></symbol>
     <symbol id="i-kind" viewBox="0 0 24 24"><rect x="4" y="4" width="6.500" height="6.500" rx="1"/><rect x="13.500" y="4" width="6.500" height="6.500" rx="1"/><rect x="4" y="13.500" width="6.500" height="6.500" rx="1"/><rect x="13.500" y="13.500" width="6.500" height="6.500" rx="1"/></symbol>
     <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4.500 12a7.500 7.500 0 1 0 2.200-5.300"/><path d="M5 3.500v5h5"/><circle cx="12" cy="12" r="1.200" fill="currentColor"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M3.500 6.500l5.500-2 6 2 5.500-2v13l-5.500 2-6-2-5.500 2z"/><path d="M9 4.500v13M15 6.500v13"/></symbol>
     <symbol id="i-prefab" viewBox="0 0 24 24"><path d="M12 3.500l7 3.800v7.400l-7 3.800-7-3.800V7.300z"/><path d="M5 7.300l7 3.800 7-3.800M12 11.100v7.400"/><path d="M8.500 21h7"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.500"/><path d="M12 11v5.500M12 7.600v.4"/></symbol>
     <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.500M12 17v.4"/></symbol>
@@ -51,7 +52,7 @@
   <header>
     <div class="brand" title="XCOM Map Workshop"><img class="logo" src="logo.svg" width="30" height="30" alt="XCOM Map Workshop"></div>
     <button id="projectButton" class="pick projectpick" type="button" data-pop="projectMenu" aria-expanded="false" aria-haspopup="menu" title="Project: save, save as, open (Ctrl+S saves, Ctrl+O opens)"><small>Project</small><span id="projectTitle">None</span></button>
-    <button id="mapButton" class="pick projectpick mappick" type="button" data-pop="mapMenu" aria-expanded="false" aria-haspopup="menu" title="Map: change the base map (M), its missions, picture and grid"><small>Map</small><span id="mapTitle">…</span></button>
+    <button id="mapButton" class="pick projectpick mappick" type="button" data-pop="mapMenu" aria-expanded="false" aria-haspopup="menu" title="The map that is open: its settings, missions and picture, and Open: another map or a prefab"><small>Map</small><span id="mapTitle">…</span></button>
     <label class="pick" id="missionPick" hidden><small>Mission</small><select id="mission" aria-label="Mission"></select></label>
     <span id="previewChip" class="chip warn" hidden title="This layout is a patch preview built by the viewer; the game has not confirmed it">Experimental preview · not verified in game</span>
     <span class="spacer"></span>
@@ -174,7 +175,6 @@
         <button id="projectSaveAs" type="button" role="menuitem" title="Save what is on screen under a name: a new project, or replace one"><span>Save as…</span></button>
         <button id="projectLoad" type="button" role="menuitem" title="Choose a saved project to open"><span>Open…</span><kbd>Ctrl+O</kbd></button>
         <button id="projectClose" type="button" role="menuitem" title="Back to the map as exported, without the project"><span>Close project</span></button>
-        <button id="prefabRecover" type="button" role="menuitem" hidden><span>Find missing pieces</span></button>
       </div>
       <h3>Recent</h3>
       <div id="projectRecent" class="projectlist"></div>
@@ -182,17 +182,31 @@
         <button id="projectManage" type="button" role="menuitem" title="Every project with its last build: select several and install them in the game for campaigns (as additional maps, or replacing the originals), or zip them into one map pack"><span>Manage projects…</span></button>
       </div>
     </section>
-    <section id="mapMenu" class="panel pop left mapmenu" aria-label="Map" hidden>
-      <h3>Map</h3>
-      <div class="menuitems" role="menu" aria-label="Map">
-        <button id="mapChange" type="button" role="menuitem" title="Choose the base map from every map the game install plays"><span>Change map…</span><kbd>M</kbd></button>
-        <hr>
+    <section id="mapMenu" class="panel pop left mapmenu" aria-label="Map or prefab" hidden>
+      <h3 id="docHead">This map</h3>
+      <div id="docInfo" class="projectinfo"></div>
+      <div id="mapItems" class="menuitems" role="menu" aria-label="This map">
         <button id="mapSettingsOpen" type="button" hidden role="menuitem" title="What the map has everywhere and at no place: its sun, moon and sky light, its background sound, which can be another of the game's sound beds or none, and what Long War Rebalance is told of it (the largest abduction it suits, Hold the Line kept off it)"><span>Map settings…</span></button>
         <button id="projectMissions" type="button" hidden role="menuitem" title="The missions the project is for: the base map's missions the Build writes a record for, and the kinds a record alone can give the map (abduction, terror, a bomb mission under Long War, a UFO mission with a UFO building)"><span>Missions…</span></button>
         <button id="projectPicture" type="button" hidden role="menuitem" title="The picture the game shows for the map on its mission screens: choose an image, set its frame, and the Build writes it into the map. Long War Rebalance 3 shows a map's own picture"><span>Map picture…</span></button>
         <button id="projectSize" type="button" hidden role="menuitem" title="The map's tile grid, made larger (or, once the map is cleared, smaller) by dragging the play area's handles: the rail's Map grid"><span>Map grid</span></button>
         <hr>
         <button id="projectClear" type="button" hidden role="menuitem" title="Take parts of the map off it, or all of them: its pieces and ground, lights, effects and sounds, spawn points, landing zones (one stays), triggers and scripts. The sun, moon and sky light stay. One undo step"><span>Clear map…</span></button>
+      </div>
+      <div id="prefabItems" class="menuitems" role="menu" aria-label="This prefab" hidden>
+        <button id="docPrefabSave" type="button" role="menuitem" title="Save the prefab's next revision; without one, choose a name first"><span>Save</span><kbd>Ctrl+S</kbd></button>
+        <button id="docPrefabSaveAs" type="button" role="menuitem" title="Save what is in the builder under a name: a new prefab, or replace one"><span>Save as…</span></button>
+        <hr>
+        <button id="docPrefabExport" type="button" role="menuitem"><span>Export to a file…</span></button>
+        <button id="prefabRecover" type="button" role="menuitem" hidden title="Look again for the pieces this prefab could not read, by the recipes it saved (after All maps has read the game's maps again)"><span>Find missing pieces</span></button>
+      </div>
+      <h3>Open</h3>
+      <div class="openpair">
+        <button id="openMaps" type="button" title="Open another map: every map the game install plays, by mission (M)"><svg class="i"><use href="#i-map"/></svg><span>A map…</span><kbd>M</kbd><small id="openMapsCount"></small></button>
+        <button id="openPrefabs" type="button" title="Open a prefab in the builder: your prefabs, with their pictures"><svg class="i"><use href="#i-prefab"/></svg><span>A prefab…</span><kbd id="openPrefabsKey"></kbd><small id="openPrefabsCount"></small></button>
+      </div>
+      <div class="menuitems menufoot" role="menu" aria-label="New">
+        <button id="docNewPrefab" type="button" role="menuitem" title="An empty prefab builder, to build a prefab from pieces of any map"><span>New prefab</span></button>
       </div>
     </section>
     <section id="playMenu" class="panel pop playmenu" aria-label="Game" hidden>

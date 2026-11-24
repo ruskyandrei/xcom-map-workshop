@@ -494,7 +494,16 @@ canvas { display: block; width: 100%; height: 100%; }
 .projectinfo strong { display: block; color: #eef3f6; font-weight: 500; font-size: 14px; }
 /* The project menu: Save, Save as, Load and Close as a classic menu, the recent projects under it. */
 .pop.projectmenu { width: 300px; }
-.pop.mapmenu { width: 230px; }
+.pop.mapmenu { width: 300px; }
+/* The menu of the map or prefab that is open (map_menu.js): Open's two buttons, a map or a prefab, side by side, each
+   with its key and how many there are; each opens its side of the Open window */
+.openpair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.openpair button { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 8px; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 5px; background: #1b252e; color: #e3eaef; cursor: pointer; text-align: left; font-size: 12px; }
+.openpair button:hover, .openpair button:focus-visible { background: #25313a; border-color: #68b6ba; outline: none; }
+.openpair button .i { width: 18px; height: 18px; color: var(--accent); grid-row: 1 / 3; }
+.openpair button span { white-space: nowrap; }
+.openpair button small { color: var(--muted); font-size: 11px; grid-column: 2 / 4; }
 .pop.playmenu { width: 320px; }
 .menuitems hr { border: 0; border-top: 1px solid #26323b; margin: 5px 8px; }
 .menuitems hr:has(+ hr), .menuitems hr:not(:has(~ button:not([hidden]))) { display: none; }
@@ -1041,7 +1050,7 @@ canvas { display: block; width: 100%; height: 100%; }
 /* Prefab workspace: the editor tools, with map-only actions removed. */
 .prefab-builder #projectBuild, .prefab-builder #projectPlay, .prefab-builder #projectMaps,
 .prefab-builder #projectManage, .prefab-builder #projectClose, .prefab-builder #projectSize,
-.prefab-builder #projectRecent, .prefab-builder #installInfo, .prefab-builder #projectMenu > h3:not(:first-child),
+.prefab-builder #projectSave, .prefab-builder #projectSaveAs, .prefab-builder #installInfo,
 .prefab-builder #playMenu > h3:not(:first-child),
 .prefab-builder #notesButton, .prefab-builder #editResetAll, .prefab-builder #sceneryGroup,
 .prefab-builder #lighting, .prefab-builder #playAreaRow, .prefab-builder label:has(#floorTiles),

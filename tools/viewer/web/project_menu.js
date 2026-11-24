@@ -1,6 +1,7 @@
 // The Project menu (refactor stage P9): the header's Project menu drawn afresh as it opens (renderProjectMenu): the open
-// project's name, revision, the map name it builds as and its last build (or the prefab's, in the builder), Save and
-// Save as, and the three projects last opened or saved in this browser (the recent list it keeps: recentTimes,
+// project's name, revision, the map name it builds as and its last build, Save and Save as (in the prefab builder a
+// line, Open… and the recent projects alone: the prefab's own items are the menu of the map or prefab's, map_menu.js),
+// and the three projects last opened or saved in this browser (the recent list it keeps: recentTimes,
 // touchRecent, which the document session calls as a project opens or saves). And the windows the menu's items and the
 // keys open, each after closing the menu and stopping a placing: the file dialog to open or save a project
 // (showFileDialog; in the builder, Save as prefab), the project manager (showProjectManager), Game maps
@@ -11,7 +12,7 @@
 // and load, the map's names, Play's items, the popups, Save as prefab and the panel's helpers. It keeps no state: the
 // recent list is the browser's (storage.js).
 import { projectsAvailable } from './document_session.js';
-import { activeMapId, builder, builderMode, lastBuild, placing, project } from './editor_state.js';
+import { activeMapId, builderMode, lastBuild, placing, project } from './editor_state.js';
 import { api as projectApi } from './project.js';
 import { savedWhen } from './project_files.js';
 import { recall, remember } from './storage.js';
@@ -30,13 +31,10 @@ export function createProjectMenu({ $, dirty, fileDialog, gameMaps, loadProject,
   async function renderProjectMenu() {
     const info = $('projectInfo');
     info.replaceChildren();
-    if (builderMode) {
-      text(info, 'strong', builder.doc?.name ?? 'New prefab');
-      text(info, 'div', builder.doc?.revision ? `Revision ${builder.doc.revision}${dirty() ? ' · unsaved changes' : ''}` : 'Save to add this prefab to the library.');
-      for (const id of ['projectSave', 'projectSaveAs']) $(id).disabled = false;
-      return;
-    }
-    if (project) {
+    // (in the builder Ctrl+O opens prefabs: the Open window's Prefabs side, map_menu.js; the menu's Open… shows no key)
+    $('projectLoad').querySelector('kbd').hidden = builderMode;
+    if (builderMode) text(info, 'div', 'A prefab is open. Opening a project closes it; the editor asks to save first.');
+    else if (project) {
       text(info, 'strong', project.doc.name);
       text(info, 'div', `Revision ${project.revision} · saved ${savedWhen(project.doc.savedAt)}${dirty() ? ' · unsaved changes' : ''}`);
       text(info, 'div', `Builds as ${project.doc.output?.shipAs ?? '(no map name)'}`).title = 'The map\'s name in the game (its package and records), fixed when the project was first saved: Save as under a new name makes a new project that builds under a name of its own';
@@ -50,7 +48,7 @@ export function createProjectMenu({ $, dirty, fileDialog, gameMaps, loadProject,
     else text(info, 'div', 'This is a patch preview: projects edit a map\'s original layout. Open the map from the map browser (M) to save one; Load opens a project on its map.');
     for (const id of ['projectSave', 'projectSaveAs']) $(id).disabled = !projectsAvailable();
     $('projectClose').hidden = !project;
-    renderPlayItems();
+    if (!builderMode) renderPlayItems();
     // Recent: the three last opened or saved here (or else saved anywhere), the open one aside.
     const list = $('projectRecent');
     try {

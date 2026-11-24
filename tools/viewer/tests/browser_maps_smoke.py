@@ -30,8 +30,8 @@ def rows(page):
 def pick(page,map_id):
     """Open the map browser, choose the map, and open it."""
     if page.locator('#mapDialog').is_hidden():
-        page.locator('#mapButton').click()     # the Map menu, or the browser itself where the menu would hold one item
-        if page.locator('#mapMenu').is_visible():page.locator('#mapChange').click()
+        page.locator('#mapButton').click()     # the menu of the map that is open, then its Open's A map…
+        page.locator('#openMaps').click()
     page.locator('#mapSearch').fill('')
     page.locator('#mapGroups [data-group="all"]').click()
     page.locator(f'#mapList .maprow[data-id="{map_id}"]').first.click()

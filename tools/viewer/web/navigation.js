@@ -45,7 +45,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
                                    renderer, restingHint, saveProject, select, setGridTool,
                                    alignToGrid, setOwnPicked, setPickedSpawn,
                                    setPickTool, setPlayArea, setSolo, setVolumeTool, stepWheel, addLarge, setAddLarge,
-                                   showFileDialog, showMapBrowser, showPieces, showPop,
+                                   showFileDialog, showOpen, showPieces, showPop,
                                    spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
                                    stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing,
                                    stopZonePlacing, sun, takePickBox, TURNED_KINDS, turnZone, undoStep, viewByKey, volumePanel,
@@ -326,7 +326,8 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
     const key = e.key.toLowerCase();
     if (modalOpen()) { if ((e.ctrlKey || e.metaKey) && ['s', 'o', 'f', 'b'].includes(key)) e.preventDefault(); return; }
     if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); if (!e.repeat) saveProject(); return; }
-    if ((e.ctrlKey || e.metaKey) && key === 'o') { e.preventDefault(); if (!e.repeat) showFileDialog('load'); return; }
+    // Ctrl+O: the project dialog; in the prefab builder the Open window on its Prefabs side (the prefab menus plan, P3)
+    if ((e.ctrlKey || e.metaKey) && key === 'o') { e.preventDefault(); if (!e.repeat) { if (builderMode) showOpen('prefabs'); else showFileDialog('load'); } return; }
     if ((e.ctrlKey || e.metaKey) && key === 'b') { e.preventDefault(); if (!e.repeat) openBuild(); return; }
     if (e.target.closest?.('input, select, textarea, [contenteditable]')) return;
     // while a light's handle is dragged, Escape puts it back and other keys wait
@@ -430,7 +431,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
     else if (e.shiftKey && viewByKey(key)) { /* switched */ }
     else if (PAN_KEYS[key] || TURN_KEYS[key]) { panKeys.add(key); panFast = e.shiftKey; }
     else if (key === 'p') { if (data) showPieces(!pieces.open); }
-    else if (key === 'm') showMapBrowser();
+    else if (key === 'm') showOpen('maps');
     else if (key === 'r') {
       // While placing, R turns the piece a quarter turn about its pivot (Shift+R the other way); otherwise it is Rotate.
       if (!placing) { setGizmoMode('rotate'); e.preventDefault(); return; }
