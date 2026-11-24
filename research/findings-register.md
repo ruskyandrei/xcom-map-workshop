@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-169 (24 November, a user's report on a boat project): over a building on water whose deck stands over a walkable
+  hold, the mouse puts the cursor in the hold with the wheel on the deck's stop, where the pointer is off the deck's
+  edge over the water or on something taller than the deck's floor. The game's pick rule, read from the scripts: the
+  water catches nothing, walls are skipped, and a first hit lower than the stop asked is kept. Open; not played.
 - F-168 (24 November, research for a plan): what the game's picture is made of that the editor doesn't draw, and
   where the game's files hold it: baked lightmaps on two thirds of a map's pieces (the baker's readers decode them),
   each map's fog, colour grade and bloom in its world settings, 1,344 decals on 30 maps, sky domes, and the shaders
@@ -227,6 +231,36 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-169: Over a boat, the mouse puts the cursor in the hold under the deck's stop
+**Open** (24 November 2026, a user's report with two game shots; read from the decompiled scripts and the build's
+files, not played).
+- **Seen.** A project's boat (EWI_ChryssalidHive's whale boat turned and moved, on water, one building of three
+  floors over all of it: hold, deck and roof, its own cursor floors) in the user's game: with soldiers on the deck,
+  the move path runs off the deck's edge and under it to a tile in the hold, "as if it's going straight through the
+  walls and floor in certain angles". In an earlier shot the building was cut to its hold: deck, railings and cover
+  boxes hidden. That shot isn't explained yet; it needs the wheel's bottom stop (`m_iRequestedFloor` 0, the cutdown
+  then the hold volume's top), and only the wheel and a unit's selection set the stop.
+- **The rule** (`XComTacticalHUD.GetMousePickActor`, F-135): along the mouse's ray, nearest first, it skips actors
+  without the mouse interface (StaticMeshActor, KAsset), pieces with `bIgnoreFor3DCursorCollision`, and every hit
+  whose normal is under 0.2 up (walls). The first hit left becomes the best, and wins at once if it is walkable and
+  outside every building. A later hit replaces the best only when the best's cursor floor
+  (`WorldZToCursorFloor`, zero-based like `m_iRequestedFloor`) is above the stop asked and the hit's is lower, or on
+  the same floor when it is walkable and the best isn't. So a first hit lower than the stop asked is never
+  replaced.
+- **Why the boat shows it.** On a street map the ground round a building is walkable and outside it, so a pointer
+  beside the building lands on the ground at once. Round the boat is water: nothing there takes the ray (the sea
+  floor's planes lie at -147, under the hold's floor at -106). The ray beside the hull goes through the hull's side
+  (skipped as a wall) and its first hit is the hold's floor, cursor floor 0, so it stays the best on the deck's stop.
+  The same happens from anything above the deck's floor (the cabin roof, the crane): its next hit lower down may be
+  the hold, past the hull. The hive's own boat had the same layout (its deck inside its building too, a walkable hold
+  under it); whether the game's map shows the same was not looked at.
+- **The build was right**: the deck's pieces are listed on the deck's floor; only the building's three cursor volumes
+  stand over the boat (-194 to 190, 190 to 574, 574 to 1152), the map's own taken out.
+- **Ways out, none tried**: something at about the deck's height round the hull that the mouse hits but nobody can
+  walk on (the puddles' flags: walking and floor off, mouse on), inside the building's footprint so its cursor floor
+  is the deck's, which catches the ray before it reaches the hold; or a compiler warning for a building whose
+  walkable lower floor has no walkable ground round it.
 
 ### F-168: What the game's picture has that the editor's doesn't, and where the game's files hold it
 **Open** (24 November 2026, research for a plan to draw the editor's view as the game shows it; read offline from
