@@ -168,8 +168,9 @@ export function createGroups({ $, flashHint, gizmo, goTo, groupables, groupChip,
       ? 'Everything in it selects and moves as one, whether linked pieces are on or off. Ungroup it to get the groups inside it back on their own.'
       : 'Its pieces select and move as one, whether linked pieces are on or off. Ungroup it to move one on its own.');
     // (a placed prefab's group: the prefab opened in the builder, while the library still has it: prefab_library.js)
+    // (the row itself hidden, not the button alone: an empty row's margin left a gap in every other group's section)
     const from = g.prefab && prefabLibrary?.byId(g.prefab.id), open = $('groupPrefabOpen');
-    open.hidden = !from;
+    $('groupPrefabRow').hidden = !from;
     if (from) {
       open.textContent = `Open ${from.name} in the builder`;
       open.title = `The prefab as it is in the library now (revision ${from.revision}): what is placed here stays as it is`;
