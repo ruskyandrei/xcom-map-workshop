@@ -925,7 +925,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td>Glows · 3 lights</td><td>A glowing piece: its glow lights the map, and moves, copies and goes with it.</td></tr>
   <tr><td>Carries an effect</td><td>A particle effect stands on it, such as a Skyranger's lights or a claw machine's, or the effects a prefab of the map placed round it (an alien vapour pod's smoke). The editor and the Build move, copy and delete them with the piece. A click on the chip opens the <a href="#effects">Effects view</a> on them.</td></tr>
   <tr><td>Mission loot</td><td>A collectible such as a UFO power core: the game counts it as loot at the mission's end, a damaged one as the damaged item. A copy counts too, and breaks like the original. A moved one still counts once; a deleted one no longer counts.</td></tr>
-  <tr><td>Mission script</td><td>The map's mission script uses this piece. Moved or deleted, the script still acts on the original, not on the copy: the Build warns.</td></tr>
+  <tr><td>Mission script</td><td>The map's mission script uses this piece. Moved, the script still acts on the original, not on the copy: the Build warns. Deleted, the Build takes it out of the script, and warns only where the script waits on it.</td></tr>
   <tr><td>Landing zone</td><td>One of the pieces Long War spawns the dropship's landing from. Moved or deleted, the landing breaks: the Build warns. A copy is an ordinary piece.</td></tr>
   <tr><td>A package's name</td><td>The piece comes from a mission or from Long War Rebalance's patch, not from the map. It can be looked at, not edited.</td></tr>
   <tr><td>Flags</td><td>One of its <a href="#flags">flags</a> is off, or you changed one.</td></tr>
@@ -3244,8 +3244,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
         <a href="#landingzones">landing zones</a>, and the aliens' pods, the Meld and the drop-in points in the
         <a href="#spawns">Spawns view</a>. A drop-in point can be moved, not added.</li>
       <li><b>Pieces the mission script uses are best left where they are.</b> A piece marked
-        <b class="ui">Mission script</b>, moved or deleted, builds, but the script goes on acting on the original; one
-        of the landing's own pieces, moved or deleted as a piece, breaks Long War's landing. The Build warns of both.
+        <b class="ui">Mission script</b>, moved, builds, but the script goes on acting on the original; deleted, the
+        Build takes it out of the script, and what the script waited on it for never comes. One of the landing's own
+        pieces, moved or deleted as a piece, breaks Long War's landing. The Build warns of these.
         Move the landing zone instead.</li>
       <li><b>Long War Rebalance's invisible cover and blockers can't be edited.</b> They show for reference. A
         mission's own objects (a bomb, the data recovery's capture points) can be moved, but not copied or deleted:

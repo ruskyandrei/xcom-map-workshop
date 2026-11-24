@@ -137,8 +137,9 @@ export function createSelection({ $, actorPose, allBuildings, AREA_SHOWN, areaOw
     if (obj.foreign) text(chips, 'span', `From ${obj.foreign.package}`, 'chip').title = foreignNote(obj);
     // export 15: the map's Kismet names the piece (the compiler's mission-linked: a warning when it is moved or deleted)
     if (obj.referencedBy?.length && !obj.added) text(chips, 'span', 'Mission script', 'chip warn').title =
-      `Named by the map's Kismet (${obj.referencedBy.join('; ')}). Copied, it is an ordinary piece; moved or deleted, its `
-      + 'mission script acts on the hidden original, not on the copy (the Build warns of it)';
+      `Named by the map's Kismet (${obj.referencedBy.join('; ')}). Copied, it is an ordinary piece; moved, its `
+      + 'mission script acts on the hidden original, not on the copy (the Build warns of it); deleted, the Build takes it '
+      + 'out of the script';
     // F-45: LWR's landing-zone mutator spawns the landing from these (compiler.LANDING_PREFIXES)
     if (!isStream(obj) && !obj.foreign && isLanding(obj)) text(chips, 'span', obj.added ? 'Copy of a landing piece' : 'Landing zone', obj.added ? 'chip' : 'chip warn').title =
       obj.added ? 'A copy of one of the map\'s landing-zone pieces: an ordinary piece'
