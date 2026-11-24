@@ -13,13 +13,15 @@ with scratch projects, builds and squad, and stop the server after:
   python tools/release/guide/take_shots.py --out <folder> [--server http://127.0.0.1:8790/] [--only window,header]
 
 The scratch projects folder must be empty (the demo project is saved under a fixed name), and so must the prefabs
-folder beside it (the prefabs shot saves two). It needs the Bar exported in the server's cache (the mission objects'
-shot opens URB_SlaughterhouseA and the diagonal cover shot CSmallScout_Farm, each read from the game on its first
-open), Playwright (pip install playwright; it drives the installed Edge) and Pillow. The whole run takes about five
-minutes, most of it the manager's builds.
+folder beside it (the Map menu's shot saves two, which the Prefabs tab and the Open window's Prefabs side show, and the
+prefab builder's shot a third, which it opens). It needs the Bar exported in the server's cache (the mission objects' shot opens
+URB_SlaughterhouseA and the diagonal cover shot CSmallScout_Farm, each read from the game on its first open),
+Playwright (pip install playwright; it drives the installed Edge) and Pillow. The whole run takes about five minutes,
+most of it the manager's builds.
 
 Some shots take more than one picture: project-menu also the Map menu and the Game menu (map-menu, game-menu),
-diagonal also the Add panel's new mark (diagonal-add), and
+diagonal also the Add panel's new mark (diagonal-add), prefab-builder the Prefab button's menu and the Add panel's
+This prefab tab (prefab-menu, this-prefab), and
 made-walls also the look picker (look-picker), whose cards' pictures the page draws and the server keeps, so a
 first run on a cache without them waits until every wall look's picture is drawn (some hundreds: minutes), and the
 picture shows the picker without its "Drawing pictures" count. made-walls and texture-mapping each draw the same two
@@ -49,6 +51,10 @@ DUMPSTER = ACTOR % 'XComDestructibleActor_61'            # one of the Bar's six 
 BOMB_MAP, BOMB_STREAM = 'URB_SlaughterhouseA', 'URB_Slaughterhouse_Stream'
 # the project manager's shot: the demo saved again under these names, each with one more edit (the last never built)
 MORE_PROJECTS = (('Car park cover', SUV), ('Back alley', KEG_C), ('Bar after hours', KEG_B))
+# the prefabs the Add panel's Prefabs tab and the Open window show, and the one the prefab builder's shot opens (saved
+# there, after the others: three kegs, a claw machine and a pool table, for its This prefab tab's rows)
+PREFABS = (('Keg stack', (KEG_A, KEG_B, KEG_C)), ('Roadblock', (SUV, ATM)))
+BUILDER_PREFAB = ('Games corner', (KEG_A, KEG_B, KEG_C, CLAW_MACHINE, POOL_TABLE))
 # cameras, in game units: what the camera looks at, and its offset from there
 BAR_VIEW = ([150, 640, 20], [600, -1450, 1250])
 # the Effects view's shots: the taxi's idle sound picked in the car park, with a webbing effect, the shop's sound and a
@@ -331,10 +337,13 @@ class Shots:
         self.shot('project-menu', self.panel_rows('#projectMenu', rows, side='right'),
                   clip=self.around('#projectButton', '#projectMenu', pad=(10, 6, 44, 12)))
         self.close_pops()
+        self.save_prefabs(*PREFABS)            # (Open's A prefab… counts them)
         page.locator('#mapButton').click()
+        page.wait_for_function("/^[1-9]/.test(document.getElementById('openPrefabsCount').textContent)")     # (the library's count)
         page.wait_for_timeout(300)
-        rows = [(1, '#mapChange'), (2, '#mapSettingsOpen'), (3, '#projectMissions'), (4, '#projectPicture'), (5, '#projectSize'),
-                (6, '#projectClear')]
+        # (Open's two buttons stand side by side: one mark for the pair)
+        rows = [(1, '#docInfo'), (2, '#mapSettingsOpen'), (3, '#projectMissions'), (4, '#projectPicture'), (5, '#projectSize'),
+                (6, '#projectClear'), (7, '#mapMenu .openpair'), (8, '#docNewPrefab')]
         self.shot('map-menu', self.panel_rows('#mapMenu', rows, side='right'),
                   clip=self.around('#mapButton', '#mapMenu', pad=(10, 6, 44, 12)))
         self.close_pops()
@@ -347,19 +356,21 @@ class Shots:
         self.close_pops()
 
     def map_browser(self):
+        """The Open window's Maps side, opened by the Map button's A map…: the switch in its head, the maps."""
         page = self.page
         page.locator('#mapButton').click()
-        page.locator('#mapChange').click()
+        page.locator('#openMaps').click()
         page.wait_for_selector('#mapList .maprow')
         page.wait_for_timeout(500)
         x, y, w, h = self.rect('#mapList .maprow.on')
-        marks = [dict(n=1, sel='#mapSearch', side='top', gap=22, at=0.3),
-                 dict(n=2, sel='#mapForm .mapfind label', side='top', gap=22),
-                 dict(n=3, sel='#mapGroups', side='left', gap=18),
-                 dict(n=4, sel='#mapList .maprow.on', side='left', gap=18),
-                 dict(n=5, rect=[x + w - 170, y, 170, h], side='top', gap=18, at=0.2, inset=8),
-                 dict(n=6, sel='#mapCount', side='bottom', gap=20, at=0.2),
-                 dict(n=7, sel='#mapOk', side='bottom', gap=20)]
+        marks = [dict(n=1, sel='#mapForm .opensides', side='top', gap=22),
+                 dict(n=2, sel='#mapSearch', side='top', gap=22, at=0.55),
+                 dict(n=3, sel='#mapForm .mapfind label', side='top', gap=22),
+                 dict(n=4, sel='#mapGroups', side='left', gap=18),
+                 dict(n=5, sel='#mapList .maprow.on', side='left', gap=18),
+                 dict(n=6, rect=[x + w - 170, y, 170, h], side='top', gap=18, at=0.2, inset=8),
+                 dict(n=7, sel='#mapCount', side='bottom', gap=20, at=0.2),
+                 dict(n=8, sel='#mapOk', side='bottom', gap=20)]
         self.shot('map-browser', marks, clip=self.around('#mapForm', pad=(36, 36, 16, 34)))
         page.keyboard.press('Escape')
 
@@ -482,7 +493,29 @@ class Shots:
         for n, s in ((2, '#libKind'), (3, '#libWhere'), (4, '#libSort')):
             if page.locator(s).is_visible(): marks.append(dict(n=n, sel=s, side='on', aty=0, dy=-2))
         marks.append(dict(n=8, sel='#libScope button[data-value="all"]', side='top', gap=22, at=0.5))
+        marks.append(dict(n=9, sel='#libraryLarge', side='top', gap=20))
         self.shot('add', marks, clip=self.around('#rail', '#library', pad=(8, 30, 44, 8)))
+        page.locator('#libraryClose').click()
+
+    def add_large(self):
+        """The Add panel made large by its maximise button: This map's pieces as cards with large pictures. Put back
+        after (the button again)."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        page.locator('#editAdd').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the button, whose Build menu shows under a resting pointer)
+        page.evaluate("viewer.setLibraryScope('map')")
+        page.wait_for_selector('#libList .libitem')
+        page.locator('#libraryLarge').click()
+        page.wait_for_selector('#library.large')
+        page.wait_for_function("[...document.querySelectorAll('#libList .libitem canvas')].slice(0, 18).every(c => c.dataset.drawn)", timeout=120000)
+        page.wait_for_timeout(800)
+        marks = [dict(n=1, sel='#libraryLarge', side='bottom', gap=24),
+                 dict(n=2, sel='#libList .libitem', side='right', gap=22, at=0.3),
+                 dict(n=3, sel='#libScope', side='right', gap=22)]
+        self.shot('add-large', marks, resize=0.75)
+        page.locator('#libraryLarge').click()
+        page.wait_for_selector('#library:not(.large)')
         page.locator('#libraryClose').click()
 
     def add_all(self):
@@ -510,31 +543,68 @@ class Shots:
         page.evaluate("viewer.setLibraryScope('map')")
         page.locator('#libraryClose').click()
 
+    def save_prefabs(self, *prefabs):
+        """Prefabs (name, actors) saved from the demo's selections, those the library hasn't got yet; the selection let
+        go after."""
+        page = self.page
+        have = page.evaluate('viewer.prefabApi.list().then(a => a.prefabs.map(p => p.name))')
+        for name, actors in prefabs:
+            if name in have: continue
+            self.select(*actors)
+            page.evaluate("name => viewer.savePrefab(name)", name)
+        names = [name for name, _ in prefabs]
+        page.wait_for_function("names => viewer.prefabApi.list().then(a => names.every(n => a.prefabs.some(p => p.name === n && p.picture)))",
+                               arg=names, timeout=30000)
+        page.evaluate('viewer.select(null)')
+        self.close_pops()          # (the banner a save leaves)
+
     def prefabs(self):
         """The Prefabs tab with two prefabs saved from the demo's selections. The server's prefabs folder (beside its
         scratch projects folder) must be empty."""
         page = self.page
-        for name, actors in (('Keg stack', (KEG_A, KEG_B, KEG_C)), ('Roadblock', (SUV, ATM))):
-            self.select(*actors)
-            page.evaluate("name => viewer.savePrefab(name)", name)
-        page.wait_for_function("viewer.prefabApi.list().then(a => a.prefabs.length === 2 && a.prefabs.every(p => p.picture))", timeout=30000)
-        page.evaluate('viewer.select(null)')
+        self.save_prefabs(*PREFABS)
         page.locator('#editAdd').click()
         page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the button, whose Build menu shows under a resting pointer)
         page.evaluate("viewer.setLibraryScope('prefabs')")
         page.wait_for_function("document.querySelectorAll('#prefabList .libitem').length === 2")
         page.wait_for_timeout(1200)
-        marks = [dict(n=1, sel='#libScope button[data-value="prefabs"]', side='top', gap=22, at=0.5),
+        marks = [dict(n=1, sel='#libScope button[data-value="prefabs"]', side='top', gap=22, at=0.3),
                  dict(n=2, sel='#prefabFilter', side='right', gap=18),
                  dict(n=3, sel='#prefabNew', side='on', aty=0, dy=-2),
                  dict(n=4, sel='#prefabSave', side='on', aty=0, dy=-2),
-                 dict(n=5, sel='#prefabImport', side='on', aty=0, dy=-2),
-                 dict(n=6, sel='#prefabList .libitem', side='right', gap=18),
-                 dict(n=7, sel='#prefabList .libitem:nth-child(2) .prefabacts', side='right', gap=18),
-                 dict(n=8, sel='#prefabFoot', side='right', gap=18)]
+                 dict(n=5, sel='#prefabList .libitem', side='right', gap=18),
+                 dict(n=6, sel='#prefabList .libitem:nth-child(2) .prefabacts button', side='right', gap=18),
+                 dict(n=7, sel='#prefabFoot', side='bottom', gap=22, at=0.2),
+                 dict(n=8, sel='#prefabAll', side='right', gap=18)]
         self.shot('prefabs', marks, clip=self.around('#rail', '#library', pad=(8, 30, 44, 8)))
         page.evaluate("viewer.setLibraryScope('map')")
         page.locator('#libraryClose').click()
+
+    def open_prefabs(self):
+        """The Open window's Prefabs side, opened by the Map button's A prefab…: the New prefab card and the two prefabs
+        the prefabs shot saved, the first chosen with its actions under the cards. Cancelled."""
+        page = self.page
+        self.save_prefabs(*PREFABS)
+        page.locator('#mapButton').click()
+        page.locator('#openPrefabs').click()
+        page.wait_for_selector('#openPrefabDialog:not([hidden])')
+        page.wait_for_function("document.querySelectorAll('#openPrefabCards .card').length === 3")
+        page.wait_for_function("[...document.querySelectorAll('#openPrefabCards .card img')].every(i => i.complete && i.naturalWidth)", timeout=30000)
+        page.locator('#openPrefabCards .card:not(.newcard)', has_text=PREFABS[0][0]).click()
+        page.wait_for_selector('#openPrefabActs:not([hidden])')
+        page.mouse.move(8, 8)
+        page.wait_for_timeout(500)
+        marks = [dict(n=1, sel='#openPrefabForm .opensides', side='top', gap=22),
+                 dict(n=2, sel='#openPrefabFilter', side='top', gap=22, at=0.6),
+                 dict(n=3, sel='#openPrefabOrder', side='top', gap=22),
+                 dict(n=4, sel='#openPrefabPlace', side='left', gap=18, inset=-4),
+                 dict(n=5, sel='#openPrefabCards .newcard', side='left', gap=18, at=0.3),
+                 dict(n=6, sel='#openPrefabCards .card.on', side='bottom', gap=22),
+                 dict(n=7, sel='#openPrefabActs', side='left', gap=18, inset=-4),
+                 dict(n=8, sel='#openPrefabImport', side='bottom', gap=20),
+                 dict(n=9, sel='#openPrefabOk', side='bottom', gap=20)]
+        self.shot('open-prefabs', marks, clip=self.around('#openPrefabForm', pad=(36, 36, 16, 34)))
+        page.locator('#openPrefabCancel').click()
 
     def lights(self):
         page = self.page
@@ -771,7 +841,8 @@ class Shots:
         page.mouse.move(WIDTH / 2, HEIGHT / 2)
         b = page.evaluate('viewer.data.playableBounds')
         cx, cy = (b['min'][0] + b['max'][0]) / 2, (b['min'][2] + b['max'][2]) / 2
-        self.camera([cx, cy, 0], [2300, -4200, 3600])
+        # (the play area to the right of the middle: the far X side's handle clear of the Views list beside the rail)
+        self.camera([cx + 600, cy + 330, 0], [2420, -4410, 3780])
         self.settle(3000)
         marks = [dict(n=1, sel='#editGrid', side='right', gap=20)]
         for n, axis, side in ((2, 0, 'right'), (3, 1, 'top'), (4, 2, 'top')):
@@ -1327,6 +1398,46 @@ class Shots:
         self.shot('save-as', marks, clip=self.around('#fileForm', pad=(44, 12, 12, 12)))
         page.locator('#fileCancel').click()
 
+    def prefab_builder(self):
+        """The prefab builder (another page: this shot comes after the Bar's): a prefab saved from the Bar (three kegs,
+        a claw machine and a pool table) opened in it, the Prefab button's menu (prefab-menu), then the Add panel's
+        This prefab tab, a row for each distinct piece with its count (this-prefab)."""
+        page = self.page
+        self.save_prefabs(BUILDER_PREFAB)
+        name = BUILDER_PREFAB[0]
+        prefab = page.evaluate('n => viewer.prefabApi.list().then(a => a.prefabs.find(p => p.name === n).id)', name)
+        page.goto('%s?prefab=%s' % (self.server, prefab))
+        page.wait_for_function("window.viewer && document.querySelector('#loading').hidden && viewer.roots.size > 0", timeout=300000)
+        page.wait_for_function("n => document.getElementById('mapTitle').textContent === n", arg=name)
+        page.wait_for_timeout(1500)
+        page.locator('#mapButton').click()
+        page.wait_for_function("/^[1-9]/.test(document.getElementById('openPrefabsCount').textContent)")
+        page.wait_for_timeout(300)
+        # (Find missing pieces shows for a prefab with pieces of maps)
+        if not page.locator('#prefabRecover').is_visible(): raise SystemExit('the Prefab menu shows no Find missing pieces for %s' % name)
+        rows = [(3, '#docInfo'), (4, '#docPrefabSave'), (5, '#docPrefabSaveAs'), (6, '#docPrefabExport'), (7, '#prefabRecover'),
+                (8, '#mapMenu .openpair'), (9, '#docNewPrefab')]
+        self.shot('prefab-menu', [dict(n=1, sel='#projectButton', side='bottom', gap=18),
+                                  dict(n=2, sel='#mapButton', side='right', gap=18)]
+                  + self.panel_rows('#mapMenu', rows, side='right'),
+                  clip=self.around('#projectButton', '#mapButton', '#mapMenu', pad=(10, 6, 44, 12)))
+        self.close_pops()
+        page.locator('#editAdd').click()
+        page.mouse.move(WIDTH / 2, HEIGHT / 2)      # (off the button, whose Build menu shows under a resting pointer)
+        page.evaluate("viewer.setLibraryScope('map')")
+        page.wait_for_function("document.querySelectorAll('#libList .libitem').length >= 3")
+        page.wait_for_function("[...document.querySelectorAll('#libList .libitem canvas')].every(c => c.dataset.drawn)", timeout=60000)
+        page.wait_for_timeout(500)
+        row = """t => { const r = [...document.querySelectorAll('#libList .libitem')].find(i => i.querySelector('strong')?.textContent.startsWith(t));
+          const b = r?.getBoundingClientRect(); return b && [b.left, b.top, b.width, b.height]; }"""
+        kegs, block = page.evaluate(row, 'Keg'), page.evaluate(row, 'Cover block')
+        if not kegs or not block: raise SystemExit('This prefab lists no kegs or no cover block: %s' % page.locator('#libList').inner_text())
+        marks = [dict(n=1, sel='#libScope button[data-value="map"]', side='top', gap=22, at=0.9),
+                 dict(n=2, rect=kegs, side='right', gap=18),
+                 dict(n=3, rect=block, side='right', gap=18)]
+        self.shot('this-prefab', marks, clip=self.around('#rail', '#library', pad=(8, 30, 44, 8)))
+        page.locator('#libraryClose').click()
+
     def mission_objects(self):
         """A council bomb's objects on its own map (another map: this shot comes last): the bomb picked, with its
         arrows and its panel, the power nodes, the drop-in points and the pods round it."""
@@ -1462,13 +1573,13 @@ def prefab_test_shot(browser, server, out):
     page.close()
 
 
-# the manager runs builds and leaves its projects saved, and mission-objects and diagonal open other maps: they come
-# last (project-menu also takes map-menu and game-menu; made-walls also takes look-picker; diagonal also takes
-# diagonal-add)
-ORDER = ('window', 'header', 'rail', 'views-list', 'build-menu', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-all', 'prefabs', 'prefab-test', 'lights',
+# the manager runs builds and leaves its projects saved, and prefab-builder, mission-objects and diagonal open other
+# pages: they come last (project-menu also takes map-menu and game-menu; made-walls also takes look-picker;
+# prefab-builder also takes this-prefab, its first picture being prefab-menu; diagonal also takes diagonal-add)
+ORDER = ('window', 'header', 'rail', 'views-list', 'build-menu', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-large', 'add-all', 'prefabs', 'open-prefabs', 'prefab-test', 'lights',
          'landing-zones', 'effects', 'effects-switches', 'effect-values', 'add-effects', 'spawns', 'spawns-volume', 'spawns-switches', 'map-grid', 'view-options', 'build', 'play', 'floors', 'buildings', 'cover-blocks',
          'made-walls', 'texture-mapping', 'made-ground', 'clear-map', 'missions', 'map-picture', 'squad',
-         'manager', 'save-as', 'mission-objects', 'diagonal')
+         'manager', 'save-as', 'prefab-builder', 'mission-objects', 'diagonal')
 
 
 def main():

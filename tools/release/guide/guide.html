@@ -33,7 +33,8 @@ a { color: var(--accent); text-underline-offset: 2px; }
 }
 header.top { padding: 44px 0 8px; }
 .brand { display: flex; align-items: center; gap: 12px; letter-spacing: 1.8px; font-weight: 650; font-size: 12px; color: var(--muted); }
-.brand .x { display: grid; place-items: center; width: 30px; height: 32px; border: 1px solid var(--accent); color: var(--accent); font-size: 20px; font-weight: 300; letter-spacing: 0; }
+.brand svg { width: 30px; height: 30px; flex: none; color: var(--text); }
+.brand .lit { fill: var(--accent); } .brand .dim { fill: none; stroke: var(--muted); stroke-width: 1.2; }
 h1 { font-size: 40px; line-height: 1.12; font-weight: 600; letter-spacing: -0.5px; margin: 18px 0 8px; text-wrap: balance; }
 .lede { font-size: 19px; color: var(--muted); max-width: 46em; margin: 0 0 6px; }
 .version { color: var(--muted); font-size: 13px; }
@@ -130,7 +131,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
           <li><a href="#view">The view and the camera</a></li>
           <li><a href="#bottom">Bottom bar and floors</a></li>
           <li><a href="#viewoptions">View options</a></li>
-          <li><a href="#maps">Map browser</a></li>
+          <li><a href="#maps">Open window: maps</a></li>
         </ol>
       </li>
       <li class="part"><a href="#pieces">Pieces</a>
@@ -183,7 +184,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </nav>
 <main>
 <header class="top">
-  <div class="brand"><span class="x">X</span><span>MAP WORKSHOP</span></div>
+  <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l11 4v8c0 7-5 11.5-11 14C10 26.5 5 22 5 15V7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><rect class="lit" x="10" y="9.5" width="5.4" height="5.4" rx="1"/><rect class="dim" x="16.6" y="9.5" width="5.4" height="5.4" rx="1"/><rect class="dim" x="10" y="16.1" width="5.4" height="5.4" rx="1"/><rect class="lit" x="16.6" y="16.1" width="5.4" height="5.4" rx="1"/></svg><span>XCOM MAP WORKSHOP</span></div>
   <h1>User guide</h1>
   <p class="lede">XCOM Map Workshop is a map editor for XCOM: Enemy Within. It opens one of the game's maps in your browser,
     lets you rearrange it, and builds the result into a new map the game plays like its own.</p>
@@ -590,7 +591,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <figcaption>The Bar with a project open, cut down to its ground floor, a pool table selected with the Move tool. Click a picture to enlarge it.</figcaption>
 </figure>
 <ol class="legend">
-  <li data-n="A"><b>Header:</b> the project and the map with their menus, and on the right what has changed, undo, Build, Play, Settings and the view's menus. <a href="#header">More</a></li>
+  <li data-n="A"><b>Header:</b> the logo, the project, and the map (or the prefab) that is open, with their menus, and on the right what has changed, undo, Build, Play, Settings and the view's menus. <a href="#header">More</a></li>
   <li data-n="B"><b>Tool strip:</b> select, move, rotate, add and draw, the Views list (buildings, lights, landing zones, effects, spawn points, diagonal cover, the map grid), and how pieces snap. <a href="#tools">More</a></li>
   <li data-n="C"><b>The view:</b> the map. The coloured arrows on the selected piece are the Move tool's handles. <a href="#view">More</a></li>
   <li data-n="D"><b>Piece panel:</b> what is selected, with Copy, Delete and its exact position. <a href="#piece">More</a></li>
@@ -599,12 +600,15 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ol>
 
 <h3 id="header">Header and menus</h3>
-<figure><img src="shots/header-left.webp" width="467" height="78" alt="The left of the header: Project and Map"></figure>
+<figure><img src="shots/header-left.webp" width="347" height="78" alt="The left of the header: the logo, Project and Map"></figure>
+<p>At the left stands the editor's logo, a shield over four tiles of the map's grid. Then:</p>
 <ol class="legend">
   <li data-n="1"><b>Project</b> shows the open project's name (a dot after it means unsaved changes) and opens the
     <a href="#project">Project menu</a>: save, open, close, the recent projects and the project manager.</li>
-  <li data-n="2"><b>Map</b> shows the base map and opens the <a href="#map-menu">Map menu</a>: change the map
-    (<kbd>M</kbd>), its missions, its picture, its grid, and Clear map.</li>
+  <li data-n="2"><b>Map</b> names the map that is open and opens the <a href="#map-menu">Map menu</a>: the map's own
+    items (its settings, missions, picture, grid, and Clear map), and Open: another map (<kbd>M</kbd>) or a prefab. A
+    map and a prefab are never open together: in the <a href="#prefab-builder">prefab builder</a> this button reads
+    <b>Prefab</b> and the prefab's name, and its menu is the prefab's.</li>
 </ol>
 <p>On a map that serves more than one mission, a <b class="ui">Mission</b> picker shows to the right of Map. It chooses
   which mission's extra objects are shown (see <a href="#mission-objects">what a mission adds</a>) and which mission
@@ -641,9 +645,11 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <table class="wrapfirst">
   <tr><th>Menu</th><th>Opened by</th><th>What it holds</th></tr>
   <tr><td><a href="#project">Project</a></td><td>The Project button</td><td>Save, Save as…, Open…, Close project, the
-    recent projects, and Manage projects….</td></tr>
-  <tr><td><a href="#map-menu">Map</a></td><td>The Map button</td><td>Change map…, Map settings…, Missions…, Map
-    picture…, Map grid, and Clear map….</td></tr>
+    recent projects, and Manage projects…. In the prefab builder, Open… and the recent projects.</td></tr>
+  <tr><td><a href="#map-menu">Map</a></td><td>The Map button (Prefab in the prefab builder)</td><td>What is open: the
+    map's Map settings…, Missions…, Map picture…, Map grid and Clear map…, or the
+    <a href="#prefab-menu">prefab's</a> Save, Save as…, Export to a file… and Find missing pieces. Then Open's
+    A map… and A prefab…, and New prefab.</td></tr>
   <tr><td><a href="#game-menu">Game</a></td><td>The arrow joined to Play</td><td>Test squad setup…, Game maps…, and
     the Installs.</td></tr>
   <tr><td><a href="#settings">Settings</a></td><td>The gear</td><td>Game install and checks…, and Cache
@@ -651,9 +657,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </table>
 <h4 id="map-menu">The Map menu</h4>
 <div class="split">
-  <figure><img src="shots/map-menu.webp" width="284" height="304" alt="The Map menu, its six items numbered"></figure>
+  <figure><img src="shots/map-menu.webp" width="354" height="414" alt="The Map menu: This map and its name, the map's five items, Open with A map and A prefab side by side, and New prefab"></figure>
   <ol class="legend">
-    <li data-n="1"><b>Change map…</b> (<kbd>M</kbd>) opens the <a href="#maps">map browser</a>.</li>
+    <li data-n="1"><b>This map:</b> the name of the map that is open.</li>
     <li data-n="2"><b>Map settings…</b> lists the sun, moon and sky light, sets the map's background sound, and what
       Long War Rebalance is told of the map. <a href="#map-settings">More</a></li>
     <li data-n="3"><b>Missions…</b> chooses the missions the project is for. <a href="#missions">More</a></li>
@@ -662,10 +668,15 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="5"><b>Map grid</b> shows the play area's handles, as the last row of the tool strip's Views list
       does. <a href="#mapgrid">More</a></li>
     <li data-n="6"><b>Clear map…</b> takes parts of the map off it, or all of them. <a href="#clearmap">More</a></li>
+    <li data-n="7"><b>Open:</b> <b class="ui">A map…</b> (<kbd>M</kbd>) opens the Open window on its
+      <a href="#maps">Maps side</a>, the map browser; <b class="ui">A prefab…</b> on its
+      <a href="#open-prefabs">Prefabs side</a>, your prefabs with their pictures, to open one in the prefab builder.
+      Each says how many there are.</li>
+    <li data-n="8"><b>New prefab</b> opens an empty <a href="#prefab-builder">prefab builder</a>.</li>
   </ol>
 </div>
-<p>Items 2 to 6 are the map's own. In the prefab builder, where there is only the map to change, the button opens the
-  map browser at once.</p>
+<p>Items 2 to 6 are the map's own. In the prefab builder the button reads Prefab and its menu holds the prefab's own
+  items instead, with the same Open and New prefab: <a href="#prefab-menu">the Prefab menu</a>.</p>
 
 <h3 id="tools">Tool strip</h3>
 <div class="split">
@@ -704,7 +715,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   it open until you click elsewhere. A click on a row, or the row's key, turns that view on; pressing the key of the view that is on, or
   <kbd>Shift</kbd>+<kbd>N</kbd>, goes back to the normal view.</p>
 <div class="split">
-  <figure><img src="shots/views-list.webp" width="356" height="478" alt="The Views list beside the tool strip: Normal on with its four switches under it, then Buildings, Lights, Landing zones, Effects, Spawns, Diagonal cover and Map grid"></figure>
+  <figure><img src="shots/views-list.webp" width="352" height="609" alt="The Views list beside its button on the tool strip: Normal on with its four switches under it, then Buildings, Lights, Landing zones, Effects, Spawns, Diagonal cover and Map grid"></figure>
   <ol class="legend">
     <li data-n="1"><b>Normal</b> (<kbd>Shift</kbd>+<kbd>N</kbd>): pieces are selected.</li>
     <li data-n="2"><b>The switches of the view that is on</b> stand under its row: here the Normal view's four,
@@ -848,19 +859,23 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <b class="ui">Outline the pieces a light reaches</b>, are under its row in the <a href="#views">Views list</a>:
   <a href="#lights">Lights</a>.</p>
 
-<h3 id="maps">Map browser</h3>
-<p><b class="ui">Change map…</b> in the header's <a href="#map-menu">Map menu</a> (or <kbd>M</kbd>) lists every map your install plays, in sections by mission type.
-  A map that serves several types is listed under each.</p>
-<figure class="zoom"><img src="shots/map-browser.webp" width="912" height="790" alt="The map browser, with its search, mission chips and list of maps"></figure>
+<h3 id="maps">The Open window: maps</h3>
+<p><b class="ui">A map…</b> in the header's <a href="#map-menu">Map menu</a> (or <kbd>M</kbd>) opens the
+  <b>Open</b> window on its Maps side, the map browser: every map your install plays, in sections by mission type. A map
+  that serves several types is listed under each. The window's other side holds your prefabs
+  (<a href="#open-prefabs">the Prefabs side</a>), and the switch in its head crosses from one to the other.</p>
+<figure class="zoom"><img src="shots/map-browser.webp" width="912" height="790" alt="The Open window's Maps side: the Maps and Prefabs switch in its head, the search, the mission chips and the list of maps"></figure>
 <ol class="legend">
-  <li data-n="1"><b>Search</b> by the map's name, its package or a mission.</li>
-  <li data-n="2"><b>Prepared only</b> hides maps the editor hasn't read yet.</li>
-  <li data-n="3"><b>Mission types:</b> click one to show only its section.</li>
-  <li data-n="4"><b>A map:</b> its name, its package (the file's name in the game), and the missions it serves.</li>
-  <li data-n="5"><b>Its state:</b> <b>Checked in game</b> (the editor's work on this map has been checked in the game), <b>Ready</b> (already read:
+  <li data-n="1"><b>The switch:</b> Maps and Prefabs, each with how many. A click on Prefabs shows the prefabs in the
+    window's place.</li>
+  <li data-n="2"><b>Search</b> by the map's name, its package or a mission.</li>
+  <li data-n="3"><b>Prepared only</b> hides maps the editor hasn't read yet.</li>
+  <li data-n="4"><b>Mission types:</b> click one to show only its section.</li>
+  <li data-n="5"><b>A map:</b> its name, its package (the file's name in the game), and the missions it serves.</li>
+  <li data-n="6"><b>Its state:</b> <b>Checked in game</b> (the editor's work on this map has been checked in the game), <b>Ready</b> (already read:
     opens at once) or <b>First open ≈ 30 s</b> (the editor reads it from the game when you open it).</li>
-  <li data-n="6"><b>How many</b> maps match, and how many are ready.</li>
-  <li data-n="7"><b>Open</b> (or double-click a map, or <kbd>Enter</kbd>).</li>
+  <li data-n="7"><b>How many</b> maps match, and how many are ready.</li>
+  <li data-n="8"><b>Open</b> (or double-click a map, or <kbd>Enter</kbd>). <kbd>Esc</kbd> closes the window.</li>
 </ol>
 
 <h2 id="pieces">Pieces</h2>
@@ -1053,7 +1068,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="1"><b>The group.</b> <b class="ui">Group</b> (<kbd>Ctrl</kbd>+<kbd>G</kbd>) joins the selected
       pieces. A group selects and moves as one: picking any of its pieces picks them all. It shows in gold.</li>
     <li data-n="2"><b>Ungroup</b> (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>) ends the group: its pieces are
-      separate again. To move one piece of a group on its own, ungroup, move it, and group them again.</li>
+      separate again. To move one piece of a group on its own, pick it with <kbd>Ctrl</kbd> and the wheel
+      (<a href="#step-pick">the piece behind</a>), or ungroup, move it, and group them again.</li>
     <li data-n="3"><b>Break together in the game:</b> when one of the group's breakable pieces is damaged or destroyed,
       the others are too. Use it for a cover piece made of two, so it can't be left half standing. A cover block
       in the group goes when one of those pieces is destroyed. Grouping is the editor's alone; this option is what
@@ -1133,7 +1149,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   walls, floors and ground of your own size come from the <a href="#made">Build menu</a>, which shows when the pointer
   rests on the Add button while the Add panel is shut.</p>
 <div class="split">
-  <figure><img src="shots/add.webp" width="436" height="812" alt="The piece list open beside the tool strip"></figure>
+  <figure><img src="shots/add.webp" width="436" height="812" alt="The piece list open beside the tool strip, its Larger and Close buttons in its head"></figure>
   <ol class="legend">
     <li data-n="1"><b>Filter</b> by name, kind or material.</li>
     <li data-n="2"><b>Kind</b> uses the same categories in This map, All maps and the prefab builder.
@@ -1148,14 +1164,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="6"><b>How many</b> pieces and lights the list holds.</li>
     <li data-n="7"><b>Close</b> (or <kbd>P</kbd> again).</li>
     <li data-n="8"><b>All maps:</b> <a href="#add-all">pieces from the game's other maps</a>.</li>
+    <li data-n="9"><b>Larger</b> (four corners) makes the panel large, with large pictures:
+      <a href="#add-large">below</a>.</li>
   </ol>
 </div>
-<p><b>Larger:</b> the button beside Close (four corners) makes the panel large, over most of the view, as the
-  <a href="#looks">look picker</a> is: each tab's pieces become cards with large pictures, several to a row. A click on
-  a card puts the piece on the cursor and brings the panel back to its size, so the click that places it falls in the
-  view; <kbd>Esc</kbd> or the button again does the same without choosing. The large pictures of All maps are drawn the
-  first time each comes into view and kept; a prefab saved since 24 November 2026 has a large picture, an older one its
-  small one, enlarged.</p>
 <p><b>To place one:</b> click an entry. A see-through preview follows the cursor. <kbd>R</kbd> turns it a quarter turn
   (<kbd>Shift</kbd>+<kbd>R</kbd> the other way). Click in the view to place it; <kbd>Shift</kbd>+click places it and
   keeps going. <kbd>Esc</kbd> stops. The new piece is selected, ready to move or turn.</p>
@@ -1165,6 +1177,23 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   its own; this works after a clear too, which deletes the map's own. A new no-spawn volume is the size of the map's
   first one (3 by 3 tiles and four levels high on a map with none), over whole tiles round the click, its bottom on the
   level of the floor there. <kbd>Esc</kbd> stops.</p>
+<h4 id="add-large">The Add panel made large</h4>
+<p>To choose among many pieces by their looks, make the panel large: it then covers most of the view, as the
+  <a href="#looks">look picker</a> does, and each tab's entries become cards with large pictures, several to a row.</p>
+<figure class="zoom">
+  <img src="shots/add-large.webp" width="1080" height="675" alt="The Add panel made large over the view: This map's pieces as cards with large pictures, six to a row">
+  <figcaption>The Bar's pieces under This map, the panel made large.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>Back to its size</b>, where Larger was (<kbd>Esc</kbd> does it too).</li>
+  <li data-n="2"><b>A card:</b> the entry's large picture, its name, kind and size, and how many the map has. A click
+    puts the piece on the cursor and brings the panel back to its size, so the click that places it falls in the
+    view.</li>
+  <li data-n="3"><b>Every tab</b> is laid out so: This map, All maps and Prefabs.</li>
+</ol>
+<p>Closing the panel also brings it back to its size. The large pictures
+  of All maps are drawn the first time each comes into view, and kept. A prefab saved since 24 November 2026 has a large
+  picture; an older one shows its small one, enlarged.</p>
 <h3 id="add-all">Pieces from other maps</h3>
 <p><b class="ui">All maps</b> lists the pieces of every map in the game install, so a lamp post from the Police Station
   or a wall from an alien ship can stand in the map you are editing. The first time, the editor reads the game's maps
@@ -1611,25 +1640,29 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3 id="prefabs">Prefabs</h3>
 <p>A <b>prefab</b> is a set of pieces saved to be placed again as one thing: a barricade, a market stall, or a whole
   building with its lights. Prefabs are kept in a library of their own, apart from maps and projects, so one can be
-  placed in any map and passed on as a file. They are listed under <b class="ui">Prefabs</b> in the piece list.</p>
+  placed in any map and passed on as a file. They are placed from <b class="ui">Prefabs</b> in the piece list, and
+  opened and looked after in the Open window's <a href="#open-prefabs">Prefabs side</a>.</p>
 <div class="split">
-  <figure><img src="shots/prefabs.webp" width="436" height="690" alt="The piece list showing the prefab library"></figure>
+  <figure><img src="shots/prefabs.webp" width="436" height="500" alt="The piece list's Prefabs tab: two prefabs, each with its picture and an Edit button, and All prefabs at the foot"></figure>
   <ol class="legend">
     <li data-n="1"><b>Prefabs</b>, beside This map and All maps.</li>
     <li data-n="2"><b>Filter</b> by name, or by the name of a map its pieces come from.</li>
     <li data-n="3"><b>New</b> opens an empty prefab builder.</li>
     <li data-n="4"><b>Save selection…</b> saves what is selected in the view as a new prefab.</li>
-    <li data-n="5"><b>Import…</b> adds a prefab file someone passed on.</li>
-    <li data-n="6"><b>A prefab:</b> its picture, name, what it holds and the tiles it covers. Click it to place it.</li>
-    <li data-n="7"><b>Edit</b>, <b>Rename</b>, <b>Duplicate</b>, <b>Export</b> and <b>Delete</b>.</li>
-    <li data-n="8"><b>How many</b> prefabs the library holds. Hover it to see the folder they are kept in.</li>
+    <li data-n="5"><b>A prefab:</b> its picture, name, what it holds and the tiles it covers. Click it to place it.</li>
+    <li data-n="6"><b>Edit</b> opens it in the <a href="#prefab-builder">prefab builder</a>.</li>
+    <li data-n="7"><b>How many</b> prefabs the library holds. Hover it to see the folder they are kept in.</li>
+    <li data-n="8"><b>All prefabs…</b> opens the Open window's <a href="#open-prefabs">Prefabs side</a>, where
+      prefabs are renamed, duplicated, exported, deleted and imported.</li>
   </ol>
 </div>
 <p><b>To save one:</b> select what should be in it, then press <b class="ui">Save as prefab…</b> at the top of the piece panel
   (or <b class="ui">Save selection…</b> here) and give it a name. <a href="#boxselect">Box select</a> takes a whole
   building at once; with the Normal view's <a href="#normal-view">switches</a> on it takes the lights and the
   building's floor boxes too. The window says what goes in, and lists anything that can't. While it saves, a
-  bar counts the pieces copied to the library (the first save of a map's pieces takes a while).</p>
+  bar counts the pieces copied to the library (the first save of a map's pieces takes a while). Once it is saved, a
+  banner under the header says where it is (the Prefabs tab places it, the Map button's A prefab… opens it), with
+  <b class="ui">Edit in the builder</b> to open it at once.</p>
 <ul>
   <li><b>What goes in:</b> the map's own pieces and the ones you added (pieces from other maps too), cover blocks and
     invisible floors, lights, effects, sounds and lens flares (with their values), the groups among them, and
@@ -1645,7 +1678,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p><b>To place one:</b> click it in the list, then click in the view. <kbd>R</kbd> turns it a quarter turn before you
   click; <kbd>Shift</kbd>+click places it and keeps going. It arrives as one <a href="#groups">group</a>, named after
   the prefab in the piece panel: it selects, moves, copies and deletes as one. <b class="ui">Ungroup</b> it to change
-  single pieces; the groups it had inside stay groups. Placing is one undo step.</p>
+  single pieces; the groups it had inside stay groups. Placing is one undo step. The group's section says which
+  prefab and revision it was placed from, and while the library has that prefab, a button,
+  <b class="ui">Open &lt;name&gt; in the builder</b>, opens it in the <a href="#prefab-builder">prefab builder</a> as
+  it is now; what is placed stays as it is.</p>
 <ul>
   <li><b>What you place is a copy.</b> Changing or deleting the prefab later changes nothing already placed, and a
     project doesn't need the prefab's file.</li>
@@ -1657,36 +1693,92 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>In another map,</b> its pieces are brought from their home maps, as <a href="#add-all">pieces from other
     maps</a> are. The first time, the editor reads them from the game, which takes a moment for a large prefab.
     A piece that can't be brought into another map is left out, and the message says which.</li>
-  <li><b>Maps missing</b> on a row means this game install lacks a source map. The editor looks for matching
+  <li><b>Maps missing</b> on a row or a card means this game install lacks a source map. The editor looks for matching
     recipes when you place the prefab and warns about any pieces it leaves out.</li>
   <li><b>A building in a prefab</b> placed where it overlaps another building builds, with a warning: a piece in
     both is listed by both.</li>
   <li><b>Lighting</b> is as for pieces from other maps: build with <b class="ui">Bake the lighting</b> to light the
     prefab for where it stands.</li>
 </ul>
+<h4 id="open-prefabs">The Open window: prefabs</h4>
+<p><b class="ui">A prefab…</b> in the header's <a href="#map-menu">Map menu</a>, the Prefabs tab's
+  <b class="ui">All prefabs…</b>, or in the prefab builder <kbd>Ctrl</kbd>+<kbd>O</kbd>, opens the Open window on its
+  Prefabs side: your library as cards with their pictures, to open one in the
+  <a href="#prefab-builder">prefab builder</a>. It is also where the library's files are looked after: renamed,
+  duplicated, exported, deleted and imported. A change shows in the Add panel's Prefabs tab at once.</p>
+<figure class="zoom"><img src="shots/open-prefabs.webp" width="912" height="790" alt="The Open window's Prefabs side: the switch in its head, the find box and the order, the New prefab card and two prefab cards with pictures, the chosen one's Rename, Duplicate, Export and Delete under the cards, and Import at the foot"></figure>
+<ol class="legend">
+  <li data-n="1"><b>The switch:</b> Maps and Prefabs, each with how many. A click on Maps shows the
+    <a href="#maps">map browser</a> in the window's place.</li>
+  <li data-n="2"><b>Find</b> a prefab by its name or a map its pieces come from.</li>
+  <li data-n="3"><b>The order:</b> the prefab saved last first, or by name.</li>
+  <li data-n="4"><b>In a map</b>, a line says where prefabs are placed: the Add panel.</li>
+  <li data-n="5"><b>New prefab</b>, always the first card: an empty builder.</li>
+  <li data-n="6"><b>A card:</b> its picture, name, what it holds and its tiles, the maps its pieces come from, its
+    revision and when it was saved, and its chips (the prefab open in the builder is marked <i>open</i>). Click it to
+    choose it; a double-click opens it. The arrow keys move between the cards.</li>
+  <li data-n="7"><b>The chosen prefab's</b> <b class="ui">Rename</b>, <b class="ui">Duplicate</b> (a copy with its
+    picture, to change on its own), <b class="ui">Export</b> and <b class="ui">Delete</b>. Rename and Delete ask in this
+    row: type the new name and press <kbd>Enter</kbd>, or choose <b class="ui">Delete it</b>.</li>
+  <li data-n="8"><b>Import…</b> adds a prefab file someone passed on.</li>
+  <li data-n="9"><b>Open</b> (<kbd>Enter</kbd>) opens the chosen prefab in the builder, asking first to save what is
+    open if it has changes. With New prefab chosen, it reads New prefab. <kbd>Esc</kbd> closes the window.</li>
+</ol>
 <p><b>Passing one on.</b> <b class="ui">Export</b> saves the prefab as a small <code>.json</code> file. It holds the
   names of the pieces, where they stand and any saved recipe keys. The recipient needs game maps with those pieces.
   <b class="ui">Import…</b> adds such a file to your library. If the library already has
   that prefab, the editor asks: <b class="ui">Replace it</b> saves the file over yours, <b class="ui">Keep both</b>
   adds it beside yours with "(imported)" after its name. <b class="ui">Delete</b> moves a prefab's file to the
-  library's <code>.workshop\deleted</code> folder instead of erasing it.</p>
+  library's <code>.workshop\deleted</code> folder instead of erasing it; what was placed from it in maps stays.</p>
 <h4 id="prefab-builder">The prefab builder</h4>
-<p><b class="ui">New</b> in the Prefabs tab opens an empty workspace in the main editor. A row's
-  <b class="ui">Edit</b> opens that prefab for editing, including imported prefabs and ones saved from a map
-  selection. The map browser (<kbd>M</kbd>) also has a <b class="ui">Prefabs</b> group.</p>
-<p>Add pieces from <b class="ui">All maps</b>, or place another prefab and use <b class="ui">Ungroup</b> to edit
-  its pieces. In the builder the Add panel's first tab is <b class="ui">This prefab</b>: one row for each distinct
-  piece the prefab holds now, with how many it has; a click puts another on the cursor, as it stands in the prefab
-  (its tint and flags with it), and the list follows as you add and delete. Drawn walls, floors and ground and cover
-  blocks have no row there: each is made to its own size. Choose <b class="ui">Lights</b> for point and spot lights, or <b class="ui">Invisible</b> for cover
-  blocks and invisible floors. The <a href="#made">Build menu</a> on the Add button draws walls, rooms, floors, roofs
-  and ground as in a map, and the prefab keeps them. The Buildings, Lights and Effects views, box select, nested groups, copy, paste and
-  undo work as in a map, and a prefab's effects are drawn as they look. The
-  ground grid grows with your work; it is a drawing guide and is never saved. Negative X and Y are fine.</p>
-<p>In the builder the header's Project button reads <b>Prefab</b>, and its menu is the prefab's. <b class="ui">Prefab → Save</b> (<kbd>Ctrl+S</kbd>) saves everything, including lights and floor boxes hidden
-  by the current view. Floor boxes alone can be saved. The first save asks for a name; later saves write the next
-  revision. <b class="ui">Save as…</b> makes another prefab, or explicitly replaces a different one after
-  confirmation, leaving the original unchanged. To update the one being edited, use Save.</p>
+<p><b class="ui">New prefab</b> in the Map button's menu, the Open window's New prefab card, or
+  <b class="ui">New</b> in the Prefabs tab opens an empty workspace in the main editor. A card's
+  <b class="ui">Open</b> in the Open window, or a row's <b class="ui">Edit</b> in the Prefabs tab, opens that prefab
+  for editing, including imported prefabs and ones saved from a map selection.</p>
+<p id="prefab-menu">In the builder the header's second button is the prefab's, as it is the map's in a map:</p>
+<div class="split">
+  <figure><img src="shots/prefab-menu.webp" width="484" height="404" alt="The prefab builder's header: Project reading None, the Prefab button with the prefab's name, and its menu: This prefab, Save, Save as, Export to a file, Find missing pieces, Open with A map and A prefab, and New prefab"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>Project</b> reads <b>None</b>: a prefab is open in a project's place. Its menu holds
+      <b class="ui">Open…</b> and the recent projects; opening a project closes the prefab, asking to save it
+      first.</li>
+    <li data-n="2"><b>Prefab</b> and the prefab's name (a dot after it means unsaved changes) open the prefab's
+      menu.</li>
+    <li data-n="3"><b>This prefab:</b> its name and revision, with <i>unsaved changes</i> when there are; before its
+      first save, that saving adds it to the library.</li>
+    <li data-n="4"><b>Save</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) saves everything, including lights and floor boxes
+      hidden by the current view. Floor boxes alone can be saved. The first save asks for a name; later saves write
+      the next revision.</li>
+    <li data-n="5"><b>Save as…</b> makes another prefab, or explicitly replaces a different one after confirmation,
+      leaving the original unchanged. To update the one being edited, use Save.</li>
+    <li data-n="6"><b>Export to a file…</b> saves the prefab's saved revision as a file to pass on, without the
+      changes not saved yet. It is greyed until the prefab is saved.</li>
+    <li data-n="7"><b>Find missing pieces</b> looks again for pieces the prefab could not read
+      (<a href="#prefab-missing">below</a>). It shows for a prefab with pieces of maps.</li>
+    <li data-n="8"><b>Open:</b> <b class="ui">A map…</b> (<kbd>M</kbd>) and <b class="ui">A prefab…</b>
+      (<kbd>Ctrl</kbd>+<kbd>O</kbd>), the Open window's two sides, as in a map.</li>
+    <li data-n="9"><b>New prefab:</b> an empty builder.</li>
+  </ol>
+</div>
+<p>Add pieces from <b class="ui">All maps</b>, where the Add panel opens in the builder, or place another prefab and
+  use <b class="ui">Ungroup</b> to edit its pieces. Choose <b class="ui">Lights</b> for point and spot lights, or
+  <b class="ui">Invisible</b> for cover blocks and invisible floors. The <a href="#made">Build menu</a> on the Add
+  button draws walls, rooms, floors, roofs and ground as in a map, and the prefab keeps them. The Buildings, Lights and
+  Effects views, box select, nested groups, copy, paste and undo work as in a map, and a prefab's effects are drawn as
+  they look. The ground grid grows with your work; it is a drawing guide and is never saved. Negative X and Y are
+  fine.</p>
+<div class="split">
+  <figure><img src="shots/this-prefab.webp" width="436" height="739" alt="The Add panel in the prefab builder on its This prefab tab: a row for each distinct piece the prefab holds, the kegs counted three, among the editor's own cover block, invisible floor, diagonal cover and lights"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>This prefab</b>, the Add panel's first tab in the builder, where This map is in a map.</li>
+    <li data-n="2"><b>A row for each distinct piece</b> the prefab holds now, with how many it has: here its three
+      kegs. A click puts another on the cursor as it stands in the prefab, its tint and flags with it, in no group.
+      The list follows as you add and delete.</li>
+    <li data-n="3"><b>The editor's own pieces</b> (cover block, invisible floor, diagonal cover, point and spot light)
+      are offered in every tab. Drawn walls, floors and ground and the prefab's cover blocks have no row of their
+      own: each is made to its own size.</li>
+  </ol>
+</div>
 <p>The footprint and height appear at the bottom. Height 0 is the drawn grid. A map holds at most
   <b>256 by 256 tiles</b>, and a tile grid <b>0 to 1,920 units high</b> (30 levels), with up to
   <b>192 units sticking out</b> under or over it: a hull or crater under the ground, a roof, floor boxes, lights.
@@ -1709,10 +1801,10 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <b class="ui">Align prefab to grid</b> moves the whole prefab, lights and floor boxes too, the smallest distance that puts
   every such piece on the grid, in one undo step. Move it by whole levels afterwards to set its height: it stays
   aligned.</p>
-<p>When you open a prefab with missing pieces, the builder looks for the same recipes in your local map catalogue
+<p id="prefab-missing">When you open a prefab with missing pieces, the builder looks for the same recipes in your local map catalogue
   and warns about pieces it still can't load. Matches keep their positions and links. You can undo the recovery
   or save the prefab with its new sources. Unresolved records stay in the document. After scanning or rescanning
-  <b class="ui">All maps</b>, use <b class="ui">Prefab → Find missing pieces</b> to try again.
+  <b class="ui">All maps</b>, use <b class="ui">Find missing pieces</b> in the Prefab button's menu to try again.
   Unsaved changes to an already saved prefab are kept for
   recovery and offered when you reopen it. Opening a map, project or prefab asks <b class="ui">Save</b>,
   <b class="ui">Discard</b> or <b class="ui">Cancel</b> first if there are changes. A failed or cancelled save
@@ -1827,7 +1919,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>A build of effects alone</b> needs no baked lighting: a quick build makes them.</li>
 </ul>
 <div class="split">
-  <figure><img src="shots/effects-switches.webp" width="320" height="478" alt="The Views list with the Effects view on: Effects, Sounds and Lens flares under its row"></figure>
+  <figure><img src="shots/effects-switches.webp" width="316" height="586" alt="The Views list with the Effects view on: Effects, Sounds and Lens flares under its row"></figure>
   <div>
     <p>While the Effects view is on, its row in the Views list has a switch for each kind: untick <b>Effects</b>,
       <b>Sounds</b> or <b>Lens flares</b> to hide its markers while you work on the others.</p>
@@ -2164,7 +2256,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <img src="shots/map-grid.webp" width="1080" height="675" alt="Map grid on the Bar: the play area's box with its red, blue and green handles, and the panel">
 </figure>
 <ol class="legend">
-  <li data-n="1"><b>Map grid</b> in the Views list, here kept open by a click on the Views button.</li>
+  <li data-n="1"><b>Map grid</b> in the Views list, here kept open beside the Views button by a click on it.</li>
   <li data-n="2"><b>The red handle</b> moves the far X side, by whole tiles.</li>
   <li data-n="3"><b>The blue handle</b> moves the far Y side, by whole tiles.</li>
   <li data-n="4"><b>The green handle</b> raises the top, by whole levels.</li>
@@ -2345,7 +2437,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <b class="ui">Use</b>; a Meld point has its difficulty, the turn it is destroyed on and its spawn group.</li>
 </ol>
 <div class="split">
-  <figure><img src="shots/spawns-switches.webp" width="399" height="521" alt="The Views list with the Spawns view on: a switch for each kind of point, Deleted points, and Scripted drop-ins land where placed under its row"></figure>
+  <figure><img src="shots/spawns-switches.webp" width="395" height="729" alt="The Views list with the Spawns view on: a switch for each kind of point, Deleted points, and Scripted drop-ins land where placed under its row"></figure>
   <div>
     <p>While the Spawns view is on, its row in the Views list has a switch for each kind: pods, Meld, drop-in points,
       soldier and start points, objectives, other points and no-spawn volumes (the covert operative's, the VIP's and loot places, and the
@@ -2591,7 +2683,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="2"><b>Save</b> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) saves the next revision. With no project open, it asks for a name.</li>
     <li data-n="3"><b>Save as…</b> saves what is on screen under a name: a new project, with a map name of its own, or
       in place of another, which keeps its map name. <a href="#save-as">More</a></li>
-    <li data-n="4"><b>Open…</b> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) opens a saved project, switching map if it is of another.</li>
+    <li data-n="4"><b>Open…</b> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) opens a saved project, switching map if it is of another,
+      or closing the prefab open in the builder.</li>
     <li data-n="5"><b>Close project</b> goes back to the original map.</li>
     <li data-n="6"><b>Recent:</b> the last three projects. Click one to open it.</li>
     <li data-n="7"><b>Manage projects…</b> lists every project with its last build, to build several one after
@@ -2600,7 +2693,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   </ol>
 </div>
 <p>Building and playing are on the header itself (<a href="#build">Build</a>, <a href="#play">Play</a>), and the
-  map's own items are in the <a href="#map-menu">Map menu</a>.</p>
+  map's own items are in the <a href="#map-menu">Map menu</a>. In the prefab builder the Project menu holds Open… and
+  the recent projects alone: the prefab's own items are in its <a href="#prefab-menu">Prefab menu</a>.</p>
 <ul>
   <li><b>Unsaved changes are kept for you.</b> If the browser closes, reopening the project offers them back:
     <b class="ui">Restore them</b> or <b class="ui">Discard them</b>.</li>
@@ -3105,7 +3199,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><kbd>Alt</kbd>+drag</td><td>In the Buildings view: stretch a box by steps of 8 units. On a gap's handle: steps of 8</td></tr>
   <tr><td><kbd>O</kbd></td><td>Solo the selected lights</td></tr>
   <tr><td><kbd>F</kbd>, double-click</td><td>Frame the selection</td></tr>
-  <tr><td><kbd>M</kbd></td><td>Map browser</td></tr>
+  <tr><td><kbd>M</kbd></td><td>The Open window's <a href="#maps">Maps side</a>, the map browser</td></tr>
   <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, arrow keys</td><td>Move the camera: across the map, or along the view with View options' Keys move along the view (<kbd>Shift</kbd>: faster)</td></tr>
   <tr><td><kbd>Q</kbd> · <kbd>E</kbd></td><td>Turn the camera left or right (<kbd>Shift</kbd>: faster)</td></tr>
   <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> · <kbd>Ctrl</kbd>+<kbd>X</kbd> · <kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Copy · Cut · Paste (then click to place)</td></tr>
@@ -3115,7 +3209,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Group the selection</td></tr>
   <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd></td><td>Ungroup</td></tr>
   <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> · <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo · Redo</td></tr>
-  <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd> · <kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Save the project · Open a project</td></tr>
+  <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd> · <kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Save the project · Open a project. In the prefab builder: save the prefab · the Open window's <a href="#open-prefabs">Prefabs side</a></td></tr>
   <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Build</td></tr>
   <tr><td><kbd>Esc</kbd></td><td>Cancel a drag, stop placing, close a menu, or clear the selection</td></tr>
 </table>
