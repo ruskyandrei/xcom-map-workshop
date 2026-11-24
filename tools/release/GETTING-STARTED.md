@@ -61,6 +61,16 @@ checks, if something seems wrong.
 
 Each of these has its own section in the user guide, with pictures.
 
+New in 0.7.1:
+- **The Diagonal cover view** (Shift+C): diagonal cover placed by hand, as marks that follow their walls. The Build
+  gives diagonal cover only where there is a mark.
+- **One Views button** on the tool strip lists every view. **Clear map** clears the parts of the map you tick.
+- **The Open window** (the M key) has a Maps side and a Prefabs side, and the header's second button names the map
+  or prefab that is open. The **Add panel** can be made large, with large pictures.
+- **Ctrl and the wheel** step through the pieces under the cursor. A **copy goes along** to the next map or prefab
+  (Ctrl+C, open it, Ctrl+V), and zones, spawn points and marks take a piece's keys.
+- **A building's own cursor floors** (the Buildings view), and **Long War Rebalance map info** in Map settings.
+
 New in 0.7.0:
 - **Walls, floors, roofs and ground at any size and angle**, sized by white handles, walls meeting in mitred
   corners, and a **Texture mapping** of your own on each surface.
