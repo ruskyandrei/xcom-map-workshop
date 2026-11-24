@@ -2632,6 +2632,11 @@ the cutaway or after a save and reload).
 - Risk: something that attaches or shows it again (a visibility toggle, a Kismet action). Then it would stand
   without its tiles, as a ghost.
 - Fix if the game shows it: take it out of those lists too, as `AffectedChildren` already is.
+- Seen again in [EXP-97](experiments/EXP-97-clear-by-parts.md) (24 November 2026), for a Kismet action: on URB_Bar with
+  its effects alone cleared, a soldier in a rat trigger fired its touch event, whose script sets values on rat emitters
+  the clear took out of the list; nothing showed, the game went on and its quicksave loaded. The taken emitters and
+  lights read their components not attached. (The building floors' emitter lists no longer name the emitters a clear
+  takes out since the same day.)
 
 ### F-59: Builds assumed what Bar and Temple Ship have
 **Fixed** offline (7 November, all-maps support); a Build of another map is still to be played.

@@ -1,5 +1,5 @@
 // clear_parts.js: the parts a project cleared read from schema 9 and from 1 to 8, and a clear's parts over an earlier
-// one (private/plans/todo/modular-clear-plan.md, sections 2 and 4).
+// one (private/plans/done/modular-clear-plan.md, sections 2 and 4).
 // Run: node tools/viewer/tests/clear_parts_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

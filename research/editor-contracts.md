@@ -170,7 +170,7 @@ until they are marked.
 Schema 8 (23 November 2026) adds a building's `cursorFloors` (below, `buildings`): the page, the server and the
 compiler read 1 to 8, the page writes 8, and the server refuses a save of 1 to 7. A project of schema 7 builds as it
 did.
-Schema 9 (24 November 2026; private/plans/todo/modular-clear-plan.md) makes `cleared` the parts of the map the project
+Schema 9 (24 November 2026; private/plans/done/modular-clear-plan.md) makes `cleared` the parts of the map the project
 cleared (below): the page, the server and the compiler read 1 to 9, the page writes 9, and the server refuses a save
 of 1 to 8. `cleared: true` of schema 1 to 8 is read as every part, so such a project builds as it did, and the page
 saves it in the new form, without `clearKeepsOutside` and `clearKeepsTriggers`.

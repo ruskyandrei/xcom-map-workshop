@@ -3,7 +3,7 @@
 // - the landing zones as the project has them (zonesNow: its own, or the map's own landings joined with the install's
 //   lines), the landing zone's pieces (isLanding), the ground's height (groundHeight) and the notes under a size
 //   (sizeNotes, groundWords);
-// - Clear map by parts (private/plans/todo/modular-clear-plan.md; clear_parts.js): the play area a part's clear keeping
+// - Clear map by parts (private/plans/done/modular-clear-plan.md; clear_parts.js): the play area a part's clear keeping
 //   the scenery outside goes by (outsideBox, pointOutside), what a clear takes and keeps of the pieces, lights, spawn
 //   points and effects (clearPlan, clearedSpawns, clearedEffects), its window (showClearMap, clearWords) and the clear
 //   itself, any parts in one undo step (clearParts; clearMap, all of them);

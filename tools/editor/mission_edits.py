@@ -32,7 +32,7 @@ from compiler_tables import FLOOR_THICK, HEADROOM, STAGE_MAPS, STOREY, TILE, tid
 import missions
 import spawns
 
-# The parts of a map a clear takes that the Build acts on (private/plans/todo/modular-clear-plan.md, section 2), the
+# The parts of a map a clear takes that the Build acts on (private/plans/done/modular-clear-plan.md, section 2), the
 # project's `cleared` keys: its pieces and ground (with what belonged to them), its lights, its effects and sounds, its
 # triggers and sight points. The spawn points and the landing zones a clear takes are records of their own.
 CLEAR_PARTS = ('pieces', 'lights', 'effects', 'triggers')
@@ -263,7 +263,7 @@ class MissionEdits:
                       'there unless the project leaves them where placed (the Spawns view\'s flyout)' % (self.c.map, variant))
 
     def cleared_mark(self):
-        """The project's `cleared` (schema 9; private/plans/todo/modular-clear-plan.md, section 4): the parts of the map
+        """The project's `cleared` (schema 9; private/plans/done/modular-clear-plan.md, section 4): the parts of the map
         the project cleared, {part: {"keepOutside"?: true}}, each one of CLEAR_PARTS, `keepOutside` saying that part's
         clear left what stands wholly outside the play area. The Build's clear_level takes out of each part what the
         editor never showed (the pieces, the lights it edits, the spawn points and landing zones go by their own

@@ -1,6 +1,6 @@
 """A cleared map in the Build (private/plans/done/clear-map-plan.md, section 7): the shell stage's cursor storeys in
 place of the map's own (shell.py --clear) and native_copy.clear_level, its triggers among what it takes (F-159), and
-each part of a clear alone (private/plans/todo/modular-clear-plan.md, section 4). Read on the configured install's
+each part of a clear alone (private/plans/done/modular-clear-plan.md, section 4). Read on the configured install's
 URB_Bar and CSmallScout_Roadhouse; they skip without them."""
 from pathlib import Path
 import sys

@@ -1624,7 +1624,7 @@ def empty_slots(g, p, gone):
 
 # ---------------------------------------------------------------- a cleared map (private/plans/done/clear-map-plan.md)
 # What clear_level takes out of the persistent level's actor list for each part of the map a project clears
-# (private/plans/todo/modular-clear-plan.md, section 4; the Clear map plan's section 7, step 1, and F-159 before it):
+# (private/plans/done/modular-clear-plan.md, section 4; the Clear map plan's section 7, step 1, and F-159 before it):
 # what the editor never showed of that part. The pieces themselves, the lights the editor edits, the spawn points and
 # the landing zones go by the project's own records. Classes are matched exactly.
 CLEAR_PARTS = dict(

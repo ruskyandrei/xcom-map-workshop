@@ -1,4 +1,4 @@
-// The parts of a map a clear takes (private/plans/todo/modular-clear-plan.md, section 2): the rules the page shares for
+// The parts of a map a clear takes (private/plans/done/modular-clear-plan.md, section 2): the rules the page shares for
 // them, with no state of its own (clear_map.js makes the clear and its window; editor_state.js keeps the parts the
 // project cleared).
 //
