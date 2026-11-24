@@ -253,8 +253,12 @@ files, not played).
   floor's planes lie at -147, under the hold's floor at -106). The ray beside the hull goes through the hull's side
   (skipped as a wall) and its first hit is the hold's floor, cursor floor 0, so it stays the best on the deck's stop.
   The same happens from anything above the deck's floor (the cabin roof, the crane): its next hit lower down may be
-  the hold, past the hull. The hive's own boat had the same layout (its deck inside its building too, a walkable hold
-  under it); whether the game's map shows the same was not looked at.
+  the hold, past the hull. The hive's own boat has the same layout (read from its export, not played): its building's
+  boxes hug the hull (x -6048 to -4512, y 2688 to 6816, the deck's floor from 304, the hold's -128 to 128), a walkable
+  hold under the deck, water along both long sides (the grid's edge 192 past the west one), one tall dock piece on the
+  east, and nothing round the hull that the mouse hits and nobody walks on. So the game's map should show the same.
+- **What a map can't change**: the rule is the game's script (`XComTacticalHUD`), not the map's; a map changes only
+  what the ray meets. Turning the hold floor's mouse flag off would also stop the mouse ordering anyone into it.
 - **The build was right**: the deck's pieces are listed on the deck's floor; only the building's three cursor volumes
   stand over the boat (-194 to 190, 190 to 574, 574 to 1152), the map's own taken out.
 - **Ways out, none tried**: something at about the deck's height round the hull that the mouse hits but nobody can
