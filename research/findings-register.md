@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-165 (24 November, the clear-by-parts plan): eleven of the 99 base maps have scripts the game starts at a moment
+  of the battle, with no place and no name (the alien bases' closing narration when won, the Chryssalid Hive's and
+  the Temple Ship's turn-by-turn mission scripts, a pod-reveal hook on one scout map that leads nowhere). A clear
+  leaves them on. Set aside by the user: only the alien bases' narration looks worth taking out.
 - F-161 (22 November, a report): Play in game of a project whose map a map pack had installed in the game failed:
   the play installed the build under the project's own names, which the pack's copy holds too. Fixed: a play installs
   under play names of its own (<Map>_Play). Not played yet.
@@ -212,6 +216,40 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-165: Eleven base maps' scripts act at moments of the battle, with no place and no name; a clear leaves them
+**Set aside by the user** (24 November 2026; read offline from the install's 99 base maps: every sequence event of a
+class other than `SeqEvent_Touch`, `SeqEvent_RemoteEvent`, `SeqEvent_LevelLoaded` and
+`SeqEvent_OnKismetDataSerialized`, and what two of them lead to with [kismet_links.py](../tools/upk/kismet_links.py).
+None was played.)
+- **What the maps have.** Besides the scripts a place starts (F-159: touch volumes, sight points), a name starts
+  (remote events: the landing intro, a breaking hologram, the multiplayer hides), the level's load starts (F-160) and
+  a loaded save starts, a map's script can listen for events the game fires at a moment of the battle. 88 of the 99
+  base maps have none. The eleven that do:
+
+  | Map | Events | What they are |
+  |---|---|---|
+  | AlienBase01, AlienBase02 | `SeqEvent_OnMissionVictory` (1 each) | AlienBase01's leads straight to a narration action: the closing narration when the base is won |
+  | EWI_ChryssalidHive | `SeqEvent_DynamicAlienSpawned`, `SeqEvent_OnAlienBeginTurn`, `SeqEvent_OnAlienEndingTurn`, `SeqEvent_OnPlayerBeginTurn` (2), `SeqEvent_OnPlayerLoadedFromSave` | The mission's own script, turn by turn |
+  | TempleShip | `SeqEvent_DynamicAlienSpawned`, `SeqEvent_OnAlienBeginTurn`, `SeqEvent_OnAlienEndingTurn`, `SeqEvent_OnUnitKilled` | The mission's own script (24 `DynamicAlienSpawned` events between it and the hive) |
+  | CBattleship_02 | `SeqEvent_OnPlayerEndingTurn` (1) | Not read |
+  | DLC1_3_Gangplank | `SeqEvent_OnTacticalIntro` (1) | Not read |
+  | URB_HighwayConstruction, URB_HighwayConstruction_EWI, Act1_IntroLevel | `SeqEvent_LevelStreamingComplete` (1 each) | Not read |
+  | CSmallScout_DirtRoad | `SeqEvent_OnRevealPod` (1) | A hook, below |
+  | Command1 (the HQ) | `SeqEvent_Console` (8), `SeqEvent_MissionControl` (6), `SeqEvent_OnStrategyRoomEntered` (3), `SeqEvent_OnStrategyRoomExited` (1) | The strategy game's, not a battle map's |
+- **The pod-reveal hook is not the pod reveal.** The reveal (the camera, the aliens' scatter) is the game's, on every
+  map. `SeqEvent_OnRevealPod` only tells a map's script that one happened. The one map that listens,
+  CSmallScout_DirtRoad, writes the revealed unit into a variable named "Outsider" and fires the remote event
+  `OnOutsiderRevealed`, which no event in that map listens for (whether a streamed level does was not read).
+- **What a clear does.** The Build's clear takes the triggers and sight points out and switches off the events of the
+  volumes it took (F-159); these events have no originator, so they stay on. A cleared alien base would still play
+  its closing narration when the mission is won.
+- **Left as it is** (the user, 24 November 2026: of these only the alien bases' closing narration looks worth taking
+  out, the rest "seem like things we might not want to remove"; "let's leave this out for now and record it as a
+  finding"). The clear-by-parts plan had a sub-option, "Map specific scripts", that would switch every such event off
+  (`bEnabled` false, as `native_copy.switch_off_events` does for a trigger's); it was taken out of the plan. If it is
+  wanted later, it is a choice per event class or per map, not one switch: on the hive and the Temple Ship these
+  events are the mission.
 
 ### F-164: A building's own cursor floors play as written; the camera's floor height lags a step across their edge
 **Verified, the game's own rule for the lag** (23 November 2026, [EXP-96](experiments/EXP-96-building-cursor-floors.md)
