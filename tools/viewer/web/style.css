@@ -98,6 +98,8 @@ canvas { display: block; width: 100%; height: 100%; }
    kept while it is over the menu; a click on Add still opens the Add panel */
 .rail .flyout.buildfly { display: block; visibility: hidden; padding: 8px 6px 6px; transition: visibility 0s linear .15s; }
 .railfly:hover .flyout.buildfly, .railfly:focus-within .flyout.buildfly { visibility: visible; transition-delay: .3s; }
+/* (with the Add panel open the Build menu doesn't show: it would stand over the panel's list; shut, it does) */
+.railfly.buildrail:has(#editAdd.on) .flyout.buildfly { visibility: hidden; transition-delay: 0s; }
 .buildfly .flyhead { padding: 0 8px 4px; }
 .buildfly .flysub { font-weight: 400; color: var(--muted); font-size: 11px; }
 .rail .buildfly button { width: 100%; height: 28px; display: flex; align-items: center; justify-content: flex-start; gap: 9px; padding: 0 10px 0 8px; font: inherit; font-size: 12px; }

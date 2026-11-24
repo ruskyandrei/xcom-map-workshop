@@ -647,7 +647,7 @@ def check_same_controls(browser, url, open_viewer):
 
 def check_rail_lists(browser, url, open_viewer):
     """The rail's Views list beside its button, as the Build menu beside Add, lifted to stay in a short window and over
-    the dock; the Add panel made large by its maximise button (the look picker's way): cards with large pictures in This
+    the dock; the Build menu not shown while the Add panel is open; the Add panel made large by its maximise button (the look picker's way): cards with large pictures in This
     map and All maps, back to its size when a card is chosen (placing begins), by Esc and by the button."""
     errors = []
     page = open_viewer(browser, url.split('?')[0] + '?map=URB_Bar', errors)
@@ -676,8 +676,17 @@ def check_rail_lists(browser, url, open_viewer):
     page.mouse.move(700, 300)
     page.evaluate('viewer.setSpawnsShown(false)')
     page.set_viewport_size(dict(width=1600, height=1000))
-    # The Add panel made large: over most of the view, This map's pieces as cards with large pictures
+    # The Build menu shows on Add's hover with the Add panel shut, and not while it is open (it stood over its list)
+    def build_menu_shown():
+        page.mouse.move(700, 500); page.wait_for_timeout(250)
+        a = box('#editAdd')
+        page.mouse.move((a[0] + a[2]) / 2, (a[1] + a[3]) / 2); page.wait_for_timeout(600)
+        return page.evaluate('getComputedStyle(document.getElementById("buildFlyout")).visibility') == 'visible'
+    assert build_menu_shown()
     page.evaluate("viewer.setLibraryScope('map'); viewer.showPieces(true)")
+    assert not build_menu_shown()
+    page.mouse.move(700, 500)
+    # The Add panel made large: over most of the view, This map's pieces as cards with large pictures
     small = page.evaluate('document.querySelector("#libList canvas").width')
     page.locator('#libraryLarge').click()
     assert page.evaluate('document.getElementById("library").classList.contains("large")')
