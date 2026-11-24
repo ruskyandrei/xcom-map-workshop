@@ -3182,6 +3182,11 @@ def floors_and_cursors(st):
     new_now.update({r['copy']: r['location'] for r in effect_record if r['how'] == 'copied'})
     gone_effects = ({r['export'] for r in lane_effects if r['how'] == 'deleted'}
                     | {p.by_name[PL + r['effect']] for r in effect_record if r['how'] == 'deleted'})
+    # and the emitters a clear took out (clear_level): a building that stays (its pieces not cleared, or edited in
+    # place) lists them no longer (the clear-by-parts plan: a clear of the effects alone keeps every building)
+    if st.cleared_record:
+        gone_effects |= {p.by_name[PL + n] for n in st.cleared_record['taken']
+                         if PL + n in p.by_name and p.cls(p.by_name[PL + n]) == 'Emitter'}
     floor_emitters = native_effects.floor_lists(g, p, moved_now, new_now, gone_effects, building_edits,
                                                 building_records)
     # the made floors' and roofs' own cursor floors over their footprints (made_cursors.py; custom geometry plan M5b,

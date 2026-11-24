@@ -244,6 +244,24 @@ class Lanes(SharedPart, unittest.TestCase):
         copy, = [r['copy'] for r in m['nativeCopies']['sounds'] if r['how'] == 'copied']
         self.assertIn(q.by_name[PL + copy], listed)
 
+    def test_a_clear_of_the_effects_alone_takes_them_out_of_the_floors_lists(self):
+        # (the clear-by-parts plan) the map's buildings stay, and no floor lists an emitter the clear took out: Bar's
+        # first building listed five on its first floor; the landing's dust stays with the Skyranger, listed or not
+        out = Path(self.tmp) / 'EffectsCleared'
+        m = native_copy.build(native_copy.BuildState(BAR, out, 'EffectsCleared', [], cleared=dict(parts={'effects': {}})))
+        q = Package(out / 'EffectsCleared.upk')
+        taken = set(m['nativeCopies']['cleared']['taken'])
+        self.assertEqual(m['nativeCopies']['cleared']['parts'], ['effects'])
+        self.assertTrue({'Emitter_4', 'Emitter_13', 'Emitter_14', 'Emitter_37', 'Emitter_45'} <= taken, taken)
+        listed = set(native_copy.level_actors(q))
+        self.assertIn(q.by_name[PL + FLOOR1], listed)                                # the building stays
+        level = q.by_name['TheWorld.PersistentLevel']
+        for i in listed:
+            if i > 0 and q.cls(i) == 'XComBuildingVolume' and q.exports[i - 1]['outer'] == level:
+                building = q.name(i).split('.')[-1]
+                self.assertFalse(set(n for floor in emitters(q, building) for n in floor) & taken, building)
+        self.assertNotIn('rebuildVolume', m['nativeCopies']['cleared'])             # (the pieces' alone)
+
 
 # ---------------------------------------------------------------- values (plan Part D, stage FX5)
 def component_bytes(p, actor, prop='ParticleSystemComponent'):
