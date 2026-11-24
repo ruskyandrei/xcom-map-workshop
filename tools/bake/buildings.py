@@ -15,6 +15,11 @@ What is made, each a clone of a template the map has (templates): the map's own,
   the class's name (a template's may be one LWR's randomiser acts on), no mesh groups;
 - the floor volumes: one for each box, stretched over it, FloorNumber its floor's index plus one;
 - Floors: an entry for each floor, naming its floor volumes and its pieces.
+Every clone's brush is a plain box (box_source; F-170): the game tests what is inside a volume by its brush, so a
+notched or pointed brush stretched over a box leaves part of the box outside the building, and the cut-out box then
+hides the building as one standing between the camera and the cursor. The templates are picked among the volumes
+whose brush is a box; where the map has none of that class, the clone takes the box model of another of its volumes
+(the model shared, as native_copy.add_volume's clones share theirs).
 
 Which pieces a floor lists is the game editor's own rule (F-87; floor_listing.touched and listing): a piece counts
 for every floor one of whose boxes it touches with its bottom more than 20 units under that box's top; a piece with
@@ -58,12 +63,66 @@ def level_actors(p, cls):
     return [i for i in p.children.get(level, []) if p.cls(i) == cls]
 
 
+def box_brush(p, volume):
+    """Whether a volume's brush model is a plain box (scene_metadata.plain_box: six polygons on its bounds' corners)."""
+    import scene_metadata
+    return scene_metadata.plain_box(p, volume) is True
+
+
+def box_source(p, template):
+    """The volume whose brush model a clone of `template` takes, so that the clone fills the box it is stretched over
+    (F-170): the template itself where its brush is a plain box; else the plain volume of the persistent level with
+    the largest box brush, those of the template's class first. None when the level has no box brush at all."""
+    if box_brush(p, template):
+        return template
+    level = p.by_name.get(PL.rstrip('.'))
+    found = [i for i in p.children.get(level, []) if native_copy.plain_volume(p, i) and p.own(i, 'Brush', 0) > 0
+             and box_brush(p, i)]
+    if not found:
+        return None
+
+    def rank(i):
+        _, extent = native_copy.brush_bounds(p, i)
+        return p.cls(i) == p.cls(template), extent[0] * extent[1] * extent[2], -i
+    return max(found, key=rank)
+
+
+def with_model(walker, data, start, old, new):
+    """An export's bytes with every reference to the model `old` pointing at `new` instead (export indices)."""
+    data = bytearray(data)
+    if old != new:
+        for _, at in walker.refs(bytes(data), start, len(data)):
+            if struct.unpack_from('<i', data, at)[0] == old:
+                struct.pack_into('<i', data, at, new)
+    return data
+
+
+def shaped_component(walker, p, component, source):
+    """Brush component `component`'s bytes (as the map `p` saves them) with the brush model and the saved convex
+    collision of brush component `source`: its Brush reference and its BrushAggGeom, which a map's brush components
+    save beside the model (the hive's pointed floor volume's holds the pointed hull)."""
+    def raw(i):
+        e = p.exports[i - 1]
+        return bytes(p.data[e['off']:e['off'] + e['size']]), start_of(p, i)
+    b, s = raw(component)
+    sb, ss = raw(source)
+    mine = native_copy.find_prop(walker, b, s, len(b), 'BrushAggGeom[0]')
+    theirs = native_copy.find_prop(walker, sb, ss, len(sb), 'BrushAggGeom[0]')
+    block = sb[theirs[1]:theirs[2] + theirs[3]] if theirs else b''
+    if mine:
+        b = b[:mine[1]] + block + b[mine[2] + mine[3]:]
+    elif block:
+        b = b[:s] + block + b[s:]
+    return with_model(walker, b, s, p.own(component, 'Brush', 0), p.own(source, 'Brush', 0))
+
+
 def building_template(p, walker):
     """A building volume to clone: a plain volume (an actor, a brush component, a model) of the level, with no
     archetype and no mesh groups, whose floors hold a floor entry with a CutdownFloor and one without (the two shapes
-    an entry is written in). Returns dict(actor, floor: a floor element's bytes with only its two lists, plain and cut:
-    an entry of each shape (struct_entries'), none: the eight bytes that close a struct) or None."""
-    for i in sorted(level_actors(p, 'XComBuildingVolume'), key=lambda i: -p.exports[i - 1]['size']):
+    an entry is written in); one whose brush is a plain box first (F-170), the larger first. Returns dict(actor,
+    floor: a floor element's bytes with only its two lists, plain and cut: an entry of each shape (struct_entries'),
+    none: the eight bytes that close a struct) or None."""
+    for i in sorted(level_actors(p, 'XComBuildingVolume'), key=lambda i: (not box_brush(p, i), -p.exports[i - 1]['size'])):
         if not native_copy.plain_volume(p, i) or p.exports[i - 1]['arch'] or p.own(i, 'ExternalMeshGroups') is not None:
             continue
         b = bytes(p.data[p.exports[i - 1]['off']:p.exports[i - 1]['off'] + p.exports[i - 1]['size']])
@@ -91,7 +150,7 @@ def building_template(p, walker):
 
 def floor_template(p):
     """A floor volume to clone: a plain volume of the level that saves a FloorNumber and neither an inclusion nor an
-    exclusion list, the largest first (it is stretched less)."""
+    exclusion list; one whose brush is a plain box first (F-170), the largest first (it is stretched less)."""
     def size(i):
         _, extent = native_copy.brush_bounds(p, i)
         return extent[0] * extent[1] * extent[2]
@@ -99,7 +158,7 @@ def floor_template(p):
              if native_copy.plain_volume(p, i) and p.own(i, 'FloorNumber') is not None and p.own(i, 'Brush', 0) > 0
              and p.own(i, 'm_aInclusionActors') is None and p.own(i, 'm_aExclusionActors') is None
              and not any(p.own(i, 'Rotation', [0, 0, 0]))]
-    return max(found, key=size) if found else None
+    return max(found, key=lambda i: (box_brush(p, i), size(i))) if found else None
 
 
 def templates(p, walker=None):
@@ -107,23 +166,26 @@ def templates(p, walker=None):
     return building_template(p, walker or native_copy.Walker(p)), floor_template(p)
 
 
-def clone_volume(g, p, walker, template, box, tag, edit=None):
+def clone_volume(g, p, walker, template, box, tag, edit=None, brush=None):
     """The plain volume `template` cloned and stretched over `box` ([x0, y0, z0, x1, y1, z1], world): its actor and
     its brush component, the actor's Location and DrawScale3D set, its Tag the name `tag`. `edit(data, start)` changes
-    the actor's bytes further before they are written. Returns the new actor's export index."""
+    the actor's bytes further before they are written. `brush`: the volume whose brush model and saved collision the
+    clone takes in place of the template's (box_source), the model shared; None for the template's own. Returns the
+    new actor's export index."""
     ti = template
     tc = p.own(ti, 'BrushComponent', 0)
-    origin, extent = native_copy.brush_bounds(p, ti)
-    half = [(box[k + 3] - box[k]) / 2 for k in range(3)]
-    centre = [(box[k + 3] + box[k]) / 2 for k in range(3)]
-    scale = [half[k] / extent[k] for k in range(3)]
-    location = [centre[k] - scale[k] * origin[k] for k in range(3)]
+    if brush == ti:
+        brush = None
+    location, scale = placed(p, ti, box, brush)
     first = len(g.entries) + 1
     mapping = {ti: first, tc: first + 1}
     for old in (ti, tc):
         e = p.exports[old - 1]
-        data = bytearray(p.data[e['off']:e['off'] + e['size']])
         start = start_of(p, old)
+        data = bytearray(p.data[e['off']:e['off'] + e['size']])
+        if brush is not None:
+            data = (shaped_component(walker, p, tc, p.own(brush, 'BrushComponent', 0)) if old == tc else
+                    with_model(walker, data, start, p.own(ti, 'Brush', 0), p.own(brush, 'Brush', 0)))
         for _, at in walker.refs(bytes(data), start, len(data)):
             value = struct.unpack_from('<i', data, at)[0]
             if value in mapping:
@@ -261,6 +323,9 @@ def make(g, p, buildings, pieces):
     if bt is None or ft is None:
         raise ValueError('the map has no %s to clone a new building from' % ' and no '.join(
             n for n, t in (('building volume with floors', bt), ('plain floor volume', ft)) if t is None))
+    fb, bb = box_source(p, ft), box_source(p, bt['actor'])
+    if fb is None or bb is None:
+        raise ValueError('the map has no volume whose brush is a box to give a new building\'s volumes their shape')
     actors, report, meshes = [], [], {}
     number_at = None
     for b in buildings:
@@ -273,7 +338,7 @@ def make(g, p, buildings, pieces):
                 def numbered(data, start, k=k):
                     return native_lights.set_property(walker, g, data, start, 'FloorNumber', 'IntProperty', None,
                                                       struct.pack('<i', k + 1))
-                made.append(clone_volume(g, p, walker, ft, box, 'XComFloorVolume', numbered))
+                made.append(clone_volume(g, p, walker, ft, box, 'XComFloorVolume', numbered, brush=fb))
             volumes.append(made)
         every = [x for boxes in floors for x in boxes]
         union = [min(x[k] for x in every) for k in range(3)] + [max(x[k + 3] for x in every) for k in range(3)]
@@ -291,7 +356,7 @@ def make(g, p, buildings, pieces):
             if kind == 'ufo':
                 data = native_lights.set_property(walker, g, data, start, 'IsUfo', 'BoolProperty', None, b'\x01')
             return data
-        building = clone_volume(g, p, walker, bt['actor'], union, 'XComBuildingVolume', edit)
+        building = clone_volume(g, p, walker, bt['actor'], union, 'XComBuildingVolume', edit, brush=bb)
         actors += [building] + [v for made in volumes for v in made]
         report.append(dict(id=b.get('id'), name=b.get('name'), kind=b.get('kind', 'building'), building=building,
                            box=union, floors=[dict(volumes=volumes[k], boxes=floors[k],
@@ -337,10 +402,10 @@ def floor_map(old_volumes, new_volumes):
     return {k: min((where[v] for v in names if v in where), default=None) for k, names in enumerate(old_volumes)}
 
 
-def placed(p, volume, box):
-    """(Location, DrawScale3D) that put a plain volume's brush over `box` ([x0, y0, z0, x1, y1, z1]), as
-    clone_volume works them out; DrawScale is kept."""
-    origin, extent = native_copy.brush_bounds(p, volume)
+def placed(p, volume, box, brush=None):
+    """(Location, DrawScale3D) that put a plain volume's brush over `box` ([x0, y0, z0, x1, y1, z1]); DrawScale is
+    kept. `brush`: the volume whose brush model it is to have instead of its own (box_source)."""
+    origin, extent = native_copy.brush_bounds(p, volume if brush is None else brush)
     d = p.own(volume, 'DrawScale', 1.0) or 1.0
     half = [(box[k + 3] - box[k]) / 2 for k in range(3)]
     centre = [(box[k + 3] + box[k]) / 2 for k in range(3)]
@@ -405,7 +470,7 @@ def edit(g, p, edits, pieces, gone=(), copies=None):
     gone = set(gone)
     walker = native_copy.Walker(p, g)
     t = building_template(p, walker)
-    ft = None
+    ft = fb = None
     actors, slots, report = [], set(), []
     meshes = {}
     for ed in edits:
@@ -452,11 +517,14 @@ def edit(g, p, edits, pieces, gone=(), copies=None):
                         ft = floor_template(p)
                         if ft is None:
                             raise ValueError('the map has no plain floor volume to clone a new box from')
+                        fb = box_source(p, ft)
+                        if fb is None:
+                            raise ValueError('the map has no volume whose brush is a box to give a new box its shape')
 
                     def numbered(data, start, j=j):
                         return native_lights.set_property(native_copy.Walker(p, g), g, data, start, 'FloorNumber',
                                                           'IntProperty', None, struct.pack('<i', j + 1))
-                    v = clone_volume(g, p, walker, ft, box, 'XComFloorVolume', numbered)
+                    v = clone_volume(g, p, walker, ft, box, 'XComFloorVolume', numbered, brush=fb)
                     actors.append(v)
                     record['made'].append(v)
                 else:
@@ -561,11 +629,21 @@ def edit(g, p, edits, pieces, gone=(), copies=None):
         old_every = [x for f in old for x in f['boxes'] if x]
         old_union = ([min(x[k] for x in old_every) for k in range(3)] + [max(x[k + 3] for x in old_every) for k in range(3)]
                      if old_every else None)
-        # the building volume's box follows the floors' union only when that changed (the map's own is often larger)
+        # the building volume's box follows the floors' union only when that changed (the map's own is often larger);
+        # stretched, a brush that is not a box would stretch its notches, so it takes a box model (F-170)
+        boxed = None
         if not same_box(old_union, union):
-            location, scale = placed(p, i, union)
+            was = world_box(p, i)
+            if (was is None or any(abs((union[k + 3] - union[k]) - (was[k + 3] - was[k])) > SAME for k in range(3))) \
+                    and not box_brush(p, i):
+                boxed = box_source(p, i)
+            location, scale = placed(p, i, union, boxed)
             data = native_copy.set_vector(w, g, data, start, 'Location', location)
             data = native_copy.set_vector(w, g, data, start, 'DrawScale3D', scale)
+            if boxed is not None:
+                data = with_model(w, data, start, p.own(i, 'Brush', 0), p.own(boxed, 'Brush', 0))
+                g.relocate(p.own(i, 'BrushComponent', 0),
+                           bytes(shaped_component(w, p, p.own(i, 'BrushComponent', 0), p.own(boxed, 'BrushComponent', 0))))
         if ed.get('moved'):
             vis = native_copy.find_prop(w, bytes(data), start, len(data), 'VisGroupIdxToHideWhenOccluding[0]')
             if vis is not None:
@@ -592,7 +670,8 @@ def edit(g, p, edits, pieces, gone=(), copies=None):
         report.append(dict(id=ed['id'], actor=ed['actor'], deleted=False, moved=bool(ed.get('moved')), box=union,
                            volumes=record, floors=[dict(volumes=volumes[j], pieces=len(lists[j])) for j in range(len(new_floors))],
                            pieces=counted, emittersDropped=dropped_emitters, visGroupsEmptied=groups['emptied'],
-                           meshGroupsRepointed=groups['repointed']))
+                           meshGroupsRepointed=groups['repointed'],
+                           boxBrushFrom=p.name(boxed).split('.')[-1] if boxed is not None else None))
     return actors, slots, report
 
 

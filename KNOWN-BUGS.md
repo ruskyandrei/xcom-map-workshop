@@ -104,20 +104,6 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Cause.** The pack export copied each build's manifest whole.
 - **Finding.** None in the register: the editor review's finding 14, and the smaller built maps plan's P1 to P3.
 
-### KB-26: A building made in the editor cuts away in the game when the cursor is on some of its tiles
-
-- **What happens.** On some maps a building drawn in the Buildings view (or a Room with a roof) is not inside its own
-  floor volumes everywhere in the game. With the cursor on such a tile, the game takes the building for one standing
-  between the camera and the cursor and cuts it down to its first floor, whatever the mouse wheel's stop: the floors
-  above vanish and come back a tile further on. A boat on EWI_ChryssalidHive lost its deck, cabins and crane with the
-  cursor on its bow. Units standing there can also count as outdoors.
-- **Since.** The first builds that made buildings (the prefab and buildings plan, 12 November 2026).
-- **Workaround.** None in the editor. The building is inside its volumes near the middle of the side its first floor
-  volume template leaves whole; which part depends on the map.
-- **Cause.** The Build stretches a copy of one of the map's own floor volumes and building volumes over each box,
-  and does not make sure their brushes are boxes: on 25 of the 78 maps that can take a made building the floor volume
-  it copies is not, so the stretched volume is a triangle or a notched shape. [F-170](research/findings-register.md).
-
 ### KB-25: A blended ground look shows one of its textures in the editor, not the game's mix
 
 - **What happens.** A piece in a material that blends textures by vertex colour (the forest and terrain grounds,

@@ -16,7 +16,9 @@ Statuses:
   floor volumes and building volumes and stretched, and nothing makes sure their brushes are boxes. On the hive map
   the floor volumes came out as a triangle and the building volume notched, so on the boat's bow tiles the cursor
   counts as outside the building, and the game cuts the whole boat away to its hold as a building hiding the cursor.
-  25 of the 78 maps that can take a made building would clone a floor volume that is not a box. Open (KB-26).
+  25 of the 78 maps that can take a made building would clone a floor volume that is not a box. Verified fixed the
+  same day: the Build makes every such volume a box, and a hidden run read the boat's cursor inside on every deck
+  tile probed at both ends, the whole boat drawn on the top stop (KB-26 out).
 - F-169 (24 November, a user's report on a boat project): over a building on water whose deck stands over a walkable
   hold, the mouse puts the cursor in the hold with the wheel on the deck's stop, where the pointer is off the deck's
   edge over the water or on something taller than the deck's floor. The game's pick rule, read from the scripts: the
@@ -239,8 +241,9 @@ Statuses:
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
 ### F-170: A made building's floor and building volumes are stretched copies of brushes that need not be boxes
-**Open** (24 November 2026: the BoatAbduction project's quick build of revision 26 in a hidden run on the LWR v3 lab
-copy, with readbacks; the build's volumes read offline; every installed map's templates surveyed offline).
+**Verified** (found 24 November 2026: the BoatAbduction project's quick build of revision 26 in a hidden run on the
+LWR v3 lab copy, with readbacks; the build's volumes read offline; every installed map's templates surveyed offline.
+Fixed and verified the same day: a second hidden run of the fixed build, below).
 - **Seen.** In the user's game, with the wheel on the boat's top stop, the cursor on some deck tiles cut the whole
   boat away to its hold (deck, cabins, crane and railings gone, the soldier drawn as a ghost) while the cursor stayed
   on the deck; tiles a little further on drew the boat whole. The hidden run had the same on the bow's deck.
@@ -272,10 +275,18 @@ copy, with readbacks; the build's volumes read offline; every installed map's te
   (EWI_ChryssalidHive, URB_Trainyard, URB_IndustrialOffice, URB_GasStation_EWI, CSmallScout_Roadhouse). Every map with
   a template has a building volume whose brush is a box; three (DLC2_1_Portent, URB_CemeteryGrand, URB_Trainyard)
   have no floor volume of the kind cloned whose brush is.
-- **Fix to make**: clone only volumes whose brush is a box (`scene_metadata.plain_box`), and where a map has none of
-  that class, give the clone a box brush model of another of its volumes (the rebuild volumes already share their
-  template's model). Then check the boat again: the cursor and the visibility point inside on every deck tile, and no
-  cut on the top stop.
+- **Fix** ([buildings.py](../tools/bake/buildings.py)): the templates are taken among the volumes whose brush is a
+  box (`box_brush`); where a map has none of the class, the clone takes the box model of another of its volumes and
+  its brush component's saved convex collision (`BrushAggGeom`, which a map's brush components save beside the model
+  and which still held the pointed hull), placed by that model's bounds (`box_source`, `shaped_component`). A map
+  building's own volume stretched by an edit takes a box the same way. Tests read back made volumes on the hive and
+  on URB_Trainyard (the borrowed box) and an edited hive building.
+- **Verified** in a hidden run of the project rebuilt with the fix (revision 30: four floors, no cursor floors of its
+  own, the boat back at y 1248 to 2784; out folder `<lab>\hidden-runs\f170-boat-fixed`): on 39 readings over deck
+  tiles in both ends' old outside corners, their north halves and mid-deck, on the deck's wheel stop and the top
+  one, the cursor's and the visibility point's indoor info named the boat's building and `m_bIsInside` was True;
+  on the top stop `LastShownFloor` was 4 every time and the shots drew bow and stern whole; on the deck's stop it was
+  2, the stern cabin cut down above the deck.
 
 ### F-169: Over a boat, the mouse puts the cursor in the hold under the deck's stop
 **Open** (24 November 2026, a user's report with two game shots; read from the decompiled scripts and the build's

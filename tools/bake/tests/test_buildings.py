@@ -46,6 +46,97 @@ class Templates(unittest.TestCase):
         self.assertIsNone(bt['plain']['cutdownAt'])
         self.assertIsNotNone(bt['cut']['cutdownAt'])
 
+    def test_the_templates_brushes_are_boxes(self):
+        # the bar's largest plain floor volume (XComFloorVolume_12) is notched: a box one is taken (F-170)
+        p = lighting.Package(BAR)
+        bt, ft = buildings.templates(p)
+        self.assertTrue(buildings.box_brush(p, ft), p.name(ft))
+        self.assertTrue(buildings.box_brush(p, bt['actor']), p.name(bt['actor']))
+        self.assertEqual(buildings.box_source(p, ft), ft)
+
+
+class MadeShapes:
+    """A building of two floors made on a map whose volumes to clone are not boxes (F-170): every volume made is a
+    box over the box asked for, and its brush component holds a box's collision. The subclass names the map."""
+    MAP = None
+    BOXES = None
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.p = p = lighting.Package(cls.MAP)
+        g = package_grow.Grower(str(cls.MAP))
+        building = dict(id='made', name='Made', kind='building', floors=[dict(boxes=[box]) for box in cls.BOXES])
+        actors, cls.report = buildings.make(g, p, [building], [])
+        native_copy.add_to_level(g, p, actors)
+        out = Path(cls.tmp.name) / Path(cls.MAP).name
+        g.write(str(out))
+        cls.q = lighting.Package(out)
+        r = cls.report[0]
+        cls.made = [r['building']] + [v for f in r['floors'] for v in f['volumes']]
+        cls.want = [cls.BOXES[0][:3] + cls.BOXES[-1][3:]] + list(cls.BOXES)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_each_volume_is_a_box_over_its_box(self):
+        import scene_metadata
+        for v, want in zip(self.made, self.want):
+            self.assertTrue(buildings.box_brush(self.q, v), self.q.name(v))
+            b = scene_metadata.volume_bounds(self.q, v)
+            for got, w in zip(b['min'] + b['max'], want):
+                self.assertAlmostEqual(got, w, delta=0.01)
+
+    def test_each_component_holds_a_box_collision(self):
+        w = native_copy.Walker(self.q)
+        for v in self.made:
+            tc = self.q.own(v, 'BrushComponent', 0)
+            model = self.q.own(v, 'Brush', 0)
+            self.assertEqual(self.q.own(tc, 'Brush', 0), model)
+            source = next(i for i in range(1, len(self.p.exports) + 1) if self.p.cls(i) != 'Model' and
+                          self.p.own(i, 'Brush', 0) == model and self.p.cls(i) != 'BrushComponent')
+            mine, theirs = (bytes(q.data[q.exports[c - 1]['off']:q.exports[c - 1]['off'] + q.exports[c - 1]['size']])
+                            for q, c in ((self.q, tc), (self.p, self.p.own(source, 'BrushComponent', 0))))
+
+            def agg(b, q, c):
+                f = native_copy.find_prop(w, b, buildings.start_of(q, c), len(b), 'BrushAggGeom[0]')
+                return b[f[2]:f[2] + f[3]] if f else None
+            self.assertEqual(agg(mine, self.q, tc), agg(theirs, self.p, self.p.own(source, 'BrushComponent', 0)))
+
+
+HIVE, NO_HIVE = labpaths.install_map('EWI_ChryssalidHive')
+TRAINYARD, NO_TRAINYARD = labpaths.install_map('URB_Trainyard')
+
+
+@unittest.skipUnless(HIVE and HIVE.exists(), NO_HIVE)
+class HiveShapes(MadeShapes, unittest.TestCase):
+    """EWI_ChryssalidHive: its largest plain floor volume (XComFloorVolume_71) is a pointed prism and its building
+    template had a notched brush; a boat's three floors made there."""
+    MAP = HIVE
+    BOXES = [[-6240.0, 1344.0, -192.0, -1632.0, 3648.0, 192.0], [-6240.0, 1344.0, 192.0, -1632.0, 3648.0, 576.0],
+             [-6240.0, 1344.0, 576.0, -1632.0, 3648.0, 1152.0]]
+
+    def test_the_templates_are_its_box_volumes(self):
+        bt, ft = buildings.templates(self.p)
+        self.assertTrue(buildings.box_brush(self.p, ft))
+        self.assertTrue(buildings.box_brush(self.p, bt['actor']))
+
+
+@unittest.skipUnless(TRAINYARD and TRAINYARD.exists(), NO_TRAINYARD)
+class TrainyardShapes(MadeShapes, unittest.TestCase):
+    """URB_Trainyard: none of its floor volumes of the kind cloned has a box brush, so the floor volumes take the box
+    model and collision of another of its volumes."""
+    MAP = TRAINYARD
+    BOXES = [[0.0, 0.0, 0.0, 768.0, 576.0, 192.0], [0.0, 0.0, 192.0, 768.0, 576.0, 384.0]]
+
+    def test_the_floor_template_borrows_a_box(self):
+        ft = buildings.floor_template(self.p)
+        self.assertFalse(buildings.box_brush(self.p, ft))
+        source = buildings.box_source(self.p, ft)
+        self.assertNotEqual(source, ft)
+        self.assertTrue(buildings.box_brush(self.p, source))
+
 
 @unittest.skipUnless(OUTPOST and OUTPOST.exists(), NO_OUTPOST)
 class Shed(unittest.TestCase):

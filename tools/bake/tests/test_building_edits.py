@@ -106,6 +106,8 @@ class Bar(unittest.TestCase):
         made = after['XComBuildingVolume_0']['floors'][0]['volumes'][names.index(report[0]['volumes']['made'][0])]
         self.assertTrue(made['listed'])
         self.assertEqual((made['number'], made['box'][0]), (1, -1632.0 - 96))
+        # the plain one is a box (F-170: the bar's largest floor volume, which it was cloned from before, is notched)
+        self.assertTrue(buildings.box_brush(q, q.by_name[PL + made['name']]))
         level = native_copy.level_actors(q)
         self.assertNotIn(q.by_name[PL + 'XComFloorVolume_15'], level)
         # the bar's pieces: nearly all keep what the map saved
@@ -163,6 +165,66 @@ class Bar(unittest.TestCase):
         changed = [k for k in range(1, len(self.p.exports) + 1)
                    if g.export_data(k) != bytes(self.p.data[self.p.exports[k - 1]['off']:self.p.exports[k - 1]['off'] + self.p.exports[k - 1]['size']])]
         self.assertEqual(changed, [])
+
+
+HIVE, NO_HIVE = labpaths.install_map('EWI_ChryssalidHive')
+
+
+@unittest.skipUnless(HIVE and HIVE.exists(), NO_HIVE)
+class NotchedBuildingVolume(unittest.TestCase):
+    """EWI_ChryssalidHive's XComBuildingVolume_0 has a notched brush (F-170): stretched by an edit, it takes a box
+    model and a box's collision, and fills the union of its floors' boxes."""
+    NAME = 'XComBuildingVolume_0'
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.p = p = lighting.Package(HIVE)
+        b = {x['name']: x for x in buildings.survey(p)}[cls.NAME]
+        floors = [dict(boxes=[list(v['box']) for v in f['volumes']], volumes=[v['name'] for v in f['volumes']])
+                  for f in b['floors']]
+        for f in floors:
+            for box in f['boxes']:
+                box[3] += 96
+        cls.union = ([min(x[k] for f in floors for x in f['boxes']) for k in range(3)] +
+                     [max(x[k + 3] for f in floors for x in f['boxes']) for k in range(3)])
+        g = package_grow.Grower(str(HIVE))
+        edit = dict(id='map:PersistentLevel.' + cls.NAME, actor=cls.NAME, name=cls.NAME, kind='building', deleted=False,
+                    moved=False, floors=floors)
+        actors, slots, cls.report = buildings.edit(g, p, [edit], [])
+        native_copy.add_to_level(g, p, actors)
+        out = Path(cls.tmp.name) / Path(HIVE).name
+        g.write(str(out))
+        cls.q = lighting.Package(out)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_it_was_notched_and_is_a_box_now(self):
+        self.assertFalse(buildings.box_brush(self.p, self.p.by_name[PL + self.NAME]))
+        self.assertTrue(buildings.box_brush(self.q, self.q.by_name[PL + self.NAME]))
+        self.assertIsNotNone(self.report[0]['boxBrushFrom'])
+
+    def test_it_fills_the_union_of_its_floors(self):
+        import scene_metadata
+        b = scene_metadata.volume_bounds(self.q, self.q.by_name[PL + self.NAME])
+        for got, want in zip(b['min'] + b['max'], self.union):
+            self.assertAlmostEqual(got, want, delta=0.01)
+
+    def test_its_component_holds_the_box_collision(self):
+        q, i = self.q, self.q.by_name[PL + self.NAME]
+        tc = q.own(i, 'BrushComponent', 0)
+        self.assertEqual(q.own(tc, 'Brush', 0), q.own(i, 'Brush', 0))
+        source = self.p.by_name[PL + self.report[0]['boxBrushFrom']]
+        w = native_copy.Walker(q)
+
+        def agg(pkg, c):
+            e = pkg.exports[c - 1]
+            raw = bytes(pkg.data[e['off']:e['off'] + e['size']])
+            f = native_copy.find_prop(w, raw, buildings.start_of(pkg, c), len(raw), 'BrushAggGeom[0]')
+            return raw[f[2]:f[2] + f[3]] if f else None
+        self.assertEqual(agg(q, tc), agg(self.p, self.p.own(source, 'BrushComponent', 0)))
 
 
 if __name__ == '__main__':
