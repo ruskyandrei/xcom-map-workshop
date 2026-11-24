@@ -2705,6 +2705,21 @@ def manifest_parts(st, q, bake):
     return sections, common, lights_record
 
 
+def cleared_lights(st):
+    """The baked lights the clear took out of the level by their class (BuildState `st`, clear_level's record): the
+    enabled static lights among its taken actors, by their actors' short names, sorted. The lights the editor edits
+    are deleted by the project's records and go to the relight as light edits; these no edit names (a light that
+    lights only its own channels, one the map's script names), and without them the relight would keep their light
+    on the pieces that stay (KB-24). Toggleable lights are lit live and an area light goes with its piece: neither is
+    one."""
+    if not st.cleared_record or not st.cleared_record['taken']:
+        return []
+    import relight
+    taken = set(st.cleared_record['taken'])
+    return sorted({relight.short_name(l['component']) for l in relight.map_lights(st.p, roles=('static',))
+                   if l['enabled'] and relight.short_name(l['component']) in taken})
+
+
 def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, jobs, piece_cache, base):
     """The relight's command line for the Build `st` (BuildState, its manifest made: manifest_parts) whose grown map is
     `dst`, and the files it names that a command line can't hold: <out>/<variant>.removed-casters.txt and
@@ -2732,6 +2747,16 @@ def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, job
             cmd += ['--remove-caster', h['name']]
     if edit_spec:
         cmd += ['--edit-spec', str(edit_spec)]
+    # the baked lights the clear took out by their class (the lights the editor only shows, which no light edit
+    # names): taken away in the relight too, so their light leaves the pieces that stay (KNOWN-BUGS.md KB-24, F-166)
+    gone_lights = cleared_lights(st)
+    if len(gone_lights) > CASTER_ARGS:
+        listing = out / f'{variant}.removed-lights.txt'
+        listing.write_text(''.join(n + '\n' for n in gone_lights), encoding='utf-8', newline='\n')
+        cmd += ['--remove-light-list', str(listing)]
+    else:
+        for n in gone_lights:
+            cmd += ['--remove-light', n]
     # the map's own landings moved in place (native_spawns.py): each piece with a mesh (the grounded Skyranger)
     # goes to the relight with its old pose, so its shadow leaves the old place and falls at the new one (F-98)
     for move in landing_record or []:

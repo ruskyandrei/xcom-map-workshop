@@ -849,6 +849,7 @@ class Build:
         self.marks_edit, self.diagonal = None, None
         self.background_sound = self.sound_brought = None
         self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = self.map_info = None
+        self.clears_lights = False
         self.has_lights, self.lights, self.moves_landings = False, None, False
         self.stream_moves = self.stream_tiles = self.spec = self.copies = None
         self.untried_dropped = []
@@ -1101,6 +1102,9 @@ class Build:
         # the parts the project cleared (the clear-by-parts plan, section 4): native_copy.py's clear_level, and with the
         # pieces the shell stage's cursor storeys
         self.cleared = self.native.get('cleared')
+        # a clear of the lights: the baked lights it takes out by their class go to the relight as taken away
+        # (native_copy.cleared_lights; KNOWN-BUGS.md KB-24), so it is a change of the lighting as a light edit is
+        self.clears_lights = 'lights' in ((self.cleared or {}).get('parts') or {})
         # the project's landing zones (Clear map plan, section 4): its own lines, and the map's own landings moved in
         # the map (native_spawns.py, run by native_copy.py) where a zone that is also theirs moves them
         self.landing_zones = self.native.get('landingZones')
@@ -1446,7 +1450,8 @@ class Build:
             return self.edit_unbaked(unchanged=True)
         if (self.covers or self.any_buildings or self.cleared or self.flags_edit or self.effects_edit
                 or self.marks_edit) and not (
-                self.natives or self.native['hides'] or self.has_lights or self.has_patch or self.moves_landings):
+                self.natives or self.native['hides'] or self.has_lights or self.clears_lights or self.has_patch
+                or self.moves_landings):
             # cover blocks alone: hidden pieces change no baked light (a hidden actor casts no baked shadow,
             # shadows.py), so there is nothing to relight. The map is made as a quick build makes it and keeps the
             # original's lightmaps: lighting unchanged, no texture cache. The same for buildings made from nothing:
@@ -1467,8 +1472,8 @@ class Build:
         # the relit pieces of this project's last baked build are kept, and taken again where the new edit leaves a
         # piece's lights and reaching edits as they were (relight.py PieceCache; faster-bake plan, 3.7)
         pieces = ['--piece-cache', self.output / '.work' / 'pieces' / self.variant, '--base', sha256(self.base)]
-        if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.moves_landings
-                or self.stream_tiles or self.flags_edit):
+        if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.clears_lights or self.any_buildings
+                or self.moves_landings or self.stream_tiles or self.flags_edit):
             # the edit made in the map (copies, hides, light edits), lit there; anything left in the patch modelled
             # as an edit
             # (the map is the base map, or the staged one with the pieces of other maps in it: those are lit from

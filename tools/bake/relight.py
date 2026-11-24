@@ -14,7 +14,7 @@ bar's floor, it made the match worse), masked materials' holes (they shadow as s
   python -B tools/bake/relight.py <map.upk> <out dir> <variant> --cache Lighting_7004 --component PATH [...]
       [--component-list FILE] [--direct-only] [--no-emissive] [--samples 64] [--bounce-rays 64] [--stride 2]
       [--checker SIZE] [--source-radius R] [--remove-caster ACTOR ...] [--remove-caster-list FILE]
-      [--remove-light LIGHT ...]
+      [--remove-light LIGHT ...] [--remove-light-list FILE]
       [--edit-spec SPEC] [--native-copy COPY=SOURCE ...] [--foreign-copy COPY=STAGED ...] [--fresh-copy COPY ...]
       [--light-edits FILE] [--receivers-near R] [--no-quick]
       [--jobs N] [--band-texels N] [--floor F] [--piece-cache DIR --base SHA]
@@ -1578,6 +1578,9 @@ def main():
                         '(a cleared map removes about a thousand, more than a command line holds)')
     a.add_argument('--remove-light', action='append', default=[],
                    help='edit: this light actor or component is off (delta mode)')
+    a.add_argument('--remove-light-list', type=Path, metavar='FILE',
+                   help='edit: a file of removed lights, one actor or component a line, as --remove-light each (a '
+                        "map's lights a clear took out: more than a command line holds)")
     a.add_argument('--edit-spec', type=Path,
                    help="edit: an editor patch spec (compiler.py): its hidden pieces are removed casters, its copies "
                         "added ones (delta mode)")
@@ -1657,6 +1660,9 @@ def edit_arguments(a, args):
     if args.remove_caster_list:
         listed = [l.strip() for l in args.remove_caster_list.read_text(encoding='utf-8').splitlines() if l.strip()]
         args.remove_caster = sorted(set(args.remove_caster) | set(listed))
+    if args.remove_light_list:
+        listed = [l.strip() for l in args.remove_light_list.read_text(encoding='utf-8').splitlines() if l.strip()]
+        args.remove_light = sorted(set(args.remove_light) | set(listed))
     add_casters = []
     if args.edit_spec:
         spec_remove, add_casters = edit_from_spec(json.loads(args.edit_spec.read_text(encoding='utf-8')))

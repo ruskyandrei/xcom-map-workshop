@@ -22,6 +22,7 @@ from package import Package  # noqa: E402
 
 BAR, NO_BAR = labpaths.install_map('URB_Bar')
 ROADHOUSE, NO_ROADHOUSE = labpaths.install_map('CSmallScout_Roadhouse')
+SLAUGHTERHOUSE, NO_SLAUGHTERHOUSE = labpaths.install_map('URB_SlaughterhouseA')
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
@@ -274,6 +275,31 @@ class PartsAlone(unittest.TestCase):
             self.assertEqual(sorted(e for part in native_copy.CLEAR_PARTS for e in self.built[name, part][1]['eventsOff']),
                              whole['eventsOff'], name)
             self.assertEqual(whole['parts'], list(native_copy.CLEAR_PARTS))
+
+
+@unittest.skipUnless(SLAUGHTERHOUSE and SLAUGHTERHOUSE.exists(), NO_SLAUGHTERHOUSE)
+class ClearedLightsToTheRelight(unittest.TestCase):
+    """KB-24 (F-166): the baked lights a clear of the lights takes out by class go to the relight as removed lights, so
+    their light leaves the pieces that stay. URB_SlaughterhouseA's SpotLight_54 lights only its own channels (the
+    editor can't edit it) and is baked into 237 pieces; its toggleable lights, lit live, and the glowing pieces' area
+    lights (the Pieces part's) are none of them."""
+    def test_the_clears_baked_lights_are_named_for_the_relight(self):
+        import types
+        p = Package(SLAUGHTERHOUSE)
+        g = package_grow.Grower(str(SLAUGHTERHOUSE))
+        report, volume = native_copy.clear_level(g, p, parts={'lights': None})
+        self.assertIsNone(volume)
+        gone = native_copy.cleared_lights(types.SimpleNamespace(cleared_record=report, p=p))
+        self.assertIn('SpotLight_54', gone)
+        self.assertTrue(set(gone) <= set(report['taken']), gone)
+        for name in gone:
+            self.assertNotIn('Toggleable', p.cls(p.by_name['TheWorld.PersistentLevel.' + name]), name)
+        self.assertFalse([n for n in gone if n.startswith('GeneratedMeshAreaLight')])
+        # nothing cleared, or a clear of another part: no light for the relight
+        self.assertEqual(native_copy.cleared_lights(types.SimpleNamespace(cleared_record=None, p=p)), [])
+        g = package_grow.Grower(str(SLAUGHTERHOUSE))
+        report, _ = native_copy.clear_level(g, p, parts={'triggers': None})
+        self.assertEqual(native_copy.cleared_lights(types.SimpleNamespace(cleared_record=report, p=p)), [])
 
 
 if __name__ == '__main__':

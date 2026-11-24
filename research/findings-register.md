@@ -12,8 +12,9 @@ Statuses:
 
 ## Open now
 
-- F-166 (24 November, the clear-by-parts plan): a clear of the lights alone leaves the light of 39 channel-only
-  lights on four maps baked into the pieces that stay (KB-24).
+- F-166 (24 November, the clear-by-parts plan): a clear of the lights alone left the light of 39 channel-only
+  lights on four maps baked into the pieces that stay (was KB-24). Fixed the same day: the Build hands them to the
+  relight as taken away, and a lights clear relights. Checked offline on URB_SlaughterhouseA.
 - F-165 (24 November, the clear-by-parts plan): eleven of the 99 base maps have scripts the game starts at a moment
   of the battle, with no place and no name (the alien bases' closing narration when won, the Chryssalid Hive's and
   the Temple Ship's turn-by-turn mission scripts, a pod-reveal hook on one scout map that leads nowhere). A clear
@@ -219,9 +220,10 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
-### F-166: A lights clear takes out lights the editor only shows; channel-only ones stay baked into the pieces
-**Open** (24 November 2026; read offline for the clear-by-parts plan's survey: the cache's exports' lights by
-`light_edits.light_rule`, and the Build's relight inputs read; not baked or played).
+### F-166: A lights clear takes out lights the editor only shows; channel-only ones stayed baked into the pieces
+**Fixed** (24 November 2026, the same day: read offline for the clear-by-parts plan's survey, then a baked Build of
+URB_SlaughterhouseA with its lights cleared, and its pieces relit with and without SpotLight_54 taken away; not
+played).
 - **What the maps have.** Of the placed point and spot lights on the exported maps, 2,856 are lights the editor edits
   and 6,046 are area lights the bake made for glowing pieces. The rest are lights it only shows: toggleable ones (lit
   live), 36 in no lightmap, one the map's Kismet names and 58 that light only their own channels, 39 of which are
@@ -230,8 +232,20 @@ Statuses:
   relight gets the light edits' before and after states). The others the Build's clear_level takes out by class
   (`CLEAR_PARTS['lights']`), and nothing tells the relight: the 39 channel-only lights' light stays baked into the
   pieces that stay. An area light stays with its piece (it is the Pieces part's).
-- **Left** as KNOWN-BUGS.md KB-24. A fix would hand those lights to the relight as deleted (as light edits), or
-  refuse nothing and say it in the window for the four maps.
+- **And the Build didn't relight at all** for a lights clear without light records (a project not made by the page's
+  clear, whose editable lights the Build also takes by class): with no light edit it took the clear for a change of no
+  light and kept the original lightmaps (`lightingUnchanged`).
+- **Fix.** The Build hands the relight every enabled static light the clear took out (`native_copy.cleared_lights`;
+  relight.py `--remove-light`, or `--remove-light-list` for more than a command line holds), which takes each away as a
+  deleted light; and a clear of the lights is a change of the lighting in the Build (build.py `clears_lights`).
+  Toggleable lights (lit live) and area lights (the Pieces part's) are not passed; a light the project adds is listed
+  only when the map is written, after the clear, and stays.
+- **Checked.** URB_SlaughterhouseA built baked with its lights cleared: the relight took all 139 baked lights away,
+  SpotLight_54 among them (a channel-only spot baked into 237 pieces), and relit 588 pieces in 82 s. Six of its pieces
+  nearest SpotLight_54 relit twice on that Build's grown map, once with every taken light away and once with all but
+  SpotLight_54: the median flat light of XComDestructibleActor_65 0.040 against 0.066, XComDecoFracLevelActor_89
+  0.076 against 0.090, the four others lit mostly by other lights within 1% (the light leaves the pieces it lit). Was
+  KNOWN-BUGS.md KB-24, taken out with the fix.
 
 ### F-165: Eleven base maps' scripts act at moments of the battle, with no place and no name; a clear leaves them
 **Set aside by the user** (24 November 2026; read offline from the install's 99 base maps: every sequence event of a
