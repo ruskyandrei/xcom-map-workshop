@@ -47,19 +47,27 @@ const json = (url, method = 'GET', body = undefined) => call(method, url, body, 
 // The key an effect's picture is kept under: its entry's and the drawing's version, so a better drawing replaces the
 // pictures made by an older one (the server keeps a picture under 16 hex digits)
 const PICTURE_VERSION = 2;
-const pictureKey = entry => (entry.effect ? hex16(`${entry.key}|likeness${PICTURE_VERSION}`) : entry.key);
+// (an index entry says what it is by its family, the panel's entry by its effect kind too)
+const pictureKey = entry => (entry.effect || entry.family === 'effect' ? hex16(`${entry.key}|likeness${PICTURE_VERSION}`) : entry.key);
 // (a large picture is kept under a key of its own)
 const largeKey = key => hex16(`${key}|large1`);
+/** An entry's two picture keys, the list's and the large panel's (the panel's entry or the index's: Cache everything
+ *  draws them ahead, precache_pictures.js). */
+export const thumbKeys = entry => { const small = pictureKey(entry); return { small, large: largeKey(small) }; };
+/** The pictures' sizes, CSS pixels: the list's and the large panel's. */
+export const THUMB_SIZES = { small: THUMB, large: LARGE_THUMB };
 /**
  * els: box (the scope's part of the panel), scan (the scan offer), filter, kind, home, sort, placeable, elsewhere,
  * favourites (checkboxes), list, foot.
  * mapName(): the open map's package; pixelRatio(); template(source): a promise of what draws the piece
  * (library_templates.js libraryTemplate); paint(template, canvas): draw it into a row's canvas, called while a frame is
  * drawn; recipesForScene(): the map's or builder's light and cover rows; paintRecipe(entry, canvas): draw a cover
- * thumbnail; onChoose(entry or null); onChooseRecipe(entry or null); hint(message).
+ * thumbnail; onChoose(entry or null); onChooseRecipe(entry or null); hint(message); held(): Cache everything's pictures
+ * are letting go of what they loaded (precache_pictures.js createTableRelease), so no picture is begun meanwhile.
  */
 export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint, recipesForScene, paintRecipe,
-                                       onChoose, onChooseRecipe, hint, recall, remember, effectPicture = null, paintObject = null, onHover = null }) {
+                                       onChoose, onChooseRecipe, hint, recall, remember, effectPicture = null, paintObject = null, onHover = null,
+                                       held = () => false }) {
   let index = null, entries = [], byKey = new Map(), shown = [], chosen = null, status = null, loading = null, scanTimer = null;
   let state = null, stateLoad = null, here = -1;
   let recipes = null;
@@ -366,7 +374,7 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
   // A picture the server doesn't keep yet: the piece read (one at a time, the last row to come into view first),
   // drawn in a frame (drawThumbs), and put to the server.
   async function make() {
-    if (making || els.box.hidden) return;
+    if (making || els.box.hidden || held()) return;
     const next = [...windowed.children].map(item => byKey.get(item.dataset.key))
       .filter(e => e && (!e.effect || (e.effect === 'effect' && effectPicture && e.placeable)) && !kept.has(keyOf(e)) && !failed.has(e.key)
         && !rows.get(e.key).thumb.dataset.drawn).at(0);
@@ -456,6 +464,12 @@ export function createLibraryBrowser({ els, mapName, pixelRatio, template, paint
     maps: () => new Set((index?.donors ?? []).map(d => d.package.toLowerCase())),
     status: () => status,
     state: () => state,
+    /** A picture drawn elsewhere (Cache everything's) is kept by the server: shown from there, not drawn again. */
+    markKept: key => { kept.add(key); },
+    /** Whether a picture of the list's is being read or waits to be painted (it is painted from the page's tables). */
+    busy: () => making || toPaint.length > 0,
+    /** Carry on drawing the pictures in view (after held()). */
+    resume: () => { make(); },
     drawThumbs,
   };
 }

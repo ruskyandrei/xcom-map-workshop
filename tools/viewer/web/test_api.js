@@ -28,7 +28,7 @@ import { diagonalCarried, diagonalOn, projectDiagonal } from './editor_state.js'
 import { CORNERS, marksNow, middleOf } from './diagonal_marks.js';
 import { tileCorner } from './map_grid.js';
 
-export function createTestApi({ $, showOpen, addVolumes, addWallOpening, alignToGamePose, alignToGrid, alignToLevel,
+export function createTestApi({ $, showOpen, precachePictures, pageTables, addVolumes, addWallOpening, alignToGamePose, alignToGrid, alignToLevel,
                                 allBuildings, applyPrefabDocument, applyState,
                                 bombHelperFix, boxOf, BUILD_TOOLS, builderDocument, builderRecords,
                                 buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap, clearParts, clearPlan,
@@ -95,6 +95,8 @@ export function createTestApi({ $, showOpen, addVolumes, addWallOpening, alignTo
     // looks from any piece (M4c): the picker, the eyedropper, a made piece's look changed, the catalogue read
     openLookPicker, closeLookPicker, startLookPick, lookPicking: () => lookPicking && { kind: lookPicking.kind },
     lookMode: () => (lookPicker?.isOpen ? lookPicker.state().kind : null), lookPickerState: () => lookPicker?.state() ?? null,
+    // Cache everything's pictures (precache_pictures.js: plan, start, cancel, state) and how much the page's tables hold
+    precachePictures, pageTables,
     setMadeLook: (id, kind, look) => setMadeLook(roots.get(id), kind, look),
     catalogued, lookFromEntry, storedLook,
     wallDrawing: () => wallDrawing && { look: wallDrawing.look.id, donor: wallDrawing.look.donor ?? null, room: wallDrawing.room, slab: wallDrawing.slab, roof: wallDrawing.roof, ground: wallDrawing.ground,

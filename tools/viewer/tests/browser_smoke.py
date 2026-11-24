@@ -6168,6 +6168,9 @@ CHECKS = (
           'made walls, floors and ground drawn, edited, saved and built (on the police station)', needs=('projects',), full=False),
     Check('looks', lambda c: __import__('browser_looks').check_looks(c.browser, c.page.url, open_viewer),
           'the look picker (on the police station)', full=False),
+    Check('precache-pictures', lambda c: __import__('browser_precache').check_precache_pictures(c.browser, c.page.url, open_viewer),
+          "Cache everything's pictures: a few drawn in the page and kept, what they loaded let go; Start and Cancel with only "
+          'them ticked (it puts pictures into the cache it serves)', full=False),
     Check('made-break', lambda c: __import__('browser_walls').check_made_break(c.browser, c.page.url, open_viewer, skip),
           'Break, Breaks further and Repair on a made wall, floor and roof', when=ON_MAP, full=False),
     Check('made-openings', lambda c: __import__('browser_walls').check_made_openings(c.browser, c.page.url, open_viewer),

@@ -1198,8 +1198,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <p><b class="ui">All maps</b> lists the pieces of every map in the game install, so a lamp post from the Police Station
   or a wall from an alien ship can stand in the map you are editing. The first time, the editor reads the game's maps
   (<b class="ui">Read the game's maps</b>: about half a minute, once; nothing in the game is changed). After that
-  each piece is read from the game the first time you use it; <b class="ui">Cache everything…</b>, under <a href="#settings">Settings</a>,
-  reads them all at once instead.</p>
+  each piece is read from the game the first time you use it, and its picture drawn the first time it is shown;
+  <b class="ui">Cache everything…</b>, under <a href="#settings">Settings</a>, reads and draws them all at once instead.</p>
 <div class="split">
   <figure><img src="shots/add-all.webp" width="436" height="812" alt="The piece list showing the pieces of all maps"></figure>
   <ol class="legend">
@@ -1480,7 +1480,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li data-n="4"><b>Pick from the view</b> (<kbd>I</kbd>): then click a piece in the view to take its look. To its
     left, the size of the pictures.</li>
   <li data-n="5"><b>A card:</b> a sample made in the look (a wall three tiles long, a floor three by three, or the
-    ground shape being changed), its name, its setting and the map it comes from. Click it to choose it.</li>
+    ground shape being changed), its name, its setting and the map it comes from. Click it to choose it. A picture is
+    drawn the first time its card shows and kept after that; <a href="#cache-everything">Cache everything…</a> draws
+    them all ahead.</li>
   <li data-n="6"><b>The star</b> keeps a favourite: starred looks come first.</li>
 </ol>
 <ul>
@@ -3059,11 +3061,14 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li id="cache-everything"><b>Cache everything…</b>
     reads every piece of the game's maps into the editor's cache now, so placing a piece of another map or opening a
     prefab never waits for it. Tick <b class="ui">Every map, ready to open</b> to prepare every map as well, which
-    takes much longer. The window says how many there are, about how long it takes and how much disk space it needs.
-    <b class="ui">Start</b> runs it in the background with a progress bar: you can keep working, close the window and
-    open it again later. <b class="ui">Cancel</b> stops it at any moment; what was read so far stays, and
-    <b class="ui">Carry on</b> picks up from there. What is already cached is left alone, and what a game update or a
-    newer editor made out of date is read again.</li>
+    takes much longer. <b class="ui">Every look's and piece's picture</b> draws every picture the look picker and the
+    Add panel's All maps show, so that none of them says <i>Drawing…</i> the first time it is shown; the editor's page
+    draws them itself, after the pieces are read, so leave it open until they are done (a hidden browser tab waits).
+    The window says how many there are, about how long it takes and how much disk space it needs.
+    <b class="ui">Start</b> runs it in the background with a progress bar (a second one for the pictures): you can
+    keep working, close the window and open it again later. <b class="ui">Cancel</b> stops it at any moment; what was
+    read or drawn so far stays, and <b class="ui">Carry on</b> picks up from there. What is already cached is left
+    alone, and what a game update or a newer editor made out of date is read again.</li>
 </ul>
 
 <h3 id="dialogs">Other windows</h3>

@@ -12,16 +12,17 @@ import { createGameMaps } from './gamemaps.js';
 import { createSetupDialog, setupApi } from './setup.js';
 import { viewHeight } from './effects_preview.js';
 import { createPrecache } from './precache.js';
-import { createLibraryBrowser } from './library.js';
+import { createPicturePrecache, createTableRelease } from './precache_pictures.js';
+import { createLibraryBrowser, THUMB_SIZES, thumbKeys } from './library.js';
 import { api as prefabApi, createPrefabTab } from './prefabs.js';
 import { createPrefabLibrary } from './prefab_library.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { isStream } from './piece_records.js';
 import { activeMapId, allRoots, areaShown, assigning, breaking, builderMode, cachePrefix, coverDrag, data,
-         effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, lastLightSync,
-         leaving, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
-         lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects, pickBox, pickDrag,
-         pickedSpawn, pieces, placing, prefabLibrary, prefabParameter, project, reachShown, roots, selected, setActiveMapId, snapMode,
+         effectsDirty, effectsOn, eventMemo, floorTileLayer, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, lastLightSync,
+         leaving, library, libraryRecords, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
+         lineCollision, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects, pickBox, pickDrag,
+         pickedSpawn, pieces, placing, prefabLibrary, prefabParameter, prefabPictures, project, reachShown, roots, selected, setActiveMapId, snapMode,
          setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setData,
          setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue, setLighting,
          setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue,
@@ -80,7 +81,7 @@ import { createMapMenu } from './map_menu.js';
 import { createProjectMenu } from './project_menu.js';
 import { createPieceStatus } from './piece_status.js';
 import { holdModals, releaseAfterChange } from './modal.js';
-import { ask, call } from './api.js';
+import { ask, call, sendPng } from './api.js';
 import { isFree } from './made_free.js';
 import { moveWords, typedStep } from './snap_steps.js';
 import { recall, remember } from './storage.js';
@@ -90,7 +91,7 @@ import { createMapLighting } from './lighting.js';
 import { COVER_KIND } from './cover.js';
 import { TILE } from './constants.js';
 import { loadLooks, lookTags } from './looks.js';
-import { createLookPicker } from './look_picker.js';
+import { createLookPicker, PICTURE, pictureKey as lookPictureKey } from './look_picker.js';
 
 const $ = id => document.getElementById(id);
 // Every dialog keeps the keyboard while open: Tab goes round its controls, the focus goes back when it closes
@@ -526,12 +527,14 @@ const gameMaps = createGameMaps({
          message: $('gameMapsMessage'), undoAll: $('gameMapsUndoAll'), done: $('gameMapsDone'), where: $('gameMapsWhere') },
   onChanged: () => refreshInstalls(),
 });
-// The Cache everything window (precache.js): every piece of the game's maps, and every map, read ahead of use.
+// The Cache everything window (precache.js): every piece of the game's maps, and every map, read ahead of use, and
+// every look's and piece's picture drawn (precache_pictures.js, made further down).
 const precache = createPrecache({
-  els: { root: $('cacheModal'), close: $('cacheClose'), pieces: $('cachePieces'), maps: $('cacheMaps'),
-         piecesNote: $('cachePiecesNote'), mapsNote: $('cacheMapsNote'), space: $('cacheSpace'), bar: $('cacheBar'),
-         barText: $('cacheBarText'), failures: $('cacheFailures'), status: $('cacheStatus'), cancel: $('cacheCancel'),
-         done: $('cacheDone'), start: $('cacheStart') },
+  els: { root: $('cacheModal'), close: $('cacheClose'), pieces: $('cachePieces'), maps: $('cacheMaps'), pictures: $('cachePictures'),
+         piecesNote: $('cachePiecesNote'), mapsNote: $('cacheMapsNote'), picturesNote: $('cachePicturesNote'), space: $('cacheSpace'),
+         bar: $('cacheBar'), barText: $('cacheBarText'), drawBar: $('cacheDrawBar'), drawText: $('cacheDrawText'),
+         failures: $('cacheFailures'), status: $('cacheStatus'), cancel: $('cacheCancel'), done: $('cacheDone'), start: $('cacheStart') },
+  pictures: () => precachePictures,
   onMapsDone: () => refreshMapList(),
 });
 // The Project menu (project_menu.js): drawn afresh as it opens, the recent projects kept in the browser, and the
@@ -928,7 +931,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // a copy carried from the last map or prefab: the hint says once that Ctrl+V places it here (clipboard.js)
   announceCarried();
   window.viewer = createTestApi({
-    setDiagonalShown, pickedMarks, diagonalGizmo, diagonalWarnings, showOpen,
+    setDiagonalShown, pickedMarks, diagonalGizmo, diagonalWarnings, showOpen, precachePictures,
+    pageTables: () => ({ meshes: geometryCache.size, materials: materialCache.size, textures: texturePromises.size, records: libraryRecords.size }),
     $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState, bombHelperFix, boxOf, BUILD_TOOLS,
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
     clearParts, clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
@@ -1145,26 +1149,57 @@ setPieces(createPieceBrowser({
          sort: $('libSort'), foot: $('libFoot') },
   renderer, preview: entry => previewGroup(entryParts(entry), null, entry.frame), onChoose: chooseEntry,
 }));
+// What Cache everything's pictures loaded, let go between its batches (precache_pictures.js createTableRelease); the
+// panels that draw pictures of their own begin none while it does, and carry on after
+const pictureTables = createTableRelease({
+  tables: { meshes: geometryCache, materials: materialCache, textures: texturePromises, records: libraryRecords },
+  loaded, collision: () => lineCollision, world, roots: () => roots,
+  busy: () => library.busy() || lookPicker.busy() || prefabPictures.length > 0,
+  resume: () => { library.resume(); lookPicker.resume(); },
+});
+// A piece of another map's picture and an effect's (its likeness), drawn as the Add panel draws them (library.js; and
+// Cache everything's, precache_pictures.js)
+function paintLibraryPiece(t, thumb) {
+  return pieces.paintThumbs([{ object: previewGroup(t.sources.map(source => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix) })), null, t.frame),
+                               box: t.box, thumb }]);
+}
+function paintLibraryObject(object, box, thumb) {
+  // (an effect's picture: its sprites' least size is the picture's pixels, not the view's)
+  const height = viewHeight.value;
+  viewHeight.value = 96;
+  try { return pieces.paintThumbs([{ object, box, thumb }]); } finally { viewHeight.value = height; }
+}
 setLibrary(createLibraryBrowser({
   els: { box: $('libAll'), scan: $('libScan'), filter: $('libAllFilter'), kind: $('libAllKind'), home: $('libAllHome'),
          sort: $('libAllSort'), placeable: $('libAllPlaceable'), elsewhere: $('libAllElsewhere'),
          favourites: $('libAllFavourites'), list: $('libAllList'), foot: $('libAllFoot') },
   mapName: () => data?.name ?? '', pixelRatio: () => renderer.getPixelRatio(), template: libraryTemplate,
-  paint: (t, thumb) => pieces.paintThumbs([{ object: previewGroup(t.sources.map(source => ({ source, matrix: new THREE.Matrix4().fromArray(source.matrix) })), null, t.frame),
-                                             box: t.box, thumb }]),
+  paint: (t, thumb) => paintLibraryPiece(t, thumb),
   recipesForScene: pieceRecipes,
   paintRecipe: (entry, thumb) => pieces.paintThumbs([{ object: previewGroup(entryParts(entry), null, entry.frame), box: entry.box, thumb }]),
   onChoose: chooseLibraryEntry, onChooseRecipe: chooseEntry, hint: flashHint, recall, remember,
   // an effect's picture and its moving preview (the likeness, stage FXV3)
   effectPicture: entry => (likenessOn ? effectPicture(entry) : null), onHover: hoverLikeness,
-  paintObject: (object, box, thumb) => {
-    // (an effect's picture: its sprites' least size is the picture's pixels, not the view's)
-    const height = viewHeight.value;
-    viewHeight.value = 96;
-    try { return pieces.paintThumbs([{ object, box, thumb }]); } finally { viewHeight.value = height; }
-  },
+  paintObject: (object, box, thumb) => paintLibraryObject(object, box, thumb),
+  held: () => pictureTables.holding,
 }));
-setLookPicker(createLookPicker({ prepare: prepareSample, tagsOf: lookTags, recall, remember, hint: flashHint }));
+setLookPicker(createLookPicker({ prepare: prepareSample, tagsOf: lookTags, recall, remember, hint: flashHint,
+                                 held: () => pictureTables.holding }));
+// Cache everything's pictures (precache_pictures.js): the look picker's and the Add panel's, drawn in this page with
+// their own drawing, a few maps at a time, what each batch loaded let go after it (the Cache everything window,
+// precache.js)
+const precachePictures = createPicturePrecache({
+  readIndex: () => ask('/library.json?index=1'), readLookPictures: () => ask('/library/pictures.json'), loadLooks,
+  keysOf: thumbKeys, lookKeyOf: lookPictureKey, effects: () => likenessOn,
+  pieceTemplate: libraryTemplate, paintPiece: paintLibraryPiece, effectPicture, paintEffect: paintLibraryObject,
+  lookSample: prepareSample,
+  canvasSize: size => (size === 'look' ? [PICTURE.width, PICTURE.height]
+    : Array(2).fill(Math.round(THUMB_SIZES[size] * renderer.getPixelRatio()))),
+  send: (url, blob) => sendPng('PUT', url, blob),
+  onKept: (kind, key) => (kind === 'look' ? lookPicker : library).markKept(key),
+  release: pictureTables,
+  onChange: () => precache.picturesChanged(),
+});
 // The prefab library (prefab_library.js): one list behind the Add panel's Prefabs tab, the Open window's Prefabs side
 // and the menu's count, with the actions on a prefab; made before the tab, which draws from it.
 setPrefabLibrary(createPrefabLibrary({
@@ -1345,6 +1380,7 @@ renderer.setAnimationLoop(() => {
   pieces.drawThumbs();
   library.drawThumbs();
   lookPicker.drawFrame();
+  precachePictures.drawFrame();
   drawPrefabPictures();
   if (now < shadowsUntil || now - shadowBeat > 1000) {
     renderer.shadowMap.needsUpdate = true; shadowBeat = now;

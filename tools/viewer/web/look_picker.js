@@ -54,9 +54,11 @@ const el = (tag, props = {}, ...children) => { const e = Object.assign(document.
 
 /**
  * prepare(kind, entry, sample): a promise of { paint(canvas) -> bool } (called in a frame, drawFrame) or null when no
- * sample can be made; tagsOf(entry); recall(key), remember(key, value): the browser's own settings; hint(message).
+ * sample can be made; tagsOf(entry); recall(key), remember(key, value): the browser's own settings; hint(message);
+ * held(): Cache everything's pictures are letting go of what they loaded (precache_pictures.js createTableRelease), so
+ * no sample is begun meanwhile.
  */
-export function createLookPicker({ prepare, tagsOf, recall, remember, hint = () => {} }) {
+export function createLookPicker({ prepare, tagsOf, recall, remember, hint = () => {}, held = () => false }) {
   let spec = null, cards = [], kept = null, keptLoad = null, focusIndex = -1;
   const queue = [], toPaint = [], failed = new Set(), seen = new Set();
   let working = false, drawnNow = 0;
@@ -192,7 +194,7 @@ export function createLookPicker({ prepare, tagsOf, recall, remember, hint = () 
     work();
   }
   async function work() {
-    if (working || !spec) return;
+    if (working || !spec || held()) return;
     const c = queue.shift();
     if (!c) {
       // (then the rest, while the panel is open)
@@ -291,6 +293,12 @@ export function createLookPicker({ prepare, tagsOf, recall, remember, hint = () 
   return {
     open, close, drawFrame,
     get isOpen() { return Boolean(spec); },
+    /** A picture drawn elsewhere (Cache everything's) is kept by the server: shown from there, not drawn again. */
+    markKept: key => { kept?.add(key); },
+    /** Whether a card's sample is being read or waits to be painted (it is painted from the page's tables). */
+    busy: () => working || toPaint.length > 0,
+    /** Carry on drawing the samples (after held()). */
+    resume: () => { work(); },
     /** For the tests: what the panel shows. */
     state: () => spec && { kind: spec.kind, sample: spec.sample, cards: cards.map(c => ({ name: c.entry.name, key: c.key, picture: c.state })), status: status.textContent },
   };

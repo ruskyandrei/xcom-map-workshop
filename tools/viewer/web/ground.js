@@ -29,7 +29,7 @@ export const GROUND_LOOKS = [
     lwrOnly: false, words: "bare brown earth", repeat: 320, thickness: 8 },
   { id: "rock", name: "Rock", package: "CLrgScout_ForestTrench", actor: "XComLevelActor_34", mesh: "Rock_E.Meshes.RockE_Destro",
     lwrOnly: false, words: "grey weathered rock", repeat: 244, thickness: 8 }];
-const GROUND_SHAPES = ['patch', 'block', 'ramp', 'rock'];
+export const GROUND_SHAPES = ['patch', 'block', 'ramp', 'rock'];
 export const ROCK_SEEDS = 2 ** 31;     // a rock's seed is 0 to ROCK_SEEDS - 1 (ground.py)
 // the tool's limits; a block's, a ramp's and a rock's height when drawn; a floor tile steeper than about 10 degrees is
 // sloped (no cover on it, F-81) and past 45 no floor (ground.py SLOPED, STEEP)

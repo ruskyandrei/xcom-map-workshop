@@ -570,7 +570,7 @@
       <h3>Settings</h3>
       <div class="menuitems" role="menu" aria-label="Settings">
         <button id="projectSetup" type="button" role="menuitem" title="Which XCOM: Enemy Within install the editor reads (LWR or plain), and what the editor needs, checked"><span>Game install and checks…</span></button>
-        <button id="projectCache" type="button" role="menuitem" title="Read every piece of the game's maps (and, if you tick it, every map) into the cache now, so nothing has to be read the first time it is used. It runs in the background and can be cancelled at any moment"><span>Cache everything…</span></button>
+        <button id="projectCache" type="button" role="menuitem" title="Read every piece of the game's maps (and, if you tick it, every map) into the cache now, and draw every look's and piece's picture, so nothing has to be read or drawn the first time it is used. It runs in the background and can be cancelled at any moment"><span>Cache everything…</span></button>
       </div>
     </section>
     <section id="issues" class="panel pop" aria-label="Import notes" hidden><h3>Import notes</h3><div id="composition"></div><div id="diagnostics"></div></section>
@@ -927,7 +927,7 @@
   <div id="cacheModal" class="modal" tabindex="-1" hidden>
     <section class="panel filedialog buildoptions cachebox" role="dialog" aria-modal="true" aria-labelledby="cacheTitle" aria-describedby="cacheNote">
       <div class="dialoghead"><h2 id="cacheTitle">Cache everything</h2><button id="cacheClose" class="icon" type="button" title="Close (Esc); a running job carries on" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></div>
-      <p id="cacheNote" class="optionsnote">The editor reads a piece of another map, and a map, from the game the first time it is used, which takes a moment each time. This reads them all now. What is already cached is left alone; what the game's files or a newer editor made out of date is read again.</p>
+      <p id="cacheNote" class="optionsnote">The editor reads a piece of another map, and a map, from the game the first time it is used, and draws a look's or a piece's picture the first time it is shown, which takes a moment each time. This reads and draws them all now. What is already cached is left alone; what the game's files or a newer editor made out of date is read again.</p>
       <label class="bakeoption" for="cachePieces">
         <input id="cachePieces" type="checkbox" checked aria-describedby="cachePiecesNote">
         <span><strong>The pieces of every map</strong><small id="cachePiecesNote"></small></span>
@@ -936,9 +936,15 @@
         <input id="cacheMaps" type="checkbox" aria-describedby="cacheMapsNote">
         <span><strong>Every map, ready to open</strong><small id="cacheMapsNote"></small></span>
       </label>
+      <label class="bakeoption" for="cachePictures">
+        <input id="cachePictures" type="checkbox" checked aria-describedby="cachePicturesNote">
+        <span><strong>Every look's and piece's picture</strong><small id="cachePicturesNote"></small></span>
+      </label>
       <p id="cacheSpace" class="optionsnote warn"></p>
       <div id="cacheBar" class="buildbar" role="presentation" hidden><span></span></div>
       <div id="cacheBarText" class="buildbartext" role="status"></div>
+      <div id="cacheDrawBar" class="buildbar" role="presentation" hidden><span></span></div>
+      <div id="cacheDrawText" class="buildbartext" role="status"></div>
       <ul id="cacheFailures" class="buildleft" hidden></ul>
       <div class="buildoptionsfoot"><span id="cacheStatus" class="buildestimate" role="status"></span><button id="cacheCancel" type="button" hidden title="Stop now; what is cached so far stays">Cancel</button><button id="cacheDone" type="button">Close</button><button id="cacheStart" class="primary" type="button">Start</button></div>
     </section>
