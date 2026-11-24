@@ -1349,6 +1349,10 @@ def check_map_buildings(page):
     page.evaluate('viewer.setVolumesShown(false)')
 
 
+# the parts a clear marks in the project (web/clear_parts.js CLEAR_PARTS)
+CLEAR_PARTS = ('pieces', 'lights', 'effects', 'triggers')
+
+
 def check_clear_map(page):
     """Clear map, the ground grid and the landing zones (private/plans/done/clear-map-plan.md, C2 to C4), on an export
     22 map: the dialog's counts; a clear at a smaller size as one undo step (the pieces deleted but the landing's, the
@@ -1494,7 +1498,7 @@ def check_clear_map(page):
     assert page.evaluate('viewer.data.tileGrid.dimensions') == small
     assert page.evaluate('viewer.groundGrid().bare') == small[0] * small[1]
     state = page.evaluate('viewer.editState()')
-    assert state['cleared'] is True and sum(1 for o in state['overrides'] if o.get('deleted')) >= plan['pieces'], len(state['overrides'])
+    assert state['cleared'] == {k: {} for k in CLEAR_PARTS} and sum(1 for o in state['overrides'] if o.get('deleted')) >= plan['pieces'], len(state['overrides'])
     assert page.evaluate('viewer.lastClearMs()') < 1000
     # nothing of Long War's patch levels is drawn on the cleared map: their pieces, lights, effects and spawn points
     # (its build streams none of them, KB-23)
@@ -1717,9 +1721,10 @@ def check_clear_map(page):
         assert keep['pieces'] == plan['pieces'] - keep['outside'], (keep, plan)
         page.evaluate('dims => viewer.clearMap(dims, true)', dims)
         state = page.evaluate('viewer.editState()')
-        assert state['cleared'] is True and state['clearKeepsOutside'] is True
+        # (schema 9: every part cleared, each keeping the outside)
+        assert state['cleared'] == {k: {'keepOutside': True} for k in CLEAR_PARTS}, state['cleared']
         page.keyboard.press('Control+z')
-        assert not page.evaluate('viewer.clearKeepsOutside()') and not page.evaluate('viewer.editState()')['clearKeepsOutside']
+        assert page.evaluate('viewer.clearedParts()') is None and page.evaluate('viewer.editState()')['cleared'] is None
     # the map's triggers (F-159; export 39's triggerCounts): the window's tick keeps them (its count stays a count of
     # pieces and the like); a clear that keeps them saves the mark; undone, it goes back. A map without them hides it
     counts = page.evaluate('viewer.data.triggerCounts ?? null')
@@ -1738,9 +1743,10 @@ def check_clear_map(page):
     page.keyboard.press('Escape')
     page.evaluate('dims => viewer.clearMap(dims, false, true)', dims)
     state = page.evaluate('viewer.editState()')
-    assert state['cleared'] is True and state['clearKeepsTriggers'] is True and page.evaluate('viewer.clearKeepsTriggers()')
+    # (every part but the triggers)
+    assert state['cleared'] == {k: {} for k in CLEAR_PARTS if k != 'triggers'}, state['cleared']
     page.keyboard.press('Control+z')
-    assert not page.evaluate('viewer.clearKeepsTriggers()') and not page.evaluate('viewer.editState()')['clearKeepsTriggers']
+    assert page.evaluate('viewer.clearedParts()') is None and page.evaluate('viewer.editState()')['cleared'] is None
 
 
 def check_map_settings(page):

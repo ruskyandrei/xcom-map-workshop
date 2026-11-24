@@ -71,7 +71,7 @@ class FloorEdits:
             return self.with_made_slabs(own, None)
         count = list(self.c.mission_edits.stage_grid or grid['dimensions'][:3])
         box = [float(grid['origin'][k]) for k in range(3)] + [grid['origin'][k] + count[k] * grid['size'][k] for k in range(3)]
-        if (own or volumes) and not self.c.mission_edits.cleared:
+        if (own or volumes) and not self.c.mission_edits.pieces_cleared:
             return self.with_made_slabs(self.grown_storeys(own, grid), box)
         bottom = float(grid['origin'][2])
         levels = (self.c.mission_edits.stage_grid or grid['dimensions'])[2]
@@ -356,7 +356,7 @@ class FloorEdits:
         floor tiles stop at its own grid, so a soldier point over one of these counts as floor. The Build turns on the
         collision of those that have it off and puts their tiles in the rebuild's queue. (The export doesn't say which
         collide: a piece of debris that collides but is no floor counts here too.)"""
-        if not self.c.mission_edits.stage_grid or self.c.mission_edits.cleared:
+        if not self.c.mission_edits.stage_grid or self.c.mission_edits.pieces_cleared:
             return []
         grid = self.c.scene.get('tileGrid') or {}
         origin, dims = grid.get('origin'), grid.get('dimensions')

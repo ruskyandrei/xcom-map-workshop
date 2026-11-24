@@ -3,7 +3,8 @@ them (all the base level's pieces but the landing's, the hidden ones and the sky
 optionally a size.
 
 Usage: clear_bar_project.py <out> [--grid NX NY NZ] [--zones] [--keep-outside] [--keep-triggers]
-                            [--sound CUE|none] [--volume V] [--cache <cache>] [--quick | --full | --compile]
+                            [--parts PART ...] [--sound CUE|none] [--volume V] [--cache <cache>]
+                            [--quick | --full | --compile]
 
 The project goes to <out>/project.json and the build under <out>/builds; the game and the cache are the settings'.
 Bar must have been opened once in the editor at export 21 or newer. --compile only compiles (the report beside the
@@ -14,6 +15,9 @@ outside the play area": the pieces whose place is outside Bar's play area (here 
 goes by each part's box) are not deleted, and the project says `clearKeepsOutside`, so the Build keeps the lights,
 smoke and stains out there too. Without --keep-triggers (the window's "Keep the map's triggers and scripts",
 `clearKeepsTriggers`) the Build takes out Bar's two touch triggers (its rats) and turns their events off (F-159).
+--parts clears only the parts named (pieces, lights, effects, triggers: the clear-by-parts plan), saved as schema 9's
+`cleared` ({part: {}}, each part keeping the outside with --keep-outside); the pieces' delete records come only with
+the pieces. Without it the project says `cleared: true`, every part, as a project of schema 1 to 8 does.
 --sound gives the map another background sound (`backgroundSound`, schema 5: a cue of
 tools/viewer/background_sounds.json, brought from its map, or none) and --volume its volume; Bar must then have been
 opened at export 39 or newer. --cache exports from another cache than the settings' (a scratch one)."""
@@ -62,14 +66,18 @@ def cleared_overrides(scene, keep_outside=False):
     return sorted(out, key=lambda r: r['target']['actor'])
 
 
-def document(sha, scene, grid=None, zones=None, added=(), keep_outside=False, keep_triggers=False, sound=None):
-    newer = keep_triggers or sound is not None
+def document(sha, scene, grid=None, zones=None, added=(), keep_outside=False, keep_triggers=False, sound=None,
+             parts=None):
+    """The project: every part cleared (`cleared: true`), or with `parts` those alone (schema 9)."""
+    newer = keep_triggers or sound is not None or parts is not None
+    overrides = cleared_overrides(scene, keep_outside) if parts is None or 'pieces' in parts else []
     doc = dict(schema='xcom-map-workshop/project', schemaVersion=compiler.SCHEMA_VERSION if newer else 1, id=PROJECT_ID,
                name='Bar cleared', mode='edit',
                revision=1, source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
                output=dict(shipAs='URB_Bar_Cleared_c1ea', patch='patch_urb_bar_cleared_c1ea'),
-               overrides=cleared_overrides(scene, keep_outside), added=list(added), nextSerial=len(added), cleared=True)
-    if keep_outside:
+               overrides=overrides, added=list(added), nextSerial=len(added),
+               cleared={k: ({'keepOutside': True} if keep_outside else {}) for k in parts} if parts is not None else True)
+    if keep_outside and parts is None:
         doc['clearKeepsOutside'] = True
     if keep_triggers:
         doc['clearKeepsTriggers'] = True
@@ -89,6 +97,8 @@ def main(argv=None):
     a.add_argument('--zones', action='store_true', help="two landing zones: the map's own moved and turned, one added")
     a.add_argument('--keep-outside', action='store_true', help='keep the scenery outside the play area')
     a.add_argument('--keep-triggers', action='store_true', help="keep the map's triggers and scripts")
+    a.add_argument('--parts', nargs='+', choices=compiler.CLEAR_PARTS,
+                   help='clear only these parts (schema 9); without it, every part')
     a.add_argument('--sound', help="the map's background sound: a cue's path, or none")
     a.add_argument('--volume', type=float, help="the background sound's volume (with --sound)")
     a.add_argument('--cache', type=Path, help="the viewer cache to read Bar's export from (default: the settings')")
@@ -97,6 +107,8 @@ def main(argv=None):
     mode.add_argument('--full', action='store_true')
     mode.add_argument('--compile', action='store_true')
     args = a.parse_args(argv)
+    if args.parts and args.keep_triggers:
+        a.error('--keep-triggers is for a clear of every part: with --parts, leave out triggers')
     s = settings_module.load_settings()
     game = settings_module.resolve_game(s['game'])[0]
     cache = args.cache or s['cache']
@@ -106,7 +118,7 @@ def main(argv=None):
         sound = dict(cue=None if args.sound.lower() == 'none' else args.sound,
                      **({'volume': args.volume} if args.volume is not None else {}))
     doc = document(sha, scene, args.grid, ZONES if args.zones else None, keep_outside=args.keep_outside,
-                   keep_triggers=args.keep_triggers, sound=sound)
+                   keep_triggers=args.keep_triggers, sound=sound, parts=args.parts)
     args.out.mkdir(parents=True, exist_ok=True)
     project = args.out / 'project.json'
     compiler.write_json(project, doc)

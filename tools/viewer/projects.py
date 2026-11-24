@@ -34,10 +34,12 @@ SCHEMA = 'xcom-map-workshop/project'
 # the effects and sounds plan, Part C); 4: the spawns plan's records (`spawnRules`, SP8; the base map's spawn points'
 # overrides and added records, SP6 and SP7); 5: the map's background sound (`backgroundSound`) and a clear that keeps
 # the map's triggers (`clearKeepsTriggers`); 6: what Long War Rebalance is told of the map (`lwrMapInfo`); 7: the
-# diagonal cover the project marks (`diagonalCover`); 8: a building's floors as the cursor's (`buildings[].cursorFloors`).
-# 1 to 7 are read too, and saved as 8.
-SCHEMA_VERSION = 8
-READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8)
+# diagonal cover the project marks (`diagonalCover`); 8: a building's floors as the cursor's (`buildings[].cursorFloors`);
+# 9: the parts the project cleared (`cleared`: {part: {keepOutside?}}). 1 to 8 are read too, and saved as 9.
+SCHEMA_VERSION = 9
+READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+# the parts a clear marks (the compiler's mission_edits.CLEAR_PARTS; the page's clear_parts.js CLEAR_PARTS)
+CLEAR_PARTS = ('pieces', 'lights', 'effects', 'triggers')
 MAX_BYTES = 32 << 20
 ID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 SHA256 = re.compile(r'[0-9a-f]{64}')
@@ -131,9 +133,16 @@ def validate(document, project_id):
     bindings = document.get('areaLightBindings', [])
     if not isinstance(bindings, list) or not all(isinstance(item, dict) for item in bindings):
         raise ProjectError(422, '"areaLightBindings" must be a list of records.')
-    # A cleared map and its landing zones (Clear map plan, section 6): optional; the compiler checks the zones.
-    if document.get('cleared', False) not in (True, False):
-        raise ProjectError(422, '"cleared" must be true or false.')
+    # The parts of the map the project cleared and its landing zones (the clear-by-parts plan, section 4; Clear map plan,
+    # section 6): optional; the compiler checks the zones. `cleared` is {part: {keepOutside?: true or false}} (schema 9)
+    # or true or false (1 to 8).
+    cleared = document.get('cleared', False)
+    if cleared not in (True, False) and not (
+            isinstance(cleared, dict) and set(cleared) <= set(CLEAR_PARTS)
+            and all(isinstance(v, dict) and set(v) <= {'keepOutside'} and isinstance(v.get('keepOutside', False), bool)
+                    for v in cleared.values())):
+        raise ProjectError(422, '"cleared" must be the parts cleared, each of %s with {} or {"keepOutside": true}, or '
+                                'true or false.' % ', '.join(CLEAR_PARTS))
     if not isinstance(document.get('clearKeepsOutside', False), bool):
         raise ProjectError(422, '"clearKeepsOutside" must be true or false.')
     if not isinstance(document.get('clearKeepsTriggers', False), bool):

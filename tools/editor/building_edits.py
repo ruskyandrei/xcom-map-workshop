@@ -395,7 +395,7 @@ class BuildingEdits:
         volumes = [dict(key=v.get('name') or str(k), floor=v.get('floor'), box=list(v['box']['min']) + list(v['box']['max']),
                         stair=bool(v.get('stair')))
                    for k, v in enumerate(self.c.scene.get('cursorVolumes') or []) if v.get('box')] \
-            if not self.c.mission_edits.cleared else []
+            if not self.c.mission_edits.pieces_cleared else []
         crossed = {}
         for c in made_cursors.split(volumes, [], None, areas)['crossed']:
             crossed.setdefault(c['building'], set()).add('%s (%s)' % (short(str(c['volume'])), "a stair's" if c['why'] == 'stair' else 'turned'))

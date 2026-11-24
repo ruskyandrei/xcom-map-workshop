@@ -183,7 +183,7 @@ class DiagonalEdits:
                 streams[donor['stream']] = [dict(donor, kind='mission'), ['%s (added)' % missions.label(kind)]]
         size, out = (TILE, TILE, LEVEL), []
         for stream, (s, labels) in sorted(streams.items()):
-            if not isinstance(s, dict) or (me.cleared and s.get('kind') == 'lwr'):
+            if not isinstance(s, dict) or (me.pieces_cleared and s.get('kind') == 'lwr'):
                 continue
             objects = {o.get('actor'): o for o in s.get('missionObjects') or [] if isinstance(o, dict)}
             hidden = self.c.stream_hides.get(stream) or set()

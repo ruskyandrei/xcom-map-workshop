@@ -136,7 +136,7 @@ from made_edits import (FRAC_SLAB_MAX_TILES, FRAC_WALL_LOOKS, FRAC_WALL_MIN_LENG
 from building_edits import BUILDING_FLOORS_MAX, BuildingEdits, moved_whole, source_floor_match  # noqa: E402,F401
 # the map grid, the clear, landing zones, missions and spawn places, and the tables others read through the compiler
 # (the tests, the viewer's prefab builder test)
-from mission_edits import STAGE_GRID_MAX, STAGE_LEVELS_MAX, MissionEdits, stage_max  # noqa: E402,F401
+from mission_edits import CLEAR_PARTS, STAGE_GRID_MAX, STAGE_LEVELS_MAX, MissionEdits, stage_max  # noqa: E402,F401
 # the user's groups (which of them break together), and its helper others read through the compiler (the tests)
 from group_edits import GroupEdits, member_key  # noqa: E402,F401
 # the floors (the cursor's, the floor the copies give, ladders' climbs, building floors, the map's floor tiles
@@ -212,9 +212,11 @@ SCHEMA = 'xcom-map-workshop/project'
 # it). A project of schema 5 builds as it did. 7: the diagonal cover the project marks (`diagonalCover`; KB-20: the
 # Build no longer finds diagonal cover by itself, so a project of schema 1 to 6 with a made wall or cover block at 45
 # degrees builds without the corners 0.7.0 found there). 8: a building's floors as the cursor's
-# (`buildings[].cursorFloors`: the building cursor floors plan); a project of schema 7 builds as it did.
-SCHEMA_VERSION = 8
-READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8)
+# (`buildings[].cursorFloors`: the building cursor floors plan); a project of schema 7 builds as it did. 9: the parts
+# the project cleared (`cleared`: {part: {keepOutside?}}, the clear-by-parts plan); `cleared: true` of schema 1 to 8 is
+# every part, so it builds as it did.
+SCHEMA_VERSION = 9
+READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects
@@ -1093,8 +1095,8 @@ class Compiler:
         - deleted: the Build empties the script's references to it (`kismet_cuts`, the spec's `kismetCuts`:
           tools/bake/kismet_cut.py), so the script acts on nothing in its place and a copy of it is a piece like any
           other: a note. Where the script waits on it (an event's or a condition's) that will never come: a warning on a
-          map as it is, a note on a cleared one, whose mission script the clear has already cut off from its triggers
-          (the user, 23 November 2026: "I don't care about these scripts doing anything")."""
+          map as it is, a note on one whose triggers are cleared, its mission script already cut off from them (the
+          user, 23 November 2026: "I don't care about these scripts doing anything")."""
         said = '; '.join(named)
         if rec.get('deleted') is not True:
             self.warn('mission-linked', "%s is moved, and the map's Kismet acts on it (%s): the script acts on the hidden "
@@ -1102,7 +1104,7 @@ class Compiler:
             return
         self.kismet_cuts.append(name)
         waits = [r for r in named if r.split(' ', 1)[0].startswith(('SeqEvent', 'SeqCond', 'XComSeqEvent', 'XComSeqCond'))]
-        if waits and not self.mission_edits.cleared:
+        if waits and not self.mission_edits.triggers_cleared:
             self.warn('mission-linked', "%s is deleted, and the map's Kismet waits on it (%s): the Build takes it out of the "
                       "script, so what the script waits for will not come" % (name, '; '.join(waits)), **where)
             return
@@ -1757,15 +1759,16 @@ class Compiler:
         # a mission's objects moved in their streams (Part E): {stream: [move]}, moved in place in the stream's copy
         if self.stream_moves:
             extra['streamMoves'] = {k: sorted(v, key=lambda m: m['actor']) for k, v in sorted(self.stream_moves.items())}
-        # a cleared map (Clear map plan, section 7): the Build's clear_level takes out what the editor never showed,
-        # over the grid as the project has it
-        if self.mission_edits.cleared:
-            extra['cleared'] = dict(grid=self.mission_edits.stage_grid or list(self.scene['tileGrid']['dimensions'][:3]))
-            box = self.mission_edits.outside_box() if self.mission_edits.keep_outside else None
-            if box:
-                extra['cleared']['keepOutside'] = box
-            if self.mission_edits.keep_triggers:
-                extra['cleared']['keepTriggers'] = True
+        # the parts the project cleared (the clear-by-parts plan, section 4): the Build's clear_level takes out of each
+        # what the editor never showed, a part that keeps the outside leaving what stands outside the play area
+        # (`keepOutside`: the box), and the Pieces part puts one rebuild volume over the grid as the project has it
+        # (the grid as the project has it is the Pieces part's, which needs one: cleared_mark; the others go without)
+        parts = self.mission_edits.parts
+        if parts:
+            box = self.mission_edits.outside_box() if any(parts.values()) else None
+            grid = self.mission_edits.stage_grid or list(((self.scene.get('tileGrid') or {}).get('dimensions') or [])[:3])
+            extra['cleared'] = dict(**({'grid': grid} if grid else {}),
+                                    parts={k: (dict(keepOutside=box) if keep and box else {}) for k, keep in parts.items()})
         # the effects the map's pieces carry (export 23; tools/bake/native_effects.py): each follows its piece's move,
         # copy or delete in the Build ({piece: [effect]}, short names), but for one the project moves, deletes or
         # detaches itself (the effects and sounds plan, Part C: a record of its own takes it from its piece)
@@ -1893,9 +1896,9 @@ class Compiler:
                                   flags=dict(self.flag_edits.counts, inPlace=len(self.flag_edits.edits),
                                              onCopies=sum(1 for c in self.copies if c.get('flags')))),
                       errors=self.errors, warnings=self.warnings, notes=self.notes,
-                      stageGrid=self.mission_edits.stage_grid, cleared=self.mission_edits.cleared,
-                      clearKeepsOutside=self.mission_edits.keep_outside,
-                      clearKeepsTriggers=self.mission_edits.keep_triggers, landingZones=self.mission_edits.zones,
+                      stageGrid=self.mission_edits.stage_grid,
+                      cleared={k: (dict(keepOutside=True) if keep else {}) for k, keep in self.mission_edits.parts.items()}
+                      or None, landingZones=self.mission_edits.zones,
                       ownLandings=self.mission_edits.own_count, spawnRules=self.mission_edits.spawn_rules,
                       backgroundSound=self.effect_edits.background,
                       # what Long War Rebalance is told of the map (schema 6): the Build writes the variant's MapInfo

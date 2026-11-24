@@ -22,8 +22,9 @@
 // drawn, the redraw asked, the Wave preview's player, the likeness's switch and count) is editor_state.js's.
 import * as THREE from 'three';
 import { clock } from './build_queue.js';
+import { partCleared } from './clear_parts.js';
 import { onHub } from './edit_hub.js';
-import { activeMapId, cleared, copySerial, data, effectIndex, effectMarkers, effectRoots, effectsDirty, effectsOn,
+import { activeMapId, clearedParts, copySerial, data, effectIndex, effectMarkers, effectRoots, effectsDirty, effectsOn,
          families, foreignEffects, geometryCache, lightsOn, likenessOn, likenessThin, nextCopySerial, normalEffects,
          pickedEffect, pickedSpawn, pointer, roots, setCopySerial, setEffectMarkers, setEffectsDirty, setEffectsOn,
          setLikenessCount, setLikenessOn, setLikenessThin, setLiveCache, setNormalEffectsValue, setPickCentres,
@@ -199,7 +200,8 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
       // (the Build will have it, and the view shows where it stands: what its likeness needs too)
       root.userData.there = !root.userData.deleted && !root.userData.derivedGone
         && (!isStream(o) || streamSet.has(o.stream))
-        && (Boolean(o.added) || survivesClear(o, { cleared, outside: pointOutside, carrierMoved: root.userData.carrierMoved, moved: Boolean(root.userData.edit) }))
+        && (Boolean(o.added) || survivesClear(o, { cleared: partCleared(clearedParts, 'effects'), outside: (x, y) => pointOutside(x, y, 'effects'),
+                                                   carrierMoved: root.userData.carrierMoved, moved: Boolean(root.userData.edit) }))
         && inAnyPlay(at);
       root.visible = shown && effectFilters[o.kind] !== false && root.userData.there;
       if (root.visible) effectMarkers.push(root.userData.marker);

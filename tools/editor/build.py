@@ -1098,7 +1098,8 @@ class Build:
         self.has_lights = has_light_edits(self.native)
         self.lights = light_counts(self.native)
         self.resizes = bool(report.get('stageGrid'))
-        # a cleared map (Clear map plan, section 7): native_copy.py's clear_level, and the shell stage's cursor storeys
+        # the parts the project cleared (the clear-by-parts plan, section 4): native_copy.py's clear_level, and with the
+        # pieces the shell stage's cursor storeys
         self.cleared = self.native.get('cleared')
         # the project's landing zones (Clear map plan, section 4): its own lines, and the map's own landings moved in
         # the map (native_spawns.py, run by native_copy.py) where a zone that is also theirs moves them
@@ -1237,7 +1238,8 @@ class Build:
         # (a size the compiler left out is not read: the map keeps its own)
         stage = (self.doc.get('stage') if self.stage_kept else None) or {}
         grid = stage.get('grid')    # the compiler has checked it against the map's own
-        cleared = bool(self.cleared)
+        # (the map's pieces cleared: its own cursor volumes go, and no ground is laid; the other parts change neither)
+        cleared = 'pieces' in ((self.cleared or {}).get('parts') or {})
         ambient = self.doc.get('prefabTest') and self.map in compiler.STAGE_MAPS
         paths.use('bake')
         import shell

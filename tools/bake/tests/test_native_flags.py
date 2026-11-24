@@ -249,7 +249,7 @@ class FlagsBuilt(unittest.TestCase):
         # flags' tiles are seeded, with no volume of their own
         with tempfile.TemporaryDirectory() as d:
             m = native_copy.build(native_copy.BuildState(
-                BAR, d, 'FlagCleared', [], cleared=dict(grid=[52, 39, 12]),
+                BAR, d, 'FlagCleared', [], cleared=dict(grid=[52, 39, 12], parts={k: {} for k in native_copy.CLEAR_PARTS}),
                 piece_flags=[dict(name='XComLevelActor_103', flags=dict(walking=False))]))
             f = m['nativeCopies']['pieceFlags']
             self.assertEqual(f['tiles']['volumes'], "the cleared map's")

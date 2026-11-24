@@ -13,11 +13,12 @@
 // map grid's own parts, and the panel's helpers.
 // The shared state it reads and writes is editor_state.js's.
 import * as THREE from 'three';
+import { clearedPartsOf } from './clear_parts.js';
 import { COVER_KIND } from './cover.js';
-import { areaBindings, builder, builderMode, cleared, clearKeepsOutside, clearKeepsTriggers, copySerial, data, effectRoots,
+import { areaBindings, builder, builderMode, clearedParts, copySerial, data, effectRoots,
          diagonalCarried, diagonalCarriedOver, eventMemo, landingZones, library, lightIndex, lightRoots, loadErrorCount,
          missionMoves, projectBackgroundSound, projectDiagonal, projectMapInfo, projectMissions, projectPicture, projectSpawnRules, roots,
-         setCleared, setClearKeepsOutside, setClearKeepsTriggers, setCopySerial, setDiagonalCarriedOver, setGroups, setLandingZones,
+         setClearedParts, setCopySerial, setDiagonalCarriedOver, setGroups, setLandingZones,
          setLiveCache, setLoadErrorCount, setMergedBuildings, setProjectBackgroundSound, setProjectDiagonal, setProjectMapInfo,
          setProjectMissions, setProjectPicture, setProjectSpawnRules, stage, volumeRoots } from './editor_state.js';
 import { handFromSaved, savedDiagonal } from './diagonal_marks.js';
@@ -74,7 +75,7 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     const kept = [...pruneGroups(saved).values()].map(g => ({ id: g.id, locked: g.locked, breakTogether: g.breakTogether, members: [...g.members.values()],
                                                                ...(g.prefab ? { prefab: g.prefab } : {}) }));
     return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values(), ...spawnCopyRecords()], groups: kept, areaLightBindings, stage,
-                      buildings: savedBuildings(), cleared, landingZones, clearKeepsOutside, clearKeepsTriggers, missions: projectMissions,
+                      buildings: savedBuildings(), cleared: clearedParts, landingZones, missions: projectMissions,
                       spawnRules: projectSpawnRules, picture: projectPicture, backgroundSound: projectBackgroundSound,
                       lwrMapInfo: projectMapInfo,
                       diagonalCover: savedDiagonal(projectDiagonal, diagonalCarried, diagonalCarriedOver) });
@@ -87,8 +88,7 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     for (const message of await loadForeignTemplates(state.added, progress))
       if (!foreignNoted.has(message)) { foreignNoted.add(message); projectNote(`${message}: its copies are kept and saved back unchanged.`); }
     clearEdits();
-    setCleared(state.cleared === true); setClearKeepsOutside(cleared && state.clearKeepsOutside === true); setMergedBuildings(null);
-    setClearKeepsTriggers(cleared && state.clearKeepsTriggers === true);
+    setClearedParts(clearedPartsOf(state)); setMergedBuildings(null);
     setProjectBackgroundSound(state.backgroundSound ?? null);
     setProjectMapInfo(state.lwrMapInfo ?? null);
     // the diagonal cover marks (schema 7): the project's own; the carried ones are worked out again from the pieces
@@ -249,8 +249,8 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     setGroups(new Map()); setLiveCache(null);
     clearLightEdits();
     clearEffectEdits();
-    setCleared(false); setClearKeepsOutside(false); setLandingZones(null); setMergedBuildings(null); setProjectMissions(null);
-    setClearKeepsTriggers(false); setProjectBackgroundSound(null); setProjectMapInfo(null);
+    setClearedParts(null); setLandingZones(null); setMergedBuildings(null); setProjectMissions(null);
+    setProjectBackgroundSound(null); setProjectMapInfo(null);
     setProjectDiagonal(null); setDiagonalCarriedOver([]);
     setProjectPicture(null);
     setProjectSpawnRules(null); syncSpawnRule();

@@ -21,10 +21,11 @@
 // AREA_SHOWN, REACH_SHOWN) are plain exports at the top, before the factory: app.js reads the
 // switches from them as the page loads and its View options' handlers write them.
 import * as THREE from 'three';
+import { partCleared } from './clear_parts.js';
 import { PL, QUARTER } from './constants.js';
 import { copyText, field, plural, sentence, short, text } from './dom_words.js';
 import { onHub } from './edit_hub.js';
-import { areaBindings, areaShown, assigning, cleared, clearKeepsOutside, copySerial, data, derivedCopies, effectRoots,
+import { areaBindings, areaShown, assigning, clearedParts, copySerial, data, derivedCopies, effectRoots,
          effectsOn, families, handleDefs, hintTimer, lightDrag, lightIndex, lighting, lightRadius, lightRoots,
          lightsDirty, lightsOn, lightsShown, nextCopySerial, pickedEffect, placing, reachKey, reachNow, reachShown,
          roots, selected, setAreaBindings, setAssigning, setCopySerial, setDerivedCopies, setHandleDefs,
@@ -141,10 +142,18 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
       const o = root.userData.source;
       root.visible = !root.userData.deleted && !root.userData.derivedGone && (o.role !== 'area' || areaShown)
         && (!isStream(o) || streamSet.has(o.stream)) && (!play || root.userData.source.added || reachesPlay(root))
-        && !(cleared && !o.added && !(o.kind === 'directional' || o.kind === 'sky' || o.role === 'dominant' || o.role === 'sky')
-             && (isStream(o) || o.role === 'area' || lightViewOnly(o))
-             && !(clearKeepsOutside && !isStream(o) && pointOutside(root.matrix.elements[12], root.matrix.elements[14])));
+        && !takenByClear(root);
     }
+  }
+  // Whether a clear has taken the map's light at `root` (the Build's clear_level): with the pieces, a patch level's light
+  // and a glowing piece's area light; with the lights, a light the editor only shows (it deletes the others by records);
+  // never the sun, moon or sky light, nor one standing outside the play area of a part that kept the outside.
+  function takenByClear(root) {
+    const o = root.userData.source;
+    if (o.added || o.kind === 'directional' || o.kind === 'sky' || o.role === 'dominant' || o.role === 'sky') return false;
+    const part = isStream(o) || o.role === 'area' ? 'pieces' : lightViewOnly(o) ? 'lights' : null;
+    if (!part || !partCleared(clearedParts, part)) return false;
+    return isStream(o) || !pointOutside(root.matrix.elements[12], root.matrix.elements[14], part);
   }
   // The lights toggle (Shift+L, the rail's bulb, View options): off, the map looks as it did and lights can't be picked.
   // The Lights view on or off: while it is on only lights are picked, and each moves on its own.

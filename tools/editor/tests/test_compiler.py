@@ -507,6 +507,9 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         # on a cleared map it stays the same, said in a note (the clear cuts the map's script off from its triggers)
         _, report = compile_project(document([dict(target=target('XComAlienPod_0'), deleted=True)], cleared=True), s, enable=['spawn'])
         self.assertEqual((warned(report, 'spawn-delete'), noted(report, 'spawn-delete')), ([], ['spawn-delete-named']))
+        # (the Triggers part's: with the lights alone cleared, still a warning)
+        _, report = compile_project(document([dict(target=target('XComAlienPod_0'), deleted=True)], cleared={'lights': {}}), s, enable=['spawn'])
+        self.assertEqual(warned(report, 'spawn-delete'), ['spawn-delete-named'])
 
     def test_no_spawn_volumes_are_sized_given_values_copied_made_and_deleted(self):
         # a no-spawn volume (export 34: its aliens and civilians switches) moves and is sized by its box, in place; a
@@ -1057,7 +1060,7 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         self.assertTrue(report['ok'], refused(report))
 
     def test_schema_source_and_output_are_checked(self):
-        for doc, code in [(document(schemaVersion=9), 'schema'),
+        for doc, code in [(document(schemaVersion=10), 'schema'),
                           (document(source=dict(map='URB_Bar', sha256='b' * 64)), 'source-mismatch'),
                           (document(output=dict(shipAs='URB_Bar', patch='patch_x')), 'output'),
                           (document(output=dict(shipAs='Bad name', patch='patch_x')), 'output'),
@@ -1155,6 +1158,11 @@ class CompilerTests(MissionScenes, unittest.TestCase):
         self.assertEqual(warned(report, 'mission'), ['mission-linked'])
         self.assertIn('waits on it (SeqEvent_Destroyed_0 Originator)', report['warnings'][0]['message'])
         _, report = compile_project(document([deleted], cleared=True), s)
+        self.assertEqual((warned(report, 'mission'), noted(report, 'mission')), ([], ['mission-linked']))
+        # that note follows the Triggers part (its script cut off from them): with the pieces alone cleared, a warning
+        _, report = compile_project(document([deleted], cleared={'pieces': {}}), s)
+        self.assertEqual(warned(report, 'mission'), ['mission-linked'])
+        _, report = compile_project(document([deleted], cleared={'triggers': {}}), s)
         self.assertEqual((warned(report, 'mission'), noted(report, 'mission')), ([], ['mission-linked']))
         # copied alone (the original stays): nothing
         spec, report = compile_project(document([], [add('XComLevelActor_2', 1, (96, 192, 0))]), s)
@@ -1424,6 +1432,10 @@ def everything(s):
 ZONE = dict(id='z1', location=[719, -1681, 64], direction='north', kind='normal')
 
 
+# what `cleared: true` (schema 1 to 8) is read as: every part the Build clears, none keeping the outside
+EVERY_PART = {'pieces': {}, 'lights': {}, 'effects': {}, 'triggers': {}}
+
+
 class ClearTests(unittest.TestCase):
     """A cleared map, its size and its landing zones (private/plans/done/clear-map-plan.md, sections 4 and 6)."""
 
@@ -1431,15 +1443,16 @@ class ClearTests(unittest.TestCase):
         s = clear_scene()
         spec, report = compile_project(document(everything(s), cleared=True), s)
         self.assertTrue(report['ok'], refused(report))
-        self.assertTrue(report['cleared'])
+        # `cleared: true` (schema 1 to 8) is every part
+        self.assertEqual(report['cleared'], EVERY_PART)
         # a merged actor (no family that builds) and a piece with a component offset are deleted all the same
         self.assertEqual(warned(report, 'delete-'), [])
         hides = next(o for o in spec['objects'] if o['type'] == 'hide')['alsoHide']
         self.assertIn('XComMergedLevelActor_62', hides)
         self.assertIn('XComLevelActor_5', hides)
-        self.assertEqual(spec['cleared'], dict(grid=[52, 39, 12]))
+        self.assertEqual(spec['cleared'], dict(grid=[52, 39, 12], parts=EVERY_PART))
         patch, native = compiler.native_split(spec)
-        self.assertEqual(native['cleared'], dict(grid=[52, 39, 12]))
+        self.assertEqual(native['cleared'], dict(grid=[52, 39, 12], parts=EVERY_PART))
         self.assertNotIn('cleared', patch)
         # with the floor gone, the map's own landing stands on nothing: warned, never refused
         self.assertIn('landing-floor', warned(report))
@@ -1473,17 +1486,23 @@ class ClearTests(unittest.TestCase):
             doc = document(everything(s), cleared=True, clearKeepsOutside=True, **({'stage': {'grid': grid}} if grid else {}))
             spec, report = compile_project(doc, s)
             self.assertTrue(report['ok'], refused(report))
-            self.assertTrue(report['clearKeepsOutside'])
-            box = spec['cleared']['keepOutside']
+            # (schema 1 to 8: every part keeps the outside)
+            self.assertEqual(report['cleared'], {k: dict(keepOutside=True) for k in EVERY_PART})
+            box = spec['cleared']['parts']['pieces']['keepOutside']
             self.assertEqual([round(v) for v in box[:2]], [round(min(b['min'][0], s['tileGrid']['origin'][0])),
                                                            round(min(b['min'][2], s['tileGrid']['origin'][1]))])
             self.assertEqual(round(box[2]), round(max(b['max'][0], far)))
-            self.assertEqual(compiler.native_split(spec)[1]['cleared']['keepOutside'], box)
+            self.assertEqual(compiler.native_split(spec)[1]['cleared']['parts'], {k: dict(keepOutside=box) for k in EVERY_PART})
+        # a part each way (schema 9): only the one that keeps it gets the box
+        spec, report = compile_project(document(everything(s), cleared={'pieces': {'keepOutside': True}, 'lights': {}}), s)
+        self.assertEqual(report['cleared'], {'pieces': dict(keepOutside=True), 'lights': {}})
+        self.assertEqual(sorted(spec['cleared']['parts']), ['lights', 'pieces'])
+        self.assertEqual((sorted(spec['cleared']['parts']['pieces']), spec['cleared']['parts']['lights']), (['keepOutside'], {}))
         # without it, or without the clear, no box; a value not true or false is refused
         spec, _ = compile_project(document(everything(s), cleared=True, clearKeepsOutside=False), s)
-        self.assertNotIn('keepOutside', spec['cleared'])
+        self.assertFalse(any(spec['cleared']['parts'].values()))
         spec, report = compile_project(document(clearKeepsOutside=True), s)
-        self.assertFalse(report['clearKeepsOutside'])
+        self.assertIsNone(report['cleared'])
         _, report = compile_project(document(cleared=True, clearKeepsOutside='yes'), s)
         self.assertEqual(codes(report), ['cleared-shape'])
 
@@ -1492,16 +1511,44 @@ class ClearTests(unittest.TestCase):
         s = clear_scene()
         spec, report = compile_project(document(everything(s), cleared=True), s)
         self.assertTrue(report['ok'], refused(report))
-        self.assertNotIn('keepTriggers', compiler.native_split(spec)[1]['cleared'])
-        self.assertFalse(report['clearKeepsTriggers'])
+        self.assertIn('triggers', compiler.native_split(spec)[1]['cleared']['parts'])
+        # (schema 1 to 8) `clearKeepsTriggers`: every part but the triggers
         spec, report = compile_project(document(everything(s), cleared=True, clearKeepsTriggers=True), s)
-        self.assertIs(compiler.native_split(spec)[1]['cleared']['keepTriggers'], True)
-        self.assertTrue(report['clearKeepsTriggers'])
+        self.assertEqual(sorted(compiler.native_split(spec)[1]['cleared']['parts']), ['effects', 'lights', 'pieces'])
+        self.assertNotIn('triggers', report['cleared'])
         # without the clear it says nothing; a value not true or false is left out
         _, report = compile_project(document(clearKeepsTriggers=True), s)
-        self.assertFalse(report['clearKeepsTriggers'])
+        self.assertIsNone(report['cleared'])
         _, report = compile_project(document(cleared=True, clearKeepsTriggers='yes'), s)
         self.assertEqual(codes(report), ['cleared-shape'])
+
+    def test_one_part_alone_leaves_the_rest_of_the_map_as_it_is(self):
+        # the clear-by-parts plan, section 2: a part without the pieces neither lets the grid shrink nor drops Long
+        # War's patch levels; it goes to the Build alone
+        s = clear_scene()
+        s['streams'] = {'patch_bar': dict(kind='lwr', objects=[], lights=[])}
+        for part in ('lights', 'effects', 'triggers'):
+            spec, report = compile_project(document(cleared={part: {}}), s)
+            self.assertTrue(report['ok'], refused(report))
+            self.assertEqual((report['cleared'], spec['cleared']['parts']), ({part: {}}, {part: {}}), part)
+            self.assertNotIn('dropPatches', spec)
+            _, report = compile_project(document(cleared={part: {}}, stage={'grid': [40, 30]}), s)
+            self.assertEqual(codes(report), ['stage-grid'], part)
+        # the pieces alone: the grid may shrink, the patch levels dropped
+        spec, report = compile_project(document(everything(s), cleared={'pieces': {}}, stage={'grid': [40, 30]}), s)
+        self.assertTrue(report['ok'], refused(report))
+        self.assertEqual((spec['cleared'], spec.get('dropPatches')), (dict(grid=[40, 30, 12], parts={'pieces': {}}), True))
+        # nothing cleared: no mark
+        spec, report = compile_project(document(cleared={}), s)
+        self.assertEqual((report['cleared'], spec.get('cleared')), (None, None))
+
+    def test_a_part_it_cannot_read_is_left_out_and_the_rest_cleared(self):
+        s = clear_scene()
+        for bad in ({'roofs': {}}, {'lights': True}, {'lights': {'keepOutside': 'yes'}}, {'lights': {'keep': True}}):
+            spec, report = compile_project(document(cleared=dict(bad, triggers={})), s)
+            self.assertEqual(codes(report), ['cleared-shape'], bad)
+            self.assertEqual(report['cleared'], {'triggers': {}}, bad)
+            self.assertEqual(spec['cleared']['parts'], {'triggers': {}}, bad)
 
     def test_a_map_as_it_is_only_grows(self):
         s = clear_scene()
@@ -1516,7 +1563,7 @@ class ClearTests(unittest.TestCase):
         self.assertIn('stage-grown-map', noted(report))
         _, report = compile_project(document(cleared='yes'), s)
         self.assertEqual(codes(report), ['cleared-shape'])
-        self.assertEqual((report['ok'], report['cleared']), (True, False))      # left out: not cleared (finding 39)
+        self.assertEqual((report['ok'], report['cleared']), (True, None))       # left out: not cleared (finding 39)
 
     def test_a_cleared_maps_grid_may_be_smaller_or_larger(self):
         s = clear_scene()
@@ -1524,7 +1571,7 @@ class ClearTests(unittest.TestCase):
             spec, report = compile_project(document(everything(s), cleared=True, stage={'grid': grid}), s)
             self.assertTrue(report['ok'], (grid, refused(report)))
             self.assertEqual(report['stageGrid'], want)
-            self.assertEqual(spec['cleared'], dict(grid=want))
+            self.assertEqual(spec['cleared'], dict(grid=want, parts=EVERY_PART))
         for grid in ([0, 30], [52, 257], [52, 39, 31], [52, 39, 0]):
             _, report = compile_project(document(cleared=True, stage={'grid': grid}), s)
             self.assertEqual(codes(report), ['stage-grid'], grid)

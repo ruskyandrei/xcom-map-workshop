@@ -208,7 +208,7 @@ class StoreTests(unittest.TestCase):
         self.assertIn('older than the editor', error.exception.message)
         self.assertTrue(error.exception.extra.get('stale'))
         self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION), old['revision'])
-        self.assertEqual(self.store.load(ID)['schemaVersion'], 8)
+        self.assertEqual(self.store.load(ID)['schemaVersion'], 9)
         # schema 3 adds effects' and sounds' records (the effects and sounds plan): a schema 2 project opens, and a
         # page that saves schema 2 is as stale
         with self.assertRaises(ProjectError) as error:
@@ -230,6 +230,10 @@ class StoreTests(unittest.TestCase):
         # schema 7 adds the diagonal cover the project marks: a page that saves schema 6 is as stale
         with self.assertRaises(ProjectError) as error:
             self.store.save(ID, dict(old, schemaVersion=6), self.store.load(ID)['revision'])
+        self.assertTrue(error.exception.extra.get('stale'))
+        # schema 9 makes the clear a set of parts: a page that saves schema 8 is as stale
+        with self.assertRaises(ProjectError) as error:
+            self.store.save(ID, dict(old, schemaVersion=8), self.store.load(ID)['revision'])
         self.assertTrue(error.exception.extra.get('stale'))
         # the diagonal cover is carried as the document has it (the compiler checks each mark); another frame is refused
         marks = dict(marks=[dict(at=[48.0, 48.0, 32.0], toward=[[1, 1]])], removed=[[144.0, 48.0, 32.0]])
@@ -256,9 +260,9 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.load(ID)['overrides'], flags['overrides'])
 
     def test_other_schema_versions_and_bad_documents_are_refused(self):
-        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=9), 0)
+        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=10), 0)
         self.assertEqual(error.exception.status, 409)
-        self.assertIn('schema 9', error.exception.message)
+        self.assertIn('schema 10', error.exception.message)
         self.root.mkdir(parents=True)
         (self.root / 'Bar remix.json').write_text(json.dumps(document(schemaVersion=0)), encoding='utf8', newline='\n')
         with self.assertRaises(ProjectError) as error: self.store.load(ID)
@@ -271,7 +275,11 @@ class StoreTests(unittest.TestCase):
         self.assertIn('another project', error.exception.message)
         for bad in (document(name=''), document(mode='blank'), document(source=dict(map='URB_Bar', sha256='x')),
                     document(overrides='none'), document(added=[1]), document(groups='none'), document(groups=[1]),
-                    document(cleared='yes'), document(clearKeepsOutside=1), document(landingZones='none'), document(landingZones=[1]), [], None):
+                    document(cleared='yes'), document(clearKeepsOutside=1), document(landingZones='none'), document(landingZones=[1]),
+                    # schema 9's parts: a part this editor doesn't know, a part that isn't a record, a keepOutside not
+                    # true or false, another key
+                    document(cleared={'roofs': {}}), document(cleared={'lights': True}),
+                    document(cleared={'lights': {'keepOutside': 1}}), document(cleared={'lights': {'keep': True}}), [], None):
             with self.assertRaises(ProjectError) as error: self.store.save(ID, bad, 0)
             self.assertEqual(error.exception.status, 422)
         # a cleared map with its landing zones is saved as it is (the compiler checks the zones)
@@ -280,6 +288,10 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.load(ID)['landingZones'], zones)
         self.assertIs(self.store.load(ID)['cleared'], True)
         self.assertIs(self.store.load(ID)['clearKeepsOutside'], True)
+        # the parts the project cleared (schema 9), saved as they are
+        parts = {'pieces': {'keepOutside': True}, 'lights': {}, 'triggers': {}}
+        self.store.save(ID, document(cleared=parts), self.store.load(ID)['revision'])
+        self.assertEqual(self.store.load(ID)['cleared'], parts)
         for project_id in ('../escape', 'ABC', '', ID.upper()):
             with self.assertRaises(ProjectError) as error: self.store.load(project_id)
             self.assertEqual(error.exception.status, 404)

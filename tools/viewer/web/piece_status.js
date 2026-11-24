@@ -10,7 +10,7 @@
 // state, the Lights view's pose and values of a light. It registers the refresh as it is made and keeps no state.
 import { plural } from './dom_words.js';
 import { onHub, runHub, STOP } from './edit_hub.js';
-import { allRoots, builder, builderMode, cleared, data, groups, selected } from './editor_state.js';
+import { allRoots, builder, builderMode, cleared, clearedParts, data, groups, selected } from './editor_state.js';
 import { isStream } from './piece_records.js';
 
 export function createPieceStatus({ $, changes, gizmo, lightPose, lightViewOnly, poseInputs, saveState,
@@ -53,6 +53,6 @@ export function createPieceStatus({ $, changes, gizmo, lightPose, lightViewOnly,
     $('editUndo').hidden = $('editRedo').hidden = !(count.total || gizmo.canUndo() || gizmo.canRedo());
     $('editUndo').disabled = !gizmo.canUndo(); $('editRedo').disabled = !gizmo.canRedo();
     $('editReset').disabled = !gizmo.selection().some(r => r.userData.edit || (r.userData.light && valuesEdited(r)) || (r.userData.effect && r.userData.values));
-    $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !cleared);
+    $('editResetAll').hidden = builderMode || (!count.total && !groups.size && !clearedParts);
   });
 }

@@ -12,8 +12,9 @@
 // changes counted, the builder's key, and the page session's id (SESSION). Its own state is inside it (navigating, the banner's timer); what other areas share
 // with it (leaving, saving, the drafts' timer, owner and trouble, the build status, the copies' serial) is
 // editor_state.js's.
+import { clearedPartsOf } from './clear_parts.js';
 import { onHub } from './edit_hub.js';
-import { activeMapId, adoptedDraft, areaBindings, builder, builderMode, buildTimer, cleared, copySerial, data, groups,
+import { activeMapId, adoptedDraft, areaBindings, builder, builderMode, buildTimer, clearedParts, copySerial, data, groups,
          landingRead, landingZones, looksReady, project, projectBackgroundSound, projectDiagonal, projectMapInfo, projectMissions, projectSpawnRules, recoveryKept,
          recoveryTimer, recoveryTrouble, saving, setAdoptedDraft, setAskedPick, setLastBuildValue, setLeaving,
          setProject, setRecoveryKept, setRecoveryTimer, setRecoveryTrouble, setSaving, stage } from './editor_state.js';
@@ -172,8 +173,7 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
     const carried = await applyState({ overrides: docOverrides.filter(validOverride), added: docAdded.filter(validAdded),
                                        groups: docGroups.filter(validGroup), areaLightBindings: docBindings.filter(validBinding),
                                        stage: doc.stage, buildings: Array.isArray(doc.buildings) ? doc.buildings : [],
-                                       cleared: doc.cleared === true, clearKeepsOutside: doc.clearKeepsOutside === true,
-                                       clearKeepsTriggers: doc.clearKeepsTriggers === true,
+                                       cleared: clearedPartsOf(doc),
                                        landingZones: Array.isArray(doc.landingZones) ? doc.landingZones : null,
                                        missions: Array.isArray(doc.missions) ? doc.missions : null,
                                        spawnRules: doc.spawnRules ?? null, picture: doc.picture ?? null,
@@ -220,8 +220,7 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
                       areaLightBindings: (Array.isArray(recovery.areaLightBindings) ? recovery.areaLightBindings : []).filter(validBinding),
                       stage: validStage(recovery.stage, ownSize()?.dims) ? recovery.stage : null,
                       buildings: (Array.isArray(recovery.buildings) ? recovery.buildings : []).filter(validBuilding),
-                      cleared: recovery.cleared === true, clearKeepsOutside: recovery.clearKeepsOutside === true,
-                      clearKeepsTriggers: recovery.clearKeepsTriggers === true,
+                      cleared: clearedPartsOf(recovery),
                       landingZones: Array.isArray(recovery.landingZones) ? recovery.landingZones : null,
                       missions: Array.isArray(recovery.missions) ? recovery.missions : null,
                       spawnRules: recovery.spawnRules ?? null, picture: recovery.picture ?? null,
@@ -347,8 +346,7 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
                                                  groups: [...state.groups, ...carried.groups],
                                                  areaLightBindings: [...state.areaLightBindings, ...(carried.areaLightBindings ?? [])],
                                                  stage: state.stage, buildings: [...(state.buildings ?? []), ...(carried.buildings ?? [])],
-                                                 cleared: state.cleared, clearKeepsOutside: state.clearKeepsOutside,
-                                                 clearKeepsTriggers: state.clearKeepsTriggers,
+                                                 cleared: state.cleared,
                                                  landingZones: state.landingZones, missions: state.missions, spawnRules: state.spawnRules,
                                                  picture: state.picture, backgroundSound: state.backgroundSound,
                                                  lwrMapInfo: state.lwrMapInfo, diagonalCover: state.diagonalCover }),
@@ -356,9 +354,9 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
       if (project && !replace && !fresh) document.source = source;     // a newer export of the same package binds it
       if (!document.stage) delete document.stage;     // the map's own size is said by saying nothing
       if (!document.buildings.length) delete document.buildings;
+      // (nothing cleared is said by saying nothing; schema 1 to 8's ticks are read into the parts and not written)
       if (!document.cleared) delete document.cleared;
-      if (!document.clearKeepsOutside) delete document.clearKeepsOutside;
-      if (!document.clearKeepsTriggers) delete document.clearKeepsTriggers;
+      delete document.clearKeepsOutside; delete document.clearKeepsTriggers;
       if (document.backgroundSound == null) delete document.backgroundSound;     // the map's own background sound
       if (document.lwrMapInfo == null) delete document.lwrMapInfo;     // Long War Rebalance is told nothing of the map
       if (document.diagonalCover == null) delete document.diagonalCover;     // the map's own diagonal cover as it is
@@ -425,7 +423,7 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
 
   const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
   const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
-    || cleared || landingZones || projectMissions || projectSpawnRules || projectBackgroundSound || projectMapInfo || projectDiagonal);
+    || clearedParts || landingZones || projectMissions || projectSpawnRules || projectBackgroundSound || projectMapInfo || projectDiagonal);
   function saveState() { return builderMode ? !builder.doc?.revision ? 'not saved' : dirty() ? 'unsaved' : 'saved' : !project ? 'not saved' : dirty() ? 'unsaved' : 'saved'; }
 
   return { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery,

@@ -31,10 +31,18 @@ const sorted = sortState({ overrides: [], added: [], landingZones: [{ ...zone, i
 assert.deepEqual(sorted.landingZones.map(z => z.id), ['b', 'odd', 'a']);
 assert.equal(sortState({ overrides: [], added: [] }).landingZones, null);
 assert.deepEqual(sortState({ overrides: [], added: [], landingZones: [] }).landingZones, []);
-// cleared is part of the state's key, and so are the zones
+// cleared is part of the state's key, and so are the zones: the parts cleared (schema 9), null for none; schema 1 to 8's
+// `cleared: true` with its ticks reads as the same parts as schema 9 saying them
 const plain = sortState({ overrides: [], added: [] });
-assert.equal(plain.cleared, false);
+assert.equal(plain.cleared, null);
 assert.notEqual(stateKey(plain), stateKey(sortState({ overrides: [], added: [], cleared: true })));
+assert.notEqual(stateKey(sortState({ overrides: [], added: [], cleared: { lights: {} } })),
+                stateKey(sortState({ overrides: [], added: [], cleared: { lights: { keepOutside: true } } })));
+assert.equal(stateKey(sortState({ overrides: [], added: [], cleared: true, clearKeepsTriggers: true })),
+             stateKey(sortState({ overrides: [], added: [], cleared: { effects: {}, pieces: {}, lights: {} } })));
+assert.deepEqual(sortState({ overrides: [], added: [], cleared: true, clearKeepsOutside: true }).cleared,
+                 { pieces: { keepOutside: true }, lights: { keepOutside: true }, effects: { keepOutside: true }, triggers: { keepOutside: true } });
+assert.ok(!('clearKeepsOutside' in plain) && !('clearKeepsTriggers' in plain));
 assert.notEqual(stateKey(plain), stateKey(sortState({ overrides: [], added: [], landingZones: [] })));
 assert.equal(stateKey(plain), stateKey(sortState({ overrides: [], added: [], cleared: false, landingZones: null })));
 // a smaller grid and three numbers are valid stages (the compiler says where they may be used)

@@ -234,7 +234,7 @@ class Lanes(SharedPart, unittest.TestCase):
         out = Path(self.tmp) / 'Cleared'
         m = native_copy.build(native_copy.BuildState(
             BAR, out, 'Cleared', [], sounds=dict(moves=self.SOUNDS['moves'], copies=self.SOUNDS['copies'][:1]),
-            cleared=dict(grid=[52, 39, 12])))
+            cleared=dict(grid=[52, 39, 12], parts={k: {} for k in native_copy.CLEAR_PARTS})))
         q = Package(out / 'Cleared.upk')
         listed = set(native_copy.level_actors(q))
         self.assertIn(q.by_name[PL + 'AmbientSoundSimple_2'], listed)               # moved by the project: kept
@@ -604,7 +604,7 @@ class FlareLanes(SharedPart, unittest.TestCase):
         out = Path(self.tmp) / 'Cleared'
         flares = dict(moves=self.FLARES['moves'], copies=self.FLARES['copies'][:1])
         m = native_copy.build(native_copy.BuildState(BAR, out, 'Cleared', [], flares=flares,
-                                                     cleared=dict(grid=[52, 39, 12])))
+                                                     cleared=dict(grid=[52, 39, 12], parts={k: {} for k in native_copy.CLEAR_PARTS})))
         q = Package(out / 'Cleared.upk')
         listed = set(native_copy.level_actors(q))
         self.assertIn(q.by_name[PL + 'LensFlareSource_7'], listed)             # moved by the project: kept

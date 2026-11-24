@@ -66,6 +66,16 @@ class TwinConstants(unittest.TestCase):
         self.assertFalse(missions.valid_map_info(dict(alienDensity='Huge')))
         self.assertEqual(missions.map_info_words(dict(alienDensity='Heavy', holdTheLine='No')), 'abductions up to Heavy, no Hold the Line')
 
+    def test_the_parts_a_clear_marks(self):
+        # the project's `cleared` keys (schema 9): the server's, the compiler's and the Build's, which web/clear_parts.js
+        # writes (the clear-by-parts plan)
+        import mission_edits
+        import native_copy
+        import projects
+        self.assertEqual(list(projects.CLEAR_PARTS), TWIN['clearParts'])
+        self.assertEqual(list(mission_edits.CLEAR_PARTS), TWIN['clearParts'])
+        self.assertEqual(list(native_copy.CLEAR_PARTS), TWIN['clearParts'])
+
     def test_schema_versions(self):
         # the document versions the server's stores save (web/project.js and web/prefabs.js save the same)
         import prefabs

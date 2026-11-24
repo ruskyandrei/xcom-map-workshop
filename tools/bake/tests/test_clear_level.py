@@ -1,6 +1,7 @@
 """A cleared map in the Build (private/plans/done/clear-map-plan.md, section 7): the shell stage's cursor storeys in
-place of the map's own (shell.py --clear) and native_copy.clear_level, its triggers among what it takes (F-159). Read on
-the configured install's URB_Bar and CSmallScout_Roadhouse; they skip without them."""
+place of the map's own (shell.py --clear) and native_copy.clear_level, its triggers among what it takes (F-159), and
+each part of a clear alone (private/plans/todo/modular-clear-plan.md, section 4). Read on the configured install's
+URB_Bar and CSmallScout_Roadhouse; they skip without them."""
 from pathlib import Path
 import sys
 import tempfile
@@ -123,7 +124,7 @@ class ClearLevelKeepingOutside(unittest.TestCase):
         grid = native_copy.level_grid(cls.p)
         cls.box = [grid['ox'], grid['oy'], grid['ox'] + 96 * grid['nx'], grid['oy'] + 96 * grid['ny']]
         g = package_grow.Grower(str(BAR))
-        cls.report, volume = native_copy.clear_level(g, cls.p, outside=cls.box)
+        cls.report, volume = native_copy.clear_level(g, cls.p, parts={k: cls.box for k in native_copy.CLEAR_PARTS})
         native_copy.add_to_level(g, cls.p, [volume])
         out = Path(cls.tmp.name) / Path(BAR).name
         g.write(str(out))
@@ -166,7 +167,8 @@ class ClearLevelTriggers(unittest.TestCase):
         cls.built = {}
         for keep in (False, True):
             g = package_grow.Grower(str(ROADHOUSE))
-            report, volume = native_copy.clear_level(g, cls.p, keep_triggers=keep)
+            report, volume = native_copy.clear_level(
+                g, cls.p, parts={k: None for k in native_copy.CLEAR_PARTS if not (keep and k == 'triggers')})
             native_copy.add_to_level(g, cls.p, [volume])
             out = Path(cls.tmp.name) / ('kept' if keep else 'taken') / Path(ROADHOUSE).name
             out.parent.mkdir()
@@ -208,6 +210,70 @@ class ClearLevelTriggers(unittest.TestCase):
         self.assertEqual((report['kept'].get('TriggerVolume'), report['kept'].get('XComSquadVisiblePoint')), (13, 1))
         self.assertEqual(report['eventsOff'], [])
         self.assertTrue(set(self.placed(q, 'TriggerVolume')) <= live)
+
+
+class PartsAlone(unittest.TestCase):
+    """clear_level with each part alone (the clear-by-parts plan, section 4) on URB_Bar and CSmallScout_Roadhouse: the
+    part's classes out of the level's list (but the landing's), every other listed actor still listed, no export added
+    without the pieces (their rebuild volume is the Pieces part's), and the parts together the whole clear."""
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.built = {}
+        for path in (BAR, ROADHOUSE):
+            if not (path and path.exists()):
+                continue
+            p = Package(path)
+            for part in list(native_copy.CLEAR_PARTS) + [None]:
+                g = package_grow.Grower(str(path))
+                report, volume = native_copy.clear_level(g, p, parts=None if part is None else {part: None})
+                if volume:
+                    native_copy.add_to_level(g, p, [volume])
+                out = Path(cls.tmp.name) / (part or 'all') / Path(path).name
+                out.parent.mkdir(exist_ok=True)
+                g.write(str(out))
+                cls.built[path.stem, part] = (p, report, volume, Package(out))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_each_part_takes_its_classes_and_nothing_else(self):
+        if not self.built:
+            self.skipTest(NO_BAR)
+        for (name, part), (p, report, volume, q) in sorted(self.built.items(), key=lambda kv: (kv[0][0], str(kv[0][1]))):
+            if part is None:
+                continue
+            with self.subTest(map=name, part=part):
+                classes = set(native_copy.CLEAR_PARTS[part])
+                self.assertEqual(report['parts'], [part])
+                self.assertTrue(set(report['out']) <= classes, report['out'])
+                level = p.by_name['TheWorld.PersistentLevel']
+                was, live = set(native_copy.level_actors(p)), set(native_copy.level_actors(q))
+                for i in was:
+                    if i <= 0 or p.exports[i - 1]['outer'] != level:
+                        continue
+                    goes = p.cls(i) in classes and not native_copy.landing_actor(p, i)
+                    self.assertEqual(i in live, not goes, (p.name(i), p.cls(i)))
+                if part == 'pieces':
+                    self.assertTrue(volume and 'rebuildVolume' in report and 'odd' in report)
+                else:
+                    self.assertIsNone(volume)
+                    self.assertNotIn('rebuildVolume', report)
+                    self.assertEqual(len(q.exports), len(p.exports))
+                # only the triggers switch events off (Bar's two rats, Roadhouse's UFO entry and hologram)
+                self.assertEqual(len(report['eventsOff']), 2 if part == 'triggers' else 0)
+
+    def test_the_parts_together_are_the_whole_clear(self):
+        if not self.built:
+            self.skipTest(NO_BAR)
+        for name in sorted({n for n, _ in self.built}):
+            whole = self.built[name, None][1]
+            taken = sorted(t for part in native_copy.CLEAR_PARTS for t in self.built[name, part][1]['taken'])
+            self.assertEqual(taken, whole['taken'], name)
+            self.assertEqual(sorted(e for part in native_copy.CLEAR_PARTS for e in self.built[name, part][1]['eventsOff']),
+                             whole['eventsOff'], name)
+            self.assertEqual(whole['parts'], list(native_copy.CLEAR_PARTS))
 
 
 if __name__ == '__main__':

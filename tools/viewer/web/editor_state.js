@@ -56,20 +56,17 @@ export function setGroups(next) {
 // (map_grid.js's setStage sets it and draws it).
 export let stage = null;
 export function setStageValue(next) { stage = next; }
-// A cleared map (Clear map plan, section 6): the Build takes out what the editor never showed; the map's size may then
-// be set as on the blank map, smaller too. The landing zones as the project sets them (project.js validLandingZone):
-// null while the project keeps the map's own landings and the install's lines (clear_map.js's zonesNow gives those).
-export let cleared = false, landingZones = null;
-export function setCleared(next) { cleared = next; }
+// The parts of the map the project cleared (the clear-by-parts plan; clear_parts.js): null, or { part: { keepOutside? } }
+// for its pieces, lights, effects and triggers, the Build taking out of each what the editor never showed, and that
+// part's clear keeping the scenery outside the play area or not. `cleared` is the Pieces part, what most readers ask:
+// with it the map's size may be set as on the blank map, smaller too, no ground is laid and none of Long War's patch
+// levels is streamed. setClearedParts sets both.
+export let clearedParts = null, cleared = false;
+export function setClearedParts(next) { clearedParts = next; cleared = Boolean(next?.pieces); }
+// The landing zones as the project sets them (project.js validLandingZone): null while the project keeps the map's own
+// landings and the install's lines (clear_map.js's zonesNow gives those).
+export let landingZones = null;
 export function setLandingZones(next) { landingZones = next; }
-// The clear kept the scenery outside the play area (the Clear map window's tick): the Build's clear_level then leaves
-// the lights, smoke, stains and glints placed out there, and so does the view
-export let clearKeepsOutside = false;
-export function setClearKeepsOutside(next) { clearKeepsOutside = next; }
-// The clear kept the map's triggers and sight points (the Clear map window's "Keep the map's triggers and scripts"):
-// the project's `clearKeepsTriggers`; without it the Build takes them out (F-159)
-export let clearKeepsTriggers = false;
-export function setClearKeepsTriggers(next) { clearKeepsTriggers = next; }
 // The missions the project is for (mission types plan, D1): null, every mission of the base map; else the list of
 // {record: i} and {kind, ship?} entries the Build writes records for (the Missions panel, Clear map's question)
 export let projectMissions = null;

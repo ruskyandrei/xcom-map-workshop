@@ -2,14 +2,14 @@
 and the squad's spots stand after the edit, for the compiler.
 
 The map's grid made larger, or smaller on a cleared map (stage, stage_max: `stage_grid`), and what lies outside it
-(stage_outside, grid_box); the clear and what it keeps outside the grid (cleared_mark, outside_box: `cleared`,
-`keep_outside`); the drop-in rule (spawn_rules_mark, spawn_rules_notes: `spawn_rules`); the landing zones and the map's
-own landings (landing_zones, check_zones: `zones`, `own_landings_found`, `own_count`); the missions the variant keeps
-or adds (missions_kept, kept_missions, kept_streams, missions_check, mission_list) and their objects (mission_objects);
-and the places the game drops units at (projected_spawns, spawn_places). The compiler's run asks for each stage in its
-order, and its spec and report read the state they leave: the larger grid, the clear, the landing zones and the spawn
-rule go into the spec for the Build (its shell, its clear, its config lines), the rest into the report's warnings and
-notes.
+(stage_outside, grid_box); the parts the project cleared and what each keeps outside the grid (cleared_mark,
+outside_box: `parts`, `pieces_cleared`, `triggers_cleared`); the drop-in rule (spawn_rules_mark, spawn_rules_notes:
+`spawn_rules`); the landing zones and the map's own landings (landing_zones, check_zones: `zones`,
+`own_landings_found`, `own_count`); the missions the variant keeps or adds (missions_kept, kept_missions, kept_streams,
+missions_check, mission_list) and their objects (mission_objects); and the places the game drops units at
+(projected_spawns, spawn_places). The compiler's run asks for each stage in its order, and its spec and report read the
+state they leave: the larger grid, the clear, the landing zones and the spawn rule go into the spec for the Build (its
+shell, its clear, its config lines), the rest into the report's warnings and notes.
 
 This family was moved out of compiler.Compiler as SpawnEdits was (review finding 23). A MissionEdits works for one
 Compiler: it reads the map, the scene, the document, the copies, the cover blocks, the entities and the other families'
@@ -31,6 +31,11 @@ from pathlib import Path
 from compiler_tables import FLOOR_THICK, HEADROOM, STAGE_MAPS, STOREY, TILE, tidy, tile_corner
 import missions
 import spawns
+
+# The parts of a map a clear takes that the Build acts on (private/plans/todo/modular-clear-plan.md, section 2), the
+# project's `cleared` keys: its pieces and ground (with what belonged to them), its lights, its effects and sounds, its
+# triggers and sight points. The spawn points and the landing zones a clear takes are records of their own.
+CLEAR_PARTS = ('pieces', 'lights', 'effects', 'triggers')
 
 # a project's larger tile grid (stage): most of the game's own maps are under 100 tiles a side, but not all
 # (TempleShip is 45 by 203, AlienBase01 63 by 168); the editor makes up to 256 (the user, 16 November 2026; 128
@@ -105,9 +110,9 @@ class MissionEdits:
         # what run()'s stages work out, in its order (review finding 23): cleared_mark the clear; spawn_rules_mark the
         # drop-in rule; stage the larger grid; landing_zones the zones and the map's own landings. Each keeps these
         # values when the stage doesn't run (a document that stops earlier).
-        self.cleared, self.keep_outside = False, False
-        self.keep_triggers = False  # the clear kept the map's triggers (cleared_mark)
-        self.drop_patches = False   # the records stream none of LWR's patch levels (cleared_mark: a cleared map)
+        self.parts = {}             # the parts the project cleared, {part: whether it keeps the outside} (cleared_mark)
+        self.pieces_cleared = self.triggers_cleared = False
+        self.drop_patches = False   # the records stream none of LWR's patch levels (cleared_mark: its pieces cleared)
         self.spawn_rules = None
         self.map_info = None        # what Long War Rebalance is told of the map (map_info_mark)
         self.stage_grid = None
@@ -139,14 +144,14 @@ class MissionEdits:
                                           'keeps its own size', record='stage')
             return
         bare = self.c.map in STAGE_MAPS
-        grows_only = not self.cleared
+        grows_only = not self.pieces_cleared
         own = (self.c.scene.get('tileGrid') or {}).get('dimensions')
         if not own:
             self.c.error('stage-grid', 'the export of %s has no tile grid to resize' % self.c.map)
             return
         if not bare and any(stage.get(k) is not None for k in ('lines', 'hideGround')):
             self.c.note('stage-ground', '"lines" and "hideGround" are the blank map\'s; on %s they do nothing' % self.c.map)
-        if self.cleared and stage.get('ground') is not None:
+        if self.pieces_cleared and stage.get('ground') is not None:
             self.c.note('stage-ground', '"ground" does nothing on a cleared map: it lays no ground')
         grid = list(grid[:2]) + [grid[2] if len(grid) == 3 else own[2]]
         if grows_only and (grid[0] < own[0] or grid[1] < own[1]):
@@ -258,42 +263,55 @@ class MissionEdits:
                       'there unless the project leaves them where placed (the Spawns view\'s flyout)' % (self.c.map, variant))
 
     def cleared_mark(self):
-        """The project's `cleared` (Clear map plan, section 6): true says the Build takes out what the editor never
-        showed and puts one rebuild volume over the whole grid. The pieces themselves go by their delete records."""
-        cleared = self.c.doc.get('cleared', False)
-        if not isinstance(cleared, bool):
-            self.c.leave_out('cleared-shape', '"cleared" must be true or false: it is left out, and the map is built as '
-                           'not cleared (its pieces go by their own delete records)', record='cleared')
-            cleared = False
-        self.cleared = cleared is True
-        # `clearKeepsOutside` (the Clear map window's "Keep the scenery outside the play area"): the clear left the
-        # pieces wholly outside the play area, and the Build's clear_level leaves the lights, emitters, decals and
-        # lens flares placed outside it (outside_box). Without `cleared` it says nothing.
-        keeps = self.c.doc.get('clearKeepsOutside', False)
-        if not isinstance(keeps, bool):
-            self.c.leave_out('cleared-shape', '"clearKeepsOutside" must be true or false: it is left out%s'
-                           % (', and the clear takes out what lies outside the play area too' if cleared is True else ''),
-                           record='clearKeepsOutside')
-            keeps = False
-        self.keep_outside = self.cleared and keeps is True
-        # `clearKeepsTriggers` (the Clear map window's "Keep the map's triggers and scripts"): the Build's clear_level
-        # leaves the map's trigger volumes and sight points, which it takes out otherwise (F-159). Without `cleared` it
-        # says nothing.
-        keeps = self.c.doc.get('clearKeepsTriggers', False)
-        if not isinstance(keeps, bool):
-            self.c.leave_out('cleared-shape', '"clearKeepsTriggers" must be true or false: it is left out%s'
-                           % (', and the clear takes out the map\'s triggers' if cleared is True else ''),
-                           record='clearKeepsTriggers')
-            keeps = False
-        self.keep_triggers = self.cleared and keeps is True
-        if self.cleared and not (self.c.scene.get('tileGrid') or {}).get('dimensions'):
+        """The project's `cleared` (schema 9; private/plans/todo/modular-clear-plan.md, section 4): the parts of the map
+        the project cleared, {part: {"keepOutside"?: true}}, each one of CLEAR_PARTS, `keepOutside` saying that part's
+        clear left what stands wholly outside the play area. The Build's clear_level takes out of each part what the
+        editor never showed (the pieces, the lights it edits, the spawn points and landing zones go by their own
+        records); the Pieces part also lets the grid shrink, lays no ground and puts one rebuild volume over the grid.
+        `true` (schema 1 to 8) is every part, `clearKeepsOutside` on each and the triggers left out with
+        `clearKeepsTriggers` (F-159), so an old project builds as it did. A shape it can't read is left out
+        (cleared-shape): that part, or the whole mark, is not cleared.
+        Sets self.parts ({part: whether it keeps the outside}), self.pieces_cleared and self.triggers_cleared, and
+        self.drop_patches."""
+        doc = self.c.doc
+        cleared, parts = doc.get('cleared', False), {}
+        if cleared is True:
+            # (schema 1 to 8) `clearKeepsOutside` and `clearKeepsTriggers`, read only with `cleared: true`
+            keeps = {}
+            for key, without in (('clearKeepsOutside', 'the clear takes out what lies outside the play area too'),
+                                 ('clearKeepsTriggers', 'the clear takes out the map\'s triggers')):
+                value = doc.get(key, False)
+                if not isinstance(value, bool):
+                    self.c.leave_out('cleared-shape', '"%s" must be true or false: it is left out, and %s' % (key, without),
+                                     record=key)
+                    value = False
+                keeps[key] = value
+            parts = {k: keeps['clearKeepsOutside'] for k in CLEAR_PARTS
+                     if not (k == 'triggers' and keeps['clearKeepsTriggers'])}
+        elif isinstance(cleared, dict):
+            for k, v in cleared.items():
+                if k not in CLEAR_PARTS or not isinstance(v, dict) or set(v) - {'keepOutside'} \
+                        or v.get('keepOutside', False) not in (True, False):
+                    self.c.leave_out('cleared-shape', 'the clear\'s part %s must be one of %s, each {} or {"keepOutside": '
+                                     'true}: it is left out, and the map is built with that part not cleared'
+                                     % (json.dumps(k), ', '.join(CLEAR_PARTS)), record='cleared', part=str(k))
+                    continue
+                parts[k] = v.get('keepOutside') is True
+        elif cleared is not False:
+            self.c.leave_out('cleared-shape', '"cleared" must be the parts the project cleared ({"pieces": {}, ...}) or '
+                             'true or false: it is left out, and the map is built as not cleared (its pieces go by their '
+                             'own delete records)', record='cleared')
+        self.parts = {k: parts[k] for k in CLEAR_PARTS if k in parts}
+        self.pieces_cleared = 'pieces' in self.parts
+        self.triggers_cleared = 'triggers' in self.parts
+        if self.pieces_cleared and not (self.c.scene.get('tileGrid') or {}).get('dimensions'):
             self.c.error('cleared-grid', 'the export of %s has no tile grid, which a cleared map\'s Build covers with its '
                        'cursor and rebuild volumes' % self.c.map)
-        # LWR's patch levels for the map (patch_*): a cleared map's records stream none of them (the Build's
-        # config_lines, `dropPatches`), their pieces, lights, rebuild volumes and load scripts all made for the map that
-        # is gone (KNOWN-BUGS.md KB-23, F-163); the no-spawn volumes and meld points some carry go with them. The
-        # mission's own streamed levels are left. (Before, a cleared map streamed copies with the pieces out.)
-        self.drop_patches = self.cleared
+        # LWR's patch levels for the map (patch_*): with its pieces cleared, the map's records stream none of them (the
+        # Build's config_lines, `dropPatches`), their pieces, lights, rebuild volumes and load scripts all made for the
+        # map that is gone (KNOWN-BUGS.md KB-23, F-163); the no-spawn volumes and meld points some carry go with them.
+        # The mission's own streamed levels are left. (Before, a cleared map streamed copies with the pieces out.)
+        self.drop_patches = self.pieces_cleared
 
     def outside_box(self):
         """What a clear that keeps the scenery outside the play area counts as the play area, across: [x0, y0, x1, y1],
@@ -379,7 +397,7 @@ class MissionEdits:
             self.c.note('landing-own', 'every landing zone of the project is left out: the variant lands as %s does' % self.c.map)
             raw = None
         if raw is None:
-            if self.cleared or self.stage_grid:
+            if self.pieces_cleared or self.stage_grid:
                 self.check_zones([dict(o['zone'], id='own%d' % (k + 1)) for k, o in enumerate(own)], own=True)
             return
         self.zones = [tidy_zone(z) for z in kept]
@@ -544,7 +562,7 @@ class MissionEdits:
             where = dict(mission=label, missionIndex=index) if isinstance(index, int) else dict(mission=label, missionKind=index)
             donor = not isinstance(index, int)
             unmoved = [o for o in objects if self.c.moved_object(name, o)[1] is None]
-            if self.cleared and unmoved and not donor:
+            if self.pieces_cleared and unmoved and not donor:
                 self.c.note('mission-cleared', '%s: %s of %s stand where the original map had them, on a cleared map: '
                           'place them, or drop the mission' % (label, '%d objects' % len(unmoved) if len(unmoved) != len(objects)
                                                               else 'the %d objects' % len(objects), name), stream=name, **where)
@@ -766,7 +784,7 @@ class MissionEdits:
             reach = max(math.hypot(x - mx, y - my) for x in (g[0], g[3]) for y in (g[1], g[4]))
             if reach < POD_DISTANCE * size[0]:
                 far.append(k)
-        if far and (self.cleared or self.stage_grid):
+        if far and (self.pieces_cleared or self.stage_grid):
             self.c.warn('stage-small', 'no part of the grid is %d tiles from %s: LWR places no pods or Meld there for a '
                       'squad landing at %s (F-90)' % (POD_DISTANCE, ', '.join(label(k) for k in far),
                                                       'it' if len(far) == 1 else 'them'), zones=[zones[k]['id'] for k in far])

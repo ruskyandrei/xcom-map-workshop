@@ -1623,39 +1623,42 @@ def empty_slots(g, p, gone):
 
 
 # ---------------------------------------------------------------- a cleared map (private/plans/done/clear-map-plan.md)
-# What clear_level takes out of a cleared map's actor list (section 7, step 1): what belonged to the pieces that are
-# gone and the editor never showed. Classes are matched exactly.
-CLEAR_OUT = (
-    # building and floor volumes (without pieces they would still cut away and hide at their old places; the map's
-    # cursor volumes are the shell stage's, which takes them out and brings even storeys over the grid: shell.py --clear)
-    'XComBuildingVolume', 'XComFloorVolume',
-    # smoke, steam, stains and glints of what is gone (F-50)
-    'Emitter', 'DecalActor', 'DecalActorMovable', 'LensFlareSource',
-    # the map's ambient sounds: the jukebox, the hum of what is gone (the user, 18 November 2026: Clear left them in
-    # the play area); the landing's go with its Skyranger, kept as the landing's
-    'AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundNonLoop', 'AmbientSoundMovable',
-    # path-blocking, camera-blocking and damage volumes (EXP-08 switched Bar's off for the same reason)
-    'PathBlockingVolume', 'GameCameraBlockingVolume', 'BlockingVolume', 'XComDamageVolume', 'DynamicBlockingVolume',
-    'XComCameraVolume', 'XComHideVolume',
-    # cover seeds: the cover the old geometry gave (the C0 survey's proposal; their native side is not read)
-    'XComCoverSeed',
-    # the lights the editor cannot edit or that belonged to the pieces (the directional lights and the sky light stay)
-    'PointLight', 'PointLightMovable', 'PointLightToggleable', 'SpotLight', 'SpotLightMovable', 'SpotLightToggleable',
-    'GeneratedMeshAreaLight', 'XComPointLight', 'XComSpotLight',
+# What clear_level takes out of the persistent level's actor list for each part of the map a project clears
+# (private/plans/todo/modular-clear-plan.md, section 4; the Clear map plan's section 7, step 1, and F-159 before it):
+# what the editor never showed of that part. The pieces themselves, the lights the editor edits, the spawn points and
+# the landing zones go by the project's own records. Classes are matched exactly.
+CLEAR_PARTS = dict(
+    # what belonged to the pieces: building and floor volumes (without pieces they would still cut away and hide at
+    # their old places; the map's cursor volumes are the shell stage's, which takes them out and brings even storeys
+    # over the grid: shell.py --clear); path-blocking, camera-blocking and damage volumes (EXP-08 switched Bar's off
+    # for the same reason); cover seeds, the cover the old geometry gave (the C0 survey's proposal; their native side
+    # is not read); the stains on them (F-50); and the area lights the bake made for glowing pieces
+    pieces=('XComBuildingVolume', 'XComFloorVolume', 'PathBlockingVolume', 'GameCameraBlockingVolume', 'BlockingVolume',
+            'XComDamageVolume', 'DynamicBlockingVolume', 'XComCameraVolume', 'XComHideVolume', 'XComCoverSeed',
+            'DecalActor', 'DecalActorMovable', 'GeneratedMeshAreaLight'),
+    # the placed lights the editor cannot edit (it deletes the others by records); the directional lights and the sky
+    # light stay
+    lights=('PointLight', 'PointLightMovable', 'PointLightToggleable', 'SpotLight', 'SpotLightMovable',
+            'SpotLightToggleable', 'XComPointLight', 'XComSpotLight'),
+    # smoke, steam, fire, animals and glints (F-50), and the map's ambient sounds: the jukebox, the hum (the user,
+    # 18 November 2026: Clear left them in the play area); the landing's go with its Skyranger, kept as the landing's
+    effects=('Emitter', 'LensFlareSource', 'AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable',
+             'AmbientSoundNonLoop', 'AmbientSoundMovable'),
+    # the map's trigger volumes (touch triggers, water volumes units wade in, the empty ones) and sight points (F-159).
+    # Left, water still makes units wade where the stream was, a crashed UFO's entry narration plays on an empty field
+    # and a console's narration when its place is seen. A trigger volume taken out has its events switched off too
+    # (switch_off_events). A mission stream's are the mission's, and stay.
+    triggers=('TriggerVolume', 'XComSquadVisiblePoint'),
 )
-# What of CLEAR_OUT a clear that keeps the scenery outside the play area leaves when it stands outside (the compiler's
-# `keepOutside` box): the lights, smoke, stains and glints of the pieces it kept
+# every part's classes: what a clear of the whole map takes
+CLEAR_OUT = tuple(c for classes in CLEAR_PARTS.values() for c in classes)
+# What of CLEAR_OUT a part that keeps the scenery outside the play area leaves when it stands outside (the compiler's
+# `keepOutside` box): the lights, smoke, stains, glints, sounds and triggers of the pieces kept there. Volumes go
+# wherever they stand.
 KEEP_OUTSIDE = ('Emitter', 'DecalActor', 'DecalActorMovable', 'LensFlareSource', 'PointLight', 'PointLightMovable',
                 'AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable', 'AmbientSoundNonLoop', 'AmbientSoundMovable',
                 'PointLightToggleable', 'SpotLight', 'SpotLightMovable', 'SpotLightToggleable', 'GeneratedMeshAreaLight',
-                'XComPointLight', 'XComSpotLight')
-# What a clear takes out unless the project keeps them (`keepTriggers`, the Clear map window's "Keep the map's triggers
-# and scripts"; findings register F-159): the map's trigger volumes (touch triggers, water volumes units wade in, the
-# empty ones) and sight points. Left, a cleared map's water still makes units wade where the stream was, a crashed
-# UFO's entry narration plays on the empty field and a console's narration when its place is seen. A trigger volume
-# taken out has its events switched off too (switch_off_events). A mission stream's are the mission's, and stay.
-CLEAR_TRIGGERS = ('TriggerVolume', 'XComSquadVisiblePoint')
-KEEP_OUTSIDE = KEEP_OUTSIDE + CLEAR_TRIGGERS
+                'XComPointLight', 'XComSpotLight', 'TriggerVolume', 'XComSquadVisiblePoint')
 # What a clear leaves (section 2's "Stay" rows), so an actor of a class on neither list is named in the report
 CLEAR_KEEP = (
     'DominantDirectionalLight', 'DirectionalLight', 'DirectionalLightToggleable', 'SkyLight', 'SkyLightToggleable',
@@ -1687,18 +1690,24 @@ def landing_actor(p, i):
     return scene_metadata.landing_archetype(archetype_path(p, i))
 
 
-def clear_level(g, p, gone=(), keep=(), outside=None, keep_triggers=False):
-    """A cleared map (Clear map plan, section 7): every actor of CLEAR_OUT's classes in the persistent level's actor
-    list taken out (empty_slots, as a delete is made), and those of CLEAR_TRIGGERS unless `keep_triggers` (their touch
-    events switched off: switch_off_events), but for the landing's prefabs' actors and those already gone
+def clear_level(g, p, gone=(), keep=(), parts=None):
+    """The parts of the map a project clears (the clear-by-parts plan, section 4): every actor of each part's classes
+    (CLEAR_PARTS) in the persistent level's actor list taken out (empty_slots, as a delete is made), a trigger volume's
+    touch events switched off with it (switch_off_events), but for the landing's prefabs' actors and those already gone
     (`gone`: export indices the edit takes out itself) and those the edit keeps on purpose (`keep`: the volumes of the
-    map's buildings it edits in place) and, with `outside` ([x0, y0, x1, y1]: the play area of a clear that keeps
-    the scenery outside it), the actors of KEEP_OUTSIDE's classes whose Location is outside that box; and one
-    rebuild volume over the whole tile grid, all its
-    levels, in place of one for each delete: the tiles the old pieces stood on carry the bake's marks, so the battle
-    works them out again. Returns (the report: {out: {class: count}, kept: {class: count}, odd: {class: [names]},
-    landing: [names], outside: {class: count}, eventsOff: [names], rebuildVolume}, the volume's export to add to the
-    level)."""
+    map's buildings it edits in place, a moved piece's effects). `parts`: {part: [x0, y0, x1, y1] or None}, the parts
+    cleared, each with the play area its clear keeps the scenery outside of (an actor of KEEP_OUTSIDE's classes whose
+    Location is outside that box stays), or None for every part, none keeping the outside. With the Pieces part, one
+    rebuild volume over the whole tile grid, all its levels, in place of one for each delete: the tiles the old pieces
+    stood on carry the bake's marks, so the battle works them out again. Returns (the report: {parts: [the parts],
+    out: {class: count}, kept: {class: count}, odd (with the pieces: {class: [names]} of classes on no list),
+    landing: [names], outside: {class: count}, taken, eventsOff: [names], rebuildVolume (with the pieces)}, the
+    volume's export to add to the level, or None without the pieces)."""
+    parts = {k: None for k in CLEAR_PARTS} if parts is None else dict(parts)
+    unknown = set(parts) - set(CLEAR_PARTS)
+    if unknown:
+        raise ValueError('no part of a clear is called %s' % ', '.join(sorted(unknown)))
+    part_of = {c: k for k in parts for c in CLEAR_PARTS[k]}
     gone = set(gone)
     out, kept, odd, landing, take, beyond = {}, {}, {}, [], set(), {}
     # the actor list as the edit has left it so far (a van's or an emptied building's volumes may be out already)
@@ -1713,33 +1722,35 @@ def clear_level(g, p, gone=(), keep=(), outside=None, keep_triggers=False):
         if landing_actor(p, i):
             landing.append(p.name(i).split('.')[-1])
             continue
-        if cls in CLEAR_TRIGGERS and keep_triggers:
-            kept[cls] = kept.get(cls, 0) + 1
-            continue
-        if outside and cls in KEEP_OUTSIDE:
+        part = part_of.get(cls)
+        box = parts.get(part)
+        if box and cls in KEEP_OUTSIDE:
             x, y = p.own(i, 'Location', [0.0, 0.0, 0.0])[:2]
-            if x < outside[0] or x > outside[2] or y < outside[1] or y > outside[3]:
+            if x < box[0] or x > box[2] or y < box[1] or y > box[3]:
                 beyond[cls] = beyond.get(cls, 0) + 1
                 continue
-        if cls in CLEAR_OUT or cls in CLEAR_TRIGGERS:
+        if part:
             take.add(i)
             out[cls] = out.get(cls, 0) + 1
-        elif cls in CLEAR_KEEP:
+        elif cls in CLEAR_KEEP or cls in CLEAR_OUT or 'pieces' not in parts:
             kept[cls] = kept.get(cls, 0) + 1
         else:
             odd.setdefault(cls, []).append(p.name(i).split('.')[-1])
     if take:
         empty_slots(g, p, take)
     events_off = switch_off_events(g, p, [i for i in take if p.cls(i) == 'TriggerVolume'])
+    report = dict(parts=[k for k in CLEAR_PARTS if k in parts], out=dict(sorted(out.items())),
+                  kept=dict(sorted(kept.items())), landing=sorted(landing),
+                  **({'odd': {k: sorted(v) for k, v in sorted(odd.items())}} if 'pieces' in parts else {}),
+                  **({'outside': dict(sorted(beyond.items()))} if any(parts.values()) else {}),
+                  taken=sorted(p.name(i).split('.')[-1] for i in take), eventsOff=events_off)
+    if 'pieces' not in parts:
+        return report, None
     grid = level_grid(p)
     box = [grid['ox'], grid['ox'] + seed_map.TILE * grid['nx'], grid['oy'], grid['oy'] + seed_map.TILE * grid['ny'],
            grid['oz'] - seed_map.REBUILD_PAD, grid['oz'] + seed_map.FLOOR * grid['nz']]
     volume = add_rebuild_volume(g, p, box)
-    report = dict(out=dict(sorted(out.items())), kept=dict(sorted(kept.items())),
-                  odd={k: sorted(v) for k, v in sorted(odd.items())}, landing=sorted(landing),
-                  **({'outside': dict(sorted(beyond.items()))} if outside else {}),
-                  taken=sorted(p.name(i).split('.')[-1] for i in take), eventsOff=events_off,
-                  rebuildVolume=dict(bounds=volume['bounds'], extent=volume['rebuildExtent']))
+    report['rebuildVolume'] = dict(bounds=volume['bounds'], extent=volume['rebuildExtent'])
     return report, volume['export']
 
 
@@ -2478,7 +2489,7 @@ class BuildState:
     covers: tuple = ()              # covers
     buildings: tuple = ()           # buildings
     building_edits: tuple = ()      # buildingEdits
-    cleared: object = None          # cleared
+    cleared: object = None          # cleared ({grid?, parts: {part: {keepOutside?}}}: the compiler's)
     landing_zones: object = None    # landingZones
     carried_effects: object = None  # carriedEffects
     piece_cache: object = None      # with bake: the folder of the project's last baked pieces (--piece-cache)
@@ -2565,6 +2576,12 @@ class BuildState:
     # the record (manifest_parts)
     sections: list = filled(list)       # the manifest's section of each copy
     copy_members: dict = filled(dict)   # the lights listed in the copies' lightmaps by membership
+
+    @property
+    def pieces_cleared(self):
+        """Whether the project clears the map's pieces: clear_level then puts one rebuild volume over the whole grid,
+        and no other edit makes one of its own."""
+        return bool(self.cleared) and 'pieces' in (self.cleared.get('parts') or {})
 
     def gone(self):
         """Every actor (export index) the edit has taken out so far."""
@@ -3102,10 +3119,11 @@ def edits_in_place(st):
         keep = {p.by_name[PL + n] for e in building_edits if not e.get('deleted')
                 for n in [e['actor']] + [v for f in e.get('floors') or [] for v in f.get('volumes') or [] if v]
                 if PL + n in p.by_name} | effect_moved      # a moved piece's effects stay with it
-        cleared_record, clear_volume = clear_level(g, p, taken, keep, cleared.get('keepOutside'),
-                                                   cleared.get('keepTriggers') is True)
+        parts = {k: (v or {}).get('keepOutside') for k, v in (cleared.get('parts') or {}).items()}
+        cleared_record, clear_volume = clear_level(g, p, taken, keep, parts)
         st.cleared_record = cleared_record
-        hide_volumes = hide_volumes + [clear_volume]
+        if clear_volume:
+            hide_volumes = hide_volumes + [clear_volume]
     # the map's background sound: its level-loaded sound given another cue, none, or another volume
     import native_sounds
     st.sound_record = native_sounds.background(g, p, st.background_sound)
@@ -3119,14 +3137,14 @@ def edits_in_place(st):
     if piece_flags:
         gone_now = st.gone()
         flag_record, flag_volumes, flag_firsts, flag_ladder_records = flags_in_place(
-            g, p, piece_flags, flag_ladders, gone_now, tiles=tiles, volumes=not cleared)
+            g, p, piece_flags, flag_ladders, gone_now, tiles=tiles, volumes=not st.pieces_cleared)
         hide_volumes = hide_volumes + flag_volumes
         firsts += flag_firsts
         ladders += flag_ladder_records
     # the map's own fracturing pieces broken where they stand (E6): after every copy is made from them
     if piece_blasts:
         gone_now = st.gone()
-        blast_record, blast_volumes = blasts_in_place(g, p, piece_blasts, gone_now, tiles=tiles, volumes=not cleared)
+        blast_record, blast_volumes = blasts_in_place(g, p, piece_blasts, gone_now, tiles=tiles, volumes=not st.pieces_cleared)
         hide_volumes = hide_volumes + blast_volumes
     # a mission's solid pieces moved in their stream (mission types plan, Part E; stream_copy.tile_boxes): the map's
     # baked tiles rebuilt where each stood, and seeded and rebuilt where it stands now, as a moved landing's are
@@ -3353,9 +3371,10 @@ def build(st):
     lightmaps list this map's lights alone, its shadow maps name this map's dominant light, and the relight gives
     it the light of where it stands (relight.py --foreign-copy), with the staged actor left out of both scenes.
 
-    `cleared` (the compiler's: {grid, keepOutside?, keepTriggers?}) says the map was cleared (Clear map plan, section 7): the hides get no rebuild
-    volume of their own, and clear_level takes out what the editor never showed and puts one volume over the grid,
-    after the hides and the building edits. The manifest's `cleared` section counts what it took by class.
+    `cleared` (the compiler's: {grid?, parts: {part: {keepOutside?: box}}}) names the parts of the map the project
+    cleared (the clear-by-parts plan, section 4): clear_level takes out of each what the editor never showed, after
+    the hides and the building edits; with the pieces, the hides get no rebuild volume of their own and it puts one
+    over the grid. The manifest's `cleared` section names the parts and counts what it took by class.
 
     `carried_effects` (the compiler's `carriedEffects`, {piece: [effect]}: export 23's carriedBy) are the effects
     that follow their piece's move, copy or delete (native_effects.py).
@@ -3369,8 +3388,8 @@ def build(st):
 
     `flares` is the same lane for the lens flares (LensFlareSource actors; stage FX6b, native_flares.apply): a move in
     place, a delete off the level's list, a copy cloned with its LensFlareComponent, the flare template shared. A
-    flare is in no floor's list; a clear takes the map's flares out (CLEAR_OUT) but for one the project moves itself,
-    and a copy is made after the clear. The manifest's `flares` section says what was done, read back.
+    flare is in no floor's list; a clear of the effects takes the map's flares out (CLEAR_PARTS) but for one the
+    project moves itself, and a copy is made after the clear. The manifest's `flares` section says what was done, read back.
 
     `spawns` (the compiler's lane: {moves, values}; the editor spawns plan, SP6) moves the base map's pods, Meld points
     and drop-in points in place and sets their values (native_spawns.apply_lane); the manifest's `spawns` section
@@ -3429,7 +3448,7 @@ def build(st):
     st.groups, st.children = link_children(
         g, p, st.made, st.break_originals,
         [(c['breakGroup'], c['actor']) for c in st.cover_records if c.get('breakGroup')], walled=st.walled)
-    st.hidden, st.hide_volumes = hide_pieces(g, p, st.hides, volumes=not st.cleared) if st.hides else ([], [])
+    st.hidden, st.hide_volumes = hide_pieces(g, p, st.hides, volumes=not st.pieces_cleared) if st.hides else ([], [])
     # the map's Kismet lets go of the deleted pieces it names (kismet_cut.py: its references emptied, an event left with
     # no originator switched off), so its script acts on nothing that is no longer in the map
     st.kismet_record = None

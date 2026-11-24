@@ -3,6 +3,7 @@
 // level and actor; added pieces, each a copy of a source actor's components under its own output name and pose; and
 // the user's groups of pieces, with their lock and options. The viewer's server stores it (tools/viewer/projects.py). Nothing here touches the game.
 import { validFlags } from './piece_flags.js';
+import { clearedPartsOf } from './clear_parts.js';
 import { carriedMapInfo, tidyMapInfo, validMapInfo } from './missions.js';
 import { call } from './api.js';
 
@@ -11,8 +12,10 @@ import { call } from './api.js';
 // (`spawnRules`, SP8; the base map's spawn points' overrides and added records, SP6 and SP7); 5: the map's background
 // sound (`backgroundSound`) and a clear that keeps the map's triggers (`clearKeepsTriggers`); 6: what Long War
 // Rebalance is told of the map (`lwrMapInfo`; missions.js's MAP_INFO); 7: the diagonal cover the project marks
-// (`diagonalCover`; diagonal_marks.js). A project of schema 1 to 6 opens, and saves as 7.
-export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 8;
+// (`diagonalCover`; diagonal_marks.js); 8: a building's floors as the cursor's; 9: the parts of the map the project
+// cleared (`cleared`: {part: {keepOutside?}}, the clear-by-parts plan; `cleared: true` of 1 to 8 is every part). A
+// project of schema 1 to 8 opens, and saves as 9.
+export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 9;
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
 export const tidyLocation = v => Number(v.toFixed(4)) + 0;
@@ -56,10 +59,9 @@ const tidyGroup = g => ({ id: g.id, locked: g.locked !== false, breakTogether: g
                                  members: [...g.members].sort(byKey) });
 // Two edit states are the same project content when these match (records come sorted).
 export const stateKey = state => JSON.stringify([state.overrides, state.added, state.groups ?? [], state.areaLightBindings ?? [], state.stage ?? null,
-                                                 state.buildings ?? [], state.cleared === true, state.landingZones ?? null,
-                                                 state.cleared === true && state.clearKeepsOutside === true, state.missions ?? null,
-                                                 state.spawnRules ?? null, state.picture?.sha256 ?? null,
-                                                 state.cleared === true && state.clearKeepsTriggers === true, state.backgroundSound ?? null,
+                                                 state.buildings ?? [], clearedPartsOf(state), state.landingZones ?? null,
+                                                 state.missions ?? null, state.spawnRules ?? null, state.picture?.sha256 ?? null,
+                                                 state.backgroundSound ?? null,
                                                  state.lwrMapInfo ?? null, state.diagonalCover ?? null]);
 // The project's map picture (LWR map packs plan, 4.3): null, or { sha256 }, the SHA-256 of the 512 x 256 picture the
 // server keeps with the project (tools/viewer/pictures.py); the Build writes it into the map.
@@ -179,12 +181,10 @@ export function sortState(state) {
            stage: state.stage != null && stageShape(state.stage) ? tidyStage(state.stage) : null,
            // Malformed buildings are carried as they are.
            buildings: (state.buildings ?? []).map(b => (validBuilding(b) ? tidyBuilding(b) : b)).sort((a, b) => String(a?.id).localeCompare(String(b?.id))),
-           // cleared (Clear map plan, section 6): the Build takes out what the editor never showed
-           cleared: state.cleared === true,
-           // the clear kept the scenery outside the play area: the Build leaves the lights, smoke and stains out there
-           clearKeepsOutside: state.cleared === true && state.clearKeepsOutside === true,
-           // the clear kept the map's triggers and sight points (F-159): the Build leaves them; without it they go
-           clearKeepsTriggers: state.cleared === true && state.clearKeepsTriggers === true,
+           // the parts the project cleared (schema 9; clear_parts.js): { part: { keepOutside? } } or null, the Build
+           // taking out of each what the editor never showed; schema 1 to 8's `cleared: true` with its ticks reads as
+           // every part
+           cleared: clearedPartsOf(state),
            // the landing zones keep their order (it says which are the map's own); a malformed one is carried in place
            landingZones: Array.isArray(state.landingZones) ? state.landingZones.map(z => (validLandingZone(z) ? tidyLandingZone(z) : z)) : null,
            // the missions the variant serves (mission types plan, D1): null, every mission of the base map

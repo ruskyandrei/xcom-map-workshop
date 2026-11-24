@@ -363,9 +363,9 @@ def prefab_members(p, warn=None):
 
 
 def trigger_counts(p):
-    """What a clear takes out of the map's triggers unless the project keeps them (export 39; native_copy.CLEAR_TRIGGERS,
-    findings register F-159): {volumes, water, sight}, the trigger volumes in the level's actor list (the water volumes
-    units wade in counted apart) and the sight points (XComSquadVisiblePoint)."""
+    """What a clear of the map's triggers takes out (export 39; native_copy.CLEAR_PARTS's triggers, findings register
+    F-159): {volumes, water, sight}, the trigger volumes in the level's actor list (the water volumes units wade in
+    counted apart) and the sight points (XComSquadVisiblePoint)."""
     level, listed = p.by_name.get(LEVEL_PATH), level_list(p)
     out = dict(volumes=0, water=0, sight=0)
     if level is None:

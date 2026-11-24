@@ -336,7 +336,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
   // (made with the views' switching, further down: called through)
   syncLights: () => syncLights(),
   // (made with Clear map, further down: called through)
-  pointOutside: (x, y) => pointOutside(x, y),
+  pointOutside: (x, y, part) => pointOutside(x, y, part),
   // (made with the selection, further down: called through)
   copyable: () => copyable(), select: (id, add, keep) => select(id, add, keep),
   // (made with the Spawns, Landing zones and Buildings views, further down: called through)
@@ -597,7 +597,7 @@ function grabView() {
 // Clear map, the missions, the ground grid and the map picture (clear_map.js): the landing zones as the project
 // has them and the landing's pieces, the ground's height, the Clear map window and the clear, the Missions
 // panel and the header's Mission picker, the Map picture dialog, and the ground grid.
-const { chooseMission, clearMap, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
+const { chooseMission, clearMap, clearParts, clearPlan, floorStays, groundGrid, groundHeight, groundWords, headerMission,
         headerMissions, isLanding, mapPicture, missionName, missionsPanel, outsideBox, pointOutside,
         readLandingLines, refreshGroundGrid, showClearMap, showMissions, sizeNotes, startMissionPicker,
         zonesNow } = createClearMap({
@@ -927,7 +927,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     setDiagonalShown, pickedMarks, diagonalGizmo, diagonalWarnings,
     $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState, bombHelperFix, boxOf, BUILD_TOOLS,
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
-    clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
+    clearParts, clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
     deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn, editSpawnCopy, editState, effectNow, effectShapes,
     effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grid, gridHandleAt,
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,

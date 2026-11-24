@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { TILE } from './constants.js';
 import { normalCover } from './cover.js';
-import { activeMapId, areaBindings, boxesShown, builderMode, buildings, buildTool, cleared, clearKeepsOutside, clearKeepsTriggers,
+import { activeMapId, areaBindings, boxesShown, builderMode, buildings, buildTool, cleared, clearedParts,
          clipboard, copySerial, data, derivedCopies, effectMarkers, effectRoots, effectsDirty, effectsOn, families,
          floorTileLayer, geometryCache, gridTool, groupIndex, groups, handleDefs, landingLines, lastBuild, lastClearMs,
          library, lightDrag, lighting, lightRoots, lightsOn, lightsShown, likenessCount, likenessOn,
@@ -31,7 +31,7 @@ import { tileCorner } from './map_grid.js';
 export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, alignToGrid, alignToLevel,
                                 allBuildings, applyPrefabDocument, applyState,
                                 bombHelperFix, boxOf, BUILD_TOOLS, builderDocument, builderRecords,
-                                buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap, clearPlan,
+                                buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap, clearParts, clearPlan,
                                 closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint,
                                 coverRecipe, deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn,
                                 editSpawnCopy, editState, effectNow, effectShapes, effectViewOnly, FACES, fileDialog,
@@ -176,7 +176,7 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
     setGridTool, gridHandleAt: axis => { const v = gridHandleAt(axis); return [v.x, v.z, v.y]; },
     zoneGizmo: () => ({ enabled: zoneGizmo.enabled, shown: zoneGizmoHelper.visible, axis: zoneGizmo.axis, mode: zoneGizmo.mode,
                         dragging: zoneGizmo.dragging, at: [zoneProxy.position.x, zoneProxy.position.z, zoneProxy.position.y] }),
-    clearMap, showClearMap, cleared: () => cleared, clearKeepsOutside: () => clearKeepsOutside, clearKeepsTriggers: () => clearKeepsTriggers,
+    clearMap, clearParts, showClearMap, cleared: () => cleared, clearedParts: () => clearedParts,
     // the Diagonal cover view (diagonal_wiring.js): on or off, the marks as it shows them, the project's own, the picked,
     // and a tile's middle or one of its corner dots in game units (at the tile's floor height `z`), for a check to
     // click at with clientAt
