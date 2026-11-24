@@ -12,10 +12,16 @@ Statuses:
 
 ## Open now
 
+- F-170 (24 November, the same boat in a hidden run): a building the Build makes is cloned from one of the map's own
+  floor volumes and building volumes and stretched, and nothing makes sure their brushes are boxes. On the hive map
+  the floor volumes came out as a triangle and the building volume notched, so on the boat's bow tiles the cursor
+  counts as outside the building, and the game cuts the whole boat away to its hold as a building hiding the cursor.
+  25 of the 78 maps that can take a made building would clone a floor volume that is not a box. Open (KB-26).
 - F-169 (24 November, a user's report on a boat project): over a building on water whose deck stands over a walkable
   hold, the mouse puts the cursor in the hold with the wheel on the deck's stop, where the pointer is off the deck's
   edge over the water or on something taller than the deck's floor. The game's pick rule, read from the scripts: the
-  water catches nothing, walls are skipped, and a first hit lower than the stop asked is kept. Open; not played.
+  water catches nothing, walls are skipped, and a first hit lower than the stop asked is kept. Open; not played; the
+  boat's volumes were wrong in shape (F-170), so what the user saw is not settled by this.
 - F-168 (24 November, research for a plan): what the game's picture is made of that the editor doesn't draw, and
   where the game's files hold it: baked lightmaps on two thirds of a map's pieces (the baker's readers decode them),
   each map's fog, colour grade and bloom in its world settings, 1,344 decals on 30 maps, sky domes, and the shaders
@@ -232,9 +238,49 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
+### F-170: A made building's floor and building volumes are stretched copies of brushes that need not be boxes
+**Open** (24 November 2026: the BoatAbduction project's quick build of revision 26 in a hidden run on the LWR v3 lab
+copy, with readbacks; the build's volumes read offline; every installed map's templates surveyed offline).
+- **Seen.** In the user's game, with the wheel on the boat's top stop, the cursor on some deck tiles cut the whole
+  boat away to its hold (deck, cabins, crane and railings gone, the soldier drawn as a ghost) while the cursor stayed
+  on the deck; tiles a little further on drew the boat whole. The hidden run had the same on the bow's deck.
+- **The readbacks** (the game's console): on the cut tiles the cursor's and the `XComBuildingVisPOI`'s indoor info
+  read no building (`CurrentBuildingVolume` None, lowest floor 0), `XComCutoutBox.m_bIsInside` False, the boat's
+  building `XComBuildingVolume_27` set as `ObscuringBuildingVolume` and its `LastShownFloor` 1. On the whole tiles
+  both infos read `XComBuildingVolume_27` on floor 2, `m_bIsInside` True and `LastShownFloor` 3. The cursor's
+  `m_iRequestedFloor` (2) and `m_fBuildingCutdownHeight` (1152) were the same on both, so the floor-by-floor cutaway
+  (`XGLevel.OnActorUpdateBuildingVisibilityForMouse`) was right; the cut is the cut-out box's: a building between the
+  camera and the cursor's visibility point, when that point is in no building, is hidden down to its first floor. It
+  showed only with the camera tilted as in play, not under the run's straight-down aiming camera.
+- **Why the bow counts as outside.** The Build makes a building's floor volumes and its building volume by cloning
+  one of the map's own and setting Location and DrawScale3D so the brush's bounds fill each box
+  (`buildings.clone_volume`). `floor_template` takes the largest plain floor volume and `building_template` the first
+  building whose floors show both entry shapes; neither asks for a box brush. On EWI_ChryssalidHive they are
+  `XComFloorVolume_71`, whose brush is a five-sided prism (a triangle on a strip along one side, nine polygons), and
+  `XComBuildingVolume_0`, with a notched brush (14 polygons). Stretched over the boat's boxes, each floor volume is a
+  triangle with its point at the south side's middle (-3936, 1344), as wide as the box only from y 3264, and the
+  building volume lacks the south-east corner (x -2749 to -1632, y 1344 to 2476). Every tile the run read falls
+  inside or outside that triangle as its readback says. The game touches volumes by their brush; the editor and the
+  Build's own rules (listings, cursor floors, the floor centres) use the box of the brush's bounds, so the listings
+  and the floor stops were right while the indoor status was not.
+- **What else it touches**: everything the game reads from touching a floor volume (units' indoor status and the
+  pad's building reveal, the cut-out box) and from a building volume's own shape (`IsPointOutdoors` in the mouse
+  pick, spawn points' indoor test). Map buildings edited in the Buildings view too: a stretched volume that is not a
+  box is replaced by a clone of the same floor template (F-95).
+- **How far.** Over the 143 installed map packages, 78 have the volumes to clone. On 25 the floor template is not a
+  box (URB_Bar, URB_PoliceStation, URB_TruckStop and the Abductor maps among them); on 5 the building template is not
+  (EWI_ChryssalidHive, URB_Trainyard, URB_IndustrialOffice, URB_GasStation_EWI, CSmallScout_Roadhouse). Every map with
+  a template has a building volume whose brush is a box; three (DLC2_1_Portent, URB_CemeteryGrand, URB_Trainyard)
+  have no floor volume of the kind cloned whose brush is.
+- **Fix to make**: clone only volumes whose brush is a box (`scene_metadata.plain_box`), and where a map has none of
+  that class, give the clone a box brush model of another of its volumes (the rebuild volumes already share their
+  template's model). Then check the boat again: the cursor and the visibility point inside on every deck tile, and no
+  cut on the top stop.
+
 ### F-169: Over a boat, the mouse puts the cursor in the hold under the deck's stop
 **Open** (24 November 2026, a user's report with two game shots; read from the decompiled scripts and the build's
-files, not played).
+files, not played). The boat's floor volumes and building volume were not the shape the editor drew (F-170), so the
+user's shots may show that, and not only the rule below; to be looked at again after F-170's fix.
 - **Seen.** A project's boat (EWI_ChryssalidHive's whale boat turned and moved, on water, one building of three
   floors over all of it: hold, deck and roof, its own cursor floors) in the user's game: with soldiers on the deck,
   the move path runs off the deck's edge and under it to a tile in the hold, "as if it's going straight through the
