@@ -219,19 +219,20 @@ def check_replace_confirmed(browser, url):
       await viewer.prefabApi.importFile(doc);
       return doc;
     }''')
-    q.evaluate('viewer.showPieces(true); viewer.setLibraryScope("prefabs")')
+    q.evaluate('viewer.showOpen("prefabs")')       # (the library's files: the Open window's Prefabs side)
+    q.wait_for_selector('#openPrefabDialog:not([hidden])')
     path = Path(__file__).resolve().parents[3] / '.scratch' / 'imported-twice.json'
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(dict(doc, name=doc['name'] + ' (theirs)')), encoding='utf8', newline='\n')
-    q.locator('#prefabFile').set_input_files(str(path))
-    q.locator('#prefabNote', has_text='(revision 1)').wait_for()
+    q.locator('#openPrefabFile').set_input_files(str(path))
+    q.locator('#openPrefabNote', has_text='(revision 1)').wait_for()
     # saved again meanwhile (another page renames it)
     q.evaluate("async id => { const d = await viewer.prefabApi.load(id); await viewer.prefabApi.save(id, { ...d, name: d.name + ' (renamed)' }, d.revision); }", doc['id'])
-    q.locator('#prefabNote button', has_text='Replace it').click()
-    q.locator('#prefabNote', has_text='saved again meanwhile').wait_for()
-    assert '(revision 2)' in q.locator('#prefabNote').inner_text()
+    q.locator('#openPrefabNote button', has_text='Replace it').click()
+    q.locator('#openPrefabNote', has_text='saved again meanwhile').wait_for()
+    assert '(revision 2)' in q.locator('#openPrefabNote').inner_text()
     assert q.evaluate("id => viewer.prefabApi.load(id).then(d => d.name)", doc['id']).endswith('(renamed)')
-    q.locator('#prefabNote button', has_text='Replace it').click()
+    q.locator('#openPrefabNote button', has_text='Replace it').click()
     q.wait_for_function("id => viewer.prefabApi.load(id).then(d => d.revision === 3 && d.name.endsWith('(theirs)'))", arg=doc['id'])
     q.close()
     assert not errors, errors

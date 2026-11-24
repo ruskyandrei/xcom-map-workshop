@@ -46,10 +46,10 @@ def check_builder(browser, url, screenshot=None):
     assert labels == ['Save', 'Save as…', 'Export to a file…'], labels
     assert page.locator('#docPrefabExport').is_disabled()       # (nothing saved yet: the file is the saved revision)
     assert page.locator('#openPrefabsKey').inner_text() == 'Ctrl+O'
-    # The map browser and Add panel both expose the new workspace; rows never offer Test in game.
+    # The Open window's Prefabs side and the Add panel both offer a new prefab; neither offers Test in game.
     page.locator('#openPrefabs').click()
-    page.wait_for_selector('.maprow[data-id="prefab:new"]')
-    page.locator('#mapCancel').click()
+    page.wait_for_selector('#openPrefabDialog:not([hidden]) .card.newcard')
+    page.locator('#openPrefabCancel').click()
     page.evaluate('viewer.showPieces(true); viewer.setLibraryScope("prefabs")')
     assert page.locator('#prefabNew').is_visible()
     assert page.get_by_role('button', name='Test in game', exact=True).count() == 0

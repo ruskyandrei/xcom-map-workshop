@@ -253,12 +253,10 @@
         <div class="libtools">
           <button id="prefabNew" class="textbutton" type="button" title="Open an empty prefab builder">New</button>
           <button id="prefabSave" class="textbutton" type="button" title="Save what is selected as a prefab: its pieces, lights, groups and buildings, to place in any map as one thing">Save selection…</button>
-          <button id="prefabImport" class="textbutton" type="button" title="Add a prefab file someone passed on to the library">Import…</button>
-          <input id="prefabFile" type="file" accept=".json,application/json" hidden>
         </div>
         <div id="prefabNote" class="libscan" hidden></div>
         <div id="prefabList" class="liblist" role="list"></div>
-        <div id="prefabFoot" class="libfoot"></div>
+        <div class="libfoot prefabfoot"><span id="prefabFoot"></span><button id="prefabAll" class="textbutton" type="button" title="Every prefab with its picture, to open one in the builder, and to rename, duplicate, export, delete or import prefabs">All prefabs…</button></div>
       </div>
     </section>
     <section id="spawnPanel" class="panel" aria-label="Spawn point or objective" hidden>
@@ -728,7 +726,7 @@
   </div>
   <div id="mapDialog" class="modal" hidden>
     <form id="mapForm" class="panel filedialog mapdialog" role="dialog" aria-modal="true" aria-labelledby="mapDialogTitle" novalidate>
-      <div class="dialoghead"><h2 id="mapDialogTitle">Choose a base map</h2><button id="mapClose" class="icon" type="button" title="Cancel (Esc)" aria-label="Cancel"><svg class="i"><use href="#i-close"/></svg></button></div>
+      <div class="dialoghead"><h2 id="mapDialogTitle">Open</h2><button id="mapClose" class="icon" type="button" title="Cancel (Esc)" aria-label="Cancel"><svg class="i"><use href="#i-close"/></svg></button></div>
       <div class="mapfind">
         <svg class="i"><use href="#i-search"/></svg>
         <input id="mapSearch" type="search" autocomplete="off" spellcheck="false" placeholder="Find a map: name, package or mission" aria-label="Find a map" aria-controls="mapList">
@@ -739,6 +737,20 @@
       <div id="mapMessage" class="filemessage" role="status" hidden></div>
       <div id="mapBar" class="loadbar mapbar" hidden><span></span></div>
       <div class="mapfoot"><span id="mapCount"></span><button id="mapOk" class="primary" type="submit">Open</button><button id="mapCancel" type="button">Cancel</button></div>
+    </form>
+  </div>
+  <div id="openPrefabDialog" class="modal" hidden>
+    <form id="openPrefabForm" class="panel filedialog mapdialog opendialog" role="dialog" aria-modal="true" aria-labelledby="openPrefabTitle" novalidate>
+      <div class="dialoghead"><h2 id="openPrefabTitle">Open</h2><button id="openPrefabClose" class="icon" type="button" title="Cancel (Esc)" aria-label="Cancel"><svg class="i"><use href="#i-close"/></svg></button></div>
+      <div class="openbar">
+        <div class="mapfind"><svg class="i"><use href="#i-search"/></svg><input id="openPrefabFilter" type="search" autocomplete="off" spellcheck="false" placeholder="Find a prefab: name or map" aria-label="Find a prefab" aria-controls="openPrefabCards"></div>
+        <div id="openPrefabOrder" class="seg" role="group" aria-label="Order"><button type="button" data-value="saved" class="on" title="The prefab saved last first">Last saved</button><button type="button" data-value="name" title="By name, A to Z">Name</button></div>
+      </div>
+      <p id="openPrefabPlace" class="openplace" hidden>A prefab is placed in the map from the Add panel (P), small or large.</p>
+      <div id="openPrefabNote" class="libscan" hidden></div>
+      <div id="openPrefabCards" class="cards opencards" role="listbox" aria-label="Prefabs"></div>
+      <div id="openPrefabActs" class="openacts" hidden></div>
+      <div class="mapfoot"><button id="openPrefabImport" type="button" title="Add a prefab file someone passed on to the library">Import…</button><input id="openPrefabFile" type="file" accept=".json,application/json" hidden><span id="openPrefabCount"></span><button id="openPrefabOk" class="primary" type="submit">Open</button><button id="openPrefabCancel" type="button">Cancel</button></div>
     </form>
   </div>
   <div id="setupDialog" class="modal" hidden>

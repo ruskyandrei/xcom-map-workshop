@@ -78,14 +78,17 @@ export function prefabMaps(p, most = 2) {
 const el = (tag, props = {}, ...children) => { const e = Object.assign(document.createElement(tag), props); e.append(...children); return e; };
 
 /**
- * The Add panel's Prefabs tab, drawn from the library store. els: box, filter, list, foot, note, file (the hidden file
- * input), importButton. library: the store (prefab_library.js). onChoose(summary or null): place it (or stop);
- * onEdit(id): open it in the builder; haveMap(package): whether this install has that map (null: not known);
- * hint(message).
+ * The Add panel's Prefabs tab, drawn from the library store: where a prefab is placed. A row's click places it, its Edit
+ * opens it in the builder; the library's files are managed in the Open window's Prefabs side (prefab_browser.js), which
+ * All prefabs… opens (decision P9). els: box, filter, list, foot, note, all (the All prefabs… button). library: the
+ * store (prefab_library.js). onChoose(summary or null): place it (or stop); onEdit(id): open it in the builder;
+ * onAll(): the Open window's Prefabs side; haveMap(package): whether this install has that map (null: not known).
  */
-export function createPrefabTab({ els, library, onChoose, onEdit, haveMap, hint }) {
-  let chosen = null, busy = null;   // busy: { id, mode: 'rename' | 'delete' }
+export function createPrefabTab({ els, library, onChoose, onEdit, onAll, haveMap }) {
+  let chosen = null;
   library.onChange(() => {
+    // (a prefab chosen to place and deleted meanwhile, in the Open window: placing stops)
+    if (chosen && library.loaded && !library.byId(chosen.id)) onChoose(null);
     const error = library.error;
     if (error) note(error.status === 404 ? 'This viewer keeps no prefab library.' : `The prefab library could not be read: ${error.message}`);
     render();
@@ -113,42 +116,12 @@ export function createPrefabTab({ els, library, onChoose, onEdit, haveMap, hint 
     const tags = el('span', { className: 'tags' });
     for (const chip of prefabChips(p, haveMap)) tags.append(el('span', { className: 'tag later', textContent: chip.text, title: chip.title }));
     const text = el('span');
-    if (busy?.id === p.id && busy.mode === 'rename') {
-      const input = el('input', { type: 'text', value: p.name, maxLength: 120, className: 'prefabrename', spellcheck: false });
-      input.setAttribute('aria-label', 'The prefab\'s name');
-      input.onclick = e => e.stopPropagation();
-      input.onkeydown = e => {
-        e.stopPropagation();
-        if (e.key === 'Enter') { e.preventDefault(); rename(p, input.value.trim()); }
-        else if (e.key === 'Escape') { e.preventDefault(); busy = null; render(); }
-      };
-      text.append(input, el('small', { textContent: 'Enter renames it · Esc leaves it' }));
-      setTimeout(() => { input.focus(); input.select(); }, 0);
-    } else if (busy?.id === p.id && busy.mode === 'delete') {
-      const yes = el('button', { type: 'button', className: 'textbutton warn', textContent: 'Delete it' });
-      const no = el('button', { type: 'button', className: 'textbutton', textContent: 'Keep it' });
-      yes.onclick = e => { e.stopPropagation(); remove(p); };
-      no.onclick = e => { e.stopPropagation(); busy = null; render(); };
-      text.append(el('strong', { textContent: `Delete ${p.name}?` }),
-                  el('small', { textContent: 'Its file is kept in the library\'s deleted folder. What is placed in maps stays.' }),
-                  el('small', { className: 'prefabacts' }, yes, no));
-    } else {
-      const acts = el('small', { className: 'prefabacts' });
-      for (const [label, title, run] of [
-        ['Edit', 'Open this prefab in the builder', () => onEdit(p.id)],
-        ['Rename', 'Give the prefab another name', () => { busy = { id: p.id, mode: 'rename' }; render(); }],
-        ['Duplicate', 'A copy of the prefab, to change on its own', () => duplicate(p)],
-        ['Export', 'Save the prefab as a file to pass on', () => exportFile(p)],
-        ['Delete', 'Take the prefab out of the library', () => { busy = { id: p.id, mode: 'delete' }; render(); }]]) {
-        const button = el('button', { type: 'button', className: 'textbutton', textContent: label, title });
-        button.onclick = e => { e.stopPropagation(); run(); };
-        acts.append(button);
-      }
-      text.append(el('strong', { textContent: p.name }), el('small', { textContent: prefabWords(p) }), acts);
-    }
+    const edit = el('button', { type: 'button', className: 'textbutton', textContent: 'Edit', title: 'Open this prefab in the builder' });
+    edit.onclick = e => { e.stopPropagation(); onEdit(p.id); };
+    text.append(el('strong', { textContent: p.name }), el('small', { textContent: prefabWords(p) }), el('small', { className: 'prefabacts' }, edit));
     item.append(picture, text, tags);
     item.title = [p.name, prefabWords(p), p.maps?.length ? `Pieces of ${p.maps.join(', ')}` : '', `Revision ${p.revision} · ${p.file}`].filter(Boolean).join('\n');
-    const choose = () => { if (!busy) onChoose(chosen?.id === p.id ? null : p); };
+    const choose = () => onChoose(chosen?.id === p.id ? null : p);
     item.onclick = choose;
     item.onkeydown = e => { if (e.target === item && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); choose(); } };
     item.classList.toggle('on', p.id === chosen?.id);
@@ -166,55 +139,7 @@ export function createPrefabTab({ els, library, onChoose, onEdit, haveMap, hint 
       : `${shown.length === prefabs.length ? `${prefabs.length} prefab${prefabs.length === 1 ? '' : 's'}` : `${shown.length} of ${prefabs.length} prefabs`} · click one, then click in the view to place it`;
     els.foot.title = folder ? `Kept in ${folder}` : '';
   }
-  const fail = (what, error) => hint(`${what}: ${error.message}`);
-  async function rename(p, name) {
-    busy = null;
-    render();
-    try { if (await library.rename(p, name)) hint(`Renamed to ${name.trim()}`); }
-    catch (error) { fail('Not renamed', error); }
-  }
-  async function duplicate(p) {
-    try { hint(`Made ${await library.duplicate(p)}`); }
-    catch (error) { fail('Not duplicated', error); }
-  }
-  async function exportFile(p) {
-    try { await library.exportFile(p); hint(`Exported ${p.name}: the file holds references and numbers only, no game data`); }
-    catch (error) { fail('Not exported', error); }
-  }
-  async function remove(p) {
-    busy = null;
-    if (chosen?.id === p.id) onChoose(null);
-    try { await library.remove(p); hint(`Deleted ${p.name} · its file is kept in the library's deleted folder`); }
-    catch (error) { fail('Not deleted', error); }
-  }
-  // A file from elsewhere: checked by the server; one whose id is here already asks what to do. Replace replaces the
-  // revision the question showed (review finding 4): one saved meanwhile asks again, with its revision now.
-  async function importDocument(doc, clash = null, revision = null) {
-    try {
-      const taken = await library.importDocument(doc, clash, revision);
-      note('');
-      hint(taken.replaced ? `Replaced ${taken.name} with the file (revision ${taken.revision})` : `Imported ${taken.name}`);
-    } catch (error) {
-      const here = error.body?.clash;
-      if (error.status !== 409 || !here) { note(`Not imported. ${error.message}`, dismiss()); return; }
-      const replace = el('button', { type: 'button', textContent: 'Replace it' }), both = el('button', { type: 'button', textContent: 'Keep both' });
-      replace.title = `The file is saved over revision ${here.revision} of the prefab here, as its next revision (the one before is kept)`;
-      both.title = 'The file is stored as a prefab of its own, with "(imported)" after its name';
-      replace.onclick = () => importDocument(doc, 'replace', here.revision); both.onclick = () => importDocument(doc, 'copy');
-      const again = error.body?.changed ? `It was saved again meanwhile. ` : '';
-      note(`${again}The library already has this prefab, as “${here.name}” (revision ${here.revision}).`, el('div', { className: 'row' }, replace, both, dismiss('Cancel')));
-    }
-  }
-  const dismiss = (label = 'OK') => { const b = el('button', { type: 'button', textContent: label }); b.onclick = () => note(''); return b; };
-  async function importFile(file) {
-    if (!file) return;
-    if (file.size > 16 << 20) { note('Not imported. The file is too large to be a prefab.', dismiss()); return; }
-    let doc;
-    try { doc = JSON.parse(await file.text()); } catch { note('Not imported. The file is not a prefab (it is not JSON).', dismiss()); return; }
-    await importDocument(doc);
-  }
-  els.importButton.onclick = () => { els.file.value = ''; els.file.click(); };
-  els.file.onchange = () => importFile(els.file.files[0]);
+  els.all.onclick = () => onAll();
   els.filter.addEventListener('input', render);
   els.filter.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;

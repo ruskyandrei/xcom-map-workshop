@@ -5409,52 +5409,70 @@ def prefab_library(browser, url):
     page.keyboard.press('Control+z')
     assert page.evaluate('viewer.roots.size') == before
     page.keyboard.press('Escape')
-    # ---- the tab: filter, rename, duplicate, export, delete, import with its choice
+    # ---- the tab: filter, a row's Edit alone; the Open window's Prefabs side (All prefabs…, the prefab menus plan's
+    # decision P9): rename, duplicate, export, delete, import with its choice, the tab hearing of each
     page.evaluate('viewer.select(null)')
     page.keyboard.press('p')
     page.wait_for_function("document.querySelectorAll('#prefabList .libitem').length === 2")
     page.locator('#prefabFilter').fill('two')
     assert page.locator('#prefabList .libitem').count() == 1 and '1 of 2 prefabs' in page.locator('#prefabFoot').inner_text()
-    item = page.locator('#prefabList .libitem').first
-    item.get_by_role('button', name='Rename').click()
-    page.locator('.prefabrename').fill('Two sedans')
-    page.locator('.prefabrename').press('Enter')
+    assert [t.strip() for t in page.locator('#prefabList .libitem').first.locator('.prefabacts button').all_inner_texts()] == ['Edit']
     page.locator('#prefabFilter').fill('')
+    page.locator('#prefabAll').click()
+    page.wait_for_selector('#openPrefabDialog:not([hidden])')
+    page.wait_for_function("document.querySelectorAll('#openPrefabCards .card:not(.newcard)').length === 2")
+    card = lambda prefab_id: page.locator(f'#openPrefabCards .card[data-id="{prefab_id}"]')     # noqa: E731
+    acts = page.locator('#openPrefabActs')
+    page.locator('#openPrefabFilter').fill('two')
+    assert page.locator('#openPrefabCards .card:not(.newcard)').count() == 1 and '1 of 2 prefabs' in page.locator('#openPrefabCount').inner_text()
+    assert page.locator('#openPrefabCards .card').first.get_attribute('data-id') == 'new'      # (New prefab first, whatever the filter)
+    page.locator('#openPrefabCards .card:not(.newcard)').first.click()
+    acts.get_by_role('button', name='Rename').click()
+    acts.locator('.prefabrename').fill('Two sedans')
+    acts.locator('.prefabrename').press('Enter')
+    page.locator('#openPrefabFilter').fill('')
+    page.wait_for_function("[...document.querySelectorAll('#openPrefabCards .card strong')].some(s => s.textContent === 'Two sedans')")
     page.wait_for_function("[...document.querySelectorAll('#prefabList .libitem strong')].some(s => s.textContent === 'Two sedans')")
     assert sorted(p['name'] for p in listed()) == ['Smoke prefab', 'Two sedans']
-    row = page.locator('#prefabList .libitem', has_text='Two sedans')
-    row.get_by_role('button', name='Duplicate').click()
+    sedans = next(p['id'] for p in listed() if p['name'] == 'Two sedans')
+    card(sedans).click()
+    acts.get_by_role('button', name='Duplicate').click()
+    page.wait_for_function("document.querySelectorAll('#openPrefabCards .card:not(.newcard)').length === 3")
     page.wait_for_function("document.querySelectorAll('#prefabList .libitem').length === 3")
     assert sorted(p['name'] for p in listed()) == ['Smoke prefab', 'Two sedans', 'Two sedans copy']
+    card(saved['id']).click()
     with page.expect_download() as download:
-        page.locator('#prefabList .libitem', has_text='Smoke prefab').get_by_role('button', name='Export').click()
+        acts.get_by_role('button', name='Export').click()
     exported = json.loads(Path(download.value.path()).read_text(encoding='utf8'))
     assert download.value.suggested_filename == 'Smoke prefab.json' and exported['id'] == saved['id'] and exported['schema'] == 'xcom-map-workshop/prefab'
     assert 'mesh' not in json.dumps(exported).lower().replace('meshcomponent', '')     # references and numbers only
-    copy = page.locator('#prefabList .libitem', has_text='Two sedans copy')
-    copy.get_by_role('button', name='Delete').click()
-    assert 'Delete Two sedans copy?' in copy.inner_text()
-    copy.get_by_role('button', name='Keep it').click()
+    copy = next(p['id'] for p in listed() if p['name'] == 'Two sedans copy')
+    card(copy).click()
+    acts.get_by_role('button', name='Delete').click()
+    assert 'Delete Two sedans copy?' in acts.inner_text()
+    acts.get_by_role('button', name='Keep it').click()
     assert len(listed()) == 3
-    copy = page.locator('#prefabList .libitem', has_text='Two sedans copy')
-    copy.get_by_role('button', name='Delete').click()
-    copy.get_by_role('button', name='Delete it').click()
+    acts.get_by_role('button', name='Delete').click()
+    acts.get_by_role('button', name='Delete it').click()
+    page.wait_for_function("document.querySelectorAll('#openPrefabCards .card:not(.newcard)').length === 2")
     page.wait_for_function("document.querySelectorAll('#prefabList .libitem').length === 2")
     assert sorted(p['name'] for p in listed()) == ['Smoke prefab', 'Two sedans']
     # a file from elsewhere: one the library has already asks; Keep both stores it beside
     sent = dict(exported, name='Smoke prefab, sent back')
     payload = dict(name='sent.json', mimeType='application/json', buffer=json.dumps(sent).encode())
-    page.locator('#prefabFile').set_input_files(payload)
-    page.wait_for_function("document.getElementById('prefabNote').textContent.includes('already has this prefab')")
-    assert 'Smoke prefab' in page.locator('#prefabNote').inner_text() and len(listed()) == 2
-    page.locator('#prefabNote').get_by_role('button', name='Keep both').click()
-    page.wait_for_function("document.querySelectorAll('#prefabList .libitem').length === 3")
+    page.locator('#openPrefabFile').set_input_files(payload)
+    page.wait_for_function("document.getElementById('openPrefabNote').textContent.includes('already has this prefab')")
+    assert 'Smoke prefab' in page.locator('#openPrefabNote').inner_text() and len(listed()) == 2
+    page.locator('#openPrefabNote').get_by_role('button', name='Keep both').click()
+    page.wait_for_function("document.querySelectorAll('#openPrefabCards .card:not(.newcard)').length === 3")
     assert 'Smoke prefab, sent back (imported)' in [p['name'] for p in listed()]
     # one that is no prefab says why and changes nothing
-    page.locator('#prefabFile').set_input_files(dict(name='bad.json', mimeType='application/json', buffer=json.dumps(dict(sent, pieces=[dict(actor='<b>')])).encode()))
-    page.wait_for_function("document.getElementById('prefabNote').textContent.startsWith('Not imported')")
+    page.locator('#openPrefabFile').set_input_files(dict(name='bad.json', mimeType='application/json', buffer=json.dumps(dict(sent, pieces=[dict(actor='<b>')])).encode()))
+    page.wait_for_function("document.getElementById('openPrefabNote').textContent.startsWith('Not imported')")
     assert len(listed()) == 3
-    page.locator('#prefabNote button').click()
+    page.locator('#openPrefabNote button').click()
+    page.locator('#openPrefabCancel').click()
+    page.wait_for_selector('#openPrefabDialog', state='hidden')
     page.keyboard.press('p')
     # ---- in another map: a prefab of the car and the prop alone, read from their home map, saved and built
     maps = page.evaluate("fetch('/maps.json').then(r => r.json())")['maps']
@@ -6182,6 +6200,8 @@ CHECKS = (
           needs=('projects',), full=False),
     Check('same-controls', lambda c: __import__('browser_controls').check_same_controls(c.browser, c.page.url, open_viewer),
           'the same controls on a landing zone, a spawn point, a floor box and a piece (Bar) and a diagonal cover mark (the farm)', full=False),
+    Check('open-window', lambda c: __import__('browser_open_window').check_open_window(c.browser, c.page.url, open_viewer),
+          "the button for the map or the prefab, its menu and the Open window's Maps and Prefabs sides", needs=('projects',), full=False),
     Check('rail-lists', lambda c: __import__('browser_controls').check_rail_lists(c.browser, c.page.url, open_viewer),
           'the Views list beside its button and over the dock; the Add panel made large, cards with large pictures', needs=('settings',), full=False),
     Check('diagonal', lambda c: __import__('browser_diagonal').check_diagonal(c.browser, c.page.url, open_viewer),

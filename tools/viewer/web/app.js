@@ -453,6 +453,8 @@ const { choosePrefab, drawPrefabPictures, prefabClip, prefabPlacementProblem, pr
 // prefab's Save, Save as, Export and Find missing pieces; Open's two buttons; New prefab).
 const { makeMapBrowser, mapLabel, refreshMapList, renderMapMenu, showOpen } = createMapMenu({
   $, dirty, flashHint, goTo, recoverPrefabSources, saveProject, showPop, showPrefabDialog,
+  // (made with the prefab library, further down: called through, since it is not made yet while this runs)
+  haveMap: name => haveMap(name),
   // (made further down: called through, since it is not made yet while this runs)
   stopPlacing: () => stopPlacing() });
 // Build and Play in game (build_play.js): Build's panel and the window that follows a build, Play in game with its
@@ -924,7 +926,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // a copy carried from the last map or prefab: the hint says once that Ctrl+V places it here (clipboard.js)
   announceCarried();
   window.viewer = createTestApi({
-    setDiagonalShown, pickedMarks, diagonalGizmo, diagonalWarnings,
+    setDiagonalShown, pickedMarks, diagonalGizmo, diagonalWarnings, showOpen,
     $, addVolumes, addWallOpening, allBuildings, applyPrefabDocument, applyState, bombHelperFix, boxOf, BUILD_TOOLS,
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
     clearParts, clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
@@ -1177,8 +1179,8 @@ const haveMap = name => (name.toLowerCase() === data?.name?.toLowerCase() ? true
   : library.ready() ? library.maps().has(name.toLowerCase()) : null);
 setPrefabTab(createPrefabTab({
   els: { box: $('libPrefabs'), filter: $('prefabFilter'), list: $('prefabList'), foot: $('prefabFoot'), note: $('prefabNote'),
-         file: $('prefabFile'), importButton: $('prefabImport') },
-  library: prefabLibrary, onChoose: choosePrefab, onEdit: id => goTo({ prefab: id }), hint: flashHint, haveMap,
+         all: $('prefabAll') },
+  library: prefabLibrary, onChoose: choosePrefab, onEdit: id => goTo({ prefab: id }), onAll: () => showOpen('prefabs'), haveMap,
 }));
 segmented($('libScope'), () => setLibraryScope($('libScope').value));
 setLibraryScopeValue(LIBRARY_SCOPES[recall('workshop.libraryScope')] ? recall('workshop.libraryScope') : 'map');

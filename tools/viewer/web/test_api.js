@@ -14,7 +14,7 @@ import { activeMapId, areaBindings, boxesShown, builderMode, buildings, buildToo
          library, lightDrag, lighting, lightRoots, lightsOn, lightsShown, likenessCount, likenessOn,
          likenessThin, lineCollision, lineCollisionFailed, lookPicker, lookPicking, missionIndex, missionMoves,
          missionPickValue, normalEffects, normalLights, normalSpawns, ownPicked, ownSet, pickBox, pickedEffect,
-         pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, prefabTab, project, projectMissions,
+         pickedSpawn, pickedZone, pickHits, pickTool, pieces, placing, prefabLibrary, prefabTab, project, projectMissions,
          projectBackgroundSound, projectMapInfo, projectSpawnRules, reachNow, rockPoint, roots, selected, setPickBoxValue, setPickToolValue, setSpawnFilters,
          soloOn, spawnEntriesNow, spawnFilters, spawnPlacing, spawnRulesData, spawnsOn, stage, textureDrag,
          texturePicked, volumeRoots, volumesOn, wallDrawing, wavePlayer, zonesOn } from './editor_state.js';
@@ -28,7 +28,7 @@ import { diagonalCarried, diagonalOn, projectDiagonal } from './editor_state.js'
 import { CORNERS, marksNow, middleOf } from './diagonal_marks.js';
 import { tileCorner } from './map_grid.js';
 
-export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, alignToGrid, alignToLevel,
+export function createTestApi({ $, showOpen, addVolumes, addWallOpening, alignToGamePose, alignToGrid, alignToLevel,
                                 allBuildings, applyPrefabDocument, applyState,
                                 bombHelperFix, boxOf, BUILD_TOOLS, builderDocument, builderRecords,
                                 buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap, clearParts, clearPlan,
@@ -143,6 +143,8 @@ export function createTestApi({ $, addVolumes, addWallOpening, alignToGamePose, 
     pick, changes, pickables, pieces, showPieces, library, setLibraryScope, libraryTemplate, setSnapMode, families: () => families, playArea,
     // prefabs (prefab plan stage P), for the browser smoke test
     prefabs: prefabTab, prefabApi, prefabRecords, savePrefab, choosePrefab, prefabClip,
+    // the Open window on a side, 'maps' or 'prefabs' (the prefab menus plan), and the library store behind its Prefabs side
+    showOpen, prefabLibrary,
     builderMode, builderDocument, builderRecords, saveBuilder, openPrefabDocument, applyPrefabDocument, goTo, keepRecovery,
     pasteSnapshot, snapshot, dirty, copySerial: () => copySerial,
     placementProblem: at => {

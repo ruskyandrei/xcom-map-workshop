@@ -1,11 +1,12 @@
 // The map browser: every map the game install plays (the server's /maps.json), in sections by mission type, with a
 // search over names, packages and missions. A map that serves several mission types (an abduction map that is also a
 // terror site, say) is listed under each. A map not exported yet is prepared the first time it is opened: the server
-// exports it in the background (tools/viewer/exports.py, about half a minute), and the page then opens it.
+// exports it in the background (tools/viewer/exports.py, about half a minute), and the page then opens it. It is the
+// Open window's Maps side: its head carries the window's switch (map_menu.js draws it; prefab_browser.js openSwitch).
 import { nextStop, tabOrder } from './modal.js';
 import { call as callServer } from './api.js';
 
-const GROUPS = [['prefabs', 'Prefabs'], ['abduction', 'Abduction'], ['ufo', 'UFO'], ['terror', 'Terror'], ['council', 'Council'],
+const GROUPS = [['abduction', 'Abduction'], ['ufo', 'UFO'], ['terror', 'Terror'], ['council', 'Council'],
   ['exalt', 'EXALT'], ['story', 'Story'], ['other', 'Other']];
 
 const call = (url, post = false) => callServer(post ? 'POST' : 'GET', url, undefined, { fallback: r => `${r.status} ${r.statusText}` });
@@ -14,7 +15,7 @@ const call = (url, post = false) => callServer(post ? 'POST' : 'GET', url, undef
  * els: the dialog's elements (root, form, search, prepared, groups, list, count, message, bar, ok, cancel, close).
  * maps: /maps.json's maps. current: the open map's id (or null). onOpen(id): open that map (it is exported).
  */
-export function createMapBrowser({ els, maps, current, onOpen, prefabs = null, onPrefab = null }) {
+export function createMapBrowser({ els, maps, current, onOpen }) {
   maps = [...maps];
   let group = 'all', chosen = null, chosenRow = null, lastFocus = null, preparing = null, timer = null;
   const byId = new Map(maps.map(m => [m.id, m]));
@@ -36,7 +37,6 @@ export function createMapBrowser({ els, maps, current, onOpen, prefabs = null, o
     if (fraction != null) els.bar.firstElementChild.style.width = `${Math.round(100 * Math.min(1, Math.max(0, fraction)))}%`;
   }
   function status(m) {
-    if (m.prefab) return [m.prefab === 'new' ? 'Empty workspace' : 'Edit prefab', 'ready'];
     if (preparing?.id === m.id) {
       const f = preparing.progress?.fraction;
       return [f != null ? `Preparing… ${Math.round(100 * f)}%` : `Preparing… ${Math.round(preparing.seconds ?? 0)} s`, 'busy'];
@@ -156,7 +156,6 @@ export function createMapBrowser({ els, maps, current, onOpen, prefabs = null, o
   function submit() {
     const m = byId.get(chosen);
     if (!m) { say('Choose a map.', true); return; }
-    if (m.prefab) { close(); onPrefab(m.prefab); return; }
     if (m.id === current && m.ready) { close(); return; }
     if (m.ready) { onOpen(m.id); return; }
     prepare(m);
@@ -189,20 +188,9 @@ export function createMapBrowser({ els, maps, current, onOpen, prefabs = null, o
   tabOrder(els.root, (e, stops) => nextStop(e, stops.filter(el => !el.classList.contains('maprow'))));
 
   // show(id, message): open the browser on that map (the open one by default); prepare: start preparing it at once.
-  function show(id = current, { message = null, prepare: start = false, prefabGroup = false } = {}) {
+  function show(id = current, { message = null, prepare: start = false } = {}) {
     lastFocus = document.activeElement;
     els.root.hidden = false;
-    if (prefabGroup) group = 'prefabs';
-    if (prefabs) prefabs().then(list => {
-      maps = maps.filter(m => !m.prefab);
-      const entries = [{ id: 'new', name: 'New prefab' }, ...list.filter(p => !p.error)];
-      for (const p of entries) {
-        const m = { id: `prefab:${p.id}`, prefab: p.id, label: p.name, name: p.id === 'new' ? 'Start building' : `Revision ${p.revision}`,
-          missions: [], groups: ['prefabs'], ready: true };
-        maps.push(m); byId.set(m.id, m);
-      }
-      if (!els.root.hidden) render();
-    }).catch(error => say(`Prefabs could not be listed: ${error.message}`, true));
     if (!preparing) say(message, Boolean(message));
     chosen = byId.has(id) ? id : null;
     const m = byId.get(chosen);
@@ -217,5 +205,5 @@ export function createMapBrowser({ els, maps, current, onOpen, prefabs = null, o
     if (lastFocus?.isConnected && lastFocus !== document.body) lastFocus.focus({ preventScroll: true });
     else document.activeElement?.blur?.();
   }
-  return { show, close, get open() { return !els.root.hidden; } };
+  return { show, close, count: () => maps.length, get open() { return !els.root.hidden; } };
 }

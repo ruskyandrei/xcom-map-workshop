@@ -7,6 +7,9 @@
 // - Open: two buttons, A map… and A prefab…, each with how many there are, each opening its side of the Open window
 //   (showOpen; M and, in the builder, Ctrl+O call it too);
 // - New prefab.
+// The Open window is two dialogs that read as one, titled Open, each head carrying the same switch, Maps and Prefabs
+// with their counts (prefab_browser.js openSwitch): the map browser (map_browser.js) is its Maps side, the prefab
+// cards (prefab_browser.js) its Prefabs side. A click on the switch shuts one and shows the other in its place.
 // Here too: the server's list of maps and the map browser made from it as the page opens (map_browser.js is the
 // dialog itself), a map's name in the lists (mapLabel), the list brought up to the server's after maps were prepared
 // elsewhere (refreshMapList), and choosing a map opening it (makeMapBrowser, from app.js's open). The map list and the
@@ -20,11 +23,13 @@ import { plural, text } from './dom_words.js';
 import { activeMapId, builder, builderMode, mapBrowser, mapCatalogue, placing, prefabLibrary, setLeaving,
          setMapBrowser } from './editor_state.js';
 import { createMapBrowser } from './map_browser.js';
-import { api as prefabApi } from './prefabs.js';
+import { createPrefabBrowserWindow, openSwitch } from './prefab_browser.js';
 import { modalOpen } from './modal.js';
 
-export function createMapMenu({ $, dirty, flashHint, goTo, recoverPrefabSources, saveProject, showPop, showPrefabDialog,
-                                stopPlacing }) {
+export function createMapMenu({ $, dirty, flashHint, goTo, haveMap, recoverPrefabSources, saveProject, showPop,
+                                showPrefabDialog, stopPlacing }) {
+  // the Open window's Prefabs side and the switch in each side's head, made with the map browser (makeMapBrowser)
+  let prefabWindow = null, mapSwitch = null, prefabSwitch = null;
   const mapLabel = id => mapCatalogue?.maps.find(m => m.id === id)?.label ?? id ?? '';
   // Maps were prepared outside the map browser: the list it shows is brought up to the server's, entry by entry (the
   // browser keeps the array it was given).
@@ -39,8 +44,8 @@ export function createMapMenu({ $, dirty, flashHint, goTo, recoverPrefabSources,
       }
     } catch { /* the list stays as it was; a reload brings it */ }
   }
-  // The map browser, made as the page opens (app.js's open, given the map the address asks for and the address's
-  // parameters).
+  // The Open window, made as the page opens (app.js's open, given the map the address asks for and the address's
+  // parameters): the map browser, the prefab cards, the switch in both heads.
   function makeMapBrowser(activeMap, parameters) {
       // (the map the address asks for, when it isn't prepared yet: kept now, as the browser marks its entry ready)
       const askedUnprepared = !builderMode && activeMap && !activeMap.ready ? activeMapId : null;
@@ -49,7 +54,6 @@ export function createMapMenu({ $, dirty, flashHint, goTo, recoverPrefabSources,
         // On a patch preview the open map counts as not open: choosing it opens its original layout.
         cancel: $('mapCancel'), close: $('mapClose') }, maps: mapCatalogue.maps,
         current: activeMap?.ready && !parameters.get('scene') ? activeMapId : null,
-        prefabs: async () => (await prefabApi.list()).prefabs, onPrefab: id => goTo({ prefab: id }),
         // The map asked for but not prepared yet opens as asked once it is ready: the address as it was, its project,
         // mission and layout too (review finding 7; nothing is open meanwhile). Any other map chosen is a switch of map,
         // which opens it alone.
@@ -58,25 +62,43 @@ export function createMapMenu({ $, dirty, flashHint, goTo, recoverPrefabSources,
           if (id === askedUnprepared) { setLeaving(true); location.reload(); return; }
           goTo({ map: id, scene: null, project: null, mission: null });
         } }));
+      prefabWindow = createPrefabBrowserWindow({
+        els: { root: $('openPrefabDialog'), form: $('openPrefabForm'), filter: $('openPrefabFilter'), order: $('openPrefabOrder'),
+               place: $('openPrefabPlace'), note: $('openPrefabNote'), cards: $('openPrefabCards'), acts: $('openPrefabActs'),
+               importButton: $('openPrefabImport'), file: $('openPrefabFile'), count: $('openPrefabCount'), ok: $('openPrefabOk'),
+               cancel: $('openPrefabCancel'), close: $('openPrefabClose') },
+        haveMap, hint: flashHint, onOpen: id => goTo({ prefab: id }), onNew: () => goTo({ prefab: 'new' }) });
+      mapSwitch = openSwitch($('mapForm').querySelector('.dialoghead'), 'maps', switchTo);
+      prefabSwitch = openSwitch($('openPrefabForm').querySelector('.dialoghead'), 'prefabs', switchTo);
+      prefabLibrary.onChange(counts);
+      counts();
+      prefabLibrary.refresh();
+  }
+  // The switch clicked: the side shown shuts (giving the focus back where the window found it) and the other shows in
+  // its place, the focus on the switch's lit half.
+  function switchTo(side) {
+    if (side === 'prefabs') { mapBrowser.close(); prefabWindow.show(); prefabSwitch.focus(); }
+    else { prefabWindow.close(); mapBrowser.show(); mapSwitch.focus(); }
   }
   /** The Open window on a side, 'maps' or 'prefabs': after closing the menu and stopping a placing. */
   function showOpen(side = 'maps') {
-    if (!mapBrowser || modalOpen()) return;
+    if (!mapBrowser || !prefabWindow || modalOpen()) return;
     // (from the menu, the window gives the focus back to the menu's button as it closes, not to a button now hidden)
     if ($('mapMenu').contains(document.activeElement)) $('mapButton').focus({ preventScroll: true });
     showPop(null);
     if (placing) stopPlacing();
-    if (side === 'prefabs') mapBrowser.show(null, { prefabGroup: true });
+    if (side === 'prefabs') prefabWindow.show();
     else mapBrowser.show();
   }
 
-  // Open's two counts: the maps the install plays, the prefabs the library holds (once it has answered).
+  // The counts, in the menu's Open and on the window's switch: the maps the install plays, the prefabs the library holds
+  // (once it has answered).
   function counts() {
-    $('openMapsCount').textContent = plural(mapCatalogue?.maps.length ?? 0, 'map');
-    $('openPrefabsCount').textContent = prefabLibrary?.loaded ? plural(prefabLibrary.usable().length, 'prefab')
-      : prefabLibrary?.error ? 'no library' : 'Prefabs';
+    const maps = mapCatalogue?.maps.length ?? null, prefabs = prefabLibrary?.loaded ? prefabLibrary.usable().length : null;
+    $('openMapsCount').textContent = plural(maps ?? 0, 'map');
+    $('openPrefabsCount').textContent = prefabs != null ? plural(prefabs, 'prefab') : prefabLibrary?.error ? 'no library' : 'Prefabs';
+    mapSwitch?.paint({ maps, prefabs }); prefabSwitch?.paint({ maps, prefabs });
   }
-  let hearing = false;
   // The menu drawn as it opens (popups.js showPop): what is open, its items, the counts.
   function renderMapMenu() {
     const info = $('docInfo');
@@ -100,7 +122,6 @@ export function createMapMenu({ $, dirty, flashHint, goTo, recoverPrefabSources,
     $('prefabItems').hidden = !builderMode;
     $('openPrefabsKey').textContent = builderMode ? 'Ctrl+O' : '';
     $('openPrefabs').title = `Open a prefab in the builder: your prefabs, with their pictures${builderMode ? ' (Ctrl+O)' : ''}`;
-    if (!hearing && prefabLibrary) { prefabLibrary.onChange(counts); hearing = true; }
     counts();
     prefabLibrary?.refresh();
   }
