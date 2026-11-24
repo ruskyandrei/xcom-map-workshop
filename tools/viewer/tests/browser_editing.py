@@ -111,10 +111,10 @@ def check_made_prefab(browser, url, open_viewer):
     what = lambda g, b, f, fl: json.dumps([g, b, f, fl], sort_keys=True)      # noqa: E731 (what a piece is, comparable)
     kept = sorted(what(p.get('generated'), p.get('blasts'), p.get('breaksFurther'), p.get('flags')) for p in records['pieces'] if p.get('from'))
     assert kept == sorted(what(r['generated'], r['blasts'], r['breaksFurther'], r['flags']) for r in before), kept
-    # saved (schema 4), read back and placed again: each piece is what it was
+    # saved (the schema as it is now, 5), read back and placed again: each piece is what it was
     saved = page.evaluate("async () => viewer.savePrefab('Made pieces check')")
     doc = page.evaluate('id => viewer.prefabApi.load(id)', saved['id'])
-    assert doc['schemaVersion'] == 4, doc['schemaVersion']
+    assert doc['schemaVersion'] == 5, doc['schemaVersion']
     again = page.evaluate("""async ([id, along]) => {
       const T = await import('/vendor/three/three.module.js'), doc = await viewer.prefabApi.load(id), clip = await viewer.prefabClip(doc);
       if (clip.left.length) return { left: clip.left };

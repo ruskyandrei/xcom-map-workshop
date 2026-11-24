@@ -1,8 +1,9 @@
 // The prefab library (private/plans/done/prefab-library-plan.md, 5.6 and 5.7; tools/viewer/prefabs.py keeps the files). A prefab
 // is a set of pieces, lights, groups and buildings saved in a space of its own (the tile grid: its origin a tile corner
 // at ground level), to place in any map as one thing. The file holds references and numbers only, never game data.
-// This module is the server's routes, the document's shape, and the Add panel's Prefabs tab; prefab_place.js makes a
-// prefab of a selection and a clip to place of a prefab.
+// This module is the server's routes, the document's shape, a prefab's words and chips, and the Add panel's Prefabs
+// tab, drawn from the library store (prefab_library.js, which holds the list and the actions on a prefab);
+// prefab_place.js makes a prefab of a selection and a clip to place of a prefab.
 // 2: a copied piece's flags (`flags`; piece flags plan). 3: effects and sounds (pieces with a `kind`: effects and
 // sounds plan, stage FX6a; a lens flare is one more kind since FX6b). 4: a piece made from numbers (`generated`) and a
 // broken copy's `blasts` (review finding 6: piece_records.js). A prefab of schema 1 to 3 opens, and saves as 4.
@@ -30,6 +31,8 @@ export const api = {
   importFile: (document, clash = null, expectedRevision = null) =>
     call('POST', '/prefabs/import', { document, clash, ...(expectedRevision === null ? {} : { expectedRevision }) }),
   picture: (id, revision) => `${at(id)}/picture.png?r=${revision}`,
+  // the picture itself (a duplicate takes it along), or null
+  pictureBlob: (id, revision) => fetch(`${at(id)}/picture.png?r=${revision}`).then(r => (r.ok ? r.blob() : null)).catch(() => null),
   putPicture: (id, blob) => sendPng('PUT', `${at(id)}/picture.png`, blob),
   // many pieces of other maps exported at once, each map opened once (a prefab's first use)
   warm: sources => call('POST', '/library/pieces', { sources }),
@@ -50,29 +53,48 @@ export function prefabWords(p) {
   return Array.isArray(p.tiles) ? `${what} · ${p.tiles[0]} by ${p.tiles[1]} tiles` : what;
 }
 
+/**
+ * The chips a prefab's card or row shows: very large, a newer editor's fields, maps this install lacks. haveMap(package):
+ * whether this install has that map (null: not known yet). Each chip: { text, title }.
+ */
+export function prefabChips(p, haveMap) {
+  const chips = [];
+  // (the size limits warn and refuse nothing: plan "sturdier prefabs", R7)
+  if (p.largeSize?.length) chips.push({ text: 'Very large', title: `${p.largeSize.join('; ')}. It can be placed all the same.` });
+  if (p.unknownFields?.length) chips.push({ text: 'Newer fields',
+    title: `This prefab has ${p.unknownFields.length === 1 ? 'a field' : `${p.unknownFields.length} fields`} a newer editor wrote (${p.unknownFields.join(', ')}). `
+      + 'This editor keeps them as they are and doesn\'t use them.' });
+  const missing = (p.maps ?? []).filter(m => haveMap(m) === false);
+  if (missing.length) chips.push({ text: 'Maps missing',
+    title: `This game install has no ${missing.join(', ')}. The editor looks for matching recipes when you open or place the prefab.` });
+  return chips;
+}
+/** "URB_Bar, URB_Boulevard and 2 more": the maps a prefab's pieces come from, shortened. */
+export function prefabMaps(p, most = 2) {
+  const maps = p.maps ?? [];
+  return maps.length > most ? `${maps.slice(0, most).join(', ')} and ${maps.length - most} more` : maps.join(', ');
+}
+
 const el = (tag, props = {}, ...children) => { const e = Object.assign(document.createElement(tag), props); e.append(...children); return e; };
 
 /**
- * The Add panel's Prefabs tab. els: box, filter, list, foot, note, file (the hidden file input), importButton.
- * onChoose(summary or null): place it (or stop); haveMap(package): whether this install has that map (null: not
- * known); hint(message); download(name, document): hand the user a file.
+ * The Add panel's Prefabs tab, drawn from the library store. els: box, filter, list, foot, note, file (the hidden file
+ * input), importButton. library: the store (prefab_library.js). onChoose(summary or null): place it (or stop);
+ * onEdit(id): open it in the builder; haveMap(package): whether this install has that map (null: not known);
+ * hint(message).
  */
-export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, download }) {
-  let prefabs = [], folder = '', chosen = null, loading = null, loaded = false, busy = null;   // busy: { id, mode: 'rename' | 'delete' }
-  const names = () => new Set(prefabs.filter(p => !p.error).map(p => p.name.toLowerCase()));
-
-  async function refresh() {
-    loading ??= api.list().then(answer => { prefabs = answer.prefabs; folder = answer.folder; loaded = true; })
-      .catch(error => { prefabs = []; loaded = false; note(error.status === 404 ? 'This viewer keeps no prefab library.' : `The prefab library could not be read: ${error.message}`); })
-      .finally(() => { loading = null; render(); });
-    return loading;
-  }
+export function createPrefabTab({ els, library, onChoose, onEdit, haveMap, hint }) {
+  let chosen = null, busy = null;   // busy: { id, mode: 'rename' | 'delete' }
+  library.onChange(() => {
+    const error = library.error;
+    if (error) note(error.status === 404 ? 'This viewer keeps no prefab library.' : `The prefab library could not be read: ${error.message}`);
+    render();
+  });
+  const refresh = () => library.refresh();
   function note(message, ...actions) {
     els.note.hidden = !message;
     els.note.replaceChildren(...(message ? [el('p', { textContent: message }), ...actions] : []));
   }
-  const missingMaps = p => (p.maps ?? []).filter(m => haveMap(m) === false);
-
   function row(p) {
     const item = el('div', { className: `libitem lib prefab${p.error ? ' off' : ''}`, tabIndex: 0 });
     item.setAttribute('role', 'listitem'); item.dataset.id = p.id;
@@ -89,15 +111,7 @@ export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, down
       return item;
     }
     const tags = el('span', { className: 'tags' });
-    // (the size limits warn and refuse nothing: plan "sturdier prefabs", R7)
-    if (p.largeSize?.length) tags.append(el('span', { className: 'tag later', textContent: 'Very large',
-      title: `${p.largeSize.join('; ')}. It can be placed all the same.` }));
-    if (p.unknownFields?.length) tags.append(el('span', { className: 'tag later', textContent: 'Newer fields',
-      title: `This prefab has ${p.unknownFields.length === 1 ? 'a field' : `${p.unknownFields.length} fields`} a newer editor wrote (${p.unknownFields.join(', ')}). `
-        + 'This editor keeps them as they are and doesn\'t use them.' }));
-    const missing = missingMaps(p);
-    if (missing.length) tags.append(el('span', { className: 'tag later', textContent: 'Maps missing',
-      title: `This game install has no ${missing.join(', ')}. The editor looks for matching recipes when you open or place the prefab.` }));
+    for (const chip of prefabChips(p, haveMap)) tags.append(el('span', { className: 'tag later', textContent: chip.text, title: chip.title }));
     const text = el('span');
     if (busy?.id === p.id && busy.mode === 'rename') {
       const input = el('input', { type: 'text', value: p.name, maxLength: 120, className: 'prefabrename', spellcheck: false });
@@ -142,6 +156,7 @@ export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, down
   }
   function render() {
     if (els.box.hidden) return;
+    const prefabs = library.list(), loaded = library.loaded, folder = library.folder();
     const words = els.filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const shown = prefabs.filter(p => words.every(w => `${p.name} ${(p.maps ?? []).join(' ')}`.toLowerCase().includes(w)))
       .sort((a, b) => String(a.name).localeCompare(String(b.name)));
@@ -154,39 +169,29 @@ export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, down
   const fail = (what, error) => hint(`${what}: ${error.message}`);
   async function rename(p, name) {
     busy = null;
-    if (!name || name === p.name) { render(); return; }
-    try { const doc = await api.load(p.id); await api.save(p.id, { ...doc, name }, doc.revision); hint(`Renamed to ${name}`); }
+    render();
+    try { if (await library.rename(p, name)) hint(`Renamed to ${name.trim()}`); }
     catch (error) { fail('Not renamed', error); }
-    refresh();
   }
-  const freeName = base => { const taken = names(); let name = base; for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${base} ${n}`; return name; };
   async function duplicate(p) {
-    try {
-      const doc = await api.load(p.id), id = crypto.randomUUID(), name = freeName(`${p.name} copy`.slice(0, 110));
-      const { revision, savedAt, created, ...rest } = doc;
-      await api.save(id, { ...rest, id, name }, 0);
-      // its picture goes with it
-      if (p.picture) { const blob = await fetch(api.picture(p.id, p.revision)).then(r => (r.ok ? r.blob() : null)).catch(() => null); if (blob) await api.putPicture(id, blob); }
-      hint(`Made ${name}`);
-    } catch (error) { fail('Not duplicated', error); }
-    refresh();
+    try { hint(`Made ${await library.duplicate(p)}`); }
+    catch (error) { fail('Not duplicated', error); }
   }
   async function exportFile(p) {
-    try { const doc = await api.load(p.id); download(`${p.file ?? `${p.name}.json`}`, doc); hint(`Exported ${p.name}: the file holds references and numbers only, no game data`); }
+    try { await library.exportFile(p); hint(`Exported ${p.name}: the file holds references and numbers only, no game data`); }
     catch (error) { fail('Not exported', error); }
   }
   async function remove(p) {
     busy = null;
     if (chosen?.id === p.id) onChoose(null);
-    try { await api.remove(p.id); hint(`Deleted ${p.name} · its file is kept in the library's deleted folder`); }
+    try { await library.remove(p); hint(`Deleted ${p.name} · its file is kept in the library's deleted folder`); }
     catch (error) { fail('Not deleted', error); }
-    refresh();
   }
   // A file from elsewhere: checked by the server; one whose id is here already asks what to do. Replace replaces the
   // revision the question showed (review finding 4): one saved meanwhile asks again, with its revision now.
   async function importDocument(doc, clash = null, revision = null) {
     try {
-      const taken = await api.importFile(doc, clash, clash === 'replace' ? revision : null);
+      const taken = await library.importDocument(doc, clash, revision);
       note('');
       hint(taken.replaced ? `Replaced ${taken.name} with the file (revision ${taken.revision})` : `Imported ${taken.name}`);
     } catch (error) {
@@ -198,10 +203,7 @@ export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, down
       replace.onclick = () => importDocument(doc, 'replace', here.revision); both.onclick = () => importDocument(doc, 'copy');
       const again = error.body?.changed ? `It was saved again meanwhile. ` : '';
       note(`${again}The library already has this prefab, as “${here.name}” (revision ${here.revision}).`, el('div', { className: 'row' }, replace, both, dismiss('Cancel')));
-      refresh();
-      return;
     }
-    refresh();
   }
   const dismiss = (label = 'OK') => { const b = el('button', { type: 'button', textContent: label }); b.onclick = () => note(''); return b; };
   async function importFile(file) {
@@ -224,8 +226,8 @@ export function createPrefabBrowser({ els, onChoose, onEdit, haveMap, hint, down
     show(on) { els.box.hidden = !on; if (on) { render(); refresh(); } else els.list.replaceChildren(); },
     get open() { return !els.box.hidden; },
     setChosen(entry) { chosen = entry?.prefab ? entry.prefab : null; for (const item of els.list.children) item.classList.toggle('on', item.dataset.id === chosen?.id); },
-    refresh, importDocument, freeName,
-    list: () => prefabs,
-    byName: name => prefabs.find(p => !p.error && p.name.toLowerCase() === name.trim().toLowerCase()) ?? null,
+    refresh,
+    list: () => library.list(),
+    byName: name => library.byName(name),
   };
 }

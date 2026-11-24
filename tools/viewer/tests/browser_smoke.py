@@ -4009,7 +4009,7 @@ def check_library_flares(browser, url):
     prefab, = [p for p in listed if p['id'] == saved['id']]
     assert (prefab['pieces'], prefab['effects'], prefab['sounds'], prefab['flares']) == (0, 0, 0, 2), prefab
     doc = page.evaluate('id => viewer.prefabApi.load(id)', saved['id'])
-    assert doc['schemaVersion'] == 4 and all(sorted(p) == ['actor', 'from', 'kind', 'location', 'rotation'] and p['kind'] == 'flare' for p in doc['pieces']), doc['pieces']
+    assert doc['schemaVersion'] == 5 and all(sorted(p) == ['actor', 'from', 'kind', 'location', 'rotation'] and p['kind'] == 'flare' for p in doc['pieces']), doc['pieces']
     page.keyboard.press('p')
     choose(page, 'libScope', 'prefabs')
     page.wait_for_selector('#prefabList .libitem')

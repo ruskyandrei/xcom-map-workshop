@@ -185,10 +185,13 @@ export function setEventMemo(next) { eventMemo = next; }
 // null from a server without them (map_families.js's useMapFamilies sets them).
 export let families = null;
 export function setFamilies(next) { families = next; }
-// The Add panel's piece list (pieces.js's browser) and its Prefabs tab (prefabs.js's), made as the page loads.
-export let pieces, prefabTab = null;
+// The Add panel's piece list (pieces.js's browser) and its Prefabs tab (prefabs.js's), made as the page loads; the
+// prefab library behind the tab, the Open window's Prefabs side, the menu's count and a placed prefab's group
+// (prefab_library.js's store), made once by app.js before the tab.
+export let pieces, prefabTab = null, prefabLibrary = null;
 export function setPieces(next) { pieces = next; }
 export function setPrefabTab(next) { prefabTab = next; }
+export function setPrefabLibrary(next) { prefabLibrary = next; }
 // What a paste and a placing put down: clipboard, the clip copied or chosen last (a copy, an entry of the Add panel, a
 // prefab); chooseToken, raised by each choice in the Add panel, so that a read ending after another choice places
 // nothing. nextChooseToken() raises it.

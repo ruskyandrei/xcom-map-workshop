@@ -13,19 +13,20 @@ import { createSetupDialog, setupApi } from './setup.js';
 import { viewHeight } from './effects_preview.js';
 import { createPrecache } from './precache.js';
 import { createLibraryBrowser } from './library.js';
-import { createPrefabBrowser } from './prefabs.js';
+import { api as prefabApi, createPrefabTab } from './prefabs.js';
+import { createPrefabLibrary } from './prefab_library.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { isStream } from './piece_records.js';
 import { activeMapId, allRoots, areaShown, assigning, breaking, builderMode, cachePrefix, coverDrag, data,
          effectsDirty, effectsOn, eventMemo, floorTileLayer, ghostDirty, gridDrag, gridTool, groupIndex, lastLightSync,
          leaving, library, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
          lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects, pickBox, pickDrag,
-         pickedSpawn, pieces, placing, prefabParameter, project, reachShown, roots, selected, setActiveMapId, snapMode,
+         pickedSpawn, pieces, placing, prefabLibrary, prefabParameter, project, reachShown, roots, selected, setActiveMapId, snapMode,
          setAlignTarget, setAreaShown, setAskedPick, setAssigning, setBoxesShownValue, setCachePrefix, setData,
          setEffectsDirty, setEffectsOn, setEventMemo, setGhostDirty, setLibrary, setLibraryScopeValue, setLighting,
          setLightsOn, setLightsShownValue, setLiveCache, setLookPicker, setLooksReady, setMapCatalogue,
          setMergedBuildings, setNormalEffectsValue, setNormalLightsValue, setNormalSpawnsValue, setOwnGrid,
-         setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabTab, setReachKey, setReachShown,
+         setPickedEffect, setPickedSpawnValue, setPieces, setPointer, setPrefabLibrary, setPrefabTab, setReachKey, setReachShown,
          setSpawnRulesData, setSpawnsOn, setSpawnZonePick, setTileKey, setTipDirty, setZonesOn, soloOn, spawnPlacing,
          spawnsOn, streamSet, textureDrag, tipDirty, volumeDrag, volumesOn, wallDrag, wallDrawing, zonePlacing,
          zonesOn, diagonalOn } from './editor_state.js';
@@ -1161,19 +1162,24 @@ setLibrary(createLibraryBrowser({
   },
 }));
 setLookPicker(createLookPicker({ prepare: prepareSample, tagsOf: lookTags, recall, remember, hint: flashHint }));
-setPrefabTab(createPrefabBrowser({
-  els: { box: $('libPrefabs'), filter: $('prefabFilter'), list: $('prefabList'), foot: $('prefabFoot'), note: $('prefabNote'),
-         file: $('prefabFile'), importButton: $('prefabImport') },
-  onChoose: choosePrefab, onEdit: id => goTo({ prefab: id }), hint: flashHint,
-  // whether this install has a map a prefab's pieces come from: by the library's list of maps, once it is read
-  haveMap: name => (name.toLowerCase() === data?.name?.toLowerCase() ? true
-    : library.ready() ? library.maps().has(name.toLowerCase()) : null),
+// The prefab library (prefab_library.js): one list behind the Add panel's Prefabs tab, the Open window's Prefabs side
+// and the menu's count, with the actions on a prefab; made before the tab, which draws from it.
+setPrefabLibrary(createPrefabLibrary({
+  api: prefabApi,
   download: (name, doc) => {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([`${JSON.stringify(doc, null, 1)}\n`], { type: 'application/json' }));
     link.download = name; link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   },
+}));
+// whether this install has a map a prefab's pieces come from: by the library's list of maps, once it is read
+const haveMap = name => (name.toLowerCase() === data?.name?.toLowerCase() ? true
+  : library.ready() ? library.maps().has(name.toLowerCase()) : null);
+setPrefabTab(createPrefabTab({
+  els: { box: $('libPrefabs'), filter: $('prefabFilter'), list: $('prefabList'), foot: $('prefabFoot'), note: $('prefabNote'),
+         file: $('prefabFile'), importButton: $('prefabImport') },
+  library: prefabLibrary, onChoose: choosePrefab, onEdit: id => goTo({ prefab: id }), hint: flashHint, haveMap,
 }));
 segmented($('libScope'), () => setLibraryScope($('libScope').value));
 setLibraryScopeValue(LIBRARY_SCOPES[recall('workshop.libraryScope')] ? recall('workshop.libraryScope') : 'map');
