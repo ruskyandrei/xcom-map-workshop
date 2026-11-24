@@ -507,7 +507,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h3>Make a new map on an old map's light and landing</h3>
 <ol class="steps">
   <li>Open the map, click <b class="ui">Map</b> in the header and choose <b class="ui">Clear map…</b>.</li>
-  <li>Click <b class="ui">Clear map</b>. The ground grid shows the empty ground.</li>
+  <li>Every part is ticked: click <b class="ui">Clear map</b>. The ground grid shows the empty ground. (Untick a
+    part to keep it: the map's lights, say.)</li>
   <li>Turn on <b class="ui">Map grid</b> (the Map menu, or the tool strip's Views list) and drag the play area's
     handles to the size you want, in tiles and levels.</li>
   <li>Lay floors first (<kbd>P</kbd>, Kind: <b class="ui">Floors</b>, or the <a href="#made">Build menu</a>'s ground and
@@ -660,7 +661,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <a href="#map-picture">More</a></li>
     <li data-n="5"><b>Map grid</b> shows the play area's handles, as the last row of the tool strip's Views list
       does. <a href="#mapgrid">More</a></li>
-    <li data-n="6"><b>Clear map…</b> takes every piece off the map. <a href="#clearmap">More</a></li>
+    <li data-n="6"><b>Clear map…</b> takes parts of the map off it, or all of them. <a href="#clearmap">More</a></li>
   </ol>
 </div>
 <p>Items 2 to 6 are the map's own. In the prefab builder, where there is only the map to change, the button opens the
@@ -2196,52 +2197,65 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ul>
 
 <h3 id="clearmap">Clear map and landing zones</h3>
-<p><b class="ui">Clear map…</b> in the <a href="#map-menu">Map menu</a> takes every piece off the map, the ground too, so that you can
-  build a new map with pieces and prefabs on an old map's light and landing. It is meant for an unchanged map, but it
-  works on any.</p>
-<figure><img src="shots/clear-map.webp" width="484" height="430" alt="The Clear map window on the Bar, with its counts and the ticks to keep the scenery outside the play area and the map's triggers"></figure>
+<p><b class="ui">Clear map…</b> in the <a href="#map-menu">Map menu</a> takes parts of the map off it, or all of them:
+  its pieces and the ground, its lights, its effects and sounds, its spawn points, its landing zones and its triggers.
+  Cleared whole, the map is the start of a new one built with pieces and prefabs on an old map's light and landing.
+  Cleared in part, it keeps what you want of the old map: its lights and sounds round pieces of your own, or its pieces
+  without its narration. It works on any map, at any point, a changed one too.</p>
+<figure><img src="shots/clear-map.webp" width="484" height="440" alt="The Clear map window on the Bar: a tick for each part with its count, and the tick to keep the scenery outside the play area"></figure>
 <ul>
-  <li><b>A window comes first.</b> It warns what will go and gives a short count of it for this map: the pieces,
-    the lights, the spawn points, the effects and the ambient sounds. What stays:
+  <li><b>A tick for each part</b>, with a short count of what it takes on this map. On a map with nothing cleared
+    every part is ticked: that is the whole clear. Untick what you want to keep; the button says what it does
+    (<b class="ui">Clear map</b>, <b class="ui">Clear 2 parts</b>). Each row's tooltip says what it takes.
     <ul>
-      <li>the landing's own pieces (the drop zone's frame and the grounded Skyranger), with the Skyranger's lights,
-        dust and sound;</li>
-      <li>one landing zone: the map's own first landing, used by Long War and plain EW alike (copy it for more);</li>
-      <li>the sun or moon and the sky light.</li>
-    </ul>
-    The clear keeps the grid's size. Change it with <a href="#mapgrid">Map grid</a>, before or after.</li>
-  <li><b class="ui">Keep the scenery outside the play area</b> leaves the pieces that stand wholly outside it: the
-    buildings, trees and fences the map is seen against. The lights, smoke, stains and sounds placed out there stay
-    too. Here
-    the play area is the map's own, and the new grid where it reaches further, so pieces the new grid brings into play
-    still go. So does a piece across the edge. The window's count follows the tick, which is remembered.</li>
-  <li><b class="ui">Keep the map's triggers and scripts</b> leaves the map's triggers, which the editor doesn't show:
-    the touch volumes that set animals going or play a narration (a crashed UFO's "entering the ship"), the water
-    volumes that make units wade, and the spots that speak when a soldier sees them. Without it the Build takes them
-    out and switches off what they would start, so nothing of the old map acts on the new one. On a map without any
-    the tick is not shown. A mission's own streamed objects keep theirs. The tick is remembered.
-    The map's background sound stays either way: change it in <a href="#map-settings">Map settings</a>.</li>
-  <li><b>Effects and ambient sounds go with the clear</b>, except the Skyranger's, which stay with it, and the ones
-    outside that the tick keeps. One you moved yourself in the <a href="#effects">Effects view</a> stays, and so do
-    your copies.</li>
-  <li><b>The clear is one undo step.</b> <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings everything back, the size too. What
-    your project had added goes as well, with its groups and buildings.</li>
-  <li><b>After a clear, <a href="#mapgrid">Map grid</a></b> can also make the grid smaller and lower.</li>
-  <li><b>The Build takes out what the editor never showed</b> on a cleared map: the missions' streamed pieces and the
-    map's own floor storeys. It gives the new grid storeys of its own.</li>
-  <li><b>Long War's patch levels go with the clear.</b> Long War streams a patch level or two into most maps: pieces,
-    lights and a script that fixes up the old map as it loads. A cleared map's build streams none of them, so nothing
-    of them acts on yours, and the editor stops showing their pieces, lights and spawn points. The no-spawn volumes and
-    Meld points some of them carry go too. A mission's own streamed objects stay.</li>
-  <li><b>The map's pods, Meld points and drop-in points go with the clear</b>, but one the map's script names: it
-    stays where the map has it. The no-spawn volumes stay; they sit where the map had cars and
-    props, so move or delete them in the <a href="#spawns">Spawns view</a>. Long War Rebalance puts its own pods and
-    Meld on your floors when the battle starts. Plain Enemy Within needs pods of yours: place them with the Add
-    panel's <b class="ui">Spawn points</b> (the window says so on a plain install), and the Build warns when there are
-    fewer places for pods than the map had.</li>
-  <li><b>Then it asks "What is this map for?"</b>: the <a href="#missions">Missions</a> window, with the header's
-    mission ticked if it is an abduction, a terror site or a bomb, else an abduction. A base mission with objects of
-    its own (a bomb, a data recovery) keeps them where the original map has them until you move them.</li>
+      <li><b class="ui">Pieces and ground</b>: every piece, the ground too, and the map's buildings and yours, with
+        what the Build takes with them (building and floor volumes, blocking volumes, cover, stains, a glowing piece's
+        own light). The landing's own pieces stay: the drop zone's frame and the grounded Skyranger, with its lights,
+        dust and sound.</li>
+      <li><b class="ui">Lights</b>: the map's point and spot lights, and yours. The sun or moon and the sky light stay,
+        and a glowing piece keeps its own light while the piece stays. Pieces that stay keep the light baked into them
+        until a Build with the bake.</li>
+      <li><b class="ui">Effects and sounds</b>: smoke, fire, steam, animals, glints and ambient sounds, the map's and
+        yours. The Skyranger's stay with it, and so does one you moved yourself in the
+        <a href="#effects">Effects view</a>. The map's background sound stays: change it in
+        <a href="#map-settings">Map settings</a>.</li>
+      <li><b class="ui">Spawn points</b>: the map's pods, Meld points and drop-in points, and your copies of them, but
+        one the map's script names: it stays where the map has it. The no-spawn volumes stay; they sit where the map
+        had cars and props, so move or delete them in the <a href="#spawns">Spawns view</a>. Long War Rebalance puts its
+        own pods and Meld on your floors when the battle starts. Plain Enemy Within needs pods of yours: place them with
+        the Add panel's <b class="ui">Spawn points</b> (the window says so on a plain install), and the Build warns when
+        there are fewer places for pods than the map had.</li>
+      <li><b class="ui">Landing zones</b>: all but one, the map's own first landing, used by Long War and plain EW
+        alike (copy it for more).</li>
+      <li><b class="ui">Triggers and scripts</b>: the map's triggers, which the editor doesn't show: the touch volumes
+        that set animals going or play a narration (a crashed UFO's "entering the ship"), the water volumes that make
+        units wade, and the spots that speak when a soldier sees them (a UFO's power core, an alien base's rooms). The
+        Build takes them out and switches off what they would start. The landing's intro script and the background
+        sound stay, and so does what a few special maps' scripts do at a moment of the battle (an alien base's closing
+        narration). A mission's own streamed objects keep theirs.</li>
+    </ul></li>
+  <li><b>A part already cleared</b> says so (<b class="ui">Cleared</b>) and counts only what stands since: clear it
+    again to take that too. A part with nothing to take says none. The window then opens with the parts not yet
+    cleared ticked.</li>
+  <li><b>Notes under the ticks</b> say what a clear in part leaves that may surprise: the landing zones, the lights or
+    the smoke and sounds of a map whose pieces go, or the pods a plain EW map keeps where the floor was.</li>
+  <li><b class="ui">Keep the scenery outside the play area</b> leaves, of each part the clear takes, what stands
+    wholly outside it: the buildings, trees and fences the map is seen against, and the lights, smoke, stains, sounds
+    and triggers placed out there. Here the play area is the map's own, and the new grid where it reaches further, so
+    pieces the new grid brings into play still go. So does a piece across the edge. The counts follow the tick, which
+    is remembered.</li>
+  <li><b>The clear is one undo step.</b> <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings back everything it took, the size too.
+    What your project had added of a part goes with it: pieces with their groups and buildings, lights, effects.</li>
+  <li><b>With the pieces cleared</b>, <a href="#mapgrid">Map grid</a> can also make the grid smaller and lower (the
+    clear keeps the grid's size; change it before or after), and the Build takes out the map's own floor storeys and
+    gives the new grid storeys of its own.</li>
+  <li><b>Long War's patch levels go with the pieces.</b> Long War streams a patch level or two into most maps: pieces,
+    lights and a script that fixes up the old map as it loads. A build whose pieces are cleared streams none of them,
+    so nothing of them acts on yours, and the editor stops showing their pieces, lights and spawn points. The no-spawn
+    volumes and Meld points some of them carry go too. A mission's own streamed objects stay.</li>
+  <li><b>Then it asks "What is this map for?"</b> when the pieces go: the <a href="#missions">Missions</a> window, with
+    the header's mission ticked if it is an abduction, a terror site or a bomb, else an abduction. A base mission with
+    objects of its own (a bomb, a data recovery) keeps them where the original map has them until you move them.</li>
 </ul>
 <h4>The ground grid</h4>
 <p>A faint grid on the ground's plane (the height the landing zones stand at), drawn only where there is no floor.

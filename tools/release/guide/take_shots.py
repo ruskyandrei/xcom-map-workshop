@@ -1183,12 +1183,12 @@ class Shots:
         page.keyboard.press('Escape')
 
     def clear_map(self):
-        """The Clear map window on the Bar, with its counts. Cancelled: nothing is cleared."""
+        """The Clear map window on the Bar: its parts ticked with their counts. Cancelled: nothing is cleared."""
         page = self.page
         page.evaluate('viewer.select(null)')
         page.evaluate("document.getElementById('projectClear').click()")
         page.wait_for_selector('#clearMap:not([hidden])')
-        page.wait_for_function("document.getElementById('clearMapPlan').textContent.trim() !== ''")
+        page.wait_for_function("document.querySelector('#clearMapParts .tickval').textContent.trim() !== ''")
         page.wait_for_timeout(400)
         self.shot('clear-map', clip=self.around('#clearMapForm', pad=(12, 12, 12, 12)))
         page.locator('#clearMapCancel').click()
