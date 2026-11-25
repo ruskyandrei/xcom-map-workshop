@@ -374,7 +374,7 @@ def compile_stage(project, scene, library, ids, donors):
     ground = ((scene.get('tileGrid') or {}).get('origin') or [0, 0, 0])[2]
     top = project['stage']['grid'][2] * LEVEL_HEIGHT
     # (a rotation rounded to whole rotation units, a 65,536th of a turn, is said nowhere: it changes nothing in the
-    # game; the compiler's notes aren't listed either, only its warnings: the user, 14 November 2026)
+    # game; the compiler's notes aren't listed either, only its warnings: 14 November 2026)
     for entity in report['entities']:
         # what the map saves per tile for a piece of a grid family or a cover block needs its tile in the grid: only
         # the rest may stick out into the allowance (prefab plan 5.6b)

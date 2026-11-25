@@ -1,13 +1,13 @@
 # EXP-61: a statue with every flag off (Act1_IntroLevel)
 
-Date: 16 November 2026. A piece flags plan probe (P7, run 1's cases A and B on another map: the user's "ethereal"
-piece, edited where it stands), played by the user: a visible, colliding statue with all its flags turned off,
+Date: 16 November 2026. A piece flags plan probe (P7, run 1's cases A and B on another map: the "ethereal"
+piece, edited where it stands), played by hand: a visible, colliding statue with all its flags turned off,
 which no run had tried before ([F-114](../findings-register.md): "walking off on a visible, colliding piece is not
 played").
 
 ## The build (offline)
 
-The user's project `intro+` (Act1_IntroLevel, revision 9, in the editor's project store), a quick build from branch
+The project `intro+` (Act1_IntroLevel, revision 9, in the editor's project store), a quick build from branch
 `piece-flags` (`Act1_IntroLe_Intro_5001-20261116-151931`, the variant's SHA-256 starting `b63e84fab52c`). Besides its
 other edits (one piece moved, two added, one deleted), two of the map's pieces, where they stand, one on the other:
 
@@ -24,8 +24,8 @@ along, levels 1 to 8 over the ground's own: 153 seeded, 130 already marked).
 
 ## Run 1
 
-**Passed** (16 November 2026, played by the user): "I toggled all flags off for a statue, and it correctly became
-fully no-clip, soldier could walk through and cursor did not select it".
+**Passed** (16 November 2026, played by hand): with all flags off, the statue became fully no-clip; a soldier could
+walk through it and the cursor did not select it.
 
 What it shows: with walking, cover, sight and floor off, a soldier walks through the statue and its plinth, which
 are still drawn; with the mouse off, the cursor passes them. So Blocks walking off frees the tiles of a visible,

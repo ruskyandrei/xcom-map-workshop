@@ -24,7 +24,7 @@ sits on the commit it was built from, so main is pushed before the release is cr
 - **The notes say what is true.**
   - Check each "works" or "fixed" claim against its source: the experiment notes, the findings register,
     and [missions.py](../../../tools/viewer/missions.py)'s `KINDS` states.
-  - Call nothing untried or not played: what ships is usable, tried or not (the user, 16 November 2026). Known
+  - Call nothing untried or not played: what ships is usable, tried or not (16 November 2026). Known
     problems are said as what happens in the game.
 - Keep each file's line endings (`.gitattributes`: `* -text`). The notes, guide and README use LF.
 - The repository is public: the notes, the ledger and the commit hold no name, account or folder of one computer
@@ -114,8 +114,8 @@ sits on the commit it was built from, so main is pushed before the release is cr
     - Both `https://github.com/ruskyandrei/xcom-map-workshop/releases/latest/download/<file>` links must answer 200 to
       `curl -s -o /dev/null -L -w "%{http_code}"`.
     - The published notes (`--json body --jq .body`) must equal the file. Allow for one trailing blank line.
-12. **Ledger, commit, push.** Add a "### Release <version> published" entry: the go-ahead in the user's words, the
-    link, and what step 11 found. Commit it and push main.
+12. **Ledger, commit, push.** Add a "### Release <version> published" entry: the link and what step 11 found. The
+    repository is public: the entry quotes no one and records no one's go-ahead. Commit it and push main.
 13. **The Discord summary.** End the reply with it, in a fenced code block so it copies as is (template below).
 
 ## The Discord summary

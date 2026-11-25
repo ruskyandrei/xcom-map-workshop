@@ -1,7 +1,5 @@
 ### Release 0.7.2 published
 
-On the user's word ("go ahead and push too"), after the notes were shown in full.
-
 - Main pushed (`cd2c91c`, the commit the release was built from), then the release created on it:
   <https://github.com/ruskyandrei/xcom-map-workshop/releases/tag/v0.7.2>, marked latest.
 - Checked: both files' sizes and SHA-256 digests on GitHub equal the local ones (70,376,278 and 109,448,167 bytes);

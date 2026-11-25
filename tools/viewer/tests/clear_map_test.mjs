@@ -50,7 +50,7 @@ assert.ok(validStage({ grid: [20, 30, 4] }));
 assert.ok(!validStage({ grid: [0, 30, 4] }));
 assert.ok(validStage({ grid: [20, 30, 30] }));
 assert.ok(!validStage({ grid: [20, 30, 31] }));
-// up to 256 tiles a side (the user, 16 November 2026; 128 before)
+// up to 256 tiles a side (16 November 2026; 128 before)
 assert.deepEqual(stageMax(), [256, 256, 30]);
 assert.ok(validStage({ grid: [256, 256] }) && !validStage({ grid: [257, 39] }));
 assert.ok(validStage({ grid: [45, 256] }, [45, 203, 15]) && !validStage({ grid: [45, 257] }, [45, 203, 15]));   // TempleShip
@@ -165,7 +165,7 @@ assert.equal(draggedHeight(64, 0, null), 64);
 assert.equal(draggedHeight(48, 0, 0), 64);          // the tutorial's old zone, 16 under the grid
 assert.equal(draggedHeight(48, 64, 0), 128);        // (its first move puts it on a level)
 assert.equal(draggedHeight(63.5, 0, 0), 63.5);      // a unit's slack under the bottom
-// The zone gizmo's steps follow the snap setting (the user, 21 November): smooth with snap off, 24 on fine, whole
+// The zone gizmo's steps follow the snap setting (21 November): smooth with snap off, 24 on fine, whole
 // tiles across and storeys up on tile
 assert.deepEqual(steppedMove([37.3, -50.2, 10.7], 'off'), [37.3, -50.2, 10.7]);
 assert.deepEqual(steppedMove([37.3, -50.2, 10.7], 'fine'), [48, -48, 0]);

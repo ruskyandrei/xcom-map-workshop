@@ -4,7 +4,7 @@
 // view's switches and the Lights view's Area lights and reach outlines as they now are (lightButton). Each view's own
 // switch (setLightsShown, setVolumesShown and the others) is its module's.
 //
-// The views' place (the user's choice of 23 November 2026, design A with design C's switches; UI-GUIDELINES.md section
+// The views' place (chosen 23 November 2026, design A with design C's switches; UI-GUIDELINES.md section
 // 2): one Views button on the rail, showing the icon of the view that is on, and its list, a row for each view with its
 // key and, under the row of the view that is on, that view's switches. VIEWS is the one table of them: the list's on
 // marks, the button's icon and words and the views' keys (viewByKey, navigation.js) come from it.
@@ -88,7 +88,7 @@ export function createViews({ $, gizmo, refreshLightShapes, refreshLightVisibili
   const fly = $('viewsFly');
   function pin(on) { fly.classList.toggle('pinned', on); $('viewsButton').setAttribute('aria-expanded', String(on)); if (on) placeList(); }
   $('viewsButton').onclick = () => pin(!fly.classList.contains('pinned'));
-  // The list stands beside its button, as the Build menu stands beside Add (the user, 24 November 2026); where it would
+  // The list stands beside its button, as the Build menu stands beside Add (24 November 2026); where it would
   // run past the window's foot it is lifted, as far as the window's top. Measured as it shows (hidden, it has no size).
   function placeList() {
     const list = $('viewsFlyout');

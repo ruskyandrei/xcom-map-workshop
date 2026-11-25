@@ -1,8 +1,8 @@
 # EXP-28: fracturing pieces and physics props made in the map
 
-Date: 9 November 2026. Branch `fracturing-physics`. The user had both families switched on for every project before
-any game run of them ("let's get fracturing and physics enabled"), as with lights after EXP-26 run 1, so that issues
-are fixed as they are found. This note holds the run that is still to play.
+Date: 9 November 2026. Branch `fracturing-physics`. Both families were switched on for every project before any game
+run of them, as with lights after EXP-26 run 1, so that issues are fixed as they are found. This note holds the run
+that is still to play.
 
 ## Question
 
@@ -73,13 +73,13 @@ Project: [`exp28_projects.py`](../../tools/editor/examples/exp28_projects.py), "
   the wall copy (`EXP-28-run1-wall.png`), inside (`EXP-28-run1-inside.png`), upstairs (`EXP-28-run1-upstairs.png`) and
   the corpses (`EXP-28-run1-corpses.png`).
 
-Installed in the lab's test slot at the user's word (9 November, 20:54; the full build; deploy record
+Installed in the lab's test slot (9 November, 20:54; the full build; deploy record
 `URB_Bar_Exp28Frac_28e0-20261109-205413.json`), with the lab copy switched in (`switch_install.ps1 lab`): the first
 mission of a new campaign in the lab copy. The slot streams the variant's own landing intro, `patch_bar` and
 `patch_hide_randomized_objects`; none of `patch_bar`'s 17 pieces stands at any of the edited places. `switch_install.ps1
 lwr` puts the LWR install back for normal play.
 
-**In the game** (the user drives; F9 for a shot; the lab copy; a fresh mission). What is new, by mark:
+**In the game** (played by hand; F9 for a shot; the lab copy; a fresh mission). What is new, by mark:
 1. The wall copy: a soldier beside it has full cover and sees nothing through it; nobody walks through it. A grenade
    or rocket on it breaks the columns it reaches, and the rest stands.
    - a, b: each door opens. Blow up the wall round one: the door and its frame go with it.
@@ -96,13 +96,13 @@ lwr` puts the LWR install back for normal play.
 - The log, afterwards: no `CachedFrag`, `REBUILD PATHING!`, `Not Found … Recreating actor` or `Accessed None` lines
   naming a copy.
 
-**Result (9 November, the user's run, 20:56 to 20:59):** "all seemed ok except": no walking through where the cross
-wall was deleted (the user: "I think that's ok since other items probably had collision?"), and "I couldn't teleport
-a soldier on the floor strip". One screenshot, from the kitchen looking across the deleted wall's line at the bar.
+**Result (9 November, run by hand, 20:56 to 20:59):** all seemed fine except two things: no walking through where
+the cross wall was deleted (probably because other pieces there have collision), and no soldier could be teleported
+onto the floor strip. One screenshot, from the kitchen looking across the deleted wall's line at the bar.
 Both were read afterwards out of the run's save (`save17`, made at 179 s) with the new
 [`save_tiles.py`](../../tools/lab/save_tiles.py), which prints the game's tile flags beside the map's baked ones.
 
-- **Mark 3, the deleted wall: gone, and the line is blocked by what stood against it.** The user's guess is right.
+- **Mark 3, the deleted wall: gone, and the line is blocked by what stood against it.** That guess is right.
   - The wall never loads: the log names neither it nor the other three hidden pieces. In the screenshot the kitchen
     and the bar are one room; the grey panels are the plain backs of the liquor shelves that stood against the wall.
   - The save: the kitchen-side tiles the wall alone occupied are free after the rebuild, (17, 30) and (17, 31) at
@@ -122,7 +122,7 @@ Both were read afterwards out of the run's save (`save17`, made at 179 s) with t
   - Not known: whether the cursor lands on the four floored tiles, the end nearest the island counter (x -960 to
     -576). Indoors the mouse cursor takes a surface above the ground only on the floor asked for (mouse wheel up one
     floor: research/native/mouse-cursor.md), which the instructions for this mark didn't say.
-- **The rest passed** by the user's word. What the log adds:
+- **The rest passed.** What the log adds:
   - an explosion at 124.5 s damaged the wall copy and with it the door copy `XComInteractiveLevelActor_27` and its
     frame `XComDestructibleActor_528` (`DestructibleActorClear`: the wall's columns took their door along,
     question 2), and the bar's own front facade behind it;
@@ -132,7 +132,7 @@ Both were read afterwards out of the run's save (`save17`, made at 179 s) with t
   - no `CachedFrag` or `REBUILD PATHING!` line; 59 `WorldData: Restarting work queue` lines, 2,407 tiles at load.
 - **Corpses (question 7):** the map's corpses do show in the game, as green fogged bodies (two are in the screenshot,
   `KAsset_10` in the kitchen and `KAsset_9` behind the back bar), and the log checks both copies, `KAsset_14` and
-  `KAsset_15`, at each load. The user's "all seemed ok" covers marks 5a to 5c without detail.
+  `KAsset_15`, at each load. The run's verdict covers marks 5a to 5c without detail.
 - Found on the way, fixed offline: a fractured mesh component saves its fragments' lowest and highest world height
   (`FragmentBoundsMinZ`, `FragmentBoundsMaxZ`), which a copy moved up or down kept from its original. This run's
   copies stand at their originals' heights, so it didn't touch them (`native_copy.shift_fragment_heights`).

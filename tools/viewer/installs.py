@@ -1615,7 +1615,7 @@ def mission_warnings(missions, base, mode, lwr=True, kept=()):
     makes an extra bomb mission of each extra bomb record. A replacing variant's first-mission record (in rotation, but
     asked for by name too: F-117) takes the original's name, so the variant plays a new campaign's first mission.
     kept: the missions of the base map's records the variant has no record for (rotation_plan's kept), which a
-    replacing variant leaves to the original (F-118). Nothing here says a mission is untried (the user, 16 November
+    replacing variant leaves to the original (F-118). Nothing here says a mission is untried (16 November
     2026)."""
     named = [x for x in missions if not x['inRotation']]
     out = []

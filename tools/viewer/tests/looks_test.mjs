@@ -101,7 +101,7 @@ assert.deepEqual([door.z0, openingEdges(tall, door).bottom], [8, false]);
 assert.ok(openingEdges(tall, { ...door, z0: -16 }).bottom);
 assert.equal(withOpening(one, 'doorway').wall.openings[0].z0, 8);
 // a look of another bottom: a gap cut to the old bottom is cut to the new one, none starts below it, the rest stay
-// (the user, 19 November 2026: a doorway from a look whose bottom is -16 kept it in one whose bottom is 0)
+// (19 November 2026: a doorway from a look whose bottom is -16 kept it in one whose bottom is 0)
 const gaps = { ...tall, openings: [{ x0: 0, x1: 96, z0: -16, z1: 160 }, { x0: 192, x1: 288, z0: 64, z1: 160 }] };
 const moved = openingsInLook(gaps, { ...gaps, look: one.look });
 assert.deepEqual(moved.openings.map(o => o.z0), [0, 64]);

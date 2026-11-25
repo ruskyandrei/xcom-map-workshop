@@ -1,7 +1,7 @@
 # EXP-59: cover blocks smaller than a tile
 
 Date: 15 November 2026. The editor's cover blocks now size in units with handles in the view
-(cover-block-handles-plan.md, at the user's ask). This experiment plays
+(cover-block-handles-plan.md). This experiment plays
 what the game makes of blocks smaller than a tile, which so far is read from its code only. If B acts as a wall, it
 is also Discord feedback S8, an invisible cover wall (the Discord feedback list, kept locally).
 
@@ -61,16 +61,15 @@ What the run adds over the offline checks (west of a place is screen right in th
 
 ## Result
 
-**Run 1 passed** (15 November 2026, played by the user). The user: "checked it works fine", and on being asked
-whether that meant the game too: "Both and B did hold as a wall (albeit one you could see and shoot through though i
-guess that's intended)". So the six places did what the panel says, B among them: units stood on both sides of the
+**Run 1 passed** (15 November 2026, played by hand), in the editor and the game, and B held as a wall, though
+units could see and shoot through it. So the six places did what the panel says, B among them: units stood on both sides of the
 8-unit wall and couldn't cross between the two tiles. Discord S8 (an invisible cover wall) is done by it
 ([F-113](../findings-register.md)).
 
-Open: **sight across B.** The user could see and shoot across it. Two readings, not told apart by this run:
+Open: **sight across B.** Units could see and shoot across it. Two readings, not told apart by this run:
 - **Leaning round its ends** (most likely). B is one tile long, and a unit beside a wall with high cover toward it
   steps out to either side ([line-of-sight.md](../native/line-of-sight.md), section 3), so it sees and shoots past
-  the wall's ends, as past any short wall or a single high crate. The user's soldier was up against it, and no
+  the wall's ends, as past any short wall or a single high crate. The soldier in the run was up against it, and no
   longer high block was tried for sight.
 - **A hidden high block doesn't stop sight at eye level.** The high recipe saves no `VisibilityBlockingData` (the
   class default, which blocks), and the game reads sight from the eye tiles' bits, one level above the floor

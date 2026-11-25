@@ -1,6 +1,6 @@
 // The cutaway, the tile grid and the Floor tiles overlay (refactor stage P8; first-editor plan, section 2). Here:
 // - the cutaway (cutaway): which pieces are drawn, and how each is cut, by the Floor picker (every building at once:
-//   the user's choice, 7 November), Interior's planes, the streams of the mission shown, Hide patch helpers, the clear
+//   chosen 7 November), Interior's planes, the streams of the mission shown, Hide patch helpers, the clear
 //   and the landing a moved zone takes along; the status line's count;
 // - the tile grid round the selection or the piece being placed (tileTargets, updateTileGrid);
 // - View options' Floor tiles: the map's saved floor tiles coloured by the piece that carries each (drawFloorTiles),
@@ -34,7 +34,7 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
   function cutaway() {
     touchShadows();
     cutKey = editedKey();
-    // The floor cut applies to every building at once (the user's choice, 7 November: no building list).
+    // The floor cut applies to every building at once (chosen 7 November: no building list).
     const requested = $('floor').value ?? 'all';
     const interior=$('scenery').value==='interior';
     const allFloors = $('floor').querySelector('[data-value=all]');

@@ -12,13 +12,13 @@ This file is the record for EXP-02 in the investigation plan.
 
 | Item | Value |
 |---|---|
-| Reference UDK | `<lab>\reference\UDK-2011-09`: a robocopy of the user's fresh UDK install, never launched before the setup |
+| Reference UDK | `<lab>\reference\UDK-2011-09`: a robocopy of the fresh UDK install, never launched before the setup |
 | Untouched copy | `<lab>\snapshots\UDK-2011-09-pristine` |
 | Uncooker | v1.1.0 release, `<lab>\tools\xcom-uncooker-v1.1.0` (SHA-256 in `<lab>\downloads\SHA256SUMS.txt`). Needs .NET 8, which is installed (8.0.26). |
 | Input | `<lab>\uncooker-input\CookedPCConsole`: a robocopy of the lab copy's `XEW\XComGame\CookedPCConsole` (5,073 files, 7.61 GB). The game installs are never read by the Uncooker. |
 | Output | `<lab>\reference\UDK-2011-09\UDKGame\Content` |
 
-### UDK setup installer (run by the user, 18:40)
+### UDK setup installer (run by hand, 18:40)
 
 `xcom-uncooker-udk-setup.exe` is an Inno Setup wizard. Its [script](https://github.com/chrishayesmu/XCOM-Uncooker/blob/v1.1.0/InnoSetup/create-installer.iss) has no licence page. It can't run silently, because the UDK folder is chosen on a custom page.
 
@@ -113,7 +113,7 @@ All with `tools\lab\udk_editor_try.ps1 -Udk <lab>\reference\UDK-2011-09 -Bits Wi
 | `URB_CemeteryGrand_Bomb` (bomb stream) | 7 s | 0 critical; the same 6 failed loads; 0 material failures | **Mission structure is intact.** Kismet includes 178 `SeqVar_Named`, 87 `SeqCond_CompareBool`, 36 `SeqEvent_RemoteEvent`, 16 `SequenceFrame`, 15 `SeqAct_ShowWaypoint`, 10 `SeqAct_SpawnAlien` and 10 `SeqAct_ActivateNarrative`. Also 20 `TriggerVolume`, 11 `XComRebuildWorldDataVolume`, 10 `XComSpawnPoint_Alien` and 11 `XComInteractiveLevelActor`. |
 
 - **Mission streams available:** the converted maps include 8 `*_Terror` streams, 1 `*_Rescue` and 1 `*_Bomb`. `URB_Bar` has `URB_Bar_Terror` (37 MB).
-- **Firewall prompt.** The first editor launch raised a Windows Firewall prompt for `udk.exe`. The editor needs no network access; the user was asked to choose Cancel.
+- **Firewall prompt.** The first editor launch raised a Windows Firewall prompt for `udk.exe`. The editor needs no network access; the prompt is answered with Cancel.
 
 ## Next (plan steps 3–5)
 

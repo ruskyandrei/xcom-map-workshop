@@ -70,8 +70,8 @@ baked), LWR's pods (the grid is 36 by 36).
 
 ## Result: passed
 
-Played by the user on 11 November 2026, in the lab copy: "look good, even tried a grenade and the walls were
-destroyed correctly". The hut behaves as a building of the game's: the roof and the walls did what the list above
+Played by hand on 11 November 2026, in the lab copy: good, and a grenade destroyed the walls correctly.
+The hut behaves as a building of the game's: the roof and the walls did what the list above
 asks, and a grenade broke the walls as it breaks them on their home map. So a building volume and floor volumes
 stretched by `DrawScale3D` work, and a building volume that is just the union of its floors is enough for a hut.
 

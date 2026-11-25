@@ -1,13 +1,13 @@
 # EXP-60: Temple Ship's arches with Mouse picks it on
 
-Date: 16 November 2026. The piece flags plan's first in-game probe (P7, its run 2: the Temple Ship), played by the
-user: the editor's **Mouse picks it** flag turned on for pieces Firaxis saved it off on, so the mouse can send a
+Date: 16 November 2026. The piece flags plan's first in-game probe (P7, its run 2: the Temple Ship), played by
+hand: the editor's **Mouse picks it** flag turned on for pieces Firaxis saved it off on, so the mouse can send a
 soldier onto them. It is F-102's fix made through the editor's Flags instead of
 `tools/upk/cursor_pick.py` (retired after this run), and the first play of any flag ([F-114](../findings-register.md)).
 
 ## The build (offline)
 
-The user's project `temple_improved` (TempleShip, revision 17, in the editor's project store), a quick build from
+The project `temple_improved` (TempleShip, revision 17, in the editor's project store), a quick build from
 branch `piece-flags` (`TempleShip_TempleIm_2001-20261116-152422`, the variant's SHA-256 starting `5d4f061056de`). Besides
 its other edits (33 pieces added, 7 deleted), it turns Mouse picks it on for 68 of the map's level actors, nothing
 else of their flags changed:
@@ -25,10 +25,9 @@ map's export (export 27) has 1,315 components with the mouse off; the project tu
 
 ## Run 1
 
-**Passed for what it shows** (16 November 2026, played by the user): "tested the temple arches with mouse picking on
-and they seem to work well".
+**Passed for what it shows** (16 November 2026, played by hand): the temple arches with mouse picking on work well.
 
-The user's shot (`EXP-60-arch-top.webp`) shows a soldier standing on top of an arch, with the move path running along
+The run's shot (`EXP-60-arch-top.webp`) shows a soldier standing on top of an arch, with the move path running along
 the arch's top to the cursor's box at its far end, and the move's area outlined on the arch's top. So the cursor lands on an arch with the flag on, and a soldier can be sent onto it and along it,
 which the map as shipped doesn't allow (F-102: the pick skips the arches and lands on what is under them).
 
@@ -40,5 +39,5 @@ Against the plan's list for this run, not told by run 1:
 - **The cursor's height on the arches' curves**, and an arch cut away by the camera.
 
 What it decides: the mouse checkbox works on the arches in the game, which is the condition the plan sets for
-retiring `cursor_pick.py` (P8). The user retired it the same day; the floor-under-an-arch case is left to note if it
+retiring `cursor_pick.py` (P8). It was retired the same day; the floor-under-an-arch case is left to note if it
 shows up in play.

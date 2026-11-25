@@ -63,8 +63,7 @@ A play would have to open the battle after the start screen's login, with nothin
 
 ## Result
 
-**Run 1 passed, 15 November 11:57** (the lab copy's `Launch.log` of 11:57:49; the user: "did all that and it
-worked"). An abduction on URB_OfficePaper_EWI:
+**Run 1 passed, 15 November 11:57** (the lab copy's `Launch.log` of 11:57:49). An abduction on URB_OfficePaper_EWI:
 - 3.3 s the play's battle opened; 8.7 s Exit to Main Menu (`Browse: XComShell?closed`), and the login ran
   ("Obtained steam user stats" at 9.5 s).
 - 15.0 s `Execing ..\..\Binaries\XComMapWorkshop-play.txt` from the console, and the same battle opened again.
@@ -73,7 +72,7 @@ worked"). An abduction on URB_OfficePaper_EWI:
   takes the highest number plus one (F-89's open naming question, answered). The file is whole: its compressed data
   at byte 1024, 697,656 bytes.
 - 29.1 s Load of that save (`LoadingFromShell=1 ... LoadingSave`): the level came up (`Finished loading level`) and
-  the battle came back. The user closed the game at 33.8 s.
+  the battle came back. The game was closed at 33.8 s.
 - Once the game had closed, the editor moved save21 to save999 (a whole play save) and had set the 10:45 play's
   broken save999 aside before the play (`XCOM Map Workshop\broken saves\20261115-115747-1-save999`).
 
@@ -87,11 +86,11 @@ The tries before it:
 `Launch.log`): two plays, EWI_ExaltHQAssault and an abduction on URB_SlaughterhouseA (`?Meld=1`). Each log has the
 start screen's `Browse: XComShell` once and then the battle's, and no second start screen: the battle was not left
 for the main menu, so the steps from 2 on were not done. In the abduction the save was tried from the battle (both
-checkpoints copied, `General Checkpoint Async Work Finished` at 19.4 s) and the game was closed at 30 s. The user:
-still stuck on saving, and loading doesn't work. That is F-89 as recorded, and says nothing of the login. The user
-also asked that a play's save never take a campaign's slot: the editor now moves a play's saves to save999 and down
-once the game closes and puts back a save they replaced (F-89, "Until fixed"). The user then said they had gone to the
-main menu to save. The game writes its log as it goes, and a trip to the title screen shows in it (12 November's run on
+checkpoints copied, `General Checkpoint Async Work Finished` at 19.4 s) and the game was closed at 30 s. Saving was
+still stuck, and loading didn't work. That is F-89 as recorded, and says nothing of the login. A play's save is never
+to take a campaign's slot: the editor now moves a play's saves to save999 and down once the game closes and puts back
+a save they replaced (F-89, "Until fixed"). The save was then said to have been made from the main menu. The game
+writes its log as it goes, and a trip to the title screen shows in it (12 November's run on
 the prefab stage: `Browse: XComShell?closed` at 53 s, then the login's "Obtained steam user stats"); neither of these
 two logs has one, nor a second `Execing` of the commands file. Most likely the pause menu was meant.
 
@@ -99,8 +98,8 @@ two logs has one, nor a second `Execing` of the commands file. Most likely the p
 URB_OfficePaper_EWI (abduction), the battle opened at 3.4 s; Exit to Main Menu at 13.9 s, and the login ran (14.1 to
 14.6 s: "Using cached profile data instead of reading", "Obtained steam user stats"). At 15.6 s the load screen read
 the save list, and at 17.5 s the old Slaughterhouse save loaded from it (save999: the stuck save the 10:45 play left,
-which the editor had moved out of slot 1). The map started loading and the game crashed 5 seconds in. The user: it
-crashed on load. No `exec` of the commands file and no save after the login, so steps 3 and 4 were not done.
+which the editor had moved out of slot 1). The map started loading and the game crashed 5 seconds in.
+No `exec` of the commands file and no save after the login, so steps 3 and 4 were not done.
 - What it shows: after the login the load screen lists the saves and a load starts (before it, a load from the
   battle's menu hung with nothing logged, EXP-43). The crash is that file's: a divide by zero in the compressed-data
   reader, on a file that is 670 copies of the save header and then the data (F-89, "The save a play leaves is

@@ -1,7 +1,7 @@
 # EXP-45: a tower of three storeys and a roof, every deck walked on
 
 Date: 11 November 2026. Stage B2 of the prefabs and buildings plan: a building of
-several storeys made from nothing, at the user's ask "a three storey building + roof and allow walking on all".
+several storeys made from nothing: three storeys and a roof, walkable on all of them.
 [EXP-44](EXP-44-hut-building.md) showed that a Build-made building hides its roof and cuts its walls down. This run
 asks what a storey adds: floor a soldier can stand on, a way up, the cursor's floors, and each floor hiding the ones
 above it. The stage is the blank map, 36 by 36 tiles and 768 units (four storeys) high.
@@ -81,7 +81,7 @@ volumes, and how the rebuild makes a ramp from a stair piece has not been read).
 
 ## Result: passed
 
-Played by the user on 11 November 2026: "everything worked as expected". So:
+Played by hand on 11 November 2026: everything worked as expected. So:
 - a plain flat piece from another map (the van roof) is floor after the game's rebuild, on every tile, at three
   heights and on a level's edge exactly;
 - ladders between decks the project adds climb, one above the other;

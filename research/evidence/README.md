@@ -6,7 +6,7 @@ Collected on 3 November 2026. Start with the [consolidated research](<../mission
 - `executable-pattern-audit.json`: an additional read-only check of all four patterns in LWCE's executable patch notes, including offsets. No patch was applied.
 - `upstream/source-manifest.json`: exact public source URLs, repository revisions and local SHA-256 values. The adjacent source files are retained unmodified for research; their original attribution remains intact.
 - `upstream/*-tree.json`: GitHub repository tree snapshots used to locate relevant source files. These are file listings, not complete repository downloads.
-- `forum-and-wiki-notes-2026-11-03.md`: notes from reading the Nexus "R&D XCOM Map Alterations" thread (pages 7–48) and five Nexus wiki pages. These are claims made by the original authors in 2013–2015, not reproduced. The file also covers the August 2026 Reddit thread, read from the user's paste.
+- `forum-and-wiki-notes-2026-11-03.md`: notes from reading the Nexus "R&D XCOM Map Alterations" thread (pages 7–48) and five Nexus wiki pages. These are claims made by the original authors in 2013–2015, not reproduced. The file also covers the August 2026 Reddit thread, read from a paste.
 - `experiment-downloads-2026-11-03.json`: public release metadata checked for the investigation plan, including exact filenames, download sizes, URLs and publisher digests where available. Only metadata was retrieved; the installers/archives were not downloaded or run.
 
 Reproduce the main audit in PowerShell from the project directory:

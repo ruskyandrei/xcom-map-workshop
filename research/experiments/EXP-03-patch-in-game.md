@@ -70,12 +70,12 @@ Screenshots: Steam's F12. After run 1, the lab `Launch.log` should show `Seamles
 | 1b (19:22) | shipped; launcher; console; `ForceMission_URB_Bar` | The forced mission travelled to `Command1` (HQ) |
 | 1c (19:28) | shipped; route 2, `URB_Bar` the only abduction map | The first mission travelled to `Command1` |
 | 1d (19:31) | shipped; route 2 plus a day copy of `URB_Bar` | The first mission travelled to `Command1` |
-| 1e (19:46) | shipped; route 3 | `URB_Bar` loaded and `patch_bar` streamed (`IncrementHistory: (0) URB_Bar, URB_Bar, URB_CommercialAlley_EWI (Commercial Alley Redux) |0`, then `SeamlessTravel: loaded additional map patch_bar`). Crashed when the user saved, before the checks |
-| 1 (19:58–20:15) | shipped; route 3; hypervisor off, save **Classic Game 3 … Operation Fatal Moon** on landing | **A:** the path preview from the soldier to the roof at (−1393, 335, 466) climbs the ladder at about (−1656, 336), where `XComLadder_11` sits. **B:** next to the dumpster at (−2688, −1344), cursor (−2641, −1201, 64), tile (1, 7, 1) shows full shields (high cover). **A2:** the path preview to the roof at (431, 1007, 466), tile (33, 30, 7), climbs the ladder at about (436, 1276), where `XComLadder_15` sits. Screenshots from the user. |
+| 1e (19:46) | shipped; route 3 | `URB_Bar` loaded and `patch_bar` streamed (`IncrementHistory: (0) URB_Bar, URB_Bar, URB_CommercialAlley_EWI (Commercial Alley Redux) |0`, then `SeamlessTravel: loaded additional map patch_bar`). Crashed on saving, before the checks |
+| 1 (19:58–20:15) | shipped; route 3; hypervisor off, save **Classic Game 3 … Operation Fatal Moon** on landing | **A:** the path preview from the soldier to the roof at (−1393, 335, 466) climbs the ladder at about (−1656, 336), where `XComLadder_11` sits. **B:** next to the dumpster at (−2688, −1344), cursor (−2641, −1201, 64), tile (1, 7, 1) shows full shields (high cover). **A2:** the path preview to the roof at (431, 1007, 466), tile (33, 30, 7), climbs the ladder at about (436, 1276), where `XComLadder_15` sits. Played by hand, with screenshots. |
 | 2a (20:10–20:13) | rebuilt (EXP-01 PC cook), **loaded from the run 1 save, so not valid** ([below](#tactical-saves-carry-the-world-data)) | Same as run 1. **A** and **A2:** both path previews, from the same cursor spots, climb the ladders. **B:** full shields at tile (1, 7, 1). Two were red this time: `XComActionIconManager.IsLocationFlanked` marks cover that a living enemy in firing range flanks, which depends on where the aliens stand, not on the patch. The shield shape (`Game_CoverHigh` vs `Game_CoverLow`) is the cover height. |
 | 3a (20:14–20:20) | none, **loaded from the run 1 save, so not valid** | Same as run 1: both ladders climb, full shields at the dumpster. `patch_bar` was in the travel URL (`StreamingMap1=patch_bar`), but nothing streamed it and no error was logged. |
 | 3b (20:19 and 20:25) | no file, new campaign | **Crash while loading.** The fresh load requests the entry's streaming maps, and a missing one is fatal: `appError called: Couldn't find file for package patch_bar requested by async loading code` (dumps `unreal-v8917-2026.11.03-20.18.46.dmp` and `…20.23.17.dmp`). The save load in 3a skipped it silently. So "no file" is no control for a fresh load. |
-| 3c (20:30–20:50) | file shipped, but `patch_bar` removed from the EXP03 entry's `StreamingMaps` (backup of the route 3 file: `<lab>\snapshots\exp03\DefaultMaps.ini.route3`), new campaign. The log shows only `CIN_DropshipIntros` and `patch_hide_randomized_objects` streamed. | **A:** with a soldier at the foot of the ladder, the user put the cursor on the roof at (−1393, 431, 466), tile (14, 24, 7), and the path climbs the ladder. **A2:** checked by Claude with `GameDriver` (`ViewLocation`, `TeleportToCursor`, floor keys V/B, zoom G). With the soldier at the foot, (431, 1295, 80), roof tile (32, 30, 7) reports `PathActionEmpty: False`, and the path line runs up the ladder. **So both ladders climb without the patch.** After `TeleportToCursor`, the unit's paths stay stale until it is reselected (the user tabbed to another soldier and back). The first "no route" at (33, 30, 7) came from that, not from the map. **B:** a soldier, standing by the left dumpster at (−2688, −1344), shows the full-shield cover icon on his unit flag. Hovering (−2353, −1201), tile (4, 7, 1), by the right dumpster shows full-height shields. **So both dumpsters give high cover without the patch.** |
+| 3c (20:30–20:50) | file shipped, but `patch_bar` removed from the EXP03 entry's `StreamingMaps` (backup of the route 3 file: `<lab>\snapshots\exp03\DefaultMaps.ini.route3`), new campaign. The log shows only `CIN_DropshipIntros` and `patch_hide_randomized_objects` streamed. | **A:** with a soldier at the foot of the ladder, the cursor was put on the roof at (−1393, 431, 466), tile (14, 24, 7), and the path climbs the ladder. **A2:** checked by Claude with `GameDriver` (`ViewLocation`, `TeleportToCursor`, floor keys V/B, zoom G). With the soldier at the foot, (431, 1295, 80), roof tile (32, 30, 7) reports `PathActionEmpty: False`, and the path line runs up the ladder. **So both ladders climb without the patch.** After `TeleportToCursor`, the unit's paths stay stale until it is reselected (fixed by tabbing to another soldier and back). The first "no route" at (33, 30, 7) came from that, not from the map. **B:** a soldier, standing by the left dumpster at (−2688, −1344), shows the full-shield cover icon on his unit flag. Hovering (−2353, −1201), tile (4, 7, 1), by the right dumpster shows full-height shields. **So both dumpsters give high cover without the patch.** |
 
 ### What the control shows
 
@@ -92,7 +92,7 @@ Screenshots: Steam's F12. After run 1, the lab `Launch.log` should show `Seamles
 
 ## Crash on saving: the CEG CPU check and the hypervisor
 
-- **What happened (1e).** The user opened the save screen on landing (the log loads `UILibrary_MapImages_SF`). About 4 s later the game crashed: `Fatal error! Address = 0x0`. Dump `XEW\XComGame\Logs\unreal-v8917-2026.11.03-19.45.59.dmp`; `cdb` output in `<lab>\logs\exp03-crash-1946*.txt` and `exp03-crash-cpuid-data.txt`.
+- **What happened (1e).** The save screen was opened on landing (the log loads `UILibrary_MapImages_SF`). About 4 s later the game crashed: `Fatal error! Address = 0x0`. Dump `XEW\XComGame\Logs\unreal-v8917-2026.11.03-19.45.59.dmp`; `cdb` output in `<lab>\logs\exp03-crash-1946*.txt` and `exp03-crash-cpuid-data.txt`.
 - **Same fault as 1a.** The return address is `0x0d780c7f` in both dumps.
 - **The code at that address is a CEG thunk.** At `0x0d780c50` a stub saves the registers, jumps into a function it has just decrypted (at `0x0d780d70`), and after the return zeroes that function again (`rep stos`) before going back to `XComEW.exe`. That is how Steam's Custom Executable Generation (CEG) runs its protected functions.
 - **The decrypted function is a CPU check.**
@@ -109,14 +109,14 @@ Screenshots: Steam's F12. After run 1, the lab `Launch.log` should show `Seamles
 
 - **The difference is a hypervisor.** `esi = 80200874` at the crash is exactly the OR of those differences. A hypervisor runs on this PC: `HypervisorPresent` is true and VBS status is 2 (running), with Memory Integrity off. The optional features `VirtualMachinePlatform` and `Microsoft-Windows-Subsystem-Linux` are enabled, and `wslservice` and `vmcompute` were running: WSL2 starts it. The stored values are the same CPU without a hypervisor, as it was when Steam generated the exe.
 - **When the check runs.** It runs from a per-frame call in `XComEW.exe` (it takes a float, like `Tick(DeltaTime)`). Both crashes came when the game was saving: 1a at campaign start in HQ, 1e from the save screen. The lab copy has never written a save game; its `SaveData` holds only `profile.bin`.
-  - In 1b the user played a whole first mission and reached HQ without a crash.
+  - In 1b a whole first mission was played and HQ reached without a crash.
   - So the check is tied to saving, or at least isn't constant.
 - **Corrections.**
   - 1a was not caused by direct launch.
   - LWR itself should crash the same way on saving while the hypervisor is on. That's untested: the last LWR save is from 23 February 2026.
 - **Ways round it, none applied:**
   - **No saves during EXP-03.** Route 3 needs none.
-  - **Hypervisor off.** Run `bcdedit /set hypervisorlaunchtype off` from an elevated prompt, then reboot. WSL2 then doesn't work until `bcdedit /set hypervisorlaunchtype auto` and another reboot. This is the user's own system setting.
+  - **Hypervisor off.** Run `bcdedit /set hypervisorlaunchtype off` from an elevated prompt, then reboot. WSL2 then doesn't work until `bcdedit /set hypervisorlaunchtype auto` and another reboot. This is a system-wide setting.
   - **Not used.** Steam's "Verify integrity of game files" might regenerate the exe, but it would also restore every LWR file in the active folder. Editing the stored values would bypass the copy protection; not done.
 - **Shared profile.** Steam itself rewrites `steam_autocloud.vdf` in the shared `SaveData` at each launch (19:45:57). The game's own files there (`profile.bin`, saves) were untouched.
 
@@ -148,7 +148,7 @@ The strategy code was decompiled from copies of the lab's packages with [`tools/
 
 ### 1a: crash on a new campaign with direct launch
 
-- **What happened.** The user started a new campaign in the lab copy, launched directly (`-FROMLAUNCHER -nostartupmovies -nohomedir`, no `-LANGUAGE`) with the console `Engine.upk`. The game crashed about 4 s after HQ (`Command1`) had loaded the starting soldiers, just after the continent was chosen.
+- **What happened.** A new campaign was started in the lab copy, launched directly (`-FROMLAUNCHER -nostartupmovies -nohomedir`, no `-LANGUAGE`) with the console `Engine.upk`. The game crashed about 4 s after HQ (`Command1`) had loaded the starting soldiers, just after the continent was chosen.
   - **Log:** `=== Critical error: === Fatal error! Address = 0x0`.
   - **Dump:** `XEW\XComGame\Logs\unreal-v8917-2026.11.03-19.17.35.dmp`, read offline with WinDbg's `cdb` (x86, no symbol downloads); output in `<lab>\logs\exp03-crash-1917*.txt`.
 - **What the dump shows.** `c0000005`, an attempt to execute address 0. The caller is code at `0x0d780c7f`, outside every loaded module (runtime-unpacked memory); the frame below returns into `XComEW.exe`.
@@ -159,7 +159,7 @@ The strategy code was decompiled from copies of the lab's packages with [`tools/
 
 - **Getting to HQ worked.** No crash on a new campaign: the stub and launcher route, with the console `Engine.upk` and `-nohomedir`, works.
 - **The console works through the launcher**, so the "no `-LANGUAGE`" claim doesn't apply here. The log shows `Ucross Console Command Use: killaliens` (first mission `URB_CommercialAlley_EWI`, which streamed `patch_commercialalley_ewi` and `patch_commercialalley_carflank`) and `Ucross Console Command Use: ForceMission_URB_Bar`.
-- **The forced mission went to HQ.** It appeared in mission control (`MAPFRAME URB_Bar … on UIMissionControl_AbductionSelection_0`). On launch, LWR logged `mission 1 was on 'URB_Bar (Beta/Functionality Complete Urban Bar)', no longer in the map list` and the game did `SeamlessTravel to: Command1`. The user was left on the HQ globe with no UI or sound.
+- **The forced mission went to HQ.** It appeared in mission control (`MAPFRAME URB_Bar … on UIMissionControl_AbductionSelection_0`). On launch, LWR logged `mission 1 was on 'URB_Bar (Beta/Functionality Complete Urban Bar)', no longer in the map list` and the game did `SeamlessTravel to: Command1`. The game was left on the HQ globe with no UI or sound.
 
 ### 1c and 1d: route 2, `URB_Bar` as the only abduction map
 

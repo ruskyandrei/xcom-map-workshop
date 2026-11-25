@@ -292,7 +292,7 @@ def cursor_boxes(p):
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class GrownRealMap(unittest.TestCase):
-    """URB_Bar grown as it is to 60 by 45 tiles and 18 levels (grow_cursors; the user, 13 November 2026): its four
+    """URB_Bar grown as it is to 60 by 45 tiles and 18 levels (grow_cursors; 13 November 2026): its four
     whole-map cursor volumes stretched to the new far sides at their own heights, and two even storeys over the
     whole grid from the top of its own (768) to the new top (1152), floors 5 and 6."""
     @classmethod

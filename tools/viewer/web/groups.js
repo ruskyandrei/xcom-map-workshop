@@ -26,8 +26,8 @@ import { plural } from './dom_words.js';
 import { isStream } from './piece_records.js';
 
 // Groups (research/editor-contracts.md, section 2): pieces the user keeps together, saved in the project. A group
-// selects and moves as one, with linked pieces on or off; Ungroup ends it. There is no unlocking (the user, 11
-// November 2026: "just leave it to group/ungroup"): every group is locked, and a project's `locked` is always true.
+// selects and moves as one, with linked pieces on or off; Ungroup ends it. There is no unlocking (11 November
+// 2026: Group and Ungroup only): every group is locked, and a project's `locked` is always true.
 // breakTogether is for the game: when one of its breakable pieces is damaged or destroyed, the others are too, and
 // its cover blocks go with a destroyed one (the
 // compiler and the copier link them).
@@ -226,7 +226,7 @@ export function createGroups({ $, flashHint, gizmo, goTo, groupables, groupChip,
     }, `Grouped ${inner ? `${plural(inner, 'group')}${units.size > inner ? ` and ${plural(units.size - inner, 'piece')}` : ''}` : plural(units.size, 'piece')}`
        + `${within ? ' inside its group' : ''} · they select and move as one`);
   }
-  // Add to group (the user, 19 November 2026): a selection of one whole group and pieces (lights, buildings) that are in
+  // Add to group (19 November 2026): a selection of one whole group and pieces (lights, buildings) that are in
   // no group puts those in that group, which keeps its options, rather than making a new group of them all. Gives
   // { group, loose (their member keys), records } when the selection is so, else null.
   function groupToAddTo() {

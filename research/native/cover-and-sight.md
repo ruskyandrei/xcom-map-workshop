@@ -1,6 +1,6 @@
 # Cover and line of sight: what the game does, and what the editor can predict
 
-15 November 2026. The user asked whether the editor could show cover and line of sight without a game start. Two
+15 November 2026. The question was whether the editor could show cover and line of sight without a game start. Two
 static reads of the exe copy and the decompiled scripts were made for it the same day, by two agents, each checked
 against the maps' baked data; nothing was run in the game. The full write-ups, with every address and confidence:
 

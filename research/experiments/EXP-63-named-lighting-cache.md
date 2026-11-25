@@ -40,7 +40,7 @@ name checks against the projects, the builds folder and the game install:
 
 ## Run 1 (to do)
 
-The user drives and looks (F9 shots), each variant in its own play (Play in game, with the project open; the build
+Played by hand with F9 shots, each variant in its own play (Play in game, with the project open; the build
 must be of its saved revision):
 1. **OutputNamesLightingTests:** the bar's pool table corner. Expected: no table, and no table shadow on the floor;
    the floor round it lit as the rest of the room, with no black or smeared patch. The pieces further away look as in

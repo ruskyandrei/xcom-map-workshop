@@ -70,8 +70,8 @@ What the run adds over the offline checks (Play in game from the editor, on the 
 
 ## Result
 
-**Run 1 passed** (17 November 2026, played by the user under Long War). The user: "verified in game, almost all of it
-works as expected", the one thing noticed being that after a reload the Skyranger was gone, its shadow left on the
+**Run 1 passed** (17 November 2026, played by hand under Long War). Almost all of it works as expected in game,
+the one thing noticed being that after a reload the Skyranger was gone, its shadow left on the
 ground. That is Long War's own doing, not the build's ([F-120](../findings-register.md), accepted):
 - The lab game's log: on loading the battle, Long War's landing-zone mutator (`XComLZMutator.PostLevelLoaded`) picked
   one of the map's seven landings at random (entry 1, the squad's spawn points round (-1297, -1361)), and its
@@ -85,7 +85,7 @@ ground. That is Long War's own doing, not the build's ([F-120](../findings-regis
   reload): the intro streamed on each new battle, not on the reload, and the mutator destroying the map's grounded
   Skyranger (`XComLevelActor_551`) each time.
 
-What it settles for the editor (the user reported nothing else amiss): effects and sounds moved, turned, copied and
+What it settles for the editor (nothing else showed amiss): effects and sounds moved, turned, copied and
 deleted play as the Build writes them, a copy on its own, a delete stays deleted through cutaways and a save and
 reload, and a floor's list is all the cutaway needs. Not told apart in the report: whether the rats' triggers were
 walked (step 3), and whether the music was heard with only the camera at its copy (step 4's question of where the

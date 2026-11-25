@@ -38,7 +38,7 @@ Picture `EXP-41-run1-carpark.png` (not in the repository): the car park.
 
 ## Run 1: passed
 
-Played by the user on 11 November 2026: "checked exp 41 looks good". Both ways are switched on for every project
+Played by hand on 11 November 2026: passed. Both ways are switched on for every project
 (`compiler.FOREIGN_UNCHECKED` is empty), and the library was scanned again.
 
 What this run added, and nothing else needed checking:

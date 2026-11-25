@@ -20,7 +20,7 @@ for controls, a new style) writes the pattern here in the same commit.
 - **The Snap setting governs every such edit**, as [AGENTS.md](AGENTS.md) says: continuous with Snap off, the chosen
   step with it on, for handles, gizmos and fields alike. The exception is a thing the game keeps per tile, which has
   no place between tiles: a diagonal cover mark, a spawn point and a mission object move by whole tiles and levels
-  whatever Snap says (the user, 23 November 2026). While one is picked the Snap button shows that step (its badge 96,
+  whatever Snap says (23 November 2026). While one is picked the Snap button shows that step (its badge 96,
   its tip saying why), and the user's own setting is back when it is let go; the mark's hint says so while it moves.
 - **Keep the view readable.** Every handle and marker added makes the others harder to see and to click:
   - Only what is picked shows its handles. Nothing unpicked carries controls.

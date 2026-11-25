@@ -1,5 +1,5 @@
-"""Old exports out of the viewer cache (the user, 13 November 2026: "automatically delete them when a new one is
-available").
+"""Old exports out of the viewer cache (13 November 2026: deleted automatically when a new one is
+available).
 
 A map's export is a generation folder, <first 16 hex digits of the package's SHA-256>-v<exporter version>-<scope>,
 with -<suffix> for a later export of the same version published beside one a running server may be serving

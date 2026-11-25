@@ -55,7 +55,7 @@ What the run adds over the offline checks (Play in game from the editor, on the 
 
 ## Result
 
-**Run 1 passed** (17 November 2026, played by the user: "tested in game all looks good"). Every effect played and
+**Run 1 passed** (17 November 2026, played by hand). Every effect played and
 every sound sounded as predicted, and the save and reload changed nothing; nothing odd was reported. So effects and
 ambient sounds brought from other maps play as in their own map: a lit one, one with mesh particles, one whose
 system the map has already, two copies of one, a simple sound with its own cue, a shared cue and a sound whose reach

@@ -857,7 +857,7 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   // can be had.
   function lightingModes() {
     for (const button of $('lighting').querySelectorAll('button')) button.disabled = button.dataset.value !== 'neutral' && !lighting.available;
-    // Neutral light by default: our map lighting is an approximation (the user's choice, 7 November).
+    // Neutral light by default: our map lighting is an approximation (chosen 7 November).
     $('lighting').value = 'neutral';
   }
   // The view lit as the Map lighting mode says, with the lights as edited: app.js's applyLighting once a scene has

@@ -23,7 +23,7 @@ Statuses:
   hold, the mouse puts the cursor in the hold with the wheel on the deck's stop, where the pointer is off the deck's
   edge over the water or on something taller than the deck's floor. The game's pick rule, read from the scripts: the
   water catches nothing, walls are skipped, and a first hit lower than the stop asked is kept. Verified gone on 25
-  November: what the user saw came from the boat's volumes' wrong shapes (F-170); with them boxes, the user's own game
+  November: what was seen came from the boat's volumes' wrong shapes (F-170); with them boxes, a game played by hand
   no longer drops the cursor into the hold. The rule stands as read, not seen to cause it.
 - F-168 (24 November, research for a plan): what the game's picture is made of that the editor doesn't draw, and
   where the game's files hold it: baked lightmaps on two thirds of a map's pieces (the baker's readers decode them),
@@ -39,7 +39,7 @@ Statuses:
 - F-165 (24 November, the clear-by-parts plan): eleven of the 99 base maps have scripts the game starts at a moment
   of the battle, with no place and no name (the alien bases' closing narration when won, the Chryssalid Hive's and
   the Temple Ship's turn-by-turn mission scripts, a pod-reveal hook on one scout map that leads nowhere). A clear
-  leaves them on. Set aside by the user: only the alien bases' narration looks worth taking out.
+  leaves them on. Set aside: only the alien bases' narration looks worth taking out.
 - F-161 (22 November, a report): Play in game of a project whose map a map pack had installed in the game failed:
   the play installed the build under the project's own names, which the pack's copy holds too. Fixed: a play installs
   under play names of its own (<Map>_Play). Not played yet.
@@ -105,12 +105,12 @@ Statuses:
 - T-42: custom visible walls and terrain have a credible route from the generated cover-box writer, but need a
   general mesh/collision writer and fresh lighting. The farm ramp is an ordinary static mesh; native-style custom
   fracturing is a separate gap (EXP-66, read-only audit, 16 November). 17 November: a fracturing wall made from
-  numbers is built (branch `fracturing-wall-poc`), and EXP-67 passed its look and its break in the game: the user
-  called the proof of concept successful (one tile at its doorway: F-116).
+  numbers is built (branch `fracturing-wall-poc`), and EXP-67 passed its look and its break in the game: the
+  proof of concept worked (one tile at its doorway: F-116).
 - F-116 (the doorway part): a one-tile doorway with no door gives cover toward its sides, by the game's own rule; a
   door in it is not tried.
 - F-113 (its sight part): whether a hidden high cover block stops sight at eye level is unchecked; in EXP-59 run 1
-  the user saw and shot across a one-tile wall, most likely by leaning round its ends.
+  a soldier saw and shot across a one-tile wall, most likely by leaning round its ends.
 - F-55: rebaking and whole-map dynamic lighting have credible routes, but need native-data/rendering proofs
   and fidelity/performance checks (EXP-15; separate lighting research).
 - T-10: a UDK-free patch builder is plausible from compiled templates, but still needs a writer and in-game
@@ -183,25 +183,25 @@ Statuses:
   - F-30 (a moved ladder can't be climbed) is fixed in run 21: copies now take `bPathColliding`, so the copied
     roof is floor up to its edges, and the patch's hidden ladder gets its climb. F-33 (a door kicked twice) came
     back in run 20 from the hidden double door; run 21 moves hidden doors and ladders under the map (to confirm).
-  - F-36 (a hider hid the copied doors) is verified in run 28 ("doors are in"). F-37 (copied doors are
+  - F-36 (a hider hid the copied doors) is verified in run 28 (the doors are in). F-37 (copied doors are
     must-destroy) is fixed in run 29, but they still couldn't be opened. F-38 (copies never enter `_Pristine`, so
     neither doors nor windows work) and F-40 (`bInteractive` not copied) are verified: doors in run 30, windows in
     run 31. F-41 (cars off the tile grid block their end tiles) is fixed in run 32, to confirm. F-39 (a ladder's mesh copy took its foot tile, so no climb) is verified in
     run 30.
   - EXP-08:
-    - F-46 (a gap in the ground meshes still has floor in the tile data, so units path across it) is open, set aside by the user.
-    - F-47 (a copied second floor gets no floor tiles) is open, set aside by the user: run 3b's fix (no ceiling
+    - F-46 (a gap in the ground meshes still has floor in the tile data, so units path across it) is open, set aside.
+    - F-47 (a copied second floor gets no floor tiles) is open, set aside: run 3b's fix (no ceiling
       beams) didn't help. It is a script copy's: a floor copy made in the map, as the editor's Build makes it, gets
       floor tiles at a new level (EXP-27 run 1, 9 November).
     - F-43 (pieces at the play area's edge stay when a box hides the play area) looks fixed in run 1: no edge pieces
-      in the user's shot.
+      in the run's shot.
     - F-44 is withdrawn: the corpses come with the pods.
     - F-45 (no dropship intro on a renamed map: the landing prefab's pieces, then the map-name switches in
       `CIN_DropshipIntros`) is verified in run 1c.
   - F-31 (the new building's roof doesn't cut away) is open: pawns do register inside the new building (run 16), so
     the cause is further on. F-32: a small copied piece can be lit unlike its neighbour.
 - F-100: a map grown as it is had no floor over the map's own scenery in the new area: the scenery outside a play
-  area has its collision turned off (the user's intro+ build, 13 November). Fixed offline the same day (the Build
+  area has its collision turned off (the intro+ build, 13 November). Fixed offline the same day (the Build
   turns it on for the low pieces in the new area); to confirm in the game.
 - F-102: Temple Ship's arches can't be clicked: Firaxis set `bIgnoreFor3DCursorCollision` on them. Turned off with
   the editor's Mouse picks it and played (EXP-60, 16 November): the arches can be clicked and stood on. Open: whether
@@ -245,7 +245,7 @@ Statuses:
 **Verified** (found 24 November 2026: the BoatAbduction project's quick build of revision 26 in a hidden run on the
 LWR v3 lab copy, with readbacks; the build's volumes read offline; every installed map's templates surveyed offline.
 Fixed and verified the same day: a second hidden run of the fixed build, below).
-- **Seen.** In the user's game, with the wheel on the boat's top stop, the cursor on some deck tiles cut the whole
+- **Seen.** In a game played by hand, with the wheel on the boat's top stop, the cursor on some deck tiles cut the whole
   boat away to its hold (deck, cabins, crane and railings gone, the soldier drawn as a ghost) while the cursor stayed
   on the deck; tiles a little further on drew the boat whole. The hidden run had the same on the bow's deck.
 - **The readbacks** (the game's console): on the cut tiles the cursor's and the `XComBuildingVisPOI`'s indoor info
@@ -291,15 +291,15 @@ Fixed and verified the same day: a second hidden run of the fixed build, below).
 
 ### F-169: Over a boat, the mouse puts the cursor in the hold under the deck's stop
 **Verified gone** (24 November 2026, a user's report with two game shots; read from the decompiled scripts and the
-build's files. 25 November 2026: with F-170 fixed and the project built again, the user's own game no longer drops
-the cursor into the hold, and no longer cuts the boat away). What the user saw came from the boat's floor volumes and
+build's files. 25 November 2026: with F-170 fixed and the project built again, a game played by hand no longer drops
+the cursor into the hold, and no longer cuts the boat away). What was seen came from the boat's floor volumes and
 building volume, which were not the shape the editor drew (F-170): part of the boat counted as outside its building,
 for the mouse pick (`IsPointOutdoors`) as for the cut-out box. The pick rule below is as the scripts have it, but it
 was not what made the cursor drop; nothing round the hull is needed (the blocker ring tried was taken out).
 - **Seen.** A project's boat (EWI_ChryssalidHive's whale boat turned and moved, on water, one building of three
-  floors over all of it: hold, deck and roof, its own cursor floors) in the user's game: with soldiers on the deck,
-  the move path runs off the deck's edge and under it to a tile in the hold, "as if it's going straight through the
-  walls and floor in certain angles". In an earlier shot the building was cut to its hold: deck, railings and cover
+  floors over all of it: hold, deck and roof, its own cursor floors) in a game played by hand: with soldiers on the
+  deck, the move path runs off the deck's edge and under it to a tile in the hold, as if through the walls and floor
+  at certain angles. In an earlier shot the building was cut to its hold: deck, railings and cover
   boxes hidden. That shot isn't explained yet; it needs the wheel's bottom stop (`m_iRequestedFloor` 0, the cutdown
   then the hold volume's top), and only the wheel and a unit's selection set the stop.
 - **The rule** (`XComTacticalHUD.GetMousePickActor`, F-135): along the mouse's ray, nearest first, it skips actors
@@ -460,7 +460,7 @@ played).
   KNOWN-BUGS.md KB-24, taken out with the fix.
 
 ### F-165: Eleven base maps' scripts act at moments of the battle, with no place and no name; a clear leaves them
-**Set aside by the user** (24 November 2026; read offline from the install's 99 base maps: every sequence event of a
+**Set aside** (24 November 2026; read offline from the install's 99 base maps: every sequence event of a
 class other than `SeqEvent_Touch`, `SeqEvent_RemoteEvent`, `SeqEvent_LevelLoaded` and
 `SeqEvent_OnKismetDataSerialized`, and what two of them lead to with [kismet_links.py](../tools/upk/kismet_links.py).
 None was played.)
@@ -486,9 +486,8 @@ None was played.)
 - **What a clear does.** The Build's clear takes the triggers and sight points out and switches off the events of the
   volumes it took (F-159); these events have no originator, so they stay on. A cleared alien base would still play
   its closing narration when the mission is won.
-- **Left as it is** (the user, 24 November 2026: of these only the alien bases' closing narration looks worth taking
-  out, the rest "seem like things we might not want to remove"; "let's leave this out for now and record it as a
-  finding"). The clear-by-parts plan had a sub-option, "Map specific scripts", that would switch every such event off
+- **Left as it is** (24 November 2026: of these only the alien bases' closing narration looks worth taking out; the
+  rest are left, and recorded here as a finding). The clear-by-parts plan had a sub-option, "Map specific scripts", that would switch every such event off
   (`bEnabled` false, as `native_copy.switch_off_events` does for a trigger's); it was taken out of the plan. If it is
   wanted later, it is a choice per event class or per map, not one switch: on the hive and the Temple Ship these
   events are the mission.
@@ -540,7 +539,7 @@ and `patch_hide_randomized_objects`' Kismet read with `tools/upk/kismet_links.py
   six ladders): the lights, the rebuild volumes and the script stayed, the script matching the new map's pieces by
   archetype, class and place (KNOWN-BUGS.md KB-23). **Fixed** the same day: a cleared map's records stream none of
   the map's patch levels (`mapsini.drop_patches`, the Build's `config_lines`), `patch_hide_randomized_objects`
-  included, at the user's word ("it's meant to be a clear map to build on"). Of the install's 187 records, 171 lose
+  included: a cleared map is meant to be built on. Of the install's 187 records, 171 lose
   one or more (87 patch names), and none is left with a gap before a stream; 16 records stream no patch already, so
   a record without one is one the game plays. Checked offline; a cleared map's battle not played since.
 
@@ -1479,7 +1478,7 @@ climbed onto (F-133): stepping up is the actor's `bCanStepUpOn`, on for an XComL
   does not follow them.
 - **Ways to fix it.** The made slabs keep to the map's cursor floors (the made floor's top on a break, as the
   game's slabs are), or each made floor and roof brings cursor floors of its own over its footprint. A room's walls
-  can be dragged to any height, so the user chose the second (18 November 2026).
+  can be dragged to any height, so the second was chosen (18 November 2026).
 - **Fix** ([made_cursors.py](../tools/bake/made_cursors.py), the Build's copy stage). Each of the map's plain cursor
   volumes that a made floor or roof crosses is taken out of the level's list and stands again as clones of itself
   round the made slabs, the same floor and heights. Over the made slabs the floors are made again: each slab's
@@ -1603,7 +1602,7 @@ stream; fixed in export 33 the same day and played in EXP-72 run 1).
   tiles its turned mesh covers (`move_columns` moves them by the actor's move).
 
 ### F-102: Temple Ship's arches are floor but can't be clicked
-**Fixed** (14 November 2026, read offline from the shipped `TempleShip.upk`; a modder's report relayed by the user.
+**Fixed** (14 November 2026, read offline from the shipped `TempleShip.upk`; a modder's report.
 The patched map is made, not played). **Played** with the editor's Flags (16 November 2026,
 [EXP-60](experiments/EXP-60-temple-arches-mouse.md) run 1): Mouse picks it on for 40 arches and 28 other pieces, a
 quick build; the cursor lands on an arch and a soldier is sent onto it and along it.
@@ -1646,8 +1645,8 @@ quick build; the cursor lands on an arch and a soldier is sent onto it and along
 - **What.** F-138's fix turned `bPreventChunkRemoval` off on a broken piece that keeps its fragments, so its saved hole
   is drawn. The setting is all that keeps the game's roofs and floors whole: URB_Bar's roof mesh marks every one of
   its 81 fragments destroyable, as its walls' do, and 61 of the 63 slab components of the slab audit save the setting
-  on. With it off, the roof breaks further under explosions, which the game's own roofs never do; the user asked for
-  broken roofs to behave as the game's.
+  on. With it off, the roof breaks further under explosions, which the game's own roofs never do; broken roofs
+  should behave as the game's.
 - **What breaking further does** (the game's scripts, 19 November). A unit that isn't flying is put down on the ground
   below after destruction (`XComUnitPawnNativeBase.MoveToGroundAfterDestruction`; seen on a made floor in EXP-76 run
   E, T-47). A fracturing piece's columns list the props that go with them (`DestructibleCache`: the bar's roof lists
@@ -1776,7 +1775,7 @@ behind the editor's Destructible and Health lines (export 17, `scene_metadata.de
 ## Fire
 
 ### F-13: How map cars catch fire and explode
-**Verified** (the user's police-car test, 23:40–23:43). A reference fact.
+**Verified** (a police-car test played by hand, 23:40–23:43). A reference fact.
 - Every explosion sets fires (intensity 2; 3 for alien weapons). Laser and plasma set intensity 1. AP grenades set
   none.
 - After dealing its hits, `XComProjectile.DealSplashDamage` starts `DamageRadius / 96 + 1` fire volumes at random
@@ -1835,15 +1834,15 @@ its explosion set three more of our cars alight. Was **Open** (EXP-05 runs 5–1
 - Run 14 (00:43–00:46, `look-004557.png`):
   - The workaround puts our fire spots at ground level: 5 at Z 29.1, all counted flammable.
   - The grenade's 3 fires all went to the cream car's 3 spots (3 picks out of 8 spots; about an 8 % chance), so no
-    fire landed on ours. The user's note: "no tire fires". Untested so far.
+    fire landed on ours, and no tire fires showed. Untested so far.
   - Side note: our columns now log as damaged but not destroyed ("1/0", "2/0"), where before they were both. Check
     that broken windows still update line of sight.
-- Run 14, second grenade (log 223.88, `look-004705.png`, the user's note "WE HAVE FIRE!"): all 3 fires landed on
+- Run 14, second grenade (log 223.88, `look-004705.png`): all 3 fires landed on
   car 7's columns at ground level, (1385, −1297, 29) and twice (1384, −1383, 29), and **car 7 burns**. The flames
   show on its side and windows, not just at the wheels. The workaround works for catching fire.
 - Turn change (log 385.11, `look-005019.png`): AreaBurn 8041 destroyed car 7. Its explosion (241 from car 7) took
-  cars 6 and 8 and the turned car to 250/500, into the damaged (burning) state. The user's note: "our car blew up and
-  set off a chain reaction, others are on fire now, looks great!".
+  cars 6 and 8 and the turned car to 250/500, into the damaged (burning) state: our car blew up and set off a chain
+  reaction.
 - Still open: a fix for objects without glass. Nothing else of ours makes fire spots, short of the object being
   destroyed.
 - Also learned: the patch's `XComRebuildWorldDataVolume` makes the game rebuild a cube about 1036 units around the
@@ -1865,10 +1864,9 @@ one. It doesn't: the save recreates the object in place, under the same name (F-
 
 ### F-17: A reload brings spawned objects back without their mesh
 **Verified** (EXP-05 run 16, 09:55, `look-095539.png`): the wreck came back visible and giving cover, and the
-burning car came back burning. The user's note: "looks good". Found in EXP-05 run 15 (`look-005426.png`).
-- Symptom: after a save and reload, the burned-down cars were gone; only their fires were left. The user's notes:
-  "on reload the car wrecks are gone, but the fire is still there" and "units can now path through that area so
-  there's nothing there".
+burning car came back burning. Found in EXP-05 run 15 (`look-005426.png`).
+- Symptom: after a save and reload, the burned-down cars were gone; only their fires were left, and units could path
+  through where they had stood.
 - Cause:
   - A save keeps only damaged destructibles and glass (`ShouldSaveForCheckpoint`: not `_Pristine`, or a damaged
     column).
@@ -1892,8 +1890,8 @@ burning car came back burning. The user's note: "looks good". Found in EXP-05 ru
 - Also: the Dead state normally stops ticking, so a car loaded straight into Dead would never compute its light
   environment, and its wreck would render black (F-02). `XComMapEdDestructible` keeps ticking in Dead.
 
-- EXP-07 copies (**verified**, run 25, `look-154636.png`: "after a reload, walls still damage and burning as
-  expected"): copier copies come back the same way, rebuilt in place under their saved names. Each copy class asks its
+- EXP-07 copies (**verified**, run 25, `look-154636.png`: after a reload, the walls were still damaged and
+  burning as expected): copier copies come back the same way, rebuilt in place under their saved names. Each copy class asks its
   copier from `PostBeginPlay` (`XComMapEdCopier.RestoreLoaded`), which copies the source onto it again before the record
   is applied. The log showed three walls and five destructibles restored. It relies on copies getting the same names on
   every load (they are spawned in the same order).
@@ -1901,9 +1899,9 @@ burning car came back burning. The user's note: "looks good". Found in EXP-05 ru
 ### F-18: On load, a wreck's explosion goes off again
 **Verified** (EXP-05 run 17, 10:02, `look-100225.png`): after the reload, our wreck and the burning car 8 (250/500)
 came back with no explosion during the load. The map's own wreck didn't re-explode either, so the replay was ours
-alone. The user's note: "looks good". Found in EXP-05 run 16.
+alone. Found in EXP-05 run 16.
 - Symptom: the white car 7 was burning at the save (`_Damaged`, 186/500); after the reload it was destroyed but
-  looked intact. The user's note: "when i saved I think the white car was also burning but now it is not".
+  looked intact, no longer burning.
 - Cause: applying a saved record replays the destruction actions that had fired (`Action.Load`, native), the
   explosion (`XComDestructibleActor_Action_RadialDamage`) included. At load, car 8's wreck dealt its 241 again
   (log 125.30) and took car 7 from 186 to −30.
@@ -1968,8 +1966,6 @@ for spawned cars, so the engine call probably counts only some components, such 
 - an alien pod stood on the roof, where the roof's tiles were still floor tiles;
 - the camera couldn't rise to the roof level there, and no soldier could be sent up.
 
-The user's note: "ground floor of the bar still exists and works normally, but there is no roof. there's still an
-alien on the roof though even if it doesn't exist, but i can't zoom out to see it or send my soldier up there".
 - Likely cause: the cutaway shows floors through the building and floor volumes, and the 3D cursor climbs through
   the cursor volumes. With them gone, the building may stay in its "first floor only" state and the cursor can't
   climb. This doesn't matter once the whole building is hidden; it matters if a remix keeps a building's volumes.
@@ -1981,11 +1977,10 @@ alien on the roof though even if it doesn't exist, but i can't zoom out to see i
 ### F-22: Hidden pieces with no collision still fill their tiles and give cover
 **Verified** (EXP-07 run 3, 10:34, `look-103456.png`): after the rebuild, the bar's ground level is 510 of 510 floor
 tiles, with 0 occupied, 0 high cover and 4 low (at the box edge). Before, it had 263 occupied, 122 high and 92 low.
-The user's note: "looks good now, no more cover or invisible walls". Which of the three run 3 changes did it is not
+No cover or invisible walls were left. Which of the three run 3 changes did it is not
 known: they went in together. Found in run 2. In run 2 the hider hid 413 actors: the bar's walls, roof, props,
 doors and effects. The bar was gone from view, but units still pathed around the old walls, and those walls still
-gave cover. The user's notes: "the navigation still seems to consider the old wall locations"; "also it still
-counts as cover" (`look-102604.png`, `look-102701.png`).
+gave cover (`look-102604.png`, `look-102701.png`).
 - The rebuild did run, and it took out every floor above the ground (roof 300 → 0 floor tiles, tables and the
   bar top too) and the upper levels' cover. It left the ground-level cover (122 high, 92 low) and the occupied count
   at every level exactly as before. So floors come from traces, which our collision changes affected, while
@@ -2002,7 +1997,7 @@ counts as cover" (`look-102604.png`, `look-102701.png`).
   front wall (plain trace, box trace and `XComWorldData.WorldTrace`) before and after.
 
 ### F-23: Other streamed levels sit at the world origin, inside the bar's box
-**Verified** (EXP-07 run 3: 407 hidden instead of 413, and the leftover "blue dots" gone). In run 2 the hider also hid emitters of other streamed levels: one set at
+**Verified** (EXP-07 run 3: 407 hidden instead of 413, and the leftover blue dots gone). In run 2 the hider also hid emitters of other streamed levels: one set at
 (0, 0, 0) and one placed symmetrically around the origin, most likely from `CIN_DropshipIntros`. The origin lies
 inside the bar's box.
 - Fix: only actors whose level (`Outer`) is the base map's persistent level or the patch's own are taken.
@@ -2018,8 +2013,8 @@ where the walls, bar and tables stood, because their lightmaps were baked with t
 ### F-25: Hidden walls still block line of sight
 **Verified** (EXP-07 run 4, 10:44, `look-104403.png`, `look-104416.png`). The probe's `WorldTrace` now passes the old
 front wall (after hiding and after the rebuild), and a soldier is offered a squadsight shot across the cleared area.
-The user's note: "I can see through everything normally I think". Found Confirmed in game in run 3 (10:38, `look-103810.png`). The user's
-note: "yes LOS looks off, I should be able to see the drone here I think".
+Sight across it looked normal. Found Confirmed in game in run 3 (10:38, `look-103810.png`): line of sight looked off,
+a drone in view was not seen.
 - Likely cause: level and fractured actors carry `VisibilityBlockingData.bBlockUnitVisibility`, true by default. The
   game's line of sight follows it rather than collision. In the log (run 3): The probe line through the old front wall (x −1056, y −120 to 400, z 64) hit
 `XComDecoFracLevelActor_11` (`Core_384FacadeB`) at y 184 before hiding, with all three traces. After hiding and the
@@ -2032,8 +2027,8 @@ So that trace ignores the collision flags, the hidden flag and the hidden fragme
   declares the member without `const`, so script can set it. The probe's `WorldTrace` should now pass.
 
 ### F-26: A hidden door still offers "open door"
-**Verified** (EXP-07 run 4). The user's note: "no more door action". In run 3 a soldier standing where a bar door had been was offered the door
-action, with no door there (`look-103810.png`). The user's note: "there's a "open door" action but no door".
+**Verified** (EXP-07 run 4: no door action any more). In run 3 a soldier standing where a bar door had been was offered the door
+action, with no door there (`look-103810.png`).
 - Cause: the hider removed the door's interaction points before rebuilding, and the rebuild's interaction step
   most likely added them back from the hidden door.
 - Fix: as the game's own `XComInteractiveLevelActor.OnDisableInteractiveActor` does, the door goes to its
@@ -2043,13 +2038,13 @@ action, with no door there (`look-103810.png`). The user's note: "there's a "ope
 **Fixed** (4 Nov), to confirm in the next run. In run 4, with the bar's building and floor volumes out of play, five
 of its hidden emitters were shown again: `Emitter_4`, `_13`, `_14`, `_37` and `_45`, high on the back wall (z 333).
 It happened at 61 s and again at 74 s, and the hider's check hid them again each time. They are the effects the
-bar's floor volumes list (`m_aInclusionActors`), so the building's cutaway code still runs over those lists. The user
-saw nothing.
+bar's floor volumes list (`m_aInclusionActors`), so the building's cutaway code still runs over those lists. Nothing
+was seen in the game.
 - Fix: the hider's check now runs every 3 s for the whole mission, not just the first minute. It deactivates a
   re-shown emitter again too.
 
 ### F-28: Copied walls render flat black
-**Verified fixed** (EXP-07 one-wall run 4, 11:31, `look-113151.png`; the user's note: "all walls appear lit now").
+**Verified fixed** (EXP-07 one-wall run 4, 11:31, `look-113151.png`: all walls lit now).
 - Fix: `XComMapEdWall` makes its own `DynamicLightEnvironmentComponent` (`MyLightEnvironment`, in `Components`) and
   gives it to the fractured component, as `XComMapEdLevelPiece` does. The `LightEnvironment0` inherited from
   `FracturedStaticMeshActor` logged as enabled and dynamic, yet left the copy black.
@@ -2060,7 +2055,7 @@ saw nothing.
   variants rendered lit.
 
 Narrowed by run 3 (11:11, `look-111143.png`): the same mesh and materials copied as a plain static
-mesh with a light environment (`XComMapEdLevelPiece`) render lit ("the wall on the left is lit properly"), and the
+mesh with a light environment (`XComMapEdLevelPiece`) render lit, and the
 fractured copy beside it is black. So it is the fractured component's drawing path, not the materials.
 - The game's own `FracturedStaticMeshActor` (decompiled from a copy of `Engine.upk`) never gives its fractured
   component a light environment: placed walls draw only with their baked lightmaps, so the lit-by-environment path
@@ -2071,8 +2066,8 @@ fractured copy beside it is black. So it is the fractured component's drawing pa
 - Run 3's test light failed to spawn: `PointLightMovable` is `bNoDelete`, like every `Light`. `XComMapEdLight` (a
   plain `Actor` with a point light component) replaces it.
 
-Earlier: the Dynamic channel didn't help (one-wall run 2, 11:06, `look-110627.png`; the user's note:
-"wallls still seem to be black"). At load and 5 s later, the copy's lighting setup was as intended:
+Earlier: the Dynamic channel didn't help (one-wall run 2, 11:06, `look-110627.png`: the walls
+were still black). At load and 5 s later, the copy's lighting setup was as intended:
 - the dynamic light environment is set, enabled and dynamic;
 - precomputed shadows are off;
 - the Dynamic channel is on. The Static channel reads False, though the defaults set it;
@@ -2083,8 +2078,7 @@ the cook kept only what the map used, and the walls only ever used lightmaps. Ru
 as a plain mesh (`XComMapEdLevelPiece`), which is how the working car copies are drawn, and adds a movable test
 light. First seen in In EXP-07's one-wall test (run 1, 11:00 and 11:01,
 `look-110024.png`, `look-110137.png`), the copied storefront (`XComMapEdWall`) was flat black, darker than the lit
-floor, fire and windows around it. The user's note: "can't tell if lightning is not working or it's just dark".
-Next to the lit fire it is plainly unlit.
+floor, fire and windows around it. Next to the lit fire it is plainly unlit.
 - Likely cause: `XComFracLevelActor` takes only the Static lighting channel. The destructibles that light correctly
   as copies (the cars, the copied windows) take Static and Dynamic. The copy already has its dynamic light
   environment, precomputed shadows off and ticking on, as for F-02.
@@ -2095,7 +2089,7 @@ Next to the lit fire it is plainly unlit.
 **Verified fixed** by seeding the map's baked tile data (runs 11 and 12, `look-125423.png`); cause found in EXP-07 one-wall run 5 (11:41, `look-114112.png`, `look-114300.png`). The copier's tile log
 shows, for each wall, the rows where the game counts the tiles either side as seeing each other
 (`IsAdjacentTileVisible`). Those are exactly the rows with no occupied tile at the wall on level 1 (unit height),
-though `WorldTrace` hits the wall there. Both see-through spots the user found are on those rows.
+though `WorldTrace` hits the wall there. Both see-through spots found in the game are on those rows.
 - Level-1 occupancy by a wall appears almost only where a hidden base-map piece stood at that height: wall 1 0 of
   24 tiles, the others 13 to 17 of 15 to 18. At ground level every wall is occupied along its length.
 - The fragment columns are the same on every copy, so the copies' own data isn't the cause.
@@ -2121,32 +2115,31 @@ though `WorldTrace` hits the wall there. Both see-through spots the user found a
 - Built into patchtool (4 Nov, run 12): a spec with `map.name` gets its copies', spawns' and actors' tiles
   planned from the map inventory and seeded at deploy, and an `XComMapEdTileSeeds` actor rebuilds exactly those
   boxes at load (`tools/patch/README.md`, "Tile seeds").
-- Seen in game (run 12, 12:54, `look-125423.png`): all five seeded walls block, and the user saw no aliens through
-  them ("confirmed LOS blocking looks normal").
+- Seen in game (run 12, 12:54, `look-125423.png`): all five seeded walls block, and no aliens were seen through
+  them: line of sight blocking looks normal.
 
 Seen first in run 4 (11:33, `look-113343.png`, 11:33, `look-113343.png`): a soldier at tile (21,23), against wall 5's west face,
-sees through the wall and leans as if at a gap. The user's note: "it's only specifically this tile that allows LOS
-through the wall, the one my cursor is on does not" (the cursor was at (21,22)). Wall 5 is the overlay variant: its
+sees through the wall and leans as if at a gap. Only this tile lets sight through the wall; the cursor's tile,
+(21,22), does not. Wall 5 is the overlay variant: its
 fractured mesh is hidden. The other walls weren't checked: no aliens were near enough. The leaning suggests the
 cover data at that tile has a peek flag, as at a wall's end. Run 5 logs each copied wall's fragment columns and the
 tile data along it: cover flags, occupancy, `IsAdjacentTileVisible` across it, and `WorldTrace` at two heights.
 
-Earlier: verified for the plain-mesh copy (EXP-07 one-wall run 3, 11:13, `look-111343.png`; the user's note: "new wall
-correctly blocks LOS, can see aliens to top left but not the ones on the right"). The fractured copy blocks all three
+Earlier: verified for the plain-mesh copy (EXP-07 one-wall run 3, 11:13, `look-111343.png`: the new wall
+blocks sight, aliens to the top left seen and not the ones on the right). The fractured copy blocks all three
 probe traces too: line, box and `WorldTrace` hit `XComMapEdWall_5` at x about −1836. Every copy is world geometry,
 collides and blocks, and the walls block vision. So run 2's sighting most likely went past the wall's end or through
 the storefront copy's windows. Still to see by eye on a fractured copy.
 
 First seen (EXP-07 one-wall run 2, 11:06, `look-110627.png`). A soldier saw two aliens through the copied solid back
-wall (`Core_384BackA`). The user's note: "I can see the two aliens in the top right through the wall but I shouldn't
-be able to from here". The copies block movement and give cover (run 1), and the copier ran before the hider, so
+wall (`Core_384BackA`). The copies block movement and give cover (run 1), and the copier ran before the hider, so
 they took the sources' intact vision flag (`bBlockUnitVisibility` true). Line of sight follows that flag (F-25).
 Run 3 logs every copy's world-geometry, collision and vision flags, and traces probe lines through both back-wall
 copies (plain trace, box trace and `XComWorldData.WorldTrace`).
 
 
 ### F-30: A moved ladder can't be climbed; a hidden one still can
-**Fixed** (EXP-07 run 21, `look-145109.png`: "new ladder looks climable, old ladder is not anymore!"; climbing down
+**Fixed** (EXP-07 run 21, `look-145109.png`: the new ladder looks climbable, the old one no longer; climbing down
 still to check). Found in step 3b run 13
 (`look-131115.png`, `look-131217.png`).
 - Cause: a ladder is two baked neighbour links in the map's world data (bottom tile ↔ top tile, traversal types
@@ -2191,7 +2184,7 @@ still to check). Found in step 3b run 13
   names the original actor.
 
 ### F-31: The new building's floors don't know the copies, so the roof doesn't cut away
-**Fixed** (EXP-07 run 22, `look-151655.png`: "roof cuts away so i can see inside now"). The copies had no floor
+**Fixed** (EXP-07 run 22, `look-151655.png`: the roof cuts away and the inside shows). The copies had no floor
 component. Filling the caches (run 15) was needed but not enough. Walls aren't cut down yet (`bCutoutMask`). Found in run 13: `RebuildCachedActors` on the patch's building found none of
 the copies, and the moved ladder stayed in the hidden bar's caches, so it cut out with the camera.
 - Tried (run 15): the copier gives each copy its source's entry from the bar's baked floor caches (same floor, same
@@ -2209,8 +2202,8 @@ the copies, and the moved ladder stayed in the hidden bar's caches, so it cut ou
   collects `m_arrBuildings` at load) and the native visibility code.
 
 ### F-33: A soldier kicks a moved door twice
-**Fix in test** (run 21). Run 19 looked fixed ("only happened once like it should"); run 20 kicked twice again. Found in run 18 (`look-142759.png`): "when I sent a soldier through the door, he did
-his door kick animation twice".
+**Fix in test** (run 21). Run 19 looked fixed (one kick, as it should be); run 20 kicked twice again. Found in run 18 (`look-142759.png`): a soldier sent through the door did
+his door kick animation twice.
 - Cause (likely): two sets of kick links. Deploy moved the door's baked KickDoor links along (since run 15), and the
   rebuild makes kick links from the door's new interaction points too. In run 13, with the rebuild's links alone,
   the door worked normally.
@@ -2220,9 +2213,9 @@ his door kick animation twice".
   removed. Fix in test (run 21): the hider moves hidden doors and ladders under the map.
 
 ### F-34: The cursor can't pick a tile inside the new building; it snaps to the roof
-**Fixed** (EXP-07 run 23, `look-153008.png`: "can see and select tiles inside the building"; the log showed our building
-was in neither list). Found in run 22 (`look-151655.png`): the roof cuts away, but "my cursor doesn't seem
-to let me select a tile inside it just snaps to the roof".
+**Fixed** (EXP-07 run 23, `look-153008.png`: tiles inside the building can be seen and selected; the log showed our building
+was in neither list). Found in run 22 (`look-151655.png`): the roof cuts away, but the cursor can't select a tile
+inside it and snaps to the roof.
 - How the mouse picks: `XComTacticalHUD.GetMousePickActor` traces with `TraceActors`, which hits hidden, cut-away
   meshes. It skips pieces with `bIgnoreFor3DCursorCollision`, and a walkable hit outside every building in the HUD's
   list wins at once. The HUD and the cursor fill their building lists once at start.
@@ -2231,7 +2224,7 @@ to let me select a tile inside it just snaps to the roof".
 - Fix in test (run 23): copies take the flag; the copier adds our building to both lists.
 
 ### F-35: The new building's walls aren't trimmed down in the cutaway
-**Fixed** (EXP-07 runs 24 and 25: "walls appear to cut out normally now", "windows and door frames trim too"; `set`
+**Fixed** (EXP-07 runs 24 and 25: the walls cut out normally, and windows and door frames trim too; `set`
 is accepted, `get` reads back True). After F-31 the roof and upper floors hide, but the walls facing the camera stay full
 height.
 - Cause: trimming down and the camera cut-out need `bCutoutMask` on the piece's main mesh. The editor sets it on placed
@@ -2241,8 +2234,8 @@ height.
   covered yet.
 
 ### F-36: A hider takes copied doors out of play
-**Verified** (EXP-07 run 28, `look-162956.png`: "doors are in"). Found in run 27: the user's note was "most doors still missing (there is one in
-the top)", and the entrance door was gone too.
+**Verified** (EXP-07 run 28, `look-162956.png`: the doors are in). Found in run 27: most doors were still missing (one was in, at the
+top), and the entrance door was gone too.
 - Cause: the copier made all six door copies (`XComMapEdDoor`, logged "copied door"), then the street hider hid five
   of them and moved them under the map. `IsHideable` skips our copy classes by name and missed the new one. A door copy
   is an `XComInteractiveLevelActor` to the class test that follows. The one left stood outside the hider's box.
@@ -2250,8 +2243,7 @@ the top)", and the entrance door was gone too.
   later class can't fall into the same gap.
 
 ### F-37: Copied doors can't be opened
-**Fixed** (EXP-07 run 29, to confirm). Found in run 28: the user's note was "doors are in, but ... can't open the
-doors". The run 28 A* probes go round through the bar's own doors, never through the wing's.
+**Fixed** (EXP-07 run 29, to confirm). Found in run 28: the doors were in, but couldn't be opened. The run 28 A* probes go round through the bar's own doors, never through the wing's.
 - Cause: `XComInteractiveLevelActor.PostBeginPlay` calls the native `CacheMustDestroy` (`0xA5E740`). It sets
   `bMustDestroy`, then clears it if any `InteractionPoints` entry has a unit animation (byte +2 of the 28-byte
   `SocketInteraction`). On a copy that runs during `Spawn`, before the copy has any interaction points, so every
@@ -2262,8 +2254,8 @@ doors". The run 28 A* probes go round through the bar's own doors, never through
   `const` from it.
 
 ### F-38: Copied doors and windows don't work: the copies are in no state
-**Verified** (EXP-07 run 30 for doors, `look-170659.png`: "ladder and doors work now nice"; run 31 for windows, with F-40). Found in run 29: "still can't go through doors or windows here", with the bar's
-own doors and windows working ("but we can here").
+**Verified** (EXP-07 run 30 for doors, `look-170659.png`: the ladder and doors work; run 31 for windows, with F-40). Found in run 29: the wing's doors and windows still couldn't be gone through, with the bar's
+own doors and windows working.
 - Cause: the game's doors and destructibles start in their auto state `_Pristine`
   (`XComDestructibleActor`; `XComInteractiveLevelActor` overrides it). A door can be opened only there:
   `CanInteract` is false outside it. A window can be broken through only there: `BreakWindow` checks
@@ -2276,14 +2268,14 @@ own doors and windows working ("but we can here").
   bear on F-14.
 
 ### F-47: A copied second floor gets no floor tiles
-**Open for script copies, set aside by the user** (EXP-08 runs 3 and 3b, 4 November 2026: "still can't get on the
-second floor ... let's leave that for now as an open finding"). **Not met by copies made in the map**, which the
+**Open for script copies, set aside** (EXP-08 runs 3 and 3b, 4 November 2026: the second floor still couldn't be
+reached). **Not met by copies made in the map**, which the
 editor's Build makes: EXP-27 run 1 (9 November) raised a copy of Bar's sidewalk strip `XComLevelActor_21` to the bar's
 floor 2 (surface 208), where the map has no floor, in the car park; the cursor landed on it and a soldier teleported
 there stood on it and had a move range and a path along it. Such copies keep the saved properties script copies lack
 (as EXP-24's van copies' cargo floors showed inside their buildings). Run 3 put a wood floor (two copies of
 `URB_Bar_384CFloor`, tops at z 211 and 212) inside the block's 400-high shell as a second storey.
-- The user: "can't seem to reach the second floor, cursor won't hit that floor so i can't even teleport to it".
+- The second floor couldn't be reached: the cursor won't land on that floor, so no one can even be teleported to it.
 - The log: every probe on the new storey (tiles (22, 22, 3), (21, 24, 3), (26, 19, 3)) is "on floor False", at load
   and 5 s later, although the tiles were seeded and rebuilt. So the inside ladder's top tile (21, 24, 3) and the one
   below it have no floor, and the game made no climb. The roof at z 402 still has its floor.
@@ -2295,7 +2287,7 @@ there stood on it and had a move range and a path along it. Such copies keep the
   second-floor piece `Core_384FloorB` is at 208..210, the roof slab's underside at 398. (This hull is also why EXP-07
   run 20's roof had its floor at the beams' 396.9.)
 - Run 3b left the I-beams out and put the floor's tops at 209.5 and 210.5, ComKit's height, with 188 units up to
-  the roof slab. The user still couldn't get on the second floor, and the log is the same: every probe at level 3 is
+  the roof slab. The second floor still couldn't be reached, and the log is the same: every probe at level 3 is
   "on floor False", the ladder's top tile (21, 24, 3) and the one below have no floor, and the roof keeps its floor at
   402. So the headroom isn't it.
 - What differs from the roof, which does get its floor on seeded tiles: the second floor is a plain-mesh copy
@@ -2311,8 +2303,8 @@ there stood on it and had a move range and a path along it. Such copies keep the
 
 ### F-46: A gap in the ground meshes doesn't stop movement
 **Open** (EXP-08 run 2, 4 November 2026). Run 2's 4 × 4 hole (tiles x 3..6, y 27..30, no ground meshes at all):
-- The user: "I couldn't actually put my cursor direct on it, but if i placed it on the other side the path showed over
-  it". The game draws the hole as an even blue, which is what lies under the map.
+- The cursor couldn't be put directly on it, but with the cursor on the other side the path showed over it. The
+  game draws the hole as an even blue, which is what lies under the map.
 - The copier's probes, at load, read the baked data: the paths went round the hole, or along its edge row. 5 s after
   load, after the rebuilds, the hole's middle tile (5, 29, 0) is "on floor True, floor z 0", and both A* paths cross
   it straight.
@@ -2328,17 +2320,16 @@ there stood on it and had a move range and a path along it. Such copies keep the
   - an invisible blocker, which would give cover at the hole's edge.
 
 ### F-45: A map under a new name gets no dropship intro
-**Verified again** (7 November 2026, EXP-20 run 9: "landing intro was working fine"). EXP-20 run 8 showed no landing. The editor's Build compiles
+**Verified again** (7 November 2026, EXP-20 run 9: the landing intro worked). EXP-20 run 8 showed no landing. The editor's Build compiles
 its patch `--stream-only`, without `map.shipAs`, so patchtool adds no `XComMapEdIntro`, and an M1 Build has no patch
-at all. No Build variant had the intro. The patch's fix was verified in EXP-08 run 1c, 4 November 2026 ("the intro
-works correctly now").
+at all. No Build variant had the intro. The patch's fix was verified in EXP-08 run 1c, 4 November 2026.
 - Fix for the Build (`tools/bake/intro_copy.py`): the variant streams its own copy of the intro,
   `CIN_DropshipIntros_<variant>.upk`, in place of the original. In the copy, the base map's Switch String entry
   (`StringName`) names the variant. The exe finds the intro streams by the substring `CIN_DropshipIntros` (three places
   in the exe copy), so the copy's name keeps it at its start. In the log, `XComMapEdIntro_933`
 renamed `URB_Bar`'s case (3) of `SeqCond_SwitchString_8` at load, on its first try (30.47 s). The intro started at
-48.01 s. Found in run 1 ("there was no
-landing"); run 1b fixed one cause, and the user still saw no Skyranger.
+48.01 s. Found in run 1 (no
+landing); run 1b fixed one cause, and still no Skyranger was seen.
 - How the intro works (`XGBattle.PlayCinTacticalIntro`, the `LevelCinematicIntro` state):
   - the game seats the squad in the `CinematicDropship` and fires `SeqEvent_OnTacticalIntro` with
     `WorldInfo.GetMapName()`;
@@ -2363,7 +2354,7 @@ landing"); run 1b fixed one cause, and the user still saw no Skyranger.
     `VEH_Lv1Skyranger_MOD.Prefabs.*`): 14 in URB_Bar. The editor must treat them as gameplay pieces, not scenery.
   - The editor does (9 November 2026): the compiler refuses moving or deleting one (`landing-zone`; copies build),
     and the inspector marks them **Landing zone**. Since 13 November 2026 a move or delete builds, with the warning
-    (the user: warn, don't block; map buildings plan, step E2b). One to six of each cached map's
+    (warn, don't block; map buildings plan, step E2b). One to six of each cached map's
     exported pieces (two in URB_Bar; the volumes are not exported pieces). Offline tests only; no in-game run needed,
     since nothing about the landing changes.
   - With `map.shipAs`, patchtool adds an `XComMapEdIntro`. At load it renames the base map's case
@@ -2373,8 +2364,8 @@ landing"); run 1b fixed one cause, and the user still saw no Skyranger.
     it renamed a case, or warns that it found none.
 
 ### F-44: Hidden physics bodies are still drawn (withdrawn)
-**Withdrawn** (4 November 2026). Run 1 showed green corpses on the blank ground. The user: "they're just generated
-by the AI pods that spawn there" (abduction pods come with corpses). URB_Bar's own 13 corpses (`KAsset`, `CivFlatB`)
+**Withdrawn** (4 November 2026). Run 1 showed green corpses on the blank ground. They came with the AI pods that
+spawn there (abduction pods come with corpses). URB_Bar's own 13 corpses (`KAsset`, `CivFlatB`)
 were most likely hidden all along. Run 1b's change to the hider (stop the physics, detach the meshes) was taken out
 again in run 1c.
 
@@ -2392,7 +2383,7 @@ again in run 1c.
   the north edge. The new ground covers every original asphalt plane that reached in: 6 × 5 planes, not 6 × 4.
 
 ### F-42: A seeded base map can't be shared with the original map's record
-**Verified** (4 November 2026, 18:07: `URB_BarRemix` loads with the wing, "everything looks good", and LWR's landing
+**Verified** (4 November 2026, 18:07: `URB_BarRemix` loads with the wing, everything looking right, and LWR's landing
 zones work under the new name).
 - Cause: patchtool seeds bit `0x1` on empty tiles of the base map so that the runtime rebuild re-checks them (F-29).
   A seeded tile that nothing rebuilds keeps the bit, and the game takes it as blocking. Our patches rebuild every
@@ -2403,8 +2394,8 @@ zones work under the new name).
   map rules (`DefaultMiniMods.ini`), needs copies of the original's lines under the new name.
 
 ### F-41: A car placed off the tile grid blocks the tiles at its ends
-**Fixed** (EXP-07 run 32, to confirm). Found in run 31: the roof car "no path to right against the car ... on the
-front and back", and the north SUV "can't be reached properly from the front". The map's own compact gives cover at its
+**Fixed** (EXP-07 run 32, to confirm). Found in run 31: the roof car had no path right up against it at its
+front and back, and the north SUV couldn't be reached properly from the front. The map's own compact gives cover at its
 tail.
 - Cause: URB_Bar's cars stand so that their bodies fill whole tiles: `XComDestructibleActor_20`'s bounds reach only 7-9
   units past its 3 x 2 tiles. Our cars stood where the screenshot put them, so their noses and tails reached 36-52
@@ -2417,10 +2408,10 @@ tail.
   Tile edges are at x = -2784 + 96·i and y = -1920 + 96·j. The body's centre goes on a tile edge across its even
   width and in the middle of its tiles along its odd length.
 - Run 33: the spawner snaps a car to the grid itself from its bounds (`bSnapToTiles`), so a spec needn't work this
-  out; the three cars go back to where the user circled them, snapped.
+  out; the three cars go back to where the screenshot circled them, snapped.
 
 ### F-40: Copied windows can't be run through: not interactive
-**Verified** (EXP-07 run 31: "windows now can be smashed/run through correctly"). Found in run 30: "windoes still can't be pathed through though", with the door
+**Verified** (EXP-07 run 31: windows can be smashed and run through). Found in run 30: windows still couldn't be pathed through, with the door
 copies working after F-38.
 - Cause: URB_Bar's windows are `XComDestructibleActor`s from `ComKitWindows.Archetypes.ARC_ComKitWindow_*`
   archetypes, which set `bInteractive` (and a glass toughness). A copy is spawned from the class defaults and copies
@@ -2431,9 +2422,9 @@ copies working after F-38.
   both. It also logs each glass copy with its state.
 
 ### F-39: A ladder whose look is a mesh copy can't be climbed: its foot tile isn't walkable
-**Verified** (EXP-07 run 30, `look-170659.png`: "ok ladder and doors work now nice"; the A* probe climbs at the
-ladder's own tile). Found in run 29: "ladder still unusable", and the user's screenshot of the
-foot: "that V means it's not a walkable tile".
+**Verified** (EXP-07 run 30, `look-170659.png`: the ladder and doors work; the A* probe climbs at the
+ladder's own tile). Found in run 29: the ladder was still unusable, and a screenshot of the
+foot showed the V of a tile that can't be walked.
 - Cause: the wing's visible ladder was a copy of the bar's ladder as a plain mesh (`XComMapEdLevelPiece`, an
   `XComLevelActor`, collision off), with a hidden patch ladder beside it for the climb, as step 3b had. But step
   3b's visible ladder was the bar's real `XComLadder`, moved there. The level piece made the foot tile (31, 7)
@@ -2445,8 +2436,7 @@ foot: "that V means it's not a walkable tile".
   climb needs there. `bCopyLadders` is still there, but not to be used for a climbable ladder.
 
 ### F-32: A small copied wall piece is lit differently from the long wall beside it
-**Open** (EXP-07 run 15). The user's note: "odd lighting mis match between the corner wall bit and the rest of the
-wall". Each copy has its own dynamic light environment, sampled around its own bounds, so a short corner return and
+**Open** (EXP-07 run 15): the corner wall bit's lighting didn't match the rest of the wall. Each copy has its own dynamic light environment, sampled around its own bounds, so a short corner return and
 the 12-tile end wall next to it can get different light.
 
 ### F-48: Editor placement rules need qualification per piece recipe
@@ -2474,8 +2464,8 @@ first-editor plan defines the proposed runtime tests and snapping rules.
 - Cause (likely, not traced): the rebuilt tiles give cover where the piece's collision meets the tile level that
   units stand on. A piece a whole level up is clear of the floor level's tiles.
 - In the editor: the viewer's tile grid turns a piece's tiles blue, with lines down to the floor, when its lowest
-  point is more than 8 units above the saved floor under it. The readout says it "may give no cover". The user asked
-  for this after the run.
+  point is more than 8 units above the saved floor under it. The readout says it "may give no cover". Added after
+  the run.
 - Not tested: smaller lifts (between 8 and 64 units), and whether a unit can stand on or under a lifted piece.
 
 ### F-50: Effects placed around a piece stay behind when it is moved or deleted
@@ -2484,8 +2474,8 @@ first-editor plan defines the proposed runtime tests and snapping rules.
 prefab instance at whose own place one piece stands is carried by that piece, `scene_metadata.effect_metadata`,
 `carriedHow: prefab`. URB_Bar's pod moved a tile east and two north and turned a quarter, built and read back: its
 five smoke emitters stand around it as before. Not played.) Found in EXP-11 run 2.
-- Symptom: the fog pod moved one tile east, but its green smoke kept rising from the old tile. The user's note: "can
-  path through but there's some green smoke emitter still going".
+- Symptom: the fog pod moved one tile east, but its green smoke kept rising from the old tile; the old tile could be
+  pathed through.
 - Cause: the map placed the smoke as separate actors around the pod, not as part of it:
   - five emitters (`Emitter_39`, `_43`, `_48`, `_49`, `_50`, archetypes `FX_AlienEnvironment_B.PRE_Pod_Smoke`
     `Arc0` to `Arc4`), with `PrefabInstance_12` at the pod's place;
@@ -2506,13 +2496,12 @@ five smoke emitters stand around it as before. Not played.) Found in EXP-11 run 
 
 ### F-51: Temple Ship's doorway walls aren't drawn in the lab
 
-**Set aside by the user** (6 November, after [EXP-14](experiments/EXP-14-temple-variant.md) runs 1 to 3c: "it may be
-that's just normal in LWR or something"). Not the
+**Set aside** (6 November, after [EXP-14](experiments/EXP-14-temple-variant.md) runs 1 to 3c: it may be normal
+under LWR). Not the
 edit: the walls are missing from the unedited `TempleShip` too (run 1b). Not the test slot either: run 2, the real
-Temple mission loaded from the user's save, shows the same. (After run 1b the user set it aside as "how we load it";
-run 2 reopened it.)
-- Symptom: "the big walls with the doors seem to be invisible, we haven't modified those so something is wrong
-  there". At the user's tile (33, 18, 7), cover shields stand where the wall should be, so the walls still collide.
+Temple mission loaded from a tactical save, shows the same. (After run 1b it was set aside as down to how the lab
+loads the map; run 2 reopened it.)
+- Symptom: the big walls with the doors are invisible, though nothing changed them. At tile (33, 18, 7), cover shields stand where the wall should be, so the walls still collide.
 - The pieces: the three `DoorwayBMain` destructibles on the line y −7584: `XComDestructibleActor_146` (x 1200, with
   the door `XComInteractiveLevelActor_1`), `_135` (x −1104) and `_188` (x 48, on the walk at z 192). All are in
   building 10698, floor 1, and none is hidden in the map.
@@ -2522,13 +2511,13 @@ run 2 reopened it.)
   - Temple's Kismet. Its hide steps toggle the gate doors (`XComLevelActor_7` to `_10`), the Skyranger prefabs and,
     at the outro, the psi device `XComLevelActor_249`.
 - Run 1b loaded the unedited `TempleShip` through the same test slot, with no patch. The walls were missing there
-  too ("invisible in original map so yeah it's probably to do with how we load it").
-- Run 2: the user's tactical save inside the real Temple mission (LWR v2.01.14), with the seeded map and the patch.
-  "door walls are invisible like before".
+  too.
+- Run 2: a tactical save inside the real Temple mission (LWR v2.01.14), with the seeded map and the patch. The
+  door walls were invisible as before.
 - Also ruled out: LWR's `patch_hide_randomized_objects`, streamed in every run. Its Kismet hides only bombs, energy
   nodes and Meld containers, by archetype, class and layer.
-- Run 3: the user's HQ save, the unedited map, a normal start. "right after intro, I could see the door walls, but
-  then they disappeared", with a staggered camera on every mouse move until a save and reload; the walls stayed
+- Run 3: an HQ save, the unedited map, a normal start. Right after the intro the door walls showed, then they
+  disappeared, with a staggered camera on every mouse move until a save and reload; the walls stayed
   hidden. So the map draws them, and something hides them at run time once the battle starts.
 - Likeliest (not verified): the game's building and prop hiding (`XGLevel.UpdatePropHidingAndBuildingHiding`, native,
   every tick), which hides a building's floors by the cursor's floor. The doorways are floor 1 of building 10698.
@@ -2539,9 +2528,9 @@ run 2 reopened it.)
 ### F-52: Copies look bluer than the map's baked pieces
 
 **Fixed** ([EXP-14](experiments/EXP-14-temple-variant.md) run 7, 6 November): copies that take their light once
-while the sky light is off, then keep it, match the map's own barriers ("looks great now!"), and the soldiers keep
+while the sky light is off, then keep it, match the map's own barriers, and the soldiers keep
 the sky light. Since run 8 this is the default for every copy of a baked piece and every spawned piece
-(`XComMapEdSkyFree`), on maps whose sky light lights units only but reaches light environments. Run 8 (the user's
+(`XComMapEdSkyFree`), on maps whose sky light lights units only but reaches light environments. Run 8 (a
 project) is to confirm it in the game.
 
 **Run 10: damage undoes it.** A grenade on a console copy turned it lavender again, because the game resets a
@@ -2560,8 +2549,8 @@ and the fill on whatever else the map lights live (doors, debris). **Passed in r
 left its tone as it was, and the soldiers looked normal.
 
 First observed in runs 1 and 4.
-- Symptom: the laser barrier copy "looks a bit more blue-ish than the rest of the map". In run 4, the barrier
-  and core copies have a "weird blue-ish hue" next to the map's own barriers and cores.
+- Symptom: the laser barrier copy looks a bit bluer than the rest of the map. In run 4, the barrier
+  and core copies have an odd blue hue next to the map's own barriers and cores.
 - Cause (likely): a copy is spawned at run time, so it has no lightmap. It is lit by its own dynamic light
   environment on the dynamic channel (the log shows it enabled and dynamic). The map's pieces carry the lighting
   baked in the editor, bounced light included. Compare F-32, where two copies are lit unlike each other.
@@ -2607,8 +2596,8 @@ First observed in runs 1 and 4.
 ### F-53: The psi device copies give no cover at their ends
 
 **Open** ([EXP-14](experiments/EXP-14-temple-variant.md) run 1); likely the piece's shape, not checked in game.
-- Symptom: at copy3's two end tiles, (22, 23) and (22, 26), no cover ("no cover behind", "no cover from the front
-  either"). The copies stand as posed, collide and block, and the tile rebuild ran over them.
+- Symptom: at copy3's two end tiles, (22, 23) and (22, 26), no cover (none behind, none from the front
+  either). The copies stand as posed, collide and block, and the tile rebuild ran over them.
 - The original `XComLevelActor_249` (scale 2.5, yaw 180, roll 2560, which is 14°) stands 16 units into its floor.
   In its baked tiles, the tiles beside its long sides have cover (`0x0808`, `0x4004`), and so does the tile off one
   end (`0x1101`). The copies have roll 779 (4.3°), as the project has them, and stand 4 units into the floor.
@@ -2623,8 +2612,8 @@ First observed in runs 1 and 4.
 **Cause found in the log** ([EXP-14](experiments/EXP-14-temple-variant.md) run 2); **a fresh start verified** (run 4,
 6 November, 16:06). With the same project as a new campaign's first mission, the cores and the laser barriers block
 and give cover all around. The log shows each core's own tile fully occupied from the walk up.
-- Symptom: two power core copies on Temple's walk "can be walked through and provide no cover". This was after
-  loading the user's tactical save from inside the Temple mission, made in a game without the patch.
+- Symptom: two power core copies on Temple's walk could be walked through and gave no cover. This was after
+  loading a tactical save from inside the Temple mission, made in a game without the patch.
 - The map's own power cores block and give cover. Their tiles are occupied (`0x8000`), and the tiles beside them
   have high cover (`0x4004`, `0x0101`). Both meshes, the core's and the laser barrier's (whose copies gave cover in
   run 1), have simple collision.
@@ -2779,11 +2768,11 @@ stage rebakes the receivers around runtime copies, the route to fixing F-24 with
 ### F-56: A copy where little direct light reaches comes out black
 
 **Fixed** ([EXP-20](experiments/EXP-20-growing-writer.md) run 7, 7 November: the pairs are made in the map and baked
-for their place, and the user found them lit). Was open again after
+for their place, and they were seen lit). Was open again after
 [EXP-14](experiments/EXP-14-temple-variant.md) run 15. It was set aside after runs 11 and
-12 (6 November): it comes from this place in this map, and the user asked to leave it rather than work around it.
+12 (6 November): it comes from this place in this map, and it was left rather than worked around.
 In run 15, from the editor's relit build, one of the low-cover pairs is near black (shot 12:21:45). Now that we bake
-our own lighting, the user asks whether that can fix it.
+our own lighting, the question is whether that can fix it.
 - Our bake doesn't touch the copies yet. They are spawned by the patch at load and lit live by their light
   environments, so they get only the direct light that reaches them, never the bounce.
 - **Two ways with our own bake:**
@@ -2795,8 +2784,8 @@ our own lighting, the user asks whether that can fix it.
   - **Copies baked themselves** (step L4 of the baker plan). The copy goes into the variant map as a real piece with
     lightmaps of its own, made by the growing package writer (also UDK-removal U2). That is the full fix, for this
     case and for a copy looking slightly different from its original anywhere.
-- Symptom (run 11): of the user's south pair of alien consoles, laid on their sides and stacked back to back
-  2.6 units apart, one is "completely black" and the other darker than the map's pieces. The north pair, stacked the
+- Symptom (run 11): of the project's south pair of alien consoles, laid on their sides and stacked back to back
+  2.6 units apart, one is completely black and the other darker than the map's pieces. The north pair, stacked the
   same way, is lit.
 - Not the cause: the stacking. Run 12 traced the lights from the bounds' closest point
   (`bTraceFromClosestBoundsPoint`) in case a light trace started inside the other console, and the console stayed
@@ -2815,7 +2804,7 @@ our own lighting, the user asks whether that can fix it.
 
 ### F-57: A copy made in the map isn't in the tile data
 **Verified** (EXP-20 run 4b: the copy gives cover, and the mission loads).
-- Symptom: in EXP-20 run 3 the user's soldier could walk into the lamp post copied as a new actor of the bar. The
+- Symptom: in EXP-20 run 3 a soldier could walk into the lamp post copied as a new actor of the bar. The
   move cursor stood on its base.
 - Cause:
   - The tiles are baked into the map (F-04), and a copy made by `tools/bake/native_copy.py` is in none of them.
@@ -2879,7 +2868,7 @@ the cutaway or after a save and reload).
 **Verified** (EXP-22 run 1, 8 November: a moved and a quarter-turned ladder both give a route up, and again after
 a save and reload; no route shows where the moved one stood; run 2 on CSmallScout_Farm the same, with a near
 helper taken out of `patch_farm`'s copy). The down link itself isn't seen in the game: a soldier
-going down drops off the roof's edge, ladder or not (the user's note), so it is left to the A* probe.
+going down drops off the roof's edge, ladder or not, so it is left to the A* probe.
 - What: a ladder made in the map (`native_copy.py`) climbs only through the links the battle's tile rebuild makes for
   it. The rebuild makes both from the foot tile, and a top tile rebuilt later empties the down link again. A copy's
   own rebuild volume adds its foot before its top whenever the ladder faces +X or +Y (X runs outer, Z inner), and a
@@ -2896,8 +2885,8 @@ going down drops off the roof's edge, ladder or not (the user's note), so it is 
   facing -X or -Y (the rebuild puts its top first anyway).
 
 ### F-61: A copy is in no wall's fragment columns, and a hidden piece stays in them
-**Verified** (EXP-23 run 1, 8 November: the user's checks, breaking the wall beside a door copy among them, "everything
-works as expected"; `test_native_copy.test_a_door_copy_joins_its_walls_columns_and_its_floors_cutaway`).
+**Verified** (EXP-23 run 1, 8 November: checks played by hand, breaking the wall beside a door copy among them, all as
+expected; `test_native_copy.test_a_door_copy_joins_its_walls_columns_and_its_floors_cutaway`).
 - What: a fracturing wall lists, per fragment column, the pieces that go when that column breaks
   (`FragmentColumns(k).DestructibleCache`): a door's leaf and frame in 8 to 12 columns of their wall, fences and
   wrecks in a car glass's. A copy made in the map is in none, so breaking the wall around a copied door would leave
@@ -2940,8 +2929,8 @@ URB_ResearchOutpost's floor 2, a copy from another building's ground floor among
   Police Station, the outpost, the farm, the forest trench) the Kismet names no ladder, door or car.
 
 ### F-64: A copied car's glass keeps its original's fragment columns where the original stands
-**Verified** (EXP-24 run 1, 8 November: the user's check of a moved sedan and a turned copy of Bar's police car,
-"looks good confirmed", with no `CachedFrag` or `REBUILD PATHING!` lines in the log;
+**Verified** (EXP-24 run 1, 8 November: a check by hand of a moved sedan and a turned copy of Bar's police car,
+which looked right, with no `CachedFrag` or `REBUILD PATHING!` lines in the log;
 `test_native_copy.test_a_car_copys_glass_columns_turn_and_move_with_it`,
 `test_a_car_copys_glass_drops_column_entries_of_other_pieces`).
 - What: a car's fractured glass lists, per fragment column, a box and the pieces that go when that column breaks
@@ -2956,7 +2945,7 @@ URB_ResearchOutpost's floor 2, a copy from another building's ground floor among
 
 ### F-65: A van's copy has no building of its own, and a moved or deleted van leaves its building behind
 **Verified** (EXP-24 run 3, 8 November: soldiers walk into a turned delivery van copy's and a moved short van's cargo
-areas, the copy's roof cuts away over a soldier inside, also after a reload, "looks good to me"; run 4 on Police
+areas, the copy's roof cuts away over a soldier inside, also after a reload; run 4 on Police
 Station, a delivery van copied a quarter turn round, one moved and one deleted, passed the same day on a quick check;
 `test_native_copy.test_a_van_copy_takes_its_building_and_floor_volumes_along`,
 `test_a_deleted_vans_building_leaves_the_level_with_it`).
@@ -2998,8 +2987,8 @@ Station, a delivery van copied a quarter turn round, one moved and one deleted, 
 - Fix: `rebuild_template` takes only a volume with a brush model; on Demolition that is `XComCursorVolume_0`.
 
 ### F-69: A wall's fragment columns also list its neighbours' columns, and a wall's copy keeps all its listings
-**Verified** in the main (EXP-28 run 1, 9 November: the user's run of a wall copied with its doors, a counter section
-moved and a wall deleted, "all seemed ok"; the log shows a blast on the wall copy taking its door copy and frame, and
+**Verified** in the main (EXP-28 run 1, 9 November: a run by hand of a wall copied with its doors, a counter section
+moved and a wall deleted, all seeming right; the log shows a blast on the wall copy taking its door copy and frame, and
 a save and reload finding the broken copy by name). Not looked at: a wall's copy against other walls, a storey move.
 ([EXP-28](experiments/EXP-28-fracturing-physics.md);
 `test_native_copy.test_a_wall_copy_takes_its_columns_and_the_doors_copied_with_it`,
@@ -3049,8 +3038,8 @@ of their own (walls, storey floors, roof slabs, a bar's counter) were switched o
 
 ### F-70: Bar's corpses are physics props tagged `deleteme`; the game shows them
 **Open** in part (EXP-28 run 1, 9 November: the map's corpses show in the game as green fogged bodies, two of them in
-the user's screenshot, and the log checks both copies at each load; the user's "all seemed ok" covers the copied,
-moved and deleted corpses without detail. Before the run, offline:)
+the run's screenshot, and the log checks both copies at each load; the copied, moved and deleted corpses seemed
+right, without detail. Before the run, offline:)
 - What: URB_Bar's 14 physics props (`KAsset`, the `CivFlat*` corpses of `CHH_FoggedMaleCivs.Rigidbodies`) all carry
   the tag `deleteme`. The game has a Kismet action that takes every actor with a tag (`SeqAct_RemoveActor`,
   XComGame: a `KAsset` is destroyed with `ForceDestroy`, anything else hidden), but URB_Bar's own Kismet has no such
@@ -3065,7 +3054,7 @@ moved and deleted corpses without detail. Before the run, offline:)
   given to it, and after a save).
 
 ### F-71: A floor's copy gets floor only on tiles with standing room over them
-**Verified** (EXP-28 run 1, 9 November: the user couldn't put a soldier on a storey floor strip's copy; read from the
+**Verified** (EXP-28 run 1, 9 November: no soldier could be put on a storey floor strip's copy; read from the
 run's save with `tools/lab/save_tiles.py`).
 - What: Bar's upstairs floor strip `XComFracLevelActor_17` (10 tiles by 1, top at 210) was copied 2 tiles north, over
   the front room, where the map has no floor at that height. After the game's tile rebuild, 4 of its 10 tiles have
@@ -3151,7 +3140,7 @@ run's save with `tools/lab/save_tiles.py`).
   that stops this way starts again once `XComContent.ini` is deleted (the game makes it afresh).
 
 ### F-76: A variant of an alien base never leaves its intro: the entrance picks its scene by map name
-**Verified** (10 November 2026: the user played aba1_test's rebuild with Play in game, "tested works"). Found by the user: Play in game on a quick build of
+**Verified** (10 November 2026: aba1_test's rebuild played by hand with Play in game, and it works). Found in a play: Play in game on a quick build of
 AlienBase01 (project aba1_test, `AlienBase01_Aba1Tes_da5a`) loaded the battle, then the camera stayed in a cutscene
 that never started.
 - The log: the map, its streams, the aliens and the squad all loaded; the two working plays before it (a Temple Ship
@@ -3174,7 +3163,7 @@ that never started.
   rig, which has no Skyranger cabin) is not the cause, as far as is known; whether it shows in the game's own alien
   base missions wasn't checked.
 - Play in game still writes a variant's record as an abduction (`installs.plan_record`), as for every kind of map;
-  the user is fine with that for map testing.
+  that is fine for map testing.
 
 ### F-77: The campaign's first map had no volume a rebuild volume could be cloned from
 **Fixed** (10 November 2026, offline: `test_native_copy.RebuildTemplateIntro`, and the EXP-30 project built; not
@@ -3187,14 +3176,14 @@ stopped in `native_copy.py` with "the map has no plain, unrotated volume with a 
 - Fix: `LightmassImportanceVolume` is the last fallback class (`REBUILD_FALLBACKS`). Its export saves only what every
   brushed volume saves (`Brush`, `BrushComponent`, `CollisionComponent`, `Location`, `Tag`, `SavedSelections`,
   `bDirtyComponents`), none of its own; on the intro map that is `LightmassImportanceVolume_1`.
-- EXP-30 run 2 (the user's play of that project): the car and its glass are gone and the battle's world data rebuild
+- EXP-30 run 2 (a play of that project by hand): the car and its glass are gone and the battle's world data rebuild
   ran. Whether a soldier stands where the car stood isn't shown: those tiles are the last rows of the map's 19-row
   grid, at the playable area's edge.
 
 ### F-78: The tutorial's map, opened with no record, crashed the game
 **Fixed** (10 November 2026, offline: `test_play.test_the_tutorial_map_alone_plays_with_a_copy_of_its_commented_out_record`;
-not played yet: [EXP-30](experiments/EXP-30-intro-map.md) run 3). Found by the user in EXP-30 run 1: Play in game on
-Act1_IntroLevel alone "opened for 1s but then the game crashed right away".
+not played yet: [EXP-30](experiments/EXP-30-intro-map.md) run 3). Found in EXP-30 run 1: Play in game on
+Act1_IntroLevel alone opened for a second, then the game crashed.
 - What: the battle loaded (squad, four sectoid pods), then `Critical error` 8 s after `LoadMap`, at XComEW.exe
   0xafca98. Play in game installs nothing for a map alone, and LWR comments out both of this map's records, so the
   game found no record (`GetCurrentMapMetaData`) and streamed no intro.
@@ -3206,9 +3195,9 @@ Act1_IntroLevel alone "opened for 1s but then the game crashed right away".
   game takes it out. While it is in, a game that opens Act1_IntroLevel by name (the tutorial) finds that record.
 
 ### F-79: A cover block crashed the game as the map loaded: its component's native data was the UDK's, not EW's
-**Verified** (10 November 2026: the user played the rebuild, [EXP-31](experiments/EXP-31-cover-blocks.md) run 1, and
+**Verified** (10 November 2026: the rebuild played by hand, [EXP-31](experiments/EXP-31-cover-blocks.md) run 1, and
 the map loaded; offline: `test_cover_blocks.BuiltInTheMap.test_the_mesh_components_native_data_is_the_maps_own`).
-Found by the user: a
+Found in a play: a
 project on CSmallScout_Farm with a cover block stopped the game before the map finished loading,
 `Bad import index 65535/334` in `Launch.log`; the same project without the block had played.
 - Cause: the recipe gave the block's `StaticMeshComponent` the native data LWR's hidden helpers save (an empty
@@ -3221,11 +3210,11 @@ project on CSmallScout_Farm with a cover block stopped the game before the map f
   exports of its class, not only against the UDK package's.
 
 ### F-80: Cover blocks gave no cover and let units through: the rebuild skips a level actor whose mesh has no BodySetup
-**Verified** on level ground (10 November 2026, [EXP-31](experiments/EXP-31-cover-blocks.md) run 3: the user played
-the rebuild, "works now", the blocks stop a soldier and give cover; offline:
+**Verified** on level ground (10 November 2026, [EXP-31](experiments/EXP-31-cover-blocks.md) run 3: the rebuild played
+by hand, the blocks stop a soldier and give cover; offline:
 `test_cover_blocks.BuiltInTheMap.test_each_box_has_a_body_setup_as_the_maps_own` and `GameBoxHull`). On a ramp the
 block still gave no cover: F-81, the game's own rule.
-Found by the user in EXP-31 run 1, once the map loaded (F-79): high blocks over a small rock (half cover) and over a
+Found in EXP-31 run 1, once the map loaded (F-79): high blocks over a small rock (half cover) and over a
 rock on a ramp changed nothing, and a block in the open neither stopped a soldier nor gave cover. Run 2, with the
 first fix, was the same.
 - Cause (read from the native code: [native code notes](native-code-notes.md), "How the rebuild decides a tile is
@@ -3245,10 +3234,9 @@ first fix, was the same.
   (read after run 3), and the hidden blocks worked in run 3.
 
 ### F-81: A soldier on a sloped floor tile gets no cover, from the game's pieces or a cover block
-**Explained: the game's own rule** (10 November 2026; [EXP-31](experiments/EXP-31-cover-blocks.md) run 3). Found by the
-user: a high cover block over a rock on CSmallScout_Farm's ramp (by the UFO) gave no cover, at its first height and
-again sunk into the ground, while blocks on level ground did; the user had noticed the game's own rock there gives
-little cover too.
+**Explained: the game's own rule** (10 November 2026; [EXP-31](experiments/EXP-31-cover-blocks.md) run 3). Found in a
+play: a high cover block over a rock on CSmallScout_Farm's ramp (by the UFO) gave no cover, at its first height and
+again sunk into the ground, while blocks on level ground did; the game's own rock there gives little cover too.
 - Cause: the tile rebuild's floor-detail step (`0xA0A2B0`, where a floor tile's details are worked out) runs only on
   floor tiles without the sloped bit `0x4000`, which the floor trace sets where the floor is steeper than about 10°
   ([native code notes](native-code-notes.md), "How the rebuild decides a tile is occupied"). The ramp's tiles there
@@ -3266,7 +3254,7 @@ little cover too.
 
 ### F-82: An invisible floor gave the tile below it half cover, like a step
 **Verified** (10 November 2026, [EXP-32](experiments/EXP-32-invisible-floor.md) run 2: with the fix the tile below a
-floor got no cover from it, and soldiers on the floors kept their cover). Found by the user in
+floor got no cover from it, and soldiers on the floors kept their cover). Found in
 [EXP-32](experiments/EXP-32-invisible-floor.md) run 1: invisible floors over CSmallScout_Farm's ramp worked, but the
 tile downhill of a floor got half cover from it.
 - Cause (native code, medium confidence; [native code notes](native-code-notes.md), "Where a tile's floor and cover
@@ -3284,15 +3272,15 @@ tile downhill of a floor got half cover from it.
 ### F-83: An invisible floor snapped 1 unit over the drawn ground wasn't found: the game traces the collision
 **Verified** (10 November 2026, [EXP-32](experiments/EXP-32-invisible-floor.md) run 3: floors the editor fitted 1 unit
 over the collision were found, and soldiers on them got cover; offline: `test_collision`, `check_cover` in the
-browser smoke test). Found by
-the user in [EXP-32](experiments/EXP-32-invisible-floor.md) run 2: three floors the editor had put 1 unit over
+browser smoke test). Found in
+[EXP-32](experiments/EXP-32-invisible-floor.md) run 2: three floors the editor had put 1 unit over
 CSmallScout_Farm's ramp gave no cover; raised a few units by hand, they did.
 - Cause: the floor trace meets a static mesh's simple collision (its BodySetup's convex hulls and boxes) when the mesh
   uses simple line collision, as cooked meshes do unless they save `UseSimpleLineCollision` False ([native code
   notes](native-code-notes.md), "Simple or per-triangle collision"). The ramp (`TornEarth.Meshes.SmallscoutRamps`) has
   ten hulls, and where the drawn ramp dips they stand over it: at the floors' tile centres the hulls' top is at 86.15,
   49.64 and 86.15 against the drawn 80.9, 48.0 and 83.6. A floor 1 unit over the drawn ramp was inside the hull, so the
-  trace met the hull (a slope of normal z 0.935, under 0.9848: a sloped tile, no cover, F-81). The user's raised floors
+  trace met the hull (a slope of normal z 0.935, under 0.9848: a sloped tile, no cover, F-81). The floors raised by hand
   stood 1.1, 4.5 and 2.2 over the hulls, and all three worked.
 - Fix: the editor reads the ground of an invisible floor from the game's collision: the server serves each mesh's
   line-check collision from the map's package (`GET /maps/<id>/collision.json`, `tools/viewer/collision.py`), and the
@@ -3323,7 +3311,7 @@ CSmallScout_Farm's ramp gave no cover; raised a few units by hand, they did.
   as `XComEW.exe`, so nothing in the tools changes.
 - In place in the lab copy and the LWR install, the real launcher kept beside it as `XCOMLauncher_backup.exe`. Undo:
   delete the stand-in and rename the backup back; Steam's file check also restores the launcher.
-- **Play in game through the stand-in stopped at the main menu** (the user's play of farm+, 11 November 02:04, the
+- **Play in game through the stand-in stopped at the main menu** (a play of farm+ by hand, 11 November 02:04, the
   lab copy). Steam's stub hands each argument on in quotes, the stand-in passed its command line on as it came, and
   the game reads a quoted `-EXEC` with the closing quote in the file's name. `Launch.log`: `Command line:
   -FROMLAUNCHER "-EXEC=XComMapWorkshop-play.txt" -nostartupmovies -nohomedir -forcelogflush`, then `ExecWarning:
@@ -3504,8 +3492,8 @@ and `0x78AEB0`, and checked against the maps; EXP-44 and EXP-45 are to show list
 ### F-89: Saving does not work in a battle started without a campaign (Play in game)
 **Fixed offline, for plays with saving on** (EXP-43 runs 1 and 1b, 11 November 2026; the cause read on 15 November
 and confirmed by [EXP-56](experiments/EXP-56-save-after-login.md) run 1 the same day: the same battle opened again
-from the title screen, after its login, saved and loaded. The same day the editor got an **Enable saving** checkbox,
-at the user's design: with it on, the game starts at its main menu and F5 there opens the battle. To play in
+from the title screen, after its login, saved and loaded. The same day the editor got an **Enable saving** checkbox:
+with it on, the game starts at its main menu and F5 there opens the battle. To play in
 [EXP-57](experiments/EXP-57-enable-saving.md). A play with it off still can't be saved; most test plays don't need
 to. The way not taken, a play that logs in by itself, is play-login-plan.md).
 - **The fix** (play.py, gamelaunch.py, installs.py): a play with saving on starts the game with
@@ -3542,7 +3530,7 @@ to. The way not taken, a play that logs in by itself, is play-login-plan.md).
     saves and loads, a play has to open the battle after the login (its "If it passes" lists the ways).
 - Before the fix: a run that needed a save and a reload was played from the lab's campaign test slot
   (`lab_install.py install`), not with Play in game.
-- **The save a play leaves is broken** (EXP-56's try at 11:32, 15 November). The user left a test battle for the main
+- **The save a play leaves is broken** (EXP-56's try at 11:32, 15 November). A test battle was left for the main
   menu (the login ran) and loaded from there the Slaughterhouse save the 10:45 play had left (moved to save999 by
   the editor): the map started loading and the game crashed 5 seconds in. The dump (`unreal-v8917-2026.11.15-11.32.33.dmp`)
   is a divide by zero (0xC0000094) at 0x4AB9DE in the exe copy's addresses (the game ran at base 0x5A0000), in the
@@ -3550,7 +3538,7 @@ to. The way not taken, a play that logs in by itself, is play-login-plan.md).
   file is 670 copies of the 1 KB save header and then the checkpoint data; a whole save (save9, save20) has its data
   at byte 1024. So the stuck write rewrites the header about once a frame (670 in the 11 seconds that play sat at
   "SAVING...") and writes the data only as the game closes. Every save a play leaves is like that while this stands.
-- A play's save never keeps a campaign's slot (15 November, at the user's ask): before a play the editor copies the
+- A play's save never keeps a campaign's slot (15 November): before a play the editor copies the
   game's save1 to save9 aside (both save folders: the install's `XEW\XComGame\SaveData` and Documents'), and once the
   game has closed it takes any save in a low slot that changed and is a play's (game 0, its map opened with
   `LoadingFromShell=1`) out of the slot and puts back the copy it replaced ([playsaves.py](../tools/viewer/playsaves.py),
@@ -3565,7 +3553,7 @@ to. The way not taken, a play that logs in by itself, is play-login-plan.md).
     logged in never writes over a campaign's save, and a whole play save moved to save999 would make the campaign's
     next save save1000. So a whole play save now stays where the game wrote it; only one written over a save copied
     before the play (saved over it from the menu) moves to the slot after the highest, and that save goes back.
-- The user, 11 November 2026: saving in a single-map test run need not be supported for now.
+- 11 November 2026: saving in a single-map test run need not be supported for now.
 - 15 November 2026: Long War's EXALT missions save and reload as they start, so on this path they wait for good
   (F-109); fixing this would make them playable. The lab copy's `SaveData\save1` from those runs was last written
   when the game closed, not when the battle saved: the write starts (the "SAVING..." notice is shown once Steam's
@@ -3620,8 +3608,8 @@ read 2). A reference fact, not a defect.
   intro copy gets new values (a same-size write). Under LWR the intro always uses group 0's place.
 
 ### F-113: Cover blocks smaller than a tile do what the tile rebuild makes of them
-**Verified** (15 November 2026, [EXP-59](experiments/EXP-59-small-cover-blocks.md) run 1, the user: "B did hold as a
-wall"). Not a fault: what the editor's handles (any size in units,
+**Verified** (15 November 2026, [EXP-59](experiments/EXP-59-small-cover-blocks.md) run 1: block B held as a
+wall). Not a fault: what the editor's handles (any size in units,
 cover-block-handles-plan.md) rely on.
 - **What the game does.** Read in [native/cover-build.md](native/cover-build.md): a tile is occupied when its box (48
   each way, 28 to 92 over its level's bottom) meets a piece at least 4 units through, fully occupied (no floor)
@@ -3630,18 +3618,18 @@ cover-block-handles-plan.md) rely on.
   centres.
 - **Played.** Six hidden high blocks on the Bar's pavement: whole tile, half a tile in a tile's middle, an 8-unit
   wall on a tile edge (it held as a wall: units on both sides, no crossing), a 24-unit block in a corner, a block 40
-  high, and a 2-unit wall on an edge. The user: "it works fine". Discord S8 (an invisible cover wall) needs no new
+  high, and a 2-unit wall on an edge. It all works. Discord S8 (an invisible cover wall) needs no new
   piece: a thin block on a tile edge.
 - **The editor.** The panel's words (app.js `coverTiles`, `coverGameWords`) and the Build's `cover-thin` and
   `cover-short` warnings follow the rules above.
-- **Open: sight.** The user could see and shoot across the 8-unit wall. Most likely by leaning round its ends (it
+- **Open: sight.** A soldier could see and shoot across the 8-unit wall. Most likely by leaning round its ends (it
   is one tile long); whether a hidden high block stops sight at eye level hasn't been checked. EXP-59's notes give a
   check that tells the two apart.
 
 ### F-112: A test play of an EXALT mission had Sectoids, not EXALT
-**Verified fixed** (15 November 2026: found in [EXP-57](experiments/EXP-57-enable-saving.md) run 2, the user's play
-of a data recovery: "there was no exalt, everything was sectoids"; the cause read from the game's scripts; the fix
-played in run 4 at 14:32, "57 is confirmed"). A fault of the editor.
+**Verified fixed** (15 November 2026: found in [EXP-57](experiments/EXP-57-enable-saving.md) run 2, a play by hand
+of a data recovery: no EXALT, every alien a Sectoid; the cause read from the game's scripts; the fix
+played in run 4 at 14:32, confirmed). A fault of the editor.
 - **Cause.** A battle started without a campaign gets its pods from `XGBattleDesc.GenerateAliens`: four pods (five on a
   terror site) of the profile's `m_eAlienType`, which every play set to `eChar_Sectoid` (`gamelaunch.ALIENS`). The
   campaign gives an EXALT mission EXALT pods; a play gave it Sectoids.
@@ -3657,7 +3645,7 @@ played in run 4 at 14:32, "57 is confirmed"). A fault of the editor.
   keeps aside [inferred]). Long War's save and reload went through and the battle played.
 
 ### F-110: A test battle has no mission commander: no Outsider in a UFO, no Sectoid Commander in an alien base
-**Accepted** (15 November 2026: EXP-53 runs 5 and 7, the user's plays of `CSmallScout_Quagmire`'s crashed UFO and
+**Accepted** (15 November 2026: EXP-53 runs 5 and 7, plays by hand of `CSmallScout_Quagmire`'s crashed UFO and
 `AlienBase01`; the cause read from the game's and LWR's scripts). A limit of the test's aliens (the mission types plan,
 decision 2), not a fault of the editor.
 - **Seen.** The crashed small scout played well, but no command pod (the Outsider) stood in the UFO. The alien base
@@ -3675,7 +3663,7 @@ decision 2), not a fault of the editor.
 **Fixed: data recovery played** ([EXP-57](experiments/EXP-57-enable-saving.md) run 2, 15 November 12:43: with saving
 on, F5 at the main menu opened the battle and Long War's save and reload went through; covert extraction and the EXALT
 raid take the same path, not played. Their plays have saving on since the evening of 15 November, F-89.
-Seen 15 November 2026: EXP-53 runs 2, 3 and 7, the user's plays of `URB_PoliceStation`'s data recovery,
+Seen 15 November 2026: EXP-53 runs 2, 3 and 7, plays by hand of `URB_PoliceStation`'s data recovery,
 `URB_LiquorStore`'s covert extraction and `EWI_ExaltHQAssault`; read from their `Launch.log`s and LWR's
 `LWRebalance.u`, decompiled from a copy).
 - **Seen.** Each battle loads, the squad, the pods and the covert operative ("Debug McGee") spawn, the briefing's
@@ -3688,7 +3676,7 @@ Seen 15 November 2026: EXP-53 runs 2, 3 and 7, the user's plays of `URB_PoliceSt
   until the checkpoint is serialised and written to disk, waits out the narration, and loads that save. After the
   load (`PostLoadSaveGame`) it runs its pre-mission setup and deletes the save. A battle started without a campaign
   never finishes writing a save (F-89), so the state waits for good.
-- **Not a way round** (read again 15 November, at the user's ask to skip the save on EXALT maps):
+- **Not a way round** (read again 15 November, as a way to skip the save on EXALT maps):
   - Starting the battle as if loaded from a save (`bJustLoadedFromSaveGame` on the mutator) would skip the reload
     (`OnMapLoaded` then runs the turn-1 setup instead), but a play can't set it. A play's `set` lines run at the start
     screen, where the mutator loader loads no mutators (`XComMutatorLoader.GameInfoInitGame` loads them only for a
@@ -3727,9 +3715,9 @@ Seen 15 November 2026: EXP-53 runs 2, 3 and 7, the user's plays of `URB_PoliceSt
   `test_stream_copy.TurnedByItsArchetype` moves the encoder.
 
 ### F-107: A terror battle started from the console hangs at the loading screen: its civilians have no looks
-**Fixed, played** (15 November 2026: the user's play of `hurr+` on `URB_StreetHurricane_Terror` as its Terror record,
+**Fixed, played** (15 November 2026: a play by hand of `hurr+` on `URB_StreetHurricane_Terror` as its Terror record,
 01:21, hung at the loading screen until closed; read from its `Launch.log`. Played with the civilians' line at 01:32:
-"launched and worked fine in game"; every terror play has the line since). The same as F-93's run 3 (12 November, a
+it launched and worked in the game; every terror play has the line since). The same as F-93's run 3 (12 November, a
 terror-site record on the prefab stage), now on a real terror map, so the map was not the cause.
 - **Seen in the log.** Long War's mutators ran and the squad and the pods spawned (`FIXDEPLOYMENT` names mission type
   9, the record's display name with `Terror`). Then 18 `XComCivilian`s spawned, each `RandomizeAppearance` reading
@@ -3741,14 +3729,14 @@ terror-site record on the prefab stage), now on a real terror map, so the map wa
   every civilian asks for content 0, which never loads, and the battle waits for it.
 - **Fixed.** The editor's line for it (`missions.civilian_content`: five civilians from the install's
   `DefaultContent.ini`, as `set XComOnlineProfileSettingsDataBlob m_kCivilianContent ...`), tried with
-  `serve --try-mission-lines` (EXP-53 run 6), played: the battle started, the user played it, and the log shows the
+  `serve --try-mission-lines` (EXP-53 run 6), played: the battle started and was played, and the log shows the
   civilians loading their bodies (`Body_WrmCivFem_A`, `Body_ColdCivMale_D`, ...) with no empty lists. Its state is
   `works`, so every terror play now has it, and the terror kind reads "Played and working".
 - **Left over, harmless so far.** The content manager still logs `Requested missing Unit content: Id=0` nine times
   as the civilians spawn; the battle didn't wait for it.
 
 ### F-106: Street Hurricane Terror's dropship lands in the middle of the map
-**Fixed offline in the Build, to confirm in the game** (15 November 2026: seen by the user in a play of the project
+**Fixed offline in the Build, to confirm in the game** (15 November 2026: seen in a play of the project
 `hurr+` on `URB_StreetHurricane_Terror`, played as its Council extraction; the cause read from the install's
 `CIN_DropshipIntros`; the Build's fix the same day). A fault of the game's own data, not of the editor: it plays the
 same on the map as the game has it, whatever the mission.
@@ -3822,7 +3810,7 @@ offline). A reference fact for the plan's one list of landing zones.
 - **13 maps tag their one landing `deleteme`.** It is still the only group, so it plays.
 
 ### F-100: A grown map's new area has no floor where only the map's scenery lies
-**Fixed offline, to confirm in the game** (13 November 2026: the user's intro+ played, Act1_IntroLevel grown from 62
+**Fixed offline, to confirm in the game** (13 November 2026: the intro+ project played, Act1_IntroLevel grown from 62
 by 19 by 12 tiles to 95 by 25 by 18; read offline from the map with `tools/upk/props.py`; the fix the same day).
 - **Seen in the game:** units can't walk in the new area, though the map's ground and pavements are drawn there at
   the old area's height. The squad of a landing zone there stands a little above the drawn ground.
@@ -3845,7 +3833,7 @@ by 19 by 12 tiles to 95 by 25 by 18; read offline from the map with `tools/upk/p
   otherwise be no floor, and its copy got no tiles either, since `collides` was false.
 - The compiler's `scenery_floor` and the page's zone notes take those pieces as floor for a landing zone. The
   backdrop's buildings (StaticMeshActor, 2,400 high) stay as they are.
-- **Again on CsmallScout_Farm** (the user's farm++, 13 November, grown to 91 tiles along Y, ground laid).
+- **Again on CsmallScout_Farm** (the farm++ project, 13 November, grown to 91 tiles along Y, ground laid).
   - The play area's ground is at -128, the grid's bottom. The new strip takes in a raised backdrop whose ground
     planes stand at 0 and are floor pieces already: no collision flags saved.
   - The rule took only pieces within a level of the grid's bottom, so none of these. It made the sky's ground plane
@@ -3865,7 +3853,7 @@ by 19 by 12 tiles to 95 by 25 by 18; read offline from the map with `tools/upk/p
   - the smoke's clear-map check on Bar, CSmallScout_Farm and Act1_IntroLevel.
 
 ### F-101: A cover block stayed as an invisible wall when the piece under it was destroyed
-**Verified** (13 November 2026, the user's ask; EXP-52 run 1, played the same day, bar a save and a load).
+**Verified** (13 November 2026; EXP-52 run 1, played the same day, bar a save and a load).
 - **Cause:** a cover block is a hidden `XComLevelActor`. The game's link between pieces that break together,
   `AffectedChildren`, names `XComDestructibleActor`s only, and a level actor has no damage states.
 - **Fix:** a high or low cover block in a group with Break together on is built as a hidden prop
@@ -3914,12 +3902,12 @@ unlisted templates were excluded from both sides of the bake. XCOM loaded the ba
 light on the asphalt below the visible floodlight.
 
 ### F-93: A prefab test with no aliens, no Meld and a sky crashed the game as the battle started
-**Fixed** (12 November 2026: found in two runs of the user's, 18:51 and 19:00, the Farm UFO prefab; run 4, 19:18,
-played: "worked this time").
+**Fixed** (12 November 2026: found in two runs played by hand, 18:51 and 19:00, the Farm UFO prefab; run 4, 19:18,
+played and worked).
 - What: the stage loaded and showed, the squad spawned, then `Critical error` 3.7 s later, an access violation
   reading address 0x40 at XComEW.exe 0xcbca98 (at its own base; 0xf9ca98 as loaded), called from 0xb14118: **the
-  addresses of EXP-30 run 1** (F-78), where a map with no record crashed with aliens on the map. Run 2 the user saw,
-  for a split second, "an elongated mesh stretching out below, possibly from a soldier". The changes since the last
+  addresses of EXP-30 run 1** (F-78), where a map with no record crashed with aliens on the map. Run 2 showed,
+  for a split second, an elongated mesh stretching out below, possibly from a soldier. The changes since the last
   good run (17:59): no lines (the planes hidden as before), two sky domes, the profile's alien type `eChar_None` (no
   pods, as the log shows) and the record's `MissionType=eMission_None` (no Meld, as the log shows).
 - Cause, most likely: the record's kind. A map with no record reads as `eMission_None` too, and crashed at the same
@@ -3928,7 +3916,7 @@ played: "worked this time").
   quick build's 44 and a rebuild of every tile at load, though the dome collides with nothing. Run 2 had that fixed
   and still crashed, so it is not the cause.
 - Run 3 (19:04, a terror-site record, no Meld there either): no crash, but the battle never left the loading
-  screen (the user closed it after a minute). The log: the game spawned a Chryssalid and a Sectoid with no squad,
+  screen (closed after a minute). The log: the game spawned a Chryssalid and a Sectoid with no squad,
   civilians with no looks (`XComCivilian.RandomizeAppearance` out of bounds: no civilian content on this path), the
   overmind divided by zero, then LWR's mutator re-ran its "loaded" step every 0.4 s. A terror site needs content a
   test doesn't load: out.
@@ -3951,8 +3939,8 @@ in the game).
   Farm UFO stage builds; its building volume reads back with `IsUfo` and both floors.
 
 ### F-91: The bake took a recipe light's source radius as 100, where the light saves 32
-**Fixed** (12 November 2026: seen offline, writing the point light recipe, and fixed the same day at the user's
-word; not looked at in the game).
+**Fixed** (12 November 2026: seen offline, writing the point light recipe, and fixed the same day;
+not looked at in the game).
 - What: `native_lights.recipe_source_radius` looks for `lightSourceRadius` or a `lightmass` record at the top of
   the factory's recipe, finds neither (the recipe keeps `LightSourceRadius` 32 inside its component's
   `LightmassSettings`), and falls back to UDK's default, 100. The relight then bakes a recipe spot or point light
@@ -4261,15 +4249,15 @@ the lab copy, both alive and logging).
   suspended, replaces that call in the new process's memory with `mov eax, 1` and resumes it; no file is changed.
   The exe loads at a random base (read from the process), and the bytes are checked before the change. A game
   started this way never makes the mutex, so it starts beside a running game, and a game started the usual way
-  after it starts too. It also sets the two Steam variables and `__COMPAT_LAYER=HIGHDPIAWARE` (T-48). The user's own
-  game is started with it; hidden runs start theirs as before.
+  after it starts too. It also sets the two Steam variables and `__COMPAT_LAYER=HIGHDPIAWARE` (T-48). A game played
+  by hand is started with it; hidden runs start theirs as before.
 - **Hidden runs**: [hidden_game.py](../tools/lab/hidden_game.py) refused whenever any `XComEW.exe` was running. It
   now refuses when the game of the copy it runs is open (told by the exe's folder), or when another copy's game is
   open and the mutex exists (that game was started the usual way), and says which.
 - **Staging beside it** (22 November 2026): the editor's install and Play in game steps, `lab_install.py` and
   `deploy_fixture.py` refused while any `XComEW.exe` ran; they now ask only about the game of the install they change
   (`installs.game_running(game)`, `procs.running(image, folder)` by the exe's folder; one whose path can't be read
-  counts), so a map is staged into the lab copy while the user plays another copy. Two hidden runs at once are not
+  counts), so a map is staged into the lab copy while another copy is played. Two hidden runs at once are not
   tried. A hidden run started while such a game is open is not played yet
   (the first one was open before it); the checks were tried against both games open. F-84's quit within 200 ms has
   the same signs and may be this check; not looked at.
@@ -4517,15 +4505,15 @@ station, there since 18 November 2026). Was known bug KB-13.
 ### F-116: A wall's end on a tile edge reaches a unit into the next tile; a one-tile doorway with no door gives cover toward its sides
 **Fixed** for the ends (17 November 2026; seen in [EXP-67](experiments/EXP-67-fracturing-wall-poc.md) run 1); the
 doorway's cover is the game's own rule, **open**.
-- **Seen.** In EXP-67 run 1 the user found "a tile that was acting like an invisible cover/blocker near the custom
-  door gap": with the move cursor on the doorway's tile, its picture shows a shield toward each side of the doorway.
+- **Seen.** In EXP-67 run 1 a tile near the custom door gap acted as an invisible cover or blocker: with the move
+  cursor on the doorway's tile, its picture shows a shield toward each side of the doorway.
 - **Cause.** The game counts its tiles from a unit under the grid the pieces stand on (`WorldBounds.Min`,
   [cover-build.md](native/cover-build.md)), and its occupancy test is a box the size of the whole tile against each
   piece's collision (section 2). So a solid whose side lies on a piece-grid edge reaches one unit into the tile column
   beyond it, and that tile is marked partly occupied (`0x8000` with `0x10000`): every direction gets a cover test
   there, and its neighbours test toward it. The custom wall's doorway side at x −96 and its east end at x 192 did
   this. The game's test, run on the wall's own triangles (all fragments standing), marks the doorway's column (game
-  tile x 28) and the column past the east end (x 31) partly occupied on both sides at every level, and the user's
+  tile x 28) and the column past the east end (x 31) partly occupied on both sides at every level, and the run's
   save shows both so at level 1, where the wall still stood. The doorway's tile then gets cover toward both of its
   sides, each 47 to 49 units from its centre. The twin, whose ends stand inside its tiles, marks exactly its own.
 - **The game's walls.** Their inside walls end 8 short of their tile edges: on URB_Bar, URB_PoliceStation and
@@ -4542,8 +4530,8 @@ doorway's cover is the game's own rule, **open**.
 - **Open.** The doorway tile's cover follows from the game's own rule for a tile between two pieces of wall. The
   game's doorways hold doors; whether a door in this one (a copy of one of the bar's) takes the cover away is not
   tried. Since the same day the editor draws a made wall as it is built, so the doorway shows there and a door can be
-  placed in it. The user then put a door in it (EXP-67, run 2): "doors seem to work well in the custom walls too";
-  their pictures show it shut beside a soldier in cover and open with a soldier at the doorway. Whether the doorway
+  placed in it. A door was then put in it (EXP-67, run 2), and doors work in the custom walls too; the run's
+  pictures show it shut beside a soldier in cover and open with a soldier at the doorway. Whether the doorway
   tile still gives cover with the door in it was not told apart.
 
 ### T-42: Generated geometry is currently box-specific; custom visible walls and terrain need another authoring path
@@ -4581,8 +4569,8 @@ inspection, no new visible mesh played).
   - Breaking a generated wall a panel at a time rests on what the Build already makes: a destructible prop whose one
     destroyed event hides it, taking its collision and cover (the breaking cover block, F-101). Shown, with a
     toughness that takes damage, it is not played yet.
-- **What one of the game's fracturing walls is** (16 November 2026, read only, a scratch count; the user asked
-  whether a generated wall can look and break as the game's do, and for a proof of concept of that first):
+- **What one of the game's fracturing walls is** (16 November 2026, read only, a scratch count, on
+  whether a generated wall can look and break as the game's do, with a proof of concept of that first):
   - `URB_Bar_FRAC.Meshes.URB_BarIntWallB_FRACTURED` (560 by 24 by 400, 902 triangles) has six sections: each side's
     face in two (lower and upper storey), one for the trims (skirting, cornice, end caps, 4 units proud), one for
     the faces inside the wall. The mesh's sections name no material: the component's `Materials` does, with a
@@ -4627,16 +4615,16 @@ inspection, no new visible mesh played).
   - Left as they are, for the run to judge: the tree's nodes don't narrow (every check tests every triangle); the
     lightmap packing leaves about 30% of its square unused; the columns' lists of props and neighbouring walls are
     empty (F-69).
-  - **EXP-67 run 1 passed** (17 November 2026, played by the user: "all checks out in game"): the twin looks like
+  - **EXP-67 run 1 passed** (17 November 2026, played by hand: every check passed in the game): the twin looks like
     the reference beside it, all three break under rifle fire and grenades, cover, sight and walking through the
     doorway and the holes, and a save and reload with them broken. One tile at the custom wall's doorway acted as
     invisible cover (F-116, its end part fixed). By the plan's section 0.2, both questions pass. Run 2: a door in
-    the custom wall's doorway works. The user: "I think the POC was successfull". Still to learn, for walls beyond
+    the custom wall's doorway works. The proof of concept worked. Still to learn, for walls beyond
     the proof of concept: recipes for other walls (outside walls, other heights), joints and corners (the columns'
     neighbour lists), walls inside buildings (cutaway), and whether a door takes the doorway tile's cover away.
 
 ### T-41: Map grid snapped back on maps past 128 tiles at their own size
-**Fixed** (16 November 2026, seen by the user on a temple map).
+**Fixed** (16 November 2026, seen on a temple map).
 - **Seen.** On TempleShip the rail's Map grid drew a larger grid while a handle was dragged, then snapped back to the
   map's own size on release, and nothing changed. The blue (Y) handle did worse: it jumped down to 128 as soon as it
   moved, and on release left a hidden `grid: [45, 128]` in the project, smaller than the map, which the Build refuses.
@@ -4648,12 +4636,12 @@ inspection, no new visible mesh played).
 - **Fix.** Each axis now goes up to 128 tiles or 30 levels, or the map's own where that is more (`project.js
   stageMax`, `compiler.py stage_max`). The drag bounds, the checks as a stage is set, loaded or recovered, and the
   compiler use it. `sortState` checks only the stage's shape, because its size was already checked against the map,
-  so a save keeps the larger grid. The same day, at the user's word, the limit went up to 256 tiles a side, and the
+  so a save keeps the larger grid. The same day the limit went up to 256 tiles a side, and the
   prefab builder's "largest map the editor makes" with it. TempleShip now grows to 256 across and deep, and up to
   30 levels. No map of the game's is past 256, so the own-size rule only matters again if the limit comes down.
 
 ### T-40: The output-name check took the lab's earlier tests of a project for someone else's files
-**Fixed** (16 November 2026, seen by the user in the build queue: temple_improved failed at once).
+**Fixed** (16 November 2026, seen in the build queue: temple_improved failed at once).
 - **Seen.** "The build would write names that are taken: patch_templeship_templeim_2001 (… in XCom-Enemy-Unknown's
   CookedPCConsole)". The file was the lab's patchtool deploy of the same project (EXP-14, 7 November), from before
   the editor could install, and the build would not even have written it: no edit of the project makes a patch.
@@ -4887,7 +4875,7 @@ the reporting project rebuilt here; not played). Found from a user's build repor
 ### T-29: The viewer cut masked props away by their colour texture's alpha (the farm's tractors drew as glass)
 **Fixed** (10 November 2026, offline: `test_material_rules` (`test_what_an_opacity_mask_input_samples`,
 `test_a_masked_cut_out_follows_the_opacity_mask_input`), the Farm re-exported and looked at; a viewer-only fault, the
-game never had it). Found by the user: CSmallScout_Farm's tractors (`VEH_commercial.Mesh.TractorB`) showed only
+game never had it). Found in the editor: CSmallScout_Farm's tractors (`VEH_commercial.Mesh.TractorB`) showed only
 their glass and a few orange lights in the editor.
 - Cause: the viewer drew every `BLEND_Masked` material with the colour texture's alpha as its cut-out
   (`materials.profile`: `diffuse-alpha`). The game cuts by whatever the parent material wires to its OpacityMask input.
@@ -4924,8 +4912,8 @@ of DLC1_1_LowFriends with 41 copies and 16 hidden pieces stopped in the relight.
 - The tester needs a release with the fix (0.3.1 has neither T-27's nor this one's); release 0.4.0 has both.
 
 ### T-27: A lighting texture kept wholly inside the map stopped a full build
-**Fixed** (10 November, offline: `test_fixture.TextureWithoutCacheName`, and the user's failed build rerun to the
-end; not played). Found by the user: a full build of URB_StreetOverpass with 13 copies stopped in "Make the edit in
+**Fixed** (10 November, offline: `test_fixture.TextureWithoutCacheName`, and the failed build rerun to the
+end; not played). Found: a full build of URB_StreetOverpass with 13 copies stopped in "Make the edit in
 the map and bake its lighting".
 - What: `native_copy.py` failed cloning the copies' lighting textures: `lightmap_fields.texture_fields` raised
   "Texture has no own 8-byte TextureFileCacheName" (from `grow_fixture.clone_texture`).
@@ -5017,7 +5005,7 @@ played).
 ### T-23: A tactical save holds the game's tile flags, readable without the game
 **Fixed** (9 November; `test_save_tiles.py`, and EXP-28 run 1's save).
 - What: until now, what the game's tile rebuild made of an edit (floor, occupied, cleared) was known only from what
-  the user saw, or from probes a patch logged. A tactical save holds the battle's static tile store in the layout of
+  was seen in the game, or from probes a patch logged. A tactical save holds the battle's static tile store in the layout of
   the map's `XComWorldDataContainer` (`wdparse.py`): a 1,024-byte header, then compressed chunks as a cooked
   package's (tag `0x9E2A83C1`, LZO1X blocks), and in the decompressed data the store's header (the chunk count
   twice, the chunk order, the grid's dims). The dims alone occur elsewhere in a save too.
@@ -5067,7 +5055,7 @@ which skips the bake to build in seconds.
 
 ### T-19: Police Station's standalone police light bars weren't part of their sedans
 **Verified** (EXP-24 run 2, 8 November: the sedan moved with its light bar, none left where it stood, and the deleted
-sedan took its light bar along, "all looks good to me"; `test_compiler.test_a_part_the_glass_names_at_the_bodys_place_joins_the_car`,
+sedan took its light bar along; `test_compiler.test_a_part_the_glass_names_at_the_bodys_place_joins_the_car`,
 `test_links.test_police_stations_car_glass_names_its_car_and_its_standalone_light_bar`, `browser_smoke.check_light_bar`).
 - What: four of Police Station's sedans (`XComDestructibleActor_1056`, `_1059`, `_1062`, `_1072`) carry a police light
   bar (`ARC_SedanBPoliceAddon`, `_468` to `_471`) 2 units from the body that no prefab places with them, so the
@@ -5104,7 +5092,7 @@ sedan took its light bar along, "all looks good to me"; `test_compiler.test_a_pa
 
 ### T-16: The viewer drew pink where it found no colour texture
 **Fixed** in the viewer's export 14 (8 November); checked by a scan of every map, not yet by eye on each.
-- Symptom: pink pieces (the viewer's diagnostic colour) across LWR's maps: the user saw pink trees and wreckage on
+- Symptom: pink pieces (the viewer's diagnostic colour) across LWR's maps: pink trees and wreckage showed on
   a crashed UFO map (CLrgScout_ForestTrench).
 - Scan: every piece the 95 maps and their streamed packages draw, by the exporter's own rules (meshes read, textures
   not decoded). 2,810 visible pieces on 79 maps were pink, from five causes:
@@ -5172,7 +5160,7 @@ sedan took its light bar along, "all looks good to me"; `test_compiler.test_a_pa
 ### T-12: Pasting two copies of one original gave them one name, and the save merged them
 
 **Fixed** (6 November 2026; [EXP-14](experiments/EXP-14-temple-variant.md) run 9).
-- Symptom: the user stacked two copies of an alien console and pasted the pair. Revision 4 saved one actor,
+- Symptom: two copies of an alien console were stacked and the pair pasted. Revision 4 saved one actor,
   `XComDestructibleActor_60_copy11`, with one pose and its template's mesh component listed twice. The compiler
   refused it (`template-changed`).
 - Cause: `pasteSnapshot` named each pasted piece `<its original>_copy<the paste's serial>`. Two pieces copied from one

@@ -54,7 +54,7 @@ Archives are in `<lab>\downloads`, with hashes in `SHA256SUMS.txt`. Each one was
 
 | Download | Check | Unpacked to |
 |---|---|---|
-| `UDKInstall-2011-09-BETA.exe` (1,663,581,640 bytes) | Authenticode **valid**, signed by "Epic Games Inc." (VeriSign, timestamped) | Not run. The user must run it, because it shows Epic's licence. |
+| `UDKInstall-2011-09-BETA.exe` (1,663,581,640 bytes) | Authenticode **valid**, signed by "Epic Games Inc." (VeriSign, timestamped) | Not run. It must be run by hand, because it shows Epic's licence. |
 | `xcom-uncooker-v1.1.0.zip` | Size matches; no publisher digest | `tools\xcom-uncooker-v1.1.0`. Contains `xcom-uncooker-udk-setup.exe` (unsigned), `xcom-uncooker\` and `replacement-packages\`. |
 | `ue-explorer-1.6.2-net48-portable.7z` | SHA-256 **matches the publisher digest** | `tools\ue-explorer-1.6.2`. .NET Framework 4.8.1 is present (release 533509). |
 | `UPKUtils73.7z` | Size matches; no publisher digest | `tools\UPKUtils-7.3` |
@@ -109,15 +109,15 @@ Every run used `tools\lab\launch_copy.ps1`, with Steam running and Cloud off.
 
 **Steam Cloud:** `cloud_log.txt` shows `Starting sync (AC Exit,Sync Disabled,)` on each exit, so nothing is uploaded.
 
-### Options for a working launch (user decision)
+### Options for a working launch
 
 - **A. Steam launch-option wrapper.**
   - **Setting:** XCOM: Enemy Unknown's launch options become `"<wrapper>" %command%`.
   - **Behaviour:** if `<lab>\LAB_MODE` exists, the wrapper starts the copy under Steam's environment; otherwise it runs Steam's original command unchanged.
-  - **Cost:** one Steam setting the user makes, and no file changes in the Steam folder.
+  - **Cost:** one Steam setting, made by hand, and no file changes in the Steam folder.
   - **Untested:** whether a copy started under Steam's environment passes the check.
 - **B. Folder swap around test sessions.**
-  - **Mechanism:** a script renames the Steam install aside and links the copy into its path. The user starts XCOM from Steam, then the script swaps back.
+  - **Mechanism:** a script renames the Steam install aside and links the copy into its path. XCOM is started from Steam, then the script swaps back.
   - **Certainty:** certain to pass Steam's checks.
   - **Cost:** the Steam folder is renamed during sessions. Restoring after a crash must be scripted, and Steam must not update the game during a swap.
 
@@ -138,19 +138,19 @@ Every run used `tools\lab\launch_copy.ps1`, with Steam running and Cloud off.
 - **Second `steam_appid.txt`:** added to the copy's root `Binaries\Win32` as well, for the `eu` target.
 
 **The Steam setting**
-- **Current value:** the user's XCOM launch options are `-nostartupmovies` (`localconfig.vdf`).
+- **Current value:** the XCOM launch options are `-nostartupmovies` (`localconfig.vdf`).
 - **New value:** `"<lab>\bin\XComLabWrapper.exe" %command% -nostartupmovies`
 - **Precedent:** another game on this machine already uses `cmd /c start "" %command%`, so `%command%` works with this Steam client.
 - **Undo:** put the launch options back to `-nostartupmovies`.
 
-**Still to test (after the user sets the option):**
+**Still to test (after the option is set):**
 1. Lab mode off: start XCOM from Steam. LWR must start as before, and `wrapper.log` should show `mode: normal`.
 2. `lab_mode.ps1 on`: start XCOM from Steam. Check that the copy reaches the main menu.
 3. Check `wrapper.log` (is `STEAM_DRM_IPC` present?), the copy's `XEW\XComGame\Logs\Launch.log`, the shared profile, and finally `lab_mode.ps1 off`.
 
 ### Wrapper tests through Steam (17:26–17:31)
 
-The user set the launch options to `"<lab>\bin\XComLabWrapper.exe" %command% -nostartupmovies`.
+The launch options were set to `"<lab>\bin\XComLabWrapper.exe" %command% -nostartupmovies`.
 
 **What Steam does**
 - **The command it passes:** `<Steam library>\…\Binaries\Win32\XComGame.exe -nostartupmovies`.
@@ -173,7 +173,7 @@ The user set the launch options to `"<lab>\bin\XComLabWrapper.exe" %command% -no
 
 > **Correction (18:05).** This hypothesis is wrong, and so is "`steam_appid.txt` ruled out" above. Every one of these runs had a `steam_appid.txt` or `steam_appid.txt.off` next to the copy's `XComEW.exe`, and that file alone makes the game quit at this point. See [Cause found](#cause-found-steam_appid-files-make-xcomew-quit-1755-1805). These runs therefore never tested whether a copy outside `steamapps\common` works. Run 1 (no `steam_appid` file) was redirected by Steam's restart check instead.
 
-**Next test:** the folder swap (option B). It renames the live install, so it needs the user's approval.
+**Next test:** the folder swap (option B). It renames the live install, so it needs approval first.
 
 **Safety:**
 - **Steam install:** verified identical to the baseline after every run.
@@ -183,7 +183,7 @@ The user set the launch options to `"<lab>\bin\XComLabWrapper.exe" %command% -no
 
 ### Side-by-side layout (17:40)
 
-The user asked to keep both installs in `steamapps\common` and switch them by renaming. This replaced option B's linking and the `LAB_MODE` flag.
+Both installs are kept in `steamapps\common` and switched by renaming. This replaced option B's linking and the `LAB_MODE` flag.
 
 **Folders.** All are in `<Steam common>`:
 - `XCom-Enemy-Unknown`: the active install, the one Steam runs.
@@ -263,7 +263,7 @@ What the table shows:
   - refuses to click otherwise.
 - **Result.** Every click since then has worked.
 
-### UDK installed by the user (17:23)
+### UDK installed by hand (17:23)
 
 - **The install:** `<lab>\author\UDK-2011-09`, with no version subfolder; 4,817 files, 3.13 GiB.
 - **Copies:** robocopied to `<lab>\snapshots\UDK-2011-09-pristine` (untouched snapshot) and `<lab>\reference\UDK-2011-09` (for the Uncooker). Both are 4,817 files.
@@ -271,7 +271,7 @@ What the table shows:
 
 ### UDK silent install: blocked (superseded)
 
-Running `UDKInstall-2011-09-BETA.exe -progressonly`, which installs silently and so accepts Epic's licence without showing it, was refused by Claude Code's auto-mode safety check: accepting a licence must be done by the user.
+Running `UDKInstall-2011-09-BETA.exe -progressonly`, which installs silently and so accepts Epic's licence without showing it, was refused by Claude Code's auto-mode safety check: accepting a licence must be done by hand.
 
 **Installer facts** (from its strings, not from running it):
 - **Native wrapper switches:** `-progressonly`, `-skipdependencies`, `-runonce`, `-forcenetinstall`, `-skipnetcheck`.

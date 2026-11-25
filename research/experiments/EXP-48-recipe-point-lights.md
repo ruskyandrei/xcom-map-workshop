@@ -52,7 +52,7 @@ What this run adds:
 
 ## Result: passed (12 November 2026)
 
-Played by the user in the lab copy: "yes everything checks out", of the six points above. No look was taken with
+Played by hand in the lab copy: all six points above check out. No look was taken with
 F9, so there is no picture of the run.
 
 The game's log of the run (`<lab copy>\XEW\XComGame\Logs\Launch.log`, closed 00:47): `CB2_MP_Blank_X48` loaded

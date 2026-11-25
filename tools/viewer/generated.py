@@ -352,7 +352,7 @@ class Meshes:
     def piece(self, build, numbers):
         """build(numbers), kept (PIECES_KEPT): a long or tall made wall is cut into pieces, and the page asks for the
         whole wall at each step of a handle's drag; a gap moved changes only the pieces it is in, so the rest are not
-        made again (the user, 19 November 2026: gap edits on a wall of 29 tiles and six storeys were slow)."""
+        made again (19 November 2026: gap edits on a wall of 29 tiles and six storeys were slow)."""
         key = (build.__module__, build.__name__, json.dumps(numbers, sort_keys=True))
         with self.lock:
             if key in self.piece_kept:

@@ -43,7 +43,7 @@ tile centres at x -2737 + 96 i, y -1873 + 96 j.
    building.
 2. **The L's corner** (A and B at (-1056, -672)): close shots from outside (north-east) and inside (south-west): no gap
    or slit at the corner, no flicker where the faces meet, the trims (skirting, cornice) meeting or butting cleanly,
-   the light even across the joint. For the user's eye as well.
+   the light even across the joint. For a human eye as well.
 3. **The T** (D and E at (-672, -672)): close shots from both sides of the stem: E's end against D's face, no gap.
 4. **Tiles at the L**: on the inside corner tile (-1105, -721) high cover north and east (50 each), and a soldier walks
    into it from (-1201, -721). On the outside corner tile (-1009, -625): its cover flags (none expected), and a soldier

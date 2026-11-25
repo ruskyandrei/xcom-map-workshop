@@ -19,7 +19,7 @@ From [native-code-notes.md](../native-code-notes.md), the tile rebuild:
   `bIsValidDestination` False, and low cover's `VisibilityBlockingData` (units see past it). Breaking with a group, it
   is a hidden prop that saves `bIgnoreForCover` too.
 - In the editor it is a cover block with **Cover: None (blocks walking)**, drawn purple, named a blocker in its panel.
-  There is no separate Add panel entry (the user: no point in a separate item).
+  There is no separate Add panel entry (no point in a separate item).
 - Checked offline:
   - recipe 1's digests are unchanged, and a version 1 block builds to the same file by either version;
   - the blockers built in URB_Bar read back with the properties above;
@@ -58,7 +58,7 @@ What the run adds over the offline checks:
 
 ## Result
 
-**Sight seen** (15 November 2026, the user's own test alongside EXP-59): a blocker 4 × 6 tiles, which units
-"could definitely see through and shoot through". That is as built (item 4): the blocker saves low cover's
+**Sight seen** (15 November 2026, a test by hand alongside EXP-59): a blocker 4 × 6 tiles, which units
+could see and shoot through. That is as built (item 4): the blocker saves low cover's
 `VisibilityBlockingData`, so it doesn't block sight, as Discord S6 asked (stop walking, give no cover). Items 1 to 3
 and 5 (walking, cover, standing on it, C breaking with its can) are not reported yet.

@@ -12,7 +12,7 @@ This file is the record for EXP-01 in the investigation plan. Supporting files a
 
 | Item | Value |
 |---|---|
-| UDK | September 2011 (`UDKInstall-2011-09-BETA.exe`), installed by the user to `<lab>\author\UDK-2011-09` (no version subfolder). Engine 8916, changelist 1009027. |
+| UDK | September 2011 (`UDKInstall-2011-09-BETA.exe`), installed by hand to `<lab>\author\UDK-2011-09` (no version subfolder). Engine 8916, changelist 1009027. |
 | Untouched copy | `<lab>\snapshots\UDK-2011-09-pristine` |
 | Project | `<lab>\upstream\iiiLiQuiDiii-UDK`, at `80be6f4c21b665e0c261bee224429cb36c3fc217` |
 | Build snapshot | `<lab>\builds\exp01-merged-2026-11-03`: compiled `Script\`, the project's `Config\` as shipped, original `build.properties` |

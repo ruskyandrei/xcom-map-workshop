@@ -1,7 +1,7 @@
 # EXP-64: the test squad in the game
 
-Date: 16 November 2026. Status: **runs 1 to 4 passed** (16 November, the lab copy of LWR): the user played every
-check below and reported each one passed; no shots were taken. The test squad plan's game checks: stage Q0's runtime probes
+Date: 16 November 2026. Status: **runs 1 to 4 passed** (16 November, the lab copy of LWR): every
+check below was played by hand and passed; no shots were taken. The test squad plan's game checks: stage Q0's runtime probes
 (what the game makes of the records the editor writes) and stage Q5's acceptance runs, together. Until now every
 Play in game landed the same six soldiers written into the code (EXP-29 run 6); since stages Q1 to Q4 the squad is
 the one saved in **Settings → Test squad setup…**, written from the install's own data. The scripts' reading is
@@ -45,8 +45,8 @@ medikit, a tactical with a shotgun), for the seventh and eighth landing places.
 
 ## Run 1 (passed): the default six
 
-In the lab copy. **Reset to default** and Save in the setup (or no squad saved yet), then Play in game on a map. The
-user drives and looks (F9 shots); the unit info screen shows each unit's stats and perks.
+In the lab copy. **Reset to default** and Save in the setup (or no squad saved yet), then Play in game on a map,
+played by hand with F9 shots; the unit info screen shows each unit's stats and perks.
 1. Six soldiers with bodies, named as before (Tom Alpha … Sam Foxtrot), each with its class label in the HUD
    (Tactical, Support, Weapons, Marksman) where the old plays showed a rookie's.
 2. The weapons read as the panel names them (Gauss Assault Rifle, Gauss Autorifle, Recoilless Launcher, Gauss Long

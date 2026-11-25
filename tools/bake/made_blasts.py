@@ -1,5 +1,5 @@
 """Made walls, floors and roofs built broken (custom geometry editing plan, B5, decision D-4 at its default, 19 November
-2026: the user, "be able to pre-break walls and floors").
+2026: walls and floors can be pre-broken).
 
 A made piece's request carries `blasts`, [{at: [x, y, z], radius}]: each a blast the user set off with Break in its
 panel, a point in the piece's numbers' frame (its mesh's) and how far it reaches. Saved as blasts, not as fragments,

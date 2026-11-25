@@ -229,14 +229,14 @@ pwsh -File tools\patch\patchtool.ps1 stream -Map patch_bar -Stream 'URB_Commerci
    - slot 5, `patch_hide_randomized_objects`;
    - slot 2, `patch_exp10slot`.
 
-### In the game (the user drives, Claude looks)
+### In the game (played by hand, with screenshots taken)
 
 As in EXP-03 to EXP-08:
 1. Claude starts `<lab>\bin\GameDriver.exe hotkey <lab>\looks F9` if it isn't running already, and
    `GameDriver.exe waitlook <lab>\looks <seen>` in the background. Claude sends no input.
-2. The user starts the lab copy as usual: Steam, the launcher, Enemy Within. Then a new campaign, with Ironman,
+2. The lab copy is started as usual: Steam, the launcher, Enemy Within. Then a new campaign, with Ironman,
    tutorial and autosave off. The first mission loads the test slot, so URB_BarSlot.
-3. The user presses F9 at these moments:
+3. F9 is pressed at these moments:
    - during the dropship landing;
    - once the squad is down;
    - with the camera on the 2 × 4 wall, by the dumpsters near the map's west edge (around (−2600, −960));
@@ -273,7 +273,7 @@ All from one fresh load. A load from a save doesn't count: a save carries the wo
 5. **`patch_hide_randomized_objects` streams** (criterion 2). What it hides has not been looked at, so there is no
    in-game check for it.
 6. **The intro plays.**
-   - The dropship lands at the start (the user sees the cutscene), which is the F-45 fix at work.
+   - The dropship lands at the start (the cutscene shows), which is the F-45 fix at work.
    - LWR's mutator finds the copied landing zones: `XComLZMutator: CurMapName = URB_BarSlot` and
      `XComLZMutator: DataArray.Length = 7`.
 
@@ -326,7 +326,7 @@ control run.
 - Step 3's check: the record (line 6) and the test slot (line 40) both stream 0 `CIN_DropshipIntros`, 1 `patch_bar`,
   5 `patch_hide_randomized_objects` and 2 `patch_exp10slot`, in that order.
 
-**In the game.** The user started a new campaign; the first mission loaded the test slot. Six F9 shots, in
+**In the game.** A new campaign was started; the first mission loaded the test slot. Six F9 shots, in
 `<lab>\looks`:
 
 | Shot | What it shows |
@@ -338,14 +338,14 @@ control run.
 | `look-121458.png` | The SHIV's move preview beside the wall, with no cover shields. |
 | `look-121529.png` | A soldier's move preview (Hans Graf) beside the wall: high-cover shields on its sides. |
 
-- **The missing shields were the SHIV's.** The user's console note on the fifth shot, "all cover seems broken", was
-  taken back on the sixth: "had to change soldier and it fixed it". SHIVs don't take cover, so their move preview
-  shows no shields anywhere. With a soldier selected, the wall gives high cover, as EXP-04's block did.
-- **The wall is a plain black box.** The user's note: `the "wall" is just a black box though`. That is the mesh, not
-  the streams: `CoverPatch.High2x2` is made to be hidden and has a plain material (EXP-04 saw the same). The editor
-  places the game's own art, which shows its real materials (EXP-05).
+- **The missing shields were the SHIV's.** On the fifth shot all cover seemed broken; on the sixth, changing to a
+  soldier fixed it. SHIVs don't take cover, so their move preview shows no shields anywhere. With a soldier selected,
+  the wall gives high cover, as EXP-04's block did.
+- **The wall is a plain black box.** That is the mesh, not the streams: `CoverPatch.High2x2` is made to be hidden and
+  has a plain material (EXP-04 saw the same). The editor places the game's own art, which shows its real materials
+  (EXP-05).
 
-**The log** (the lab's `Launch.log`, opened 12:13:26 and closed 12:15:36 when the user quit; read only). Each pass
+**The log** (the lab's `Launch.log`, opened 12:13:26 and closed 12:15:36 when the game was quit; read only). Each pass
 criterion:
 1. **The map loads.** Line 1782 has
    `IncrementHistory:  (0) URB_Bar, URB_BarSlot, URB_CommercialAlley_EWI (Commercial Alley Redux) |0`, and line 1899

@@ -46,7 +46,7 @@ bar" (`22e0a0b1-…`), variant `URB_Bar_EXP22Ladder_22e0`. Built with `build.py 
 - Installed in the lab copy's test slot with `tools/lab/lab_install.py install` (deploy record
   `URB_Bar_EXP22Ladder_22e0-20261108-132619.json`): the slot streams the intro copy and the patch copy.
 
-**In the game** (the user drives; the lab copy):
+**In the game** (played by hand; the lab copy):
 1. Climb `XComLadder_3` at its new place up and down with a soldier.
 2. Its old place, two tiles along the wall (y 336): no climb (the move cursor offers no ladder path to the roof).
 3. Climb the copy `XComLadder_4_copy1` (the west wall near its south corner) up and down.
@@ -54,16 +54,15 @@ bar" (`22e0a0b1-…`), variant `URB_Bar_EXP22Ladder_22e0`. Built with `build.py 
 5. Save, reload, and climb each again.
 6. An alien using one, if one comes.
 
-**Result (8 November, the user's run):** passed.
+**Result (8 November, run by hand):** passed.
 - The move preview routes a soldier up the moved `XComLadder_3`, up the quarter-turned copy and up `XComLadder_4`
-  (shots `look-134526.png`, `look-134529.png`, `look-134541.png`); the user: "climbing works fine, if a route is
-  there it means climbing works".
-- After a save and reload: "tested reload and that's fine too".
-- The old place: no ladder shows two tiles along the wall from the moved one, and "there's no obvious invisible
-  climbing routes i can see".
+  (shots `look-134526.png`, `look-134529.png`, `look-134541.png`); where a route shows, the climb works.
+- After a save and reload: the same.
+- The old place: no ladder shows two tiles along the wall from the moved one, and no invisible climbing route
+  shows.
 - No alien came to a ladder.
 - Climbing down (checks 1 and 3): the game shows none. A soldier going down from a roof drops off its edge (the
-  user's note: "there's no real climb down in this game, soldiers just jump off things"), so whether a ladder's down
+  game has no real climb down; soldiers jump off things), so whether a ladder's down
   link is there doesn't show by eye. The A* probe (`GetAStarPath`, top tile to foot) would show it; not run.
 
 **Not covered:** a ladder facing -X or -Y (the rebuild puts their top first anyway); a ladder whose top lands on a
@@ -96,7 +95,7 @@ on tiles with no floor in the map's data, so by the rebuild's rule they make no 
 - Files: the variant map `8365711707ca…`, `Lighting_3460620.tfc` `652562adabb9…`, the intro copy `e3bc6b6643a0…`.
 - Installed in the lab's test slot (`lab_install.py install`): it plays the farm's Crashed UFO record.
 
-**In the game** (the user drives; the lab copy). Marked editor shots show where to look, taken with
+**In the game** (played by hand; the lab copy). Marked editor shots show where to look, taken with
 [`mark_shots.py`](../../tools/viewer/mark_shots.py) from [EXP-22-run2-shots.json](EXP-22-run2-shots.json): the
 overview (`EXP-22-run2-overview.png`: a dashed box east of the UFO, round the big barn's lean-to and the red shed),
 the moved ladder (`EXP-22-run2-shed.png`: marks 1 and 2) and the copied ladder (`EXP-22-run2-red-shed.png`: marks 3
@@ -107,12 +106,12 @@ and 4). The game has no climbing down, so the checks look for routes up:
 4. A route up the copy of `XComLadder_0` (mark 3), and still one up the original beside it (mark 4).
 5. Save, reload, and the routes again.
 
-**Result (8 November, the user's run):** passed.
-- The Skyranger landed: "skyranger intro was there".
+**Result (8 November, run by hand):** passed.
+- The Skyranger landed: the intro played.
 - The move preview routes a soldier up the moved `XComLadder_4` onto the lean-to's roof (`look-141002.png`), up the
   copy of `XComLadder_0` onto the red shed's roof (`look-141017.png`) and up the original beside it
   (`look-141019.png`).
-- After a save and reload: "routes work the same after a reload".
+- After a save and reload: the routes work the same.
 - The moved ladder's old place (mark 2) shows no ladder in the shot; a route there wasn't tried in a shot.
 - So the near helper's rule holds here (`patch_farm.XComLadder_3`, 36 units off, taken out of the variant's copy of
   the patch), and a copy of a ladder that has a patch helper of its own (`XComLadder_0`, near helper

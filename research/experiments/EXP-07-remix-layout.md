@@ -198,9 +198,8 @@ The hider hid **413 actors** (log 23.53). It kept 37 on the ground: the floor sl
 low emitters and one decal. No actor lacked bounds. In game, the bar was gone from view down to its floor.
 
 Two problems were left:
-- Units still pathed around the old walls, and those walls still gave cover. The user's notes: "the navigation
-  still seems to consider the old wall locations"; "also it still counts as cover".
-- Some odd lights were left where a sign used to be: "the blue balls on the left".
+- Units still pathed around the old walls, and those walls still gave cover.
+- Some odd lights were left where a sign used to be: blue balls on the left.
 
 | Level (Z) | Floor before → after | Occupied before → after | Cover (high/low) before → after |
 | --- | --- | --- | --- |
@@ -225,7 +224,7 @@ Run 3 changes:
 #### Run 3 (10:34, `look-103456.png`): the bar is out of play
 
 The hider hid 407 actors and kept 32 on the ground. The six fewer than run 2 are the other level's emitters, now
-left alone (F-23). The user's note: "looks good now, no more cover or invisible walls, and the blue dots are gone too".
+left alone (F-23). In game: no more cover or invisible walls, and the blue dots are gone too.
 
 | Level (Z) | Floor before → after | Occupied before → after | Cover (high/low) before → after |
 | --- | --- | --- | --- |
@@ -259,15 +258,15 @@ Step 2 is still to check:
 - that LWR's spawns behave: pods, Meld and the landing zone in the cleared area.
 
 Run 3, in-game checks (10:38, `look-103810.png`):
-- **Line of sight is still blocked** where the walls stood. The user's note: "yes LOS looks off, I should be able to
-  see the drone here I think". This matches the probe's `WorldTrace` still hitting the hidden wall (F-25).
+- **Line of sight is still blocked** where the walls stood: a drone that should be in view is not. This matches the
+  probe's `WorldTrace` still hitting the hidden wall (F-25).
 - **A soldier at the old door spot is offered "open door"**, with no door there (F-26).
 
 Run 4 fixes:
 - hidden level and fractured actors stop blocking line of sight (`VisibilityBlockingData.bBlockUnitVisibility`
   off);
 - doors go to `_Inactive` before the rebuild and lose their interaction points again after it.
-- **Save and reload (run 3):** the user saved and reloaded, and "things stayed the same". The bar stayed hidden and
+- **Save and reload (run 3):** after a save and reload, things stayed the same. The bar stayed hidden and
   the area stayed walkable without cover after the load. The hider runs again at load, as the patch loads with the
   map.
 
@@ -276,8 +275,7 @@ Run 4 fixes:
 - **Line of sight:** the probe's `WorldTrace` now passes the old front wall, after hiding and after the rebuild, so
   the vision flag was the cause (F-25). In game, soldiers see across the cleared area: a squadsight shot at a
   Sectoid 17 tiles away is offered across it.
-- **Doors:** the "open door" action is gone (F-26). The user's note: "looks good now, no more door action and I can
-  see through everything normally I think".
+- **Doors:** the "open door" action is gone (F-26), and everything can be seen through normally.
 - **Census:** the same as run 3.
 - **Effects coming back:** five of the bar's emitters, those its floor volumes list, were shown again at 61 s and
   74 s, and the hider hid them again. Its check now runs all mission (F-27).
@@ -300,7 +298,7 @@ For the building: its volumes lose their collision. Then the tiles are rebuilt o
 
 ### Step 3 design (4 November 2026)
 
-The user's wish: a shape unlike the old rectangle, so it stands out as new. An L or a U. Also, clear more of the
+The aim: a shape unlike the old rectangle, so it stands out as new. An L or a U. Also, clear more of the
 parking area and its cars, and put cars back in the space left once the building stands.
 
 The kit allows it. Each of the bar's two blocks is a three-sided shell, open where it meets the other block, and
@@ -392,10 +390,10 @@ The copier copied all 9 pieces (log 27.18). The five fractured ones took the sou
 The windows and door frame went to their turned places. The copier's tile rebuild finished at 27.37, before the
 level start placed anything. Then the hider ran.
 
-In game, the user's notes:
-- "walls appears, it shows up as cover and affects pathing as expected";
-- "threw a grenade and the walls were destroyed as expected". Fragments broke off and fire took on the floor.
-- **Line of sight:** couldn't be judged, because the storefront is "full of windows so can see through as normal".
+In game:
+- the walls appear, show up as cover and affect pathing as expected;
+- a grenade destroyed the walls as expected. Fragments broke off and fire took on the floor.
+- **Line of sight:** couldn't be judged, because the storefront is full of windows, so it is seen through as normal.
 - **Lighting:** the copy is flat black next to the lit floor and fire (F-28).
 
 Run 2 changes:
@@ -405,9 +403,8 @@ Run 2 changes:
 
 #### Step 3a, run 2 (11:06, `look-110627.png`)
 
-All 10 pieces were copied, the solid back wall included (`XComMapEdWall_5`, 39 columns). The user's note: "wallls
-still seem to be black and I can see the two aliens in the top right through the wall but I shouldn't be able to
-from here".
+All 10 pieces were copied, the solid back wall included (`XComMapEdWall_5`, 39 columns). In game, the walls were
+still black, and two aliens in the top right could be seen through the wall from a spot that should not see them.
 - **Lighting (F-28):** still black, though the logged lighting setup is as intended: environment enabled and
   dynamic, precomputed shadows off, Dynamic channel on, ticking. The Static channel reads False.
 - **Line of sight (F-29):** the solid copy doesn't block vision, though it took the source's intact vision flag (the
@@ -426,10 +423,10 @@ Reading the results:
 #### Step 3a, run 3 (11:11 to 11:14, `look-111143.png`, `look-111343.png`, `look-111449.png`)
 
 The copier made the plain-mesh copy (`XComMapEdLevelPiece_0`, x about −1547) beside the fractured one
-(`XComMapEdWall_5`, x about −1835). The user's notes:
-- "the wall on the left is lit properly": that is the plain-mesh copy; the fractured copy beside it is still black;
-- "new wall correctly blocks LOS, can see aliens to top left but not the ones on the right" (`look-111343.png`, the
-  soldier in cover behind the lit plain copy).
+(`XComMapEdWall_5`, x about −1835). In game:
+- the wall on the left is lit properly: that is the plain-mesh copy; the fractured copy beside it is still black;
+- the new wall correctly blocks line of sight: aliens to the top left are seen, not the ones on the right
+  (`look-111343.png`, the soldier in cover behind the lit plain copy).
 
 The log (5 s after load):
 - every copy is world geometry, collides and blocks; the walls block vision (the windows and door frame don't);
@@ -471,16 +468,15 @@ All five copies were made, and the test light spawned at (−1900, 300, 150) (`X
 lighting setup logs the same: its environment enabled and dynamic, precomputed shadows off, Dynamic channel on,
 Static channel off. Wall 5's fractured mesh logs hidden, with its overlay shown.
 
-The user's notes:
-- "all walls appear lit now": the four fractured variants as well as the plain copy. **The fix for F-28 is the wall's
+In game:
+- all walls appear lit now: the four fractured variants as well as the plain copy. **The fix for F-28 is the wall's
   own light environment** (`MyLightEnvironment`, added to `Components`), made like `XComMapEdLevelPiece`'s. The
   inherited `LightEnvironment0` left the fractured copy black, though it logged as enabled and dynamic. Environment
   shadowing and the index buffer made no difference.
-- "my guy is able to see through the first one, and is leaning as if there was a gap where he is". The cursor
+- the soldier is able to see through the first one, and leans as if there were a gap where he is. The cursor
   readout puts the soldier at tile (21,23), against wall 5's west face (the overlay variant).
-- "it's only specifically this tile that allows LOS through the wall, the one my cursor is on does not": from (21,22)
-  next to it, the wall blocks.
-- The user could not check the other walls: no aliens were near enough.
+- only this tile lets line of sight through the wall: from (21,22) next to it, the wall blocks.
+- The other walls could not be checked: no aliens were near enough.
 
 Tile (21,23) is the 4th row from the wall's north end. In the source wall (`XComDecoFracLevelActor_7`, which runs
 east-west along y 1248 on the bar's south side) that point is at about x −1392, tile 14.
@@ -494,9 +490,8 @@ Run 5 keeps the five walls and adds logging, so the tile data can be read withou
 
 #### Step 3a, run 5 (11:41 to 11:43, `look-114112.png`, `look-114300.png`)
 
-The user's notes: "can still see through wall at this point" (the soldier again at tile (21,23) by wall 5, taking a
-squadsight shot through it), and "from this positions i should only see 2 aliens but I can see thr drone too"
-(cursor at (18,24), by wall 4).
+In game, the wall could still be seen through at tile (21,23) (the soldier again by wall 5, taking a squadsight shot
+through it), and from (18,24), by wall 4, the drone was in view as well as the only 2 aliens expected.
 
 The tile log (5 s after load; level 1, z 64..128, the level a standing unit's tile is in; line of sight is worked out
 there) gives, for each wall, the rows where the game counts the two tiles touching the wall as seeing each other
@@ -511,7 +506,7 @@ there too):
 | 4 (static index buffer, x −960) | 23, 24 | hits the wall |
 | 5 (overlay, x −672) | 23, 25 | hits the wall |
 
-Both of the user's spots, (21,23) and (18,24), are on see-through rows. So the log predicts them, and in-game
+Both spots, (21,23) and (18,24), are on see-through rows. So the log predicts them, and in-game
 checks for this aren't needed any more.
 
 - A row sees through exactly where level 1 has no occupied tile at the wall; occupancy and line of sight go
@@ -637,7 +632,7 @@ oven's tiles are occupied above the ground. Walls 3–5 keep their run 5 holes a
 
 #### Step 3a, run 11 (12:33, `look-123329.png`): seeding works
 
-The game loaded the seeded `URB_Bar.upk` normally. The user's note: "looks promising!". The tile log:
+The game loaded the seeded `URB_Bar.upk` normally. The tile log:
 
 | Copy | See-through rows (whole span, ends included) | Run 5 / run 10 |
 | --- | --- | --- |
@@ -681,8 +676,8 @@ all five walls are now see-through only at their ends and the mesh's opening (ro
 panel only at row 26, just past its end. In run 11, the unseeded walls 3–5 still had holes at rows 28–30, 23–24
 and 23/25.
 
-The user stood a soldier between two walls, with aliens beyond them to the top left. The note: "confirmed LOS blocking
-looks normal, aliens are on top left and I can't see them from here".
+A soldier stood between two walls, with aliens beyond them to the top left. Line-of-sight blocking looked normal: the
+aliens could not be seen from there.
 
 **Step 3a result:** a copied wall is lit (F-28) and blocks movement, cover and line of sight like the map's own (F-29),
 once patchtool seeds its tiles. Damage and saves of copied walls are still to check, in the block test.
@@ -728,9 +723,9 @@ To check in game:
 
 #### Step 3b, run 13 (13:11 to 13:12, `look-131115.png`, `look-131217.png`)
 
-The user's notes: "door worked normally, but the ladder cuts out when on a lower zoom, it appears when zooming out but
-I can't move a soldier up over this one. also the roof doesn't cut out"; on the other side, "on this side there's no
-ladder but I can actually go up. also door is missing and there's a gap in the wall".
+In game, the door worked normally, but the ladder cut out at a lower zoom; it appeared when zooming out, but no
+soldier could be moved up it. The roof didn't cut out either. On the other side there was no ladder, but a soldier
+could go up; a door was missing and there was a gap in the wall.
 
 - **Moved doors work.** Each of the five has its 6 interaction points (`XGDOOR_Inside01..03`, `Outside01..03`) at
   the new place, and none at the old one. In game, the door opened normally.
@@ -775,8 +770,8 @@ A later fix should drop the links of pieces the hider hides.
 
 #### Step 3b, run 15 (13:53): no change for the ladder or the roof
 
-The user's note: "no change, new ladder still unclimbale, roof still doesn't cut away. doors work normally. corner gap
-is filled but there's an odd lighting mis match between the corner wall bit and the rest of the wall on that side".
+In game: no change. The new ladder is still unclimbable and the roof still doesn't cut away; doors work normally. The
+corner gap is filled, but the corner wall bit is lit differently from the rest of the wall on that side.
 - The ladder's links were in the lab map at the new tiles, (34, 20, 0) ↔ (34, 21, 6), and the ladder still can't be
   climbed. So moving baked links isn't enough: most likely the rebuild replaces them, as the agent read in the code.
   But the hidden bar ladder's links survive a rebuild in the same kind of tile, so something re-creates those, from
@@ -798,12 +793,12 @@ The same patch, with two probes in the main copier:
 - Every pawn's and the cursor's building and floor volumes whenever they change (every 2 s, all mission), and at 5 s
   what touches each of the new building's floor volumes.
 
-What the user does: walk a soldier into the new block and out again, move the cursor over the block and up a level,
+What to do in game: walk a soldier into the new block and out again, move the cursor over the block and up a level,
 and preview a move to the roof by the moved ladder and by the north side.
 
 #### Step 3b, run 16 (14:02, `look-140242.png`): the rebuild wipes the moved ladder's link
 
-The user's note: "the roof is also missing the top bit where the wall gap was".
+In game, the roof was also missing the top bit where the wall gap was.
 - **The moved ladder's link is there at load and gone 5 s later.** The A* path from (528, 0, 16) to (528, 150, 410)
   is 1 tile, (34, 21, 6), at load: a direct climb over the moved link. 5 s later, after the tile rebuild, there is no
   path (0 tiles). The hidden `XComLadder_4`'s path is 1 tile both times. So the rebuild does replace the links of the
@@ -844,8 +839,8 @@ To check:
 
 #### Step 3b, run 17 (14:17 and 14:18, `look-141732.png`, `look-141800.png`): the pathing ladders are patch_bar's
 
-The user's notes: "roof should cut away at this point, still doesn't. also ladder on this side still unclimbale"
-(a soldier at the block's door); "this side still climable. roof edge is complete" (the north side of the old bar).
+In game, the roof still didn't cut away and the ladder was still unclimbable (a soldier at the block's door); the north
+side of the old bar was still climbable, and the roof edge was complete.
 - **The parapet is whole.**
 - **The baked ladder still can't be climbed.** `XComLadder_4` stood at (528, 48, 16), yaw 90, from load. Its moved
   links gave a 1-tile climb at load and no path 5 s later, as in run 16. So a base-map ladder that stands in its new
@@ -874,8 +869,8 @@ To check: a soldier can climb the block's ladder to the roof.
 
 #### Step 3b, run 18 (14:28, `look-142759.png`): no climb from the patch's ladder; a door kicked twice
 
-The user's note: "still no climbable ladder, no roof cutout and I noticed something odd: when I sent a soldier
-through the door, he did his door kick animation twice".
+In game, still no climbable ladder and no roof cutout, and a soldier sent through the door did his door kick animation
+twice.
 - The patch's hidden `XComLadder_905` touched the new building's upper floor volumes but got no climb: no path from
   (528, 0, 16) to the roof after the rebuild, as before. So neither the patch level nor the `XComLadder` tag is
   enough.
@@ -884,7 +879,7 @@ through the door, he did his door kick animation twice".
   load. So the probes only show whether the top tile can be reached at all.
 - The double kick was at the moved door `XComInteractiveLevelActor_4` (south wall). Since run 15, deploy moved each
   moved door's baked KickDoor links along, and the rebuild makes kick links from the door's new interaction points
-  as well. In run 13, with the rebuild's links alone, the door "worked normally" (F-33).
+  as well. In run 13, with the rebuild's links alone, the door worked normally (F-33).
 - The hidden bar's double door (`XComInteractiveLevelActor_0`, `_1`) still has baked KickDoor links at
   (33, 21, 0) ↔ (34, 21, 0) and (33, 22, 0) ↔ (34, 22, 0), inside the new block's ground floor.
 
@@ -904,7 +899,7 @@ To check: a soldier goes through each moved door with one kick.
 
 #### Step 3b, run 19 (14:36): one kick per door; the ladder's top tile loses its floor
 
-The user's note: "tried kicking door, only happened once like it should". F-33 is fixed.
+In game, a door kick happened only once, as it should. F-33 is fixed.
 
 The floor probes, at load and 5 s later (after the rebuild):
 
@@ -942,7 +937,7 @@ To check: a soldier can climb the block's ladder to the roof.
 
 #### Step 3b, run 20 (14:43): the whole south edge of the roof has no floor; a door kicked twice again
 
-The user's note: "in run 20 the double door kick happened again. ladder was still unclimbable".
+In game, the double door kick happened again, and the ladder was still unclimbable.
 - After the rebuild the south edge row of the roof has no floor anywhere probed: (30, 21, 6), (33, 21, 6),
   (34, 21, 6) and (35, 21, 6). One row in, (34, 22, 6), has floor. So the patch ladder's collision wasn't the cause.
 - The roof's floor after the rebuild is at z 396.9 everywhere, the top of the copied ceiling beams
@@ -976,7 +971,7 @@ To check:
 
 #### Step 3b, run 21 (14:51, `look-145109.png`): the ladder works
 
-The user's note: "new ladder looks climable, old ladder is not anymore!". The move preview climbs the new ladder to
+In game, the new ladder looks climbable, and the old one no longer is. The move preview climbs the new ladder to
 the roof.
 - After the rebuild every probed roof tile has floor at z 402, the slab's top, edges included: (30, 21, 6),
   (33, 21, 6), (34, 21, 6), (35, 21, 6), (34, 22, 6), (33, 32, 6) and the centre. A* from the ladder's foot reaches
@@ -984,10 +979,10 @@ the roof.
 - The hider moved the hidden double door and `patch_bar`'s two ladders under the map. (The north A* probe still finds
   a 1-tile climb there: an alien wall climb, which soldiers can't use.)
 
-- 14:52, `look-145207.png`: "all roof tiles reachable". A soldier is on the roof, and the move range covers it up
+- 14:52, `look-145207.png`: all roof tiles are reachable. A soldier is on the roof, and the move range covers it up
   to the parapet.
-- 14:52, `look-145241.png`: "inside still not visible, roof doesn't cut away", with a soldier inside the block (F-31).
-  The cutaway's chain (pawn building-vis events, floor components, caches) is being read from the code.
+- 14:52, `look-145241.png`: the inside is still not visible and the roof doesn't cut away, with a soldier inside the
+  block (F-31). The cutaway's chain (pawn building-vis events, floor components, caches) is being read from the code.
 
 Still to check: climbing down, a double kick on any route, and walls, windows and cover with the new flags. The roof
 still doesn't cut away (F-31).
@@ -1013,8 +1008,8 @@ know (next step).
 
 #### Step 3b, run 22 (15:17, `look-151655.png`): the roof cuts away; the cursor snaps to the roof
 
-The user's note: "ok roof cuts away so i can see inside now, but my cursor doesn't seem to let me select a tile inside
-it just snaps to the roof".
+In game, the roof cuts away and the inside can be seen, but the cursor can't select a tile inside: it snaps to the
+roof.
 - F-31 fixed: with the floor component attached, the copies hide with their floor. The inside is visible, doors and
   walls included.
 - New: the cursor can't pick a tile inside (F-34). The roof has been floor since run 21; the game's own cut-away
@@ -1040,7 +1035,7 @@ To check: with a soldier inside and the roof cut away, the cursor picks tiles in
 
 #### Step 3b, run 23 (15:30, `look-153008.png`): the cursor picks tiles inside
 
-The user's note: "yup, this looks good now, can see and select tiles inside the building". The log shows the cause:
+In game, tiles inside the building can now be seen and selected. The log shows the cause:
 at load our building was in neither list, and the copier added `XComBuildingVolume_9000` to `XComTacticalHUD_0`'s
 and `XCom3DCursorMouseForCursorVolumes_0`'s building lists (8 buildings each). F-34 is fixed.
 
@@ -1065,11 +1060,11 @@ give cover.
 
 #### Step 3b, run 24 (15:38 and 15:39, `look-153816.png`, `look-153855.png`): walls trimmed down
 
-The user's notes: "walls appear to cut out normally now"; "LOS still seems to work fine". The log: `set` is accepted
+In game, the walls cut out normally now, and line of sight still works. The log: `set` is accepted
 in the shipped game for this property (`get` reads back True), and 17 + 4 wall meshes were reattached. F-35 is fixed
 for walls; window and door-frame copies (`XComMapEdDestructible`) get the same next (`XComMapEdMeshComponent`).
 
-- 15:40, `look-154003.png`: "and grenades destroy walls as expected too" (a copied wall blown open, burning).
+- 15:40, `look-154003.png`: grenades destroy walls as expected too (a copied wall blown open, burning).
 
 #### Step 3b, run 25 (deployed 15:42): window and frame trimming; saves of copies (F-17)
 
@@ -1088,8 +1083,8 @@ reload: the wall comes back with its hole, the other copies are unchanged, and n
 
 #### Step 3b, run 25 (15:46, `look-154636.png`): trimming everywhere; copies survive a save and reload
 
-The user's notes: "windows and door frames trim too"; after a save and reload, "walls still damage and burning as
-expected".
+In game, windows and door frames trim too, and after a save and reload the walls are still damaged and burning, as
+expected.
 - The log of the reload: the game reports each damaged copy "Not Found", rebuilds it in place under its saved name
   ("Recreating actor URB_Bar.TheWorld:PersistentLevel.XComMapEdWall_3"), and the copier restores it from its source
   before the record goes on: walls `_3`, `_4`, `_10` and destructibles `_0` to `_4` ("restored XComMapEdWall_3 from
@@ -1125,10 +1120,9 @@ entry of URB_Bar in place of `patch_exp07block`.
 
 #### Step 4, run 26 (a screenshot in chat): the wing stands; no doors, a gap at the entrance
 
-The user's note: "Looks ok, but there's no doors in the new wing and the entrance seems to have a weird gap. Either
-fill that with walls or a door or something." Also: "could we add some random decoration bits inside (more tables and
-vending machines or whatever is in the bar area normally)", and the ground "should match the new layout (e.g. wood
-flooring inside, pavement outside etc)", dynamically lit if need be.
+The wing looks right, but it has no doors, and the entrance has a gap, to be filled with walls or a door. To add:
+more decoration inside (tables, vending machines, whatever the bar area has), and ground that matches the new layout
+(wood flooring inside, pavement outside), dynamically lit if need be.
 - The gap is the bar's front opening. The west block's storefront porch had an open way in at its east end (x -576..-480,
   beside the east block's corner piece). On the wing it lands in the east wall at y -96..0, between the porch's low end
   wall and the bar's north wall, open to the sidewalk, with nothing framing it.
@@ -1169,9 +1163,9 @@ sidewalks, with no flicker; a door opened before a save is still there after a r
 
 #### Step 4, run 27 (a screenshot in chat): props fine; doors and the entrance missing
 
-The user's notes: "still missing door or wall at the main entrance gap, most doors still missing (there is one in the
-top). Decorations inside look ok and appear to block/provide cover normally." Also: "Could we also add a ladder on the
-right side (of this image, on the outside of the new wing)?", with "LADDER HERE" drawn outside the wing's north wall.
+In game, the main entrance gap still has no door or wall, and most doors are still missing (there is one at the top).
+The decorations inside look right and block and give cover normally. To add: a ladder outside the wing's north wall,
+marked on the screenshot.
 - The log: the copier made all six door copies (`XComMapEdDoor_0` to `_5`, each with its mesh, tree and 6 interaction
   points, at the right places). Then the street hider hid `_1` to `_5` and moved them under the map: its class test
   skipped our other copy classes but not the new one (F-36). `_0`, on the west wall, stood outside its box.
@@ -1192,11 +1186,10 @@ sidewalk to the roof; the bar's own ladders still climb.
 
 #### Step 4, run 28 (16:29, `look-162956.png`, and a screenshot in chat): doors in, but nothing new works
 
-The user's notes: "doors are in, but main entrance gap is still there. also new doors and ladder and windows in the
-new wing do not work normally (can't open the doors, can't climb the ladder, can't run through the windows). and could
-we make the floor wood or something in the top right room of the new wing too ?" Then, on a second screenshot:
-"entrance gap isn't just a strip above the door, there is no door, just a gap in the wall going into the new wing
-area".
+In game, the doors are in, but the main entrance gap is still there, and the wing's new doors, ladder and windows
+don't work (the doors don't open, the ladder can't be climbed, the windows can't be run through). To do: a wood floor
+in the wing's top right room too. A second screenshot shows the entrance gap is not just a strip above the door:
+there is no door, just a gap in the wall into the wing.
 - **The gap** is the bar's own front doorway in its north wall (`XComDecoFracLevelActor_3`, x 480..576): the A*
   probes 5 s after load walk from the bar's north-east entry room into the wing through it, (34, 20) to (34, 19). It
   used to open onto the street. The entrance door copy of run 27 stands at (768, -48), against the solid east wall.
@@ -1231,15 +1224,15 @@ the windows can be run through.
 
 #### Step 4, run 29 (16:47-16:50, `look-164747.png` to `look-164950.png`): the door in, the gaps and the rest not
 
-The user's notes:
-- on the bar's doorway: "can we just put a wall to fill this gap please ? it's still there 5 tries later.";
-- on the wing's inner wall at x 192, which stops at y -178 short of the bar's north wall: "this should be a full wall too";
-- on the wing's doors and windows: "still can't go through doors or windows here";
-- on the bar's own: "but we can here";
-- "ladder still unusable".
+In game:
+- the bar's doorway still has its gap after 5 tries; a wall is to fill it;
+- the wing's inner wall at x 192, which stops at y -178 short of the bar's north wall, is to be a full wall too;
+- the wing's doors and windows still can't be gone through;
+- the bar's own can;
+- the ladder is still unusable.
 
-Then, on a screenshot of the ladder's foot: "that V means it's not a walkable tile. normally it should be possible to
-put a soldier there".
+A screenshot of the ladder's foot shows a V there: the tile is not walkable, where a soldier should normally be able
+to stand.
 - **The gap:** the bar's front doorway is two tiles wide (x 480..672). The door copy fills tile 34, and the probe
   through the doorway walks through tile 35, (35, 20) to (35, 19).
 - **Doors and windows:** the door copies log "must destroy False", so F-37's fix holds, but also "state
@@ -1248,7 +1241,7 @@ put a soldier there".
   (`BreakWindow` checks `IsInState('_Pristine')`). Our classes are compiled against stubs that declare no states,
   so they never enter it (F-38).
 - **Ladder:** the A* probe from the north sidewalk to the roof climbs at tile (30, 7), one tile west of the ladder,
-  and walks round its foot tile (31, 7). The user's screenshot shows that tile left out of the walkable area. The
+  and walks round its foot tile (31, 7). The screenshot shows that tile left out of the walkable area. The
   game makes a ladder's climb only when its foot tile is floor. The foot tile holds the visible ladder, a mesh copy
   (`XComMapEdLevelPiece`, an `XComLevelActor`), where step 3b's visible ladder was the bar's real `XComLadder`
   moved there. The level piece takes the tile, even with its collision off (F-39). The hidden climbing ladder was as
@@ -1281,7 +1274,7 @@ can be run through; the ladder's foot tile is walkable and the ladder climbs bot
 
 #### Step 4, run 30 (17:07, `look-170659.png`): the ladder and the doors work
 
-The user's note: "ok ladder and doors work now nice". The log agrees:
+In game, the ladder and doors work now. The log agrees:
 - every door copy logs "state _Pristine" (F-38);
 - the ladder's foot tile (31, 7, 0) has floor, and the A* probe from the north sidewalk climbs at the ladder's own
   tile, (31, 7, 0) to (31, 8, 6) (F-39);
@@ -1292,8 +1285,8 @@ The windows are still to check: the run 29 window probe starts on a tile a copie
 
 #### Step 4, run 30 (17:08, `look-170844.png`, and a screenshot in chat): windows still blocked; cars wanted
 
-The user's notes: "windoes still can't be pathed through though", on the wing's east storefront windows; then, on a
-screenshot with three places circled: "also can we add some cars in these 3 places (yes, one is on the roof)".
+In game, the wing's east storefront windows still can't be pathed through. A screenshot circles three places for
+cars, one of them on the roof.
 - **Windows:** the bar's working window (`XComDestructibleActor_66`) and the wing's source window
   (`XComDestructibleActor_158`) set the same actor properties; their archetypes differ
   (`ComKitWindows.Archetypes.ARC_ComKitWindow_StandardTripleB` and `..._LongDoubleC`), and both archetypes set
@@ -1321,17 +1314,17 @@ screenshot with three places circled: "also can we add some cars in these 3 plac
   - a compact car on the east road at (1952, -1720), turned like the map's parked compact, north-east of the east
     landing zone's spawn points.
 - The wing's copier logs the 3D cursor's position and tile when its tile changes (`bLogCursor`): to move a car, the
-  user points the cursor at the spot and presses F9, and the spot is read from the log.
+  player points the cursor at the spot and presses F9, and the spot is read from the log.
 - Probes added: from the east sidewalk through the east storefront windows into the rooms, at y -432, -720 and -912.
 
-To check: the wing's windows can be run through; the three cars stand where the user circled them, lit and solid,
+To check: the wing's windows can be run through; the three cars stand where they were circled, lit and solid,
 and the roof car cuts away with the roof.
 
 #### Step 4, run 31 (17:2x, a screenshot in chat): windows, cars and the roof car's cutaway work
 
-The user's note: "windows now can be smashed/run through correctly. and cars seems fine though oddly at least the
-roof car seems to provide no cover from the front and back (this might just be how this type of car works in the game
-normally so not sure it's an issue at all). car on roof also hides correctly when looking inside the building".
+In game, the windows can now be smashed and run through, and the cars look right, though the roof car seems to give
+no cover at its front and back (possibly how this type of car works in the game). The roof car also hides correctly
+when looking inside the building.
 - The log: the three glass copies log "interactive True ... state _Pristine" (F-40). The probes from the east
   sidewalk walk straight through the east windows at y -432 and -720. The third probe (y -912) ends on a tile the
   copied G3 table set takes, so it shows nothing.
@@ -1343,10 +1336,9 @@ normally so not sure it's an issue at all). car on roof also hides correctly whe
 
 #### Step 4, run 31 (two more screenshots in chat): car ends block their tiles
 
-The user, on one of the map's own cars in its parking lot: "Here's a compact that's normally part of the level for
-example": its cover shields show at its tail. On the roof car: "I think the issue is there's no path to right against
-the car, can see the highlight not going near it on the front and back". On the road cars: "the new cars on the ground
-seem fine", then "actually not entirely this new one also can't be reached properly from the front" (the north SUV).
+One of the map's own compacts in its parking lot shows its cover shields at its tail. At the roof car, the move
+highlight doesn't reach the tiles right against its front and back. The new cars on the ground look right at first,
+but the north SUV can't be reached properly from the front either.
 - **Cause (F-41):** where a car stands on the tile grid. URB_Bar's own compact (`XComDestructibleActor_20`) has its
   body (bounds x 1623..1927, y -1052..-872) fill tiles x 1632..1920 and y -1056..-864, reaching 7-9 units past them.
   The bodies, worked out from the map's cars:
@@ -1367,13 +1359,12 @@ To check: each car's nose and tail tiles can be reached and give low cover, as i
 
 #### Step 4, run 33 (deployed 17:39): the spawner snaps cars to the grid; an overview view for a screenshot
 
-The user: snapping to the grid "sounds like a good idea", and "is it possible for you to get me a overview shot of the
-map in the editor, zoomed out and well lit ? at a slight angle, from the "front" (where the newly added white car
-is)".
+Next: snapping to the grid, and an overview shot of the map in the editor, zoomed out and well lit, at a slight angle,
+from the front (where the newly added white car is).
 - **Snap:** with `bSnapToTiles`, the spawner reads the car's bounds after spawning, rounds each side to whole tiles
   and moves the car and its glass (by up to half a tile) so the body fills them. Across an even count the body's
   centre goes on a tile edge; across an odd count, in a tile's middle. It logs the bounds, the tile counts and the
-  shift. The three cars go back to where the user circled them (run 31) and are snapped. Expected:
+  shift. The three cars go back to the circled places (run 31) and are snapped. Expected:
   - roof compact to (384, -764);
   - north SUV to (388, -1728);
   - east compact to about (1924, -1731), at the map's -86 degrees.
@@ -1385,7 +1376,7 @@ is)".
 
 #### Step 4, run 33 (17:41, `look-174155.png`): the snap works; the photo camera is under the map
 
-The user's note: "camera is underground and looking up". The camera change works: the whole map is in view, from
+In game, the camera is underground, looking up. The camera change works: the whole map is in view, from
 below. The game's pitch is negative downward, so +55 looked up.
 - **Snap:** each car moved onto the grid, to within 2 units of the hand-placed run 32 spots.
   - roof compact: by (+47, -45), to (383, -765); bounds 2 x 3 tiles;
@@ -1401,10 +1392,9 @@ below. The game's pitch is negative downward, so +55 looked up.
 
 #### Step 4, run 34 (a screenshot in chat): the overview angle works, but it is very dark
 
-The user: "not bad but very dark, would be nice if we could light it up a bit (and ideally disable the UI for this
-overview shot)". The camera looks down on the whole map from the front. The log shows the brightened post-process
-settings applied three times, with no visible change. The game's renderer doesn't take the tone-curve settings this
-way.
+The shot is very dark; it needs more light, and ideally no UI. The camera looks down on the whole map from the
+front. The log shows the brightened post-process settings applied three times, with no visible change. The game's
+renderer doesn't take the tone-curve settings this way.
 
 #### Step 4, run 35 (deployed 17:50): real light and no UI for the overview
 
@@ -1418,9 +1408,9 @@ way.
 
 #### Step 4, run 35 (a screenshot in chat): the overview shot
 
-The user: "this is perfect. let's remember how we did this so we co get other overview shots set up in future". The
-shot shows the whole L layout from the front (north-east), lit by the sun light, with no UI. A copy of it is in the
-lab folder (`<lab>\looks\overview-exp07-run35.webp`; not in the repo, since it shows game art).
+The overview shot works, and its recipe is kept for later ones. The shot shows the whole L layout from the front
+(north-east), lit by the sun light, with no UI. A copy of it is in the lab
+folder (`<lab>\looks\overview-exp07-run35.webp`; not in the repo, since it shows game art).
 
 #### Step 4, run 36 (deployed 17:55): the overview view is a patchtool object
 
@@ -1432,8 +1422,8 @@ lab folder (`<lab>\looks\overview-exp07-run35.webp`; not in the repo, since it s
 
 #### Sharing the L layout as a map of its own (4 November 2026, 18:00)
 
-The user asked for a package to share with other modders: "just a few hints should be sufficient". They also asked
-whether the remix is "technically a new map, and can be played in game in addition to the original bar&grill map".
+The aim: a package to share with other modders, with a few hints, and to know whether the remix is technically a new
+map that can be played in game beside the original bar & grill map.
 - **As built, it is not a map of its own.** It is our patch streamed over URB_Bar.upk, and that file is the seeded
   copy (F-29). A seeded tile that nothing rebuilds at load keeps its seed bit, and the game treats it as blocking
   (`XComMapEdTileSeeds` exists for this reason). So the original record, still streaming `patch_bar` over the same
@@ -1449,7 +1439,7 @@ whether the remix is "technically a new map, and can be played in game in additi
   - `patch_exp07wing.upk`, run 36;
   - a readme with the map record, the landing-zone lines and the Mini Mods rule;
   - the overview shot as a preview.
-- **Lab state for the user's comparison shot of the shipped bar:** URB_Bar.upk is the original again (`unseed`),
+- **Lab state for a comparison shot of the shipped bar:** URB_Bar.upk is the original again (`unseed`),
   `URB_BarRemix.upk` sits beside it, and the test slot (line 36) streams `patch_barphoto` (`examples/barphoto.json`:
   `patch_bar` plus a photo object) on URB_Bar. Next, the slot moves to `URB_BarRemix` with `patch_exp07wing`, to check
   in the game that a renamed map loads.
@@ -1463,7 +1453,7 @@ whether the remix is "technically a new map, and can be played in game in additi
 
 #### The renamed map in the game (18:07): it works
 
-The user: "yes loaded in and everything looks good". The log:
+In game, the map loaded in and everything looks right. The log:
 - "SeamlessTravel to: URB_BarRemix", then the wing's copier and its copies as usual (six door copies);
 - LWR's landing-zone mutator, with "CurMapName = URB_BarRemix", found the seven copied entries ("DataArray.Length =
   7") and picked one at random;

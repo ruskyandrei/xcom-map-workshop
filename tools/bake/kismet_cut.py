@@ -1,5 +1,5 @@
-"""The map's Kismet let go of the pieces an edit deletes (the user, 23 November 2026, of a cleared map's warnings: "I
-don't care about these scripts doing anything, why can't we just delete them too?").
+"""The map's Kismet let go of the pieces an edit deletes (23 November 2026, of a cleared map's warnings: the
+scripts acting on them need not do anything, so the pieces can be deleted too).
 
 A deleted piece is taken out of the level's actor list (native_copy.hide_pieces), but the map's Kismet still holds it:
 a variable's object, an event's Originator, an object list. Its script then acts on a piece that is no longer in the

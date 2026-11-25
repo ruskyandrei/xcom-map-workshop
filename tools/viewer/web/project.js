@@ -122,7 +122,7 @@ export const tidyBuilding = b => (b.deleted ? { id: b.id, ...(b.name ? { name: b
 // ground: false to lay no ground over the new area. Absent or null: the map's own size. On a cleared project (Clear
 // map plan, section 6) the grid may also be smaller than the map's, in any of the three; the corner and the bottom
 // never move.
-// (256 tiles a side since 16 November 2026, at the user's word; 128 before)
+// (256 tiles a side since 16 November 2026; 128 before)
 export const STAGE_GRID_MAX = 256, STAGE_LEVELS_MAX = 30;
 // The maps whose size can be set without clearing them: the bare map a new prefab or a new map starts from
 // (compiler_tables.py STAGE_MAPS). Any map as it is may grow (13 November 2026); a cleared one may also shrink.

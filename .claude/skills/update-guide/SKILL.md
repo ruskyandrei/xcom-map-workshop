@@ -20,7 +20,7 @@ This skill is the guide alone. The guide's and README's "New in" tables belong t
 
 - **Say what is true of the editor as it is.** Check each sentence you write against the code and the page, not
   against the plan or an earlier version of the guide.
-- **Nothing is called untried, not played or "known to work"** (the user, 16 November 2026: what ships is usable,
+- **Nothing is called untried, not played or "known to work"** (16 November 2026: what ships is usable,
   tried or not). Say what happens. `test_guide.py` fails on the usual words; still read for the rest ("only X has
   been played", lists of what was played).
 - **The pictures are public.** No folder, name or account of this computer may show in one. `typical()` in

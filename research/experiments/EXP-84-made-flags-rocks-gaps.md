@@ -1,7 +1,7 @@
 # EXP-84: flags on made pieces, a rock shaped by its points, and three gap cases
 
 Date: 19 November 2026. Status: **run A played: every check passed**; the strip over a gap the whole wall long stood after a grenade at the floor, as a made wall's upper storey does ([F-127](../findings-register.md)). The short game run before the custom geometry
-branch (`fracturing-wall-poc`) goes into main, asked by the user: what the branch built since its last runs and never
+branch (`fracturing-wall-poc`) goes into main: what the branch built since its last runs and never
 played. Played unattended in the lab copy (the game-test skill): only what is new.
 
 ## What is new

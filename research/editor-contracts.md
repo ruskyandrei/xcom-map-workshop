@@ -59,10 +59,10 @@ So are actors that name each other through `HidingPartner` (export field `partne
 
 **The user's groups** (6 November 2026) are assemblies the user makes: two or more pieces, originals or added, locked
 together in the editor and saved in the project (`groups`, section 4).
-- **No unlocking** (the user, 11 November 2026: "remove the lock/unlock/select stuff, just leave it to
-  group/ungroup"). The editor has Group and Ungroup only: every group selects and moves as one, the editor writes
-  `locked: true`, and a group saved unlocked before is opened as a group like any other. What the next points say of
-  locked and unlocked groups is how it was until then; `locked` stays in the document for older files.
+- **No unlocking** (11 November 2026). The editor has Group and Ungroup only: every group selects and moves as one,
+  the editor writes `locked: true`, and a group saved unlocked before is opened as a group like any other. What the
+  next points say of locked and unlocked groups is how it was until then; `locked` stays in the document for older
+  files.
 - **Lights and buildings are members** (11 November 2026; prefab plan 5.4a). A light is a member as a piece is: an
   original by `{ "package", "level", "actor" }`, an added one by `{ "added": actor }`. One of the project's buildings
   is `{ "building": id }`, its key `building|<id>`, and stands for all of its boxes. In the editor they move, turn,
@@ -453,13 +453,13 @@ binding, a group, a building record, the map size (`stage`: the map keeps its ow
 part of it, `clearKeepsOutside`, a landing zone, and the missions list or an entry of it. A group's nesting is a note. A map
 picture that can't be found or written is a note, and the map is built without one.
 
-**Warnings and notes** (14 November 2026, the user's word: warnings only for what can cause a problem in the game).
+**Warnings and notes** (14 November 2026: warnings only for what can cause a problem in the game).
 The compiler's report keeps `warnings` for what can (a piece that can't be walked on, climbed, covered behind or
 hidden as it should, a landing on nothing, a mission script acting on the wrong actor) and `notes`
 for what can't (loot counts, how a piece looks, an ignored field, an edit that changes nothing, a building box past
 the grid, a piece that can't break with its group). The editor and the prefab test show the warnings only.
 
-**Pieces of a kind the Build has not made before** (14 November 2026, at the user's word: build, don't leave out;
+**Pieces of a kind the Build has not made before** (14 November 2026: build, don't leave out;
 16 November: no message says a thing is untried). What only the editor's own gates held back is built, in a
 project's Build and in the prefab test alike, with a warning only where the game shows something odd:
 
@@ -519,8 +519,8 @@ The plan's recipe qualification (section 6) applies. Each family's status, now:
 | Vans (a car with a building of its own: its `XComBuildingVolume` and two floor volumes list its parts) | Works; a van's parts copy as one, with the recipe snap | Build since 8 November 2026 (brought forward from M2): the parts as a car's, and the van's building and floor volumes cloned with them, carried by the move, so its roof cuts away over a soldier inside (F-65) | EXP-24 runs 3 (Bar: a delivery van copied a quarter turn round, a short moving van moved, a moving van deleted, a save and reload with a soldier inside) and 4 (Police Station: delivery vans copied, moved and deleted) |
 | Doors and windows (`XComInteractiveLevelActor`) | Works (reference pose); a leaf and its frame select as one, with the recipe snap | Framed doors build as assemblies. The native door recipe also builds frameless doors. | EXP-23 runs 1–3 pass for framed doors. EXP-39 passed for a cross-map alien door. The Farm scout door was checked in an offline prefab build. |
 | Ladders | Works, with the recipe snap and its climb's ends marked (8 November 2026) | Build since 8 November 2026 (brought forward from M2): the Build makes them in the map (a small rebuild volume over the top tile first; the patch's helper hidden in a copy of the patch); a ladder whose foot or top has no floor is warned of (`ladder-climb`, a refusal until 13 November 2026) and built with no climb of its own; the floors counted are the map's, the project's flat pieces and invisible floors, on the grid's levels as the project has them | EXP-22 runs 1 (Bar) and 2 (CSmallScout_Farm) pass: routes up, none at a moved one's old place, the same after a save and reload |
-| Fractured walls and floors (`XComFracLevelActor`, `XComDecoFracLevelActor` that are no car's glass) | Works (unfractured mesh), with the recipe snap: whole tiles, whole storeys and quarter turns from the original | Build since 9 November 2026, switched on at the user's word before a game run: made in the map, each copy's fragment columns carried with it (`move_columns`), still listing the pieces and neighbouring walls copied with it by the same move and dropping the rest; a hidden wall leaves its neighbours' columns; a door's copy joins a wall copy's columns (F-69) | [EXP-28](experiments/EXP-28-fracturing-physics.md) run 1 passed (9 November, Bar: a wall copied with its doors, broken, saved and reloaded; a counter section moved; a wall deleted). A storey floor's copy got floor on the tiles with standing room over them only (F-71). Not played: a copy against other walls, a storey move |
-| Skeletal physics props (`KAsset`) | Works (reference pose), any pose | Build since 9 November 2026, with the fracturing pieces: cloned in the map with its skeletal mesh component and light environment | EXP-28 run 1 (9 November, Bar): the map's corpses show in the game, and a copied, a moved and a deleted one "seemed ok" to the user, without detail (F-70) |
+| Fractured walls and floors (`XComFracLevelActor`, `XComDecoFracLevelActor` that are no car's glass) | Works (unfractured mesh), with the recipe snap: whole tiles, whole storeys and quarter turns from the original | Build since 9 November 2026, switched on before a game run: made in the map, each copy's fragment columns carried with it (`move_columns`), still listing the pieces and neighbouring walls copied with it by the same move and dropping the rest; a hidden wall leaves its neighbours' columns; a door's copy joins a wall copy's columns (F-69) | [EXP-28](experiments/EXP-28-fracturing-physics.md) run 1 passed (9 November, Bar: a wall copied with its doors, broken, saved and reloaded; a counter section moved; a wall deleted). A storey floor's copy got floor on the tiles with standing room over them only (F-71). Not played: a copy against other walls, a storey move |
+| Skeletal physics props (`KAsset`) | Works (reference pose), any pose | Build since 9 November 2026, with the fracturing pieces: cloned in the map with its skeletal mesh component and light environment | EXP-28 run 1 (9 November, Bar): the map's corpses show in the game, and a copied, a moved and a deleted one seemed right when played by hand, without detail (F-70) |
 | Mission-linked pieces | Works; from export 15 the inspector marks a piece the map's Kismet names (**Mission script**) | Copied, moved or deleted; moved or deleted, the compiler warns (`mission-linked`; a refusal from 8 to 13 November 2026), since the script acts on the hidden original, not on the copy. On Bar and Police Station these are the landing's grounded Skyranger and drop zone | Not tested in the game |
 | Landing-zone pieces (archetype in `DGN_DropShipSoldierSpawn.*` or `VEH_Lv1Skyranger_MOD.Prefabs.*`, F-45) | Works; the inspector marks them **Landing zone** (served in `families.json` as `landing`) | Copied, moved or deleted; moved or deleted, the compiler warns (`landing-zone`; a refusal from 9 to 13 November 2026), since LWR's landing-zone mutator spawns the landing from the originals, so the dropship's landing breaks (F-45). On every cached map one to six pieces; some are also mission-linked | Not tested in the game |
 | Hidden helpers, volumes | Inspect only; cannot be copied or deleted | Never built (`not-a-piece`) | — |

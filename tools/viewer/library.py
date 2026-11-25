@@ -80,7 +80,7 @@ PIECE_VERSION = 12      # 8: recipe identity for each member of a piece or assem
                         # 12: each of those marks' half-cover corners (`low`)
                         # (export 27's pieceFlags) and its meshes' collision facts; 10: those flags really written (the
                         # exporter had left them out of every prefixed export, the library's too, 19 November 2026)
-# A donor's pieces folder is named by PIECE_VERSION (piece_folder), not by the exporter's version (the user, 24 November
+# A donor's pieces folder is named by PIECE_VERSION (piece_folder), not by the exporter's version (24 November
 # 2026: most exporter changes are about maps, and each had every piece read again). So raise PIECE_VERSION for any
 # change to what a piece carries: its record's fields, or the meshes, materials or textures the exporter writes for it
 # (export.py's version notes say so too); tests/test_piece_version.py fails when a sample piece's export changes and it

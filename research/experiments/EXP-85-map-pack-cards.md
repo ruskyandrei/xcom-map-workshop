@@ -72,7 +72,7 @@ server) replaced v1's folder in the beta 15 copy. Two of its five maps were buil
 uploaded to the project: the game's own picture of the base map, tinted, with the words "WORKSHOP PICTURE" and the
 project under it, so the screens show plainly whose picture they drew. `pinkbar` (full build, lighting inside the
 map) has a pink one, `farm++` (quick build, its landing moved) a blue one. The copy was started where it stands, on
-the desktop (its first start was scaled by Windows: T-48), and the user played; F9 looks and the log were read.
+the desktop (its first start was scaled by Windows: T-48), and played by hand; F9 looks and the log were read.
 
 | Run | Done | Seen |
 | --- | --- | --- |

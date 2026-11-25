@@ -164,7 +164,7 @@ class Capabilities(unittest.TestCase):
             self.assertTrue(all(words in v for v in r['why'].values()), r['why'])
 
     def test_no_untried_words(self):
-        # the editor never says a thing is untried (the user's rule of 16 November 2026)
+        # the editor never says a thing is untried (the rule of 16 November 2026)
         source = (HERE.parent / 'effects_metadata.py').read_text(encoding='utf-8').casefold()
         for word in ('untried', 'not played', 'not been tried', 'experimental', 'not yet'):
             self.assertNotIn(word, source)

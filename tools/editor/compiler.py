@@ -37,7 +37,7 @@ one that doesn't (FAMILIES' `builds`) for an experiment. A door's frame edited w
 a destructible prop of its own. Copies of an assembly carry its family, its id and its grid move to the Build.
 
 Fracturing pieces (walls, storey floors, roof slabs: XComFracLevelActor, XComDecoFracLevelActor) and physics props
-(KAsset) build for every project since 9 November 2026: the user switched both on before any game run of them
+(KAsset) build for every project since 9 November 2026: both were switched on before any game run of them
 (research/experiments/EXP-28-fracturing-physics.md: its run 1 passed the same day), so that issues are fixed as they
 are found. A fracturing piece is no assembly, but it is checked against the grid move (single_grid_rule): its fragment
 columns are saved one to a tile and the Build carries them with the copy, which is exact only for whole tiles, whole
@@ -53,8 +53,8 @@ Lights (private/plans/done/editor-lights-plan.md, L6) are the `light` family: an
 switched off or deleted, a copy of one, or a spot light made from the built-in recipe; and the generated area lights a
 moved, copied or deleted glowing piece takes along (its association: export 18's `emitterAttachment`, or the project's
 `areaLightBindings`). They go into one `lights` object of the spec, which native_split hands to the Build's writer.
-light_rule says which lights may be edited. The family's checks are in light_edits.py, its own module. The family builds for every project since 9 November: the user switched
-it on after EXP-26 run 1 (a full build on Bar), before its runs 2 to 6, so that issues are fixed as they are found
+light_rule says which lights may be edited. The family's checks are in light_edits.py, its own module. The family builds for every project since 9 November: it was switched
+on after EXP-26 run 1 (a full build on Bar), before its runs 2 to 6, so that issues are fixed as they are found
 (FAMILIES['light']['builds'] off again brings back the refusal with its note). Every project with edits needs an export with the light data (export 18 and its area-light
 matcher: light_metadata_problem), since moving a piece can move the light its glow makes.
 
@@ -232,10 +232,10 @@ FOREIGN_ASSEMBLIES = ('car', 'door', 'van')
 # - 'links': a prop that lists other pieces it takes down with it (AffectedChildren) comes with the list emptied;
 # - 'prefab': a piece whose archetype is in a Prefab comes with the Prefab as a shell (transplant.SHELLS).
 FOREIGN_UNCHECKED = ()
-# the library's verdicts on a piece of another map that the compiler builds all the same (the user, 14 November 2026:
+# the library's verdicts on a piece of another map that the compiler builds all the same (14 November 2026:
 # don't leave out): hidden in its own map, linked to other pieces, of a family not brought before, waiting for a game
 # test. 'closure' (it needs something that can't be brought) stays a piece left out. FOREIGN_WORDS: the ones that can
-# show in the game, warned of (foreign-held); none says it is untried (the user, 16 November 2026).
+# show in the game, warned of (foreign-held); none says it is untried (16 November 2026).
 FOREIGN_SOFT = ('hidden', 'assembly', 'family', 'check')
 FOREIGN_WORDS = {'hidden': '%s of %s is hidden in its own map (a helper, not something to see)',
                  'assembly': '%s of %s is linked to other pieces in its own map (a car\'s body and its glass, a prop and '
@@ -617,12 +617,12 @@ class Compiler:
 
     def warn(self, code, message, **where):
         """Something that can cause a problem in the game: a piece that can't be walked on, climbed or hidden as it
-        should, a landing on nothing, a mission script acting on the wrong actor. Never that a thing is untried (the
-        user, 16 November 2026: what ships is usable)."""
+        should, a landing on nothing, a mission script acting on the wrong actor. Never that a thing is untried (16 November
+        2026: what ships is usable)."""
         self.warnings.append(dict(code=code, message=message, **where))
 
     def note(self, code, message, **where):
-        """Something the report keeps that can cause no problem in the game (the user, 14 November 2026: warnings only
+        """Something the report keeps that can cause no problem in the game (14 November 2026: warnings only
         for what can): how a piece looks (its light, its tint), loot counts, a field ignored, an edit that changes
         nothing. The report's `notes`; the editor shows only the warnings."""
         self.notes.append(dict(code=code, message=message, **where))
@@ -735,10 +735,10 @@ class Compiler:
         return CLASS_FAMILY.get(parts[0]['actorClass'], 'other'), None
 
     def untried(self, code=None, message=None, **where):
-        """The extra a copy carries when the Build has not made its kind before (the user, 14 November 2026: build,
+        """The extra a copy carries when the Build has not made its kind before (14 November 2026: build,
         don't leave out). It is built as any copy; if making it fails, the Build leaves these copies out and builds
         the rest (build.py drop_untried). A warning goes with it only for what can go wrong in the game (`message`):
-        never one that says it is untried (the user, 16 November 2026: what ships is usable)."""
+        never one that says it is untried (16 November 2026: what ships is usable)."""
         if message:
             self.warn(code, message, **where)
         return dict(untried=True)
@@ -1095,8 +1095,8 @@ class Compiler:
         - deleted: the Build empties the script's references to it (`kismet_cuts`, the spec's `kismetCuts`:
           tools/bake/kismet_cut.py), so the script acts on nothing in its place and a copy of it is a piece like any
           other: a note. Where the script waits on it (an event's or a condition's) that will never come: a warning on a
-          map as it is, a note on one whose triggers are cleared, its mission script already cut off from them (the
-          user, 23 November 2026: "I don't care about these scripts doing anything")."""
+          map as it is, a note on one whose triggers are cleared, its mission script already cut off from them (23
+          November 2026: on such a map these scripts need not do anything)."""
         said = '; '.join(named)
         if rec.get('deleted') is not True:
             self.warn('mission-linked', "%s is moved, and the map's Kismet acts on it (%s): the script acts on the hidden "

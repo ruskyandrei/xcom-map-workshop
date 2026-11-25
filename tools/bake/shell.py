@@ -42,7 +42,7 @@ LINE) is laid along every tile edge, a row of copies to an edge, the last one sh
 are taken out of the level's actor list and the donor's are brought in their place, made even storeys over the whole
 grid as the blank map's are. A grid with fewer storeys than the donor has cursor volumes lists only as many.
 
-A map as it is that keeps its own cursor volumes and is given a larger grid (grow_cursors; the user, 13 November
+A map as it is that keeps its own cursor volumes and is given a larger grid (grow_cursors; 13 November
 2026): each of its volumes that reaches the grid's far X or Y side is stretched to the new one (the rest, fitted to
 a building, keep their places), and with more levels the map's topmost plain volume is cloned into even storeys over
 the whole grid from the top of its own up to the grid's new top, numbered on from its highest floor.

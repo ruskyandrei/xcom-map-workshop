@@ -215,7 +215,7 @@ export const geometryCache = new Map();
 // The saved prefabs' pictures waiting to be drawn (prefab_place.js's drawPrefabPictures draws one a frame).
 export const prefabPictures = [];
 
-// Which view is on (the user, 11 November 2026: one at a time; views.js's setNormalView leaves them all), each set by
+// Which view is on (11 November 2026: one at a time; views.js's setNormalView leaves them all), each set by
 // its own switch: the Lights view (lightsOn; lights_wiring.js's setLightsShown), the Buildings view (volumesOn), the
 // Landing zones view (zonesOn), the Effects view (effectsOn) and the Spawns view (spawnsOn). The Normal button's Lights
 // switch (normalLights) draws and picks lights with pieces in the normal view; lightsShown, whether lights are drawn

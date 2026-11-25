@@ -58,7 +58,7 @@ door`.
 - Installed in the lab's test slot (`lab_install.py install`, deploy record
   `URB_Bar_EXP23Door_23e0-20261108-143517.json`).
 
-**In the game** (the user drives; the lab copy). Marked editor shots, taken with
+**In the game** (played by hand; the lab copy). Marked editor shots, taken with
 [`mark_shots.py`](../../tools/viewer/mark_shots.py) from [EXP-23-run1-shots.json](EXP-23-run1-shots.json): the
 overview (`EXP-23-run1-overview.png`: the bar's ground floor, its east half boxed),
 the inner wall (`EXP-23-run1-inner-wall.png`: marks 1 and 2) and the west wall (`EXP-23-run1-west-door.png`: mark 4).
@@ -73,7 +73,7 @@ the inner wall (`EXP-23-run1-inner-wall.png`: marks 1 and 2) and the west wall (
 8. Save with one door open and one broken, reload: they stay so.
 9. The copies' textures are sharp (a copy isn't in the level's list of skeletal textures, plan 2.4).
 
-**Result (8 November, the user's run):** passed: "everything works as expected", over the checks above. No F9 shots
+**Result (8 November, run by hand):** passed: everything worked as expected, over the checks above. No F9 shots
 were taken.
 
 ## Run 2: URB_PoliceStation
@@ -107,7 +107,7 @@ police station" (`23f0a0b1-…`), variant `URB_PoliceSt_Exp23D_23f0`. Built with
 - Installed in the lab's test slot (`lab_install.py install`, deploy record
   `URB_PoliceSt_Exp23D_23f0-20261108-145817.json`): it plays the station's abduction record.
 
-**In the game** (the user drives; the lab copy). Marked editor shots, from
+**In the game** (played by hand; the lab copy). Marked editor shots, from
 [EXP-23-run2-shots.json](EXP-23-run2-shots.json): the overview (`EXP-23-run2-overview.png`: the station's west half),
 the copy of door 0 (`EXP-23-run2-copy.png`: mark 2), door 95 and the turned double door (`EXP-23-run2-moved-and-turned.png`:
 marks 1 and 3) and the facade (`EXP-23-run2-facade.png`: marks 4 and 5). The same checks as run 1, and:
@@ -115,7 +115,7 @@ marks 1 and 3) and the facade (`EXP-23-run2-facade.png`: marks 4 and 5). The sam
 2. The deleted double door's doorway (mark 4): open, and no "open door" action shows there.
 3. Door 95, a prefab's door, at its new place (mark 1): as the others.
 
-**Result (8 November, the user's run):** passed: "done, everything was fine". No F9 shots were taken.
+**Result (8 November, run by hand):** passed. No F9 shots were taken.
 
 ## Run 3: URB_ResearchOutpost (a floor above)
 
@@ -148,7 +148,7 @@ the outpost" (`23a0a0b1-…`), variant `URB_Research_Exp23D_23a0`. Built with `b
   record, a Council assault (`CouncilType=eFCMType_Assault`, streaming `URB_ResearchOutpost_Stream`); the slot plays it
   as the first mission of a new campaign.
 
-**In the game** (the user drives; the lab copy). Marked editor shots, from
+**In the game** (played by hand; the lab copy). Marked editor shots, from
 [EXP-23-run3-shots.json](EXP-23-run3-shots.json): the overview (`EXP-23-run3-overview.png`: the telescope room boxed,
 door 0 marked where it stands), door 25 in its new doorway (`EXP-23-run3-north-wall.png`: mark 1) and
 the copy of door 0 (`EXP-23-run3-south-wall.png`: mark 2).
@@ -157,4 +157,4 @@ the copy of door 0 (`EXP-23-run3-south-wall.png`: mark 2).
    down with the walls, as the telescope room's other pieces do.
 3. Save and reload, one door open.
 
-**Result (8 November, the user's run):** passed: "checked, all good". No F9 shots were taken.
+**Result (8 November, run by hand):** passed. No F9 shots were taken.

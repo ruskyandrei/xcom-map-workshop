@@ -67,7 +67,7 @@ assert.deepEqual(movedOpening(wall, 1, 'middle', [7.25, 10.5], { along: 0, up: 0
 assert.deepEqual(movedOpening(wall, 0, 'middle', -500).openings[0], { x0: 0, x1: 96, z0: 8, z1: 160 });
 assert.deepEqual(movedOpening(wall, 1, 'middle', 500).openings[1], { x0: 288, x1: 384, z0: 72, z1: 168 });
 assert.deepEqual(movedOpening(wall, 1, 'middle', 7, { along: 1 }).openings[1], { x0: 199, x1: 295, z0: 72, z1: 168 });
-// (the user, 19 November 2026) and up and down, [along, up], its height kept: up to the highest a gap's top goes under
+// (19 November 2026) and up and down, [along, up], its height kept: up to the highest a gap's top goes under
 // the cornice; down to the floor, where it is cut to the wall's bottom (a doorway); one cut through the top stays put
 assert.deepEqual(movedOpening(wall, 1, 'middle', [0, 100], { along: 96, up: 24 }).openings[1], { x0: 192, x1: 288, z0: 168, z1: 264 });
 assert.deepEqual(movedOpening(wall, 1, 'middle', [0, 1000], { along: 96, up: 24 }).openings[1], { x0: 192, x1: 288, z0: 264, z1: 360 });

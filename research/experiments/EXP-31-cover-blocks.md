@@ -1,9 +1,9 @@
 # EXP-31: cover blocks (invisible pieces that give cover)
 
-Date: 10 November 2026. The user asked for a new kind of piece in the Add panel: invisible, giving cover, as some of
-LWR's patches add it (URB_PoliceStation's), in sizes 1 × 1, 1 × 2 and 4 × 4 or of any size. The first version copied
-LWR's own helper out of `patch_policestation.upk`; the user asked why it should need LWR's patch at all, so plain
-Enemy Within can have them too, and the Build now makes the blocks from a recipe of its own.
+Date: 10 November 2026. A new kind of piece in the Add panel: invisible, giving cover, as some of LWR's patches add it
+(URB_PoliceStation's), in sizes 1 × 1, 1 × 2 and 4 × 4 or of any size. The first version copied LWR's own helper out
+of `patch_policestation.upk`; it should not need LWR's patch at all, so plain Enemy Within can have them too, and the
+Build now makes the blocks from a recipe of its own.
 
 ## What LWR's patches do
 
@@ -17,7 +17,7 @@ block has to be such an actor.
 ## What changed (offline)
 
 - The editor: Add, Kind **Cover**, one entry, **Cover block** (a 1 × 1 block of high cover: at first six ready-made
-  sizes, but the user found them needless with the size and cover set in the piece panel); the piece panel's **Cover
+  sizes, needless with the size and cover set in the piece panel); the piece panel's **Cover
   block** section sets width and length (1 to 16 tiles) and the cover. A project saves a block as an added piece with `template`
   {kind: cover, version: 1} and `cover` {width, length, height}, its location the block's corner on the floor.
 - The compiler (`COVER_RECIPES`): a block is whole tiles from its corner, from 12 units below the floor to 96 above
@@ -36,8 +36,8 @@ block has to be such an actor.
 
 ## The first play crashed as the map loaded (F-79)
 
-The user added a cover block to a project on CSmallScout_Farm (`farm+`: a copy of a destructible, and a 1 × 2 high
-block, which the turn handles had tipped onto its side: roll -16384) and pressed Play in game: the game stopped before
+A cover block was added to a project on CSmallScout_Farm (`farm+`: a copy of a destructible, and a 1 × 2 high
+block, which the turn handles had tipped onto its side: roll -16384) and Play in game pressed: the game stopped before
 the map finished loading. `Launch.log`: `Critical: appError called: Bad import index 65535/334` during the map's load.
 The build before (the copy alone) had played.
 
@@ -57,7 +57,7 @@ The build before (the copy alone) had played.
 
 ## Run 1 (10 November 2026): the map loads, but the blocks gave no cover (F-80)
 
-The user played the F-79 rebuild of `farm+` (CSmallScout_Farm, quick build), with three high blocks by then
+The F-79 rebuild of `farm+` (CSmallScout_Farm, quick build) was played by hand, with three high blocks by then
 (`CoverBlock_copy2` to `_copy4`, each still tipped onto its side, roll -16384: a pillar a tile across and two tall):
 - the map loaded and the battle started: F-79 verified;
 - a block over a small rock that gives half cover, and one over a rock on a ramp (where the game's own cover is
@@ -72,22 +72,22 @@ flags, so the game's line and box checks found nothing; it now saves `UseSimpleB
 
 ## Run 2 (10 November 2026): still no cover with the simple-collision flags off
 
-The user played the `farm+` rebuild with the first F-80 fix (the box meshes' `UseSimpleBoxCollision` and
+The `farm+` rebuild with the first F-80 fix was played (the box meshes' `UseSimpleBoxCollision` and
 `UseSimpleLineCollision` off; the install held that build, checked by its hash and the flags in the installed map):
-the block in the open still let the move cursor onto its tile, with no cover shields beside it. The user also said
-the blocks' roll is on purpose: tipped onto its side, a 1 × 2 block is the only way to make one two tiles tall.
+the block in the open still let the move cursor onto its tile, with no cover shields beside it. The
+blocks' roll is on purpose: tipped onto its side, a 1 × 2 block is the only way to make one two tiles tall.
 
 The native code ([F-80](../findings-register.md), [native code notes](../native-code-notes.md)): the tile rebuild's
 occupancy test skips a level actor whose mesh has no BodySetup, whatever its flags. The box meshes now get an
 `RB_BodySetup` with the box's convex hull, laid out as the game's `FX_Utilities.Box_96x96x96`; the flags are back at
 their defaults. `farm+` rebuilt (quick, 3 blocks).
 
-A block's height in storeys, so a tall block needn't be tipped over, is for later (the user's run 2 remark).
+A block's height in storeys, so a tall block needn't be tipped over, is for later (a run 2 remark).
 
 ## Run 3 (10 November 2026): blocks work on level ground; not on the ramp (F-81)
 
-The user played the `farm+` rebuilds with the box meshes' BodySetup (F-80's second fix): "works now. at least for the
-level ones". The block over the small rock (`CoverBlock_copy3`, a 1 × 2 high block stood on end) gives full cover
+The `farm+` rebuilds with the box meshes' BodySetup (F-80's second fix) were played: they work, at least the level
+ones. The block over the small rock (`CoverBlock_copy3`, a 1 × 2 high block stood on end) gives full cover
 shields on its sides, and the move cursor no longer goes onto its tile. F-80 verified on level ground; hidden blocks
 count (nothing in the code tests `bHidden`).
 
@@ -95,7 +95,7 @@ The block on the ramp by the UFO (`CoverBlock_copy4`, first at z 88.9, then sunk
 cover either way. No save was made, so read offline:
 - the ramp's floor tiles there (level 3, row y 4) carry the sloped bit `0x4000`; the game's floor-detail step skips
   sloped tiles, and across the farm no sloped tile where units walk has any cover bits (F-81): the game's own rule,
-  as the user suspected;
+  as suspected;
 - first guess, wrong: that the tile rebuild finds the actors near a tile by their location (a block's pivot is its
   corner, a storey below the ramp's floor when sunk). The code keeps them by their bounding box; a split of each
   block into one actor per tile cell, written for that guess, was taken out again.
@@ -108,4 +108,4 @@ On URB_Bar or the farm's level ground, a quick build is enough (cover, pathing a
   walk through it, and nothing is drawn there; units see over the low one, not through the high one;
 - a save loaded after (the rebuild runs again on load).
 
-Marked editor shots for the run (mark_shots.py) and the user drives, as usual. Not yet played.
+Marked editor shots for the run (mark_shots.py), played by hand as usual. Not yet played.

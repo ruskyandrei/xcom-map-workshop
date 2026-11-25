@@ -41,7 +41,7 @@ Every finding from these runs, with its status and fix, is listed in
 
 - **Log.** `ScriptLog: XComMapEd: XComMapEdBorrowedMesh_900 now shows VEH_CompactCarB.Meshes.CarCompactB`, 1.4 s
   after `SeamlessTravel: loaded additional map patch_exp05`. The log has no material warnings.
-- **What it looks like.** Screenshots: the user's two shots (`<lab>\exp05\look1.webp`; crops `look1-car.png`
+- **What it looks like.** Screenshots: two shots (`<lab>\exp05\look1.webp`; crops `look1-car.png`
   and `look1-suv.png`).
   - The car's shape is right and it sits on the ground, about 3 tiles long.
   - It renders flat grey/white with no texture: tyres the same grey as the body. Compare the map's own SUV, which is
@@ -184,7 +184,7 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
 
 ## Step 2: real cars, spawned from the map's own archetypes (built 22:14)
 
-- **Goal (user, 22:05).** Make the borrowed car a working map piece, with paint and cover. Also: a line of 10 cars
+- **Goal (22:05).** Make the borrowed car a working map piece, with paint and cover. Also: a line of 10 cars
   to throw grenades at (does the glass shatter, do they burn), to use as cover, and to save and reload.
 - **What URB_Bar's own cars are.** Each is two actors built from the prefab
   `VEH_CompactCarB.Prefab.PRE_CompactCarB`:
@@ -258,8 +258,7 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
 
 ### Cars, run 2 continued (22:24, F9 look `look-222443.png`): the grenade did nothing to them
 
-- **The user's note (typed into the game console):** "Threw a grenade and it doesn't appear to have done damage to
-  the black cars. Even the windows are intact."
+- **Seen in game:** the grenade did no visible damage to the black cars. Even the windows stayed intact.
 - **The map's own sedan next to the row burned.**
 - **Log at 184.08:** the HE grenade logged 4 × `Ucross FracLevelActor Damage Type:XComDamageType_Explosion /
   Amount:35` and 5 × `Ucross Damage Type ... 35`. These come from LWR's logging in `ApplyDamageToMe`, via
@@ -300,9 +299,9 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
   - The damaged state begins below 75 % (`DestructibleActorDamagedThreshold`), so one grenade is far from enough.
   - The car that burned was `XComDestructibleActor_33`, a `PRE_SedanBWreckA` (a pre-wrecked sedan), so it is not
     comparable.
-- **Glass.** Four `FracLevelActor Damage Amount:35` lines, but the user saw the windows intact. Whether a grenade
+- **Glass.** Four `FracLevelActor Damage Amount:35` lines, but the windows were seen intact. Whether a grenade
   breaks the windows of the map's own compact cars is still to be checked as a baseline.
-- **Fix (built and cooked 22:52, deployed 22:53 after the user quit the game):**
+- **Fix (built and cooked 22:52, deployed 22:53 after the game was closed):**
   - New class `XComMapEdDestructible extends XComDestructibleActor` in `XComMapEd`. Its defaults set
     `bUsePrecomputedShadows=false`, `bForceDirectLightMap=false` and the light environment (enabled, dynamic).
   - `CopyFrom(archetype)` takes from the archetype: mesh, materials, damaged and destroyed events (with its own copies
@@ -329,7 +328,7 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
   - red, cream, grey, blue, green, orange;
   - near-black (tint 0.02 as specified), white, teal, purple.
 
-  They sit next to the map's own cars without standing out. The user's note: "NICE!".
+  They sit next to the map's own cars without standing out.
 - **So the cause was ticking.** The light environment only computes light while its actor ticks, and level actors
   don't tick. `bUsePrecomputedShadows=false` is probably needed as well; it was set in both runs.
 - **Still to test:**
@@ -374,11 +373,11 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
   `WatchMain` now also logs the glass's visible-fragment count.
 - **Tooling.** The cooker won't run on the hidden desktop (exit 3, no log, within a second), so patchtool builds there
   and cooks on the normal desktop without a window.
-- **Save/reload, first check (user, 23:08; log `Launch-backup-2026.11.03-23.17.56.log`): works for undamaged cars.**
+- **Save/reload, first check (23:08; log `Launch-backup-2026.11.03-23.17.56.log`): works for undamaged cars.**
   - The save was made at 164 s, before that session's grenade (214 s). The reload at 321 s brought URB_Bar back.
   - The spawners made the same `XComMapEdDestructible_0`–`_9` again. The checkpoint loaded 149 + 10 actors.
   - The cars came back at 500/500 `_Pristine`, as they were at the save. No "restored at its spot" removals, so no
-    duplicates. The user saw it working.
+    duplicates. It was seen working in game.
   - A grenade after the reload (340 s) took car 7 to 471 and car 8 to 486.
   - Still to check: whether damage persists, with a save made after the cars are damaged.
 
@@ -392,7 +391,7 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
   them burned again. So the columns' collateral path isn't what sets a placed car alight. That fits the decompiled
   `ApplyDamageToMe`, which ignores collateral damage (`XComDamageType_DestructibleActorClear`) to a non-fragile car if
   that damage type doesn't cause fracture.
-- **The user's note:** "threw grenade, can't tell if it did anything to our new cars".
+- **Seen in game:** a grenade had no visible effect on our new cars.
 - **Next build (cooked and deployed 23:27):**
   - `XComMapEdDestructible.ApplyDamageToMe` logs every hit (type, amount, causer, health, state) before the game
     applies it. The stub `XComDestructibleActor.uc` gained the declaration; backup in
@@ -422,7 +421,7 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
     break.
   - This fits the warnings "Attempt to remove element N in an 1-element array 'PotentialFireColumns'" seen earlier.
   - So the flames are most likely a fire started next to the car. That fire would burn the car over the next turns,
-    matching the user's experience that cars "explode a couple of turns later".
+    matching what was seen in game: cars explode a couple of turns later.
 - **Next:** end the turn a couple of times and watch which cars the fires burn. The log records health and state
   changes for the cream car and for ours.
 
@@ -446,7 +445,7 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
 
 ### Glass names change between loads, so saves would lose broken windows (found 23:40; fix cooked 23:43)
 
-- **What happened.** At 266 s the user restarted the mission in the same game session. The cars came back as
+- **What happened.** At 266 s the mission was restarted in the same game session. The cars came back as
   `XComMapEdDestructible_0`–`_9` again, but the glass came back as `XComFracLevelActor_46`–`_57` instead of `_25`–`_43`.
   The same happened at the 23:08 reload in session 23:03.
 - **Why.** A new actor's name comes from its class's counter. `XComFracLevelActor` is in XComGame, which stays loaded
@@ -462,10 +461,10 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
     channel, which UDK's compiler doesn't know.
   - To check in game: the glass looks and breaks as before, and broken windows survive a reload.
 
-### How cars "catch fire and explode" (user's police-car test, 23:40–23:43, F9 looks `look-234013.png` to `look-234317.png`)
+### How cars catch fire and explode (police-car test, 23:40–23:43, F9 looks `look-234013.png` to `look-234317.png`)
 
-- **What the user saw.** An HE grenade (log 307.56) at a map police car. Turn 1: on fire. Turn 2: "flames are spreading
-  on the car". Turn 3: "car exploded".
+- **What was seen.** An HE grenade (log 307.56) at a map police car. Turn 1: on fire. Turn 2: flames spreading on the
+  car. Turn 3: the car exploded.
 - **The log.**
   - At the blast: one glass hit and two destructible hits, Explosion 35 each, then "Attempt to remove element 2 in an
     2-element array 'PotentialFireColumns'".
@@ -489,7 +488,7 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
 ### Cars, run 9 (23:49, F9 look `look-234954.png`): our glass adds fire spots; the new glass class needs chunk health
 
 - **Glass names.** `XComMapEdGlass_0`–`_9`: the glass class from 23:44 works, and its names will match on every load.
-- **The user's notes:** AP grenades don't start fires, and only one HE grenade was available. They threw it so that it
+- **Seen in game:** AP grenades don't start fires, and only one HE grenade was available. It was thrown so that it
   hit cars 7–9 and the map's cream car.
 - **Fire spots (log 73.13).** When the hits on our cars began, the blast had collected 5 spots:
   - 2 on our glass: (1571, −1383, 160.4) and (1697, −1383, 160.4);
@@ -514,8 +513,8 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
   - 9 columns were destroyed;
   - the cars lost 18, 23 and 15 of 500 health;
   - no ChunkHealth errors.
-- **Fire spots.** The blast collected 6 spots, all on our glass: x ≈ 949 and ≈ 1385, at Z 160.4. The user saw no fire,
-  then threw a second grenade at the row: still no fire.
+- **Fire spots.** The blast collected 6 spots, all on our glass: x ≈ 949 and ≈ 1385, at Z 160.4. No fire was seen,
+  and a second grenade at the row started none either.
 - **What the code says** (decompiled `XComProjectile.DealSplashDamage`, `XComDamageType.DamageTypeSetsFires`,
   `XGVolumeMgr.CreateVolumeByType`):
   - Explosion damage always sets fires, at intensity 2.
@@ -549,15 +548,13 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
 - **Squad on the cars (F-06).** LWR's landing-zone mutator picked the zone at (719, −1681) facing North. Its six spawn
   points (x 527–911, y −1201 to −1489) lie on cars 3–5. Soldiers stood on the roofs, and the SHIV was wedged between
   two cars and couldn't move.
-  - The user's note: "does that meld fix also apply to my guys spawning on top of the cars, and the shiv somehow
-    floating in between and can't move ?"
   - `CheckPlacements` (1 s after spawning) didn't flag the soldiers, so they probably arrive later than that.
 - **Flammability (F-14).** Sampled points that the game counts as flammable:
   - each of our cars: 18 of 54;
   - the map's cream car `XComDestructibleActor_20`: 48 of 72;
   - the two parking blocks: 0 of 3 and 3 of 3.
-- **Grenade at the corner (log 107.66–110.15).** It hit cars 7–9 and the map's cream car. The user's note: "hit the
-  cars in the corner again, only some fire on the map one as usual".
+- **Grenade at the corner (log 107.66–110.15).** It hit cars 7–9 and the map's cream car. Only the map's car
+  caught some fire, as usual.
   - 8 fire spots: 5 on our glass at Z 160.4, 3 on the cream car's at Z 157.1.
   - None counts as flammable, the cream car's included, yet the cream car burned.
   - The fire volumes (logged at 110.15): `XGVolume_0` at (1697, −1297, 160) and `XGVolume_2` at (1759, −1297, 160),
@@ -618,7 +615,7 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
   - the cream car, after the runtime rebuild over it: 10/10, 8/10.
 - **Conclusion (F-14).** A runtime rebuild marks only the ground-level tile under a flammable object. The map's
   window-height marks come from the editor's bake.
-- **The user's throw (log 167.24).**
+- **The throw (log 167.24).**
   - It hit car 6, the plain copy, the car without glass, car 9, the turned red car and the cream car: 15–18 damage
     each.
   - Glass broke on the plain copy's car and on the turned car (2 columns each).
@@ -639,29 +636,28 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
 - **Fire spots.** 8 in all: our 5 at Z 29.1, all counted flammable, and the cream car's 3 at Z 157.1. So the
   workaround puts our spots where the tiles are flammable.
 - **Fires.** All 3 went to the cream car's spots (two at the same spot), so none landed on ours. The cream car burns
-  on turn 2 in the shot. The user's note: "no tire fires".
+  on turn 2 in the shot. No tire fires were seen.
 - **Still to test.** A throw at the middle of the row, away from the cream car, so that every fire spot is ours.
 - **Side effect to check.** Our columns now count as damaged but not destroyed ("1/0 of 6", "2/0 of 6"); before
   the change they were both. Destroyed columns may be what updates line of sight through broken windows.
 - **Second grenade (log 223.88, F9 look `look-004705.png`): our car burns.**
   - It broke the glass of cars 7–9 (car 7: 21 → 6 visible fragments).
   - All 3 fires went to car 7's ground-level spots: (1385, −1297, 29), and (1384, −1383, 29) twice.
-  - The look shows car 7 (white) burning, with flames along its side and windows. The user's note: "WE HAVE FIRE!".
+  - The look shows car 7 (white) burning, with flames along its side and windows.
   - Next: the turn change should destroy it with AreaBurn and set off its explosion (F-09).
 - **Turn change (log 385.11, F9 look `look-005019.png`, turn 4): car 7 burns down and sets off a chain reaction.**
   - `XComDamageType_AreaBurn` 8041 destroyed car 7. Its destroyed events then went off: its explosion dealt 241 to
     cars 6 and 8 and to the turned red car.
   - All three dropped to 250/500 and into `_Damaged`, the burning state; the shot shows them on fire. The cream car
     burned down at the same turn change.
-  - The user's note: "our car blew up and set off a chain reaction, others are on fire now, looks great!".
   - So F-09 (our copies of the destruction actions) and F-14 (fire) are verified.
 
 ### Cars, run 15 (00:52–00:54, F9 look `look-005426.png`): save and reload with destroyed cars
 
 - **Before the save.** A grenade and the turn change destroyed cars 6–9 (chain explosions, log 81.8–91.4). Car 5 and
   the turned car were `_Damaged` and burning.
-- **After the reload, the user's notes:** "on reload the car wrecks are gone, but the fire is still there" and "units
-  can now path through that area so there's nothing there". The look shows fires and scorch marks on bare road.
+- **After the reload.** The car wrecks are gone, but the fire is still there, and units can now path through that
+  area, so nothing is there. The look shows fires and scorch marks on bare road.
 - **Log.**
   - The checkpoint "Checks" the map's own actors.
   - For each damaged or destroyed car and glass of ours it logs "Not Found XComMapEdDestructible_6 … Recreating
@@ -678,11 +674,10 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
 
 - **Restore (F-17).** Each recreated car and glass logged "restored … after a load", at its own spot.
   - The look shows car 8's wreck visible and giving cover, and car 9 burning (`_Damaged`, 239).
-  - The user's note: "looks good".
 - **Replayed explosion (F-18).**
   - While its record was applied, car 8's wreck re-fired its explosion (241, log 125.30). That destroyed car 7, which
     had been burning at 186.
-  - The user's note: "when i saved I think the white car was also burning but now it is not".
+  - Seen in game: the white car was probably burning too at the save, but not after the reload.
 - **Fix** built 09:57: the explosion actions are held back while the record is applied.
 
 ### Cars, run 17 (09:59–10:02, F9 look `look-100225.png`): save and reload with wrecks and fires works
@@ -693,4 +688,4 @@ or crash if the import can't be resolved. Try it last, and only with a save at h
   - All our cars logged "restored … after a load".
   - Car 8 came back `_Damaged` 250 and burning; car 9 came back Dead, as a wreck.
   - No explosion fired during the load, from ours or from the map's wreck (F-18 verified).
-  - The look shows both wrecks and the burning car. The user's note: "looks good".
+  - The look shows both wrecks and the burning car.

@@ -1,9 +1,9 @@
 # EXP-13: Destructible props placed by the editor's compiler (plan)
 
 Status (6 November 2026, 14:40): **compiled, not yet built or deployed.** Destructible props
-(`XComDestructibleActor`) joined milestone M1 on the user's request: the compiler builds them as it builds static
+(`XComDestructibleActor`) joined milestone M1: the compiler builds them as it builds static
 pieces (EXP-11). This is their in-game check on URB_Bar. The lab's test slot runs one experiment at a time:
-[EXP-14](EXP-14-temple-variant.md), the user's Temple Ship project, goes first.
+[EXP-14](EXP-14-temple-variant.md), the Temple Ship project, goes first.
 
 ## Question
 
@@ -68,7 +68,7 @@ pwsh -File tools\patch\patchtool.ps1 stream -Map CIN_DropshipIntros -Stream 'URB
 pwsh -File tools\patch\patchtool.ps1 stream -Map patch_bar -Stream 'URB_CommercialAlley_EWI (Commercial Alley Redux) |0' -Slot 1
 ```
 
-## In the game (the user drives, Claude looks)
+## In the game (played by hand, with screenshots taken)
 
 A new campaign; the first mission loads the test slot. Shots (F9):
 1. The south-west street from above, with the copies.

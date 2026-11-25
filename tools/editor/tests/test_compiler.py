@@ -916,7 +916,7 @@ class CompilerTests(MissionScenes, unittest.TestCase):
                 self.assertEqual(report['leftOut'][0]['record'], 'overrides[0]' if overrides else 'added[0]')
 
     def test_what_our_own_gates_held_back_is_warned_of_and_built(self):
-        # the user, 14 November 2026: warn and build, don't leave out. A tinted copy is built untinted, a copy that
+        # 14 November 2026: warn and build, don't leave out. A tinted copy is built untinted, a copy that
         # names a partner alone, a class the Build has not made before as any copy, without a warning saying so (16
         # November 2026); the last two are marked untried, so the Build can leave them out if it can't make them
         # (build.py drop_untried)
@@ -1254,7 +1254,7 @@ class StageTests(unittest.TestCase):
         self.assertEqual(codes(report), ['stage-grid'])
         # (left out since review finding 39: the map keeps its size and the rest builds)
         self.assertEqual((report['ok'], report['stageGrid'], [d['record'] for d in report['leftOut']]), (True, None, ['stage']))
-        # higher as it is (the user, 13 November 2026): taken, the note saying where the cursor's new floors come from
+        # higher as it is (13 November 2026): taken, the note saying where the cursor's new floors come from
         _, report = self.run_stage({'grid': [52, 39, 16]}, name='URB_Bar')
         self.assertTrue(report['ok'], refused(report))
         self.assertEqual(report['stageGrid'], [52, 39, 16])
@@ -1315,7 +1315,7 @@ class StageTests(unittest.TestCase):
     def test_a_map_grown_as_it_is_keeps_its_cursor_volumes_and_gets_storeys_above(self):
         """A map with its own cursor volumes grown as it is (shell.py grow_cursors): a volume reaching the old far
         side stretched to the new one, one short of it kept, and storeys over the whole grid from the top of its own
-        (the user, 13 November 2026: the levels too)."""
+        (13 November 2026: the levels too)."""
         s = scene()
         s.update(exporterVersion=22)
         s['tileGrid'].update(origin=[0.0, 0.0, 0.0], dimensions=[52, 39, 12], size=[96, 96, 64])
@@ -1349,7 +1349,7 @@ class StageTests(unittest.TestCase):
         self.assertEqual(codes(report), ['stage-grid'])
 
     def test_a_grid_past_the_limit_is_refused_and_a_large_one_taken(self):
-        """Up to 256 tiles a side (the user, 16 November 2026; 128 before), with no warning."""
+        """Up to 256 tiles a side (16 November 2026; 128 before), with no warning."""
         self.assertEqual(compiler.STAGE_GRID_MAX, 256)
         _, report = self.run_stage({'grid': [257, 39]})
         self.assertEqual(codes(report), ['stage-grid'])
@@ -1556,7 +1556,7 @@ class ClearTests(unittest.TestCase):
         for grid in ([40, 30, 8], [52, 39, 8]):
             _, report = compile_project(document(stage={'grid': grid}), s)
             self.assertEqual(codes(report), ['stage-grid'], grid)
-        # larger (the user, 13 November 2026): taken, with a note on what the Build does with the new area
+        # larger (13 November 2026): taken, with a note on what the Build does with the new area
         spec, report = compile_project(document(stage={'grid': [60, 45]}), s)
         self.assertTrue(report['ok'], refused(report))
         self.assertEqual(report['stageGrid'], [60, 45, 12])
@@ -1588,7 +1588,7 @@ class ClearTests(unittest.TestCase):
         # and the map's landing, outside a grid 20 tiles across (its frame stands 36 tiles in)
         self.assertIn('landing-outside', warned(report))
         # a piece sunk into the ground still reaches the grid (its box 0 to 100 high, here -60 to 40), one wholly under
-        # it does not; a light outside is no problem (the user, 14 November 2026: warnings for what can cause one)
+        # it does not; a light outside is no problem (14 November 2026: warnings for what can cause one)
         sunk, under = add('XComLevelActor_2', 2, (0, 0, -60)), add('XComLevelActor_2', 3, (0, 96, -200))
         _, report = compile_project(document(everything(s), [sunk, under], cleared=True, stage={'grid': [40, 39]}), s)
         self.assertEqual(next(d for d in report['warnings'] if d['code'] == 'stage-outside')['names'], ['XComLevelActor_2_copy3'])
@@ -2969,7 +2969,7 @@ class LightTests(unittest.TestCase):
         return compile_project(document(overrides, added, **doc), scene_ or light_scene(), enable)
 
     def test_light_edits_build_and_the_family_off_refuses_them_with_its_note(self):
-        # on for every project since 9 November (the user's word after EXP-26 run 1)
+        # on for every project since 9 November (after EXP-26 run 1)
         spec, report = self.compile([dict(target=target('PointLight_40'), deleted=True)], enable=())
         self.assertEqual(codes(report), [])
         self.assertIn('light', report['families'])

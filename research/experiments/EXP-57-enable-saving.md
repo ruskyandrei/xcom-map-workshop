@@ -6,7 +6,7 @@ run. Findings: F-89 (saving in a test play), F-109 (Long War's EXALT missions), 
 
 ## What it checks
 
-The editor's **Enable saving** (built on 15 November at the user's design, after
+The editor's **Enable saving** (built on 15 November, after
 [EXP-56](EXP-56-save-after-login.md) showed a battle opened after the main menu's login saves and loads):
 - With it on, a play starts the game with `XComMapWorkshop-start.txt` (in `XEW\Binaries`), whose one line is
   `setbind F5 exec XComMapWorkshop-play.txt`. Nothing is opened, so the game stays at its main menu and logs in. F5
@@ -50,7 +50,7 @@ at the main menu F5 starts the test.
 
 ## Result
 
-**Run 2 passed, 15 November 12:43** (the lab copy's `Launch.log` of 12:43:18; the user: "that works"). A data recovery
+**Run 2 passed, 15 November 12:43** (the lab copy's `Launch.log` of 12:43:18). A data recovery
 on URB_OfficePaper_EWI:
 - 4.9 s the start screen; 5.1 s `Execing ..\..\Binaries\XComMapWorkshop-start.txt` (the binding, no map); 5.6 s the
   login ("Obtained steam user stats").
@@ -58,13 +58,13 @@ on URB_OfficePaper_EWI:
   opened (`URB_OfficePaper_EWI?CapturePoints=1?RadarArrays=1`, `FIXDEPLOYMENT ... (Capture and Hold)`).
 - 11.6 s Long War's save (`SAVING CHECKPOINT`, `General Checkpoint Async Work Finished` at 11.65 s); 29.9 s its load
   (`LoadingFromShell=1`), and `XGBattle_SP.PostLoadSaveGame` at 31.3 s: the briefing finished and the battle went on.
-  The user played it to 240 s and closed the game.
+  It was played to 240 s and the game closed.
 - No save was left behind: Long War deletes its reload save after the load (`RebalanceMutator`, `DeleteSaveGame`).
-- The enemies were Sectoids, not EXALT (the user: "there was no exalt, everything was sectoids"). A play set the
+- The enemies were Sectoids, not EXALT. A play set the
   profile's pod type to Sectoids for every kind; plays of EXALT's missions now set an EXALT operative (F-112). Run 4
   checks it.
 
-**Run 4 passed, 15 November 14:32** (the lab copy's `Launch.log` of 14:32:12; the user: "57 is confirmed"). A data
+**Run 4 passed, 15 November 14:32** (the lab copy's `Launch.log` of 14:32:12). A data
 recovery on a project's build of Demolition (`URB_Demoliti_HoverU_9c4b`, built 14 November):
 - 3.2 s the start file; 8.4 s F5 ran the play's commands, and the battle opened
   (`URB_Demoliti_HoverU_9c4b?CapturePoints=1?RadarArrays=1`).
@@ -74,7 +74,7 @@ recovery on a project's build of Demolition (`URB_Demoliti_HoverU_9c4b`, built 1
 - 16.2 s Long War's save; 34.5 s its load (`LoadingFromShell=1`). The reloaded battle had 4 pods: 8 EXALT operatives
   and 4 EXALT heavies (two operatives and a heavy each; the game picks a sniper or a heavy once for the whole battle,
   `GetSupportAlien`'s alternative, so another play may have snipers), 7 soldiers (the squad and the covert operative).
-- One Sectoid and one Chryssalid are listed beside them, outside the pods, and the user saw neither. Every play's
+- One Sectoid and one Chryssalid are listed beside them, outside the pods, and neither was seen in game. Every play's
   battle lists one Chryssalid (run 2's log, the 11:57 abduction's), so they look like units the game keeps aside
   [inferred; which player holds them isn't read].
 - The game closed normally at 97.9 s.

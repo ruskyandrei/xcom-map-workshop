@@ -286,7 +286,7 @@ class StageTests(unittest.TestCase):
 
     def test_off_grid_poses_warn_as_the_build_does_and_notes_are_not_listed(self):
         # since plan "sturdier prefabs" (R1) the test follows the Build's rules: these build, and are listed; a rounded
-        # rotation and the compiler's notes can cause no problem in the game, and are not (the user, 14 November 2026)
+        # rotation and the compiler's notes can cause no problem in the game, and are not (14 November 2026)
         entity = 'PrefabTest_copy1'
         ids = dict(added={'Wall': entity}, building={})
         report = dict(errors=[], leftOut=[], warnings=[dict(code='off-grid', message='The wall is off grid.', entity=entity)],

@@ -1,8 +1,8 @@
 # EXP-08: A blank map on URB_Bar (plan)
 
 Status (4 November 2026, 20:30): **runs 1 and 2 work in game, save and reload included, except the hole, whose tiles
-can still be walked (F-46). Holes are set aside (the user), and run 3 (the block with two storeys, no hole) is
-deployed. Its second floor got no floor tiles (F-47); run 3b, without the ceiling beams, didn't fix it. The user set the second floor aside as an open finding.** The user picked this as the
+can still be walked (F-46). Holes are set aside, and run 3 (the block with two storeys, no hole) is
+deployed. Its second floor got no floor tiles (F-47); run 3b, without the ceiling beams, didn't fix it. The second floor is set aside as an open finding.** This was taken as the
 next experiment, before the viewer (../viewer-plan.md). Run notes are at the end.
 
 ## Goal
@@ -14,7 +14,7 @@ base map gives the grid and the pieces, and nothing else of it stays.
 The result ships as a map of its own, `URB_BarBlank`, beside `URB_Bar` and `URB_BarRemix`, as EXP-07's share package
 does (F-42).
 
-## Decisions (the user, 4 November 2026)
+## Decisions (4 November 2026)
 
 - **Assets:** only the base map's own pieces. For URB_Bar these are its 324 static meshes, 45 fractured meshes and the
   archetypes it loads (cars, windows, doors). Art from other maps is out of scope for now.
@@ -193,11 +193,11 @@ patchtool's inventory of URB_Bar. Rerun the generator after changing it; `--phot
 - the landing, and the pods on open ground;
 - the light on a night map (Q5), and the load time (Q1).
 
-**In game (19:16).** The user: "Looks good". A shot from the landing zone shows open asphalt to the edges, lit by
+**In game (19:16).** The map looks right. A shot from the landing zone shows open asphalt to the edges, lit by
 the sun. Three things were left:
-- "those green corpse things ... seem to still be there". These are URB_Bar's 13 flattened civilian corpses
+- Green corpse-like things were still there. These are URB_Bar's 13 flattened civilian corpses
   (`KAsset`, `CivFlatB`). The hider hid them, actor and mesh, and the game drew them anyway (F-44).
-- "there was no landing". Every new mission on URB_Bar and URB_BarRemix had the dropship cutscene. The hider had
+- There was no landing. Every new mission on URB_Bar and URB_BarRemix had the dropship cutscene. The hider had
   switched off two pieces of the landing prefab, which LWR copies to the landing zone (F-45).
 - Day or night. URB_Bar's record says night, while the test slot's (Commercial Alley's first-mission slot) says
   day. What `TimeOfDay` does, from the game's scripts and LWR's config:
@@ -230,8 +230,8 @@ The log, from the hider:
 
 To check: the dropship cutscene plays; no corpses; nothing else changed.
 
-**In game (19:33).** No Skyranger landing still. Green corpses again, by the pods; the user: "they're just generated
-by the AI pods that spawn there". So F-44 is withdrawn.
+**In game (19:33).** No Skyranger landing still. Green corpses again, by the pods: they are made by the AI pods that
+spawn there. So F-44 is withdrawn.
 
 The log shows the intro camera moving this time (from (2365, 502, 842), as in URB_Bar's runs), so keeping the
 landing prefab mattered. The rest of the cause is in `CIN_DropshipIntros`' Kismet, read with the new
@@ -250,7 +250,7 @@ To check:
 - the dropship lands at the start of a new mission;
 - `Launch.log` has "XComMapEd: XComMapEdIntro_933 intro: ... now plays URB_Bar's case", and no warning.
 
-**In game:** the user: "fixed, the intro works correctly now". `XComMapEdIntro_933` renamed `URB_Bar`'s case at
+**In game:** fixed, the intro works correctly now. `XComMapEdIntro_933` renamed `URB_Bar`'s case at
 load, on its first try (30.47 s in the log), and the intro started at 48.01 s.
 
 If the landing plays but the dropship comes down away from the squad: the Kismet puts it at URB_Bar's fixed spot,
@@ -302,9 +302,9 @@ seeded in `URB_BarBlank.upk`; the other 417 already had bits set. `URB_Bar.upk` 
 - a save and reload mid-mission. Not while WSL2's hypervisor runs, since saving crashes then (EXP-03);
 - the intro still plays.
 
-**In game (19:58).** The user: "Seems to work fine, tried save and load too and that was ok". So the layout passes,
-and so does Q7 (save and reload). The hole doesn't pass Q3:
-- the user asked "What's this gap in the map about": it was drawn as an even blue square;
+**In game (19:58).** It works, save and load included. So the layout passes, and so does Q7 (save and reload). The
+hole doesn't pass Q3:
+- the gap in the map stood out: it was drawn as an even blue square;
 - the cursor can't be put in it, but a path to the far side goes across it.
 
 From the log (the first ground copier's probes):
@@ -324,8 +324,8 @@ later the path went straight through its tile. Its effect is baked, and the rebu
 
 Picture `EXP-08-plan-run3.png` (not in the repository): Run 3 plan.
 
-The user: "leave the holes. also can we make another change of this map where the main building is 2 stories tall
-with some kind of interior ladder (not sure if we have stairs in this map ?)", and then "can remove the hole".
+Next: the holes are left, and another change of this map has the main building two storeys tall with an interior
+ladder (or stairs, if the map has any), and no hole.
 
 **What URB_Bar has.** No stairs: its only ways up are two `XComLadder`s, both `LadderMetal.Meshes.LadderMetalA_448`
 (z 16..491, up to the roofs). It has no upper-floor slab either. The bar's blocks are one tall storey: walls z 0..400,
@@ -370,9 +370,9 @@ closed except for the ladder well. The outside ladder still goes to the roof.
 - the old hole's ground looks and walks like the rest;
 - the rest as in run 2.
 
-**In game (run 3, 20:15).** The user: "can't seem to reach the second floor, cursor won't hit that floor so i can't
-even teleport to it. also ladder looks like it's not attached to an actual floor". Their shot shows the second floor
-drawn, with the soldier below it drawn through it, and the ladder in the well.
+**In game (run 3, 20:15).** The second floor can't be reached: the cursor won't hit that floor, so a soldier can't
+even be teleported to it, and the ladder looks unattached to any floor. The shot shows the second floor drawn, with
+the soldier below it drawn through it, and the ladder in the well.
 - The log: every probe on the second floor is "on floor False", at load and 5 s later. The ladder's top tile
   (21, 24, 3) and the tile below it have no floor, so there was no climb. The roof keeps its floor at z 402.
 - The cause (F-47): the ceiling's I-beams collide as one solid box under the whole roof (z 362..397). That left the
@@ -386,6 +386,6 @@ stacks upstairs stand on it. Everything else is as in run 3.
 
 **To check in game:** as run 3; first of all, the cursor on the second floor and the climb up the inside ladder.
 
-**In game (run 3b, 20:25).** The user: "no still can't get on the second floor. anyway let's leave that for now as an
-open finding. we can try again later". The log is the same as run 3's: no floor at level 3, no climb. Headroom isn't
+**In game (run 3b, 20:25).** The second floor still can't be reached; it is left for now as an open finding, to try
+again later. The log is the same as run 3's: no floor at level 3, no climb. Headroom isn't
 the cause; F-47 stays open, with the next things to try listed there. The layout without the hole stays as it is.

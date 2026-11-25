@@ -56,7 +56,7 @@ export function createFlagsPanel({ $, boxOf, gizmo, select, tileCorner }) {
   }
   // [class, flags record] a piece's flags are planned on: its own, or for a wall, floor or ground made from numbers what
   // the Build makes of its donor's (piece_flags.js made: collision of its own; a ground shape on a static mesh actor is
-  // made a level piece that collides, the user, 19 November 2026: flags on made pieces).
+  // made a level piece that collides, 19 November 2026: flags on made pieces).
   function flagSource(o) {
     const kind = o.added?.generated?.kind;
     return kind && o.pieceFlags ? madeFlags(flagContract(), o.actorClass, o.pieceFlags, kind) : [o.actorClass, o.pieceFlags];

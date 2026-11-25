@@ -1,6 +1,6 @@
 # EXP-52: cover blocks that break with their group
 
-Date: 13 November 2026. The user: an invisible cover block put over a piece stays as an invisible wall when the piece
+Date: 13 November 2026. An invisible cover block put over a piece stays as an invisible wall when the piece
 is destroyed; could it go with the piece, through the group option Break together?
 Plan: breaking-cover-blocks-plan.md. Finding: F-101.
 
@@ -53,8 +53,8 @@ What the run adds over the offline checks:
 
 ## Result: passed, bar the save and load
 
-Played by the user on 13 November 2026 through the editor's Play in game: "save reload not possible when launching
-maps from editor, but the rest checks out". So the map loads with the blocks made as props with no archetype; the
+Played by hand on 13 November 2026 through the editor's Play in game: a save and reload is not possible when
+launching maps from the editor, but the rest checks out. So the map loads with the blocks made as props with no archetype; the
 grouped blocks at A and B give their cover and go with their cans, cover and wall alike; the block at C, in no group,
 stays. Which of the looks were made one by one is not recorded.
 

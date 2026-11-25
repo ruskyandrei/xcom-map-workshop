@@ -52,7 +52,7 @@ boat does not cover. Game tiles count from (-6241, 1151, -193).
 
 ### Run 1, the boat (23 November 2026)
 
-One hidden run in the LWR 2.x lab copy (the user's own LWR v3 campaign game open beside it, not touched). Pictures and
+One hidden run in the LWR 2.x lab copy (an LWR v3 campaign game open beside it, not touched). Pictures and
 the agent's notes in `<lab>\hidden-runs\exp96-boat-floors`; the cursor's readbacks below are the game log's.
 
 - **The squad came down on the water**, at a landing outline north of the boat (y 3311 to 3695, past the grid's

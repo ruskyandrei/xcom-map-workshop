@@ -52,7 +52,7 @@ What this run adds, and nothing else needs checking:
 If a prop is grey, missing, or the map doesn't load, the work stops here until the cause is found: the catalogue,
 the compiler and the panel are worth nothing without this.
 
-Result (11 November, the user's play of the lab's test slot): **everything checks out.** The map loads, both props
+Result (11 November, the lab's test slot played by hand): **everything checks out.** The map loads, both props
 draw with their own materials, each stops a unit and gives its cover, and both come back after a save and a reload.
 
 - Not checked: item 5. The `Launch.log` in the game's documents folder is from 3 November (327 lines, no mention of

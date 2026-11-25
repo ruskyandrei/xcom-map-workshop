@@ -174,7 +174,7 @@ export function createMadeLooksWiring({ $, assetUrl, boundsOf, changeGroups, del
    *  look's donor where it stands, its numbers kept (a wall's openings brought under its new face's top), in one undo
    *  step; the tool's next pieces take the look too. */
   // The pieces a look change takes: the made pieces of its kind picked now; a lone wall picked takes the walls joined to
-  // it, end to end or at corners, so a room or a run changes whole (the user, 19 November 2026: a room's look changed
+  // it, end to end or at corners, so a room or a run changes whole (19 November 2026: a room's look changed
   // from the piece panel had come out as one wall of it in the new look).
   const MADE_OF_KIND = { wall: isMadeWall, slab: isMadeSlab, ground: isMadeGround };
   function lookTargets(root, kind) {

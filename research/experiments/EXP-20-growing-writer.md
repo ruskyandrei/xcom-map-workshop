@@ -84,7 +84,7 @@ a chunk appended after the last.
 3. **The rest looks normal:** the other half of the floor, behind the brick partition; the rug; the ceiling ducts; the
    sidewalk and asphalt outside. They read the original atlases.
 
-**Result (13:28; four shots, 13:28:14 to 13:28:30): passes.** The user: "done, worked fine, it was green".
+**Result (13:28; four shots, 13:28:14 to 13:28:30): passes.**
 - **The mission loaded.** The game takes the appended chunk, and the export table and depends map after all export
   data, 27 MB past the summary's header size.
 - **The floor around the central counter is green**, keeping its plank detail and its light and shadow pattern, up to
@@ -142,7 +142,7 @@ Level's list ending with it, and the original untouched. Tests:
    unchanged.
 4. If possible, a save and a reload: the new lamp post still there.
 
-**Result (7 November, 13:47): passed.** The user: the lamp post looks good. The shots
+**Result (7 November, 13:47): passed.** The lamp post looks good. The shots
 (`<lab>\looks\look-134712.png` from above, `look-134730.png` along the row) show the new post midway between
 the two originals, standing as they do. Its mesh is lit like theirs and the originals are unchanged. A save and
 reload was not reported.
@@ -212,12 +212,12 @@ grown map). The scene before the edit leaves the copy out.
 4. **The two originals** unchanged.
 5. A save and a reload: the copy still there and lit the same.
 
-**Result (7 November, 14:12): passed for the lighting; the copy isn't in the tiles.** The user: everything seems
+**Result (7 November, 14:12): passed for the lighting; the copy isn't in the tiles.** Everything seems
 fine, a save and reload included. The shots (`<lab>\looks\look-141243.png`, `look-141305.png`) show the copy
 lit like its neighbours from the side, its head darker underneath, no mark around its base, the originals as they
 were.
 
-One issue: the user's soldier could walk into the new lamp post. In `look-141243.png` the move cursor stands on
+One issue: a soldier could walk into the new lamp post. In `look-141243.png` the move cursor stands on
 the copy's base. The tiles (cover, movement, line of sight) are baked into the map, and nothing in it covers the
 copy: findings register F-57. Run 4 adds them.
 
@@ -285,7 +285,7 @@ The post stands right on a tile edge (x −1,155; the edge is at −1,152), so i
 4. **The rest of the street as before:** paths along the pavement and across the road near the copy.
 5. A save and a reload: the copy still blocks.
 
-**Result (7 November, 14:30 and 14:32): the game hung while loading the mission, twice.** The user: the game
+**Result (7 November, 14:30 and 14:32): the game hung while loading the mission, twice.** The game
 crashes before loading the first mission. Windows logged both as "stopped responding" (AppHang), each about
 10 seconds after the log's last write. The log stops where the mission load began (the game writes it in 120 KB
 blocks, T-06), and no crash dump was written.
@@ -323,7 +323,7 @@ volume, seeds and tables work; if it hangs again, the flushed log shows where.
 
 **What to look at:** run 4's list (a new campaign; the first mission is the bar).
 
-**Result (7 November, 15:22): passed.** The user: done, looks good.
+**Result (7 November, 15:22): passed.**
 - The mission loads, so the moved name and import tables are taken, and so is the retyped volume.
 - In `<lab>\looks\look-152255.png` the move cursor beside the copy shows a cover shield, so the rebuild
   put the copy in the tiles.
@@ -391,8 +391,8 @@ from the cars beside it. It has its own rebuild volume (`XComRebuildWorldDataVol
 
 The flushed log will show whether the duplicate net-index errors are gone.
 
-**Result (7 November, 15:51): passed.** The user: done, looks good.
-- The lab's HE and AP grenades had been raised for this test, at the user's request: damage 30, environment damage
+**Result (7 November, 15:51): passed.**
+- The lab's HE and AP grenades had been raised for this test: damage 30, environment damage
   500, radius 288. That is a lab config change, outside the repository.
 - `<lab>\looks\look-155113.png`: the dumpster stands in its bay between the SUV and the blue sedan, lit like
   the cars.
@@ -467,7 +467,7 @@ Until now `native_copy.py` was run by hand. Run 6 is the editor's Build doing it
 
 The flushed log should show no duplicate net index for any clone (T-15's component fix, from run 5).
 
-**Result (7 November, 16:31): passed.** The user: done, everything checks out. Installed by the lab watcher at 16:22.
+**Result (7 November, 16:31): passed.** Installed by the lab watcher at 16:22.
 - `<lab>\looks\look-162915.png`, `look-162938.png` and `look-162945.png`, before any damage:
   - all the copies stand as posed: the keg stack and the box stack beside the moving van, the trash bag and the
     upright trash can on the asphalt, the trash can on its side by the blue sedan, and the two dumpsters, one turned
@@ -478,7 +478,7 @@ The flushed log should show no duplicate net index for any clone (T-15's compone
     stands to 0.24–0.25).
 - `look-163040.png`, after the grenades: both dumpsters swapped to their broken meshes (open, lids gone), lit evenly.
   The keg, box stack and trash bag are gone, leaving scorch marks, and the sedan beside them burns.
-- `look-163102.png`, after a save and a reload (the user's console note: "after reload look ok"): the same broken
+- `look-163102.png`, after a save and a reload: the same broken
   state.
 - The fenced lot isn't in the shots. The log shows the hider hiding 3 of 3 exact targets and rebuilding the tiles
   around them, at the first load and again at the reload.
@@ -539,11 +539,11 @@ on the raised walk, two consoles (`XComDestructibleActor_28`) laid on their side
    in EXP-14 run 14, and the pair's cover goes when they're destroyed.
 5. A save and a reload.
 
-**Result (7 November, 16:59): passed.** The user: checked, looks great; the consoles exploded together, though the
+**Result (7 November, 16:59): passed.** The consoles exploded together, though the
 grenade hit only one.
 - `<lab>\looks\look-165755.png`: a pair standing on its block, lit, its own red lights showing, not black.
 - `look-165927.png`, after the grenade: the pair's wreck stands upright with cover shields around it. It also blocks
-  the tile beside it. The user: that is the wreck's own shape (the consoles stand on their sides to make a 1×1 cover
+  the tile beside it. That is the wreck's own shape (the consoles stand on their sides to make a 1×1 cover
   block), nothing to fix.
 - The log: the hider hid 2 of 2 exact targets. Of the 12 net-index lines, 10 are the engine's own and the other 2
   name two of Temple's own psionics textures, in its logs from 6 November too; none names a clone.
@@ -553,8 +553,8 @@ grenade hit only one.
 ## Run 8: the pool table moved, its originals taken out of the map (built 7 November)
 
 Up to run 7 the Build's patch still did two things: its exact hider hid the pieces an edit deletes or moves, and its
-copier made collectibles' copies at load (a copy made in the map would be loot, and the copier's isn't). The user
-wants collectibles' copies to count as loot by default. So run 8 takes both into the map, and an M1 project's Build
+copier made collectibles' copies at load (a copy made in the map would be loot, and the copier's isn't).
+Collectibles' copies are to count as loot by default. So run 8 takes both into the map, and an M1 project's Build
 makes no patch and runs no UDK.
 
 **A hidden piece** (`native_copy.hide_pieces`):
@@ -602,19 +602,19 @@ breaks the glass.
    upper floor cut away (F-58).
 6. A save and a reload: the old place stays empty, the new table stays where it is.
 
-**Result (7 November, 18:04): passed.** The user: done all checks, looks good.
+**Result (7 November, 18:04): passed.**
 - `<lab>\looks\look-180256.png`: the table at its new place by the island counter, lit like the room, and the
   floor beside the street windows clear where it stood.
 - `look-180306.png`: a move path running through the table's old place to the street windows; cover shields only at
   the wall.
 - `look-180314.png`: the table at its new place with cover shields all round it.
 - `look-180353.png`, after a grenade: the table's wreck where it stood, and fires out in the street.
-- `look-180415.png`, after a save and reload ("after reload" typed in the console): the same.
+- `look-180415.png`, after a save and reload (a note typed in the console): the same.
 - The log: the 10 `duplicate NetIndex` lines are the engine's own, as in every log since run 6; none names an object
   of the map. Nothing about the hidden pieces.
 - So the Build's native hides work in the game: the pieces are gone, their tiles open, and the cutaway shows no
   ghost (F-58 verified). Collectibles' copies made in the map still need a loot check at a mission's end.
-- **The dropship intro didn't play** (the user asked about it). F-45 again: the intro's Kismet in
+- **The dropship intro didn't play.** F-45 again: the intro's Kismet in
   `CIN_DropshipIntros` picks the landing by the exact map name. patchtool's `XComMapEdIntro` renamed `URB_Bar`'s entry
   to the variant's name at load, but only in a patch shipped with `map.shipAs`; the Build's patch is compiled
   `--stream-only`, without it. So no Build variant has had the intro, with a patch or without. Run 9 gives the variant
@@ -626,8 +626,8 @@ Run 8 had no dropship intro (F-45). The intro's Kismet is in the streamed `CIN_D
 `SeqEvent_OnTacticalIntro` with the map's name, and Switch String nodes pick the landing by that exact name. A variant's
 new name matches none, so no landing plays. patchtool's `XComMapEdIntro` renamed `URB_Bar`'s entry at load (EXP-08 run
 1c), but only in a patch shipped with `map.shipAs`. The Build compiles its patch with `--stream-only`, which has no
-`shipAs`, so no Build variant ever had the intro, run 6's and the EXP-17 relit fixtures included. The user noticed it
-in run 8.
+`shipAs`, so no Build variant ever had the intro, run 6's and the EXP-17 relit fixtures included. It was noticed in
+run 8.
 
 **The fix, in the data** ([`intro_copy.py`](../../tools/bake/intro_copy.py)):
 - The Build copies the base record's intro stream as `CIN_DropshipIntros_<variant>.upk`.
@@ -650,8 +650,8 @@ the lab watcher installs it.
 2. The pool table stands at its new place as in run 8.
 
 **Result: passed.** The lab watcher installed the build at 18:23 (the test slot plays `URB_Bar_EXP17Move_7a1f` with no
-patch, streaming `CIN_DropshipIntros_URB_Bar_EXP17Move_7a1f` in place of `CIN_DropshipIntros`). The user played it
-and reported "landing intro was working fine". No screenshots were taken for this run. So a variant's own intro copy
+patch, streaming `CIN_DropshipIntros_URB_Bar_EXP17Move_7a1f` in place of `CIN_DropshipIntros`). It was played
+by hand and the landing intro worked. No screenshots were taken for this run. So a variant's own intro copy
 gives it the base map's landing, with no patch and no code in the game: F-45 is verified for the Build.
 
 ## Run 10: collectibles' copies as loot (built and installed 7 November, 21:08)
@@ -681,6 +681,6 @@ patch. Temple Ship has no landing intro of its own in `CIN_DropshipIntros`, so t
 
 **Result: not shown; left for the UFO maps.** `killaliens` did not end the mission on Temple Ship: the map is
 scripted as the final mission, and its end doesn't come from all aliens dying. No loot screen, no screenshots. The
-user accepted the reasoning above for now ("let's say lootables are fine"); the count gets its game check when the
+reasoning above stands for now, lootables taken as fine; the count gets its game check when the
 editor takes on UFO maps, whose missions end normally and whose power sources and navigation computers are
 collectibles.

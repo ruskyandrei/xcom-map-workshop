@@ -1,4 +1,4 @@
-"""Effects carried by the piece they stand on (the user, 13 November 2026: "make the skyranger lights move with it").
+"""Effects carried by the piece they stand on (13 November 2026: the Skyranger's lights move with it).
 
 An effect is an Emitter actor: a placed particle system (fires, rain run-off, a Skyranger's idle lights, a claw
 machine's lights). The editor neither shows nor edits them yet, and a project's moved, copied or deleted piece is a

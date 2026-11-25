@@ -19,7 +19,7 @@ The reported user's project (a variant of CLrgScout_City: the crashed UFO delete
 place, 166 copies; kept in `private/reports/`, a user's work), built twice the same day from the same project:
 "A" by main before the fix (a quick build: its tiles are a full build's), "B" by the fix's branch with the bake.
 Each staged in the lab copy in turn by Play in game on a test server with `--dry-play` and the lab copy as its
-install (the folder Steam ran held the user's own campaign copy, never touched), its Terror mission (the record out
+install (the folder Steam ran held a campaign copy, never touched), its Terror mission (the record out
 of rotation, five Sectoid pods, the test squad, the civilians' looks line), then started hidden with that play file.
 LWR 2.06 in the lab copy. The lab copy's test slot held an earlier staging's record and was reset first.
 

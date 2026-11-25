@@ -36,14 +36,14 @@ export const KINDS = {
 };
 // the flyout's families, in order, with whether each shows when nothing is saved (patrol nodes start off); and its
 // "Deleted points" switch (`deleted`, no family of its own): the base points the project deletes, drawn pale so they can
-// be restored, off by default (the user, 18 November 2026: a cleared map showed every deleted point)
+// be restored, off by default (18 November 2026: a cleared map showed every deleted point)
 export const FAMILIES = [
   { id: 'pods', label: 'Pods', on: true }, { id: 'meld', label: 'Meld', on: true },
   { id: 'dropIns', label: 'Drop-in points', on: true }, { id: 'soldiers', label: 'Soldier and start points', on: true },
   { id: 'objectives', label: 'Objectives', on: true }, { id: 'other', label: 'Other points and no-spawn volumes', on: true },
   { id: 'paths', label: 'Patrol nodes', on: false }, { id: 'deleted', label: 'Deleted points', on: false },
 ];
-// an XComSpawnPoint's unit types the game uses only in multiplayer (MPTeamOne, MPTeamTwo): no marker (the user, 18
+// an XComSpawnPoint's unit types the game uses only in multiplayer (MPTeamOne, MPTeamTwo): no marker (18
 // November 2026: they do nothing for a single-player map; Long War's landing mutator logs them as bad spawn points)
 const MULTIPLAYER_UNITS = [8, 9];
 const HELPER_ROLES = ['effect', 'rebuild', 'visible', 'waypoint', 'point'];

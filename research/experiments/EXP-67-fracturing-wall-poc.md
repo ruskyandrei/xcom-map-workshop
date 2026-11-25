@@ -1,12 +1,12 @@
 # EXP-67: a fracturing wall made from numbers (proof of concept)
 
-Date: 17 November 2026. Status: **passed; the proof of concept succeeded** (the user: "ok this went very well, I
-think the POC was successfull"). Run 1 passed bar one tile at the custom wall's doorway that acted as invisible cover
+Date: 17 November 2026. Status: **passed; the proof of concept succeeded**.
+Run 1 passed bar one tile at the custom wall's doorway that acted as invisible cover
 ([F-116](../findings-register.md): its cause found, the part ours fixed); run 2, a door in the doorway, works. The
-work is on the branch `fracturing-wall-poc`. The custom geometry plan's section 0, stage F4, at the
-user's ask ("can we first focus on getting a PoC of a fracturing custom wall and see if (a) we can get them to look
-good and similar to the ones the game has, (b) we can get them to fracture similarly"). Stages F0 to F3 were built
-and checked offline the same day; this run is the one thing they cannot answer: what the game does with the walls.
+work is on the branch `fracturing-wall-poc`. The custom geometry plan's section 0, stage F4: a proof of concept of a
+fracturing custom wall, to see whether (a) it can look good and like the game's walls, (b) it fractures like them.
+Stages F0 to F3 were built and checked offline the same day; this run is the one thing they cannot answer: what the
+game does with the walls.
 Findings: [T-42](../findings-register.md).
 
 ## What was built (offline, no game)
@@ -96,7 +96,7 @@ offline checks:
 9. Anything odd: a crash, a wall drawn wrong or black, a part of a wall that can be walked through while it stands.
 
 Claude reads `Launch.log` after the run, and the save with [save_tiles.py](../../tools/lab/save_tiles.py) (the tiles
-round the walls), and looks at what the user shows with F9.
+round the walls), and looks at the F9 shots.
 
 What it can say (the plan's section 0.2): **both pass**: the plan is rewritten round fracturing walls; **the look
 passes, the break does not**: walls that look like the game's and break a panel at a time; **neither**: the plan's
@@ -104,13 +104,13 @@ sections 1 to 8 as written.
 
 ## Result
 
-**Run 1 passed** (17 November 2026, played by the user on `EXP67FracturingWalls-20261117-003949`): "done, all checks
-out in game. only odd thing i noticed was a tile that was acting like an invisible cover/blocker near the custom door
-gap". The user's pictures: the twin and the reference look alike (tiles, storey line, trims); both broken, with holes,
+**Run 1 passed** (17 November 2026, played by hand on `EXP67FracturingWalls-20261117-003949`): all checks out in
+game; the only odd thing was a tile acting like an invisible cover/blocker near the custom door gap. The pictures:
+the twin and the reference look alike (tiles, storey line, trims); both broken, with holes,
 rubble, fire and the destroyed material round what is left; the custom wall standing with its doorway; the move cursor
 on the doorway's tile with a shield toward each of its sides.
 
-The user's save (`save1001`), read with save_tiles.py against the built map (game tiles; the walls on the edge between
+The run's save (`save1001`), read with save_tiles.py against the built map (game tiles; the walls on the edge between
 rows 17 and 18):
 - Where the reference and the twin were broken, their tiles changed with what was left: free at the ground where the
   lower storey went, partly occupied above it where the upper storey stands, and rubble's occupied tiles round the
@@ -132,9 +132,9 @@ columns and the doorway's. The doorway's cover itself is left as the game's rule
 
 By the plan's section 0.2 both questions pass: a wall made from numbers looks like the game's and breaks like it.
 
-## Run 2 (the user's own): a door in the doorway
+## Run 2: a door in the doorway
 
-17 November 2026, after the editor began drawing made walls as they are built: the user put a copy of one of the
-bar's doors in the custom wall's doorway, rebuilt and played: "doors seem to work well in the custom walls too". Their
+17 November 2026, after the editor began drawing made walls as they are built: a copy of one of the
+bar's doors was put in the custom wall's doorway, rebuilt and played: doors work well in the custom walls too. The
 pictures show the door shut in the doorway with a soldier in cover beside it, and the door open with a soldier at the
 doorway. Whether the doorway tile itself still gives cover with the door in it was not told apart (F-116).

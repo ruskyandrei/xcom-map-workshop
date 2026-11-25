@@ -319,7 +319,7 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   // height, as a wave's are from 768 up, starts a tile behind it and lands on it facing its way:
   // XGAISpawnMethod_DropIn.OnActivate_UpdateSpawnPoint, XComWaveSystem's DropHeight); a pod's only says where on a ring
   // round it its other aliens start (XComAlienPod.GetDistributedLocationAround), which aims nothing, so the panel has no
-  // turn for it, nor for any other point (the user, 18 November 2026: only where it changes the game)
+  // turn for it, nor for any other point (18 November 2026: only where it changes the game)
   const TURNED_KINDS = ['dropIn'];
   // which way a base drop-in point faces now (its yaw), or null for one that isn't edited here or saves no rotation
   function spawnFacing(e) {
@@ -574,7 +574,7 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
   // a copy of one of the map's pods, Meld points and no-spawn volumes, or of a copy.
   const missionGizmoWanted = () => Boolean(spawnMovable(spawnEntry(pickedSpawn)) && spawnsShown() && projectsAvailable() && !placing
     && !spawnPlacing && !volumesOn && !lightsOn && !zonesOn && !effectsOn);
-  // (a drop-in point of the map, or a copy, turns: a pod's facing aims nothing, the user, 18 November 2026)
+  // (a drop-in point of the map, or a copy, turns: a pod's facing aims nothing, 18 November 2026)
   const pickedTurns = () => { const e = spawnEntry(pickedSpawn); return Boolean(e) && ['base', 'copy'].includes(e.layer) && TURNED_KINDS.includes(e.record.kind) && spawnMovable(e); };
   const missionView = createViewGizmo({ camera, dom: renderer.domElement, world, orbit: controls, flashHint, leastSnap: 'tile',
     at: () => { const e = missionGizmoWanted() ? spawnEntry(pickedSpawn) : null; return e ? gameToView(spawnAt(e)) : null; },
@@ -752,7 +752,7 @@ export function createSpawnsWiring({ $, camera, controls, flashHint, floorStays,
       if (id === activeMapId) { setSpawnRulesData(rules); spawnPanel(); syncSpawnRule(); }
     }).catch(() => {});
   }
-  // The piece list's Spawn points kind (the user, 18 November 2026: new spawns from the Add panel too): a Pod and a Meld
+  // The piece list's Spawn points kind (18 November 2026: new spawns from the Add panel too): a Pod and a Meld
   // point, each placed with a click as a copy of the map's first plain pod or first Meld point (SP7's copies: the Build
   // clones the template, a pod with a pod index of its own), where the spawn family builds
   function spawnAddEntries() {

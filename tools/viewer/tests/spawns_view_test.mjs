@@ -164,7 +164,7 @@ assert.equal(fromWords('template'), '(its template\'s)');
 // what names a point keeps its delete back
 assert.ok(!spawnNamed(P));
 assert.ok(spawnNamed({ ...P, uses: [{ how: 'event' }] }) && spawnNamed({ ...P, referencedBy: ['x'] }) && spawnNamed({ ...P, unread: 'bad' }));
-// new spawn points from the Add panel (the user, 18 November 2026): a copy of the map's first plain pod or first Meld
+// new spawn points from the Add panel (18 November 2026): a copy of the map's first plain pod or first Meld
 // point, never a landing's point, a commander's pod or a point of another kind
 assert.equal(addTemplate(data.spawns, 'pod').actor, `${L}XComAlienPod_0`);
 assert.equal(addTemplate([{ ...pod(0), values: { commander: { value: true } } }, pod(3)], 'pod').actor, `${L}XComAlienPod_3`);
@@ -179,7 +179,7 @@ assert.deepEqual(addPlace(T48, [1960, 150, 40], null, null), [1968, 144, 40]);
 assert.deepEqual(addPlace(T48, [1600, -210, 12], 0, null), [1584, -240, 0]);
 assert.deepEqual(addPlace({ location: [0, 0, 900] }, [0, 0, 0], 0, 0), [0, 0, 128]);      // (a height over its floor kept to a level or two)
 
-// ---- multiplayer teams' starts get no marker (the user, 18 November 2026); a deleted base point shows only with the
+// ---- multiplayer teams' starts get no marker (18 November 2026); a deleted base point shows only with the
 // flyout's Deleted points switch
 const mp = n => ({ actor: `${L}XComSpawnPoint_${n}`, actorClass: 'XComSpawnPoint', kind: 'point', location: [0, 0, 0], unitType: n === 1 ? 8 : 9 });
 assert.ok(!marked(mp(1)) && !marked(mp(2)));

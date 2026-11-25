@@ -62,7 +62,7 @@ manifest `URB_BarLight.fixture.json` lists every edit with its old and new bytes
   It puts line 42 back byte for byte and removes the landing-zone lines (dry run checked). Backups of both INI files
   are in `<lab>\bake-fixtures\backups\` (`.20261106-211142`).
 
-### What to look at (the user drives, F9 at each)
+### What to look at (played by hand, F9 at each)
 
 New campaign, Ironman, tutorial and autosave off; the first mission is the test slot. There is no dropship landing
 cutscene: the intro picks it by map name and `URB_BarLight` is not one it knows (F-45). That is expected here.
@@ -136,7 +136,7 @@ checked: both steps apply):
 python -B tools/bake/deploy_fixture.py restore <lab>\bake-fixtures\deploys\URB_BarLight2-20261106-212443.json
 ```
 
-### What to look at (the user drives, F9 at each)
+### What to look at (played by hand, F9 at each)
 
 New campaign as before (the map is `URB_BarLight2`; still no landing cutscene).
 1. The whole bar room from above, roof cut away, with both floor halves in view.
@@ -241,12 +241,12 @@ Median brightness of plain-wood patches (50 × 50 px, as in run 2):
 - A view-dependent sheen (specular from lights that are not in the lightmap) brightens planks near the bottom of
   `-220829`; patches with it were left out.
 
-**The asphalt** (`look-221805`; the user's note in the shot: the asphalt under the police car seems to change colour
+**The asphalt** (`look-221805`; the note in the shot: the asphalt under the police car seems to change colour
 suddenly). An earlier shot (`look-221650`) showed only sidewalk at the planned spot:
 - Only a strip of `XComLevelActor_275` is visible. The plane spans y −576…384, but the sidewalk covers everything
   north of the kerb (y −308). The visible strip is 268 units wide and holds the police car (y −533…−411). Its outer
-  edge is the seam with the next plane, `_244`, which keeps its original bake: that seam is the sudden change the
-  user saw.
+  edge is the seam with the next plane, `_244`, which keeps its original bake: that seam is the sudden change
+  seen in game.
 - Positions come from the sidewalk joints. The slab joints at x = −1056 to −1728, 96 units apart, were found along a
   slab row next to the kerb. The lamp post (x −1792) sits between the −1728 and −1824 joints, as it should. The kerb
   line and the strip's outer edge meet at one vanishing point and the joints at another, and both points lie on one
@@ -281,7 +281,7 @@ flat ground. The UDK Lightmass calibration (design, section 4.7) is the planned 
 
 ## Side note: the brown X-braced border along the bar's inner walls
 
-The user asked (22:15, with a screenshot) about the darker, crate-like boards in a one-tile border along the bar's
+Asked about at 22:15, with a screenshot: the darker, crate-like boards in a one-tile border along the bar's
 inner walls, also seen on copied buildings in the editor's Bar variants. They are part of the original floor meshes:
 - `URB_Bar_384CFloor` and `URB_Bar_384Floor` each have a material section `URB_Bar_FRAC.Materials.M_FloorWoodEdgeA`;
 - it is a horizontal strip around each floor's outer edge, about 96 units (one tile) wide (359,424 and 221,184
@@ -460,7 +460,7 @@ The deploy recorded run 5's as `previous`; one restore of run 6's record undoes 
 python -B tools/bake/deploy_fixture.py restore <lab>\bake-fixtures\deploys\URB_BarLight6-20261107-004306.json
 ```
 
-### What to look at (the user drives, F9 at each)
+### What to look at (played by hand, F9 at each)
 
 New campaign as before (map `URB_BarLight6`).
 1. The open floor under the lamps, between the bar counter and the pool table, from above: no checkerboard should
@@ -611,7 +611,7 @@ Restore (undoes runs 8 and 6 in one go):
 python -B tools/bake/deploy_fixture.py restore <lab>\bake-fixtures\deploys\URB_BarLight8-20261107-030236.json
 ```
 
-### What to look at (the user drives, F9 at each)
+### What to look at (played by hand, F9 at each)
 
 New campaign as before (map `URB_BarLight8`).
 1. The floor between the island bar counter and the street windows, at the counter's corner nearest the pool table
@@ -700,7 +700,7 @@ Restore (undoes runs 9, 8 and 6 in one go; the patch stays in the lab, harmless 
 python -B tools/bake/deploy_fixture.py restore <lab>\bake-fixtures\deploys\URB_BarLight9-20261107-094653.json
 ```
 
-### What to look at (the user drives, F9 at each)
+### What to look at (played by hand, F9 at each)
 
 New campaign as before (map `URB_BarLight9`).
 1. The red rug where the pool table stood, near the street windows: the table and the glass on its edge are gone.
@@ -797,7 +797,7 @@ Restore (undoes runs 10, 9, 8 and 6 in one go; the patches stay in the lab, harm
 python -B tools/bake/deploy_fixture.py restore <lab>\bake-fixtures\deploys\URB_BarLight10-20261107-102655.json
 ```
 
-### What to look at (the user drives, F9 at each)
+### What to look at (played by hand, F9 at each)
 
 New campaign as before (map `URB_BarLight10`).
 1. The pool table at its new place: on the floor by the island counter's corner nearest the street windows, under
@@ -872,7 +872,7 @@ Restore (undoes runs 11, 10, 9, 8 and 6 in one go):
 python -B tools/lab/lab_install.py uninstall <lab>\bake-fixtures\deploys\URB_Bar_EXP17Add_7a1f-20261107-112119.json
 ```
 
-### What to look at (the user drives, F9 at each)
+### What to look at (played by hand, F9 at each)
 
 New campaign as before (the first mission plays `URB_Bar_EXP17Add_7a1f`).
 1. The new claw machine: on the open floor under the ceiling lamp at the island counter's far corner from the street
@@ -887,7 +887,7 @@ New campaign as before (the first mission plays `URB_Bar_EXP17Add_7a1f`).
 ### Result (11:29–11:30, F9 shots `look-112959` to `-113022`)
 
 Seven shots: three angled views of the room from the back wall's side, two top-down views around the counter, one
-of the counter's other side and one of the back room. The user: "looks good".
+of the counter's other side and one of the back room.
 - **The copy stands where the project put it**: at the island counter's far corner from the street windows, on the
   edge of the big rug, facing as the original does, its glass and lights lit live like the original's.
 - **The original stays** against the back wall beside the arcade machine (angled shots `112959`, `113020`, `113022`).

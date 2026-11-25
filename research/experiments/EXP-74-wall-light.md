@@ -4,7 +4,7 @@ Date: 18 November 2026. Status: **run B passed**: the moon's shadow seen offline
 after a break (F-127, for run C). The custom geometry plan's stage M2 (branch `fracturing-wall-poc`): a
 made wall's lightmap is a rectangle of its own size at the donor's density, it has a shadow map of the dominant light
 of its own, a Build without baking gives it one even light, and a wall can be one storey. Played unattended in the lab
-copy (the hidden game, the game-test skill): only what is new since EXP-73; the look is for the user's eye too.
+copy (the hidden game, the game-test skill): only what is new since EXP-73; the look is for a human eye too.
 
 ## What is new
 

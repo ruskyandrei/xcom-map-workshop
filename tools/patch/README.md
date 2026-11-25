@@ -220,7 +220,7 @@ It places an `XComMapEdPhoto`, which, 2, 8 and 20 s after load and then every 10
 - also raises the post-process highlights and mid tones (`highlights` 1.6, `midTones` 1.5). On their own these did
   nothing visible (EXP-07 run 34), but they were on for the shot below.
 
-Those defaults gave EXP-07 run 35's overview of URB_Bar's L layout, which the user called "perfect": from the front
+Those defaults gave EXP-07 run 35's overview of URB_Bar's L layout, the overview kept as the default: from the front
 (the north-east, where the east road's white car stands), the whole map in view, well lit, no UI.
 
 Each field overrides one default, for example `{ "type": "photo", "distance": 9000, "sunYaw": 48 }`. A `location` is

@@ -181,7 +181,7 @@ export function createClearMap({ $, addEffectRoots, addLightRoots, addRoots, all
       lightCount++;
       if (!viewOnly) originalLights.push(r);
     }
-    // the effects, ambient sounds and lens flares (the user, 23 November 2026: a clear left a boat's 35 added effects
+    // the effects, ambient sounds and lens flares (23 November 2026: a clear left a boat's 35 added effects
     // standing): the project's added ones go as its added pieces do; the map's own go by the cleared mark
     // (effects_rules.js survivesClear, the Build's clear_level), and one the project moved, which the mark keeps, is
     // deleted here, as a moved piece is; the landing's and those outside a kept play area stay
@@ -195,7 +195,7 @@ export function createClearMap({ $, addEffectRoots, addLightRoots, addRoots, all
     return { originals, added, originalLights, addedLights, addedEffects, movedEffects, pieces: actors.size + addedActors.size,
              lights: lightCount, landing: landing.size, script: [...script], kept, boxes: liveVolumes(), outside: outside.size, lightsOutside };
   }
-  // What a clear does to the spawn points (the user, 18 November 2026: "clear should also clear all of these"): the map's
+  // What a clear does to the spawn points (18 November 2026: a clear clears all of these too): the map's
   // pods, Meld points and drop-in points are deleted (their moves and values go), but for one something names (the Build
   // would keep it and warn: it stays, with its edit); the project's copies of them go. No-spawn volumes (the map's and
   // the project's) and the mission streams' objects stay as they are. { after (the edits after the clear), deleted,
@@ -255,8 +255,8 @@ export function createClearMap({ $, addEffectRoots, addLightRoots, addRoots, all
       .filter(Boolean).join(', ').replace(/, ([^,]*)$/, ' and $1');
   }
   // What each part's clear takes now, at the grid's size (a clear keeps it; the rail's Map grid changes it), the scenery
-  // outside the play area kept or not: { part: { count, words } } (the user, 23 November 2026: "just give a very brief
-  // count"). A part already cleared counts what stands since; the triggers, which a project adds none of, then count
+  // outside the play area kept or not: { part: { count, words } } (23 November 2026: a very brief
+  // count). A part already cleared counts what stands since; the triggers, which a project adds none of, then count
   // none.
   function partCounts(keepOutside) {
     const dims = keepOutside ? [...data.tileGrid.dimensions] : null;
@@ -339,7 +339,7 @@ export function createClearMap({ $, addEffectRoots, addLightRoots, addRoots, all
   $('clearMapClose').onclick = $('clearMapCancel').onclick = hideClearMap;
   clearDialog.root.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hideClearMap(); } });
   $('projectClear').onclick = showClearMap;
-  // The one landing zone a clear keeps (the user, 13 November: "just leave 1 LZ"): plain EW's first, the map's own
+  // The one landing zone a clear keeps (13 November: one LZ is left): plain EW's first, the map's own
   // first landing (else the first zone), used by both games
   function clearKeptZone() {
     const zones = data ? explicitZones() : [], z = zones.find(v => v.ew) ?? zones[0];

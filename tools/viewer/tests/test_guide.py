@@ -80,7 +80,7 @@ class GuideTests(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in shots.glob('*.webp') if p.name not in {n for n, _ in tags}), [])
 
     def test_the_guide_never_calls_a_thing_untried(self):
-        # what ships is usable, tried or not (the user, 16 November 2026): the guide says what happens, never that a
+        # what ships is usable, tried or not (16 November 2026): the guide says what happens, never that a
         # thing is untried, not played or how far it is known to work
         import re
         text = guide.SOURCE.read_text(encoding='utf-8')

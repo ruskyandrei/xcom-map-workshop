@@ -1,7 +1,7 @@
 # First viewer format pass — 5 November 2026
 
 Status: implemented and exercised against the URB_Bar v845/licensee-64 snapshot. This is a first static/fractured
-rendering path, not a complete package specification. The user confirmed dynamic lighting is sufficient; baked
+rendering path, not a complete package specification. Dynamic lighting is sufficient; baked
 lightmap decoding is outside the current task.
 
 ## Observed native records
@@ -42,7 +42,7 @@ Normals/specular texture decoding, source UV transformations and material-specif
 
 ### V6 follow-up: materials, floors and patch previews
 
-- The user's partially transparent roof was caused by treating every `BLEND_Masked` material's diffuse alpha as
+- The partially transparent roof was caused by treating every `BLEND_Masked` material's diffuse alpha as
   opacity. `BLDG_Floors.OpacityMask` points to the `UseDestructionAlpha` static switch, whose cooked expression
   branches are stripped. The intact-building profile now keeps the surface opaque; genuine diffuse-alpha cutouts
   remain enabled for the generic masked path. Triangle/fragment-range coverage on the roof was complete.

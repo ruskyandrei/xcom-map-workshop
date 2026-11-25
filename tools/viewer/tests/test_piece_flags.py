@@ -312,8 +312,8 @@ class Install(unittest.TestCase):
 
 
 class MadePieces(unittest.TestCase):
-    """A wall, floor or ground made from numbers: its flags planned on what the Build makes of its donor (the user,
-    19 November 2026: the flags were greyed on made pieces)."""
+    """A wall, floor or ground made from numbers: its flags planned on what the Build makes of its donor
+    (19 November 2026: the flags were greyed on made pieces)."""
 
     def record(self, cls, **own):
         family = pf.family_of(cls)

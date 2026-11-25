@@ -1,6 +1,6 @@
 # Enemy Unknown's maps as EW/LWR maps
 
-Date: **7 November 2026**. Status: **findings and a plan; nothing built**. The user asked whether the four maps in the
+Date: **7 November 2026**. Status: **findings and a plan; nothing built**. The question is whether the four maps in the
 Extra Maps mod (Nexus 686, version 1.0) can be made proper EW/LWR maps, and fixed on the way: a community member saw
 black patches on the ground in its Gas Station.
 

@@ -229,7 +229,7 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
                             x1: 'Gap\'s side: drag it to the wall\'s end to cut the wall away to there',
                             z1: 'Gap\'s top: drag it up to the wall\'s top to cut through it',
                             z0: 'Gap\'s bottom: drag it down to the floor to cut to the wall\'s bottom' };
-  // A gap's handles move by the snap setting (the user, 19 November 2026: smoothly unless the snap is on; snap_steps.js,
+  // A gap's handles move by the snap setting (19 November 2026: smoothly unless the snap is on; snap_steps.js,
   // the distance moved along the wall and up in its steps); Alt: steps of GAP.fine, a preset the hint names
   const openingSteps = alt => (alt ? [GAP.fine, GAP.fine] : [stepsOf(snapMode).across, stepsOf(snapMode).up]);
   const openingStepWords = alt => (alt ? `steps of ${GAP.fine}` : moveWords(snapMode));
@@ -558,7 +558,7 @@ export function createMadeHandles({ actorPose, alongLine, assetUrl, camera, cont
   }
   // A handle's drag asks the server for one made mesh at a time, the latest state, while the numbers and pose change at
   // once (so the handles follow the pointer): each answer for a long or tall wall takes a while, and asking for every
-  // step had piled them up behind each other (the user, 19 November 2026: the gaps lagged far behind their handles).
+  // step had piled them up behind each other (19 November 2026: the gaps lagged far behind their handles).
   function applyWallSoon(root, state) {
     const o = root.userData.source;
     o.added = { ...o.added, generated: structuredClone(versionedGround(state.generated)) };

@@ -32,7 +32,7 @@ export const FRAC_WALL = { minLength: 40, maxLength: WALL.maxTiles * TILE };
 const STOREY_TOPS = { 1: 192, 2: 384 };
 // A gap's limits: the highest its top goes under the cornice (past it, the gap is cut through to the wall's top), the
 // smallest sizes, the Alt step, and the threshold a doorway starts with: the strip of wall kept under it, so no gap is
-// left under its door (the user, 19 November 2026; under the game's cover line, so it gives no cover and units walk
+// left under its door (19 November 2026; under the game's cover line, so it gives no cover and units walk
 // over it). One kind of gap since 19 November 2026 (the user: doorways and windows merged, every handle reaching the
 // wall's edges).
 export const OPENING = { topMost: 360, width: 16, height: 24, fine: 8, sill: 8 };
@@ -141,7 +141,7 @@ export function steppedStoreys(wall, step) {
 }
 /** A wall changed from look `old` to the look in `numbers`, its gaps on the new look's bottom: one cut to the old
  *  bottom (a doorway to the floor) is cut to the new one, and none starts below it (a door added before a look whose
- *  bottom is higher had kept the old bottom, and the wall then had no handles: the user, 19 November 2026). */
+ *  bottom is higher had kept the old bottom, and the wall then had no handles: 19 November 2026). */
 export function openingsInLook(old, numbers) {
   const was = wallSpec(old).bottom, bottom = wallSpec(numbers).bottom;
   if (!(numbers.openings ?? []).length) return numbers;
@@ -384,7 +384,7 @@ export function movedOpening(wall, index, part, delta, { along = TILE, up = OPEN
   const before = index > 0 ? list[index - 1].x1 : start, after = index < list.length - 1 ? list[index + 1].x0 : end;
   const least = along >= TILE ? TILE : OPENING.width;
   if (part === 'middle') {
-    // (`delta` [along, up]: the middle handle drags in the wall's plane, the user, 19 November 2026; a number: along)
+    // (`delta` [along, up]: the middle handle drags in the wall's plane, 19 November 2026; a number: along)
     const [dx, dz] = Array.isArray(delta) ? delta : [delta, 0];
     const width = o.x1 - o.x0;
     let x0 = o.x0 + stepped(dx, along);

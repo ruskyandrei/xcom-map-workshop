@@ -285,7 +285,7 @@ export function createMadePanel({ $, boxOf, breakRow, changeWall, flashHint, giz
     const along = a[1] - a[0] >= a[3] - a[2] ? 0 : 1, over = [0, 1, 2].map(k => Math.min(a[2 * k + 1], b[2 * k + 1]) - Math.max(a[2 * k], b[2 * k]));
     return over[along] > least && over[2] > least && over[1 - along] > 0;
   }
-  // Add gap (the user, 19 November 2026: one button for the doorway's and the window's, as gaps are one kind): a gap
+  // Add gap (19 November 2026: one button for the doorway's and the window's, as gaps are one kind): a gap
   // shaped as the game's doorways, which its middle handle takes up to make a window. (`kind` 'window': the tests'.)
   $('wallGap').onclick = () => addWallOpening('doorway');
   function addWallOpening(kind = 'doorway') {

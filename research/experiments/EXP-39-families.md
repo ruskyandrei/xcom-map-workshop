@@ -1,7 +1,7 @@
 # EXP-39: one piece of each family from other maps
 
 Date: 11 November 2026. The one game check of the other families of pieces from other maps
-(implementation plan, X9), at the user's ask in place of a check per
+(implementation plan, X9), in place of a check per
 family. [EXP-37](EXP-37-foreign-props.md) and [EXP-38](EXP-38-foreign-props-baked.md) settled plain scenery, quick
 and baked. Here five more kinds of piece stand in URB_Bar's car park, each from a map the bar shares nothing of the
 piece with, in a baked build.
@@ -38,7 +38,7 @@ Picture `EXP-39-run1-close.png` (not in the repository): close.
 
 ## Run 1: passed
 
-Played by the user on 11 November 2026: "exp 39 looks good". The five families are switched on for every project
+Played by hand on 11 November 2026: passed. The five families are switched on for every project
 (`compiler.FOREIGN_FAMILIES`), and the library was scanned again so its entries say so.
 
 What this run added, and nothing else needed checking:

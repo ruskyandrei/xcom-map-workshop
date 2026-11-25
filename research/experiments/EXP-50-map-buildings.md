@@ -58,7 +58,7 @@ Not looked at in this run: baked lighting (quick build), a save and a reload (F-
 
 ## Result: passed
 
-Played by the user on 13 November 2026, who checked it in the game and in the editor: "looks good". So:
+Played by hand on 13 November 2026 and checked in the game and in the editor: good. So:
 - a floor volume of the map stretched in place (its own Location and DrawScale3D) cuts the building away over the new
   part, and the rest of the building cuts away as before, with the map's own listings kept;
 - a building of the map moved with its own volumes, and its piece moved with it, cuts away at the new place: the

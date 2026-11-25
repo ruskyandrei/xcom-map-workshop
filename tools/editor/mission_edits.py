@@ -38,11 +38,11 @@ import spawns
 CLEAR_PARTS = ('pieces', 'lights', 'effects', 'triggers')
 
 # a project's larger tile grid (stage): most of the game's own maps are under 100 tiles a side, but not all
-# (TempleShip is 45 by 203, AlienBase01 63 by 168); the editor makes up to 256 (the user, 16 November 2026; 128
+# (TempleShip is 45 by 203, AlienBase01 63 by 168); the editor makes up to 256 (16 November 2026; 128
 # before), and a map past it keeps its own as its limit (stage_max)
 STAGE_GRID_MAX = 256
 # levels: the game's own maps go to 18 (1,152 units, the tallest of its 96: prefab plan 5.6b; prefab_bounds.PLAYED_LEVELS,
-# the test stage's least height); the editor makes up to 30 (1,920 units; the user, 14 November 2026)
+# the test stage's least height); the editor makes up to 30 (1,920 units; 14 November 2026)
 STAGE_LEVELS_MAX = 30
 
 
@@ -125,7 +125,7 @@ class MissionEdits:
         from its own corner (prefab plan 5.11; the Build's shell stage resizes it) and, with nz, that many levels from
         its own bottom (5.6b), `ground` (false: lay no ground over the new area), `lines` (true: the ground drawn as a
         grid, its planes hidden and a white line on every tile edge; 5.11) and `hideGround` (true: the planes hidden, no
-        lines). A map as it is, the blank map among them, only grows (the user, 13 November 2026: any map, where
+        lines). A map as it is, the blank map among them, only grows (13 November 2026: any map, where
         before only the blank map); a cleared project's grid (Clear map plan, section 6) may also be smaller in any of
         the three, from 1 tile or level. Each is at most STAGE_GRID_MAX tiles or STAGE_LEVELS_MAX levels, or the map's
         own where that is more (stage_max). A size this compiler can't build is left out (record `stage`: the map
@@ -340,7 +340,7 @@ class MissionEdits:
         (stage-outside): counted, the first few named. A piece is outside when the middle of its box's floor is
         outside the grid's sides, or its box reaches no level of the grid (a piece sunk into the ground, or reaching
         over its top, still stands in it). Lights and building floors are left out: a light lights anything, and a
-        floor box beyond the grid only covers a place with no tiles (the user, 14 November 2026: warnings only for
+        floor box beyond the grid only covers a place with no tiles (14 November 2026: warnings only for
         what can cause a problem in the game)."""
         if not self.stage_grid:
             return

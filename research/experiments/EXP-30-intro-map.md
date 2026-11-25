@@ -1,8 +1,8 @@
 # EXP-30: the campaign's first map in the editor (Act1_IntroLevel)
 
 Date: 10 November 2026. Testers reported that Act1_IntroLevel, which they took for the map of the campaign's first
-mission, was missing from the map browser. The user asked why, then to add it; once it was clear that LWR's first
-mission plays another map (below), the user chose to keep it and make it playable.
+mission, was missing from the map browser. This note finds why and adds it; once it was clear that LWR's first mission
+plays another map (below), the map was kept and made playable.
 
 ## Why it was missing
 
@@ -60,25 +60,25 @@ To play, in the LWR install the editor plays in, from the editor (Play in game):
    soldiers stand and move where it stood (F-77's rebuild volumes)?
 3. **The map alone again**, once Play in game puts a live copy of the abduction record in for it (F-78).
 
-**Run 1 (12:35, the map alone): the game crashed.** The user: it "opened for 1s but then the game crashed right
-away". In the lab copy, then switched in under the game's folder name. `Launch.log`: `LoadMap: Act1_IntroLevel`, no
+**Run 1 (12:35, the map alone): the game crashed.** It opened for a second, then the game crashed right
+away. In the lab copy, then switched in under the game's folder name. `Launch.log`: `LoadMap: Act1_IntroLevel`, no
 streams but the game's own `CIN_Sectoid`, `CIN_Soldier` and `CIN_MEC`, no landing zones for the map (LWR's mutator
 used the map's six `XComSpawnPoint`s around (-673, -240)), the squad of six and four sectoid pods spawned by 7.1 s,
 then nothing for 4.3 s and `Critical error` at 11.48 s (addresses 0xafca98, 0x954118 and 0x981a99 in XComEW.exe;
 dump `unreal-v8917-2026.11.10-12.35.10.dmp`). The address appears in no other log here. Not known yet: whether it is
 the missing record (`GetCurrentMapMetaData` finds none) or the tutorial's Kismet running without the tutorial.
 
-The user chose then to keep the map and make it playable (the label became "Basic Training (tutorial map)").
+The map was then kept and made playable (the label became "Basic Training (tutorial map)").
 
-**Run 2 (12:42, the project): passed.** The user: "works. car is gone", with two shots: the street with the other
-police car standing and no car where the deleted one stood, soldiers on the road beside it. "I don't know if I can path
-all the way where the car was, there seems to be a limit to the playing area." `Launch.log`: `LoadMap:
+**Run 2 (12:42, the project): passed.** It works and the car is gone, in two shots: the street with the other police
+car standing and no car where the deleted one stood, soldiers on the road beside it. Whether a soldier can path all
+the way to where the car was is not known: there seems to be a limit to the playing area. `Launch.log`: `LoadMap:
 Act1_IntroLe_Exp30_d57c`, the record's `CIN_DropshipIntros` streamed, `m_bTacticalIntroDone` 1.6 s after the map loaded
 (no landing: the intro has no case for the map, F-45), `DoWorldDataRebuild`, a normal exit after 2 min 15 s.
 - So run 1's crash was the missing record, not the tutorial's Kismet, which ran here too (the variant keeps it): F-78.
   With a record the intro streams and ends at once; with none the battle never got past it.
 - The pathing limit: the map's tactical grid is 62 by 19 tiles (LWR's spawn mutator), and the car's tiles are rows
-  16 to 18 (`native_copy.py`'s rebuild report), the grid's last rows; the boundary line in the user's shot runs along
+  16 to 18 (`native_copy.py`'s rebuild report), the grid's last rows; the boundary line in the run's shot runs along
   that spot. Standing where the car stood is not shown either way (F-77 stays Fixed).
 
 Run 3 not played.

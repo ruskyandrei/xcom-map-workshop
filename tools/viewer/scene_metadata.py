@@ -523,7 +523,7 @@ EFFECT_SAME = 2.0
 
 
 def effect_metadata(p):
-    """The persistent level's effects (export 23; the user, 13 November 2026: the export carries them for the editor's
+    """The persistent level's effects (export 23; 13 November 2026: the export carries them for the editor's
     effects to come): [dict(actor (path), location, rotation, scale (DrawScale3D times DrawScale), template (the
     particle system's path or None), listed (in the level's actor list), hidden (bHidden), prefab (its prefab
     instance's name or None), carriedBy (the piece's path, or None), carriedHow ('place': EFFECT_SAME's rule; 'prefab':
@@ -649,7 +649,7 @@ def landing_metadata(p, warn=None):
                                tag=str(tag) if tag else None, savesRotation=rotation is not None))
         record = dict(prefab=name.rsplit(".", 1)[-1], template=template, actors=sorted(actors, key=lambda a: a["role"]))
         (landings if template.startswith(LANDING_TEMPLATE) else skyrangers).append(record)
-    # each Skyranger's dust (the user, 18 November 2026: the Skyranger and its effects stay or go together)
+    # each Skyranger's dust (18 November 2026: the Skyranger and its effects stay or go together)
     for index, name in enumerate(p.paths, 1):
         if not skyrangers or p.cls(index) != "Emitter" or not name.startswith(level) or name.count(".") != 2:
             continue

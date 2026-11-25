@@ -7,8 +7,8 @@
  *   looks down (run 33: +55 put the camera under the map, looking up);
  * - an XComMapEdSun lights the whole map: a dynamic directional light of brightness Sun from SunYaw, SunPitch degrees
  *   down, and a sky light of brightness Sky. A night map otherwise stays dark: the post-process highlights and mid
- *   tones (Highlights, MidTones) did nothing visible on their own (run 34). They are still applied, as in the shot the
- *   user called perfect (run 35);
+ *   tones (Highlights, MidTones) did nothing visible on their own (run 34). They are still applied, as in the shot kept
+ *   as the default (run 35);
  * - with bHideUI, the game's UI screens are hidden as for a cinematic (XComPresentationLayerBase.HideUIForCinematics).
  *
  * The defaults are run 35's settings: from the front of URB_Bar's L layout, the whole map in view.

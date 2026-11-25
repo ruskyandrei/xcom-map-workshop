@@ -1,7 +1,7 @@
 # EXP-25: the preview's maps, every kind of edit, played through
 
 Date: **8 November 2026**. Status: **done. Runs 1 (Police Station), 2 (ForestTrench) and 5 (Truck Stop) passed in the game; runs 3, 4 and 6
-were checked offline, with no doubt left that needs the game (from run 3 on, the user plays a map only where an
+were checked offline, with no doubt left that needs the game (from run 3 on, a map is played only where an
 offline check leaves one). Two faults found and fixed on the way (F-67, the farm project's map name); one limit
 recorded (F-66).**
 Checklist: preview release, item 1; plan: cars, doors and ladders,
@@ -18,10 +18,9 @@ play it?
 - the landing intro plays; save and reload; the mission can be finished;
 - the original map still plays.
 
-**The checks are short from run 2 on** (the user, 8 November, after run 1: "we're being a bit over zealous on the
-checks here, we've already done all of these before"). Every family and kind of edit has passed its own runs, so
-each map's check is a look at what is new there: the map's reason in the table below, the landing, the edits in
-place. One overview shot, with a close-up only where something new needs pointing at.
+**The checks are short from run 2 on** (8 November, after run 1). Every family and kind of edit has passed its own
+runs, so each map's check is a look at what is new there: the map's reason in the table below, the landing, the
+edits in place. One overview shot, with a close-up only where something new needs pointing at.
 
 Until now each family's runs edited that family alone; these projects are the first to build them together. The
 projects are in [`exp25_projects.py`](../../tools/editor/examples/exp25_projects.py), one per run
@@ -74,7 +73,7 @@ Police Station has no collectible and no ladder.
 - The compact car's copy stands some 70 units west of the grounded Skyranger (`XComLevelActor_664`, shown by the
   map's Kismet) and 580 from the drop zone marker.
 
-**In the game** (the user drives; the lab copy). Marked editor shots, from
+**In the game** (played by hand; the lab copy). Marked editor shots, from
 [EXP-25-run1-shots.json](EXP-25-run1-shots.json): the overview (`EXP-25-run1-overview.png`),
 inside the station (`EXP-25-run1-inside.png`: marks 1, 2 and 5), the south street (`EXP-25-run1-south.png`: marks 6
 and 7), the utility box (`EXP-25-run1-props.png`: mark 3) and the dumpster (`EXP-25-run1-dumpster.png`: mark 4).
@@ -88,7 +87,7 @@ and 7), the utility box (`EXP-25-run1-props.png`: mark 3) and the dumpster (`EXP
 8. Finish the mission.
 9. Then the original Police Station still plays (the slot put back to it).
 
-**Result (8 November, the user's run):** passed: "yes they all pass move on". A short look: the game log (19:08 to
+**Result (8 November, run by hand):** passed. A short look: the game log (19:08 to
 19:10) has the mission up at 26 s and the exit at 87 s, no save, no `CachedFrag` or `REBUILD PATHING!` lines, and no
 warning naming the copies. Not looked at: finishing the mission and the original map, which the variant's build
 leaves untouched (it ships under its own name).
@@ -116,16 +115,16 @@ waited. Files: the variant map `d08fa6db98d2…`, `Lighting_10649584.tfc` `c1b62
 [EXP-25-run2-shots.json](EXP-25-run2-shots.json)): the landing on a UFO map's variant, and the power core's copy
 (mark 1) as loot: three cores at the mission's end where the map has two.
 
-**Result (8 November, the user's run):** passed. The user ended the mission with `killaliens` (the log has the
-console command at 101 s and `XGBattle:Done`'s victory hook after it) and got three power cores as loot: "lootables
-work normally". So a collectible's copy counts as loot, as the Build makes it, and a mission on a variant can be
-finished. The log (19:20 to 19:22) has no `CachedFrag` or `REBUILD PATHING!` lines.
+**Result (8 November, run by hand):** passed. The mission was ended with `killaliens` (the log has the console
+command at 101 s and `XGBattle:Done`'s victory hook after it) and gave three power cores as loot. So a collectible's
+copy counts as loot, as the Build makes it, and a mission on a variant can be finished. The log (19:20 to 19:22) has
+no `CachedFrag` or `REBUILD PATHING!` lines.
 
 ## From run 3 on: checks without the game
 
-The user, 8 November, after run 2: "go through the other maps and do checks without requiring the game ... Only
-prepare an in-game test if you're confident there's a possible issue." Truck Stop (run 5) was already prepared for
-the game (its Fastrope-only landing). For each map the offline check is:
+From 8 November, after run 2, the other maps are checked without the game; an in-game test is prepared only where a
+likely issue shows. Truck Stop (run 5) was already prepared for the game (its Fastrope-only landing). For each map
+the offline check is:
 - the build itself (it found two faults: F-67, and the farm project's map name);
 - each copy's tiles seeded and its rebuild volume made, the hides' tiles rebuilt, from the build log;
 - the variant exported with the viewer's exporter into a scratch cache and compared with the project (a scratch
@@ -170,7 +169,7 @@ test slot (deploy record `URB_TruckSto_Exp25_25e0-20261108-193212.json`).
 [EXP-25-run5-shots.json](EXP-25-run5-shots.json)): the Fastrope landing (no build of ours has landed that way), and a
 route up the drain pipe's copy (mark 1), the first copied drain pipe.
 
-**Result (8 November, the user's run):** passed: "fastrope was fine and both drainpipes worked" (routes up the
+**Result (8 November, run by hand):** passed: the Fastrope landing played and both drainpipes worked (routes up the
 original and the copy). The game log (19:55 to 19:56) streams `CIN_FastropeIntros_URB_TruckSto_Exp25_25e0` with the
 variant, and has no `CachedFrag` or `REBUILD PATHING!` lines.
 

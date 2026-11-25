@@ -48,7 +48,7 @@ What this run adds to EXP-37, and nothing else needs checking:
 4. If either prop stands out from the map's own pieces, a screenshot of it beside a car is the result. The plan's
    fallback is then to light pieces from other maps live, decided with that shot.
 
-Result (11 November, the user's play of the lab's test slot, with a screenshot): **"looks good".** In the shot the
+Result (11 November, the lab's test slot played by hand, with a screenshot): **passed.** In the shot the
 alien wall is as dark as the cars beside it, with no bright patch from the alien ship and no black one, and the lamp
 post stands lit as the car park is.
 

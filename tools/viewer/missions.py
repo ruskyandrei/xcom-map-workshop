@@ -37,7 +37,7 @@ COUNCIL = ('Bomb', 'Assault', 'Rescue', 'Extraction')
 
 # A kind's state: 'works' (played and working on this path), 'untried' (not played yet: the run named tries it),
 # 'hangs' (played: the battle stops at its start under Long War), 'no' (not played on this path at all). What the play
-# dialog says of it: only a problem (the user, 16 November 2026: nothing says a kind is untried, or that it was tried).
+# dialog says of it: only a problem (16 November 2026: nothing says a kind is untried, or that it was tried).
 STATES = {'works': '', 'untried': '', 'hangs': 'Hangs at the start under Long War', 'no': ''}
 # The enemies a play has (gamelaunch.ALIENS, or EXALT_ALIENS for EXALT_KINDS), as the dialog says them
 PODS_NOTE = 'Enemies: four pods of Sectoids.'

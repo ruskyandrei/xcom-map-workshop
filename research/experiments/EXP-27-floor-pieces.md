@@ -45,19 +45,19 @@ soldiers start next to them.
 Installed in the lab's test slot (deploy record `URB_Bar_Exp27Floors_27a0-20261109-171417.json`): the first mission of
 a new campaign in the lab copy.
 
-**In the game** (the user drives; F9 for a shot; the lab copy). What is new:
+**In the game** (played by hand; F9 for a shot; the lab copy). What is new:
 1. Mark 1, the ground copy: a soldier moves onto it and stands on its top, as on the map's sidewalks.
 2. Mark 2, the raised copy (`ShowCursorLoc` shows the cursor's height): the cursor lands on its top (about 208,
    level 3). If it does, `TeleportToCursor` puts a soldier there, who stands on it and can be moved along it.
 
-**Result (9 November, the user's run):** passed: "looks good". Three F9 shots (`look-172150`, `-172157`, `-172218`):
+**Result (9 November, run by hand):** passed. Three F9 shots (`look-172150`, `-172157`, `-172218`):
 the move cursor on the ground copy's top, with a path to it; a soldier standing on the ground copy; a soldier on
 the raised copy after `TeleportToCursor`, his move range drawn over its top and a path along it to its far end. So a
 floor copy made in the map, raised to a level where the map has no floor, gets floor tiles (F-47's question, for such
 copies), and the ground copy's walking surface is its top. The game log (17:21 to 17:22): the variant loaded with its
 intro copy, `WorldData: Restarting work queue (was 0, now 9 tiles)` at load, three `TeleportToCursor`, a save, no
 `CachedFrag` or `REBUILD PATHING!` lines.
-- The user noticed black marks on both strips, "like weird shadows": a quick build's copies keep their source's baked
+- Black marks showed on both strips, like shadows: a quick build's copies keep their source's baked
   lighting, and `XComLevelActor_21`'s on the south street has shadows baked across it, so both copies show them where
   nothing casts them. A full build relights them (the viewer README's quick-build note): built afterwards offline
   (`URB_Bar_Exp27Floors_27a0-20261109-172355`, 153 s against the quick build's 9), each copy got 3 lighting textures

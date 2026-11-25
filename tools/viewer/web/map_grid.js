@@ -4,7 +4,7 @@
 // - the map's size as the project sets it (Map menu, Map grid; prefab plan 5.11): the map's own size kept (ownSize),
 //   the grid a stage asks for (stageDims), the grid drawn at a size (showGrid) and a size set, its new area drawn as a
 //   faint sheet (setStage);
-// - the rail's Map grid (the user, 13 November): what the grid can be (gridRule), the cursor's floors on it
+// - the rail's Map grid (13 November): what the grid can be (gridRule), the cursor's floors on it
 //   (storeysNow), its handles (placeGridHandles, gridHit, gridHandleAt), its panel (gridPanel), the tool (setGridTool),
 //   a new size as one undo step (commitStage) and a handle's drag (startGridDrag, moveGridDrag, endGridDrag), with the
 //   panel's buttons.
@@ -96,7 +96,7 @@ export function createMapGrid({ $, alongLine, boxOf, controls, flashHint, gizmo,
   function stageDims(next, own = ownSize()) {
     if (!own || !next || !validStage(next, own.dims)) return null;
     const want = [next.grid[0], next.grid[1], next.grid[2] ?? own.dims[2]];
-    // a map as it is only grows (the user, 13 November: the blank map's rule for every map); a cleared map any way
+    // a map as it is only grows (13 November: the blank map's rule for every map); a cleared map any way
     if (!cleared && (want[0] < own.dims[0] || want[1] < own.dims[1] || want[2] < own.dims[2])) return null;
     return want.some((v, k) => v !== own.dims[k]) ? want : null;
   }
@@ -135,7 +135,7 @@ export function createMapGrid({ $, alongLine, boxOf, controls, flashHint, gizmo,
       edge.rotation.copy(sheet.rotation); edge.position.copy(sheet.position); stageArea.add(edge);
     }
   }
-  // ---------------------------------------------------------------- Map grid (the user, 13 November)
+  // ---------------------------------------------------------------- Map grid (13 November)
   // The rail's Map grid: the play area's box with a handle on each side the grid can move: its far X and Y sides and its
   // top. The corner and the bottom never move (the Build grows and shrinks the grid there). A handle drags along its
   // axis by whole tiles (96 across) or levels (64 up), and each drag is one undo step. A map as it is, the blank map
@@ -151,7 +151,7 @@ export function createMapGrid({ $, alongLine, boxOf, controls, flashHint, gizmo,
   function gridRule() {
     const own = ownSize();
     if (!own) return null;
-    // a map as it is grows across and up (the user, 13 November: up too); a cleared map any way. Up to 256 tiles and 30
+    // a map as it is grows across and up (13 November: up too); a cleared map any way. Up to 256 tiles and 30
     // levels, or the map's own where more (stageMax)
     return { axes: [0, 1, 2], min: cleared ? [1, 1, 1] : [...own.dims], max: stageMax(own.dims) };
   }

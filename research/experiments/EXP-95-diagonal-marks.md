@@ -37,7 +37,7 @@ test squad, `--no-aliens` and `--saving`.
 
 One hidden run, LWR 2.06 in the lab copy, `--map`, the test squad, `--no-aliens`, `--saving`. Each soldier was put on
 his tile (TeleportToCursor) and read after a full round of the soldiers (`XGUnit m_bInCover`,
-`CurrentCoverPointFlags`, `m_iCurrentCoverValue`). The user's own campaign copy's game was open while the run began,
+`CurrentCoverPointFlags`, `m_iCurrentCoverValue`). A campaign copy's game was open while the run began,
 and was not touched.
 
 1. **(45, 40, 0), at the block's wall: passed.** In cover, flags 0x12002 as written, cover 50 (high).

@@ -162,7 +162,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
   const PAN_KEYS = { arrowup: 'forward', w: 'forward', arrowdown: 'back', s: 'back', arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right' };
   const TURN_KEYS = { q: 1, e: -1 };    // a positive turn about +Y swings forward towards the screen's left
   const TURN_SPEED = THREE.MathUtils.degToRad(60);
-  const PAN_SPEED = 5000;    // about 52 tiles a second (7,200 at first: the user found it a little fast)
+  const PAN_SPEED = 5000;    // about 52 tiles a second (7,200 at first: a little fast)
   const FLY_KEYS = 'workshop.flyKeys';
   const panKeys = new Set();
   let panFast = false, flyKeys = recall(FLY_KEYS) === '1';
@@ -388,7 +388,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
       if (se && ['base', 'copy'].includes(se.layer) && projectsAvailable() && (spawnMovable(se) || spawnDeleted(se))) {
         if (key === 'delete' && !e.ctrlKey && !e.metaKey) { deleteSpawn(pickedSpawn); e.preventDefault(); return; }
         if ((e.ctrlKey || e.metaKey) && key === 'd') { copySpawn(pickedSpawn); e.preventDefault(); return; }
-        // (a drop-in point only: a pod's facing aims nothing, the user, 18 November 2026)
+        // (a drop-in point only: a pod's facing aims nothing, 18 November 2026)
         if ((key === '[' || key === ']') && !e.ctrlKey && !e.metaKey && TURNED_KINDS.includes(se.record.kind) && spawnMovable(se)) {
           const turn = key === '[' ? -QUARTER : QUARTER, hint = `Turned a quarter ${turn > 0 ? 'right' : 'left'}`;
           if (se.layer === 'copy') editSpawnCopy(se.record.actor, { turn }, hint); else editBaseSpawn(se.record.actor, { turn }, hint);

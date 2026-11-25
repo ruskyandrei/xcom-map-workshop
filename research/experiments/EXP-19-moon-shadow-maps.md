@@ -85,14 +85,13 @@ edge of the map, behind the bar, the far side from where the squad lands. F9 at 
 3. **Nothing else changed**: no dark or bright patches, seams or blocky edges on the asphalt, the road markings, the
    sidewalk or the railing around the two places.
 
-**Result (13:10; six shots, 13:10:29 to 13:10:54): passes.** The user: "done, looks ok. I think i was looking at the
-right dumpsters".
+**Result (13:10; six shots, 13:10:29 to 13:10:54): passes.**
 - **The right dumpsters.** Shots 13:10:29, 13:10:33 and 13:10:54 show the row of three along the railing: the copy
   and `XComDestructibleActor_6` and `_2`.
   - Their spacing (482 then 425 units) fits the copy at the corner end. That is also the darkest of the three.
   - Shot 13:10:54 shows the asphalt beyond it, up to the railing's corner, where the deleted dumpster stood (about 440
     units on). It is evenly lit, with no dark patch: luminance 41–60 there, the asphalt's texture spread.
-- **The copy's shadow** looks like its neighbours'. Neither the user nor the shots show a darker or doubled one. So
+- **The copy's shadow** looks like its neighbours'. The shots show no darker or doubled one. So
   copies stay in the moon's shadow maps.
 - **The copy's body is darker** than the two baked dumpsters. That is its live light (F-52, F-56), not the shadow
   maps. Step L4, copies baked themselves, is for it.

@@ -2061,7 +2061,7 @@ class Builds(unittest.TestCase):
         self.run_tool = run
 
     def test_untried_pieces_the_build_cannot_make_are_left_out_and_the_rest_is_built(self):
-        # (the user, 14 November 2026: warn and build what our own gates held back. The compiler marks such a copy
+        # (14 November 2026: warn and build what our own gates held back. The compiler marks such a copy
         # untried; when the copy stage fails with one in the edit, the Build takes them out and builds the rest)
         tried = dict(COPY, untried=[False])
         untried = dict(COPY, labels=['move:SkeletalMeshActor_30'], classes=['SkeletalMeshActor'], untried=[True],

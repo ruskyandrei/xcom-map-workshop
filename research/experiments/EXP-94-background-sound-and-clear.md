@@ -24,7 +24,7 @@ scratch cache, twice under the same name URB_Bar_Cleared_c1ea:
 
 Both: no trigger volume or sight point on the level's list, `SeqEvent_Touch_0` and `_1` (Bar's rats) `bEnabled`
 false (read back offline). Each staged in the lab copy with `lab_install.install(..., game=<the lab copy>)`; the
-folder Steam ran held the user's own campaign copy, whose game was open throughout and never touched. Started hidden
+folder Steam ran held a campaign copy, whose game was open throughout and never touched. Started hidden
 with `--map`, the test squad and `--no-aliens` (run 1 with `--saving`). LWR 2.06 in the lab copy.
 
 ## Runs

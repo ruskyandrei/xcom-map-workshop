@@ -1640,8 +1640,8 @@ CLEAR_PARTS = dict(
     # light stay
     lights=('PointLight', 'PointLightMovable', 'PointLightToggleable', 'SpotLight', 'SpotLightMovable',
             'SpotLightToggleable', 'XComPointLight', 'XComSpotLight'),
-    # smoke, steam, fire, animals and glints (F-50), and the map's ambient sounds: the jukebox, the hum (the user,
-    # 18 November 2026: Clear left them in the play area); the landing's go with its Skyranger, kept as the landing's
+    # smoke, steam, fire, animals and glints (F-50), and the map's ambient sounds: the jukebox, the hum
+    # (18 November 2026: Clear left them in the play area); the landing's go with its Skyranger, kept as the landing's
     effects=('Emitter', 'LensFlareSource', 'AmbientSound', 'AmbientSoundSimple', 'AmbientSoundSimpleToggleable',
              'AmbientSoundNonLoop', 'AmbientSoundMovable'),
     # the map's trigger volumes (touch triggers, water volumes units wade in, the empty ones) and sight points (F-159).

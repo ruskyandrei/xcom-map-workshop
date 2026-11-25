@@ -171,7 +171,7 @@ def frameless(zone, shuffle=None, height=None):
 
 class Frameless(unittest.TestCase):
     """A landing with no drop zone frame (the tutorial's, TempleShip's, the alien bases'): the zone fitted to its
-    points (the user, 13 November 2026: "fix the LZ on this map (and others like it)")."""
+    points (13 November 2026: this map's LZ and others like it fixed)."""
     def test_a_standard_layout_gives_its_zone_back_in_every_direction(self):
         for direction in spawns.DIRECTIONS:
             zone = dict(location=[-1680.0, -336.0, -320.0], direction=direction, kind='normal')

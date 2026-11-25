@@ -1,6 +1,6 @@
 # EXP-53: each kind of mission played on a map as the game has it
 
-Date: 15 November 2026. Status: **run 15 November**, all seven runs played by the user under LWR (see
+Date: 15 November 2026. Status: **run 15 November**, all seven runs played by hand under LWR (see
 [Result](#result)). Plan:
 mission-types-plan.md, section 6 (and O-1, O-2, O-4 in section 7).
 Finding: F-105 (which record a battle gets).
@@ -24,8 +24,8 @@ start `xcom_editor.cmd` again after). The play window's line under the mission n
 - Each run: pick the mission in the header (or in the play window's select), **Play in game**, let the battle start,
   look at the first turn, move a soldier or two, quit. Game maps' **Undo everything** after the last run (or after
   any run that leaves something behind).
-- Claude reads `Launch.log` after each run (the mission handler's state changes, the mutators' lines); the user's
-  part is a start and a look. No run saves (a battle started this way can't be saved).
+- Claude reads `Launch.log` after each run (the mission handler's state changes, the mutators' lines); the part by
+  hand is a start and a look. No run saves (a battle started this way can't be saved).
 
 ## Runs
 
@@ -53,15 +53,15 @@ another room of the police station) have their projects, builds and marked shots
 
 ## Result
 
-Played by the user on 15 November 2026, 01:43 to 02:07, with the editor started with `--try-mission-lines` (so with
-the open line's options and the UFO type's line). The user: "I think everything looks fine except the exalt
-missions". Each run's `Launch.log` names the record the battle got, so each play got the record picked; runs 1 to 4
+Played by hand on 15 November 2026, 01:43 to 02:07, with the editor started with `--try-mission-lines` (so with
+the open line's options and the UFO type's line). Everything looked fine except the EXALT
+missions. Each run's `Launch.log` names the record the battle got, so each play got the record picked; runs 1 to 4
 played records that aren't their map's first, so **O-1 works** (the copy ahead of the map's own).
 
 | Run | Played | Result |
 | --- | --- | --- |
 | 1 | `URB_StreetHurricane`, Council bomb | **Passed.** LWR's mutator: "BOMB MAP, NO ADJUSTMENT REQUIRED". |
-| 2 | `URB_PoliceStation`, Data recovery | **Hangs** at "Mission Briefing: Please Wait" with "SAVING..." (screenshot from the user): Long War's save and reload of every EXALT battle, which can't finish here (F-109, F-89). The capture points' and radar arrays' packages loaded with the map. |
+| 2 | `URB_PoliceStation`, Data recovery | **Hangs** at "Mission Briefing: Please Wait" with "SAVING..." (screenshot from the run): Long War's save and reload of every EXALT battle, which can't finish here (F-109, F-89). The capture points' and radar arrays' packages loaded with the map. |
 | 3 | `URB_LiquorStore`, Covert extraction | **Hangs** as run 2 (F-109). The radar arrays' package loaded. |
 | 4 | `URB_PierA`, Council rescue | **Passed.** |
 | 5 | `CSmallScout_Quagmire`, Crashed UFO | **Passed**, but no command pod (the Outsider) in the UFO: a test battle has no commander (F-110). LWR found the UFO and picked a commander spawn point in it. Meld's package loaded. |

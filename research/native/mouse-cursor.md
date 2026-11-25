@@ -76,7 +76,7 @@ Confidence:
 | Pick algorithm | high (script) |
 | No hidden filter in TraceActors | high for the TraceActors and MultiLineCheck bodies; medium that the octree line check (hash vtable 0x10) has none either; not read |
 | Level-piece copies lack the flag | high |
-| Which exact hit wins in the user's view | medium; I could not see the view (a `bDebugMouseTrace` cheat run would show it) |
+| Which exact hit wins in the run's view | medium; I could not see the view (a `bDebugMouseTrace` cheat run would show it) |
 
 ## 3. Setting `bCutoutMask` / `bCutdownScanup` on a spawned copy
 

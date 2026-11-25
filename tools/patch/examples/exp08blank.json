@@ -892,7 +892,7 @@
         "bLogTiles=False",
         "CopyScale=(X=0.923077,Y=0.923077,Z=1.0)"
       ],
-      "note": "The wing's floor: the north-west room was the bar's kitchen, and the west block's floor mesh has a tiled section there (the user, run 28: \"could we make the floor wood or something in the top right room\"). The east block's floor (URB_Bar_384CFloor, 13 x 13 tiles, wood) is scaled to 12/13 about its pivot so that it covers the wing exactly, x -384..768, y -1152..0, one unit above the copied west-block floor."
+      "note": "The wing's floor: the north-west room was the bar's kitchen, and the west block's floor mesh has a tiled section there (run 28: the top right room's floor wanted wood). The east block's floor (URB_Bar_384CFloor, 13 x 13 tiles, wood) is scaled to 12/13 about its pivot so that it covers the wing exactly, x -384..768, y -1152..0, one unit above the copied west-block floor."
     },
     {
       "type": "ladder",

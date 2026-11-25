@@ -4,12 +4,12 @@
 // the map's own, the game's other beds (/background-sounds.json) or None, a Play button that plays the choice here
 // (every wave of its cue at once, looping, through /background-sound.ogg: viewer.py, audio.py), and its volume, a
 // slider under the choice. A change of the choice or of the volume (on the slider's release) is one undo step; the
-// rules are background_sound_rules.js's. The user chose this design on 22 November 2026 (mock design B, the volume as
+// rules are background_sound_rules.js's. This is the design chosen on 22 November 2026 (mock design B, the volume as
 // a bar).
 // Below them, what Long War Rebalance is told of the map (the project's `lwrMapInfo`, schema 6; missions.js's
 // MAP_INFO): the largest abduction it suits and Hold the Line kept off it, which LWR 3.00.00 beta 17 and later reads
 // from the map's pack. Each change is one undo step. The section is not shown where the game set is plain Enemy
-// Within and the project tells nothing (the user, 23 November 2026: a section for Long War Rebalance alone, with
+// Within and the project tells nothing (23 November 2026: a section for Long War Rebalance alone, with
 // room for what it reads later).
 import { bedLabel, ownVolume, previewVolume, soundChoices, soundNow, soundRecord, VOLUME_SLIDER, volumeWords } from './background_sound_rules.js';
 import { ask } from './api.js';

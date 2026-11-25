@@ -55,10 +55,10 @@ the dark corner (`EXP-26-run1-east.png`: mark 4).
 Installed in the lab's test slot (deploy record `URB_Bar_Exp26Lights_26a0-20261109-190221.json`), with the lab copy
 switched in (`switch_install.ps1 lab`).
 
-**The user's look (9 November):** "seems good". One screenshot inside the bar, first turn: a soldier behind the bar
+**The look in game (9 November):** good. One screenshot inside the bar, first turn: a soldier behind the bar
 counter, the pool table and the arcade machines in view. Not reported: a soldier walked through the pools (item 6), a
 save and reload (item 7).
-- Mark 2 can't be judged: the user couldn't tell whether the orange light was over the pool table or off to the side.
+- Mark 2 can't be judged: the shot doesn't tell whether the orange light was over the pool table or off to the side.
   It is off to the side, and small. `PointLight_4` stands 25 units past the table's short end (towards the arcade
   machines, beside the civilian cutout), 123 units above the floor, with a radius of 78. So it never reaches the
   floor, only the table's end rail and the cutout. The relight changed 440 of the table's 3,736 lighting texels,
@@ -68,13 +68,13 @@ save and reload (item 7).
 - To test a recolour properly, mark 2 needs a light whose pool can be seen: one with a radius that reaches the floor,
   in a place the camera sees.
 
-**The light family switched on (9 November).** After run 1 the user switched light edits on for every project, before
-runs 2 to 6: "let's switch all of them on, we'll fix any issues we spot or have reports for". The compiler's `light`
+**The light family switched on (9 November).** After run 1 light edits were switched on for every project, before
+runs 2 to 6, issues to be fixed as they are spotted or reported. The compiler's `light`
 family builds (`compiler.FAMILIES`), so the editor no longer warns that light edits wait for this test, and a Build
 no longer needs `--family light`. Runs 2 to 6 stay open as checks. A quick build's light wording stays conditional
 until run 2 is played.
 
-**In the game** (the user drives; F9 for a shot; the lab copy; the first mission of a new campaign). What is new, mark
+**In the game** (played by hand; F9 for a shot; the lab copy; the first mission of a new campaign). What is new, mark
 by mark, each against the original Bar's look:
 1. Mark 1: no pool where `SpotLight_3` was (the floor there darker than in the original), and no seam at the edge of
    the pieces relit around it.

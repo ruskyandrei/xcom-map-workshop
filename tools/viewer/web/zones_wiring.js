@@ -44,7 +44,7 @@ export function createZonesWiring({ $, banner, camera, controls, copyThing, edit
   // squad faces, its number, and for a zone that is one of the map's own landings the grounded Skyranger's outline. A
   // click picks one (ahead of the pieces under it); dragged, it moves by whole tiles; the panel turns it, raises it,
   // orders, copies and deletes it. Every change is one undo step, and the first one makes the project's own list.
-  // the Landing zones view (the user, 13 November 2026): the zones over everything, and only they are picked
+  // the Landing zones view (13 November 2026): the zones over everything, and only they are picked
   let zonesHidBefore = false;     // (zonesOn: editor_state.js)
   // The Landing zones view (Shift+Z): the zones shown and drawn over everything (under a floor, inside a piece), and a
   // click picks a zone or lets the picked one go, never a piece or a light. The zones' layer is put back as it was after.
@@ -235,9 +235,9 @@ export function createZonesWiring({ $, banner, camera, controls, copyThing, edit
     if (id && selected) select(null);
     refreshLandingZones();
   }
-  // The picked zone's gizmo (the user, 13 November: a gizmo in place of the panel's buttons), made by view_gizmo.js as
+  // The picked zone's gizmo (13 November: a gizmo in place of the panel's buttons), made by view_gizmo.js as
   // every view's is. Its handle stands on the drop zone's frame (StartLoc), on the ground. It moves the zone as the snap
-  // setting says (the user, 21 November: smoothly with snap off, as everything else), and turns it by quarter turns
+  // setting says (21 November: smoothly with snap off, as everything else), and turns it by quarter turns
   // about the vertical, whatever the snap: a zone faces one of four ways, all an LZArray line or the game's landing can
   // take. G (the rail's Move) shows the arrows, R (Rotate) the ring, V (Select) neither; each drag is one undo step,
   // Escape during one puts it back, and Shift on an arrow drags off a copy.
@@ -386,7 +386,7 @@ export function createZonesWiring({ $, banner, camera, controls, copyThing, edit
   $('landingLwr').onchange = e => changeZone(pickedZone, (zones, k) => {
     const { lwr, ...rest } = zones[k]; zones[k] = e.target.checked ? rest : { ...rest, lwr: false }; return zones;
   }, e.target.checked ? 'Long War lands at the zone' : 'Long War no longer lands at the zone');
-  // Plain EW: at least one zone, and no more than the map has landings of its own (the user, 13 November)
+  // Plain EW: at least one zone, and no more than the map has landings of its own (13 November)
   $('landingEw').onchange = e => {
     const zones = explicitZones(), k = zones.findIndex(z => z.id === pickedZone), own = data ? ownLandings(data).length : 0;
     const marked = zones.filter(z => z.ew).length;

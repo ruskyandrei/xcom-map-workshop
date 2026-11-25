@@ -1,13 +1,13 @@
 # EXP-29: starting the game straight in a battle on a map
 
-Date: 9 November 2026. The user asked whether a map could be tested without starting a campaign and without changing
-the game's first mission, then to try it the way that needs no Steam launch option (`-EXEC=`) and, if it worked, to
-have the editor's Install as intro map start a map that way instead.
+Date: 9 November 2026. Can a map be tested without starting a campaign and without changing the game's first
+mission? Then: try it the way that needs no Steam launch option (`-EXEC=`) and, if it works, have the editor's
+Install as intro map start a map that way instead.
 
 ## Question
 
 Until now a build was tested as the first mission of a new campaign: the editor rewrote the one `DefaultMaps.ini`
-record LWR's first mission plays (EXP-03), and the user started a new campaign each time.
+record LWR's first mission plays (EXP-03), and a new campaign was started each time.
 
 Read from the exe and the scripts beforehand (no run):
 - the engine takes `-EXEC=<file>` anywhere on the command line and has its first local player run `exec <file>` once
@@ -35,8 +35,8 @@ Steam launch option (the wrapper) stayed as it is: it only adds `-nohomedir` and
   `Command line: -FROMLAUNCHER -EXEC=exp29-bar.txt -nostartupmovies -nohomedir -forcelogflush -LANGUAGE=INT`.
 - 4.4 s after the game started: `Execing ..\..\Binaries\exp29-bar.txt`, `LoadMap: URB_Bar`, `Game class is
   'XComTacticalGame'`, the record's streams (`CIN_DropshipIntros`, `patch_bar`, `patch_hide_randomized_objects`),
-  LWR's mutators, pods and meld. The Skyranger's landing played, and the battle stood at turn 1. The user moved
-  soldiers.
+  LWR's mutators, pods and meld. The Skyranger's landing played, and the battle stood at turn 1. Soldiers were
+  moved.
 - **The squad was wrong:** four unit flags and no bodies (`EXP-29-run1-no-bodies.png`); two of the four had no weapon
   (`Accessed None 'm_kInventory'`, `'ActiveWeapon'`).
   - No bodies: nothing on this path asks for the soldiers' content. In a campaign the base does before the mission,

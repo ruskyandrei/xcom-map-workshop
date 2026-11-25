@@ -41,7 +41,7 @@ Picture `EXP-40-run1-ladder.png` (not in the repository): the ladder.
 
 ## Run 1: the car and the door passed; the ladder could not be tried
 
-Played by the user on 11 November 2026: "looks good", but the drain pipe stood on the ice box at its foot, so no
+Played by hand on 11 November 2026: good, but the drain pipe stood on the ice box at its foot, so no
 soldier could reach it. Cars and doors with a frame are switched on for every project
 (`compiler.FOREIGN_ASSEMBLIES`), and the library was scanned again. Ladders wait for run 2.
 
@@ -61,13 +61,13 @@ A piece that fails names its family: that one stays off and the others are switc
 
 ## Run 2: passed
 
-Played by the user on 11 November 2026: "pipe is climbable looks good". Ladders are switched on for every project
+Played by hand on 11 November 2026: the pipe is climbable. Ladders are switched on for every project
 (`ladder` in `compiler.FOREIGN_FAMILIES`), and the library was scanned again.
 
 - The pipe stands three tiles further along the same wall, at [-48, 1296, 16] (foot tile [28, 33, 0], top on the
   roof), past the ice box; the nearest things on the ground there are a puddle decal and kegs three tiles on. In
-  the user's screenshot of run 1 that is to the left of the ice box.
-- A quick build (18 seconds; the user asked for no rebake), so the three pieces keep their home maps' light. Installed
+  the screenshot of run 1 that is to the left of the ice box.
+- A quick build (18 seconds; no rebake), so the three pieces keep their home maps' light. Installed
   in the lab's test slot (here `<lab>\bake-fixtures\exp40-run2`, record `URB_Bar_X40-20261111-152626.json`).
 - **To check:** a soldier at the pipe's foot is offered the route up to the roof, climbs it, and comes down again.
   Nothing else.

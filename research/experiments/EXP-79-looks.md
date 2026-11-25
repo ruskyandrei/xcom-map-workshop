@@ -5,7 +5,7 @@ walls, floors, roofs and ground shapes made from numbers in the look of any of t
 by their donor (`look: {mesh, measure}`), with recipes from the checked-in catalogues (tools/bake/looks/: 344 walls,
 55 floors and roofs, 193 ground looks). Run D takes a sample spread over the catalogues' verdicts and settings, each
 made piece beside a copy of its donor in the same light. Played unattended in the lab copy (the hidden game, the
-game-test skill), checking only what is new. The look is for the user's eye as well: the shots are for them.
+game-test skill), checking only what is new. The look is for a human eye as well: the shots are for judging it.
 
 ## What is new
 

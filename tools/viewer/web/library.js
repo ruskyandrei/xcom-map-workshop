@@ -18,8 +18,8 @@ import { call, hex16, sendPng } from './api.js';
 
 // What the library only holds back (SOFT, piece_categories.js: compiler.py FOREIGN_SOFT): hidden in its own map,
 // linked to other pieces, of a kind not brought before, waiting for a game test. Such a piece is placed as any other;
-// what shows in the game is tagged (SOFT_TAGS, as compiler.py FOREIGN_WORDS warns of it), never that it is untried (the
-// user, 16 November 2026). One that needs something that can't be brought ('closure') can't be placed, nor an effect or
+// what shows in the game is tagged (SOFT_TAGS, as compiler.py FOREIGN_WORDS warns of it), never that it is untried (16
+// November 2026). One that needs something that can't be brought ('closure') can't be placed, nor an effect or
 // sound the editor can't bring ('unavailable': a landing's actor, one riding on another).
 export { SOFT };
 const SOFT_TAGS = { hidden: ['Hidden', 'Hidden in its own map: a helper, not something to see.'],

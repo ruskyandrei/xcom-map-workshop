@@ -1,6 +1,6 @@
 # EXP-62: the piece flags not played yet, in one run
 
-Date: 16 November 2026. The piece flags plan's remaining in-game probes (P7), at the user's ask, in one project on
+Date: 16 November 2026. The piece flags plan's remaining in-game probes (P7), in one project on
 URB_Bar: each flag on its own (case C), roles turned on and a prop's pathing gate opened (D), Floor on (E), a ladder
 (F), a door (G), damage (H) and a save and reload (J). EXP-60 played the mouse on (Temple Ship's arches) and EXP-61
 every flag off on a statue ([F-114](../findings-register.md)). Each edited piece has an unedited one of the same kind
@@ -85,12 +85,12 @@ What the run adds over the offline checks (Play in game, with Enable saving for 
 
 ## Result
 
-**Run 1 passed, with two answers the plan didn't predict** (16 November 2026, played by the user). The user: "H does
-not block walking", "L works normally", "D soldiers walks in through door (without opening or kicking open)", and
-"everything else seems to work as expected, save made". So B0, BW, BC, BF, F0, FC and FS, the damage and the save
+**Run 1 passed, with two answers the plan didn't predict** (16 November 2026, played by hand). H does not
+block walking, L works normally, at D soldiers walk in through the door (without opening or kicking it open), and
+everything else works as expected, a save made. So B0, BW, BC, BF, F0, FC and FS, the damage and the save
 and reload did what the list says.
 
-The user's save, read with `tools/lab/save_tiles.py` against the built map (tiles counted from the game's corner,
+The run's save, read with `tools/lab/save_tiles.py` against the built map (tiles counted from the game's corner,
 `baked -> saved`):
 - **H, Blocks walking on, worked in the tiles but doesn't block.** The hedge's tiles (x 15 to 21, y 0 to 3) are
   partly occupied (`0x8000` with `0x10000`), with their floor kept and no crossing bit; the control hedge's are free,
@@ -104,10 +104,10 @@ The user's save, read with `tools/lab/save_tiles.py` against the built map (tile
   shut door blocks neither walking nor sight, and the soldier walked through it without opening it. Sight through it
   and the door after opening and shutting it were not reported apart.
 - **L, Blocks walking off on a ladder, changed no tile.** Its foot (11, 23, 0) and top (12, 23, 6) tiles are as
-  baked, the top's link bit included, and it climbs (the user). Whether it still gives cover beside it was not told
+  baked, the top's link bit included, and it climbs (seen in the run). Whether it still gives cover beside it was not told
   apart.
 - **BF, Floor on:** its tile (21, 18) is fully occupied with no floor at level 0, and the tile over it (level 1) has a
-  floor: the box's top is floor. Whether a soldier got up there was not told apart from "as expected".
+  floor: the box's top is floor. Whether a soldier got up there was not told apart in the run's report.
 - **BW, Blocks walking off:** its tile (15, 18) is not occupied, as baked: units stand in it. B0's and BC's tiles are
   occupied, and each fence marks the tiles on both sides of its edge occupied with their floors kept (EXP-59's B).
   Not explained: B0 and BC each show four occupied tiles (two across, both rows of the edge y −192), where one box

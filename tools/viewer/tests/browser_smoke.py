@@ -1065,7 +1065,7 @@ def check_groups(page):
     assert page.evaluate(groups) == [] and page.evaluate(actors) == [a]
     page.keyboard.press('Control+z')
     assert len(page.evaluate(groups)) == 1
-    # Add to group (the user, 19 November 2026): the group and a piece in no group selected: Add to group beside Group
+    # Add to group (19 November 2026): the group and a piece in no group selected: Add to group beside Group
     # puts the piece in the group (no new group), one undo step; two loose pieces, or the group alone, have no Add to group
     loose = [k for k in page.evaluate(free.replace('.slice(0, 2)', '.slice(0, 6)'), None) if k not in pair]
     if len(loose) >= 2:
@@ -1318,8 +1318,8 @@ def check_map_buildings(page):
     assert None in [v for f in rec['floors'] for v in f['volumes']], rec
     page.keyboard.press('Control+z')
     assert page.evaluate(saved) == '[]'
-    # deleted (its boxes all gone: a deleted record), with no list of changed buildings in the view (taken out at the
-    # user's word, 23 November 2026), restored, both undone
+    # deleted (its boxes all gone: a deleted record), with no list of changed buildings in the view (taken out on
+    # 23 November 2026), restored, both undone
     page.evaluate('ids => { viewer.gizmo.setSelection(ids, ids[0]); viewer.deleteVolumes(); }', [i for i, _ in page.evaluate(box_of, target)])
     assert page.evaluate('viewer.savedBuildings()') == [{'id': target, 'replaces': rec['replaces'], 'deleted': True}]
     assert page.locator('#volumeChanged').count() == 0 and 'Restore the map' not in page.locator('#volumePanel').inner_text()
@@ -1403,7 +1403,7 @@ def check_clear_map(page):
     assert page.evaluate('viewer.changes()')['grid'] == 0
     assert page.evaluate('viewer.gridTool().dims') == dims and page.evaluate('viewer.stage()') is None
     assert drag_grid(1, -140) == dims and page.evaluate('viewer.stage()') is None     # never under the map's own
-    # higher as it is (the user, 13 November): levels by the top handle, the panel saying the Build adds cursor storeys
+    # higher as it is (13 November): levels by the top handle, the panel saying the Build adds cursor storeys
     if dims[2] < 18:
         higher = drag_grid(2, 120)
         assert higher[2] > dims[2] and higher[:2] == dims[:2], (higher, dims)
@@ -1415,7 +1415,7 @@ def check_clear_map(page):
     page.locator('#gridDone').click()
     assert not page.evaluate('viewer.gridTool()')['on'] and page.locator('#gridPanel').is_hidden()
     # the dialog (the clear-by-parts plan, section 3: design A): a tick for each part with a short count, every part
-    # ticked on a map with nothing cleared, the button saying it clears the map (the user, 23 November 2026: a short
+    # ticked on a map with nothing cleared, the button saying it clears the map (23 November 2026: a short
     # count, no breakdown; no size: a clear keeps the grid)
     page.evaluate("document.getElementById('projectClear').click()")
     text = page.locator('#clearMap').inner_text()
@@ -1426,7 +1426,7 @@ def check_clear_map(page):
     assert rows[0]['words'] == ('%d piece%s' % (plan['pieces'], '' if plan['pieces'] == 1 else 's')), rows[0]
     assert page.locator('#clearMapOk').inner_text() == 'Clear map'
     assert 'SeqAct_' not in text and page.locator('#clearMap input[type=number]').count() == 0, text
-    # the map's ambient sounds go with the effects, but the landing's (the user, 18 November 2026)
+    # the map's ambient sounds go with the effects, but the landing's (18 November 2026)
     sounds = page.evaluate("[...viewer.effectRoots.values()].map(r => r.userData.source).filter(o => o.kind === 'sound' && !o.landingActor && !o.stream && !o.added).length")
     if sounds:
         assert ('%d sound' % sounds) in rows[2]['words'], rows[2]
@@ -1514,7 +1514,7 @@ def check_clear_map(page):
     assert page.locator('#clearMap').is_hidden()
     small = [max(1, dims[0] - 12), max(1, dims[1] - 9), max(1, dims[2] - 4)]
     # the project's added effects go with a clear as its added pieces do, and a map effect it moved is deleted as a
-    # moved piece is (the user, 23 November 2026: a clear left a boat's 35 added effects standing)
+    # moved piece is (23 November 2026: a clear left a boat's 35 added effects standing)
     fx = page.evaluate("""() => [...viewer.effectRoots.values()].map(r => r.userData.source)
                             .filter(o => o.kind === 'effect' && !o.added && !o.stream && !o.landingActor && !o.carriedBy).slice(0, 2)
                             .map(o => ({ actor: o.actor, location: o.location, rotation: o.rotation, id: o.id }))""")
@@ -1555,7 +1555,7 @@ def check_clear_map(page):
     page.evaluate('viewer.effectMarkers()')
     assert page.evaluate(f"() => {{ const lwr = {lwr}; return [...viewer.effectRoots.values()].filter(r => r.userData.there && lwr(r.userData.source)).length; }}") == 0
     # the map's pods, Meld points and drop-in points go with it, but one something names; its no-spawn volumes stay; the
-    # deleted points draw no marker (the user, 18 November 2026)
+    # deleted points draw no marker (18 November 2026)
     if page.evaluate('viewer.spawnAddEntries().length'):
         recs = page.evaluate('(viewer.data.spawns ?? []).filter(o => !o.landing)')
         gone = {m['actor'] for m in page.evaluate('viewer.spawnEdits()') if m.get('deleted')}
@@ -1665,7 +1665,7 @@ def check_clear_map(page):
     px = page.evaluate('p => viewer.screenOf([p[0] + 100, p[1], p[2]])', at)
     n = ((px[0] - p0[0]) ** 2 + (px[1] - p0[1]) ** 2) ** 0.5
     d = [(px[0] - p0[0]) / n, (px[1] - p0[1]) / n]
-    # its moves follow the snap setting (the user, 21 November 2026): whole tiles under tile snap, and smoothly with snap
+    # its moves follow the snap setting (21 November 2026): whole tiles under tile snap, and smoothly with snap
     # off; either keeps its height (the police station's zone stands 48 over its grid's first level)
     snap_was = page.evaluate('viewer.gizmo.snap')
 
@@ -5738,7 +5738,7 @@ def check_skins(ctx):
 
 
 def check_map_lights(ctx):
-    """The map's own lights (export 9): neutral light by default (the user's choice, 7 November), the map's
+    """The map's own lights (export 9): neutral light by default (chosen 7 November), the map's
     switchable, and every local light inside the shader's grid; each lighting mode pictured."""
     page = ctx.page
     lights = page.evaluate("viewer.lighting.counts")

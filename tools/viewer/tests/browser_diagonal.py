@@ -3,7 +3,7 @@ M5; KNOWN-BUGS.md KB-20), on a test server: run through browser_smoke.py --only 
 whose scout has eight marked corners, on a page of its own: the server exports it the first time).
 
 The rail's Views list has the Diagonal cover row (Shift+C); on, the Views button shows its icon and the other views are
-off. It behaves as the other views do (the user, 23 November 2026): hovering a tile adds nothing. On the scout's corner
+off. It behaves as the other views do (23 November 2026): hovering a tile adds nothing. On the scout's corner
 (39, 12, 0), cut to its first floor: a click picks the mark (its gizmo and its four corner dots shown, the panel's
 chip); a click on a corner dot gives it that corner too (one undo step: the project's own mark with its home, the edit
 count, the panel's corner buttons, two on); undo and redo; ] turns its corners a quarter; the gizmo's X arrow dragged

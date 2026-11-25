@@ -156,7 +156,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   // (one of the map's own boxes, picked to read: its fill mesh, never moved or changed; ownPicked: editor_state.js)
   // The map's own buildings selected with pieces in the normal view (the Normal button's Floor boxes): a copy of the
   // selection then gets a building of the project with the same boxes. They are never moved, turned or deleted: the
-  // Build leaves the map's own volumes as they are (the user, 11 November 2026, after copying the Bar).
+  // Build leaves the map's own volumes as they are (11 November 2026, after copying the Bar).
   // (those buildings, ownSet: editor_state.js)
   const volumeGrid = () => (data?.tileGrid?.origin && data.tileGrid.dimensions
     ? { origin: data.tileGrid.origin, dimensions: data.tileGrid.dimensions, size: data.tileGrid.size ?? [TILE, TILE, LEVEL], unbounded: builderMode,
@@ -931,7 +931,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   // Restore the map's (map buildings plan, section 1): a changed or deleted building of the map back as the map has
   // it, its boxes made again from the export and its record gone, as one undo step. (A deleted one has no box left to
   // click: Ctrl+Z or Reset all bring it back. The view's list of every changed and deleted one went on 23 November
-  // 2026 at the user's word: a cleared map listed dozens.)
+  // 2026: a cleared map listed dozens.)
   function mapRestoreChange(ids) {
     const targets = liveVolumes().filter(r => ids.includes(r.userData.volume.building)), made = [];
     for (const id of ids) {
@@ -1005,7 +1005,7 @@ export function createBuildingsWiring({ $, boxOf, builderBounds, camera, chosenS
   }
   $('volumeDone').onclick = () => setVolumesShown(false);
   $('editBuildings').onclick = () => data && setVolumesShown(!volumesOn);
-  // Box select (the user, 11 November 2026: "a better way of selecting many items at once"): in the normal view a box
+  // Box select (11 November 2026: a better way of selecting many items at once): in the normal view a box
   // is drawn over the ground (the tool strip's button, T), stretched by the six face handles a building's box has and
   // moved by the dot in its middle. Select (Enter) takes every piece whose middle is inside, with its group and linked
   // pieces whole as a click takes them; Shift+Enter adds them to the selection. Only what is drawn is taken (a floor

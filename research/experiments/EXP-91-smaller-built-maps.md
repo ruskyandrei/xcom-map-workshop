@@ -22,7 +22,7 @@ Played unattended in the lab copy (the game-test skill), one pass of each check 
 The reported user's project (a variant of CLrgScout_City: 166 copies, 119 of them pieces of other maps, light edits;
 kept in `private/`, a user's work), built twice with the same code but for this change, the same day: "A" on branch
 smaller-maps (55.8 MB, lightmaps inside the map 23.6 MB), "B" on main before it (340.8 MB, 306 MB). Each staged in the
-lab copy in turn (`lab_install.install` with the lab copy named: the folder Steam ran held the user's own campaign
+lab copy in turn (`lab_install.install` with the lab copy named: the folder Steam ran held a campaign
 copy, which was playing, and was never touched). LWR 2.06 in the lab copy, `--map SkyscraperTerror --no-aliens
 --saving`, the test squad.
 
@@ -52,7 +52,7 @@ again pulled back to 3,000 at -60; `ListTextures`; the game's private memory at 
   CLrgScout_City in the same session setup saved and loaded. Not the change's: [F-156](../findings-register.md).
 
 The hidden run's `send`, `aim` and `goto` read the log of the folder Steam runs unless given `--game` too (the skill
-names it on the start command only): with the user's copy there, they printed its log (only read) until given it.
+names it on the start command only): with the campaign copy there, they printed its log (only read) until given it.
 
 ## The save crash (F-156), the same day
 

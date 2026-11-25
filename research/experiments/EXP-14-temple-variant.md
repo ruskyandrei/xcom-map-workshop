@@ -1,4 +1,4 @@
-# EXP-14: The user's Temple Ship project in the game, through the test slot (plan)
+# EXP-14: A Temple Ship project in the game, through the test slot (plan)
 
 Status (6 November 2026, 15:12): **runs 1 and 1b done.** In run 1:
 - The variant loads and plays, the copies stand as posed, exactly the targets are hidden and the laser barriers give
@@ -9,13 +9,13 @@ Status (6 November 2026, 15:12): **runs 1 and 1b done.** In run 1:
 Run 1b shows that the walls are missing from the unedited map in the test slot too. F-51 is therefore not caused by
 the edit, and it is set aside.
 
-**Run 2 (15:31):** revision 3 (power cores in place of the psi devices), loaded from the user's save inside the real
+**Run 2 (15:31):** revision 3 (power cores in place of the psi devices), loaded from a campaign save inside the real
 Temple mission.
 - The patch loaded and the copies stood as posed.
 - The walls were still missing, so F-51 isn't from the test slot.
 - The core copies could be walked through and gave no cover (F-54, likely the save's tile data).
 
-**Run 3 (set up 15:35):** the user's HQ save, with the unedited Temple, started normally.
+**Run 3 (set up 15:35):** an HQ save, with the unedited Temple, started normally.
 
 **Run 4 (16:06):** revision 3 again, as a new campaign's first mission. **Passes:** the power cores and the laser
 barriers block, give cover all around and can be walked around. F-54 is confirmed: a fresh start keeps the patch's
@@ -30,15 +30,15 @@ nothing.
 still takes it, and B takes no light at all.
 
 **Run 7 (16:51): passes.** The copies take their light once, while the copier has the sky light off for 2 s at
-load, and keep it. They match the map's own pieces ("looks great now!"), and the soldiers keep their usual light.
+load, and keep it. They match the map's own pieces, and the soldiers keep their usual light.
 
-**Run 8 (deployed 17:13):** the user's `temple_improved` project again, with the rule now generic: every copy of a
+**Run 8 (deployed 17:13):** the `temple_improved` project again, with the rule now generic: every copy of a
 baked piece leaves out a units-only sky light by default (`XComMapEdSkyFree`). The project needs no change.
 
 **Run 9 (deployed 17:56):** revision 4 of the project: four alien consoles laid on their sides in place of the power
 cores. One was lost by a viewer paste bug (T-12), so it is rebuilt for the build.
 
-**Run 10 (deployed 18:03):** revision 5, the user's re-save with the fixed viewer: the four consoles as four actors,
+**Run 10 (deployed 18:03):** revision 5, re-saved with the fixed viewer: the four consoles as four actors,
 compiled straight from the saved file. A grenade on a console copy turns it lavender again: damage resets its light.
 
 **Run 11 (deployed 18:18):** the same project. Pieces whose state, mesh, materials or
@@ -58,7 +58,7 @@ with each hit's outcome logged.
 **Run 14 (deployed 19:42):** revision 7. Both places now have a stacked pair of alien low covers, each a locked group
 that breaks together.
 
-The user edited a Temple Ship project in the viewer, `temple_improved`, and asked for an in-game check. It is the
+A Temple Ship project was edited in the viewer, `temple_improved`, for an in-game check. It is the
 first Temple variant. The plan puts Temple variants in milestone M4, after an audit of the final mission: its stream
 ownership (T-08), arrival, gates, ending and checkpoints. This run goes ahead of that audit, on the test slot, to see
 the pieces in the game. It is not a check of a playable final mission.
@@ -68,7 +68,7 @@ the pieces in the game. It is not a check of a playable final mission.
 1. Does a Temple Ship variant load when the first mission's test slot points at it, with Temple's streams?
 2. If it does, do the project's edits stand as the viewer drew them, with the cover the pieces give?
 
-## The project (the user's)
+## The project
 
 `temple_improved`, id `20012b82-ea6d-4d22-8fdb-c6ac64cdc379`, revision 2, on TempleShip (SHA-256 `029bedca…`).
 Output names `TempleShip_TempleIm_2001` and `patch_templeship_templeim_2001`.
@@ -152,7 +152,7 @@ psi devices stand on (floor z 192) reads level 10. Corrected during run 1, from 
 - If the mission does not start, a run 1b points the test slot at TempleShip itself, the plan's no-op alias. That
   tells a Temple-in-the-test-slot problem from a patch problem.
 
-## In the game (the user drives, Claude looks)
+## In the game (played by hand, with screenshots taken)
 
 A new campaign; the first mission loads the test slot. Shots (F9), as far as the mission allows:
 1. What the mission start shows: the arrival, where the squad stands.
@@ -180,9 +180,9 @@ rotation.
 
 ### Run 1 (6 November, 14:44 to 14:52)
 
-A new campaign, whose first mission loaded the test slot. The user drove and pressed F9 for shots, with notes typed in
+A new campaign, whose first mission loaded the test slot. It was played by hand, with F9 shots and notes typed in
 the console. Claude read the shots and the log (the lab's `Launch.log`, opened 14:44:10, closed 14:52:37 when the
-user quit; read only).
+game was quit; read only).
 
 **The log:**
 - `IncrementHistory` names `TempleShip_TempleIm_2001` (the test slot). `TempleShip_Stream`, the arrival cinematic and
@@ -197,15 +197,15 @@ user quit; read only).
   points to it.
 
 **In the game:**
-- The arrival cinematic played ("yes the intro landing cinematic worked"). The mission starts as an abduction on
+- The arrival cinematic played. The mission starts as an abduction on
   Temple's map: "Neutralize hostile targets", turn 1.
-- **Laser barriers** (14:50:49): "the new piece here seems correct with the right cover spots". It "looks a bit more
-  blue-ish than the rest of the map" (F-52).
-- **Door walls** (14:46:14 and 14:51:25): "the big walls with the doors seem to be invisible"; "this is where the
-  missing door wall is", at tile (33, 18, 7). Cover shields stand on the line where the walls should be, so the walls
+- **Laser barriers** (14:50:49): the new piece seems right, with the right cover spots. It looks a bit bluer than the
+  rest of the map (F-52).
+- **Door walls** (14:46:14 and 14:51:25): the big walls with the doors seem to be invisible; the missing door wall is
+  at tile (33, 18, 7). Cover shields stand on the line where the walls should be, so the walls
   still collide. They are the three `DoorwayBMain` pieces on the line y −7584 (F-51). The patch does not touch them.
-- **Psi device copy3** (14:51:58 and 14:52:18): "this new chair thing seems right, but it has no cover behind", and
-  "no cover from the front either", at tiles (22, 23, 10) and (22, 26, 10), its two ends (F-53).
+- **Psi device copy3** (14:51:58 and 14:52:18): the new piece seems right, but it has no cover behind it, nor in front,
+  at tiles (22, 23, 10) and (22, 26, 10), its two ends (F-53).
 
 **Pass criteria:**
 1. **Passes.** The map loads, with Temple's streams and the patch.
@@ -230,13 +230,11 @@ slot 2 is gone.
 - If the walls are missing here too, the cause is Temple's map in the test slot, not the edit.
 
 **Result (shot 15:11:18).** The walls are missing here too. The cursor was on the walk by the doorway at tile
-(23, 18, 10). The user's note: "invisible in original map so yeah it's probably to do with how we load it, can close
-that concern for now. I might try and get a save from before an actual temple mission in the campaign to test
-instead next". F-51 comes from loading Temple's map in the test slot, as the first mission's abduction, and is set
+(23, 18, 10). F-51 comes from loading Temple's map in the test slot, as the first mission's abduction, and is set
 aside. A later check of Temple variants can run from a campaign save taken before the real Temple mission, with
 Temple's own record (line 182) pointed at the variant.
 
-### Run 2 (deployed 15:29): revision 3 from the user's Temple save
+### Run 2 (deployed 15:29): revision 3 from a Temple save
 
 **The project, revision 3** (saved 15:17). The psi device copies are gone. In their place are two copies of the power
 core `XComCollectible_56` (`PowerCore2`), which builds in M1 since this afternoon. The other edits are as before.
@@ -261,7 +259,7 @@ up first):
 - `DefaultMaps.ini` line 184 (the record) and line 42 (the test slot) stream the patch in slot 2 again. A fresh
   campaign's first mission is the variant again, as in run 1.
 
-**The user's save.** The user put a save from an older campaign in the shared profile
+**The campaign save.** A save from an older campaign was put in the shared profile
 (`My Games\...\SaveData\save1`, 15:12). It is from LWR v2.01.14, Ironman, Impossible, game 199, saved 23 January
 2026. It is a tactical save inside the Temple mission. Its header holds the map to open:
 `open TempleShip?...StreamingMap0=TempleShip_Stream?StreamingMap1=CIN_TP12A_ArriveTempleShip?StreamingMap2=?...
@@ -272,7 +270,7 @@ StreamingMap5=patch_hide_randomized_objects?LoadingSave`.
 - **The save's checksums** are UE3's `appMemCrc` (MSB-first CRC-32):
   - the header's over its used bytes (527, the length at offset 1016, the CRC at 1020);
   - the body's (from offset 1024) at offset 519.
-  Both recomputed exactly from the user's file.
+  Both recomputed exactly from the save file.
 
 **Setup** (scratch script `temple_save_setup.py`, lab only):
 1. **The lab's `TempleShip.upk` is now the seeded variant** (SHA-256 `543c2cd6…`).
@@ -281,10 +279,10 @@ StreamingMap5=patch_hide_randomized_objects?LoadingSave`.
    - While it stays, Temple's map must load with the patch, which rebuilds the seeded tiles. Without the patch,
      the 128 seeded tiles would block (F-42), as they would through Temple's own record (line 182) or run 1b's
      setup. Put the backup back to undo it.
-2. **The lab's `SaveData\save6`** is a copy of the user's save with `StreamingMap2=patch_templeship_templeim_2001`
+2. **The lab's `SaveData\save6`** is a copy of that save with `StreamingMap2=patch_templeship_templeim_2001`
    in its URL.
    - The header grew to 557 bytes and its CRC was recomputed. The body and its CRC are unchanged.
-   - It was re-parsed and both CRCs checked. The user's own `save1` is untouched (SHA-256 `f4f4ae25…`, the same
+   - It was re-parsed and both CRCs checked. The original `save1` is untouched (SHA-256 `f4f4ae25…`, the same
      before and after).
 
 **What to look at:**
@@ -293,7 +291,7 @@ StreamingMap5=patch_hide_randomized_objects?LoadingSave`.
    - `hid 2 of 2 exact targets`;
    - the seeds' rebuild.
 2. **The doorway walls (F-51)** at tile (33, 18, 7) and along y −7584: are they drawn in the real mission?
-3. **The power cores** at (22, 25, 10) and (22, 37, 10): pose, cover, and, if the user likes, one shot at a copy.
+3. **The power cores** at (22, 25, 10) and (22, 37, 10): pose, cover, and, optionally, one shot at a copy.
    It should blow up at the first hit, as the map's own cores do.
 4. **The laser barriers and the deleted low covers**, as in run 1.
 
@@ -305,8 +303,8 @@ in the older LWR campaign.
 - `hid 2 of 2 exact targets`, and the copier, hider and seed rebuilds all finished. All four copies collide, block
   and block vision.
 
-The user's note at copy7, tile (22, 25, 10): "door walls are invisible like before and the power cores I placed can
-be walked through and provide no cover".
+Seen in game at copy7, tile (22, 25, 10): the door walls are invisible as before, and the placed power cores can be
+walked through and give no cover.
 - **The walls (F-51)** are missing in the real mission too, so the test slot is not the cause.
 - **The cores (F-54).** The map's own power cores block and give cover: their tiles are occupied, and the tiles
   beside them have high cover (`0x4004`, `0x0101`). Both meshes have simple collision. The likely cause: a tactical
@@ -322,13 +320,13 @@ since run 1b had named the test slot `TempleShip`. It rebuilt the variant's reco
 family `URB_Bar` and an abduction. The record isn't in rotation, so nothing loaded it. After the fix, a `deploy` at
 15:39 rebuilt line 184 from Temple's own record (line 182). It is the same as run 1's, and no other line changed.
 
-### Run 3 (set up 15:35): the user's HQ save, the unedited Temple, started normally
+### Run 3 (set up 15:35): an HQ save, the unedited Temple, started normally
 
-The user added a second save to the shared profile, `save_before_temple`. It is a Geoscape save from the same
+A second save was added to the shared profile, `save_before_temple`. It is a Geoscape save from the same
 campaign (LWR v2.01.14, Ironman, game 199, "2:23 am April 6 2031"), before the Temple mission starts. It opens
 `Command1`, so the Temple's map is picked from `DefaultMaps.ini` when the mission starts, and the mission starts fresh
 (no tactical checkpoint).
-- **The user's question:** with the unedited map and a normal start, are the doorway walls drawn?
+- **The question:** with the unedited map and a normal start, are the doorway walls drawn?
 - **Setup** (scratch script `temple_hq_setup.py`, lab only):
   - the lab's `TempleShip.upk` is the original again;
   - Temple's own record (line 182: `TempleShip`, `eMission_Final`, in rotation; the only Final record in rotation)
@@ -339,7 +337,7 @@ campaign (LWR v2.01.14, Ironman, game 199, "2:23 am April 6 2031"), before the T
 - **Next:** if this run shows the walls, a run from the same save with Temple's record (line 182) pointed at the
   variant. A normal start also avoids F-54.
 
-**Result (15:40 to 15:44; the user's account, no shots).** The log (opened 15:40:17, closed 15:44:33) shows this
+**Result (15:40 to 15:44; notes from play, no shots).** The log (opened 15:40:17, closed 15:44:33) shows this
 order:
 - 7 s: a Temple tactical save loaded and was left;
 - 29 s: the HQ save loaded;
@@ -347,13 +345,12 @@ order:
 - 177 s: back to the menu, and at 182 s the Ironman save of the mission was loaded;
 - 257 s: the game exited.
 
-The user's notes:
-- "right after intro, I could see the door walls"
-- "but then they disappeared and my game started behaving weirdly, moving in odd staggered ways every time i moved
-  the mouse or panned the camera"
-- "I saved and reloaded and that made the weird staggered auto-movement of the camera go away, but the walls and doors
-  stayed invisible"
-- "it was the original unedited map"
+Seen in game:
+- right after the intro, the door walls were drawn;
+- then they disappeared, and the camera began moving in odd staggered steps whenever the mouse moved or the camera
+  panned;
+- a save and reload stopped the staggered camera movement, but the walls and doors stayed invisible;
+- it was the original, unedited map.
 
 What this tells us about F-51:
 - The map draws the walls, and something hides them at run time after the intro. The likeliest candidate is the
@@ -362,14 +359,14 @@ What this tells us about F-51:
   stagger fits a cursor jumping between floors. Not verified.
 - Ruled out as lab differences: the lab's `Engine.upk` is LWR's console variant
   (`Engine.upk.renamethistoenableconsole`). Export by export, it differs from LWR's normal one only in
-  `Console.ConsoleCommand`. The lab's own generated settings (`-nohomedir`) differ from the user's live profile only
+  `Console.ConsoleCommand`. The lab's own generated settings (`-nohomedir`) differ from the live profile only
   in graphics options and in sections it hasn't written out. The other lab-only files are our patches and maps. The
   save itself is from an older LWR (v2.01.14); the lab runs the current one.
 
 **Lab state after run 3:**
 - `SaveData\save7` is now the Ironman save of the mission (15:44, "Operation Avenger (Temple Ship Assault)").
 - `save6` (run 2's edited save) is gone: the game keeps one save per Ironman campaign, and all are game 199.
-- The user's HQ save in the shared profile is unchanged (SHA-256 `338a7dc8…`), so it can be copied in again.
+- The HQ save in the shared profile is unchanged (SHA-256 `338a7dc8…`), so it can be copied in again.
 
 **Next check (no deploy needed):** load `save7`. In the console:
 - `ToggleBuildingAndPropHiding`: do the walls come back? Run it again to switch the hiding back on.
@@ -378,8 +375,8 @@ What this tells us about F-51:
 Then F9.
 
 **Run 3b (15:51 to 15:54, `save7`, the console).**
-- The log has `ToggleBuildingAndPropHiding` three times (at 43, 55 and 56 s). The user: "Toggle prop hiding did not
-  make the walls show".
+- The log has `ToggleBuildingAndPropHiding` three times (at 43, 55 and 56 s). Toggling prop hiding did not make the
+  walls show.
 - Shot 15:53:41 (`ShowCursorFloor`) reads "Cursor @ (1103.40, -7728.70, 64.00) Inside : XComBuildingVolume_10", just
   south of the doorway line. The walls are not drawn, and cover shields stand on their line.
 - The bottom of the screen reads "LWR v2.06.03": the lab runs LWR 2.06.03, and the save is from 2.01.14.
@@ -392,12 +389,11 @@ So the building and prop hiding (by floor) is not what hides them. Also ruled ou
 The next candidate is the cutout box (`XComCutoutBox`). It cuts out and cuts down walls around the cursor with a
 material mask, at a height worked out from the building's lowest floor while the cursor is inside a building. That
 path is separate from the prop hiding. A mask set below the walls would leave them colliding (the shields) but not
-drawn, and cinematics don't use it, which fits "visible after the intro".
+drawn, and cinematics don't use it, which fits the walls being drawn right after the intro.
 
 **Run 3c (the same session, the console).**
-1. With the cursor where the readout doesn't say "Inside: XComBuildingVolume_10", the walls are still not drawn
-   ("no").
-2. `CutoutBoxWidth 0` (logged at 279 s): no change ("no").
+1. With the cursor where the readout doesn't say "Inside: XComBuildingVolume_10", the walls are still not drawn.
+2. `CutoutBoxWidth 0` (logged at 279 s): no change.
 3. `DumpCutoutActors` (logged at 292 s) wrote nothing to the log while the game ran. The game's log runs behind
    (T-06); to be read after it closes.
 
@@ -411,7 +407,7 @@ the cursor does. Also read, without finding the cause:
   helpers, and `SetupUFORoof` (keeps units off UFO roofs). None hides level pieces, and none of its `SetHidden` calls
   touches them.
 
-Nothing in the lab differs from the user's live LWR 2.06.03 except the console `Engine.upk` and graphics settings.
+Nothing in the lab differs from the live LWR 2.06.03 except the console `Engine.upk` and graphics settings.
 So the hiding is most likely what LWR 2.06.03 (or the game itself) does on the Temple, not our tools. A patch-side
 probe that logs the doorway pieces' hidden flags over time would show how they are hidden.
 
@@ -450,7 +446,7 @@ pwsh -File tools\patch\patchtool.ps1 all tools\patch\examples\templeimproved.jso
 1. **The power cores** at readout tiles (22, 25, 10) and (22, 37, 10). Do they block a soldier's path (the move
    preview goes around them)? Do the tiles beside them show cover shields?
 2. **The laser barriers** at (34, 25, 7) and (10, 25, 7), as in run 1.
-3. If the user likes, one shot at a core: it should blow up at the first hit, as the map's own cores do.
+3. Optionally, one shot at a core: it should blow up at the first hit, as the map's own cores do.
 
 **In the log:**
 - `copied 4 of 4 pieces`, with two `copied collectible` lines.
@@ -459,7 +455,7 @@ pwsh -File tools\patch\patchtool.ps1 all tools\patch\examples\templeimproved.jso
 - If the cores' tiles read `o` in the log but the cores don't block in the game, then something besides F-54 is at
   work.
 
-**Result (16:06, the game still running; the user's own four screenshots, no F9).**
+**Result (16:06, the game still running; four screenshots taken by hand, no F9).**
 - The log (opened 16:06:49):
   - `IncrementHistory` names `TempleShip_TempleIm_2001`;
   - both cores logged `copied collectible`;
@@ -468,9 +464,9 @@ pwsh -File tools\patch\patchtool.ps1 all tools\patch\examples\templeimproved.jso
 - The new tile lines (29.63 s) show each core's own tile fully occupied (`oF`) at grid levels 9, 10 and 11:
   (22, 37) and (22, 25). The tiles around them on the walk are occupied at level 9. Each barrier's tiles are fully
   occupied at levels 6 and 7: x 33 to 35 (copy4) and 9 to 11 (copy5), at y 24 and 25.
-- The user: "they appear fine now, provide cover all around and can be walked around. same with the laser
-  batteries. only thing that would be nice to improve is their weird blue-ish hue".
-  - The user's shots 1 and 2 are the copies: a laser barrier, bluish violet in a warm dark corner, and a core. Shots
+- Seen in game: the cores look right now, give cover all around and can be walked around, and so do the laser
+  barriers. Only their odd bluish hue could be improved.
+  - Shots 1 and 2 are the copies: a laser barrier, bluish violet in a warm dark corner, and a core. Shots
     3 and 4 are the map's own pieces: a bank of three barriers by a bright light, and a core.
 
 **Pass criteria:** 1 to 3 pass, as in run 1. Criterion 4 passes: the pieces match the project and give cover. Their
@@ -509,7 +505,7 @@ A baked lightmap for a copy would need a lighting build of the map, which the to
 
 ### Run 5 (deployed 16:26): the copies' light, side by side (F-52)
 
-**Why:** run 4's copies have a "weird blue-ish hue". Run 4's reading of Temple's lights points to the cyan doorway
+**Why:** run 4's copies have an odd bluish hue. Run 4's reading of Temple's lights points to the cyan doorway
 spotlights, without the warm bounce that the baked pieces carry. This run tries the light settings that could bring
 the copies closer, side by side, in one mission.
 
@@ -585,7 +581,7 @@ If the tuned copies don't change, the fixed settings still compare.
 - The log has `copied 10 of 10 pieces` and a `lit` line for each copy, with the settings read back 5 s later as set.
 - The console's `set` works on the copier, struct values too: `TuneMode 0` and `1` (154.75 and 159.88 s) and
   `TuneGlow (R=0.1,G=0.1,B=0.1,A=1)` (202.42 s). Each relit the two tuned copies.
-- Shots 16:32:44 and 16:32:49, with the note "tried using the TuneGlow and nothing appears to have changed here".
+- Shots 16:32:44 and 16:32:49, where trying `TuneGlow` showed no visible change.
   - They look like the north group: a dark, warm grey barrier (likely the map's own `XComDestructibleActor_9`)
     between two violet copies.
   - No cyan light reaches that spot: only orange (154, 85, 62) and greenish ones (113, 125, 97; 150, 176, 110). So
@@ -599,9 +595,8 @@ If the tuned copies don't change, the fixed settings still compare.
 **Result of run 5 (16:28 to about 16:40; shots 16:32:44, 16:32:49 and 16:38:57; the log read while the game ran).**
 - `set XComMapEdCopier TuneGlow (R=1,G=0,B=0,A=1)` (531.68 s) logged as applied to both tuned copies, and nothing
   turned red. `AmbientGlow` has no visible effect here, at least when set in play.
-- `set SkyLightComponent Brightness 0` (556.87 s). The user: "turning the skylight brightness to 0 did make the lower
-  piece look a bit better. still blue tinted but doesn't stand out as much now", and "the soldiers were too dark
-  without it, but the items looked much better".
+- `set SkyLightComponent Brightness 0` (556.87 s). With it at 0 the lower piece looks a bit better: still blue
+  tinted, but it stands out less. The soldiers were too dark without it, but the items looked much better.
 - Mean colour of each barrier's body, from the full-size shots:
 
 | Barrier | Sky light on (16:32:44) | Sky light off (16:38:57) |
@@ -621,7 +616,7 @@ out, and the soldiers keep it.
 
 ### Run 6 (deployed 16:43): the copies leave out the sky light, by lighting channel
 
-**What changed** (the user: "Can we disable the skylight for our placed items only?"):
+**What changed** (the aim: the sky light off for our placed pieces only):
 - `XComMapEdDestructible.SetLighting` takes `Channels`, which sets the light environment's own lighting channels
   (`bOverrideOwnerLightingChannels`, `OverriddenLightingChannels`):
   - **A (1):** BSP, Static and Dynamic: every placed light, and dynamic ones such as explosions, but not lights that
@@ -661,8 +656,8 @@ out, and the soldiers keep it.
 variant drops the lavender, the engine doesn't choose its lights by these channels, and the next step is another
 way: per-copy light lists, or the sky light itself.
 
-**Result of run 6 (16:44; the user's own shot of the north group).** The user: "The lower one is lit up like before
-and upper one is all black. The lower one looked good when I set the skylight brightness to 0 in game".
+**Result of run 6 (16:44; a shot of the north group taken by hand).** The lower one is lit as before, and the upper
+one is all black. The lower one looked right with the sky light's brightness set to 0 in game.
 - `north_a` (A: BSP, Static and Dynamic) is lit as before, lavender included.
 - `north_b` (B: BSP and Static) is black.
 - The log reads both settings back as set:
@@ -715,7 +710,7 @@ brightness 0)`, then `sky lights back on (1); the light of 8 copies is fixed as 
   - `sky lights off for 2.0000 s while 8 copies take their light: SkyLight_0 (brightness 0.3000, now enabled False
     brightness 0.0000)`;
   - `sky lights back on (1); the light of 8 copies is fixed as taken` (33.46 s).
-- The user's note on the 16:53:36 shot: "looks great now!". The barrier copies in it have the scene's warm brown.
+- 16:53:36: the barrier copies have the scene's warm brown.
 - 16:53:42: the power core copy beside a soldier is a natural dark grey.
 - 16:53:47, the north group: both copies look like the map's own barrier between them. Mean colour of each body:
 
@@ -748,9 +743,9 @@ leave out a sky light that lights no baked surface (no BSP or Static channel) bu
 (`CompositeDynamic` or `Dynamic`). Copies of pieces the map itself lights live (doors, `XComInteractiveLevelActor`)
 should keep it, since their originals have it too.
 
-### Run 8 (deployed 17:13): the user's project with the generic rule
+### Run 8 (deployed 17:13): the project with the generic rule
 
-The user asked to apply the fix to all map edits, not per copy.
+The fix applies to all map edits, not per copy.
 
 **What changed:**
 - [`XComMapEdSkyFree.uc`](../../unrealscript/XComMapEd/Classes/XComMapEdSkyFree.uc) (new): one per level. Pieces
@@ -792,9 +787,9 @@ copies there keep their light as before and nothing is fixed; the log line says 
 
 ### Run 9 (deployed 17:56): revision 4, four consoles in place of the power cores
 
-**The project, revision 4** (saved 17:50). The power cores are gone. In their place, the user laid two copies of the
-alien console `XComDestructibleActor_60` (`alienConsoleB3`) on their sides (roll −16384), stacked back to back at the
-north core's place, and pasted the pair at the south core's place. The laser barriers and the two deleted low covers
+**The project, revision 4** (saved 17:50). The power cores are gone. In their place, two copies of the alien console
+`XComDestructibleActor_60` (`alienConsoleB3`) lie on their sides (roll −16384), stacked back to back at the north
+core's place, and the pair is pasted at the south core's place. The laser barriers and the two deleted low covers
 are as before.
 
 **The compiler refused it** (`template-changed`): `XComDestructibleActor_60_copy11` named its template's mesh
@@ -804,7 +799,7 @@ component twice. This is T-12, a viewer bug:
 - The project keeps an actor's pieces together by name, so the save merged them into one actor: one pose, the mesh
   listed twice. The fourth console's pose was lost.
 
-**Rebuilt for this build** (the user's project file is unchanged; scratch copy `r4-repaired\project.json`):
+**Rebuilt for this build** (the saved project file is unchanged; scratch copy `r4-repaired\project.json`):
 - copy11 has the same rotation as copy9, so the paste was a plain shift, (3.1728, −1246.0316, 0.3462).
 - Applied to copy10, it gives the lost console: `XComDestructibleActor_60_copy12` at (52.3618, −7009.2446,
   248.6395), rotation (0, −32375.874, −16384).
@@ -837,7 +832,7 @@ north one and saved, or the project is written as revision 5 with the rebuilt co
 
 ### Run 10 (deployed 18:03): revision 5, the consoles re-pasted with the fixed viewer
 
-The user reloaded the viewer (with the T-12 fix), pasted the south pair again and saved revision 5 (18:02). The south
+The viewer was reloaded (with the T-12 fix), the south pair pasted again and revision 5 saved (18:02). The south
 pair is now two actors, `XComDestructibleActor_60_copy12` at (47.1094, −7012.8936, 248.1795) and `_copy13` at
 (47.0122, −7010.309, 248.1795). The north pair (`_copy9`, `_copy10`), the laser barriers and the two deleted low
 covers are as in revision 4.
@@ -847,10 +842,10 @@ covers are as in revision 4.
   (line 42) streams the project's patch.
 - **What to look at:** as run 9.
 
-**Result of run 10 (18:04 onwards; the user's own shot).** The user: "if I hit one of these with a grenade (has to be
-right on top of, or "inside" the new double console pieces) they revert back to the blueish lighting". The shot shows
+**Result of run 10 (18:04 onwards; a shot taken by hand).** A grenade right on top of (or inside) the new double
+console pieces turns them back to the bluish lighting. The shot shows
 a hit console copy violet again, beside a console that wasn't hit, which kept the map's tone.
-- The log, at every load (the user reloaded at 194, 260 and 342 s):
+- The log, at every load (reloads at 194, 260 and 342 s):
   - `sky light SkyLight_0 ... channels (CompositeDynamic ): ... our pieces leave it out`;
   - `sky lights off (1)`, then `back on (1); the light of 6 light environments is fixed as taken`.
 - The grenades:
@@ -877,9 +872,8 @@ line 42 already streams it.
 **What to look at:** a grenade on a console copy, as in run 10. Does the copy keep (or get back within a moment) the
 map's tone? Is the soldiers' brief dimming noticeable?
 
-**Result of run 11 (18:21 onwards; the user's two shots).** The user: "threw a grenade and the cosoles on the left
-stayed blue after impact", and the console on the right "seems to be completely black", while the one next to it "seems
-to have some light compared to it".
+**Result of run 11 (18:21 onwards; two shots taken by hand).** After a grenade, the consoles on the left stayed blue,
+and the console on the right seems completely black, while the one next to it has some light.
 - The log:
   - at load (22.20 s to 24.43 s), the 2 s pass for 6 light environments, as in run 10;
   - while the grenade was aimed (47.68 s to 50.71 s), four relights: the aiming lays its area highlight
@@ -898,8 +892,8 @@ to have some light compared to it".
   note on `bTraceFromClosestBoundsPoint` says this fails for an object "likely embedded in shadow casting objects".
   With the sky light out, a piece whose every light is blocked has nothing left (F-56). This is the likely cause, not
   a proven one.
-- The user asked whether 4 checks a second scale with the pieces: they did, one look (a few names) per piece every
-  0.25 s, all in one frame. Run 12 drops the watch.
+- The 4 checks a second scale with the pieces: one look (a few names) per piece every 0.25 s, all in one frame. Run
+  12 drops the watch.
 
 ### Run 12 (deployed 18:39): the sky light moves to the units' channel; pieces trace from their bounds
 
@@ -930,8 +924,8 @@ cook's SHA-256, 146 tiles seeded, line 42 unchanged).
 3. The soldiers keep their light, lavender fill included.
 4. The doors: do they look different from before?
 
-**Result of run 12 (18:42 onwards; the user's shot).** The user: "threw a grenade and it didn't change the lighting
-on the piece so that fix works", and "Soldiers seemed normal". But "The black piece was still black though".
+**Result of run 12 (18:42 onwards; a shot taken by hand).** A grenade didn't change the piece's lighting, so that fix
+works, and the soldiers looked normal. But the black piece was still black.
 - The log at load:
   - `SkyLight_0 ... channels (CompositeDynamic ): ... units take it on Gameplay_1 instead`;
   - `SkyLight_0 switched off; XComMapEdUnitSky_0 lights the units in its place: brightness 0.3000 colour 110,99,156
@@ -959,7 +953,7 @@ on the piece so that fix works", and "Soldiers seemed normal". But "The black pi
 - **Next options:** move the pair where the map's lights reach it, or give our pieces a fill of their own. Such a fill
   could be `AmbientGlow` on their light environments, set at load. Run 5's in-play glow test showed nothing, but that
   copy had stopped following light changes, so it is not yet really tried.
-- **Left as it is:** the user asked not to work around a problem that comes from one place in one map.
+- **Left as it is:** no workaround for a problem that comes from one place in one map.
 
 ### Run 13 (deployed 19:36): revision 6, the stacked pairs as groups that break together
 
@@ -986,7 +980,7 @@ on the piece so that fix works", and "Soldiers seemed normal". But "The black pi
 3. The log: `break group 1:` and `break group 2:` at load, and `its break partner ... goes from ... to ...` at the hit.
 4. If possible, a save and a reload after one pair is damaged, and then a hit on it.
 
-**Result of run 13 (19:37 to 19:39; the log).** The user: "done things, look good, I grenaded one of a pair".
+**Result of run 13 (19:37 to 19:39; the log).** The pieces looked right; a grenade went at one of a pair.
 - At load, both links:
   - `break group 1: XComMapEdDestructible_0 in _Pristine; XComMapEdDestructible_1 in _Pristine` (the low covers);
   - `break group 2: XComMapEdDestructible_2 ...; XComMapEdDestructible_3 ...` (the consoles).
@@ -1064,7 +1058,7 @@ second map our baker relights, after the bar. The project is revision 7, as in r
 
 The doorway walls (F-51) stay hidden, as in every Temple run; that isn't ours.
 
-**Result (12:21 to 12:22; six shots, 12:21:38 to 12:22:00): passes.** The user: "everything looks right".
+**Result (12:21 to 12:22; six shots, 12:21:38 to 12:22:00): passes.** Everything looks right.
 - The shots show both laser barriers on their floors and both low-cover pairs on the raised walk. There's no leftover
   low-cover shadow, and nothing in the hall stands out.
 - One low-cover pair is near black (shot 12:21:45), darker than the walk around it. That is F-56, the copies' live
@@ -1072,4 +1066,4 @@ The doorway walls (F-51) stay hidden, as in every Temple run; that isn't ours.
   place. The map's own pieces there are lit by the bake's bounce.
 - So step L1 passes. Our baker relit a second map, with Temple's 1,190 emissive area lights and two bounces, and
   the game shows no fault from the bake.
-- **Next:** the user asked whether our own baking can fix the black pair (F-56); see the findings register.
+- **Next:** whether our own baking can fix the black pair (F-56); see the findings register.

@@ -22,7 +22,7 @@ And for each, does a quicksave load (F-156's kind of crash: an actor taken out o
 
 Built quick by the Build of this branch, each a project with one part cleared (schema 9's `cleared`) and nothing else
 (the pieces' variant with every base-level piece deleted, as the page's clear deletes them), staged in the lab copy
-with `lab_install.install(..., game=<the lab copy>)` while the user's own copy was the one Steam ran:
+with `lab_install.install(..., game=<the lab copy>)` while another copy was the one Steam ran:
 
 | Variant | Base map | What the clear took (the manifest's cleared record) |
 |---|---|---|

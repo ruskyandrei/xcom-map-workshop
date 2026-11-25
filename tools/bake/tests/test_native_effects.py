@@ -228,7 +228,7 @@ class Lanes(SharedPart, unittest.TestCase):
             self.assertIn(words, str(caught.exception))
 
     def test_a_cleared_map_keeps_the_moved_sound_the_copies_and_the_skyrangers(self):
-        # (the user, 18 November 2026: Clear left a cleared Bar's ambient sounds in its play area) the map's own
+        # (18 November 2026: Clear left a cleared Bar's ambient sounds in its play area) the map's own
         # sounds go with the clear, but one the project moved, its copies and the Skyranger's (a build of its own: the
         # sounds' lane alone, with a clear)
         out = Path(self.tmp) / 'Cleared'

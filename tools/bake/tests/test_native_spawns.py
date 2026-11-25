@@ -321,7 +321,7 @@ class BarSpawnCopies(unittest.TestCase):
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class BarNoSpawnVolumes(unittest.TestCase):
-    """URB_Bar's no-spawn volumes edited (the user, 18 November 2026: editable and added from the Add panel): volume 0
+    """URB_Bar's no-spawn volumes edited (18 November 2026: editable and added from the Add panel): volume 0
     stretched over a new box in place and let civilians in, a copy of it, a new one (made from the map's first volume),
     volume 2 deleted; and a pod copied from a pod the same edit deletes (a cleared map's new pod). Written, read back,
     each volume's brush over its box."""

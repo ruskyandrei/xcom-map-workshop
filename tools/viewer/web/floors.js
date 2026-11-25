@@ -663,7 +663,7 @@ export function floorsAround(boxes, grid, storey = STOREY_HEIGHT) {
 }
 /** What the compiler warns of in a building (building_edits.py BuildingEdits.buildings), as sentences: a box that
  *  overlaps a floor of another building or another floor of its own. (A box reaching outside the tile grid is only a
- *  note there: it covers a place with no tiles, which harms nothing; the user, 14 November 2026.) others: the map's and
+ *  note there: it covers a place with no tiles, which harms nothing; 14 November 2026.) others: the map's and
  *  the project's other buildings, [{ name, floors: [{ boxes: [{min, max}] }] }]. fresh(floor, box index): whether a box
  *  is changed or new (a map building's boxes as the map has them are not said; default: every box). `grid` is kept for
  *  the callers. */

@@ -122,7 +122,7 @@ class Pieces(unittest.TestCase):
         self.assertLessEqual(got, want + 6 * generated.SLOTS)    # (a slot empty in a piece is a triangle of no area)
 
     def test_a_gap_moved_makes_only_its_pieces_again(self):
-        # (the user, 19 November 2026: gap edits on a wall of 29 tiles and six storeys were slow) the pieces are kept by
+        # (19 November 2026: gap edits on a wall of 29 tiles and six storeys were slow) the pieces are kept by
         # their numbers: the wall drawn again with one gap moved makes only the pieces that gap is in; the answer is the
         # same as one made from nothing
         wall = dict(x0=0, x1=96 * 29, seed=2, storeys=4, openings=[dict(x0=96, x1=192, z0=72, z1=168)])

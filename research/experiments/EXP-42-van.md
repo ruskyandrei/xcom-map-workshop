@@ -38,7 +38,7 @@ Picture `EXP-42-run1-carpark.png` (not in the repository): the car park.
 
 ## Run 1: passed
 
-Played by the user on 11 November 2026: "exp 42 confirmed all looks good". Vans are switched on for every project
+Played by hand on 11 November 2026: passed. Vans are switched on for every project
 (`van` in `compiler.FOREIGN_ASSEMBLIES`), and the library was scanned again.
 
 What this run added, and nothing else needed checking:

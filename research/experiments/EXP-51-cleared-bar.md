@@ -73,7 +73,7 @@ Not looked at in these runs:
 
 ## Result: passed
 
-Played by the user on 13 November 2026: "already did exp 51 it was ok". So a map cleared by the Build, its own landing
+Played by hand on 13 November 2026: passed. So a map cleared by the Build, its own landing
 moved and turned in the package (its intro's flight with it), a landing zone added under Long War, floor fields of
 the map's own pieces copied in place and a building made from nothing all load and play. Which of the looks listed
 above were made one by one is not recorded.

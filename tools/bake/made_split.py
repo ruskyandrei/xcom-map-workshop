@@ -1,5 +1,5 @@
 """Made pieces past the sizes the game is known to take, cut into pieces it takes (custom geometry editing plan, B4,
-decision D-3, 19 November 2026: the user, "let the user keep growing these walls/floors as much as they want").
+decision D-3, 19 November 2026: the user keeps growing these walls and floors as much as they want).
 
 A wall of any length is cut into lengths of at most MAX_TILES tiles, joined end to end (the compiler's wall_joins gives
 them 'line' ends, as two walls drawn end to end have, and a break passes between them); each cut is a tile edge as far

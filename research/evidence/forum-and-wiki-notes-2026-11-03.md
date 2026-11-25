@@ -6,7 +6,7 @@ Sources:
 
 - Nexus forum thread [R&D XCOM Map Alterations](https://forums.nexusmods.com/topic/1104408-rd-xcom-map-alterations/): 48 pages, 474 posts, September 2013 to October 2015. Pages 7–48 were read in full. Pages 1–6 are covered by the wiki's Maps page.
 - Nexus wiki: [Modding with the UDK](https://wiki.nexusmods.com/index.php/Modding_with_the_UDK_-_XCOM:EU_2012), [Developer Console](https://wiki.nexusmods.com/index.php/Developer_Console_-_XCOM:EU_2012), [Maps](https://wiki.nexusmods.com/index.php/Maps_-_XCOM:EU_2012), [Spawn Points](https://wiki.nexusmods.com/index.php/Spawn_Points_-_XCOM:EU_2012) and [Units deployment](https://wiki.nexusmods.com/index.php/Units_deployment_-_XCOM:EU_2012).
-- Reddit [After some testing…](https://www.reddit.com/r/Xcom/comments/1vj21eh/after_some_testing/) (AllHailShadow726, August 2026). Claude in Chrome, the built-in browser and WebFetch all refused Reddit. The user pasted the post, its comments and its two screenshots instead. See the last section.
+- Reddit [After some testing…](https://www.reddit.com/r/Xcom/comments/1vj21eh/after_some_testing/) (AllHailShadow726, August 2026). Claude in Chrome, the built-in browser and WebFetch all refused Reddit. The post, its comments and its two screenshots were pasted in instead. See the last section.
 
 ## Line of sight (the main open risk)
 
@@ -111,7 +111,7 @@ Sources:
 - **The October 2015 wave-system override is not in the repository.** It was `patch_override_wave_system.upk` plus `DefaultWaveSystem.ini`, an INI-driven reinforcement system, posted only as a Dropbox link that was not checked. Its author reported that `DisableEvent` and `OnGroupActivated` did not work. It is not in this install.
 - **LiQuiD911 found the UDK editor unstable.** The editor often froze while loading `Engine.u` with this tree and could take about ten restarts to open (6 July 2015).
 
-## The August 2026 Reddit thread (from the user's paste)
+## The August 2026 Reddit thread (from a paste)
 
 What the author says:
 

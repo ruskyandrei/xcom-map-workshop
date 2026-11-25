@@ -124,7 +124,7 @@ FRAC_WALL_TOPS = {1: 192.0, 2: 384.0}
 # 2026, brought forward from M2 (EXP-22 runs 1 and 2), doors with a frame the same day (EXP-23 runs 1 to 3), cars too
 # (EXP-24 runs 1 and 2) and vans (EXP-24 runs 3 and 4: the Build takes a van's building along). Frameless doors
 # use the same native door recipe (EXP-39). Fracturing pieces and physics props were switched on on 9 November
-# 2026 at the user's word, before a game run (EXP-28): a fracturing piece keeps the grid move, since the Build carries
+# 2026, before a game run (EXP-28): a fracturing piece keeps the grid move, since the Build carries
 # its per-tile fragment columns with it; `builds` off again brings back each one's refusal.
 FAMILIES = {
     'scenery': dict(builds=True, milestone=1, grid=False, what='scenery'),
@@ -139,7 +139,7 @@ FAMILIES = {
     'physics': dict(builds=True, milestone=3, grid=False, what='a physics prop'),
     'other': dict(builds=False, milestone=3, grid=False, what='another kind of piece'),
     # lights belong to no milestone: `note` is what the page shows in place of the milestone line while the family is
-    # off (plan 3.4). Switched on 9 November, at the user's word after EXP-26 run 1, before runs 2 to 6.
+    # off (plan 3.4). Switched on 9 November, after EXP-26 run 1, before runs 2 to 6.
     'light': dict(builds=True, milestone=None, grid=False, what='a light',
                   note='Light edits are drawn and saved; the Build makes them once their game test passes.'),
     # a building made from nothing (private/plans/done/prefab-library-plan.md, 5.1 and stage B1): on since EXP-44 passed

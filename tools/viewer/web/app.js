@@ -149,7 +149,7 @@ const volumeLayer = new THREE.Group();
 // Box select (buildings_wiring.js, with the Buildings view): the tool waiting for a drag, the box, the drag, what the
 // box would take, and the pieces' middles while it is up.
 // (pickTool, pickBox, pickDrag, pickHits, pickCentres: editor_state.js)
-// The three views (the user, 11 November 2026): Normal, Buildings (volumesOn) and Lights (lightsOn), one at a time.
+// The three views (11 November 2026): Normal, Buildings (volumesOn) and Lights (lightsOn), one at a time.
 // In the Buildings view only boxes are picked, in the Lights view only lights. In the normal view pieces are, and
 // with the Normal button's two switches also lights (normalLights) and the project's floor boxes (boxesShown), a
 // building whole. Both switches are off whenever a map opens.
@@ -882,7 +882,7 @@ async function open() {
 // module that owns it (scene_start.js: the page's own parts), in the order the page always started them.
 async function startScene({ parameters, familiesAsked, mapName }) {
   setMergedBuildings(null);
-  // No layout menu any more (the user's choice, 7 November): a patch preview (Bar's EXP-07 and EXP-08 layouts)
+  // No layout menu any more (chosen 7 November): a patch preview (Bar's EXP-07 and EXP-08 layouts)
   // opens only from its address, ?scene=preview-<n>.json.
   showSceneTitle($);
   // Configure light data before the first lit material compiles.
@@ -1124,8 +1124,8 @@ renderer.domElement.addEventListener('pointerup', e => {
   if (edge?.own) { pickOwn(edge.own, e.ctrlKey || e.shiftKey || e.metaKey); return; }
   const hit = pick(e.clientX, e.clientY);
   // a landing zone ahead of what stands on it; a landing piece (the frame, the Skyranger) picks its zone
-  // landing zones are picked in the Landing zones view only (the user, 13 November 2026: "not editable in normal
-  // mode"); a landing piece is a piece here, its zone moved in that view
+  // landing zones are picked in the Landing zones view only (13 November 2026: not editable in the normal
+  // view); a landing piece is a piece here, its zone moved in that view
   if (hit && isLanding(roots.get(hit.object.userData.objectId)?.userData.source ?? {}))
     flashHint('A piece of the landing: its zone is moved in the Landing zones view (Shift+Z)');
   if (floorTileSelect(e, hit)) return;

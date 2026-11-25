@@ -1,8 +1,8 @@
 # EXP-43: the game's blank map as a stage for game runs
 
 Date: 11 November 2026. Stage T1 of the prefabs and buildings plan (its 5.10 and 5.11):
-the later runs of that plan want an empty map to put a building or a prefab on, and the user asked for a map made
-from scratch to be tried first. The game ships one map that is little more than a level and a tile grid,
+the later runs of that plan want an empty map to put a building or a prefab on, and a map made
+from scratch is tried first. The game ships one map that is little more than a level and a tile grid,
 `CB2_MP_Blank` (a multiplayer map), so that is the shell. Nobody here has started a single-player battle on it.
 
 ## What the map holds (read offline)
@@ -38,7 +38,7 @@ What this run is to show, all of it new:
 
 ### Result: a battle starts; saving does not work
 
-Played by the user on 11 November 2026, in the lab copy, with two screenshots and the game's log
+Played by hand on 11 November 2026, in the lab copy, with two screenshots and the game's log
 (`<lab copy>\XEW\XComGame\Logs\Launch.log`).
 
 1. **A battle starts.** The map loads in about five seconds as a single-player battle ("Neutralize hostile
@@ -57,7 +57,7 @@ Played by the user on 11 November 2026, in the lab copy, with two screenshots an
    six other pieces are a van, a pickup and a wall.
 6. **Saving fails.** After Save, the "saving" notice came and went without end. The save was written (`save1`,
    2.76 MB; the log has one checkpoint of 129 actors and one of 8, `Async Work Finished`). Loading it from the
-   load menu hung the game with nothing in the log; the user closed it with Alt+F4. The load menu also asked for a
+   load menu hung the game with nothing in the log; it was closed with Alt+F4. The load menu also asked for a
    picture the game doesn't have (`UILibrary_MapImages.CB2_MP_Blank`).
 
 **Not known yet: whether the save trouble is this map's or the way the battle was started.** No save has ever
@@ -76,7 +76,7 @@ that save.
 
 ### Result: the same on URB_Bar, so it is the way of starting
 
-Played by the user on 11 November 2026: "it did the same on bar". The log has the same lines as run 1's (both
+Played by hand on 11 November 2026: the same happened on the bar. The log has the same lines as run 1's (both
 checkpoints copied, the compression finished, nothing after). The lab copy's 38 kept logs of a start with `-EXEC`
 hold no other save or load: saving in a Play in game battle had never been tried, and the saves that worked
 earlier that day (EXP-40 to EXP-42) were in a campaign. F-89 is now about Play in game on any map; the blank map
@@ -84,8 +84,8 @@ is not at fault.
 
 ## Run 2: the map equipped, with pieces of other maps on it
 
-The user decided on 11 November 2026 that a save in a Play in game battle need not work for now (F-89 stays open),
-and that the blank map goes ahead as the stage.
+Decided on 11 November 2026: a save in a Play in game battle need not work for now (F-89 stays open), and the
+blank map goes ahead as the stage.
 
 ### What is built (offline)
 
@@ -127,8 +127,8 @@ A save is not part of this run (F-89).
 
 ### Result: passed, but for LWR's pods and Meld
 
-Played by the user on 11 November 2026: "look ok in game as expected, though only 2 sectoids were on the map and
-no meld", which they called not important for now.
+Played by hand on 11 November 2026: fine in game as expected, though only 2 sectoids were on the map and no
+meld, not important for now.
 
 - The squad's start, the pieces, the van and the cursor were as expected. The blank map is the stage.
 - **Pods and Meld: still the map's own pod.** The log shows LWR's mutator now finds the six soldier points, then
@@ -177,18 +177,18 @@ What this run adds:
 
 ### Result: passed
 
-Played by the user on 11 November 2026, with a screenshot: "looks like it works. added some more floor tiles that
-way too, and meld/aliens spawned in the extended area too".
+Played by hand on 11 November 2026, with a screenshot: it works; more floor pieces were added that way too, and
+Meld and aliens spawned in the extended area too.
 
-- The larger grid plays: ground, movement and the pieces on the new ground were as expected, and the user's own
-  added floor pieces worked there.
+- The larger grid plays: ground, movement and the pieces on the new ground were as expected, and the floor
+  pieces added in the run worked there.
 - **LWR's pods and Meld came**, in the new area too (a Meld counter and a pod of three in the shot): on 54 by 54
   its mutator has sections far enough from the squad (F-90).
 - So a level volume and cursor volumes stretched by `DrawScale3D` do their work, and tile data written by
   `world_grid.py` is accepted.
 - Not reported: the mouse wheel's floors at the far corner, and how long the start took.
 
-### The same on another map (asked by the user)
+### The same on another map
 
 Tried offline on URB_Bar, 52 by 39 to 61 by 48: the tile data, the world data, the level volume and the cursor
 volumes all take the new size and read back. What a real map needs beyond that:

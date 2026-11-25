@@ -1,6 +1,6 @@
 # EXP-11: Static pieces placed by the editor's compiler (plan)
 
-Status (6 November 2026, 14:40): **done; passes.** The user closed it after run 2. Static pieces moved, turned on
+Status (6 November 2026, 14:40): **done; passes.** It was closed after run 2. Static pieces moved, turned on
 all three axes, copied and deleted by the compiler stand exactly as the project has them, and the places they left
 open up. Two items were not seen closely (see run 2), and run 2 found F-50: effects the map placed around a moved
 piece stay behind. The lab's test slot is back as EXP-10 left it. This is the first in-game check of slice E3 of the
@@ -79,7 +79,7 @@ pwsh -File tools\patch\patchtool.ps1 stream -Map patch_bar -Stream 'URB_Commerci
 - **Backups:** `<lab>\patchtool\backups\DefaultMaps.ini.20261106-124204` (before the record),
   `-124204-2` (before the test slot's slot 2) and `-124246` (before its slot 1); `DefaultLZMutator.ini.20261106-124204`.
 
-## In the game (the user drives, Claude looks)
+## In the game (played by hand, with screenshots taken)
 
 A new campaign, as in EXP-10. The first mission loads the test slot. Shots (F9):
 1. The south-west street from above, with the three rows in view.
@@ -109,15 +109,15 @@ A new campaign, as in EXP-10. The first mission loads the test slot. Shots (F9):
 
 ### Run 1 (6 November, 13:15 to 13:17): the added pieces pass; the moves and deletions not yet seen
 
-The user started the mission, took one shot and quit after about two minutes.
+The mission was started, one shot taken and the game quit after about two minutes.
 
 - **The shot** (`<lab>\looks\look-131706.png`) shows the south-west street from above:
   - the three rows of street lights, turned, pitched and rolled;
   - the three fog pod copies;
   - a soldier beside them, with cover shields on the tiles next to the pods on the floor.
-- **The user's note:** "everything looks right for the added items. the fog pod that is floating above the ground
-  has no cover, but that's probably right. not sure if there's a way to indicate this in the editor ?" The viewer now
-  marks floating pieces (its changelog, the tile grid); see F-49.
+- **Seen in game:** everything looks right for the added items. The fog pod floating above the ground has no cover,
+  which is probably right; the editor could show this. The viewer now marks floating pieces (its changelog, the tile
+  grid); see F-49.
 - **The log** (the lab copy's `XEW\XComGame\Logs\Launch.log`, read only):
   - `IncrementHistory` names `URB_Bar_EXP11Static_b7f3`.
   - `CIN_DropshipIntros`, `patch_bar` and `patch_urb_bar_exp11static_b7f3` load with the map. As in EXP-10,
@@ -148,9 +148,9 @@ The user started the mission, took one shot and quit after about two minutes.
 
 ### Run 2 (6 November, 14:16 to 14:18 and 14:33 to 14:37): the moves and deletions; the experiment closed
 
-Two short sessions, 8 shots. For the second, the user found the game's cursor readout, `Cursor @ (x, y, z)` with the
+Two short sessions, 8 shots. For the second, the game's cursor readout was found, `Cursor @ (x, y, z)` with the
 tile `(x, y, level)`. It is in the map's grid: tile x is (x + 2784) / 96, tile y is (y + 1920) / 96, and the level is
-z / 64, rounded down. So the spots were given to them as tiles.
+z / 64, rounded down. So the spots were given as tiles.
 
 - **Both logs** pass as run 1 did:
   - `IncrementHistory` names `URB_Bar_EXP11Static_b7f3`;
@@ -159,8 +159,8 @@ z / 64, rounded down. So the spots were given to them as tiles.
   - the hider logs `hid 4 of 4 exact targets`, with no warning, and the three tile rebuilds finish.
 - **The first session's shots** (`look-141717` to `look-141748`) show the added pieces again: the rows, the pods
   with cover shields beside the two on the floor, and a move path past the knocked-over street light.
-- **The moved fog pod's old tile** (`look-143622`, cursor at tile (7, 15)): the pod stands one tile east. The user's
-  note: "can path through but there's some green smoke emitter still going". The smoke is not the pod's:
+- **The moved fog pod's old tile** (`look-143622`, cursor at tile (7, 15)): the pod stands one tile east. Units
+  can path through, but a green smoke emitter is still going there. The smoke is not the pod's:
   - The map placed it as separate actors around the pod: five emitters `Emitter_39`, `_43`, `_48`, `_49` and `_50`
     from `PRE_Pod_Smoke` (with `PrefabInstance_12`), the point light `PointLight_8`, and the decals `DecalActor_6`,
     `_8` and `_10`.

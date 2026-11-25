@@ -60,7 +60,7 @@ them.
   original's moved by `moved_box`; `test_a_car_copys_glass_drops_column_entries_of_other_pieces` copies Police
   Station's car 1071, whose glass also lists `XComDestructibleActor_1070`.
 
-**In the game** (the user drives; the lab copy). Marked editor shots, taken with
+**In the game** (played by hand; the lab copy). Marked editor shots, taken with
 [`mark_shots.py`](../../tools/viewer/mark_shots.py) from [EXP-24-run1-shots.json](EXP-24-run1-shots.json): the
 overview (`EXP-24-run1-overview.png`: the street and car park, boxed), the police car and its
 copy (`EXP-24-run1-police.png`: marks 3 and 4) and the street west of the bar (`EXP-24-run1-west-street.png`: marks 1,
@@ -77,7 +77,7 @@ copy (`EXP-24-run1-police.png`: marks 3 and 4) and the street west of the bar (`
 6. Save with one car burning and another a wreck, reload: no second blast, and the wreck still gives cover.
 7. Afterwards, the game log has no `CachedFrag` or `REBUILD PATHING!` lines (F-11; Claude reads it).
 
-**Result (8 November, the user's run):** passed: "looks good confirmed". The game log (`Launch.log` of the lab copy,
+**Result (8 November, run by hand):** passed. The game log (`Launch.log` of the lab copy,
 17:12 to 17:13, about 80 seconds on the map) has no `CachedFrag` or `REBUILD PATHING!` lines. It records one HE
 grenade whose blast damaged a fracturing piece and five others, and no save or reload, so check 6 (save and reload
 with a burning car and a wreck) carries to run 2. No F9 shots were taken.
@@ -116,7 +116,7 @@ police station" (`24f0a0b1-…`), variant `URB_PoliceSt_Exp24C_24f0`, on export 
 - Installed in the lab's test slot (deploy record `URB_PoliceSt_Exp24C_24f0-20261108-172753.json`): it plays the
   station's abduction record.
 
-**In the game** (the user drives; the lab copy). Marked editor shots, from
+**In the game** (played by hand; the lab copy). Marked editor shots, from
 [EXP-24-run2-shots.json](EXP-24-run2-shots.json): the overview (`EXP-24-run2-overview.png`: the car park west of the
 station, boxed), the moved sedan, and the police car and its copy (`EXP-24-run2-sedan-police.png`: marks 1 to 3),
 the crashed red car and its copy (`EXP-24-run2-wrecks.png`: marks 4, 5 and 7) and
@@ -130,7 +130,7 @@ where the sedan stood (`EXP-24-run2-deleted.png`: mark 6).
    still gives cover.
 6. Afterwards, the game log has no `CachedFrag` or `REBUILD PATHING!` lines (Claude reads it).
 
-**Result (8 November, the user's run):** passed: "all looks good to me". Four F9 shots: the deleted sedan's place
+**Result (8 November, run by hand):** passed. Four F9 shots: the deleted sedan's place
 (bare road, the dash path crossing it without cover); the crashed red car's copy, its original and the yellow car
 burnt out after a blast, the copy's wreck as the map's; and two after loading a save made 2 turns in, the wrecks
 still burning and giving cover, the moved sedan with its light bar and both police cars in place. The game log
@@ -193,7 +193,7 @@ Project: [`exp24_vans_project.py`](../../tools/editor/examples/exp24_vans_projec
 bake made the originals'. F-47 (a copied second floor got no floor tiles, EXP-08) is the same question for script
 copies, still open.
 
-**In the game** (the user drives; the lab copy). Marked editor shots, from
+**In the game** (played by hand; the lab copy). Marked editor shots, from
 [EXP-24-run3-shots.json](EXP-24-run3-shots.json): the overview (`EXP-24-run3-overview.png`),
 the delivery van and its copy (`EXP-24-run3-delivery.png`: marks 1 and 2), the short van (`EXP-24-run3-short-van.png`:
 marks 3 and 4) and where the moving van stood (`EXP-24-run3-deleted.png`: mark 5).
@@ -207,7 +207,7 @@ marks 3 and 4) and where the moving van stood (`EXP-24-run3-deleted.png`: mark 5
    the air, no cover.
 6. Save with a soldier inside a van copy, reload: they stay inside, and the roof still cuts away.
 
-**Result (8 November, the user's run):** passed: "looks good to me". Four F9 shots: a move path into the delivery van
+**Result (8 November, run by hand):** passed. Four F9 shots: a move path into the delivery van
 copy's cargo area through its back, with cover shields inside; the car park with the copy, the moved short van and
 the empty bay where the moving van stood; after loading a save made a turn in, a soldier still inside the copy's
 cargo area with its roof cut away; a dash path into the moved short van's cargo area through its back door. So the
@@ -244,7 +244,7 @@ of the police station. Project: [`exp24_police_vans_project.py`](../../tools/edi
   (Dropship) and `5cab9b9b0912…` (Fastrope).
 - Installed in the lab's test slot (deploy record `URB_PoliceSt_Exp24V_24d0-20261108-182910.json`).
 
-**In the game** (the user drives; the lab copy). Marked editor shots, from
+**In the game** (played by hand; the lab copy). Marked editor shots, from
 [EXP-24-run4-shots.json](EXP-24-run4-shots.json): the overview (`EXP-24-run4-overview.png`),
 the delivery van and its copy (`EXP-24-run4-copy.png`: marks 1 and 2) and
 the moved van and the deleted one's place (`EXP-24-run4-moved.png`: marks 3 and 5).
@@ -255,7 +255,7 @@ the moved van and the deleted one's place (`EXP-24-run4-moved.png`: marks 3 and 
 5. Where the deleted van stood (mark 5): open ground, no floor or roof left in the air, no cover.
 6. Save with a soldier inside a van copy, reload: they stay inside, and the roof still cuts away.
 
-**Result (8 November, the user's run):** passed: "ok did a quick check that's good consider all of these passed". A
+**Result (8 November, run by hand):** passed after a quick check. A
 short look, with no F9 shots: the game log (18:38 to 18:39) has the mission up at 25 s and the exit at 81 s, no save,
 no `CachedFrag` or `REBUILD PATHING!` lines, and no warning naming the copies' buildings, floor volumes or parts. A
 save and reload with a soldier inside a van copy was run 3's. With runs 3 and 4 passed, the van family builds

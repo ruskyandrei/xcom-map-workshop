@@ -92,7 +92,7 @@ and each material's true diffuse output, none of which the cooked game states. W
   large remix built so would show whether that is good enough, and L5's absolute match could wait for maps with no
   original bake (blank maps).
 
-The user chose the second (7 November): a large remix relit as a change, in the game, and a stop before L6.
+The second option was taken (7 November): a large remix relit as a change, in the game, and a stop before L6.
 
 ## Run 1: a large bar remix, relit as a change (built 7 November)
 
@@ -126,7 +126,7 @@ streaming its own landing intro.
 6. The back corner where the booth stood: plain floor, no leftover shadows.
 7. If you like: walk a soldier through where the railing was (its tiles should be open), and a grenade on the booth.
 
-**Result: passed** (22:10–22:13, F9 shots `look-221035`, `-221055`, `-221100`, `-221302`). The user: "seemed ok".
+**Result: passed** (22:10–22:13, F9 shots `look-221035`, `-221055`, `-221100`, `-221302`).
 - `look-221035`, top-down over the bar: the lamp pools run across the floor with no edge between relit and
   untouched floor; the pool table at the front corner, the booth's two tables beside the side windows, left of the
   dark rug that stayed.
