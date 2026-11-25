@@ -12,6 +12,16 @@ Statuses:
 
 ## Open now
 
+- F-171 (25 November, a user's report): a Crashed Raider mission on `RaiderDeepWoodsFixed`, a variant of
+  `CLrgScout_DeepWoods` from a drop-in pack made with 0.6.0 (one rebuild volume added, 10,688 tiles reworked at the
+  battle's start), crashed the game twice from an LWR 3.00.00 beta 17 campaign, about 4 s after the map came up: an
+  access violation in the same engine function both times (XComEW.exe+0x397ea0 reading past an array, and a memcpy
+  called from +0x397d69), on a worker-pool thread, after the mission start's two checkpoint saves began and LWR's UFO
+  fog placed 76 viewers. With the pack taken out the same save's mission started on the game's own map. Opened
+  directly (Play in game's Crashed UFO record, no campaign) both maps started and played in hidden runs on the LWR v3
+  lab copy, the variant twice, with the same fog lines. Ruled out offline: tiles naming actors taken out of the level
+  (F-156), and a rebuild volume larger than other pack maps' that ran. Left to try: a direct start that makes the
+  checkpoint saves or has the campaign's aliens, and the map rebuilt with the current version. Open (KB-27).
 - F-170 (24 November, the same boat in a hidden run): a building the Build makes is cloned from one of the map's own
   floor volumes and building volumes and stretched, and nothing makes sure their brushes are boxes. On the hive map
   the floor volumes came out as a triangle and the building volume notched, so on the boat's bow tiles the cursor

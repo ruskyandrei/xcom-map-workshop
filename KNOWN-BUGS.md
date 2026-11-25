@@ -131,3 +131,18 @@ line, and its finding in the [findings register](research/findings-register.md) 
   only, and the export counts a patch level's volumes without their places; with them added, the rule matches every
   tile EXP-95's save shows reworked bar one, a meld container's.
 - **Finding.** [F-162](research/findings-register.md) (EXP-95's save read tile by tile).
+
+### KB-27: A pack map built with 0.6.0 crashes the game as a campaign's crashed-UFO mission starts
+
+- **What happens.** A Crashed Raider mission on `RaiderDeepWoodsFixed` (a variant of `CLrgScout_DeepWoods` in a
+  drop-in pack made with 0.6.0), started from an LWR 3.00.00 beta 17 campaign, crashes the game a few seconds after
+  the map comes up, every time it was tried. The same mission from the same save starts on the game's own map with the
+  pack taken out, and the variant itself starts and plays when the battle is opened directly (Play in game, no
+  campaign).
+- **Since.** Seen 25 November 2026 on a pack built with 0.6.0; not tried with a build from a later version.
+- **Workaround.** Take the pack's folder out of `CookedPCConsole` for that mission (it then plays the game's own map)
+  and put it back once the mission is over.
+- **Cause.** Not found. Both crashes fault in the same engine code on a worker thread, right after the mission
+  start's two checkpoint saves begin and LWR's UFO fog places its viewers; a direct start makes no such saves and has
+  other aliens and soldiers. Not F-156: no tile of the map names an actor taken out of its level.
+- **Finding.** [F-171](research/findings-register.md).
