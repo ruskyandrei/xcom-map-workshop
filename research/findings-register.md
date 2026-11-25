@@ -22,8 +22,9 @@ Statuses:
 - F-169 (24 November, a user's report on a boat project): over a building on water whose deck stands over a walkable
   hold, the mouse puts the cursor in the hold with the wheel on the deck's stop, where the pointer is off the deck's
   edge over the water or on something taller than the deck's floor. The game's pick rule, read from the scripts: the
-  water catches nothing, walls are skipped, and a first hit lower than the stop asked is kept. Open; not played; the
-  boat's volumes were wrong in shape (F-170), so what the user saw is not settled by this.
+  water catches nothing, walls are skipped, and a first hit lower than the stop asked is kept. Verified gone on 25
+  November: what the user saw came from the boat's volumes' wrong shapes (F-170); with them boxes, the user's own game
+  no longer drops the cursor into the hold. The rule stands as read, not seen to cause it.
 - F-168 (24 November, research for a plan): what the game's picture is made of that the editor doesn't draw, and
   where the game's files hold it: baked lightmaps on two thirds of a map's pieces (the baker's readers decode them),
   each map's fog, colour grade and bloom in its world settings, 1,344 decals on 30 maps, sky domes, and the shaders
@@ -289,9 +290,12 @@ Fixed and verified the same day: a second hidden run of the fixed build, below).
   2, the stern cabin cut down above the deck.
 
 ### F-169: Over a boat, the mouse puts the cursor in the hold under the deck's stop
-**Open** (24 November 2026, a user's report with two game shots; read from the decompiled scripts and the build's
-files, not played). The boat's floor volumes and building volume were not the shape the editor drew (F-170), so the
-user's shots may show that, and not only the rule below; to be looked at again after F-170's fix.
+**Verified gone** (24 November 2026, a user's report with two game shots; read from the decompiled scripts and the
+build's files. 25 November 2026: with F-170 fixed and the project built again, the user's own game no longer drops
+the cursor into the hold, and no longer cuts the boat away). What the user saw came from the boat's floor volumes and
+building volume, which were not the shape the editor drew (F-170): part of the boat counted as outside its building,
+for the mouse pick (`IsPointOutdoors`) as for the cut-out box. The pick rule below is as the scripts have it, but it
+was not what made the cursor drop; nothing round the hull is needed (the blocker ring tried was taken out).
 - **Seen.** A project's boat (EWI_ChryssalidHive's whale boat turned and moved, on water, one building of three
   floors over all of it: hold, deck and roof, its own cursor floors) in the user's game: with soldiers on the deck,
   the move path runs off the deck's edge and under it to a tile in the hold, "as if it's going straight through the
