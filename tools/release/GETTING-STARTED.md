@@ -61,6 +61,11 @@ checks, if something seems wrong.
 
 Each of these has its own section in the user guide, with pictures.
 
+New in 0.7.2:
+- **Cache everything** (Settings, the gear) can draw every picture of the look picker and the Add panel's All maps
+  at once, so none of them says Drawing… when it first shows.
+- **A building made in the editor stays whole in the game** with the cursor on it, on every map: build its map again.
+
 New in 0.7.1:
 - **The Diagonal cover view** (Shift+C): diagonal cover placed by hand, as marks that follow their walls. The Build
   gives diagonal cover only where there is a mark.
