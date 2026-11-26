@@ -12,16 +12,23 @@ Statuses:
 
 ## Open now
 
-- F-171 (25 November, a user's report): a Crashed Raider mission on `RaiderDeepWoodsFixed`, a variant of
-  `CLrgScout_DeepWoods` from a drop-in pack made with 0.6.0 (one rebuild volume added, 10,688 tiles reworked at the
-  battle's start), crashed the game twice from an LWR 3.00.00 beta 17 campaign, about 4 s after the map came up: an
-  access violation in the same engine function both times (XComEW.exe+0x397ea0 reading past an array, and a memcpy
-  called from +0x397d69), on a worker-pool thread, after the mission start's two checkpoint saves began and LWR's UFO
-  fog placed 76 viewers. With the pack taken out the same save's mission started on the game's own map. Opened
-  directly (Play in game's Crashed UFO record, no campaign) both maps started and played in hidden runs on the LWR v3
-  lab copy, the variant twice, with the same fog lines. Ruled out offline: tiles naming actors taken out of the level
-  (F-156), and a rebuild volume larger than other pack maps' that ran. Left to try: a direct start that makes the
-  checkpoint saves or has the campaign's aliens, and the map rebuilt with the current version. Open (KB-27).
+- F-171 (25 November, a user's report; cause read 26 November): a Crashed Raider mission on
+  `RaiderDeepWoodsFixed`, a variant of `CLrgScout_DeepWoods` from a drop-in pack, crashed the game three times from
+  an LWR 3.00.00 beta 17 campaign (builds of 0.6.0 and 0.7.0), 6.6 to 6.7 s after the battle's start-up rebuild
+  began. The faults are in the writer of one viewer's sight map (exe 0x797D50, called only from 0xCF9660's loop over
+  the per-viewer maps at native world data +0x8124, 0x8064 bytes each: research/native/line-of-sight.md 2.2), on a
+  worker-pool thread, reading an entry whose memory was gone or past its end. The campaign's mission-start
+  checkpoint never logs its finish; LWR's UFO fog (RebalanceMutator, `UFOFogLiftStart`) adds 76 viewers 0.19 to
+  0.22 s after it begins. On every UFO mission in the logs the save finished first, by 0.03 to 0.10 s; the game's
+  own Deep Woods in the same campaign: save +2.29 to +2.49 s, fog +2.56 s. The variant's rebuild volumes queue
+  11,771 to 14,216 tiles before the save (the game's map 1,386); the start rebuild ends at +8.2 and +9.6 s in hidden
+  runs against +5.97 s on the game's map, and +5.96 s on the variant with its volumes taken out of the level list.
+  Maps with no UFO fog saved fine whatever their rebuild size. Direct starts (no checkpoint) never crash, and a
+  quicksave cannot stand in: F10 is ignored until the intro is done. Not F-156. The race is LWR's (a guard on
+  `XComOnlineEventMgr.SaveInProgress()` before adding viewers, reported); the Build's volumes reach 2 to 9 times past
+  their boxes (the cube of `RebuildTileData(Origin, SphereRadius, SphereRadius)`, `rebuild_fit.fit` sizing a cube by
+  the box's longest side, `merge_ranges` joining flag changes into bounding boxes). The variant with no rebuild
+  volumes waits on a campaign try. Open (KB-27).
 - F-170 (24 November, the same boat in a hidden run): a building the Build makes is cloned from one of the map's own
   floor volumes and building volumes and stretched, and nothing makes sure their brushes are boxes. On the hive map
   the floor volumes came out as a triangle and the building volume notched, so on the boat's bow tiles the cursor
