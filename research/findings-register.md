@@ -31,7 +31,11 @@ Statuses:
   volumes waits on a campaign try. 26 November 12:10: with no pack installed, the game's own Deep Woods crashed the
   same way from the same save (same fault path; 1,528 tiles queued; the fog 0.22 s after the save began, the crash
   0.16 s after the fog), after starting once the night before (save 0.20 s, fog 0.27 s after it): the race is LWR's
-  on any UFO map, and a big start rebuild only makes it certain. Open (KB-27).
+  on any UFO map, and a big start rebuild only makes it certain. Confirmed 26 November in the Ironman campaign: with
+  LWR's `UFOFogLiftStart` patched to return before starting its fog timer (no fog viewers), the pack map's mission
+  started (14,149 tiles queued; save +2.49 to +2.65 s). That save took 0.16 s with the big rebuild running, so the
+  rebuild does not simply slow the save; why the pack map lost every time (the fog 0.19 to 0.22 s after the save
+  began, against 0.27 s on the game map's one success) is not settled. Open (KB-27).
 - F-170 (24 November, the same boat in a hidden run): a building the Build makes is cloned from one of the map's own
   floor volumes and building volumes and stretched, and nothing makes sure their brushes are boxes. On the hive map
   the floor volumes came out as a triangle and the building volume notched, so on the boat's bow tiles the cursor
