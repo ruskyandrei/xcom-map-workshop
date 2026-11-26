@@ -154,4 +154,24 @@ line, and its finding in the [findings register](research/findings-register.md) 
   battle's start-up rebuild big (11,771 to 14,216 tiles against the game map's 1,386 to 1,528) lost every time, but
   why is not settled: with the fog off, the same map's save took only 0.16 s. Reported to LWR's developers (a guard on `SaveInProgress()` before adding viewers);
   the Build's start rebuilds reach several times past what the changes need (plan written, not built).
+- **LWR 3.00.00 beta 18** (26 November) changes `UFOFogLiftStart` (its timer is now 0.1 s) and adds
+  `UFOFogSaveBusy` and `m_iUFOFogSaveWaits` to `LWRebalance.u`, by their names a wait for a save in progress; read
+  from the package, not seen in a campaign yet. The fog-off copy above is beta 17's and does not apply to beta 18.
 - **Finding.** [F-171](research/findings-register.md).
+
+### KB-28: Under LWR 3.00.00 beta 18 a map pack the editor makes is not read
+
+- **What happens.** A map pack exported by the editor (0.6.0 to 0.7.2) and installed by its Install.cmd, or copied
+  by hand into `CookedPCConsole`, does nothing under LWR 3.00.00 beta 18: its maps never come up, a pack that
+  replaces game maps leaves the game's own maps in use, and a mid-mission save on one of its maps crashes when loaded,
+  since no line names the map's file.
+- **Since.** LWR 3.00.00 beta 18 (26 November 2026). Betas 15 to 17 read the packs as made.
+- **Workaround.** Move the pack's folder into `CookedPCConsole\LWRMapPacks\` and put an `XComLWRMapPacks.ini` in it:
+  a first line `[XComMutator.LWRMapPacks]`, then each line of `card.lines` in the pack zip's `pack.json` with a `+` in
+  front, saved without a byte order mark. Done so for a 39-map pack on the LWR v3 lab copy: the game read 90 map
+  lines, 43 pictures and 206 landing zones with no map file missing, and every line it checked was found.
+- **Cause.** Beta 18 no longer reads pack cards (`LWRMapPack_<4 digits>.upk`). A pack is a folder in
+  `CookedPCConsole\LWRMapPacks\` whose lines are in its own `XComLWRMapPacks.ini`, and finding the folders needs the
+  game exe as LWR's installer patches it. The editor's pack export and Install.cmd write the card and the beta 15
+  folder.
+- **Finding.** [F-172](research/findings-register.md).

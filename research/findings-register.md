@@ -12,6 +12,18 @@ Statuses:
 
 ## Open now
 
+- F-172 (26 November, laying LWR 3.00.00 beta 18 over the LWR v3 copies): beta 18 reads a map pack only as a
+  folder in `CookedPCConsole\LWRMapPacks\` holding an `XComLWRMapPacks.ini` (first line
+  `[XComMutator.LWRMapPacks]`, then the pack's `+Maps=`, `+Pictures=`, `+LZArray=` and `+MapInfo=` lines, no byte
+  order mark); pack cards (`LWRMapPack_<4 digits>.upk`), which betas 15 to 17 read, are passed over (its Install
+  Help\LWR Map Packs Guide.txt). The game merges each pack's ini into `Config\XComLWRMapPacks.ini` and undoes the
+  merge after reading it. Finding the folders needs the exe patched by LWR's installer (40 sites; without it the log
+  says "Removing : <pack folder>"). Beta 18 also ships as one Inno Setup installer (6.7; innoextract 1.9 cannot read
+  it) that installs the whole of Long War, refuses a folder without XEW and adds the line `+Package=EU2EW_Textures`
+  to DefaultEngine.ini's startup packages. A 39-map pack (an editor export) moved there with its `pack.json` card
+  lines written into the ini loaded in a hidden run on the LWR v3 lab copy: 90 map lines, 43 pictures, 206 landing
+  zones, no map file missing, every line it checked found. Open (KB-28): the editor's pack export and Install.cmd
+  still write the card and the beta 15 folder.
 - F-171 (25 November, a user's report; cause read 26 November): a Crashed Raider mission on
   `RaiderDeepWoodsFixed`, a variant of `CLrgScout_DeepWoods` from a drop-in pack, crashed the game three times from
   an LWR 3.00.00 beta 17 campaign (builds of 0.6.0 and 0.7.0), 6.6 to 6.7 s after the battle's start-up rebuild
