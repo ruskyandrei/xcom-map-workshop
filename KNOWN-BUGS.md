@@ -141,7 +141,11 @@ line, and its finding in the [findings register](research/findings-register.md) 
   crashes: it makes no mission-start save.
 - **Since.** Seen 25 November 2026. The race is LWR's; our builds make it far more likely.
 - **Workaround.** With a pack map: take the pack's folder out of `CookedPCConsole` for that mission and put it back
-  afterwards. On the game's own map it is a matter of timing: load the save and launch again.
+  afterwards. On the game's own map it is a matter of timing: load the save and launch again (an Ironman campaign
+  always makes the mission-start save; others make it only with Autosave on). A copy of LWR's `LWRebalance.u` whose
+  `RebalanceMutator.UFOFogLiftStart` returns before starting its fog timer (the 19-byte `SetTimer` statement replaced
+  by a return and no-ops of the same size) adds no fog viewers, so nothing races: a crash site played through to turn
+  2 with it in a hidden run on the LWR v3 lab copy. The cost is that the UFO no longer shows through the fog.
 - **Cause.** The campaign's mission-start save writes the world data's per-viewer sight maps on a worker thread, and
   LWR's UFO fog adds its viewers about 0.2 s after the save begins, which moves those maps under it. On the UFO
   missions that worked the save finished 0.03 to 0.10 s before the fog. A built map whose rebuild volumes make the
