@@ -132,20 +132,20 @@ line, and its finding in the [findings register](research/findings-register.md) 
   tile EXP-95's save shows reworked bar one, a meld container's.
 - **Finding.** [F-162](research/findings-register.md) (EXP-95's save read tile by tile).
 
-### KB-27: A pack map with a large start-up rebuild crashes the game as an LWR 3 campaign's UFO mission starts
+### KB-27: An LWR 3 campaign's UFO crash site can crash at its start; a built map with a large start-up rebuild makes it certain
 
-- **What happens.** A Crashed Raider mission on `RaiderDeepWoodsFixed` (a variant of `CLrgScout_DeepWoods` in a
-  drop-in pack), started from an LWR 3.00.00 beta 17 campaign, crashes the game a few seconds after the map comes up,
-  every time it was tried (three times, with the pack built by 0.6.0 and by 0.7.0). The same mission from the same
-  save starts on the game's own map with the pack taken out, and the variant starts and plays when the battle is
-  opened directly (Play in game, no campaign).
-- **Since.** Seen 25 November 2026; builds of 0.6.0 and 0.7.0 both do it.
-- **Workaround.** Take the pack's folder out of `CookedPCConsole` for that mission (it then plays the game's own map)
-  and put it back once the mission is over.
-- **Cause.** A race in the game with LWR: the campaign's mission-start save writes the world data's per-viewer sight
-  maps on a worker thread, and LWR's UFO fog adds its viewers about 0.2 s after the save begins, which moves those
-  maps under it. On every UFO mission in the logs the save finished 0.03 to 0.10 s before the fog. The variant's
-  rebuild volumes make the battle's start-up rebuild work 11,771 to 14,216 tiles (1,386 on the game's map), and the
-  save then hasn't finished when the fog comes. The race is LWR's to fix (reported to its developers); the Build's
-  start rebuilds reach several times past what the changes need, which is ours (plan written, not built).
+- **What happens.** A campaign's Crashed Raider mission under LWR 3.00.00 beta 17 crashes the game a few seconds
+  after the map comes up. With a drop-in pack's `RaiderDeepWoodsFixed` (a variant of `CLrgScout_DeepWoods`, builds of
+  0.6.0 and 0.7.0) it crashed every time (4 of 4); with no pack, on the game's own `CLrgScout_DeepWoods`, the same
+  save started the mission once and crashed the next time. A battle opened directly (Play in game, no campaign) never
+  crashes: it makes no mission-start save.
+- **Since.** Seen 25 November 2026. The race is LWR's; our builds make it far more likely.
+- **Workaround.** With a pack map: take the pack's folder out of `CookedPCConsole` for that mission and put it back
+  afterwards. On the game's own map it is a matter of timing: load the save and launch again.
+- **Cause.** The campaign's mission-start save writes the world data's per-viewer sight maps on a worker thread, and
+  LWR's UFO fog adds its viewers about 0.2 s after the save begins, which moves those maps under it. On the UFO
+  missions that worked the save finished 0.03 to 0.10 s before the fog. A built map whose rebuild volumes make the
+  battle's start-up rebuild big (11,771 to 14,216 tiles against the game map's 1,386 to 1,528) keeps the save from
+  finishing first every time. Reported to LWR's developers (a guard on `SaveInProgress()` before adding viewers);
+  the Build's start rebuilds reach several times past what the changes need (plan written, not built).
 - **Finding.** [F-171](research/findings-register.md).

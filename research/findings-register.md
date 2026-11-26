@@ -28,7 +28,10 @@ Statuses:
   `XComOnlineEventMgr.SaveInProgress()` before adding viewers, reported); the Build's volumes reach 2 to 9 times past
   their boxes (the cube of `RebuildTileData(Origin, SphereRadius, SphereRadius)`, `rebuild_fit.fit` sizing a cube by
   the box's longest side, `merge_ranges` joining flag changes into bounding boxes). The variant with no rebuild
-  volumes waits on a campaign try. Open (KB-27).
+  volumes waits on a campaign try. 26 November 12:10: with no pack installed, the game's own Deep Woods crashed the
+  same way from the same save (same fault path; 1,528 tiles queued; the fog 0.22 s after the save began, the crash
+  0.16 s after the fog), after starting once the night before (save 0.20 s, fog 0.27 s after it): the race is LWR's
+  on any UFO map, and a big start rebuild only makes it certain. Open (KB-27).
 - F-170 (24 November, the same boat in a hidden run): a building the Build makes is cloned from one of the map's own
   floor volumes and building volumes and stretched, and nothing makes sure their brushes are boxes. On the hive map
   the floor volumes came out as a triangle and the building volume notched, so on the boat's bow tiles the cursor
