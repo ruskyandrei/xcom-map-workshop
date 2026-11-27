@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-232 (27 November, the game-likeness plan's F1): DLC2_3_Furies' four toggleable point lights pulse by a light
+  function, `(1 + sin(pi t)) / 2` every 2 seconds; the other two light functions of the install name no material.
+  Fixed: export 46 carries the light function's program and the Game look pulses the light. Three maps flicker a light
+  by a looping Matinee instead, which the editor draws steady.
 - F-231 (27 November, the game-likeness plan's D5): a fracturing wall the map shows broken has brick chunks along its
   broken edges, an instanced mesh on the map's level volume whose saved bits draw 428 chunks on 9 maps (a chunk where
   its fragment is there and a neighbour is not: all 16,906 entries agree); the editor draws the holes without them.
@@ -365,6 +369,32 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-232: Four lights of one map pulse by a light function; the game draws it as a factor of time on the light
+**Fixed** (27 November 2026, the game-likeness plan's F1; read offline from the lab copy's 97 maps and their records'
+134 streams, and the shader cache; the editor's side checked in a headless browser on DLC2_3_Furies; nothing played).
+- **Which lights.** Six light components in the 231 packages name a `LightFunction`: DLC2_3_Furies' four
+  `PointLightToggleable`s (brightness 3, white, radius 800, the lighting channels their own) with
+  `FX_Gameplay_DLC_090.M_LightFunction_RedSlow`, and the dominant lights of DLC1_2_CnfndLight and URB_TrainStation,
+  whose light functions name no material (the game draws those steady). The materials' expressions are cooked out
+  (`EmissiveColor` names none); what they do is in the shader cache only: 29 shader maps have a light function shader.
+- **What the game draws.** `FLightFunctionPixelShader`: the material's emissive colour, its mean (0.333 a channel)
+  where `LightFunctionParameters.x` asks for greyscale, faded toward 1 by its y, written as its square root (the
+  light attenuation buffer's encoding). RedSlow's emissive is the scalar `(1 + sin(pi t)) x 0.5` (and the editor-only
+  `SelectionColor`, 0): the light goes from none to full and back every 2 seconds. Of the 29 light function shaders,
+  10 give one factor for the whole light (RedSlow, WarningStrobe's three, HazardLight, FlickeringLight, three of the
+  Sectopod's effects and LightFunctions; no map's light uses the others), 19 read where the light falls (a texture
+  projected from the light: 17 by `texldl`, 2 by `texld`).
+- **Fix.** Export 46: the light record's `lightFunction` (its material, its program, whether it moves; research/
+  editor-contracts.md section 12), sliced from the light function shader with x and y taken as 1; the Game look sets
+  each such light to its colour times the program's factor at the page's clock each frame (lighting.js `flicker`).
+  One that reads where the light falls is drawn steady and named in the diagnostics. The game's clock starts with the
+  battle, so the editor's pulse is not in step with a game's.
+- **Not light functions.** Six maps change a light's brightness or colour by Matinee: looping ones on
+  `PointLightComponent0.Brightness` in CLrgScout_DeepWoods and COverseer_Deepwoods (1.5 s) and on a light's
+  `Brightness` in Act1_IntroLevel (0.4 s); one-off ones (0.15 to 0.35 s, colour and brightness together, not looping)
+  in DLC1_2_CnfndLight, URB_TrainStation and DLC2_3_Furies, started by their scripts. The editor draws those lights
+  steady; what starts the looping ones was not read.
 
 ### F-231: A wall the map shows broken has brick chunks along its broken edges, which the editor doesn't draw
 **Open** (27 November 2026, the game-likeness plan's D5; read offline from the install, `tools/upk/audit_world_geometry.py

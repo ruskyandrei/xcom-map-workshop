@@ -27,6 +27,7 @@ constant it has no value for, a cube texture) refuses that output with a reason;
 as today and says why.
 
   slice_material(cache, shader_map, values) -> program dict (PROGRAM_VERSION), or Refused
+  slice_light_function(cache, shader_map, values) -> a light function's program (output `light`), or Refused
   evaluate_uniform(expr, values, time=0) -> [r, g, b, a]
 
 The program's form is written down in research/editor-contracts.md ("A material's program").
@@ -880,6 +881,42 @@ def slice_material(cache, smap, values, translucent=False, factory=FACTORY):
     if not program['outputs']:
         raise Refused('nothing', '; '.join('%s %s' % kv for kv in program['refused'].items()))
     return program
+
+
+LIGHT_FUNCTION_PS = 'FLightFunctionPixelShader'
+# The light function's engine constant, as the slice takes it: x the greyscale switch (the colour's mean, 0.333 each,
+# in place of its colour), y the fade (1: the light function wholly on, as near the camera)
+LIGHT_FUNCTION_FOLD = {'LightFunctionParameters': [1.0, 1.0, 0.0, 0.0]}
+
+
+def slice_light_function(cache, smap, values):
+    """A light function's program (a material drawn on a light: `FLightFunctionPixelShader` of its shader map), the
+    same form as a material's with one output, `light`: the factor (r, g, b) the game multiplies the light by. The
+    shader writes it as the light attenuation buffer stores it, its square root (EncodeLightAttenuation), so the
+    program squares it. Refused where the shader reads where the light falls (its screen position, the scene's depth,
+    a texture projected from the light: a pattern, not one factor for the whole light), or has no such shader."""
+    refs = cache.shader_refs(smap).get('', {})
+    if LIGHT_FUNCTION_PS not in refs:
+        raise Refused('shaders', 'no light function shader')
+    program = {'version': PROGRAM_VERSION, 'shaders': {'light': LIGHT_FUNCTION_PS, 'lightId': _hex(refs[LIGHT_FUNCTION_PS])},
+               'inputs': {}, 'constants': {}, 'textures': {}, 'code': [], 'outputs': {}, 'refused': {}}
+    flow = Flow(cache.shader(refs[LIGHT_FUNCTION_PS]))
+    writes = [i for i, ins in enumerate(flow.code) if ins.dest is not None and ins.dest.reg.kind == 'oC'
+              and ins.dest.reg.index == 0 and set(ins.dest.mask) & set('xyz')]
+    if not writes:
+        raise Refused('end', 'no colour output')
+    end, out = writes[-1] + 1, flow.code[writes[-1]].dest.reg
+    kept, leaves = backward(flow, end, {(out, c) for c in range(3)})
+    place = sorted({leaf.name() for leaf, _ in leaves if leaf.kind in ('v', 'vPos', 'vFace', 's')}
+                   | {'a texture' for i in kept if flow.code[i].op == 'texld'})
+    if place:
+        raise Refused('place', 'it reads where the light falls (%s)' % ', '.join(place))
+    part = Part('f', flow, {}, cache.uniforms(smap), values, program, dict(LIGHT_FUNCTION_FOLD))
+    encoded = part.output(end, out, [0, 1, 2])
+    program['code'].append({'op': 'mul', 'd': 'fL', 'm': 'xyz', 's': [{'r': encoded['r'], 'w': 'xyzw'},
+                                                                    {'r': encoded['r'], 'w': 'xyzw'}]})
+    program['outputs']['light'] = {'r': 'fL', 'm': 'xyz'}
+    return fold(program)
 
 
 def specular_power(light, end):

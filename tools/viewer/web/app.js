@@ -1503,6 +1503,8 @@ renderer.setAnimationLoop(() => {
   }
   viewHeight.value = Math.max(1, renderer.domElement.clientHeight);     // (a sprite's least size: effects_preview.js)
   programFrame($('lighting').value === 'game');
+  // the lights a light function pulses or flickers, at the programs' time (F1; the Game look only)
+  lighting?.flicker(performance.now() / 1000);
   // the project's fog and colour changed (a control of the Map settings window, an undo, a project opened): the fog's
   // uniforms set again from the view's atmosphere (the Game look's frame follows it by itself)
   if (lighting && viewAtmosphere() !== fogDrawn) { fogDrawn = viewAtmosphere(); lighting.fog?.(); }
