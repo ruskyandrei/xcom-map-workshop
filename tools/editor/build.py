@@ -860,6 +860,7 @@ class Build:
         self.marks_edit, self.diagonal = None, None
         self.background_sound = self.sound_brought = self.atmosphere = None
         self.sun = self.time_of_day = None
+        self.sun_turned = False
         self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = self.map_info = None
         self.clears_lights = False
         self.has_lights, self.lights, self.moves_landings = False, None, False
@@ -1115,6 +1116,9 @@ class Build:
         # the report's (config_lines)
         self.sun = self.native.get('sun')
         self.time_of_day = (report.get('sun') or {}).get('timeOfDay') if self.sun else None
+        # turned (its directionChanged), a baked build traces its shadows again for the whole map, with its map of the
+        # level and the lighting samples' marks (relight.py --sun-turned, sun_bake.py; T-S4)
+        self.sun_turned = bool((self.sun or {}).get('directionChanged'))
         self.effects_edit = bool(self.background_sound) or bool(self.atmosphere) or bool(self.sun) or any(
             (self.native.get(k) or {}).get(op) for k in EFFECT_LANES + ('spawns',) for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])
@@ -1466,7 +1470,7 @@ class Build:
             return self.edit_unbaked()
         if not (self.natives or self.native['hides'] or self.covers or self.has_lights or self.any_buildings or self.cleared
                 or self.moves_landings or self.has_patch or self.resizes or self.flags_edit or self.effects_edit
-                or self.marks_edit):
+                or self.marks_edit or self.sun_turned):
             # landing-zone lines alone (Clear map plan, section 4), or a spawn rule (spawns plan, SP8): nothing in the
             # map changes, so nothing is relit, and the variant reads the map's own lightmaps (lighting unchanged; the
             # stage says so as cover blocks alone do, not as a quick build's)
@@ -1474,7 +1478,7 @@ class Build:
         if (self.covers or self.any_buildings or self.cleared or self.flags_edit or self.effects_edit
                 or self.marks_edit) and not (
                 self.natives or self.native['hides'] or self.has_lights or self.clears_lights or self.has_patch
-                or self.moves_landings):
+                or self.moves_landings or self.sun_turned):
             # cover blocks alone: hidden pieces change no baked light (a hidden actor casts no baked shadow,
             # shadows.py), so there is nothing to relight. The map is made as a quick build makes it and keeps the
             # original's lightmaps: lighting unchanged, no texture cache. The same for buildings made from nothing:
@@ -1496,15 +1500,16 @@ class Build:
         # piece's lights and reaching edits as they were (relight.py PieceCache; faster-bake plan, 3.7)
         pieces = ['--piece-cache', self.output / '.work' / 'pieces' / self.variant, '--base', sha256(self.base)]
         if (self.natives or self.native['hides'] or self.covers or self.has_lights or self.clears_lights or self.any_buildings
-                or self.moves_landings or self.stream_tiles or self.flags_edit):
+                or self.moves_landings or self.stream_tiles or self.flags_edit or self.sun_turned):
             # the edit made in the map (copies, hides, light edits), lit there; anything left in the patch modelled
             # as an edit
             # (the map is the base map, or the staged one with the pieces of other maps in it: those are lit from
-            # nothing where they stand)
+            # nothing where they stand; a turned sun is turned there, and its shadows traced again: --sun-turned)
             self.tool('copying and relighting',
                       [sys.executable, '-B', '-u', NATIVE_COPY, self.source, self.lit, self.variant, '--copies',
                        self.copies, '--bake', '--cache', self.cache_name, '--receivers-near', '%g' % self.radius]
-                      + pieces + (['--edit-spec', self.spec] if self.has_patch else []),
+                      + pieces + (['--edit-spec', self.spec] if self.has_patch else [])
+                      + (['--sun-turned'] if self.sun_turned else []),
                       self.work / 'logs' / 'native-copy.log')
         else:
             # the relight alone, on a copy of the map whose name table holds the cache's name (named_base)
@@ -1535,6 +1540,11 @@ class Build:
         other = other_pieces_changed(rec.get('otherPiecesChanged'))
         if other:
             self.relit['otherPiecesChanged'] = other
+        if rec.get('sun'):
+            # the turned sun's map of the level and lighting samples made again (the shadow maps are counted above)
+            sun = rec['sun']
+            self.relit['sunTurned'] = dict(levelMaps=len(sun.get('maps') or []), notes=sun.get('notes') or [],
+                                           samplesChanged=(sun.get('samples') or {}).get('changed'))
         if self.lights:
             self.relit['lights'] = dict(self.lights, **self.light_record())
         self.relit.update(self.building_record())

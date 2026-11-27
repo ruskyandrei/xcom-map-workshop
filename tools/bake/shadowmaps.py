@@ -37,6 +37,9 @@ UPSAMPLE = 4             # sub-samples per texel side
 TRANSITION = 25.0        # world units from the edge to a field value of 0 or 1 (the gate: the bar's asphalt)
 DOMINANT = ('DominantDirectionalLightComponent',)
 MAX_REACH = 48           # the widest search window, in sub-samples each way
+# a debris volume's pieces hold shadow maps of the sun too (URB_Bar: 81 under XComLevelVolume_4, F-177); an edit's
+# relight leaves them, the whole map's trace for a turned sun takes them (dominant_receivers' `debris`)
+DEBRIS = 'XComDebrisStaticMeshComponent'
 
 
 def guid_hex(raw):
@@ -60,10 +63,16 @@ def dominant_lights(p):
 
 def shadow_maps(p, ci):
     """The component's LOD-0 shadow maps: dicts of export, texture (export index), scale, bias, guid, factor (True
-    for a plain shadow-factor texture, False for a distance field)."""
-    f = lightmap_fields.component_fields(p, ci)
+    for a plain shadow-factor texture, False for a distance field). A debris volume's piece (DEBRIS) is read through
+    lighting_records' component reader: lightmap_fields' takes only the classes the relight writes lightmaps of."""
+    if p.cls(ci) == DEBRIS:
+        lods = lighting.component_record(p, ci)['lods']
+        refs = lods[0]['shadowMaps'] if lods else []
+    else:
+        f = lightmap_fields.component_fields(p, ci)
+        refs = f['lods'][0]['shadowMaps'] if f['lods'] else []
     out = []
-    for ref in (f['lods'][0]['shadowMaps'] if f['lods'] else []):
+    for ref in refs:
         if ref <= 0:
             continue
         out.append(dict(export=ref, path=p.name(ref), texture=p.own(ref, 'Texture'),
@@ -289,13 +298,16 @@ def change(geo, seen_before, seen_after, upsample=UPSAMPLE, transition=TRANSITIO
     return delta, covered, int(flipped.sum())
 
 
-def dominant_receivers(p, lights):
+def dominant_receivers(p, lights, debris=False):
     """Every persistent-level mesh component with a shadow map of one of the dominant `lights`: (path, export,
     shadow map, light). A component with no static mesh in the package is left out: it draws no surface to relight
-    (DLC1_1_LowFriends' XComLevelActor_16.StaticMeshComponent_166 names no mesh and keeps a shadow map, T-28)."""
+    (DLC1_1_LowFriends' XComLevelActor_16.StaticMeshComponent_166 names no mesh and keeps a shadow map, T-28). A
+    debris volume's pieces (DEBRIS) are taken only with `debris`."""
     out = []
     for i in range(1, len(p.exports) + 1):
         if not p.cls(i).endswith('StaticMeshComponent') or not p.name(i).startswith('TheWorld.PersistentLevel.'):
+            continue
+        if p.cls(i) == DEBRIS and not debris:
             continue
         if p.effective(i, 'StaticMesh', 0) <= 0:
             continue

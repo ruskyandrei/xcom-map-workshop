@@ -71,6 +71,1817 @@
    ]
   ]
  },
+ "levelRule": {
+  "date": "2026-11-27",
+  "maps": [
+   {
+    "actorDegrees": 0.0187,
+    "boxError": 0.00019944320229114965,
+    "frameError": 1.3186267322495837e-07,
+    "height": 57.8,
+    "levelScale": 1.0,
+    "map": "Act1_IntroLevel",
+    "size": [
+     68,
+     35
+    ],
+    "sizeRule": [
+     68,
+     35
+    ]
+   },
+   {
+    "actorDegrees": 0.0185,
+    "boxError": 0.0001888152473839,
+    "frameError": 1.3453643743499555e-07,
+    "height": 59.3,
+    "levelScale": 1.0,
+    "map": "Act2_Pier",
+    "size": [
+     43,
+     77
+    ],
+    "sizeRule": [
+     43,
+     77
+    ]
+   },
+   {
+    "actorDegrees": 0.0185,
+    "boxError": 0.0001888152473839,
+    "frameError": 1.3453643743499555e-07,
+    "height": 59.3,
+    "levelScale": 1.0,
+    "map": "Act2_Pier_Asian",
+    "size": [
+     43,
+     77
+    ],
+    "sizeRule": [
+     43,
+     77
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00048828125,
+    "frameError": 5.960464477539063e-08,
+    "height": 90.0,
+    "levelScale": 1.0,
+    "map": "AlienBase01",
+    "size": [
+     85,
+     177
+    ],
+    "sizeRule": [
+     85,
+     177
+    ]
+   },
+   {
+    "map": "AlienBase02",
+    "note": "no dominant light"
+   },
+   {
+    "actorDegrees": 0.0152,
+    "boxError": 0.0006539962050737813,
+    "frameError": 1.4485688892840187e-07,
+    "height": 15.8,
+    "levelScale": 1.0,
+    "map": "CAbductor_Cliffside",
+    "size": [
+     36,
+     96
+    ],
+    "sizeRule": [
+     36,
+     96
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0002724645164562389,
+    "frameError": 1.2274216432128782e-07,
+    "height": 28.3,
+    "levelScale": 1.0,
+    "map": "CAbductor_ScorchedEarth",
+    "size": [
+     51,
+     77
+    ],
+    "sizeRule": [
+     51,
+     77
+    ]
+   },
+   {
+    "map": "CB2_MP_Blank",
+    "note": "no dominant light"
+   },
+   {
+    "actorDegrees": 0.0055,
+    "boxError": 0.00023421809419232886,
+    "frameError": 1.746598071727945e-07,
+    "height": 46.6,
+    "levelScale": 1.0,
+    "map": "CBattleship_01",
+    "size": [
+     89,
+     175
+    ],
+    "sizeRule": [
+     89,
+     175
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.000991152715869248,
+    "frameError": 8.170180421096518e-08,
+    "height": 33.3,
+    "levelScale": 1.0,
+    "map": "CBattleship_02",
+    "size": [
+     147,
+     168
+    ],
+    "sizeRule": [
+     147,
+     168
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00012227875049575232,
+    "frameError": 1.8396744450033253e-07,
+    "height": 69.5,
+    "levelScale": 1.0,
+    "map": "CLrgScout_City",
+    "size": [
+     54,
+     82
+    ],
+    "sizeRule": [
+     54,
+     82
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.0002714759084483376,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "CLrgScout_DeepWoods",
+    "size": [
+     93,
+     76
+    ],
+    "sizeRule": [
+     93,
+     76
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00021750687119492795,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "CLrgScout_ForestTrench",
+    "size": [
+     113,
+     94
+    ],
+    "sizeRule": [
+     113,
+     94
+    ]
+   },
+   {
+    "actorDegrees": 0.0171,
+    "boxError": 0.0005490147159434855,
+    "frameError": 2.1223423296579114e-07,
+    "height": 11.0,
+    "levelScale": 1.0,
+    "map": "CLrgScout_Stonewall",
+    "size": [
+     37,
+     80
+    ],
+    "sizeRule": [
+     37,
+     80
+    ],
+    "traced": {
+     "marksAgainstRays": 0.7015,
+     "ruleAgainstStored": {
+      "median": 0.0,
+      "raysMissed": 31042,
+      "within1": 0.3608,
+      "within100": 0.6537,
+      "within25": 0.4405
+     },
+     "ruleMapAgainstMarks": 0.7067,
+     "ruleMapAgainstRays": 0.7673,
+     "samples": 2462,
+     "storedAgainstCentreRays": {
+      "hits": 2960,
+      "median": 114.0,
+      "texels": 2960,
+      "within100": 0.0416,
+      "within25": 0.0122
+     },
+     "storedMapAgainstMarks": 0.734,
+     "storedMapAgainstRays": 0.6816,
+     "unitsPerTexel": [
+      102.4,
+      100.4
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.0152,
+    "boxError": 0.00038120898898341693,
+    "frameError": 1.4485688892840187e-07,
+    "height": 15.8,
+    "levelScale": 1.0,
+    "map": "CLrgScout_TheBarrens",
+    "size": [
+     42,
+     129
+    ],
+    "sizeRule": [
+     42,
+     129
+    ],
+    "traced": {
+     "marksAgainstRays": 0.9486,
+     "ruleAgainstStored": {
+      "median": -30.08,
+      "raysMissed": 12983,
+      "within1": 0.1349,
+      "within100": 0.9216,
+      "within25": 0.3944
+     },
+     "ruleMapAgainstMarks": 0.8883,
+     "ruleMapAgainstRays": 0.9216,
+     "samples": 4630,
+     "storedAgainstCentreRays": {
+      "hits": 5418,
+      "median": 248.38,
+      "texels": 5418,
+      "within100": 0.1552,
+      "within25": 0.05
+     },
+     "storedMapAgainstMarks": 0.8896,
+     "storedMapAgainstRays": 0.9212,
+     "unitsPerTexel": [
+      102.1,
+      100.1
+     ]
+    }
+   },
+   {
+    "map": "Command1",
+    "note": "no dominant light"
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.0002714759084483376,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "COverseer_DeepWoods",
+    "size": [
+     93,
+     76
+    ],
+    "sizeRule": [
+     93,
+     76
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00021750687119492795,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "COverseer_ForestTrench",
+    "size": [
+     113,
+     94
+    ],
+    "sizeRule": [
+     113,
+     94
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0004160351018072106,
+    "frameError": 9.176727000514973e-08,
+    "height": 39.9,
+    "levelScale": 1.0,
+    "map": "COverseer_Stonewall",
+    "size": [
+     73,
+     81
+    ],
+    "sizeRule": [
+     73,
+     81
+    ]
+   },
+   {
+    "actorDegrees": 0.0152,
+    "boxError": 0.00038120898898341693,
+    "frameError": 1.4485688892840187e-07,
+    "height": 15.8,
+    "levelScale": 1.0,
+    "map": "COverseer_TheBarrens",
+    "size": [
+     42,
+     129
+    ],
+    "sizeRule": [
+     42,
+     129
+    ]
+   },
+   {
+    "actorDegrees": 0.0159,
+    "boxError": 0.0003047249083465431,
+    "frameError": 1.4233932699170282e-07,
+    "height": 45.4,
+    "levelScale": 1.0,
+    "map": "CSmallScout_Badlands",
+    "size": [
+     100,
+     83
+    ],
+    "sizeRule": [
+     100,
+     83
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00023575115483254194,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "CSmallScout_DirtRoad",
+    "size": [
+     75,
+     78
+    ],
+    "sizeRule": [
+     75,
+     78
+    ],
+    "traced": {
+     "marksAgainstRays": 0.9319,
+     "ruleAgainstStored": {
+      "median": -1.2,
+      "raysMissed": 0,
+      "within1": 0.1282,
+      "within100": 0.9556,
+      "within25": 0.8506
+     },
+     "ruleMapAgainstMarks": 0.9181,
+     "ruleMapAgainstRays": 0.9504,
+     "samples": 3467,
+     "storedAgainstCentreRays": {
+      "hits": 5850,
+      "median": 13.9,
+      "texels": 5850,
+      "within100": 0.8952,
+      "within25": 0.6605
+     },
+     "storedMapAgainstMarks": 0.9492,
+     "storedMapAgainstRays": 0.9094,
+     "unitsPerTexel": [
+      100.2,
+      100.0
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.0143,
+    "boxError": 0.000217437744140625,
+    "frameError": 9.794109656624528e-08,
+    "height": 29.7,
+    "levelScale": 1.0,
+    "map": "CsmallScout_Farm",
+    "size": [
+     58,
+     99
+    ],
+    "sizeRule": [
+     58,
+     99
+    ]
+   },
+   {
+    "actorDegrees": 0.0152,
+    "boxError": 0.00020647048950195312,
+    "frameError": 1.4485688892840187e-07,
+    "height": 15.8,
+    "levelScale": 1.0,
+    "map": "CSmallScout_Marshlands",
+    "size": [
+     59,
+     175
+    ],
+    "sizeRule": [
+     59,
+     175
+    ]
+   },
+   {
+    "actorDegrees": 0.0153,
+    "boxError": 0.000552781013539061,
+    "frameError": 6.075537883898363e-08,
+    "height": 15.6,
+    "levelScale": 0.5,
+    "map": "CSmallScout_NukedCity",
+    "size": [
+     72,
+     176
+    ],
+    "sizeRule": [
+     72,
+     176
+    ]
+   },
+   {
+    "actorDegrees": 0.0166,
+    "boxError": 0.0004527568817138672,
+    "frameError": 1.735309757000536e-07,
+    "height": 66.5,
+    "levelScale": 1.0,
+    "map": "CSmallScout_Quagmire",
+    "size": [
+     127,
+     121
+    ],
+    "sizeRule": [
+     127,
+     121
+    ]
+   },
+   {
+    "actorDegrees": 0.0201,
+    "boxError": 0.0003284730792074697,
+    "frameError": 4.019639728847224e-07,
+    "height": 45.9,
+    "levelScale": 1.0,
+    "map": "CSmallScout_Roadhouse",
+    "size": [
+     87,
+     93
+    ],
+    "sizeRule": [
+     87,
+     93
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.0005631284020637395,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "CSupplyShip_OverlookA",
+    "size": [
+     120,
+     77
+    ],
+    "sizeRule": [
+     120,
+     77
+    ]
+   },
+   {
+    "actorDegrees": 0.0197,
+    "boxError": 0.0005438387088361196,
+    "frameError": 2.5001402803592754e-07,
+    "height": 11.8,
+    "levelScale": 1.0,
+    "map": "CSupplyShip_Wildfire",
+    "size": [
+     33,
+     139
+    ],
+    "sizeRule": [
+     33,
+     139
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0017013621800288092,
+    "frameError": 1.7127245799386515e-07,
+    "height": 26.2,
+    "levelScale": 1.0,
+    "map": "DEMO_SonOfFacemelt",
+    "size": [
+     288,
+     320
+    ],
+    "sizeRule": [
+     288,
+     320
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.000244140625,
+    "frameError": 6.594920720637276e-08,
+    "height": 52.9,
+    "levelScale": 1.0,
+    "map": "DLC1_1_LowFriends",
+    "size": [
+     61,
+     69
+    ],
+    "sizeRule": [
+     61,
+     69
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0007305145263671875,
+    "frameError": 1.411507124515765e-07,
+    "height": 58.8,
+    "levelScale": 1.0,
+    "map": "DLC1_2_CnfndLight",
+    "size": [
+     104,
+     44
+    ],
+    "sizeRule": [
+     104,
+     44
+    ]
+   },
+   {
+    "actorDegrees": 0.0121,
+    "boxError": 0.0010489448177395388,
+    "frameError": 1.1701384705631312e-07,
+    "height": 19.7,
+    "levelScale": 1.0,
+    "map": "DLC1_3_Gangplank",
+    "size": [
+     93,
+     142
+    ],
+    "sizeRule": [
+     93,
+     142
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 9.958497139450628e-05,
+    "frameError": 1.297221462470688e-07,
+    "height": 64.8,
+    "levelScale": 1.0,
+    "map": "DLC2_1_Portent",
+    "size": [
+     77,
+     41
+    ],
+    "sizeRule": [
+     77,
+     41
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0017013621800288092,
+    "frameError": 1.7127245799386515e-07,
+    "height": 26.2,
+    "levelScale": 1.0,
+    "map": "DLC2_2_Deluge",
+    "size": [
+     288,
+     320
+    ],
+    "sizeRule": [
+     288,
+     320
+    ]
+   },
+   {
+    "actorDegrees": 0.0055,
+    "boxError": 0.0003108978271484375,
+    "frameError": 1.4585280028178715e-07,
+    "height": 28.1,
+    "levelScale": 1.0,
+    "map": "DLC2_3_Furies",
+    "size": [
+     70,
+     122
+    ],
+    "sizeRule": [
+     70,
+     122
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.0003886222839355469,
+    "frameError": 9.131019451658062e-08,
+    "height": 28.9,
+    "levelScale": 1.0,
+    "map": "EWI_ChryssalidHive",
+    "size": [
+     64,
+     101
+    ],
+    "sizeRule": [
+     64,
+     101
+    ]
+   },
+   {
+    "actorDegrees": 0.0208,
+    "boxError": 0.0003476132442301605,
+    "frameError": 6.780621064628178e-08,
+    "height": 40.0,
+    "levelScale": 0.5,
+    "map": "EWI_ExaltHQAssault",
+    "size": [
+     161,
+     111
+    ],
+    "sizeRule": [
+     161,
+     111
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0001963852919288911,
+    "frameError": 1.129885477402226e-07,
+    "height": 68.6,
+    "levelScale": 0.5,
+    "map": "EWI_HQAssault",
+    "size": [
+     218,
+     109
+    ],
+    "sizeRule": [
+     218,
+     109
+    ]
+   },
+   {
+    "map": "EWI_HQAssault_MP",
+    "note": "no map of the level"
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00020813832088606432,
+    "frameError": 2.5378169354883795e-07,
+    "height": 80.7,
+    "levelScale": 0.5,
+    "map": "EWI_MeldTutorial",
+    "size": [
+     99,
+     130
+    ],
+    "sizeRule": [
+     99,
+     130
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00030517578125,
+    "frameError": 1.282056161233669e-07,
+    "height": 39.4,
+    "levelScale": 1.0,
+    "map": "LAbductor_FarmOutskirts",
+    "size": [
+     6,
+     5
+    ],
+    "sizeRule": [
+     6,
+     5
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0005820684309583157,
+    "frameError": 1.282056161233669e-07,
+    "height": 39.4,
+    "levelScale": 1.0,
+    "map": "LAbductor_WindingStream",
+    "size": [
+     83,
+     129
+    ],
+    "sizeRule": [
+     83,
+     129
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0001773834228515625,
+    "frameError": 9.11386497381983e-08,
+    "height": 36.4,
+    "levelScale": 1.0,
+    "map": "LLrgScout_CreepyForest",
+    "size": [
+     66,
+     69
+    ],
+    "sizeRule": [
+     66,
+     69
+    ]
+   },
+   {
+    "actorDegrees": 0.011,
+    "boxError": 0.00044989585876464844,
+    "frameError": 1.3657948216838633e-07,
+    "height": 51.2,
+    "levelScale": 1.0,
+    "map": "LLrgScout_Hillside",
+    "size": [
+     100,
+     78
+    ],
+    "sizeRule": [
+     100,
+     78
+    ]
+   },
+   {
+    "actorDegrees": 0.011,
+    "boxError": 0.00035600322735263035,
+    "frameError": 7.304743498970367e-08,
+    "height": 40.2,
+    "levelScale": 1.0,
+    "map": "LSmallScout_River",
+    "size": [
+     73,
+     113
+    ],
+    "sizeRule": [
+     73,
+     113
+    ],
+    "traced": {
+     "marksAgainstRays": 0.8573,
+     "ruleAgainstStored": {
+      "median": -7.72,
+      "raysMissed": 25494,
+      "within1": 0.142,
+      "within100": 0.7459,
+      "within25": 0.6981
+     },
+     "ruleMapAgainstMarks": 0.8284,
+     "ruleMapAgainstRays": 0.9212,
+     "samples": 4645,
+     "storedAgainstCentreRays": {
+      "hits": 8249,
+      "median": 123.43,
+      "texels": 8249,
+      "within100": 0.2781,
+      "within25": 0.0342
+     },
+     "storedMapAgainstMarks": 0.7795,
+     "storedMapAgainstRays": 0.7806,
+     "unitsPerTexel": [
+      100.7,
+      100.4
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.011,
+    "boxError": 0.0003303513440187089,
+    "frameError": 1.3196914350199762e-07,
+    "height": 39.9,
+    "levelScale": 1.0,
+    "map": "LSmallScout_Rivervalley",
+    "size": [
+     63,
+     135
+    ],
+    "sizeRule": [
+     63,
+     135
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00037184386019362137,
+    "frameError": 1.4434849981981301e-07,
+    "height": 21.0,
+    "levelScale": 1.0,
+    "map": "LSupplyShip_ForestGrove",
+    "size": [
+     75,
+     148
+    ],
+    "sizeRule": [
+     75,
+     148
+    ]
+   },
+   {
+    "actorDegrees": 0.011,
+    "boxError": 0.0004530019505182281,
+    "frameError": 6.624739717908668e-08,
+    "height": 37.8,
+    "levelScale": 1.0,
+    "map": "LSupplyShip_RockyGorge",
+    "size": [
+     120,
+     112
+    ],
+    "sizeRule": [
+     120,
+     112
+    ]
+   },
+   {
+    "actorDegrees": 0.011,
+    "boxError": 0.0008302045171149075,
+    "frameError": 8.344927726611218e-08,
+    "height": 29.3,
+    "levelScale": 1.0,
+    "map": "TempleShip",
+    "size": [
+     81,
+     220
+    ],
+    "sizeRule": [
+     81,
+     220
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 5.476165097206831e-05,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 0.5,
+    "map": "URB_Bar",
+    "size": [
+     132,
+     97
+    ],
+    "sizeRule": [
+     132,
+     97
+    ],
+    "traced": {
+     "marksAgainstRays": 0.9966,
+     "ruleAgainstStored": {
+      "median": -0.64,
+      "raysMissed": 0,
+      "within1": 0.9399,
+      "within100": 0.9933,
+      "within25": 0.9868
+     },
+     "ruleMapAgainstMarks": 0.9702,
+     "ruleMapAgainstRays": 0.969,
+     "samples": 1743,
+     "storedAgainstCentreRays": {
+      "hits": 12804,
+      "median": 5.9,
+      "texels": 12804,
+      "within100": 0.9651,
+      "within25": 0.9203
+     },
+     "storedMapAgainstMarks": 0.9725,
+     "storedMapAgainstRays": 0.9713,
+     "unitsPerTexel": [
+      50.1,
+      50.4
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 5.476165097206831e-05,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 0.5,
+    "map": "URB_Bar_Terror",
+    "size": [
+     132,
+     97
+    ],
+    "sizeRule": [
+     132,
+     97
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00028599889265024103,
+    "frameError": 1.5068023062614344e-07,
+    "height": 50.0,
+    "levelScale": 0.5,
+    "map": "URB_Boulevard",
+    "size": [
+     214,
+     166
+    ],
+    "sizeRule": [
+     214,
+     166
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00028599889265024103,
+    "frameError": 1.5068023062614344e-07,
+    "height": 50.0,
+    "levelScale": 0.5,
+    "map": "URB_Boulevard_Euro",
+    "size": [
+     214,
+     166
+    ],
+    "sizeRule": [
+     214,
+     166
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00016694177111276076,
+    "frameError": 6.594920720637276e-08,
+    "height": 52.9,
+    "levelScale": 1.0,
+    "map": "URB_CemeteryGrand",
+    "size": [
+     64,
+     59
+    ],
+    "sizeRule": [
+     64,
+     59
+    ]
+   },
+   {
+    "actorDegrees": 0.0055,
+    "boxError": 0.0002757711772574112,
+    "frameError": 7.301916160606936e-08,
+    "height": 55.9,
+    "levelScale": 0.5,
+    "map": "URB_CommercialAlley",
+    "size": [
+     149,
+     142
+    ],
+    "sizeRule": [
+     149,
+     142
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0002764840596682916,
+    "frameError": 2.3651401359625623e-07,
+    "height": 55.9,
+    "levelScale": 0.5,
+    "map": "URB_CommercialAlley_EWI",
+    "size": [
+     155,
+     141
+    ],
+    "sizeRule": [
+     155,
+     141
+    ]
+   },
+   {
+    "actorDegrees": 0.0055,
+    "boxError": 0.0002757711772574112,
+    "frameError": 7.301916160606936e-08,
+    "height": 55.9,
+    "levelScale": 0.5,
+    "map": "URB_CommercialAlley_Terror",
+    "size": [
+     149,
+     142
+    ],
+    "sizeRule": [
+     149,
+     142
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00014947738691262202,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 0.25,
+    "map": "URB_CommercialRestaurant",
+    "size": [
+     293,
+     254
+    ],
+    "sizeRule": [
+     293,
+     254
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00016399312153225765,
+    "frameError": 1.282056161233669e-07,
+    "height": 39.4,
+    "levelScale": 0.5,
+    "map": "URB_CommercialStreet",
+    "size": [
+     143,
+     168
+    ],
+    "sizeRule": [
+     143,
+     168
+    ],
+    "traced": {
+     "marksAgainstRays": 0.9904,
+     "ruleAgainstStored": {
+      "median": -6.18,
+      "raysMissed": 56997,
+      "within1": 0.2507,
+      "within100": 0.9834,
+      "within25": 0.9693
+     },
+     "ruleMapAgainstMarks": 0.9621,
+     "ruleMapAgainstRays": 0.9602,
+     "samples": 2611,
+     "storedAgainstCentreRays": {
+      "hits": 24024,
+      "median": 40.82,
+      "texels": 24024,
+      "within100": 0.8164,
+      "within25": 0.184
+     },
+     "storedMapAgainstMarks": 0.959,
+     "storedMapAgainstRays": 0.9571,
+     "unitsPerTexel": [
+      50.3,
+      50.2
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00011535335215739906,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 0.5,
+    "map": "URB_CommercialStreet_Terror",
+    "size": [
+     138,
+     112
+    ],
+    "sizeRule": [
+     138,
+     112
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0005541493883356452,
+    "frameError": 1.65563375675859e-07,
+    "height": 41.1,
+    "levelScale": 0.5,
+    "map": "URB_ConvienienceStore",
+    "size": [
+     194,
+     134
+    ],
+    "sizeRule": [
+     194,
+     134
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0003132589044980705,
+    "frameError": 1.282056161233669e-07,
+    "height": 39.4,
+    "levelScale": 0.5,
+    "map": "URB_ConvienienceStore_EWI",
+    "size": [
+     160,
+     212
+    ],
+    "sizeRule": [
+     160,
+     212
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0005541493883356452,
+    "frameError": 1.65563375675859e-07,
+    "height": 41.1,
+    "levelScale": 0.5,
+    "map": "URB_ConvienienceStore_Terror",
+    "size": [
+     194,
+     134
+    ],
+    "sizeRule": [
+     194,
+     134
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00030909468478057534,
+    "frameError": 1.7881393432617188e-07,
+    "height": 16.2,
+    "levelScale": 1.0,
+    "map": "URB_Demolition_EWI",
+    "size": [
+     36,
+     97
+    ],
+    "sizeRule": [
+     36,
+     97
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00024848090379236965,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "URB_FastFood",
+    "size": [
+     57,
+     56
+    ],
+    "sizeRule": [
+     57,
+     56
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00014002823263581377,
+    "frameError": 1.201304175024731e-07,
+    "height": 41.6,
+    "levelScale": 1.0,
+    "map": "URB_FastFood_EWI",
+    "size": [
+     56,
+     62
+    ],
+    "sizeRule": [
+     56,
+     62
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0004194313642074121,
+    "frameError": 1.7881393432617188e-07,
+    "height": 17.9,
+    "levelScale": 1.0,
+    "map": "URB_GasStation_EWI",
+    "size": [
+     40,
+     84
+    ],
+    "sizeRule": [
+     40,
+     84
+    ]
+   },
+   {
+    "actorDegrees": 0.0115,
+    "boxError": 0.00031785922692506574,
+    "frameError": 1.5493063987293e-07,
+    "height": 50.0,
+    "levelScale": 1.0,
+    "map": "URB_Highway1",
+    "size": [
+     82,
+     73
+    ],
+    "sizeRule": [
+     82,
+     73
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0009746053437993396,
+    "frameError": 1.579633811532588e-07,
+    "height": 50.0,
+    "levelScale": 1.0,
+    "map": "URB_HighwayBridge",
+    "size": [
+     391,
+     492
+    ],
+    "sizeRule": [
+     391,
+     492
+    ],
+    "traced": {
+     "marksAgainstRays": 0.9686,
+     "ruleAgainstStored": {
+      "median": -0.58,
+      "raysMissed": 281805,
+      "within1": 0.9281,
+      "within100": 0.991,
+      "within25": 0.99
+     },
+     "ruleMapAgainstMarks": 0.925,
+     "ruleMapAgainstRays": 0.9327,
+     "samples": 4814,
+     "storedAgainstCentreRays": {
+      "hits": 192372,
+      "median": -6.88,
+      "texels": 192372,
+      "within100": 0.9027,
+      "within25": 0.6822
+     },
+     "storedMapAgainstMarks": 0.9265,
+     "storedMapAgainstRays": 0.9342,
+     "unitsPerTexel": [
+      100.2,
+      100.0
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0003197973587703018,
+    "frameError": 1.8908184329369249e-07,
+    "height": 61.8,
+    "levelScale": 1.0,
+    "map": "URB_HighwayConstruction",
+    "size": [
+     45,
+     69
+    ],
+    "sizeRule": [
+     45,
+     69
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.0003834092894976493,
+    "frameError": 1.496713818438522e-07,
+    "height": 39.2,
+    "levelScale": 1.0,
+    "map": "URB_HighwayConstruction_EWI",
+    "size": [
+     56,
+     76
+    ],
+    "sizeRule": [
+     56,
+     76
+    ]
+   },
+   {
+    "actorDegrees": 0.0115,
+    "boxError": 0.0009348389539809432,
+    "frameError": 1.5493063987293e-07,
+    "height": 50.0,
+    "levelScale": 1.0,
+    "map": "URB_HighwayFallen",
+    "size": [
+     272,
+     271
+    ],
+    "sizeRule": [
+     272,
+     271
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.0003047829268325586,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 0.5,
+    "map": "URB_IndustrialOffice",
+    "size": [
+     195,
+     180
+    ],
+    "sizeRule": [
+     195,
+     180
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00017987739238378708,
+    "frameError": 6.594920720637276e-08,
+    "height": 52.9,
+    "levelScale": 0.5,
+    "map": "URB_LiquorStore",
+    "size": [
+     149,
+     177
+    ],
+    "sizeRule": [
+     149,
+     177
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00015409267507493496,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "URB_MilitaryAmmo",
+    "size": [
+     90,
+     73
+    ],
+    "sizeRule": [
+     90,
+     73
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.00022293413303486886,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "URB_OfficePaper",
+    "size": [
+     67,
+     82
+    ],
+    "sizeRule": [
+     67,
+     82
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00029208849809947424,
+    "frameError": 5.960464477539063e-08,
+    "height": 44.3,
+    "levelScale": 0.5,
+    "map": "URB_OfficePaper_EWI",
+    "size": [
+     166,
+     154
+    ],
+    "sizeRule": [
+     166,
+     154
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00017109508007706609,
+    "frameError": 9.866825734228257e-08,
+    "height": 45.0,
+    "levelScale": 1.0,
+    "map": "URB_OfficePaper_Terror",
+    "size": [
+     85,
+     72
+    ],
+    "sizeRule": [
+     85,
+     72
+    ]
+   },
+   {
+    "actorDegrees": 0.0185,
+    "boxError": 0.0003241078811697662,
+    "frameError": 1.3453643743499555e-07,
+    "height": 59.3,
+    "levelScale": 1.0,
+    "map": "URB_PierA",
+    "size": [
+     89,
+     128
+    ],
+    "sizeRule": [
+     89,
+     128
+    ]
+   },
+   {
+    "actorDegrees": 0.0185,
+    "boxError": 0.0003241078811697662,
+    "frameError": 1.3453643743499555e-07,
+    "height": 59.3,
+    "levelScale": 1.0,
+    "map": "URB_PierA_Asian",
+    "size": [
+     89,
+     128
+    ],
+    "sizeRule": [
+     89,
+     128
+    ]
+   },
+   {
+    "actorDegrees": 0.0185,
+    "boxError": 0.0003241078811697662,
+    "frameError": 1.3453643743499555e-07,
+    "height": 59.3,
+    "levelScale": 1.0,
+    "map": "URB_PierA_Terror",
+    "size": [
+     89,
+     128
+    ],
+    "sizeRule": [
+     89,
+     128
+    ]
+   },
+   {
+    "actorDegrees": 0.0055,
+    "boxError": 0.00023365020751953125,
+    "frameError": 1.2926051162764907e-07,
+    "height": 52.3,
+    "levelScale": 0.5,
+    "map": "URB_PoliceStation",
+    "size": [
+     115,
+     114
+    ],
+    "sizeRule": [
+     115,
+     114
+    ],
+    "traced": {
+     "marksAgainstRays": 0.9733,
+     "ruleAgainstStored": {
+      "median": -0.99,
+      "raysMissed": 19305,
+      "within1": 0.5277,
+      "within100": 0.951,
+      "within25": 0.9342
+     },
+     "ruleMapAgainstMarks": 0.9322,
+     "ruleMapAgainstRays": 0.9418,
+     "samples": 2095,
+     "storedAgainstCentreRays": {
+      "hits": 13110,
+      "median": 13.29,
+      "texels": 13110,
+      "within100": 0.8469,
+      "within25": 0.6714
+     },
+     "storedMapAgainstMarks": 0.9446,
+     "storedMapAgainstRays": 0.9189,
+     "unitsPerTexel": [
+      50.2,
+      50.2
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.0152,
+    "boxError": 0.0004906392023258377,
+    "frameError": 1.4485688892840187e-07,
+    "height": 15.8,
+    "levelScale": 1.0,
+    "map": "URB_ResearchOutpost",
+    "size": [
+     34,
+     84
+    ],
+    "sizeRule": [
+     34,
+     84
+    ],
+    "traced": {
+     "marksAgainstRays": 0.9333,
+     "ruleAgainstStored": {
+      "median": 0.0,
+      "raysMissed": 17799,
+      "within1": 0.2896,
+      "within100": 0.784,
+      "within25": 0.4079
+     },
+     "ruleMapAgainstMarks": 0.8084,
+     "ruleMapAgainstRays": 0.7888,
+     "samples": 2083,
+     "storedAgainstCentreRays": {
+      "hits": 2856,
+      "median": 191.69,
+      "texels": 2856,
+      "within100": 0.1509,
+      "within25": 0.0837
+     },
+     "storedMapAgainstMarks": 0.7921,
+     "storedMapAgainstRays": 0.7427,
+     "unitsPerTexel": [
+      100.1,
+      100.7
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.0197,
+    "boxError": 0.0003422942218094249,
+    "frameError": 1.1039251124334015e-07,
+    "height": 12.1,
+    "levelScale": 1.0,
+    "map": "URB_ResearchOutpost_EWI",
+    "size": [
+     29,
+     80
+    ],
+    "sizeRule": [
+     29,
+     80
+    ]
+   },
+   {
+    "actorDegrees": 0.0076,
+    "boxError": 0.00044168277963763103,
+    "frameError": 8.68958667243902e-08,
+    "height": 19.2,
+    "levelScale": 1.0,
+    "map": "URB_RooftopsConst",
+    "size": [
+     86,
+     122
+    ],
+    "sizeRule": [
+     86,
+     122
+    ]
+   },
+   {
+    "actorDegrees": 0.0076,
+    "boxError": 0.00044168277963763103,
+    "frameError": 8.68958667243902e-08,
+    "height": 19.2,
+    "levelScale": 1.0,
+    "map": "URB_RooftopsConst_Asian",
+    "size": [
+     86,
+     122
+    ],
+    "sizeRule": [
+     86,
+     122
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.0002192598385590827,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "URB_SlaughterhouseA",
+    "size": [
+     42,
+     80
+    ],
+    "sizeRule": [
+     42,
+     80
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.000244140625,
+    "frameError": 6.594920720637276e-08,
+    "height": 52.9,
+    "levelScale": 1.0,
+    "map": "URB_SmallCemetery",
+    "size": [
+     61,
+     69
+    ],
+    "sizeRule": [
+     61,
+     69
+    ]
+   },
+   {
+    "actorDegrees": 0.011,
+    "boxError": 0.00024503135500708595,
+    "frameError": 1.5382508000705286e-07,
+    "height": 51.1,
+    "levelScale": 1.0,
+    "map": "URB_StreetHurricane",
+    "size": [
+     108,
+     70
+    ],
+    "sizeRule": [
+     108,
+     70
+    ]
+   },
+   {
+    "actorDegrees": 0.0165,
+    "boxError": 0.0004383119485282805,
+    "frameError": 1.7881393432617188e-07,
+    "height": 80.7,
+    "levelScale": 1.0,
+    "map": "URB_StreetHurricane_Terror",
+    "size": [
+     97,
+     68
+    ],
+    "sizeRule": [
+     97,
+     68
+    ]
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 8.625004556961358e-05,
+    "frameError": 6.594920720637276e-08,
+    "height": 52.9,
+    "levelScale": 1.0,
+    "map": "URB_StreetOverpass",
+    "size": [
+     79,
+     57
+    ],
+    "sizeRule": [
+     79,
+     57
+    ]
+   },
+   {
+    "actorDegrees": 0.0053,
+    "boxError": 0.00018732333774096332,
+    "frameError": 2.514139181286623e-07,
+    "height": 16.2,
+    "levelScale": 1.0,
+    "map": "URB_StreetOverpass_EWI",
+    "size": [
+     41,
+     86
+    ],
+    "sizeRule": [
+     41,
+     86
+    ]
+   },
+   {
+    "actorDegrees": 0.0055,
+    "boxError": 0.00026798248291015625,
+    "frameError": 1.2399536397644795e-07,
+    "height": 50.1,
+    "levelScale": 1.0,
+    "map": "URB_TrainStation",
+    "size": [
+     58,
+     102
+    ],
+    "sizeRule": [
+     58,
+     102
+    ]
+   },
+   {
+    "actorDegrees": 0.0152,
+    "boxError": 0.00020871520973742008,
+    "frameError": 1.4485688892840187e-07,
+    "height": 15.8,
+    "levelScale": 1.0,
+    "map": "URB_Trainyard",
+    "size": [
+     57,
+     118
+    ],
+    "sizeRule": [
+     57,
+     118
+    ],
+    "traced": {
+     "marksAgainstRays": 0.9745,
+     "ruleAgainstStored": {
+      "median": -14.44,
+      "raysMissed": 40592,
+      "within1": 0.2548,
+      "within100": 0.8408,
+      "within25": 0.4384
+     },
+     "ruleMapAgainstMarks": 0.8781,
+     "ruleMapAgainstRays": 0.8705,
+     "samples": 4595,
+     "storedAgainstCentreRays": {
+      "hits": 6726,
+      "median": 189.81,
+      "texels": 6726,
+      "within100": 0.101,
+      "within25": 0.0462
+     },
+     "storedMapAgainstMarks": 0.8305,
+     "storedMapAgainstRays": 0.8172,
+     "unitsPerTexel": [
+      101.3,
+      100.4
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.0,
+    "boxError": 0.00021521648159250617,
+    "frameError": 1.1920928955078125e-07,
+    "height": 19.2,
+    "levelScale": 1.0,
+    "map": "URB_TruckStop",
+    "size": [
+     34,
+     87
+    ],
+    "sizeRule": [
+     34,
+     87
+    ],
+    "traced": {
+     "marksAgainstRays": 0.907,
+     "ruleAgainstStored": {
+      "median": -4.72,
+      "raysMissed": 16705,
+      "within1": 0.289,
+      "within100": 0.8918,
+      "within25": 0.549
+     },
+     "ruleMapAgainstMarks": 0.6227,
+     "ruleMapAgainstRays": 0.5427,
+     "samples": 1850,
+     "storedAgainstCentreRays": {
+      "hits": 2958,
+      "median": 126.92,
+      "texels": 2958,
+      "within100": 0.2316,
+      "within25": 0.0612
+     },
+     "storedMapAgainstMarks": 0.6086,
+     "storedMapAgainstRays": 0.5211,
+     "unitsPerTexel": [
+      102.2,
+      100.9
+     ]
+    }
+   },
+   {
+    "actorDegrees": 0.0208,
+    "boxError": 0.0003336433874210343,
+    "frameError": 1.9910815007850857e-07,
+    "height": 39.8,
+    "levelScale": 0.5,
+    "map": "URB_TruckStop_EWI",
+    "size": [
+     170,
+     72
+    ],
+    "sizeRule": [
+     170,
+     72
+    ]
+   }
+  ],
+  "method": "tools/bake/sun_bake.py: light_frame, importance_box + light_box, wanted_size, level_depths, sample_marks, shadowed_by_map; fit for the yardstick",
+  "seconds": 12.0,
+  "summary": {
+   "actorDegreesMax": 0.0208,
+   "boxErrorMax": 0.0017013621800288092,
+   "frameErrorMax": 4.019639728847224e-07,
+   "maps": 93,
+   "notes": {
+    "AlienBase02": "no dominant light",
+    "CB2_MP_Blank": "no dominant light",
+    "Command1": "no dominant light",
+    "EWI_HQAssault_MP": "no map of the level"
+   },
+   "sizeRuleMisses": [],
+   "withoutImportanceVolume": []
+  }
+ },
  "maps": {
   "date": "2026-11-27",
   "game": "Long War Rebalance",
@@ -28529,6 +30340,100 @@
     "workers": 1
    }
   ]
+ },
+ "turn": {
+  "levelMapCentreRays": {
+   "hits": 12804,
+   "median": 0.59,
+   "texels": 12804,
+   "within100": 0.4341,
+   "within25": 0.0819
+  },
+  "levelMapSamplesAsRays": 0.9025,
+  "map": "URB_Bar",
+  "marksAsRays": 1.0,
+  "relightSeconds": {
+   "pieces": 22.3,
+   "reach": 0.1,
+   "scenes": 1.5,
+   "shadowMaps": 0.5,
+   "sun": 0.1,
+   "total": 29.1,
+   "writing": 4.6
+  },
+  "rotation": [
+   -2912,
+   16384,
+   0
+  ],
+  "shadowMapSecondsSummed": 298.0,
+  "shadowMapsTraced": 708,
+  "sun": {
+   "lights": [
+    {
+     "component": "TheWorld.PersistentLevel.DominantDirectionalLight_1.DominantDirectionalLightComponent_0",
+     "toLight": [
+      -0.0,
+      -0.96128,
+      0.275572
+     ]
+    }
+   ],
+   "maps": [
+    {
+     "bounds": [
+      -771.19,
+      -2932.0,
+      -2650.59,
+      2016.76,
+      3484.0,
+      2328.89
+     ],
+     "component": "DominantDirectionalLight_1.DominantDirectionalLightComponent_0",
+     "depthsChanged": 12804,
+     "missed": 150369,
+     "oldBounds": [
+      -3647.43,
+      -2350.63,
+      -1993.57,
+      2959.2,
+      2536.5,
+      788.81
+     ],
+     "size": [
+      132,
+      97
+     ],
+     "unitsPerTexel": [
+      21.12,
+      66.14
+     ],
+     "wantedSize": [
+      55,
+      128
+     ]
+    }
+   ],
+   "notes": [],
+   "samples": {
+    "changed": 337,
+    "count": 1743,
+    "markedAfter": 455,
+    "markedBefore": 222
+   }
+  },
+  "texelCentres": 4238589,
+  "texelsAsRays": 0.9958,
+  "texelsAwayFromEdges": 3721694,
+  "texelsAwayFromEdgesAsRays": 0.9999,
+  "texelsChangedFromTheOldSun": 1914918,
+  "toLight": [
+   -0.0,
+   -0.96128,
+   0.27557
+  ],
+  "wallSeconds": 29.3,
+  "workers": 16
  },
  "writeBack": {
   "lightWriter": {

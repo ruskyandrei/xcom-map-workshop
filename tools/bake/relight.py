@@ -16,7 +16,7 @@ bar's floor, it made the match worse), masked materials' holes (they shadow as s
       [--checker SIZE] [--source-radius R] [--remove-caster ACTOR ...] [--remove-caster-list FILE]
       [--remove-light LIGHT ...] [--remove-light-list FILE]
       [--edit-spec SPEC] [--native-copy COPY=SOURCE ...] [--foreign-copy COPY=STAGED ...] [--fresh-copy COPY ...]
-      [--light-edits FILE] [--receivers-near R] [--no-quick]
+      [--light-edits FILE] [--receivers-near R] [--no-quick] [--sun-turned]
       [--jobs N] [--band-texels N] [--floor F] [--piece-cache DIR --base SHA]
 
 An edit is relit as a change on the original bake (see `apply_change`). `--edit-spec` takes the edit from an editor
@@ -92,6 +92,12 @@ In an edit, the dominant light's shadow maps are relit too (`shadowmaps.py`; `--
 component with one whose box the edit's shadow can reach (the quick test with the dominant light) is traced before
 and after the edit, and where its view of the light changes, the map's own distance field takes our field's change.
 They are listed in the record's `shadowMaps` (written) and `shadowMapsUnchanged`.
+
+`--sun-turned` says the map's dominant light points another way than the map was baked for (the Build's native edit's
+`sun.directionChanged`): in place of the reached shadow maps, every shadow map of it on a piece the level lists is
+traced from nothing, and its map of the level and the lighting samples' marks are made again and written in the same
+write (sun_bake.py, which reads the direction from the map). It is an edit of its own: with nothing else, no piece is
+relit. The record's `sun` says what was made.
 
 `--component-list` reads more component paths, one per line (# starts a comment). A component that cannot be
 relit (no texture lightmap, a lightmap outside Lighting.tfc, StaticLightingHiddenByDefault) is skipped and listed in
@@ -1176,10 +1182,12 @@ def shadow_map_jobs(p, after, args, meshes, edit_boxes, copies=None, fresh=()):
 
 def shadow_map_job(p, scene, after, job, tops):
     """One shadow map after the edit: shadowmaps' result (None when the edit changes nothing in it). `tops` keeps
-    the decoded textures (many components share one atlas)."""
+    the decoded textures (many components share one atlas). A field from nothing is traced in the scene after the
+    edit, or in the one scene there is (a turned sun alone)."""
     import shadowmaps
     if job['fresh']:
-        return shadowmaps.fresh_shadow_map(p, job['ci'], job['sm'], job['light'], after.occluder, after.level_scale,
+        world = after or scene
+        return shadowmaps.fresh_shadow_map(p, job['ci'], job['sm'], job['light'], world.occluder, world.level_scale,
                                            tops=tops)
     return shadowmaps.relight_shadow_map(p, job['ci'], job['sm'], job['light'], scene.occluder, after.occluder,
                                          scene.level_scale, tops=tops, source=job['source'])
@@ -1606,6 +1614,9 @@ def main():
                         "changes (removed casters where they stood, copies at their poses, removed lights' reach)")
     a.add_argument('--no-shadow-maps', action='store_true',
                    help="edit: leave the dominant light's shadow maps as they are")
+    a.add_argument('--sun-turned', action='store_true',
+                   help="the dominant light turned: every shadow map of it traced from nothing, its map of the level "
+                        "and the lighting samples' marks made again (sun_bake.py)")
     a.add_argument('--no-quick', action='store_true',
                    help='edit: relight every component asked for, without the quick reach test first')
     a.add_argument('--jobs', type=int, default=default_jobs(),
@@ -1629,6 +1640,8 @@ def main():
     p = lighting.Package(args.src)
     scene_args, states, before_args, scene, after, after_args = edit_scenes(a, args, p, add_casters, natives, foreign,
                                                                             moved, ignore)
+    if args.sun_turned and scene is None:
+        a.error('--sun-turned needs the shadowed model (no --direct-only)')
     edit_boxes, edited, light_boxes, copies, fresh = edit_receivers(a, args, p, scene, after, states, natives,
                                                                     foreign, ignore, components)
     arrays, ops, reports, skipped, unchanged, unreached = {}, [], [], [], [], []
@@ -1647,9 +1660,16 @@ def main():
     taken, work, shadow_queue, shadow_seconds, jobs, peak_memory, shadow_reports, shadow_unchanged = run_pieces(
         args, p, scene, after, scene_args, before_args, after_args, options, floor, todo, copies, fresh, areas,
         edit_boxes, meshes, kept, keys, results, seconds, arrays, ops, reports, skipped, unchanged, npz, timings)
+    sun_made = None
+    if args.sun_turned:
+        import sun_bake
+        # the turned sun's map of the level and the lighting samples' marks, made in the scene after the edit
+        sun_started = time.perf_counter()
+        sun_made = sun_bake.level_edits(p, after or scene)
+        timings['sun'] = round(time.perf_counter() - sun_started, 1)
     write_record(args, p, states, after, edit_boxes, light_boxes, natives, foreign, components, arrays, ops, reports,
                  skipped, unchanged, unreached, npz, timings, started, floor, finer, seconds, peak_memory, taken, work,
-                 shadow_queue, shadow_seconds, shadow_reports, shadow_unchanged, jobs, meshes)
+                 shadow_queue, shadow_seconds, shadow_reports, shadow_unchanged, jobs, meshes, sun_made)
 
 
 def edit_arguments(a, args):
@@ -1696,9 +1716,9 @@ def edit_arguments(a, args):
         components += [line.split('#')[0].strip() for line in args.component_list.read_text(encoding='utf-8').splitlines()
                        if line.split('#')[0].strip()]
     if (not components and args.receivers_near is None and not natives and not foreign and not moved
-            and not args.fresh_copy):
-        a.error('give --component, --component-list, --receivers-near, --native-copy, --foreign-copy, --fresh-copy '
-                'or --moved-in-place')
+            and not args.fresh_copy and not args.sun_turned):
+        a.error('give --component, --component-list, --receivers-near, --native-copy, --foreign-copy, --fresh-copy, '
+                '--moved-in-place or --sun-turned')
     return add_casters, natives, foreign, moved, ignore, components
 
 
@@ -1772,7 +1792,8 @@ def edit_receivers(a, args, p, scene, after, states, natives, foreign, ignore, c
         fresh += [p.name(ci) for ci in p.children.get(ai, []) if p.cls(ci).endswith('StaticMeshComponent')]
     if args.fresh_copy:
         print('copies lit from nothing:', json.dumps(args.fresh_copy))
-    if args.receivers_near is not None:
+    if args.receivers_near is not None and not (after is None and args.sun_turned):
+        # (the sun turned alone moves no caster and no light: no piece is near it)
         if after is None:
             a.error('--receivers-near needs an edit')
         near = [c for c in receivers_near(p, edit_boxes + light_boxes, args.receivers_near)
@@ -1847,8 +1868,11 @@ def kept_pieces(args, p, scene, after, scene_args, floor, finer, options, todo, 
     kept = None
     keys, results, seconds = {}, {}, {}
     if keep_pieces:
+        import sun_bake
+        # the sun's direction as the map has it (the Build's native step turns it): a kept piece is kept for one sun
         kept = PieceCache(args.piece_cache, args.base, dict(
-            scene=scene_args, floor=floor, finer=finer, exact=options['exact'], radius=args.receivers_near))
+            scene=scene_args, floor=floor, finer=finer, exact=options['exact'], radius=args.receivers_near,
+            sun=sun_bake.direction_key(p)))
         for n, path in todo:
             if path in reaching:
                 ci = p.by_name[path]
@@ -1878,7 +1902,11 @@ def run_pieces(args, p, scene, after, scene_args, before_args, after_args, optio
     # the dominant light's shadow maps go to the workers with the pieces, ahead of them
     # (a light-only edit moves no shadow caster: only the geometry's edit boxes, and native copies, reach them)
     shadow_jobs, shadow_results = [], {}
-    if after is not None and not args.no_shadow_maps:
+    if args.sun_turned:
+        import sun_bake
+        # the sun turned: every shadow map of it, from nothing, in place of those the edit reaches
+        shadow_jobs = sun_bake.whole_map_jobs(p)
+    elif after is not None and not args.no_shadow_maps:
         shadow_jobs = shadow_map_jobs(p, after, args, meshes, edit_boxes, copies, set(fresh))
     shadow_queue = [('shadow', ('shadow', k), None, False, job) for k, job in enumerate(shadow_jobs)
                     if 'skipped' not in job]
@@ -1959,7 +1987,7 @@ def run_pieces(args, p, scene, after, scene_args, before_args, after_args, optio
         kept.prune()
     shadow_reports, shadow_unchanged = [], []
     shadows_started = time.perf_counter()
-    if after is not None and not args.no_shadow_maps:
+    if (after is not None and not args.no_shadow_maps) or args.sun_turned:
         print('progress: shadow maps')
         shadow_reports, shadow_unchanged = shadow_map_results(p, shadow_jobs, shadow_results, args, arrays, ops, npz)
     timings['shadowMaps'] = round(time.perf_counter() - shadows_started, 1)
@@ -1968,12 +1996,18 @@ def run_pieces(args, p, scene, after, scene_args, before_args, after_args, optio
 
 def write_record(args, p, states, after, edit_boxes, light_boxes, natives, foreign, components, arrays, ops, reports,
                  skipped, unchanged, unreached, npz, timings, started, floor, finer, seconds, peak_memory, taken, work,
-                 shadow_queue, shadow_seconds, shadow_reports, shadow_unchanged, jobs, meshes):
+                 shadow_queue, shadow_seconds, shadow_reports, shadow_unchanged, jobs, meshes, sun_made=None):
     """The lighting written (lightmap_writer.run, or the map as it is when nothing changed) and the record:
-    <out>/<variant>.relight.json, and the summary printed."""
+    <out>/<variant>.relight.json, and the summary printed. `sun_made`: a turned sun's (edits, record)
+    (sun_bake.level_edits), written in the same write."""
     writing_started = time.perf_counter()
     failures = [s for s in skipped + shadow_reports if s.get('failed')]
-    if not ops:
+    # a turned sun's map of the level and lighting samples' marks (main's sun_bake.level_edits): written with the
+    # lighting, then read back
+    sun_edits, sun = sun_made or ([], None)
+    if sun is not None:
+        import sun_bake
+    if not ops and not sun_edits:
         # an edit that changes no texel (a disabled or zero-brightness light added, a light reaching no receiver) is
         # a valid result: the edited map with its original lighting and no texture cache (plan 4.4). An absolute
         # relight that relit nothing, or an edit whose receivers failed to relight, is not
@@ -1987,7 +2021,9 @@ def write_record(args, p, states, after, edit_boxes, light_boxes, natives, forei
     else:
         print('progress: writing the lighting')
         np.savez_compressed(npz, **arrays)
-        manifest = lightmap_writer.run(args.src, args.out, args.variant, ops, args.cache)
+        manifest = lightmap_writer.run(args.src, args.out, args.variant, ops, args.cache, edits=sun_edits)
+        if sun is not None:
+            sun_bake.verify(args.out / f'{args.variant}.upk', sun)
     tool = dict(path='tools/bake/relight.py', sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
     timings['writing'] = round(time.perf_counter() - writing_started, 1)
     timings['total'] = round(time.perf_counter() - started, 1)
@@ -1999,7 +2035,9 @@ def write_record(args, p, states, after, edit_boxes, light_boxes, natives, forei
                   packagesDecoded=dict(decomp.STATS, seconds=round(decomp.STATS['seconds'], 2)))
     (args.out / f'{args.variant}.relight.json').write_text(
         json.dumps(dict(source=str(args.src), variant=args.variant, components=reports, skipped=skipped,
-                        unchanged=unchanged, unreached=unreached, jobs=jobs, lightingUnchanged=not ops,
+                        unchanged=unchanged, unreached=unreached, jobs=jobs,
+                        lightingUnchanged=not ops and not sun_edits,
+                        **({'sun': sun_bake.summary(sun)} if sun is not None else {}),
                         timing=timing, floor=floor, texelReach=finer,
                         otherPiecesChanged=manifest.get('otherPiecesChanged'),
                         failed=len(failures), cache=manifest['cache'],
@@ -2014,8 +2052,19 @@ def write_record(args, p, states, after, edit_boxes, light_boxes, natives, forei
                         receiversNear=args.receivers_near, componentsAsked=len(components),
                         shadowMaps=shadow_reports, shadowMapsUnchanged=shadow_unchanged,
                         fixture=manifest['outputs'], tool=tool), indent=1) + '\n', encoding='utf-8', newline='\n')
-    if after is not None and not args.no_shadow_maps:
+    if (after is not None and not args.no_shadow_maps) or args.sun_turned:
         print(f'{len(shadow_reports)} shadow maps relit, {len(shadow_unchanged)} reached but unchanged')
+    if sun is not None:
+        s = sun_bake.summary(sun)
+        for m in s['maps']:
+            print(f"the sun's map of the level ({m['component']}): {m['size'][0]} x {m['size'][1]} over "
+                  f"{m['unitsPerTexel'][0]:g} x {m['unitsPerTexel'][1]:g} units a texel, {m['depthsChanged']} depths "
+                  f"changed")
+        if s['samples']:
+            print(f"lighting samples out of the sun: {s['samples']['markedBefore']} -> {s['samples']['markedAfter']} "
+                  f"of {s['samples']['count']} ({s['samples']['changed']} changed)")
+        for note in s['notes']:
+            print(f'warning: {note}')
     print(f'{len(reports)} components relit, {len(skipped)} skipped' +
           (f', {len(unchanged) + len(unreached)} not reached by the edit ({len(unreached)} by the quick test)'
            if after is not None else '') + ('; lighting unchanged' if not ops else ''))

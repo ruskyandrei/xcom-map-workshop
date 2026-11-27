@@ -524,10 +524,14 @@ def apply(fx, op):
         raise ValueError(f'unknown operation {kind}')
 
 
-def run(src, out_dir, variant, ops, cache=None, tfc=None, fixture=None):
+def run(src, out_dir, variant, ops, cache=None, tfc=None, fixture=None, edits=()):
     """The map `src` with `ops` made and written to `out_dir` (Fixture.finish): the manifest. `fixture`: a Fixture of
-    `src` and `cache` already opened (relight.py's probe), instead of opening the map again."""
+    `src` and `cache` already opened (relight.py's probe), instead of opening the map again. `edits` ((logical
+    offset, bytes, what)) are fixed-size edits of other bytes of the map made in the same write: a turned sun's map of
+    the level and lighting samples' marks (sun_bake.level_edits)."""
     fx = fixture or Fixture(src, cache, tfc)
     for op in ops:
         apply(fx, op)
+    for offset, data, what in edits:
+        fx.edit(offset, data, what)
     return fx.finish(out_dir, variant)

@@ -2494,6 +2494,9 @@ class BuildState:
     carried_effects: object = None  # carriedEffects
     piece_cache: object = None      # with bake: the folder of the project's last baked pieces (--piece-cache)
     base: object = None             # with piece_cache: the SHA-256 of the map before any of the edit (--base)
+    # with bake: the dominant light points another way than the map was baked for (the native edit's
+    # sun.directionChanged, --sun-turned): the relight traces its shadows again for the whole map (sun_bake.py)
+    sun_turned: bool = False
     stream_tiles: tuple = ()        # streamTiles (the Build's, from streamMoves)
     piece_flags: tuple = ()         # pieceFlags
     flag_ladders: tuple = ()        # pieceFlagLadders
@@ -2787,6 +2790,8 @@ def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, job
     if piece_cache and base:
         # the pieces of this project's last baked build, for those the new edit leaves as they were
         cmd += ['--piece-cache', str(piece_cache), '--base', base]
+    if st.sun_turned:
+        cmd.append('--sun-turned')
     return cmd
 
 
@@ -3401,8 +3406,9 @@ def build(st):
     `nativeCopies` section. A copy is a dict of actor (as XComLevelActor_37), location, and rotation [pitch, yaw, roll]
     or yaw alone (the original's pitch and roll); with neither, the original's rotation. `edit_spec`, with `bake`: an
     editor patch spec whose exact hides (and posed copies) relight models too (relight.py --edit-spec), for an edit
-    whose hidden pieces stay in a patch. A copy's `breakGroup` (a number) and `break_originals` ({name, group}: the
-    map's own pieces left in place) link the editor's groups that break together (link_children). `hides` ({name,
+    whose hidden pieces stay in a patch. `sun_turned`, with `bake`: the map's sun points another way than it was baked
+    for, and the relight traces its shadows again for the whole map (relight.py --sun-turned). A copy's `breakGroup`
+    (a number) and `break_originals` ({name, group}: the map's own pieces left in place) link the editor's groups that break together (link_children). `hides` ({name,
     box}) are taken out of the map (hide_pieces), after the copies are made (a moved piece is the source of its copy)
     and before the relight, which leaves them out of the scene after the edit (--remove-caster).
 
@@ -3682,11 +3688,15 @@ def main():
                    help="with --bake: keep the relit pieces in DIR for the project's next build (relight.py "
                         '--piece-cache; needs --base)')
     a.add_argument('--base', metavar='SHA', help='with --piece-cache: the SHA-256 of the map before any of the edit')
+    a.add_argument('--sun-turned', action='store_true',
+                   help="with --bake: the map's sun points another way than it was baked for: the relight traces its "
+                        'shadows again for the whole map (relight.py --sun-turned)')
     args = a.parse_args()
     doc = json.loads(args.copies.read_text(encoding='utf-8')) if args.copies else []
     st = edit_state(args.src, args.out, args.variant, doc, bake=args.bake, cache=args.cache,
                     receivers_near=args.receivers_near, jobs=args.jobs, tiles=not args.no_tiles,
-                    edit_spec=args.edit_spec, piece_cache=args.piece_cache, base=args.base)
+                    edit_spec=args.edit_spec, piece_cache=args.piece_cache, base=args.base,
+                    sun_turned=args.sun_turned)
     for item in args.copy:
         if len(item) not in (4, 5):
             a.error(f'--copy takes ACTOR X Y Z [YAW], not {item}')
@@ -3701,10 +3711,13 @@ def main():
             and not st.cleared and not st.landing_zones and not st.stream_tiles and not st.piece_flags \
             and native_lights.is_empty(st.lights) and not st.effects and not st.sounds and not st.flares \
             and not st.spawns and not st.background_sound and not st.piece_blasts and not st.atmosphere \
-            and not st.sun and not ((st.diagonal_cover or {}).get('marks') or (st.diagonal_cover or {}).get('removed')):
+            and not st.sun and not ((st.diagonal_cover or {}).get('marks') or (st.diagonal_cover or {}).get('removed')) \
+            and not st.sun_turned:
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:
         a.error('--edit-spec needs --bake')
+    if args.sun_turned and not args.bake:
+        a.error('--sun-turned needs --bake')
     m = build(st)
     # one line per copy; the whole record is the manifest's nativeCopies section
     for c in m['nativeCopies']['copies']:

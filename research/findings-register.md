@@ -17,6 +17,24 @@ Statuses:
   the shadow map of the level and its shadow info kept. The sun's component saves no `CachedParentToWorld`: its
   direction is the actor's `Rotation` alone. Verified (EXP-99): the game draws the new colours, the sky light and a
   turned direction on moving things; the map's baked shadows stay the old light's until a Build bakes them.
+- F-198 (27 November, the game-likeness plan's T-S4): a piece with the sun on its `IrrelevantLights` (F-184) has no
+  shadow map to take a turned sun's field, so it stays without the sun: on URB_Bar turned to a 16-degree sun from the
+  west, 50 of its 314 such pieces would be reached on more than 1% of their texels (33,438 texels of 668,062).
+  Open: such a piece would need a shadow map of its own and the light off its list.
+- F-197 (27 November, T-S4): a Build with baking whose sun turned traces every shadow map of it from nothing for the
+  whole map, the debris volume's pieces included, and makes its map of the level and the lighting samples' marks
+  again. URB_Bar turned to a 16-degree sun: 708 shadow maps in 28.9 s on 16 workers; their texels on the side a ray
+  gives on 99.58% (99.99% away from the edges); 222 marks become 455. Fixed (offline readback); EXP-100 plays it.
+- F-196 (27 November, T-S4): T-S0's yardstick for the map of the level (rays from texels' centres within 25 units)
+  depends on the light's height: the game's own maps meet it on 92% (URB_Bar's moon), 18% (a 39-degree sun) and 1 to
+  8% (11 to 19-degree suns). Read instead by what the map puts in shadow: the lighting samples as rays put them, the
+  game's maps 52 to 97%, the baker's for the same lights within 0.2 points or better on each. Accepted.
+- F-195 (27 November, T-S4): the dominant light's map of the level as Lightmass makes it: the frame from the light's
+  direction (UE3's FindBestAxisVectors), the box of the map's one Lightmass importance volume, a texel of 100 units
+  times the level's lighting scale, each depth the deepest of 5 x 5 rays across the texel. On all 93 maps the frame
+  within 4e-7, the box within 0.002 units, the size exact; the depths within 25 units on 93 to 99% of texels on four
+  of six maps lit from 39 degrees up or more (85% and 70% on the other two), 39 to 55% under 11 to 19-degree suns.
+  Fixed (the baker makes it for a turned sun).
 - F-190 (27 November, the game-likeness plan's B4): a baked Build's package holds only the lighting textures it wrote.
   A relit atlas is the map's own texture object written again, under the map's name; a copy's are new objects; every
   other texture a relit piece names (3 sun shadow maps in an earlier Build of URB_Bar) stays in the base map's texture
@@ -361,6 +379,93 @@ URB_Bar made day by EXP-99's project).
   quick Build that turns the light says so (`sun-shadows-stale`).
 - **The records.** URB_Bar's variant has one record (its abduction; URB_Bar_Terror is a map of its own): its
   `TimeOfDay` went from `eMissionTime_Night` to `eMissionTime_Day`.
+
+### F-198: A piece with the sun on its IrrelevantLights stays without a turned sun
+**Open** (27 November 2026, the game-likeness plan's T-S4; counted offline on URB_Bar built with its moon turned to
+Rotation (-2912, 16384, 0), a sun 16 degrees up from the west, by rays from each piece's lightmap texels).
+- **What.** A lightmapped piece wholly in the map's own sun's shadow lists the light on its `IrrelevantLights` and has
+  no shadow map of it (F-184), and the game draws none of the sun on it. A turned sun's whole-map trace (F-197) writes
+  every shadow map there is; such a piece has none to write, so it stays without the new sun however the sun now
+  reaches it.
+- **How much.** URB_Bar's level lists 314 such pieces (the bar's floors, its furniture and fittings, but also
+  destructible props outside). Toward the turned sun, 50 of them would be lit on more than 1% of their texels, up to
+  45% (destructible props); 33,438 of their 668,062 texels in all.
+- **What would fix it.** A shadow map texture of its own for each such piece (as a made piece gets one,
+  frac_walls.own_light, through the growing writer) and the light taken off its `IrrelevantLights`; the sun's
+  shadow then traced into it as into the others. Not in T-S4: the plan writes the shadow maps the map has.
+
+### F-197: A turned sun's shadows made again for the whole map in a Build with baking
+**Fixed** (27 November 2026, the game-likeness plan's T-S4: tools/bake/sun_bake.py run by relight.py --sun-turned, which
+the Build passes when its native edit's `sun.directionChanged` is true; checked offline on URB_Bar, `tools/upk/audit_suns.py
+turn`, evidence in [sun-audit-2026-11-27.json](evidence/sun-audit-2026-11-27.json) `turn`, and by the bake suite's
+test_sun_bake.py through the copy tool with the sun lane; nothing played: EXP-100).
+- **What is made.** Every distance-field shadow map of the dominant light on a piece the level lists, traced from
+  nothing in the scene after the edit (shadowmaps.fresh_shadow_map, written as it is) in place of the reached ones an
+  edit's relight changes; the light's map of the level for moving things made again for the new direction (F-195);
+  each lighting sample's mark set again by one ray toward the light. All in the relight's one write
+  (lightmap_writer.run's `edits` for the map of the level and the marks, through package_edit.write_edited) and read
+  back (sun_bake.verify). The relit pieces kept for a project's next build (relight.PieceCache) are kept for one sun:
+  its direction is in their key.
+- **The debris volume's pieces** (81 `XComDebrisStaticMeshComponent` under URB_Bar's `XComLevelVolume_4`, F-177) are
+  traced too, read through lighting_records' component reader: traced for the map's own moon, their fields fall on
+  the stored side on 90.3% of texels (each piece's share, averaged) against 91.3% for sixty of the map's other
+  pieces, so their transform is read right. An edit's relight still leaves them, as before.
+- **URB_Bar, its moon turned to a sun 16 degrees up from the west** (Rotation (-2912, 16384, 0)): 708 shadow maps (627
+  and the 81 debris pieces' shadow maps) in 28.9 s on 16 workers, 22 s of it the tracing (296 s of the workers'
+  time), 4.5 s the write; the copy tool's whole run with the sun lane 31 s. Read back: 4,238,589 texel centres on the
+  side a ray from each gives on 99.58%, and on 99.99% of the 3,721,694 away from the shadows' edges (values under
+  0.25 or over 0.75); 1,914,918 texels changed from the moon's. The lighting samples: 222 marked before, 455 after,
+  every mark as its ray gives it. The map of the level: 132 by 97 kept (Lightmass would give the new box 55 by 128),
+  21 by 66 units a texel; every depth changed.
+- **What stays the old sun's**, as the plan has it: the lightmaps' bounce of the old sun and the lighting samples'
+  own light; and the pieces with no shadow map of the sun (F-198).
+
+### F-196: The level map's yardstick of T-S0 depends on the light's height; what the map puts in shadow does not
+**Accepted** (27 November 2026, T-S4; `tools/upk/audit_suns.py level-rule` on eleven maps and `turn`, evidence in
+[sun-audit-2026-11-27.json](evidence/sun-audit-2026-11-27.json) `levelRule` and `turn`).
+- **The yardstick.** T-S0 held URB_Bar's map of the level against rays from each texel's centre (F-176): 92% within 25
+  units. A texel's depth along a low light changes by hundreds of units across it (a 100-unit texel of a 16-degree
+  sun spans about 350 units of ground depth), and Lightmass stores the deepest of its rays (F-195), so the game's own
+  maps meet the yardstick less the lower their light: URB_Bar's moon (81 degrees) 92%, URB_HighwayBridge (50) 68%,
+  URB_PoliceStation (52) 67%, CSmallScout_DirtRoad (81, a forest) 66%, URB_CommercialStreet (39) 18%,
+  LSmallScout_River (40) 3%, URB_TruckStop (19) 6%, URB_Trainyard, URB_ResearchOutpost and CLrgScout_TheBarrens (16)
+  5%, 8% and 5%, CLrgScout_Stonewall (11) 1%.
+- **What the map does instead.** Read as the game looks a point up (its light-space place, the texel holding it, in
+  shadow when deeper than the stored depth: sun_bake.shadowed_by_map), the lighting samples put in shadow against
+  their rays: the game's maps 97% (URB_Bar), 96% (URB_CommercialStreet), 93 and 92% (URB_HighwayBridge,
+  URB_PoliceStation), 91% (CSmallScout_DirtRoad), 78% (LSmallScout_River), 92%, 82% and 74% (CLrgScout_TheBarrens,
+  URB_Trainyard, URB_ResearchOutpost), 68% (CLrgScout_Stonewall), 52% (URB_TruckStop). The map made by the baker's rule
+  for the same light in the same box, in the same order: 97, 96, 93, 94, 95, 92, 92, 87, 79, 77 and 54%, within 0.2
+  points of the game's on the first three and better on the rest.
+- **URB_Bar turned to a 16-degree sun:** the written map meets the old yardstick on 8% of texels, and puts the
+  lighting samples where rays do on 90.3%, in the range of the game's own maps of such suns.
+- So the check of a turned sun's map of the level is what it puts in shadow, not the centre rays.
+
+### F-195: The dominant light's map of the level as Lightmass makes it
+**Fixed** (27 November 2026, T-S4: tools/bake/sun_bake.py makes it for a turned sun; read offline over the 97 base maps
+of the configured install with `tools/upk/audit_suns.py level-rule`, evidence in
+[sun-audit-2026-11-27.json](evidence/sun-audit-2026-11-27.json) `levelRule`; nothing played: EXP-100).
+- **The frame.** Light space's z is the light's direction (its actor's `Rotation`: the stored direction lies within
+  0.021 degrees of it on every map); x is the world's x made square to it where the light stands nearer the vertical
+  than either level axis, else the world's z; y is x cross z (UE3's FindBestAxisVectors: a left-handed basis).
+  `LightToWorld`'s rows are the three axes and `WorldToLight` its transpose: on all 93 maps with a map of the level,
+  within 4e-7 of what they store.
+- **The box.** `LightSpaceImportanceBounds` is the world box of the map's Lightmass importance volume (its brush's
+  bounds through its pose and scale), its eight corners through `WorldToLight`: within 0.002 units on all 93. Every
+  map with a map of the level has exactly one such volume, and none is turned.
+- **The size.** `ShadowMapSizeX` and `Y`: the box's width and height over 100 units times the WorldInfo's
+  `StaticLightingLevelScale` (URB_Bar 0.5: 50 units a texel), truncated, at least 4: exact on all 93.
+- **The depths.** For texel (X, Y), 5 by 5 rays along the light from the box's near face at the fractions (X + a/4) /
+  (sizeX - 1) and (Y + b/4) / (sizeY - 1), a and b from 0 to 4 (the texel's corner to the next one's); the texel's
+  depth is the deepest hit, a ray that meets nothing counting as the far face, stored as 0 to 65535 of the box's depth.
+  Against the stored depths, within 1 and 25 units: URB_Bar 94% and 98.7%, URB_HighwayBridge 93% and 99.0%,
+  URB_CommercialStreet 25% and 96.9%, URB_PoliceStation 53% and 93.4%, CSmallScout_DirtRoad 13% and 85%,
+  LSmallScout_River 14% and 70%; under 11 to 19-degree suns 39 to 55% within 25 and 65 to 92% within 100 units, the
+  errors on both sides (median 0 to -30 units), where a texel's depth spans hundreds of units (F-196). Of the
+  layouts tried, 4 by 4 rays to the texel's three-quarter mark fit URB_Bar a little worse (91% within a unit) and
+  every low sun worse (the stored depths deeper); centres, the mean or the shallowest worse still.
+- **A turned sun's map** keeps the stored size, as a write in place cannot change the count of depths: its texels
+  stretch to the new box (URB_Bar under a 16-degree sun: 21 by 66 units).
 
 ### F-190: A baked Build's package holds only the lighting textures it wrote
 **Accepted** (27 November 2026, the game-likeness plan's B4; read offline from two baked Builds of URB_Bar in scratch
