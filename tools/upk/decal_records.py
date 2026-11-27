@@ -86,9 +86,10 @@ def _sized(r, size, what):
 def receivers(r, p):
     """The static receivers of a DecalComponent's native data, from the reader's place (where its tagged properties
     end) to its end: [dict(componentAt (the reference's place in the package), component, vertexCount, vertices (the
-    raw 28-byte vertices), indices (a tuple), triangles, lightmap (its type), shadowMaps (references), data,
-    instance)]. Refused (FormatError) where a count or an index doesn't fit, where a receiver has a lightmap, and
-    where bytes are left after the last receiver."""
+    raw 28-byte vertices), indices (a tuple), indexed, triangles, lightmap (its type), shadowMapsAt (their count's
+    place), shadowMaps (references), data, instance)]. Refused (FormatError) where a count or an index doesn't fit,
+    where a receiver has a lightmap, and where bytes are left after the last receiver. The one reader of a decal's
+    receivers: native_fields.py takes the references' places from it."""
     out = []
     for _ in range(r.count()):
         at = r.pos
@@ -108,13 +109,14 @@ def receivers(r, p):
         lightmap = r.i32()
         if lightmap:
             raise FormatError('a decal receiver at %d has a lightmap (type %d), whose form is not known' % (at, lightmap))
+        shadows_at = r.pos
         shadows = [r.i32() for _ in range(r.count())]
         for ref in shadows:
             p.name(ref)
         data, instance = r.unpack('2i')
         out.append(dict(componentAt=at, component=component, vertexCount=count, vertices=raw, indices=indices,
-                        indexed=indexed, triangles=triangles, lightmap=lightmap, shadowMaps=shadows, data=data,
-                        instance=instance))
+                        indexed=indexed, triangles=triangles, lightmap=lightmap, shadowMapsAt=shadows_at,
+                        shadowMaps=shadows, data=data, instance=instance))
     if r.pos != r.end:
         raise FormatError('a decal component: %d bytes left after its receivers' % (r.end - r.pos))
     return out
