@@ -576,9 +576,6 @@
     <section id="issues" class="panel pop" aria-label="Import notes" hidden><h3>Import notes</h3><div id="composition"></div><div id="diagnostics"></div></section>
     <section id="viewOptions" class="panel pop" aria-label="View options" hidden>
       <h3>Look</h3>
-      <div class="lookrow"><div id="lighting" class="seg" role="group" aria-label="Look">
-        <button data-value="game" title="The map as the game shows it: its own lights (K switches the look)">Game</button><button data-value="neutral" title="Even studio light, for building (K switches the look)">Neutral</button>
-      </div><kbd title="Switches between the Game and Neutral looks">K</kbd></div>
       <div id="buildLight" class="lightnote" hidden></div>
       <label class="check" id="areaLightsRow" title="In the Game look, the area lights the bake made for the map's glowing pieces (a lamp's shade, a lit sign), drawn as lights. Untick them to see the map's placed lights alone"><input id="areaLights" type="checkbox" checked> Area lights</label>
       <label class="slider">Brightness <input id="exposure" type="range" min="0.3" max="2.5" step="0.05" value="1"></label>
@@ -621,6 +618,7 @@
     </section>
     <div class="dock panel" role="toolbar" aria-label="View">
       <button id="frame" title="Frame the whole view (the play area in Interior)"><svg class="i"><use href="#i-frame"/></svg>Frame</button>
+      <div id="lookGroup" class="group"><span class="label">Look</span><div id="lighting" class="seg" role="group" aria-label="Look"><button data-value="game" title="The map as the game shows it: its materials, its baked and placed lights, its fog, colour and sky (K switches the look)">Game</button><button data-value="neutral" title="Even studio light, for building (K switches the look)">Neutral</button></div></div>
       <div id="sceneryGroup" class="group"><span class="label">Scene</span><div id="scenery" class="seg" role="group" aria-label="Scene"><button data-value="interior" title="The playable interior: the area and floors the game plays on">Interior</button><button data-value="full" title="Everything in the map, with backdrops and roofs">Full</button></div></div>
       <div id="floorGroup" class="group"><span class="label">Floors</span><div id="floor" class="seg" role="group" aria-label="Show through floor"></div></div>
     </div>

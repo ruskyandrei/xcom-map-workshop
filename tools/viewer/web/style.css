@@ -16,7 +16,7 @@ body { user-select: none; }
 #buildNote, #buildLeftOut, #buildMissions, #buildLog, #buildResult, #prefabTestNote, #prefabTestIssues, #prefabTestLog { user-select: text; }
 button { font: inherit; color: inherit; }
 kbd { font: 10px Segoe UI, system-ui, sans-serif; color: #7f95a1; }
-.lookrow { display: flex; align-items: center; gap: 8px; }   /* the look's buttons and their key (View options) */
+.lookrow { display: flex; align-items: center; gap: 8px; }   /* a made piece's look: its name and its buttons */
 .sprite { display: none; }
 .i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
 

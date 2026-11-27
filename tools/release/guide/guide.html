@@ -655,7 +655,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <a href="#settings">More</a></li>
   <li data-n="11"><b>Import notes:</b> what the editor couldn't read exactly from the map (a material drawn in an
     approximate colour, say), with their count. They are about the picture, not about your edits.</li>
-  <li data-n="12"><b>View options:</b> the look (Game or Neutral), the camera, the tile grid and more. <a href="#viewoptions">More</a></li>
+  <li data-n="12"><b>View options:</b> the look's options, the camera, the tile grid and more. <a href="#viewoptions">More</a></li>
   <li data-n="13"><b>Controls and shortcuts:</b> a short list of every key, the editor's version, and a link to this guide.</li>
 </ol>
 <p>Items 3 to 6 show once something has changed. While the project manager's <a href="#build-queue">build queue</a>
@@ -825,13 +825,16 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ul>
 
 <h3 id="bottom">Bottom bar and floors</h3>
-<figure><img src="shots/dock.webp" width="542" height="92" alt="The bottom bar: Frame, Scene and Floors"></figure>
+<figure><img src="shots/dock.webp" width="704" height="92" alt="The bottom bar: Frame, Look, Scene and Floors"></figure>
 <ol class="legend">
   <li data-n="1"><b>Frame</b> fits the whole view in the window: the play area in Interior, everything in Full.</li>
-  <li data-n="2"><b>Scene:</b> <b class="ui">Interior</b> shows the area the game plays on; <b class="ui">Full</b> adds
+  <li data-n="2"><b>Look:</b> <b class="ui">Game</b>, the map as the game draws it, or <b class="ui">Neutral</b>,
+    plain even light, best for building. <kbd>K</kbd> switches between them anywhere. A map opens in the Neutral
+    look. <a href="#game-look">The Game look</a></li>
+  <li data-n="3"><b>Scene:</b> <b class="ui">Interior</b> shows the area the game plays on; <b class="ui">Full</b> adds
     the backdrop around it (distant buildings, the street beyond the edge). Interior draws a piece that reaches into
     the area whole, a car across the edge included, unless it stretches more than four tiles past it.</li>
-  <li data-n="3"><b>Floors:</b> <b class="ui">All</b> shows buildings whole, roofs closed. A number cuts every building
+  <li data-n="4"><b>Floors:</b> <b class="ui">All</b> shows buildings whole, roofs closed. A number cuts every building
     down to that floor, so you can see and edit inside. With a floor chosen, a new floor box in the
     <a href="#buildings">Buildings view</a> starts at that floor's height.</li>
 </ol>
@@ -843,40 +846,37 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="viewoptions">View options</h3>
 <div class="split">
-  <figure><img src="shots/view-options.webp" width="332" height="677" alt="The View options menu in the Game look, its seventeen items numbered, the line of the project's last baked Build under the look"></figure>
+  <figure><img src="shots/view-options.webp" width="332" height="649" alt="The View options menu in the Game look, its sixteen items numbered, the line of the project's last baked Build first"></figure>
   <ol class="legend">
-    <li data-n="1"><b>Look:</b> <b class="ui">Game</b>, the map as the game draws it, or <b class="ui">Neutral</b>,
-      plain even light, best for building. <kbd>K</kbd> switches between them anywhere. A map opens in the Neutral
-      look. <a href="#game-look">The Game look</a></li>
-    <li data-n="2"><b>Lit by the Build of…:</b> in the Game look, with a project open whose last build was baked: when
+    <li data-n="1"><b>Lit by the Build of…:</b> in the Game look, with a project open whose last build was baked: when
       that build was made, and how many pieces changed since. <a href="#build-light">More</a></li>
-    <li data-n="3"><b>Area lights:</b> in the Game look, the lights the bake made for the map's glowing pieces (a
+    <li data-n="2"><b>Area lights:</b> in the Game look, the lights the bake made for the map's glowing pieces (a
       lamp's shade, a lit sign). Untick it to see the map's placed lights alone. Greyed in the Neutral look.</li>
-    <li data-n="4"><b>Brightness</b> of the view.</li>
-    <li data-n="5"><b>Keys move along the view:</b> <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys move the
+    <li data-n="3"><b>Brightness</b> of the view.</li>
+    <li data-n="4"><b>Keys move along the view:</b> <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys move the
       camera forward, back and sideways the way it faces, instead of panning across the map, and dragging looks round
       from where the camera stands instead of orbiting. <a href="#view">More</a></li>
-    <li data-n="6"><b>Move speed:</b> how fast <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys
+    <li data-n="5"><b>Move speed:</b> how fast <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys
       move the camera, from a fifth of the usual speed to three times it (<kbd>Shift</kbd> still triples it).</li>
-    <li data-n="7"><b>Key turn speed:</b> how fast <kbd>Q</kbd> and <kbd>E</kbd> turn the camera.</li>
-    <li data-n="8"><b>Drag turn speed:</b> how fast a drag orbits, or looks round with Keys move along the view. The
+    <li data-n="6"><b>Key turn speed:</b> how fast <kbd>Q</kbd> and <kbd>E</kbd> turn the camera.</li>
+    <li data-n="7"><b>Drag turn speed:</b> how fast a drag orbits, or looks round with Keys move along the view. The
       three speeds are kept on this computer; double-click a slider to put it back to ×1.</li>
-    <li data-n="9"><b>Sun, moon and sky…</b> opens <a href="#map-settings">Map settings</a>, where the time of day,
+    <li data-n="8"><b>Sun, moon and sky…</b> opens <a href="#map-settings">Map settings</a>, where the time of day,
       the sky, the fog and the colour are set.</li>
-    <li data-n="10"><b>Play area</b> (<kbd>B</kbd>): faint amber walls round the area the game plays on, its level volume:
+    <li data-n="9"><b>Play area</b> (<kbd>B</kbd>): faint amber walls round the area the game plays on, its level volume:
       units can't leave it.</li>
-    <li data-n="11"><b>Tile grid</b> around the selection.</li>
-    <li data-n="12"><b>Floor tiles:</b> where the game has floor, coloured by the piece that carries each tile. Hover a
+    <li data-n="10"><b>Tile grid</b> around the selection.</li>
+    <li data-n="11"><b>Floor tiles:</b> where the game has floor, coloured by the piece that carries each tile. Hover a
       tile to name its piece; click to select it.</li>
-    <li data-n="13" id="diagonal-cover"><b>Diagonal cover:</b> the diagonal cover marks drawn in the normal view too,
+    <li data-n="12" id="diagonal-cover"><b>Diagonal cover:</b> the diagonal cover marks drawn in the normal view too,
       never picked there: amber the map's own as it is, teal the ones your project adds or changes, or that follow
       their piece. They are edited in the <a href="#diagonal">Diagonal cover view</a>.</li>
-    <li data-n="14"><b>Effects as they look:</b> each effect drawn where it stands, moving. Untick it for a busy map on a
+    <li data-n="13"><b>Effects as they look:</b> each effect drawn where it stands, moving. Untick it for a busy map on a
       slow computer; the markers and the editing stay. <a href="#effects-look">More</a></li>
-    <li data-n="15"><b>Wireframe.</b></li>
-    <li data-n="16"><b>Hide patch helpers:</b> untick to see Long War Rebalance's invisible cover and blockers, as a
+    <li data-n="14"><b>Wireframe.</b></li>
+    <li data-n="15"><b>Hide patch helpers:</b> untick to see Long War Rebalance's invisible cover and blockers, as a
       wireframe. Shown only on maps that have them.</li>
-    <li data-n="17"><b>Performance stats:</b> a line of counts (pieces, triangles, draw calls).</li>
+    <li data-n="16"><b>Performance stats:</b> a line of counts (pieces, triangles, draw calls).</li>
   </ol>
 </div>
 <p>Above Play area, on a whole map: <b class="ui">Ground grid</b> and <b class="ui">Landing zones</b>
@@ -886,7 +886,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="game-look">The Game look</h3>
 <p>The <b class="ui">Game</b> look draws the map as the game draws it; the <b class="ui">Neutral</b> look lights it
-  evenly, which is easier to build in. <kbd>K</kbd> switches between them, and View options' Look row does the same. A
+  evenly, which is easier to build in. <kbd>K</kbd> switches between them, and so does the Look switch in the
+  <a href="#bottom">bottom bar</a>. A
   map opens in the Neutral look; the Game look is greyed on a scene with no lighting of its own.</p>
 <div class="pair">
   <figure class="zoom"><img src="shots/look-neutral.webp" width="470" height="320" alt="The Bar's front and car park in the Neutral look: even studio light"><figcaption>Neutral</figcaption></figure>
@@ -920,7 +921,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   pieces near your changes new ones. With a project open whose last build was baked, the Game look lights each piece
   that is as that build made it by the build's own lightmaps, the first time the look is on (the editor reads them from
   the build into its cache, in a second or so). View options says so under the look: <i>Lit by the Build of 27/11/2026,
-  16:52 · 1 piece changed since</i> (item 2 of <a href="#viewoptions">its picture</a>).</p>
+  16:52 · 1 piece changed since</i> (item 1 of <a href="#viewoptions">its picture</a>).</p>
 <ul>
   <li><b>A piece changed since the build</b> is lit live, as are the pieces a light changed since reaches. Undo puts a
     piece back on the build's light.</li>

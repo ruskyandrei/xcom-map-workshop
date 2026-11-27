@@ -332,7 +332,7 @@ class Shots:
 
     def dock(self):
         self.page.evaluate('viewer.select(null)')
-        marks = [dict(n=k + 1, sel=s, side='top', gap=17) for k, s in enumerate(('#frame', '#scenery', '#floor'))]
+        marks = [dict(n=k + 1, sel=s, side='top', gap=17) for k, s in enumerate(('#frame', '#lighting', '#scenery', '#floor'))]
         self.shot('dock', marks, clip=self.around('.dock', pad=(60, 40, 60, 10)))
 
     def project_menu(self):
@@ -992,9 +992,9 @@ class Shots:
         page.wait_for_function("document.getElementById('buildLight').textContent.includes('1 piece changed since')", timeout=30000)
         page.locator('#viewButton').click()
         page.wait_for_timeout(600)
-        rows = [(1, '#lighting'), (2, '#buildLight'), (3, '#areaLights'), (4, '#exposure'), (5, '#flyKeys'), (6, '#moveSpeed'),
-                (7, '#turnSpeed'), (8, '#dragSpeed'), (9, '#skyOpen'), (10, '#playAreaToggle'), (11, '#grid'), (12, '#floorTiles'),
-                (13, '#diagonalCover'), (14, '#likenessToggle'), (15, '#wire'), (16, '#hideHelpers'), (17, '#statsToggle')]
+        rows = [(1, '#buildLight'), (2, '#areaLights'), (3, '#exposure'), (4, '#flyKeys'), (5, '#moveSpeed'), (6, '#turnSpeed'),
+                (7, '#dragSpeed'), (8, '#skyOpen'), (9, '#playAreaToggle'), (10, '#grid'), (11, '#floorTiles'),
+                (12, '#diagonalCover'), (13, '#likenessToggle'), (14, '#wire'), (15, '#hideHelpers'), (16, '#statsToggle')]
         hidden = [s for _, s in rows if not page.locator(s).is_visible()]
         if hidden: raise SystemExit('View options lacks %s on %s: the guide numbers them all' % (', '.join(hidden), MAP))
         self.shot('view-options', self.panel_rows('#viewOptions', rows), clip=self.around('#viewButton', '#viewOptions', pad=(44, 6, 8, 12)))
