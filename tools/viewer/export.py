@@ -16,6 +16,7 @@ from mesh import read_mesh, write_glb
 import material_programs
 import atmosphere as atmosphere_records
 import baked_light
+import decals as decal_export
 import light_functions
 from skeletal import read_skeletal
 from texture import export_texture
@@ -122,10 +123,13 @@ import settings
 # 46: a light's `lightFunction` (game-likeness plan, F1: light_functions.py): the program of the material the game
 #     draws on the light (its light function shader sliced, output `light`: the factor it multiplies the light by,
 #     which may move with time), its material and whether it moves; only where the export makes programs
+# 47: the map's placed decals (game-likeness plan, D1; decals.py, decal_records.py; F-210, F-211): `decals`, each with
+#     its actor, place, rotation, frame, size, material and the piece it lies on, and a mesh (decal-<actor>.glb) of
+#     the triangles the game stored for it, grouped by the piece each part lies on; a stream's in its layer
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 46
+EXPORT_VERSION = 47
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -758,6 +762,9 @@ class Exporter:
             triggerCounts=self.guarded('trigger counts', lambda: trigger_counts(p), None))
         # its fog, grade, bloom and post-process volumes (export 43), absent for a streamed or previewed package
         air = {} if self.prefix else dict(atmosphere=self.guarded('atmosphere', lambda: atmosphere_records.read(p), None))
+        # its placed decals (export 47): the map's and a stream's, none for the patch a preview builds on
+        decals = ([] if self.prefix and not stream
+                  else self.guarded('decals', lambda: decal_export.records(self, objects), []))
         return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope, **air,
                     playableBounds=bounds[1] if bounds else None,
                     tileGrid=grid, tactical=tactical,
@@ -765,11 +772,12 @@ class Exporter:
                     cursorVolumes=[] if self.prefix else self.guarded('cursor volumes', lambda: cursor_volumes(p), []),
                     landings=self.landings, **spawns, **sound,
                     effects=effects['effects'], sounds=effects['sounds'], flares=effects['flares'],
-                    effectSystems=effects['systems'], soundWaves=effects['waves'],
+                    effectSystems=effects['systems'], soundWaves=effects['waves'], decals=decals,
                     lighting="dynamic", lightMetadata=dict(version=LIGHT_METADATA_VERSION, areaMatcher=self.area_matcher),
                     source=dict(file=str(p.path),sha256=self.digest or sha256(p.path),
                     version=p.header["ver"],licensee=p.header["lic"]),
                     counts=dict(exports=len(p.exports),selectedActors=len(selected),components=len(objects),lights=len(lights),
+                                decals=len(decals),
                                 meshes=len(self.meshes),materials=len(self.materials),textures=sum(bool(v) for v in self.textures.values())),
                     objects=objects, lights=lights, meshes=self.meshes,
                     materials=self.materials,textures=self.textures,diagnostics=self.diagnostics,
@@ -847,11 +855,12 @@ def stream_layers(p, result, stage, records, progress=None, base=None):
         # its effects, sounds and flares (export 28), read only; their systems and waves are keyed by package
         for key, into in (('effectSystems', 'effectSystems'), ('soundWaves', 'soundWaves')):
             result.setdefault(into, {}).update(layer.get(key) or {})
-        for record in layer['objects'] + layer.get('lights', []):
+        for record in layer['objects'] + layer.get('lights', []) + layer.get('decals', []):
             record.update(layer='stream', stream=name)
         for obj in layer['objects']:
             obj.update(floors=[], sceneryRole=None)
-        entry.update(effects=layer.get('effects', []), sounds=layer.get('sounds', []), flares=layer.get('flares', []))
+        entry.update(effects=layer.get('effects', []), sounds=layer.get('sounds', []), flares=layer.get('flares', []),
+                     decals=layer.get('decals', []))
         entry.update(objects=layer['objects'], lights=layer.get('lights', []),
                      hiddenComponents=sum(bool(o['hidden']) for o in layer['objects']),
                      rebuildVolumes=sum(r.get('actorClass') == 'XComRebuildWorldDataVolume'

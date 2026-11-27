@@ -37,6 +37,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / 'viewer'))
 from package import FormatError, Reader  # noqa: E402
+import decal_records  # noqa: E402  (beside this file)
 
 NAME, OBJECT, BULK = 'name', 'object', 'bulk'
 COOK = {'cook4': 4, 'cook16': 16}
@@ -501,16 +502,12 @@ def _skeletal_mesh(o):
 
 # -- decals --------------------------------------------------------------------------------------------------------
 def _decal_component(o):
-    r = o.r
-    for _ in range(r.count()):                  # static receivers (an archetype's has none)
-        o.obj()                                 # the component the decal lies on
-        r.array_bytes()                         # vertices
-        r.array_bytes()                         # indices
-        r.take(4)                               # triangles
-        if r.i32():                             # none has one in the game's maps, so its form here is not known
-            raise NativeError('a decal receiver with a lightmap')
-        o.objs()                                # shadow maps (none in the game's maps)
-        r.take(8)
+    # its static receivers (an archetype's has none), read by the one reader of them, decal_records.receivers (which
+    # refuses a receiver with a lightmap: none has one in the game's maps, so its form is not known): the component
+    # each lies on, and its shadow maps (none in the game's maps)
+    for rec in decal_records.receivers(o.r, o.p):
+        o.fields.append((rec['componentAt'] - o.off, OBJECT))
+        o.fields += [(rec['shadowMapsAt'] + 4 + 4 * k - o.off, OBJECT) for k in range(len(rec['shadowMaps']))]
     o.done('a decal component')
 
 
