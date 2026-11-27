@@ -810,8 +810,31 @@
   <div id="mapSettings" class="modal" hidden>
     <form id="mapSettingsForm" class="panel filedialog buildoptions mapsettings" role="dialog" aria-modal="true" aria-labelledby="mapSettingsTitle" novalidate>
       <div class="dialoghead"><h2 id="mapSettingsTitle">Map settings</h2><button id="mapSettingsClose" class="icon" type="button" title="Close (Esc)" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></div>
-      <h3 class="settingshead">Sun, moon and sky</h3>
-      <div id="skyList" class="skylist"></div>
+      <section id="mapSunSection" class="mapsun" aria-labelledby="mapSunTitle">
+        <h3 id="mapSunTitle" class="settingshead">Sun, moon and sky</h3>
+        <p id="mapSunNote" class="optionsnote"></p>
+        <div id="mapSunControls" class="suncontrols">
+          <div id="mapTimeBar" class="timebar" role="slider" tabindex="0" aria-label="Time of day" aria-valuemin="0" aria-valuemax="1439" title="The time of day: drag or click for the sun or moon, the sky light and the fog and colour of that hour; the arrow keys move it five minutes (an hour with Shift). One undo step"><canvas id="mapTimeColours" aria-hidden="true"></canvas><span id="mapTimeKnob" class="timeknob"></span></div>
+          <div class="timeticks" aria-hidden="true"><span>0:00</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
+          <div class="sunrow">
+            <svg id="mapSunDial" class="sundial" viewBox="-32 -32 64 64" role="slider" tabindex="0" aria-label="The side the light stands at its highest" aria-valuemin="0" aria-valuemax="359"></svg>
+            <div class="sunwords"><div id="mapSunTime" class="suntime"></div><div id="mapSunWords"></div><div id="mapSunSide" hidden>Direction changed: the map's shadows stay as they fall until a baked Build makes new ones.</div></div>
+          </div>
+          <details id="mapSunFold" class="fold lookfold"><summary><span class="headname">More</span><span class="foldval">colour, strength, sky light, fog and colour of the hour</span></summary>
+            <div class="lookcolours"><label title="The sun or moon's colour. Set here, the time of day leaves it as it is. One undo step"><input id="mapSunColour" type="color"> light</label><span id="mapSunColourCustom" class="chip" hidden title="Set by hand: the time of day leaves it as it is. As the map has it puts it back">custom</span></div>
+            <label class="slider" title="The sun or moon's strength. Set here, the time of day leaves it as it is. One undo step on release"><span>Strength</span><input id="mapSunStrength" type="range" min="0" max="6" step="0.05"><output id="mapSunStrengthOut"></output><span id="mapSunStrengthCustom" class="chip" hidden>custom</span></label>
+            <div id="mapSkyRows">
+              <div class="lookcolours"><label title="The sky light's colour: the light from the whole sky, which lights the soldiers and aliens. Set here, the time of day leaves it as it is. One undo step"><input id="mapSkyColour" type="color"> sky light</label><span id="mapSkyColourCustom" class="chip" hidden title="Set by hand: the time of day leaves it as it is. As the map has it puts it back">custom</span></div>
+              <label class="slider" title="The sky light's strength. Set here, the time of day leaves it as it is. One undo step on release"><span>Sky light</span><input id="mapSkyStrength" type="range" min="0" max="2" step="0.05"><output id="mapSkyStrengthOut"></output><span id="mapSkyStrengthCustom" class="chip" hidden>custom</span></label>
+            </div>
+            <p id="mapSkyNone" class="optionsnote" hidden>This map has no sky light.</p>
+            <div class="row sungame"><span class="alignlabel">In the game</span><div id="mapSunGameTime" class="seg" role="group" aria-label="The game's time of day for the map"><button type="button" data-value="auto" title="Night while the moon is up, day while the sun is: the campaign picks the map for missions of that time. One undo step">Follows the light</button><button type="button" data-value="day" title="Day, whatever the light: the campaign picks the map for day missions. One undo step">Day</button><button type="button" data-value="night" title="Night, whatever the light: the campaign picks the map for night missions. One undo step">Night</button></div></div>
+            <p id="mapSunHour" class="optionsnote"></p>
+            <div id="skyList" class="skylist"></div>
+            <div class="soundrow"><button id="mapSunReset" type="button" title="The map's own sun or moon, sky light and time of day again, and the fog and colour the time set; what was changed in Fog and colour stays. One undo step">As the map has it</button></div>
+          </details>
+        </div>
+      </section>
       <section id="mapLookSection" class="maplook" aria-labelledby="mapLookTitle">
         <h3 id="mapLookTitle" class="settingshead">Fog and colour <span id="mapLookChanged" class="chip" hidden>Changed</span></h3>
         <p id="mapLookNote" class="optionsnote"></p>
@@ -819,10 +842,10 @@
         <details id="mapFogFold" class="fold lookfold"><summary><span class="headname">Fog</span><span id="mapFogWords" class="foldval"></span></summary>
           <label class="check" title="The map's height fog: thicker far away and low down. One undo step"><input id="mapFogOn" type="checkbox"> Height fog</label>
           <div id="mapFogSliders"></div>
-          <div class="lookcolours"><label title="The fog's colour looking away from the sun or moon. One undo step"><input id="mapFogAway" type="color"> away from the light</label><label title="The fog's colour looking toward the sun or moon. One undo step"><input id="mapFogToward" type="color"> toward it</label></div>
+          <div class="lookcolours"><label title="The fog's colour looking away from the sun or moon. One undo step"><input id="mapFogAway" type="color"> away from the light<span id="mapFogAwayMark" class="chip timemark" hidden></span></label><label title="The fog's colour looking toward the sun or moon. One undo step"><input id="mapFogToward" type="color"> toward it<span id="mapFogTowardMark" class="chip timemark" hidden></span></label></div>
         </details>
         <details id="mapColourFold" class="fold lookfold"><summary><span class="headname">Colour</span><span id="mapColourWords" class="foldval"></span></summary>
-          <div class="lookcolours"><label title="The colour the whole picture is tinted with. One undo step"><input id="mapTint" type="color"> tint</label></div>
+          <div class="lookcolours"><label title="The colour the whole picture is tinted with. One undo step"><input id="mapTint" type="color"> tint<span id="mapTintMark" class="chip timemark" hidden></span></label></div>
           <div id="mapColourSliders"></div>
         </details>
         <p id="mapLookVolumes" class="optionsnote" hidden></p>

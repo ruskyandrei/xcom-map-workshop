@@ -247,6 +247,14 @@ class StoreTests(unittest.TestCase):
             with self.assertRaises(ProjectError) as error:
                 self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION, diagonalCover=bad), self.store.load(ID)['revision'])
             self.assertEqual(error.exception.status, 422, bad)
+        # the time of day (schema 10) is carried as the document has it (the compiler holds it to its shape); not a
+        # record is refused
+        sun = dict(time=13, heading=313.0, timeOfDay='auto', light=dict(rotation=[-10194, 24213, 0], color=[255, 245, 215], brightness=1.1))
+        self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION, sun=sun), self.store.load(ID)['revision'])
+        self.assertEqual(self.store.load(ID)['sun'], sun)
+        with self.assertRaises(ProjectError) as error:
+            self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION, sun=[13]), self.store.load(ID)['revision'])
+        self.assertEqual(error.exception.status, 422)
         self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION, spawnRules=dict(dropIns='placed')), self.store.load(ID)['revision'])
         self.assertEqual(self.store.load(ID)['spawnRules'], dict(dropIns='placed'))
         # the map info is carried as the document has it (the compiler checks its keys and values); another shape is refused

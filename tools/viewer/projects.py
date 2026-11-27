@@ -36,7 +36,7 @@ SCHEMA = 'xcom-map-workshop/project'
 # the map's triggers (`clearKeepsTriggers`); 6: what Long War Rebalance is told of the map (`lwrMapInfo`); 7: the
 # diagonal cover the project marks (`diagonalCover`); 8: a building's floors as the cursor's (`buildings[].cursorFloors`);
 # 9: the parts the project cleared (`cleared`: {part: {keepOutside?}}); 10: the map's fog and colour the project changes
-# (`atmosphere`: {fog?, postProcess?}). 1 to 9 are read too, and saved as 10.
+# (`atmosphere`: {fog?, postProcess?}) and its time of day (`sun`). 1 to 9 are read too, and saved as 10.
 SCHEMA_VERSION = 10
 READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 # the parts a clear marks (the compiler's mission_edits.CLEAR_PARTS; the page's clear_parts.js CLEAR_PARTS)
@@ -171,6 +171,11 @@ def validate(document, project_id):
     if atmosphere is not None and not (isinstance(atmosphere, dict) and set(atmosphere) <= {'fog', 'postProcess'}
                                        and all(isinstance(v, dict) for v in atmosphere.values())):
         raise ProjectError(422, '"atmosphere" must be {fog, postProcess}: records of the members changed.')
+    # The map's time of day (schema 10): optional, a record (sun_curve.problem is its shape, which the compiler holds it
+    # to: a record of another shape is kept, for the compiler to leave out).
+    sun = document.get('sun')
+    if sun is not None and not isinstance(sun, dict):
+        raise ProjectError(422, '"sun" must be a record: the time of day, the light and the sky light the project sets.')
     zones =document.get('landingZones', [])
     if not isinstance(zones, list) or not all(isinstance(item, dict) for item in zones):
         raise ProjectError(422, '"landingZones" must be a list of records.')

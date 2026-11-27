@@ -5,11 +5,15 @@
 // shadows, grey, bloom). The Game look draws them at once; a slider is one undo step on its release, a swatch, a colour,
 // the tick and Reset one each. A map's post-process volume that sets its colour is named, read only. The rules are
 // atmosphere_rules.js's; map_settings.js makes the section with the window.
+// The members the time of day sets (the Sun, moon and sky section's bar: the fog's two colours, the tint, the shadows;
+// sun_rules.js) are marked while the project sets a time: "the hour" where the time set them, "custom" where they
+// were changed here since, which the time then leaves as they are.
 import { ask } from './api.js';
 import { COLOUR_SLIDERS, FOG_SLIDERS, LIFT, STRENGTH, atmosphereWith, colourHex, colourWords, fogWords, gradeVolumes,
          hexColour, liftOf, lookName, lookRecord, lookSwatch, spreadPicks, tintOf, tintParts, volumesOver,
          withMember } from './atmosphere_rules.js';
-import { data, projectAtmosphere, setProjectAtmosphere } from './editor_state.js';
+import { data, projectAtmosphere, projectSun, setProjectAtmosphere } from './editor_state.js';
+import { timeMarks } from './sun_rules.js';
 
 export function createAtmosphereSettings({ $, gizmo, projectsAvailable, changed = () => {} }) {
   const els = { note: $('mapLookNote'), looks: $('mapLooks'), changedChip: $('mapLookChanged'), fogOn: $('mapFogOn'),
@@ -38,6 +42,22 @@ export function createAtmosphereSettings({ $, gizmo, projectsAvailable, changed 
     ...Object.fromEntries(COLOUR_SLIDERS.map(s => [s.key, { ...slider(els.colourSliders, s, s.key === 'Bloom_Scale' ? 'How much the brightest light glows.' : 'How grey the picture is.'), section: 'postProcess', spec: s }])),
   };
   const show = (s, v) => { s.input.value = String(v); s.out.textContent = String(Math.round(Number(v) * 1000) / 1000); };
+  // the marks of the members the time of day sets (the shadows' beside its slider)
+  const shadowsMark = Object.assign(document.createElement('span'), { className: 'chip timemark', hidden: true });
+  sliders.lift.input.parentElement.append(shadowsMark);
+  const marks = { 'fog.OppositeLightColor': $('mapFogAwayMark'), 'fog.LightInscatteringColor': $('mapFogTowardMark'),
+                  'postProcess.Scene_Colorize': $('mapTintMark'), 'postProcess.Scene_Shadows': shadowsMark };
+  function paintMarks() {
+    const now = projectSun && typeof projectSun === 'object' ? timeMarks(projectSun, projectAtmosphere) : {};
+    for (const [key, chip] of Object.entries(marks)) {
+      const mark = now[key] ?? null;
+      chip.hidden = !mark;
+      chip.textContent = mark === 'custom' ? 'custom' : 'the hour';
+      chip.classList.toggle('custom', mark === 'custom');
+      chip.title = mark === 'custom' ? 'Changed here: the time of day (Sun, moon and sky) leaves it as it is'
+        : 'Set by the time of day (Sun, moon and sky)';
+    }
+  }
 
   // The record each control makes from the window as it is now (one member, or two for the tint)
   function recordFrom(key) {
@@ -130,6 +150,7 @@ export function createAtmosphereSettings({ $, gizmo, projectsAvailable, changed 
     els.fogWords.textContent = fogWords(v.fog);
     els.colourWords.textContent = colourWords(v.postProcess);
     els.changedChip.hidden = !projectAtmosphere;
+    paintMarks();
   }
 
   // The section as the project has it now
