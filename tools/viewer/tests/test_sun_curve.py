@@ -66,6 +66,27 @@ class Curve(unittest.TestCase):
                 checked += 1
         self.assertGreaterEqual(checked, 6)
 
+    def test_the_skies_shape(self):
+        domes = self.curve['domes']
+        self.assertEqual([g['id'] for g in domes['groups']], ['day', 'low', 'night'])
+        self.assertTrue(0 < domes['lowSun'] < 90)
+        for g in domes['groups']:
+            self.assertTrue(any(d['group'] == g['id'] for d in domes['list']), g)
+        keys = [(d['map'], d['actor']) for d in domes['list']]
+        self.assertEqual(len(keys), len(set(keys)))
+        for d in domes['list']:
+            self.assertTrue(sun_curve.dome_shape(dict(map=d['map'], actor=d['actor'])), d)
+            self.assertTrue(d['material'].startswith('Skybox.Materials.') and d['label'], d)
+
+    @unittest.skipUnless(SURVEY.is_file(), 'the T-S0 survey evidence is not in this checkout')
+    def test_the_skies_are_the_survey_maps_domes(self):
+        """Each sky the section offers is a shown sky dome of its map in T-S0's survey, drawn with its material."""
+        maps = {m['map']: m for m in json.loads(SURVEY.read_text(encoding='utf-8'))['maps']['maps']}
+        for d in self.curve['domes']['list']:
+            with self.subTest(map=d['map'], actor=d['actor']):
+                dome = next(s for s in maps[d['map']]['skyDomes'] if s['actor'] == d['actor'])
+                self.assertEqual((dome['mesh'], dome['materials'], dome['hidden']), ('Skybox.Meshes.SkyDome', [d['material']], False))
+
     def test_the_records_shape(self):
         cases = json.loads((HERE / 'sun_record_cases.json').read_text(encoding='utf-8'))['cases']
         for case in cases:

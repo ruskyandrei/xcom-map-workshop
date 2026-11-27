@@ -13,8 +13,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
-from compiler import compile_project, light_rule, native_split, stale_sun, stream_only  # noqa: E402
-from editor_fixtures import PL, document, scene  # noqa: E402
+from compiler import LibraryError, compile_project, light_rule, native_split, short, stale_sun, stream_only  # noqa: E402
+from editor_fixtures import PL, document, part, scene  # noqa: E402
+from light_edits import SKY_DOME_MESH  # noqa: E402
 
 CASES = HERE.parents[1] / 'viewer' / 'tests' / 'sun_record_cases.json'
 # URB_Bar's moon and sky light as its export has them
@@ -44,6 +45,42 @@ def lit(*lights):
     s = scene()
     s['lights'] = [copy.deepcopy(l) for l in lights]
     return s
+
+
+# Bar's two sky domes (the upper one and the one turned over under it), a black ground plane and a hidden dome, which are
+# no domes of the sky
+DOME_BOUNDS = [0, 0, 13627.4, 63601.7, 63601.7, 13627.4, 65346.2]
+
+
+def dome_part(name, at=(-2304, 0, -2704.8), rot=(0, 49152, 0), mesh='dome', package='URB_Bar', **extra):
+    return part(name, at=at, rot=rot, mesh=mesh, package=package, environment=True, collides=False, **extra)
+
+
+def sky_scene(*lights):
+    s = lit(*lights)
+    s['meshes'].update(dome=dict(name=SKY_DOME_MESH, bounds=DOME_BOUNDS),
+                       plane=dict(name='Skybox.Meshes.GroundPlaneBlack', bounds=[0, 0, 0, 100, 100, 0, 141]))
+    s['objects'] += [dome_part('XComLevelActor_257'), dome_part('XComLevelActor_63', rot=(0, 81920, 32768)),
+                     dome_part('XComLevelActor_9', mesh='plane'), dome_part('XComLevelActor_8', hidden=True)]
+    return s
+
+
+class SkyLibrary:
+    """The library as the compiler asks it for the noon sky's dome (URB_TruckStop_EWI's), which it lists no entry for:
+    given only when asked for a sky."""
+    def __init__(self, mesh=SKY_DOME_MESH, fail=None):
+        self.mesh, self.fail, self.asked = mesh, fail, []
+
+    def record(self, wanted, sky=False):
+        self.asked.append((wanted, sky))
+        if self.fail:
+            raise LibraryError(self.fail, 'the library says %s' % self.fail)
+        if not sky:
+            raise LibraryError('not-placeable', '%s is not a piece the library lists' % short(wanted['actor']))
+        objs = [dome_part(short(wanted['actor']), at=(0, 0, 0), rot=(0, 0, 0), package='URB_TruckStop_EWI', mesh='noon')]
+        return (dict(version=4, key=None, grid=None, objects=objs, meshes={'noon': dict(name=self.mesh, bounds=DOME_BOUNDS)},
+                     source=dict(package='URB_TruckStop_EWI', level='base', actor=short(wanted['actor']), sha256='7' * 64)),
+                dict(placeable=True, actorClass='XComLevelActor'))
 
 
 class Sun(unittest.TestCase):
@@ -149,6 +186,62 @@ class Sun(unittest.TestCase):
         self.assertNotIn('sun', native or {})
         self.assertNotIn('sun', report)
         self.assertEqual(report['leftOut'], [])
+
+    # ---------------------------------------------------------------- the sky (T-S6)
+    def sky(self, dome, library=None, *lights):
+        record = dict(NOON, dome=dome)
+        spec, report = compile_project(document([], schemaVersion=10, sun=record), sky_scene(*(lights or (SUN, SKY))),
+                                       library=library)
+        return spec, report, native_split(stream_only(spec))[1] if spec else None
+
+    def test_the_chosen_dome_is_brought_and_the_maps_own_taken_out(self):
+        """The noon sky's dome, a piece of another map the library lists no entry for (asked as a sky), copied where
+        each of Bar's two shown domes stands, at its turn; the two taken out; the ground plane and the hidden dome
+        left; the sun lane as before."""
+        library = SkyLibrary()
+        spec, report, native = self.sky(dict(map='URB_TruckStop_EWI', actor='XComLevelActor_46'), library)
+        self.assertTrue(report['ok'], report['errors'])
+        self.assertEqual(report['leftOut'], [])
+        self.assertEqual([(short(w['actor']), sky) for w, sky in library.asked], [('XComLevelActor_46', True)])
+        copies = [(c['actor'], c['location'], c['rotation'], c['donor']['package']) for c in native['copies']]
+        self.assertEqual(copies, [('XComLevelActor_46', [-2304, 0, -2704.8], [0, 49152, 0], 'URB_TruckStop_EWI'),
+                                  ('XComLevelActor_46', [-2304, 0, -2704.8], [0, 81920, 32768], 'URB_TruckStop_EWI')])
+        self.assertEqual([c['label'] for c in native['copies']], ['SkyDome_time1', 'SkyDome_time2'])
+        self.assertEqual(sorted(h['name'] for h in native['hides']), ['XComLevelActor_257', 'XComLevelActor_63'])
+        self.assertEqual(report['sun']['dome'], dict(map='URB_TruckStop_EWI', actor='XComLevelActor_46',
+                                                     replaced=['XComLevelActor_257', 'XComLevelActor_63'],
+                                                     copies=['SkyDome_time1', 'SkyDome_time2']))
+        self.assertEqual(report['donors'], [dict(package='URB_TruckStop_EWI', sha256='7' * 64, pieces=['XComLevelActor_46'])])
+        self.assertEqual((report['counts']['added'], report['counts']['deleted']), (2, 2))
+        self.assertIn('sun', native)
+        # no check of pieces takes the backdrop for one: nothing warned of it
+        self.assertEqual(report['warnings'], [])
+
+    def test_a_dome_that_cant_be_had_leaves_the_maps_own_sky(self):
+        for library, code in ((None, 'no-library'), (SkyLibrary(fail='donor-missing'), 'donor-missing'),
+                              (SkyLibrary(mesh='Skybox.Meshes.GroundPlaneBlack'), 'sun-dome-shape')):
+            with self.subTest(code):
+                spec, report, native = self.sky(dict(map='URB_TruckStop_EWI', actor='XComLevelActor_46'), library)
+                self.assertTrue(report['ok'], report['errors'])
+                self.assertEqual(codes(report['leftOut']), [code])
+                self.assertEqual(report['leftOut'][0]['record'], 'sun.dome')
+                self.assertEqual((native['copies'], native['hides']), ([], []))
+                self.assertNotIn('dome', report['sun'])
+                self.assertIn('sun', native)          # (the light is built all the same)
+
+    def test_no_dome_to_bring(self):
+        """Following the light with the map's own sky, the map's own dome chosen, a map with no dome of its own: nothing
+        to build of the sky (notes for the two last)."""
+        library = SkyLibrary()
+        for dome, note in ((dict(follows=True), None), (dict(map='URB_Bar', actor='XComLevelActor_257'), 'sun-dome-own')):
+            with self.subTest(dome=dome):
+                spec, report, native = self.sky(dome, library)
+                self.assertEqual((native['copies'], native['hides'], report['leftOut']), ([], [], []))
+                self.assertEqual([n['code'] for n in report['notes'] if n['code'].startswith('sun-dome')], [note] if note else [])
+        spec, report = compile_project(document([], schemaVersion=10, sun=dict(NOON, dome=dict(map='URB_TruckStop_EWI', actor='XComLevelActor_46'))),
+                                       lit(SUN, SKY), library=library)
+        self.assertIn('sun-dome-none', codes(report['notes']))
+        self.assertEqual(library.asked, [])
 
     def test_the_lights_verdicts_name_the_time_of_day(self):
         for light in (SUN, SKY):

@@ -56,6 +56,10 @@ AREA_NEAR = 64.0
 SUN_TIMES = {'day': 'eMissionTime_Day', 'night': 'eMissionTime_Night'}
 SUN_SAME_TURN = 2
 LEVEL = 'TheWorld.PersistentLevel.'
+# The Sky choice (stage T-S6): a sky dome's mesh (the page's sun_rules.js DOME_MESH), and the name of each copy of the
+# chosen dome the Build makes in place of one of the map's own (its entity in the report; the Build names the actor)
+SKY_DOME_MESH = 'Skybox.Meshes.SkyDome'
+SKY_COPY = 'SkyDome_time%d'
 
 
 def light_rule(light):
@@ -173,6 +177,12 @@ class LightEdits:
         self.object_boxes = None     # the base map's pieces' world boxes, made when reaching first needs them
         # the project's time of day (sun_mark): the native edit's `sun` object and the report's `sun`, or None
         self.sun = self.sun_report = None
+        # its sky (dome_mark): the chosen dome's target, which the library gives although it lists no sky dome, and the
+        # copies of it made in place of the map's own domes, kept apart from the compiler's copies (so no check of
+        # pieces standing in the way, on a floor or in a building takes a backdrop 127,000 units across for one) and put
+        # with them in the spec (Compiler.spec)
+        self.dome_target = None
+        self.dome_copies = []
 
     def sun_mark(self):
         """The project's `sun` (the time of day: the map's sun or moon, its sky light and the game's time of day; schema
@@ -228,6 +238,78 @@ class LightEdits:
             self.c.warn('sun-second-light', 'The map has another directional light beside its sun or moon (%s): the time '
                         'of day leaves it as it is, baked into the map, so its light still falls as at the map\'s own '
                         'time.' % ', '.join(others), record='sun', lights=others)
+        self.dome_mark(rec.get('dome') or {})
+
+    # ---------------------------------------------------------------- the sky (stage T-S6)
+    def own_domes(self):
+        """The map's own sky domes, one export record each (the page's sun_rules.js isOwnDome): its base level's shown
+        backdrop pieces whose mesh is the dome (SKY_DOME_MESH); the black ground planes some maps have under them are
+        not domes."""
+        meshes, out, seen = self.c.scene.get('meshes') or {}, [], set()
+        for o in self.c.scene.get('objects') or []:
+            if (o.get('environment') and o.get('layer') == 'base' and not o.get('hidden') and o.get('actor') not in seen
+                    and (meshes.get(o.get('mesh')) or {}).get('name') == SKY_DOME_MESH):
+                seen.add(o['actor'])
+                out.append(o)
+        return out
+
+    def is_dome(self, target):
+        """Whether a target is the project's chosen dome (Compiler.foreign_piece asks the library for it as a sky)."""
+        return self.dome_target is not None and target_key(target) == target_key(self.dome_target)
+
+    def dome_mark(self, dome):
+        """The project's sky (`sun.dome` {map, actor}: the Sky choice, the dome of one of the game's maps): each of the
+        map's own domes taken out (an exact hide; the Build gives a piece that collides with nothing no rebuild volume)
+        and a copy of the chosen dome made where it stood, at its rotation, in the chosen dome's own scale, as a piece of
+        another map is copied (Compiler.add, the library's record through foreign_piece; the Build's transplant stage
+        brings it). A dome that can't be had is left out (Compiler.error on the record `sun.dome`) and the map keeps its
+        own sky; a map with no dome of its own, or a dome of the map itself, changes nothing (notes). The report's `sun`
+        says what was replaced (`dome`)."""
+        if not dome.get('map'):
+            return
+        where = dict(record='sun.dome')
+        own = self.own_domes()
+        if dome['map'].casefold() == self.c.map.casefold():
+            self.c.note('sun-dome-own', 'The project\'s sky is %s, a dome of %s itself: its sky stays as it is'
+                        % (dome['actor'], self.c.map), **where)
+            return
+        if not own:
+            self.c.note('sun-dome-none', 'The project\'s sky is %s of %s, and the map has no sky dome of its own to put it '
+                        'in place of: its sky stays as it is' % (dome['actor'], dome['map']), **where)
+            return
+        target = dict(package=dome['map'], level='base', actor=LEVEL + dome['actor'])
+        self.dome_target = target
+        parts = self.c.piece(target, where, foreign=True)
+        if not parts:
+            return      # (left out, said: the map keeps its own sky)
+        if any((self.c.meshes.get(p['mesh']) or {}).get('name') != SKY_DOME_MESH for p in parts):
+            self.c.leave_out('sun-dome-shape', '%s of %s is no sky dome: the map keeps its own sky'
+                             % (dome['actor'], dome['map']), **where)
+            return
+        comps = sorted(p['component'] for p in parts)
+        replaced, made = [], []
+        for k, o in enumerate(own, 1):
+            out = LEVEL + SKY_COPY % k
+            rec = {'actor': out, 'from': target, 'components': comps, 'location': list(o['location']),
+                   'rotation': list(o['rotation'])}
+            pose = self.c.pose(rec, where)
+            first = len(self.c.copies)
+            if pose:
+                self.c.add(rec, dict(where, entity=out), parts, pose)
+            copies = self.c.copies[first:]
+            del self.c.copies[first:]
+            if not copies:
+                continue
+            self.dome_copies += copies
+            name = short(o['actor'])
+            box = self.c.boxes([o], o['location'], o['rotation'])
+            self.c.hides.append(dict(name=name, label='sky:' + name, box=box))
+            self.c.entities.append(dict(kind='delete', target=o['actor'], actorClass=o['actorClass'],
+                                        oldBox=[tidy(v, 3) for v in box], sky=True))
+            replaced.append(name)
+            made += [c['label'] for c in copies]
+        if replaced:
+            self.sun_report['dome'] = dict(map=dome['map'], actor=dome['actor'], replaced=replaced, copies=made)
 
     def light_of(self, target):
         """The export's light a target {package, level, actor} names, or None."""

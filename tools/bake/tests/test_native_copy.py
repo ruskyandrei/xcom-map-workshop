@@ -4,6 +4,7 @@ from pathlib import Path
 import struct
 import sys
 import tempfile
+import types
 import unittest
 from unittest import mock
 
@@ -1478,6 +1479,39 @@ class NativeCopy(unittest.TestCase):
         hidden, volumes = native_copy.hide_pieces(g, p, [dict(name='XComDestructibleActor_61', box=flat)])
         self.assertEqual(hidden[0]['tiles'][4:], [1, 1])
         self.assertEqual(volumes, [hidden[0]['volume']['export']])
+
+    def test_a_hidden_piece_that_collides_with_nothing_gets_no_rebuild(self):
+        # (F-201, the time of day's sky, T-S6) Bar's sky dome, 127,000 units across, collides with nothing: taken out, it
+        # gets no rebuild volume over the whole grid and names no change; a piece that collides still gets its own
+        p = self.p
+        g = package_grow.Grower(str(BAR))
+        dome = p.by_name[PL + 'XComLevelActor_257']
+        self.assertFalse(native_copy.collides(p, dome))
+        hidden, volumes = native_copy.hide_pieces(g, p, [dict(name='XComLevelActor_257'), dict(name='XComDestructibleActor_45')])
+        self.assertEqual((hidden[0]['tiles'], hidden[0]['volume'], hidden[0]['collides']), (None, None, False))
+        self.assertGreater(hidden[0]['box'][1] - hidden[0]['box'][0], 100000)
+        self.assertEqual(volumes, [hidden[1]['volume']['export']])
+        self.assertNotIn('collides', hidden[1])
+        self.assertEqual(len(getattr(g, 'change_boxes', [])), 1)     # (the destructible's alone)
+        # (a cleared map's hides get no volume of their own, and no mark either)
+        hidden, _ = native_copy.hide_pieces(package_grow.Grower(str(BAR)), p, [dict(name='XComLevelActor_257')], volumes=False)
+        self.assertNotIn('collides', hidden[0])
+
+    def test_a_hidden_sky_dome_is_no_edit_of_the_relight(self):
+        # (T-S6) Bar's dome turned over under the map casts in the bake's model, and its box holds the whole map: taken
+        # out for the project's sky, the relight is not told, so it relights nothing for it; a destructible taken out is
+        p = self.p
+        under, upper = p.by_name[PL + 'XComLevelActor_63'], p.by_name[PL + 'XComLevelActor_257']
+        self.assertTrue(native_copy.sky_dome(p, under) and native_copy.sky_dome(p, upper))
+        self.assertFalse(native_copy.sky_dome(p, p.by_name[PL + 'XComDestructibleActor_45']))
+        hidden = [dict(name=n, export=p.by_name[PL + n]) for n in ('XComLevelActor_63', 'XComLevelActor_257', 'XComDestructibleActor_45')]
+        st = types.SimpleNamespace(p=p, sections=[], hidden=hidden, landing_record=None, light_state=None, registration=None,
+                                   copy_members={}, cleared_record=None)
+        with tempfile.TemporaryDirectory() as d:
+            cmd = native_copy.relight_command(st, Path(d) / 'grown.upk', Path(d), 'URB_Bar_Sky', 'URB_Bar_Sky_Lighting', 600.0,
+                                              None, None, None, None)
+        removed = [cmd[k + 1] for k, a in enumerate(cmd) if a == '--remove-caster']
+        self.assertEqual(removed, ['XComDestructibleActor_45'])
 
     def test_pieces_outside_the_maps_tiles_are_hidden_and_copied_without_a_rebuild(self):
         # the tutorial map's backdrop pieces stand two tiles past its level volume: a delete of one stopped the build

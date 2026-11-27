@@ -12,6 +12,11 @@ Statuses:
 
 ## Open now
 
+- F-202 (27 November, the game-likeness plan's T-S6): the sky chosen is built as copies of another map's dome where
+  the map's own domes stood, in the chosen dome's own scale: Bar's small turned-over dome under the map (0.41 of the
+  mesh) becomes a full-size one (2, 2, 2.6). Open: the game look shows whether that matters.
+- F-201 (27 November, T-S6): a hidden piece that collides with nothing gets no rebuild volume (as a copy of one seeds
+  no tiles, F-93): a sky dome's would have rebuilt every tile of the map. Fixed (read back offline).
 - F-200 (27 November, the game-likeness plan's T-S2): the time of day is written on the map's own lights in place,
   with no bake: a Build changes only the sun or moon's actor and component and the sky light's component, the GUIDs,
   the shadow map of the level and its shadow info kept. The sun's component saves no `CachedParentToWorld`: its
@@ -323,6 +328,36 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-202: The sky chosen stands where the map's own domes stood, in the chosen dome's own scale
+**Open** (27 November 2026, the game-likeness plan's T-S6; read offline from a quick Build of URB_Bar at 13:00 with
+the noon sky, EXP-99's project with `--sky day`; nothing played).
+- **The domes.** A map's sky is one or two pieces whose mesh is `Skybox.Meshes.SkyDome` (a hemisphere 127,000 units
+  across, its pivot at the middle of its base), its material the sky (`Skybox.Materials.NightSky`, `NoonSky`,
+  `DuskSky` and a few others; T-S0's survey: 93 of 97 maps have one, AlienBase01, AlienBase02, CB2_MP_Blank and
+  EWI_HQAssault none). Some maps keep a second dome turned over under the map, and some a black ground plane
+  (`Skybox.Meshes.GroundPlaneBlack`), which is no dome. None collides with anything; Bar's has no lightmap and no
+  shadow map, so no bake reads it.
+- **What a Build makes.** Bar's two domes (XComLevelActor_257 upright at DrawScale 2, DrawScale3D 1, 1, 1.3, and
+  XComLevelActor_63 turned over, DrawScale 2 with DrawScale3D 0.206) are taken out of the level's list, and two copies of
+  URB_TruckStop_EWI's noon dome stand at their places and turns, each in the noon dome's own scale (2; 1, 1, 1.3): the
+  turned-over one is a full-size dome under the map where Bar's was a fifth of the size. The tile data and the rebuild
+  volumes are the map's (F-201).
+- **Open.** Whether the full-size dome under the map shows in the game where Bar's small one did not (the camera looks
+  down, so most of it is under the ground), seen in the game look after T-S6. If it does, a copy that keeps the replaced
+  dome's own scale is new work for the copy tool (a copy takes its template's scale today).
+
+### F-201: A hidden piece that collides with nothing gets no rebuild volume
+**Fixed** (27 November 2026, the game-likeness plan's T-S6: `native_copy.hide_pieces`; read back offline from the Build
+of F-202, test_native_copy.py; nothing played).
+- **What was.** Every piece an edit takes out got a rebuild volume over the tiles its box crosses, plus a ring
+  (`hide_tiles`), and named its box among the changes whose tiles the Build writes as the battle's rebuild leaves them
+  (F-157). A sky dome's box holds the whole map: its delete would have made the game rebuild every tile at load, as a
+  copy of one once seeded every tile (F-93).
+- **Fix.** A piece that collides with nothing (`native_copy.collides`, the export's `collides: false`) holds no tile,
+  so taking it out changes none: it gets no rebuild volume and names no change; its section says `collides: false`. A
+  cleared map's hides get no volume of their own as before. None of build_outputs.py's inputs hid such a piece outside a
+  cleared map, so their Builds are as they were, byte for byte.
 
 ### F-200: The time of day is set on the map's own lights in place, without a bake
 **Fixed** (27 November 2026, the game-likeness plan's T-S2: `native_lights.apply_sun`; read offline from quick Builds

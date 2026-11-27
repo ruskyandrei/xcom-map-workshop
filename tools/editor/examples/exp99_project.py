@@ -2,7 +2,8 @@
 a game run shows the sun's new colour and brightness, the sky light on the soldiers, the records' time of day, and with
 a turned sun how wrong the old shadows are.
 
-Usage: exp99_project.py <out> [--time HH:MM] [--keep-direction] [--cache <cache>] [--game <install>] [--quick | --compile]
+Usage: exp99_project.py <out> [--time HH:MM] [--keep-direction] [--sky day|low|night|follow|MAP|ACTOR] [--cache <cache>]
+                        [--game <install>] [--quick | --compile]
 
 The record is the one the Map settings window's time bar makes (the page's own rules, tools/viewer/web/sun_rules.js,
 run by node: the curve made the map's own, the dial where it puts the light as the map has it, the bar moved to
@@ -13,7 +14,12 @@ change), as a record set by hand may. The project goes to <out>/project.json and
 and the cache are the settings' unless named (--game: an install folder, read only). --compile only compiles (the
 report beside the project); --quick (the default) builds without baking the lighting.
 
-tools/editor/tests/build_outputs.py records the sun lane with this project (its input bar-sun)."""
+--sky (stage T-S6) makes the Sky choice too, as the section's row does: the first sky of a group of the curve's
+(day: the noon sky of URB_TruckStop_EWI; low; night), `follow` (the time picks it) or a dome named MAP|ACTOR; the Build
+brings that dome from its map in place of Bar's own two.
+
+tools/editor/tests/build_outputs.py records the sun lane with this project (its inputs bar-sun and, with --sky day,
+bar-sky)."""
 import argparse
 import hashlib
 import json
@@ -35,15 +41,21 @@ PROJECT_ID = '99a10000-0000-4000-8000-000000099a10'
 RULES = REPO / 'tools' / 'viewer' / 'web' / 'sun_rules.js'
 # the page's own steps for a bar moved to a time on a map (sun_settings.js and sun_wiring.js through sun_rules.js)
 SCRIPT = """
-import { bestTime, mapCurve, ownSun, shownTime, timeSet } from %s;
+import { bestTime, mapCurve, ownSun, shownTime, skyGroups, skySet, timeSet } from %s;
 let text = '';
 process.stdin.on('data', chunk => { text += chunk; });
 process.stdin.on('end', () => {
-  const { scene, curve, time } = JSON.parse(text);
+  const { scene, curve, time, sky } = JSON.parse(text);
   const own = ownSun(scene);
   const mine = mapCurve(curve, own, bestTime(curve, own));
   const at = shownTime(null, own, curve);
   const set = timeSet({ curve: mine, own, time, heading: at.heading });
+  if (sky) {
+    // the Sky choice: 'follow', a group's first sky (day, low, night) or a dome's key (map|actor)
+    const group = skyGroups(curve).find(g => g.id === sky);
+    const choice = group ? group.domes[0].key : sky;
+    set.sun = skySet({ curve: mine, own, before: set.sun, atmosphere: set.atmosphere, choice });
+  }
   process.stdout.write(JSON.stringify({ own, ...set }));
 });
 """
@@ -55,13 +67,19 @@ def scene_of(cache, game):
     return sha, scene
 
 
-def bar_record(scene, hour, keep_direction=False):
-    """(the project's `sun`, its `atmosphere` or None) as the time bar makes them at `hour` on the map of `scene`."""
+def bar_record(scene, hour, keep_direction=False, sky=None):
+    """(the project's `sun`, its `atmosphere` or None) as the time bar makes them at `hour` on the map of `scene`, with
+    the Sky choice `sky` (None: the map's own) made after it."""
     node = shutil.which('node')
     if not node:
         raise SystemExit('exp99_project.py runs the page\'s rules with node, which is not on the path')
-    given = dict(scene=dict(lights=scene.get('lights') or [], atmosphere=scene.get('atmosphere')), curve=sun_curve.load(),
-                 time=hour)
+    # (what the page's rules read of the export: its lights, its atmosphere, its name and its backdrop pieces)
+    backdrop = [o for o in scene.get('objects') or [] if o.get('environment')]
+    given = dict(scene=dict(lights=scene.get('lights') or [], atmosphere=scene.get('atmosphere'), name=scene.get('name'),
+                            objects=backdrop, meshes={o['mesh']: scene['meshes'][o['mesh']] for o in backdrop},
+                            materials={m: scene['materials'][m] for o in backdrop for m in o.get('materials') or []
+                                       if m in scene.get('materials', {})}),
+                 curve=sun_curve.load(), time=hour, sky=sky)
     out = subprocess.run([node, '--input-type=module', '-e', SCRIPT % json.dumps(RULES.as_uri())],
                          input=json.dumps(given), capture_output=True, text=True, encoding='utf-8', check=True)
     made = json.loads(out.stdout)
@@ -71,8 +89,8 @@ def bar_record(scene, hour, keep_direction=False):
     return sun, made['atmosphere']
 
 
-def document(sha, scene, hour, keep_direction):
-    sun, atmosphere = bar_record(scene, hour, keep_direction)
+def document(sha, scene, hour, keep_direction, sky=None):
+    sun, atmosphere = bar_record(scene, hour, keep_direction, sky)
     return dict(schema='xcom-map-workshop/project', schemaVersion=compiler.SCHEMA_VERSION, id=PROJECT_ID,
                 name='Bar by day', mode='edit', revision=1,
                 source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
@@ -90,6 +108,7 @@ def main(argv=None):
     a.add_argument('out', type=Path)
     a.add_argument('--time', default='13:00', help='the bar\'s time, HH:MM (default %(default)s)')
     a.add_argument('--keep-direction', action='store_true', help='the light keeps the map\'s own rotation')
+    a.add_argument('--sky', help='the Sky choice: day, low or night (that group\'s first sky), follow, or MAP|ACTOR')
     a.add_argument('--cache', type=Path, help='the export cache (default: the settings\')')
     a.add_argument('--game', type=Path, help='the install whose URB_Bar is built (default: the settings\')')
     mode = a.add_mutually_exclusive_group()
@@ -100,7 +119,7 @@ def main(argv=None):
     game = args.game or settings_module.resolve_game(s['game'])[0]
     cache = args.cache or s['cache']
     sha, scene = scene_of(cache, game)
-    doc = document(sha, scene, hour_of(args.time), args.keep_direction)
+    doc = document(sha, scene, hour_of(args.time), args.keep_direction, args.sky)
     args.out.mkdir(parents=True, exist_ok=True)
     project = args.out / 'project.json'
     compiler.write_json(project, doc)
