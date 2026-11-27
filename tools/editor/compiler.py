@@ -542,8 +542,9 @@ def light_metadata_problem(scene):
     return None
 
 
-# an error's `record` when it is one piece's: that piece is left out, the build goes on (Compiler.error)
-PIECE_RECORD = re.compile(r'^(overrides|added)\[\d+\]$')
+# an error's `record` when it is one piece's: that piece is left out, the build goes on (Compiler.error); the
+# project's sky (`sun.dome`, light_edits.dome_mark) is one piece's too
+PIECE_RECORD = re.compile(r'^((overrides|added)\[\d+\]|sun\.dome)$')
 
 
 class Compiler:
@@ -834,7 +835,9 @@ class Compiler:
                        % (short(target['actor']), target['package']), **where)
             return None
         try:
-            record, entry = self.library.record(target, sky=self.doc.get('stage') is not None and self.map in STAGE_MAPS)
+            # (a sky dome, which the library lists no entry for: a test stage's backdrop, or the project's sky)
+            sky = (self.doc.get('stage') is not None and self.map in STAGE_MAPS) or self.light_edits.is_dome(target)
+            record, entry = self.library.record(target, sky=sky)
         except LibraryError as error:
             self.error(error.code, str(error), **where)
             return None
@@ -1648,7 +1651,8 @@ class Compiler:
     # ---------------------------------------------------------------- the spec
     def spec(self):
         objects = []
-        copies = sorted(self.copies, key=lambda c: c['order'])
+        # (with the copies of the project's sky dome, which the checks of pieces leave out: light_edits.dome_copies)
+        copies = sorted(self.copies + self.light_edits.dome_copies, key=lambda c: c['order'])
         if copies:
             copy = dict(
                 type='copy', location=copies[0]['location'], **{'from': [c['source'] for c in copies]},

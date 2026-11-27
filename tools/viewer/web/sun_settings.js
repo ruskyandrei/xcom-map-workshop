@@ -8,6 +8,9 @@
 // - The dial: the side the light stands at its highest (N is the game's +X, E its +Y), dragged round in the Snap
 //   setting's turn steps; a small mark on its rim for the way the view looks, a dot for where the light is now.
 // - The line under it: "07:10 · dawn" and the light in words.
+// - The Sky row (stage T-S6): the map's own sky, one the time of day picks as the bar moves (Follows the light), or one
+//   of the game's maps' skies, grouped as day, low sun and night (the curve's `domes`); drawn in the Game look in place of
+//   the map's own domes (sun_wiring.js), brought from its map by the Build. Hidden on a map with no dome of its own.
 // - More, folded: the light's and the sky light's colour and strength (set by hand they leave the curve, marked custom),
 //   the game's time of day (follows the light, Day, Night), the fog and colour of the hour (which members the time set,
 //   which were changed by hand in the Fog and colour section and left alone), the map's own lights listed (#skyList,
@@ -15,7 +18,7 @@
 // The rules are sun_rules.js's; a change is made through sun_wiring.js (previewSun, endSunEdit, commitSun), which keeps
 // the view and the marker in step. map_settings.js makes the section with the window.
 import { compass, clock, gameTime, handSet, lightWords, partOfDay, phaseAt, sideAt, timeMarks, asTheMapHasIt, validSun,
-         barColours, DAY } from './sun_rules.js';
+         barColours, DAY, skyAt, skyChoice, skyGroups, skySet } from './sun_rules.js';
 import { colourHex, hexColour } from './atmosphere_rules.js';
 import { data, projectAtmosphere, projectSun, snapMode } from './editor_state.js';
 import { segmented } from './dom_words.js';
@@ -32,7 +35,7 @@ export function createSunSettings({ $, camera, projectsAvailable, sun }) {
                 fold: $('mapSunFold'), colour: $('mapSunColour'), strength: $('mapSunStrength'), strengthOut: $('mapSunStrengthOut'),
                 skyRow: $('mapSkyRows'), skyNone: $('mapSkyNone'), skyColour: $('mapSkyColour'), skyStrength: $('mapSkyStrength'),
                 skyStrengthOut: $('mapSkyStrengthOut'), gameTime: $('mapSunGameTime'), hour: $('mapSunHour'),
-                reset: $('mapSunReset'), controls: $('mapSunControls') };
+                reset: $('mapSunReset'), controls: $('mapSunControls'), skyChoice: $('mapSunSky'), skyChoiceRow: $('mapSunSkyRow') };
   const chips = { color: $('mapSunColourCustom'), brightness: $('mapSunStrengthCustom'), skyColor: $('mapSkyColourCustom'),
                   skyBrightness: $('mapSkyStrengthCustom') };
   let barDrag = null, dialDrag = null, paintedCurve = null, slideFrom = null;
@@ -155,6 +158,32 @@ export function createSunSettings({ $, camera, projectsAvailable, sun }) {
   }
   els.reset.onclick = () => commitSun(asTheMapHasIt(projectSun, projectAtmosphere, own()));
 
+  // ------------------------------------------------------------------------------------------------ the sky
+  // The Sky row (stage T-S6): the map's own sky, one that follows the light, or one of the curve's skies in its group
+  // (day, low sun, night); one undo step a choice
+  let skyFilled = null;
+  function fillSky(c) {
+    if (skyFilled === c) return;
+    skyFilled = c;
+    const option = (value, label, parent = els.skyChoice) => {
+      const o = document.createElement('option');
+      o.value = value; o.textContent = label;
+      parent.append(o);
+      return o;
+    };
+    els.skyChoice.replaceChildren();
+    option('own', 'The map\'s own sky');
+    option('follow', 'Follows the light');
+    for (const g of skyGroups(c)) {
+      const group = document.createElement('optgroup');
+      group.label = g.label;
+      for (const d of g.domes) option(d.key, `${d.label} (${d.map})`, group);
+      els.skyChoice.append(group);
+    }
+  }
+  els.skyChoice.onchange = () => commitSun({ sun: skySet({ curve: curve(), own: own(), before: projectSun, atmosphere: projectAtmosphere,
+                                                           choice: els.skyChoice.value }), atmosphere: projectAtmosphere });
+
   // ------------------------------------------------------------------------------------------------ painted
   /** The section as the project has it now. */
   function paint() {
@@ -209,6 +238,13 @@ export function createSunSettings({ $, camera, projectsAvailable, sun }) {
     const auto = els.gameTime.querySelector('[data-value="auto"]');
     auto.textContent = `Follows the light (${gameTime({ timeOfDay: 'auto', time: at.time }, c)})`;
     els.hour.textContent = hourWords(r);
+    // the sky: a map with no dome of its own has none to change
+    els.skyChoiceRow.hidden = !mine.domes?.length;
+    fillSky(c);
+    const pick = skyAt(c, at.time);
+    els.skyChoice.querySelector('option[value="follow"]').textContent = `Follows the light (now ${pick?.label ?? 'the map\'s own'})`;
+    els.skyChoice.value = skyChoice(r);
+    els.skyChoice.disabled = !can;
   }
   // The fog and colour of the hour in words: what the time set, what was changed by hand and left alone
   function hourWords(r) {
@@ -225,6 +261,7 @@ export function createSunSettings({ $, camera, projectsAvailable, sun }) {
   const sunSettingsState = () => ({ time: els.time.textContent, words: els.words.textContent, knob: parseFloat(els.knob.style.left),
                                     hour: els.hour.textContent, note: els.note.textContent, gameTime: els.gameTime.value,
                                     custom: Object.keys(chips).filter(k => !chips[k].hidden), turned: !els.side.hidden,
-                                    shown: !els.controls.hidden });
+                                    shown: !els.controls.hidden, sky: els.skyChoice.value, skyShown: !els.skyChoiceRow.hidden,
+                                    skyOptions: [...els.skyChoice.options].map(o => o.value) });
   return { paintSun: paint, sunSettingsState };
 }

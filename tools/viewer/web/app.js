@@ -695,14 +695,14 @@ const { chooseMission, clearMap, clearParts, clearPlan, floorStays, groundGrid, 
   setMissionMoves: next => setMissionMoves(next),
   spawnFamilyBuilds: () => spawnFamilyBuilds(), spawnsAvailable: () => spawnsAvailable(),
   zoneSoldiers: (z, st) => zoneSoldiers(z, st), zoneState: () => zoneState() });
-// The time of day in the view (sun_wiring.js; game-likeness plan, T-S1): the project's sun as the view draws it, the one
-// place it changes, the sun or moon's marker (its pointer listeners with the lights' handles; its Escape listener added
+// The time of day in the view (sun_wiring.js; game-likeness plan, T-S1): the project's sun as the view draws it (its sky
+// dome too, T-S6), the one place it changes, the sun or moon's marker (its pointer listeners with the lights' handles; its Escape listener added
 // here); made before the Map settings window, which is given its functions, once the gizmo and the handles are made.
 const { beginSunEdit, commitSun, endSunDrag, endSunEdit, hoverSun, loadCurve, moveSunDrag, previewSun, previewSunRecord,
         setSunWindow, startSun, startSunDrag, stepSun, sunCurve, sunDrag, sunOwn, sunShown, sunState, viewSun } = createSunWiring({
-  $, camera, gizmo, projector, renderer, restingHint, sun, touchShadows, world,
-  // (made just below: called through)
-  sunChanged: () => sunChanged() });
+  $, buildRoot, camera, gizmo, libraryTemplate, projector, renderer, restingHint, sun, touchShadows, world,
+  // (made below: called through)
+  cutaway: () => cutaway(), sunChanged: () => sunChanged() });
 // Map settings (map_settings.js): the window of what the map has everywhere and at no place, its time of day, its fog
 // and colour and its background sound chosen, played here and set louder or softer; made after Clear map, beside the
 // Map menu's other windows, once the gizmo (its undo steps) is made.

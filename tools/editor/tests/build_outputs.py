@@ -129,6 +129,9 @@ INPUTS = [
     dict(name='bar-sun', maps=BAR, parts=[part('exp99_project.py', '{out}', '--compile')],
          what='URB_Bar made day by the time bar at 13:00 (the sun lane: its moon turned and given the noon sun\'s colour, '
               'its sky light the hour\'s, the records\' TimeOfDay Day)'),
+    dict(name='bar-sky', maps=BAR, parts=[part('exp99_project.py', '{out}', '--sky', 'day', '--compile')],
+         what='URB_Bar at 13:00 with the noon sky (T-S6: URB_TruckStop_EWI\'s dome copied where Bar\'s two domes stood, '
+              'those taken out with no rebuild volume)'),
     dict(name='bar-grid', maps=BAR, parts=[part('grid_bar_project.py', '{out}', '--grid', '56', '43', '--compile')],
          what='URB_Bar on a larger grid (56 by 43) and nothing else: its baked Build relights a copy of the map the '
               'growing writer names (KB-2: a real one stops in the relight)'),

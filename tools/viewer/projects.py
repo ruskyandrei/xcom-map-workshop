@@ -171,8 +171,8 @@ def validate(document, project_id):
     if atmosphere is not None and not (isinstance(atmosphere, dict) and set(atmosphere) <= {'fog', 'postProcess'}
                                        and all(isinstance(v, dict) for v in atmosphere.values())):
         raise ProjectError(422, '"atmosphere" must be {fog, postProcess}: records of the members changed.')
-    # The map's time of day (schema 10): optional, a record (sun_curve.problem is its shape, which the compiler holds it
-    # to: a record of another shape is kept, for the compiler to leave out).
+    # The map's time of day (schema 10): optional, a record (sun_curve.problem is its shape, its sky dome among it, which
+    # the compiler holds it to: a record of another shape is kept, for the compiler to leave out).
     sun = document.get('sun')
     if sun is not None and not isinstance(sun, dict):
         raise ProjectError(422, '"sun" must be a record: the time of day, the light and the sky light the project sets.')

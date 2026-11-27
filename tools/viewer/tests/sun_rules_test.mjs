@@ -5,9 +5,9 @@
 // Run: node tools/viewer/tests/sun_rules_test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { asTheMapHasIt, barColours, bestTime, clock, compass, curveAt, directionOf, gameTime, handSet, headingFor,
-         lightWords, mapCurve, ownSun, partOfDay, phaseAt, rotationOf, shownTime, sideAt, spanAt, sunTurned, sunView, tidySun,
-         timeMarks, timeSet, validSun } from '../web/sun_rules.js';
+import { asTheMapHasIt, barColours, bestTime, clock, compass, curveAt, directionOf, DOME_MESH, gameTime, handSet, headingFor,
+         lightWords, mapCurve, ownSun, partOfDay, phaseAt, rotationOf, shownTime, sideAt, skyAt, skyChoice, skyGroups, skySet,
+         skyWords, spanAt, sunTurned, sunView, tidySun, timeMarks, timeSet, validSun } from '../web/sun_rules.js';
 
 const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 const curve = read('../sun_curve.json');
@@ -157,6 +157,53 @@ assert.equal(sunTurned(sunView({ light: { rotation: own.rotation, color: [66, 69
 assert.equal(sunTurned(sunView({ light: { rotation: [own.rotation[0] + 182, own.rotation[1], 0], color: [66, 69, 136], brightness: 1 } }), bar), true);
 assert.equal(sunTurned(view, bar), true);
 assert.equal(sunTurned(view, { lights: [] }), false);
+
+// the sky (T-S6): the curve's skies in their groups, the time's pick, a choice made and followed
+const groups = skyGroups(curve);
+assert.deepEqual(groups.map(g => g.id), ['day', 'low', 'night']);
+assert.deepEqual(groups.map(g => g.domes[0].label), ['Noon sky', 'Dusk sky', 'Night sky']);
+assert.equal(groups[0].domes[0].key, 'URB_TruckStop_EWI|XComLevelActor_46');
+assert.deepEqual([1, 5, 6, 7.5, 8.5, 13, 18.5, 19.5, 20.6].map(t => skyAt(curve, t).label),
+                 ['Night sky', 'Night sky', 'Dusk sky', 'Dusk sky', 'Noon sky', 'Noon sky', 'Dusk sky', 'Dusk sky', 'Night sky']);
+// Bar with its two night domes (the export's objects: the upper one and the one turned over under it)
+const domes = { 'mesh-dome': { name: DOME_MESH }, 'mesh-plane': { name: 'Skybox.Meshes.GroundPlaneBlack' } };
+const barScene = { ...bar, name: 'URB_Bar', meshes: domes, materials: { m1: { name: 'Skybox.Materials.NightSky' } },
+                   objects: [{ actor: 'TheWorld.PersistentLevel.XComLevelActor_257', layer: 'base', environment: true, mesh: 'mesh-dome', materials: ['m1'] },
+                             { actor: 'TheWorld.PersistentLevel.XComLevelActor_63', layer: 'base', environment: true, mesh: 'mesh-dome', materials: ['m1'] },
+                             { actor: 'TheWorld.PersistentLevel.XComLevelActor_9', layer: 'base', environment: true, mesh: 'mesh-plane', materials: ['m1'] },
+                             { actor: 'TheWorld.PersistentLevel.XComLevelActor_8', layer: 'base', environment: true, hidden: true, mesh: 'mesh-dome', materials: ['m1'] }] };
+const barOwn = ownSun(barScene);
+assert.deepEqual(barOwn.domes, [{ actor: 'XComLevelActor_257', material: 'Skybox.Materials.NightSky' },
+                                { actor: 'XComLevelActor_63', material: 'Skybox.Materials.NightSky' }]);
+assert.equal(barOwn.map, 'URB_Bar'); assert.deepEqual(own.domes, []);
+// a dome chosen at the map's own time: a record of the sky alone, the light the map's own; one undo away from none
+const noonSky = skySet({ curve: mine, own: barOwn, before: null, choice: 'URB_TruckStop_EWI|XComLevelActor_46' });
+assert.deepEqual(noonSky.dome, { map: 'URB_TruckStop_EWI', actor: 'XComLevelActor_46' });
+assert.deepEqual(noonSky.light.rotation, barOwn.rotation); assert.equal(noonSky.time, 1); assert.ok(validSun(noonSky, curve));
+assert.equal(skyChoice(noonSky), 'URB_TruckStop_EWI|XComLevelActor_46');
+assert.equal(skyWords(curve, noonSky), 'Noon sky (URB_TruckStop_EWI)');
+assert.equal(skySet({ curve: mine, own: barOwn, before: noonSky, choice: 'own' }), null);
+// one of the map's own domes chosen is its own sky
+assert.equal(skySet({ curve: mine, own: barOwn, before: null, choice: 'URB_Bar|XComLevelActor_257' }), null);
+// following the light: at night its pick is the night sky Bar's domes show already (no dome to bring), at noon the noon sky
+const follows = skySet({ curve: mine, own: barOwn, before: null, choice: 'follow' });
+assert.deepEqual(follows.dome, { follows: true }); assert.equal(skyChoice(follows), 'follow');
+assert.equal(skyWords(curve, follows), 'the map\'s own');
+const noonFollows = timeSet({ curve: mine, own: barOwn, before: follows, time: 13, heading: shown.heading });
+assert.deepEqual(noonFollows.sun.dome, { map: 'URB_TruckStop_EWI', actor: 'XComLevelActor_46', follows: true });
+assert.deepEqual(timeSet({ curve: mine, own: barOwn, before: noonFollows.sun, time: 19.5, heading: shown.heading }).sun.dome,
+                 { map: 'URB_TruckStop', actor: 'XComLevelActor_46', follows: true });
+// back at the map's own time it still follows (a record of that alone), and a chosen dome stays as the bar moves
+assert.deepEqual(timeSet({ curve: mine, own: barOwn, before: noonFollows.sun, time: 1, heading: shown.heading }).sun,
+                 { ...follows, dome: { follows: true } });
+assert.deepEqual(timeSet({ curve: mine, own: barOwn, before: noonSky, time: 20, heading: shown.heading }).sun.dome, noonSky.dome);
+assert.equal(asTheMapHasIt(noonSky, null, barOwn).sun, null);
+// (the street's day dome: noon is its own look; dusk the dusk sky)
+const streetDomes = ownSun({ ...street, name: 'URB_CommercialStreet', meshes: domes, materials: { n: { name: 'Skybox.Materials.NoonSky' } },
+                             objects: [{ actor: 'TheWorld.PersistentLevel.XComLevelActor_104', layer: 'base', environment: true, mesh: 'mesh-dome', materials: ['n'] }] });
+assert.deepEqual(skySet({ curve: streets, own: streetDomes, before: null, choice: 'follow' }).dome, { follows: true });
+assert.deepEqual(timeSet({ curve: streets, own: streetDomes, before: skySet({ curve: streets, own: streetDomes, choice: 'follow' }), time: 19, heading: at.heading }).sun.dome,
+                 { map: 'URB_TruckStop', actor: 'XComLevelActor_46', follows: true });
 
 // words
 assert.equal(clock(7 + 10 / 60), '07:10'); assert.equal(clock(0), '00:00'); assert.equal(clock(23.999), '00:00');

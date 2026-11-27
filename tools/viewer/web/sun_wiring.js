@@ -10,26 +10,32 @@
 //   marker drawn where the light is.
 // - The marker (sun_view.js): the sun or moon on its arc over the map, shown in the Lights view and while the Map
 //   settings window is open; dragged along its arc it sets the time, a second handle on the bar's value.
+// - The sky (stage T-S6; stepDome, each frame): the record's dome, a sky dome of another of the game's maps, drawn in
+//   the Game look where each of the map's own domes stands (those drawn no longer), as the Build makes it.
 //
 // createSunWiring takes what it needs of app.js as one argument object when app.js makes it (before the Map settings
 // window, which is given its functions); its window keydown listener (Escape puts a drag of the marker back) is added
 // then. Its state is inside it.
 import { ask } from './api.js';
 import { text } from './dom_words.js';
-import { data, lighting, lightRadius, lightsOn, projectAtmosphere, projectSun, setProjectAtmosphere,
+import { data, lighting, lightRadius, lightsOn, projectAtmosphere, projectSun, roots, setProjectAtmosphere,
          setProjectSun } from './editor_state.js';
 import { HANDLE_PICK, gameToView } from './handles.js';
-import { bestTime, clock, curveAt, DAY, directionOf, mapCurve, ownSun, phaseAt, shownTime, sideAt, spanAt, sunView,
-         timeSet, validSun } from './sun_rules.js';
+import { movedMatrix } from './scene_pieces.js';
+import { bestTime, clock, curveAt, DAY, directionOf, domeKey, isOwnDome, mapCurve, ownSun, phaseAt, shownTime, sideAt,
+         spanAt, sunView, timeSet, validSun } from './sun_rules.js';
 import { createSunMarker } from './sun_view.js';
 
 const RAD = Math.PI / 180;
 
-export function createSunWiring({ $, camera, gizmo, projector, renderer, restingHint, sun, touchShadows, world,
-                                  sunChanged = () => {} }) {
+export function createSunWiring({ $, buildRoot, camera, cutaway, gizmo, libraryTemplate, projector, renderer, restingHint,
+                                  sun, touchShadows, world, sunChanged = () => {} }) {
   let curve = null, curveWhy = null, mine = null, own = null;
   let viewKey, viewValue = null, drawnView, markerKey = '';
   let editFrom = null, drag = null, hover = false, windowOpen = false;
+  // the sky chosen as the view draws it (stepDome): its key, the copies of its dome drawn where the map's own stand,
+  // why it could not be drawn
+  let domeDrawn = '', domeRoots = [], domeWhy = null;
   const marker = createSunMarker(world);
 
   async function loadCurve() {
@@ -41,6 +47,9 @@ export function createSunWiring({ $, camera, gizmo, projector, renderer, resting
   // As a map opens (app.js's startScene, after its lights are built): the map's own light, and the curve made its own
   async function startSun() {
     own = null; mine = null; viewKey = undefined; drawnView = undefined; markerKey = ''; editFrom = null;
+    // (the last map's dome copies were in its scene: let go of them)
+    for (const root of domeRoots) world.remove(root);
+    domeRoots = []; domeDrawn = ''; domeWhy = null;
     if (drag) endSunDrag(false);
     if (data?.scope !== 'map' || data.preview) return;
     own = ownSun(data);
@@ -125,6 +134,44 @@ export function createSunWiring({ $, camera, gizmo, projector, renderer, resting
   /** The Map settings window opened or closed (map_settings.js). */
   function setSunWindow(open) { windowOpen = open; }
 
+  // ------------------------------------------------------------------------------------------------ the sky
+  // The sky chosen (the record's dome, stage T-S6) drawn in the Game look in place of the map's own domes, as the Build
+  // makes it: a copy of the chosen dome (another map's piece, read as library_templates.js reads any: its sky material
+  // drawn at the far plane, scene_pieces.js) where each of the map's own stands, at its turn, in the chosen dome's own
+  // scale. The copies are drawn things of the view (never picked, in no project's records); the map's own domes are
+  // drawn no longer while they stand (the cutaway reads userData.skyReplaced).
+  const ownDomeRoots = () => [...roots.values()].filter(r => isOwnDome(r.userData.source, data?.meshes));
+  function placeDome(key) {
+    for (const root of domeRoots) world.remove(root);
+    domeRoots = []; domeWhy = null;
+    for (const root of ownDomeRoots()) root.userData.skyReplaced = false;
+    if (!key) { cutaway(); return; }
+    const [map, actor] = key.split('|');
+    libraryTemplate({ package: map, level: 'base', actor }).then(async template => {
+      if (key !== domeDrawn) return;        // (another sky chosen meanwhile)
+      const source = template.sources[0], made = [];
+      for (const [k, owned] of ownDomeRoots().entries()) {
+        const at = owned.userData.source;
+        const root = await buildRoot({ ...source, id: `sky:${k}`, matrix: movedMatrix(source, at.location, at.rotation).toArray() });
+        made.push([root, owned]);
+      }
+      if (key !== domeDrawn) return;
+      for (const [root, owned] of made) {
+        root.visible = $('lighting').value === 'game';
+        world.add(root); domeRoots.push(root); owned.userData.skyReplaced = true;
+      }
+      cutaway();
+    }).catch(error => { if (key === domeDrawn) domeWhy = `the sky ${actor} of ${map} could not be read (${error.message})`; });
+  }
+  /** Each frame: the sky drawn as the record has it now, its copies shown in the Game look alone (as the map's own). */
+  function stepDome() {
+    const record = own && validSun(projectSun, curve) ? projectSun : null;
+    const key = domeKey(record?.dome);
+    if (key !== domeDrawn) { domeDrawn = key; placeDome(key); }
+    const shown = $('lighting').value === 'game';
+    for (const root of domeRoots) root.visible = shown;
+  }
+
   /** Each frame (the draw loop): the view lit again for a new record, the sun's shadows asked for; the marker drawn. */
   function stepSun() {
     const view = viewSun();
@@ -133,6 +180,7 @@ export function createSunWiring({ $, camera, gizmo, projector, renderer, resting
       lighting?.sunMoved?.(sun.target.position, lightRadius);
       touchShadows();
     }
+    stepDome();
     marker.group.visible = markerShown();
     if (marker.group.visible) placeMarker();
   }
@@ -201,9 +249,13 @@ export function createSunWiring({ $, camera, gizmo, projector, renderer, resting
   }, { capture: true });
 
   /** What the browser checks read: the record, the map's own, the marker. */
-  const sunState = () => ({ record: projectSun, ready: Boolean(mine), why: curveWhy, own: own && { time: mine?.own?.time ?? null, side: own.side, height: own.height },
+  const sunState = () => ({ record: projectSun, ready: Boolean(mine), why: curveWhy, own: own && { time: mine?.own?.time ?? null, side: own.side, height: own.height, domes: own.domes },
                             shown: sunShown(), view: viewSun(), marker: marker.group.visible ? marker.marker.position.toArray() : null,
-                            dragging: Boolean(drag) });
+                            dragging: Boolean(drag),
+                            dome: { key: domeDrawn, drawn: domeRoots.length, shown: domeRoots.filter(r => r.visible).length,
+                                    replaced: ownDomeRoots().filter(r => r.userData.skyReplaced).length,
+                                    ownShown: ownDomeRoots().filter(r => r.visible).length, why: domeWhy,
+                                    materials: domeRoots.map(r => data.materials[r.userData.source.materials?.[0]]?.name ?? null) } });
   return { beginSunEdit, commitSun, endSunDrag, endSunEdit, hoverSun, loadCurve, moveSunDrag, previewSun, previewSunRecord, setSunWindow,
            startSun, startSunDrag, stepSun, sunCurve: () => mine, sunDrag: () => drag, sunOwn: () => own, sunShown,
            sunState, viewSun };
