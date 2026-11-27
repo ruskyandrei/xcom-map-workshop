@@ -148,6 +148,48 @@ def dominant_shadow_map(p, index):
     return out
 
 
+# DominantLightShadowInfo's members a writer of the light's map of the level sets in place, with the sizes they save
+SHADOW_INFO_MEMBERS = dict(WorldToLight=64, LightToWorld=64, LightSpaceImportanceBounds=25, ShadowMapSizeX=4,
+                           ShadowMapSizeY=4)
+
+
+def shadow_info_places(p, index):
+    """Where a DominantDirectionalLightComponent saves its DominantLightShadowInfo's members, for a writer that sets
+    them in place: {member: its value's place in p.data} for SHADOW_INFO_MEMBERS (a matrix's 64 bytes, each row W
+    first as matrix_rows reads them; the box's six floats and its IsValid byte; the two sizes). The component's
+    properties are walked from past its leading array of depths (dominant_shadow_map), as the package's reader takes
+    them, by props.tags. FormatError for another class, a walk that ends elsewhere than the package's reader does, or
+    a member missing or of another size."""
+    import props as legacy_props
+    if p.cls(index) != 'DominantDirectionalLightComponent':
+        raise FormatError(f'{p.name(index)} is a {p.cls(index)}, not a DominantDirectionalLightComponent')
+    e = p.exports[index - 1]
+    m = dominant_shadow_map(p, index)
+    skip = m['offset'] - e['off'] + 2 * len(m['depths'])
+    start = legacy_props.props_start(p.data, dict(e, off=e['off'] + skip, size=e['size'] - skip), p.names)
+    try:
+        rows, after = legacy_props.read_tags(p.data, start, e['off'] + e['size'], p.names)
+        if after != p.properties(index)[1]:
+            raise FormatError(f'{p.name(index)}: the property walk disagrees with the package reader')
+        info = [(at, size) for name, kind, sub, slot, at, size in rows
+                if name == 'DominantLightShadowInfo' and kind == 'StructProperty' and slot == 0]
+        if len(info) != 1:
+            raise FormatError(f'{p.name(index)}: no DominantLightShadowInfo')
+        at, size = info[0]
+        members, end = legacy_props.read_tags(p.data, at, at + size, p.names)
+    except ValueError as error:
+        raise FormatError(str(error)) from None
+    if end != at + size:
+        raise FormatError(f'{p.name(index)}: DominantLightShadowInfo does not end where its tag says')
+    found = {name: (place, length) for name, _, _, slot, place, length in members if slot == 0}
+    out = {}
+    for name, length in SHADOW_INFO_MEMBERS.items():
+        if name not in found or found[name][1] != length:
+            raise FormatError(f'{p.name(index)}: DominantLightShadowInfo saves no {length}-byte {name}')
+        out[name] = found[name][0]
+    return out
+
+
 # A Level's precomputed light volume lies at the end of its native data, before an empty visibility handler (28 bytes)
 # and an empty volume distance field (45): a 37-byte header (bInitialized, the bounds as six floats and IsValid, the
 # sample spacing, the sample count), then the samples, 33 bytes each as saved (FVolumeLightingSample: position and

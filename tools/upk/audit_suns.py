@@ -7,6 +7,9 @@ and props.tags through the viewer's Package), the editor's atmosphere reader (to
   python -B tools/upk/audit_suns.py trace [--game <install>] [--map URB_Bar] [--jobs N] [--out <json>]
   python -B tools/upk/audit_suns.py level-map [--game <install>] [--map URB_Bar] [--out <json>]
   python -B tools/upk/audit_suns.py write-back --scratch <folder> [--game <install>] [--map URB_Bar] [--out <json>]
+  python -B tools/upk/audit_suns.py level-rule [--game <install>] [--jobs N] [--traced MAP ...] [--out <json>]
+  python -B tools/upk/audit_suns.py turn --scratch <folder> [--game <install>] [--map URB_Bar] [--rotation P Y R]
+      [--out <json>]
 
 maps: every base map the editor lists (library.donors' base maps), each with
 - its dominant directional light, the sun or moon: its height over the horizon, its yaw, colour, brightness, the
@@ -33,6 +36,17 @@ write-back: the lighting samples' marks written into a scratch copy of the map t
 (every mark flipped), read back, and written back as they were; and the light writer (native_lights.set_property)
 tried on the dominant light's component in a growing copy (package_grow.Grower), from the start native_lights'
 props_start gives and from the start past the leading shadow map, then read back.
+
+level-rule (T-S4): the baker's rules for the light's map of the level (tools/bake/sun_bake.py) against what each
+base map stores: the frame from the stored direction, the direction against the actor's Rotation, the box of the
+importance volume, the size Lightmass gives the box; and on the --traced maps (a set of moons, day and low suns by
+default) the depths traced by the rule against the stored ones, the stored map against rays from its texels' centres
+(level-map's yardstick), the lighting samples put in shadow by the stored map and by the rule's against their marks
+and against rays, and the marks against rays.
+
+turn (T-S4): a scratch copy of the map with its sun turned (native_copy.set_pose on its actor), relit with
+relight.py --sun-turned alone and timed, then read back: its shadow maps' texels against a ray each, its map of the
+level against the yardstick and against rays on the lighting samples, the samples' marks against rays.
 
 Each command puts its part into the evidence file (--out, default research/evidence/sun-audit-2026-11-27.json) and
 keeps the others' parts.
@@ -598,24 +612,203 @@ def run_write_back(args):
     update_evidence(args.out, 'writeBack', out)
 
 
+# ---------------------------------------------------------------------------------------------------- level-rule
+
+TRACED = ('URB_Bar', 'URB_HighwayBridge', 'URB_CommercialStreet', 'URB_PoliceStation', 'CSmallScout_DirtRoad',
+          'LSmallScout_River', 'URB_TruckStop', 'URB_Trainyard', 'URB_ResearchOutpost', 'CLrgScout_TheBarrens',
+          'CLrgScout_Stonewall')
+
+
+def dominant_component(p):
+    return next((i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'DominantDirectionalLightComponent'
+                 and p.name(i).startswith(PL)), None)
+
+
+def rule_row(job):
+    """One map against sun_bake's rules for its map of the level (level-rule)."""
+    paths.use('bake')
+    import numpy as np
+    import relight  # noqa: F401  (the bake's tool paths)
+    import sun_bake
+    from export_math import forward
+    name, path, traced = job
+    out = dict(map=name)
+    p = lighting.Package(path)
+    ci = dominant_component(p)
+    if ci is None:
+        return dict(out, note='no dominant light')
+    m = lighting.dominant_shadow_map(p, ci)
+    if not m['depths']:
+        return dict(out, note='no map of the level')
+    l2w, w2l = np.array(m['lightToWorld']), np.array(m['worldToLight'])
+    mw, ml = sun_bake.light_frame(l2w[2, :3])
+    actor = forward(p.effective(p.exports[ci - 1]['outer'], 'Rotation', [-16384, 0, 0]))
+    box = sun_bake.importance_box(p)
+    scale = float(relight.world_lightmass_settings(p).get('StaticLightingLevelScale', 1.0))
+    b = m['bounds']
+    out.update(height=round(math.degrees(math.asin(-l2w[2, 2] / np.linalg.norm(l2w[2, :3]))), 1),
+               frameError=float(max(np.abs(ml - l2w).max(), np.abs(mw - w2l).max())),
+               actorDegrees=round(math.degrees(math.acos(min(1.0, float(np.dot(actor, l2w[2, :3]) / np.linalg.norm(l2w[2, :3]))))), 4),
+               boxError=None if box is None else float(np.abs(np.array(sun_bake.light_box(box[0], box[1], w2l)) - b).max()),
+               size=[m['sizeX'], m['sizeY']], sizeRule=sun_bake.wanted_size(b, scale), levelScale=scale)
+    if not traced:
+        return out
+    world = relight.Scene(p, samples=1, bounce_rays=0, emissive=False)
+    depths, missed = sun_bake.level_depths(world.occluder, l2w, b, [m['sizeX'], m['sizeY']])
+    d = (np.asarray(m['depths'], float) - depths) / sun_bake.DEPTH_STEPS * (b[5] - b[2])
+    volume, rays = sun_bake.sample_marks(p, world.occluder, world.level_scale)
+    marks = np.array([s[-1] for s in volume['samples']], bool)
+    rays = np.array(rays, bool)
+    points = np.array([s[:3] for s in volume['samples']], float)
+    by_stored = sun_bake.shadowed_by_map(p, ci, points)
+    real = lighting.dominant_shadow_map
+    lighting.dominant_shadow_map = lambda q, i: dict(real(q, i), depths=tuple(int(v) for v in depths))
+    try:
+        by_rule = sun_bake.shadowed_by_map(p, ci, points)
+    finally:
+        lighting.dominant_shadow_map = real
+    out.update(traced=dict(
+        unitsPerTexel=[round((b[3] - b[0]) / m['sizeX'], 1), round((b[4] - b[1]) / m['sizeY'], 1)],
+        ruleAgainstStored=dict(within1=round(float(np.mean(np.abs(d) < 1)), 4), within25=round(float(np.mean(np.abs(d) < 25)), 4),
+                               within100=round(float(np.mean(np.abs(d) < 100)), 4), median=round(float(np.median(d)), 2),
+                               raysMissed=missed),
+        storedAgainstCentreRays=sun_bake.fit(p, ci, world.occluder),
+        samples=len(marks),
+        marksAgainstRays=round(float(np.mean(marks == rays)), 4),
+        storedMapAgainstMarks=round(float(np.mean(by_stored == marks)), 4),
+        storedMapAgainstRays=round(float(np.mean(by_stored == rays)), 4),
+        ruleMapAgainstMarks=round(float(np.mean(by_rule == marks)), 4),
+        ruleMapAgainstRays=round(float(np.mean(by_rule == rays)), 4)))
+    return out
+
+
+def run_level_rule(args):
+    import library
+    game = install(args)
+    traced = set(args.traced or TRACED)
+    jobs = [(name, str(path), name in traced) for name, role, path in library.donors(game) if role == 'base']
+    started = time.perf_counter()
+    if args.jobs > 1:
+        with multiprocessing.Pool(args.jobs) as pool:
+            rows = pool.map(rule_row, jobs)
+    else:
+        rows = [rule_row(j) for j in jobs]
+    rows.sort(key=lambda r: r['map'].casefold())
+    framed = [r for r in rows if 'frameError' in r]
+    result = dict(date='2026-11-27', seconds=round(time.perf_counter() - started, 1),
+                  method='tools/bake/sun_bake.py: light_frame, importance_box + light_box, wanted_size, level_depths, '
+                         'sample_marks, shadowed_by_map; fit for the yardstick',
+                  summary=dict(maps=len(framed), frameErrorMax=max(r['frameError'] for r in framed),
+                               actorDegreesMax=max(r['actorDegrees'] for r in framed),
+                               boxErrorMax=max((r['boxError'] for r in framed if r['boxError'] is not None), default=None),
+                               withoutImportanceVolume=[r['map'] for r in framed if r['boxError'] is None],
+                               sizeRuleMisses=[r['map'] for r in framed if r['size'] != r['sizeRule']],
+                               notes={r['map']: r['note'] for r in rows if 'note' in r}),
+                  maps=rows)
+    update_evidence(args.out, 'levelRule', result)
+    print(json.dumps(result['summary']))
+    for r in rows:
+        if 'traced' in r:
+            print(r['map'], r['height'], json.dumps(r['traced']))
+
+
+# ---------------------------------------------------------------------------------------------------------- turn
+
+def run_turn(args):
+    paths.use('bake')
+    import subprocess
+    import numpy as np
+    import native_copy
+    import package_grow
+    import relight
+    import shadowmaps
+    import sun_bake
+    game = install(args)
+    src = map_path(game, args.map)
+    scratch = Path(args.scratch)
+    if scratch.resolve().is_relative_to(Path(game).resolve()):
+        sys.exit('the scratch folder must be outside the game install')
+    (scratch / 'turned').mkdir(parents=True, exist_ok=True)
+    before = sha256(src)
+    p = lighting.Package(src)
+    ci = dominant_component(p)
+    g = package_grow.Grower(str(src))
+    native_copy.set_pose(native_copy.Walker(p, g), g, p, p.exports[ci - 1]['outer'], None, list(args.rotation))
+    turned = scratch / 'turned' / src.name
+    g.write(str(turned))
+    lighting.link_caches(turned.parent, src.parent)
+    out, variant = scratch / 'lit', f'{src.stem}_Sun'
+    started = time.perf_counter()
+    subprocess.run([sys.executable, '-B', str(REPO / 'tools' / 'bake' / 'relight.py'), str(turned), str(out), variant,
+                    '--cache', 'Lighting_7004', '--sun-turned'], check=True, stdout=subprocess.DEVNULL)
+    wall = time.perf_counter() - started
+    lighting.link_caches(out, src.parent)
+    rec = json.loads((out / f'{variant}.relight.json').read_text(encoding='utf-8'))
+    q = lighting.Package(out / f'{variant}.upk')
+    world = relight.Scene(q, samples=1, bounce_rays=0, emissive=False)
+    (light,) = sun_bake.enabled_lights(q).values()
+    agree = far_agree = n = n_far = changed = 0
+    tops = {}
+    for job in sun_bake.whole_map_jobs(q):
+        sm = job['sm']
+        if sm['texture'] not in tops:
+            tops[sm['texture']] = shadowmaps.texture_top(q, sm['texture'])
+        top, t = tops[sm['texture']]
+        geo = shadowmaps.sub_samples(q, job['ci'], sm, [t['mips'][0]['width'], t['mips'][0]['height']], upsample=1)
+        if not len(geo['world']):
+            continue
+        seen = shadowmaps.lit(world.occluder, light['toLight'], geo, world.level_scale)
+        value = top[geo['py'], geo['px']] / 255.0
+        far = (value < 0.25) | (value > 0.75)
+        agree += int(np.sum((value > 0.5) == seen))
+        far_agree += int(np.sum(((value > 0.5) == seen)[far]))
+        n, n_far = n + len(seen), n_far + int(far.sum())
+        old = shadowmaps.texture_top(p, p.own(p.by_name[sm['path']], 'Texture'))[0]
+        changed += int(np.sum(np.abs(old[geo['py'], geo['px']].astype(int) - top[geo['py'], geo['px']]) > 2))
+    qci = q.by_name[light['component']]
+    volume, rays = sun_bake.sample_marks(q, world.occluder, world.level_scale)
+    points = np.array([s[:3] for s in volume['samples']], float)
+    result = dict(map=args.map, rotation=list(args.rotation), toLight=[round(float(v), 5) for v in light['toLight']],
+                  wallSeconds=round(wall, 1), relightSeconds=rec['timing']['seconds'], workers=rec['jobs'],
+                  shadowMapsTraced=rec['timing']['shadowMapsTraced'],
+                  shadowMapSecondsSummed=rec['timing']['shadowMapSecondsSummed'], sun=rec['sun'],
+                  texelCentres=n, texelsAsRays=round(agree / n, 4), texelsAwayFromEdges=n_far,
+                  texelsAwayFromEdgesAsRays=round(far_agree / max(n_far, 1), 4), texelsChangedFromTheOldSun=changed,
+                  levelMapCentreRays=sun_bake.fit(q, qci, world.occluder),
+                  levelMapSamplesAsRays=round(float(np.mean(sun_bake.shadowed_by_map(q, qci, points)
+                                                            == np.array(rays, bool))), 4),
+                  marksAsRays=round(float(np.mean(np.array([s[-1] for s in volume['samples']]) == np.array(rays))), 4))
+    if sha256(src) != before:
+        sys.exit('the install\'s map changed during the run')
+    print(json.dumps(result, indent=1))
+    update_evidence(args.out, 'turn', result)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     sub = ap.add_subparsers(dest='command', required=True)
-    for name in ('maps', 'trace', 'level-map', 'write-back'):
+    for name in ('maps', 'trace', 'level-map', 'write-back', 'level-rule', 'turn'):
         s = sub.add_parser(name)
         s.add_argument('--game', type=Path, help='the game install (default: the editor\'s game setting)')
         s.add_argument('--out', type=Path, default=OUT, help='the evidence file (default %(default)s)')
-        if name == 'maps':
+        if name in ('maps', 'level-rule'):
             s.add_argument('--jobs', type=int, default=max(1, (multiprocessing.cpu_count() or 2) // 4))
+        if name == 'maps':
             s.add_argument('--only', action='append', help='only this map (repeatable)')
+        elif name == 'level-rule':
+            s.add_argument('--traced', action='append', help=f'trace this map too (repeatable; default {", ".join(TRACED)})')
         else:
             s.add_argument('--map', default='URB_Bar')
         if name == 'trace':
             s.add_argument('--jobs', type=int, help='the workers (default: relight.default_jobs, as a Build)')
-        if name == 'write-back':
+        if name in ('write-back', 'turn'):
             s.add_argument('--scratch', type=Path, required=True, help='a folder outside the install for the copies')
+        if name == 'turn':
+            s.add_argument('--rotation', nargs=3, type=int, default=[-2912, 16384, 0],
+                           help='the sun\'s new Rotation, pitch yaw roll (default a sun 16 degrees up from the west)')
     args = ap.parse_args(argv)
-    {'maps': run_maps, 'trace': run_trace, 'level-map': run_level_map, 'write-back': run_write_back}[args.command](args)
+    {'maps': run_maps, 'trace': run_trace, 'level-map': run_level_map, 'write-back': run_write_back,
+     'level-rule': run_level_rule, 'turn': run_turn}[args.command](args)
 
 
 if __name__ == '__main__':

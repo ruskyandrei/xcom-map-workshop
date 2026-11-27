@@ -14,6 +14,8 @@ paths.use('upk', 'viewer', 'lab')
 import lighting_records  # noqa: E402
 from package import Reader  # noqa: E402
 import labpaths  # noqa: E402
+sys.path.insert(0, str(HERE))
+from upk_fixtures import made_up_package  # noqa: E402
 
 BAR, NO_BAR = labpaths.install_map('URB_Bar')
 SUFFIX = bytes(73)          # an empty visibility handler and an empty volume distance field
@@ -169,6 +171,77 @@ class DominantShadowMap(unittest.TestCase):
         self.assertEqual((got['sizeX'], got['sizeY'], got['depths'], got['bounds']), (0, 0, (), None))
 
 
+INFO_NAMES = ('DominantLightShadowInfo', 'StructProperty', 'DominantShadowInfo', 'WorldToLight', 'LightToWorld', 'Matrix',
+              'LightSpaceImportanceBounds', 'Box', 'ShadowMapSizeX', 'ShadowMapSizeY', 'IntProperty', 'Brightness',
+              'FloatProperty')
+
+
+def light_package(folder, members=None, depths=(1, 2, 3, 4, 5, 6)):
+    """A made-up package (upk_fixtures.made_up_package) whose one export is a dominant light's component as the cooked
+    maps save one: its counted depths, a net index, then its tagged properties, DominantLightShadowInfo's `members`
+    ({name: (kind, struct name or None, value bytes)}, a 3 x 2 map's by default) and a Brightness. Returns (the
+    package read, the members as written)."""
+    names = ['None', 'Core', 'Engine', 'Package', 'Class', 'DominantDirectionalLightComponent', 'Sun'] + list(INFO_NAMES)
+    index = {n: i for i, n in enumerate(names)}
+
+    def tag(name, kind, sub, value):
+        out = struct.pack('<6i', index[name], 0, index[kind], 0, len(value), 0)
+        return out + (struct.pack('<2i', index[sub], 0) if sub else b'') + value
+    if members is None:
+        members = dict(WorldToLight=('StructProperty', 'Matrix', matrix(IDENTITY)),
+                       LightToWorld=('StructProperty', 'Matrix', matrix([[0.0, 1.0, 0.0, 0.0]] + IDENTITY[1:])),
+                       LightSpaceImportanceBounds=('StructProperty', 'Box', struct.pack('<6fB', -100, -50, -20, 100, 50, 30, 1)),
+                       ShadowMapSizeX=('IntProperty', None, struct.pack('<i', 3)),
+                       ShadowMapSizeY=('IntProperty', None, struct.pack('<i', 2)))
+    info = b''.join(tag(n, k, s, v) for n, (k, s, v) in members.items()) + struct.pack('<2i', 0, 0)
+    body = (struct.pack('<i', len(depths)) + struct.pack(f'<{len(depths)}H', *depths) + struct.pack('<i', 7)
+            + tag('DominantLightShadowInfo', 'StructProperty', 'DominantShadowInfo', info)
+            + tag('Brightness', 'FloatProperty', None, struct.pack('<f', 1.5)) + struct.pack('<2i', 0, 0))
+    data, _ = made_up_package((('DominantDirectionalLightComponent', 'Sun', 0, body),), extra_names=INFO_NAMES)
+    path = Path(folder) / 'Sun.upk'
+    path.write_bytes(data)
+    return lighting_records.Package(path), members
+
+
+class ShadowInfoPlaces(unittest.TestCase):
+    """shadow_info_places: where DominantLightShadowInfo's members are saved, for the writer of a turned sun's map of
+    the level (tools/bake/sun_bake.py map_edits), on a made-up package."""
+
+    def setUp(self):
+        import tempfile
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+
+    def test_each_member_is_found_where_its_value_is(self):
+        p, members = light_package(self.folder.name)
+        places = lighting_records.shadow_info_places(p, 1)
+        self.assertEqual(set(places), set(lighting_records.SHADOW_INFO_MEMBERS))
+        for name, at in places.items():
+            value = members[name][2]
+            self.assertEqual(p.data[at:at + len(value)], value, name)
+        got = lighting_records.dominant_shadow_map(p, 1)
+        self.assertEqual(got['bounds'], [-100.0, -50.0, -20.0, 100.0, 50.0, 30.0])
+        self.assertEqual(got['depths'], (1, 2, 3, 4, 5, 6))
+        # the places lie past the depths, inside the export
+        e = p.exports[0]
+        self.assertTrue(all(got['offset'] + 12 <= at < e['off'] + e['size'] for at in places.values()))
+
+    def test_a_member_missing_or_of_another_size_is_refused(self):
+        p, members = light_package(self.folder.name)
+        for name in ('LightToWorld', 'ShadowMapSizeY'):
+            with self.subTest(missing=name):
+                fewer = {k: v for k, v in members.items() if k != name}
+                if name == 'ShadowMapSizeY':        # (the reader then refuses the count first)
+                    with self.assertRaises(lighting_records.FormatError):
+                        lighting_records.shadow_info_places(light_package(self.folder.name, fewer)[0], 1)
+                    continue
+                with self.assertRaisesRegex(lighting_records.FormatError, name):
+                    lighting_records.shadow_info_places(light_package(self.folder.name, fewer)[0], 1)
+        short = dict(members, LightSpaceImportanceBounds=('StructProperty', 'Box', struct.pack('<6f', 0, 0, 0, 1, 1, 1)))
+        with self.assertRaises(lighting_records.FormatError):
+            lighting_records.shadow_info_places(light_package(self.folder.name, short)[0], 1)
+
+
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class InstallBar(unittest.TestCase):
     def test_the_bars_samples(self):
@@ -191,6 +264,19 @@ class InstallBar(unittest.TestCase):
                    for i in range(4)]
         self.assertTrue(all(abs(product[i][j] - (i == j)) < 1e-4 for i in range(4) for j in range(4)))
         self.assertEqual([round(v) for v in got['bounds']], [-3647, -2351, -1994, 2959, 2536, 789])
+
+    def test_the_moons_members_are_where_their_values_are(self):
+        p = lighting_records.Package(BAR)
+        ci = p.by_name['TheWorld.PersistentLevel.DominantDirectionalLight_1.DominantDirectionalLightComponent_0']
+        got = lighting_records.dominant_shadow_map(p, ci)
+        places = lighting_records.shadow_info_places(p, ci)
+        self.assertEqual(lighting_records.matrix_rows(p.data[places['WorldToLight']:places['WorldToLight'] + 64]),
+                         got['worldToLight'])
+        self.assertEqual(lighting_records.matrix_rows(p.data[places['LightToWorld']:places['LightToWorld'] + 64]),
+                         got['lightToWorld'])
+        self.assertEqual(list(struct.unpack_from('<6f', p.data, places['LightSpaceImportanceBounds'])), got['bounds'])
+        self.assertEqual([struct.unpack_from('<i', p.data, places[k])[0] for k in ('ShadowMapSizeX', 'ShadowMapSizeY')],
+                         [132, 97])
 
 
 if __name__ == '__main__':

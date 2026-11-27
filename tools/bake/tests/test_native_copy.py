@@ -1,4 +1,6 @@
 """A copy of a placed piece as new exports of the map (native_copy.py, baker step L4), on the bar."""
+import contextlib
+import io
 import os
 from pathlib import Path
 import struct
@@ -166,6 +168,25 @@ class CommandLine(unittest.TestCase):
                                     tiles=False, jobs=3)
         self.assertEqual((st.bake, st.cache, st.tiles, st.jobs, st.lights, st.hides), (True, 'Variant_Lighting', False,
                                                                                       3, None, []))
+
+    def test_a_turned_sun_alone_runs_baked_and_reaches_the_relight(self):
+        # the Build's --sun-turned (the native edit's sun.directionChanged): a baked run of nothing else goes on, and
+        # the relight's command line carries it (relight.py --sun-turned traces the sun's shadows for the whole map)
+        st = self.run_main(dict(copies=[]), '--bake', '--cache', 'Variant_Lighting', '--sun-turned')
+        self.assertTrue(st.sun_turned)
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.run_main(dict(copies=[]), '--sun-turned')
+        self.assertFalse(self.run_main(dict(copies=[], hides=[{'name': 'X'}])).sun_turned)
+        with tempfile.TemporaryDirectory() as d:
+            st.p, st.sections, st.hidden, st.landing_record, st.light_state = None, [], [], None, None
+            st.registration, st.copy_members, st.cleared_record = None, {}, None
+            cmd = native_copy.relight_command(st, Path(d) / 'grown.upk', Path(d), 'Variant', 'Variant_Lighting', 600.0,
+                                              None, None, None, None)
+            self.assertEqual(cmd[-1], '--sun-turned')
+            st.sun_turned = False
+            self.assertNotIn('--sun-turned', native_copy.relight_command(
+                st, Path(d) / 'grown.upk', Path(d), 'Variant', 'Variant_Lighting', 600.0, None, None, None, None))
 
     def test_the_command_lines_copies_come_through_copy_record(self):
         st = self.run_main(None, '--copy', 'XComLevelActor_1', '1', '2', '3.5', '8192', '--actor', 'XComLevelActor_2',

@@ -722,6 +722,69 @@ class Builds(unittest.TestCase):
         edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
         self.assertEqual(([c['actor'] for c in edit['copies']], edit['covers']), (['XComLevelActor_1'], [block]))
 
+    def test_a_turned_sun_has_its_shadows_traced_again_in_a_baked_build(self):
+        """The native edit's sun (the game-likeness plan's T-S2 lane; nothing writes it yet, so a stand-in for
+        native_split adds it here): with directionChanged, a baked Build hands native_copy.py --sun-turned with --bake,
+        which traces the sun's shadows again for the whole map (relight.py, sun_bake.py), even beside cover blocks
+        that alone relight nothing; the light stage says what the relight made. Without the change, or in a quick
+        Build, there is no --sun-turned."""
+        sun = dict(actor='DominantDirectionalLight_1', component='DominantDirectionalLightComponent_0',
+                   rotation=[-2912, 16384, 0], color=[255, 139, 45], brightness=1.0, directionChanged=True, sky=None)
+        real = compiler.native_split
+        self.addCleanup(setattr, compiler, 'native_split', real)
+        compiler.native_split = lambda spec: (lambda split: (split[0], dict(split[1], sun=dict(sun))))(real(spec))
+        block = dict(name='CoverBlock_copy1', label='CoverBlock_copy1', kind='high', location=[0, 0, 0], rotation=[0, 0, 0],
+                     size=[96.0, 96.0], heights=[-12.0, 96.0], box=[0, 96, 0, 96, -12, 96])
+        self.spec['objects'] = [dict(type='covers', blocks=[block])]
+        m = self.make().run()
+        light, = self.tool('native_copy.py')
+        for flag in ('--bake', '--cache', '--receivers-near', '--sun-turned'):
+            self.assertIn(flag, light)
+        edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+        self.assertEqual(edit['sun'], sun)
+        self.assertFalse(m['lightingUnchanged'])
+        # with copies too, the same; without the change, the cover blocks alone relight nothing
+        for stamp, changed, objects, flags in (('110100', True, [COPY, DOOR, HIDE], ('--bake', '--sun-turned')),
+                                                ('110200', False, [dict(type='covers', blocks=[block])], ())):
+            with self.subTest(changed=changed, objects=len(objects)):
+                sun['directionChanged'] = changed
+                self.spec['objects'] = objects
+                self.ran.clear()
+                self.make(stamp).run()
+                light, = self.tool('native_copy.py')
+                self.assertEqual([f for f in ('--bake', '--sun-turned') if f in light], list(flags))
+        # a quick Build bakes nothing
+        sun['directionChanged'] = True
+        self.spec['objects'] = [COPY, DOOR, HIDE]
+        self.ran.clear()
+        self.make('110300', quick=True).run()
+        light, = self.tool('native_copy.py')
+        self.assertEqual([f for f in ('--bake', '--sun-turned') if f in light], [])
+
+    def test_the_relights_record_of_a_turned_sun_reaches_the_light_stage(self):
+        """relight.py's `sun` (sun_bake.summary) is carried into the light stage as sunTurned: the maps of the level
+        made again, the lighting samples' marks changed and any note."""
+        sun = dict(directionChanged=True)
+        real = compiler.native_split
+        self.addCleanup(setattr, compiler, 'native_split', real)
+        compiler.native_split = lambda spec: (lambda split: (split[0], dict(split[1], sun=sun)))(real(spec))
+        real_run = self.run_tool
+
+        def run(args, log):
+            real_run(args, log)
+            args = [str(a) for a in args]
+            if any(a.endswith('native_copy.py') for a in args) and '--sun-turned' in args:
+                k = next(i for i, a in enumerate(args) if a.endswith('native_copy.py'))
+                lit, variant = Path(args[k + 2]), args[k + 3]
+                rec = json.loads((lit / ('%s.relight.json' % variant)).read_text())
+                rec['sun'] = dict(lights=[], maps=[dict(component='DominantDirectionalLight_1.X', size=[132, 97])],
+                                  samples=dict(count=1743, markedBefore=222, markedAfter=455, changed=337), notes=[])
+                (lit / ('%s.relight.json' % variant)).write_text(json.dumps(rec))
+        self.run_tool = run
+        m = self.make().run()
+        stage = next(s for s in m['stages'] if s['stage'] == 'light')
+        self.assertEqual(stage['sunTurned'], dict(levelMaps=1, notes=[], samplesChanged=337))
+
     def test_flags_alone_are_written_in_the_map_with_the_lighting_unchanged(self):
         """A project whose only change is pieces' flags (piece flags plan, 6.3): flags are settings the game reads, not
         light, so a full build makes the map as a quick build does (native_copy.py without --bake) and keeps its
