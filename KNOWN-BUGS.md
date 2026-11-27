@@ -163,3 +163,16 @@ line, and its finding in the [findings register](research/findings-register.md) 
   game exe as LWR's installer patches it. The editor's pack export and Install.cmd write the card and the beta 15
   folder.
 - **Finding.** [F-172](research/findings-register.md).
+
+### KB-31: On URB_Bar given another time of day, the sun does not shade the soldiers
+
+- **What happens.** A project on URB_Bar that sets the time of day (the Map settings window's Sun, moon and sky) builds
+  with the map lit by the new sun, its baked shadows traced again when it turned (a Build with baking), but in the game
+  soldiers are not darker in a building's shadow than in the sun, and in some sessions they take no light from the sun
+  at all. On URB_CommercialStreet the same sun shades them as the game's own maps do.
+- **Since.** The time of day's Build (the game-likeness plan's T-S2 and T-S4). The same is seen on Bar built without
+  any bake with the moon's own direction, so it is how Bar's soldiers take its sun, not the Build's shadows.
+- **Workaround.** None known; the map itself is lit right.
+- **Cause.** Not settled: the data the Build writes for moving things (the light's map of the level, the lighting
+  samples' marks) reads as the game's own maps' do. A follow-up plan reads the game's light environment code.
+- **Finding.** [F-203](research/findings-register.md).

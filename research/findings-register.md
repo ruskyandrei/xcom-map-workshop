@@ -16,7 +16,7 @@ Statuses:
   are not darkened in its shadows: a soldier is as bright in a building's new shadow as in the sun, where on a map as
   the game ships it he is about 1.5 times brighter in the sun. Not the bake's: on URB_Bar built quick with the moon's
   own direction and a pure red sun, the sun never shadows a soldier either; in one session it lit him nowhere, in the
-  next everywhere, inside the bar too. The cause is not settled. Open.
+  next everywhere, inside the bar too. The cause is not settled. Open (KNOWN-BUGS.md KB-31).
 - F-202 (27 November, the game-likeness plan's T-S6): the sky chosen is built as copies of another map's dome where
   the map's own domes stood, in the chosen dome's own scale: Bar's small turned-over dome under the map (0.41 of the
   mesh) becomes a full-size one (2, 2, 2.6). Accepted: in the game (EXP-100) all below the horizon is the fog's
