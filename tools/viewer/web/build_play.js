@@ -26,8 +26,8 @@ import { api as projectApi, uuid } from './project.js';
 import { createSquadDialog, squadLine } from './squad.js';
 import { plural, short, text } from './dom_words.js';
 
-export function createBuildPlay({ $, bakeNote, banner, builderDocument, builderRecords, dirty, dragHint, flashHint,
-                                  gizmo, headerMissions, mapLabel, needsPrepare, projectsAvailable, saveProject,
+export function createBuildPlay({ $, bakeNote, banner, buildChanged, builderDocument, builderRecords, dirty, dragHint,
+                                  flashHint, gizmo, headerMissions, mapLabel, needsPrepare, projectsAvailable, saveProject,
                                   selectActors, setZones, showFileDialog, showPop, showPrepare, showSpawn, zonesNow }) {
   // Build (Ctrl+B, the header's Build): a panel first asks whether to bake the lighting (build_options.js; off by default),
   // then the open project is saved if it has unsaved changes (Save itself never builds) and the server builds the saved
@@ -74,6 +74,7 @@ export function createBuildPlay({ $, bakeNote, banner, builderDocument, builderR
   function setLastBuild(id, status) {
     if (!project || project.doc.id !== id) return false;
     setLastBuildValue({ ...status, project: id });
+    buildChanged();       // (the project's last Build's own light follows it: build_light.js)
     return true;
   }
   // Each status from the server (every 2 s while the build runs). A build that ended before this page saw it running

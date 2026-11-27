@@ -16,6 +16,11 @@ Statuses:
   with no bake: a Build changes only the sun or moon's actor and component and the sky light's component, the GUIDs,
   the shadow map of the level and its shadow info kept. The sun's component saves no `CachedParentToWorld`: its
   direction is the actor's `Rotation` alone. Fixed (built and read back offline); EXP-99 shows it in the game.
+- F-190 (27 November, the game-likeness plan's B4): a baked Build's package holds only the lighting textures it wrote.
+  A relit atlas is the map's own texture object written again, under the map's name; a copy's are new objects; every
+  other texture a relit piece names (3 sun shadow maps in an earlier Build of URB_Bar) stays in the base map's texture
+  cache in the game install, which the package's folder lacks. Accepted: the server reads those from the install's
+  maps (`build_light.py`), and the page reads a relit atlas in the map's place by its name.
 - F-184 (27 November, the game-likeness plan's B3): a lightmapped piece with no shadow map of the sun is wholly in
   its shadow: the dominant light is on its `IrrelevantLights`, and the game draws none of the sun on it (on the four
   maps of track H, all 696 such pieces; 28 more list it and keep a shadow map). The editor drew them with the live
@@ -345,6 +350,25 @@ of the configured install's URB_Bar made day by EXP-99's project, nothing played
   quick Build that turns the light says so (`sun-shadows-stale`).
 - **The records.** URB_Bar's variant has one record (its abduction; URB_Bar_Terror is a map of its own): its
   `TimeOfDay` went from `eMissionTime_Night` to `eMissionTime_Day`.
+
+### F-190: A baked Build's package holds only the lighting textures it wrote
+**Accepted** (27 November 2026, the game-likeness plan's B4; read offline from two baked Builds of URB_Bar in scratch
+and builds folders: one made before 19 November with its texture cache beside the map, one made for the check with
+its lightmaps inside the map).
+- **What a Build writes.** The relight writes a relit piece's texels into its atlas where the atlas is
+  (`lightmap_writer.py`: the texture redirected to the variant's cache, then put inside the map): the same texture
+  object as the map's, under the map's name (`DirectionalMaxComponent0_1`, `ShadowMapTexture2D_323`). A copy made
+  with lighting of its own gets new textures (`NormalizedAverageColor1_90`), cropped to what it reads. Every other
+  texture keeps naming the base map's texture cache (`Lighting.tfc`) in the game install.
+- **What that means for reading a Build.** The package's folder alone can't give a relit piece's whole light: of
+  the 23 components the earlier Build relit, 3 sun shadow maps it did not write were unreadable from its folder. The
+  game reads them from its own CookedPCConsole, where the package is installed.
+- **How the editor lives with it.** The server reads a Build's light with the game install's maps as the package's
+  texture caches (`package.cache_file`'s `elsewhere`, `build_light.py`): 0 unreadable then, and the Build made for
+  the check (436 components relit, 44 textures) read in 1.0 s. The page packs a relit atlas in the map's atlas's
+  place by its name, so a piece the Build did not relight that shares it reads the same texels as before. Without
+  the game install's maps a relit piece's texture the Build did not write is left out (a warning in the export's
+  diagnostics), and the page lights that piece's sun live.
 
 ### F-184: A piece wholly in the sun's shadow lists the sun on its IrrelevantLights and has no shadow map of it
 **Fixed** (27 November 2026, the game-likeness plan's B3; read offline from the configured install's URB_Bar,

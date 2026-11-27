@@ -22,13 +22,16 @@ class FormatError(ValueError):
 CACHE_FOLDER_LINK = "tfc-folder.txt"
 
 
-def cache_file(folder, cache):
+def cache_file(folder, cache, elsewhere=None):
     """The texture cache `cache` (a name, as Lighting) of a package in `folder`: <cache>.tfc beside it, else in the
-    folder its CACHE_FOLDER_LINK names."""
+    folder its CACHE_FOLDER_LINK names, else in the folder `elsewhere` (where the caller knows the caches are: a Build's
+    map reads the textures it did not write from the game install's, build_light.py)."""
     path = Path(folder) / (cache + ".tfc")
     link = Path(folder) / CACHE_FOLDER_LINK
     if not path.exists() and link.is_file():
         return Path(link.read_text(encoding="utf-8").strip()) / (cache + ".tfc")
+    if not path.exists() and elsewhere is not None:
+        return Path(elsewhere) / (cache + ".tfc")
     return path
 
 
@@ -79,8 +82,10 @@ class Reader:
 
 
 class Package:
-    def __init__(self, path):
+    def __init__(self, path, caches=None):
+        """`caches`: the folder its texture caches are in where none is beside it (cache_file), or None."""
         self.path = Path(path).resolve()
+        self.caches = caches
         self.data, self.header = upkinfo.load(self.path)
         if self.header["ver"] != 845 or self.header["lic"] not in (0,64):
             raise FormatError("This importer supports v845 EW/licensee 64 and UDK/licensee 0 packages only")

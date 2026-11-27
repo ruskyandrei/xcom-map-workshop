@@ -10,6 +10,9 @@ stages from the log. The result is a variant package in the builds folder; nothi
                                    its stages (each with the time it ended), the step running and its progress, the
                                    log's last lines, and the project's last package (from its manifest: whether it is
                                    quick, and how long the last full and quick builds took) if there is one
+  GET  /projects/<id>/build-light.json   the last package's own light, where it is a baked Build's: its lightmaps
+                                   exported into the cache the first time (build_light.py), with the built actors and
+                                   the project as built; 404 for a quick Build or one that relit nothing
   POST /projects/<id>/build-cancel stop the project's running build (its tools with it); the last good package stays,
                                    since a build swaps its package in only at the end. {"attempt": id}: only if that
                                    launch is the one running (a stale page's cancel never stops a newer build). A
@@ -70,6 +73,7 @@ from uuid import uuid4
 import zipfile
 
 import atomic_files
+import build_light
 import pictures
 import procs
 import publication
@@ -876,7 +880,19 @@ class BuildRunner:
                     revision=m['project'].get('revision'), files=sorted(Path(f).name for f in m.get('files') or {}),
                     # the diagonal cover the project marked, as the build wrote it (build.py diagonal_record): the
                     # Diagonal cover view's panel says what the last build gave a mark
-                    **({'diagonalCover': m['diagonalCover']} if isinstance(m.get('diagonalCover'), dict) else {}))
+                    **({'diagonalCover': m['diagonalCover']} if isinstance(m.get('diagonalCover'), dict) else {}),
+                    # whether it has a light of its own, which the page asks for (light: build_light.py)
+                    **({'light': True} if build_light.has_light(m) else {}))
+
+    def light(self, project_id, caches=None):
+        """The project's last Build's own light (build_light.light: exported into the cache the first time it is asked
+        for), for GET /projects/<id>/build-light.json. `caches`: the game install's folder of maps, where the textures
+        the Build did not write are."""
+        variant = (self.projects.load(project_id).get('output') or {}).get('shipAs')
+        try:
+            return build_light.light(self.cache, self.output, project_id, variant, caches)
+        except build_light.LightError as error:
+            raise ProjectError(error.status, error.message)
 
     def status(self, project_id):
         # (polled every 2 s: the project's output names as the store last read them, not the file read again each

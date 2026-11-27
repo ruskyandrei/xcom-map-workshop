@@ -359,6 +359,9 @@ export const api = {
   // edit made in the map without baking its lighting.
   build: (id, quick = false) => call('POST', `${at(id)}/build`, quick ? { quick: true } : {}),
   buildStatus: id => call('GET', `${at(id)}/build.json`),
+  // the last package's own light, a baked Build's (tools/viewer/build_light.py: exported into the cache when first
+  // asked for): { buildId, builtAt, map, actors, project, pieces, textures, base }
+  buildLight: id => call('GET', `${at(id)}/build-light.json`),
   // attempt: only that launch (a page that saw an older build stops no newer one)
   cancelBuild: (id, attempt = null) => call('POST', `${at(id)}/build-cancel`, attempt ? { attempt } : {}),
   report: id => call('POST', `${at(id)}/report`, {}),
