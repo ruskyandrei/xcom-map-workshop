@@ -166,11 +166,12 @@ def editor_shots(args):
                                            "window.viewer.roots.size > 0", timeout=900000)
                     page.wait_for_timeout(1500)
                     page.keyboard.press('Escape')
-                    if args.look in ('neutral', 'map', 'map-no-area'):
-                        page.evaluate('m => document.querySelector(`#lighting button[data-value="${m}"]`)?.click()',
-                                      args.look)
-                    elif args.look == 'game':
-                        page.evaluate("() => window.viewer.setLook?.('game')")
+                    # the look: game or neutral; map and map-no-area, the Game look with and without its area
+                    # lights (the lighting modes' names before the look, G1)
+                    page.evaluate("""m => { const area = document.getElementById('areaLights');
+                      if (area) area.checked = m !== 'map-no-area';
+                      if (viewer.setLook) viewer.setLook(m === 'neutral' ? 'neutral' : 'game');
+                      else document.querySelector(`#lighting button[data-value="${m}"]`)?.click(); }""", args.look)
                     for shot in shots:
                         # the floors control: the game cuts the roofs away near what the camera looks at, so the
                         # ground floor with the floors and roofs above it cut ("1") unless the shot says otherwise

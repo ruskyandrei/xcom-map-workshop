@@ -3321,7 +3321,7 @@ def check_lights(page, is_bar):
     page.keyboard.press('Control+z')
     assert page.evaluate('viewer.lightRoots.size') == base + 1
     # the Map lighting mode takes the lights as edited
-    choose(page, 'lighting', 'map'); page.wait_for_function('viewer.lighting.counts.all === viewer.lightRecords().length')
+    choose(page, 'lighting', 'game'); page.wait_for_function('viewer.lighting.counts.all === viewer.lightRecords().length')
     assert page.evaluate('viewer.lighting.counts.all === viewer.lightRecords().length')
     assert page.evaluate('id => viewer.lightRecords().some(l => l.actor === viewer.lightRoots.get(id).userData.source.actor)', copy)
     choose(page, 'lighting', 'neutral')
@@ -5743,7 +5743,9 @@ def check_map_lights(ctx):
     page = ctx.page
     lights = page.evaluate("viewer.lighting.counts")
     assert lights['enabled'] > 0 and value(page,'lighting') == 'neutral', lights
-    choose(page,'lighting','map')
+    assert page.evaluate("document.getElementById('areaLights').disabled")      # (no say in the Neutral look)
+    choose(page,'lighting','game')
+    assert not page.evaluate("document.getElementById('areaLights').disabled")
     assert page.evaluate("viewer.lighting.grid.local.length") == lights['local']
     assert 'local lights' in page.locator('#lightCount').text_content()
     assert 'dropped' not in page.locator('#lightCount').text_content()
@@ -5755,10 +5757,17 @@ def check_map_lights(ctx):
             return count===list.length && list.every((id,n)=>indices[first+n]===id);
           });
         }""")
-    for mode in ('map-no-area', 'map', 'neutral'):
+    # the Game look without and with its area lights, then the Neutral look, each pictured; K switches the look
+    for mode, area in (('game', False), ('game', True), ('neutral', True)):
+        page.evaluate('on => { const a = document.getElementById("areaLights"); a.checked = on; a.onchange(); }', area)
         choose(page,'lighting',mode)
         page.wait_for_timeout(300)      # (a frame drawn in the new light for the picture)
-        page.screenshot(path=str(ctx.shot('light-'+mode)))
+        page.screenshot(path=str(ctx.shot('light-%s%s' % (mode, '' if area else '-no-area'))))
+    page.evaluate('document.activeElement && document.activeElement.blur()')
+    page.keyboard.press('k')
+    assert value(page, 'lighting') == 'game'
+    page.keyboard.press('k')
+    assert value(page, 'lighting') == 'neutral'
     assert page.evaluate("viewer.sun.intensity > 0 && viewer.hemisphere.intensity > 0")
 
 

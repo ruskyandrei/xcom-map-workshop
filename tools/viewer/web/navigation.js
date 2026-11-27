@@ -43,7 +43,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
                                    lightPanel, madeRoot, mapBreakable, openBuild, paste, pick, pickEffect,
                                    pickZone, playArea, projectsAvailable, rayAt, refreshVolumes, releaseRockPoint,
                                    renderer, restingHint, saveProject, select, setGridTool,
-                                   alignToGrid, setOwnPicked, setPickedSpawn,
+                                   alignToGrid, toggleLook, setOwnPicked, setPickedSpawn,
                                    setPickTool, setPlayArea, setSolo, setVolumeTool, stepWheel, addLarge, setAddLarge,
                                    showFileDialog, showOpen, showPieces, showPop,
                                    spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
@@ -448,6 +448,7 @@ export function createNavigation({ $, applyLighting, builderRecords, camera, can
     else if (key === 'c') togglePivot();
     else if (key === 'b') { if (!playArea.children.length) return; setPlayArea(!playArea.visible); }
     else if (key === 'l') { if (!e.repeat) alignToGrid(); }
+    else if (key === 'k') { if (data && !e.repeat) toggleLook(); }
     else if (key === 'o') { if (!lightRoots.has(selected)) return; setSolo(!soloOn); }
     else if (key === 'f') { if (!(effectsOn && frameEffect())) frame(selected ? allRoots.get(selected) : undefined); }
     else return;

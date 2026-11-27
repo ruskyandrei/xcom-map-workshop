@@ -16,7 +16,8 @@ The shots file (JSON) names the map, the project and the shots; points are in ga
               "lights": true,                            # optional: the light markers shown (Shift+L)
               "effects": true,                           # optional: effects and sounds drawn with the pieces (the
                                                          # Normal button's Effects and sounds switch)
-              "lighting": "map",                         # optional: the lighting mode (map, map-no-area, neutral)
+              "lighting": "game",                        # optional: the look (game, neutral; map and map-no-area
+                                                         # are the Game look with and without its area lights)
               "missionObjects": true,                    # optional: View options' Mission objects shown
               "marks": [{"n": "1", "at": [-1392, -1392, 120], "color": "#5ad17a", "r": 36,
                          "side": "left",                 # optional: the number badge on the left
@@ -79,6 +80,12 @@ PROJECT = """async ([points]) => {
 MISSION_OBJECTS = """on => { const t = document.getElementById('missionObjectsToggle');
   if (t && !t.closest('[hidden]') && t.checked !== on) { t.checked = on; t.onchange({ target: t }); } }"""
 
+# the look a shot asks for: game or neutral, or the old lighting modes' names (map, map-no-area: the Game look with
+# and without its area lights)
+LOOK = """m => { const area = document.getElementById('areaLights');
+  if (area) { area.checked = m !== 'map-no-area'; }
+  viewer.setLook(m === 'neutral' ? 'neutral' : 'game'); }"""
+
 CAMERA = """([t, c, fov]) => { viewer.controls.target.set(t[0], t[2], t[1]);
   viewer.camera.position.set(t[0] + c[0], t[2] + c[2], t[1] + c[1]); if (fov) viewer.camera.fov = fov;
   viewer.camera.updateProjectionMatrix(); viewer.controls.update(); }"""
@@ -103,9 +110,7 @@ def take(page, shot, out):
     page.evaluate('on => viewer.setLightsShown?.(on)', bool(shot.get('lights')))
     page.evaluate('on => viewer.setNormalEffects?.(on)', bool(shot.get('effects')))
     page.evaluate(MISSION_OBJECTS, bool(shot.get('missionObjects')))
-    lighting = page.locator('#lighting button[data-value="%s"]' % shot.get('lighting', 'neutral'))
-    if lighting.count():
-        page.evaluate('m => document.querySelector(`#lighting button[data-value="${m}"]`).click()', shot.get('lighting', 'neutral'))
+    page.evaluate(LOOK, shot.get('lighting', 'neutral'))
     page.evaluate(CAMERA, [shot['target'], shot['camera'], shot.get('fov')])
     page.evaluate("document.getElementById('projectBanner').hidden = true")   # the page's notices cover the view
     page.wait_for_timeout(4000)  # the textures of what comes into view

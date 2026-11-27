@@ -853,12 +853,31 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
     o.added.entity = l.entity;
     return root;
   }
-  // The Map lighting mode's buttons as a scene opens (app.js's startScene): the map's own modes only where its lighting
-  // can be had.
+  // The look (game-likeness plan, G1): Game, the map as the game shows it (its own lights, its area lights as View
+  // options' Area lights says), or Neutral, the even studio light for building. Its buttons as a scene opens
+  // (app.js's startScene): the Game look only where the map's lighting can be had; Neutral by default (chosen
+  // 7 November: the Game look is an approximation until its baked light).
   function lightingModes() {
     for (const button of $('lighting').querySelectorAll('button')) button.disabled = button.dataset.value !== 'neutral' && !lighting.available;
-    // Neutral light by default: our map lighting is an approximation (chosen 7 November).
     $('lighting').value = 'neutral';
+    lookOptions();
+  }
+  // the Game look's options, which have no say in the Neutral look
+  function lookOptions() { $('areaLights').disabled = $('lighting').value !== 'game'; }
+  // the light the look draws (lighting.js's modes)
+  const lightingMode = () => ($('lighting').value !== 'game' ? 'neutral' : $('areaLights').checked ? 'map' : 'map-no-area');
+  /** The look put on: 'game' or 'neutral'; false where the map's lighting can't be had for the Game look. */
+  function setLook(look) {
+    if (look === 'game' && !lighting.available) return false;
+    $('lighting').value = look === 'game' ? 'game' : 'neutral';
+    lookOptions(); applyLighting();
+    return true;
+  }
+  // K: the other look, said in the hint line
+  function toggleLook() {
+    const game = $('lighting').value !== 'game';
+    if (!setLook(game ? 'game' : 'neutral')) { flashHint('The Game look needs the map\'s own lighting, which this scene has not'); return; }
+    flashHint(game ? 'Game look: the map as the game shows it · K for the Neutral look' : 'Neutral look: even studio light for building · K for the Game look');
   }
   // The view lit as the Map lighting mode says, with the lights as edited: app.js's applyLighting once a scene has
   // started (before, it does nothing).
@@ -868,8 +887,8 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
       lighting.setLights(lightRecords()); setLightsDirty(false); setLastLightSync(performance.now());
     }
     if (soloOn) { lighting.dim(sun.target.position, lightRadius); return; }
-    const result = lighting.apply($('lighting').value, sun.target.position, lightRadius);
-    $('lightCount').textContent = $('lighting').value === 'neutral' ? '' : `${result.local} local lights`;
+    const result = lighting.apply(lightingMode(), sun.target.position, lightRadius);
+    $('lightCount').textContent = lightingMode() === 'neutral' ? '' : `${result.local} local lights`;
   }
   // The lights of a map once its pieces are built: placed, area, toggleable and streamed levels' lights with a place; the
   // sun and sky without one (listed in the Map settings window, map_settings.js, which View options' row opens).
@@ -929,6 +948,7 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   return { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLighting, areaOwner, assignOwner,
            buildLights, changeLight, clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear,
            hoverHandle, lightClip, lightEdited, lightEntries, lightingModes, lightPanel, lightPose, lightRecords,
+           lookOptions, setLook, toggleLook,
            lightsAt, lightsBlocked, lightShapes, lightSource, lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight,
            recipeLight, refreshLightShapes, refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding,
            setLightsShown, setLightValues, setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,

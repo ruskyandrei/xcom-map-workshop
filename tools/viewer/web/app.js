@@ -329,6 +329,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         buildLights, changeLight, clearLightEdits, commitColour, commitLightField, endLightDrag, handlesNear,
         hoverHandle, lightClip, lightEdited,
         lightEntries, lightingModes, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
+        lookOptions, setLook, toggleLook,
         lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, lightsAt, recipeLight, refreshLightShapes,
         refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
         setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
@@ -939,7 +940,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
     clearParts, clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
     deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn, editSpawnCopy, editState, effectNow, effectShapes,
-    effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grabView, grid, gridHandleAt,
+    effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grabView, setLook, grid, gridHandleAt,
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
@@ -1023,7 +1024,8 @@ $('frame').onclick = () => frame();
 $('selected').onclick = () => selected && frame(allRoots.get(selected));
 $('grid').onchange = e => { grid.visible = e.target.checked; setTileKey(null); };
 let applyLighting = () => {};
-segmented($('lighting'), () => applyLighting());
+segmented($('lighting'), () => { lookOptions(); applyLighting(); });
+$('areaLights').onchange = () => applyLighting();
 // Update every base and cutaway material, not only those currently assigned, so
 // changing the floor cut afterwards keeps the chosen wireframe state.
 $('wire').onchange = e => {
@@ -1335,7 +1337,7 @@ const { frame, panCamera, setSnapMode, syncTools } = createNavigation({
   endWallDrag, flashHint, frameEffect, gizmo, groupShortcut, isMadeSlab, isMadeWall, lightPanel, madeRoot, mapBreakable,
   openBuild, paste, pick, pickEffect, pickZone, playArea, projectsAvailable, rayAt,
   refreshVolumes, releaseRockPoint, renderer, restingHint, saveProject, select, setEffectsShown,
-  alignToGrid, setGridTool, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
+  alignToGrid, toggleLook, setGridTool, setLightsShown, setNormalView, setOwnPicked, setPickedSpawn, setPickTool, setPlayArea,
   setSolo, setSpawnsShown, setVolumesShown, setVolumeTool, setZonesShown, showFileDialog, stepWheel, addLarge, setAddLarge,
   showOpen, showPieces, showPop, spawnDeleted, spawnEntry, spawnMovable, startBreak, startLookPick, stepSurface, stopBreak,
   stopLookPick, stopPickBox, stopPlacing, stopSpawnPlacing, stopWallDrawing, stopZonePlacing, sun, takePickBox,
