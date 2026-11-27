@@ -18,10 +18,15 @@ Rotation is in the map (the Build's native step writes it), and every part below
 
 `level_edits` gives the last two as fixed-size edits of the map, which the relight's writer makes in its one write
 (lightmap_writer.run's `edits`, through package_edit.write_edited); `verify` reads them back from the written map.
-Pieces with no shadow map of the light (on its IrrelevantLights: wholly in the old sun's shadow, F-184) have no texture
-to take a new field, and stay unlit by it.
+
+A piece wholly in the old sun's shadow lists the light on its IrrelevantLights and has no shadow map of it (F-184).
+Before the relight, the copy tool's step `own_shadow_maps` gives each such piece the new sun reaches (a ray from any
+of its texels finds the light) a shadow map of its own and takes the light off its list, in the grown map, as a made
+piece is given one (frac_walls); the whole-map trace then fills it (F-198). The pieces it does not reach stay as they
+are.
 """
 import math
+import os
 from pathlib import Path
 import struct
 import sys
@@ -57,15 +62,39 @@ def direction_key(p):
 
 # ------------------------------------------------------------------------------------------------ the shadow maps
 
+def dome_actors(p):
+    """The export indices of the level's sky domes (native_copy.sky_dome: every mesh the actor draws one of the
+    Skybox package's): the map's own and the copies of another map's that a project's sky makes in their place
+    (SkyDome_time<n>, T-S6). They stand round the map or turned over under it, 127,000 units across, and take no part
+    in the sun's shadows: no caster of the sun pass's scenes (relight.py --sun-turned leaves them out, as
+    listed_scene does), and no receiver of its trace or of a shadow map of their own (their sky is not lit by it)."""
+    import native_copy
+    level = p.by_name.get(PL[:-1])
+    found = set()
+    for i in range(1, len(p.exports) + 1):
+        if p.cls(i) not in shadows.MESH_COMPONENTS or not p.name(i).startswith(PL):
+            continue
+        mesh, actor = p.effective(i, 'StaticMesh', 0), p.exports[i - 1]['outer']
+        if mesh > 0 and p.name(mesh).startswith('Skybox.') and actor > 0 and p.exports[actor - 1]['outer'] == level:
+            found.add(actor)
+    return sorted(a for a in found if native_copy.sky_dome(p, a))
+
+
+def sky_domes(p):
+    """The short names of the level's sky domes (dome_actors), as the relight's scenes take names to leave out."""
+    return [p.name(a)[len(PL):] for a in dome_actors(p)]
+
+
 def whole_map_jobs(p):
     """Every distance-field shadow map of the map's enabled dominant lights on a piece the level lists (debris
     pieces included), each a job of the relight's shadow maps lit from nothing: dict(path, ci, sm, light, source
     None, fresh True), in the map's order. A piece the edit took out of the level (a hidden one), or one staged from
-    another map that no level lists, is left: the game never draws it."""
-    listed = level_list(p)
+    another map that no level lists, is left: the game never draws it. So is a sky dome (dome_actors)."""
+    listed, domes = level_list(p), set(dome_actors(p))
     jobs = []
     for path, ci, sm, light in shadowmaps.dominant_receivers(p, enabled_lights(p), debris=True):
-        if listed is not None and p.exports[ci - 1]['outer'] not in listed:
+        owner = p.exports[ci - 1]['outer']
+        if (listed is not None and owner not in listed) or owner in domes:
             continue
         jobs.append(dict(path=path, ci=ci, sm=sm, light=light, source=None, fresh=True))
     return jobs
@@ -209,6 +238,183 @@ def map_edits(p, ci, made):
             (places['LightToWorld'], matrix_bytes(made['lightToWorld']), f'map of the level of {short}: LightToWorld'),
             (places['LightSpaceImportanceBounds'], struct.pack('<6f', *made['bounds']),
              f'map of the level of {short}: LightSpaceImportanceBounds')]
+
+
+# ------------------------------------------------------------ the pieces wholly in the old sun's shadow (F-198)
+
+def own_layout(lightmap, atlas):
+    """The layout of a shadow map of a piece's own, for its LOD-0 lightmap record `lightmap` in an atlas of `atlas`
+    (width, height) texels: the lightmap rectangle's size (at least a texel a side, no larger than a made piece's own:
+    frac_walls.fit_rect, OWN_MAX), its texture's (frac_walls.own_shadow_size: a texel's ring, powers of two), and the
+    coordinate scale and bias that put the piece's lightmap UVs on the rectangle one texel in from the corner, as a
+    made piece's are. dict(rect, size, scale, bias)."""
+    import frac_walls
+    rect = tuple(max(1, int(round(lightmap['coordinateScale'][k] * atlas[k]))) for k in (0, 1))
+    w, h = frac_walls.fit_rect(rect, (frac_walls.OWN_MAX - 2, frac_walls.OWN_MAX - 2))
+    sw, sh = frac_walls.own_shadow_size((w, h))
+    return dict(rect=(w, h), size=(sw, sh), scale=(w / sw, h / sh), bias=(1 / sw, 1 / sh))
+
+
+def lit_texels(mesh, matrix, layout, occluder, to_light, level_scale):
+    """(how many of a piece's texels in `layout` (own_layout's) a ray toward the light finds lit, how many texels it
+    has): one ray from each texel's centre (shadowmaps.lit), the piece's `mesh` (lightmap_texels.component_mesh's)
+    through `matrix`."""
+    import lightmap_texels
+    geo = lightmap_texels.rasterise(mesh, matrix, dict(coordinateScale=layout['scale'], coordinateBias=layout['bias']),
+                                    list(layout['size']))
+    if not len(geo['world']):
+        return 0, 0
+    return int(shadowmaps.lit(occluder, to_light, geo, level_scale).sum()), int(len(geo['world']))
+
+
+def irrelevant_pieces(p, guid):
+    """The lightmapped mesh components of the pieces the level lists that name the light `guid` (hex) on their
+    IrrelevantLights (baked_light.sun_irrelevant, F-184: wholly in its shadow, with no shadow map of it): [(export,
+    LOD-0 lightmap record, atlas (width, height))], in the map's order."""
+    import baked_light
+    import lightmap_fields
+    listed, domes = level_list(p), set(dome_actors(p))
+    out = []
+    for i in range(1, len(p.exports) + 1):
+        if p.cls(i) not in lightmap_fields.COMPONENT_CLASSES or not p.name(i).startswith(PL):
+            continue
+        owner = p.exports[i - 1]['outer']
+        if (listed is not None and owner not in listed) or owner in domes or p.effective(i, 'StaticMesh', 0) <= 0:
+            continue
+        if not baked_light.sun_irrelevant(p, i, guid):
+            continue
+        lods = lightmap_fields.component_fields(p, i)['lods']
+        lm = lods[0]['lightmap'] if lods else {}
+        if lm.get('type') != 2 or lm['slots'][1]['index'] <= 0:
+            continue
+        top = lightmap_fields.texture_fields(p, lm['slots'][1]['index'])['mips'][0]
+        out.append((i, lm, (top['width'], top['height'])))
+    return out
+
+
+def listed_scene(p):
+    """The scene the relight traces the turned sun in after the edit (relight.Scene with one shadow ray and no
+    bounce): the casters of the pieces the level lists, not those the edit took out of it or staged from another map,
+    nor the sky domes (sky_domes)."""
+    import relight
+    listed = level_list(p)
+    left = set(sky_domes(p))
+    if listed is not None:
+        for i in range(1, len(p.exports) + 1):
+            if shadows.is_caster(p, i) and p.exports[i - 1]['outer'] not in listed:
+                left.add(relight.short_name(p.name(i)))
+    return relight.Scene(p, samples=1, bounce_rays=0, emissive=False, ignore_casters=sorted(left))
+
+
+def reached_pieces(p, world, guid, to_light):
+    """Each piece of irrelevant_pieces(p, guid) with the layout of its shadow map of the light and how many of its
+    texels the turned sun (`to_light`) reaches in the scene `world`: [dict(export, path, layout, existing, lit,
+    texels)]. A piece that lists the light and keeps a distance-field shadow map of it too (URB_Bar: 2, F-184) has
+    that map's layout and its export as `existing`; any other, a map of its own's (own_layout) and None."""
+    import lightmap_fields
+    import lightmap_texels
+    out = []
+    for ci, lm, atlas in irrelevant_pieces(p, guid):
+        have = [sm for sm in shadowmaps.shadow_maps(p, ci) if sm['guid'] == guid and not sm['factor']]
+        if have:
+            top = lightmap_fields.texture_fields(p, have[0]['texture'])['mips'][0]
+            size = (top['width'], top['height'])
+            layout = dict(rect=tuple(int(round(have[0]['scale'][k] * size[k])) for k in (0, 1)), size=size,
+                          scale=tuple(have[0]['scale']), bias=tuple(have[0]['bias']))
+        else:
+            layout = own_layout(lm, atlas)
+        lit, texels = lit_texels(lightmap_texels.component_mesh(p, ci), lightmap_texels.world_matrix(p, ci), layout,
+                                 world.occluder, to_light, world.level_scale)
+        out.append(dict(export=ci, path=p.name(ci), layout=layout, existing=have[0]['export'] if have else None,
+                        lit=lit, texels=texels))
+    return out
+
+
+def give_shadow_maps(src, dst, pieces):
+    """The map `src` written to `dst` (package_grow.Grower) with each of `pieces` (reached_pieces' dicts) given a
+    shadow map of the dominant light of its own and the light taken off its IrrelevantLights, as a made piece is given
+    one (frac_walls: shadow_map_export clones one of the map's ShadowMap2D of the light, dominant_shadow's, with a blank
+    distance-field texture of the piece's layout, which the relight fills; irrelevant; set_shadow_refs adds it to LOD
+    0's). A piece with a map of the light already (`existing`) keeps it, and only loses the light off its list. Each
+    piece's dict gains `shadowMap`, its map's export. Read back: ValueError where a piece does not read as made
+    (verify_shadow_maps)."""
+    import frac_walls
+    import native_copy
+    import package_grow
+    import props as legacy_props
+    p = lighting.Package(src)
+    guid = native_copy.dominant_guid(p)
+    new = any(x['existing'] is None for x in pieces)
+    dominant = frac_walls.dominant_shadow(p) if new else None
+    if guid is None or (new and (dominant is None or dominant['source'] is None)):
+        raise ValueError(f'{Path(src).name} has no distance-field shadow map of its dominant light to clone')
+    g = package_grow.Grower(str(src))
+    walker = native_copy.Walker(p, g)
+    objects = frac_walls.GrownObjects(g)
+    for piece in pieces:
+        ci, layout = piece['export'], piece['layout']
+        e = p.exports[ci - 1]
+        start = legacy_props.props_start(p.data, e, p.names) - e['off']
+        data = bytes(frac_walls.irrelevant(walker, g, bytearray(g.export_data(ci)), start, guid, False))
+        if piece['existing'] is None:
+            piece['shadowMap'] = frac_walls.shadow_map_export(g, p, walker, ci, dict(
+                source=dominant['source'], size=layout['size'], scale=layout['scale'], bias=layout['bias'], clone=True))
+            data = frac_walls.set_shadow_refs(data, frac_walls.native_props_end(walker, data, start), objects,
+                                              add=piece['shadowMap'])
+        else:
+            piece['shadowMap'] = piece['existing']
+        g.relocate(ci, data)
+    g.write(str(dst))
+    verify_shadow_maps(dst, pieces, guid.hex())
+
+
+def verify_shadow_maps(path, pieces, guid):
+    """The map at `path` read back: each of `pieces` (give_shadow_maps') lists its new shadow map of the light `guid`
+    (hex) at LOD 0, a distance field of a texture of its own of the layout's size and with the layout's scale and bias,
+    and no longer lists the light on its IrrelevantLights. ValueError on any difference."""
+    import baked_light
+    import lightmap_fields
+    q = lighting.Package(path)
+    for piece in pieces:
+        ci = piece['export']
+        maps = [sm for sm in shadowmaps.shadow_maps(q, ci) if sm['export'] == piece['shadowMap']]
+        if len(maps) != 1 or maps[0]['guid'] != guid or maps[0]['factor']:
+            raise ValueError(f"{piece['path']}: its shadow map of the sun does not read back as made")
+        sm, layout = maps[0], piece['layout']
+        top = lightmap_fields.texture_fields(q, sm['texture'])['mips'][0]
+        if ((top['width'], top['height']) != tuple(layout['size'])
+                or not np.allclose(sm['scale'], layout['scale'], atol=1e-7)
+                or not np.allclose(sm['bias'], layout['bias'], atol=1e-7)):
+            raise ValueError(f"{piece['path']}: its shadow map is not laid out as made")
+        if baked_light.sun_irrelevant(q, ci, guid):
+            raise ValueError(f"{piece['path']}: it still lists the sun on its IrrelevantLights")
+
+
+def own_shadow_maps(path):
+    """A Build's step for a turned sun before the relight (native_copy.build, with bake and sun_turned): in the map
+    written at `path` (the copy tool's grown map, the light turned in it), each piece wholly in the old sun's shadow
+    that the new sun reaches on a texel at least is given a shadow map of its own (give_shadow_maps), so the relight's
+    whole-map trace (whole_map_jobs) fills it; the map at `path` is replaced. Pieces the new sun does not reach keep
+    the light on their IrrelevantLights. Returns the record: dict(given [each piece: component, shadow map, own
+    (false for a piece that kept a map of the light), rect, size, lit texels, texels], left: how many it does not
+    reach)."""
+    import native_copy
+    p = lighting.Package(path)
+    lights = enabled_lights(p)
+    guid = native_copy.dominant_guid(p)
+    if guid is None or guid.hex() not in lights:
+        return dict(given=[], left=0)
+    pieces = reached_pieces(p, listed_scene(p), guid.hex(), lights[guid.hex()]['toLight'])
+    reached = [x for x in pieces if x['lit']]
+    if reached:
+        path = Path(path)
+        made = path.with_name(path.stem + '.sun' + path.suffix)
+        give_shadow_maps(path, made, reached)
+        os.replace(made, path)
+    return dict(given=[dict(component=x['path'][len(PL):], shadowMap=x['shadowMap'], own=x['existing'] is None,
+                            rect=list(x['layout']['rect']), size=list(x['layout']['size']), litTexels=x['lit'],
+                            texels=x['texels']) for x in reached],
+                left=len(pieces) - len(reached))
 
 
 # ------------------------------------------------------------------------------------------- the lighting samples

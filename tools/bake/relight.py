@@ -97,7 +97,8 @@ They are listed in the record's `shadowMaps` (written) and `shadowMapsUnchanged`
 `sun.directionChanged`): in place of the reached shadow maps, every shadow map of it on a piece the level lists is
 traced from nothing, and its map of the level and the lighting samples' marks are made again and written in the same
 write (sun_bake.py, which reads the direction from the map). It is an edit of its own: with nothing else, no piece is
-relit. The record's `sun` says what was made.
+relit. The level's sky domes (the map's own, and copies of another map's for the project's sky) cast no shadow in
+either scene then, and get no trace. The record's `sun` says what was made.
 
 `--component-list` reads more component paths, one per line (# starts a comment). A component that cannot be
 relit (no texture lightmap, a lightmap outside Lighting.tfc, StaticLightingHiddenByDefault) is skipped and listed in
@@ -1638,6 +1639,10 @@ def main():
     started = time.perf_counter()
     timings = {}
     p = lighting.Package(args.src)
+    if args.sun_turned:
+        import sun_bake
+        # a sky dome round the map (or a copy of another map's for the project's sky) shades none of it from the sun
+        ignore = sorted(set(ignore) | set(sun_bake.sky_domes(p)))
     scene_args, states, before_args, scene, after, after_args = edit_scenes(a, args, p, add_casters, natives, foreign,
                                                                             moved, ignore)
     if args.sun_turned and scene is None:

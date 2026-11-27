@@ -1541,10 +1541,17 @@ class Build:
         if other:
             self.relit['otherPiecesChanged'] = other
         if rec.get('sun'):
-            # the turned sun's map of the level and lighting samples made again (the shadow maps are counted above)
+            # the turned sun's map of the level and lighting samples made again (the shadow maps are counted above),
+            # and the pieces wholly in its old shadow given shadow maps of the new one (the writer's record)
             sun = rec['sun']
+            try:
+                fixture = json.loads((self.lit / ('%s.fixture.json' % self.variant)).read_text(encoding='utf-8'))
+                given = len(((fixture.get('nativeCopies') or {}).get('sunShadowMaps') or {}).get('given') or [])
+            except (OSError, ValueError, AttributeError):
+                given = 0
             self.relit['sunTurned'] = dict(levelMaps=len(sun.get('maps') or []), notes=sun.get('notes') or [],
-                                           samplesChanged=(sun.get('samples') or {}).get('changed'))
+                                           samplesChanged=(sun.get('samples') or {}).get('changed'),
+                                           piecesGivenShadowMaps=given)
         if self.lights:
             self.relit['lights'] = dict(self.lights, **self.light_record())
         self.relit.update(self.building_record())

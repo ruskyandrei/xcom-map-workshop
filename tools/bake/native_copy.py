@@ -2527,6 +2527,9 @@ class BuildState:
     g: object = filled()                # the variant map's growing writer (build, first)
     light_state: object = filled()      # the light edits resolved against the pristine map, or None (build)
     sun_record: object = filled()       # the map's sun or moon and sky light set in place (sun_in_place), or None
+    # with bake and sun_turned: the pieces wholly in the old sun's shadow given shadow maps of the new one, in the
+    # written map before the relight (sun_bake.own_shadow_maps), or None
+    sun_maps: object = filled()
     hidden: list = filled(list)         # hide_pieces' records
     edit_slots: set = filled(set)       # the building edits' emptied slots
     lights_gone: set = filled(set)      # the light edits' deletes
@@ -3423,7 +3426,9 @@ def build(st):
     or yaw alone (the original's pitch and roll); with neither, the original's rotation. `edit_spec`, with `bake`: an
     editor patch spec whose exact hides (and posed copies) relight models too (relight.py --edit-spec), for an edit
     whose hidden pieces stay in a patch. `sun_turned`, with `bake`: the map's sun points another way than it was baked
-    for, and the relight traces its shadows again for the whole map (relight.py --sun-turned). A copy's `breakGroup`
+    for: the pieces wholly in its old shadow that the new one reaches get shadow maps of their own in the written map
+    (sun_bake.own_shadow_maps, the manifest's `sunShadowMaps`), and the relight traces its shadows again for the whole
+    map (relight.py --sun-turned). A copy's `breakGroup`
     (a number) and `break_originals` ({name, group}: the map's own pieces left in place) link the editor's groups that break together (link_children). `hides` ({name,
     box}) are taken out of the map (hide_pieces), after the copies are made (a moved piece is the source of its copy)
     and before the relight, which leaves them out of the scene after the edit (--remove-caster).
@@ -3608,13 +3613,18 @@ def build(st):
     else:
         # the readers find the original's texture caches through tfc-folder.txt beside the grown map (nothing copied)
         lighting.link_caches(st.dst.parent, st.src.parent)
+        if st.sun_turned:
+            # the pieces wholly in the old sun's shadow that the new one reaches: shadow maps of their own (F-198)
+            import sun_bake
+            st.sun_maps = sun_bake.own_shadow_maps(st.dst)
         cmd = relight_command(st, st.dst, st.out, st.variant, st.cache, st.receivers_near, st.edit_spec, st.jobs,
                               st.piece_cache, st.base)
         print(' '.join(cmd), flush=True)
         subprocess.run(cmd, check=True)
         manifest = json.loads((st.out / f'{st.variant}.fixture.json').read_text(encoding='utf-8'))
         manifest['nativeCopies'] = dict(common, copies=sections, grown=str(st.dst),
-                                        editSpec=str(st.edit_spec) if st.edit_spec else None)
+                                        editSpec=str(st.edit_spec) if st.edit_spec else None,
+                                        **({'sunShadowMaps': st.sun_maps} if st.sun_maps else {}))
     if lights_record:
         manifest['lights'] = lights_record
     (st.out / f'{st.variant}.fixture.json').write_text(json.dumps(manifest, indent=1) + '\n', encoding='utf-8',
