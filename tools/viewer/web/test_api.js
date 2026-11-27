@@ -35,7 +35,7 @@ export function createTestApi({ $, showOpen, precachePictures, pageTables, addVo
                                 closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint,
                                 coverRecipe, deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn,
                                 editSpawnCopy, editState, effectNow, effectShapes, effectViewOnly, FACES, fileDialog,
-                                floorData, frame, ghostLikenesses, gizmo, goTo, grabView, setLook, grid, gridHandleAt, gridHandles,
+                                floorData, frame, ghostLikenesses, gizmo, goTo, grabView, setLook, post, grid, gridHandleAt, gridHandles,
                                 gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall,
                                 headerMissions, hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow,
                                 landingLayer, libraryTemplate, lightPanel, lightRecords, lightShapes, likenesses,
@@ -80,6 +80,9 @@ export function createTestApi({ $, showOpen, precachePictures, pageTables, addVo
     grabView: () => grabView()?.toDataURL('image/png') ?? null,
     // the look: 'game' or 'neutral' (false where the Game look can't be had)
     setLook, renderer, world, camera, controls, roots, select, frame, lighting, sun, hemisphere, grid,
+    // the Game look's frame (game-likeness plan, C3): the grade and bloom in effect ({ settings, uniforms }), whether its
+    // shaders are compiled, the chain; and the map's fog's shared uniforms (C2)
+    post,
     // the selected cover piece's handles on the screen ({ key: [x, y] }, none when they don't show), and a record put on a
     // cover piece as one undo step (for scripts: the guide's shots, the checks)
     // (each [x, y, x', y']: the handle, and where a point `tiles` tiles further out along its face's axis is, in below 0)

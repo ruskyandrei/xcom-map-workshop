@@ -172,6 +172,9 @@ def editor_shots(args):
                       if (area) area.checked = m !== 'map-no-area';
                       if (viewer.setLook) viewer.setLook(m === 'neutral' ? 'neutral' : 'game');
                       else document.querySelector(`#lighting button[data-value="${m}"]`)?.click(); }""", args.look)
+                    # (the Game look's frame waits for its shaders: game-likeness plan, C3)
+                    page.wait_for_function("!window.viewer.post || document.getElementById('lighting').value !== 'game'"
+                                           " || window.viewer.post.ready()", timeout=300000)
                     for shot in shots:
                         # the floors control: the game cuts the roofs away near what the camera looks at, so the
                         # ground floor with the floors and roofs above it cut ("1") unless the shot says otherwise

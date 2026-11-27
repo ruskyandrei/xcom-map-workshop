@@ -11,6 +11,9 @@ import { createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
 import { createSetupDialog, setupApi } from './setup.js';
 import { viewHeight } from './effects_preview.js';
+import { fogShared } from './atmosphere_shader.js';
+import { createPostChain } from './post_chain.js';
+import { postSettings, postUniforms } from './post_grade.js';
 import { createPrecache } from './precache.js';
 import { createPicturePrecache, createTableRelease } from './precache_pictures.js';
 import { createLibraryBrowser, THUMB_SIZES, thumbKeys } from './library.js';
@@ -110,6 +113,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 // a cutaway, pieces coming or going, the lighting. touchShadows() asks for it over the next third of a second (a
 // change's frames), and the draw loop asks once a second besides, for what no hook saw (a material still loading).
 renderer.shadowMap.autoUpdate = false;
+// (the Game look draws a frame in several passes: drawFrame clears the counts once a frame, for the stats line)
+renderer.info.autoReset = false;
 let shadowsUntil = Infinity, shadowBeat = 0;
 const touchShadows = () => { shadowsUntil = performance.now() + 330; };
 renderer.localClippingEnabled = true;
@@ -338,7 +343,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
   pickables, projector, renderer, restingHint, showPop, sun, world,
   // (made further down: called through, since they are not made yet while this runs)
   applyLighting: () => applyLighting(), banner: (message, actions, options) => banner(message, actions, options),
-  lookChanged: () => cutaway(),
+  lookChanged: () => { cutaway(); warmLook(); },
   // (made with the views' switching, further down: called through)
   syncLights: () => syncLights(),
   // (made with Clear map, further down: called through)
@@ -587,13 +592,49 @@ const { drawPlayArea, endGridDrag, gridHandleAt, gridHandles, gridHit, moveGridD
 // likenesses (the grids, the gizmos, the handles, the markers, the play area, the selection's outline), and the pieces
 // the game never draws (cover blocks and invisible floors). The next frame draws them again. (Clear map's module,
 // which makes the Map picture dialog, is given it: it reads the Effects view's likeness layer, made further down.)
+// The Game look's frame (game-likeness plan, C3: post_chain.js): the map's parts (grabView's: the pieces, the lights
+// and the effects' likenesses) drawn to a floating-point target, then bloomed, put in the game's gamma and graded by the
+// map's settings at the camera's target (a post-process volume's there), and the helpers drawn after, ungraded. A look
+// switched to Game compiles the pieces' shaders for the target first, the last frame staying meanwhile.
+const postChain = createPostChain(renderer);
+let postParts = null, postReady = false, postWarming = null, postKey = '', postValues = null;
+const gameLook = () => $('lighting').value === 'game';
+function warmLook() {
+  postReady = false;
+  if (!gameLook() || !data) return Promise.resolve();
+  const warming = postWarming = postChain.warm(world, camera)
+    .catch(error => console.warn(`Game look shaders not compiled ahead: ${error.message}`))
+    .then(() => { if (postWarming === warming) postReady = true; });
+  return warming;
+}
+/** The map's grade and bloom in effect now: { settings, values } (the camera's target's volume, the Brightness). */
+function postNow() {
+  const t = controls.target, settings = postSettings(data?.atmosphere ?? null, [t.x, t.z, t.y]);
+  const key = `${settings.volume}|${renderer.toneMappingExposure}`;
+  if (key !== postKey || !postValues || postValues.atmosphere !== data?.atmosphere) {
+    postKey = key;
+    postValues = { atmosphere: data?.atmosphere, settings, uniforms: postUniforms(settings, renderer.toneMappingExposure) };
+  }
+  return postValues;
+}
+/** Draw the view: in the Game look through the chain (false while its shaders compile: nothing drawn), else as it
+ *  is. `helpers` false leaves the gizmo, handles and markers out of the Game look's frame (grabView hides them). */
+function drawFrame(helpers = true) {
+  renderer.info.reset();
+  if (!gameLook() || !data) { renderer.render(world, camera); return true; }
+  if (!postReady) return false;
+  postParts ??= new Set([content, hemisphere, sun, sun.target, likenessLayer]);
+  postChain.render(world, camera, postParts, postNow().uniforms, helpers);
+  return true;
+}
+
 function grabView() {
   const keep = new Set([content, hemisphere, sun, sun.target, likenessLayer]), hidden = [];
   const hide = object => { if (object.visible) { object.visible = false; hidden.push(object); } };
   for (const child of world.children) if (!keep.has(child) && !child.isLight) hide(child);
   for (const root of roots.values()) if (root.userData.source.added?.template?.kind === COVER_KIND) hide(root);
   try {
-    renderer.render(world, camera);
+    if (!drawFrame(false)) renderer.render(world, camera);
     const source = renderer.domElement;
     if (!source.width || !source.height) return null;
     const canvas = document.createElement('canvas');
@@ -915,8 +956,10 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   placeObjects(); floorOptions(); frame();
   applyLighting = applyMapLighting;
   applyLighting();
-  // the pieces' shaders compiled as the map opens, off the page's thread where the browser can (no first-frame freeze)
+  // the pieces' shaders compiled as the map opens, off the page's thread where the browser can (no first-frame freeze);
+  // in the Game look for its target too
   await renderer.compileAsync(world, camera).catch(error => console.warn(`shaders not compiled ahead: ${error.message}`));
+  await warmLook();
   $('loading').hidden = true;
   // the ground grid and the landing zones, now that the pieces are on the map (Clear map plan, sections 3 and 4), and
   // the mission's objects (mission types plan, C2)
@@ -942,6 +985,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     clearParts, clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
     deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn, editSpawnCopy, editState, effectNow, effectShapes,
     effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grabView, setLook, grid, gridHandleAt,
+    // the Game look's frame (C3) and the map's fog (C2), for the checks and the perf probe
+    post: { now: () => postNow(), ready: () => postReady, chain: postChain, fog: fogShared, draw: helpers => drawFrame(helpers) },
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
@@ -1025,7 +1070,7 @@ $('frame').onclick = () => frame();
 $('selected').onclick = () => selected && frame(allRoots.get(selected));
 $('grid').onchange = e => { grid.visible = e.target.checked; setTileKey(null); };
 let applyLighting = () => {};
-segmented($('lighting'), () => { lookOptions(); applyLighting(); cutaway(); });
+segmented($('lighting'), () => { lookOptions(); applyLighting(); cutaway(); warmLook(); });
 $('areaLights').onchange = () => applyLighting();
 // Update every base and cutaway material, not only those currently assigned, so
 // changing the floor cut afterwards keeps the chosen wireframe state.
@@ -1393,7 +1438,7 @@ renderer.setAnimationLoop(() => {
   }
   viewHeight.value = Math.max(1, renderer.domElement.clientHeight);     // (a sprite's least size: effects_preview.js)
   programFrame($('lighting').value === 'game');
-  renderer.render(world,camera);
+  drawFrame();
 });
 setInterval(() => {
   if (!$('statsLine').hidden) $('stats').textContent = `${renderer.info.render.calls} draw calls · ${renderer.info.render.triangles.toLocaleString()} triangles`;

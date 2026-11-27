@@ -54,7 +54,19 @@ MAP = """async pieces => {
   frame(true)();
   await timed('a frame with the shadow pass (ms)', frame(true), 5);
   await timed('a frame without it (ms)', frame(false), 5);
+  v.renderer.info.reset(); frame(false)();
   out['draw calls'] = v.renderer.info.render.calls;
+  // the Game look (game-likeness plan, C3): its frame through the chain (bloom, grade, the helpers after), and the
+  // same light drawn plainly, which tells the chain's own cost
+  if (v.post && v.setLook('game')) {
+    while (!v.post.ready()) await new Promise(r => setTimeout(r, 50));
+    const game = shadow => () => { v.renderer.shadowMap.needsUpdate = shadow; v.post.draw(true); gl.finish(); };
+    game(true)(); frame(false)();      // (each way's shaders compiled before it is timed)
+    await timed('a Game look frame (ms)', game(false), 5);
+    await timed('a Game look frame without the chain (ms)', frame(false), 5);
+    out["the Game look's frame buffers (MB)"] = +(v.post.chain.memory() / 1048576).toFixed(1);
+    v.setLook('neutral');
+  }
   out['pieces drawn'] = v.roots.size;
   out['shader programs'] = v.renderer.info.programs?.length ?? null;
   // texture memory on the GPU: a compressed texture's levels as stored, a picture's 4 bytes a pixel and a third more

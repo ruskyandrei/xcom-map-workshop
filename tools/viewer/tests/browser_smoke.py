@@ -5757,6 +5757,7 @@ def check_map_lights(ctx):
             return count===list.length && list.every((id,n)=>indices[first+n]===id);
           });
         }""")
+    check_game_frame(page)
     # the Game look without and with its area lights, then the Neutral look, each pictured; K switches the look
     for mode, area in (('game', False), ('game', True), ('neutral', True)):
         page.evaluate('on => { const a = document.getElementById("areaLights"); a.checked = on; a.onchange(); }', area)
@@ -5769,6 +5770,70 @@ def check_map_lights(ctx):
     page.keyboard.press('k')
     assert value(page, 'lighting') == 'neutral'
     assert page.evaluate("viewer.sun.intensity > 0 && viewer.hemisphere.intensity > 0")
+
+
+GAME_FRAME = """async () => {
+  const T = await import('/vendor/three/three.module.js');
+  const v = viewer, r = v.renderer, gl = r.getContext(), size = new T.Vector2();
+  const read = (x, y) => { const p = new Uint8Array(4); gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p); return [...p.slice(0, 3)]; };
+  const middle = () => { r.getDrawingBufferSize(size); return [Math.floor(size.x / 2), Math.floor(size.y / 2)]; };
+  // a helper's square before the camera, and one under the map's ground at the camera's target (hidden by it)
+  const square = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ color: 0xd04020, side: T.DoubleSide }));
+  const away = new T.Vector3(); v.camera.getWorldDirection(away);
+  square.position.copy(v.camera.position).addScaledVector(away, 10); square.lookAt(v.camera.position); square.scale.setScalar(2);
+  v.world.add(square);
+  try {
+    const [x, y] = middle();
+    v.post.draw(true); const game = read(x, y);
+    r.render(v.world, v.camera); const neutral = read(x, y);
+    square.position.copy(v.controls.target).addScaledVector(away, 3000); square.scale.setScalar(400); square.updateMatrixWorld(true);
+    v.post.draw(true); const hidden = read(x, y);
+    r.render(v.world, v.camera); const hiddenBefore = read(x, y);
+    return { game, neutral, hidden, hiddenBefore };
+  } finally { v.world.remove(square); square.geometry.dispose(); square.material.dispose(); }
+}"""
+
+FOG_BANDS = """async () => {
+  const v = viewer, fog = v.post.fog.fogOn, on = fog.value;
+  // a low camera over the map: the picture's top is far away, its bottom near
+  const box = new (v.camera.position.constructor)(), centre = v.controls.target.clone();
+  v.camera.position.copy(centre).add(box.set(0, 900, -2400)); v.controls.update(); v.camera.updateMatrixWorld(true);
+  const pixels = async () => {
+    const picture = new Image(); picture.src = v.grabView(); await picture.decode();
+    const c = document.createElement('canvas'), w = c.width = picture.width, h = c.height = picture.height, g = c.getContext('2d');
+    g.drawImage(picture, 0, 0);
+    return { w, h, data: g.getImageData(0, 0, w, h).data };
+  };
+  try {
+    const fogged = await pixels(); fog.value = 0; const clear = await pixels();
+    // how much the fog changed each tenth of the picture, top to bottom (the sky and the background take none)
+    const bands = [];
+    for (let b = 0; b < 10; b++) {
+      let sum = 0, n = 0;
+      for (let y = Math.floor(fogged.h * b / 10); y < Math.floor(fogged.h * (b + 1) / 10); y++) {
+        for (let i = y * fogged.w * 4; i < (y + 1) * fogged.w * 4; i += 4) { sum += Math.abs(fogged.data[i] - clear.data[i]) + Math.abs(fogged.data[i + 1] - clear.data[i + 1]) + Math.abs(fogged.data[i + 2] - clear.data[i + 2]); n++; }
+      }
+      bands.push(+(sum / n).toFixed(2));
+    }
+    return bands;
+  } finally { fog.value = on; v.frame(); }
+}"""
+
+
+def check_game_frame(page):
+    """The Game look's frame (game-likeness plan, C2 and C3): drawn through the chain once its shaders are compiled, a
+    helper drawn after it keeps its own colour and is still hidden behind the map's pieces; the map's fog changes the
+    far part of the view more than the near."""
+    page.wait_for_function('viewer.post.ready()', timeout=300000)
+    probe = page.evaluate(GAME_FRAME)
+    assert all(abs(a - b) <= 2 for a, b in zip(probe['game'], probe['neutral'])), probe        # (its own colour)
+    assert probe['game'][0] > probe['game'][1] + 40, probe
+    # under the ground: hidden in the Game look wherever the Neutral look's frame hides it (by the scene's depth)
+    square = lambda p: all(abs(a - b) <= 6 for a, b in zip(p, probe['game']))
+    assert square(probe['hidden']) == square(probe['hiddenBefore']), probe
+    if page.evaluate('Boolean(viewer.data.atmosphere?.world?.fog?.bEnabled)'):
+        bands = page.evaluate(FOG_BANDS)
+        assert max(bands[:8]) > 1.2 * bands[9] and max(bands) > 1, bands      # (farther up the picture: more fog)
 
 
 def own_piece(page, is_bar):
