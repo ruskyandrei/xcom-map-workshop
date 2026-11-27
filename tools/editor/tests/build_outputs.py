@@ -540,7 +540,7 @@ def compile_input(doc, enable, foreign, cache, install):
 # ---------------------------------------------------------------------------------------------------- the Builds
 
 RELIGHT_ONLY = {'--bake': 0, '--cache': 1, '--receivers-near': 1, '--jobs': 1, '--edit-spec': 1, '--piece-cache': 1,
-                '--base': 1}
+                '--base': 1, '--sun-turned': 0}
 
 
 class Recorder:

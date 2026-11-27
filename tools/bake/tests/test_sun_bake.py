@@ -240,6 +240,13 @@ class TurnedBar(unittest.TestCase):
         self.assertEqual(m['depthsChanged'], 12804)
         self.assertGreater(r['sun']['samples']['changed'], 100)
         self.assertEqual(r['sun']['notes'], [])
+        # a relit piece kept for the next build is kept for one sun: the direction is in the piece cache's key
+        self.assertNotEqual(sun_bake.direction_key(self.q), sun_bake.direction_key(self.old))
+        base = dict(scene=None, floor=0.0, finer=True, exact=True, radius=600.0)
+        with tempfile.TemporaryDirectory() as d:
+            keys = {relight.PieceCache(d, 'base', dict(base, sun=sun_bake.direction_key(q))).key(
+                'piece', dict(coordinateScale=[1, 1], coordinateBias=[0, 0]), [], [], []) for q in (self.q, self.old)}
+        self.assertEqual(len(keys), 2)
 
     def test_the_shadow_maps_are_the_new_suns(self):
         agree = far_agree = n = n_far = changed = 0
