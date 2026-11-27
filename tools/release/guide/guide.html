@@ -906,13 +906,15 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>What you changed, lit live.</b> A piece you moved, added or deleted, and the pieces whose baked light holds a
     light you moved, changed or deleted, are lit by the map's lights as they are now, scaled to the baked light's
     level. A light you moved, changed or added is drawn live on every piece. A baked build lights them for good.</li>
+  <li><b>Effects by their own shaders:</b> fire, smoke, steam and glows drawn as the game's shaders draw them, lit by the
+    light where they stand and soft where they meet the map (<a href="#effects-look">Effects as they look</a>). A light
+    the map pulses by a light function pulses here too.</li>
 </ul>
 <p>The gizmo, the handles, the markers, the grid and the outlines keep their own colours over the graded picture, and
   are still hidden behind the map's pieces. <b class="ui">Brightness</b> in View options brightens the scene before
   the grade, and <a href="#map-picture">Take from the view</a> takes the picture as the Game look draws it. It comes
-  close to the game's picture, not all the way: no decals, no depth of field, no reflections a material takes from the
-  scene (a polished floor's sheen), and effects are drawn as a likeness (<a href="#effects-look">Effects as they
-  look</a>). The game is the judge.</p>
+  close to the game's picture, not all the way: no decals, no depth of field, and no reflections a material takes from
+  the scene (a polished floor's sheen). The game is the judge.</p>
 <h4 id="build-light">Lit by the project's last baked build</h4>
 <p>A baked build relights the map round your changes: the pieces it makes get lightmaps of their own, and the map's
   pieces near your changes new ones. With a project open whose last build was baked, the Game look lights each piece
@@ -2077,11 +2079,13 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </ul>
 
 <h4 id="effects-look">Effects as they look</h4>
-<p>Every effect is drawn where it stands, moving, from its particle system's own textures, colours, sizes and
-  timing, in every view: a fire flickers, steam rises, moths circle. It is a likeness, not the game's picture:
-  scrolling and rippling textures, lit particles, swirls and bounces, and one emitter setting off another are left
-  out, and the panel says what a picked effect's drawing leaves out. The game is the judge of how an effect
-  looks.</p>
+<p>Every effect is drawn where it stands, moving, from its particle system as the game runs it, in every view: a fire
+  flickers, steam rises, moths circle. Its particles are drawn by their materials' own shaders (scrolling and rippling
+  textures among them), and one emitter sets off another, orbits and pulls as in the game. In the
+  <a href="#game-look">Game look</a> they are also lit by the light where they stand and fade softly where they meet
+  the map. A few of XCOM's own settings (particles stretched by their speed, or sized by the camera's distance) and
+  ribbons are left out, a lit effect casts no shadow, and the panel says what a picked effect's drawing leaves out. The
+  game is the judge of how an effect looks.</p>
 <ul>
   <li>An effect that starts switched off is drawn only while it is picked.</li>
   <li>The drawing is never clicked: its marker is what you pick.</li>
@@ -3490,8 +3494,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
       <li><b>The <a href="#game-look">Game look</a> comes close to the game's picture, not all the way.</b> It draws
         the materials, the map's baked light and its fog, colour and sky, but no decals, depth of field or reflections a
         material takes from the scene. Lights drawn live cast no shadows (the sun or moon does), and doors stand closed.
-        Effects are drawn as a rough likeness, from their own textures and colours but without the game's shaders:
-        <a href="#effects-look">Effects as they look</a>.</li>
+        Effects are drawn by their own shaders, without a few of XCOM's own settings (stretching by speed, sizing by
+        distance) or ribbons: <a href="#effects-look">Effects as they look</a>.</li>
       <li><b>What you change is lit live until a baked build.</b> The Game look lights it with the map's lights as they
         are, without the lamps' shadows and the bounce a bake gives it, and after a baked build by the build's own
         light. A quick build's
