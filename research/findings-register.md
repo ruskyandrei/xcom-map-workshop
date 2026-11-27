@@ -44,8 +44,8 @@ Statuses:
 - F-176 (27 November, T-S0): the dominant light's own shadow map of the level is a grid of 16-bit depths along the
   light over a light-space box (URB_Bar: 132 by 97, about 50 units a texel; 92% of its texels within 25 units of
   the depth traced from the map's geometry). The light writer (`native_lights.set_property`) writes the light's
-  component only from the start past that grid; `native_lights.props_start` gives a start inside it. Open: the
-  Build's start must skip it before T-S2 writes the light.
+  component only from the start past that grid; `native_lights.props_start` gave a start inside it. Fixed: it skips
+  the grid now.
 - F-175 (27 November, T-S0): the sun across the 97 base maps: 50 blue moons, 10 dim lights, 16 day suns, 15
   low suns, 3 sunsets, 3 maps with no dominant light; records Night on 58 maps, Day on 32, both on 2, None on 5;
   70 sky lights, 93 sky domes; the commonest moon (66, 69, 136 at 1.1, 81 degrees up) lights 18 maps; suns stand
@@ -463,7 +463,9 @@ a 32-thread computer with `tools/upk/audit_suns.py trace`, evidence in
   (1,743 rays) are each a few thousand rays more.
 
 ### F-176: The dominant light's own shadow map of the level, and the light writer on its component
-**Open** (27 November 2026, T-S0; read offline from the install, `tools/upk/audit_suns.py level-map` and
+**Fixed** (27 November 2026: `native_lights.props_start` skips the counted array of depths on a dominant light's
+component, as the viewer's reader does; set_property writes Brightness on URB_Bar's sun from it, the depths and GUIDs
+kept, test_native_lights.py. Found 27 November 2026, T-S0; read offline from the install, `tools/upk/audit_suns.py level-map` and
 `write-back`, evidence in [sun-audit-2026-11-27.json](evidence/sun-audit-2026-11-27.json); nothing played).
 - **Layout.** A cooked `DominantDirectionalLightComponent` saves, ahead of its NetIndex and TemplateOwnerClass, a
   counted array of 16-bit depths (`DominantLightShadowMap`), then its tagged properties, the first of them
@@ -484,8 +486,7 @@ a 32-thread computer with `tools/upk/audit_suns.py trace`, evidence in
   start past the array (where the viewer's Package reads, `LEADING_SHADOW_MAP`), `set_property` wrote Brightness
   2.5 and LightColor (255, 139, 45) in place and added `bCastCompositeShadow`, and `native_copy.set_pose` wrote the
   actor's Rotation; read back from the written map: every value as written, the GUIDs and the depth array kept.
-- **Open**: the Build's start must skip the array (as the viewer's reader does) before T-S2 writes the light;
-  nothing writes the dominant light today (the compiler refuses edits to it).
+- **Fixed** before T-S2 writes the light: the Build's start skips the array, as the viewer's reader does.
 
 ### F-175: The sun, the sky and the time of day across the install's 97 base maps
 **Accepted** (27 November 2026, T-S0; read offline from the install, `tools/upk/audit_suns.py maps`, every base map

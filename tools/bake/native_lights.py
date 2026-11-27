@@ -41,6 +41,7 @@ sys.path.insert(0, str(HERE.parent / 'viewer'))
 sys.path.insert(0, str(HERE))
 import lighting_records as lighting  # noqa: E402
 import lightmap_fields  # noqa: E402
+from package import LEADING_SHADOW_MAP  # noqa: E402
 import props as legacy_props  # noqa: E402
 from export_math import forward, transform  # noqa: E402
 from lights import light_record  # noqa: E402
@@ -150,9 +151,17 @@ def light_guids(seed):
 
 
 def props_start(p, index):
-    """Where an export's tagged properties start in its data (as the source has it)."""
+    """Where an export's tagged properties start in its data (as the source has it). A dominant directional light's
+    component saves a counted array of 16-bit depths first (its shadow map of the level, package.LEADING_SHADOW_MAP):
+    its properties start past it, where the viewer's reader takes them (F-176)."""
     e = p.exports[index - 1]
-    return legacy_props.props_start(p.data, e, p.names) - e['off']
+    skip = 0
+    if p.cls(index) in LEADING_SHADOW_MAP:
+        count = struct.unpack_from('<i', p.data, e['off'])[0] if e['size'] >= 4 else -1
+        skip = 4 + 2 * count
+        if count < 0 or skip > e['size']:
+            raise ValueError(f'{p.name(index)}: its shadow map of the level runs past its data')
+    return legacy_props.props_start(p.data, dict(e, off=e['off'] + skip, size=e['size'] - skip), p.names) - e['off']
 
 
 # ---------------------------------------------------------------- the registries

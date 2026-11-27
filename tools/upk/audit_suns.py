@@ -549,7 +549,7 @@ def light_writer(src, scratch):
     try:
         native_lights.set_property(walker, g, bytearray(g.export_data(ci)), given, 'Brightness', 'FloatProperty', None,
                                    struct.pack('<f', 2.5))
-        out['fromTheStartGiven'] = 'written (unexpected)'
+        out['fromTheStartGiven'] = 'written (props_start skips the shadow map of the level since F-176 was fixed)'
     except ValueError as error:
         out['fromTheStartGiven'] = f'refused: {error}'
     m = lighting.dominant_shadow_map(p, ci)

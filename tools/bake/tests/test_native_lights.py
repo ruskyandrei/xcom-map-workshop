@@ -331,6 +331,28 @@ class BarLights(unittest.TestCase):
         cls.p = lighting.Package(BAR)
         cls.reg = native_lights.source_registry(cls.p)
 
+    def test_the_dominant_lights_properties_start_past_its_shadow_map_of_the_level(self):
+        """F-176: the sun's component saves its depths first; set_property writes from props_start, the depths and
+        GUIDs kept."""
+        p = self.p
+        ci = next(i for i in range(1, len(p.exports) + 1) if p.cls(i) == 'DominantDirectionalLightComponent'
+                  and p.name(i).startswith(PL))
+        m = lighting.dominant_shadow_map(p, ci)
+        start = native_lights.props_start(p, ci)
+        self.assertGreaterEqual(start, m['offset'] - p.exports[ci - 1]['off'] + 2 * len(m['depths']))
+        g = package_grow.Grower(str(BAR))
+        walker = native_copy.Walker(p, g)
+        data = native_lights.set_property(walker, g, bytearray(g.export_data(ci)), start, 'Brightness', 'FloatProperty',
+                                          None, struct.pack('<f', 2.5))
+        g.relocate(ci, bytes(data))
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / 'URB_Bar.upk'
+            g.write(str(out))
+            q = lighting.Package(out)
+            self.assertAlmostEqual(q.own(ci, 'Brightness'), 2.5, places=5)
+            self.assertEqual(q.own(ci, 'LightGuid'), p.own(ci, 'LightGuid'))
+            self.assertEqual(lighting.dominant_shadow_map(q, ci)['depths'], m['depths'])
+
     def test_the_registry_holds_every_light_and_its_codec_lights_are_relights(self):
         p, reg = self.p, self.reg
         self.assertEqual(sum(e['role'] == 'static' for e in reg.values()), 116)
