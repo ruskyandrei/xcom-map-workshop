@@ -122,6 +122,9 @@ INPUTS = [
     dict(name='police-streams', maps=POLICE, parts=[part('exp55_project.py', *OUT)],
          what='URB_PoliceStation\'s data recovery: a capture point of its mission stream moved (a mission\'s objects '
               'moved in their stream)'),
+    dict(name='bar-atmosphere', maps=BAR, parts=[part('exp98_project.py', '{out}', '--look', 'both', '--compile')],
+         what='URB_Bar with its height fog made thick and red and its grade green (the atmosphere lane: its WorldInfo\'s '
+              'structs written again)'),
     dict(name='bar-grid', maps=BAR, parts=[part('grid_bar_project.py', '{out}', '--grid', '56', '43', '--compile')],
          what='URB_Bar on a larger grid (56 by 43) and nothing else: its baked Build relights a copy of the map the '
               'growing writer names (KB-2: a real one stops in the relight)'),

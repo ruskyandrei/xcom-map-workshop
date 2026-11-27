@@ -847,7 +847,7 @@ class Build:
         self.covers = self.buildings = self.building_edits = self.any_buildings = None
         self.piece_flags = self.piece_blasts = self.flags_edit = self.spawn_edits = self.effects_edit = None
         self.marks_edit, self.diagonal = None, None
-        self.background_sound = self.sound_brought = None
+        self.background_sound = self.sound_brought = self.atmosphere = None
         self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = self.map_info = None
         self.clears_lights = False
         self.has_lights, self.lights, self.moves_landings = False, None, False
@@ -1092,7 +1092,10 @@ class Build:
         # writer works out, no light, so it goes with the effects
         marks = self.native.get('diagonalCover') or {}
         self.marks_edit = bool(marks.get('marks') or marks.get('removed'))
-        self.effects_edit = bool(self.background_sound) or any(
+        # the map's fog and post-process members the project changes (game-likeness plan, C5; native_world.apply): its
+        # WorldInfo's settings, no baked light, so they go with the effects too
+        self.atmosphere = self.native.get('atmosphere')
+        self.effects_edit = bool(self.background_sound) or bool(self.atmosphere) or any(
             (self.native.get(k) or {}).get(op) for k in EFFECT_LANES + ('spawns',) for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])
         # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build

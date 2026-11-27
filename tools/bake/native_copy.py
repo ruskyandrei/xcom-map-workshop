@@ -2505,6 +2505,7 @@ class BuildState:
     piece_blasts: tuple = ()        # pieceBlasts
     diagonal_cover: object = None   # diagonalCover (the project's diagonal cover marks, diagonal_edit)
     kismet_cuts: tuple = ()         # kismetCuts (the deleted pieces the map's Kismet names: kismet_cut.py)
+    atmosphere: object = None       # atmosphere (the project's fog and post-process members: native_world.py)
     # what build fills, as it goes
     p: object = filled()                # the pristine map read (build, first)
     g: object = filled()                # the variant map's growing writer (build, first)
@@ -2546,6 +2547,7 @@ class BuildState:
     registration: object = filled()     # the light edits listed in the receivers' lightmaps (baked), or None
     landing_record: object = filled()   # the map's landings moved (native_spawns.apply), or None
     sound_record: object = filled()     # the map's background sound written (native_sounds.background), or None
+    atmosphere_record: object = filled()    # the map's fog and post-process settings written (native_world.apply)
     flag_record: object = filled()      # the map's own pieces' flags written (flags_in_place), or None
     blast_record: object = filled()     # the map's own pieces broken where they stand (blasts_in_place), or None
     stream_record: list = filled(list)  # a mission's pieces' tiles moved in their stream
@@ -2654,6 +2656,7 @@ def manifest_parts(st, q, bake):
                                              building=q.name(f['building']).split('.')[-1], floor=f['floor'],
                                              how=f['how']) for f in floor_emitters]} if floor_emitters else {}),
                   **({'backgroundSound': st.sound_record} if st.sound_record else {}),
+                  **({'atmosphere': st.atmosphere_record} if st.atmosphere_record else {}),
                   floorCaches=floor_caches, hiddenBuildings=hidden_buildings,
                   buildings=[dict(b, copy=q.name(b['building']).split('.')[-1],
                                   floors=[dict(f, volumes=[q.name(v).split('.')[-1] for v in f['volumes']],
@@ -3152,6 +3155,10 @@ def edits_in_place(st):
     # the map's background sound: its level-loaded sound given another cue, none, or another volume
     import native_sounds
     st.sound_record = native_sounds.background(g, p, st.background_sound)
+    # the map's atmosphere: its WorldInfo's height fog and post-process settings with the project's members over the
+    # map's own (game-likeness plan, C5)
+    import native_world
+    st.atmosphere_record = native_world.apply(g, p, st.atmosphere)
     landing_record = None
     if landing_zones:
         import native_spawns
@@ -3342,6 +3349,10 @@ def write_and_verify(st):
     if st.sound_record:
         from package import Package as Reader
         native_sounds.verify_background(Reader(dst), st.sound_record)
+    if st.atmosphere_record:
+        import native_world
+        from package import Package as Reader
+        native_world.read_back(Reader(dst), st.atmosphere_record, st.atmosphere)
     # the map's Kismet read back: none of the deleted pieces it let go of held
     if st.kismet_record:
         import kismet_cut
@@ -3428,6 +3439,10 @@ def build(st):
     `background_sound` (the compiler's `backgroundSound`: {op, cue, volume?}) gives the map's level-loaded sound another
     cue, none or another volume (native_sounds.background), read back (native_sounds.verify_background); the manifest's
     `backgroundSound` says what was written.
+
+    `atmosphere` (the compiler's: {fog?, postProcess?}, each {member: value}) puts the project's members of the map's
+    height fog and post-process settings over those the map saves, on its WorldInfo (native_world.apply), read back
+    (native_world.read_back); the manifest's `atmosphere` says what was written and what was added.
 
     `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
     theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
@@ -3570,7 +3585,7 @@ def edit_state(src, out, variant, doc, **options):
     its field as it is, and each copy through copy_record."""
     copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
     cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = background_sound = None
-    diagonal_cover = None
+    diagonal_cover = atmosphere = None
     kismet_cuts = []
     stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
     if isinstance(doc, dict):
@@ -3591,6 +3606,7 @@ def edit_state(src, out, variant, doc, **options):
         piece_blasts = doc.get('pieceBlasts') or []
         diagonal_cover = doc.get('diagonalCover')
         kismet_cuts = doc.get('kismetCuts') or []
+        atmosphere = doc.get('atmosphere')
         doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
     for c in doc:
         copies.append(copy_record(c))
@@ -3599,7 +3615,7 @@ def edit_state(src, out, variant, doc, **options):
                       landing_zones=landing_zones, carried_effects=carried_effects, stream_tiles=stream_tiles,
                       piece_flags=piece_flags, flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares,
                       spawns=spawns, background_sound=background_sound, piece_blasts=piece_blasts,
-                      diagonal_cover=diagonal_cover, kismet_cuts=kismet_cuts, **options)
+                      diagonal_cover=diagonal_cover, kismet_cuts=kismet_cuts, atmosphere=atmosphere, **options)
 
 
 def main():
@@ -3652,7 +3668,7 @@ def main():
     if not st.copies and not st.hides and not st.covers and not st.buildings and not st.building_edits \
             and not st.cleared and not st.landing_zones and not st.stream_tiles and not st.piece_flags \
             and native_lights.is_empty(st.lights) and not st.effects and not st.sounds and not st.flares \
-            and not st.spawns and not st.background_sound and not st.piece_blasts \
+            and not st.spawns and not st.background_sound and not st.piece_blasts and not st.atmosphere \
             and not ((st.diagonal_cover or {}).get('marks') or (st.diagonal_cover or {}).get('removed')):
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:

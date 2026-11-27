@@ -41,7 +41,8 @@ def native_split(spec):
     and `backgroundSound` the map's background sound ({op, cue, volume?, donor?}: tools/bake/native_sounds.py), and
     `diagonalCover` the diagonal cover the project marks ({marks [{at, toward}], removed [at]}: tools/bake/native_copy.py
     diagonal_edit), and `kismetCuts` the deleted pieces the map's Kismet names, which it lets go of
-    (tools/bake/kismet_cut.py). A group with a copy of another class stays
+    (tools/bake/kismet_cut.py), and `atmosphere` the map's fog and post-process members the project changes ({fog?,
+    postProcess?}: tools/bake/native_world.py). A group with a copy of another class stays
     the copier's whole, with its base-map pieces. What is left for the patch, if anything, is built by patchtool; with
     nothing left the Build makes no patch."""
     out, natives, originals, hides, moves = dict(spec, objects=[]), [], [], [], []
@@ -56,6 +57,7 @@ def native_split(spec):
     sound = out.pop('backgroundSound', None)
     diagonal = out.pop('diagonalCover', None)
     kismet_cuts = out.pop('kismetCuts', None)
+    atmosphere = out.pop('atmosphere', None)
     for obj in spec['objects']:
         if obj.get('type') == 'buildings':
             buildings += obj['buildings']
@@ -181,5 +183,7 @@ def native_split(spec):
         native['diagonalCover'] = diagonal
     if kismet_cuts:
         native['kismetCuts'] = kismet_cuts
+    if atmosphere:
+        native['atmosphere'] = atmosphere
     native.update(effect_lanes)
     return out, native

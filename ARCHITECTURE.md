@@ -102,6 +102,9 @@ which the `Compiler` makes for itself and holds as an attribute named as its mod
 - [`flag_edits.py`](tools/editor/flag_edits.py) (`FlagEdits`): pieces' flags (walking, cover, sight, floor, mouse);
 - [`diagonal_edits.py`](tools/editor/diagonal_edits.py) (`DiagonalEdits`): the diagonal cover the project marks by
   hand (its marks, and the map's marks it takes away);
+- [`atmosphere_edits.py`](tools/editor/atmosphere_edits.py) (`AtmosphereEdits`): the map's height fog and
+  post-process members the project changes, which the Build writes on its WorldInfo
+  ([`native_world.py`](tools/bake/native_world.py));
 - [`made_edits.py`](tools/editor/made_edits.py) (`MadeEdits`): walls, floors, roofs and ground shapes made from
   numbers, cut into pieces where they are too large, and the blasts that break a fracturing piece;
 - [`building_edits.py`](tools/editor/building_edits.py) (`BuildingEdits`): buildings made from nothing, and the map's

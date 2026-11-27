@@ -1,4 +1,442 @@
 {
+ "kinds": {
+  "fog": {
+   "FogDensity": [
+    "FloatProperty",
+    null
+   ],
+   "FogHeight": [
+    "FloatProperty",
+    null
+   ],
+   "FogHeightFalloff": [
+    "FloatProperty",
+    null
+   ],
+   "FogMaxOpacity": [
+    "FloatProperty",
+    null
+   ],
+   "LightInscatteringBrightness": [
+    "FloatProperty",
+    null
+   ],
+   "LightInscatteringColor": [
+    "StructProperty",
+    "Color"
+   ],
+   "LightTerminatorAngle": [
+    "FloatProperty",
+    null
+   ],
+   "OppositeLightBrightness": [
+    "FloatProperty",
+    null
+   ],
+   "OppositeLightColor": [
+    "StructProperty",
+    "Color"
+   ],
+   "StartDistance": [
+    "FloatProperty",
+    null
+   ],
+   "bEnabled": [
+    "BoolProperty",
+    null
+   ]
+  },
+  "postProcess": {
+   "Bloom_InterpolationDuration": [
+    "FloatProperty",
+    null
+   ],
+   "Bloom_Scale": [
+    "FloatProperty",
+    null
+   ],
+   "Bloom_ScreenBlendThreshold": [
+    "FloatProperty",
+    null
+   ],
+   "Bloom_Threshold": [
+    "FloatProperty",
+    null
+   ],
+   "Bloom_Tint": [
+    "StructProperty",
+    "Color"
+   ],
+   "ColorGrading_LookupTable": [
+    "ObjectProperty",
+    null
+   ],
+   "DOF_BlurBloomKernelSize": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_BlurKernelSize": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_FalloffExponent": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_FarFocusEnd": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_FarFocusStart": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_FocusDistance": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_FocusInnerRadius": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_FocusPosition": [
+    "StructProperty",
+    "Vector"
+   ],
+   "DOF_FocusType": [
+    "ByteProperty",
+    null
+   ],
+   "DOF_InterpolationDuration": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_MaxFarBlurAmount": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_MaxNearBlurAmount": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_MinBlurAmount": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_NearFocusEnd": [
+    "FloatProperty",
+    null
+   ],
+   "DOF_NearFocusStart": [
+    "FloatProperty",
+    null
+   ],
+   "HaveSeenTintColor": [
+    "StructProperty",
+    "Color"
+   ],
+   "MotionBlur_Amount": [
+    "FloatProperty",
+    null
+   ],
+   "MotionBlur_CameraRotationThreshold": [
+    "FloatProperty",
+    null
+   ],
+   "MotionBlur_CameraTranslationThreshold": [
+    "FloatProperty",
+    null
+   ],
+   "MotionBlur_FullMotionBlur": [
+    "BoolProperty",
+    null
+   ],
+   "MotionBlur_InterpolationDuration": [
+    "FloatProperty",
+    null
+   ],
+   "MotionBlur_MaxVelocity": [
+    "FloatProperty",
+    null
+   ],
+   "RimShader_Color": [
+    "StructProperty",
+    "LinearColor"
+   ],
+   "RimShader_InterpolationDuration": [
+    "FloatProperty",
+    null
+   ],
+   "Scene_Colorize": [
+    "StructProperty",
+    "Vector"
+   ],
+   "Scene_Desaturation": [
+    "FloatProperty",
+    null
+   ],
+   "Scene_HighLights": [
+    "StructProperty",
+    "Vector"
+   ],
+   "Scene_ImageGrainScale": [
+    "FloatProperty",
+    null
+   ],
+   "Scene_InterpolationDuration": [
+    "FloatProperty",
+    null
+   ],
+   "Scene_MidTones": [
+    "StructProperty",
+    "Vector"
+   ],
+   "Scene_Shadows": [
+    "StructProperty",
+    "Vector"
+   ],
+   "Scene_TonemapperScale": [
+    "FloatProperty",
+    null
+   ],
+   "XComFOWBorderFadeInRate": [
+    "FloatProperty",
+    null
+   ],
+   "XComFOWBorderFadeOutColor": [
+    "FloatProperty",
+    null
+   ],
+   "XComFOWBorderFadeOutRate": [
+    "FloatProperty",
+    null
+   ],
+   "XComFOWColor": [
+    "StructProperty",
+    "LinearColor"
+   ],
+   "XComFogOfWarColor": [
+    "StructProperty",
+    "Color"
+   ],
+   "bAllowAmbientOcclusion": [
+    "BoolProperty",
+    null
+   ],
+   "bEnableBloom": [
+    "BoolProperty",
+    null
+   ],
+   "bEnableDOF": [
+    "BoolProperty",
+    null
+   ],
+   "bEnableMotionBlur": [
+    "BoolProperty",
+    null
+   ],
+   "bEnableSceneEffect": [
+    "BoolProperty",
+    null
+   ],
+   "bOverrideRimShaderColor": [
+    "BoolProperty",
+    null
+   ],
+   "bOverrideXComFOWBorderSettings": [
+    "BoolProperty",
+    null
+   ],
+   "bOverrideXComFOWColor": [
+    "BoolProperty",
+    null
+   ],
+   "bOverrideXComHaveSeenTint": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_AllowAmbientOcclusion": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Bloom_InterpolationDuration": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Bloom_Scale": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Bloom_ScreenBlendThreshold": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Bloom_Threshold": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Bloom_Tint": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_BlurBloomKernelSize": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_BlurKernelSize": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_BokehTexture": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_FalloffExponent": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_FarFocusEnd": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_FarFocusStart": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_FocusDistance": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_FocusInnerRadius": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_FocusPosition": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_FocusType": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_InterpolationDuration": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_MaxFarBlurAmount": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_MaxNearBlurAmount": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_MinBlurAmount": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_NearFocusEnd": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_DOF_NearFocusStart": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_EnableBloom": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_EnableDOF": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_EnableMotionBlur": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_EnableSceneEffect": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_MotionBlur_Amount": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_MotionBlur_CameraRotationThreshold": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_MotionBlur_CameraTranslationThreshold": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_MotionBlur_FullMotionBlur": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_MotionBlur_InterpolationDuration": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_MotionBlur_MaxVelocity": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_OverrideRimShaderColor": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_RimShader_Color": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_RimShader_InterpolationDuration": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Scene_ColorGradingLUT": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Scene_Colorize": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Scene_Desaturation": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Scene_HighLights": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Scene_ImageGrainScale": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Scene_InterpolationDuration": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Scene_MidTones": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Scene_Shadows": [
+    "BoolProperty",
+    null
+   ],
+   "bOverride_Scene_TonemapperScale": [
+    "BoolProperty",
+    null
+   ],
+   "bTwoLayerSimpleDepthOfField": [
+    "BoolProperty",
+    null
+   ]
+  }
+ },
  "structs": {
   "fog": {
    "FogDensity": 0.0,
@@ -168,7 +606,7 @@
    "bTwoLayerSimpleDepthOfField": false
   }
  },
- "version": 1,
+ "version": 2,
  "volume": {
   "postProcess": {
    "Bloom_InterpolationDuration": 1.0,

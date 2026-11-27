@@ -87,7 +87,7 @@ class CommandLine(unittest.TestCase):
                  landingZones='landing_zones', carriedEffects='carried_effects', effects='effects', sounds='sounds',
                  flares='flares', spawns='spawns', backgroundSound='background_sound', streamTiles='stream_tiles', pieceFlags='piece_flags',
                  pieceFlagLadders='flag_ladders', pieceBlasts='piece_blasts', diagonalCover='diagonal_cover',
-                 kismetCuts='kismet_cuts')
+                 kismetCuts='kismet_cuts', atmosphere='atmosphere')
 
     def run_main(self, doc, *more):
         got = {}

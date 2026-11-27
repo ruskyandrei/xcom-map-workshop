@@ -1,5 +1,6 @@
 {
   "compiler families": [
+    "tools/editor/atmosphere_edits.py",
     "tools/editor/building_edits.py",
     "tools/editor/compiler_tables.py",
     "tools/editor/diagonal_edits.py",

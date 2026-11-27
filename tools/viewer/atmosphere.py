@@ -16,8 +16,11 @@ import json
 from pathlib import Path
 import struct
 import sys
+if str(Path(__file__).resolve().parents[1]) not in sys.path:
+    sys.path.append(str(Path(__file__).resolve().parents[1]))     # tools/paths.py (review finding 54)
+import paths  # noqa: E402
 
-from package import Package, Reader, FormatError
+from package import Package, Reader, FormatError  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 DEFAULTS_FILE = HERE / 'atmosphere_defaults.json'
@@ -73,6 +76,39 @@ def struct_defaults(p, path):
     return out
 
 
+# the override flag of a post-process member whose flag is not bOverride_<member> (bOverride_<member less its b> for a
+# bEnable member): XCOM's own members, and the LUT
+OWN_FLAGS = {'XComFogOfWarColor': 'bOverrideXComFOWColor', 'XComFOWColor': 'bOverrideXComFOWColor',
+             'HaveSeenTintColor': 'bOverrideXComHaveSeenTint', 'RimShader_Color': 'bOverrideRimShaderColor',
+             'XComFOWBorderFadeOutColor': 'bOverrideXComFOWBorderSettings',
+             'XComFOWBorderFadeOutRate': 'bOverrideXComFOWBorderSettings',
+             'XComFOWBorderFadeInRate': 'bOverrideXComFOWBorderSettings',
+             'ColorGrading_LookupTable': 'bOverride_Scene_ColorGradingLUT'}
+
+
+def override_flag(name, members=None):
+    """The flag that says a post-process member is set (the game's editor saves it on with the member; a volume's
+    member counts only where it is on), or None for a flag itself, or one `members` (a struct's names) lacks."""
+    if name.startswith('bOverride'):
+        return None
+    flag = OWN_FLAGS.get(name) or ('bOverride_' + name[1:] if name.startswith('bEnable') else 'bOverride_' + name)
+    return flag if members is None or flag in members else None
+
+
+def member_kinds(cooked):
+    """{'fog' | 'postProcess': {member: [property kind, its struct's short name or None]}} of the two structs, from the
+    script packages' declarations (tools/upk/schema.py over Core and Engine): what a Build writes a changed member as
+    (tools/bake/native_world.py) and what the compiler holds a project's value to (tools/editor/atmosphere_edits.py)."""
+    paths.use('upk')
+    import schema
+    s = schema.Schema(schema.build(Path(cooked), packages=('Core', 'Engine')))
+    out = {}
+    for key, (pkg, path) in STRUCTS.items():
+        out[key] = {name: [prop['kind'], prop['struct'].rsplit('.', 1)[-1] if isinstance(prop.get('struct'), str) else None]
+                    for name, prop in s.members('%s.%s' % (pkg, path)) if name not in SKIPPED}
+    return out
+
+
 def make_defaults(cooked):
     """The defaults of each owner's structs: the struct's own with its default object's saved members over them."""
     cooked = Path(cooked)
@@ -83,7 +119,7 @@ def make_defaults(cooked):
             packages[name] = Package(cooked / (name + '.upk'))
         return packages[name]
     structs = {key: struct_defaults(package(pkg), path) for key, (pkg, path) in STRUCTS.items()}
-    out = {'version': 1, 'structs': structs}
+    out = {'version': 2, 'structs': structs, 'kinds': member_kinds(cooked)}
     for owner, (pkg, name, props) in OWNERS.items():
         p = package(pkg)
         index = p.by_name.get(name)

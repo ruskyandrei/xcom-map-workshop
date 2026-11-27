@@ -127,6 +127,7 @@ from light_edits import (LIGHT_RANGES, LIGHT_RECIPES, light_rule, light_value_pr
 from flag_edits import FlagEdits  # noqa: E402
 # the diagonal cover the project marks (schema 7; nothing reads its tables through the compiler)
 from diagonal_edits import DiagonalEdits  # noqa: E402
+from atmosphere_edits import AtmosphereEdits  # noqa: E402
 # the made walls, floors, roofs and ground shapes family, and its tables and helpers others read through the compiler
 # (the tests, the bake suite's agreement test, an example)
 from made_edits import (FRAC_SLAB_MAX_TILES, FRAC_WALL_LOOKS, FRAC_WALL_MIN_LENGTH, WALL_SWEEPS,  # noqa: E402,F401
@@ -597,6 +598,8 @@ class Compiler:
         self.flag_edits = FlagEdits(self)
         # the diagonal cover the project marks (schema 7): the spec's `diagonalCover`, its own module
         self.diagonal_edits = DiagonalEdits(self)
+        # the map's fog and post-process settings the project changes (game-likeness plan, C5): the spec's `atmosphere`
+        self.atmosphere_edits = AtmosphereEdits(self)
         # what run()'s stages work out, in its order (review finding 23): check_document the map's package (it keeps
         # this value when the stage doesn't run: a document that stops earlier). The map grid, the clear, the drop-in
         # rule, the landing zones and the missions: their own module, which keeps what its stages work out
@@ -1788,6 +1791,9 @@ class Compiler:
         # the diagonal cover the project marks (schema 7): the Build writes each mark and each tile it takes it from
         if self.diagonal_edits.lane:
             extra['diagonalCover'] = self.diagonal_edits.lane
+        # the map's fog and post-process members the project changes: the Build writes them on its WorldInfo
+        if self.atmosphere_edits.lane:
+            extra['atmosphere'] = self.atmosphere_edits.lane
         # the deleted pieces the map's Kismet names: the Build empties its references to them (kismet_cut.py)
         if self.kismet_cuts:
             extra['kismetCuts'] = sorted(set(self.kismet_cuts))
@@ -1808,7 +1814,7 @@ class Compiler:
     def has_edits(self):
         return any(self.doc.get(k) for k in ('overrides', 'added', 'areaLightBindings', 'buildings', 'cleared',
                                              'landingZones', 'stage', 'spawnRules', 'backgroundSound', 'lwrMapInfo',
-                                             'diagonalCover'))
+                                             'diagonalCover', 'atmosphere'))
 
     # ---------------------------------------------------------------- the mission family's, by name
     def stage(self):
@@ -1852,6 +1858,7 @@ class Compiler:
             self.mission_edits.spawn_rules_mark()
             self.mission_edits.map_info_mark()
             self.effect_edits.background_sound_mark()
+            self.atmosphere_edits.check()
             self.overrides()
             self.added()
             self.made_edits.join_made_walls()
@@ -1906,6 +1913,8 @@ class Compiler:
                       lwrMapInfo=self.mission_edits.map_info,
                       # the diagonal cover the project marks (schema 7): how many marks and tiles taken from the map
                       **({'diagonalCover': dict(self.diagonal_edits.counts)} if self.diagonal_edits.lane else {}),
+                      # the map's fog and post-process members the project changes: how many of each
+                      **({'atmosphere': dict(self.atmosphere_edits.counts)} if self.atmosphere_edits.lane else {}),
                       missions=self.mission_edits.missions_kept()[0] if self.map is not None else None,
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']),
                                       **({'cursorFloors': True} if b.get('cursorFloors') else {}))
