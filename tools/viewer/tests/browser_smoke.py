@@ -5968,7 +5968,9 @@ GAME_FRAME = """async () => {
   // a helper's square before the camera, and one under the map's ground at the camera's target (hidden by it)
   const square = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ color: 0xd04020, side: T.DoubleSide }));
   const away = new T.Vector3(); v.camera.getWorldDirection(away);
-  square.position.copy(v.camera.position).addScaledVector(away, 10); square.lookAt(v.camera.position); square.scale.setScalar(2);
+  // (in front of the near plane, whatever it is: a map framed from far away has it at tens of units; the same size seen)
+  const before = Math.max(10, v.camera.near * 4);
+  square.position.copy(v.camera.position).addScaledVector(away, before); square.lookAt(v.camera.position); square.scale.setScalar(before / 5);
   v.world.add(square);
   try {
     const [x, y] = middle();
