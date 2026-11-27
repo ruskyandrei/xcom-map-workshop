@@ -19,9 +19,15 @@ URB_SlaughterhouseA and the diagonal cover shot CSmallScout_Farm, each read from
 Playwright (pip install playwright; it drives the installed Edge) and Pillow. The whole run takes about five minutes,
 most of it the manager's builds.
 
+The Game look's shots (looks, map-sun, sun-marker, view-options) need the Bar's export to carry its baked light (export
+44 or later) and the library read (the time of day's skies are pieces of other maps). view-options opens the demo
+project again and builds it with baking (a minute or two) unless its last Build baked, so that View options names
+that Build: it comes after the project manager's shot, whose queue may have baked it already.
+
 Some shots take more than one picture: project-menu also the Map menu and the Game menu (map-menu, game-menu),
 diagonal also the Add panel's new mark (diagonal-add), prefab-builder the Prefab button's menu and the Add panel's
-This prefab tab (prefab-menu, this-prefab), and
+This prefab tab (prefab-menu, this-prefab), looks the Bar in the Neutral look, the Game look and the Game look at noon
+(look-neutral, look-game, look-noon), map-sun the Map settings window's Fog and colour section too (fog-colour), and
 made-walls also the look picker (look-picker), whose cards' pictures the page draws and the server keeps, so a
 first run on a cache without them waits until every wall look's picture is drawn (some hundreds: minutes), and the
 picture shows the picker without its "Drawing pictures" count. made-walls and texture-mapping each draw the same two
@@ -63,6 +69,8 @@ TAXI_SOUND, SHOP_SOUND = ACTOR % 'AmbientSoundSimple_3', ACTOR % 'AmbientSoundSi
 WEBBING, POD_SMOKE, FLARE = ACTOR % 'Emitter_75', ACTOR % 'Emitter_15', ACTOR % 'LensFlareSource_8'
 SOUND_VIEW, SMOKE_VIEW = [700, -1500, 1100], [420, -800, 560]
 LIGHT_VIEW = ([375, 300, 60], [500, -900, 700])
+# the looks' shots: the Bar's front and its car park from above, no sky in the picture
+LOOK_VIEW = ([100, -300, 20], [1100, -1300, 1300])
 # the Spawns view's shot: a pod of the Bar's west room picked, with another pod, Meld points and a no-spawn volume
 # round it; and a no-spawn volume picked (the one round the van in the street), with its handles
 SPAWN_POD = ACTOR % 'XComAlienPod_Abduction_2'
@@ -855,18 +863,144 @@ class Shots:
         page.locator('#gridDone').click()          # (a click outside the list lets it go too)
         page.wait_for_selector('#viewsFlyout', state='hidden')
 
-    def view_options(self):
+    # --- the Game look (game-likeness plan): the view as the game draws it, the time of day, fog and colour
+    def game_look(self, look='game'):
+        """The look put on ('game' or 'neutral'), waiting for the Game look's shaders and the map's baked light."""
+        page = self.page
+        if not page.evaluate('l => viewer.setLook(l)', look): raise SystemExit('the Game look can not be had on %s' % MAP)
+        if look == 'game':
+            page.wait_for_function('viewer.post.ready() && viewer.post.baked()?.on && viewer.post.baked().parts > 0', timeout=120000)
+
+    def drag_time(self, hour):
+        """The time bar at this hour (one undo step), the dial left on the map's own side."""
+        self.page.evaluate('t => viewer.dragTime(t, viewer.timeOfDay().own.side)', hour)
+
+    def undo_to(self, steps):
+        while self.page.evaluate('viewer.gizmo.undoDepth()') > steps: self.page.keyboard.press('Control+z')
+
+    def looks(self):
+        """One view of the Bar three times: the Neutral look, the Game look at the map's own time (01:00, the moon), and
+        the Game look with the time bar at 13:00 (look-neutral, look-game, look-noon). Undone after."""
         page = self.page
         page.evaluate('viewer.select(null)')
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        page.locator('#floor button[data-value="all"]').click()
+        self.camera(*LOOK_VIEW)
+        clip = dict(x=250, y=120, width=940, height=640)
+        self.settle(3000)
+        self.shot('look-neutral', clip=clip, resize=0.5)
+        self.game_look()
+        self.settle(4000)
+        self.shot('look-game', clip=clip, resize=0.5)
+        self.drag_time(13)
+        self.settle(4000)
+        self.shot('look-noon', clip=clip, resize=0.5)
+        self.undo_to(steps)
+        self.game_look('neutral')
+        page.locator('#floor button[data-value="1"]').click()
+
+    def map_sun(self):
+        """The Map settings window in the Game look, the time bar dragged to 19:30 (dusk): its Sun, moon and sky section
+        with More unfolded (map-sun), then its Fog and colour section with both folds open (fog-colour). Undone after."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        self.game_look()
+        self.drag_time(19.5)
+        page.evaluate("document.getElementById('mapSettingsOpen').click()")
+        page.wait_for_selector('#mapSettings:not([hidden])')
+        page.evaluate("document.getElementById('mapSunFold').open = true")
+        page.wait_for_timeout(800)
+        rows = [(1, '#mapTimeBar'), (2, '#mapSunTime'), (3, '#mapSunDial'), (4, '#mapSunSkyRow'), (5, '#mapSunFold summary'),
+                (6, '#mapSunColour'), (7, '#mapSunStrength'), (8, '#mapSkyColour'), (9, '#mapSkyStrength'), (10, '#mapSunGameTime'),
+                (11, '#mapSunHour'), (12, '#skyList'), (13, '#mapSunReset')]
+        self.shot('map-sun', self.panel_rows('#mapSettingsForm', rows),
+                  clip=self.around('#mapSettingsTitle', '#mapSunSection', pad=(50, 12, 16, 12)))
+        page.evaluate("""() => { document.getElementById('mapSunFold').open = false;
+          for (const id of ['mapFogFold', 'mapColourFold']) document.getElementById(id).open = true;
+          document.getElementById('mapLookSection').scrollIntoView();
+          document.getElementById('mapSettingsForm').scrollTop -= 48; }""")      # (the section clear of the window's top)
+        page.wait_for_timeout(800)
+        rows = [(1, '#mapLooks > :first-child'), (2, '#mapLooks select'), (3, '#mapFogOn'), (4, '#mapFogSliders'), (5, '#mapFogAway'),
+                (6, '#mapTint'), (7, '#mapColourSliders'), (8, '#mapLookReset')]
+        self.shot('fog-colour', self.panel_rows('#mapSettingsForm', rows), clip=self.around('#mapLookSection', pad=(50, 12, 16, 12)))
+        page.evaluate("for (const id of ['mapFogFold', 'mapColourFold']) document.getElementById(id).open = false")
+        page.locator('#mapSettingsClose').click()
+        page.wait_for_selector('#mapSettings', state='hidden')
+        self.undo_to(steps)
+        self.game_look('neutral')
+
+    def sun_marker(self):
+        """The Lights view in the Game look, the time bar at 17:30: the sun on its arc over the Bar, the moon's arc beside it,
+        and a line down to the map. Undone after."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        self.game_look()
+        page.evaluate('viewer.setLightsShown(true)')
+        page.locator('#floor button[data-value="all"]').click()
+        page.locator('#frame').click()
+        self.settle(3000)
+        # (a point of each arc: the marker where it stands at another hour)
+        at = {}
+        for name, hour in (('sun', 15), ('moon', 23.5), ('marker', 17.5)):
+            self.drag_time(hour)
+            page.wait_for_timeout(300)
+            at[name] = page.evaluate('viewer.timeOfDay().markerAt')
+            if not at[name]: raise SystemExit('the sun marker does not show at %s' % hour)
+        self.settle(3000)
+        spot = lambda p, r=6: [p[0] - r, p[1] - r, 2 * r, 2 * r]       # noqa: E731
+        marks = [dict(n=1, rect=spot(at['marker'], 16), side='right', gap=30),
+                 dict(n=2, rect=spot(at['sun']), side='top', gap=30),
+                 dict(n=3, rect=spot(at['moon']), side='top', gap=30)]
+        self.shot('sun-marker', marks, resize=0.75)
+        self.undo_to(steps)
+        page.evaluate('viewer.setLightsShown(false)')
+        self.game_look('neutral')
+        page.locator('#floor button[data-value="1"]').click()
+
+    def open_project(self, name):
+        """A saved project opened by the Project menu's Open… (the name typed; the page loads again)."""
+        page = self.page
+        if page.evaluate('viewer.project()?.name') == name: return
+        page.evaluate("document.getElementById('projectLoad').click()")
+        page.wait_for_selector('#fileDialog:not([hidden])')
+        page.locator('#fileName').fill(name)
+        page.locator('#fileOk').click()
+        page.wait_for_function("n => window.viewer?.project?.()?.name === n && document.querySelector('#loading')?.hidden", arg=name,
+                               timeout=180000)
+        page.wait_for_timeout(1500)
+        self.close_pops()
+
+    def build_light_shown(self, timeout=30000):
+        try: self.page.wait_for_function("!document.getElementById('buildLight').hidden", timeout=timeout)
+        except Exception: return False
+        return True
+
+    def view_options(self):
+        """View options in the Game look, the demo project open and lit by its last baked Build (built here with baking
+        unless the project manager's queue baked it), one piece moved since. Undone after."""
+        page = self.page
+        page.evaluate('viewer.select(null)')
+        self.open_project(PROJECT)
+        self.game_look()
+        if not self.build_light_shown():
+            self.build_project(bake=True)
+            if not self.build_light_shown(120000): raise SystemExit('View options shows no line of the baked Build')
+        steps = page.evaluate('viewer.gizmo.undoDepth()')
+        self.nudge(POOL_TABLE, 48)
+        page.wait_for_function("document.getElementById('buildLight').textContent.includes('1 piece changed since')", timeout=30000)
         page.locator('#viewButton').click()
-        page.wait_for_timeout(400)
-        rows = [(1, '#lighting'), (2, '#exposure'), (3, '#flyKeys'), (4, '#moveSpeed'), (5, '#turnSpeed'), (6, '#dragSpeed'),
-                (7, '#skyOpen'), (8, '#playAreaToggle'), (9, '#grid'), (10, '#floorTiles'), (11, '#diagonalCover'),
-                (12, '#likenessToggle'), (13, '#wire'), (14, '#hideHelpers'), (15, '#statsToggle')]
+        page.wait_for_timeout(600)
+        rows = [(1, '#lighting'), (2, '#buildLight'), (3, '#areaLights'), (4, '#exposure'), (5, '#flyKeys'), (6, '#moveSpeed'),
+                (7, '#turnSpeed'), (8, '#dragSpeed'), (9, '#skyOpen'), (10, '#playAreaToggle'), (11, '#grid'), (12, '#floorTiles'),
+                (13, '#diagonalCover'), (14, '#likenessToggle'), (15, '#wire'), (16, '#hideHelpers'), (17, '#statsToggle')]
         hidden = [s for _, s in rows if not page.locator(s).is_visible()]
         if hidden: raise SystemExit('View options lacks %s on %s: the guide numbers them all' % (', '.join(hidden), MAP))
         self.shot('view-options', self.panel_rows('#viewOptions', rows), clip=self.around('#viewButton', '#viewOptions', pad=(44, 6, 8, 12)))
         self.close_pops()
+        self.undo_to(steps)
+        self.game_look('neutral')
 
     def build(self):
         page = self.page
@@ -1331,18 +1465,21 @@ class Shots:
         self.close_pops()
 
     def quick_build(self):
-        """Builds the open project without baking, and closes the build window."""
+        self.build_project(bake=False)
+
+    def build_project(self, bake):
+        """Builds the open project, with baking or without, and closes the build window."""
         page = self.page
         page.keyboard.press('Control+b')
         page.wait_for_selector('#buildForm', state='visible')
-        if page.locator('#buildBake').is_checked(): page.locator('#buildBake').uncheck()
+        if page.locator('#buildBake').is_checked() != bake: page.locator('#buildBake').click()
         page.locator('#buildOptionsOk').click()
         page.wait_for_function("""() => { const t = document.getElementById('buildTitle').textContent;
           return !document.getElementById('buildModal').hidden && !document.getElementById('buildClose').hidden && !t.startsWith('Building'); }""",
-                               timeout=300000)
+                               timeout=900000 if bake else 300000)
         title = page.locator('#buildTitle').text_content()
         page.locator('#buildClose').click()
-        if not title.startswith('Built'): raise SystemExit('a build for the project manager failed: %s' % title)
+        if not title.startswith('Built'): raise SystemExit('a build of %s failed: %s' % (page.evaluate('viewer.project()?.name'), title))
 
     def manager(self):
         """The project manager with four projects: the demo, two quick builds (one saved again since) and one never
@@ -1573,13 +1710,15 @@ def prefab_test_shot(browser, server, out):
     page.close()
 
 
-# the manager runs builds and leaves its projects saved, and prefab-builder, mission-objects and diagonal open other
-# pages: they come last (project-menu also takes map-menu and game-menu; made-walls also takes look-picker;
-# prefab-builder also takes this-prefab, its first picture being prefab-menu; diagonal also takes diagonal-add)
+# the manager runs builds and leaves its projects saved, view-options opens the demo project again and builds it with
+# baking, and prefab-builder, mission-objects and diagonal open other pages: they come
+# last (project-menu also takes map-menu and game-menu; made-walls also takes look-picker; looks takes look-neutral,
+# look-game and look-noon; map-sun also takes fog-colour; prefab-builder also takes this-prefab, its first picture being
+# prefab-menu; diagonal also takes diagonal-add)
 ORDER = ('window', 'header', 'rail', 'views-list', 'build-menu', 'dock', 'project-menu', 'map-browser', 'piece-panel', 'flags', 'box-select', 'group-align', 'add', 'add-large', 'add-all', 'prefabs', 'open-prefabs', 'prefab-test', 'lights',
-         'landing-zones', 'effects', 'effects-switches', 'effect-values', 'add-effects', 'spawns', 'spawns-volume', 'spawns-switches', 'map-grid', 'view-options', 'build', 'play', 'floors', 'buildings', 'cover-blocks',
+         'landing-zones', 'effects', 'effects-switches', 'effect-values', 'add-effects', 'spawns', 'spawns-volume', 'spawns-switches', 'map-grid', 'looks', 'map-sun', 'sun-marker', 'build', 'play', 'floors', 'buildings', 'cover-blocks',
          'made-walls', 'texture-mapping', 'made-ground', 'clear-map', 'missions', 'map-picture', 'squad',
-         'manager', 'save-as', 'prefab-builder', 'mission-objects', 'diagonal')
+         'manager', 'save-as', 'view-options', 'prefab-builder', 'mission-objects', 'diagonal')
 
 
 def main():
