@@ -107,6 +107,15 @@ SET_CAMERA = """([target, place, fov, size]) => {
   v.camera.updateProjectionMatrix(); v.controls.update();
 }"""
 
+# Members put over the map's atmosphere: a new atmosphere object (the Game look's frame works its values out again for
+# a new one), the map's world settings with the members over them, and the look applied again (the fog's uniforms).
+ATMOSPHERE = """over => {
+  const v = window.viewer, a = v.data.atmosphere ?? { world: { fog: {}, postProcess: {} }, volumes: [] };
+  v.data.atmosphere = { ...a, world: { ...a.world, fog: { ...a.world.fog, ...(over.fog ?? {}) },
+                                       postProcess: { ...a.world.postProcess, ...(over.postProcess ?? {}) } } };
+  v.setLook(document.getElementById('lighting').value === 'game' ? 'game' : 'neutral');
+}"""
+
 # The view taken at the shot's size without the editor's helpers (the page's grabView), then the renderer put back.
 GRAB = """([target, place, fov, size]) => {
   const v = window.viewer, r = v.renderer;
@@ -172,6 +181,10 @@ def editor_shots(args):
                       if (area) area.checked = m !== 'map-no-area';
                       if (viewer.setLook) viewer.setLook(m === 'neutral' ? 'neutral' : 'game');
                       else document.querySelector(`#lighting button[data-value="${m}"]`)?.click(); }""", args.look)
+                    # members over the map's own atmosphere (as a project's would be, before the page has controls for
+                    # it): the map's world settings with them over, the look applied again
+                    if args.atmosphere:
+                        page.evaluate(ATMOSPHERE, json.loads(Path(args.atmosphere).read_text(encoding='utf-8')))
                     # (the Game look's frame waits for its shaders: game-likeness plan, C3)
                     page.wait_for_function("!window.viewer.post || document.getElementById('lighting').value !== 'game'"
                                            " || window.viewer.post.ready()", timeout=300000)
@@ -357,6 +370,9 @@ def main(argv=None):
     e.add_argument('--cache')
     e.add_argument('--flag', action='append', default=[], help='a URL flag for the page (name=value)')
     e.add_argument('--settle', type=int, default=6, help='seconds a camera waits for its textures')
+    e.add_argument('--atmosphere', help='a JSON file of {"fog": {...}, "postProcess": {...}} members put over the map\'s '
+                                        'own (as a project\'s atmosphere): the editor shot as a Build of it is shot in '
+                                        'the game (EXP-98)')
     e.add_argument('--headed', action='store_true')
     for name in ('sheet', 'score'):
         p = sub.add_parser(name)

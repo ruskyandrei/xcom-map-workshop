@@ -90,8 +90,30 @@ export function withoutLocalLights(draw) {
   try { draw(); } finally { uniforms.localGridInfo.value.w = on; }
 }
 
+/** Let an unlit material (a MeshBasicMaterial of the map's pieces) take the map's fog: `kind` 'FOG_MULTIPLY' for one
+ *  that multiplies what is behind it, 'FOG_ADDITIVE' for one that adds, or none (atmosphere_shader.js's fogChunk). */
+export function withBasicFog(material, kind = null) {
+  if (kind) material.defines = { ...(material.defines ?? {}), [kind]: '' };
+  material.userData.basicFog = kind ?? 'plain';        // (withLocalLights puts the patch back on a clone)
+  material.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, fogShared);
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', VERTEX_PARS)
+      .replace('#include <worldpos_vertex>', VERTEX_MAIN);
+    // (a multiplying one fades its factor toward white after three weighs it by its opacity, so a fogged one darkens
+    // nothing; the others take the fog in linear light, as the lit materials do)
+    const after = kind === 'FOG_MULTIPLY' ? '#include <premultiplied_alpha_fragment>' : '#include <opaque_fragment>';
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\nvarying vec3 vLocalWorld;\n${FOG_PARS}`)
+      .replace(after, `${after}\n${fogChunk('vLocalWorld')}`);
+  };
+  return material;
+}
+
 /** Let a lit material receive the map's local lights (clones need this again). */
 export function withLocalLights(material) {
+  // (an unlit material of the map's pieces has the fog's patch of its own, which a clone loses: put back)
+  if (material.isMeshBasicMaterial && material.userData.basicFog) {
+    return withBasicFog(material, material.userData.basicFog === 'plain' ? null : material.userData.basicFog);
+  }
   // (a material drawn by its program has the local lights in its own patch, which chains this one: scene_pieces.js)
   if (material.isMeshPhongMaterial && !material.userData.program) material.onBeforeCompile = localLightShader;
   return material;

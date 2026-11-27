@@ -12,6 +12,8 @@ Statuses:
 
 ## Open now
 
+- F-174 (27 November, EXP-98): the editor's fog and grade sums give the game's colours for the same members; see-through and unlit materials now take the fog by their blend. Verified.
+- F-173 (27 November, EXP-98): a map's height fog and grade written on its WorldInfo by the Build show in the game, with an LWR patch level streamed in. Verified.
 - F-172 (26 November, laying LWR 3.00.00 beta 18 over the LWR v3 copies): beta 18 reads a map pack only as a
   folder in `CookedPCConsole\LWRMapPacks\` holding an `XComLWRMapPacks.ini` (first line
   `[XComMutator.LWRMapPacks]`, then the pack's `+Maps=`, `+Pictures=`, `+LZArray=` and `+MapInfo=` lines, no byte
@@ -276,6 +278,35 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-173: A map's height fog and grade written on its WorldInfo by the Build show in the game
+**Verified** (EXP-98, 27 November 2026: two quick Builds of URB_Bar played hidden in the lab copy, LWR 2.06).
+- What: the game draws a map's fog from its WorldInfo's `XComHeightFog` (an XComHeightFogParameters) and its grade
+  and bloom from `DefaultPostProcessSettings` (a PostProcessSettings), as the map saves them: only the members that
+  differ from the class's defaults (F-168).
+- Fix (the Build, stage C5a): tools/bake/native_world.py makes each struct again from the members the map saves, the
+  project's members over them (in place, or added before the struct's closing None), a post-process member with its
+  override flag on as the game's editor saves it; the members' kinds are the script packages' declarations
+  (tools/viewer/atmosphere_defaults.json `kinds`).
+- Seen: a thick red fog (density 0.6, height 600, falloff 1, both colours red) washed every view red, the far parts
+  near flat red and the near ones showing through; a green grade (Scene_Colorize 0.6, 1.4, 0.6) tinted every view
+  green, the map's blue lift gone. Both with LWR's patch level `patch_bar` streamed in: a streamed level's WorldInfo
+  does not stand in for the map's.
+- Seen besides: the grade tints the interface too (the game grades the whole frame).
+
+### F-174: The editor's fog and grade sums give the game's colours, a see-through material fogged by its blend
+**Verified** (EXP-98, 27 November 2026: the editor's Game look with the same members over URB_Bar's own, from the
+game's three cameras, against the game's shots of the two Builds).
+- Seen: with the red fog the frames' mean colours were (150, 32, 52) in the game and (155, 39, 64) in the editor on
+  the first camera, the far quarter of the picture redder than the near by about 20 in both; with the green grade
+  (27, 50, 25) and (32, 64, 30), the editor's a little brighter in both, as its light is without the fog (track B).
+  So the fog (tools/viewer/web/atmosphere_shader.js, its colours through UE3's 2.2 power) and the grade
+  (tools/viewer/web/post_grade.js, in gamma space as the game's colour LUT holds it) stand as written.
+- Found besides, and fixed: the editor's unlit materials took no fog (a dark figure on Bar's car park stayed dark
+  under the red), and the see-through ones took the fog's colour whatever their blend. Now an unlit material of the
+  map's pieces has a fog patch of its own (lighting.js `withBasicFog`, put back on a cut-away clone), an additive one
+  is only dimmed by the fog and a modulating one fades toward white (`FOG_ADDITIVE`, `FOG_MULTIPLY`), as the game
+  fogs its additive and modulate materials; checked again on the same shot.
 
 ### F-170: A made building's floor and building volumes are stretched copies of brushes that need not be boxes
 **Verified** (found 24 November 2026: the BoatAbduction project's quick build of revision 26 in a hidden run on the

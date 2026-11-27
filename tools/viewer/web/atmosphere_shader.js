@@ -97,6 +97,17 @@ vec4 heightFog( vec3 world ) {
 	return vec4( ( 1.0 - fogT ) * mix( fogOpposite, fogInscatter, fogLobe ), fogT );
 }`;
 
-/** The fog put on an opaque or normally blended gl_FragColor (after three's own fog chunk): `world` the pixel's world
- *  place in the view's axes (x, up, y). */
-export const fogChunk = world => `{ vec4 fogged = heightFog( ${world} ); gl_FragColor.rgb = gl_FragColor.rgb * fogged.a + fogged.rgb; }`;
+/** The fog put on gl_FragColor (after three's own fog chunk): `world` the pixel's world place in the view's axes
+ *  (x, up, y). An opaque or normally blended material takes the fog's colour; one that adds its colour (FOG_ADDITIVE
+ *  defined) is only dimmed by it, and one that multiplies what is behind it (FOG_MULTIPLY) fades toward white, as the
+ *  game fogs its additive and modulate materials. */
+export const fogChunk = world => `{
+	vec4 fogged = heightFog( ${world} );
+	#if defined( FOG_MULTIPLY )
+	gl_FragColor.rgb = mix( vec3( 1.0 ), gl_FragColor.rgb, fogged.a );
+	#elif defined( FOG_ADDITIVE )
+	gl_FragColor.rgb *= fogged.a;
+	#else
+	gl_FragColor.rgb = gl_FragColor.rgb * fogged.a + fogged.rgb;
+	#endif
+}`;

@@ -35,7 +35,7 @@ import { builderMode, cachePrefix, data, foreignTemplates, geometryCache, loadEr
 import { actorMatrix, placedPose } from './gizmo.js';
 import { madeGroundShape } from './ground.js';
 import { freeShape, isFree } from './made_free.js';
-import { withLocalLights } from './lighting.js';
+import { withBasicFog, withLocalLights } from './lighting.js';
 import { isPlain } from './made_requests.js';
 import { cloneBlasts, fromOf, isStream, sourceKey } from './piece_records.js';
 import { pieceGrid } from './pieces.js';
@@ -215,6 +215,9 @@ gl_Position.z = gl_Position.w * 0.999999;`);
       mat.alphaMap = null;
       if (blend === 'BLEND_Additive') mat.blending = THREE.AdditiveBlending;
       if (blend === 'BLEND_Modulate') { mat.blending = THREE.MultiplyBlending; mat.premultipliedAlpha = true; }
+      // (the map's fog dims what it adds, and fades what it multiplies toward white: atmosphere_shader.js)
+      if (blend === 'BLEND_Additive') mat.defines = { ...(mat.defines ?? {}), FOG_ADDITIVE: '' };
+      if (blend === 'BLEND_Modulate') mat.defines = { ...(mat.defines ?? {}), FOG_MULTIPLY: '' };
     }
     if (sky) mat.depthWrite = false;
     const cacheKey = `program-${glsl.key}${mat.map ? '-map' : ''}${sky ? '-sky' : ''}`;
@@ -292,17 +295,19 @@ gl_Position.z = gl_Position.w * 0.999999;`);
     if (info.render?.family === 'hidden') return new THREE.MeshBasicMaterial({visible: false});
     if (info.render?.constantColor) {
       const Type=info.render.unlit || info.render.family === 'fogged-civilian' ? THREE.MeshBasicMaterial : THREE.MeshPhongMaterial;
-      return withLocalLights(new Type({
+      const made = new Type({
         color:new THREE.Color(...info.render.constantColor),side:info.twoSided ? THREE.DoubleSide : THREE.FrontSide,
         transparent:info.blend === 'BLEND_Translucent',depthWrite:info.blend !== 'BLEND_Translucent',
-      }));
+      });
+      // (an unlit one takes the map's fog by a patch of its own; a lit one has it in the local lights' patch)
+      return made.isMeshBasicMaterial ? withBasicFog(made) : withLocalLights(made);
     }
     // a see-through material the game draws in its distortion pass (it bends what is behind): not drawn (A7)
     if (programsOn && info.program?.distortion && SEE_THROUGH.includes(info.blend)) return new THREE.MeshBasicMaterial({ visible: false });
-    if (info.blend === 'BLEND_Modulate' && !(programsOn && programDraws(info.program))) return new THREE.MeshBasicMaterial({
+    if (info.blend === 'BLEND_Modulate' && !(programsOn && programDraws(info.program))) return withBasicFog(new THREE.MeshBasicMaterial({
       color:0xa8b9c2,transparent:true,opacity:0.35,depthWrite:false,blending:THREE.MultiplyBlending,premultipliedAlpha:true,
       side: info.twoSided ? THREE.DoubleSide : THREE.FrontSide,
-    });
+    }), 'FOG_MULTIPLY');
     const glass = ['BLEND_Translucent', 'BLEND_Additive'].includes(info.blend);
     const masked = ['diffuse-alpha','packed-alpha'].includes(info.render?.opacitySource);
     const diffuse = await texture(info.diffuse,true,info.render?.uv);
