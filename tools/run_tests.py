@@ -125,6 +125,7 @@ ENVIRONMENT = (
         Package('XCOM_POLICE_PATCH_UPK', 'patch_policestation.upk', 'test_cover_blocks.py'),
         Package('XCOM_POLICE_UPK', 'URB_PoliceStation.upk', 'test_cover_blocks.py, test_gen_mesh.py, '
                 'test_light_factory.py, test_native_copy.py, test_streams.py'),
+        Package('XCOM_SHADER_CACHE_UPK', 'RefShaderCache-PC-D3D-SM3.upk', 'test_sm3.py, test_shader_cache.py'),
         Package('XCOM_STONEWALL_UPK', 'CLrgScout_Stonewall.upk', 'test_native_copy.py'),
         Package('XCOM_TEMPLE_UPK', 'TempleShip.upk', 'test_light_factory.py, test_native_lights.py'),
         Package('XCOM_TRUCKSTOP_STREAM_UPK', 'URB_TruckStop_Stream.upk', 'test_light_factory.py, test_map_frame.py, '
