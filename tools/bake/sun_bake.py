@@ -62,15 +62,39 @@ def direction_key(p):
 
 # ------------------------------------------------------------------------------------------------ the shadow maps
 
+def dome_actors(p):
+    """The export indices of the level's sky domes (native_copy.sky_dome: every mesh the actor draws one of the
+    Skybox package's): the map's own and the copies of another map's that a project's sky makes in their place
+    (SkyDome_time<n>, T-S6). They stand round the map or turned over under it, 127,000 units across, and take no part
+    in the sun's shadows: no caster of the sun pass's scenes (relight.py --sun-turned leaves them out, as
+    listed_scene does), and no receiver of its trace or of a shadow map of their own (their sky is not lit by it)."""
+    import native_copy
+    level = p.by_name.get(PL[:-1])
+    found = set()
+    for i in range(1, len(p.exports) + 1):
+        if p.cls(i) not in shadows.MESH_COMPONENTS or not p.name(i).startswith(PL):
+            continue
+        mesh, actor = p.effective(i, 'StaticMesh', 0), p.exports[i - 1]['outer']
+        if mesh > 0 and p.name(mesh).startswith('Skybox.') and actor > 0 and p.exports[actor - 1]['outer'] == level:
+            found.add(actor)
+    return sorted(a for a in found if native_copy.sky_dome(p, a))
+
+
+def sky_domes(p):
+    """The short names of the level's sky domes (dome_actors), as the relight's scenes take names to leave out."""
+    return [p.name(a)[len(PL):] for a in dome_actors(p)]
+
+
 def whole_map_jobs(p):
     """Every distance-field shadow map of the map's enabled dominant lights on a piece the level lists (debris
     pieces included), each a job of the relight's shadow maps lit from nothing: dict(path, ci, sm, light, source
     None, fresh True), in the map's order. A piece the edit took out of the level (a hidden one), or one staged from
-    another map that no level lists, is left: the game never draws it."""
-    listed = level_list(p)
+    another map that no level lists, is left: the game never draws it. So is a sky dome (dome_actors)."""
+    listed, domes = level_list(p), set(dome_actors(p))
     jobs = []
     for path, ci, sm, light in shadowmaps.dominant_receivers(p, enabled_lights(p), debris=True):
-        if listed is not None and p.exports[ci - 1]['outer'] not in listed:
+        owner = p.exports[ci - 1]['outer']
+        if (listed is not None and owner not in listed) or owner in domes:
             continue
         jobs.append(dict(path=path, ci=ci, sm=sm, light=light, source=None, fresh=True))
     return jobs
@@ -249,12 +273,13 @@ def irrelevant_pieces(p, guid):
     LOD-0 lightmap record, atlas (width, height))], in the map's order."""
     import baked_light
     import lightmap_fields
-    listed = level_list(p)
+    listed, domes = level_list(p), set(dome_actors(p))
     out = []
     for i in range(1, len(p.exports) + 1):
         if p.cls(i) not in lightmap_fields.COMPONENT_CLASSES or not p.name(i).startswith(PL):
             continue
-        if (listed is not None and p.exports[i - 1]['outer'] not in listed) or p.effective(i, 'StaticMesh', 0) <= 0:
+        owner = p.exports[i - 1]['outer']
+        if (listed is not None and owner not in listed) or owner in domes or p.effective(i, 'StaticMesh', 0) <= 0:
             continue
         if not baked_light.sun_irrelevant(p, i, guid):
             continue
@@ -269,15 +294,16 @@ def irrelevant_pieces(p, guid):
 
 def listed_scene(p):
     """The scene the relight traces the turned sun in after the edit (relight.Scene with one shadow ray and no
-    bounce): the casters of the pieces the level lists, not those the edit took out of it or staged from another map."""
+    bounce): the casters of the pieces the level lists, not those the edit took out of it or staged from another map,
+    nor the sky domes (sky_domes)."""
     import relight
     listed = level_list(p)
-    unlisted = set()
+    left = set(sky_domes(p))
     if listed is not None:
         for i in range(1, len(p.exports) + 1):
             if shadows.is_caster(p, i) and p.exports[i - 1]['outer'] not in listed:
-                unlisted.add(relight.short_name(p.name(i)))
-    return relight.Scene(p, samples=1, bounce_rays=0, emissive=False, ignore_casters=sorted(unlisted))
+                left.add(relight.short_name(p.name(i)))
+    return relight.Scene(p, samples=1, bounce_rays=0, emissive=False, ignore_casters=sorted(left))
 
 
 def reached_pieces(p, world, guid, to_light):

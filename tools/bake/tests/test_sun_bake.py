@@ -221,13 +221,67 @@ class BarAsItIs(unittest.TestCase):
     def test_the_whole_maps_jobs_take_every_shadow_map_of_the_moon_and_the_debris(self):
         jobs = sun_bake.whole_map_jobs(self.p)
         moon = self.p.own(self.ci, 'LightGuid').hex()
-        self.assertEqual(len(jobs), 708)
+        # the map's 627 and the debris pieces' 81, less its two sky domes' (T-S6: no receivers of the sun pass)
+        self.assertEqual(sorted(sun_bake.sky_domes(self.p)), ['XComLevelActor_257', 'XComLevelActor_63'])
+        self.assertEqual([j for j in jobs if j['path'].split('.')[2] in ('XComLevelActor_63', 'XComLevelActor_257')], [])
+        self.assertEqual(len(jobs), 706)
         self.assertEqual({j['sm']['guid'] for j in jobs}, {moon})
         self.assertTrue(all(j['fresh'] and j['source'] is None for j in jobs))
         self.assertEqual(sum(1 for j in jobs if self.p.cls(j['ci']) == shadowmaps.DEBRIS), 81)
         # an edit's relight leaves the debris pieces as it did
         self.assertEqual(len(shadowmaps.dominant_receivers(self.p, sun_bake.enabled_lights(self.p))), 627)
         self.assertEqual(sun_bake.direction_key(self.p), [[moon, [0.109838, -0.117762, 0.986949]]])
+
+
+@unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
+class DomeRoundBar(unittest.TestCase):
+    """A sky dome stood round the map shades none of it in the sun pass: a scratch copy of URB_Bar with the bowl under
+    it (XComLevelActor_63, a sky dome turned over, which casts shadows) turned upright, so that it covers the map as a
+    copy of another map's dome for the project's sky may (T-S6), relit with --sun-turned (the moon as it is)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import native_copy
+        import package_grow
+        cls.folder = tempfile.TemporaryDirectory()
+        root = Path(cls.folder.name)
+        (root / 'domed').mkdir()
+        src = Path(BAR)
+        p = lighting.Package(src)
+        g = package_grow.Grower(str(src))
+        native_copy.set_pose(native_copy.Walker(p, g), g, p, p.by_name[PL + 'XComLevelActor_63'], None, [0, 81920, 0])
+        domed = root / 'domed' / 'URB_Bar.upk'
+        g.write(str(domed))
+        lighting.link_caches(domed.parent, src.parent)
+        cls.out = root / 'lit'
+        run = subprocess.run([sys.executable, '-B', str(HERE.parent / 'relight.py'), str(domed), str(cls.out),
+                              'URB_Bar_Dome', '--cache', 'Lighting_7004', '--sun-turned'],
+                             capture_output=True, text=True, encoding='utf-8', errors='replace')
+        if run.returncode:
+            raise AssertionError(f'relight --sun-turned failed: {run.stdout[-2000:]} {run.stderr[-2000:]}')
+        cls.record = json.loads((cls.out / 'URB_Bar_Dome.relight.json').read_text(encoding='utf-8'))
+        cls.domed = lighting.Package(domed)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.folder.cleanup()
+
+    def test_the_upright_dome_would_shade_the_map(self):
+        # (the check is a real one: in a scene of every caster, the dome round the map shades the moon's lit samples)
+        volume = lighting.light_volume(self.domed, self.domed.by_name[PL[:-1]])
+        lit = np.array([s[:3] for s in volume['samples'] if not s[-1]], float)
+        (moon,) = sun_bake.enabled_lights(self.domed).values()
+        every = relight.Scene(self.domed, samples=1, bounce_rays=0, emissive=False)
+        self.assertGreater(np.mean(sun_bake.shadowed_points(every.occluder, lit, [moon['toLight']], every.level_scale)), 0.99)
+        left = sun_bake.listed_scene(self.domed)
+        self.assertLess(np.mean(sun_bake.shadowed_points(left.occluder, lit, [moon['toLight']], left.level_scale)), 0.01)
+
+    def test_the_sun_pass_leaves_it_out(self):
+        r = self.record
+        # the lighting samples out of the moon as the map has them (222 of 1,743), not every one
+        self.assertLess(abs(r['sun']['samples']['markedAfter'] - 222), 10)
+        self.assertEqual(len([s for s in r['shadowMaps'] if 'skipped' not in s]), 706)
+        self.assertFalse([s for s in r['shadowMaps'] if s['component'].split('.')[2] in ('XComLevelActor_63', 'XComLevelActor_257')])
 
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
@@ -269,9 +323,9 @@ class TurnedBar(unittest.TestCase):
         self.assertEqual(self.q.own(self.q.exports[self.q.by_name[MOON] - 1]['outer'], 'Rotation'), TURNED)
         self.assertFalse(r['lightingUnchanged'])
         self.assertEqual((len(r['components']), r['failed']), (0, 0))
-        # the map's 708, and one each of their own for 59 of the 60 pieces wholly in the moon's shadow that the sun
-        # reaches (the 60th kept one of the moon beside the list, and it is among the 708)
-        self.assertEqual(len([s for s in r['shadowMaps'] if 'skipped' not in s]), 767)
+        # the map's 706 (its two sky domes' left out), and one each of their own for 59 of the 60 pieces wholly in
+        # the moon's shadow that the sun reaches (the 60th kept one of the moon beside the list, among the 706)
+        self.assertEqual(len([s for s in r['shadowMaps'] if 'skipped' not in s]), 765)
         (m,) = r['sun']['maps']
         self.assertEqual(m['size'], [132, 97])
         self.assertEqual(m['depthsChanged'], 12804)

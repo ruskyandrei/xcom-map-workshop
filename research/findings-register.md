@@ -442,7 +442,8 @@ played: EXP-100).
   has them, their bytes unchanged. The writer's record (`sunShadowMaps`) names each piece, and the Build's light stage
   counts them.
 - **On URB_Bar:** 60 pieces, 59 given maps of their own and one that kept its own; the step takes 5.5 s; the relight
-  then traces 767 shadow maps (708 and 59), the copy tool's whole run 41.6 s (31 s before). Read back, the 60 pieces'
+  then traced 767 shadow maps (708 and 59), the copy tool's whole run 41.6 s (31 s before); since the sky domes are
+  left out of the sun pass (F-197), 765. Read back, the 60 pieces'
   359,045 texel centres on the side a ray gives on 99.35%, and on 99.99% away from the shadows' edges; 40,841 lit.
   The 254 others still list the moon, with no shadow map of it but the one that kept one, and the sun reaches none of
   their texels.
@@ -473,6 +474,14 @@ test_sun_bake.py through the copy tool with the sun lane; nothing played: EXP-10
 - **What stays the old sun's**, as the plan has it: the lightmaps' bounce of the old sun and the lighting samples'
   own light. The pieces with no shadow map of the sun that the new one reaches get one first (F-198), so these
   figures, from before that, grew to 767 shadow maps and 41.6 s.
+- **The sky domes** (the map's own, and the copies of another map's a project's sky makes in their place, T-S6's
+  `SkyDome_time<n>`) take no part: no caster of either of the relight's scenes with `--sun-turned`, no receiver of
+  its trace, none given a shadow map (sun_bake `dome_actors`, by native_copy's `sky_dome`). A dome stands round the
+  map, 127,000 units across, or turned over under it, and some cast shadows (URB_Bar's bowl under the map,
+  `XComLevelActor_63`); stood upright round the map in a scratch copy, it shades over 99% of the moon's lit
+  lighting samples in a scene of every caster and under 1% in the sun pass's, whose marks stay the map's (within 10
+  of 222).
+  URB_Bar's two domes' shadow maps are no longer traced: 706 of the map's.
 
 ### F-196: The level map's yardstick of T-S0 depends on the light's height; what the map puts in shadow does not
 **Accepted** (27 November 2026, T-S4; `tools/upk/audit_suns.py level-rule` on eleven maps and `turn`, evidence in
