@@ -4268,6 +4268,15 @@ def check_likeness(page):
     # ?programs=off or =pieces draws them by their textures' roles)
     if page.evaluate("viewer.data.exporterVersion >= 46 && !/programs=(off|pieces)/.test(location.search)"):
         page.wait_for_function('ids => ids.some(id => (viewer.likenessOf(id) ?? []).some(e => e.program && e.shown))', arg=can, timeout=60000)
+        # (E2: a lit material takes the light the view draws where its effect stands: another in the other look)
+        lit = page.evaluate('ids => ids.find(id => (viewer.likenessOf(id) ?? []).some(e => e.light))', can)
+        if lit and page.evaluate("viewer.lighting?.available !== false && document.getElementById('lighting')"):
+            light = "id => JSON.stringify(viewer.likenessOf(id).find(e => e.light).light)"
+            look = page.evaluate("document.getElementById('lighting').value")
+            before = page.evaluate(light, lit)
+            page.evaluate("l => viewer.setLook(l === 'game' ? 'neutral' : 'game')", look)
+            page.wait_for_function('([id, was]) => JSON.stringify(viewer.likenessOf(id).find(e => e.light).light) !== was', arg=[lit, before], timeout=30000)
+            page.evaluate("l => viewer.setLook(l)", look)
 
     def frame_time():
         return page.evaluate("""() => new Promise(done => { let n = 0, t0 = performance.now(); const tick = () => { if (++n === 60) done((performance.now() - t0) / 60); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); })""")

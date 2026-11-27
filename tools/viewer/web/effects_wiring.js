@@ -24,7 +24,7 @@ import * as THREE from 'three';
 import { clock } from './build_queue.js';
 import { partCleared } from './clear_parts.js';
 import { onHub } from './edit_hub.js';
-import { activeMapId, clearedParts, copySerial, data, effectIndex, effectMarkers, effectRoots, effectsDirty, effectsOn,
+import { activeMapId, lighting, clearedParts, copySerial, data, effectIndex, effectMarkers, effectRoots, effectsDirty, effectsOn,
          families, foreignEffects, geometryCache, lightsOn, likenessOn, likenessThin, nextCopySerial, normalEffects,
          pickedEffect, pickedSpawn, pointer, roots, setCopySerial, setEffectMarkers, setEffectsDirty, setEffectsOn,
          setLikenessCount, setLikenessOn, setLikenessThin, setLiveCache, setNormalEffectsValue, setPickCentres,
@@ -274,6 +274,7 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
     }
   }
   const likenessBox = new THREE.Box3(), likenessFrustum = new THREE.Frustum(), likenessAt = new THREE.Vector3(), likenessMatrix = new THREE.Matrix4();
+  const likenessNormal = new THREE.Vector3();
   // Each frame: every likeness put where its effect stands now (a drag moves it) and stepped, unless it is out of the
   // picture or too far to tell; over the view's budget of particles, what they spawn is thinned evenly
   function stepLikenesses(dt) {
@@ -296,6 +297,11 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
       g.visible = likenessFrustum.intersectsBox(likenessBox) && reach * pixelsPerUnit / Math.max(1, camera.position.distanceTo(likenessAt)) > 6;
       if (!g.visible) continue;
       likeness.step(dt, likenessThin, [Math.abs(s[0] * cs[0]), Math.abs(s[1] * cs[1])]);
+      // a lit material by the view's light where the effect stands, as a sprite faces it: toward the camera (E2)
+      if (likeness.lit) {
+        likenessNormal.subVectors(camera.position, likenessAt).normalize();
+        likeness.setLight(lighting?.lightAt?.(likenessAt.toArray(), likenessNormal.toArray()) ?? [1, 1, 1]);
+      }
       count += likeness.count();
     }
     setLikenessCount(count);

@@ -3,7 +3,7 @@
 // lights use UE3's falloff and cone terms and cast no shadows (in game their shadows are baked).
 import * as THREE from 'three';
 import { CELL, buildLightGrid, packLightGrid, sceneLightClip } from './light_grid.js';
-import { effectiveCone } from './light_rules.js';
+import { effectiveCone, lightAt as lightAtRule } from './light_rules.js';
 import { FOG_PARS, fogChunk, fogShared, fogUniforms, fogUniformsNone, setFog } from './atmosphere_shader.js';
 
 const uniforms = {
@@ -255,11 +255,14 @@ export const toView = v => new THREE.Vector3(v[0], v[2], v[1]);
  *  again from it alone (a slider of the Map settings window). `timeOfDay` gives the project's time of day as the view
  *  draws it (sun_rules.js sunView: the dominant light's direction, colour and brightness, the sky light's), or null for
  *  the map's own (T-S1); sunMoved() puts the sun or moon and the sky light where it says again, without the lights'
- *  grid (a drag of the time bar, each frame). */
+ *  grid (a drag of the time bar, each frame). lightAt(at, normal) gives the light the view draws at a place for a
+ *  surface facing `normal` (view axes; light_rules.js lightAt): a lit particle's (game-likeness plan, E2). */
 export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSize = 4096, atmosphere = null, timeOfDay = null }) {
   const neutral = { sky: hemisphere.color.clone(), ground: hemisphere.groundColor.clone(), hemi: hemisphere.intensity,
                     sun: sun.color.clone(), intensity: sun.intensity, castShadow: sun.castShadow };
   let all = [], enabled = [], local = [], grid = null, bounds = null, deepest = 0;
+  // each local light as lightAt reads it (view axes, its colour by its brightness), and those the look draws now
+  let localState = [], drawnLocals = [];
   const extraSuns = [];
   let packed = null, lastMode = 'neutral', fogLight = null, fogShown = false, shown = null, dimmed = false;
   // A light as the time of day sets it: the dominant light's direction, colour and brightness, the first sky light's
@@ -282,6 +285,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     if (local.length > maxTextureSize) throw Error('Light data exceeds GPU texture dimensions');
     // Per light: position/radius, colour/falloff, direction/cos outer (-2: a point light), cone scale.
     const lightData = new Float32Array(Math.max(1, local.length) * 16);
+    localState = [];
     local.forEach((l, i) => {
       const p = toView(l.location), d = toView(l.direction).normalize();
       const colour = linear(l.color, l.brightness * Math.PI);
@@ -298,7 +302,10 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
       const inLightmaps = (l.role === 'static' && !l.edited) || l.role === 'area' ? 1 : 0;
       const inBuild = (l.role === 'static' && !l.sinceBuild) || l.role === 'area' ? 1 : 0;
       lightData.set([p.x, p.y, p.z, l.radius, ...colour, l.falloffExponent, d.x, d.y, d.z, cosOuter, coneScale, inLightmaps, inBuild, 0], i * 16);
+      localState.push({ light: l, position: [p.x, p.y, p.z], radius: l.radius, colour: linear(l.color, l.brightness),
+                        falloff: l.falloffExponent, direction: [d.x, d.y, d.z], cosOuter, coneScale });
     });
+    drawnLocals = [];
     uniforms.localLightData.value?.dispose();
     uniforms.localLightData.value = dataTexture(lightData, 4, Math.max(1, local.length));
     if (bounds) {
@@ -320,7 +327,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
 
   /** mode: 'map', 'map-no-area' or 'neutral'. target/radius frame the shadow camera. */
   function apply(mode, target, radius) {
-    lastMode = mode; dimmed = false; shown = null;
+    lastMode = mode; dimmed = false; shown = null; drawnLocals = [];
     for (const light of extraSuns) world.remove(light, light.target);
     extraSuns.length = 0;
     const lights = mode === 'neutral' ? [] : enabled.filter(l => mode === 'map' || l.role !== 'area');
@@ -343,6 +350,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     place(target, radius);
     const chosen = new Set(lights);
     fillGrid(l => chosen.has(l));
+    drawnLocals = localState.filter(x => chosen.has(x.light));
     uniforms.localGridInfo.value.w = bounds && lights.some(l => l.kind === 'point' || l.kind === 'spot') ? 1 : 0;
     return { local: lights.filter(l => l.kind === 'point' || l.kind === 'spot').length };
   }
@@ -378,7 +386,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
 
   /** Solo (editor lights plan 4.6): the map dimmed to a faint neutral, its own lights off; apply() puts it back. */
   function dim(target, radius) {
-    dimmed = true;
+    dimmed = true; drawnLocals = [];
     hemisphere.color.copy(neutral.sky); hemisphere.groundColor.copy(neutral.ground); hemisphere.intensity = 0.12;
     sun.intensity = 0; sun.castShadow = false;
     sun.position.copy(target).add(new THREE.Vector3(1, 1.6, -1).multiplyScalar(radius));
@@ -396,7 +404,20 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
       : neutral.background;
   }
 
-  return { apply, setLights, dim, fog, sunMoved, get available() { return all.length > 0; }, get grid() { return grid; },
+  // The light at a place as the view draws it: the hemisphere and the shadow-mapped sun as they stand (the Neutral
+  // look's, the map's, Solo's), three's intensities brought to a diffuse colour's factor (their pi out), and the map's
+  // point and spot lights the look draws
+  const toSun = new THREE.Vector3();
+  function lightAt(at, normal) {
+    const f = hemisphere.intensity / Math.PI, s = sun.intensity / Math.PI;
+    toSun.copy(sun.position).sub(sun.target.position).normalize();
+    return lightAtRule({ sky: [hemisphere.color.r * f, hemisphere.color.g * f, hemisphere.color.b * f],
+                         ground: [hemisphere.groundColor.r * f, hemisphere.groundColor.g * f, hemisphere.groundColor.b * f],
+                         sun: [sun.color.r * s, sun.color.g * s, sun.color.b * s], toSun: [toSun.x, toSun.y, toSun.z],
+                         up: [0, 1, 0], locals: drawnLocals }, at, normal);
+  }
+
+  return { apply, setLights, dim, fog, sunMoved, lightAt, get available() { return all.length > 0; }, get grid() { return grid; },
            get packed() { return packed; }, get mode() { return lastMode; },
            get counts() { return { all: all.length, enabled: enabled.length, local: local.length, perCell: deepest }; } };
 }

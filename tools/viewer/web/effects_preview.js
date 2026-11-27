@@ -325,6 +325,8 @@ function spriteObject(first, draw, deps) {
     material.dispose(); material = object.material = particleMaterial(draw, VERTEX, true); object.userData.program = false;
     return byRoles();
   }) : byRoles()).then(() => { object.visible = true; });
+  object.userData.light = rgb => { if (object.userData.program) material.uniforms.uLight.value.set(...rgb); };
+  object.userData.lightNow = () => (object.userData.program && program.outputs.diffuse ? material.uniforms.uLight.value.toArray() : null);
   object.userData.sync = (scale, time) => {
     const c = sim.count;
     material.uniforms.uScale.value.set(scale[0], scale[1]);
@@ -351,7 +353,9 @@ function meshObjects(first, draw, deps, group) {
   let sim = first;
   const n = sim.pos.length / 3, made = [];
   const holder = { sync() {}, dispose() { holder.gone = true; for (const o of made) { o.geometry.dispose(); o.material.dispose(); o.dispose(); group.remove(o); } },
-                   byProgram: () => made.some(o => o.userData.made) };
+                   byProgram: () => made.some(o => o.userData.made),
+                   light: rgb => { for (const o of made) if (o.userData.made) o.material.uniforms.uLight.value.set(...rgb); },
+                   lightNow: () => { const o = made.find(x => x.userData.made?.glsl.outputs.includes('diffuse')); return o ? o.material.uniforms.uLight.value.toArray() : null; } };
   holder.rebind = next => { if (next.pos.length !== sim.pos.length) return false; sim = next; return true; };
   holder.ready = deps.meshParts(draw).then(async parts => {
     // its own picture and mask where the export picked them (a see-through sheet of vapour), else its material's
@@ -439,15 +443,19 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
   // came back)
   const parts = draws.map(d => {
     const part = { rebind(sim) { if (part.keep?.(sim)) return; part.release?.(); part.make(sim); } };
-    if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.ready = h.ready; part.keep = h.rebind; part.release = () => h.dispose(); part.byProgram = h.byProgram; };
-    else part.make = sim => { const o = spriteObject(sim, d, deps); group.add(o); part.sync = o.userData.sync; part.ready = o.userData.ready; part.keep = o.userData.rebind; part.release = () => { o.userData.dispose(); group.remove(o); }; part.byProgram = () => o.userData.program; };
+    if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.ready = h.ready; part.keep = h.rebind; part.release = () => h.dispose(); part.byProgram = h.byProgram; part.light = h.light; part.lightNow = h.lightNow; };
+    else part.make = sim => { const o = spriteObject(sim, d, deps); group.add(o); part.sync = o.userData.sync; part.ready = o.userData.ready; part.keep = o.userData.rebind; part.release = () => { o.userData.dispose(); group.remove(o); }; part.byProgram = () => o.userData.program; part.light = o.userData.light; part.lightNow = o.userData.lightNow; };
     return part;
   });
   start();
   const advance = (dt, thin) => { for (const sim of sims) sim.step(dt, thin); };
   if (warm) { const ahead = warmTime(sims); for (let t = 0; t < ahead; t += 1 / 30) advance(1 / 30, 1); }
+  // (lit: an emitter's material gives a colour the light at its place multiplies, E2)
+  const lit = draws.some(d => (d.kind === 'mesh' ? d.programs ?? [] : [partProgram(d)]).some((p, k) => p && partProgram(d, k)?.outputs?.diffuse));
   return {
-    group, drawn: draws.length,
+    group, drawn: draws.length, lit,
+    /** The light at its place (linear [r, g, b]: lighting.js lightAt) on its lit materials. */
+    setLight(rgb) { for (const part of parts) part.light?.(rgb); },
     count: () => sims.reduce((n, sim) => n + sim.count, 0),
     step(dt, thin = 1, scale = [1, 1]) {
       // played out (every emitter has run its loops and lost its last particle): again after a pause
@@ -464,7 +472,7 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
         const c = sim.count, first = Math.min(c, 4);
         return { kind: draws[k].kind, blend: draws[k].blend, material: draws[k].material ?? null, count: c,
                  shown: group.children.some(o => o.visible), style: draws[k].style ?? null,
-                 program: Boolean(parts[k].byProgram?.()),
+                 program: Boolean(parts[k].byProgram?.()), light: parts[k].lightNow?.() ?? null,
                  colours: [...Array(first).keys()].map(p => [...sim.colour.subarray(4 * p, 4 * p + 4)].map(v => +v.toFixed(2))),
                  sizes: [...Array(first).keys()].map(p => [...sim.size.subarray(3 * p, 3 * p + 3)].map(v => +v.toFixed(1))) };
       });
