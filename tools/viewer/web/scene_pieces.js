@@ -37,6 +37,7 @@ import { isPlain } from './made_requests.js';
 import { cloneBlasts, fromOf, isStream, sourceKey } from './piece_records.js';
 import { pieceGrid } from './pieces.js';
 import { targetKey, tidyLocation, tidyRotator } from './project.js';
+import { canTake, missingByAddress, readDds } from './texture_file.js';
 import { madeSlabShape, madeWallShape } from './walls.js';
 
 // An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
@@ -67,13 +68,34 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
   };
   const pick = (clientX, clientY) => rayAt(clientX, clientY).intersectObjects(pickables).find(shownHit) ?? null;
   const pickAll = (clientX, clientY) => rayAt(clientX, clientY).intersectObjects(pickables).filter(shownHit);
+  // A texture the export wrote as the game stores it (a DDS file of DXT or BC5 blocks with its mips) goes to the GPU
+  // as it is, where the GPU has the extension its format needs (texture_file.js); elsewhere, and for the extensions
+  // the address names as missing (?texfallback=, for the checks), the server's PNG of it (<file>.png).
+  const missing = missingByAddress(globalThis.location?.search);
+  const hasExtension = name => !missing.has(name) && Boolean(renderer.extensions.has(name));
+  const BLOCKS = { PF_DXT1: 'DXT1', PF_DXT3: 'DXT3', PF_DXT5: 'DXT5', PF_BC5: 'BC5' };
+  const GPU_FORMATS = { DXT1: THREE.RGBA_S3TC_DXT1_Format, DXT3: THREE.RGBA_S3TC_DXT3_Format,
+                        DXT5: THREE.RGBA_S3TC_DXT5_Format, BC5: THREE.RED_GREEN_RGTC2_Format };
+  async function compressed(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`${url}: ${response.status}`);
+    const file = readDds(await response.arrayBuffer());
+    const tex = new THREE.CompressedTexture(file.mipmaps, file.width, file.height, GPU_FORMATS[file.format]);
+    tex.minFilter = file.mipmaps.length > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+    tex.generateMipmaps = false;
+    tex.needsUpdate = true;
+    return tex;
+  }
   async function texture(id, color = true, sampling = {channel:0,scale:[1,1]}) {
     if (!id || !data.textures[id]) return null;
     const key = `${id}:${color}:${JSON.stringify(sampling)}`;
     // (a texture that failed to load is asked for again by the next material that needs it: track)
     track(texturePromises, key, async () => {
-      const tex = await textureLoader.loadAsync(assetUrl(data.textures[id].url));
-      tex.colorSpace = color && data.textures[id].srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      const record = data.textures[id], url = assetUrl(record.url), srgb = Boolean(color && record.srgb);
+      const blocks = record.container === 'dds' ? BLOCKS[record.format] : null;
+      const tex = !blocks ? await textureLoader.loadAsync(url)
+        : canTake(blocks, srgb, hasExtension) ? await compressed(url) : await textureLoader.loadAsync(`${url}.png`);
+      tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
       // UE UVs and extracted PNGs both use a top-left origin. Preserve that
       // convention, as glTF does; flipping the upload mirrors every atlas in V.
       tex.flipY = false;

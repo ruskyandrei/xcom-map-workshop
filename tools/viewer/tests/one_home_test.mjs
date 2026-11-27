@@ -21,6 +21,7 @@ const ALLOWED = {
     'map_settings.js': [1, "the background sound's range probe: one byte asked again for the server's words on a wave the browser could not play"],
     'map_picture.js': [2, "the project's kept picture and a map's own picture, read as blobs"],
     'prefabs.js': [1, "a prefab's picture read as a blob, for its duplicate"],
+    'scene_pieces.js': [1, "a texture file of the game's blocks (DDS) read as bytes for the GPU"],
   },
   localStorage: { 'storage.js': [6, 'the one home: recall (an older key moved), remember, forget'] },
   sessionStorage: { 'storage.js': [3, "the one home of a tab's own: recallSession, rememberSession, forgetSession"] },

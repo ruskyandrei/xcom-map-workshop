@@ -3,12 +3,13 @@
 nothing here has a pass mark. The numbers go into the change's ledger entry.
 
   python -B tools/viewer/perf_probe.py --map <map id> [--prefab <prefab file.json>] [--port 8796] [--pieces 500]
-      [--headed] [--cache <cache>]
+      [--headed] [--cache <cache>] [--flag <name=value> ...]
 
 It starts a viewer on a test port (8790 to 8799) with scratch folders for projects, prefabs and builds, opens the
 page in Edge (Playwright), and prints:
 
-- the map: how long it takes to open, a frame with and without the sun's shadow pass, the draw calls, a pick under
+- the map: how long it takes to open, a frame with and without the sun's shadow pass, the draw calls, the shader
+  programs, the textures and their memory on the GPU (worked out from what they hold), a pick under
   the cursor, selecting --pieces pieces, an edit event with them selected, pasting them, undoing the paste;
 - the prefab (copied into the scratch prefab folder): how long the builder takes to open it, an edit event, and the
   Problems check;
@@ -55,6 +56,24 @@ MAP = """async pieces => {
   await timed('a frame without it (ms)', frame(false), 5);
   out['draw calls'] = v.renderer.info.render.calls;
   out['pieces drawn'] = v.roots.size;
+  out['shader programs'] = v.renderer.info.programs?.length ?? null;
+  // texture memory on the GPU: a compressed texture's levels as stored, a picture's 4 bytes a pixel and a third more
+  // for the mips the GPU makes
+  const seen = new Set();
+  let bytes = 0;
+  v.world.traverse(o => {
+    for (const m of [o.material].flat()) {
+      if (!m) continue;
+      for (const value of Object.values(m)) {
+        if (!value?.isTexture || seen.has(value)) continue;
+        seen.add(value);
+        if (value.isCompressedTexture) bytes += value.mipmaps.reduce((sum, level) => sum + level.data.byteLength, 0);
+        else if (value.image?.width) bytes += value.image.width * value.image.height * 4 * 4 / 3;
+      }
+    }
+  });
+  out['textures'] = seen.size;
+  out['texture memory (MB)'] = +(bytes / 1048576).toFixed(1);
   v.frame('playable'); v.camera.updateMatrixWorld(true);
   const rect = v.renderer.domElement.getBoundingClientRect(), points = [];
   for (let i = 1; i < 6; i++) for (let j = 1; j < 6; j++) points.push([rect.left + rect.width * i / 6, rect.top + rect.height * j / 6]);
@@ -112,6 +131,7 @@ def main(argv=None):
     ap.add_argument('--pieces', type=int, default=500)
     ap.add_argument('--cache', help='the cache folder (default: the cache setting)')
     ap.add_argument('--headed', action='store_true', help='show the browser window')
+    ap.add_argument('--flag', action='append', default=[], help='a page address flag (name=value), as texfallback=all')
     args = ap.parse_args(argv)
     if not 8790 <= args.port <= 8799:
         raise SystemExit('use a test port, 8790 to 8799')
@@ -145,7 +165,7 @@ def main(argv=None):
                                            timeout=600000)
                     return round(time.monotonic() - began, 1)
 
-                seconds = opened('?map=' + args.map)
+                seconds = opened('?map=' + args.map + ''.join('&' + f for f in args.flag))
                 page.wait_for_timeout(1500)
                 rows = {'open the map (s)': seconds, **page.evaluate(MAP, args.pieces)}
                 table('Map %s' % args.map, rows)

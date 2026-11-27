@@ -235,6 +235,9 @@ class Exporter:
         self.kismet = {}
         self.breaks = {}
         self.meshes, self.materials, self.textures = {}, {}, {}
+        # 'auto': block-compressed textures as DDS files with their mips, as the game stores them
+        # (texture.export_texture); switched on with the export version that carries the materials' programs
+        self.texture_container = 'png'
         self.diagnostics = []
         self.progress = progress
         self.flags = {}     # actor -> its piece flags (piece_flags.describe), worked out once for its components
@@ -332,7 +335,7 @@ class Exporter:
         if key not in self.textures:
             self.textures[key] = None
             try:
-                info = export_texture(self.p, index, self.folder / f"texture-{key}.png")
+                info = export_texture(self.p, index, self.folder / f"texture-{key}.png", self.texture_container)
                 info["url"] = info.pop("output")
                 self.textures[key] = info
             except UNREADABLE as error:

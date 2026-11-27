@@ -35,6 +35,8 @@ import guide
 import gamemaps
 import manager
 import pictures
+import texture
+from atomic_files import write_bytes as atomic_write
 from maplist import lwr_maps
 from settings import KEYS, doctor, game_config, game_cooked, load_settings, resolve_game, save_settings, settings_path
 
@@ -167,7 +169,7 @@ class Handler(SimpleHTTPRequestHandler):
     # browsers refuse module scripts served that way. Fix the types the viewer serves.
     extensions_map = {".html": "text/html", ".js": "text/javascript", ".css": "text/css",
                       ".json": "application/json", ".glb": "model/gltf-binary", ".png": "image/png",
-                      ".svg": "image/svg+xml"}
+                      ".svg": "image/svg+xml", ".dds": "application/octet-stream"}
     # each map's families and assemblies (families.py), worked out once per server
     family_cache = FamilyCache()
     # each map's line-check collision by mesh (collision.py), its package read once per server
@@ -1014,6 +1016,7 @@ class Handler(SimpleHTTPRequestHandler):
 
     def route_GET(self):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
+        elif urlsplit(self.path).path.endswith('.dds.png'): self.dds_png()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
         elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_background_sound, self.handle_generated, self.handle_looks, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
@@ -1039,6 +1042,23 @@ class Handler(SimpleHTTPRequestHandler):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue(body=False)
         elif urlsplit(self.path).path == '/guide.html': self.user_guide(body=False)
         elif not (self.handle_wave('HEAD') or self.handle_background_sound('HEAD')): super().do_HEAD()
+
+    # A texture the export wrote as DDS, as a PNG, for a GPU without the block formats (texture_file.js asks for it):
+    # GET <the .dds file's path>.png. Made from the DDS file when first asked for and kept beside it.
+    def dds_png(self):
+        path = Path(self.translate_path(urlsplit(self.path).path[:-len('.png')]))
+        if path.suffix != '.dds' or not path.is_file():
+            self.send_error(404)
+            return
+        kept = path.with_name(path.name + '.png')
+        if not kept.is_file() or kept.stat().st_mtime < path.stat().st_mtime:
+            atomic_write(kept, texture.dds_png(path))
+        body = kept.read_bytes()
+        self.send_response(200)
+        self.send_header('Content-Type', 'image/png')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def translate_path(self, path):
         request = unquote(urlsplit(path).path)
