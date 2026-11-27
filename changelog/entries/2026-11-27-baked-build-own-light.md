@@ -77,8 +77,19 @@ View options says it under the look: "Lit by the Build of 27/11/2026, 15:23 · 1
     `StaticMeshActor_312`, 436 components relit) exported by the route in 1.0 s (436 records, 44 atlases, 15 MB, no
     diagnostics; 0.03 s asked again); the page lit 1,040 pieces by it, 434 with the Build's own records, the copy
     marked 6 and live once moved. Read only, a Build made before 19 November read the same way (23 relit, 2 copies).
-  - `viewer`, `editor`, `repo` and `node` suites pass; `web_names.py` finds nothing new (one unused import in
-    clear_map.js is older).
+  - perf_probe.py on URB_Bar from track H's ub-1 camera, 40 frames a figure, the page as it was and as it is (no
+    project open), two runs each; and a Game look frame timed the same way with the real Build's light in use:
+
+    | Frame (ms) | Before | After |
+    | --- | --- | --- |
+    | Neutral, no shadow pass | 5.3, 5.2 | 5.4, 5.3 |
+    | Game, lights live | 6.5, 6.6 | 6.4, 6.5 |
+    | Game, baked light | 6.5, 6.5 | 6.4, 6.7 |
+    | Game, baked light, the Build's in use | | 6.8, 6.4, 6.5 (6.8, 6.5, 6.3 without) |
+
+    (The computer was busier than for B2's 4.9 ms; the rows are each other's measure.)
+  - `viewer`, `editor`, `repo`, `node` and `release` suites pass; `web_names.py` finds nothing new (one unused import
+    in clear_map.js is older).
 - Known gaps:
   - Made pieces stay live: the page draws one whole from its numbers, the Build may cut it into parts, and whether
     the page's mesh carries the Build's lightmap UVs is not checked.
