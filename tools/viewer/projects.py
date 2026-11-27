@@ -35,9 +35,10 @@ SCHEMA = 'xcom-map-workshop/project'
 # overrides and added records, SP6 and SP7); 5: the map's background sound (`backgroundSound`) and a clear that keeps
 # the map's triggers (`clearKeepsTriggers`); 6: what Long War Rebalance is told of the map (`lwrMapInfo`); 7: the
 # diagonal cover the project marks (`diagonalCover`); 8: a building's floors as the cursor's (`buildings[].cursorFloors`);
-# 9: the parts the project cleared (`cleared`: {part: {keepOutside?}}). 1 to 8 are read too, and saved as 9.
-SCHEMA_VERSION = 9
-READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+# 9: the parts the project cleared (`cleared`: {part: {keepOutside?}}); 10: the map's fog and colour the project changes
+# (`atmosphere`: {fog?, postProcess?}). 1 to 9 are read too, and saved as 10.
+SCHEMA_VERSION = 10
+READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 # the parts a clear marks (the compiler's mission_edits.CLEAR_PARTS; the page's clear_parts.js CLEAR_PARTS)
 CLEAR_PARTS = ('pieces', 'lights', 'effects', 'triggers')
 MAX_BYTES = 32 << 20
@@ -164,6 +165,12 @@ def validate(document, project_id):
                                      and all(isinstance(m, dict) for m in diagonal.get('marks', []))
                                      and isinstance(diagonal.get('removed', []), list)):
         raise ProjectError(422, '"diagonalCover" must be {marks, removed}: a list of marks and a list of places.')
+    # The map's fog and colour (schema 10): optional, {fog?, postProcess?}, each a record of members; the compiler holds
+    # each value to its member's kind.
+    atmosphere = document.get('atmosphere')
+    if atmosphere is not None and not (isinstance(atmosphere, dict) and set(atmosphere) <= {'fog', 'postProcess'}
+                                       and all(isinstance(v, dict) for v in atmosphere.values())):
+        raise ProjectError(422, '"atmosphere" must be {fog, postProcess}: records of the members changed.')
     zones =document.get('landingZones', [])
     if not isinstance(zones, list) or not all(isinstance(item, dict) for item in zones):
         raise ProjectError(422, '"landingZones" must be a list of records.')

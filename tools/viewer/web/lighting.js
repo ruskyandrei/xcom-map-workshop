@@ -127,13 +127,15 @@ export const toView = v => new THREE.Vector3(v[0], v[2], v[1]);
 
 /** Map lighting for one scene. Call before the first material compiles. setLights(records) puts the lights as edited
  *  in place of the scene's (editor lights plan 4.6: moved, changed, added and deleted lights, and the area lights their
- *  glowing pieces take along); apply() again after it. */
-export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSize = 4096 }) {
+ *  glowing pieces take along); apply() again after it. `atmosphere` gives the map's atmosphere as the view draws it
+ *  (the project's fog and colour over the map's own: game-likeness plan, C5b), else the scene's; fog() sets the fog
+ *  again from it alone (a slider of the Map settings window). */
+export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSize = 4096, atmosphere = null }) {
   const neutral = { sky: hemisphere.color.clone(), ground: hemisphere.groundColor.clone(), hemi: hemisphere.intensity,
                     sun: sun.color.clone(), intensity: sun.intensity, castShadow: sun.castShadow };
   let all = [], enabled = [], local = [], grid = null, bounds = null, deepest = 0;
   const extraSuns = [];
-  let packed = null, lastMode = 'neutral';
+  let packed = null, lastMode = 'neutral', fogLight = null, fogShown = false;
 
   function setLights(records) {
     all = records || [];
@@ -183,6 +185,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     const lights = mode === 'neutral' ? [] : enabled.filter(l => mode === 'map' || l.role !== 'area');
     const shadowDistance = radius * 3;
     if (mode === 'neutral' || !all.length) {
+      fogShown = false;
       setFog(fogUniformsNone());
       if (neutral.background !== undefined) world.background = neutral.background;
       hemisphere.color.copy(neutral.sky); hemisphere.groundColor.copy(neutral.ground); hemisphere.intensity = neutral.hemi;
@@ -208,11 +211,9 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     if (directionals.length) { place(sun, directionals[0]); sun.castShadow = directionals[0].castShadows; }
     else { sun.intensity = 0; sun.castShadow = false; }
     // the map's fog, its colours turned by the dominant light (C2); the view's background in its far colour
-    const fog = fogUniforms(scene?.atmosphere?.world?.fog, directionals[0]?.direction ?? null);
-    setFog(fog);
-    if (neutral.background === undefined) neutral.background = world.background;
-    world.background = fog.fogOn ? new THREE.Color().setRGB(...fog.fogOpposite.map((v, k) => (v + fog.fogInscatter[k]) / 2), THREE.LinearSRGBColorSpace)
-      : neutral.background;
+    fogLight = directionals[0]?.direction ?? null;
+    fogShown = true;
+    fog();
     for (const l of directionals.slice(1)) {
       const light = new THREE.DirectionalLight(); place(light, l);
       world.add(light, light.target); extraSuns.push(light);
@@ -232,7 +233,17 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     uniforms.localGridInfo.value.w = 0;
   }
 
-  return { apply, setLights, dim, get available() { return all.length > 0; }, get grid() { return grid; },
+  // The map's fog as the view draws it (the Game look only), and the view's background in its far colour
+  function fog() {
+    if (!fogShown) return;
+    const values = fogUniforms((atmosphere ? atmosphere() : scene?.atmosphere)?.world?.fog, fogLight);
+    setFog(values);
+    if (neutral.background === undefined) neutral.background = world.background;
+    world.background = values.fogOn ? new THREE.Color().setRGB(...values.fogOpposite.map((v, k) => (v + values.fogInscatter[k]) / 2), THREE.LinearSRGBColorSpace)
+      : neutral.background;
+  }
+
+  return { apply, setLights, dim, fog, get available() { return all.length > 0; }, get grid() { return grid; },
            get packed() { return packed; }, get mode() { return lastMode; },
            get counts() { return { all: all.length, enabled: enabled.length, local: local.length, perCell: deepest }; } };
 }

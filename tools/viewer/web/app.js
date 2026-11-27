@@ -14,6 +14,7 @@ import { viewHeight } from './effects_preview.js';
 import { fogShared } from './atmosphere_shader.js';
 import { createPostChain } from './post_chain.js';
 import { postSettings, postUniforms } from './post_grade.js';
+import { atmosphereWith } from './atmosphere_rules.js';
 import { createPrecache } from './precache.js';
 import { createPicturePrecache, createTableRelease } from './precache_pictures.js';
 import { createLibraryBrowser, THUMB_SIZES, thumbKeys } from './library.js';
@@ -21,7 +22,7 @@ import { api as prefabApi, createPrefabTab } from './prefabs.js';
 import { createPrefabLibrary } from './prefab_library.js';
 import { emptyPrefabScene, orderedWrites } from './prefab_document.js';
 import { isStream } from './piece_records.js';
-import { activeMapId, allRoots, areaShown, assigning, breaking, builderMode, cachePrefix, coverDrag, data,
+import { activeMapId, allRoots, areaShown, assigning, breaking, builderMode, cachePrefix, coverDrag, data, lighting, projectAtmosphere,
          effectsDirty, effectsOn, eventMemo, floorTileLayer, geometryCache, ghostDirty, gridDrag, gridTool, groupIndex, lastLightSync,
          leaving, library, libraryRecords, libraryScope, lightDrag, lightRoots, lightsDirty, lightsOn, likenessOn,
          lineCollision, lookPicker, lookPicking, mapBrowser, mapCatalogue, missionPickValue, normalEffects, pickBox, pickDrag,
@@ -607,13 +608,24 @@ function warmLook() {
     .then(() => { if (postWarming === warming) postReady = true; });
   return warming;
 }
+// The map's atmosphere as the view draws it: the project's fog and colour over the map's own (C5b), one object while
+// neither changes (the frame works its values out again only for a new one)
+let viewAtmosphereKey = null, viewAtmosphereValue = null, fogDrawn = null;
+function viewAtmosphere() {
+  if (!viewAtmosphereKey || viewAtmosphereKey[0] !== data?.atmosphere || viewAtmosphereKey[1] !== projectAtmosphere) {
+    viewAtmosphereKey = [data?.atmosphere, projectAtmosphere];
+    viewAtmosphereValue = atmosphereWith(data?.atmosphere ?? null, projectAtmosphere);
+  }
+  return viewAtmosphereValue;
+}
 /** The map's grade and bloom in effect now: { settings, values } (the camera's target's volume, the Brightness). */
 function postNow() {
-  const t = controls.target, settings = postSettings(data?.atmosphere ?? null, [t.x, t.z, t.y]);
+  const atmosphere = viewAtmosphere();
+  const t = controls.target, settings = postSettings(atmosphere ?? null, [t.x, t.z, t.y]);
   const key = `${settings.volume}|${renderer.toneMappingExposure}`;
-  if (key !== postKey || !postValues || postValues.atmosphere !== data?.atmosphere) {
+  if (key !== postKey || !postValues || postValues.atmosphere !== atmosphere) {
     postKey = key;
-    postValues = { atmosphere: data?.atmosphere, settings, uniforms: postUniforms(settings, renderer.toneMappingExposure) };
+    postValues = { atmosphere, settings, uniforms: postUniforms(settings, renderer.toneMappingExposure) };
   }
   return postValues;
 }
@@ -929,7 +941,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // opens only from its address, ?scene=preview-<n>.json.
   showSceneTitle($);
   // Configure light data before the first lit material compiles.
-  setLighting(createMapLighting({ world, sun, hemisphere, scene: data, maxTextureSize:renderer.capabilities.maxTextureSize }));
+  setLighting(createMapLighting({ world, sun, hemisphere, scene: data, maxTextureSize:renderer.capabilities.maxTextureSize,
+                                  atmosphere: () => viewAtmosphere() }));
   showSceneMenus($);
   startMapSettings();
   setOwnGrid(null);
@@ -1438,6 +1451,9 @@ renderer.setAnimationLoop(() => {
   }
   viewHeight.value = Math.max(1, renderer.domElement.clientHeight);     // (a sprite's least size: effects_preview.js)
   programFrame($('lighting').value === 'game');
+  // the project's fog and colour changed (a control of the Map settings window, an undo, a project opened): the fog's
+  // uniforms set again from the view's atmosphere (the Game look's frame follows it by itself)
+  if (lighting && viewAtmosphere() !== fogDrawn) { fogDrawn = viewAtmosphere(); lighting.fog?.(); }
   drawFrame();
 });
 setInterval(() => {

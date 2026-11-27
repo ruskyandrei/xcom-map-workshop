@@ -215,9 +215,10 @@ SCHEMA = 'xcom-map-workshop/project'
 # degrees builds without the corners 0.7.0 found there). 8: a building's floors as the cursor's
 # (`buildings[].cursorFloors`: the building cursor floors plan); a project of schema 7 builds as it did. 9: the parts
 # the project cleared (`cleared`: {part: {keepOutside?}}, the clear-by-parts plan); `cleared: true` of schema 1 to 8 is
-# every part, so it builds as it did.
-SCHEMA_VERSION = 9
-READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+# every part, so it builds as it did. 10: the map's fog and colour the project changes (`atmosphere`: atmosphere_edits.py);
+# a project of schema 9 builds as it did.
+SCHEMA_VERSION = 10
+READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
 # scenery since EXP-37; destructible props, collectibles, fracturing pieces, doors (one actor: a leaf, or a door
 # without a frame) and physics props since EXP-39 (11 November 2026); ladders since EXP-40 run 2 the same day; effects

@@ -15,7 +15,7 @@
 import { clearedPartsOf } from './clear_parts.js';
 import { onHub } from './edit_hub.js';
 import { activeMapId, adoptedDraft, areaBindings, builder, builderMode, buildTimer, clearedParts, copySerial, data, groups,
-         landingRead, landingZones, looksReady, project, projectBackgroundSound, projectDiagonal, projectMapInfo, projectMissions, projectSpawnRules, recoveryKept,
+         landingRead, landingZones, looksReady, project, projectAtmosphere, projectBackgroundSound, projectDiagonal, projectMapInfo, projectMissions, projectSpawnRules, recoveryKept,
          recoveryTimer, recoveryTrouble, saving, setAdoptedDraft, setAskedPick, setLastBuildValue, setLeaving,
          setProject, setRecoveryKept, setRecoveryTimer, setRecoveryTrouble, setSaving, stage } from './editor_state.js';
 import { api as projectApi, newDocument, sortState, sourceOf, stateKey, validAdded, validBinding, validBuilding, validGroup,
@@ -178,7 +178,7 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
                                        missions: Array.isArray(doc.missions) ? doc.missions : null,
                                        spawnRules: doc.spawnRules ?? null, picture: doc.picture ?? null,
                                        backgroundSound: doc.backgroundSound ?? null, lwrMapInfo: doc.lwrMapInfo ?? null,
-                                       diagonalCover: doc.diagonalCover ?? null,
+                                       atmosphere: doc.atmosphere ?? null, diagonalCover: doc.diagonalCover ?? null,
                                        nextSerial: doc.nextSerial }, openingProgress(doc.name));
     // a building this page can't read is kept and saved back unchanged, and so is one of the map's it can't edit
     carried.buildings = [...(carried.buildings ?? []), ...(Array.isArray(doc.buildings) ? doc.buildings : []).filter(b => !validBuilding(b))];
@@ -225,7 +225,7 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
                       missions: Array.isArray(recovery.missions) ? recovery.missions : null,
                       spawnRules: recovery.spawnRules ?? null, picture: recovery.picture ?? null,
                       backgroundSound: recovery.backgroundSound ?? null, lwrMapInfo: recovery.lwrMapInfo ?? null,
-                      diagonalCover: recovery.diagonalCover ?? null,
+                      atmosphere: recovery.atmosphere ?? null, diagonalCover: recovery.diagonalCover ?? null,
                       nextSerial: recovery.nextSerial };
       if (stateKey(sortState(state)) !== project.savedKey) {
         const when = new Date(recovery.savedAt).toLocaleString();
@@ -349,7 +349,8 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
                                                  cleared: state.cleared,
                                                  landingZones: state.landingZones, missions: state.missions, spawnRules: state.spawnRules,
                                                  picture: state.picture, backgroundSound: state.backgroundSound,
-                                                 lwrMapInfo: state.lwrMapInfo, diagonalCover: state.diagonalCover }),
+                                                 lwrMapInfo: state.lwrMapInfo, atmosphere: state.atmosphere,
+                                                 diagonalCover: state.diagonalCover }),
                          nextSerial: copySerial, view: { camera: camera.position.toArray(), target: controls.target.toArray() } };
       if (project && !replace && !fresh) document.source = source;     // a newer export of the same package binds it
       if (!document.stage) delete document.stage;     // the map's own size is said by saying nothing
@@ -359,6 +360,7 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
       delete document.clearKeepsOutside; delete document.clearKeepsTriggers;
       if (document.backgroundSound == null) delete document.backgroundSound;     // the map's own background sound
       if (document.lwrMapInfo == null) delete document.lwrMapInfo;     // Long War Rebalance is told nothing of the map
+      if (document.atmosphere == null) delete document.atmosphere;     // the map's own fog and colour
       if (document.diagonalCover == null) delete document.diagonalCover;     // the map's own diagonal cover as it is
       if (document.landingZones == null) delete document.landingZones;     // the map's own landings and lines
       if (document.missions == null) delete document.missions;     // every mission of the base map
@@ -423,7 +425,8 @@ export function createDocumentSession({ $, applyState, bombHelperFix, builderDoc
 
   const dirty = () => builderMode ? !builder.loading && builderKey() !== builder.savedKey : Boolean(project) && stateKey(editState()) !== project.savedKey;
   const unsavedDocument = () => builderMode || project ? dirty() : Boolean(changes().total || savedBuildings().length || groups.size || stage || areaBindings.size
-    || clearedParts || landingZones || projectMissions || projectSpawnRules || projectBackgroundSound || projectMapInfo || projectDiagonal);
+    || clearedParts || landingZones || projectMissions || projectSpawnRules || projectBackgroundSound || projectMapInfo || projectAtmosphere
+    || projectDiagonal);
   function saveState() { return builderMode ? !builder.doc?.revision ? 'not saved' : dirty() ? 'unsaved' : 'saved' : !project ? 'not saved' : dirty() ? 'unsaved' : 'saved'; }
 
   return { banner, dirty, discardAndGo, discardDraft, draftWords, dropAdopted, ensureSavedFor, goTo, keepRecovery,

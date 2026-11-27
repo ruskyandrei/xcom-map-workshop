@@ -1,0 +1,6328 @@
+{
+ "looks": [
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.309804,
+     0.262745,
+     0.313725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.219608,
+     0.2,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Destroyer Ship Stonewall",
+     "map": "COverseer_StoneWall",
+     "time": [
+      "Day"
+     ]
+    },
+    {
+     "label": "Research Outpost",
+     "map": "URB_ResearchOutpost",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Small Scout Quagmire",
+     "map": "CSmallScout_Quagmire",
+     "time": [
+      "Night"
+     ]
+    },
+    {
+     "label": "Urban Bar",
+     "map": "URB_Bar",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 0.3,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.847059,
+     0.537255,
+     0.294118,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 1.0,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Deluge (Progeny 2)",
+     "map": "DLC2_2_Deluge",
+     "time": [
+      "Day"
+     ]
+    },
+    {
+     "label": "Son of Facemelt (demo)",
+     "map": "DEMO_SonOfFacemelt",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.95,
+     1.05,
+     1.05
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.04
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 2000.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 0.2,
+    "LightInscatteringColor": [
+     0.411765,
+     0.541176,
+     0.631373,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.411765,
+     0.541176,
+     0.631373,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Progress Pier (tutorial)",
+     "map": "Act2_Pier",
+     "time": [
+      "Night"
+     ]
+    },
+    {
+     "label": "Progress Pier Asian (tutorial)",
+     "map": "Act2_Pier_Asian",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.03,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.243137,
+     0.266667,
+     0.407843,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Boulevard",
+     "map": "URB_Boulevard",
+     "time": [
+      "Day",
+      "Night"
+     ]
+    },
+    {
+     "label": "Urban Boulevard (Euro)",
+     "map": "URB_Boulevard_Euro",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.3
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 2500.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.309804,
+     0.262745,
+     0.313725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.309804,
+     0.262745,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 1000.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Rooftops Construction",
+     "map": "URB_RooftopsConst",
+     "time": [
+      "Day"
+     ]
+    },
+    {
+     "label": "Urban Rooftops Construction (Asian)",
+     "map": "URB_RooftopsConst_Asian",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.2,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     0.95
+    ],
+    "Scene_MidTones": [
+     0.93,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.03,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 400.0,
+    "FogHeightFalloff": 8.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.168627,
+     0.14902,
+     0.121569,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 1.0,
+    "OppositeLightColor": [
+     0.694118,
+     0.815686,
+     1.0,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Airbase Defense",
+     "map": "EWI_HQAssault_MP",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 64.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 0.2,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.52549,
+     0.388235,
+     0.243137,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.321569,
+     0.364706,
+     0.431373,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Alien Base 01",
+     "map": "AlienBase01",
+     "time": [
+      "None"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.01,
+     -0.0333
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 1600.0,
+    "FogHeightFalloff": 1.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.72549,
+     0.376471,
+     0.203922,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.694118,
+     0.815686,
+     1.0,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Alien Base Version 2",
+     "map": "AlienBase02",
+     "time": [
+      "None"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.9,
+     1.0,
+     0.8
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.05,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.219608,
+     0.266667,
+     0.411765,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Auto Repair",
+     "map": "URB_OfficePaper_EWI",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 800.0,
+    "FogHeightFalloff": 7.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.109804,
+     0.141176,
+     0.266667,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Basic Training (tutorial map)",
+     "map": "Act1_IntroLevel",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.2,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.15,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.025
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 0.2,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.960784,
+     0.831373,
+     0.160784,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.694118,
+     0.815686,
+     1.0,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": false
+   },
+   "maps": [
+    {
+     "label": "Blank (multiplayer)",
+     "map": "CB2_MP_Blank",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 16.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.478431,
+     0.768627,
+     0.921569,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.258824,
+     0.52549,
+     0.921569,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Chryssalid Hive (Newfoundland)",
+     "map": "EWI_ChryssalidHive",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.090196,
+     0.105882,
+     0.168627,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.2,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Commercial Alley",
+     "map": "URB_CommercialAlley",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Commercial Alley Redux",
+     "map": "URB_Bar_Atmos_98a7",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.6,
+     1.4,
+     0.6
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 450.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.309804,
+     0.156863,
+     0.113725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.490196,
+     0.27451,
+     0.223529,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Commercial Alley Terror",
+     "map": "URB_CommercialAlley_Terror",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.2,
+     0.8
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.431373,
+     0.470588,
+     0.454902,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Commercial Street",
+     "map": "URB_CommercialStreet",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.05,
+     1.0,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.176471,
+     0.12549,
+     0.113725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Commercial Street Terror",
+     "map": "URB_CommercialStreet_Terror",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.01,
+     0.01,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 1.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.294118,
+     0.235294,
+     0.223529,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.694118,
+     0.815686,
+     1.0,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Confounding Light (Slingshot 2)",
+     "map": "DLC1_2_CnfndLight",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.8,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.0,
+     0.8
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.196078,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Convenience Store",
+     "map": "URB_ConvienienceStore",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.2,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     -0.02,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     1.0,
+     0.980392,
+     0.890196,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Convenience Store Redux",
+     "map": "URB_ConvienienceStore_EWI",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.05,
+     1.0,
+     0.95
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 6.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.231373,
+     0.168627,
+     0.164706,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Convenience Store Terror",
+     "map": "URB_ConvienienceStore_Terror",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.1,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.02,
+     0.02
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 3.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.760784,
+     0.607843,
+     0.533333,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Abductor Cliffside",
+     "map": "CAbductor_Cliffside",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.1,
+     0.9
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.03
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.184314,
+     0.203922,
+     0.313725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Abductor Scorched Earth",
+     "map": "CAbductor_ScorchedEarth",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.2,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 1300.0,
+    "FogHeightFalloff": 1.5,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.160784,
+     0.168627,
+     0.164706,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed BattleShip (01)",
+     "map": "CBattleship_01",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.1,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     -0.05,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 1500.0,
+    "FogHeightFalloff": 1.5,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.168627,
+     0.180392,
+     0.192157,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed BattleShip (02)",
+     "map": "CBattleship_02",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.85,
+     1.05,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     -0.05,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Destroyer Ship Deep Woods",
+     "map": "COverseer_Deepwoods",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 1.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Destroyer Ship Forest Trench",
+     "map": "COverseer_ForestTrench",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 10.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.407843,
+     0.337255,
+     0.305882,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Destroyer Ship The Barrens",
+     "map": "COverseer_TheBarrens",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.309804,
+     0.262745,
+     0.313725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.219608,
+     0.2,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Raider Barrens",
+     "map": "CLrgScout_TheBarrens",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.3,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 800.0,
+    "FogHeightFalloff": 4.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.27451,
+     0.286275,
+     0.419608,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Raider Deep Woods",
+     "map": "CLrgScout_DeepWoods",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.196078,
+     0.2,
+     0.278431,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Raider Forest Trench",
+     "map": "CLrgScout_ForestTrench",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 1.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.227451,
+     0.129412,
+     0.098039,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.694118,
+     0.815686,
+     1.0,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Raider in Urban Area",
+     "map": "CLrgScout_City",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.7,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.2,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.02
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 4.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.309804,
+     0.262745,
+     0.313725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.219608,
+     0.2,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Raider Stone Wall",
+     "map": "CLrgScout_Stonewall",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.03
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.04,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.72549,
+     0.54902,
+     0.337255,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.694118,
+     0.815686,
+     1.0,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Small Scout - Franklin's Fancy Farm",
+     "map": "CSmallScout_Farm",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 16.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 1500.0,
+    "FogHeightFalloff": 1.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.960784,
+     0.682353,
+     0.470588,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.380392,
+     0.423529,
+     0.545098,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Small Scout - Nuked City",
+     "map": "CSmallScout_NukedCity",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.9,
+     1.1,
+     1.0
+    ],
+    "Scene_Desaturation": 0.1,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     0.8
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.02,
+     0.03
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.243137,
+     0.266667,
+     0.407843,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Small Scout - Roadhouse",
+     "map": "CSmallScout_Roadhouse",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.05,
+     1.0,
+     0.95
+    ],
+    "Scene_Desaturation": 0.1,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.215686,
+     0.196078,
+     0.278431,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Small Scout Badlands",
+     "map": "CSmallScout_Badlands",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 4.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.145098,
+     0.062745,
+     0.05098,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Small Scout Dirt Roads",
+     "map": "CSmallScout_DirtRoad",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.309804,
+     0.262745,
+     0.313725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.219608,
+     0.2,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Small Scout Marshlands",
+     "map": "CSmallScout_Marshlands",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.1,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.309804,
+     0.262745,
+     0.313725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.219608,
+     0.2,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Crashed Supply Ship Wildfire",
+     "map": "CSupplyShip_Wildfire",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     0.95,
+     0.8
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.368627,
+     0.517647,
+     0.839216,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     1.0,
+     0.890196,
+     0.694118,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Demolition Redux",
+     "map": "URB_Demolition_EWI",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 16.0,
+    "Scene_Colorize": [
+     0.95,
+     0.95,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 0.8,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 0.5,
+    "LightInscatteringColor": [
+     0.192157,
+     0.243137,
+     0.321569,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.576471,
+     0.662745,
+     0.219608,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "EXALT HQ",
+     "map": "EWI_ExaltHQAssault",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Fast Food",
+     "map": "URB_FastFood",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.02
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.584314,
+     0.65098,
+     1.0,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Fast Food Redux",
+     "map": "URB_FastFood_EWI",
+     "time": [
+      "Day",
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.784314,
+     0.905882,
+     1.0,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Furies (Progeny 3)",
+     "map": "DLC2_3_Furies",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 0.2,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.184314,
+     0.223529,
+     0.266667,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 1.0,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Gangplank (Slingshot 3)",
+     "map": "DLC1_3_Gangplank",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.1,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.05,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.03
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     1.0,
+     0.756863,
+     0.54902,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Gas Station Redux",
+     "map": "URB_GasStation_EWI",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.1,
+     1.1
+    ],
+    "Scene_Desaturation": 0.1,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 800.0,
+    "FogHeightFalloff": 6.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.278431,
+     0.333333,
+     0.407843,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Grand Cemetery",
+     "map": "URB_CemeteryGrand",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.427451,
+     0.47451,
+     0.729412,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.243137,
+     0.266667,
+     0.407843,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Highway Construction Redux",
+     "map": "URB_HighwayConstruction_EWI",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.1,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.0255
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.196078,
+     0.215686,
+     0.329412,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Highway under Overpass",
+     "map": "URB_StreetOverpass",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.0,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.196078,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Industrial Office",
+     "map": "URB_IndustrialOffice",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.3
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.02,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.313725,
+     0.360784,
+     0.341176,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Landed Abductor Farm Outskirts",
+     "map": "LAbductor_FarmOutskirts",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.9,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.01,
+     0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 1600.0,
+    "FogHeightFalloff": 3.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.313725,
+     0.360784,
+     0.341176,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Landed Abductor Winding Stream",
+     "map": "LAbductor_WindingStream",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.0,
+     0.8
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 3.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.356863,
+     0.364706,
+     0.352941,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 1.0,
+    "OppositeLightColor": [
+     0.478431,
+     0.513725,
+     0.431373,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Landed Large Scout Creepy Forest",
+     "map": "LLrgScout_CreepyForest",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.05,
+     1.05
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.423529,
+     0.439216,
+     0.435294,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Landed Large Scout Hillside",
+     "map": "LLrgScout_Hillside",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.9,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.01,
+     -0.02
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.313725,
+     0.360784,
+     0.341176,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Landed Small Scout River",
+     "map": "LSmallScout_River",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.9,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.01,
+     -0.02
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 1200.0,
+    "FogHeightFalloff": 4.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.313725,
+     0.360784,
+     0.341176,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Landed Small Scout River Valley",
+     "map": "LSmallScout_RiverValley",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     0.95
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.01,
+     -0.02
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     1.0,
+     0.721569,
+     0.403922,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Landed Supply Ship Forest Grove",
+     "map": "LSupplyShip_ForestGrove",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.95,
+     1.05,
+     0.9
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.211765,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Landed Supply Ship Overlook",
+     "map": "CSupplyship_OverlookA",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.956863,
+     0.913725,
+     0.819608,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Landed Supply Ship Rocky Gorge",
+     "map": "LSupplyShip_RockyGorge",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.0,
+     0.9
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 1200.0,
+    "FogHeightFalloff": 4.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.196078,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Liquor Store",
+     "map": "URB_LiquorStore",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.05,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.03,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 800.0,
+    "FogHeightFalloff": 8.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.176471,
+     0.192157,
+     0.176471,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.043137,
+     0.07451,
+     0.12549,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Low Friends (Slingshot 1)",
+     "map": "DLC1_1_LowFriends",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.2,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.15,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.807843,
+     0.705882,
+     0.509804,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Meld Tutorial",
+     "map": "EWI_MeldTutorial",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 3.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.266667,
+     0.2,
+     0.180392,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Paper Office Terror",
+     "map": "URB_OfficePaper_Terror",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.313725,
+     0.227451,
+     0.203922,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Police Station",
+     "map": "URB_PoliceStation",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.3,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.03,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 5.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.27451,
+     0.278431,
+     0.290196,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Portent (Progeny 1)",
+     "map": "DLC2_1_Portent",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.05,
+     1.1,
+     0.95
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 1200.0,
+    "FogHeightFalloff": 4.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.25098,
+     0.270588,
+     0.34902,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Progress Pier",
+     "map": "URB_PierA",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.0,
+     0.93
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 4.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.286275,
+     0.341176,
+     0.333333,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Progress Pier Asian",
+     "map": "URB_PierA_Asian",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 3.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.603922,
+     0.478431,
+     0.294118,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.603922,
+     0.478431,
+     0.294118,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Progress Pier Terror",
+     "map": "URB_PierA_Terror",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     0.95,
+     1.0,
+     0.95
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     1.0,
+     0.647059,
+     0.376471,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.219608,
+     0.2,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Research Outpost Redux",
+     "map": "URB_ResearchOutpost_EWI",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.223529,
+     0.270588,
+     0.415686,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Scranton Paper Company",
+     "map": "URB_OfficePaper",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.1,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.02
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 5.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.196078,
+     0.235294,
+     0.360784,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Slaughterhouse Redux",
+     "map": "URB_SlaughterhouseA",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.05,
+     1.1,
+     0.95
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 800.0,
+    "FogHeightFalloff": 6.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.176471,
+     0.196078,
+     0.301961,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.243137,
+     0.266667,
+     0.407843,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Street Construction",
+     "map": "URB_HighwayConstruction",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.1,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.0255
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 1000.0,
+    "FogHeightFalloff": 4.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.32549,
+     0.4,
+     0.470588,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.243137,
+     0.266667,
+     0.407843,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Street Hurricane",
+     "map": "URB_StreetHurricane",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.1,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     0.95,
+     0.95
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.745098,
+     0.541176,
+     0.384314,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Street Overpass Redux",
+     "map": "URB_StreetOverpass_EWI",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 10.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.356863,
+     0.290196,
+     0.215686,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Street Terror",
+     "map": "URB_StreetHurricane_Terror",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.0,
+     1.1
+    ],
+    "Scene_Desaturation": 0.1,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     0.95,
+     0.95
+    ],
+    "Scene_Shadows": [
+     0.03,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.05,
+    "FogHeight": 0.01,
+    "FogHeightFalloff": 0.1,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.372549,
+     0.254902,
+     0.156863,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.658824,
+     0.360784,
+     0.321569,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": false
+   },
+   "maps": [
+    {
+     "label": "Temple Ship",
+     "map": "TempleShip",
+     "time": [
+      "None"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     0.505882,
+     0.368627,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     -0.025,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 1.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.215686,
+     0.309804,
+     0.478431,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.694118,
+     0.815686,
+     1.0,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Train Station",
+     "map": "URB_TrainStation",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.8,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.0,
+     0.8
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.309804,
+     0.262745,
+     0.313725,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.219608,
+     0.2,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Trainyard",
+     "map": "URB_Trainyard",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.0,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     1.0,
+     0.74902,
+     0.552941,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.219608,
+     0.2,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Truckstop Redux",
+     "map": "URB_TruckStop_EWI",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 3.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     1.0,
+     0.968627,
+     0.862745,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.2,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "URB CommercialAlley EWI",
+     "map": "URB_CommercialAlley_EWI",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.266667,
+     0.2,
+     0.180392,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Bar Terror",
+     "map": "URB_Bar_Terror",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.2,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.02,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 2300.0,
+    "FogHeightFalloff": 3.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.137255,
+     0.180392,
+     0.278431,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Bridge",
+     "map": "URB_HighwayBridge",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.2
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.01
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.01,
+    "FogHeight": 800.0,
+    "FogHeightFalloff": 8.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.066667,
+     0.145098,
+     0.341176,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Cemetery",
+     "map": "URB_SmallCemetery",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.1,
+     0.95
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 0.0,
+    "FogHeightFalloff": 2.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.356863,
+     0.188235,
+     0.0,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Commercial Restaurant",
+     "map": "URB_CommercialRestaurant",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.2,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     -0.03,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.015,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 12.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.415686,
+     0.215686,
+     0.101961,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Hidden Military Ammo",
+     "map": "URB_MilitaryAmmo",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.3,
+     1.0,
+     1.1
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.1,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.03,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 1800.0,
+    "FogHeightFalloff": 3.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.141176,
+     0.152941,
+     0.266667,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Highway",
+     "map": "URB_Highway1",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.1,
+     1.1,
+     1.3
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.05
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.02,
+    "FogHeight": 2000.0,
+    "FogHeightFalloff": 3.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.290196,
+     0.172549,
+     0.109804,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.266667,
+     0.266667,
+     0.266667,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Highway Fallen",
+     "map": "URB_HighwayFallen",
+     "time": [
+      "Night"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 1.0,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.2,
+    "FogHeight": 600.0,
+    "FogHeightFalloff": 6.5,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.152941,
+     0.129412,
+     0.152941,
+     1.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.219608,
+     0.2,
+     0.313725,
+     1.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "Urban Truckstop",
+     "map": "URB_Truckstop",
+     "time": [
+      "Day"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 0.5,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 32.0,
+    "Scene_Colorize": [
+     1.2,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     -0.08
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  },
+  {
+   "fog": {
+    "FogDensity": 0.1,
+    "FogHeight": 500.0,
+    "FogHeightFalloff": 6.0,
+    "FogMaxOpacity": 1.0,
+    "LightInscatteringBrightness": 1.0,
+    "LightInscatteringColor": [
+     0.168627,
+     0.14902,
+     0.121569,
+     0.0
+    ],
+    "LightTerminatorAngle": 45.0,
+    "OppositeLightBrightness": 0.2,
+    "OppositeLightColor": [
+     0.694118,
+     0.815686,
+     1.0,
+     0.0
+    ],
+    "StartDistance": 0.0,
+    "bEnabled": true
+   },
+   "maps": [
+    {
+     "label": "XCOM HQ (base defence)",
+     "map": "EWI_HQAssault",
+     "time": [
+      "None"
+     ]
+    }
+   ],
+   "postProcess": {
+    "Bloom_Scale": 1.0,
+    "Bloom_ScreenBlendThreshold": 10.0,
+    "Bloom_Threshold": 0.5,
+    "Bloom_Tint": [
+     1.0,
+     1.0,
+     1.0,
+     0.0
+    ],
+    "DOF_BlurBloomKernelSize": 64.0,
+    "Scene_Colorize": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Desaturation": 0.0,
+    "Scene_HighLights": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_MidTones": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "Scene_Shadows": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "bEnableBloom": true,
+    "bEnableSceneEffect": true
+   }
+  }
+ ],
+ "version": 1
+}

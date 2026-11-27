@@ -26,6 +26,7 @@ from gamesetup import GameSetup
 from families import FamilyCache
 from collision import CollisionCache
 from audio import OggError, WaveCache, byte_range
+import atmosphere
 import background_sound
 from generated import GeneratedError, Meshes as GeneratedMeshes
 import looks as made_looks
@@ -674,6 +675,16 @@ class Handler(SimpleHTTPRequestHandler):
             else: self.send_wave(data, f'"{etag}"', method == 'GET')
         return True
 
+    # The game's maps' looks (atmosphere.py's catalogue; the Map settings window's Fog and colour): GET
+    # /atmospheres.json lists them (atmospheres.json: each look's fog and grade and the maps that have it).
+    def handle_atmospheres(self, method):
+        if urlsplit(self.path).path != '/atmospheres.json': return False
+        if method != 'GET': self.send_json(405, dict(error='Not allowed.'))
+        else:
+            try: self.send_json(200, atmosphere.load_catalogue())
+            except (OSError, ValueError) as error: self.send_json(500, dict(error=f"Could not read the maps' looks: {error}"))
+        return True
+
     def send_wave(self, data, etag, body):
         if etag in [t.strip() for t in self.headers.get('If-None-Match', '').split(',')]:
             self.send_response(304)
@@ -1018,7 +1029,7 @@ class Handler(SimpleHTTPRequestHandler):
         if urlsplit(self.path).path == '/maps.json': self.map_catalogue()
         elif urlsplit(self.path).path.endswith('.dds.png'): self.dds_png()
         elif urlsplit(self.path).path == '/guide.html': self.user_guide()
-        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_background_sound, self.handle_generated, self.handle_looks, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
+        elif not any(handle('GET') for handle in (self.handle_map, self.handle_families, self.handle_collision, self.handle_wave, self.handle_background_sound, self.handle_atmospheres, self.handle_generated, self.handle_looks, self.handle_play, self.handle_squad, self.handle_manager, self.handle_queue, self.handle_setup, self.handle_precache, self.handle_library, self.handle_prefabs, self.handle_prefab_tests, self.handle_project)):
             super().do_GET()
 
     def do_PUT(self): self.answer('PUT', self.route_PUT)

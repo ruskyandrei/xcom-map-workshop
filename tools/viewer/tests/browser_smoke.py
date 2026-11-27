@@ -1820,6 +1820,43 @@ def check_clear_map(page):
         assert not any(m.get('deleted') for m in page.evaluate('viewer.spawnEdits()'))
 
 
+def check_fog_and_colour(page, steps):
+    """The window's Fog and colour section (game-likeness plan, C5b; the project's atmosphere, schema 10), on a map of
+    export 43: the map's own look first and ringed, four others and every map's in a list; a look taken is one undo
+    step, kept as the project's atmosphere (the members that differ), drawn in the Game look's fog and grade and counted
+    in the header; a slider is one undo step on release; Reset puts the map's own back."""
+    if not page.evaluate('Boolean(viewer.data.atmosphere)'):
+        return
+    page.wait_for_function('viewer.mapSettings().atmosphere.looks.length > 1', timeout=10000)
+    st = page.evaluate('viewer.mapSettings().atmosphere')
+    assert st['looks'][0]['name'] == "This map's own" and st['looks'][0]['on'] and st['record'] is None, st
+    assert 3 <= len(st['looks']) <= 5 and st['all'] > 10 and not st['changed'], st
+    assert st['fog'] and st['colour'].startswith('tint '), st
+    # a look of another map: one undo step, the project's record, the view's grade, the header
+    page.locator('#mapLooks button.lookcard').nth(1).click()
+    taken = page.evaluate('viewer.mapSettings().atmosphere')
+    assert taken['record'] and taken['looks'][1]['on'] and taken['changed'], taken
+    assert page.evaluate('viewer.editState().atmosphere') == taken['record']
+    assert page.evaluate('viewer.changes().atmosphere') == 1 and 'fog and colour changed' in page.locator('#editCount').inner_text()
+    colorize = taken['record'].get('postProcess', {}).get('Scene_Colorize')
+    if colorize:
+        assert page.evaluate('viewer.post.now().settings.Scene_Colorize') == colorize
+    page.evaluate('viewer.gizmo.undo()')
+    assert page.evaluate('viewer.mapSettings().atmosphere.record') is None
+    # a slider: the fog's density, one undo step on release
+    page.locator('#mapFogFold summary').click()
+    page.evaluate("""() => { const s = document.querySelector('#mapFogSliders input'); s.value = '0.25';
+                             s.dispatchEvent(new Event('input')); s.dispatchEvent(new Event('change')); }""")
+    assert page.evaluate('viewer.mapSettings().atmosphere.record') == dict(fog=dict(FogDensity=0.25))
+    page.locator('#mapLookReset').click()
+    assert page.evaluate('viewer.mapSettings().atmosphere.record') is None
+    page.evaluate('viewer.gizmo.undo()')
+    assert page.evaluate('viewer.mapSettings().atmosphere.record') == dict(fog=dict(FogDensity=0.25))
+    page.evaluate('viewer.gizmo.undo()')
+    assert page.evaluate('viewer.mapSettings().atmosphere.record') is None
+    assert page.evaluate('viewer.changes().atmosphere') == 0 and page.evaluate('viewer.gizmo.canUndo()') == steps
+
+
 def check_map_settings(page):
     """The Map settings window (map_settings.js; export 39), the user's design B with the volume as a bar: opened from
     the Map menu and from View options' "Sun, moon and sky…"; it lists the sun and sky light; its background sound
@@ -1903,6 +1940,7 @@ def check_map_settings(page):
     else:
         # plain Enemy Within reads none of it: no section there until a project tells something
         assert not lwr['shown'] and page.evaluate("viewer.landingLines().kind === 'ew'"), lwr
+    check_fog_and_colour(page, steps)
     page.keyboard.press('Escape')
     assert not page.evaluate('viewer.mapSettings().open')
     # View options' row opens it too

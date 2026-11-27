@@ -208,7 +208,7 @@ class StoreTests(unittest.TestCase):
         self.assertIn('older than the editor', error.exception.message)
         self.assertTrue(error.exception.extra.get('stale'))
         self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION), old['revision'])
-        self.assertEqual(self.store.load(ID)['schemaVersion'], 9)
+        self.assertEqual(self.store.load(ID)['schemaVersion'], 10)
         # schema 3 adds effects' and sounds' records (the effects and sounds plan): a schema 2 project opens, and a
         # page that saves schema 2 is as stale
         with self.assertRaises(ProjectError) as error:
@@ -235,6 +235,10 @@ class StoreTests(unittest.TestCase):
         with self.assertRaises(ProjectError) as error:
             self.store.save(ID, dict(old, schemaVersion=8), self.store.load(ID)['revision'])
         self.assertTrue(error.exception.extra.get('stale'))
+        # schema 10 adds the map's fog and colour: a page that saves schema 9 is as stale
+        with self.assertRaises(ProjectError) as error:
+            self.store.save(ID, dict(old, schemaVersion=9), self.store.load(ID)['revision'])
+        self.assertTrue(error.exception.extra.get('stale'))
         # the diagonal cover is carried as the document has it (the compiler checks each mark); another frame is refused
         marks = dict(marks=[dict(at=[48.0, 48.0, 32.0], toward=[[1, 1]])], removed=[[144.0, 48.0, 32.0]])
         self.store.save(ID, dict(old, schemaVersion=SCHEMA_VERSION, diagonalCover=marks), self.store.load(ID)['revision'])
@@ -260,9 +264,9 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(self.store.load(ID)['overrides'], flags['overrides'])
 
     def test_other_schema_versions_and_bad_documents_are_refused(self):
-        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=10), 0)
+        with self.assertRaises(ProjectError) as error: self.store.save(ID, document(schemaVersion=11), 0)
         self.assertEqual(error.exception.status, 409)
-        self.assertIn('schema 10', error.exception.message)
+        self.assertIn('schema 11', error.exception.message)
         self.root.mkdir(parents=True)
         (self.root / 'Bar remix.json').write_text(json.dumps(document(schemaVersion=0)), encoding='utf8', newline='\n')
         with self.assertRaises(ProjectError) as error: self.store.load(ID)

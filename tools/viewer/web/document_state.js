@@ -17,9 +17,9 @@ import { clearedPartsOf } from './clear_parts.js';
 import { COVER_KIND } from './cover.js';
 import { areaBindings, builder, builderMode, clearedParts, copySerial, data, effectRoots,
          diagonalCarried, diagonalCarriedOver, eventMemo, landingZones, library, lightIndex, lightRoots, loadErrorCount,
-         missionMoves, projectBackgroundSound, projectDiagonal, projectMapInfo, projectMissions, projectPicture, projectSpawnRules, roots,
+         missionMoves, projectAtmosphere, projectBackgroundSound, projectDiagonal, projectMapInfo, projectMissions, projectPicture, projectSpawnRules, roots,
          setClearedParts, setCopySerial, setDiagonalCarriedOver, setGroups, setLandingZones,
-         setLiveCache, setLoadErrorCount, setMergedBuildings, setProjectBackgroundSound, setProjectDiagonal, setProjectMapInfo,
+         setLiveCache, setLoadErrorCount, setMergedBuildings, setProjectAtmosphere, setProjectBackgroundSound, setProjectDiagonal, setProjectMapInfo,
          setProjectMissions, setProjectPicture, setProjectSpawnRules, stage, volumeRoots } from './editor_state.js';
 import { handFromSaved, savedDiagonal } from './diagonal_marks.js';
 import { cloneBlasts, isStream, optionsOf, recordOf, sourceKey, stateOfRoot } from './piece_records.js';
@@ -77,7 +77,7 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     return sortState({ overrides: [...overrides.values(), ...missionOverrides()], added: [...added.values(), ...spawnCopyRecords()], groups: kept, areaLightBindings, stage,
                       buildings: savedBuildings(), cleared: clearedParts, landingZones, missions: projectMissions,
                       spawnRules: projectSpawnRules, picture: projectPicture, backgroundSound: projectBackgroundSound,
-                      lwrMapInfo: projectMapInfo,
+                      lwrMapInfo: projectMapInfo, atmosphere: projectAtmosphere,
                       diagonalCover: savedDiagonal(projectDiagonal, diagonalCarried, diagonalCarriedOver) });
   }
   // Put a project state on the map: originals moved or deleted, copies added. Records naming pieces this export does
@@ -91,6 +91,7 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     setClearedParts(clearedPartsOf(state)); setMergedBuildings(null);
     setProjectBackgroundSound(state.backgroundSound ?? null);
     setProjectMapInfo(state.lwrMapInfo ?? null);
+    setProjectAtmosphere(state.atmosphere ?? null);
     // the diagonal cover marks (schema 7): the project's own; the carried ones are worked out again from the pieces
     { const read = handFromSaved(state.diagonalCover); setProjectDiagonal(read.hand); setDiagonalCarriedOver(read.carriedOver); }
     setLandingZones(Array.isArray(state.landingZones) ? state.landingZones.map(z => ({ ...z })) : null);
@@ -250,7 +251,7 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     clearLightEdits();
     clearEffectEdits();
     setClearedParts(null); setLandingZones(null); setMergedBuildings(null); setProjectMissions(null);
-    setProjectBackgroundSound(null); setProjectMapInfo(null);
+    setProjectBackgroundSound(null); setProjectMapInfo(null); setProjectAtmosphere(null);
     setProjectDiagonal(null); setDiagonalCarriedOver([]);
     setProjectPicture(null);
     setProjectSpawnRules(null); syncSpawnRule();
@@ -285,10 +286,12 @@ export function createDocumentState({ $, actorPose, addedEffectOf, addedLightOf,
     const sound = projectBackgroundSound ? 1 : 0;
     // what Long War Rebalance is told of the map (Map settings: schema 6)
     const info = projectMapInfo ? 1 : 0;
+    // the map's fog and colour changed (Map settings: schema 10)
+    const atmosphere = projectAtmosphere ? 1 : 0;
     // the diagonal cover marks the project adds, changes or deletes (schema 7): each of its own records once
     const diagonal = (projectDiagonal?.marks?.length ?? 0) + (projectDiagonal?.removed?.length ?? 0);
-    return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, sound, info, diagonal, flags: flagged.size, broken: broken.size,
-             total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + sound + info + diagonal
+    return { moved, added, deleted, lights, effects, grid, zones, buildings: built, missions, spawns, sound, info, atmosphere, diagonal, flags: flagged.size, broken: broken.size,
+             total: moved + added + deleted + lights + effects + areaBindings.size + grid + zones + built + missions + spawns + sound + info + atmosphere + diagonal
                + flagged.size + broken.size };
   }
 

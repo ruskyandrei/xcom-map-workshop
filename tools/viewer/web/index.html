@@ -812,6 +812,22 @@
       <div class="dialoghead"><h2 id="mapSettingsTitle">Map settings</h2><button id="mapSettingsClose" class="icon" type="button" title="Close (Esc)" aria-label="Close"><svg class="i"><use href="#i-close"/></svg></button></div>
       <h3 class="settingshead">Sun, moon and sky</h3>
       <div id="skyList" class="skylist"></div>
+      <section id="mapLookSection" class="maplook" aria-labelledby="mapLookTitle">
+        <h3 id="mapLookTitle" class="settingshead">Fog and colour <span id="mapLookChanged" class="chip" hidden>Changed</span></h3>
+        <p id="mapLookNote" class="optionsnote"></p>
+        <div id="mapLooks" class="looksrow" role="group" aria-label="Take the look of"></div>
+        <details id="mapFogFold" class="fold lookfold"><summary><span class="headname">Fog</span><span id="mapFogWords" class="foldval"></span></summary>
+          <label class="check" title="The map's height fog: thicker far away and low down. One undo step"><input id="mapFogOn" type="checkbox"> Height fog</label>
+          <div id="mapFogSliders"></div>
+          <div class="lookcolours"><label title="The fog's colour looking away from the sun or moon. One undo step"><input id="mapFogAway" type="color"> away from the light</label><label title="The fog's colour looking toward the sun or moon. One undo step"><input id="mapFogToward" type="color"> toward it</label></div>
+        </details>
+        <details id="mapColourFold" class="fold lookfold"><summary><span class="headname">Colour</span><span id="mapColourWords" class="foldval"></span></summary>
+          <div class="lookcolours"><label title="The colour the whole picture is tinted with. One undo step"><input id="mapTint" type="color"> tint</label></div>
+          <div id="mapColourSliders"></div>
+        </details>
+        <p id="mapLookVolumes" class="optionsnote" hidden></p>
+        <div class="soundrow"><button id="mapLookReset" type="button" title="The map's own fog and colour again. One undo step">Reset to the map's own</button></div>
+      </section>
       <section id="mapSoundSection" class="mapsound" aria-labelledby="mapSoundTitle">
         <h3 id="mapSoundTitle" class="settingshead">Background sound</h3>
         <p id="mapSoundNote" class="optionsnote"></p>

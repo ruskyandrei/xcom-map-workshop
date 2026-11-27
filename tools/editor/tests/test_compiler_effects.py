@@ -105,10 +105,10 @@ class Gates(unittest.TestCase):
     def test_schema_three(self):
         # schema 3 brought effects' and sounds' records; 4 (the spawns plan, SP8), 5 (the background sound and a
         # clear that keeps the triggers), 6 (what Long War Rebalance is told of the map), 7 (the diagonal cover the
-        # project marks), 8 (a building's floors as the cursor's) and 9 (the parts a clear takes) read them as 3 does;
-        # a schema past them is refused
-        self.assertEqual((compiler.SCHEMA_VERSION, compiler.READ_VERSIONS), (9, (1, 2, 3, 4, 5, 6, 7, 8, 9)))
-        _, report = compile_project(document([], schemaVersion=10), effects_scene())
+        # project marks), 8 (a building's floors as the cursor's), 9 (the parts a clear takes) and 10 (the map's fog
+        # and colour) read them as 3 does; a schema past them is refused
+        self.assertEqual((compiler.SCHEMA_VERSION, compiler.READ_VERSIONS), (10, (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)))
+        _, report = compile_project(document([], schemaVersion=11), effects_scene())
         self.assertEqual(codes(report), ['schema'])
 
 

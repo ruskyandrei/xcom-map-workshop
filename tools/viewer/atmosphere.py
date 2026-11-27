@@ -174,6 +174,47 @@ def read(p, defaults=None):
     return {'world': out, 'volumes': volumes}
 
 
+CATALOGUE_FILE = HERE / 'atmospheres.json'
+# the post-process members a look carries (the Game look's bloom and grade: tools/viewer/web/post_grade.js)
+LOOK_POST = ('bEnableBloom', 'Bloom_Scale', 'Bloom_Threshold', 'Bloom_Tint', 'Bloom_ScreenBlendThreshold',
+             'DOF_BlurBloomKernelSize', 'bEnableSceneEffect', 'Scene_Shadows', 'Scene_HighLights', 'Scene_MidTones',
+             'Scene_Desaturation', 'Scene_Colorize')
+
+
+def make_catalogue(game):
+    """The game's maps' looks (the Map settings window's "Take the look of"): {'version', 'looks': [{'fog', 'postProcess'
+    (LOOK_POST's members), 'maps': [{'map', 'label', 'time'}]}]}, a look for each set of values one or more maps share,
+    the commonest first; each map's `time` its records' TimeOfDay words (Day, Night). `game` is the install's folder."""
+    import installs
+    import maplist
+    import mapsini
+    times = {}
+    for line in maplist.records(installs.maps_text(game)):
+        name, time = mapsini.field(line, 'Name'), mapsini.unquoted(line, 'TimeOfDay')
+        if name and time and time.startswith('eMissionTime_'):
+            times.setdefault(name, set()).add(time[len('eMissionTime_'):])
+    defaults = load_defaults()
+    looks = {}
+    for name, entry in maplist.lwr_maps(game).items():
+        if not entry.get('package'):
+            continue
+        found = read(Package(entry['package']), defaults)
+        if not found:
+            continue
+        look = dict(fog=found['world']['fog'], postProcess={k: found['world']['postProcess'][k] for k in LOOK_POST})
+        key = json.dumps(look, sort_keys=True)
+        looks.setdefault(key, dict(look, maps=[]))['maps'].append(
+            dict(map=name, label=entry['label'], time=sorted(times.get(name, ()))))
+    out = sorted(looks.values(), key=lambda l: (-len(l['maps']), min(m['label'].casefold() for m in l['maps'])))
+    for look in out:
+        look['maps'].sort(key=lambda m: m['label'].casefold())
+    return {'version': 1, 'looks': out}
+
+
+def load_catalogue(path=CATALOGUE_FILE):
+    return json.loads(Path(path).read_text(encoding='utf-8'))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     sub = ap.add_subparsers(dest='command', required=True)
@@ -182,7 +223,18 @@ def main(argv=None):
     d.add_argument('--write', action='store_true', help='write %s' % DEFAULTS_FILE.name)
     m = sub.add_parser('map', help='a map\'s atmosphere')
     m.add_argument('package', type=Path)
+    c = sub.add_parser('catalogue', help='the game\'s maps\' looks (%s)' % CATALOGUE_FILE.name)
+    c.add_argument('game', type=Path, help='the install\'s folder (<LWR install>)')
+    c.add_argument('--write', action='store_true', help='write %s' % CATALOGUE_FILE.name)
     args = ap.parse_args(argv)
+    if args.command == 'catalogue':
+        text = json.dumps(make_catalogue(args.game), indent=1, sort_keys=True) + '\n'
+        if args.write:
+            CATALOGUE_FILE.write_text(text, encoding='utf-8', newline='\n')
+            print('written', CATALOGUE_FILE)
+        else:
+            print(text)
+        return
     if args.command == 'defaults':
         made = make_defaults(args.cooked)
         text = json.dumps(made, indent=1, sort_keys=True) + '\n'

@@ -83,5 +83,29 @@ class Install(unittest.TestCase):
         self.assertLess(volume['box']['min'][0], volume['box']['max'][0])
 
 
+class Catalogue(unittest.TestCase):
+    """atmospheres.json (the Map settings window's "Take the look of"): made by `atmosphere.py catalogue` from the
+    install; each look a set of values its maps share, every map in one look."""
+
+    def test_the_file_reads(self):
+        looks = atmosphere.load_catalogue()['looks']
+        maps = [m['map'] for look in looks for m in look['maps']]
+        self.assertGreater(len(looks), 10)
+        self.assertEqual(len(maps), len(set(maps)))
+        for look in looks:
+            self.assertEqual(set(look['postProcess']), set(atmosphere.LOOK_POST))
+            self.assertTrue({'FogDensity', 'OppositeLightColor', 'bEnabled'} <= set(look['fog']))
+
+    @unittest.skipUnless(BAR and BAR.exists() and ROAD and ROAD.exists(), NO_BAR or NO_ROAD)
+    def test_a_maps_look_is_what_its_package_says(self):
+        # (the whole file takes a minute to make again: two maps' looks are read again here)
+        looks = atmosphere.load_catalogue()['looks']
+        for name, path in (('URB_Bar', BAR), ('CSmallScout_DirtRoad', ROAD)):
+            look = next(l for l in looks if any(m['map'] == name for m in l['maps']))
+            world = atmosphere.read(Package(path))['world']
+            self.assertEqual(look['fog'], world['fog'], name)
+            self.assertEqual(look['postProcess'], {k: world['postProcess'][k] for k in atmosphere.LOOK_POST}, name)
+
+
 if __name__ == '__main__':
     unittest.main()

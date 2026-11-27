@@ -38,6 +38,18 @@ class ReleaseTests(unittest.TestCase):
         for extra in make_release.EXTRAS:
             self.assertTrue((make_release.TOOLS / extra).is_file(), extra)
 
+    def test_every_data_file_a_shipped_module_reads_ships(self):
+        # a JSON, text or ini file a shipped module names beside itself goes into the release with it (releases 0.7.0 to
+        # 0.7.2 left background_sounds.json out, so the Map settings window could not list the game's sounds)
+        import re
+        missing = set()
+        for path in make_release.modules():
+            for name in re.findall(r"""['"]([\w./-]+\.(?:json|txt|csv|ini))['"]""", path.read_text(encoding='utf-8')):
+                data = path.parent / name
+                if data.is_file():
+                    missing.add(data.relative_to(make_release.TOOLS).as_posix())
+        self.assertEqual(sorted(missing - set(make_release.EXTRAS)), [])
+
     def test_the_path_file_names_only_folders_that_ship(self):
         # follow-up 3.7: the release's ._pth named tools/lab, which holds nothing the release ships
         names = {p.relative_to(make_release.TOOLS).as_posix() for p in make_release.modules()}

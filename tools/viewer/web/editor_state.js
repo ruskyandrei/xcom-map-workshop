@@ -83,6 +83,10 @@ export function setProjectBackgroundSound(next) { projectBackgroundSound = next;
 // What the project tells Long War Rebalance of the map (schema 6; missions.js validMapInfo): null, nothing
 export let projectMapInfo = null;
 export function setProjectMapInfo(next) { projectMapInfo = next; }
+// The map's fog and colour the project changes (schema 10; atmosphere_rules.js): null, the map's own, or the members
+// that differ ({ fog?, postProcess? })
+export let projectAtmosphere = null;
+export function setProjectAtmosphere(next) { projectAtmosphere = next; }
 // The diagonal cover the project marks (schema 7; diagonal_marks.js): its own marks and the map's it deletes ({ marks,
 // removed }, or null: the map's as it is), the marks that follow their pieces as the pieces stand now (worked out by
 // diagonal_wiring.js after each edit: saved with the project for the Build, worked out again when it opens), and the

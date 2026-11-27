@@ -6,6 +6,8 @@
 // slider under the choice. A change of the choice or of the volume (on the slider's release) is one undo step; the
 // rules are background_sound_rules.js's. This is the design chosen on 22 November 2026 (mock design B, the volume as
 // a bar).
+// Between the sky and the sound, the map's fog and colour (the project's `atmosphere`, schema 10; the game-likeness
+// plan's C5b): atmosphere_settings.js's section.
 // Below them, what Long War Rebalance is told of the map (the project's `lwrMapInfo`, schema 6; missions.js's
 // MAP_INFO): the largest abduction it suits and Hold the Line kept off it, which LWR 3.00.00 beta 17 and later reads
 // from the map's pack. Each change is one undo step. The section is not shown where the game set is plain Enemy
@@ -16,6 +18,7 @@ import { ask } from './api.js';
 import { builderMode, data, landingLines, projectBackgroundSound, projectMapInfo, setProjectBackgroundSound,
          setProjectMapInfo } from './editor_state.js';
 import { MAP_INFO, MAP_INFO_SINCE, mapInfoRecord, validMapInfo } from './missions.js';
+import { createAtmosphereSettings } from './atmosphere_settings.js';
 
 export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
   const els = { root: $('mapSettings'), form: $('mapSettingsForm'), close: $('mapSettingsClose'), sound: $('mapSoundSection'),
@@ -25,6 +28,7 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
   els.density.append(new Option('Not set (any size)', ''), ...MAP_INFO.alienDensity[1].map(v => new Option(v, v)));
   Object.assign(els.volume, { min: VOLUME_SLIDER.min, max: VOLUME_SLIDER.max, step: VOLUME_SLIDER.step });
   let beds = null, bedsWhy = null, player = null, lastFocus = null;
+  const { atmosphereState, paintAtmosphere, showAtmosphere } = createAtmosphereSettings({ $, gizmo, projectsAvailable });
 
   // the game's beds, asked once
   async function loadBeds() {
@@ -145,7 +149,8 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
     els.choice.replaceChildren();
     els.sound.hidden = false;
     els.root.hidden = false;
-    paint(); paintLwr();
+    paint(); paintLwr(); paintAtmosphere();
+    showAtmosphere();
     if (own()) { await loadBeds(); if (!els.root.hidden) paint(); }
     setTimeout(() => $('mapSettingsDone').focus(), 0);
   }
@@ -172,6 +177,7 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
                                     note: els.note.textContent, status: els.status.hidden ? '' : els.status.textContent,
                                     lwr: { shown: !els.lwr.hidden, density: els.density.value, noHold: els.noHold.checked,
                                            disabled: els.density.disabled, note: els.lwrNote.textContent,
-                                           choices: [...els.density.options].map(o => ({ value: o.value, label: o.text })) } });
+                                           choices: [...els.density.options].map(o => ({ value: o.value, label: o.text })) },
+                                    atmosphere: atmosphereState() });
   return { hideMapSettings, mapSettingsState, showMapSettings, startMapSettings, stopSound };
 }

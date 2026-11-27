@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { SCHEMA_VERSION, sortState, stateKey, validAdded, validOverride, validSpawnRules } from '../web/project.js';
 
-assert.equal(SCHEMA_VERSION, 9);
+assert.equal(SCHEMA_VERSION, 10);
 
 assert.ok(validSpawnRules({ dropIns: 'placed' }));
 for (const bad of [null, undefined, {}, { dropIns: 'install' }, { dropIns: true }, { dropIns: 'placed', waves: 'placed' }, ['placed'], 'placed']) {
