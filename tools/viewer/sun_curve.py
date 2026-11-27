@@ -1,6 +1,6 @@
 """The time of day's curve (the game-likeness plan's track T): sun_curve.json, the one home the page (sun_rules.js, by
-the server's /sun-curve.json) and the compiler both read, and the shape of the project's `sun` (schema 10) by its
-limits.
+the server's /sun-curve.json) and the compiler both read, the shape of the project's `sun` (schema 10) by its limits
+(`problem`), and the game's time of day a record says (`game_time`: the variant's records' TimeOfDay, stage T-S2).
 
 Each row of the curve is a light one of the game's own maps has (research/evidence/sun-audit-2026-11-27.json, F-175):
 the sun or moon's height and side rule, its colour and brightness, the sky light's, and the fog's two colours and the
@@ -74,3 +74,19 @@ def problem(record, curve=None):
 def _value(v):
     # a member's value as the atmosphere's records have it (the page's atmosphere_rules.js isValue)
     return _number(v) or isinstance(v, (bool, str)) or (isinstance(v, list) and 3 <= len(v) <= 4 and all(map(_number, v)))
+
+
+def light_up(curve, t):
+    """The light up at hour `t` ('sun' or 'moon'): the curve's last change at or before it, else the day's last change
+    (the night that began yesterday). The page's sun_rules.js spanAt holds the same rule."""
+    changes = sorted(curve['changes'], key=lambda c: c['time'])
+    now = [c for c in changes if c['time'] <= t]
+    return (now or changes)[-1]['light']
+
+
+def game_time(record, curve=None):
+    """The game's time of day a valid record says: 'day' or 'night'. 'auto' follows the light, night while the moon is
+    up (the page's sun_rules.js gameTime; sun_record_cases.json's `gameTimes` hold both)."""
+    if record['timeOfDay'] != 'auto':
+        return record['timeOfDay']
+    return 'night' if light_up(curve or load(), record['time']) == 'moon' else 'day'

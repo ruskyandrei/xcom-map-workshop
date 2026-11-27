@@ -1,5 +1,16 @@
 {
-  "about": "The project's `sun` (schema 10) as the page reads it (sun_rules.js validSun) and the compiler does (sun_curve.problem): each record, whether it is one both read, and why. Read by sun_rules_test.mjs and by the editor suite's test_compiler_sun.py.",
+  "about": "The project's `sun` (schema 10) as the page reads it (sun_rules.js validSun) and the compiler does (sun_curve.problem): each record, whether it is one both read, and why. Read by sun_rules_test.mjs and by the editor suite's test_compiler_sun.py. `gameTimes`: the game's time of day a record's time and timeOfDay say (sun_rules.js gameTime, sun_curve.game_time: auto is night while the moon is up), read by sun_rules_test.mjs and test_sun_curve.py.",
+  "gameTimes": [
+    { "time": 0, "timeOfDay": "auto", "gameTime": "night" },
+    { "time": 5.49, "timeOfDay": "auto", "gameTime": "night" },
+    { "time": 5.5, "timeOfDay": "auto", "gameTime": "day" },
+    { "time": 13, "timeOfDay": "auto", "gameTime": "day" },
+    { "time": 20.49, "timeOfDay": "auto", "gameTime": "day" },
+    { "time": 20.5, "timeOfDay": "auto", "gameTime": "night" },
+    { "time": 23.99, "timeOfDay": "auto", "gameTime": "night" },
+    { "time": 13, "timeOfDay": "night", "gameTime": "night" },
+    { "time": 1, "timeOfDay": "day", "gameTime": "day" }
+  ],
   "cases": [
     { "why": "a time, a heading, the time of day followed, a light and a sky light", "valid": true,
       "record": { "time": 13, "heading": 313.02, "timeOfDay": "auto",

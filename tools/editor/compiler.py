@@ -56,7 +56,9 @@ moved, copied or deleted glowing piece takes along (its association: export 18's
 light_rule says which lights may be edited. The family's checks are in light_edits.py, its own module. The family builds for every project since 9 November: it was switched
 on after EXP-26 run 1 (a full build on Bar), before its runs 2 to 6, so that issues are fixed as they are found
 (FAMILIES['light']['builds'] off again brings back the refusal with its note). Every project with edits needs an export with the light data (export 18 and its area-light
-matcher: light_metadata_problem), since moving a piece can move the light its glow makes.
+matcher: light_metadata_problem), since moving a piece can move the light its glow makes. The project's time of day
+(`sun`) is the family's too: its own `sun` object of the spec (light_edits.sun_mark), which native_split hands to the
+Build's writer, and the report's `sun`, the records' TimeOfDay.
 
 Cover blocks (since 10 November 2026) are added pieces made from the editor's own recipe (`template` {kind: cover,
 version}, `cover` {type, size: [x, y], heights: [z0, z1]}): invisible pieces that give high or low cover (`type`
@@ -120,9 +122,9 @@ from spawn_edits import SPAWN_COPY_KINDS, SpawnEdits  # noqa: E402
 from effect_edits import (EFFECT_SCALE, EFFECT_WORDS, PARAMETER_MAX, SOUND_PITCH, SOUND_RADIUS_MAX,  # noqa: E402,F401
                           SOUND_VOLUME_MAX, EffectEdits)
 # the lights family, and its tables and helpers others read through the compiler (prefab_stage, the viewer's
-# families and twin constants, the tests)
+# families and twin constants, the tests; the Build's quick report of a turned sun, stale_sun)
 from light_edits import (LIGHT_RANGES, LIGHT_RECIPES, light_rule, light_value_problem, rotator_of,  # noqa: E402,F401
-                         LightEdits)
+                         stale_sun, LightEdits)
 # the pieces' flags family (nothing reads its tables through the compiler)
 from flag_edits import FlagEdits  # noqa: E402
 # the diagonal cover the project marks (schema 7; nothing reads its tables through the compiler)
@@ -216,8 +218,8 @@ SCHEMA = 'xcom-map-workshop/project'
 # (`buildings[].cursorFloors`: the building cursor floors plan); a project of schema 7 builds as it did. 9: the parts
 # the project cleared (`cleared`: {part: {keepOutside?}}, the clear-by-parts plan); `cleared: true` of schema 1 to 8 is
 # every part, so it builds as it did. 10: the map's fog and colour the project changes (`atmosphere`: atmosphere_edits.py)
-# and its time of day (`sun`: read for its shape, light_edits.sun_mark; no lane yet); a project of schema 9 builds as it
-# did.
+# and its time of day (`sun`: light_edits.sun_mark, the native edit's `sun` lane and the records' TimeOfDay since stage
+# T-S2); a project of schema 9 builds as it did.
 SCHEMA_VERSION = 10
 READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
@@ -1796,6 +1798,9 @@ class Compiler:
         # the map's fog and post-process members the project changes: the Build writes them on its WorldInfo
         if self.atmosphere_edits.lane:
             extra['atmosphere'] = self.atmosphere_edits.lane
+        # the project's time of day: the Build writes the sun or moon and the sky light in place (native_lights.apply_sun)
+        if self.light_edits.sun:
+            extra['sun'] = self.light_edits.sun
         # the deleted pieces the map's Kismet names: the Build empties its references to them (kismet_cut.py)
         if self.kismet_cuts:
             extra['kismetCuts'] = sorted(set(self.kismet_cuts))
@@ -1816,7 +1821,7 @@ class Compiler:
     def has_edits(self):
         return any(self.doc.get(k) for k in ('overrides', 'added', 'areaLightBindings', 'buildings', 'cleared',
                                              'landingZones', 'stage', 'spawnRules', 'backgroundSound', 'lwrMapInfo',
-                                             'diagonalCover', 'atmosphere'))
+                                             'diagonalCover', 'atmosphere', 'sun'))
 
     # ---------------------------------------------------------------- the mission family's, by name
     def stage(self):
@@ -1918,6 +1923,10 @@ class Compiler:
                       **({'diagonalCover': dict(self.diagonal_edits.counts)} if self.diagonal_edits.lane else {}),
                       # the map's fog and post-process members the project changes: how many of each
                       **({'atmosphere': dict(self.atmosphere_edits.counts)} if self.atmosphere_edits.lane else {}),
+                      # the project's time of day: its time, the TimeOfDay the Build writes in the variant's records
+                      # (it changes nothing in the map, so the spec's `sun` does not carry it) and whether it turns the
+                      # sun or moon
+                      **({'sun': dict(self.light_edits.sun_report)} if self.light_edits.sun_report else {}),
                       missions=self.mission_edits.missions_kept()[0] if self.map is not None else None,
                       buildings=[dict(id=b['id'], name=b['name'], kind=b['kind'], floors=len(b['floors']),
                                       **({'cursorFloors': True} if b.get('cursorFloors') else {}))
