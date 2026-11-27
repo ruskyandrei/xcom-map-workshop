@@ -353,6 +353,85 @@ class BarLights(unittest.TestCase):
             self.assertEqual(q.own(ci, 'LightGuid'), p.own(ci, 'LightGuid'))
             self.assertEqual(lighting.dominant_shadow_map(q, ci)['depths'], m['depths'])
 
+    # the time of day (the native edit's `sun`; game-likeness plan, T-S2): Bar's moon made the curve's noon sun
+    NOON = dict(actor='DominantDirectionalLight_1', component='DominantDirectionalLight_1.DominantDirectionalLightComponent_0',
+                rotation=[-10194, 24213, -27675], color=[255, 245, 215], brightness=1.35, directionChanged=True,
+                sky=dict(actor='SkyLight_0', component='SkyLight_0.SkyLightComponent_263', color=[150, 150, 170],
+                         brightness=0.6, lowerColor=[255, 224, 173], lowerBrightness=0.02))
+
+    def written_sun(self, lane):
+        """(the record, the written map read again, its bytes of every export) of `lane` made in a copy of Bar."""
+        g = package_grow.Grower(str(BAR))
+        record = native_lights.apply_sun(g, self.p, lane)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        out = Path(tmp.name) / 'URB_Bar.upk'
+        g.write(str(out))
+        q = lighting.Package(out)
+        return record, q
+
+    def changed_exports(self, q):
+        p = self.p
+        self.assertEqual(len(q.exports), len(p.exports))
+        return sorted(p.name(i) for i in range(1, len(p.exports) + 1)
+                      if p.data[p.exports[i - 1]['off']:p.exports[i - 1]['off'] + p.exports[i - 1]['size']]
+                      != q.data[q.exports[i - 1]['off']:q.exports[i - 1]['off'] + q.exports[i - 1]['size']])
+
+    def test_the_time_of_day_sets_the_sun_and_the_sky_light_in_place(self):
+        """The moon turned and given the noon sun's colour and brightness, the sky light its four values: written where
+        each light saves them, read back (verify_sun), the GUIDs, the depths and the shadow info kept, nothing else of
+        the map changed."""
+        p, lane = self.p, self.NOON
+        record, q = self.written_sun(lane)
+        native_lights.verify_sun(q, p, record, lane)
+        self.assertEqual(self.changed_exports(q), sorted([PL + lane['actor'], PL + lane['component'], PL + lane['sky']['component']]))
+        light, sky = record['light'], record['sky']
+        self.assertEqual(light['actorWritten'], ['Rotation'])
+        self.assertEqual(light['rotation'], dict(before=[-14697, -41323, -27675], after=lane['rotation']))
+        self.assertEqual(light['written'], ['LightColor', 'Brightness'])
+        self.assertEqual(sky['written'], ['LightColor', 'Brightness', 'LowerColor', 'LowerBrightness'])
+        self.assertEqual(light['tagsAdded'] + sky['tagsAdded'] + light['actorTagsAdded'], [])
+        sun = light_record(q, q.by_name[PL + lane['actor']])
+        self.assertEqual(sun['rotation'], lane['rotation'])
+        self.assertEqual([round(v * 255) for v in sun['color']], lane['color'])
+        self.assertAlmostEqual(sun['brightness'], 1.35, places=5)
+        ci = q.by_name[PL + lane['component']]
+        # the colour's alpha is the map's own (0 on Bar's moon)
+        self.assertEqual(q.own(ci, 'LightColor')[3], p.own(ci, 'LightColor')[3])
+        self.assertEqual((q.own(ci, 'LightGuid'), q.own(ci, 'LightmapGuid')), (p.own(ci, 'LightGuid'), p.own(ci, 'LightmapGuid')))
+        self.assertEqual(lighting.dominant_shadow_map(q, ci)['depths'], lighting.dominant_shadow_map(p, ci)['depths'])
+        sk = light_record(q, q.by_name[PL + lane['sky']['actor']])
+        self.assertEqual(([round(v * 255) for v in sk['color']], [round(v * 255) for v in sk['lowerColor']]),
+                         (lane['sky']['color'], lane['sky']['lowerColor']))
+        self.assertAlmostEqual(sk['lowerBrightness'], 0.02, places=6)
+        # the same lane makes the same map
+        self.assertEqual(self.written_sun(lane)[1].data, q.data)
+
+    def test_a_sun_whose_direction_and_values_are_the_maps_writes_nothing(self):
+        p = self.p
+        lane = dict(self.NOON, rotation=[-14697, -41323, -27675], color=[66, 69, 136], brightness=1.100000023841858,
+                    directionChanged=False, sky=None)
+        record, q = self.written_sun(lane)
+        native_lights.verify_sun(q, p, record, lane)
+        self.assertEqual((record['light']['written'], record['light']['actorWritten'], record['sky']), ([], [], None))
+        self.assertEqual(self.changed_exports(q), [])
+        # the colour alone: the component alone changes, the actor keeps its rotation
+        record, q = self.written_sun(dict(lane, color=[255, 250, 180]))
+        self.assertEqual(self.changed_exports(q), [PL + lane['component']])
+        self.assertEqual(record['light']['written'], ['LightColor'])
+
+    def test_a_lane_naming_another_light_is_refused_and_a_wrong_read_back_said(self):
+        with self.assertRaises(native_lights.SunError):
+            native_lights.apply_sun(package_grow.Grower(str(BAR)), self.p,
+                                    dict(self.NOON, actor='SkyLight_0', component='SkyLight_0.SkyLightComponent_263'))
+        with self.assertRaises(native_lights.SunError):
+            native_lights.apply_sun(package_grow.Grower(str(BAR)), self.p, dict(self.NOON, actor='DominantDirectionalLight_9'))
+        record, q = self.written_sun(self.NOON)
+        with self.assertRaises(native_lights.SunError):
+            native_lights.verify_sun(q, self.p, record, dict(self.NOON, brightness=2.0))
+        with self.assertRaises(native_lights.SunError):
+            native_lights.verify_sun(q, self.p, record, dict(self.NOON, rotation=[0, 0, 0]))
+
     def test_the_registry_holds_every_light_and_its_codec_lights_are_relights(self):
         p, reg = self.p, self.reg
         self.assertEqual(sum(e['role'] == 'static' for e in reg.values()), 116)

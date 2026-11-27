@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-200 (27 November, the game-likeness plan's T-S2): the time of day is written on the map's own lights in place,
+  with no bake: a Build changes only the sun or moon's actor and component and the sky light's component, the GUIDs,
+  the shadow map of the level and its shadow info kept. The sun's component saves no `CachedParentToWorld`: its
+  direction is the actor's `Rotation` alone. Fixed (built and read back offline); EXP-99 shows it in the game.
 - F-184 (27 November, the game-likeness plan's B3): a lightmapped piece with no shadow map of the sun is wholly in
   its shadow: the dominant light is on its `IrrelevantLights`, and the game draws none of the sun on it (on the four
   maps of track H, all 696 such pieces; 28 more list it and keep a shadow map). The editor drew them with the live
@@ -319,6 +323,28 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-200: The time of day is set on the map's own lights in place, without a bake
+**Fixed** (27 November 2026, the game-likeness plan's T-S2: `native_lights.apply_sun`; read offline from quick Builds
+of the configured install's URB_Bar made day by EXP-99's project, nothing played: EXP-99 shows it in the game).
+- **What a Build changes.** Of URB_Bar's 14,051 exports, three: the `DominantDirectionalLight` (its `Rotation`, where
+  the direction changes), its `DominantDirectionalLightComponent` (`LightColor`, `Brightness`) and the
+  `SkyLightComponent` (`LightColor`, `Brightness`, `LowerColor`, `LowerBrightness`), each value written where the
+  component saves it, none added; every other export, the tile data among them, byte for byte the base map's. At 13:00
+  the moon (pitch -14697, yaw -41323; 66, 69, 136 at 1.1) became the sun (pitch -10194, yaw 24213; 255, 245, 215 at
+  1.1); at 10:00 with the direction kept, 255, 250, 180 at 1.0 and the actor untouched.
+- **What stays.** The light's `LightGuid` and `LightmapGuid`, so every shadow map of the map still belongs to it; its
+  shadow map of the level (12,804 depths) and `DominantLightShadowInfo`, the old light's (F-176); the alpha byte of
+  each colour (0 on Bar's moon and sky light).
+- **No cached matrix.** Unlike a placed point or spot light's component, which saves `CachedParentToWorld` and which
+  the light writer moves with its light, the dominant light's component saves none: its direction is the actor's
+  `Rotation` alone, as the export and the editor's view read it. Whether the game takes a turned direction from it at
+  load is what EXP-99's second run shows.
+- **The old shadows.** A turned light's distance-field shadow maps on the static pieces (627 on Bar, F-177) and its
+  shadow map of the level for units stay the old light's until a Build with baking makes them again (stage T-S4); a
+  quick Build that turns the light says so (`sun-shadows-stale`).
+- **The records.** URB_Bar's variant has one record (its abduction; URB_Bar_Terror is a map of its own): its
+  `TimeOfDay` went from `eMissionTime_Night` to `eMissionTime_Day`.
 
 ### F-184: A piece wholly in the sun's shadow lists the sun on its IrrelevantLights and has no shadow map of it
 **Fixed** (27 November 2026, the game-likeness plan's B3; read offline from the configured install's URB_Bar,

@@ -94,6 +94,23 @@ class ConfigLines(unittest.TestCase):
         self.assertNotIn('droppedStreams', c)
         self.assertIn('MapName="patch_bar"', c['maps'][0])
 
+    def test_the_projects_time_of_day_is_each_records_time_of_day(self):
+        # the time of day (game-likeness plan, T-S2): every record the variant gets, an added kind's too, says the time
+        # the project sets, written by mapsini's one writer; nothing else of the record changes
+        bar = record('bar')
+        self.assertEqual(mapsini.unquoted(bar, 'TimeOfDay'), 'eMissionTime_Night')
+        terror = mapsini.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False)
+        c = build.config_lines([bar, terror], None, None, 'URB_Bar', VARIANT, PATCH, None,
+                               missions_list=[dict(record=0), dict(record=1), dict(kind='Special/Bomb')],
+                               time_of_day='eMissionTime_Day')
+        self.assertEqual(len(c['maps']), 3)
+        self.assertEqual([mapsini.unquoted(line, 'TimeOfDay') for line in c['maps']], ['eMissionTime_Day'] * 3)
+        self.assertEqual(c['timeOfDay'], 'eMissionTime_Day')
+        plain = build.config_lines([bar, terror], None, None, 'URB_Bar', VARIANT, PATCH, None,
+                                   missions_list=[dict(record=0), dict(record=1), dict(kind='Special/Bomb')])
+        self.assertNotIn('timeOfDay', plain)
+        self.assertEqual([line.replace('eMissionTime_Day', 'eMissionTime_Night') for line in c['maps']], plain['maps'])
+
     def test_the_base_map_is_found_whatever_the_case_of_its_name(self):
         # the farm's file is CsmallScout_Farm.upk and its records, landing zones and rules name CSmallScout_Farm: the
         # game matches names whatever their case, and so does the Build
@@ -979,6 +996,38 @@ class Builds(unittest.TestCase):
             self.assertEqual(self.tool('relight.py'), [])
             self.assertEqual((m['quick'], m['cache']), (quick, None))
             self.assertEqual(m['spawnEdits'], dict(moved=1, valued=1, added=1, deleted=1))
+
+    def test_the_time_of_day_alone_builds_with_the_lighting_kept_and_its_records_time(self):
+        """The sun lane (game-likeness plan, T-S2), the project's only change: written into native-edit.json and made by
+        native_copy.py in both kinds of build with the lighting kept; every record says the report's time of day; a
+        quick Build that turns the sun says its shadows stay the old ones (sun-shadows-stale), a full one does not."""
+        sun = dict(actor='DominantDirectionalLight_1', component='DominantDirectionalLight_1.DominantDirectionalLightComponent_0',
+                   rotation=[-10194, 24213, -27675], color=[255, 245, 215], brightness=1.1, directionChanged=True,
+                   sky=dict(actor='SkyLight_0', component='SkyLight_0.SkyLightComponent_263', color=[150, 150, 170],
+                            brightness=0.6, lowerColor=[255, 224, 173], lowerBrightness=0.01))
+        self.spec = dict(self.spec, objects=[], sun=sun)
+        self.report['sun'] = dict(time='13:00', timeOfDay='eMissionTime_Day', directionChanged=True, sky=True)
+        for quick in (False, True):
+            self.ran.clear()
+            m = self.make(stamp='110000' if not quick else '110100', quick=quick).run()
+            light, = self.tool('native_copy.py')
+            self.assertNotIn('--bake', light)
+            edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+            self.assertEqual(edit['sun'], sun)
+            self.assertEqual(self.tool('relight.py'), [])
+            self.assertEqual((m['quick'], m['cache']), (quick, None))
+            line, = m['config']['maps']
+            self.assertEqual(mapsini.unquoted(line, 'TimeOfDay'), 'eMissionTime_Day')
+            self.assertEqual(m['config']['timeOfDay'], 'eMissionTime_Day')
+            report = json.loads((Path(m['work']) / 'compile-report.json').read_text(encoding='utf-8'))
+            self.assertEqual([w['code'] for w in report['warnings']], ['sun-shadows-stale'] if quick else [])
+        # the direction kept: no warning on a quick Build either (the stand-in compile's report afresh: the quick Build
+        # added its warning to the list it shares)
+        self.report = dict(self.report, warnings=[], counts=dict(self.report['counts'], warnings=0),
+                           sun=dict(self.report['sun'], directionChanged=False))
+        self.spec['sun'] = dict(sun, directionChanged=False)
+        m = self.make(stamp='110200', quick=True).run()
+        self.assertEqual(json.loads((Path(m['work']) / 'compile-report.json').read_text(encoding='utf-8'))['warnings'], [])
 
     def test_a_build_without_pieces_of_other_maps_stages_nothing(self):
         self.spec['objects'] = [COPY, HIDE]

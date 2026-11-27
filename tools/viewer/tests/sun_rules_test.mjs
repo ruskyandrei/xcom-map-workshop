@@ -129,6 +129,10 @@ assert.equal(handSet({ curve: mine, own, before: null, key: 'brightness', value:
 
 // the record checked (the cases the compiler's test reads too) and tidied
 for (const c of read('./sun_record_cases.json').cases) assert.equal(validSun(c.record, curve), c.valid, c.why);
+// the game's time of day a record says (the cases test_sun_curve.py reads too: the Build's records' TimeOfDay)
+for (const c of read('./sun_record_cases.json').gameTimes) {
+  assert.equal(gameTime({ time: c.time, timeOfDay: c.timeOfDay }, curve), c.gameTime, `${c.time} ${c.timeOfDay}`);
+}
 assert.equal(tidySun(null, own, curve), null);
 assert.deepEqual(tidySun({ odd: 1 }, own, curve), { odd: 1 });          // (carried as it is)
 const tidied = tidySun({ ...noon.sun, time: 13.000004, heading: 313.123456 }, own, curve);

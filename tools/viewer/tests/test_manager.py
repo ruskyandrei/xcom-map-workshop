@@ -123,6 +123,33 @@ class Manager(ManagerInstalls, unittest.TestCase):
         installs.reset(self.lwr)
         self.assertEqual(self.files(self.lwr), before)
 
+    def test_the_builds_time_of_day_goes_with_its_record_to_a_campaign_a_play_and_a_pack(self):
+        # the time of day (game-likeness plan, T-S2): the Build writes the record's TimeOfDay (build.config_lines); the
+        # campaign install, a play and a map pack's card carry the record as the Build wrote it
+        self.assertEqual(dep.unquoted(record('bar'), 'TimeOfDay'), 'eMissionTime_Night')
+        day = dep.set_field(dep.set_field(dep.set_field(record('bar'), 'Name', VARIANT), 'DisplayName',
+                                          f'{VARIANT} (Bar remix, Abduction) |0'), 'TimeOfDay', 'eMissionTime_Day', quoted=False)
+        self.package(maps=[day.decode('latin-1')], record_missions=[[0]])
+        before = self.files(self.lwr)
+        player = self.player()
+        for mode in ('replace', 'additional'):
+            done = manager.install(self.store, self.builds, player, dict(projects=[ID], mode=mode))['results'][0]
+            self.assertTrue(done['ok'], done)
+            mine, = self.records(self.lwr, VARIANT)
+            self.assertEqual(dep.unquoted(mine, 'TimeOfDay'), 'eMissionTime_Day', mode)
+            installs.reset(self.lwr)
+        player.play(dict(project=ID))
+        mine, = self.records(self.lwr, PLAY)
+        self.assertEqual(dep.unquoted(mine, 'TimeOfDay'), 'eMissionTime_Day')
+        self.settle(player)
+        installs.reset(self.lwr)
+        self.assertEqual(self.files(self.lwr), before)
+        r = manager.pack(self.store, self.builds, player, dict(projects=[ID], mode='additional', name='Day pack'))
+        with zipfile.ZipFile(r['zip']) as z:
+            described = json.loads(z.read('pack.json'))
+            held = pack_card.read(z.read(f'CookedPCConsole/{described["folder"]}/{described["card"]["file"]}'))
+        self.assertEqual([m['TimeOfDay'] for m in held['Maps']], ['eMissionTime_Day'])
+
     def test_additional_adds_the_variant_to_the_rotation_and_replace_comments_the_map_out(self):
         terror, council = self.more_missions(self.lwr)
         before = self.files(self.lwr)

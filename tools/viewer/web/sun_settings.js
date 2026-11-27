@@ -169,7 +169,7 @@ export function createSunSettings({ $, camera, projectsAvailable, sun }) {
     paintBar();
     const can = editable(), r = record(), at = sunShown(), light = r?.light ?? { rotation: mine.rotation, color: mine.color, brightness: mine.brightness };
     els.note.textContent = 'Drag the bar for the time of day: the sun or moon, the sky light and the fog and colour of the hour, '
-      + 'seen in the Game look (K). The Build does not write it into the map yet.'
+      + 'seen in the Game look (K). A Build writes them into the map and the game\'s time of day into its records.'
       + (projectsAvailable() ? '' : ' It is set on a map opened from the map browser, not a preview.');
     for (const el of [els.colour, els.strength, els.skyColour, els.skyStrength, els.reset, ...els.gameTime.querySelectorAll('button')]) el.disabled = !can;
     els.bar.setAttribute('aria-disabled', String(!can)); els.dial.setAttribute('aria-disabled', String(!can));
