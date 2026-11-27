@@ -16,6 +16,7 @@ from mesh import read_mesh, write_glb
 import material_programs
 import atmosphere as atmosphere_records
 import baked_light
+import light_functions
 from skeletal import read_skeletal
 from texture import export_texture
 from materials import coordinates, profile, static_switches, constant_color, approximate_colour, opacity_input, BY_KIND
@@ -118,10 +119,13 @@ import settings
 #     levels' own pieces only (a piece of another map is lit live where it is put)
 # 45: `sunIrrelevant` in place of `sunShadow` on a lightmapped piece whose IrrelevantLights hold the dominant light
 #     (wholly in its shadow: the game draws none of the sun on it; B3, F-184)
+# 46: a light's `lightFunction` (game-likeness plan, F1: light_functions.py): the program of the material the game
+#     draws on the light (its light function shader sliced, output `light`: the factor it multiplies the light by,
+#     which may move with time), its material and whether it moves; only where the export makes programs
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 45
+EXPORT_VERSION = 46
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -712,6 +716,9 @@ class Exporter:
         lights = self.guarded('lights', lambda: light_records(p,actors,self.prefix,
                                                               'inherited' if self.prefix else 'base',self.warn), [])
         self.guarded('light metadata', lambda: light_metadata(p, lights, objects, self.kismet, self.warn), None)
+        # what a light's light function does to it (export 46): a program the page runs each frame in the Game look
+        if self.programs is not None:
+            self.guarded('light functions', lambda: light_functions.add(p, lights, self.programs, self.warn), None)
         self.area_matcher = self.guarded('area lights', lambda: area_lights(p, objects, lights, self.meshes, self.materials,
                                                                             self.warn), None)
         # a van's own building goes with the van (compiler.van_buildings: the editor keeps it fixed)

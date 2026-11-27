@@ -1,0 +1,362 @@
+{
+ "about": "A light function's program (light_functions.py, export 46) and the factor it gives the light at each time (shader_eval.py); material_program.js lightFunctionAt is held to the same numbers. Written by test_light_functions.py --write.",
+ "cases": [
+  {
+   "name": "pulse",
+   "material": "FX_Gameplay_DLC_090.M_LightFunction_RedSlow",
+   "program": {
+    "version": 1,
+    "shaders": {
+     "light": "FLightFunctionPixelShader",
+     "lightId": "f3545a6a4e26d625b1f01e9268fd8fab"
+    },
+    "inputs": {},
+    "constants": {
+     "k0": {
+      "value": [
+       0.5,
+       0.0,
+       0.0,
+       0.0
+      ],
+      "uniform": "scalars1",
+      "scalars": [
+       {
+        "kind": "FoldedMath",
+        "op": "mul",
+        "args": [
+         {
+          "kind": "FoldedMath",
+          "op": "add",
+          "args": [
+           {
+            "kind": "Constant",
+            "value": [
+             1.0,
+             0.0,
+             0.0,
+             0.0
+            ],
+            "valueType": 240
+           },
+           {
+            "kind": "Sine",
+            "cosine": false,
+            "args": [
+             {
+              "kind": "FoldedMath",
+              "op": "mul",
+              "args": [
+               {
+                "kind": "Time"
+               },
+               {
+                "kind": "Constant",
+                "value": [
+                 3.1415927410125732,
+                 0.0,
+                 0.0,
+                 0.0
+                ],
+                "valueType": 240
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "kind": "Constant",
+          "value": [
+           0.5,
+           0.0,
+           0.0,
+           0.0
+          ],
+          "valueType": 240
+         }
+        ]
+       }
+      ]
+     },
+     "k1": {
+      "value": [
+       0.0,
+       0.0,
+       0.0,
+       1.0
+      ],
+      "uniform": "SelectionColor"
+     },
+     "k2": {
+      "value": [
+       0.3330000042915344,
+       -1.0,
+       1.0,
+       0.0
+      ]
+     },
+     "k3": {
+      "value": [
+       1.0,
+       1.0,
+       0.0,
+       0.0
+      ]
+     },
+     "k4": {
+      "value": [
+       0.0,
+       0.0,
+       1.0,
+       0.0
+      ]
+     }
+    },
+    "textures": {},
+    "code": [
+     {
+      "op": "mov",
+      "d": "fr0",
+      "m": "x",
+      "s": [
+       {
+        "r": "k0",
+        "w": "xxxx"
+       }
+      ]
+     },
+     {
+      "op": "add",
+      "d": "fr0",
+      "m": "xyz",
+      "s": [
+       {
+        "r": "fr0",
+        "w": "xxxx"
+       },
+       {
+        "r": "k1",
+        "w": "xyzw"
+       }
+      ]
+     },
+     {
+      "op": "dp3",
+      "d": "fr0",
+      "m": "w",
+      "s": [
+       {
+        "r": "fr0",
+        "w": "xyzw"
+       },
+       {
+        "r": "k2",
+        "w": "xxxx"
+       }
+      ]
+     },
+     {
+      "op": "lrp",
+      "d": "fr1",
+      "m": "xyz",
+      "s": [
+       {
+        "r": "k3",
+        "w": "xxxx"
+       },
+       {
+        "r": "fr0",
+        "w": "wwww"
+       },
+       {
+        "r": "fr0",
+        "w": "xyzw"
+       }
+      ]
+     },
+     {
+      "op": "add",
+      "d": "fr0",
+      "m": "xyz",
+      "s": [
+       {
+        "r": "fr1",
+        "w": "xyzw"
+       },
+       {
+        "r": "k2",
+        "w": "yyyy"
+       }
+      ]
+     },
+     {
+      "op": "mov",
+      "d": "fr1",
+      "m": "z",
+      "s": [
+       {
+        "r": "k4",
+        "w": "xyzw"
+       }
+      ]
+     },
+     {
+      "op": "mad",
+      "d": "fr0",
+      "m": "xyz",
+      "s": [
+       {
+        "r": "k3",
+        "w": "yyyy"
+       },
+       {
+        "r": "fr0",
+        "w": "xyzw"
+       },
+       {
+        "r": "fr1",
+        "w": "zzzz"
+       }
+      ]
+     },
+     {
+      "op": "rsq",
+      "d": "fr0",
+      "m": "x",
+      "s": [
+       {
+        "r": "fr0",
+        "w": "xxxx"
+       }
+      ]
+     },
+     {
+      "op": "rcp",
+      "d": "fo0",
+      "m": "x",
+      "s": [
+       {
+        "r": "fr0",
+        "w": "xxxx"
+       }
+      ]
+     },
+     {
+      "op": "rsq",
+      "d": "fr0",
+      "m": "x",
+      "s": [
+       {
+        "r": "fr0",
+        "w": "yyyy"
+       }
+      ]
+     },
+     {
+      "op": "rsq",
+      "d": "fr0",
+      "m": "y",
+      "s": [
+       {
+        "r": "fr0",
+        "w": "zzzz"
+       }
+      ]
+     },
+     {
+      "op": "rcp",
+      "d": "fo0",
+      "m": "z",
+      "s": [
+       {
+        "r": "fr0",
+        "w": "yyyy"
+       }
+      ]
+     },
+     {
+      "op": "rcp",
+      "d": "fo0",
+      "m": "y",
+      "s": [
+       {
+        "r": "fr0",
+        "w": "xxxx"
+       }
+      ]
+     },
+     {
+      "op": "mul",
+      "d": "fL",
+      "m": "xyz",
+      "s": [
+       {
+        "r": "fo0",
+        "w": "xyzw"
+       },
+       {
+        "r": "fo0",
+        "w": "xyzw"
+       }
+      ]
+     }
+    ],
+    "outputs": {
+     "light": {
+      "r": "fL",
+      "m": "xyz"
+     }
+    },
+    "refused": {}
+   },
+   "times": [
+    0.0,
+    0.25,
+    0.5,
+    1.0,
+    1.5,
+    1.75,
+    3.1
+   ],
+   "expected": [
+    [
+     0.4995,
+     0.4995,
+     0.4995
+    ],
+    [
+     0.8527,
+     0.8527,
+     0.8527
+    ],
+    [
+     0.999,
+     0.999,
+     0.999
+    ],
+    [
+     0.4995,
+     0.4995,
+     0.4995
+    ],
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     0.1463,
+     0.1463,
+     0.1463
+    ],
+    [
+     0.345146,
+     0.345146,
+     0.345146
+    ]
+   ]
+  }
+ ]
+}

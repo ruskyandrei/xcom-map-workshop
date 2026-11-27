@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
-import { constantAt, evaluateUniform, hash, inputsRead, programFor, programGlsl, runProgram } from '../web/material_program.js';
+import { constantAt, evaluateUniform, hash, inputsRead, lightFunctionAt, programFor, programGlsl, runProgram } from '../web/material_program.js';
 
 const here = path.dirname(url.fileURLToPath(import.meta.url));
 const cases = JSON.parse(fs.readFileSync(path.join(here, 'material_program_cases.json'), 'utf8'));
@@ -66,4 +66,14 @@ for (const c of moving.cases) {
 }
 for (const c of moving.constants) assert.deepEqual(constantAt(c.record, c.values, c.time), c.value, c.name);
 assert.throws(() => evaluateUniform({ kind: 'TextureSample' }, {}, 0), /TextureSample/);
-console.log(`material programs: ${cases.length} cases agree with shader_eval.py, ${moving.cases.length} moving uniforms with shader_slice.py`);
+// a light's light function (F1): the factor at each time, the same numbers as shader_eval.py's (light_function_cases.json)
+const lightCases = JSON.parse(fs.readFileSync(path.join(here, 'light_function_cases.json'), 'utf8')).cases;
+assert.ok(lightCases.length >= 1);
+for (const c of lightCases) {
+  c.times.forEach((t, n) => {
+    const got = lightFunctionAt(c.program, t);
+    assert.equal(got.length, 3);
+    got.forEach((v, k) => assert.ok(Math.abs(v - c.expected[n][k]) < 1e-5, `${c.name} at ${t}: ${got} not ${c.expected[n]}`));
+  });
+}
+console.log(`material programs: ${cases.length} cases agree with shader_eval.py, ${moving.cases.length} moving uniforms with shader_slice.py, ${lightCases.length} light functions`);
