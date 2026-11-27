@@ -59,3 +59,33 @@ console.log('baked rules: ok');
   assert.ok(shadowAt(0.6) > shadowAt(0.5) && shadowAt(0.5) > shadowAt(0.4));
   console.log('baked rules (shadows): ok');
 }
+
+// edited pieces (B4): a DXT1 texel decoded, the live light at a point, the factor
+{
+  const { dxt1Texel, liveFactor, liveLightAt, luminance, srgbToLinear } = await import('../web/baked_rules.js');
+  // one block: colour 0 white (0xffff), colour 1 black (0x0000), four-colour mode; texels 0 to 3 of its first row indices 0 to 3
+  const block = new Uint8Array([0xff, 0xff, 0x00, 0x00, 0b11100100, 0, 0, 0]);
+  assert.deepEqual(dxt1Texel(block, 4, 0, 0), [1, 1, 1]);
+  assert.deepEqual(dxt1Texel(block, 4, 1, 0), [0, 0, 0]);
+  assert.ok(Math.abs(dxt1Texel(block, 4, 2, 0)[0] - 2 / 3) < 1e-9);
+  assert.ok(Math.abs(dxt1Texel(block, 4, 3, 0)[0] - 1 / 3) < 1e-9);
+  // three-colour mode (colour 0 below colour 1): index 3 is black, index 2 halfway
+  const three = new Uint8Array([0x00, 0x00, 0xff, 0xff, 0b11100000, 0, 0, 0]);
+  assert.ok(Math.abs(dxt1Texel(three, 4, 2, 0)[1] - 0.5) < 1e-9);
+  assert.deepEqual(dxt1Texel(three, 4, 3, 0), [0, 0, 0]);
+  assert.ok(Math.abs(srgbToLinear(0.5) - 0.2140) < 1e-3);
+  // a white point light of radius 100, falloff 2, straight above a floor: at 50 units (1 - 0.25)^2 of its light
+  const lamp = { kind: 'point', location: [0, 0, 50], radius: 100, falloffExponent: 2, color: [1, 1, 1], brightness: 1 };
+  const under = liveLightAt([0, 0, 0], [0, 0, 1], [lamp]);
+  assert.ok(Math.abs(under[0] - 0.5625) < 1e-9, under);
+  assert.deepEqual(liveLightAt([0, 0, 0], [0, 0, -1], [lamp]), [0, 0, 0]);       // (facing away)
+  assert.deepEqual(liveLightAt([0, 0, 150], [0, 0, -1], [lamp]), [0, 0, 0]);     // (out of reach)
+  // a spot light pointing down lights under it and not beside it, outside its cone
+  const spot = { ...lamp, kind: 'spot', direction: [0, 0, -1], innerConeAngle: 10, outerConeAngle: 20 };
+  assert.ok(luminance(liveLightAt([0, 0, 0], [0, 0, 1], [spot])) > 0.5);
+  assert.deepEqual(liveLightAt([40, 0, 0], [0, 0, 1], [spot]), [0, 0, 0]);
+  // the factor: the sums' ratio over the samples the live lights reach; none from too few
+  assert.ok(Math.abs(liveFactor([[0.2, 0.1], [0.4, 0.3], [0.5, 0]], 2) - 1.5) < 1e-12);
+  assert.equal(liveFactor([[0.2, 0.1]], 2), null);
+  console.log('baked rules (edited pieces): ok');
+}

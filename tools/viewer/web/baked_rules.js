@@ -8,6 +8,8 @@
 // geometry of its own. The packed atlases keep their top level alone: a partial mip chain is not a complete texture,
 // and the lightmaps' light is soft at the editor's distances.
 
+import { effectiveCone } from './light_rules.js';
+
 const BLOCK = 4, BLOCK_BYTES = 8;      // DXT1: 4 by 4 texels in 8 bytes
 
 /** Where each atlas goes in the packed one: { width, height, places: { key: { x, y } } } for atlases [{ key, width,
@@ -93,3 +95,58 @@ export function copyRows(dst, packedWidth, src, width, height, x, y) {
  *  SHADOW_SHAPE the editor's, held against the game's shots). */
 export const SHADOW_SHAPE = { sharpness: 2, exponent: 2 };
 export const shadowAt = (field, shape = SHADOW_SHAPE) => Math.pow(Math.min(1, Math.max(0, (field - 0.5) * shape.sharpness + 0.5)), shape.exponent);
+
+// Edited pieces (stage B4): a piece the project moved, added or relit is lit live, its local lights scaled by one factor
+// a map that brings them to its lightmaps' level (a lightmap holds the light bounced about as well, which the live
+// lights don't). The factor is worked out as the map opens, on the lightmapped pieces: the baked light at some of each
+// piece's vertices (the texel of its lightmap there, a flat normal) against the live lights at the same points.
+
+/** A texel of a DXT1 atlas (`bytes`, `width` texels across) as stored: [r, g, b] from 0 to 1 (sRGB). */
+export function dxt1Texel(bytes, width, x, y) {
+  const at = ((y >> 2) * (width >> 2) + (x >> 2)) * BLOCK_BYTES;
+  const c0 = bytes[at] | (bytes[at + 1] << 8), c1 = bytes[at + 2] | (bytes[at + 3] << 8);
+  const bits = (bytes[at + 4] | (bytes[at + 5] << 8) | (bytes[at + 6] << 16) | (bytes[at + 7] << 24)) >>> 0;
+  const index = (bits >>> (2 * ((y & 3) * 4 + (x & 3)))) & 3;
+  const rgb = c => [((c >> 11) & 31) / 31, ((c >> 5) & 63) / 63, (c & 31) / 31];
+  const a = rgb(c0), b = rgb(c1);
+  if (index < 2) return index ? b : a;
+  if (c0 > c1) return a.map((v, k) => (index === 2 ? 2 * v + b[k] : v + 2 * b[k]) / 3);
+  return index === 2 ? a.map((v, k) => (v + b[k]) / 2) : [0, 0, 0];
+}
+
+export const srgbToLinear = v => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+export const luminance = rgb => 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+
+/** The live light of `lights` (the export's records: game units and axes) at a point with a unit normal, before the
+ *  material's diffuse colour, as the Game look's shader gives it a piece without a lightmap (lighting.js): for each
+ *  point or spot light in reach, dot(n, l) x its colour (a 2.2 power) x brightness x pow(1 - d^2 / R^2, falloff),
+ *  times the spot's cone squared. */
+export function liveLightAt(point, normal, lights) {
+  const out = [0, 0, 0];
+  for (const l of lights) {
+    const dx = l.location[0] - point[0], dy = l.location[1] - point[1], dz = l.location[2] - point[2];
+    const d2 = (dx * dx + dy * dy + dz * dz) / (l.radius * l.radius);
+    if (!(d2 < 1)) continue;
+    const d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1, lx = dx / d, ly = dy / d, lz = dz / d;
+    const cos = normal[0] * lx + normal[1] * ly + normal[2] * lz;
+    if (cos <= 0) continue;
+    let att = Math.pow(1 - d2, l.falloffExponent ?? 2);
+    if (l.kind === 'spot') {
+      const [inner, outer] = effectiveCone(l.innerConeAngle, l.outerConeAngle), dir = l.direction;
+      const len = Math.hypot(...dir) || 1, cosOuter = Math.cos(outer);
+      const cone = Math.min(1, Math.max(0, (-(lx * dir[0] + ly * dir[1] + lz * dir[2]) / len - cosOuter) / (Math.cos(inner) - cosOuter)));
+      att *= cone * cone;
+    }
+    const k = cos * att * (l.brightness ?? 1);
+    for (let c = 0; c < 3; c++) out[c] += Math.pow(l.color[c], 2.2) * k;
+  }
+  return out;
+}
+
+/** The factor that brings the live lights to the lightmaps' level: the baked light summed over the live light summed,
+ *  in luminance, over the samples [baked, live] the live lights reach; null with fewer than `least` of them. */
+export function liveFactor(samples, least = 20) {
+  let baked = 0, live = 0, n = 0;
+  for (const [b, l] of samples) if (l > 1e-3) { baked += b; live += l; n++; }
+  return n >= least && live > 0 ? baked / live : null;
+}

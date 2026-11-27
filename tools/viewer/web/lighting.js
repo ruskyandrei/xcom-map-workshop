@@ -24,14 +24,17 @@ Object.assign(uniforms, fogShared);
 // piece), and each piece brings its lightmap UVs in the packed atlas (bakedUv: u, v, and 1 where it has a lightmap)
 // and its two scales as attributes of its own geometry: its materials stay shared (F-183). Three attributes and three
 // varyings, no more (a headless browser's limit): bakedUv the lightmap's UVs and the sun shadow map's, bakedScale0
-// the colour's scale and the piece's mark (1: a lightmap, 2: and a shadow map of the sun, 3: and no sun), bakedScale1 the
-// directions' scale.
+// the colour's scale and the piece's mark (1: a lightmap, 2: and a shadow map of the sun, 3: and no sun; 4: a piece
+// the project moved, added or relit, B4, lit live with the local lights scaled to the lightmaps' level and no sky
+// light, as a static piece), bakedScale1 the directions' scale.
 export const bakedShared = { bakedColour: { value: null }, bakedDirections: { value: null }, bakedOn: { value: 0 },
                              bakedWeight: { value: 1 }, bakedSky: { value: 0 },
                              // the sun's baked shadows (B3): the packed shadow maps, whether they stand for the sun (not
                              // when the project's sun has another direction), and the field's sharpness and exponent
                              bakedShadowMap: { value: null }, bakedSunOn: { value: 1 },
-                             bakedShadowShape: { value: new THREE.Vector2(2, 2) } };
+                             bakedShadowShape: { value: new THREE.Vector2(2, 2) },
+                             // the factor that brings the live lights to the lightmaps' level on an edited piece (B4)
+                             bakedLiveFactor: { value: 1 } };
 Object.assign(uniforms, bakedShared);
 const VERTEX_PARS = `#include <common>
 varying vec3 vLocalWorld;
@@ -65,6 +68,7 @@ uniform float bakedSky;
 uniform sampler2D bakedShadowMap;
 uniform float bakedSunOn;
 uniform vec2 bakedShadowShape;
+uniform float bakedLiveFactor;
 varying vec4 vBakedUv;
 varying vec4 vBakedScale0;
 varying vec3 vBakedScale1;
@@ -75,8 +79,9 @@ float bakedSunShadow() {
 	float field = texture2D( bakedShadowMap, vBakedUv.zw ).r;
 	return pow( clamp( ( field - 0.5 ) * bakedShadowShape.x + 0.5, 0.0, 1.0 ), bakedShadowShape.y );
 }
-#define BAKED_PIECE ( bakedOn > 0.5 && vBakedScale0.a > 0.5 )
-#define BAKED_SUN ( bakedOn > 0.5 && bakedSunOn > 0.5 && vBakedScale0.a > 1.5 )
+#define BAKED_PIECE ( bakedOn > 0.5 && vBakedScale0.a > 0.5 && vBakedScale0.a < 3.5 )
+#define BAKED_SUN ( BAKED_PIECE && bakedSunOn > 0.5 && vBakedScale0.a > 1.5 )
+#define BAKED_LIVE ( bakedOn > 0.5 && vBakedScale0.a > 3.5 )
 #endif
 ${FOG_PARS}`;
 // The game's directional lightmap (implementation plan, section 0): with N the material's tangent-space normal and
@@ -96,6 +101,7 @@ if ( BAKED_PIECE ) {
 		* dot( texture2D( bakedDirections, vBakedUv.xy ).rgb * vBakedScale1, bakedBasis * bakedBasis ) * bakedWeight;
 	irradiance = irradiance * bakedSky + PI * bakedLight;      // (three's Lambert divides by pi: the game's diffuse x light)
 }
+if ( BAKED_LIVE ) irradiance *= bakedSky;                     // (an edited static piece: no sky light either, F-182)
 #endif`;
 // UE3: radial attenuation pow(saturate(1 - (d/R)^2), FalloffExponent); spot cone
 // square(saturate((dot(L, -dir) - cosOuter) / (cosInner - cosOuter))).
@@ -149,6 +155,9 @@ if ( localGridInfo.w > 0.5 ) {
 					float cone = saturate( ( dot( - lw, ld.xyz ) - ld.w ) * texelFetch( localLightData, ivec2( 3, li ), 0 ).x );
 					att *= cone * cone;
 				}
+#ifdef USE_BAKED
+				if ( BAKED_LIVE ) att *= bakedLiveFactor;
+#endif
 				directLight.direction = normalize( ( viewMatrix * vec4( lw, 0.0 ) ).xyz );
 				directLight.color = lc.rgb * att;
 				directLight.visible = true;
@@ -277,9 +286,10 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
         const [inner, outer] = effectiveCone(l.innerConeAngle, l.outerConeAngle);
         cosOuter = Math.cos(outer); coneScale = 1 / (Math.cos(inner) - cosOuter);
       }
-      // (the fourth texel's second value: a light the game leaves out of a lightmapped piece, read by the baked light's
-      // spike only: a static one is in its lightmap, an area one lights only what moves)
-      const inLightmaps = l.role === 'static' || l.role === 'area' ? 1 : 0;
+      // (the fourth texel's second value: a light the game leaves out of a lightmapped piece: a static one is in its
+      // lightmap, unless the project moved or changed it (B4: `edited`, lights_wiring.js), an area one lights only what
+      // moves)
+      const inLightmaps = (l.role === 'static' && !l.edited) || l.role === 'area' ? 1 : 0;
       lightData.set([p.x, p.y, p.z, l.radius, ...colour, l.falloffExponent, d.x, d.y, d.z, cosOuter, coneScale, inLightmaps, 0, 0], i * 16);
     });
     uniforms.localLightData.value?.dispose();

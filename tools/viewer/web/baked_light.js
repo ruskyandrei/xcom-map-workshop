@@ -11,9 +11,16 @@
 // distance field), packed the same way into one single-channel atlas, its UVs beside its lightmap's. A piece wholly in
 // the sun's shadow (export 45's `sunIrrelevant`: the light on its IrrelevantLights, F-184) takes no sun at all; one
 // with no shadow map, or a plain shadow factor (none on the four maps shot), keeps the live shadow map.
+//
+// A piece the project edited (stage B4) is lit live, its local lights scaled by the map's factor (baked_rules.js
+// liveFactor, worked out as the lightmaps load) and no sky light, as the game's static pieces: one of the map's own
+// moved or deleted, or relit (its lightmap names a light the project moved, changed or deleted: lights_wiring.js
+// relitPieces), keeps its geometry with its mark set to 4; every added piece (a copy, a made piece, another map's)
+// gets a geometry of its own with that mark. refresh() sets them after each edit (the edit hub, app.js).
 import * as THREE from 'three';
 import { bakedShared } from './lighting.js';
-import { SHADOW_SHAPE, copyBlocks, copyRows, packAtlases, packedBytes, packedUvs, scaleValues } from './baked_rules.js';
+import { SHADOW_SHAPE, bakedLightAt, copyBlocks, copyRows, dxt1Texel, liveFactor, liveLightAt, luminance, packAtlases,
+         packedBytes, packedUvs, scaleValues, srgbToLinear } from './baked_rules.js';
 import { canTake, readDds } from './texture_file.js';
 
 /** Off where the page's address says ?baked=off (the checks and the perf probe compare); ?baked=sum draws the three
@@ -22,6 +29,10 @@ export const bakedAsked = new URLSearchParams(globalThis.location?.search ?? '')
 
 export function createBakedLight({ data, roots, assetUrl, hasExtension }) {
   let loading = null, parts = [], packed = null, shadowPacked = null, shadows = 0, darks = 0, why = null;
+  // B4: the lightmapped pieces with their parts, the added pieces' parts given a live geometry, how many are lit live,
+  // the factor (null: too few samples, 1 used) and its samples
+  let entries = [], liveParts = new Set(), liveNow = 0, factor = null, samples = 0;
+  const LIVE = 4, FACTOR_RANGE = [0.25, 4];
 
   const lightmapped = () => [...roots.values()].filter(r => r.userData.source?.lightmap && !r.userData.source.added);
 
@@ -86,8 +97,58 @@ export function createBakedLight({ data, roots, assetUrl, hasExtension }) {
     geometry.setAttribute('bakedScale0', new THREE.InterleavedBufferAttribute(interleaved, 4, 0));
     geometry.setAttribute('bakedScale1', new THREE.InterleavedBufferAttribute(interleaved, 3, 4));
     part.userData.bakedFrom = shared;
+    part.userData.bakedOwn = geometry;
+    part.userData.bakedMark = part.userData.bakedNow = dark ? 3 : sh ? 2 : 1;
+    part.userData.bakedScales = interleaved;
     part.geometry = geometry;
     return true;
+  }
+  // a part's mark set (its own lightmap's, or LIVE), every vertex
+  function setMark(part, mark) {
+    const scales = part.userData.bakedScales;
+    for (let i = 3; i < scales.array.length; i += 7) scales.array[i] = mark;
+    scales.needsUpdate = true;
+    part.userData.bakedNow = mark;
+  }
+  // an added piece's part: a geometry of its own, the attributes of the one it has, its mark LIVE
+  function liveGeometry(part) {
+    const shared = part.geometry, count = shared.attributes.position?.count ?? 0;
+    if (!count) return;
+    const geometry = new THREE.BufferGeometry();
+    for (const [name, attribute] of Object.entries(shared.attributes)) geometry.setAttribute(name, attribute);
+    geometry.setIndex(shared.index);
+    for (const g of shared.groups) geometry.addGroup(g.start, g.count, g.materialIndex);
+    geometry.boundingBox = shared.boundingBox; geometry.boundingSphere = shared.boundingSphere;
+    geometry.morphAttributes = shared.morphAttributes;
+    const marks = new Float32Array(count * 4);
+    for (let i = 3; i < marks.length; i += 4) marks[i] = LIVE;
+    geometry.setAttribute('bakedUv', new THREE.BufferAttribute(new Float32Array(count * 4), 4));
+    geometry.setAttribute('bakedScale0', new THREE.BufferAttribute(marks, 4));
+    geometry.setAttribute('bakedScale1', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    part.userData.bakedFrom = shared;
+    part.userData.bakedOwn = geometry;
+    part.geometry = geometry;
+  }
+
+  // the baked light against the live lights at some of a lightmapped part's vertices (B4's factor): [baked, live] each,
+  // in luminance, the baked at the texel of its lightmap there for a flat normal
+  function sampleLight(part, record, colour, directions, lights, out, most = 12) {
+    const geometry = part.userData.bakedFrom, position = geometry.attributes.position, normal = geometry.attributes.normal;
+    const uv = geometry.attributes[record.channel ? `uv${record.channel}` : 'uv'];
+    if (!position || !normal || !uv) return;
+    part.updateWorldMatrix(true, false);
+    const matrix = part.matrixWorld, normals = new THREE.Matrix3().getNormalMatrix(matrix);
+    const p = new THREE.Vector3(), n = new THREE.Vector3(), step = Math.max(1, Math.floor(position.count / most));
+    const texel = (atlas, u, v) => dxt1Texel(atlas.data, atlas.width, Math.min(atlas.width - 1, Math.max(0, Math.floor(u * atlas.width))),
+                                             Math.min(atlas.height - 1, Math.max(0, Math.floor(v * atlas.height)))).map(srgbToLinear);
+    for (let i = 0; i < position.count; i += step) {
+      p.fromBufferAttribute(position, i).applyMatrix4(matrix);
+      n.fromBufferAttribute(normal, i).applyMatrix3(normals).normalize();
+      const u = uv.getX(i) * record.uvScale[0] + record.uvBias[0], v = uv.getY(i) * record.uvScale[1] + record.uvBias[1];
+      const baked = bakedLightAt(texel(colour, u, v), texel(directions, u, v), record.scale0, record.scale1);
+      // (the view's axes are the game's x, z, y)
+      out.push([luminance(baked), luminance(liveLightAt([p.x, p.z, p.y], [n.x, n.z, n.y], lights))]);
+    }
   }
 
   async function loadNow() {
@@ -124,10 +185,20 @@ export function createBakedLight({ data, roots, assetUrl, hasExtension }) {
       const dark = Boolean(r.userData.source.sunIrrelevant);
       const sun = fieldOf(r), sunAtlas = shadowPacked && sun ? shadowAtlases.get(sun.texture) : null;
       const shadow = sunAtlas ? { record: sun, atlas: sunAtlas, place: shadowPacked.places[sun.texture] } : null;
+      const own = [];
       for (const part of r.userData.parts ?? []) {
-        if (ownGeometry(part, lm, colour, place, shadow, dark)) { parts.push(part); if (shadow) shadows++; if (dark) darks++; }
+        if (ownGeometry(part, lm, colour, place, shadow, dark)) { parts.push(part); own.push(part); if (shadow) shadows++; if (dark) darks++; }
       }
+      if (own.length) entries.push({ root: r, parts: own, record: lm, colour, directions });
     }
+    // B4's factor: the map's lightmaps against the live lights an edited piece takes (its static and area lights)
+    const lights = (data.lights ?? []).filter(l => l.enabled && (l.kind === 'point' || l.kind === 'spot') && l.radius > 0
+                                                && (l.role === 'static' || l.role === 'area'));
+    const pairs = [];
+    for (const e of entries) for (const part of e.parts) sampleLight(part, e.record, e.colour, e.directions, lights, pairs);
+    factor = liveFactor(pairs);
+    samples = pairs.filter(([, live]) => live > 1e-3).length;
+    bakedShared.bakedLiveFactor.value = factor === null ? 1 : Math.min(FACTOR_RANGE[1], Math.max(FACTOR_RANGE[0], factor));
     bakedShared.bakedColour.value = texture(colourBytes, packed.width, packed.height);
     bakedShared.bakedDirections.value = texture(directionBytes, packed.width, packed.height);
     if (shadowPacked) {
@@ -150,9 +221,38 @@ export function createBakedLight({ data, roots, assetUrl, hasExtension }) {
       .catch(error => { why = error.message; bakedShared.bakedOn.value = 0; return false; });
     return loading;
   }
+  /** After an edit (the edit hub's edit and scene runs, app.js): the map's own pieces moved, deleted or relit (`relit`:
+   *  their ids) lit live, the others by their lightmaps again; every added piece lit live. */
+  function refresh(relit = new Set()) {
+    if (!packed) return;
+    liveNow = 0;
+    for (const e of entries) {
+      const live = Boolean(e.root.userData.edit || e.root.userData.deleted || relit.has(e.root.userData.source.id));
+      for (const part of e.parts) {
+        const mark = live ? LIVE : part.userData.bakedMark;
+        if (part.userData.bakedNow !== mark) setMark(part, mark);
+      }
+      if (live) liveNow++;
+    }
+    const now = new Set();
+    for (const root of roots.values()) {
+      if (!root.userData.source?.added || root.userData.deleted) continue;
+      for (const part of root.userData.parts ?? []) {
+        if (part.userData.bakedOwn !== part.geometry) liveGeometry(part);
+        if (part.userData.bakedOwn) now.add(part);
+      }
+      liveNow++;
+    }
+    liveParts = now;
+  }
   /** As a map opens: nothing loaded, the light off. */
   function reset() {
-    for (const part of parts) if (part.userData.bakedFrom) { part.geometry = part.userData.bakedFrom; delete part.userData.bakedFrom; }
+    for (const part of [...parts, ...liveParts]) {
+      if (part.userData.bakedFrom) part.geometry = part.userData.bakedFrom;
+      for (const key of ['bakedFrom', 'bakedOwn', 'bakedMark', 'bakedNow', 'bakedScales']) delete part.userData[key];
+    }
+    entries = []; liveParts = new Set(); liveNow = 0; factor = null; samples = 0;
+    bakedShared.bakedLiveFactor.value = 1;
     parts = []; packed = null; shadowPacked = null; shadows = 0; darks = 0; why = null; loading = null;
     bakedShared.bakedOn.value = 0;
     for (const name of ['bakedColour', 'bakedDirections', 'bakedShadowMap']) { bakedShared[name].value?.dispose(); bakedShared[name].value = null; }
@@ -162,8 +262,8 @@ export function createBakedLight({ data, roots, assetUrl, hasExtension }) {
   /** What the checks and the perf probe read. */
   const state = () => ({ on: Boolean(bakedShared.bakedOn.value), parts: parts.length, atlas: packed ? [packed.width, packed.height] : null,
                          shadows, sunless: darks, shadowAtlas: shadowPacked ? [shadowPacked.width, shadowPacked.height] : null,
-                         sunShadows: Boolean(bakedShared.bakedSunOn.value), why });
+                         sunShadows: Boolean(bakedShared.bakedSunOn.value), live: liveNow, factor, samples, why });
   /** The sun's baked shadows standing for the sun or not (the project's sun turned: the live shadow map everywhere). */
   function setSunShadows(on) { bakedShared.bakedSunOn.value = on ? 1 : 0; }
-  return { load, reset, set, setSunShadows, state };
+  return { load, refresh, reset, set, setSunShadows, state };
 }

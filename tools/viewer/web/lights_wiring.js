@@ -120,7 +120,20 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   // The light as edited, as the Map lighting mode and Solo read it (export terms: colour 0-1, game units).
   function lightRecordOf(root, matrix = root.matrix) {
     const pose = lightPose(root, matrix);
-    return recordNow(root.userData.source, root.userData.values, pose.location, pose.rotation, directionOf(matrix));
+    const record = recordNow(root.userData.source, root.userData.values, pose.location, pose.rotation, directionOf(matrix));
+    // (a light the project moved, changed or added is in no lightmap: lighting.js draws it on the lightmapped pieces too)
+    if (lightEdited(root)) record.edited = true;
+    return record;
+  }
+  /** The ids of the map's pieces whose lightmap holds a light the project moved, changed or deleted (its bakedInto):
+   *  the baked light lights them live (game-likeness plan, B4). */
+  function relitPieces() {
+    const out = new Set();
+    for (const root of lightRoots.values()) {
+      const o = root.userData.source;
+      if (o.bakedInto && !isStream(o) && lightEdited(root)) for (const id of o.bakedInto) out.add(id);
+    }
+    return out;
   }
   function paintLight(root) {
     const selected = gizmo.picks().ids.includes(root.userData.source.id);
@@ -951,7 +964,7 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
            hoverHandle, lightClip, lightEdited, lightEntries, lightingModes, lightPanel, lightPose, lightRecords,
            lookOptions, setLook, toggleLook,
            lightsAt, lightsBlocked, lightShapes, lightSource, lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight,
-           recipeLight, refreshLightShapes, refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding,
+           recipeLight, refreshLightShapes, refreshLightVisibility, relitPieces, removeLightRoots, scaleMarkers, setBinding,
            setLightsShown, setLightValues, setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
            withStorableCone };
 }

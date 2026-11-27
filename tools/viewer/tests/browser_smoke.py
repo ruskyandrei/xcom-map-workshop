@@ -5987,6 +5987,28 @@ def check_baked_light(page):
         assert baked['shadows'] > 0 and baked['shadowAtlas'] and baked['sunShadows'], baked
     if page.evaluate('viewer.data.objects.some(o => o.lightmap && o.sunIrrelevant)'):
         assert baked['sunless'] > 0, baked
+    # B4: the live lights' factor worked out on the lightmapped pieces; a piece moved is lit live and by its lightmap
+    # again once undone; a static light changed lights the pieces its bake lists live, until undone
+    assert baked['factor'] and 0.05 < baked['factor'] < 20 and baked['samples'] >= 20 and baked['live'] == 0, baked
+    piece = page.evaluate("[...viewer.roots].find(([, r]) => r.userData.source.lightmap && !r.userData.source.hidden"
+                          " && r.userData.parts?.length)[0]")
+    page.evaluate('id => viewer.select(id)', piece)
+    start = page.evaluate('viewer.gizmo.pose()')
+    page.locator('#posX').fill(f"{start['location'][0] + 48:.2f}"); page.locator('#posX').press('Enter')
+    mark = "id => viewer.roots.get(id).userData.parts[0].geometry.attributes.bakedScale0.getW(0)"
+    assert page.evaluate('viewer.post.baked().live') == 1 and page.evaluate(mark, piece) == 4
+    page.keyboard.press('Control+z')
+    assert page.evaluate('viewer.post.baked().live') == 0 and page.evaluate(mark, piece) in (1, 2, 3)
+    light = page.evaluate("(viewer.data.lights.find(l => l.role === 'static' && l.bakedInto?.length && l.enabled) || {}).id")
+    if light:
+        page.evaluate('id => viewer.select(id)', light)
+        listed = page.evaluate("id => viewer.data.lights.find(l => l.id === id).bakedInto"
+                               ".filter(k => viewer.roots.get(k)?.userData.source.lightmap).length", light)
+        page.locator('#lightBrightness').fill('7.5'); page.locator('#lightBrightness').press('Enter')
+        assert 0 < page.evaluate('viewer.post.baked().live') <= listed, (listed, page.evaluate('viewer.post.baked()'))
+        page.keyboard.press('Control+z')
+        assert page.evaluate('viewer.post.baked().live') == 0
+    page.evaluate('viewer.select(null)')
     pool = page.evaluate(BAKED_POOL)
     if pool:
         assert pool['centre'] > max(pool['corners']) and pool['centre'] > 1.5 * sum(pool['corners']) / 4, pool

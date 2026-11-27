@@ -803,6 +803,9 @@ is put) carries ([baked_light.py](../tools/viewer/baked_light.py); F-180, F-181)
 A piece with a vertex lightmap or none has none of these. The page packs the atlases into one colour and one direction atlas
 (baked_rules.js) and lights each lightmapped piece by them in the Game look (baked_light.js): the sun's shadow from
 its shadow map read as a distance field (B3), none of the sun where `sunIrrelevant`, the live shadow map otherwise.
+A piece the project moved, deleted or relit (its lightmap names, in a light's `bakedInto`, a light the project moved,
+changed or deleted), and every added piece, is lit live instead, its local lights scaled by the map's factor (the
+lightmaps against the live lights at the lightmapped pieces' vertices, worked out as they load) and no sky light (B4).
 
 ## What E0 still lacks
 

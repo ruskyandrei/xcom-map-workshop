@@ -39,6 +39,8 @@ export const RUNS = {
     'project',       // document_session.js: the project's title, its save state and its draft
     'add-panel',     // clipboard.js: the prefab builder's This prefab tab follows the prefab's pieces
     'lights',        // lights_wiring.js: the lights drawn follow, and their warnings
+    'baked-light',   // app.js: the Game look's baked light (baked_light.js): the map's pieces moved, deleted or relit, and
+                     // the added ones, lit live (B4)
   ],
   // While a gizmo handle is held, what is seen to move besides the pieces, the highlight and the pose fields
   // (piece_status.js's piece-status runs it, then ends the edit's run: the rest waits for the drag's end).
@@ -54,6 +56,7 @@ export const RUNS = {
     'textures',      // made_handles.js: a made piece with a surface aligned to the world, pasted or put back, is drawn
                      // from where it stands
     'diagonal',      // diagonal_wiring.js: the diagonal cover marks (a mark follows its piece) and the view's panel
+    'baked-light',   // app.js: the baked light (baked_light.js): pieces added or put back lit live or by their lightmaps
   ],
   // The project's landing zones changed or were read (clear_map.js: the install's landing lines read as a map opens,
   // a clear done or undone; delete_reset.js: Reset all done or undone, after the cleared run).

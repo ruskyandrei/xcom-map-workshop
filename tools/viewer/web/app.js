@@ -71,7 +71,7 @@ import { createFloorListings } from './floor_listings.js';
 import { createLevelSnap } from './level_snap.js';
 import { createDeleteReset } from './delete_reset.js';
 import { createPrepare } from './prepare.js';
-import { checkHub, editChangedNow, runHub } from './edit_hub.js';
+import { checkHub, editChangedNow, onHub, runHub } from './edit_hub.js';
 import { createSelection, rootName, selectionWords } from './selection.js';
 import { createViews } from './views.js';
 import { createDiagonalWiring } from './diagonal_wiring.js';
@@ -341,7 +341,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         lightEntries, lightingModes, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
         lookOptions, setLook, toggleLook,
         lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, lightsAt, recipeLight, refreshLightShapes,
-        refreshLightVisibility, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
+        refreshLightVisibility, relitPieces, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
         setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
         withStorableCone } = createLightsWiring({
   $, actorPose, baseMatrix, camera, editChanged, flashHint, gizmo, HANDLE_PICK, highlight, ladderMarks, lightLayer,
@@ -606,12 +606,16 @@ let postParts = null, postReady = false, postWarming = null, postKey = '', postV
 const gameLook = () => $('lighting').value === 'game';
 // The map's baked light (B2: baked_light.js), made as a map opens and loaded when the Game look is first on
 let bakedLight = null;
+// (B4: the map's pieces moved, deleted or relit, and the added ones, lit live after each edit, and once it loads)
+const refreshBaked = () => { bakedLight?.refresh(relitPieces()); };
+onHub('edit', 'baked-light', refreshBaked);
+onHub('scene', 'baked-light', refreshBaked);
 const missingExtensions = missingByAddress(globalThis.location?.search);
 const hasExtension = name => !missingExtensions.has(name) && Boolean(renderer.extensions.has(name));
 function warmLook() {
   postReady = false;
   if (!gameLook() || !data) return Promise.resolve();
-  const warming = postWarming = Promise.resolve(bakedLight?.load()).then(() => postChain.warm(world, camera))
+  const warming = postWarming = Promise.resolve(bakedLight?.load()).then(refreshBaked).then(() => postChain.warm(world, camera))
     .catch(error => console.warn(`Game look shaders not compiled ahead: ${error.message}`))
     .then(() => { if (postWarming === warming) postReady = true; });
   return warming;
