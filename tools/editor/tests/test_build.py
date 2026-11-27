@@ -794,10 +794,14 @@ class Builds(unittest.TestCase):
                 rec['sun'] = dict(lights=[], maps=[dict(component='DominantDirectionalLight_1.X', size=[132, 97])],
                                   samples=dict(count=1743, markedBefore=222, markedAfter=455, changed=337), notes=[])
                 (lit / ('%s.relight.json' % variant)).write_text(json.dumps(rec))
+                # the writer's record of the pieces given shadow maps of the turned sun (sun_bake.own_shadow_maps)
+                (lit / ('%s.fixture.json' % variant)).write_text(json.dumps(dict(nativeCopies=dict(sunShadowMaps=dict(
+                    given=[dict(component='XComLevelActor_91.StaticMeshComponent_1'),
+                           dict(component='XComLevelActor_302.StaticMeshComponent_7')], left=254)))))
         self.run_tool = run
         m = self.make().run()
         stage = next(s for s in m['stages'] if s['stage'] == 'light')
-        self.assertEqual(stage['sunTurned'], dict(levelMaps=1, notes=[], samplesChanged=337))
+        self.assertEqual(stage['sunTurned'], dict(levelMaps=1, notes=[], samplesChanged=337, piecesGivenShadowMaps=2))
 
     def test_flags_alone_are_written_in_the_map_with_the_lighting_unchanged(self):
         """A project whose only change is pieces' flags (piece flags plan, 6.3): flags are settings the game reads, not

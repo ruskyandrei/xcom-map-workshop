@@ -117,6 +117,40 @@ class Marks(unittest.TestCase):
                                       [True, True, False, False])
 
 
+def quad_mesh():
+    """A made-up mesh as lightmap_texels.component_mesh gives one: a 100-unit square at z 0 facing up, its lightmap
+    UVs the unit square."""
+    return dict(mesh='quad', channel=1, positions=np.array([[0, 0, 0], [100, 0, 0], [100, 100, 0], [0, 100, 0]], float),
+                normals=np.tile([0.0, 0.0, 1.0], (4, 1)), tangents=np.tile([1.0, 0.0, 0.0], (4, 1)), signs=np.ones(4),
+                uv=np.array([[0, 0], [1, 0], [1, 1], [0, 1]], float), triangles=np.array([[0, 1, 2], [0, 2, 3]]))
+
+
+class OwnShadowMaps(unittest.TestCase):
+    """A piece wholly in the old sun's shadow (on its IrrelevantLights, F-198): the layout of a shadow map of its own,
+    and whether the turned sun reaches it, on made-up geometry."""
+
+    def test_the_layout_is_the_lightmap_rectangle_with_its_ring(self):
+        lay = sun_bake.own_layout(dict(coordinateScale=[0.25, 0.125], coordinateBias=[0.5, 0.5]), (64, 64))
+        self.assertEqual((lay['rect'], lay['size']), ((16, 8), (32, 16)))
+        self.assertEqual((lay['scale'], lay['bias']), ((0.5, 0.5), (1 / 32, 1 / 16)))
+        # a rectangle larger than a made piece's own textures is scaled down to fit them, ring and all
+        lay = sun_bake.own_layout(dict(coordinateScale=[1.0, 0.125], coordinateBias=[0, 0]), (2048, 2048))
+        self.assertEqual((lay['rect'], lay['size']), ((1022, 127), (1024, 256)))
+
+    def test_a_piece_the_sun_reaches_on_a_texel_and_one_it_does_not(self):
+        lay = sun_bake.own_layout(dict(coordinateScale=[0.25, 0.25], coordinateBias=[0, 0]), (64, 64))
+        up = [0.0, 0.0, 1.0]
+        for roof, lit in (((-50, 150, -50, 150, 50.0), 0), ((-50, 50, -50, 150, 50.0), 128), ((), 256)):
+            with self.subTest(roof=roof):
+                occluder = shadows.Occluder(quads(roof) if roof else np.zeros((0, 3, 3), np.float32))
+                self.assertEqual(sun_bake.lit_texels(quad_mesh(), np.eye(4), lay, occluder, up, 1.0), (lit, 256))
+        # 45 degrees up: from the west the roof (to x 45, 50 up) shades all but the last column of texels (x 96.9);
+        # from the east it shades none
+        occluder = shadows.Occluder(quads((-50, 45, -50, 150, 50.0)))
+        self.assertEqual(sun_bake.lit_texels(quad_mesh(), np.eye(4), lay, occluder, [-1.0, 0.0, 1.0], 1.0), (16, 256))
+        self.assertEqual(sun_bake.lit_texels(quad_mesh(), np.eye(4), lay, occluder, [1.0, 0.0, 1.0], 1.0), (256, 256))
+
+
 class MapEdits(unittest.TestCase):
     """map_edits' bytes, on the readers' records as a made-up map would give them: the depths over the counted array,
     each matrix row saved W first, the box's six floats; the IsValid byte and the sizes left alone."""
@@ -220,6 +254,7 @@ class TurnedBar(unittest.TestCase):
             raise AssertionError(f'native_copy.py --sun-turned failed: {run.stdout[-2000:]} {run.stderr[-2000:]}')
         lighting.link_caches(cls.out, src.parent)
         cls.record = json.loads((cls.out / 'URB_Bar_Sun.relight.json').read_text(encoding='utf-8'))
+        cls.manifest = json.loads((cls.out / 'URB_Bar_Sun.fixture.json').read_text(encoding='utf-8'))
         cls.q = lighting.Package(cls.out / 'URB_Bar_Sun.upk')
         cls.old = lighting.Package(src)
         cls.world = relight.Scene(cls.q, samples=1, bounce_rays=0, emissive=False)
@@ -234,7 +269,9 @@ class TurnedBar(unittest.TestCase):
         self.assertEqual(self.q.own(self.q.exports[self.q.by_name[MOON] - 1]['outer'], 'Rotation'), TURNED)
         self.assertFalse(r['lightingUnchanged'])
         self.assertEqual((len(r['components']), r['failed']), (0, 0))
-        self.assertEqual(len([s for s in r['shadowMaps'] if 'skipped' not in s]), 708)
+        # the map's 708, and one each of their own for 59 of the 60 pieces wholly in the moon's shadow that the sun
+        # reaches (the 60th kept one of the moon beside the list, and it is among the 708)
+        self.assertEqual(len([s for s in r['shadowMaps'] if 'skipped' not in s]), 767)
         (m,) = r['sun']['maps']
         self.assertEqual(m['size'], [132, 97])
         self.assertEqual(m['depthsChanged'], 12804)
@@ -265,11 +302,49 @@ class TurnedBar(unittest.TestCase):
             agree += np.sum((value > 0.5) == seen)
             far_agree += np.sum(((value > 0.5) == seen)[far])
             n, n_far = n + len(seen), n_far + far.sum()
-            before = shadowmaps.texture_top(self.old, self.old.own(self.old.by_name[sm['path']], 'Texture'))[0]
-            changed += int(np.sum(np.abs(before[geo['py'], geo['px']].astype(int) - top[geo['py'], geo['px']]) > 2))
+            if sm['path'] in self.old.by_name:          # (not one of the pieces' own, new to the map)
+                before = shadowmaps.texture_top(self.old, self.old.own(self.old.by_name[sm['path']], 'Texture'))[0]
+                changed += int(np.sum(np.abs(before[geo['py'], geo['px']].astype(int) - top[geo['py'], geo['px']]) > 2))
         self.assertGreater(agree / n, 0.99)             # 99.6% on every piece
         self.assertGreater(far_agree / n_far, 0.999)    # away from the shadows' edges
         self.assertGreater(changed / n, 0.3)            # the old moon's shadows are gone (45%)
+
+    def test_the_pieces_wholly_in_the_old_suns_shadow_that_the_new_one_reaches_have_maps_of_their_own(self):
+        import baked_light
+        made = self.manifest['nativeCopies']['sunShadowMaps']
+        moon = self.q.own(self.q.by_name[MOON], 'LightGuid').hex()
+        # of the 314 pieces the level lists with the moon on their IrrelevantLights, 60 are lit by the turned sun on a
+        # texel at least (F-198)
+        self.assertEqual((len(made['given']), made['left']), (60, 254))
+        agree = n = lit = 0
+        # (one of them kept a shadow map of the moon beside the list, F-184: it keeps it, and loses the list's entry)
+        self.assertEqual(sum(1 for x in made['given'] if not x['own']), 1)
+        for piece in made['given']:
+            ci = self.q.by_name[PL + piece['component']]
+            self.assertFalse(baked_light.sun_irrelevant(self.q, ci, moon), piece['component'])
+            (sm,) = [x for x in shadowmaps.shadow_maps(self.q, ci) if x['guid'] == moon and not x['factor']]
+            self.assertEqual(sm['export'], piece['shadowMap'])
+            self.assertEqual(sm['path'] in self.old.by_name, not piece['own'])
+            top, t = shadowmaps.texture_top(self.q, sm['texture'])
+            self.assertEqual([t['mips'][0]['width'], t['mips'][0]['height']], piece['size'])
+            geo = shadowmaps.sub_samples(self.q, ci, sm, piece['size'], upsample=1)
+            seen = shadowmaps.lit(self.world.occluder, self.light['toLight'], geo, self.world.level_scale)
+            value = top[geo['py'], geo['px']] / 255.0
+            agree, n, lit = agree + int(np.sum((value > 0.5) == seen)), n + len(seen), lit + int(np.sum(value > 0.5))
+        self.assertGreater(agree / n, 0.98)
+        self.assertGreater(lit, 10000)
+        # the others are as the map had them: the moon on their IrrelevantLights, no shadow map of it (but the other
+        # that kept one), their bytes the map's; and the turned sun reaches none of their texels
+        left = sun_bake.reached_pieces(self.q, sun_bake.listed_scene(self.q), moon, self.light['toLight'])
+        self.assertEqual(len(left), 254)
+        self.assertEqual([x['path'] for x in left if x['lit']], [])
+        for piece in left:
+            ci = piece['export']
+            self.assertEqual([x['export'] for x in shadowmaps.shadow_maps(self.q, ci) if x['guid'] == moon],
+                             [piece['existing']] if piece['existing'] else [])
+            e, o = self.q.exports[ci - 1], self.old.exports[ci - 1]
+            self.assertEqual(self.q.data[e['off']:e['off'] + e['size']], self.old.data[o['off']:o['off'] + o['size']],
+                             piece['path'])
 
     def test_the_map_of_the_level_is_the_new_suns(self):
         ci = self.q.by_name[MOON]
