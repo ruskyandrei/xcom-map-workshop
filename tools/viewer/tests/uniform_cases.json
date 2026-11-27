@@ -1,0 +1,825 @@
+{
+ "about": "Uniform expressions that move with time (game-likeness plan, A8): the export's JSON trees, worked out by shader_slice.evaluate_uniform (value) and by material_program.js's evaluateUniform and constantAt, which test_shader_slice.py and material_program_test.mjs hold to the same numbers.",
+ "cases": [
+  {
+   "name": "a constant",
+   "expr": {
+    "kind": "Constant",
+    "value": [
+     0.1,
+     0.2,
+     0.3,
+     0.4
+    ]
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    0.1,
+    0.2,
+    0.3,
+    0.4
+   ]
+  },
+  {
+   "name": "a vector parameter, set",
+   "expr": {
+    "kind": "VectorParameter",
+    "name": "Tint",
+    "default": [
+     1.0,
+     0.0,
+     0.0,
+     1.0
+    ]
+   },
+   "values": {
+    "vectors": {
+     "Tint": [
+      0.5,
+      0.25,
+      0.0,
+      1.0
+     ]
+    },
+    "scalars": {
+     "Speed": 3.0
+    }
+   },
+   "time": 0,
+   "value": [
+    0.5,
+    0.25,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "name": "a vector parameter, its default",
+   "expr": {
+    "kind": "VectorParameter",
+    "name": "Tint",
+    "default": [
+     1.0,
+     0.0,
+     0.0,
+     1.0
+    ]
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    1.0,
+    0.0,
+    0.0,
+    1.0
+   ]
+  },
+  {
+   "name": "a scalar parameter, set",
+   "expr": {
+    "kind": "ScalarParameter",
+    "name": "Speed",
+    "default": 2.0
+   },
+   "values": {
+    "vectors": {
+     "Tint": [
+      0.5,
+      0.25,
+      0.0,
+      1.0
+     ]
+    },
+    "scalars": {
+     "Speed": 3.0
+    }
+   },
+   "time": 0,
+   "value": [
+    3.0,
+    3.0,
+    3.0,
+    3.0
+   ]
+  },
+  {
+   "name": "a scalar parameter, its default",
+   "expr": {
+    "kind": "ScalarParameter",
+    "name": "Speed",
+    "default": 2.0
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    2.0,
+    2.0,
+    2.0,
+    2.0
+   ]
+  },
+  {
+   "name": "a unit colour",
+   "expr": {
+    "kind": "XComVectorParameter",
+    "name": "TeamColor"
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "name": "the time",
+   "expr": {
+    "kind": "Time"
+   },
+   "values": {},
+   "time": 1.5,
+   "value": [
+    1.5,
+    1.5,
+    1.5,
+    1.5
+   ]
+  },
+  {
+   "name": "a sine of time and speed",
+   "expr": {
+    "kind": "Sine",
+    "args": [
+     {
+      "kind": "FoldedMath",
+      "op": "mul",
+      "args": [
+       {
+        "kind": "Time"
+       },
+       {
+        "kind": "ScalarParameter",
+        "name": "Speed",
+        "default": 2.0
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "vectors": {
+     "Tint": [
+      0.5,
+      0.25,
+      0.0,
+      1.0
+     ]
+    },
+    "scalars": {
+     "Speed": 3.0
+    }
+   },
+   "time": 0.7,
+   "value": [
+    0.863209367,
+    0.863209367,
+    0.863209367,
+    0.863209367
+   ]
+  },
+  {
+   "name": "a cosine",
+   "expr": {
+    "kind": "Sine",
+    "cosine": true,
+    "args": [
+     {
+      "kind": "FoldedMath",
+      "op": "mul",
+      "args": [
+       {
+        "kind": "Time"
+       },
+       {
+        "kind": "ScalarParameter",
+        "name": "Speed",
+        "default": 2.0
+       }
+      ]
+     }
+    ]
+   },
+   "values": {
+    "vectors": {
+     "Tint": [
+      0.5,
+      0.25,
+      0.0,
+      1.0
+     ]
+    },
+    "scalars": {
+     "Speed": 3.0
+    }
+   },
+   "time": 0.7,
+   "value": [
+    -0.504846105,
+    -0.504846105,
+    -0.504846105,
+    -0.504846105
+   ]
+  },
+  {
+   "name": "a panner's fraction",
+   "expr": {
+    "kind": "Frac",
+    "args": [
+     {
+      "kind": "FoldedMath",
+      "op": "mul",
+      "args": [
+       {
+        "kind": "Time"
+       },
+       {
+        "kind": "Constant",
+        "value": [
+         0.25,
+         0.5,
+         1,
+         2
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 5.3,
+   "value": [
+    0.325,
+    0.65,
+    0.3,
+    0.6
+   ]
+  },
+  {
+   "name": "periodic",
+   "expr": {
+    "kind": "Periodic",
+    "args": [
+     {
+      "kind": "FoldedMath",
+      "op": "mul",
+      "args": [
+       {
+        "kind": "Time"
+       },
+       {
+        "kind": "Constant",
+        "value": [
+         0.3,
+         0.3,
+         0.3,
+         0.3
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 4.0,
+   "value": [
+    0.2,
+    0.2,
+    0.2,
+    0.2
+   ]
+  },
+  {
+   "name": "floor and ceiling",
+   "expr": {
+    "kind": "FoldedMath",
+    "op": "add",
+    "args": [
+     {
+      "kind": "Floor",
+      "args": [
+       {
+        "kind": "Constant",
+        "value": [
+         1.5,
+         -1.5,
+         2,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "kind": "Ceil",
+      "args": [
+       {
+        "kind": "Constant",
+        "value": [
+         1.25,
+         -1.25,
+         0,
+         0.5
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    3.0,
+    -3.0,
+    2.0,
+    1.0
+   ]
+  },
+  {
+   "name": "absolute and square root",
+   "expr": {
+    "kind": "FoldedMath",
+    "op": "add",
+    "args": [
+     {
+      "kind": "Abs",
+      "args": [
+       {
+        "kind": "Constant",
+        "value": [
+         -2,
+         2,
+         -0.5,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "kind": "SquareRoot",
+      "args": [
+       {
+        "kind": "Constant",
+        "value": [
+         4,
+         -1,
+         0.25,
+         9
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    4.0,
+    2.0,
+    1.0,
+    3.0
+   ]
+  },
+  {
+   "name": "length",
+   "expr": {
+    "kind": "Length",
+    "args": [
+     {
+      "kind": "Constant",
+      "value": [
+       3,
+       4,
+       12,
+       7
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    13.0,
+    13.0,
+    13.0,
+    13.0
+   ]
+  },
+  {
+   "name": "min, max and fmod",
+   "expr": {
+    "kind": "FoldedMath",
+    "op": "add",
+    "args": [
+     {
+      "kind": "Min",
+      "args": [
+       {
+        "kind": "Constant",
+        "value": [
+         1,
+         5,
+         -2,
+         0
+        ]
+       },
+       {
+        "kind": "Constant",
+        "value": [
+         2,
+         3,
+         -3,
+         0
+        ]
+       }
+      ]
+     },
+     {
+      "kind": "FoldedMath",
+      "op": "add",
+      "args": [
+       {
+        "kind": "Max",
+        "args": [
+         {
+          "kind": "Constant",
+          "value": [
+           1,
+           5,
+           -2,
+           0
+          ]
+         },
+         {
+          "kind": "Constant",
+          "value": [
+           2,
+           3,
+           -3,
+           0
+          ]
+         }
+        ]
+       },
+       {
+        "kind": "Fmod",
+        "args": [
+         {
+          "kind": "Constant",
+          "value": [
+           5.5,
+           -5.5,
+           1,
+           3
+          ]
+         },
+         {
+          "kind": "Constant",
+          "value": [
+           2,
+           2,
+           0,
+           1.5
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    4.5,
+    6.5,
+    -5.0,
+    0.0
+   ]
+  },
+  {
+   "name": "a clamp",
+   "expr": {
+    "kind": "Clamp",
+    "args": [
+     {
+      "kind": "FoldedMath",
+      "op": "sub",
+      "args": [
+       {
+        "kind": "Time"
+       },
+       {
+        "kind": "Constant",
+        "value": [
+         1,
+         1,
+         1,
+         1
+        ]
+       }
+      ]
+     },
+     {
+      "kind": "Constant",
+      "value": [
+       0,
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "kind": "Constant",
+      "value": [
+       0.5,
+       1,
+       2,
+       3
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 2.25,
+   "value": [
+    0.5,
+    1,
+    1.25,
+    1.25
+   ]
+  },
+  {
+   "name": "a dot and a division by nought",
+   "expr": {
+    "kind": "FoldedMath",
+    "op": "add",
+    "args": [
+     {
+      "kind": "FoldedMath",
+      "op": "dot",
+      "args": [
+       {
+        "kind": "Constant",
+        "value": [
+         1,
+         2,
+         3,
+         9
+        ]
+       },
+       {
+        "kind": "Constant",
+        "value": [
+         4,
+         5,
+         6,
+         9
+        ]
+       }
+      ]
+     },
+     {
+      "kind": "FoldedMath",
+      "op": "div",
+      "args": [
+       {
+        "kind": "Constant",
+        "value": [
+         1,
+         1,
+         1,
+         1
+        ]
+       },
+       {
+        "kind": "Constant",
+        "value": [
+         2,
+         0,
+         4,
+         0
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    32.5,
+    32.0,
+    32.25,
+    32.0
+   ]
+  },
+  {
+   "name": "two vectors appended",
+   "expr": {
+    "kind": "AppendVector",
+    "componentsA": 2,
+    "args": [
+     {
+      "kind": "Constant",
+      "value": [
+       1,
+       2,
+       7,
+       7
+      ]
+     },
+     {
+      "kind": "Constant",
+      "value": [
+       3,
+       4,
+       8,
+       8
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  {
+   "name": "a short append",
+   "expr": {
+    "kind": "AppendVector",
+    "componentsA": 1,
+    "args": [
+     {
+      "kind": "Constant",
+      "value": [
+       1,
+       2,
+       7,
+       7
+      ]
+     },
+     {
+      "kind": "Constant",
+      "value": [
+       5,
+       6
+      ]
+     }
+    ]
+   },
+   "values": {},
+   "time": 0,
+   "value": [
+    1,
+    5,
+    6,
+    0.0
+   ]
+  }
+ ],
+ "constants": [
+  {
+   "name": "a vector",
+   "record": {
+    "value": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "vector": {
+     "kind": "FoldedMath",
+     "op": "mul",
+     "args": [
+      {
+       "kind": "VectorParameter",
+       "name": "Tint",
+       "default": [
+        1.0,
+        0.0,
+        0.0,
+        1.0
+       ]
+      },
+      {
+       "kind": "Constant",
+       "value": [
+        2,
+        2,
+        2,
+        2
+       ]
+      }
+     ]
+    }
+   },
+   "values": {
+    "vectors": {
+     "Tint": [
+      0.5,
+      0.25,
+      0.0,
+      1.0
+     ]
+    },
+    "scalars": {
+     "Speed": 3.0
+    }
+   },
+   "time": 0,
+   "value": [
+    1.0,
+    0.5,
+    0.0,
+    2.0
+   ]
+  },
+  {
+   "name": "scalars by component",
+   "record": {
+    "value": [
+     7,
+     8,
+     9,
+     10
+    ],
+    "scalars": [
+     null,
+     {
+      "kind": "FoldedMath",
+      "op": "mul",
+      "args": [
+       {
+        "kind": "Time"
+       },
+       {
+        "kind": "ScalarParameter",
+        "name": "Speed",
+        "default": 2.0
+       }
+      ]
+     },
+     null,
+     null
+    ]
+   },
+   "values": {
+    "vectors": {
+     "Tint": [
+      0.5,
+      0.25,
+      0.0,
+      1.0
+     ]
+    },
+    "scalars": {
+     "Speed": 3.0
+    }
+   },
+   "time": 2,
+   "value": [
+    7,
+    6.0,
+    9,
+    10
+   ]
+  },
+  {
+   "name": "still",
+   "record": {
+    "value": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "uniform": true
+   },
+   "values": {},
+   "time": 9,
+   "value": [
+    1,
+    2,
+    3,
+    4
+   ]
+  }
+ ]
+}

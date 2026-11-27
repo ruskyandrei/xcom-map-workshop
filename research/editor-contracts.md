@@ -732,7 +732,8 @@ object:
 
 - `version` (1), `shaders` (the shader types and IDs it was sliced from: `base`, `light`, `lightmap`), `ends`
   (`diffuse`: the form of the colour's mark, `mad` or `mul`), `unlit` (true when the base pass has no colour end:
-  the material's whole colour is its glow).
+  the material's whole colour is its glow), `distortion` (true when the game also draws it in its distortion pass,
+  which bends what is behind it: the editor doesn't draw such a see-through material).
 - `inputs`: {name: four component sources, null for a component not read}. A source is `{"kind": "uv", "channel",
   "component", "scale", "bias"}` (a mesh UV channel), `{"kind": "color", "component", "scale", "bias"}` (the
   vertex colour; the game gives white where a mesh has none), `{"kind": "const", "value"}` (with `"fog": true` for

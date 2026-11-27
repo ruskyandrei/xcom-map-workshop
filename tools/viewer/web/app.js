@@ -338,6 +338,7 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
   pickables, projector, renderer, restingHint, showPop, sun, world,
   // (made further down: called through, since they are not made yet while this runs)
   applyLighting: () => applyLighting(), banner: (message, actions, options) => banner(message, actions, options),
+  lookChanged: () => cutaway(),
   // (made with the views' switching, further down: called through)
   syncLights: () => syncLights(),
   // (made with Clear map, further down: called through)
@@ -1024,7 +1025,7 @@ $('frame').onclick = () => frame();
 $('selected').onclick = () => selected && frame(allRoots.get(selected));
 $('grid').onchange = e => { grid.visible = e.target.checked; setTileKey(null); };
 let applyLighting = () => {};
-segmented($('lighting'), () => { lookOptions(); applyLighting(); });
+segmented($('lighting'), () => { lookOptions(); applyLighting(); cutaway(); });
 $('areaLights').onchange = () => applyLighting();
 // Update every base and cutaway material, not only those currently assigned, so
 // changing the floor cut afterwards keeps the chosen wireframe state.
@@ -1391,7 +1392,7 @@ renderer.setAnimationLoop(() => {
     if (shadowsUntil === Infinity && data) touchShadows();      // (every frame until a scene is open)
   }
   viewHeight.value = Math.max(1, renderer.domElement.clientHeight);     // (a sprite's least size: effects_preview.js)
-  programFrame();
+  programFrame($('lighting').value === 'game');
   renderer.render(world,camera);
 });
 setInterval(() => {

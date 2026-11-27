@@ -8,6 +8,7 @@
 // group the matrix that takes that frame to the view (the actor's pose and scale, its component's, and SWAP).
 import * as THREE from 'three';
 import { LIMITS, alphaErodes, makeEmitter, warmTime } from './effects_sim.js';
+import { FOG_PARS, fogShared } from './atmosphere_shader.js';
 
 /** The game's axes to the view's (y and z changed over), as a matrix: the last factor of a likeness's matrix. */
 export const SWAP = new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1);
@@ -23,9 +24,10 @@ const FACING = { PSA_Square: 0, PSA_Rectangle: 1, PSA_Velocity: 2, PSA_TypeSpeci
 const VERTEX = /* glsl */`
 attribute vec3 aOffset; attribute vec3 aSize; attribute vec4 aColour; attribute vec3 aVel; attribute float aImage;
 uniform vec2 uScale; uniform vec2 uGrid; uniform float uFacing; uniform float uViewHeight;
-varying vec2 vUv; varying vec2 vCorner; varying vec4 vColour;
+varying vec2 vUv; varying vec2 vCorner; varying vec4 vColour; varying vec3 vFogWorld;
 void main() {
   vec4 mv = modelViewMatrix * vec4(aOffset, 1.0);
+  vFogWorld = (modelMatrix * vec4(aOffset, 1.0)).xyz;
   float w = aSize.x * uScale.x, h = uFacing > 0.5 ? aSize.y * uScale.y : w;
   // never thinner than two pixels on the screen: a spark or an ember far off stays a dot (the game's spark
   // materials scale with the camera's distance for the same reason)
@@ -49,6 +51,8 @@ void main() {
   vColour = aColour;
 }`;
 const FRAGMENT = /* glsl */`
+${FOG_PARS}
+varying vec3 vFogWorld;
 uniform sampler2D uPicture; uniform sampler2D uMask;
 uniform float uHasPicture; uniform float uHasMask; uniform float uOpacity; uniform float uMaskFrom; uniform float uMode; uniform float uSoft; uniform float uLit;
 uniform float uErode; uniform vec3 uTint;
@@ -75,13 +79,23 @@ void main() {
   a = uErode > 0.5 ? pow(max(a, 0.0), max(vColour.a, 0.0)) : a * vColour.a;
   if (uMode > 3.5) { gl_FragColor = vec4(rgb, 1.0); }
   else if (uMode > 2.5) { if (a < 0.33) discard; gl_FragColor = vec4(rgb, 1.0); }
-  else if (uMode > 1.5) { a = clamp(a, 0.0, 1.0); gl_FragColor = vec4(mix(vec3(1.0), min(rgb, 1.0), a), 1.0); return; }
+  else if (uMode > 1.5) {
+    // (the map's fog, game-likeness plan C2: a darkening particle darkens less through it)
+    a = clamp(a, 0.0, 1.0) * heightFog(vFogWorld).a; gl_FragColor = vec4(mix(vec3(1.0), min(rgb, 1.0), a), 1.0); return;
+  }
   else {
     // see-through and added: the colour weighed by the opacity before it is laid on (premultiplied), as the game's
     // translucency lays a bright colour: a glow of 6 at 20% shows as bright as a white at full
     a = clamp(a, 0.0, 1.0);
     gl_FragColor = vec4(rgb * a, uMode > 0.5 ? 0.0 : a);
   }
+  // the map's fog (game-likeness plan, C2; none in the Neutral look): a solid particle takes it as a lit piece does, a
+  // see-through one weighed by its opacity (its colour is premultiplied), and an added one is only dimmed by it, as
+  // the game fogs an additive material
+  vec4 fogged = heightFog(vFogWorld);
+  if (uMode > 2.5) gl_FragColor.rgb = gl_FragColor.rgb * fogged.a + fogged.rgb;
+  else if (uMode > 0.5) gl_FragColor.rgb *= fogged.a;
+  else gl_FragColor.rgb = gl_FragColor.rgb * fogged.a + fogged.rgb * gl_FragColor.a;
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
@@ -89,9 +103,10 @@ void main() {
 // a mesh particle: the mesh at each particle's place, turn and size, drawn with the same fragment as a sprite
 const MESH_VERTEX = /* glsl */`
 attribute vec4 aColour;
-varying vec2 vUv; varying vec2 vCorner; varying vec4 vColour;
+varying vec2 vUv; varying vec2 vCorner; varying vec4 vColour; varying vec3 vFogWorld;
 void main() {
   vUv = uv; vCorner = vec2(0.0); vColour = aColour;
+  vFogWorld = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;
   gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
 }`;
 /** Which texture gives a draw record its colour and which its shape: { picture, opacity, mask, maskFrom } (draw
@@ -110,7 +125,8 @@ function particleMaterial(draw, vertexShader, soft) {
                 uOpacity: { value: { brightness: 0, alpha: 1, none: 2 }[roles.opacity] ?? 0 }, uMaskFrom: { value: { brightness: 0, alpha: 1, red: 2 }[roles.maskFrom] ?? 0 },
                 uMode: { value: mode }, uScale: { value: new THREE.Vector2(1, 1) }, uViewHeight: viewHeight,
                 uErode: { value: alphaErodes(draw) ? 1 : 0 }, uTint: { value: new THREE.Vector3(1, 1, 1) },
-                uGrid: { value: new THREE.Vector2(draw.subImages?.[0] ?? 1, draw.subImages?.[1] ?? 1) }, uFacing: { value: FACING[draw.facing] ?? 0 } },
+                uGrid: { value: new THREE.Vector2(draw.subImages?.[0] ?? 1, draw.subImages?.[1] ?? 1) }, uFacing: { value: FACING[draw.facing] ?? 0 },
+                ...fogShared },
   });
   // (see-through and added colours come premultiplied: the fragment shader's last lines)
   if (mode === 0 || mode === 1) {

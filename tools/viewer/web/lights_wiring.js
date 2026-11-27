@@ -46,7 +46,8 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
                                     editChanged, effectNow, effectsShown, effectValuesEditable, flashHint, gizmo,
                                     HANDLE_PICK, highlight, ladderMarks, lightLayer, pickables, pointOutside, projector,
                                     renderer, restingHint, select, setEffectsShown, setEffectValues, setSpawnsShown,
-                                    setVolumesShown, setZonesShown, showPop, stopPickBox, sun, syncLights, world }) {
+                                    setVolumesShown, setZonesShown, showPop, stopPickBox, sun, syncLights, world,
+                                    lookChanged = () => {} }) {
   // Lights (private/plans/done/editor-lights-plan.md, 4.6). Each light with a place (point and spot lights: placed, generated area,
   // toggleable, a streamed level's) is a root of its own in lightRoots: a marker, picked on screen ahead of the piece
   // behind it, moved and turned by the gizmo with pieces (allRoots), and changed in the panel's light section. A root
@@ -870,7 +871,7 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   function setLook(look) {
     if (look === 'game' && !lighting.available) return false;
     $('lighting').value = look === 'game' ? 'game' : 'neutral';
-    lookOptions(); applyLighting();
+    lookOptions(); applyLighting(); lookChanged();      // (the cut: a sky dome shows in the Game look)
     return true;
   }
   // K: the other look, said in the hint line

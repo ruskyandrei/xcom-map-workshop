@@ -51,7 +51,8 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
       // a streamed package's pieces show with the chosen mission's streams
       const shownStream = !isStream(obj) || streamSet.has(obj.stream);
       const helper = (obj.layer === 'inherited' || isStream(obj)) && shownStream && obj.hidden && obj.hiddenBy == null && !$('hideHelpers').checked;
-      root.visible = (!obj.hidden || helper) && !obj.environment && !root.userData.deleted && shownStream
+      // a sky dome shows in the Game look only, uncut (A6)
+      root.visible = (!obj.hidden || helper) && (!obj.environment || $('lighting').value === 'game') && !root.userData.deleted && shownStream
         && !(cleared && isStream(obj) && data.streams?.[obj.stream]?.kind === 'lwr') && !(movedLanding?.has(obj.actor));
       // Pieces the user added always count as part of the playable scene, whatever their source's layer.
       root.userData.tacticalExcluded=interior && !obj.provenance && !obj.added && ['backdrop','roof','helper'].includes(obj.sceneryRole);
@@ -85,7 +86,7 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
           && Math.max(focus.min.x - box.min.x, box.max.x - focus.max.x, focus.min.z - box.min.z, box.max.z - focus.max.z) <= WHOLE_OVERHANG;
       }
       root.userData.interiorWhole = whole;
-      const planes=whole ? [...heightPlanes] : [...scenePlanes];
+      const planes=obj.environment ? [] : whole ? [...heightPlanes] : [...scenePlanes];
       if(Number.isFinite(height))planes.push(new THREE.Plane(new THREE.Vector3(0,-1,0),height));
       root.userData.clippingPlanes=planes;
       const actor=actors.get(obj.actor) || {visible:false,ceiling:-Infinity};

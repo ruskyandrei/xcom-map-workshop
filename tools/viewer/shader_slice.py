@@ -769,6 +769,8 @@ def slice_material(cache, smap, values, translucent=False, factory=FACTORY):
     if not base_ps or not base_vs:
         raise Refused('shaders', 'no base pass without a lightmap')
     program['shaders'].update(base=base_ps, baseId=_hex(refs[base_ps]))
+    if any(kind.startswith('TDistortion') for kind in refs):
+        program['distortion'] = True              # the game draws it in its distortion pass: it bends what is behind
 
     def part(tag, ps_type, vs_type, fold=None):
         ps = cache.shader(refs[ps_type])

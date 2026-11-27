@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { CELL, buildLightGrid, packLightGrid, sceneLightClip } from './light_grid.js';
 import { effectiveCone } from './light_rules.js';
+import { FOG_PARS, fogChunk, fogShared, fogUniforms, fogUniformsNone, setFog } from './atmosphere_shader.js';
 
 const uniforms = {
   localLightData: { value: null },
@@ -13,6 +14,9 @@ const uniforms = {
   localGridInfo: { value: new THREE.Vector4(0, 0, CELL, 0) },   // origin x, origin z, cell, enabled
   localGridSize: { value: new THREE.Vector2(0, 0) },
 };
+// the map's height fog (atmosphere_shader.js, C2): the one set of uniforms every lit material and the effects'
+// likenesses share, so a change of the fog's values recompiles nothing; no fog in the Neutral look
+Object.assign(uniforms, fogShared);
 
 const VERTEX_PARS = '#include <common>\nvarying vec3 vLocalWorld;';
 const VERTEX_MAIN = '#include <worldpos_vertex>\nvLocalWorld = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;';
@@ -23,7 +27,8 @@ uniform highp sampler2D localLightGrid;
 uniform highp sampler2D localLightIndices;
 uniform int localIndexWidth;
 uniform vec4 localGridInfo;
-uniform vec2 localGridSize;`;
+uniform vec2 localGridSize;
+${FOG_PARS}`;
 // UE3: radial attenuation pow(saturate(1 - (d/R)^2), FalloffExponent); spot cone
 // square(saturate((dot(L, -dir) - cosOuter) / (cosInner - cosOuter))).
 // A material drawn by its program (USE_PROGRAM, scene_pieces.js) takes no highlight from these: in the game the map's
@@ -73,7 +78,9 @@ function localLightShader(shader) {
   shader.vertexShader = shader.vertexShader.replace('#include <common>', VERTEX_PARS)
     .replace('#include <worldpos_vertex>', VERTEX_MAIN);
   shader.fragmentShader = shader.fragmentShader.replace('#include <common>', FRAGMENT_PARS)
-    .replace('#include <lights_fragment_begin>', FRAGMENT_MAIN);
+    .replace('#include <lights_fragment_begin>', FRAGMENT_MAIN)
+    // the fog in linear light, before three's tone curve and its colour space
+    .replace('#include <opaque_fragment>', `#include <opaque_fragment>\n${fogChunk('vLocalWorld')}`);
 }
 
 /** Draw with the map's local lights off: small previews drawn away from where the piece stands. */
@@ -85,7 +92,8 @@ export function withoutLocalLights(draw) {
 
 /** Let a lit material receive the map's local lights (clones need this again). */
 export function withLocalLights(material) {
-  if (material.isMeshPhongMaterial) material.onBeforeCompile = localLightShader;
+  // (a material drawn by its program has the local lights in its own patch, which chains this one: scene_pieces.js)
+  if (material.isMeshPhongMaterial && !material.userData.program) material.onBeforeCompile = localLightShader;
   return material;
 }
 
@@ -153,6 +161,8 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     const lights = mode === 'neutral' ? [] : enabled.filter(l => mode === 'map' || l.role !== 'area');
     const shadowDistance = radius * 3;
     if (mode === 'neutral' || !all.length) {
+      setFog(fogUniformsNone());
+      if (neutral.background !== undefined) world.background = neutral.background;
       hemisphere.color.copy(neutral.sky); hemisphere.groundColor.copy(neutral.ground); hemisphere.intensity = neutral.hemi;
       sun.color.copy(neutral.sun); sun.intensity = neutral.intensity; sun.castShadow = neutral.castShadow;
       sun.position.copy(target).add(new THREE.Vector3(1, 1.6, -1).multiplyScalar(radius));
@@ -175,6 +185,12 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     };
     if (directionals.length) { place(sun, directionals[0]); sun.castShadow = directionals[0].castShadows; }
     else { sun.intensity = 0; sun.castShadow = false; }
+    // the map's fog, its colours turned by the dominant light (C2); the view's background in its far colour
+    const fog = fogUniforms(scene?.atmosphere?.world?.fog, directionals[0]?.direction ?? null);
+    setFog(fog);
+    if (neutral.background === undefined) neutral.background = world.background;
+    world.background = fog.fogOn ? new THREE.Color().setRGB(...fog.fogOpposite.map((v, k) => (v + fog.fogInscatter[k]) / 2), THREE.LinearSRGBColorSpace)
+      : neutral.background;
     for (const l of directionals.slice(1)) {
       const light = new THREE.DirectionalLight(); place(light, l);
       world.add(light, light.target); extraSuns.push(light);

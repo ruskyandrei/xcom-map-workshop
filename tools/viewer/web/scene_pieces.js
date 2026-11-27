@@ -41,7 +41,7 @@ import { cloneBlasts, fromOf, isStream, sourceKey } from './piece_records.js';
 import { pieceGrid } from './pieces.js';
 import { targetKey, tidyLocation, tidyRotator } from './project.js';
 import { canTake, isDds, missingByAddress, readDds } from './texture_file.js';
-import { inputsRead, programGlsl } from './material_program.js';
+import { constantAt, inputsRead, programGlsl } from './material_program.js';
 import { madeSlabShape, madeWallShape } from './walls.js';
 
 // An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
@@ -68,7 +68,8 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
   // (a hit on a piece drawn and not cut away where it falls)
   const shownHit = h => {
     const root = roots.get(h.object.userData.objectId);
-    return root?.visible && (root.userData.clippingPlanes || []).every(plane => plane.distanceToPoint(h.point) >= -0.01);
+    return root?.visible && !root.userData.source.environment
+      && (root.userData.clippingPlanes || []).every(plane => plane.distanceToPoint(h.point) >= -0.01);
   };
   const pick = (clientX, clientY) => rayAt(clientX, clientY).intersectObjects(pickables).find(shownHit) ?? null;
   const pickAll = (clientX, clientY) => rayAt(clientX, clientY).intersectObjects(pickables).filter(shownHit);
@@ -141,11 +142,20 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
   const programsAsked = new URLSearchParams(globalThis.location?.search ?? '').get('programs');
   const programsOn = programsAsked !== 'off';
   const programCamera = { value: new THREE.Vector4(0, 0, 0, 1) };      // the camera in the game's axes, each frame
-  const PROGRAM_OUTPUTS = ['diffuse', 'specular', 'power'];
-  async function withProgram(mat, program) {
-    if (!programsOn || !program?.outputs?.diffuse) return mat;
+  const PROGRAM_OUTPUTS = ['diffuse', 'specular', 'power', 'normal', 'glow'];
+  // the programs' uniforms that move with time (A8): worked out each frame in the Game look, still in the Neutral one
+  const movingUniforms = [];
+  const SEE_THROUGH = ['BLEND_Translucent', 'BLEND_Additive', 'BLEND_Modulate'];
+  /** Whether a program draws its material: a colour, or an unlit material's glow (which may fold to black). */
+  const programDraws = program => Boolean(program?.outputs?.diffuse || (program?.unlit && !program.refused?.glow));
+  async function withProgram(mat, program, info, sky = false) {
+    if (!programsOn || !programDraws(program)) return mat;
     let glsl;
-    const outputs = programsAsked === 'colour' ? ['diffuse'] : PROGRAM_OUTPUTS.filter(o => program.outputs[o]);
+    const blend = info?.blend ?? 'BLEND_Opaque', see = SEE_THROUGH.includes(blend);
+    // a cut-out by the program's own mask where it has one (else the alpha the export picked), see-through by its
+    // opacity (A7); glow and unlit materials by its glow (A6)
+    const extra = [...(mat.alphaTest ? ['mask'] : []), ...(blend === 'BLEND_Translucent' ? ['opacity'] : [])];
+    const outputs = programsAsked === 'colour' ? ['diffuse'] : [...PROGRAM_OUTPUTS, ...extra].filter(o => program.outputs[o]);
     try { glsl = programGlsl(program, outputs); }
     catch (error) { console.warn(`a program not drawn: ${error.message}`); return mat; }
     const maps = await Promise.all(glsl.samplers.map(s => texture(s.record.texture, Boolean(s.record.srgb))));
@@ -154,7 +164,11 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
     for (const u of glsl.uniforms) {
       const record = program.constants[u.constant];
       uniforms[u.name] = record.engine === 'cameraWorldPos' ? programCamera : { value: new THREE.Vector4(...record.value) };
+      if (record.vector || record.scalars) {
+        movingUniforms.push({ uniform: uniforms[u.name], record, values: { vectors: info?.vectors, scalars: info?.scalars } });
+      }
     }
+    const lit = glsl.outputs.includes('diffuse');
     glsl.samplers.forEach((s, k) => { uniforms[s.name] = { value: maps[k] }; });
     const local = mat.onBeforeCompile;
     mat.onBeforeCompile = (shader, r) => {
@@ -163,22 +177,67 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${glsl.vertexDeclarations}`)
         .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>\n${glsl.vertexBody}`);
       let fragment = shader.fragmentShader.replace('#include <common>', `#include <common>\n${glsl.fragmentDeclarations}`)
-        .replace('#include <color_fragment>', `#include <color_fragment>\n${glsl.fragmentBody}\ndiffuseColor.rgb = progOut_diffuse.rgb;`);
+        .replace('#include <color_fragment>', `#include <color_fragment>\n${glsl.fragmentBody}\ndiffuseColor.rgb = ${lit ? 'progOut_diffuse.rgb' : 'vec3( 0.0 )'};`);
+      // the cut-out: a pixel goes where any of the mask's components is below zero (the game's texkill); the opacity of a
+      // see-through material; an additive one adds its whole colour
+      const alpha = [glsl.outputs.includes('mask') ? 'diffuseColor.a = any( lessThan( progOut_mask, vec4( 0.0 ) ) ) ? 0.0 : 1.0;' : '',
+                     glsl.outputs.includes('opacity') ? 'diffuseColor.a = clamp( progOut_opacity.x, 0.0, 1.0 );' : '',
+                     blend === 'BLEND_Additive' || blend === 'BLEND_Modulate' ? 'diffuseColor.a = 1.0;' : ''].join('\n');
+      if (alpha.trim()) fragment = fragment.replace('#include <alphatest_fragment>', `${alpha}\n#include <alphatest_fragment>`);
+      // what the material gives off by itself (a lit sign, a screen), and an unlit material's whole colour
+      if (glsl.outputs.includes('glow')) fragment = fragment.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+totalEmissiveRadiance += progOut_glow.rgb;`);
       // the game's highlight is Phong's (a reflection's power, unnormalised), three's Blinn's: a power four times as
       // large is near it, and three's normalisation ((s / 2 + 1) / 4, the light's pi cancelling its 1 / pi) taken back
       if (glsl.outputs.includes('specular')) fragment = fragment.replace('#include <lights_phong_fragment>', `#include <lights_phong_fragment>
 ${glsl.outputs.includes('power') ? 'material.specularShininess = max(1.0, progOut_power.x * 4.0);' : ''}
 material.specularColor = progOut_specular.rgb / max(1.0, 0.25 * (0.5 * material.specularShininess + 1.0));`);
+      // the normal the game's shader works out (its normal maps, mixed as its colour is), in the mesh's tangent frame
+      // (UE3's: tangent, binormal, normal), for the lights; a mesh without tangents keeps its own normal
+      if (glsl.outputs.includes('normal')) fragment = fragment.replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+if ( dot( vProgViewT, vProgViewT ) > 1e-8 && dot( vProgViewB, vProgViewB ) > 1e-8 ) {
+	vec3 progNormal = normalize( mat3( normalize( vProgViewT ) * faceDirection, normalize( vProgViewB ) * faceDirection, normal ) * progOut_normal.xyz );
+	if ( all( equal( progNormal, progNormal ) ) ) normal = progNormal;
+}`);
       shader.fragmentShader = fragment;
+      // a sky dome (A6): drawn first, at the far plane's depth whatever its size, so nothing of the map is behind it
+      if (sky) shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+gl_Position.z = gl_Position.w * 0.999999;`);
     };
-    // the texture picked by name stays only for a cut-out's alpha (alphaTest); otherwise it would be read for nothing
+    // the texture picked by name stays only for a cut-out's alpha (alphaTest: the sun's shadow still cuts by it);
+    // otherwise it would be read for nothing; the guessed glow goes where the program gives one
     if (!mat.alphaTest) mat.map = null;
-    mat.userData.programTextures = maps;
-    mat.customProgramCacheKey = () => `program-${glsl.key}${mat.map ? '-map' : ''}`;
+    if (glsl.outputs.includes('glow') || !lit) { mat.emissive.setRGB(0, 0, 0); mat.emissiveMap = null; }
+    if (!lit) mat.specular.setRGB(0, 0, 0);
+    if (see) {
+      mat.transparent = true; mat.depthWrite = false;
+      mat.opacity = 1;
+      mat.alphaMap = null;
+      if (blend === 'BLEND_Additive') mat.blending = THREE.AdditiveBlending;
+      if (blend === 'BLEND_Modulate') { mat.blending = THREE.MultiplyBlending; mat.premultipliedAlpha = true; }
+    }
+    if (sky) mat.depthWrite = false;
+    const cacheKey = `program-${glsl.key}${mat.map ? '-map' : ''}${sky ? '-sky' : ''}`;
+    mat.customProgramCacheKey = () => cacheKey;
     mat.defines = { ...(mat.defines ?? {}), USE_PROGRAM: '' };       // (lighting.js: no highlight from baked lights)
     mat.color.setRGB(1, 1, 1);
-    mat.userData.program = glsl.key;
-    mat.userData.programReads = inputsRead(program);
+    const reads = inputsRead(program);
+    // what is the program's and not the material's own: kept out of userData's JSON copy (three's clone copies it so)
+    const own = target => {
+      target.userData.program = glsl.key;
+      Object.defineProperty(target.userData, 'programTextures', { value: maps, enumerable: false, configurable: true });
+      Object.defineProperty(target.userData, 'programReads', { value: reads, enumerable: false, configurable: true });
+    };
+    own(mat);
+    // a clone (the floors' and Interior mode's cut, a highlight) keeps the program's patch, which three's copy drops
+    const patchNow = mat.onBeforeCompile, defines = { ...mat.defines };
+    mat.clone = function clone() {
+      const copy = new this.constructor().copy(this);
+      copy.onBeforeCompile = patchNow; copy.customProgramCacheKey = () => cacheKey; copy.defines = { ...defines };
+      own(copy);
+      copy.clone = clone;
+      return copy;
+    };
     mat.needsUpdate = true;
     return mat;
   }
@@ -213,11 +272,19 @@ material.specularColor = progOut_specular.rgb / max(1.0, 0.25 * (0.5 * material.
       geometry.setAttribute('color', new THREE.BufferAttribute(white, 4, true));
     }
   }
-  // the camera's place in the game's axes, for the programs that read it (the draw loop calls it each frame)
-  function programFrame() {
+  // Each frame (the draw loop): the camera's place in the game's axes, for the programs that read it, and the uniforms
+  // that move with time, at the page's time in the Game look and still at nought in the Neutral one (decision G6).
+  function programFrame(moving = false) {
     programCamera.value.set(camera.position.x, camera.position.z, camera.position.y, 1);
+    if (!movingUniforms.length) return;
+    const time = moving ? performance.now() / 1000 : 0;
+    if (!moving && programFrame.still) return;
+    programFrame.still = !moving;
+    for (const m of movingUniforms) {
+      try { m.uniform.value.fromArray(constantAt(m.record, m.values, time)); } catch { /* a kind not worked out: kept */ }
+    }
   }
-  async function material(id,overrideTint=null) {
+  async function material(id,overrideTint=null,sky=false) {
     if (id === PLAIN_MATERIAL) return plainMaterial();
     const info = data.materials[id];
     if (!info) return withLocalLights(new THREE.MeshPhongMaterial({color: 0xbc628f, side: THREE.DoubleSide}));
@@ -230,7 +297,9 @@ material.specularColor = progOut_specular.rgb / max(1.0, 0.25 * (0.5 * material.
         transparent:info.blend === 'BLEND_Translucent',depthWrite:info.blend !== 'BLEND_Translucent',
       }));
     }
-    if (info.blend === 'BLEND_Modulate') return new THREE.MeshBasicMaterial({
+    // a see-through material the game draws in its distortion pass (it bends what is behind): not drawn (A7)
+    if (programsOn && info.program?.distortion && SEE_THROUGH.includes(info.blend)) return new THREE.MeshBasicMaterial({ visible: false });
+    if (info.blend === 'BLEND_Modulate' && !(programsOn && programDraws(info.program))) return new THREE.MeshBasicMaterial({
       color:0xa8b9c2,transparent:true,opacity:0.35,depthWrite:false,blending:THREE.MultiplyBlending,premultipliedAlpha:true,
       side: info.twoSided ? THREE.DoubleSide : THREE.FrontSide,
     });
@@ -256,7 +325,7 @@ material.specularColor = progOut_specular.rgb / max(1.0, 0.25 * (0.5 * material.
     // rather than silently treating the DXT alpha channel as an ordinary RGB map.
     withLocalLights(mat);
     // (after the local lights' patch: the program's chains onto it)
-    if (info.program && !glass && !energy) await withProgram(mat, info.program);
+    if (info.program) await withProgram(mat, info.program, info, sky);
     return mat;
   }
   // Meshes and materials load once and are shared by every piece that uses them, copies included.
@@ -314,13 +383,16 @@ material.specularColor = progOut_specular.rgb / max(1.0, 0.25 * (0.5 * material.
     root.userData.flags = obj.initialFlags ? { ...obj.initialFlags } : null;     // its piece flags as the project sets them
     const parts = []; root.traverse(child => { if (child.isMesh) parts.push(child); });
     for (let i=0; i<parts.length; ++i) {
-      const [key, tint] = materialKey(obj, obj.materials[i]);
-      track(materialCache, key, () => material(obj.materials[i], tint));
+      const [plainKey, tint] = materialKey(obj, obj.materials[i]);
+      // a sky dome's material is drawn at the far plane (withProgram's sky), and never picked or shadowed
+      const key = obj.environment ? `${plainKey}:sky` : plainKey;
+      track(materialCache, key, () => material(obj.materials[i], tint, Boolean(obj.environment)));
       parts[i].material = await materialCache.get(key);
       await programColours(obj, parts[i]);
       parts[i].userData.baseMaterial = parts[i].material;
-      parts[i].castShadow = !parts[i].material.transparent;
-      parts[i].receiveShadow = true;
+      parts[i].castShadow = !parts[i].material.transparent && !obj.environment;
+      parts[i].receiveShadow = !obj.environment;
+      if (obj.environment) { parts[i].renderOrder = -1000; parts[i].frustumCulled = false; }
       parts[i].userData.objectId = obj.id;
     }
     root.userData.parts = parts;

@@ -268,6 +268,13 @@ class Cases(unittest.TestCase):
     """The case file material_program.js's node test reads: shader_eval gives its numbers, and (with the install)
     the slice still makes its programs."""
 
+    def test_uniforms_that_move_with_time(self):
+        # uniform_cases.json: the page works the same trees out each frame (material_program_test.mjs)
+        doc = json.loads((HERE / 'uniform_cases.json').read_text(encoding='utf-8'))
+        for case in doc['cases']:
+            got = ss.evaluate_uniform(ss.expr_from_json(case['expr']), case['values'], case['time'])
+            self.assertEqual([round(v, 9) for v in got], case['value'], case['name'])
+
     def test_eval_gives_the_cases_numbers(self):
         import material_program_cases as cases
         for case in json.loads(cases.FILE.read_text(encoding='utf-8')):

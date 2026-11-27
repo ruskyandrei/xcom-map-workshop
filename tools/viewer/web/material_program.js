@@ -140,7 +140,8 @@ export function programGlsl(whole, outputs = null) {
     fDecl.push('varying vec4 vProgColor;');
     vBody.push('vProgColor = vec4(color);');
   }
-  const frame = read.cameraVector || read.frame || read.sign;
+  const viewFrame = wanted.includes('normal') && program.outputs.normal && 'r' in program.outputs.normal;
+  const frame = read.cameraVector || read.frame || read.sign || viewFrame;
   if (frame) {
     vDecl.push('#ifndef USE_TANGENT\nattribute vec4 tangent;\n#endif');
     // the tangent frame in the world (the view's axes): the export wrote tangents with their w flipped, so three's own
@@ -148,6 +149,12 @@ export function programGlsl(whole, outputs = null) {
     vBody.push('vec3 progN = normalize(mat3(modelMatrix) * normal);',
                'vec3 progT = normalize(mat3(modelMatrix) * tangent.xyz);',
                'vec3 progB = normalize(mat3(modelMatrix) * (cross(normal, tangent.xyz) * tangent.w));');
+  }
+  if (viewFrame) {
+    // the normal's tangent frame in the view's space (three's vNormal is the third axis), for the lights
+    vDecl.push('varying vec3 vProgViewT;', 'varying vec3 vProgViewB;');
+    fDecl.push('varying vec3 vProgViewT;', 'varying vec3 vProgViewB;');
+    vBody.push('vProgViewT = normalMatrix * tangent.xyz;', 'vProgViewB = normalMatrix * (cross(normal, tangent.xyz) * tangent.w);');
   }
   if (read.cameraVector || read.worldPosition) vBody.push('vec3 progWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
   if (read.cameraVector) {
@@ -335,4 +342,49 @@ export function runProgram(program, inputs, textures) {
     out[name] = 'value' in o ? [...o.value] : [...o.m].map(c => (regs.get(o.r) ?? [0, 0, 0, 0])[C.indexOf(c)]);
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// A uniform that moves with time (game-likeness plan, A8): its expression tree (the export's `vector`, or `scalars`'
+// trees) worked out each frame, as shader_slice.evaluate_uniform does it at time 0.
+
+const ONE = { SquareRoot: x => Math.sqrt(Math.max(x, 0)), Abs: Math.abs, Floor: Math.floor, Ceil: Math.ceil,
+              Frac: x => x - Math.floor(x), Periodic: x => x - Math.floor(x) };
+/** [r, g, b, a] of a uniform expression (the export's JSON form) with the material's values ({ vectors, scalars })
+ *  at `time` (seconds). Throws on a kind it doesn't work out. */
+export function evaluateUniform(expr, values, time) {
+  const ev = e => evaluateUniform(e, values, time), a = expr.args ?? [];
+  switch (expr.kind) {
+    case 'Constant': return [...expr.value];
+    case 'VectorParameter': { const v = values?.vectors?.[expr.name] ?? expr.default; return [0, 1, 2, 3].map(k => +(v[k] ?? 0)); }
+    case 'ScalarParameter': { const v = +(values?.scalars?.[expr.name] ?? expr.default); return [v, v, v, v]; }
+    case 'XComVectorParameter': return [1, 1, 1, 1];
+    case 'Time': case 'RealTime': return [time, time, time, time];
+    case 'Sine': { const x = ev(a[0])[0], s = expr.cosine ? Math.cos(x) : Math.sin(x); return [s, s, s, s]; }
+    case 'Length': { const x = ev(a[0]), l = Math.hypot(x[0], x[1], x[2]); return [l, l, l, l]; }
+    case 'Min': case 'Max': case 'Fmod': {
+      const x = ev(a[0]), y = ev(a[1]);
+      const f = expr.kind === 'Min' ? Math.min : expr.kind === 'Max' ? Math.max : (p, q) => (q ? p % q : 0);
+      return x.map((p, k) => f(p, y[k]));
+    }
+    case 'Clamp': { const x = ev(a[0]), lo = ev(a[1]), hi = ev(a[2]); return x.map((p, k) => Math.min(Math.max(p, lo[k]), hi[k])); }
+    case 'FoldedMath': {
+      const x = ev(a[0]), y = ev(a[1]);
+      if (expr.op === 'dot') { const d = x[0] * y[0] + x[1] * y[1] + x[2] * y[2]; return [d, d, d, d]; }
+      const f = { add: (p, q) => p + q, sub: (p, q) => p - q, mul: (p, q) => p * q, div: (p, q) => (q ? p / q : 0) }[expr.op];
+      if (!f) throw new Error(`folded maths ${expr.op}`);
+      return x.map((p, k) => f(p, y[k]));
+    }
+    case 'AppendVector': { const x = ev(a[0]), y = ev(a[1]), n = expr.componentsA; return [...x.slice(0, n), ...y].slice(0, 4).concat([0, 0, 0, 0]).slice(0, 4); }
+    default:
+      if (ONE[expr.kind]) return ev(a[0]).map(ONE[expr.kind]);
+      throw new Error(`a uniform expression of kind ${expr.kind}`);
+  }
+}
+
+/** A program constant's four values at `time`: its `vector`'s, or its `scalars`' one a component, else its value. */
+export function constantAt(record, values, time) {
+  if (record.vector) return evaluateUniform(record.vector, values, time);
+  if (record.scalars) return record.value.map((v, k) => (record.scalars[k] ? evaluateUniform(record.scalars[k], values, time)[0] : v));
+  return [...record.value];
 }

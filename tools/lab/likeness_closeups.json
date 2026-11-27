@@ -1,0 +1,17 @@
+{
+  "about": "Close views for the game-likeness plan's material stages (A5 to A7): a brick wall under raking light (which way a normal map's green channel goes), a neon sign, a window, a chain-link fence, a puddle, a ceiling light's cone and an arcade machine's screen on URB_Bar. The same camera model as likeness_shots.json; `likeness.py --shots-file tools/lab/likeness_closeups.json steps|editor|sheet`.",
+  "size": [1280, 720],
+  "model": {"yawOffset": 138.6, "fovAcross": "width"},
+  "mask": [[0.958, 0.983, 0.998, 0.998]],
+  "maps": {
+    "URB_Bar": [
+      {"id": "cu-wall", "target": [-1632, 576, 150], "yaw": 311.4, "pitch": -20, "distance": 750, "fov": 70, "floor": "all"},
+      {"id": "cu-sign", "target": [-33, 1240, 175], "yaw": 311.4, "pitch": -35, "distance": 700, "fov": 70},
+      {"id": "cu-window", "target": [-96, 0, 120], "yaw": 311.4, "pitch": -25, "distance": 700, "fov": 70},
+      {"id": "cu-fence", "target": [-2787, -1241, 80], "yaw": 41.4, "pitch": -30, "distance": 600, "fov": 70},
+      {"id": "cu-puddle", "target": [100, 1090, 16], "yaw": 311.4, "pitch": -60, "distance": 500, "fov": 70},
+      {"id": "cu-cone", "target": [-384, 240, 300], "yaw": 311.4, "pitch": -30, "distance": 900, "fov": 70},
+      {"id": "cu-arcade", "target": [-2, 634, 150], "yaw": 311.4, "pitch": -50, "distance": 600, "fov": 70}
+    ]
+  }
+}

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
-import { hash, inputsRead, programFor, programGlsl, runProgram } from '../web/material_program.js';
+import { constantAt, evaluateUniform, hash, inputsRead, programFor, programGlsl, runProgram } from '../web/material_program.js';
 
 const here = path.dirname(url.fileURLToPath(import.meta.url));
 const cases = JSON.parse(fs.readFileSync(path.join(here, 'material_program_cases.json'), 'utf8'));
@@ -58,4 +58,12 @@ const textures = Object.fromEntries(Object.entries(forestCase.textures).map(([k,
 assert.deepEqual(runProgram(cut, forestCase.inputs, textures).diffuse, runProgram(forest, forestCase.inputs, textures).diffuse);
 assert.equal(hash('abc'), hash('abc'));
 assert.notEqual(hash('abc'), hash('abd'));
-console.log(`material programs: ${cases.length} cases agree with shader_eval.py`);
+// the uniforms that move with time (A8): the same numbers as shader_slice.evaluate_uniform's (uniform_cases.json)
+const moving = JSON.parse(fs.readFileSync(path.join(here, 'uniform_cases.json'), 'utf8'));
+for (const c of moving.cases) {
+  const got = evaluateUniform(c.expr, c.values, c.time);
+  got.forEach((v, k) => assert.ok(Math.abs(v - c.value[k]) < 1e-8, `${c.name}: ${got} not ${c.value}`));
+}
+for (const c of moving.constants) assert.deepEqual(constantAt(c.record, c.values, c.time), c.value, c.name);
+assert.throws(() => evaluateUniform({ kind: 'TextureSample' }, {}, 0), /TextureSample/);
+console.log(`material programs: ${cases.length} cases agree with shader_eval.py, ${moving.cases.length} moving uniforms with shader_slice.py`);
