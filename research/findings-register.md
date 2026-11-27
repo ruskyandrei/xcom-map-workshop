@@ -17,9 +17,9 @@ Statuses:
   the shadow map of the level and its shadow info kept. The sun's component saves no `CachedParentToWorld`: its
   direction is the actor's `Rotation` alone. Fixed (built and read back offline); EXP-99 shows it in the game.
 - F-198 (27 November, the game-likeness plan's T-S4): a piece with the sun on its `IrrelevantLights` (F-184) has no
-  shadow map to take a turned sun's field, so it stays without the sun: on URB_Bar turned to a 16-degree sun from the
-  west, 50 of its 314 such pieces would be reached on more than 1% of their texels (33,438 texels of 668,062).
-  Open: such a piece would need a shadow map of its own and the light off its list.
+  shadow map to take a turned sun's field, so it stayed without the sun. Fixed: in a Build with baking whose sun
+  turned, each such piece the new sun reaches on a texel at least gets a shadow map of its own and loses the light off
+  its list; on URB_Bar turned to a 16-degree sun from the west, 60 of its 314 (5.5 s), their texels as rays on 99.35%.
 - F-197 (27 November, T-S4): a Build with baking whose sun turned traces every shadow map of it from nothing for the
   whole map, the debris volume's pieces included, and makes its map of the level and the lighting samples' marks
   again. URB_Bar turned to a 16-degree sun: 708 shadow maps in 28.9 s on 16 workers; their texels on the side a ray
@@ -365,18 +365,36 @@ of the configured install's URB_Bar made day by EXP-99's project, nothing played
   `TimeOfDay` went from `eMissionTime_Night` to `eMissionTime_Day`.
 
 ### F-198: A piece with the sun on its IrrelevantLights stays without a turned sun
-**Open** (27 November 2026, the game-likeness plan's T-S4; counted offline on URB_Bar built with its moon turned to
-Rotation (-2912, 16384, 0), a sun 16 degrees up from the west, by rays from each piece's lightmap texels).
+**Fixed** (27 November 2026, the game-likeness plan's T-S4: tools/bake/sun_bake.py `own_shadow_maps`, run by the copy
+tool before the relight; checked offline on URB_Bar built through the copy tool with the sun lane turning its moon to
+Rotation (-2912, 16384, 0), a sun 16 degrees up from the west, and by the bake suite's test_sun_bake.py; nothing
+played: EXP-100).
 - **What.** A lightmapped piece wholly in the map's own sun's shadow lists the light on its `IrrelevantLights` and has
   no shadow map of it (F-184), and the game draws none of the sun on it. A turned sun's whole-map trace (F-197) writes
-  every shadow map there is; such a piece has none to write, so it stays without the new sun however the sun now
-  reaches it.
+  every shadow map there is; such a piece had none to write, so it stayed without the new sun however the sun now
+  reached it.
 - **How much.** URB_Bar's level lists 314 such pieces (the bar's floors, its furniture and fittings, but also
-  destructible props outside). Toward the turned sun, 50 of them would be lit on more than 1% of their texels, up to
-  45% (destructible props); 33,438 of their 668,062 texels in all.
-- **What would fix it.** A shadow map texture of its own for each such piece (as a made piece gets one,
-  frac_walls.own_light, through the growing writer) and the light taken off its `IrrelevantLights`; the sun's
-  shadow then traced into it as into the others. Not in T-S4: the plan writes the shadow maps the map has.
+  destructible props outside). Toward the turned sun, 60 of them are lit on a texel at least (by a ray from each texel
+  of the shadow map they would get), 40,455 of their 359,045 texels: 41 destructible props (up to 72% of a piece's
+  texels), 8 level pieces among them two large ones (XComLevelActor_91 and _302, 10,165 and 3,850 texels lit), 10
+  fracturing pieces and a static mesh.
+  Counted by rays from the lightmap texels with more than 1% lit, as first written here: 50.
+- **The fix.** In a Build with baking whose sun turned, the copy tool's step before the relight
+  (`sun_bake.own_shadow_maps`, on the grown map with the light turned in it, through the growing writer) traces each
+  such piece of the level in the scene after the edit (the casters of the pieces the level lists), and gives each that
+  the new sun reaches on a texel at least a shadow map of its own: a clone of one of the map's ShadowMap2D of the
+  light with a blank distance-field texture the size of the piece's lightmap rectangle and a texel's ring, the
+  piece's lightmap UVs one texel in (as a made piece gets one: frac_walls `dominant_shadow`, `own_shadow_size`,
+  `shadow_map_export`), added at LOD 0 (`set_shadow_refs`), and takes the light off its `IrrelevantLights`
+  (`irrelevant`); read back. The relight's whole-map trace then fills it. A piece that lists the light and keeps a
+  map of it too (URB_Bar: 2) keeps its map and loses only the entry; the pieces the sun does not reach stay as the map
+  has them, their bytes unchanged. The writer's record (`sunShadowMaps`) names each piece, and the Build's light stage
+  counts them.
+- **On URB_Bar:** 60 pieces, 59 given maps of their own and one that kept its own; the step takes 5.5 s; the relight
+  then traces 767 shadow maps (708 and 59), the copy tool's whole run 41.6 s (31 s before). Read back, the 60 pieces'
+  359,045 texel centres on the side a ray gives on 99.35%, and on 99.99% away from the shadows' edges; 40,841 lit.
+  The 254 others still list the moon, with no shadow map of it but the one that kept one, and the sun reaches none of
+  their texels.
 
 ### F-197: A turned sun's shadows made again for the whole map in a Build with baking
 **Fixed** (27 November 2026, the game-likeness plan's T-S4: tools/bake/sun_bake.py run by relight.py --sun-turned, which
@@ -402,7 +420,8 @@ test_sun_bake.py through the copy tool with the sun lane; nothing played: EXP-10
   every mark as its ray gives it. The map of the level: 132 by 97 kept (Lightmass would give the new box 55 by 128),
   21 by 66 units a texel; every depth changed.
 - **What stays the old sun's**, as the plan has it: the lightmaps' bounce of the old sun and the lighting samples'
-  own light; and the pieces with no shadow map of the sun (F-198).
+  own light. The pieces with no shadow map of the sun that the new one reaches get one first (F-198), so these
+  figures, from before that, grew to 767 shadow maps and 41.6 s.
 
 ### F-196: The level map's yardstick of T-S0 depends on the light's height; what the map puts in shadow does not
 **Accepted** (27 November 2026, T-S4; `tools/upk/audit_suns.py level-rule` on eleven maps and `turn`, evidence in
