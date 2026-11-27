@@ -21,7 +21,6 @@ import { text } from './dom_words.js';
 import { data, lighting, lightRadius, lightsOn, projectAtmosphere, projectSun, roots, setProjectAtmosphere,
          setProjectSun } from './editor_state.js';
 import { HANDLE_PICK, gameToView } from './handles.js';
-import { movedMatrix } from './scene_pieces.js';
 import { bestTime, clock, curveAt, DAY, directionOf, domeKey, isOwnDome, mapCurve, ownSun, phaseAt, shownTime, sideAt,
          spanAt, sunView, timeSet, validSun } from './sun_rules.js';
 import { createSunMarker } from './sun_view.js';
@@ -137,9 +136,12 @@ export function createSunWiring({ $, buildRoot, camera, cutaway, gizmo, libraryT
   // ------------------------------------------------------------------------------------------------ the sky
   // The sky chosen (the record's dome, stage T-S6) drawn in the Game look in place of the map's own domes, as the Build
   // makes it: a copy of the chosen dome (another map's piece, read as library_templates.js reads any: its sky material
-  // drawn at the far plane, scene_pieces.js) where each of the map's own stands, at its turn, in the chosen dome's own
-  // scale. The copies are drawn things of the view (never picked, in no project's records); the map's own domes are
-  // drawn no longer while they stand (the cutaway reads userData.skyReplaced).
+  // drawn at the far plane, scene_pieces.js) where each of the map's own stands, at its turn and in its size: both are
+  // the game's one sky dome mesh, so the copy takes the replaced dome's own matrix. (The Build's copy keeps the chosen
+  // dome's size, F-202: in the game the turned-over one under the map then lies in the fog, the colour of all below the
+  // horizon, while the view, which draws the sky with no fog, would show it as a second sky under the map.) The copies
+  // are drawn things of the view (never picked, in no project's records); the map's own domes are drawn no longer while
+  // they stand (the cutaway reads userData.skyReplaced).
   const ownDomeRoots = () => [...roots.values()].filter(r => isOwnDome(r.userData.source, data?.meshes));
   function placeDome(key) {
     for (const root of domeRoots) world.remove(root);
@@ -152,7 +154,7 @@ export function createSunWiring({ $, buildRoot, camera, cutaway, gizmo, libraryT
       const source = template.sources[0], made = [];
       for (const [k, owned] of ownDomeRoots().entries()) {
         const at = owned.userData.source;
-        const root = await buildRoot({ ...source, id: `sky:${k}`, matrix: movedMatrix(source, at.location, at.rotation).toArray() });
+        const root = await buildRoot({ ...source, id: `sky:${k}`, location: at.location, rotation: at.rotation, matrix: [...at.matrix] });
         made.push([root, owned]);
       }
       if (key !== domeDrawn) return;

@@ -14,7 +14,9 @@ Statuses:
 
 - F-202 (27 November, the game-likeness plan's T-S6): the sky chosen is built as copies of another map's dome where
   the map's own domes stood, in the chosen dome's own scale: Bar's small turned-over dome under the map (0.41 of the
-  mesh) becomes a full-size one (2, 2, 2.6). Open: the game look shows whether that matters.
+  mesh) becomes a full-size one (2, 2, 2.6). Accepted: in the game (EXP-100) all below the horizon is the fog's
+  colour, so nothing of it shows; the editor's view, which draws the sky with no fog, draws each copy in the replaced
+  dome's size.
 - F-201 (27 November, T-S6): a hidden piece that collides with nothing gets no rebuild volume (as a copy of one seeds
   no tiles, F-93): a sky dome's would have rebuilt every tile of the map. Fixed (read back offline).
 - F-200 (27 November, the game-likeness plan's T-S2): the time of day is written on the map's own lights in place,
@@ -354,8 +356,9 @@ Statuses:
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
 ### F-202: The sky chosen stands where the map's own domes stood, in the chosen dome's own scale
-**Open** (27 November 2026, the game-likeness plan's T-S6; read offline from a quick Build of URB_Bar at 13:00 with
-the noon sky, EXP-99's project with `--sky day`; nothing played).
+**Accepted** (EXP-100, 27 November 2026: nothing of the full-size dome shows in the game. Found 27 November 2026, the
+game-likeness plan's T-S6; read offline from a quick Build of URB_Bar at 13:00 with the noon sky, EXP-99's project with
+`--sky day`).
 - **The domes.** A map's sky is one or two pieces whose mesh is `Skybox.Meshes.SkyDome` (a hemisphere 127,000 units
   across, its pivot at the middle of its base), its material the sky (`Skybox.Materials.NightSky`, `NoonSky`,
   `DuskSky` and a few others; T-S0's survey: 93 of 97 maps have one, AlienBase01, AlienBase02, CB2_MP_Blank and
@@ -367,9 +370,14 @@ the noon sky, EXP-99's project with `--sky day`; nothing played).
   URB_TruckStop_EWI's noon dome stand at their places and turns, each in the noon dome's own scale (2; 1, 1, 1.3): the
   turned-over one is a full-size dome under the map where Bar's was a fifth of the size. The tile data and the rebuild
   volumes are the map's (F-201).
-- **Open.** Whether the full-size dome under the map shows in the game where Bar's small one did not (the camera looks
-  down, so most of it is under the ground), seen in the game look after T-S6. If it does, a copy that keeps the replaced
-  dome's own scale is new work for the copy tool (a copy takes its template's scale today).
+- **In the game (EXP-100, a baked Build of URB_Bar at 08:00 with the noon sky).** The game holds the two copies
+  (XComLevelActor_470 upright, _471 turned over, both DrawScale 2 and 1, 1, 1.3) and none of Bar's own. From far and
+  high on four sides everything below the horizon is one flat colour, the map's fog (90, 77, 96), up to a sharp line
+  where the bright day sky starts; from below the map, the fog's colour alone. No bowl, seam or wall of sky shows.
+- **In the editor.** The Game look draws the sky at the far plane with no fog, so the full-size dome under the map
+  showed as a second sky below it (a mirrored sun at the bottom; from some cameras a near-black background). The view
+  now draws each copy with the replaced dome's own matrix, its size included (both are the one sky dome mesh), so the
+  bowl under the map stays the map's. The Build's copies keep the chosen dome's size, which the game does not show.
 
 ### F-201: A hidden piece that collides with nothing gets no rebuild volume
 **Fixed** (27 November 2026, the game-likeness plan's T-S6: `native_copy.hide_pieces`; read back offline from the Build
