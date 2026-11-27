@@ -388,3 +388,12 @@ export function constantAt(record, values, time) {
   if (record.scalars) return record.value.map((v, k) => (record.scalars[k] ? evaluateUniform(record.scalars[k], values, time)[0] : v));
   return [...record.value];
 }
+
+/** [r, g, b] the game multiplies a light by at `time` (seconds): its light function's program (a light record's
+ *  `lightFunction.program`, export 46; game-likeness plan, F1), its constants worked out at that time and run with no
+ *  inputs. Throws on a kind it doesn't work out. */
+export function lightFunctionAt(program, time) {
+  const constants = Object.fromEntries(Object.entries(program.constants ?? {})
+    .map(([name, record]) => [name, { value: constantAt(record, {}, time) }]));
+  return runProgram({ ...program, constants }, {}, {}).light.slice(0, 3);
+}

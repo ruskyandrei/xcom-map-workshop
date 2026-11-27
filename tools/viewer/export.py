@@ -17,6 +17,7 @@ import material_programs
 import atmosphere as atmosphere_records
 import baked_light
 import decals as decal_export
+import light_functions
 from skeletal import read_skeletal
 from texture import export_texture
 from materials import coordinates, profile, static_switches, constant_color, approximate_colour, opacity_input, BY_KIND
@@ -119,13 +120,16 @@ import settings
 #     levels' own pieces only (a piece of another map is lit live where it is put)
 # 45: `sunIrrelevant` in place of `sunShadow` on a lightmapped piece whose IrrelevantLights hold the dominant light
 #     (wholly in its shadow: the game draws none of the sun on it; B3, F-184)
-# 46: the map's placed decals (game-likeness plan, D1; decals.py, decal_records.py; F-210, F-211): `decals`, each with
+# 46: a light's `lightFunction` (game-likeness plan, F1: light_functions.py): the program of the material the game
+#     draws on the light (its light function shader sliced, output `light`: the factor it multiplies the light by,
+#     which may move with time), its material and whether it moves; only where the export makes programs
+# 47: the map's placed decals (game-likeness plan, D1; decals.py, decal_records.py; F-210, F-211): `decals`, each with
 #     its actor, place, rotation, frame, size, material and the piece it lies on, and a mesh (decal-<actor>.glb) of
 #     the triangles the game stored for it, grouped by the piece each part lies on; a stream's in its layer
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 46
+EXPORT_VERSION = 47
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -716,6 +720,9 @@ class Exporter:
         lights = self.guarded('lights', lambda: light_records(p,actors,self.prefix,
                                                               'inherited' if self.prefix else 'base',self.warn), [])
         self.guarded('light metadata', lambda: light_metadata(p, lights, objects, self.kismet, self.warn), None)
+        # what a light's light function does to it (export 46): a program the page runs each frame in the Game look
+        if self.programs is not None:
+            self.guarded('light functions', lambda: light_functions.add(p, lights, self.programs, self.warn), None)
         self.area_matcher = self.guarded('area lights', lambda: area_lights(p, objects, lights, self.meshes, self.materials,
                                                                             self.warn), None)
         # a van's own building goes with the van (compiler.van_buildings: the editor keeps it fixed)
@@ -755,7 +762,7 @@ class Exporter:
             triggerCounts=self.guarded('trigger counts', lambda: trigger_counts(p), None))
         # its fog, grade, bloom and post-process volumes (export 43), absent for a streamed or previewed package
         air = {} if self.prefix else dict(atmosphere=self.guarded('atmosphere', lambda: atmosphere_records.read(p), None))
-        # its placed decals (export 46): the map's and a stream's, none for the patch a preview builds on
+        # its placed decals (export 47): the map's and a stream's, none for the patch a preview builds on
         decals = ([] if self.prefix and not stream
                   else self.guarded('decals', lambda: decal_export.records(self, objects), []))
         return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope, **air,

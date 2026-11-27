@@ -48,7 +48,7 @@ line, and its finding in the [findings register](research/findings-register.md) 
 - **Workaround.** Move or delete the light yourself in the Lights view. The decals can't be picked in the editor and
   stay.
 - **Cause.** The export carries with a piece only the effects placed with it; its lights are separate actors to the
-  editor. It reads the decals (export 46: each with the piece it lies on, F-210), but the editor neither draws nor moves
+  editor. It reads the decals (export 47: each with the piece it lies on, F-210), but the editor neither draws nor moves
   them, and the game keeps a decal as triangles stored on the surfaces it lay on.
 - **Finding.** [F-50](research/findings-register.md) (EXP-11 run 2; the smoke's part fixed for export 30).
 

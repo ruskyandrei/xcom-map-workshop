@@ -846,7 +846,22 @@ light is in their lightmaps (its fourth texel's third value). A made piece (draw
 block stay live. View options says, under the look, "Lit by the Build of <time> · <n> pieces changed since" (or
 "nothing changed since"), in the Game look.
 
-## 12. The map's decals in the export (export 46)
+## 12. A light's light function in the export (export 46)
+
+A light record whose component's `Function` names a `LightFunction` with a `SourceMaterial` (the material the game draws
+on the light) carries `lightFunction` ([light_functions.py](../tools/viewer/light_functions.py); F-232):
+`{material, program, moves}`. `program` is section 9's form sliced from the material's `FLightFunctionPixelShader`
+(`shader_slice.slice_light_function`) with no inputs and no textures, and one output, `light`: the factor (r, g, b)
+the game multiplies the light by, its constants that move with time worked out at the time asked for. The engine's
+`LightFunctionParameters` are taken as (1, 1): the colour's mean (the shader's own 0.333 a channel), and no fade by
+distance. `moves` says whether a constant moves with time. A light function with no material changes nothing and gives
+none; one that reads where the light falls (a pattern projected from the light), whose material is in another package
+or is an instance, gives none and is named in the diagnostics ("Drawn steady"). The page sets each such light to its
+colour times the factor at its own clock each frame of the Game look ([lighting.js](../tools/viewer/web/lighting.js)
+`flicker`, [material_program.js](../tools/viewer/web/material_program.js) `lightFunctionAt`); the Neutral look draws no
+map light.
+
+## 13. The map's decals in the export (export 47)
 
 `scene.json`'s `decals` ([decals.py](../tools/viewer/decals.py) `records`, on the reader
 [decal_records.py](../tools/upk/decal_records.py); F-210, F-211): each DecalComponent of a DecalActor or

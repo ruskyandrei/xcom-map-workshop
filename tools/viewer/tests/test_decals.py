@@ -1,4 +1,4 @@
-"""The map's placed decals in the export (decals.py; game-likeness plan, D1, export 46): a decal's mesh made from its
+"""The map's placed decals in the export (decals.py; game-likeness plan, D1, export 47): a decal's mesh made from its
 stored receivers (each part's index range, the vertices in the world in the mesh's axes, the texture coordinates,
 blend and depth the game's decal vertex shader gives them, its tangent frame), a part on a piece the export lacks left
 out; on the install's URB_Bar, every decal's record (its actor, place, frame, size, material, the piece it lies on and

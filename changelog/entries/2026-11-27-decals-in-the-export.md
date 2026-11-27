@@ -1,4 +1,4 @@
-### Export 46: the map's decals read as the game stores them
+### Export 47: the map's decals read as the game stores them
 
 The reader and the export of stage D1 of the game-likeness plan. The editor does not draw decals yet; that, and
 editing them, is a later stage.
@@ -11,7 +11,7 @@ editing them, is a later stage.
   game's decal vertex shader makes of a point: its texture coordinates, its blend by the surface's angle, its depth and
   its tangent frame (F-211).
 - **The export**, [decals.py](../../tools/viewer/decals.py) (new) and [export.py](../../tools/viewer/export.py)
-  (`EXPORT_VERSION` 46). The scene's `decals` (a stream's in its layer) gives each decal:
+  (`EXPORT_VERSION` 47). The scene's `decals` (a stream's in its layer) gives each decal:
   - its actor's name, level, place and rotation, whether it is hidden, and whether it is in the level's actor list (a
     Build's clear takes it out with the Pieces part);
   - its frame, its size (width, height, near and far planes, tiling, offsets, rotation, blend range, depth bias) and
@@ -21,7 +21,7 @@ editing them, is a later stage.
     (`receivers`: the piece's id and the part's range of the index buffer). The vertices carry the decal's texture
     coordinates, blend and depth in two UV channels, and its tangent frame on the surface.
 
-  The form is in [research/editor-contracts.md](../../research/editor-contracts.md) section 12, and the rows in
+  The form is in [research/editor-contracts.md](../../research/editor-contracts.md) section 13, and the rows in
   [ARCHITECTURE.md](../../ARCHITECTURE.md) section 2. A piece of another map carries nothing new: the library's piece
   version is unchanged. KNOWN-BUGS.md KB-3's cause names what is still missing.
 - **The survey**, [audit_decals.py](../../tools/upk/audit_decals.py) (a research tool), with its evidence in

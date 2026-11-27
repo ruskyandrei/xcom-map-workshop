@@ -12,9 +12,19 @@ Statuses:
 
 ## Open now
 
+- F-232 (27 November, the game-likeness plan's F1): DLC2_3_Furies' four toggleable point lights pulse by a light
+  function, `(1 + sin(pi t)) / 2` every 2 seconds; the other two light functions of the install name no material.
+  Fixed: export 46 carries the light function's program and the Game look pulses the light. Three maps flicker a light
+  by a looping Matinee instead, which the editor draws steady.
+- F-231 (27 November, the game-likeness plan's D5): a fracturing wall the map shows broken has brick chunks along its
+  broken edges, an instanced mesh on the map's level volume whose saved bits draw 428 chunks on 9 maps (a chunk where
+  its fragment is there and a neighbour is not: all 16,906 entries agree); the editor draws the holes without them.
+  Open: a stage to draw them is planned.
+- F-230 (27 November, D5): no map has terrain or the engine's other world geometry; one tutorial stream draws a box of
+  BSP 3,200 units over its map; the engine's own instanced meshes are empty. Accepted.
 - F-212 (27 November, the game-likeness plan's D1): a decal material's program can't be sliced yet for the decal
   vertex factory the game draws decals with (its texture coordinates, blend and depth are made from the decal's
-  matrix and planes, which the slice has no input for), and the local factory's slice, which export 46 puts on the
+  matrix and planes, which the slice has no input for), and the local factory's slice, which export 47 puts on the
   material's record, refuses most (2,753 of the 3,069 placed decals' materials) because it takes a literal read with an
   `abs` modifier in the vertex shader (`mul o1, c5_abs.yyzz, v4.xyxx`: the mesh's UV) for more than inputs. Open: the
   slice's work before the editor draws decals.
@@ -26,7 +36,7 @@ Statuses:
 - F-210 (27 November, D1): a placed decal stores the triangles the game clipped it to on each surface it lies on (in
   that surface's own space) with the component that surface is, and takes its frame from its actor (its place, its -X
   the decal's normal): all 3,351 decal components of the install's 153 map packages read to their last byte, every
-  saved frame member its actor's. A decal placed from an archetype keeps its size and material there. Fixed (export 46
+  saved frame member its actor's. A decal placed from an archetype keeps its size and material there. Fixed (export 47
   carries every decal with its parts by piece; nothing drawn yet).
 - F-203 (27 November, the game-likeness plan's T-S5, EXP-100): in a Build with baking whose sun turned, moving things
   are not darkened in its shadows: a soldier is as bright in a building's new shadow as in the sun, where on a map as
@@ -376,6 +386,78 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
+### F-232: Four lights of one map pulse by a light function; the game draws it as a factor of time on the light
+**Fixed** (27 November 2026, the game-likeness plan's F1; read offline from the lab copy's 97 maps and their records'
+134 streams, and the shader cache; the editor's side checked in a headless browser on DLC2_3_Furies; nothing played).
+- **Which lights.** Six light components in the 231 packages name a `LightFunction`: DLC2_3_Furies' four
+  `PointLightToggleable`s (brightness 3, white, radius 800, the lighting channels their own) with
+  `FX_Gameplay_DLC_090.M_LightFunction_RedSlow`, and the dominant lights of DLC1_2_CnfndLight and URB_TrainStation,
+  whose light functions name no material (the game draws those steady). The materials' expressions are cooked out
+  (`EmissiveColor` names none); what they do is in the shader cache only: 29 shader maps have a light function shader.
+- **What the game draws.** `FLightFunctionPixelShader`: the material's emissive colour, its mean (0.333 a channel)
+  where `LightFunctionParameters.x` asks for greyscale, faded toward 1 by its y, written as its square root (the
+  light attenuation buffer's encoding). RedSlow's emissive is the scalar `(1 + sin(pi t)) x 0.5` (and the editor-only
+  `SelectionColor`, 0): the light goes from none to full and back every 2 seconds. Of the 29 light function shaders,
+  10 give one factor for the whole light (RedSlow, WarningStrobe's three, HazardLight, FlickeringLight, three of the
+  Sectopod's effects and LightFunctions; no map's light uses the others), 19 read where the light falls (a texture
+  projected from the light: 17 by `texldl`, 2 by `texld`).
+- **Fix.** Export 46: the light record's `lightFunction` (its material, its program, whether it moves; research/
+  editor-contracts.md section 12), sliced from the light function shader with x and y taken as 1; the Game look sets
+  each such light to its colour times the program's factor at the page's clock each frame (lighting.js `flicker`).
+  One that reads where the light falls is drawn steady and named in the diagnostics. The game's clock starts with the
+  battle, so the editor's pulse is not in step with a game's.
+- **Not light functions.** Six maps change a light's brightness or colour by Matinee: looping ones on
+  `PointLightComponent0.Brightness` in CLrgScout_DeepWoods and COverseer_Deepwoods (1.5 s) and on a light's
+  `Brightness` in Act1_IntroLevel (0.4 s); one-off ones (0.15 to 0.35 s, colour and brightness together, not looping)
+  in DLC1_2_CnfndLight, URB_TrainStation and DLC2_3_Furies, started by their scripts. The editor draws those lights
+  steady; what starts the looping ones was not read.
+
+### F-231: A wall the map shows broken has brick chunks along its broken edges, which the editor doesn't draw
+**Open** (27 November 2026, the game-likeness plan's D5; read offline from the install, `tools/upk/audit_world_geometry.py
+survey` over the lab copy's 97 maps and the 134 packages their records stream, evidence in
+[world-geometry-audit-2026-11-27.json](evidence/world-geometry-audit-2026-11-27.json); nothing played).
+- **What draws them.** A fracturing wall of the kind `XComDecoFracLevelActor` (brick cores under plaster) has two
+  components on the map's `XComLevelVolume`: an `XComFracDecoComponent` (chunks of brick, `destBrickChunk_HD`, set in
+  the wall's plane along its fragments' edges) and an `XComFracDebrisComponent` (brick piles on the floor below,
+  `BrickPile_C`). Both are `ToggleableInstancedStaticMeshComponent`s, an instanced mesh of the engine's: one mesh drawn at
+  each of its instances (an 80-byte record each: a 4x4 transform and the lightmap's and shadow map's UV biases), its
+  translation from the level volume's place (with it added, each chunk lies within about 20 units of its fragment's
+  centre; without it, thousands of units off). Its `PerInstanceBitfield` holds an entry an instance: the fragment it
+  belongs to in the low 16 bits (`DECO_INSTANCE_UID`, 0xFFFF) and whether it is drawn in bit 23 (`INSTANCE_Visibility`,
+  0x800000). The wall's `bForceDecoVisible` and `bForceDebrisVisible` would draw all; no map sets them.
+- **What is drawn as the map loads.** 2,291 such components on 97 maps (1,148 decoration, 1,143 debris), 21,885
+  instances. 428 decoration chunks have the bit, on 9 maps: DLC2_1_Portent 109, URB_PoliceStation 70,
+  URB_OfficePaper_Terror 64, URB_ConvienienceStore_Terror 54, URB_CommercialRestaurant 30,
+  URB_CommercialStreet_Terror 28, URB_PierA_Terror 27, URB_CommercialAlley_Terror 26, URB_Bar_Terror 20. No debris
+  pile has it, even where its fragment is one the map hides.
+- **The rule, read from the data.** A decoration chunk is drawn where its fragment is there and a fragment across one
+  of its faces is not (the fragments the map hides: `EditorPaintedVisibleFragments`, which the editor already draws
+  as holes): it holds for all 16,906 entries (428 drawn, 16,478 not). So the chunks are the broken edges of the walls
+  the map shows broken.
+- **The editor** draws such a wall with its holes and none of the chunks: the export reads only a level actor's mesh
+  components (`Exporter.run`), and these are neither the wall's nor named as mesh components. Not known: whether the
+  game redraws the chunks for fragments a Build's blasts take out (its bits are as the map saved them; the script's
+  `UpdateInstancesRuntime` may set them again as the battle starts). One look at a broken wall of a Build in the game
+  would settle it. A stage to draw them is planned, not built.
+
+### F-230: What of a level's drawn geometry the export doesn't read: no terrain, one box of BSP, and instanced meshes
+**Accepted** (27 November 2026, the game-likeness plan's D5; read offline from the install, `tools/upk/audit_world_geometry.py
+survey` over the lab copy's 97 maps and the 134 packages their records stream: 231 packages, every one read whole,
+evidence in [world-geometry-audit-2026-11-27.json](evidence/world-geometry-audit-2026-11-27.json); nothing played).
+- **Terrain and the engine's other world geometry.** None: no `Terrain`, `TerrainComponent` or Landscape object, and
+  no SpeedTree, foliage, spline mesh or fluid surface, in any of the 231 packages.
+- **BSP.** Every level has its model (read to its vertex pool on all 231), but the game draws a level's BSP only
+  through its model components, and only one package has any: Act2_Pier_script, a stream of the tutorial map's
+  records, with three model components drawing six faces (12 triangles) in the engine's `DefaultMaterial`, a box from
+  (1056, -528, 4096) to (2256, 112, 4352): 3,200 units over the highest piece of Act2_Pier (850). Left undrawn: it
+  is no part of a battle's scene. A model component's layout as this install saves it: its model, a zone, its
+  elements (each a lightmap, the component, its material, its BSP nodes as 16-bit indices, its shadow maps and its
+  irrelevant lights), then its index and its nodes.
+- **Instanced meshes.** 2,485 instanced components, 1,505 with more than one instance. The engine's own kind
+  (`InstancedStaticMeshComponent`), two on each map's level volume (`FlameThrowerHit`, `FlameThrowerSplash`, which
+  the flamethrower fills as it fires): no mesh, no instance, hidden. The rest are the fracturing walls' decoration and
+  debris (F-231), of which 428 chunks on 9 maps are drawn as the map loads.
+
 ### F-212: A decal material's program is not sliced yet
 **Open** (27 November 2026, the game-likeness plan's D1; read offline with `tools/upk/audit_decals.py --programs` over
 the 165 decal materials of the install's placed decals, evidence in
@@ -391,7 +473,7 @@ the 165 decal materials of the install's placed decals, evidence in
   `DecalLocalBinormal`, F-211) and its normal frame against the mesh's in `color1`. Its pixel shader cuts by
   `DecalNearFarPlaneDistance` and fades over the last fifth of the depth. The slice has no input for these: its colour
   is sliced for 6 materials (167 decals).
-- **The local factory's base pass**, whose program export 46 puts on the material's record: its vertex shader writes
+- **The local factory's base pass**, whose program export 47 puts on the material's record: its vertex shader writes
   the mesh's first UV channel as `mul o1, c5_abs.yyzz, v4.xyxx` (the literal (0.0078, -1, 0, 0.01) read absolute: one,
   one, nought, nought), and the slice's vertex reader takes any modified read of a constant for more than inputs. So
   136 of the 165 (2,753 decals) are refused for "texcoord.x is made from more than inputs"; the colour is sliced for 35
@@ -422,13 +504,13 @@ placed decal of the install with `tools/upk/audit_decals.py`, evidence in
   unmirrored seen along its projection, and the shader's own tangent frame, -T and -B turned into the surface, runs the
   same way, as a tangent frame must for its normal maps. Not yet held against the game: URB_Bar's graffiti decals
   (GraffitiDecals_A) would show a mirror.
-- **Where it is used.** export 46 writes each decal mesh's vertices with these values (decal_records.coordinates,
+- **Where it is used.** export 47 writes each decal mesh's vertices with these values (decal_records.coordinates,
   surface_frame), worked out in the world: the same as the game's in its receiver's space for a receiver at scale 1;
   for a scaled one the blend and depth differ by the scale (DecalLocalNormal is the world normal by WorldToLocal, not
   its inverse transpose).
 
 ### F-210: A placed decal stores its triangles on each surface it lies on, and its frame is its actor's
-**Fixed** (export 46 carries every decal with its parts by piece; nothing drawn yet. Found 27 November 2026, the
+**Fixed** (export 47 carries every decal with its parts by piece; nothing drawn yet. Found 27 November 2026, the
 game-likeness plan's D1: `tools/upk/audit_decals.py` over the 153 packages the map records name (base maps and
 streams, Firaxis-cooked), 11 s; evidence in [decal-audit-2026-11-27.json](evidence/decal-audit-2026-11-27.json)).
 - **The data.** 3,351 decal components in 81 of the 153 packages: 3,069 on DecalActors with stored triangles, 282

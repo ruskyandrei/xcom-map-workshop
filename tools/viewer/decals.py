@@ -1,4 +1,4 @@
-"""The map's placed decals in the export (the game-likeness plan, stage D1; export 46; F-210, F-211): each decal's
+"""The map's placed decals in the export (the game-likeness plan, stage D1; export 47; F-210, F-211): each decal's
 actor, place, frame, size and material, and one mesh of the triangles the game stored for it on the surfaces it lies
 on, its parts grouped by the piece each lies on.
 
@@ -71,7 +71,7 @@ def decal_mesh(f, parts):
 
 def records(exporter, objects):
     """The placed decals of the exporter's package (each DecalComponent of a DecalActor or DecalActorMovable of its
-    level that has receivers), as export 46's `decals` (research/editor-contracts.md section 12), each mesh written as
+    level that has receivers), as export 47's `decals` (research/editor-contracts.md section 13), each mesh written as
     decal-<id>.glb in the export's folder. `objects` are the package's pieces as the export made them."""
     p = exporter.p
     pieces = {o['id']: o for o in objects}
