@@ -1,7 +1,7 @@
 ### Effects drawn by their materials' compiled shaders
 
 Stage E1 of the game-likeness plan: an effect's likeness draws each emitter's material as the game's shader draws it,
-in both looks, where the emitter's material can be sliced; the rest keep the textures' roles as before. Export 46,
+in both looks, where the emitter's material can be sliced; the rest keep the textures' roles as before. Export 48,
 draw version 6 (research/editor-contracts.md sections 8 and 9; F-220).
 
 - **The slice** (`shader_slice.py`): a particle's material is sliced from its shaders for the particle vertex factory
@@ -17,7 +17,7 @@ draw version 6 (research/editor-contracts.md sections 8 and 9; F-220).
   makes the program once a material and factory list, through `material_programs.program` (a list of factories, the
   first the material has; a texture the page gives itself skipped). `effects_draw.py` writes a sprite emitter's
   `program` and a mesh emitter's `programs` (one a drawn section), and follows the dynamic parameter module
-  (`DynamicParams`). EXPORT_VERSION 46; no texture, mesh or piece material changes (the piece version stays).
+  (`DynamicParams`). EXPORT_VERSION 48; no texture, mesh or piece material changes (the piece version stays).
 - **The page**: `material_program.js` reads the particle's inputs from the likeness's varyings (`PARTICLE_VARYINGS`),
   the scene's depth through a `progSceneDepth` the shader may give (without it nothing is behind: no fade) and a read
   at a level; `effects_preview.js` makes a sprite's or a mesh section's material from its program (`programMaterial`:

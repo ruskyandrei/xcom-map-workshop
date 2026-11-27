@@ -4264,9 +4264,9 @@ def check_likeness(page):
         page.evaluate('id => viewer.select(id)', held); return None
     assert now['effects'] >= len(can), now      # (seen whole from afar, a large map's are too small to step)
     assert page.locator('#likenessToggle').is_checked()
-    # (export 46: an emitter whose material has a program is drawn by it once its textures are in, game-likeness plan E1;
+    # (export 48: an emitter whose material has a program is drawn by it once its textures are in, game-likeness plan E1;
     # ?programs=off or =pieces draws them by their textures' roles)
-    if page.evaluate("viewer.data.exporterVersion >= 46 && !/programs=(off|pieces)/.test(location.search)"):
+    if page.evaluate("viewer.data.exporterVersion >= 48 && !/programs=(off|pieces)/.test(location.search)"):
         page.wait_for_function('ids => ids.some(id => (viewer.likenessOf(id) ?? []).some(e => e.program && e.shown))', arg=can, timeout=60000)
         # (E2: a lit material takes the light the view draws where its effect stands: another in the other look)
         lit = page.evaluate('ids => ids.find(id => (viewer.likenessOf(id) ?? []).some(e => e.light))', can)
@@ -5978,6 +5978,7 @@ def check_map_lights(ctx):
         }""")
     check_game_frame(page)
     check_baked_light(page)
+    check_light_functions(page)
     # the Game look without and with its area lights, then the Neutral look, each pictured; K switches the look
     for mode, area in (('game', False), ('game', True), ('neutral', True)):
         page.evaluate('on => { const a = document.getElementById("areaLights"); a.checked = on; a.onchange(); }', area)
@@ -6000,7 +6001,9 @@ GAME_FRAME = """async () => {
   // a helper's square before the camera, and one under the map's ground at the camera's target (hidden by it)
   const square = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ color: 0xd04020, side: T.DoubleSide }));
   const away = new T.Vector3(); v.camera.getWorldDirection(away);
-  square.position.copy(v.camera.position).addScaledVector(away, 10); square.lookAt(v.camera.position); square.scale.setScalar(2);
+  // (in front of the near plane, whatever it is: a map framed from far away has it at tens of units; the same size seen)
+  const before = Math.max(10, v.camera.near * 4);
+  square.position.copy(v.camera.position).addScaledVector(away, before); square.lookAt(v.camera.position); square.scale.setScalar(before / 5);
   v.world.add(square);
   try {
     const [x, y] = middle();
@@ -6101,6 +6104,31 @@ def check_baked_light(page):
     pool = page.evaluate(BAKED_POOL)
     if pool:
         assert pool['centre'] > max(pool['corners']) and pool['centre'] > 1.5 * sum(pool['corners']) / 4, pool
+
+
+def check_light_functions(page):
+    """The lights a light function pulses (game-likeness plan, F1; export 46), on a map that has one (DLC2_3_Furies'
+    four): in the Game look each is set to its colour times its program's factor at the time asked for (the pulse's
+    full at 0.5 s, none at 1.5 s), and the draw loop moves them on its own; the Neutral look leaves them."""
+    if page.evaluate('!(viewer.data.lights || []).some(l => l.lightFunction)'):
+        return
+    assert value(page, 'lighting') == 'game'
+    lights = page.evaluate('viewer.lighting.flickering')
+    assert lights, 'no light pulses'
+    at = 't => { viewer.lighting.flicker(t); return viewer.lighting.flickering.map(l => l.colour); }'
+    full, none, half = (page.evaluate(at, t) for t in (0.5, 1.5, 0.0))
+    for f, n, h in zip(full, none, half):
+        assert max(f) > 0 and max(n) < 1e-6, (f, n)
+        assert all(abs(hv - fv / 2) < 1e-4 * max(f) for hv, fv in zip(h, f)), (h, f)
+    first = page.evaluate('viewer.lighting.flickering.map(l => l.colour)')
+    page.wait_for_timeout(400)
+    assert page.evaluate('viewer.lighting.flickering.map(l => l.colour)') != first      # (the draw loop's time)
+    choose(page, 'lighting', 'neutral')
+    page.evaluate('viewer.lighting.flicker(0.5)')
+    still = page.evaluate('viewer.lighting.flickering.map(l => l.colour)')
+    page.evaluate('viewer.lighting.flicker(1.5)')
+    assert page.evaluate('viewer.lighting.flickering.map(l => l.colour)') == still
+    choose(page, 'lighting', 'game')
 
 
 def check_game_frame(page):

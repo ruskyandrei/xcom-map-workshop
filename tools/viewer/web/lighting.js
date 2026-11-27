@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { CELL, buildLightGrid, packLightGrid, sceneLightClip } from './light_grid.js';
 import { effectiveCone, lightAt as lightAtRule } from './light_rules.js';
+import { lightFunctionAt } from './material_program.js';
 import { FOG_PARS, fogChunk, fogShared, fogUniforms, fogUniformsNone, setFog } from './atmosphere_shader.js';
 
 const uniforms = {
@@ -255,12 +256,16 @@ export const toView = v => new THREE.Vector3(v[0], v[2], v[1]);
  *  again from it alone (a slider of the Map settings window). `timeOfDay` gives the project's time of day as the view
  *  draws it (sun_rules.js sunView: the dominant light's direction, colour and brightness, the sky light's), or null for
  *  the map's own (T-S1); sunMoved() puts the sun or moon and the sky light where it says again, without the lights'
- *  grid (a drag of the time bar, each frame). lightAt(at, normal) gives the light the view draws at a place for a
+ *  grid (a drag of the time bar, each frame). flicker(time) sets each light that has a light function to its colour at
+ *  that time (F1), each frame of the Game look. lightAt(at, normal) gives the light the view draws at a place for a
  *  surface facing `normal` (view axes; light_rules.js lightAt): a lit particle's (game-likeness plan, E2). */
 export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSize = 4096, atmosphere = null, timeOfDay = null }) {
   const neutral = { sky: hemisphere.color.clone(), ground: hemisphere.groundColor.clone(), hemi: hemisphere.intensity,
                     sun: sun.color.clone(), intensity: sun.intensity, castShadow: sun.castShadow };
   let all = [], enabled = [], local = [], grid = null, bounds = null, deepest = 0;
+  // the local lights' data (setLights), and those of them a light function changes as time goes: { index, id, colour,
+  // program, now (the colour last set) }
+  let lightData = null, flickers = [];
   // each local light as lightAt reads it (view axes, its colour by its brightness), and those the look draws now
   let localState = [], drawnLocals = [];
   const extraSuns = [];
@@ -284,8 +289,9 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     ({ bounds, deepest } = grid);
     if (local.length > maxTextureSize) throw Error('Light data exceeds GPU texture dimensions');
     // Per light: position/radius, colour/falloff, direction/cos outer (-2: a point light), cone scale.
-    const lightData = new Float32Array(Math.max(1, local.length) * 16);
+    lightData = new Float32Array(Math.max(1, local.length) * 16);
     localState = [];
+    flickers = [];
     local.forEach((l, i) => {
       const p = toView(l.location), d = toView(l.direction).normalize();
       const colour = linear(l.color, l.brightness * Math.PI);
@@ -304,6 +310,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
       lightData.set([p.x, p.y, p.z, l.radius, ...colour, l.falloffExponent, d.x, d.y, d.z, cosOuter, coneScale, inLightmaps, inBuild, 0], i * 16);
       localState.push({ light: l, position: [p.x, p.y, p.z], radius: l.radius, colour: linear(l.color, l.brightness),
                         falloff: l.falloffExponent, direction: [d.x, d.y, d.z], cosOuter, coneScale });
+      if (l.lightFunction?.program) flickers.push({ index: i, id: l.id, colour, program: l.lightFunction.program, now: colour });
     });
     drawnLocals = [];
     uniforms.localLightData.value?.dispose();
@@ -384,6 +391,20 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
     place(target, radius);
   }
 
+  /** The lights a light function changes (export 46's `lightFunction`: a pulse, a flicker), each set to its colour times
+   *  the factor its program gives at `time` (seconds), where the Game look draws the map's lights. A program that can't
+   *  be worked out leaves its light steady. */
+  function flicker(time) {
+    if (!flickers.length || lastMode === 'neutral' || dimmed || !shown) return;
+    for (const f of [...flickers]) {
+      let factor;
+      try { factor = lightFunctionAt(f.program, time); } catch { flickers.splice(flickers.indexOf(f), 1); continue; }
+      f.now = f.colour.map((v, k) => v * Math.max(0, factor[k]));
+      lightData.set(f.now, f.index * 16 + 4);
+    }
+    uniforms.localLightData.value.needsUpdate = true;
+  }
+
   /** Solo (editor lights plan 4.6): the map dimmed to a faint neutral, its own lights off; apply() puts it back. */
   function dim(target, radius) {
     dimmed = true; drawnLocals = [];
@@ -417,8 +438,9 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
                          up: [0, 1, 0], locals: drawnLocals }, at, normal);
   }
 
-  return { apply, setLights, dim, fog, sunMoved, lightAt, get available() { return all.length > 0; }, get grid() { return grid; },
+  return { apply, setLights, dim, flicker, fog, sunMoved, lightAt, get available() { return all.length > 0; }, get grid() { return grid; },
            get packed() { return packed; }, get mode() { return lastMode; },
+           get flickering() { return flickers.map(f => ({ id: f.id, colour: [...f.now] })); },
            get counts() { return { all: all.length, enabled: enabled.length, local: local.length, perCell: deepest }; } };
 }
 
