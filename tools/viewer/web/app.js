@@ -91,6 +91,7 @@ import { recall, remember } from './storage.js';
 import { segButton, segmented } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createMapLighting } from './lighting.js';
+import { bakedAsked, createBakedSpike } from './baked_light_spike.js';
 import { COVER_KIND } from './cover.js';
 import { TILE } from './constants.js';
 import { loadLooks, lookTags } from './looks.js';
@@ -954,7 +955,11 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   startMissionPicker();
   sceneViewOptions(streamObjects);
   placeObjects(); floorOptions(); frame();
-  applyLighting = applyMapLighting;
+  // stage B0's spike of the baked light (?baked=on: baked_light_spike.js), off by default: the Game look draws each
+  // lightmapped piece by its lightmap
+  const bakedSpike = bakedAsked && data.scope === 'map' && !data.preview ? createBakedSpike({ cachePrefix, data, refresh: () => cutaway(), roots, texture }) : null;
+  if (bakedSpike) await bakedSpike.load().catch(error => console.warn(`baked light spike: ${error.message}`));
+  applyLighting = bakedSpike ? () => { applyMapLighting(); bakedSpike.set(gameLook()); } : applyMapLighting;
   applyLighting();
   // the pieces' shaders compiled as the map opens, off the page's thread where the browser can (no first-frame freeze);
   // in the Game look for its target too
@@ -1004,6 +1009,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, storeysNow, streamObjects,
     sun, syncSpawnFilters, takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
     world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
+  if (bakedSpike) window.viewer.bakedSpike = bakedSpike;      // (the perf probe's: only with ?baked=)
   // every refresh the edit hub's runs list is registered by now (edit_hub.js): a lost one fails here, not silently
   checkHub();
 }

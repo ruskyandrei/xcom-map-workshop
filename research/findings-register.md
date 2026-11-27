@@ -12,6 +12,25 @@ Statuses:
 
 ## Open now
 
+- F-183 (27 November, the game-likeness plan's B0): drawing URB_Bar's lightmaps with a material of its own for each
+  lightmapped part (1,109 parts, three.js) costs 1.2 to 1.5 ms of a frame of 4.5; the lightmap's own work in the
+  shader costs about 0.15 ms. B0's spike measured from track H's ub-1 camera: Neutral 3.8 ms, the Game look with the
+  map's lights live 4.5, with the baked light 5.7. Open: B2 hands a piece's lightmap to the shader without a material
+  of its own.
+- F-182 (27 November, B0): what lights what in the game. The sky light lights only the `Gameplay_1` channel on every
+  map that has one (67 of 69; the other 2 none), so no static piece, and is in no lightmap; the editor's Game look
+  lights every piece with it. The sun or moon is drawn live with the piece's distance-field shadow map; the static
+  point and spot lights are in the lightmaps; the 22,008 lights Lightmass made for glowing pieces are in no lightmap.
+  A piece with no lightmap (5,533; 917 with a light environment) takes the no-lightmap base pass and a live pass a
+  light. Open (B2).
+- F-181 (27 November, B0): the game's lightmap shader weights each of the three direction values by its basis
+  vector's squared cosine with the material's normal (a third each for a flat normal; they always sum to one), and
+  the stored scales are made for that: summed, as the baker's `relight.flat_light` does, the light is three times
+  the game's. Settled against the game's shots of URB_Bar. Verified (offline, against track H's game shots).
+- F-180 (27 November, B0): the baked light as the game stores it, over the 96 maps of the install's records: 95% of
+  the static mesh components (108,041 of 113,579) have a directional lightmap texture, 5 a vertex one; 13,228 atlases,
+  every one DXT1 and read through sRGB (none saves `SRGB`; the class default is true), a median 13.7 MB a map on the
+  GPU; 79,140 pieces have a sun shadow map. Open (B1 exports them).
 - F-172 (26 November, laying LWR 3.00.00 beta 18 over the LWR v3 copies): beta 18 reads a map pack only as a
   folder in `CookedPCConsole\LWRMapPacks\` holding an `XComLWRMapPacks.ini` (first line
   `[XComMutator.LWRMapPacks]`, then the pack's `+Maps=`, `+Pictures=`, `+LZArray=` and `+MapInfo=` lines, no byte
@@ -276,6 +295,98 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-183: A material for each lightmapped part costs more than the lightmap
+**Open** (27 November 2026, the game-likeness plan's B0; the spike of B2 on URB_Bar, timed on this PC by
+`tools/viewer/perf_probe.py --camera` from track H's ub-1 camera at 1600 by 1000, 40 frames a figure, three runs;
+evidence research/evidence/baked-light-survey-2026-11-27.json).
+- **The bar's three frames** (ms; the chain's frame, then without it): Neutral 3.8 (5.4 with the sun's shadow
+  pass); the Game look with the map's lights live 4.5 (3.8); the Game look with the baked light 5.7 (4.9). 129
+  shader programs without the spike, 177 with it; opening the map 4.3 s, 6.1 s with the spike's atlases and
+  materials (B2 fetches nothing until the Game look is first on).
+- **Where it goes.** The spike gives each of the 1,109 lightmapped parts a clone of its shared material (the program
+  shared, the atlases and scales its uniforms). In one page, six turns of 60 frames each (medians, the chain's
+  frame): lights live 4.95, the spike 6.42, and one baked material for each shared material (the light wrong, the
+  shader's work the same) 5.09. Three.js uploads a material's uniforms again whenever the material changes, and
+  sorts by material: with a material a part it did so at every draw, and switched program at nearly every draw
+  until the parts of one shared material were drawn together (renderOrder: about half a millisecond back).
+- **What B2 takes from it.** The shader meets the bar (+0.15 ms, and the lightmapped pieces skip the light grid's
+  loop); the hand-over does not. B2 needs a piece's lightmap reached without a material of its own: its few values
+  pushed at the draw where the material stays the same, or a piece index in the mesh's stream and one table of
+  records with the atlases packed into a few pages by B1. Pieces drawn in batches later need the second.
+
+### F-182: What lights what in the game: the sky light lights no static piece; the lightmaps hold the static lights
+**Open** (27 November 2026, B0; read offline from the install's 96 maps, the RefShaderCache's ENV_ForestGround static
+mesh shaders and Engine.upk's class defaults; seen against track H's game shots of URB_Bar).
+- **A lightmapped piece** is drawn by the `FDirectionalLightMapTexturePolicy` base pass: diffuse x (lightmap + sky
+  + ambient) + glow, the lightmap colour x scale0 x dot(directions x scale1, saturate(N . b_i)^2) (F-181); the sky
+  term (the `SkyLight` variants) is ((1 + d) / 2)^2 x `UpperSkyColor` + ((1 - d) / 2)^2 x `LowerSkyColor`, times
+  `AmbientColorAndSkyFactor.w`, d the normal against the sky's direction; the ambient is
+  `AmbientColorAndSkyFactor.rgb`. Then a live pass for each light it takes that is not in its lightmap.
+- **The sky light** (`SkyLightComponent`) saves `LightingChannels` of `Gameplay_1` alone on 67 maps and none at all on
+  2 (TempleShip, URB_PierA_Asian); no static piece is on `Gameplay_1` (on URB_Bar 280 save `Static`, 4 `Dynamic`,
+  795 none). So it lights no static piece, lightmapped or not, and no lightmap names it. The editor's Game look lights
+  every piece with it (the hemisphere light); the spike left it off the lightmapped pieces, which took URB_Bar's
+  frames from 5.4 to 1.8 L off the game's (a kitchen with no lamp is dark in the game).
+- **The sun or moon** (`DominantDirectionalLightComponent`, 93 maps) is in no lightmap and is drawn live
+  (`TLightPixelShader...FSignedDistanceFieldShadowTexturePolicy`) with the piece's G8 distance-field shadow map
+  (79,140 pieces; F-180).
+- **Static point and spot lights** are in the lightmaps (5,769 point and 1,686 spot lights named by a lightmap), and
+  a lightmapped piece takes them from nowhere else. A few lights are live: toggleable ones with shadow maps, and
+  lights on channels of their own (`Gameplay_1`, `Unnamed_1` to `_6`).
+- **The lights Lightmass made for glowing pieces** (`GeneratedMeshAreaLight`, 22,008 spot lights, `LAC_USER_SELECTED`,
+  the default channels) are in no lightmap, no shadow map and no piece's `IrrelevantLights`. Whether the game draws
+  them live on static pieces is not settled offline; the spike leaves them off the lightmapped pieces (the glow they
+  stand for is in the lightmaps), which agreed with the game's shots.
+- **A piece with no lightmap** (5,533 of 113,579; 4,392 drawn and taking lights): `XComLevelActor` 2,506,
+  `XComInteractiveLevelActor` 658, `XComDestructibleActor` 448, the alien pods 906, cover seeds 351, level volumes
+  325. It is drawn by the `FNoLightMapPolicy` base pass (the sky term where its channels meet a sky light's, the
+  ambient, glow) and a live pass for each light that reaches it and that its `IrrelevantLights` doesn't name
+  (`TLightPixelShader` for point, spot and directional lights, with no static shadow, a shadow texture or a distance
+  field); 1,529 of them have a sun shadow map. The 917 with a light environment (the pods' among them) take its
+  composite light instead (`FSHLightLightMapPolicy`, `FDirectionalLightLightMapPolicy`). 786 take no lights at all.
+  No `FDirectionalVertexLightMapPolicy` is compiled for static meshes, so the 5 vertex lightmaps (CLrgScout_Stonewall,
+  TempleShip) are not drawn as such.
+
+### F-181: The game weights the three direction values by their squared cosines; summed they give three times its light
+**Verified** (27 November 2026, B0; offline, against the game's own shots of URB_Bar from track H's game run;
+evidence research/evidence/baked-light-survey-2026-11-27.json).
+- **The shader.** In ENV_ForestGround's lightmap base pass (both sky variants) the three values of the directions
+  atlas, times `LightMapScale[1]`, are dotted with saturate(N . b_i)^2 for UE3's basis b_i (lightmap_encode.BASIS)
+  and the material's tangent-space normal N, then multiplied by the colour atlas times `LightMapScale[0]`. The basis
+  is orthonormal, so the three weights sum to one for any normal, a third each for a flat one.
+  `relight.flat_light` sums the three values: three times the game's light.
+- **One piece worked both ways** (`audit_baked_light.py scale`): URB_Bar's bar floor
+  (`XComLevelActor_302.StaticMeshComponent_7`, 73,495 texels, 98% facing up): flat light median 0.114 and brightest
+  0.98 the game's way, 0.342 and 2.95 summed. The codec's model (lightmap_encode, fitted to UDK Lightmass) stores 1.155
+  in each direction for a light straight over a texel: 1.155 of its brightness the game's way, against 1.0 from UE3's
+  live pass for the same light, and 3.46 summed. The colour scale is 1 on every piece read; the direction scales
+  vary by piece and direction (1 to 2.4 on the floor).
+- **Against the game.** The three track H cameras of URB_Bar drawn with the spike both ways, scored against the
+  game's shots (likeness.py's score): weighted as the shader does, mean dE 4.39, L 1.8 (the lights live: 7.38, 5.59);
+  summed, 10.95 and 8.41, every shot 7.7 to 8.9 L too light.
+- **What follows.** B2 draws the shader's formula with the stored scales as they are. B1's factor between the live
+  lights and the baked ones is worked out against the game's weighting, not flat_light's. The relight compares
+  flat_light with flat_light, so its results stand.
+
+### F-180: The baked light as the game stores it: DXT1 atlases read through sRGB, on 95% of the pieces
+**Open** (27 November 2026, B0; `tools/upk/audit_baked_light.py survey` over the 96 maps of the configured install's
+records, 68 s; evidence research/evidence/baked-light-survey-2026-11-27.json). B1 exports them.
+- **Pieces.** 113,579 static mesh components on the persistent levels: 108,041 (95%) with a directional lightmap
+  texture, 5 with a vertex lightmap (CLrgScout_Stonewall 1, TempleShip 4), 5,533 with none (F-182); 79,140 with a sun
+  shadow map. Each map 81% lightmapped or more (median 96%). Read through `lighting_records.component_record` and
+  `shadowmaps.shadow_maps`; none failed to read.
+- **The record.** Enemy Within's has three slots: the colour (`NormalizedAverageColor`, scale 1, 1, 1), the
+  directions (`DirectionalMaxComponent`, a scale for each basis direction) and a third that names no texture (scale
+  2). Then the UV scale and bias into the atlas, from the mesh's `LightMapCoordinateIndex` channel, which each mesh's
+  glTF already holds.
+- **The atlases.** 13,228, every one `PF_DXT1`, from 4 by 4 to 1,024 by 1,024; most serve one piece (URB_Bar: 98 of
+  180). None saves `SRGB`: they take the class default, true (Engine.upk's `Default__Texture`; `LightMapTexture2D`
+  has no script class, so no default of its own), and the GPU reads them through sRGB. The baker reads them to the
+  power 2.2: the sRGB curve gives 0.99 of that on the bar floor. Their bytes: 1.27 GB on the GPU with mips over the
+  96 maps (642 MB on disk), 0.7 to 18.3 MB a map (median 13.7).
+- **The sun's shadow maps.** 5,391 `PF_G8` textures, each saving `SRGB` false but 25; 11.6 MB a map (median), at
+  most 17.3.
 
 ### F-170: A made building's floor and building volumes are stretched copies of brushes that need not be boxes
 **Verified** (found 24 November 2026: the BoatAbduction project's quick build of revision 26 in a hidden run on the
