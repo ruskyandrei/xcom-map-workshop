@@ -846,6 +846,45 @@ light is in their lightmaps (its fourth texel's third value). A made piece (draw
 block stay live. View options says, under the look, "Lit by the Build of <time> · <n> pieces changed since" (or
 "nothing changed since"), in the Game look.
 
+## 12. The map's decals in the export (export 46)
+
+`scene.json`'s `decals` ([decals.py](../tools/viewer/decals.py) `records`, on the reader
+[decal_records.py](../tools/upk/decal_records.py); F-210, F-211): each DecalComponent of a DecalActor or
+DecalActorMovable of the persistent level that the game stored triangles for (an archetype's component has none and is
+left out). A streamed level's are in its layer (`streams[<name>].decals`, each with `layer: "stream"` and `stream`); a
+preview's patch has none. The editor does not draw them yet (a later stage), and a Build leaves every decal where
+the map has it (KNOWN-BUGS.md KB-3). A record:
+
+- `id` (`<actor index>:<component index>`, as a piece's), `actor` (its path, `TheWorld.PersistentLevel.DecalActor_<n>`),
+  `component`, `actorClass`, `sourcePackage`, `layer` (`base`; `stream` with `stream` for a streamed level's);
+- `location` and `rotation`: the actor's (game units, a rotator), the decal's place; `hidden`: the actor's bHidden or
+  the component's HiddenGame; `listed`: whether the actor is in the level's actor list (true where it can't be read),
+  which a Build's clear takes it out of with the Pieces part (outside the play area's box it stays where the clear keeps
+  the outside: `native_copy.CLEAR_PARTS`, `KEEP_OUTSIDE`, by the actor's location);
+- `prefab`: the prefab instance that placed the actor, or null; `liesOn`: the piece (an object `id`) its largest part
+  lies on, or null;
+- `material`: the decal material's key in `materials` (exported as any piece's, its program refused where the slice
+  can't follow it: F-212), or null;
+- `size`: `width` and `height` (game units, across the decal's tangent and binormal; the actor's DrawScale does not
+  size it), `nearPlane` and `farPlane` (how far along its normal it reaches, from its place), `tile` and `offset` ([x,
+  y]), `decalRotation` (degrees), `blendRange` ([x, y] degrees: fully drawn on a surface up to x off its normal, none
+  past y), `depthBias`: the component's members (or its archetype's) over Default__DecalComponent's;
+- `frame`: `location`, `tangent`, `binormal` and `normal` in game axes: the actor's place and its -Y, Z and -X axes
+  (the decal looks along its +X);
+- `mesh`: `{url, vertices, triangles, box: {min, max}}` or null: a glb file beside the scene of all its parts'
+  triangles in the world (the map's pose of each receiver), in the mesh axes a piece's are (x, z, y), drawn with the
+  identity matrix. Its POSITION, NORMAL (the surface's), TANGENT (the decal's own frame on the surface: the way its
+  texture's u grows; w the binormal's side, written as a piece's are), TEXCOORD_0 (the decal's texture coordinates: 0
+  to 1 inside its box) and TEXCOORD_1 (its blend by the surface's angle, 0 to 1, and its depth along its normal, game
+  units), as the game's decal vertex shader makes them (decal_records.coordinates). One primitive, slot 0.
+- `receivers`: its parts, one for each surface the game stored triangles on, in the mesh's index order: `piece` (the
+  receiving piece's object `id`), `actor`, `component`, `triangles`, `first` and `count` (the part's range of the index
+  buffer, in indices) and `area` (its triangles' area, square units). A part on a piece the export could not read is
+  left out, with a diagnostic.
+
+The game draws each part with the surface it was stored for, where the map has that surface; what a part does when its
+piece is moved, hidden or broken is still to be checked in the game.
+
 ## What E0 still lacks
 
 - **Resolver discrepancy fixtures.** Test cases capturing the known differences between the preview resolver and the
