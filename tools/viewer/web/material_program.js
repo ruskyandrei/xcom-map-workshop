@@ -7,14 +7,25 @@
 // defines them), its inputs varyings made in the vertex shader from the mesh's streams in the game's axes (the view's
 // x, z, y), its textures samplers and its constants uniforms (the material's own values and the page's engine values;
 // literals are written in the text), so that materials whose programs are the same text share one compiled shader.
+//
+// A particle's program (game-likeness plan, E1: effects_draw.py's `program`) reads what the particle gives as well:
+// its colour, its dynamic parameter, its sub-images' blend and its clip-space position (`PARTICLE_VARYINGS`, which
+// the likeness's vertex shader writes), and the scene's depth (`progSceneDepth`, which the including shader may give;
+// without it nothing is behind, so a soft particle fades against nothing).
 
 const C = 'xyzw';
 
+/** The varyings a particle's inputs are read from: { kind: [GLSL type, name] }; the likeness's vertex shader
+ *  declares and writes each (effects_preview.js). */
+export const PARTICLE_VARYINGS = { particleColor: ['vec4', 'vProgParticle'], dynamic: ['vec4', 'vProgDynamic'],
+                                   subImageLerp: ['float', 'vProgSubLerp'], clipPosition: ['vec4', 'vProgClip'] };
+
 /** The input kinds a program reads ({ uv: Set of channels, color, cameraVector, worldPosition, frame, sign, face,
- *  fragCoord }). */
+ *  fragCoord, and a particle's: particleColor, dynamic, subImageLerp, clipPosition }). */
 export function inputsRead(program) {
   const out = { uv: new Set(), color: false, cameraVector: false, worldPosition: false, frame: false, sign: false,
-                face: false, fragCoord: false };
+                face: false, fragCoord: false, particleColor: false, dynamic: false, subImageLerp: false,
+                clipPosition: false };
   for (const sources of Object.values(program.inputs ?? {})) {
     for (const s of sources) {
       if (!s) continue;
@@ -26,6 +37,7 @@ export function inputsRead(program) {
       else if (s.kind === 'tangentSign') out.sign = true;
       else if (s.kind === 'vFace') out.face = true;
       else if (s.kind === 'vPos') out.fragCoord = true;
+      else if (s.kind in PARTICLE_VARYINGS) out[s.kind] = true;
     }
   }
   return out;
@@ -178,6 +190,11 @@ export function programGlsl(whole, outputs = null) {
     fDecl.push('varying float vProgSign;');
     vBody.push('vProgSign = -tangent.w * sign(determinant(mat3(modelMatrix)));');
   }
+  for (const [kind, [type, name]] of Object.entries(PARTICLE_VARYINGS)) {
+    if (!read[kind]) continue;
+    vDecl.push(`varying ${type} ${name};`);
+    fDecl.push(`varying ${type} ${name};`);
+  }
   const kinds = { worldTangent: 'vProgT', worldBinormal: 'vProgB', worldNormal: 'vProgN' };
   function component(s) {
     if (!s) return '0.0';
@@ -192,6 +209,8 @@ export function programGlsl(whole, outputs = null) {
     if (k === 'tangentSign') return affine('vProgSign');
     if (k === 'vFace') return '(gl_FrontFacing ? 1.0 : -1.0)';
     if (k === 'vPos') return s.component < 2 ? `gl_FragCoord.${C[s.component]}` : '0.0';
+    if (k === 'subImageLerp') return affine(PARTICLE_VARYINGS[k][1]);
+    if (k in PARTICLE_VARYINGS) return affine(`${PARTICLE_VARYINGS[k][1]}.${C[s.component]}`);
     throw new Error(`a program input of kind ${k}`);
   }
   fDecl.push('vec4 progNrm(vec4 v) { float f = inversesqrt(max(dot(v.xyz, v.xyz), 1e-30)); return v * f; }');
@@ -212,6 +231,13 @@ export function programGlsl(whole, outputs = null) {
     }
   }
   for (const [name, record] of Object.entries(program.textures ?? {})) {
+    if (record.engine === 'sceneDepth') {
+      // the scene's depth behind (UE3's SceneColorTexture: its alpha, 1 / the distance as the program's ratio reads
+      // it); a shader that has the depth defines PROG_SCENE_DEPTH and its own progSceneDepth before these lines
+      fDecl.push('#ifndef PROG_SCENE_DEPTH\nvec4 progSceneDepth(vec2 uv) { return vec4(0.0, 0.0, 0.0, 1e-6); }\n#endif');
+      continue;
+    }
+    if (record.engine) throw new Error(`an engine texture ${record.engine}`);
     names.set(name, `progT_${name}`);
     fDecl.push(`uniform sampler2D progT_${name};`);
     samplers.push({ name: `progT_${name}`, texture: name, record });
@@ -224,10 +250,14 @@ export function programGlsl(whole, outputs = null) {
   };
   for (const row of program.code ?? []) {
     let text;
-    if (row.op === 'texld') {
+    if (row.op === 'texld' && program.textures?.[row.s[1].r]?.engine === 'sceneDepth') {
+      const coords = sourceText(row.s[0], named);
+      text = row.texld === 'project' ? `progSceneDepth(${coords}.xy / ${coords}.w)` : `progSceneDepth(${coords}.xy)`;
+    } else if (row.op === 'texld') {
       const coords = sourceText(row.s[0], named), sampler = named(row.s[1].r);
       if (row.texld === 'project') text = `texture2D(${sampler}, ${coords}.xy / ${coords}.w)`;
       else if (row.texld === 'bias') text = `texture2D(${sampler}, ${coords}.xy, ${coords}.w)`;
+      else if (row.texld === 'lod') text = `textureLod(${sampler}, ${coords}.xy, ${coords}.w)`;
       else text = `texture2D(${sampler}, ${coords}.xy)`;
     } else {
       const op = OPS[row.op];
@@ -305,7 +335,8 @@ function apply(op, s, sample, texld) {
 }
 
 /** { output: [values] } of a program on one sample: `inputs` { uv0: [u, v], ..., color: [r, g, b, a], cameraVector:
- *  [x, y, z], worldPosition: [x, y, z] }, `textures` { texture key: ([u, v]) => [r, g, b, a] }. */
+ *  [x, y, z], worldPosition: [x, y, z], particleColor, dynamic, clipPosition: [four], subImageLerp: a number },
+ *  `textures` { texture key: ([u, v]) => [r, g, b, a] } (the scene's depth as its key gives it too). */
 export function runProgram(program, inputs, textures) {
   const regs = new Map();
   const comp = s => {
@@ -318,6 +349,8 @@ export function runProgram(program, inputs, textures) {
     if (['cameraVector', 'worldPosition', 'worldTangent', 'worldBinormal', 'worldNormal'].includes(s.kind)) return inputs[s.kind][s.component] * sc;
     if (s.kind === 'tangentSign') return (inputs.tangentSign ?? 1) * sc;
     if (s.kind === 'vFace') return inputs.vFace ?? 1;
+    if (s.kind === 'subImageLerp') return (inputs.subImageLerp ?? 0) * sc + b;
+    if (s.kind in PARTICLE_VARYINGS) return inputs[s.kind][s.component] * sc + b;
     throw new Error(`a program input of kind ${s.kind}`);
   };
   for (const [name, sources] of Object.entries(program.inputs ?? {})) regs.set(name, sources.map(comp));

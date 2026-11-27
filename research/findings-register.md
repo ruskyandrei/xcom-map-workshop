@@ -22,6 +22,14 @@ Statuses:
   Open: a stage to draw them is planned.
 - F-230 (27 November, D5): no map has terrain or the engine's other world geometry; one tutorial stream draws a box of
   BSP 3,200 units over its map; the engine's own instanced meshes are empty. Accepted.
+- F-222 (27 November, the game-likeness plan's E4): of the particle modules the maps place, two are XCOM's own and
+  their rules are not read: VelocityMag (555 placed emitters on 40 maps: a StartVelocityMag) and SizeByDistance (35 on
+  9: a MaxDistance and a size multiplier over it). The likeness leaves them out and names them. No map places a beam or
+  a trail, and one (EWI_ChryssalidHive) two ribbons, which are not drawn. Accepted.
+- F-221 (27 November, the game-likeness plan's E1): the local vertex factory's see-through base pass reads its UVs
+  through abs() of a literal (`mul o1, c5_abs.yyzz, v4.xyxx`), which a piece's slice refuses ("texcoord.x is made from
+  more than inputs"): most see-through pieces get no program. A particle's slice reads it as the literal's size. Open:
+  the same for pieces is track A's to decide (it changes what they draw, and the library's pieces).
 - F-212 (27 November, the game-likeness plan's D1): a decal material's program can't be sliced yet for the decal
   vertex factory the game draws decals with (its texture coordinates, blend and depth are made from the decal's
   matrix and planes, which the slice has no input for), and the local factory's slice, which export 47 puts on the
@@ -457,6 +465,55 @@ evidence in [world-geometry-audit-2026-11-27.json](evidence/world-geometry-audit
   (`InstancedStaticMeshComponent`), two on each map's level volume (`FlameThrowerHit`, `FlameThrowerSplash`, which
   the flamethrower fills as it fires): no mesh, no instance, hidden. The rest are the fracturing walls' decoration and
   debris (F-231), of which 428 chunks on 9 maps are drawn as the map loads.
+
+### F-222: Two particle modules are XCOM's own; beams and trails are placed on no map
+**Accepted** (27 November 2026, the game-likeness plan's E4; read from the lab copy's 97 maps: every placed Emitter's
+system, its emitters' first levels, their kinds and modules).
+- **By use.** Sprites 14,630 placed emitters on 96 maps, meshes 7,493 on 96, ribbons 2 on one (EWI_ChryssalidHive's
+  P_Hatching_Fish_Hanging_Warning), beams and trails none. The modules the likeness did not follow, by placed emitters:
+  Orbit 3,312 (81 maps), EventGenerator 1,473 (69), EventReceiverSpawn 615 (41), VelocityMag 555 (40), SpawnPerUnit 430
+  (86), LocationEmitter 330 (41), AttractorPoint 107 (22), SizeMultiplyVelocity 66 (33), LocationEmitterDirect 61 (16),
+  SizeByDistance 35 (9), KillBox 8 (5), EventReceiverKillParticles 5 (5).
+- **Followed (E4)**: all but VelocityMag and SizeByDistance, which are XCOM's own classes (`StartVelocityMag`; a
+  `MaxDistance`, a `MaxDistanceVariable` and a `SizeMultiplierVsDistance`) whose code is not read: left out, named in
+  the likeness's left-out list as before.
+- **Not drawn**: the two ribbons (no beam or trail is placed).
+
+### F-221: The local factory's see-through base pass reads its UVs through abs() of a literal
+**Open** (27 November 2026, the game-likeness plan's E1; read off the shaders of the install's RefShaderCache).
+- **What is.** The base pass vertex shader of a see-through material on the local vertex factory writes the mesh's UV
+  as `mul o1, c5_abs.yyzz, v4.xyxx`: the UV times abs() of a literal (1 and 0). The slice's symbolic run took any source
+  modifier but a minus for something it could not follow, so the UV became "made from more than inputs" and the colour,
+  glow and opacity that read it were refused: CSmallScout_DirtRoad's smoke wall (M_Roiling_Smoke_Wall_Trans), the
+  Skyranger's thruster flames and lights, the holograms' bases, and most see-through pieces.
+- **What E1 does.** A particle's slice (`vertex_outputs(literal_abs=True)`) reads abs() of a literal as the literal's
+  size: every mesh emitter of CSmallScout_DirtRoad (63 placed) and AlienBase01 (132) has its programs.
+- **Open.** A piece's slice still refuses it (its programs, the scores of track A and the library's pieces would all
+  change): track A's to take up.
+
+### F-220: A particle's material is drawn by its shaders for its vertex factory
+**Fixed** (27 November 2026, the game-likeness plan's E1; read off the install's shaders and the likeness shots of
+track H; nothing to play: it is the editor's drawing).
+- **The factories.** A sprite's material has shaders for FParticleVertexFactory, FParticleSubUVVertexFactory and their
+  DynamicParameter kin (and a beam's or trail's for FParticleBeamTrailVertexFactory); a mesh emitter draws with the
+  mesh's local factory. The base pass's pixel shader is the same material code for each; their vertex shaders say what
+  each stream is: texcoord0 the corner's UV in the first sub-image (xy) and the second (zw), texcoord1 the particle's
+  colour, a SubUV factory's texcoord2 the blend between them (written to color0.x), a DynamicParameter factory's
+  texcoord3 the dynamic parameter (a beam's texcoord2). A mesh particle's colour and dynamic parameter reach its material
+  as the vector parameters MeshEmitterVertexColor and MeshEmitterDynamicParameter.
+- **The screen's inputs.** A soft particle reads its place on the screen from texcoord5, a copy of the position the
+  vertex shader writes (its relative reads of AxisRotationVectors hide it from a numeric run, so the slice follows the
+  copy itself: `Clip`), and the depth behind it from SceneColorTexture's alpha (UE3 keeps the scene's depth there) at a
+  level (`texldl`), turned into a distance with MinZ_MaxZRatio. texcoord6.xyz is the base pass's tangent-space vector
+  to the camera, as the local factory's numeric match shows.
+- **The game's numbers.** An added particle's shader multiplies its own colour by its opacity and writes 0 as its
+  alpha (M_Flare_Highlight); a see-through one writes the colour and the opacity apart. The fires carry numbers in
+  their colour's green and blue (each flame's offset into its scrolling texture), which their shaders read: the page
+  hands the program the colour as the game gives it.
+- **Fixed.** Of the placed emitters' drawn sprites, 205 of 208 on CSmallScout_DirtRoad and all 993 on AlienBase01 are
+  drawn by their programs (the leaves' Ground_Leaves_Unlit reads a colour1 the slice can't follow and keeps the old
+  rules). Track H's likeness: CSmallScout_DirtRoad 10.69 to 5.06, AlienBase01 16.21 to 13.17, all twelve 9.46 to 6.93
+  (the see-through smoke and the holograms' glare no longer drawn too bright and bloomed).
 
 ### F-212: A decal material's program is not sliced yet
 **Open** (27 November 2026, the game-likeness plan's D1; read offline with `tools/upk/audit_decals.py --programs` over

@@ -39,7 +39,7 @@ export function createTestApi({ $, showOpen, precachePictures, pageTables, addVo
                                 gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall,
                                 headerMissions, hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow,
                                 landingLayer, libraryTemplate, lightPanel, lightRecords, lightShapes, likenesses,
-                                likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture, mapSettingsState, sunState, previewSun, endSunEdit, memberOf,
+                                likenessPane, stepLikenesses, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture, mapSettingsState, sunState, previewSun, endSunEdit, memberOf,
                                 missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup,
                                 newBuilding, openLookPicker, openPrefabDocument, outsideBox, ownVolumeLayer,
                                 pasteSnapshot, pasteVolumes, pick, pickables, pickBoxEdge, pickEffect, pickLight,
@@ -232,6 +232,9 @@ export function createTestApi({ $, showOpen, precachePictures, pageTables, addVo
       particles: likenessPane.shown?.likeness.count() ?? 0 }), ghostLikenesses: () => ghostLikenesses.filter(g => !g.idle).length,
     likenessState: () => ({ on: likenessOn, effects: likenesses.size, particles: likenessCount, thin: likenessThin,
       drawn: [...likenesses].filter(([, k]) => k.likeness.group.visible).map(([owner]) => owner.userData.source?.id ?? null) }), setLikeness,
+    // the likenesses stepped by `dt` seconds, as each frame steps them (a headless page draws no frames of its own:
+    // perf_probe.py steps them before it times a frame)
+    stepLikenesses: dt => stepLikenesses(dt),
     // one effect's likeness, emitter by emitter (effects_preview.js describe)
     likenessOf: id => { const k = likenesses.get(effectRoots.get(id)); return k ? k.likeness.describe() : null; },
     effectRoots, effectState: id => { const r = effectRoots.get(id); return r && { id, kind: r.userData.source.kind, added: Boolean(r.userData.source.added),

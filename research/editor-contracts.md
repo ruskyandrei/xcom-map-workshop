@@ -644,6 +644,24 @@ picture a packed texture: its red channel the opacity, no colour) is still read 
 `ParticleModule`, then its properties) as numbers, flags and **distributions**; `bursts` (`count`, `countLow`,
 `time`); `ignored`: the classes of its modules the drawing doesn't follow.
 
+**Draw version 6** (export 48, the game-likeness plan's stage E1): a sprite emitter's `program` is its material's
+program (section 9) sliced from its shaders for the particle vertex factory it draws with (`shaders.factory`: the
+SubUV one for an emitter that steps through sub-images with an interpolation, the DynamicParameter one for one with a
+dynamic parameter module, else the first of the others the material has), with `values` (the material's own vectors
+and scalars) where a constant moves with time. A mesh emitter's `programs` holds one a drawn section (in `materials`'
+order, null for one that can't be made), sliced from the local factory's shaders as a particle's. An emitter with a
+program is drawn by it; the textures' roles above stay on the record for one without. The dynamic parameter module is
+followed: its module record's `DynamicParams` lists its four values, each `{ value (a distribution), spawnOnly,
+emitterTime, method (EDPV_UserSet, EDPV_VelocityX, ...Y, ...Z, ...Mag), scaleVelocity }`.
+
+**Draw version 7** (export 49, stage E4): each drawn emitter's `name` (its EmitterName, which a location emitter or an
+event names); more modules followed: `Orbit`, `AttractorPoint`, `SizeMultiplyVelocity`, `KillBox`, `SpawnPerUnit`,
+`LocationEmitter`, `LocationEmitterDirect`, `EventReceiverSpawn`, `EventReceiverKillParticles` and `EventGenerator`, whose
+record's `Events` lists its events (`{ Type, CustomName, Frequency, ParticleFrequency, bFirstTimeOnly, bLastTimeOnly }`);
+a module's struct property (an orbit's `OffsetOptions`) is an object of its plain fields. An emitter that only sends
+events has a draw record of `kind: "events"` (nothing drawn, stepped so its events reach the others) and keeps its
+`why`; one that only another's event starts is drawn (no longer `draw: null`).
+
 **A distribution** is one of:
 - a table, `{ op, lock, per, chunk, scale, start, min, max, entries }`: the game's baked lookup table. An entry is
   `chunk` floats: the value (`op` 1), or its least then its most (`op` 2 random between them, 3 one or the other).
@@ -762,6 +780,18 @@ object:
   where any component is below zero), "opacity"}: each `{"r", "m"}` (a register and the components it gives) or
   `{"value": [...]}` when it folds to constants. A glow of zero is left out.
 - `refused`: {output: why} for each output the slice could not give (a short code, then what it found).
+
+**A particle's program** (export 48, stage E1; effects_draw.py's `program` and `programs`): the same form, sliced from
+the base pass alone (no `specular`, `power` or `normal`), with `shaders.factory` naming the vertex factory read. Its
+inputs may also be `{"kind": "particleColor" | "dynamic" | "clipPosition", "component", "scale"?, "bias"?}` (the
+particle's colour as the game gives it, its dynamic parameter, its clip-space position: what the page's particle shader
+writes) and `{"kind": "subImageLerp", ...}` (the blend from its first sub-image to its second, whose UVs are UV
+channels 0 and 1). A mesh particle's own colour and dynamic parameter, which reach its material as the vector
+parameters MeshEmitterVertexColor and MeshEmitterDynamicParameter, are given as those inputs too. A texture may be
+`{"engine": "sceneDepth"}`: the scene's depth behind the pixel (UE3's SceneColorTexture, of which only the alpha is
+read), which the page gives as 1 / the distance in its alpha; the constant `{"engine": "minZMaxZRatio"}` is (-1, 1, 0,
+0), so the shader's own sum turns that alpha into the distance. A `texld` row may say `"texld": "lod"` (read at the
+level its coordinate's w names).
 
 **On the export (export 43).** A material record's `program` is the form above, its textures resolved: each gains
 `texture` (the export's texture key) and `srgb`, and the program `map` (`base`, `switches`, `matched`: exact or

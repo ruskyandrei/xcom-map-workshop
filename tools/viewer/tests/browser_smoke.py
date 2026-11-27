@@ -4264,6 +4264,26 @@ def check_likeness(page):
         page.evaluate('id => viewer.select(id)', held); return None
     assert now['effects'] >= len(can), now      # (seen whole from afar, a large map's are too small to step)
     assert page.locator('#likenessToggle').is_checked()
+    # (export 48: an emitter whose material has a program is drawn by it once its textures are in, game-likeness plan E1;
+    # ?programs=off or =pieces draws them by their textures' roles)
+    if page.evaluate("viewer.data.exporterVersion >= 48 && !/programs=(off|pieces)/.test(location.search)"):
+        page.wait_for_function('ids => ids.some(id => (viewer.likenessOf(id) ?? []).some(e => e.program && e.shown))', arg=can, timeout=60000)
+        # (E2: a lit material takes the light the view draws where its effect stands: another in the other look)
+        lit = page.evaluate('ids => ids.find(id => (viewer.likenessOf(id) ?? []).some(e => e.light))', can)
+        if lit and page.evaluate("viewer.lighting?.available !== false && document.getElementById('lighting')"):
+            light = "id => JSON.stringify(viewer.likenessOf(id).find(e => e.light).light)"
+            look = page.evaluate("document.getElementById('lighting').value")
+            before = page.evaluate(light, lit)
+            page.evaluate("l => viewer.setLook(l === 'game' ? 'neutral' : 'game')", look)
+            page.wait_for_function('([id, was]) => JSON.stringify(viewer.likenessOf(id).find(e => e.light).light) !== was', arg=[lit, before], timeout=30000)
+            page.evaluate("l => viewer.setLook(l)", look)
+        # (E3: the Game look's frame draws the likenesses after the pieces, reading the pieces' depth)
+        look = page.evaluate("document.getElementById('lighting')?.value ?? null")
+        if look and page.evaluate('Boolean(viewer.post) && Boolean(viewer.setLook("game"))'):
+            page.wait_for_function('viewer.post.ready()', timeout=300000)
+            page.evaluate('viewer.post.draw(false)')
+            assert page.evaluate('viewer.post.chain.soft'), 'the Game look drew no likenesses pass'
+            page.evaluate("l => viewer.setLook(l)", look)
 
     def frame_time():
         return page.evaluate("""() => new Promise(done => { let n = 0, t0 = performance.now(); const tick = () => { if (++n === 60) done((performance.now() - t0) / 60); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); })""")
@@ -4304,6 +4324,19 @@ def check_likeness(page):
             page.wait_for_timeout(250)
         if seen: break
     assert seen, 'no likeness changes anything in the picture'
+    # (E5: an effect a building's upper floor lists is not drawn while the Floor picker cuts that floor away)
+    upper = page.evaluate('ids => ids.find(id => (viewer.effectRoots.get(id).userData.source.floors ?? []).some(f => f.floor >= 1))', can)
+    if upper and page.locator('#floor button[data-value="1"]').count():
+        page.evaluate('id => { viewer.setEffectsShown(true); viewer.pickEffect(id); }', upper)
+        page.keyboard.press('f')
+        page.wait_for_timeout(300)
+        page.evaluate('viewer.setEffectsShown(false)')
+        page.wait_for_function('id => viewer.likenessState().drawn.includes(id)', arg=upper)
+        floor_before = page.evaluate("document.getElementById('floor').value")
+        choose(page, 'floor', '1')
+        page.wait_for_function('id => !viewer.likenessState().drawn.includes(id)', arg=upper)
+        choose(page, 'floor', floor_before or 'all')
+        page.wait_for_function('id => viewer.likenessState().drawn.includes(id)', arg=upper)
     # a deleted effect is not drawn; Ctrl+Z draws it again (where the editor changes effects)
     page.evaluate('id => { viewer.setEffectsShown(true); viewer.pickEffect(id); }', target)
     if not page.evaluate('id => viewer.effectState(id).viewOnly', target):

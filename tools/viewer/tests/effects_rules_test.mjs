@@ -4,8 +4,8 @@
 // (stage FX5): the parameters the panel offers, the record as edited, what a project saves.
 // Run: node tools/viewer/tests/effects_rules_test.mjs
 import assert from 'node:assert/strict';
-import { colourNamed, effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues, soundReach,
-         survivesClear, tintOf, tintVector, valuesViewOnly, withValues } from '../web/effects_rules.js';
+import { colourNamed, effectFloors, effectRecords, keptValues, parameterControls, parameterRows, recordChips, recordLines, recordName, savedValues, soundReach,
+         shownOnFloor, survivesClear, tintOf, tintVector, valuesViewOnly, withValues } from '../web/effects_rules.js';
 
 const PL = 'TheWorld.PersistentLevel.';
 const beam = {
@@ -190,5 +190,26 @@ assert.equal(keptValues({ follow: 'none' }), null);
 assert.equal(valuesViewOnly(glow), null);
 assert.equal(valuesViewOnly({ ...humming, can: { values: false }, why: { values: 'its cue Hum is a game asset, not its own' } }), 'its cue Hum is a game asset, not its own');
 assert.match(valuesViewOnly({ kind: 'flare' }), /lens flare/);
+
+// --- an effect hidden with its floor (game-likeness plan, E5): the floors that list it, as a Build leaves them, and
+// whether the Floor picker's floor shows it
+{
+  const box = (z0, z1) => ({ min: [0, 0, z0], max: [500, 500, z1] });
+  const buildings = [{ id: '11326', floors: [{ boxes: [box(-10, 208)] }, { boxes: [box(208, 400)] }, { boxes: [box(400, 600)] }] }];
+  const listed = { floors: [{ building: '11326', floor: 1 }] };
+  assert.deepEqual(effectFloors(listed, buildings, [9999, 9999, 0], false), listed.floors);     // as saved: its own
+  assert.deepEqual(effectFloors(listed, buildings, [100, 100, 300], true), [{ building: '11326', floor: 1 }]);
+  assert.deepEqual(effectFloors(listed, buildings, [100, 100, 100], true), []);                  // floor 0 lists none
+  assert.deepEqual(effectFloors(listed, buildings, [501, 100, 450], true), [{ building: '11326', floor: 2 }]);   // within 2
+  assert.deepEqual(effectFloors(listed, buildings, [503, 100, 450], true), []);
+  assert.deepEqual(effectFloors({}, buildings, [100, 100, 400], true), [{ building: '11326', floor: 1 }, { building: '11326', floor: 2 }]);
+  assert.equal(shownOnFloor(listed.floors, 'all'), true);
+  assert.equal(shownOnFloor(listed.floors, '1'), false);           // the ground floor shown: floor 1 cut away, it with it
+  assert.equal(shownOnFloor(listed.floors, '2'), true);
+  assert.equal(shownOnFloor([], '1'), true);                        // listed by no floor: always
+  assert.equal(shownOnFloor([{ building: 'a', floor: 3 }, { building: 'a', floor: 1 }], '2'), true);   // its lowest decides
+  assert.equal(shownOnFloor([{ building: 'a', floor: 3 }, { building: 'b', floor: 2 }], '3'), true);
+  assert.equal(shownOnFloor([{ building: 'a', floor: 3 }, { building: 'b', floor: 2 }], '1'), false);
+}
 
 console.log('effects_rules: ok');

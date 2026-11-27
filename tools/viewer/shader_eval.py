@@ -6,8 +6,10 @@ on arrays of four components (numpy), so a program runs on many samples at once.
 
 `inputs` gives each program input kind's values: {'uv0': (n, 2), 'uv1': ..., 'color': (n, 4), 'cameraVector':
 (n, 3), 'worldPosition': (n, 4) (camera-relative), 'worldTangent', 'worldBinormal', 'worldNormal': (n, 3),
-'tangentSign': (n,), 'vFace': (n,), 'vPos': (n, 2)}; `textures` {texture key: sample(uv (n, 2)) -> (n, 4)}, the program's
-texture keys (t0, t1...). `time`, when given, works out the constants that move with time again.
+'tangentSign': (n,), 'vFace': (n,), 'vPos': (n, 2), and a particle's 'particleColor', 'dynamic', 'clipPosition': (n, 4),
+'subImageLerp': (n,)}; `textures` {texture key: sample(uv (n, 2)) -> (n, 4)}, the program's texture keys (t0, t1...;
+a particle's read of the scene's depth among them). `time`, when given, works out the constants that move with time
+again.
 """
 import math
 
@@ -143,6 +145,10 @@ def input_values(sources, inputs, n):
             out[:, c] = inputs.get('vFace', np.ones(n))
         elif kind == 'vPos':
             out[:, c] = inputs['vPos'][:, src['component']] if src['component'] < 2 else 0
+        elif kind in ('particleColor', 'dynamic', 'clipPosition'):
+            out[:, c] = inputs[kind][:, src['component']] * src.get('scale', 1.0) + src.get('bias', 0.0)
+        elif kind == 'subImageLerp':
+            out[:, c] = inputs.get(kind, np.zeros(n)) * src.get('scale', 1.0) + src.get('bias', 0.0)
         else:
             raise ValueError('an input of kind %s' % kind)
     return out

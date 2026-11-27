@@ -4,7 +4,7 @@
 // giving the same particles. On draw records shaped as export 29 makes them (tools/viewer/effects_draw.py).
 // Run: node tools/viewer/tests/effects_sim_test.mjs
 import assert from 'node:assert/strict';
-import { LIMITS, alphaErodes, dataChannels, makeEmitter, parametersOf, rng, sample, warmTime } from '../web/effects_sim.js';
+import { LIMITS, alphaErodes, dataChannels, deliverEvents, linkEmitters, makeEmitter, parametersOf, rng, sample, warmTime } from '../web/effects_sim.js';
 
 const near = (a, b, e = 1e-4) => assert.ok(Math.abs(a - b) <= e, `${a} is not ${b}`);
 const constant = (...v) => ({ op: 1, lock: 0, per: 1, chunk: v.length, scale: 0, start: 0, min: Math.min(...v), max: Math.max(...v), entries: [v, v] });
@@ -193,5 +193,126 @@ const steam = {
 // --- a colour saved with no colour field but a vector (URB_Bar's webbing): the vector, not white
 assert.deepEqual(parametersOf({ parameters: [{ name: 'Color', type: 'PSPT_Color', vector: [0.12, 0.18, 0.1] }] }), { Color: [0.12, 0.18, 0.1] });
 assert.deepEqual(parametersOf({ parameters: [{ name: 'Color', type: 'PSPT_Color', colour: [1, 0, 0, 1] }] }), { Color: [1, 0, 0] });
+
+// --- the dynamic parameter (E1: a program reads it): 1 each with no module; a table at the particle's life, worked
+// out once where it says so, the emitter's time where it says so, a speed along an axis times its value
+{
+  const plain = makeEmitter({ kind: 'sprite', rate: constant(10), duration: 1, loops: 0, delay: 0, modules: [{ cls: 'Lifetime', Lifetime: constant(2) }] }, { seed: 3 });
+  plain.step(0.5);
+  assert.ok(plain.count > 0);
+  assert.deepEqual([...plain.dynamic.subarray(0, 4)], [1, 1, 1, 1]);
+  const dyn = { cls: 'ParameterDynamic', DynamicParams: [
+    { value: curve([0, 10]), spawnOnly: false, emitterTime: false, method: 'EDPV_UserSet', scaleVelocity: false },
+    { value: curve([0, 10]), spawnOnly: true, emitterTime: false, method: 'EDPV_UserSet', scaleVelocity: false },
+    { value: constant(2), spawnOnly: false, emitterTime: false, method: 'EDPV_VelocityZ', scaleVelocity: true },
+    { value: constant(250), spawnOnly: false, emitterTime: false, method: 'EDPV_UserSet', scaleVelocity: false },
+  ] };
+  const sim = makeEmitter({ kind: 'sprite', rate: constant(0), bursts: [{ count: 1, countLow: -1, time: 0 }], duration: 9, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(2) }, { cls: 'Velocity', StartVelocity: constant(0, 0, 30) }, dyn] }, { seed: 4, raw: true });
+  sim.step(0.01); sim.step(0.99);
+  assert.equal(sim.count, 1);
+  near(sim.dynamic[0], 5, 0.1);        // half its life: half of 10
+  near(sim.dynamic[1], 0, 0.1);        // worked out as it was born
+  near(sim.dynamic[2], 60);            // its speed up, 30, times 2
+  near(sim.dynamic[3], 250);
+}
+// --- a raw colour: the channels that carry numbers to the material stay as the game gives them (a program reads them)
+{
+  const fire = { kind: 'sprite', rate: constant(20), duration: 1, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(2) }, { cls: 'Color', StartColor: constant(2, 40, 30), StartAlpha: constant(1) }] };
+  const raw = makeEmitter(fire, { seed: 5, raw: true }), made = makeEmitter(fire, { seed: 5 });
+  raw.step(0.5); made.step(0.5);
+  assert.deepEqual([...raw.colour.subarray(0, 3)].map(v => Math.round(v)), [2, 40, 30]);
+  assert.ok(made.colour[1] < 3, 'without raw, a data channel is drawn as the others\' brightness');
+}
+
+// --- a kill height (E3): a floor in the world kills what falls under it, measured from the emitter's own height
+{
+  const falling = { kind: 'sprite', rate: constant(0), bursts: [{ count: 1, countLow: -1, time: 0 }], duration: 9, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(9) }, { cls: 'Velocity', StartVelocity: constant(0, 0, -100) },
+              { cls: 'KillHeight', Height: constant(23), bAbsolute: true, bFloor: true }] };
+  const high = makeEmitter(falling, { seed: 6 });
+  high.height = 100;
+  high.step(0.01); high.step(0.5); high.step(0.01);
+  assert.equal(high.count, 1, 'at 50 in the world: above the floor');
+  high.step(0.5); high.step(0.01); high.step(0.01);
+  assert.equal(high.count, 0, 'under 23 in the world: gone');
+  const relative = makeEmitter({ ...falling, modules: [...falling.modules.slice(0, 2), { cls: 'KillHeight', Height: constant(-30), bFloor: true }] }, { seed: 6 });
+  relative.height = 500;
+  relative.step(0.01); relative.step(0.2); relative.step(0.01);
+  assert.equal(relative.count, 1);
+  relative.step(0.2); relative.step(0.01); relative.step(0.01);
+  assert.equal(relative.count, 0, 'under the emitter by more than 30: gone, wherever it stands');
+}
+
+// --- E4: one emitter's events start another's particles where they happened; a location emitter places its particles
+// at another's; a direct one keeps them there; an orbit's offset turns; an attractor pulls; size by speed; a kill box;
+// spawning by the distance moved
+{
+  const once = (extra, life = 0.5) => ({ kind: 'sprite', rate: constant(0), bursts: [{ count: 1, countLow: -1, time: 0 }], duration: 9, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(life) }, ...extra] });
+  const sender = { ...once([{ cls: 'Velocity', StartVelocity: constant(0, 0, 10) },
+    { cls: 'EventGenerator', Events: [{ Type: 'EPET_Death', CustomName: 'Landed' }] }]), name: 'Body' };
+  const receiver = { kind: 'sprite', rate: constant(0), bursts: [], duration: 9, loops: 0, delay: 0, name: 'Flying',
+    modules: [{ cls: 'Lifetime', Lifetime: constant(9) },
+              { cls: 'EventReceiverSpawn', EventGeneratorType: 'EPET_Death', EventName: 'Landed', SpawnCount: constant(2),
+                bInheritVelocity: true, InheritVelocityScale: constant(2, 2, 2) }] };
+  const deaf = { ...receiver, name: 'Other', modules: [receiver.modules[0], { ...receiver.modules[1], EventName: 'Elsewhere' }] };
+  const sims = [makeEmitter(sender, { seed: 7 }), makeEmitter(receiver, { seed: 8 }), makeEmitter(deaf, { seed: 9 })];
+  linkEmitters(sims);
+  const step = dt => { for (const s of sims) s.step(dt); deliverEvents(sims); };
+  step(0.01); step(0.3);
+  assert.equal(sims[1].count, 0, 'nothing before the event');
+  step(0.3); step(0.01);
+  assert.equal(sims[0].count, 0);
+  assert.equal(sims[1].count, 2, 'two where the body died');
+  near(sims[1].pos[2], sims[1].pos[5]);
+  assert.ok(sims[1].pos[2] > 2, `at its height then: ${sims[1].pos[2]}`);
+  near(sims[1].vel[2], 20, 1e-3);                     // its speed, 10, inherited twice over
+  assert.equal(sims[2].count, 0, 'an event of another name starts nothing');
+
+  // a location emitter: born at a live particle of the emitter it names; a direct one: kept at the particle of its place
+  const source = { ...once([{ cls: 'Location', StartLocation: constant(100, 50, 25) }], 9), name: 'Licks' };
+  const placed = once([{ cls: 'LocationEmitter', EmitterName: 'Licks' }], 9);
+  const direct = once([{ cls: 'LocationEmitterDirect', EmitterName: 'Licks' }], 9);
+  const group = [makeEmitter(source, { seed: 1 }), makeEmitter({ ...placed, delay: 0.05 }, { seed: 2 }), makeEmitter({ ...direct, delay: 0.05 }, { seed: 3 })];
+  linkEmitters(group);
+  for (let k = 0; k < 4; k++) { for (const s of group) s.step(0.03); deliverEvents(group); }
+  assert.equal(group[1].count, 1);
+  assert.deepEqual([...group[1].pos.subarray(0, 3)], [100, 50, 25]);
+  assert.deepEqual([...group[2].pos.subarray(0, 3)], [100, 50, 25]);
+
+  // an orbit: drawn at its place plus its offset turned a quarter about z
+  const orbit = makeEmitter(once([{ cls: 'Orbit', OffsetAmount: constant(10, 0, 0), RotationAmount: constant(0, 0, 0.25), RotationRateAmount: constant(0, 0, 0),
+    OffsetOptions: { bProcessDuringSpawn: true }, RotationOptions: { bProcessDuringSpawn: true }, RotationRateOptions: { bProcessDuringSpawn: true } }], 9), { seed: 4 });
+  orbit.step(0.01); orbit.step(0.01);
+  assert.deepEqual([...orbit.pos.subarray(0, 3)], [0, 0, 0]);
+  [0, 10, 0].forEach((v, k) => near(orbit.drawn[k], v, 1e-6));
+
+  // an attractor at the emitter pulls a particle 100 out back toward it
+  const pulled = makeEmitter(once([{ cls: 'Location', StartLocation: constant(100, 0, 0) },
+    { cls: 'AttractorPoint', Position: constant(0, 0, 0), Range: constant(0), Strength: constant(50), bAffectBaseVelocity: true }], 9), { seed: 5 });
+  pulled.step(0.01); pulled.step(0.5);
+  assert.ok(pulled.vel[0] < -20 && pulled.pos[0] < 100, `pulled: ${pulled.vel[0]}, ${pulled.pos[0]}`);
+
+  // size by speed: a size of 10 at a speed of 20 times 0.5 is 100
+  const fast = makeEmitter(once([{ cls: 'Size', StartSize: constant(10, 10, 10) }, { cls: 'Velocity', StartVelocity: constant(20, 0, 0) },
+    { cls: 'SizeMultiplyVelocity', VelocityMultiplier: constant(0.5, 0.5, 0.5) }], 9), { seed: 6 });
+  fast.step(0.01); fast.step(0.01);
+  near(fast.size[0], 100, 1e-3);
+
+  // a kill box: inside it, gone at the next step
+  const boxed = makeEmitter(once([{ cls: 'KillBox', LowerLeftCorner: constant(-5, -5, -5), UpperRightCorner: constant(5, 5, 5), bKillInside: true }], 9), { seed: 7 });
+  boxed.step(0.01); boxed.step(0.01); boxed.step(0.01);
+  assert.equal(boxed.count, 0);
+
+  // spawning by distance: 100 units moved at 1.5 particles each 50 units is 3; standing still, none
+  const trail = makeEmitter({ kind: 'sprite', rate: constant(0), bursts: [], duration: 9, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(9) }, { cls: 'SpawnPerUnit', SpawnPerUnit: constant(1.5), UnitScalar: 50, MovementTolerance: 0.1 }] }, { seed: 8 });
+  trail.step(0.01);
+  assert.equal(trail.count, 0);
+  trail.moved = 100; trail.step(0.01);
+  assert.equal(trail.count, 3);
+}
 
 console.log('effects_sim: ok');

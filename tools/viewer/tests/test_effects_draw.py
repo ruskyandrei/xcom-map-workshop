@@ -1,7 +1,8 @@
 """What the page draws an effect's likeness from (export 29, draw version 4 since export 31;
 tools/viewer/effects_draw.py; the effects and sounds plan, Part J1, stage FXV1). The first tests run on made-up values:
 a lookup table's shape, what a texture's pixels hold, which texture gives the colour and which the shape. The install
-tests pin systems of URB_Bar whose numbers are known from the map."""
+tests pin systems of URB_Bar whose numbers are known from the map, and (draw version 6, game-likeness plan E1) the
+programs its emitters' materials are drawn by and the dynamic parameter module read."""
 import struct
 import sys
 import tempfile
@@ -259,7 +260,10 @@ class Fixtures(unittest.TestCase):
         d = next(e['draw'] for e in moths['emitters'] if e.get('draw'))
         self.assertEqual(d['kind'], 'mesh')
         self.assertTrue(d['mesh'].startswith('mesh-') and d['materials'])
-        self.assertIn('Orbit', d['ignored'])
+        # (draw version 7: its orbit followed, its options field by field)
+        orbit = next(m for m in d['modules'] if m['cls'] == 'Orbit')
+        self.assertIn('OffsetAmount', orbit)
+        self.assertNotIn('Orbit', d['ignored'])
         self.assertEqual(d['rateScale']['parameter'], 'Spawn')
         # a mesh turn saved as nothing but its floats: the shape is the class default's (random, two vectors)
         turn = next(m for m in d['modules'] if m['cls'] == 'MeshRotation')['StartRotation']
@@ -273,7 +277,10 @@ class Fixtures(unittest.TestCase):
                 if e['draw'] is None:
                     self.assertTrue(e['why'])
                     continue
-                self.assertNotIn('why', e)
+                if e['draw']['kind'] == 'events':     # (stepped for its events, nothing drawn: draw version 7)
+                    self.assertEqual(e['why'], 'it only sends events: nothing is seen')
+                else:
+                    self.assertNotIn('why', e)
                 for m in e['draw']['modules']:
                     unread += [v['unread'] for v in m.values() if isinstance(v, dict) and 'unread' in v]
         # what isn't read is a curve the cook kept as an object, never a table of another shape
@@ -290,8 +297,84 @@ class Fixtures(unittest.TestCase):
         ed.attach(farm['package'], em.Defaults(farm['package']), systems, Stub(farm['package']), compiled_textures)
         fire = next(s for s in systems.values() if s and s['name'] == 'P_Fire_Big')
         self.assertEqual(fire['emitters'][6].get('why'), 'it only sends events: nothing is seen')
+        # (kept as a record of kind `events`, nothing drawn, so that its events reach the system's other emitters)
+        self.assertEqual(fire['emitters'][6]['draw']['kind'], 'events')
+        self.assertTrue(any(m['cls'] == 'EventGenerator' and m['Events'] for m in fire['emitters'][6]['draw']['modules']))
         whys = [e.get('why') for s in systems.values() for e in (s or {}).get('emitters', []) if e.get('draw') is None]
         self.assertNotIn('its material is in another package', whys)
+
+
+@unittest.skipUnless(INSTALL and INSTALL.exists(), WHY)
+class Programs(unittest.TestCase):
+    """URB_Bar's emitters drawn by their materials' programs: through the exporter, as an export makes them."""
+
+    @classmethod
+    def setUpClass(cls):
+        import copy
+        import export
+        import material_programs
+        cls.folder = tempfile.TemporaryDirectory(prefix='effects-programs-')
+        bar = records('URB_Bar')
+        cls.by, cls.p = bar['by'], bar['package']
+        cls.systems = copy.deepcopy(bar['systems'])
+        cls.exporter = export.Exporter(cls.p, Path(cls.folder.name), programs=material_programs.Programs(None))
+        ed.attach(cls.p, em.Defaults(cls.p), cls.systems, cls.exporter, export.compiled_textures)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.folder.cleanup()
+
+    def drawn(self):
+        return [e['draw'] for s in self.systems.values() for e in (s or {}).get('emitters', []) if e.get('draw')]
+
+    def test_the_steam_is_drawn_by_its_program(self):
+        steam = self.systems[self.by['Emitter_16']['system']]
+        d = next(e['draw'] for e in steam['emitters'] if e['draw'])
+        prog = d['program']
+        self.assertTrue(prog['unlit'])
+        self.assertIn('glow', prog['outputs'])
+        self.assertIn('opacity', prog['outputs'])
+        self.assertTrue(prog['shaders']['factory'].startswith('FParticle'))
+        kinds = {src['kind'] for srcs in prog['inputs'].values() for src in srcs if src}
+        self.assertIn('particleColor', kinds)
+        for t in prog['textures'].values():
+            self.assertTrue(t.get('engine') or t['texture'] in self.exporter.textures, t)
+
+    def test_nearly_every_sprite_has_one(self):
+        sprites = [d for d in self.drawn() if d['kind'] == 'sprite']
+        self.assertGreater(len(sprites), 10)
+        self.assertGreaterEqual(sum(1 for d in sprites if d.get('program')) / len(sprites), 0.9)
+        for d in sprites:
+            if d.get('program'):
+                self.assertTrue(d['program']['outputs'].get('glow') or d['program']['outputs'].get('diffuse'))
+
+    def test_mesh_emitters_have_one_a_section(self):
+        meshes = [d for d in self.drawn() if d['kind'] == 'mesh' and d.get('programs')]
+        self.assertTrue(meshes)
+        for d in meshes:
+            self.assertEqual(len(d['programs']), len(d['materials']))
+
+    def test_events_and_emitter_names(self):
+        # (draw version 7) each drawn emitter names itself; an event generator's events and a receiver's are read
+        drawn = self.drawn()
+        self.assertTrue(any(d.get('name') for d in drawn))
+        generators = [m for d in drawn for m in d['modules'] if m['cls'] == 'EventGenerator']
+        for m in generators:
+            for e in m['Events']:
+                self.assertTrue(e['Type'].startswith('EPET_'))
+        for d in drawn:
+            self.assertFalse({'Orbit', 'EventGenerator', 'EventReceiverSpawn', 'LocationEmitter'} & set(d['ignored']))
+
+    def test_the_dynamic_parameter_is_read(self):
+        found = [m for d in self.drawn() for m in d['modules'] if m['cls'].startswith('ParameterDynamic')]
+        self.assertTrue(found)
+        for m in found:
+            self.assertLessEqual(len(m['DynamicParams']), 4)
+            for row in m['DynamicParams']:
+                self.assertEqual(set(row), {'value', 'spawnOnly', 'emitterTime', 'method', 'scaleVelocity'})
+                self.assertTrue('entries' in row['value'] or 'parameter' in row['value'] or 'unread' in row['value'])
+        self.assertTrue(any('entries' in row['value'] for m in found for row in m['DynamicParams']))
+        self.assertNotIn('ParameterDynamic', {i for d in self.drawn() for i in d['ignored']})
 
 
 if __name__ == '__main__':

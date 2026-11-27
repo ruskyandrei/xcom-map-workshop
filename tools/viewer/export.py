@@ -126,10 +126,16 @@ import settings
 # 47: the map's placed decals (game-likeness plan, D1; decals.py, decal_records.py; F-210, F-211): `decals`, each with
 #     its actor, place, rotation, frame, size, material and the piece it lies on, and a mesh (decal-<actor>.glb) of
 #     the triangles the game stored for it, grouped by the piece each part lies on; a stream's in its layer
+# 48: effects drawn by their materials' programs (game-likeness plan, E1; effects_draw draw version 6): a sprite
+#     emitter's `program`, sliced from its material's shaders for the particle vertex factory it draws with, and a mesh
+#     emitter's `programs`, one a drawn section; the dynamic parameter module followed (`DynamicParams`)
+# 49: draw version 7 (game-likeness plan, E4): the event generator (`Events`) and receivers, the location emitters,
+#     orbits, attractor points, size by speed, kill boxes and spawning by distance followed; each emitter's `name`; a
+#     struct property field by field; an emitter that only sends events keeps a record (`kind: events`, its `why`)
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 47
+EXPORT_VERSION = 49
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -266,6 +272,7 @@ class Exporter:
         self.kismet = {}
         self.breaks = {}
         self.meshes, self.materials, self.textures = {}, {}, {}
+        self.particle_programs = {}     # (material, vertex factories) -> its particle program (particle_program)
         # block-compressed textures as DDS files with their mips, as the game stores them (texture.export_texture)
         self.texture_container = 'auto'
         self.diagnostics = []
@@ -333,6 +340,24 @@ class Exporter:
         drawn = [s for s in self.meshes[mesh_key]["sections"] if s["count"]]
         mats = [self.section_material(override if override > 0 else s["material"], mi) for s in drawn]
         return mesh_key, mats, [s["material"] for s in drawn]
+
+    def particle_program(self, index, factories):
+        """A particle material's program (game-likeness plan, E1): material_programs.program on the shaders of the
+        first of `factories` (vertex factories) its shader map has, sliced with the particle's own inputs; made once a
+        material and list, None where it can't be made (the reason in the diagnostics). Not a piece's material: the
+        material itself is not exported."""
+        key = (index, tuple(factories))
+        if key not in self.particle_programs:
+            chain = effects_draw.material_chain(self.p, index)
+            textures, scalars, vectors, _, _, blend, _ = self.parameters(chain)
+            program = material_programs.program(self, index, chain, dict(vectors=vectors, scalars=scalars, blend=blend),
+                                                textures, factory=tuple(factories), particle=True)
+            if program and any('vector' in c or 'scalars' in c for c in program['constants'].values()):
+                # (what a constant that moves with time is worked out from each frame: the material's own values,
+                # which a piece's material record carries and a particle's has no record for)
+                program['values'] = dict(vectors=vectors, scalars=scalars)
+            self.particle_programs[key] = program
+        return self.particle_programs[key]
 
     def mesh_collision(self, mesh):
         """What the game's traces meet of a mesh: dict(bodySetup, simpleLine, simpleBox) for a static one (bodySetup
@@ -409,32 +434,7 @@ class Exporter:
             if current in seen: raise FormatError("Material parent cycle")
             seen.add(current); chain.append(current)
             current = p.own(current, "Parent", 0)
-        textures, scalars, vectors, sampling, switches = {}, {}, {}, {}, {}
-        blend, two_sided = "BLEND_Opaque", False
-        for mat in reversed(chain):
-            for c in p.children.get(mat, []):
-                parameter, tex = p.own(c, "ParameterName"), p.own(c, "Texture", 0)
-                if parameter and tex:
-                    textures[parameter] = tex
-                    sampling[parameter] = coordinates(p,c)
-                if parameter and p.cls(c) == "MaterialExpressionScalarParameter":
-                    scalars[parameter] = p.own(c,"DefaultValue",0.0)
-                if parameter and p.cls(c) == "MaterialExpressionVectorParameter":
-                    vectors[parameter] = p.own(c,"DefaultValue",[0,0,0,0])
-                if parameter and p.cls(c) == 'MaterialExpressionStaticSwitchParameter':
-                    switches[parameter] = p.own(c, 'DefaultValue', False)
-            for field, target in [("TextureParameterValues", textures), ("ScalarParameterValues", scalars),
-                                  ("VectorParameterValues", vectors)]:
-                for row in p.structs(p.own(mat, field)):
-                    name = row.get(("ParameterName", 0), {}).get("value")
-                    fallback = [0,0,0,0] if field == "VectorParameterValues" else 0
-                    value = row.get(("ParameterValue", 0), {}).get("value", fallback)
-                    if name is not None: target[name] = value
-            blend = p.own(mat, "BlendMode", blend)
-            two_sided = p.own(mat, "TwoSided", two_sided)
-            try: switches.update(static_switches(p, mat))
-            except (ValueError, struct.error) as error:
-                self.warn(p.name(mat), f'Static switch overrides unavailable: {error}')
+        textures, scalars, vectors, sampling, switches, blend, two_sided = self.parameters(chain)
         def binding(names):
             for name in names:
                 if name in textures: return self.texture(textures[name])
@@ -533,6 +533,39 @@ class Exporter:
                                "mixes them")
         self.materials[key] = info
         return key
+
+    def parameters(self, chain):
+        """A material's parameter values through its parents (`chain`, nearest first: the root's set first, a
+        nearer one's over it): (textures (parameter name to texture object), scalars, vectors, sampling (each
+        texture parameter's coordinates), static switches, blend mode, two-sided)."""
+        p = self.p
+        textures, scalars, vectors, sampling, switches = {}, {}, {}, {}, {}
+        blend, two_sided = "BLEND_Opaque", False
+        for mat in reversed(chain):
+            for c in p.children.get(mat, []):
+                parameter, tex = p.own(c, "ParameterName"), p.own(c, "Texture", 0)
+                if parameter and tex:
+                    textures[parameter] = tex
+                    sampling[parameter] = coordinates(p,c)
+                if parameter and p.cls(c) == "MaterialExpressionScalarParameter":
+                    scalars[parameter] = p.own(c,"DefaultValue",0.0)
+                if parameter and p.cls(c) == "MaterialExpressionVectorParameter":
+                    vectors[parameter] = p.own(c,"DefaultValue",[0,0,0,0])
+                if parameter and p.cls(c) == 'MaterialExpressionStaticSwitchParameter':
+                    switches[parameter] = p.own(c, 'DefaultValue', False)
+            for field, target in [("TextureParameterValues", textures), ("ScalarParameterValues", scalars),
+                                  ("VectorParameterValues", vectors)]:
+                for row in p.structs(p.own(mat, field)):
+                    name = row.get(("ParameterName", 0), {}).get("value")
+                    fallback = [0,0,0,0] if field == "VectorParameterValues" else 0
+                    value = row.get(("ParameterValue", 0), {}).get("value", fallback)
+                    if name is not None: target[name] = value
+            blend = p.own(mat, "BlendMode", blend)
+            two_sided = p.own(mat, "TwoSided", two_sided)
+            try: switches.update(static_switches(p, mat))
+            except (ValueError, struct.error) as error:
+                self.warn(p.name(mat), f'Static switch overrides unavailable: {error}')
+        return textures, scalars, vectors, sampling, switches, blend, two_sided
 
     def stand_in(self, kind, name=None, source=None):
         """A material for a mesh section with none to draw: 'interior', a fractured mesh's inside faces with no
