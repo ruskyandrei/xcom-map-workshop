@@ -38,11 +38,6 @@ UNIFORM_LISTS = ('pixelVectors', 'pixelScalars', 'textures2d', 'texturesCube', '
 FOLDED = {0: 'add', 1: 'sub', 2: 'mul', 3: 'div', 4: 'dot'}
 
 
-def cache_path(install):
-    """The shader cache of an install (its folder): XEW's cooked folder, Enemy Within's."""
-    return Path(install) / 'XEW' / 'XComGame' / 'CookedPCConsole' / FILE_NAME
-
-
 def guid_text(raw):
     """A 16-byte ID as the four little-endian words in hex, as the plan and the register write them."""
     return ''.join('%08x' % w for w in struct.unpack('<4I', raw))
@@ -195,16 +190,24 @@ def _expr(c, depth=0):
 class Cache:
     """The index of a RefShaderCache package (open_cache)."""
 
-    def __init__(self, path, package=None):
+    def __init__(self, path, package=None, kept=None):
+        """From the package at `path` (or `package`, read already), or from `kept` = (bytes, names, start): the
+        decompressed package's bytes up to the export's end (its records' offsets are the package's), the package's
+        names and where the export starts, as open_cache keeps them."""
         self.path = Path(path)
-        p = package or Package(self.path)
-        self.package = p
-        self.data, self.names = p.data, p.names
-        exports = [e for i, e in enumerate(p.exports, 1) if p.cls(i) == 'ShaderCache']
-        if len(exports) != 1:
-            raise FormatError('%d ShaderCache exports, not one' % len(exports))
-        e = exports[0]
-        self.start, self.end = e['off'], e['off'] + e['size']
+        if kept is not None:
+            self.package = None
+            self.data, self.names, self.start = kept
+            self.end = len(self.data)
+        else:
+            p = package or Package(self.path)
+            self.package = p
+            self.data, self.names = p.data, p.names
+            exports = [e for i, e in enumerate(p.exports, 1) if p.cls(i) == 'ShaderCache']
+            if len(exports) != 1:
+                raise FormatError('%d ShaderCache exports, not one' % len(exports))
+            e = exports[0]
+            self.start, self.end = e['off'], e['off'] + e['size']
         c = _Cursor(self.data, self.start, self.end, self.names)
         c.take(4)                             # the export's net index
         if c.name() != 'None':                # its properties: none
@@ -334,16 +337,46 @@ class ShaderMap:
 
 
 _OPEN = {}
+KEPT_MAGIC = b'XMWSHC02'
 
 
-def open_cache(path):
-    """The index of the shader cache at `path`, kept for the process (one per file's size and time)."""
+def open_cache(path, keep=None):
+    """The index of the shader cache at `path`, kept for the process (one per file's size and time). With `keep` (a
+    folder: the editor's cache), the decompressed export is kept there as shader-cache-<the file's SHA-256>.bin and
+    read from it after the first time (about a tenth of the package's 4.5 s to open): every export process opens it,
+    and the file is the same in every install, so one copy serves them all."""
     path = Path(path)
     st = path.stat()
     key = (str(path.resolve()).lower(), st.st_size, st.st_mtime_ns)
     if key not in _OPEN:
-        _OPEN[key] = Cache(path)
+        _OPEN[key] = _kept(path, Path(keep)) if keep else Cache(path)
     return _OPEN[key]
+
+
+def _kept(path, keep):
+    import json
+    digest = file_hash(path)
+    kept = keep / ('shader-cache-%s.bin' % digest[:16])
+    if kept.is_file():
+        try:
+            raw = kept.read_bytes()
+            if raw[:8] == KEPT_MAGIC:
+                n, start = struct.unpack_from('<II', raw, 8)
+                names = json.loads(raw[16:16 + n].decode('utf-8'))
+                return Cache(path, kept=(memoryview(raw)[16 + n:], names, start))
+        except (OSError, ValueError, FormatError):
+            pass
+    cache = Cache(path)
+    try:
+        names = json.dumps(cache.names).encode('utf-8')
+        body = KEPT_MAGIC + struct.pack('<II', len(names), cache.start) + names + bytes(cache.data[:cache.end])
+        keep.mkdir(parents=True, exist_ok=True)
+        part = kept.with_name(kept.name + '.part-%d' % __import__('os').getpid())
+        part.write_bytes(body)
+        part.replace(kept)
+    except OSError:
+        pass
+    return cache
 
 
 def file_hash(path):

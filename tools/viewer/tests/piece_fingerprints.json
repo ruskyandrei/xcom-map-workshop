@@ -1,14 +1,14 @@
 {
- "pieceVersion": 12,
+ "pieceVersion": 13,
  "maps": {
   "a3ae5a73457c3c3f": {
-   "XComLevelActor_25": "90af848b52db0b5e",
-   "StaticMeshActor_0": "2e248404a6a617cf",
-   "XComDestructibleActor_340": "b1af0b230205851e",
-   "XComFracLevelActor_5": "3aba2ca473e57fda",
-   "XComInteractiveLevelActor_6": "5ebea991bc436ad3",
-   "XComDestructibleActor_63": "a826f6beed2630f7",
-   "KAsset_0": "0dc38e9c1a3fd063"
+   "XComLevelActor_25": "f3e6613a3d561c62",
+   "StaticMeshActor_0": "4daeeaee96dd982d",
+   "XComDestructibleActor_340": "393497b7dc475749",
+   "XComFracLevelActor_5": "3e0185fc8dae1f15",
+   "XComInteractiveLevelActor_6": "3485a832c271fc34",
+   "XComDestructibleActor_63": "8513588597dcc575",
+   "KAsset_0": "2ef04044db3b2cd7"
   }
  }
 }

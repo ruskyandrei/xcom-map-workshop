@@ -75,9 +75,10 @@ INDEX_VERSION = 10      # 2: an entry says what blocks it (`blocked`), and the f
                         # 7: vans come with their buildings, and EXP-41's two ways are switched on;
                         # 8: vans switched on (EXP-42); 9: the base maps' effects and ambient sounds (FX4: the
                         # number itself stayed 8 until FX6b); 10: the base maps' lens flares (FX6b)
-PIECE_VERSION = 12      # 8: recipe identity for each member of a piece or assembly; 9: each member's own piece flags;
+PIECE_VERSION = 13      # 8: recipe identity for each member of a piece or assembly; 9: each member's own piece flags;
                         # 11: the diagonal cover marks the piece gives in its home map (`diagonal`: mark_walls.marks);
-                        # 12: each of those marks' half-cover corners (`low`)
+                        # 12: each of those marks' half-cover corners (`low`); 13: its materials' programs and their
+                        # textures, its painted colours, its block-compressed textures as DDS (export 43)
                         # (export 27's pieceFlags) and its meshes' collision facts; 10: those flags really written (the
                         # exporter had left them out of every prefixed export, the library's too, 19 November 2026)
 # A donor's pieces folder is named by PIECE_VERSION (piece_folder), not by the exporter's version (24 November
@@ -852,6 +853,15 @@ def part_of(path):
     return path.with_name('%s.%s.part' % (path.name, uuid.uuid4().hex[:8]))
 
 
+def programs(cache, shared):
+    """The materials' programs a library piece's export makes (material_programs.Programs), one a process, the
+    shader cache kept in the editor's cache folder (the library's cache is beside the maps' exports)."""
+    import material_programs
+    if 'programs' not in shared:
+        shared['programs'] = material_programs.Programs(Path(cache))
+    return shared['programs']
+
+
 def _make_piece(cache, actor, shared, path, digest, generation, folder, record):
     """piece()'s export of a piece not kept yet, with its donor's lock held."""
     from export import EXPORT_VERSION, Exporter
@@ -863,7 +873,7 @@ def _make_piece(cache, actor, shared, path, digest, generation, folder, record):
     if index is None:
         raise ProjectError(404, '%s has no piece called %s.' % (path.stem, actor), code='piece-missing')
     folder.mkdir(parents=True, exist_ok=True)
-    exporter = Exporter(p, folder, namespace='lib-' + path.stem)
+    exporter = Exporter(p, folder, namespace='lib-' + path.stem, programs=programs(cache, shared))
     # an assembly's part gives the whole assembly: every part's components, with the links the page and the compiler
     # keep them together by (prefab, partner, what the glass's columns break)
     try:
@@ -1036,7 +1046,7 @@ def effect_draw(cache, game, package, system, shared=None):
         defaults = shared['effect_defaults'][str(path)] = effects_metadata.Defaults(p)
     with donor_lock(cache, path.stem):      # its textures and meshes go into the donor's piece folder
         folder.mkdir(parents=True, exist_ok=True)
-        exporter = Exporter(p, folder, namespace='lib-' + path.stem)
+        exporter = Exporter(p, folder, namespace='lib-' + path.stem, programs=programs(cache, shared))
         drawn = copy.deepcopy(system)
         effects_draw.attach(p, defaults, {'one': drawn}, exporter, compiled_textures, effects_draw.RULES, exporter.warn)
         out = dict(version=effects_draw.DRAW_VERSION, system=drawn, base='/cache-library/%s/%s/' % (path.stem, generation),

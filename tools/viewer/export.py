@@ -13,6 +13,8 @@ import tempfile
 import zlib
 from package import Package, FormatError
 from mesh import read_mesh, write_glb
+import material_programs
+import atmosphere as atmosphere_records
 from skeletal import read_skeletal
 from texture import export_texture
 from materials import coordinates, profile, static_switches, constant_color, approximate_colour, opacity_input, BY_KIND
@@ -103,10 +105,16 @@ import settings
 #     whose tile a patch level reworks at the battle's start (KNOWN-BUGS.md KB-22)
 # 42: the bomb donor's too (`donors[<kind>].rebuildSpheres`), which an added bomb mission streams; the view and the
 #     Build move a mission object's volume with the project's move of it
+# 43: materials as their compiled shaders draw them (game-likeness plan, A-S3): a material's `program` (its slice of the
+#     game's shaders, research/editor-contracts.md section 9, material_programs.py) with every texture it samples
+#     exported; a placed piece's own painted vertex colours (`paint`: paint-<object>.bin, RGBA bytes a vertex); block-
+#     compressed textures as DDS files with their mips (texture.py `container`, A-S3b); the map's atmosphere
+#     (`atmosphere`: fog, grade, bloom and fog-of-war colours over the classes' defaults, its post-process volumes:
+#     atmosphere.py, C1)
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 42
+EXPORT_VERSION = 43
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -224,20 +232,23 @@ def area_lights(p, objects, lights, meshes, materials, warn):
 
 
 class Exporter:
-    def __init__(self, package, folder,namespace='',progress=None,base=None,digest=None):
+    def __init__(self, package, folder,namespace='',progress=None,base=None,digest=None,programs=None):
         """progress(done, total): called as the pieces are read (the export's slow part). base: the map's own
         Exporter, for a package streamed into it (its stub and imported materials are the map's)."""
         self.p, self.folder = package, folder
         self.base = base
+        # the materials' programs are made only where the exporter is told to (material_programs.Programs): the
+        # bake's albedo resolves materials through a subclass of this and must not open the shader cache; a stream
+        # or a patch layer follows its map
+        self.programs = programs if programs is not None else getattr(base, 'programs', None)
         self.digest = digest        # the package's SHA-256 when the caller has it (export_map: worked out once)
         self.prefix=namespace+'-' if namespace else ''
         self.prefabs = {}
         self.kismet = {}
         self.breaks = {}
         self.meshes, self.materials, self.textures = {}, {}, {}
-        # 'auto': block-compressed textures as DDS files with their mips, as the game stores them
-        # (texture.export_texture); switched on with the export version that carries the materials' programs
-        self.texture_container = 'png'
+        # block-compressed textures as DDS files with their mips, as the game stores them (texture.export_texture)
+        self.texture_container = 'auto'
         self.diagnostics = []
         self.progress = progress
         self.flags = {}     # actor -> its piece flags (piece_flags.describe), worked out once for its components
@@ -402,6 +413,9 @@ class Exporter:
                 render_profile['opacitySource'] = 'opaque'
             elif wired and wired[0] in textures and wired[0] != render_profile['diffuseParameter']:
                 render_profile.update(opacitySource='packed-alpha', opacityParameter=wired[0], opacityChannel=wired[1])
+        program = material_programs.program(self, index, chain, dict(vectors=vectors, scalars=scalars, blend=blend),
+                                            textures)
+        say = (lambda *a: None) if program else self.warn       # a material drawn by its program: no guesses to own
         constant, unlit = constant_color(p, chain[-1]) if chain else (None, False)
         if constant is not None:
             render_profile.update(family='constant', constantColor=constant, unlit=unlit, opacitySource='opaque')
@@ -410,7 +424,7 @@ class Exporter:
             colours=[p.own(c,'DefaultValue') for c in p.children.get(interior,[])
                      if p.cls(c)=='MaterialExpressionVectorParameter']
             render_profile['constantColor']=next((c[:3] for c in colours if isinstance(c,list) and len(c)>=3),None)
-            self.warn(p.name(index),'Fogged civilian procedural material: source constant-colour approximation')
+            say(p.name(index),'Fogged civilian procedural material: source constant-colour approximation')
         diffuse = self.texture(textures[render_profile["diffuseParameter"]]) if render_profile["diffuseParameter"] else None
         normal = binding(("Normal", "Normal_Base", "NormalMap", "Normal Map"))
         opacity = emissive = None
@@ -426,7 +440,7 @@ class Exporter:
             # DoorColor, rather than displaying its packed RGB as surface colour.
             if render_profile['diffuseParameter']:
                 emissive = self.texture_channel(textures[render_profile['diffuseParameter']], 'R')
-            self.warn(p.name(index), 'Alien energy door: stationary colour/pattern approximation; animation is not evaluated')
+            say(p.name(index), 'Alien energy door: stationary colour/pattern approximation; animation is not evaluated')
         compiled = None
         if (not diffuse and not render_profile.get('constantColor') and chain and p.name(chain[-1]) not in BY_KIND
                 and blend not in ("BLEND_Translucent", "BLEND_Additive", "BLEND_Modulate")):
@@ -449,7 +463,7 @@ class Exporter:
                     compiled.update(mask=names[mask], channel=channel)
                 else:
                     diffuse = self.texture(colour) if blend == 'BLEND_Masked' else self.texture_channel(colour, 'RGB')
-                self.warn(p.name(index), f"No texture parameter: colour from the compiled shader's {names[colour]}"
+                say(p.name(index), f"No texture parameter: colour from the compiled shader's {names[colour]}"
                           + (f", cut out by {names[mask]}'s {compiled['channel']} channel" if 'channel' in compiled else '')
                           + ' (approximation)')
         if not diffuse and not render_profile.get('constantColor') and chain and blend not in (
@@ -457,17 +471,20 @@ class Exporter:
             # Nothing to read a colour from: a colour by kind (approximate_colour), or neutral grey
             colour, why = approximate_colour([p.name(i) for i in chain], vectors)
             render_profile.update(family='approximate', constantColor=colour, opacitySource='opaque')
-            self.warn(p.name(index), f'No colour texture found: {why} (approximation)')
+            say(p.name(index), f'No colour texture found: {why} (approximation)')
         info = dict(name=p.name(index), parents=[p.name(i) for i in chain], diffuse=diffuse,
                     normal=normal, opacity=opacity, emissive=emissive, blend=blend, twoSided=two_sided,
                     alphaTest=p.own(chain[-1], 'OpacityMaskClipValue', 0.3333) if chain else 0.3333,
                     vectors=vectors, scalars=scalars, staticSwitches=switches,
                     render=render_profile,
                     textureParameters={k: p.name(v) for k,v in textures.items()}, approximation=True)
+        if program:
+            info['program'] = program
         if blend == "BLEND_Modulate":
-            self.warn(p.name(index), "Modulate overlay: colour-only approximation")
+            say(p.name(index), "Modulate overlay: colour-only approximation")
         if any(k in textures for k in ("Diffuse_Mod", "Normal_Mod", "Mask")):
-            self.warn(p.name(index), "Layered/vertex-painted material: base texture approximation")
+            say(p.name(index), "Layered/vertex-painted material: drawn in one of its textures, not mixed as the game "
+                               "mixes them")
         self.materials[key] = info
         return key
 
@@ -568,6 +585,13 @@ class Exporter:
                 origin=mesh.get('origin'),rotOrigin=mesh.get('rotOrigin'),
                 collision=self.mesh_collision(mi))
         mesh = self.meshes[mesh_key]
+        # its own painted vertex colours (LOD 0's), in the mesh's vertex order: a file beside the mesh (export 43)
+        paint = None
+        if mesh['kind'] == 'static' and self.programs is not None:
+            colours = material_programs.painted_colours(p, component, mesh['vertices'])
+            if colours:
+                paint = f"paint-{self.prefix}{actor}-{component}.bin"
+                (self.folder / paint).write_bytes(colours)
         material_refs = p.refs(p.effective(component, "Materials"))
         mats = []
         for s in mesh["sections"]:
@@ -608,6 +632,7 @@ class Exporter:
                     **({'keepsPieces': True} if p.cls(component) == "FracturedStaticMeshComponent"
                        and p.effective(component, "bPreventChunkRemoval", False) else {}),
                     hidden=bool(p.effective(actor,"bHidden",False) or p.effective(component,"HiddenGame",False)),
+                    **({'paint': paint} if paint else {}),
                     # false when the actor collides with nothing, so touches no floor volume and no building lists it
                     # (F-87; the Build's native_copy.collides): left out otherwise, and in exports made before it
                     **({} if collides(p, actor) else {'collides': False}),
@@ -683,7 +708,9 @@ class Exporter:
         sound = {} if self.prefix else dict(
             backgroundSound=self.guarded('background sound', lambda: background_sound.background_sound(p), None),
             triggerCounts=self.guarded('trigger counts', lambda: trigger_counts(p), None))
-        return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope,
+        # its fog, grade, bloom and post-process volumes (export 43), absent for a streamed or previewed package
+        air = {} if self.prefix else dict(atmosphere=self.guarded('atmosphere', lambda: atmosphere_records.read(p), None))
+        return dict(schemaVersion=1, exporterVersion=EXPORT_VERSION, name=p.path.stem, scope=scope, **air,
                     playableBounds=bounds[1] if bounds else None,
                     tileGrid=grid, tactical=tactical,
                     buildings=buildings,
@@ -800,7 +827,7 @@ def export_map(source, cache_root, scope, specs=(), progress=None):
     stage = Path(tempfile.mkdtemp(prefix=".export-",dir=parent))
     try:
         exporter = Exporter(p,stage,progress=(lambda done, total: progress('reading the map', done, total)) if progress else None,
-                            digest=digest)
+                            digest=digest, programs=material_programs.Programs(Path(cache_root).resolve()))
         result = exporter.run(scope)
         previews=[]
         inherited={}

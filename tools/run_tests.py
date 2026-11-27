@@ -107,11 +107,14 @@ ENVIRONMENT = (
      'file is not there.', (
         Package('XCOM_BAR_UPK', 'URB_Bar.upk', 'most of the bake suite\'s tests of a map, test_package_edit.py, '
                 'test_package_grow.py, test_manager.py'),
+        Package('XCOM_BARRENS_UPK', 'COverseer_TheBarrens.upk', 'test_material_programs.py'),
         Package('XCOM_BATTLESHIP_UPK', 'CBattleship_01.upk', 'test_native_lights.py'),
         Package('XCOM_BLANK_UPK', 'CB2_MP_Blank.upk', 'test_native_copy.py'),
         Package('XCOM_BOMB_STREAM_UPK', 'URB_Slaughterhouse_Stream.upk', 'test_stream_copy.py'),
         Package('XCOM_CAPTURE_STREAM_UPK', 'URB_PoliceStation_CNH.upk', 'test_stream_copy.py'),
         Package('XCOM_DEMOLITION_UPK', 'URB_Demolition_EWI.upk', 'test_native_copy.py'),
+        Package('XCOM_DIRTROAD_UPK', 'CSmallScout_DirtRoad.upk', 'test_atmosphere.py'),
+        Package('XCOM_ENGINE_UPK', 'Engine.upk', "test_atmosphere.py (the script package: the structs' defaults)"),
         Package('XCOM_ENTRANCE_UPK', 'CIN_TP05A_EnteringAlienBase.upk', 'test_intro_copy.py'),
         Package('XCOM_FARM_UPK', 'CsmallScout_Farm.upk', 'test_native_lights.py'),
         Package('XCOM_FORESTTRENCH_UPK', 'CLrgScout_ForestTrench.upk', 'test_light_factory.py'),
@@ -125,7 +128,8 @@ ENVIRONMENT = (
         Package('XCOM_POLICE_PATCH_UPK', 'patch_policestation.upk', 'test_cover_blocks.py'),
         Package('XCOM_POLICE_UPK', 'URB_PoliceStation.upk', 'test_cover_blocks.py, test_gen_mesh.py, '
                 'test_light_factory.py, test_native_copy.py, test_streams.py'),
-        Package('XCOM_SHADER_CACHE_UPK', 'RefShaderCache-PC-D3D-SM3.upk', 'test_sm3.py, test_shader_cache.py'),
+        Package('XCOM_SHADER_CACHE_UPK', 'RefShaderCache-PC-D3D-SM3.upk', 'test_sm3.py, test_shader_cache.py, '
+                'test_shader_slice.py, test_material_programs.py'),
         Package('XCOM_STONEWALL_UPK', 'CLrgScout_Stonewall.upk', 'test_native_copy.py'),
         Package('XCOM_TEMPLE_UPK', 'TempleShip.upk', 'test_light_factory.py, test_native_lights.py'),
         Package('XCOM_TRUCKSTOP_STREAM_UPK', 'URB_TruckStop_Stream.upk', 'test_light_factory.py, test_map_frame.py, '

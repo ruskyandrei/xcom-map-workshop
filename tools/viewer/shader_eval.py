@@ -80,10 +80,9 @@ def apply(op, srcs, sat=False, texld=None, sample=None):
         r = np.repeat((a * srcs[1]).sum(axis=1, keepdims=True), 4, axis=1)
     elif op == 'dp2add':
         r = np.repeat((a[:, :2] * srcs[1][:, :2]).sum(axis=1, keepdims=True) + srcs[2][:, :1], 4, axis=1)
-    elif op == 'nrm':
-        length = np.sqrt((a[:, :3] ** 2).sum(axis=1, keepdims=True))
-        with np.errstate(divide='ignore', invalid='ignore'):
-            r = np.concatenate([a[:, :3] / np.where(length == 0, 1, length), np.ones((len(a), 1))], axis=1)
+    elif op == 'nrm':                          # every component scaled by 1 / the length of xyz
+        f = 1.0 / np.sqrt(np.maximum((a[:, :3] ** 2).sum(axis=1, keepdims=True), 1e-30))
+        r = a * f
     elif op == 'crs':
         c = np.cross(a[:, :3], srcs[1][:, :3])
         r = np.concatenate([c, np.zeros((len(a), 1))], axis=1)

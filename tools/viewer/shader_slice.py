@@ -677,7 +677,7 @@ class Part:
         the other, don't overwrite each other's values."""
         self.prefix = self.tag + letter
         kept, leaves = backward(self.flow, end, {(reg, c) for c in comps})
-        for leaf, c in leaves:
+        for leaf, c in sorted(leaves, key=lambda rc: (rc[0].kind, rc[0].index, rc[1])):   # (the same reason each run)
             if leaf.kind == 'r':
                 raise Refused('register', '%s.%s read before it is written' % (leaf.name(), COMPONENTS[c]))
             if leaf.kind == 'v':
@@ -687,8 +687,7 @@ class Part:
                 src = pixel_input(dcl, c, self.vs_out, self.tag, self.kinds)
                 if src['kind'] == 'refused':
                     raise Refused('input', src['why'])
-            self.name(leaf)
-        self.emit(kept)
+        self.emit(kept)                           # (names given in the instructions' order: the same every run)
         return {'r': self.name(reg), 'm': ''.join(COMPONENTS[c] for c in comps)}
 
 

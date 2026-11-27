@@ -3,6 +3,7 @@ colour, a UV scaled in the pixel shader, an input it refuses), and on the instal
 game mixes its layers, a one-texture prop, a tinted building, a cut-out, a material reading two UV channels, and the
 colour sliced from the lightmap pass agreeing with the pass without one."""
 from pathlib import Path
+import json
 import struct
 import sys
 import unittest
@@ -261,6 +262,25 @@ class Install(unittest.TestCase):
             a = run(program, colour=colour, textures=self.textures(program, colours))['diffuse'][0]
             b = run(other, colour=colour, textures=self.textures(other, colours))['diffuse'][0]
             np.testing.assert_allclose(a, b, rtol=1e-6)
+
+
+class Cases(unittest.TestCase):
+    """The case file material_program.js's node test reads: shader_eval gives its numbers, and (with the install)
+    the slice still makes its programs."""
+
+    def test_eval_gives_the_cases_numbers(self):
+        import material_program_cases as cases
+        for case in json.loads(cases.FILE.read_text(encoding='utf-8')):
+            self.assertEqual(cases.evaluate(case['program'], case['textures'], case['inputs']), case['expected'],
+                             case['name'])
+
+    @unittest.skipUnless(CACHE and CACHE.exists(), NO_CACHE)
+    def test_the_slice_still_makes_them(self):
+        import material_program_cases as cases
+        kept = json.loads(cases.FILE.read_text(encoding='utf-8'))
+        made = json.loads(json.dumps(cases.make(CACHE)))
+        self.assertEqual([c['program'] for c in made], [c['program'] for c in kept],
+                         'the slice changed: python -B tools/viewer/tests/material_program_cases.py --write')
 
 
 if __name__ == '__main__':

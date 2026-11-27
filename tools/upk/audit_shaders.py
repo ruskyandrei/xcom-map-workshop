@@ -29,6 +29,7 @@ sys.path.insert(0, str(HERE))
 import settings  # noqa: E402
 from package import Package, FormatError  # noqa: E402
 import materials  # noqa: E402
+import material_programs  # noqa: E402
 import shader_cache  # noqa: E402
 
 KEY = re.compile(r'^(?:stream-(.+)-)?(\d+)$')
@@ -63,41 +64,14 @@ def drawn_sections(scene):
 
 
 def shader_key(p, index, with_owner=False):
-    """(how, base id, switches) of a material: 'instance' from the nearest permutation instance up its parents, or
-    'root' from the root material's resource ID; with_owner adds the object whose resource that is."""
-    current, seen, root = index, set(), index
-    while current > 0:
-        if current in seen:
-            raise FormatError('a material parent cycle')
-        seen.add(current)
-        own = materials.static_parameters(p, current) if p.cls(current) != 'Material' else None
-        if own is not None:
-            return ('instance', own['base'], own['switches']) + ((current,) if with_owner else ())
-        root = current
-        current = p.own(current, 'Parent', 0)
-    if p.cls(root) not in ('Material', 'DecalMaterial'):
-        raise FormatError('the root %s is a %s' % (p.name(root), p.cls(root)))
-    return ('root', materials.resource_id(p, root), []) + ((root,) if with_owner else ())
+    """(how, base id, switches[, owner]): material_programs.shader_key, the rule the export uses."""
+    found = material_programs.shader_key(p, index)
+    return found if with_owner else found[:3]
 
 
 def match(cache, base, switches):
-    """('exact' | 'values' | 'base' | 'none', the map or None)."""
-    found = cache.by_base.get(base, [])
-    if not found:
-        return 'none', None
-    want = sorted(switches)
-    for m in found:
-        if sorted(m.switches) == want:
-            return 'exact', m
-    values = sorted((n, v) for n, v, _ in switches)
-    for m in found:
-        if sorted((n, v) for n, v, _ in m.switches) == values:
-            return 'values', m
-    on = {n for n, v, _ in switches if v}
-    for m in found:
-        if {n for n, v, _ in m.switches if v} == on:
-            return 'values', m
-    return 'base', found[0]
+    """material_programs.match, the rule the export uses."""
+    return material_programs.match(cache, base, switches)
 
 
 def pass_a(args):

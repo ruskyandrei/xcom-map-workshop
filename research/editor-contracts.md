@@ -757,6 +757,27 @@ object:
   `{"value": [...]}` when it folds to constants. A glow of zero is left out.
 - `refused`: {output: why} for each output the slice could not give (a short code, then what it found).
 
+**On the export (export 43).** A material record's `program` is the form above, its textures resolved: each gains
+`texture` (the export's texture key) and `srgb`, and the program `map` (`base`, `switches`, `matched`: exact or
+values, `by`: instance or root). A material whose colour doesn't slice has no `program` and a diagnostic with the
+reason; its other fields are as before (`diffuse` and the rest stay on every record). An object whose component
+carries its own painted vertex colours names them in `paint`: a file beside the scene of four bytes a vertex, RGBA,
+in its mesh's vertex order.
+
+## 10. The map's atmosphere in the export (export 43)
+
+`scene.json`'s `atmosphere` ([atmosphere.py](../tools/viewer/atmosphere.py) `read`; absent on a streamed level's
+records, null where the WorldInfo can't be read): `world` holds `fog` (XComHeightFogParameters: `bEnabled`,
+`FogDensity`, `FogHeight`, `FogHeightFalloff`, `FogMaxOpacity`, `StartDistance`, `LightTerminatorAngle`,
+`OppositeLightBrightness`, `OppositeLightColor`, `LightInscatteringBrightness`, `LightInscatteringColor`) and
+`postProcess` (PostProcessSettings: the bloom, the scene grade `Scene_*`, depth of field, the fog of war's colours,
+the rim shader, each `bOverride_` flag), every member given: the map's saved value over the class default object's
+over the struct's own (atmosphere_defaults.json); `saved` names the members the map itself saves; `class` the
+WorldInfo's class; `environmentColor` its material parameters' environment colour. `volumes` lists each
+PostProcessVolume: `name`, `box` (`min`, `max`, game units), `priority`, `enabled`, `unbound`, and `settings` (only
+the members it saves, its `bOverride_` flags among them; the rest are Default__PostProcessVolume's, in the defaults
+file's `volume`). Colours are 0 to 1 (a `Color` member's bytes over 255).
+
 ## What E0 still lacks
 
 - **Resolver discrepancy fixtures.** Test cases capturing the known differences between the preview resolver and the
