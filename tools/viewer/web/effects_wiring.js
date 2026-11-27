@@ -296,7 +296,7 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
       // (in the picture, and more than a few pixels of it: a whole large map seen from afar steps nothing)
       g.visible = likenessFrustum.intersectsBox(likenessBox) && reach * pixelsPerUnit / Math.max(1, camera.position.distanceTo(likenessAt)) > 6;
       if (!g.visible) continue;
-      likeness.step(dt, likenessThin, [Math.abs(s[0] * cs[0]), Math.abs(s[1] * cs[1])]);
+      likeness.step(dt, likenessThin, [Math.abs(s[0] * cs[0]), Math.abs(s[1] * cs[1])], likenessAt.y);
       // a lit material by the view's light where the effect stands, as a sprite faces it: toward the camera (E2)
       if (likeness.lit) {
         likenessNormal.subVectors(camera.position, likenessAt).normalize();
@@ -333,7 +333,7 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
       if (cp) m.multiply(effectMatrix(cp.translation, cp.rotation, cp.scale));
       m.multiply(SWAP);
       g.likeness.group.matrixWorldNeedsUpdate = true;
-      g.likeness.step(dt, 1, [Math.abs(s[0] * cs[0]), Math.abs(s[1] * cs[1])]);
+      g.likeness.step(dt, 1, [Math.abs(s[0] * cs[0]), Math.abs(s[1] * cs[1])], likenessAt.setFromMatrixPosition(g.holder.matrixWorld).y);
     }
   }
   // ---- An effect of the Add panel as a picture and as a moving preview (stage FXV3). The picture: its likeness, warm,

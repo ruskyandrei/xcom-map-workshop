@@ -10,7 +10,7 @@ import { createProjectManager } from './manager.js';
 import { createQueueController } from './build_queue.js';
 import { createGameMaps } from './gamemaps.js';
 import { createSetupDialog, setupApi } from './setup.js';
-import { viewHeight } from './effects_preview.js';
+import { setSceneDepth, viewHeight } from './effects_preview.js';
 import { fogShared } from './atmosphere_shader.js';
 import { createPostChain } from './post_chain.js';
 import { postSettings, postUniforms } from './post_grade.js';
@@ -657,7 +657,8 @@ function drawFrame(helpers = true) {
   if (!gameLook() || !data) { renderer.render(world, camera); return true; }
   if (!postReady) return false;
   postParts ??= new Set([content, hemisphere, sun, sun.target, likenessLayer]);
-  postChain.render(world, camera, postParts, postNow().uniforms, helpers);
+  // (the effects' likenesses after the pieces, with their depth: a soft particle's edge, E3)
+  postChain.render(world, camera, postParts, postNow().uniforms, helpers, { object: likenessLayer, depth: texture => setSceneDepth(texture, camera) });
   return true;
 }
 

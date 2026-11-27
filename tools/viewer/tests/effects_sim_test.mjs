@@ -226,4 +226,23 @@ assert.deepEqual(parametersOf({ parameters: [{ name: 'Color', type: 'PSPT_Color'
   assert.ok(made.colour[1] < 3, 'without raw, a data channel is drawn as the others\' brightness');
 }
 
+// --- a kill height (E3): a floor in the world kills what falls under it, measured from the emitter's own height
+{
+  const falling = { kind: 'sprite', rate: constant(0), bursts: [{ count: 1, countLow: -1, time: 0 }], duration: 9, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(9) }, { cls: 'Velocity', StartVelocity: constant(0, 0, -100) },
+              { cls: 'KillHeight', Height: constant(23), bAbsolute: true, bFloor: true }] };
+  const high = makeEmitter(falling, { seed: 6 });
+  high.height = 100;
+  high.step(0.01); high.step(0.5); high.step(0.01);
+  assert.equal(high.count, 1, 'at 50 in the world: above the floor');
+  high.step(0.5); high.step(0.01); high.step(0.01);
+  assert.equal(high.count, 0, 'under 23 in the world: gone');
+  const relative = makeEmitter({ ...falling, modules: [...falling.modules.slice(0, 2), { cls: 'KillHeight', Height: constant(-30), bFloor: true }] }, { seed: 6 });
+  relative.height = 500;
+  relative.step(0.01); relative.step(0.2); relative.step(0.01);
+  assert.equal(relative.count, 1);
+  relative.step(0.2); relative.step(0.01); relative.step(0.01);
+  assert.equal(relative.count, 0, 'under the emitter by more than 30: gone, wherever it stands');
+}
+
 console.log('effects_sim: ok');

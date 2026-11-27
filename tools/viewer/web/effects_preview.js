@@ -138,7 +138,7 @@ const SPRITE_PROGRAM_VARYINGS = ['varying vec2 vProgUv0;', 'varying vec2 vProgUv
   ...Object.values(PARTICLE_VARYINGS).map(([type, name]) => `varying ${type} ${name};`)].join('\n');
 const SPRITE_PROGRAM_VERTEX = /* glsl */`
 attribute vec3 aOffset; attribute vec3 aSize; attribute vec4 aColour; attribute vec3 aVel; attribute float aImage; attribute vec4 aDynamic;
-uniform vec2 uScale; uniform vec2 uGrid; uniform float uFacing; uniform float uViewHeight;
+uniform vec2 uScale; uniform vec2 uGrid; uniform float uFacing; uniform float uViewHeight; uniform float uBlend;
 varying vec3 vFogWorld;
 ${SPRITE_PROGRAM_VARYINGS}
 void main() {
@@ -158,11 +158,13 @@ void main() {
   }
   mv.xy += right * position.x * w + up * position.y * h;
   gl_Position = projectionMatrix * mv;
-  // the corner's UV in its sub-image (the game's texcoord0: the whole texture where the emitter steps through none)
+  // the corner's UV in its sub-image (the game's texcoord0: the whole texture where the emitter steps through none),
+  // and in the next one, blended toward it by the index's fraction where the emitter blends (E3: PSUVIM_Linear_Blend)
   vec2 uv = vec2(position.x + 0.5, 0.5 - position.y);
-  float i = floor(aImage + 0.001);
+  float i = floor(aImage + 0.001), j = min(i + 1.0, uGrid.x * uGrid.y - 1.0);
   vProgUv0 = (vec2(mod(i, uGrid.x), floor(i / uGrid.x)) + uv) / uGrid;
-  vProgUv1 = vProgUv0; vProgSubLerp = 0.0;
+  vProgUv1 = (vec2(mod(j, uGrid.x), floor(j / uGrid.x)) + uv) / uGrid;
+  vProgSubLerp = uBlend > 0.5 ? clamp(aImage - i, 0.0, 1.0) : 0.0;
   vProgParticle = aColour; vProgDynamic = aDynamic; vProgClip = gl_Position;
   // the vector to the camera in the sprite's own frame (its right, its up, toward the camera)
   vProgCamera = vec3(dot(right, -mv.xy), dot(up, -mv.xy), -mv.z);
@@ -183,10 +185,30 @@ void main() {
   ${glsl.reads.clipPosition ? 'vProgClip = gl_Position;' : ''}
   ${glsl.reads.subImageLerp ? 'vProgSubLerp = 0.0;' : ''}
 }`;
+// The scene's depth behind a particle (E3): the Game look's pieces' depth while its frame draws the likenesses
+// (post_chain.js), else none, so nothing is behind and a soft edge doesn't fade; given to the program as 1 / the
+// distance, which its sum with the ratio (-1, 1) turns into the distance (material_program.js progSceneDepth)
+const sceneDepth = { uSceneDepth: { value: null }, uSceneDepthOn: { value: 0 }, uDepthRange: { value: new THREE.Vector2(1, 1e6) } };
+/** The pieces' depth texture for the likenesses' pass of the Game look's frame (with its camera), or null after it. */
+export function setSceneDepth(texture, camera = null) {
+  sceneDepth.uSceneDepth.value = texture;
+  sceneDepth.uSceneDepthOn.value = texture ? 1 : 0;
+  if (camera) sceneDepth.uDepthRange.value.set(camera.near, camera.far);
+}
+const SCENE_DEPTH = /* glsl */`
+#define PROG_SCENE_DEPTH
+uniform sampler2D uSceneDepth; uniform float uSceneDepthOn; uniform vec2 uDepthRange;
+vec4 progSceneDepth(vec2 uv) {
+  if (uSceneDepthOn < 0.5) return vec4(0.0, 0.0, 0.0, 1e-6);
+  float n = uDepthRange.x, f = uDepthRange.y;
+  float viewZ = n * f / ((f - n) * texture2D(uSceneDepth, uv).r - f);
+  return vec4(0.0, 0.0, 0.0, 1.0 / max(-viewZ, 1e-3));
+}`;
 const PROGRAM_FRAGMENT = glsl => /* glsl */`
 ${FOG_PARS}
 varying vec3 vFogWorld;
 uniform float uMode; uniform vec3 uLight;
+${glsl.fragmentDeclarations.includes('PROG_SCENE_DEPTH') ? SCENE_DEPTH : ''}
 ${glsl.fragmentDeclarations}
 void main() {
   ${glsl.fragmentBody}
@@ -216,7 +238,7 @@ function programMaterial(draw, program, vertex) {
   try { glsl = programGlsl(program, outputs); }
   catch (error) { console.warn(`a particle program not drawn: ${error.message}`); return null; }
   glsl.reads = inputsRead(programFor(program, outputs));      // (what the outputs drawn read: the vertex part writes those)
-  const mode = MODES[draw.blend] ?? 0, solid = mode >= 3, uniforms = { uMode: { value: mode }, uLight: { value: new THREE.Vector3(1, 1, 1) }, ...fogShared };
+  const mode = MODES[draw.blend] ?? 0, solid = mode >= 3, uniforms = { uMode: { value: mode }, uLight: { value: new THREE.Vector3(1, 1, 1) }, ...fogShared, ...sceneDepth };
   const moving = [];
   for (const u of glsl.uniforms) {
     const record = program.constants[u.constant];
@@ -228,7 +250,7 @@ function programMaterial(draw, program, vertex) {
   for (const s of glsl.samplers) uniforms[s.name] = { value: blank };
   if (vertex === 'sprite') Object.assign(uniforms, { uScale: { value: new THREE.Vector2(1, 1) }, uViewHeight: viewHeight,
     uGrid: { value: new THREE.Vector2(...(draw.interp && draw.interp !== 'PSUVIM_None' ? [draw.subImages?.[0] ?? 1, draw.subImages?.[1] ?? 1] : [1, 1])) },
-    uFacing: { value: FACING[draw.facing] ?? 0 } });
+    uFacing: { value: FACING[draw.facing] ?? 0 }, uBlend: { value: draw.interp === 'PSUVIM_Linear_Blend' ? 1 : 0 } });
   const material = new THREE.ShaderMaterial({
     vertexShader: vertex === 'sprite' ? SPRITE_PROGRAM_VERTEX : MESH_PROGRAM_VERTEX(glsl), fragmentShader: PROGRAM_FRAGMENT(glsl),
     uniforms, depthWrite: solid, transparent: !solid, side: THREE.DoubleSide,
@@ -428,8 +450,9 @@ export function leftOut(system) {
 /** A likeness of `system` (an effectSystems record with draw data). deps: { texture(key) -> Promise<Texture | null>,
  *  meshParts(draw) -> Promise<[{ geometry, map }]> }. `params`: the effect's particle parameters
  *  (effects_sim.parametersOf); `seed`: a number. Gives { group (matrixAutoUpdate off: the caller sets its matrix),
- *  step(dt, thin, scale), count(), dispose() }: `scale` is [x, y], what a sprite's width and height are multiplied by
- *  (the actor's and its component's scale). It starts warm: run ahead by its longest life. */
+ *  step(dt, thin, scale, height), count(), dispose() }: `scale` is [x, y], what a sprite's width and height are
+ *  multiplied by (the actor's and its component's scale), `height` the effect's height in the world (game units).
+ *  It starts warm: run ahead by its longest life. */
 export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true } = {}) {
   const group = new THREE.Group();
   group.matrixAutoUpdate = false;
@@ -448,6 +471,26 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
     return part;
   });
   start();
+  // A world-space emitter's particles (not bUseLocalSpace) stay where they were in the world when the effect moves (a
+  // drag, a copy on the cursor): each step, what has moved since is taken back off them (E3)
+  const lastWorld = new THREE.Matrix4(), delta = new THREE.Matrix4(), turn = new THREE.Matrix3(), at = new THREE.Vector3();
+  let placed = false;
+  const worldSpace = draws.some(d => !d.localSpace);
+  function stayInWorld() {
+    group.updateWorldMatrix(true, false);
+    if (placed && !group.matrixWorld.equals(lastWorld)) {
+      delta.copy(group.matrixWorld).invert().multiply(lastWorld);
+      turn.setFromMatrix4(delta);
+      sims.forEach((sim, k) => {
+        if (draws[k].localSpace) return;
+        for (let p = 0; p < sim.count; p++) {
+          at.fromArray(sim.pos, 3 * p).applyMatrix4(delta).toArray(sim.pos, 3 * p);
+          for (const v of [sim.vel, sim.base]) at.fromArray(v, 3 * p).applyMatrix3(turn).toArray(v, 3 * p);
+        }
+      });
+    }
+    lastWorld.copy(group.matrixWorld); placed = true;
+  }
   const advance = (dt, thin) => { for (const sim of sims) sim.step(dt, thin); };
   if (warm) { const ahead = warmTime(sims); for (let t = 0; t < ahead; t += 1 / 30) advance(1 / 30, 1); }
   // (lit: an emitter's material gives a colour the light at its place multiplies, E2)
@@ -457,7 +500,9 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
     /** The light at its place (linear [r, g, b]: lighting.js lightAt) on its lit materials. */
     setLight(rgb) { for (const part of parts) part.light?.(rgb); },
     count: () => sims.reduce((n, sim) => n + sim.count, 0),
-    step(dt, thin = 1, scale = [1, 1]) {
+    step(dt, thin = 1, scale = [1, 1], height = 0) {
+      for (const sim of sims) sim.height = height;
+      if (worldSpace) stayInWorld();
       // played out (every emitter has run its loops and lost its last particle): again after a pause
       if (sims.length && sims.every(sim => sim.ended)) { pause += dt; if (pause >= REPLAY_PAUSE) { pause = 0; start(); } }
       else advance(dt, thin);

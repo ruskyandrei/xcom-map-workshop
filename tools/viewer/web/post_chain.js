@@ -6,6 +6,11 @@
 // The depth: the target is multisampled, and three resolves its depth into a depth texture with its colour; the last
 // pass writes that depth to the screen beside the graded colour (gl_FragDepth), so a helper drawn afterwards is hidden
 // where a piece is in front of it, as before.
+//
+// The effects' likenesses (game-likeness plan, E3: `soft`) are drawn in a second pass into the same target, after the
+// pieces, reading the pieces' resolved depth (a soft particle fades where a wall is near behind it). Three invalidates
+// the multisampled colour once it has resolved it, so that pass first writes the resolved colour back (a quad drawn
+// before the likenesses in the same draw); the depth it keeps.
 import * as THREE from 'three';
 import { GRADE_GLSL } from './post_grade.js';
 
@@ -57,12 +62,19 @@ void main() {
 	gl_FragDepth = texture2D( depth, vUv ).r;
 }`;
 
+// the pieces' resolved colour written back into the target, under the likenesses' pass
+const COPY = `uniform sampler2D frame;
+varying vec2 vUv;
+void main() { gl_FragColor = texture2D( frame, vUv ); }`;
+
 const vec3 = () => ({ value: new THREE.Vector3() });
 
-/** The chain for a renderer. `render(world, camera, parts, values, helpers)` draws a frame: `parts` the world's
+/** The chain for a renderer. `render(world, camera, parts, values, helpers, soft)` draws a frame: `parts` the world's
  *  children that are the map (its pieces, its lights' likenesses, its effects'), every other child but a light a
- *  helper; `values` post_grade.postUniforms'; `helpers` false leaves them out (a picture of the view). `warm` compiles
- *  the pieces' shaders as the target draws them (they differ from the screen's: no tone curve, linear colour). */
+ *  helper; `values` post_grade.postUniforms'; `helpers` false leaves them out (a picture of the view); `soft`
+ *  ({ object: one of `parts`, depth(texture or null) }) drawn after the rest of the map, `depth` handing it the map's
+ *  depth texture for that pass (and null after). `warm` compiles the pieces' shaders as the target draws them (they
+ *  differ from the screen's: no tone curve, linear colour). */
 export function createPostChain(renderer) {
   const size = new THREE.Vector2();
   let target = null, bloomA = null, bloomB = null;
@@ -80,7 +92,9 @@ export function createPostChain(renderer) {
     bloomTint: vec3(), bloomScreenBlend: { value: 10 }, gradeShadows: vec3(), gradeInverseHighlights: vec3(),
     gradeMidTones: vec3(), gradeKeep: { value: 1 }, gradeLuminance: vec3(), gradeColorize: vec3(),
   }, { depthTest: true, depthWrite: true, depthFunc: THREE.AlwaysDepth });     // (depth is only written where tested)
-
+  const copy = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), pass(COPY, { frame: { value: null } }));
+  copy.frustumCulled = false; copy.renderOrder = -1e9; copy.raycast = () => {};
+  let lastSoft = false;
   function fit() {
     renderer.getDrawingBufferSize(size);
     const w = Math.max(1, size.x), h = Math.max(1, size.y);
@@ -104,11 +118,22 @@ export function createPostChain(renderer) {
     try { draw(); } finally { for (const child of hidden) child.visible = true; }
   }
 
-  function render(world, camera, parts, values, helpers = true) {
+  function render(world, camera, parts, values, helpers = true, soft = null) {
     fit();
     const before = renderer.getRenderTarget();
+    const second = soft?.object && parts.has(soft.object) && soft.object.visible ? soft.object : null;
     // the map's pieces, in linear light: the target takes no tone curve and no colour space
-    only(world, child => parts.has(child), () => { renderer.setRenderTarget(target); renderer.render(world, camera); });
+    only(world, child => parts.has(child) && child !== second, () => { renderer.setRenderTarget(target); renderer.render(world, camera); });
+    lastSoft = Boolean(second);
+    if (second) {
+      // the likenesses over them, with the pieces' depth to read: the colour written back first, nothing cleared
+      const background = world.background, autoClear = renderer.autoClear;
+      copy.material.uniforms.frame.value = target.texture;
+      world.background = null; renderer.autoClear = false; world.add(copy);
+      soft.depth(target.depthTexture);
+      try { only(world, child => child === second || child === copy, () => { renderer.setRenderTarget(target); renderer.render(world, camera); }); }
+      finally { world.remove(copy); world.background = background; renderer.autoClear = autoClear; soft.depth(null); }
+    }
     const u = composite.uniforms;
     u.bloomOn.value = values.bloomOn;
     if (values.bloomOn) {
@@ -152,5 +177,5 @@ export function createPostChain(renderer) {
     return target.width * target.height * (8 * 4 + 4 * 4 + 8 + 4) + 2 * bloomA.width * bloomA.height * 8;
   }
 
-  return { render, warm, memory, get target() { return target; } };
+  return { render, warm, memory, get target() { return target; }, get soft() { return lastSoft; } };
 }

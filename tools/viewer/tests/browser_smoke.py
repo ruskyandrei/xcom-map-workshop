@@ -4277,6 +4277,13 @@ def check_likeness(page):
             page.evaluate("l => viewer.setLook(l === 'game' ? 'neutral' : 'game')", look)
             page.wait_for_function('([id, was]) => JSON.stringify(viewer.likenessOf(id).find(e => e.light).light) !== was', arg=[lit, before], timeout=30000)
             page.evaluate("l => viewer.setLook(l)", look)
+        # (E3: the Game look's frame draws the likenesses after the pieces, reading the pieces' depth)
+        look = page.evaluate("document.getElementById('lighting')?.value ?? null")
+        if look and page.evaluate('Boolean(viewer.post) && Boolean(viewer.setLook("game"))'):
+            page.wait_for_function('viewer.post.ready()', timeout=300000)
+            page.evaluate('viewer.post.draw(false)')
+            assert page.evaluate('viewer.post.chain.soft'), 'the Game look drew no likenesses pass'
+            page.evaluate("l => viewer.setLook(l)", look)
 
     def frame_time():
         return page.evaluate("""() => new Promise(done => { let n = 0, t0 = performance.now(); const tick = () => { if (++n === 60) done((performance.now() - t0) / 60); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); })""")

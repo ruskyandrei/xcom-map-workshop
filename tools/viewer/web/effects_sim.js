@@ -208,10 +208,17 @@ const STEP = {
     if (v) for (let k = 0; k < 3; k++) s.meshRate[3 * p + k] = m.bScaleRotRate ? s.meshRate[3 * p + k] * v[k] : v[k] * TAU;
   },
   ParameterDynamic(m, s, p, rel, own) { dynamicValues(m, s, p, rel, own, false); },
+  // (a particle past the height dies at the next step: below it where it is a floor, else above; the height the
+  // world's where it is absolute, else the emitter's own)
+  KillHeight(m, s, p, rel, own) {
+    const h = num(sample(m.Height, s.time, own, s.params), 0), z = s.pos[3 * p + 2] + (m.bAbsolute ? s.height : 0);
+    if (m.bFloor ? z < h : z > h) s.life[p] = Math.max(s.age[p], 1e-6);
+  },
 };
 STEP.ParameterDynamic_Seeded = STEP.ParameterDynamic;
 
-/** One emitter's simulation from its draw record. `params`: the effect's particle parameters (parametersOf); `seed`:
+/** One emitter's simulation from its draw record (its state's `height` the emitter's own height in the world, set
+ *  by the caller). `params`: the effect's particle parameters (parametersOf); `seed`:
  *  a number; `limit`: the most particles it keeps. Gives its state: `count` live particles in the arrays `pos`,
  *  `vel` (3 each), `size` (3), `colour` (4), `turn`, `image`, `meshTurn` (3), `dynamic` (4: 1 each where the emitter
  *  has no dynamic parameter module, as the game gives a material), and step(dt, thin = 1): thin (0 to 1) scales what it
@@ -221,6 +228,7 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
   const n = Math.max(1, Math.min(limit, LIMITS.emitter)), f = k => new Float32Array(n * k);
   const s = {
     draw, params, rand: rng(seed), count: 0, time: 0, clock: 0, owed: 0, ended: false, spawning: true, loop: -1, fired: new Set(),
+    height: 0,      // the emitter's height in the world (game units), which an absolute kill height is measured from
     randomImage: draw.interp === 'PSUVIM_Random' || draw.interp === 'PSUVIM_Random_Blend',
     images: Math.max(1, (draw.subImages?.[0] ?? 1) * (draw.subImages?.[1] ?? 1)),
     pos: f(3), base: f(3), vel: f(3), accel: f(3), baseSize: f(3), size: f(3), baseColour: f(4), colour: f(4),
