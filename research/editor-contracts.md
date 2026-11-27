@@ -654,6 +654,14 @@ program is drawn by it; the textures' roles above stay on the record for one wit
 followed: its module record's `DynamicParams` lists its four values, each `{ value (a distribution), spawnOnly,
 emitterTime, method (EDPV_UserSet, EDPV_VelocityX, ...Y, ...Z, ...Mag), scaleVelocity }`.
 
+**Draw version 7** (export 49, stage E4): each drawn emitter's `name` (its EmitterName, which a location emitter or an
+event names); more modules followed: `Orbit`, `AttractorPoint`, `SizeMultiplyVelocity`, `KillBox`, `SpawnPerUnit`,
+`LocationEmitter`, `LocationEmitterDirect`, `EventReceiverSpawn`, `EventReceiverKillParticles` and `EventGenerator`, whose
+record's `Events` lists its events (`{ Type, CustomName, Frequency, ParticleFrequency, bFirstTimeOnly, bLastTimeOnly }`);
+a module's struct property (an orbit's `OffsetOptions`) is an object of its plain fields. An emitter that only sends
+events has a draw record of `kind: "events"` (nothing drawn, stepped so its events reach the others) and keeps its
+`why`; one that only another's event starts is drawn (no longer `draw: null`).
+
 **A distribution** is one of:
 - a table, `{ op, lock, per, chunk, scale, start, min, max, entries }`: the game's baked lookup table. An entry is
   `chunk` floats: the value (`op` 1), or its least then its most (`op` 2 random between them, 3 one or the other).

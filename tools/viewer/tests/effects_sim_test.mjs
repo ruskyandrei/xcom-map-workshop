@@ -4,7 +4,7 @@
 // giving the same particles. On draw records shaped as export 29 makes them (tools/viewer/effects_draw.py).
 // Run: node tools/viewer/tests/effects_sim_test.mjs
 import assert from 'node:assert/strict';
-import { LIMITS, alphaErodes, dataChannels, makeEmitter, parametersOf, rng, sample, warmTime } from '../web/effects_sim.js';
+import { LIMITS, alphaErodes, dataChannels, deliverEvents, linkEmitters, makeEmitter, parametersOf, rng, sample, warmTime } from '../web/effects_sim.js';
 
 const near = (a, b, e = 1e-4) => assert.ok(Math.abs(a - b) <= e, `${a} is not ${b}`);
 const constant = (...v) => ({ op: 1, lock: 0, per: 1, chunk: v.length, scale: 0, start: 0, min: Math.min(...v), max: Math.max(...v), entries: [v, v] });
@@ -243,6 +243,76 @@ assert.deepEqual(parametersOf({ parameters: [{ name: 'Color', type: 'PSPT_Color'
   assert.equal(relative.count, 1);
   relative.step(0.2); relative.step(0.01); relative.step(0.01);
   assert.equal(relative.count, 0, 'under the emitter by more than 30: gone, wherever it stands');
+}
+
+// --- E4: one emitter's events start another's particles where they happened; a location emitter places its particles
+// at another's; a direct one keeps them there; an orbit's offset turns; an attractor pulls; size by speed; a kill box;
+// spawning by the distance moved
+{
+  const once = (extra, life = 0.5) => ({ kind: 'sprite', rate: constant(0), bursts: [{ count: 1, countLow: -1, time: 0 }], duration: 9, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(life) }, ...extra] });
+  const sender = { ...once([{ cls: 'Velocity', StartVelocity: constant(0, 0, 10) },
+    { cls: 'EventGenerator', Events: [{ Type: 'EPET_Death', CustomName: 'Landed' }] }]), name: 'Body' };
+  const receiver = { kind: 'sprite', rate: constant(0), bursts: [], duration: 9, loops: 0, delay: 0, name: 'Flying',
+    modules: [{ cls: 'Lifetime', Lifetime: constant(9) },
+              { cls: 'EventReceiverSpawn', EventGeneratorType: 'EPET_Death', EventName: 'Landed', SpawnCount: constant(2),
+                bInheritVelocity: true, InheritVelocityScale: constant(2, 2, 2) }] };
+  const deaf = { ...receiver, name: 'Other', modules: [receiver.modules[0], { ...receiver.modules[1], EventName: 'Elsewhere' }] };
+  const sims = [makeEmitter(sender, { seed: 7 }), makeEmitter(receiver, { seed: 8 }), makeEmitter(deaf, { seed: 9 })];
+  linkEmitters(sims);
+  const step = dt => { for (const s of sims) s.step(dt); deliverEvents(sims); };
+  step(0.01); step(0.3);
+  assert.equal(sims[1].count, 0, 'nothing before the event');
+  step(0.3); step(0.01);
+  assert.equal(sims[0].count, 0);
+  assert.equal(sims[1].count, 2, 'two where the body died');
+  near(sims[1].pos[2], sims[1].pos[5]);
+  assert.ok(sims[1].pos[2] > 2, `at its height then: ${sims[1].pos[2]}`);
+  near(sims[1].vel[2], 20, 1e-3);                     // its speed, 10, inherited twice over
+  assert.equal(sims[2].count, 0, 'an event of another name starts nothing');
+
+  // a location emitter: born at a live particle of the emitter it names; a direct one: kept at the particle of its place
+  const source = { ...once([{ cls: 'Location', StartLocation: constant(100, 50, 25) }], 9), name: 'Licks' };
+  const placed = once([{ cls: 'LocationEmitter', EmitterName: 'Licks' }], 9);
+  const direct = once([{ cls: 'LocationEmitterDirect', EmitterName: 'Licks' }], 9);
+  const group = [makeEmitter(source, { seed: 1 }), makeEmitter({ ...placed, delay: 0.05 }, { seed: 2 }), makeEmitter({ ...direct, delay: 0.05 }, { seed: 3 })];
+  linkEmitters(group);
+  for (let k = 0; k < 4; k++) { for (const s of group) s.step(0.03); deliverEvents(group); }
+  assert.equal(group[1].count, 1);
+  assert.deepEqual([...group[1].pos.subarray(0, 3)], [100, 50, 25]);
+  assert.deepEqual([...group[2].pos.subarray(0, 3)], [100, 50, 25]);
+
+  // an orbit: drawn at its place plus its offset turned a quarter about z
+  const orbit = makeEmitter(once([{ cls: 'Orbit', OffsetAmount: constant(10, 0, 0), RotationAmount: constant(0, 0, 0.25), RotationRateAmount: constant(0, 0, 0),
+    OffsetOptions: { bProcessDuringSpawn: true }, RotationOptions: { bProcessDuringSpawn: true }, RotationRateOptions: { bProcessDuringSpawn: true } }], 9), { seed: 4 });
+  orbit.step(0.01); orbit.step(0.01);
+  assert.deepEqual([...orbit.pos.subarray(0, 3)], [0, 0, 0]);
+  [0, 10, 0].forEach((v, k) => near(orbit.drawn[k], v, 1e-6));
+
+  // an attractor at the emitter pulls a particle 100 out back toward it
+  const pulled = makeEmitter(once([{ cls: 'Location', StartLocation: constant(100, 0, 0) },
+    { cls: 'AttractorPoint', Position: constant(0, 0, 0), Range: constant(0), Strength: constant(50), bAffectBaseVelocity: true }], 9), { seed: 5 });
+  pulled.step(0.01); pulled.step(0.5);
+  assert.ok(pulled.vel[0] < -20 && pulled.pos[0] < 100, `pulled: ${pulled.vel[0]}, ${pulled.pos[0]}`);
+
+  // size by speed: a size of 10 at a speed of 20 times 0.5 is 100
+  const fast = makeEmitter(once([{ cls: 'Size', StartSize: constant(10, 10, 10) }, { cls: 'Velocity', StartVelocity: constant(20, 0, 0) },
+    { cls: 'SizeMultiplyVelocity', VelocityMultiplier: constant(0.5, 0.5, 0.5) }], 9), { seed: 6 });
+  fast.step(0.01); fast.step(0.01);
+  near(fast.size[0], 100, 1e-3);
+
+  // a kill box: inside it, gone at the next step
+  const boxed = makeEmitter(once([{ cls: 'KillBox', LowerLeftCorner: constant(-5, -5, -5), UpperRightCorner: constant(5, 5, 5), bKillInside: true }], 9), { seed: 7 });
+  boxed.step(0.01); boxed.step(0.01); boxed.step(0.01);
+  assert.equal(boxed.count, 0);
+
+  // spawning by distance: 100 units moved at 1.5 particles each 50 units is 3; standing still, none
+  const trail = makeEmitter({ kind: 'sprite', rate: constant(0), bursts: [], duration: 9, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(9) }, { cls: 'SpawnPerUnit', SpawnPerUnit: constant(1.5), UnitScalar: 50, MovementTolerance: 0.1 }] }, { seed: 8 });
+  trail.step(0.01);
+  assert.equal(trail.count, 0);
+  trail.moved = 100; trail.step(0.01);
+  assert.equal(trail.count, 3);
 }
 
 console.log('effects_sim: ok');

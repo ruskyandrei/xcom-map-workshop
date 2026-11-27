@@ -11,7 +11,7 @@
 // `programs` a section) is drawn by it, as the game's shader draws it: its colour, glow, cut-out and opacity from the
 // particle's own colour, sub-image, dynamic parameter and the material's textures; the rest by the textures' roles.
 import * as THREE from 'three';
-import { LIMITS, alphaErodes, makeEmitter, warmTime } from './effects_sim.js';
+import { LIMITS, alphaErodes, deliverEvents, linkEmitters, makeEmitter, warmTime } from './effects_sim.js';
 import { FOG_PARS, fogShared } from './atmosphere_shader.js';
 import { PARTICLE_VARYINGS, constantAt, inputsRead, programFor, programGlsl } from './material_program.js';
 
@@ -353,7 +353,7 @@ function spriteObject(first, draw, deps) {
     const c = sim.count;
     material.uniforms.uScale.value.set(scale[0], scale[1]);
     if (object.userData.program) moveConstants(made, program.values, time);
-    at.offset.array.set(sim.pos.subarray(0, 3 * c)); at.vel.array.set(sim.vel.subarray(0, 3 * c));
+    at.offset.array.set((sim.drawn ?? sim.pos).subarray(0, 3 * c)); at.vel.array.set(sim.vel.subarray(0, 3 * c));
     at.colour.array.set(sim.colour.subarray(0, 4 * c)); at.image.array.set(sim.image.subarray(0, c));
     at.dynamic.array.set(sim.dynamic.subarray(0, 4 * c));
     for (let p = 0; p < c; p++) { at.size.array[3 * p] = sim.size[3 * p]; at.size.array[3 * p + 1] = sim.size[3 * p + 1]; at.size.array[3 * p + 2] = sim.turn[p]; }
@@ -416,11 +416,11 @@ function meshObjects(first, draw, deps, group) {
     }
   }).catch(() => {});
   holder.sync = (scale, time) => {
-    const c = sim.count;
+    const c = sim.count, at = sim.drawn ?? sim.pos;
     for (const o of made) {
       for (let p = 0; p < c; p++) {
         e.set(sim.meshTurn[3 * p], sim.meshTurn[3 * p + 1], sim.meshTurn[3 * p + 2]);
-        m4.compose(v3.set(sim.pos[3 * p], sim.pos[3 * p + 1], sim.pos[3 * p + 2]), q.setFromEuler(e), s3.set(sim.size[3 * p], sim.size[3 * p + 1], sim.size[3 * p + 2]));
+        m4.compose(v3.set(at[3 * p], at[3 * p + 1], at[3 * p + 2]), q.setFromEuler(e), s3.set(sim.size[3 * p], sim.size[3 * p + 1], sim.size[3 * p + 2]));
         o.setMatrixAt(p, m4);
       }
       o.userData.colours.array.set(sim.colour.subarray(0, 4 * c));
@@ -434,15 +434,16 @@ function meshObjects(first, draw, deps, group) {
   return holder;
 }
 
-/** Whether a system has anything the page can draw (an emitter with draw data). */
-export const drawable = system => Boolean(system?.emitters?.some(x => x.draw));
+/** Whether a system has anything the page can draw (an emitter with draw data that draws: not one that only sends
+ *  events, which is stepped for them). */
+export const drawable = system => Boolean(system?.emitters?.some(x => x.draw && x.draw.kind !== 'events'));
 
 /** What of a system the drawing leaves out, as the panel says it: { ignored: [module names], undrawn: [why] }. */
 export function leftOut(system) {
   const ignored = new Set(), undrawn = new Set();
   for (const x of system?.emitters ?? []) {
     if (x.draw) for (const k of x.draw.ignored ?? []) ignored.add(k);
-    else if (x.why && x.why !== 'no level of detail left' && x.why !== 'switched off in its system') undrawn.add(x.why);
+    if ((!x.draw || x.draw.kind === 'events') && x.why && x.why !== 'no level of detail left' && x.why !== 'switched off in its system') undrawn.add(x.why);
   }
   return { ignored: [...ignored], undrawn: [...undrawn] };
 }
@@ -460,13 +461,19 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
   const limit = Math.max(8, Math.min(LIMITS.emitter, Math.floor(LIMITS.effect / Math.max(1, draws.length))));
   let sims = [], pause = 0, clock = 0;
   // (an emitter drawn by its program gets its colour as the game gives it: its material reads every channel)
-  const start = () => { sims = draws.map((d, k) => makeEmitter(d, { params, seed: seed * 7919 + k * 104729 + 1, limit, raw: Boolean(partProgram(d)) })); parts.forEach((p, k) => p.rebind(sims[k])); };
+  const start = () => {
+    sims = draws.map((d, k) => makeEmitter(d, { params, seed: seed * 7919 + k * 104729 + 1, limit, raw: Boolean(partProgram(d)) }));
+    linkEmitters(sims);
+    parts.forEach((p, k) => p.rebind(sims[k]));
+  };
   // each emitter's drawing: made once, and bound to the emitter's next run when it replays (review finding 56: a
   // replay used to release and remake every geometry, material and mesh, and hide the sprites until their textures
   // came back)
   const parts = draws.map(d => {
     const part = { rebind(sim) { if (part.keep?.(sim)) return; part.release?.(); part.make(sim); } };
-    if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.ready = h.ready; part.keep = h.rebind; part.release = () => h.dispose(); part.byProgram = h.byProgram; part.light = h.light; part.lightNow = h.lightNow; };
+    // (an emitter that only sends events is stepped and draws nothing)
+    if (d.kind === 'events') part.make = () => { part.sync = () => {}; part.ready = Promise.resolve(); part.keep = () => true; part.release = () => {}; };
+    else if (d.kind === 'mesh') part.make = sim => { const h = meshObjects(sim, d, deps, group); part.sync = h.sync; part.ready = h.ready; part.keep = h.rebind; part.release = () => h.dispose(); part.byProgram = h.byProgram; part.light = h.light; part.lightNow = h.lightNow; };
     else part.make = sim => { const o = spriteObject(sim, d, deps); group.add(o); part.sync = o.userData.sync; part.ready = o.userData.ready; part.keep = o.userData.rebind; part.release = () => { o.userData.dispose(); group.remove(o); }; part.byProgram = () => o.userData.program; part.light = o.userData.light; part.lightNow = o.userData.lightNow; };
     return part;
   });
@@ -476,9 +483,13 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
   const lastWorld = new THREE.Matrix4(), delta = new THREE.Matrix4(), turn = new THREE.Matrix3(), at = new THREE.Vector3();
   let placed = false;
   const worldSpace = draws.some(d => !d.localSpace);
+  const followsWorld = worldSpace || draws.some(d => d.modules?.some(m => m.cls === 'SpawnPerUnit'));
+  const was = new THREE.Vector3(), now = new THREE.Vector3();
   function stayInWorld() {
     group.updateWorldMatrix(true, false);
-    if (placed && !group.matrixWorld.equals(lastWorld)) {
+    const moved = placed ? now.setFromMatrixPosition(group.matrixWorld).distanceTo(was.setFromMatrixPosition(lastWorld)) : 0;
+    for (const sim of sims) sim.moved = moved;
+    if (placed && !group.matrixWorld.equals(lastWorld) && worldSpace) {
       delta.copy(group.matrixWorld).invert().multiply(lastWorld);
       turn.setFromMatrix4(delta);
       sims.forEach((sim, k) => {
@@ -491,7 +502,8 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
     }
     lastWorld.copy(group.matrixWorld); placed = true;
   }
-  const advance = (dt, thin) => { for (const sim of sims) sim.step(dt, thin); };
+  // (each emitter stepped, then what each sent handed to those that receive it, E4)
+  const advance = (dt, thin) => { for (const sim of sims) sim.step(dt, thin); deliverEvents(sims); };
   if (warm) { const ahead = warmTime(sims); for (let t = 0; t < ahead; t += 1 / 30) advance(1 / 30, 1); }
   // (lit: an emitter's material gives a colour the light at its place multiplies, E2)
   const lit = draws.some(d => (d.kind === 'mesh' ? d.programs ?? [] : [partProgram(d)]).some((p, k) => p && partProgram(d, k)?.outputs?.diffuse));
@@ -502,7 +514,7 @@ export function makeLikeness(system, deps, { params = {}, seed = 1, warm = true 
     count: () => sims.reduce((n, sim) => n + sim.count, 0),
     step(dt, thin = 1, scale = [1, 1], height = 0) {
       for (const sim of sims) sim.height = height;
-      if (worldSpace) stayInWorld();
+      if (followsWorld) stayInWorld();
       // played out (every emitter has run its loops and lost its last particle): again after a pause
       if (sims.length && sims.every(sim => sim.ended)) { pause += dt; if (pause >= REPLAY_PAUSE) { pause = 0; start(); } }
       else advance(dt, thin);

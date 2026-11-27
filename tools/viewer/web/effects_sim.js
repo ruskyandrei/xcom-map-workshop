@@ -8,6 +8,12 @@
 // events and attractors are not followed. An emitter drawn by its material's program (draw version 6) keeps its
 // colour as the game gives it (`raw`: a channel that carries a number to the material is the material's to read) and
 // its four dynamic parameter values (`dynamic`), which the program reads.
+//
+// Stage E4 (draw version 7): one emitter's particles start, place and end another's in its system (the event
+// generator and receivers, the location emitters: `linkEmitters` gives each its peers by name, `deliverEvents` hands
+// on what each sent in a step), orbits (each particle drawn at its place plus its orbit's turning offset: `drawn`),
+// attractor points, size by speed, kill boxes, and spawning by the distance the effect moved (`moved`, set by the
+// caller each step).
 
 export const LIMITS = { emitter: 400, effect: 1500, view: 30000 };
 const TAU = Math.PI * 2;
@@ -148,8 +154,50 @@ const BIRTH = {
   MeshRotation(m, s, p) { const v = vec(sample(m.StartRotation, s.time, s.rand, s.params), null); if (v) for (let k = 0; k < 3; k++) s.meshTurn[3 * p + k] += v[k] * TAU; },
   MeshRotationRate(m, s, p) { const v = vec(sample(m.StartRotationRate, s.time, s.rand, s.params), null); if (v) for (let k = 0; k < 3; k++) s.meshBase[3 * p + k] += v[k] * TAU; },
   ParameterDynamic(m, s, p) { dynamicValues(m, s, p, 0, s.rand, true); },
+  // (at a live particle of the emitter it names, picked at random or in turn, with a share of its speed)
+  LocationEmitter(m, s, p) {
+    const src = s.peers?.get(m.EmitterName);
+    if (!src || !src.count) return;
+    const q = m.SelectionMethod === 'ELESM_Sequential' ? (s.nextSource = ((s.nextSource ?? -1) + 1) % src.count) : Math.floor(s.rand() * src.count);
+    for (let k = 0; k < 3; k++) s.pos[3 * p + k] = src.pos[3 * q + k];
+    if (m.bInheritSourceVelocity) {
+      const f = m.InheritSourceVelocityScale ?? 1;
+      for (let k = 0; k < 3; k++) s.base[3 * p + k] += src.vel[3 * q + k] * f;
+    }
+  },
+  // (where the particle of the same place in the emitter it names is: born there, and kept there each step)
+  LocationEmitterDirect(m, s, p) { followSource(m, s, p); },
+  Orbit(m, s, p) { orbitValues(m, s, p, 0, s.rand, true); },
 };
 for (const k of ['Lifetime', 'Location', 'Velocity', 'Size', 'Color', 'Rotation', 'ParameterDynamic']) BIRTH[`${k}_Seeded`] = BIRTH[k];
+
+function followSource(m, s, p) {
+  const src = s.peers?.get(m.EmitterName);
+  if (!src || p >= src.count) return;
+  for (let k = 0; k < 3; k++) { s.pos[3 * p + k] = src.pos[3 * p + k]; s.vel[3 * p + k] = src.vel[3 * p + k]; }
+}
+/** An orbit module's offset, turn and turning rate for particle `p` (its slot among the emitter's orbits, `m.slot`):
+ *  each worked out at birth and, where its options say, each step (at the particle's life or the emitter's time). */
+function orbitValues(m, s, p, rel, rand, born) {
+  const at = 9 * (s.orbits * p + m.slot);
+  const parts = [['OffsetAmount', 'OffsetOptions', 0], ['RotationAmount', 'RotationOptions', 3], ['RotationRateAmount', 'RotationRateOptions', 6]];
+  for (const [key, options, k] of parts) {
+    const o = m[options] ?? {};
+    if (born ? o.bProcessDuringSpawn === false : !o.bProcessDuringUpdate) continue;
+    const v = vec(sample(m[key], o.bUseEmitterTime ? s.time : rel, rand, s.params), null);
+    if (v) for (let c = 0; c < 3; c++) s.orbit[at + k + c] = v[c];
+  }
+}
+/** The offset of an orbit turned by its turn (in turns about x, y and z, as UE3's rotator from Euler degrees). */
+function orbitOffset(o, at, out) {
+  const [x, y, z] = [o[at], o[at + 1], o[at + 2]];
+  const r = o[at + 3] * TAU, pi = o[at + 4] * TAU, ya = o[at + 5] * TAU;
+  // roll about x, then pitch about y, then yaw about z
+  const y1 = y * Math.cos(r) - z * Math.sin(r), z1 = y * Math.sin(r) + z * Math.cos(r);
+  const x2 = x * Math.cos(pi) + z1 * Math.sin(pi), z2 = -x * Math.sin(pi) + z1 * Math.cos(pi);
+  out[0] = x2 * Math.cos(ya) - y1 * Math.sin(ya); out[1] = x2 * Math.sin(ya) + y1 * Math.cos(ya); out[2] = z2;
+  return out;
+}
 
 /** A dynamic parameter module's four values for particle `p` (ParticleModuleParameterDynamic: each its table at the
  *  particle's life, or the emitter's time where it says so; or the particle's speed along an axis or in all, times
@@ -208,6 +256,43 @@ const STEP = {
     if (v) for (let k = 0; k < 3; k++) s.meshRate[3 * p + k] = m.bScaleRotRate ? s.meshRate[3 * p + k] * v[k] : v[k] * TAU;
   },
   ParameterDynamic(m, s, p, rel, own) { dynamicValues(m, s, p, rel, own, false); },
+  // (the orbit turns at its rate; its offset and turn again where its options say)
+  Orbit(m, s, p, rel, own, dt) {
+    orbitValues(m, s, p, rel, own, false);
+    const at = 9 * (s.orbits * p + m.slot);
+    for (let c = 0; c < 3; c++) s.orbit[at + 3 + c] += s.orbit[at + 6 + c] * dt;
+  },
+  // (pulled toward its point, within its range, harder near it where it says)
+  AttractorPoint(m, s, p, rel, own, dt) {
+    const at = vec(sample(m.Position, s.time, own, s.params), [0, 0, 0]), range = num(sample(m.Range, s.time, own, s.params), 0);
+    const d = [at[0] - s.pos[3 * p], at[1] - s.pos[3 * p + 1], at[2] - s.pos[3 * p + 2]], n = Math.hypot(...d);
+    if (n < 1e-6 || (range > 0 && n > range)) return;
+    let strength = num(sample(m.Strength, s.time, own, s.params), 0);
+    if (m.StrengthByDistance && range > 0) strength *= (range - n) / range;
+    for (let k = 0; k < 3; k++) {
+      const pull = d[k] / n * strength * dt;
+      s.vel[3 * p + k] += pull;
+      if (m.bAffectBaseVelocity) s.base[3 * p + k] += pull;
+    }
+  },
+  // (its size by its speed, axis by axis where it says)
+  SizeMultiplyVelocity(m, s, p, rel, own) {
+    const v = vec(sample(m.VelocityMultiplier, rel, own, s.params), null);
+    if (!v) return;
+    const speed = Math.hypot(s.vel[3 * p], s.vel[3 * p + 1], s.vel[3 * p + 2]);
+    if (m.MultiplyX !== false) s.size[3 * p] *= v[0] * speed;
+    if (m.MultiplyY !== false) s.size[3 * p + 1] *= v[1] * speed;
+    if (m.MultiplyZ !== false) s.size[3 * p + 2] *= v[2] * speed;
+  },
+  // (dies inside its box, or outside it, at the next step; an absolute box measured up from the effect's height)
+  KillBox(m, s, p, rel, own) {
+    const lo = vec(sample(m.LowerLeftCorner, s.time, own, s.params), null), hi = vec(sample(m.UpperRightCorner, s.time, own, s.params), null);
+    if (!lo || !hi) return;
+    const at = [s.pos[3 * p], s.pos[3 * p + 1], s.pos[3 * p + 2] + (m.bAbsolute ? s.height : 0)];
+    const inside = [0, 1, 2].every(k => at[k] >= Math.min(lo[k], hi[k]) && at[k] <= Math.max(lo[k], hi[k]));
+    if (m.bKillInside ? inside : !inside) s.life[p] = Math.max(s.age[p], 1e-6);
+  },
+  LocationEmitterDirect(m, s, p) { followSource(m, s, p); },
   // (a particle past the height dies at the next step: below it where it is a floor, else above; the height the
   // world's where it is absolute, else the emitter's own)
   KillHeight(m, s, p, rel, own) {
@@ -229,18 +314,35 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
   const s = {
     draw, params, rand: rng(seed), count: 0, time: 0, clock: 0, owed: 0, ended: false, spawning: true, loop: -1, fired: new Set(),
     height: 0,      // the emitter's height in the world (game units), which an absolute kill height is measured from
+    name: draw.name ?? null, peers: null, sent: [], moved: 0, stopped: false,
     randomImage: draw.interp === 'PSUVIM_Random' || draw.interp === 'PSUVIM_Random_Blend',
     images: Math.max(1, (draw.subImages?.[0] ?? 1) * (draw.subImages?.[1] ?? 1)),
     pos: f(3), base: f(3), vel: f(3), accel: f(3), baseSize: f(3), size: f(3), baseColour: f(4), colour: f(4),
     turn: f(1), baseRate: f(1), rate: f(1), age: f(1), life: f(1), image: f(1), own: f(1), meshTurn: f(3), meshBase: f(3), meshRate: f(3),
     dynamic: f(4),
   };
-  const births = (draw.modules ?? []).filter(m => BIRTH[m.cls]).map(m => [BIRTH[m.cls], m]);
+  // the orbits (each a slot of offset, turn and rate a particle), and where each particle is drawn
+  const slotted = new Map();
+  for (const m of draw.modules ?? []) if (m.cls === 'Orbit') slotted.set(m, { ...m, slot: slotted.size });
+  s.orbits = slotted.size;
+  s.orbit = s.orbits ? f(9 * s.orbits) : null;
+  s.drawn = s.orbits ? f(3) : null;
+  // the events it sends: a particle born, a particle dead
+  const sends = (draw.modules ?? []).filter(m => m.cls === 'EventGenerator').flatMap(m => m.Events ?? []);
+  const send = (type, p) => {
+    for (const e of sends) {
+      if (e.Type !== type) continue;
+      s.sent.push({ type, name: e.CustomName, pos: [s.pos[3 * p], s.pos[3 * p + 1], s.pos[3 * p + 2]], vel: [s.vel[3 * p], s.vel[3 * p + 1], s.vel[3 * p + 2]] });
+    }
+  };
+  const perUnit = (draw.modules ?? []).find(m => m.cls === 'SpawnPerUnit');
+  const slotOf = m => slotted.get(m) ?? m;      // (an orbit with its slot)
+  const births = (draw.modules ?? []).filter(m => BIRTH[m.cls]).map(m => [BIRTH[m.cls], slotOf(m)]);
   const data = raw ? null : dataChannels(draw);
-  const steps = (draw.modules ?? []).filter(m => STEP[m.cls]).map(m => [STEP[m.cls], m]);
+  const steps = (draw.modules ?? []).filter(m => STEP[m.cls]).map(m => [STEP[m.cls], slotOf(m)]);
   const fields = [['pos', 3], ['base', 3], ['vel', 3], ['accel', 3], ['baseSize', 3], ['size', 3], ['baseColour', 4], ['colour', 4], ['turn', 1],
                   ['baseRate', 1], ['rate', 1], ['age', 1], ['life', 1], ['image', 1], ['own', 1], ['meshTurn', 3], ['meshBase', 3], ['meshRate', 3],
-                  ['dynamic', 4]];
+                  ['dynamic', 4], ...(s.orbits ? [['orbit', 9 * s.orbits], ['drawn', 3]] : [])];
   function spawn() {
     if (s.count >= n) return;
     const p = s.count++;
@@ -250,15 +352,29 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
     s.own[p] = s.rand();
     s.image[p] = s.randomImage ? Math.floor(s.rand() * s.images) : 0;
     for (const [birth, m] of births) birth(m, s, p);
+    send('EPET_Spawn', p);
+    return p;
   }
+  /** Particles spawned where another emitter's event happened (`at`, the emitter's frame), with a speed of their own
+   *  plus `vel` (a receiver's inherited share). */
+  s.spawnAt = (count, at, vel) => {
+    for (let i = 0; i < count; i++) {
+      const p = spawn();
+      if (p === undefined) return;
+      for (let k = 0; k < 3; k++) { s.pos[3 * p + k] += at[k]; s.base[3 * p + k] += vel[k]; }
+    }
+  };
   // a particle's own random number, the same each step (its steps' samples of a random table use it): one function for
   // the emitter, reading the particle being stepped, not a function made per particle per step (review finding 56)
   let ownNow = 0;
   const own = () => ownNow;
   function kill(p) {
+    send('EPET_Death', p);
     const last = --s.count;
     if (p !== last) for (const [key, k] of fields) s[key].copyWithin(p * k, last * k, last * k + k);
   }
+  /** Every live particle gone (a receiver's kill event), and no more spawned where it says. */
+  s.killAll = stop => { s.count = 0; if (stop) s.stopped = true; };
   s.step = (dt, thin = 1) => {
     if (!(dt > 0)) return;
     // the emitter's clock: its delay once, then its duration again and again (as many times as it loops; 0 for ever)
@@ -274,9 +390,12 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
       s.age[p] += dt;
       if (s.life[p] > 0 && s.age[p] >= s.life[p]) kill(p);
     }
-    if (since >= 0 && s.spawning) {
+    if (since >= 0 && s.spawning && !s.stopped) {
       const rate = num(sample(draw.rate, s.time, s.rand, params), 0), scale = num(sample(draw.rateScale, s.time, s.rand, params), 1);
-      s.owed += Math.max(0, rate * scale) * thin * dt;
+      // (spawned by the distance the effect moved too; its rate left out while it moves, where it says so)
+      const moving = perUnit && s.moved > (perUnit.MovementTolerance ?? 0.1);
+      if (moving) s.owed += Math.min(s.moved, perUnit.MovementClamp ?? 1e9) / (perUnit.UnitScalar || 50) * num(sample(perUnit.SpawnPerUnit, s.time, s.rand, params), 0) * thin;
+      if (!(moving && perUnit.bIgnoreSpawnRateWhenMoving)) s.owed += Math.max(0, rate * scale) * thin * dt;
       while (s.owed >= 1) { s.owed -= 1; spawn(); }
       (draw.bursts ?? []).forEach((b, k) => {
         if (s.fired.has(k) || s.time < b.time * (duration || 1)) return;
@@ -301,6 +420,12 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
       }
       for (let k = 0; k < 3; k++) { s.pos[3 * p + k] += s.vel[3 * p + k] * dt; s.meshTurn[3 * p + k] += s.meshRate[3 * p + k] * dt; }
       s.turn[p] += s.rate[p] * dt;
+      if (s.orbits) {
+        // drawn at its place plus each orbit's turned offset (UE3's chain modes all taken as adding)
+        const off = [0, 0, 0], o = [0, 0, 0];
+        for (let k = 0; k < s.orbits; k++) { orbitOffset(s.orbit, 9 * (s.orbits * p + k), o); off[0] += o[0]; off[1] += o[1]; off[2] += o[2]; }
+        for (let k = 0; k < 3; k++) s.drawn[3 * p + k] = s.pos[3 * p + k] + off[k];
+      }
     }
     s.ended = since >= 0 && !s.spawning && s.count === 0;
   };
@@ -313,6 +438,36 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
     return d.entries ? Math.max(0, ...d.entries.flat()) : 0;
   };
   return s;
+}
+
+/** The emitters of one system told of each other by name (the location emitters and the events find their peers so). */
+export function linkEmitters(sims) {
+  const peers = new Map(sims.filter(s => s.name).map(s => [s.name, s]));
+  for (const s of sims) s.peers = peers;
+}
+/** What each emitter of a system sent in its last step handed to those that receive it: an event receiver spawns its
+ *  count where the event was (with the sender's speed by its share, where it says), a kill receiver ends its particles.
+ *  A receiver of no generator type or no name takes every one. */
+export function deliverEvents(sims) {
+  for (const from of sims) {
+    if (!from.sent.length) continue;
+    const sent = from.sent;
+    from.sent = [];
+    for (const ev of sent) {
+      for (const to of sims) {
+        for (const m of to.draw.modules ?? []) {
+          if (m.cls !== 'EventReceiverSpawn' && m.cls !== 'EventReceiverKillParticles') continue;
+          const type = m.EventGeneratorType ?? 'EPET_Any';
+          if (type !== 'EPET_Any' && type !== ev.type) continue;
+          if (m.EventName && m.EventName !== 'None' && m.EventName !== ev.name) continue;
+          if (m.cls === 'EventReceiverKillParticles') { to.killAll(Boolean(m.bStopSpawning)); continue; }
+          const count = Math.max(0, Math.round(num(sample(m.SpawnCount, to.time, to.rand, to.params), 1)));
+          const share = m.bInheritVelocity ? vec(sample(m.InheritVelocityScale, to.time, to.rand, to.params), [1, 1, 1]) : [0, 0, 0];
+          to.spawnAt(count, m.bUsePSysLocation ? [0, 0, 0] : ev.pos, ev.vel.map((v, k) => v * share[k]));
+        }
+      }
+    }
+  }
 }
 
 /** The colour channels an emitter uses to carry numbers to its material rather than colour: [r, g, b] true where its

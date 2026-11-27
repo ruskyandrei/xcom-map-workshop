@@ -22,6 +22,10 @@ Statuses:
   Open: a stage to draw them is planned.
 - F-230 (27 November, D5): no map has terrain or the engine's other world geometry; one tutorial stream draws a box of
   BSP 3,200 units over its map; the engine's own instanced meshes are empty. Accepted.
+- F-222 (27 November, the game-likeness plan's E4): of the particle modules the maps place, two are XCOM's own and
+  their rules are not read: VelocityMag (555 placed emitters on 40 maps: a StartVelocityMag) and SizeByDistance (35 on
+  9: a MaxDistance and a size multiplier over it). The likeness leaves them out and names them. No map places a beam or
+  a trail, and one (EWI_ChryssalidHive) two ribbons, which are not drawn. Accepted.
 - F-221 (27 November, the game-likeness plan's E1): the local vertex factory's see-through base pass reads its UVs
   through abs() of a literal (`mul o1, c5_abs.yyzz, v4.xyxx`), which a piece's slice refuses ("texcoord.x is made from
   more than inputs"): most see-through pieces get no program. A particle's slice reads it as the literal's size. Open:
@@ -461,6 +465,19 @@ evidence in [world-geometry-audit-2026-11-27.json](evidence/world-geometry-audit
   (`InstancedStaticMeshComponent`), two on each map's level volume (`FlameThrowerHit`, `FlameThrowerSplash`, which
   the flamethrower fills as it fires): no mesh, no instance, hidden. The rest are the fracturing walls' decoration and
   debris (F-231), of which 428 chunks on 9 maps are drawn as the map loads.
+
+### F-222: Two particle modules are XCOM's own; beams and trails are placed on no map
+**Accepted** (27 November 2026, the game-likeness plan's E4; read from the lab copy's 97 maps: every placed Emitter's
+system, its emitters' first levels, their kinds and modules).
+- **By use.** Sprites 14,630 placed emitters on 96 maps, meshes 7,493 on 96, ribbons 2 on one (EWI_ChryssalidHive's
+  P_Hatching_Fish_Hanging_Warning), beams and trails none. The modules the likeness did not follow, by placed emitters:
+  Orbit 3,312 (81 maps), EventGenerator 1,473 (69), EventReceiverSpawn 615 (41), VelocityMag 555 (40), SpawnPerUnit 430
+  (86), LocationEmitter 330 (41), AttractorPoint 107 (22), SizeMultiplyVelocity 66 (33), LocationEmitterDirect 61 (16),
+  SizeByDistance 35 (9), KillBox 8 (5), EventReceiverKillParticles 5 (5).
+- **Followed (E4)**: all but VelocityMag and SizeByDistance, which are XCOM's own classes (`StartVelocityMag`; a
+  `MaxDistance`, a `MaxDistanceVariable` and a `SizeMultiplierVsDistance`) whose code is not read: left out, named in
+  the likeness's left-out list as before.
+- **Not drawn**: the two ribbons (no beam or trail is placed).
 
 ### F-221: The local factory's see-through base pass reads its UVs through abs() of a literal
 **Open** (27 November 2026, the game-likeness plan's E1; read off the shaders of the install's RefShaderCache).

@@ -20,18 +20,26 @@ Draw version 6 (game-likeness plan, track E, stage E1): a sprite emitter's mater
 one can be made (`program`: its compiled shaders for the particle vertex factory the emitter draws with, sliced by
 shader_slice.py with the particle's own inputs: its colour, its sub-images' UVs, its dynamic parameter), and a mesh
 emitter's by a program a drawn section (`programs`); the dynamic parameter module is followed (`DynamicParams`), as
-those programs read it. Where none can be made the textures' roles (`pick_textures`) still draw it."""
+those programs read it. Where none can be made the textures' roles (`pick_textures`) still draw it.
+
+Draw version 7 (stage E4): more of the modules the maps use are followed (`FOLLOWED`: orbits, attractor points, size by
+speed, kill boxes, spawning by distance moved, and the modules by which one emitter's particles start, place or end
+another's: the event generator and receivers, the location emitters), each emitter names itself (`name`, its
+EmitterName, which those modules name), a struct property is read field by field, and an emitter that only sends
+events keeps a record (`kind: events`, nothing drawn, its `why` kept) so its events reach the others."""
 import struct
 
 from package import FormatError
 from effects_metadata import PARAMETER_DISTRIBUTIONS, floats, short, struct_fields
 
-DRAW_VERSION = 6     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
+DRAW_VERSION = 7     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
                      # 3: a packed texture's one channel as the opacity; distortion-only emitters not drawn
                      # 4: textures told apart by their pixels (texture_traits): the colour from a picture, the shape
                      #    from a mask (`maskFrom`); `opacity` none where the mask alone shapes it
                      # 5: an added particle's grey texture its picture; a picture with an alpha shape no other mask
                      # 6: materials by their programs (`program`, `programs`); the dynamic parameter followed
+                     # 7: the event, location emitter, orbit, attractor, size by speed, kill box and spawn per unit
+                     #    modules followed; `name`; an event-only emitter's record (kind `events`)
 P = 'ParticleModule'
 # the modules the page's simulator follows (effects_preview.js); any other is named in `ignored`
 FOLLOWED = frozenset(P + m for m in (
@@ -40,7 +48,9 @@ FOLLOWED = frozenset(P + m for m in (
     'AccelerationOverLifetime', 'Size', 'Size_Seeded', 'SizeMultiplyLife', 'SizeScale', 'Color', 'Color_Seeded',
     'ColorOverLife', 'ColorScaleOverLife', 'Rotation', 'Rotation_Seeded', 'RotationRate', 'RotationRateMultiplyLife',
     'SubUV', 'MeshRotation', 'MeshRotationRate', 'MeshRotationRateMultiplyLife', 'MeshRotationRateOverLife',
-    'KillHeight', 'ParameterDynamic', 'ParameterDynamic_Seeded'))
+    'KillHeight', 'ParameterDynamic', 'ParameterDynamic_Seeded', 'Orbit', 'AttractorPoint', 'SizeMultiplyVelocity',
+    'KillBox', 'SpawnPerUnit', 'LocationEmitter', 'LocationEmitterDirect', 'EventGenerator', 'EventReceiverSpawn',
+    'EventReceiverKillParticles'))
 # modules that change nothing the drawing shows (they feed the material or sort the particles): not named as ignored
 SILENT = frozenset(P + m for m in ('ParameterDynamicModulator', 'CameraOffset', 'OrientationAxisLock',
                                    'MeshMaterial', 'SourceMovement', 'Required', 'Spawn'))
@@ -195,13 +205,41 @@ def module_record(defaults, p, index):
             continue
         if item['kind'] == 'StructProperty' and str(item.get('subtype')).startswith('RawDistribution'):
             value = distribution(defaults, p, index, key)
+        elif item['kind'] == 'StructProperty':
+            # (a struct of plain values, field by field: an orbit's OffsetOptions)
+            value = {k: plain(v) for k, v in struct_fields(pkg, item['value']).items() if plain(v) is not None} or None
         else:
             value = plain(item['value'])
         if value is not None:
             record[key] = value
     if record['cls'].startswith('ParameterDynamic'):
         record['DynamicParams'] = dynamic_params(defaults, p, index)
+    if record['cls'] == 'EventGenerator':
+        record['Events'] = generator_events(defaults, p, index)
     return record
+
+
+def generator_events(defaults, p, index):
+    """An event generator's events (its Events array, the nearest of its chain that saves one): [dict(Type, CustomName,
+    Frequency, ParticleFrequency, bFirstTimeOnly, bLastTimeOnly)], each value as saved or the struct's default."""
+    for pkg, j in defaults.chain(index):
+        try:
+            item = pkg.properties(j)[0].get(('Events', 0))
+            if item is None:
+                continue
+            rows = pkg.structs(item['value'])
+        except (FormatError, ValueError, IndexError, struct.error, TypeError):
+            continue
+        out = []
+        for row in rows:
+            def get(key, zero):
+                value = row.get((key, 0), {}).get('value', zero)
+                return plain(value) if plain(value) is not None else zero
+            out.append(dict(Type=str(get('Type', 'EPET_Any')), CustomName=str(get('CustomName', 'None')),
+                            Frequency=int(get('Frequency', 0) or 0), ParticleFrequency=int(get('ParticleFrequency', 0) or 0),
+                            bFirstTimeOnly=bool(get('bFirstTimeOnly', False)), bLastTimeOnly=bool(get('bLastTimeOnly', False))))
+        return out
+    return []
 
 
 def words(name):
@@ -452,10 +490,14 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures):
     grid = draw['subImages'] != [1, 1]
     solid = draw['blend'] in ('BLEND_Opaque', 'BLEND_Masked')
     picked = pick_textures(candidates, grid, solid, added=draw['blend'] == 'BLEND_Additive')
+    events_only = False
     if not candidates and material <= 0 and kind == 'sprite':
         if material < 0 and p.name(material) == 'EngineMaterials.DefaultParticle' and sends_events_only(p, lod):
-            return None, 'it only sends events: nothing is seen'
-        return None, 'its material is in another package' if material < 0 else 'no material'
+            # (nothing drawn, but stepped: its events start, place or end the system's other emitters)
+            events_only = True
+            draw['kind'] = 'events'
+        else:
+            return None, 'its material is in another package' if material < 0 else 'no material'
     draw.update(textures=candidates, **picked)
     colours = material_colours(p, material) if material > 0 else {}
     if colours:
@@ -490,8 +532,11 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures):
     draw['ignored'] = ignored
     rate = draw['rate'] or {}
     silent = not bursts and 'entries' in rate and not any(any(e) for e in rate['entries'])
-    if silent:
-        return None, 'another emitter\'s event starts it' if any(i.startswith('EventReceiver') for i in ignored) else 'it spawns nothing'
+    started = any(m['cls'] == 'EventReceiverSpawn' for m in draw['modules']) or any(i.startswith('EventReceiver') for i in ignored)
+    if silent and not started:
+        return None, 'it spawns nothing'
+    if events_only:
+        return draw, 'it only sends events: nothing is seen'
     # its material by its program (draw version 6), where the exporter makes programs and one can be made
     make = getattr(exporter, 'particle_program', None)
     if make and kind == 'sprite' and material > 0:
@@ -534,10 +579,13 @@ def attach(p, defaults, systems, exporter, compiled_textures, rules=None, warn=N
                 lods = [r for r in p.refs(p.own(em, 'LODLevels')) if r > 0]
                 if lods:
                     e['draw'], e['why'] = emitter_draw(p, defaults, lods[0], exporter, compiled_textures)
+                    if e['draw'] is not None:
+                        name = defaults.value(em, 'EmitterName', None)[0]
+                        e['draw']['name'] = str(name) if name not in (None, 'None') else None
             except (FormatError, ValueError, IndexError, KeyError, struct.error, OSError) as error:
                 e['draw'], e['why'] = None, 'not read'
                 if warn:
                     warn(record.get('path'), 'emitter draw data not read: %s' % error)
-            if e['draw'] is not None:
-                del e['why']
+            if e['draw'] is not None and e['draw']['kind'] != 'events':
+                e.pop('why', None)
         record['drawVersion'] = DRAW_VERSION

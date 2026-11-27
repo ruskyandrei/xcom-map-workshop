@@ -129,10 +129,13 @@ import settings
 # 48: effects drawn by their materials' programs (game-likeness plan, E1; effects_draw draw version 6): a sprite
 #     emitter's `program`, sliced from its material's shaders for the particle vertex factory it draws with, and a mesh
 #     emitter's `programs`, one a drawn section; the dynamic parameter module followed (`DynamicParams`)
+# 49: draw version 7 (game-likeness plan, E4): the event generator (`Events`) and receivers, the location emitters,
+#     orbits, attractor points, size by speed, kill boxes and spawning by distance followed; each emitter's `name`; a
+#     struct property field by field; an emitter that only sends events keeps a record (`kind: events`, its `why`)
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 48
+EXPORT_VERSION = 49
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the

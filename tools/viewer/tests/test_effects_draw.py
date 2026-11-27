@@ -260,7 +260,10 @@ class Fixtures(unittest.TestCase):
         d = next(e['draw'] for e in moths['emitters'] if e.get('draw'))
         self.assertEqual(d['kind'], 'mesh')
         self.assertTrue(d['mesh'].startswith('mesh-') and d['materials'])
-        self.assertIn('Orbit', d['ignored'])
+        # (draw version 7: its orbit followed, its options field by field)
+        orbit = next(m for m in d['modules'] if m['cls'] == 'Orbit')
+        self.assertIn('OffsetAmount', orbit)
+        self.assertNotIn('Orbit', d['ignored'])
         self.assertEqual(d['rateScale']['parameter'], 'Spawn')
         # a mesh turn saved as nothing but its floats: the shape is the class default's (random, two vectors)
         turn = next(m for m in d['modules'] if m['cls'] == 'MeshRotation')['StartRotation']
@@ -274,7 +277,10 @@ class Fixtures(unittest.TestCase):
                 if e['draw'] is None:
                     self.assertTrue(e['why'])
                     continue
-                self.assertNotIn('why', e)
+                if e['draw']['kind'] == 'events':     # (stepped for its events, nothing drawn: draw version 7)
+                    self.assertEqual(e['why'], 'it only sends events: nothing is seen')
+                else:
+                    self.assertNotIn('why', e)
                 for m in e['draw']['modules']:
                     unread += [v['unread'] for v in m.values() if isinstance(v, dict) and 'unread' in v]
         # what isn't read is a curve the cook kept as an object, never a table of another shape
@@ -291,6 +297,9 @@ class Fixtures(unittest.TestCase):
         ed.attach(farm['package'], em.Defaults(farm['package']), systems, Stub(farm['package']), compiled_textures)
         fire = next(s for s in systems.values() if s and s['name'] == 'P_Fire_Big')
         self.assertEqual(fire['emitters'][6].get('why'), 'it only sends events: nothing is seen')
+        # (kept as a record of kind `events`, nothing drawn, so that its events reach the system's other emitters)
+        self.assertEqual(fire['emitters'][6]['draw']['kind'], 'events')
+        self.assertTrue(any(m['cls'] == 'EventGenerator' and m['Events'] for m in fire['emitters'][6]['draw']['modules']))
         whys = [e.get('why') for s in systems.values() for e in (s or {}).get('emitters', []) if e.get('draw') is None]
         self.assertNotIn('its material is in another package', whys)
 
@@ -344,6 +353,17 @@ class Programs(unittest.TestCase):
         self.assertTrue(meshes)
         for d in meshes:
             self.assertEqual(len(d['programs']), len(d['materials']))
+
+    def test_events_and_emitter_names(self):
+        # (draw version 7) each drawn emitter names itself; an event generator's events and a receiver's are read
+        drawn = self.drawn()
+        self.assertTrue(any(d.get('name') for d in drawn))
+        generators = [m for d in drawn for m in d['modules'] if m['cls'] == 'EventGenerator']
+        for m in generators:
+            for e in m['Events']:
+                self.assertTrue(e['Type'].startswith('EPET_'))
+        for d in drawn:
+            self.assertFalse({'Orbit', 'EventGenerator', 'EventReceiverSpawn', 'LocationEmitter'} & set(d['ignored']))
 
     def test_the_dynamic_parameter_is_read(self):
         found = [m for d in self.drawn() for m in d['modules'] if m['cls'].startswith('ParameterDynamic')]
