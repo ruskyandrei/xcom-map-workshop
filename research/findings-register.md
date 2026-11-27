@@ -15,7 +15,8 @@ Statuses:
 - F-200 (27 November, the game-likeness plan's T-S2): the time of day is written on the map's own lights in place,
   with no bake: a Build changes only the sun or moon's actor and component and the sky light's component, the GUIDs,
   the shadow map of the level and its shadow info kept. The sun's component saves no `CachedParentToWorld`: its
-  direction is the actor's `Rotation` alone. Fixed (built and read back offline); EXP-99 shows it in the game.
+  direction is the actor's `Rotation` alone. Verified (EXP-99): the game draws the new colours, the sky light and a
+  turned direction on moving things; the map's baked shadows stay the old light's until a Build bakes them.
 - F-190 (27 November, the game-likeness plan's B4): a baked Build's package holds only the lighting textures it wrote.
   A relit atlas is the map's own texture object written again, under the map's name; a copy's are new objects; every
   other texture a relit piece names (3 sun shadow maps in an earlier Build of URB_Bar) stays in the base map's texture
@@ -330,8 +331,18 @@ Statuses:
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
 ### F-200: The time of day is set on the map's own lights in place, without a bake
-**Fixed** (27 November 2026, the game-likeness plan's T-S2: `native_lights.apply_sun`; read offline from quick Builds
-of the configured install's URB_Bar made day by EXP-99's project, nothing played: EXP-99 shows it in the game).
+**Verified** (EXP-99, 27 November 2026: two quick Builds of URB_Bar played in the lab copy. Found 27 November 2026, the
+game-likeness plan's T-S2: `native_lights.apply_sun`; read offline from quick Builds of the configured install's
+URB_Bar made day by EXP-99's project).
+- **In the game (EXP-99).** The game holds the Build's values (`getall` read back the light's Rotation, colour and
+  brightness and the sky light's). The map is day-lit: the frames' mean colours from the three likeness cameras went
+  from (45, 35, 65), (43, 39, 72), (45, 43, 81) to (64, 59, 62), (64, 64, 68), (76, 79, 79) at 10:00; soldiers show
+  natural colours, their shaded side grey with a faint blue. It holds through a save and load. With the light turned
+  (80.7 to 56 degrees up, the same side), moving things take the new direction from the actor's Rotation: the
+  soldiers' shadows all fall toward -X, +Y, and vehicles' faces toward the light are some 30 to 38% brighter than with
+  the direction kept, while the static surfaces stay within 4%. The baked shadows stay the moon's: a narrow band under
+  the bar's wall beside the soldiers' long shadows. A soldier's shadow length tells nothing here: the units' composite
+  shadows are long under either light (their light environment's MinShadowAngle 80).
 - **What a Build changes.** Of URB_Bar's 14,051 exports, three: the `DominantDirectionalLight` (its `Rotation`, where
   the direction changes), its `DominantDirectionalLightComponent` (`LightColor`, `Brightness`) and the
   `SkyLightComponent` (`LightColor`, `Brightness`, `LowerColor`, `LowerBrightness`), each value written where the
@@ -388,9 +399,12 @@ CSmallScout_DirtRoad, LAbductor_FarmOutskirts and AlienBase01, and seen against 
   of the sun on it. Track H's mean colour difference went from 9.66 to 9.46 (LAbductor_FarmOutskirts 7.28 to 5.79;
   URB_Bar 4.64 to 5.16; CSmallScout_DirtRoad 10.50 to 10.69; AlienBase01 the same).
 - **Why the Bar scores worse.** In the game, its wood floor has a blue sheen that the editor's live moon happened to
-  stand in for. The floor's material, `FloorWood_BNatural`, switches its 2D reflection on (`Refelction`: true,
-  `Reflection2D` `FX_Shared.T_Goop_Reflection_Irridescent_B`, `Reflectivity` 0.2). That sheen is the reflection, not
-  the moon, and the editor's drawing of the material leaves it out (a matter for track A).
+  stand in for. Not settled. The floor's material, `FloorWood_BNatural`, switches its 2D reflection on (`Refelction`:
+  true, `Reflection2D` `FX_Shared.T_Goop_Reflection_Irridescent_B`, `Reflectivity` 0.2), which the editor's drawing
+  of the material leaves out. But the sheen is not a fixed texture: in EXP-99's day Builds (the moon made a warm sun
+  in the same direction) the floor's mean blue fell from 48.9 to 38.1 at 10:00 and 32.4 at 13:00 while its red stayed
+  near 60 to 69, so the sun does not light the floor (the rule holds), and the sheen follows something the time of day
+  changes: the night grade's blue, the sky light, or the reflection's own lighting. A matter for track A.
 
 ### F-183: A material for each lightmapped part costs more than the lightmap
 **Fixed** (B2, 27 November 2026: every lit material shares the two packed atlases, and each lightmapped part carries
