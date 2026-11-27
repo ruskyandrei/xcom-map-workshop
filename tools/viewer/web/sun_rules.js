@@ -284,6 +284,17 @@ export function sunView(sun) {
                             lowerBrightness: sun.sky.lowerBrightness } : null };
 }
 
+/** Whether the view's sun or moon (a sunView) stands in another direction than the map's own dominant light, by more
+ *  than `degrees`: the map's baked shadows of it (game-likeness plan, B3) then stand for it no longer, and every piece
+ *  takes the live shadow map. False for the map's own (a null view) or a map without a dominant light. */
+export function sunTurned(view, scene, degrees = 0.5) {
+  const d = view?.light?.direction;
+  const dominant = (scene?.lights ?? []).find(l => l.role === 'dominant' && l.kind === 'directional');
+  if (!d || !dominant?.direction) return false;
+  const a = dominant.direction, length = Math.hypot(...a) * Math.hypot(...d);
+  return (a[0] * d[0] + a[1] * d[1] + a[2] * d[2]) / (length || 1) < Math.cos(degrees * RAD);
+}
+
 // ------------------------------------------------------------------------------------------------ words
 
 /** A time on the bar: "07:10". */

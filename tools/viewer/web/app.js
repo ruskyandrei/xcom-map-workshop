@@ -62,6 +62,7 @@ import { createMapGrid, gridOrigin, tileCorner } from './map_grid.js';
 import { createMapFamilies } from './map_families.js';
 import { createClearMap } from './clear_map.js';
 import { createMapSettings } from './map_settings.js';
+import { sunTurned } from './sun_rules.js';
 import { createSunWiring } from './sun_wiring.js';
 import { actorPose, createScenePieces, movedMatrix } from './scene_pieces.js';
 import { isPlain, madeRequest, plainLook } from './made_requests.js';
@@ -1495,6 +1496,8 @@ renderer.setAnimationLoop(() => {
   // the time of day changed (a drag, an undo, a project opened): the view lit again and the sun's shadows asked for, every
   // frame while the bar is dragged; its marker drawn (sun_wiring.js)
   stepSun();
+  // the map's baked shadows of its sun stand for its own light alone: a turned sun takes the live shadow map (B3)
+  bakedLight?.setSunShadows(!sunTurned(viewSun(), data));
   drawFrame();
 });
 setInterval(() => {

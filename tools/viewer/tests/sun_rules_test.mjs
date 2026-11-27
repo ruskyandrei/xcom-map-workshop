@@ -6,7 +6,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { asTheMapHasIt, barColours, bestTime, clock, compass, curveAt, directionOf, gameTime, handSet, headingFor,
-         lightWords, mapCurve, ownSun, partOfDay, phaseAt, rotationOf, shownTime, sideAt, spanAt, sunView, tidySun,
+         lightWords, mapCurve, ownSun, partOfDay, phaseAt, rotationOf, shownTime, sideAt, spanAt, sunTurned, sunView, tidySun,
          timeMarks, timeSet, validSun } from '../web/sun_rules.js';
 
 const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
@@ -147,6 +147,12 @@ const view = sunView(noon.sun);
 near(view.light.direction, directionOf(noon.sun.light.rotation)); near(view.light.color, unit([255, 245, 215]));
 near(view.sky.lowerColor, unit([255, 224, 173]));
 assert.equal(sunView(null), null);
+// the map's baked sun shadows stand for its own light only (B3): a light turned by more than half a degree (here a degree in pitch) is another
+assert.equal(sunTurned(null, bar), false);
+assert.equal(sunTurned(sunView({ light: { rotation: own.rotation, color: [66, 69, 136], brightness: 1 } }), bar), false);
+assert.equal(sunTurned(sunView({ light: { rotation: [own.rotation[0] + 182, own.rotation[1], 0], color: [66, 69, 136], brightness: 1 } }), bar), true);
+assert.equal(sunTurned(view, bar), true);
+assert.equal(sunTurned(view, { lights: [] }), false);
 
 // words
 assert.equal(clock(7 + 10 / 60), '07:10'); assert.equal(clock(0), '00:00'); assert.equal(clock(23.999), '00:00');
