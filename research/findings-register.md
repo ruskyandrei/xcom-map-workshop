@@ -465,6 +465,20 @@ grey-brown in the editor and green in the game; read offline, not played). Recor
   several colour layers: `VP_Terrain_Sharp`, `ENV_TerrainCliffKit`, `ENV_Terrain`, `VP_TwoDif_TwoNrm_Msk`,
   `VP_Asphalt_Blend`, `SnowGround_VPaint`, `Terrain_Blend_MAT`, and the BLDG_ masters' `Diffuse_Mod`. Every base
   material's ID is in the RefShaderCache (above), so the game's rule can be read for each from its compiled shader.
+- **The survey (A-S0, 27 November 2026; `tools/upk/audit_shaders.py` over the cache's 37 exported maps, evidence
+  `research/evidence/shader-audit-2026-11-27-a.json` and `-b.json`).** Pass a: 51,118 of the 51,206 mesh sections
+  drawn (99.8%) match a shader map of the RefShaderCache exactly by their static parameter set (a permutation
+  instance's base ID with its switches' values and override flags, else the root material's resource ID with none);
+  40 more by the switches' values alone; no base material missing from the cache, Long War's packages' included.
+  Pass b (the slice, `tools/viewer/shader_slice.py`): the colour of 48,582 sections (94.9%) translates (unlit
+  materials by their glow); the rest stay as today: 1,620 sections nothing sliced (mostly decals and effects planes),
+  395 an input not followed, 507 an unlit material whose glow did not slice. Ends found, by sections: colour 47,368,
+  highlight 47,000 (its power 36,731), normal 46,232, cut-out 19,906, a glow that is not zero 16,035, opacity 1,507.
+  The colour's mark is `mad` in 47,174 sections and `mul` in 603. Inputs read: UV 0 in 95,978 slices, the camera
+  vector 102,219 (every highlight and normal), the vertex colour 19,547, the world position 22,251 (foliage sway,
+  world-aligned masks), the world tangent frame 4,733 (reflections), UV 1 3,663. Most changed by section count:
+  shipping containers (grey today, orange, blue and green tints), windows (grey today, dark tinted), snowy docks and
+  ground (white where the vertex colour is), the forest grounds and RockPlateaus_Ground.
 - **Fix.** Not made. Planned: read each material's compiled pixel shader, take the part that makes its colour (and
   its specular), and draw that in the editor with the pieces' vertex colours.
 

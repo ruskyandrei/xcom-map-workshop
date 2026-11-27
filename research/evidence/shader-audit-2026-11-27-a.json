@@ -1,0 +1,255 @@
+{
+ "pass_": "a",
+ "summary": {
+  "sections": 51206,
+  "matched": 51118,
+  "share": 0.9983,
+  "bySection": {
+   "exact (root)": 25971,
+   "exact (instance)": 25107,
+   "no material": 326,
+   "unread key": 61,
+   "values (instance)": 40,
+   "unreadable": 27
+  },
+  "byMaterial": {
+   "exact (instance)": 2535,
+   "exact (root)": 2334,
+   "no material": 52,
+   "values (instance)": 13,
+   "unread key": 9,
+   "unreadable": 4
+  }
+ },
+ "maps": {
+  "Act1_IntroLevel": {
+   "exact (root)": 401,
+   "exact (instance)": 281
+  },
+  "AlienBase01": {
+   "exact (root)": 81,
+   "exact (instance)": 991,
+   "unread key": 6,
+   "no material": 11
+  },
+  "CB2_MP_Blank": {
+   "exact (instance)": 22,
+   "exact (root)": 4
+  },
+  "CLrgScout_DeepWoods": {
+   "exact (instance)": 1382,
+   "exact (root)": 575,
+   "no material": 15
+  },
+  "CLrgScout_ForestTrench": {
+   "exact (instance)": 1103,
+   "exact (root)": 846,
+   "unreadable": 3
+  },
+  "CSmallScout_DirtRoad": {
+   "exact (root)": 722,
+   "exact (instance)": 741,
+   "no material": 2
+  },
+  "CsmallScout_Farm": {
+   "exact (root)": 717,
+   "exact (instance)": 683,
+   "no material": 8
+  },
+  "CSmallScout_Marshlands": {
+   "exact (instance)": 1477,
+   "exact (root)": 1030
+  },
+  "CSmallScout_Quagmire": {
+   "exact (instance)": 1016,
+   "exact (root)": 703,
+   "no material": 1
+  },
+  "DEMO_SonOfFacemelt": {
+   "exact (root)": 850,
+   "exact (instance)": 200,
+   "no material": 2,
+   "stream materials": 5
+  },
+  "DLC1_2_CnfndLight": {
+   "exact (root)": 982,
+   "exact (instance)": 659,
+   "values (instance)": 8,
+   "no material": 3,
+   "stream materials": 1
+  },
+  "DLC2_2_Deluge": {
+   "exact (root)": 872,
+   "exact (instance)": 201,
+   "no material": 19,
+   "unreadable": 16,
+   "stream materials": 1
+  },
+  "EWI_ChryssalidHive": {
+   "exact (root)": 1129,
+   "exact (instance)": 352,
+   "no material": 8,
+   "stream materials": 1
+  },
+  "EWI_ExaltHQAssault": {
+   "exact (root)": 897,
+   "exact (instance)": 782,
+   "no material": 11
+  },
+  "EWI_HQAssault": {
+   "exact (instance)": 635,
+   "exact (root)": 997,
+   "no material": 6
+  },
+  "EWI_HQAssault_MP": {
+   "exact (root)": 823,
+   "exact (instance)": 572,
+   "no material": 12
+  },
+  "LAbductor_FarmOutskirts": {
+   "exact (instance)": 1031,
+   "exact (root)": 577,
+   "no material": 9
+  },
+  "LSupplyShip_ForestGrove": {
+   "exact (root)": 264,
+   "exact (instance)": 2333,
+   "unread key": 19,
+   "no material": 6
+  },
+  "TempleShip": {
+   "exact (instance)": 1633,
+   "exact (root)": 55
+  },
+  "URB_Bar": {
+   "exact (root)": 790,
+   "exact (instance)": 481,
+   "no material": 20
+  },
+  "URB_CommercialRestaurant": {
+   "exact (root)": 761,
+   "exact (instance)": 715,
+   "unread key": 4,
+   "unreadable": 5,
+   "no material": 20,
+   "stream materials": 6,
+   "values (instance)": 1
+  },
+  "URB_CommercialStreet": {
+   "exact (root)": 742,
+   "exact (instance)": 583,
+   "no material": 11
+  },
+  "URB_Demolition_EWI": {
+   "exact (root)": 884,
+   "exact (instance)": 512,
+   "no material": 2,
+   "stream materials": 5,
+   "values (instance)": 1
+  },
+  "URB_FastFood_EWI": {
+   "exact (root)": 573,
+   "exact (instance)": 482,
+   "unread key": 4,
+   "no material": 13,
+   "values (instance)": 3,
+   "stream materials": 3
+  },
+  "URB_LiquorStore": {
+   "exact (root)": 875,
+   "exact (instance)": 569,
+   "values (instance)": 7,
+   "unreadable": 3,
+   "no material": 23,
+   "stream materials": 2
+  },
+  "URB_MilitaryAmmo": {
+   "exact (instance)": 497,
+   "exact (root)": 982,
+   "no material": 1,
+   "stream materials": 2
+  },
+  "URB_OfficePaper_EWI": {
+   "exact (root)": 1050,
+   "exact (instance)": 383,
+   "no material": 11,
+   "stream materials": 6,
+   "values (instance)": 1
+  },
+  "URB_PierA": {
+   "exact (root)": 662,
+   "exact (instance)": 510,
+   "unread key": 2,
+   "no material": 17,
+   "stream materials": 3
+  },
+  "URB_PoliceStation": {
+   "exact (instance)": 592,
+   "exact (root)": 761,
+   "unread key": 8,
+   "values (instance)": 5,
+   "no material": 6,
+   "stream materials": 6
+  },
+  "URB_ResearchOutpost": {
+   "exact (root)": 714,
+   "exact (instance)": 579,
+   "no material": 11,
+   "stream materials": 3
+  },
+  "URB_ResearchOutpost_EWI": {
+   "exact (root)": 718,
+   "exact (instance)": 591,
+   "no material": 11
+  },
+  "URB_SlaughterhouseA": {
+   "exact (root)": 936,
+   "exact (instance)": 483,
+   "unread key": 7,
+   "values (instance)": 1,
+   "no material": 9,
+   "stream materials": 3
+  },
+  "URB_StreetHurricane": {
+   "exact (root)": 409,
+   "exact (instance)": 222,
+   "values (instance)": 1,
+   "no material": 15,
+   "stream materials": 3
+  },
+  "URB_StreetHurricane_Terror": {
+   "exact (root)": 373,
+   "exact (instance)": 213,
+   "no material": 14,
+   "stream materials": 1
+  },
+  "URB_StreetOverpass": {
+   "exact (root)": 846,
+   "exact (instance)": 277,
+   "no material": 1
+  },
+  "URB_TrainStation": {
+   "exact (root)": 617,
+   "exact (instance)": 732,
+   "unread key": 5,
+   "no material": 4,
+   "stream materials": 3
+  },
+  "URB_TruckStop_EWI": {
+   "exact (root)": 753,
+   "exact (instance)": 592,
+   "values (instance)": 12,
+   "unread key": 6,
+   "no material": 24,
+   "stream materials": 6
+  }
+ },
+ "examples": {
+  "unreadable": [
+   "CLrgScout_ForestTrench None: the root None is a None",
+   "DLC2_2_Deluge WP_LowResMercWeapons.Materials.LowResMercWeapons: the root WP_LowResMercWeapons.Materials.LowResMercWeapons is a MaterialInstanceConstant",
+   "URB_CommercialRestaurant None: the root None is a None",
+   "URB_LiquorStore None: the root None is a None"
+  ]
+ }
+}

@@ -1,0 +1,1384 @@
+{
+ "pass_": "b",
+ "sections": 51206,
+ "translated": 48582,
+ "share": 0.9488,
+ "bySection": {
+  "translated": 48582,
+  "left as today": 2536,
+  "unread key": 61,
+  "unreadable": 27
+ },
+ "byMaterial": {
+  "translated": 4672,
+  "left as today": 210,
+  "unread key": 9,
+  "unreadable": 4
+ },
+ "ends": {
+  "diffuse": 47368,
+  "specular": 47000,
+  "normal": 46232,
+  "power": 36731,
+  "mask": 19906,
+  "glow": 16035,
+  "opacity": 1507
+ },
+ "colourForms": {
+  "mad": 47174,
+  "mul": 603
+ },
+ "inputs": {
+  "cameraVector": 102219,
+  "uv0": 95978,
+  "worldPosition": 22251,
+  "color": 19547,
+  "worldTangent": 4733,
+  "worldBinormal": 4733,
+  "worldNormal": 4733,
+  "uv1": 3663,
+  "tangentSign": 2281,
+  "const": 380,
+  "vFace": 92,
+  "uv2": 6
+ },
+ "reasons": {
+  "specular: shaders": 1721,
+  "normal: shaders": 1721,
+  "colour: nothing": 1620,
+  "normal: end": 988,
+  "glow: input": 647,
+  "normal: input": 557,
+  "colour: no colour": 507,
+  "mask: engine": 466,
+  "opacity: input": 444,
+  "specular: engine": 435,
+  "mask: input": 413,
+  "diffuse: input": 395,
+  "colour: input": 395,
+  "glow: engine": 235,
+  "glow: cube": 75,
+  "opacity: instruction": 73,
+  "specular: branch": 47,
+  "opacity: engine": 37,
+  "specular: end": 35,
+  "glow: instruction": 32,
+  "diffuse: instruction": 12,
+  "colour: instruction": 12,
+  "diffuse: cube": 2,
+  "colour: cube": 2
+ },
+ "examples": {
+  "nothing": [
+   "Act1_IntroLevel GEN_MaterialParents.M_Glass_Breakable: nothing: diffuse input: texcoord.y is made from more than inputs; glow input: texcoord.y is made from more than inputs; opacity input: texcoord.x is made from more than inputs; specular end: SpecularOverrideParameter is applied as mul_pp r2.yzw, r0.w, c5.xxyz; normal end: no normal dotted with the lightmap basis",
+   "AlienBase01 HQ_FundingCouncil.Materials.UnlitBlack: nothing: specular shaders: no light pass; normal shaders: no lightmap pass",
+   "CB2_MP_Blank GEN_MaterialParents.M_Glass_Breakable: nothing: diffuse input: texcoord.y is made from more than inputs; glow input: texcoord.y is made from more than inputs; opacity input: texcoord.x is made from more than inputs; specular end: SpecularOverrideParameter is applied as mul_pp r2.yzw, r0.w, c5.xxyz; normal end: no normal dotted with the lightmap basis",
+   "CLrgScout_DeepWoods FX_Fire_Decals.Dark_Cheap_Plane.MI_Scorch_Lrg_A: nothing: mask engine: DecalNearFarPlaneDistance; glow input: texcoord.x is made from more than inputs; opacity input: texcoord.y is made from more than inputs; specular shaders: no light pass; normal shaders: no lightmap pass",
+   "CLrgScout_DeepWoods FX_Fire_Decals.Dark_Cheap_Plane.MI_Sticks_Charred: nothing: glow input: texcoord.x is made from more than inputs; opacity input: texcoord.y is made from more than inputs; specular shaders: no light pass; normal shaders: no lightmap pass",
+   "CLrgScout_DeepWoods FX_Fire_Decals.Dark_Cheap_Plane.MIScorch_LRGBarrens: nothing: mask engine: DecalNearFarPlaneDistance; glow input: texcoord.x is made from more than inputs; opacity input: texcoord.y is made from more than inputs; specular shaders: no light pass; normal shaders: no lightmap pass",
+   "CLrgScout_DeepWoods FX_Fire_Decals.Dark_Cheap_Plane.MI_Sticks_Charred_B: nothing: glow input: texcoord.x is made from more than inputs; opacity input: texcoord.y is made from more than inputs; specular shaders: no light pass; normal shaders: no lightmap pass",
+   "CLrgScout_DeepWoods FX_Fire_Decals.Dark_Cheap_Plane.MI_Scorch_Lrg_C: nothing: mask engine: DecalNearFarPlaneDistance; glow input: texcoord.x is made from more than inputs; opacity input: texcoord.y is made from more than inputs; specular shaders: no light pass; normal shaders: no lightmap pass",
+   "CLrgScout_ForestTrench FX_Fire_Decals.Dark_Cheap_Plane.MI_Sticks_Charred: nothing: glow input: texcoord.x is made from more than inputs; opacity input: texcoord.y is made from more than inputs; specular shaders: no light pass; normal shaders: no lightmap pass",
+   "CLrgScout_ForestTrench FX_Fire_Decals.Dark_Cheap_Plane.MI_Scorch_Lrg_C: nothing: mask engine: DecalNearFarPlaneDistance; glow input: texcoord.x is made from more than inputs; opacity input: texcoord.y is made from more than inputs; specular shaders: no light pass; normal shaders: no lightmap pass"
+  ],
+  "no colour": [
+   "Act1_IntroLevel Oil_Stains.Materials.MINST_OilStains: no colour",
+   "Act1_IntroLevel FX_Water.Rain_Runoff.MI_Gutter_Water_Flowing_Distort: no colour",
+   "Act1_IntroLevel FX_Fire_B.M_Glow_Distort_Dome: no colour",
+   "Act1_IntroLevel FX_Water.Rain_Runoff.MI_Puddle_Placid_A: no colour",
+   "Act1_IntroLevel SkidmarkDecals.Materials.SkidmarkDecals: no colour",
+   "CLrgScout_DeepWoods UFO_LargeScout.Materials.MI_Shield_Solid_Floor: no colour",
+   "CLrgScout_DeepWoods FX_Alien_UI.MI_Shield_Med_Damage_A: no colour",
+   "CLrgScout_DeepWoods FX_Alien_UI.MI_Shield_Flickering_Slow_A: no colour",
+   "CLrgScout_ForestTrench FX_Fire_B.M_Glow_Distort_Dome: no colour",
+   "CLrgScout_ForestTrench UFO_LargeScout.Materials.MI_Shield_Solid_Floor: no colour"
+  ],
+  "input": [
+   "Act1_IntroLevel RubbleDecal.Materials.RubbleDecal: input: texcoord.y is made from more than inputs",
+   "Act1_IntroLevel BlastDecals.Materials.BlastDecals: input: texcoord.y is made from more than inputs",
+   "CSmallScout_Marshlands FX_Water.Marshlands.M_Flow_Green: input: texcoord1.y is made from more than inputs",
+   "CSmallScout_Quagmire FX_Water.Marshlands.M_Flow_Green_Bright: input: texcoord1.y is made from more than inputs",
+   "DEMO_SonOfFacemelt FX_Water_Dam.M_Water_Intake_Inner_B_MI: input: texcoord.y is made from more than inputs",
+   "DEMO_SonOfFacemelt FX_Water_Dam.M_Water_Intake_Outer_B_MI: input: texcoord.y is made from more than inputs",
+   "DEMO_SonOfFacemelt FX_Water_Dam.M_Pillar_Intake_Froth_B_MI: input: texcoord.y is made from more than inputs",
+   "DEMO_SonOfFacemelt FX_Water_Dam.M_Water_Opaque_Top_MI: input: texcoord1.y is made from more than inputs",
+   "DEMO_SonOfFacemelt FX_Water_Dam.M_Water_Intake_Inner_A_MI: input: texcoord.y is made from more than inputs",
+   "DEMO_SonOfFacemelt FX_Water_Dam.M_Water_Intake_Outer_A_MI: input: texcoord.y is made from more than inputs"
+  ],
+  "unreadable": [
+   "CLrgScout_ForestTrench None: the root None is a None",
+   "DLC2_2_Deluge WP_LowResMercWeapons.Materials.LowResMercWeapons: the root WP_LowResMercWeapons.Materials.LowResMercWeapons is a MaterialInstanceConstant",
+   "URB_CommercialRestaurant None: the root None is a None",
+   "URB_LiquorStore None: the root None is a None"
+  ],
+  "cube": [
+   "DEMO_SonOfFacemelt CHA_Mechtoid_MOD.Materials.MInst_Mechtoid: cube: PixelTextureCube_0"
+  ],
+  "instruction": [
+   "URB_StreetHurricane GEN_MaterialParents.Master_Materials.ENV_WaterFlow: instruction: texldl",
+   "URB_StreetHurricane_Terror GEN_MaterialParents.Master_Materials.ENV_WaterFlow: instruction: texldl"
+  ]
+ },
+ "mostChanged": [
+  {
+   "map": "URB_PierA",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_LightOrange",
+   "sections": 87,
+   "dE": 41.0,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    110,
+    80,
+    65
+   ],
+   "grey": [
+    110,
+    80,
+    65
+   ]
+  },
+  {
+   "map": "EWI_ExaltHQAssault",
+   "material": "ComKitWindows.Materials.ComKitWindows",
+   "sections": 75,
+   "dE": 34.0,
+   "today": [
+    145,
+    145,
+    145
+   ],
+   "white": [
+    65,
+    62,
+    58
+   ],
+   "grey": [
+    65,
+    62,
+    58
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "fishMarket.Materials.fishMarketMat",
+   "sections": 45,
+   "dE": 53.4,
+   "today": [
+    75,
+    61,
+    36
+   ],
+   "white": [
+    187,
+    192,
+    189
+   ],
+   "grey": [
+    187,
+    192,
+    189
+   ]
+  },
+  {
+   "map": "URB_PierA",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_Blue",
+   "sections": 53,
+   "dE": 43.7,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    71,
+    74,
+    89
+   ],
+   "grey": [
+    71,
+    74,
+    89
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_LightOrange",
+   "sections": 56,
+   "dE": 41.0,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    110,
+    80,
+    65
+   ],
+   "grey": [
+    110,
+    80,
+    65
+   ]
+  },
+  {
+   "map": "URB_MilitaryAmmo",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_LightOrange",
+   "sections": 55,
+   "dE": 41.0,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    110,
+    80,
+    65
+   ],
+   "grey": [
+    110,
+    80,
+    65
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "WoodenCrate_B.Materials.WoodenCrateStackB_Snow",
+   "sections": 53,
+   "dE": 38.7,
+   "today": [
+    127,
+    113,
+    85
+   ],
+   "white": [
+    201,
+    207,
+    205
+   ],
+   "grey": [
+    201,
+    207,
+    205
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "WoodenDockSet.Materials.MINST_WoodDockSnow",
+   "sections": 41,
+   "dE": 45.2,
+   "today": [
+    111,
+    94,
+    77
+   ],
+   "white": [
+    204,
+    211,
+    209
+   ],
+   "grey": [
+    112,
+    94,
+    78
+   ]
+  },
+  {
+   "map": "CSmallScout_Marshlands",
+   "material": "RockPlateaus.Materials.RockPlateaus_Ground",
+   "sections": 134,
+   "dE": 13.5,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    85,
+    82,
+    54
+   ],
+   "grey": [
+    113,
+    110,
+    108
+   ]
+  },
+  {
+   "map": "CSmallScout_Quagmire",
+   "material": "RockPlateaus.Materials.RockPlateaus_Ground",
+   "sections": 128,
+   "dE": 13.5,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    85,
+    82,
+    54
+   ],
+   "grey": [
+    113,
+    110,
+    108
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "SnowForest_Ground.Materials.SnowForestGravelRoadlessReflect",
+   "sections": 30,
+   "dE": 56.4,
+   "today": [
+    63,
+    66,
+    67
+   ],
+   "white": [
+    204,
+    211,
+    209
+   ],
+   "grey": [
+    92,
+    90,
+    87
+   ]
+  },
+  {
+   "map": "CLrgScout_DeepWoods",
+   "material": "GroundForest.Materials.GroundForest_Dirt",
+   "sections": 120,
+   "dE": 12.8,
+   "today": [
+    70,
+    63,
+    49
+   ],
+   "white": [
+    98,
+    85,
+    57
+   ],
+   "grey": [
+    94,
+    83,
+    57
+   ]
+  },
+  {
+   "map": "URB_PierA",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_Green",
+   "sections": 35,
+   "dE": 41.9,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    71,
+    93,
+    65
+   ],
+   "grey": [
+    71,
+    93,
+    65
+   ]
+  },
+  {
+   "map": "EWI_ExaltHQAssault",
+   "material": "ComKitWindows.Materials.ComKitWindows_RedBrown",
+   "sections": 28,
+   "dE": 50.9,
+   "today": [
+    145,
+    145,
+    145
+   ],
+   "white": [
+    59,
+    28,
+    11
+   ],
+   "grey": [
+    59,
+    28,
+    11
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "ChryssalidHive_Rocks.Materials.Rocks",
+   "sections": 32,
+   "dE": 44.4,
+   "today": [
+    102,
+    92,
+    91
+   ],
+   "white": [
+    204,
+    211,
+    209
+   ],
+   "grey": [
+    204,
+    211,
+    209
+   ]
+  },
+  {
+   "map": "LSupplyShip_ForestGrove",
+   "material": "RockPlateaus.Materials.RockPlateaus_Ground",
+   "sections": 102,
+   "dE": 13.5,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    85,
+    82,
+    54
+   ],
+   "grey": [
+    113,
+    110,
+    108
+   ]
+  },
+  {
+   "map": "LSupplyShip_ForestGrove",
+   "material": "GroundForest.Materials.GroundForest_CherryBlossom",
+   "sections": 126,
+   "dE": 10.8,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    112,
+    84,
+    67
+   ],
+   "grey": [
+    95,
+    79,
+    60
+   ]
+  },
+  {
+   "map": "URB_CommercialStreet",
+   "material": "ComKitWindows.Materials.ComKitWindows",
+   "sections": 40,
+   "dE": 34.0,
+   "today": [
+    145,
+    145,
+    145
+   ],
+   "white": [
+    65,
+    62,
+    58
+   ],
+   "grey": [
+    65,
+    62,
+    58
+   ]
+  },
+  {
+   "map": "CSmallScout_DirtRoad",
+   "material": "GroundForest.Materials.GroundForest_Dirt",
+   "sections": 102,
+   "dE": 12.8,
+   "today": [
+    70,
+    63,
+    49
+   ],
+   "white": [
+    98,
+    85,
+    57
+   ],
+   "grey": [
+    94,
+    83,
+    57
+   ]
+  },
+  {
+   "map": "CLrgScout_DeepWoods",
+   "material": "RockPlateaus.Materials.RockPlateaus_Ground",
+   "sections": 94,
+   "dE": 13.5,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    85,
+    82,
+    54
+   ],
+   "grey": [
+    113,
+    110,
+    108
+   ]
+  },
+  {
+   "map": "URB_Demolition_EWI",
+   "material": "ConstructionSiteHole.Materials.MINST_DirtTile",
+   "sections": 91,
+   "dE": 13.9,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    83,
+    75,
+    65
+   ],
+   "grey": [
+    89,
+    77,
+    65
+   ]
+  },
+  {
+   "map": "CLrgScout_ForestTrench",
+   "material": "RockPlateaus.Materials.RockPlateaus_Ground",
+   "sections": 91,
+   "dE": 13.5,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    85,
+    82,
+    54
+   ],
+   "grey": [
+    113,
+    110,
+    108
+   ]
+  },
+  {
+   "map": "URB_PierA",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_Orange",
+   "sections": 23,
+   "dE": 47.1,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    103,
+    68,
+    48
+   ],
+   "grey": [
+    103,
+    68,
+    48
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "fishMarket.Materials.fishMarketDoorMat",
+   "sections": 18,
+   "dE": 56.4,
+   "today": [
+    74,
+    64,
+    50
+   ],
+   "white": [
+    202,
+    208,
+    206
+   ],
+   "grey": [
+    202,
+    208,
+    206
+   ]
+  },
+  {
+   "map": "URB_PierA",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_Red",
+   "sections": 23,
+   "dE": 43.8,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    91,
+    69,
+    69
+   ],
+   "grey": [
+    91,
+    69,
+    69
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "FishingShack.Materials.FishShack",
+   "sections": 26,
+   "dE": 38.2,
+   "today": [
+    124,
+    108,
+    90
+   ],
+   "white": [
+    200,
+    206,
+    204
+   ],
+   "grey": [
+    200,
+    206,
+    204
+   ]
+  },
+  {
+   "map": "CSmallScout_DirtRoad",
+   "material": "RockPlateaus.Materials.RockPlateaus_Ground",
+   "sections": 72,
+   "dE": 13.5,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    85,
+    82,
+    54
+   ],
+   "grey": [
+    113,
+    110,
+    108
+   ]
+  },
+  {
+   "map": "LAbductor_FarmOutskirts",
+   "material": "RockPlateaus.Materials.RockPlateaus_Ground",
+   "sections": 69,
+   "dE": 13.5,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    85,
+    82,
+    54
+   ],
+   "grey": [
+    113,
+    110,
+    108
+   ]
+  },
+  {
+   "map": "Act1_IntroLevel",
+   "material": "ComKitWindows.Materials.ComKitWindows",
+   "sections": 25,
+   "dE": 34.0,
+   "today": [
+    145,
+    145,
+    145
+   ],
+   "white": [
+    65,
+    62,
+    58
+   ],
+   "grey": [
+    65,
+    62,
+    58
+   ]
+  },
+  {
+   "map": "URB_Bar",
+   "material": "TexLibrary_TrimCK.Materials.TRIMSETCK_GThreeToothB_Black-DarkBrown",
+   "sections": 21,
+   "dE": 39.8,
+   "today": [
+    160,
+    160,
+    156
+   ],
+   "white": [
+    82,
+    61,
+    50
+   ],
+   "grey": [
+    82,
+    61,
+    50
+   ]
+  },
+  {
+   "map": "CSmallScout_DirtRoad",
+   "material": "DirtRoad.Materials.CountryRoadSide",
+   "sections": 28,
+   "dE": 29.8,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    45,
+    42,
+    38
+   ],
+   "grey": [
+    66,
+    57,
+    42
+   ]
+  },
+  {
+   "map": "CLrgScout_ForestTrench",
+   "material": "GroundForest.Materials.GroundForest_Dirt",
+   "sections": 63,
+   "dE": 12.8,
+   "today": [
+    70,
+    63,
+    49
+   ],
+   "white": [
+    98,
+    85,
+    57
+   ],
+   "grey": [
+    94,
+    83,
+    57
+   ]
+  },
+  {
+   "map": "URB_TruckStop_EWI",
+   "material": "WindowSolidSingle_MOD.Materials.WindowSolidSingle_Brown",
+   "sections": 16,
+   "dE": 48.2,
+   "today": [
+    136,
+    141,
+    137
+   ],
+   "white": [
+    38,
+    26,
+    21
+   ],
+   "grey": [
+    38,
+    26,
+    21
+   ]
+  },
+  {
+   "map": "CsmallScout_Farm",
+   "material": "GroundForest.Materials.GroundForest_Farm",
+   "sections": 66,
+   "dE": 11.6,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    99,
+    91,
+    59
+   ],
+   "grey": [
+    87,
+    83,
+    56
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "WhaleBoat.Materials.MINST_WhaleBoatExtFloor",
+   "sections": 42,
+   "dE": 17.7,
+   "today": [
+    102,
+    101,
+    100
+   ],
+   "white": [
+    66,
+    59,
+    56
+   ],
+   "grey": [
+    84,
+    80,
+    79
+   ]
+  },
+  {
+   "map": "URB_StreetHurricane_Terror",
+   "material": "VEH_MovingVan.Materials.VEH_MovingVan",
+   "sections": 25,
+   "dE": 28.3,
+   "today": [
+    146,
+    145,
+    141
+   ],
+   "white": [
+    223,
+    222,
+    219
+   ],
+   "grey": [
+    223,
+    222,
+    219
+   ]
+  },
+  {
+   "map": "URB_CommercialRestaurant",
+   "material": "VEH_MovingVan.Materials.VEH_MovingVan",
+   "sections": 24,
+   "dE": 28.3,
+   "today": [
+    146,
+    145,
+    141
+   ],
+   "white": [
+    223,
+    222,
+    219
+   ],
+   "grey": [
+    223,
+    222,
+    219
+   ]
+  },
+  {
+   "map": "CLrgScout_ForestTrench",
+   "material": "TornEarth.Materials.MINST_SkidMark",
+   "sections": 62,
+   "dE": 10.7,
+   "today": [
+    79,
+    68,
+    39
+   ],
+   "white": [
+    69,
+    58,
+    46
+   ],
+   "grey": [
+    69,
+    58,
+    46
+   ]
+  },
+  {
+   "map": "URB_PoliceStation",
+   "material": "VEH_DeliveryVan.Materials.MINST_DeliveryVan",
+   "sections": 24,
+   "dE": 27.4,
+   "today": [
+    145,
+    144,
+    145
+   ],
+   "white": [
+    219,
+    218,
+    220
+   ],
+   "grey": [
+    219,
+    218,
+    220
+   ]
+  },
+  {
+   "map": "URB_LiquorStore",
+   "material": "ComKitWindows.Materials.ComKitWindows_DarkGreen",
+   "sections": 15,
+   "dE": 43.6,
+   "today": [
+    145,
+    145,
+    145
+   ],
+   "white": [
+    29,
+    55,
+    34
+   ],
+   "grey": [
+    29,
+    55,
+    34
+   ]
+  },
+  {
+   "map": "URB_StreetHurricane",
+   "material": "VEH_MovingVan.Materials.VEH_MovingVan",
+   "sections": 23,
+   "dE": 28.3,
+   "today": [
+    146,
+    145,
+    141
+   ],
+   "white": [
+    223,
+    222,
+    219
+   ],
+   "grey": [
+    223,
+    222,
+    219
+   ]
+  },
+  {
+   "map": "URB_ResearchOutpost",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_Blue",
+   "sections": 14,
+   "dE": 43.7,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    71,
+    74,
+    89
+   ],
+   "grey": [
+    71,
+    74,
+    89
+   ]
+  },
+  {
+   "map": "URB_ResearchOutpost_EWI",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_Blue",
+   "sections": 14,
+   "dE": 43.7,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    71,
+    74,
+    89
+   ],
+   "grey": [
+    71,
+    74,
+    89
+   ]
+  },
+  {
+   "map": "TempleShip",
+   "material": "alienBaseSectpdPieces.Materials.alienSectopodWallSlats",
+   "sections": 312,
+   "dE": 1.9,
+   "today": [
+    95,
+    90,
+    84
+   ],
+   "white": [
+    96,
+    93,
+    89
+   ],
+   "grey": [
+    96,
+    93,
+    89
+   ]
+  },
+  {
+   "map": "LSupplyShip_ForestGrove",
+   "material": "TexLibraryUFO.Materials.UFOIndTileSupplyA",
+   "sections": 63,
+   "dE": 8.8,
+   "today": [
+    124,
+    124,
+    125
+   ],
+   "white": [
+    106,
+    103,
+    100
+   ],
+   "grey": [
+    106,
+    103,
+    100
+   ]
+  },
+  {
+   "map": "URB_TruckStop_EWI",
+   "material": "VEH_SemiTrailer_A.Materials.M_SemiTrailer_A",
+   "sections": 10,
+   "dE": 52.0,
+   "today": [
+    171,
+    168,
+    165
+   ],
+   "white": [
+    255,
+    255,
+    255
+   ],
+   "grey": [
+    255,
+    255,
+    255
+   ]
+  },
+  {
+   "map": "URB_Demolition_EWI",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_Blue",
+   "sections": 11,
+   "dE": 43.7,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    71,
+    74,
+    89
+   ],
+   "grey": [
+    71,
+    74,
+    89
+   ]
+  },
+  {
+   "map": "URB_ResearchOutpost",
+   "material": "TexLibrary_Terrain.Materials.MilitarayHidden_Ground",
+   "sections": 70,
+   "dE": 6.8,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    112,
+    107,
+    100
+   ],
+   "grey": [
+    99,
+    91,
+    79
+   ]
+  },
+  {
+   "map": "URB_ResearchOutpost_EWI",
+   "material": "TexLibrary_Terrain.Materials.MilitarayHidden_Ground",
+   "sections": 70,
+   "dE": 6.8,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    112,
+    107,
+    100
+   ],
+   "grey": [
+    99,
+    91,
+    79
+   ]
+  },
+  {
+   "map": "URB_Demolition_EWI",
+   "material": "ShippingContainer.Materials.MINST_ShippingContainer_LightOrange",
+   "sections": 11,
+   "dE": 41.0,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    110,
+    80,
+    65
+   ],
+   "grey": [
+    110,
+    80,
+    65
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "FishingShack.Materials.ShingleRoof_Snow",
+   "sections": 13,
+   "dE": 33.5,
+   "today": [
+    113,
+    112,
+    109
+   ],
+   "white": [
+    195,
+    202,
+    200
+   ],
+   "grey": [
+    195,
+    202,
+    200
+   ]
+  },
+  {
+   "map": "URB_Bar",
+   "material": "VEH_MovingVan.Materials.VEH_MovingVan",
+   "sections": 15,
+   "dE": 28.3,
+   "today": [
+    146,
+    145,
+    141
+   ],
+   "white": [
+    223,
+    222,
+    219
+   ],
+   "grey": [
+    223,
+    222,
+    219
+   ]
+  },
+  {
+   "map": "URB_TruckStop_EWI",
+   "material": "WindowSolidMulti_MOD.Materials.Window84Multi_Brown",
+   "sections": 9,
+   "dE": 46.9,
+   "today": [
+    135,
+    136,
+    132
+   ],
+   "white": [
+    37,
+    25,
+    20
+   ],
+   "grey": [
+    37,
+    25,
+    20
+   ]
+  },
+  {
+   "map": "EWI_ChryssalidHive",
+   "material": "ShippingContainer.Materials.ShippingContainer_Olive",
+   "sections": 14,
+   "dE": 28.6,
+   "today": [
+    182,
+    182,
+    181
+   ],
+   "white": [
+    123,
+    137,
+    100
+   ],
+   "grey": [
+    123,
+    137,
+    100
+   ]
+  },
+  {
+   "map": "URB_PoliceStation",
+   "material": "ComKitWindows.Materials.ComKitWindows",
+   "sections": 11,
+   "dE": 34.0,
+   "today": [
+    145,
+    145,
+    145
+   ],
+   "white": [
+    65,
+    62,
+    58
+   ],
+   "grey": [
+    65,
+    62,
+    58
+   ]
+  },
+  {
+   "map": "CSmallScout_DirtRoad",
+   "material": "TornEarth.Materials.MINST_SkidMark",
+   "sections": 34,
+   "dE": 10.7,
+   "today": [
+    79,
+    68,
+    39
+   ],
+   "white": [
+    69,
+    58,
+    46
+   ],
+   "grey": [
+    69,
+    58,
+    46
+   ]
+  },
+  {
+   "map": "LAbductor_FarmOutskirts",
+   "material": "GroundForest.Materials.GroundFarmOutskirts_Dirt",
+   "sections": 80,
+   "dE": 4.5,
+   "today": [
+    70,
+    63,
+    49
+   ],
+   "white": [
+    75,
+    60,
+    42
+   ],
+   "grey": [
+    75,
+    62,
+    43
+   ]
+  },
+  {
+   "map": "CLrgScout_ForestTrench",
+   "material": "GroundForest.Materials.CraterGround",
+   "sections": 56,
+   "dE": 6.4,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    101,
+    91,
+    77
+   ],
+   "grey": [
+    124,
+    114,
+    105
+   ]
+  },
+  {
+   "map": "URB_SlaughterhouseA",
+   "material": "VEH_DeliveryVan.Materials.MINST_DeliveryVan",
+   "sections": 13,
+   "dE": 27.4,
+   "today": [
+    145,
+    144,
+    145
+   ],
+   "white": [
+    219,
+    218,
+    220
+   ],
+   "grey": [
+    219,
+    218,
+    220
+   ]
+  },
+  {
+   "map": "CsmallScout_Farm",
+   "material": "riverSections.Materials.River_Mud_RiverValley_Farm",
+   "sections": 21,
+   "dE": 16.4,
+   "today": [
+    118,
+    106,
+    89
+   ],
+   "white": [
+    80,
+    68,
+    46
+   ],
+   "grey": [
+    62,
+    52,
+    35
+   ]
+  }
+ ]
+}

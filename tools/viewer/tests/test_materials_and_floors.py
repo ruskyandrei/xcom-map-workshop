@@ -83,6 +83,7 @@ class StaticSwitchTests(unittest.TestCase):
         if licensee == 64: raw+=bytes(16)+struct.pack('<2i',0,0)
         raw+=bytes(16)+struct.pack('<i',len(switches))
         for i,(value,override) in enumerate(switches):raw+=struct.pack('<4i',i,0,value,override)+bytes(16)
+        raw+=struct.pack('<3i',0,0,0)  # no component masks, normal parameters or terrain weights
         class P:
             header={'lic':licensee}
             def own(self,*args):return True

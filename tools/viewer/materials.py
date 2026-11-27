@@ -8,34 +8,77 @@ import re
 from package import Reader, FormatError
 
 
-def static_switches(p, material):
-    """Own overridden switches in an EW/UDK material instance's native SM3 record.
-
-    Skip FMaterial and EW's extra material data using counted, bounded reads.
-    The remaining parameter kinds are not needed to select these switches.
-    """
-    if not p.own(material, 'bHasStaticPermutationResource', False): return {}
-    r = p.native(material)
+def _resource(p, r, textures=None):
+    """Reads a native FMaterialResource (and EW's material data after it) from `r`; its material ID. The textures
+    its uniform expressions sample by index (object references) are appended to `textures` when given."""
     for _ in range(r.count()):
         n = r.i32()  # FString compile error, possibly UTF-16
         r.take(n if n >= 0 else -2*n)
     r.take(r.count()*8)  # texture dependency map
-    r.i32(); r.take(16); r.u32()  # max dependency, material GUID, UV count
-    r.take(r.count()*4)  # uniform expression texture references
+    r.i32()  # max dependency
+    material_id = r.take(16)
+    r.u32()  # UV count
+    refs = [r.i32() for _ in range(r.count())]  # uniform expression texture references
+    if textures is not None: textures.extend(refs)
     r.take(24)  # five flags and coordinate-transform usage
     r.take(r.count()*16); r.u32()  # texture lookups and fallback flags
     if p.header['lic'] == 64:
         r.take(16); r.take(r.count()*16); r.i32()  # FXComMaterialData
-    r.take(16)  # FStaticParameterSet.BaseMaterialId
-    result = {}
+    return bytes(material_id)
+
+
+def resource_id(p, material):
+    """The material ID in a material's (or a permutation instance's) native resource: a base material's shader maps
+    are keyed by it (shader_cache.py)."""
+    return _resource(p, p.native(material))
+
+
+def resource_textures(p, material):
+    """The textures (object references) a material's (or a permutation instance's) resource lists for its uniform
+    expressions: a shader map's `Texture` and `TextureParameter` expressions name them by index."""
+    out = []
+    _resource(p, p.native(material), out)
+    return out
+
+
+def static_parameters(p, material):
+    """A material instance's own static permutation, None without one: dict(id (its resource's ID), base (the static
+    parameter set's base material ID), switches [(name, value, override)], masks [(name, (r, g, b, a), override)],
+    normals [(name, compression, override)]), each in the order the record keeps them. Counted, bounded reads."""
+    if not p.own(material, 'bHasStaticPermutationResource', False): return None
+    r = p.native(material)
+    material_id = _resource(p, r)
+    base = bytes(r.take(16))  # FStaticParameterSet.BaseMaterialId
+    switches, masks, normals = [], [], []
     for _ in range(r.count()):
         name = p.fname(r)
         value, override = r.unpack('2i')
         if value not in (0, 1) or override not in (0, 1):
             raise FormatError('Invalid static switch boolean')
         r.take(16)  # expression GUID
-        if override: result[name] = bool(value)
-    return result
+        switches.append((name, bool(value), bool(override)))
+    for _ in range(r.count()):
+        name = p.fname(r)
+        flags = r.unpack('5i')
+        r.take(16)
+        masks.append((name, tuple(bool(f) for f in flags[:4]), bool(flags[4])))
+    for _ in range(r.count()):
+        name = p.fname(r)
+        compression = r.take(1)[0]
+        override = r.i32()
+        r.take(16)
+        normals.append((name, compression, bool(override)))
+    for _ in range(r.count()):  # terrain layer weights: never seen with entries
+        p.fname(r)
+        r.take(4 + 4 + 16)
+    return dict(id=material_id, base=base, switches=switches, masks=masks, normals=normals)
+
+
+def static_switches(p, material):
+    """Own overridden switches in an EW/UDK material instance's native SM3 record ({name: value})."""
+    parameters = static_parameters(p, material)
+    if parameters is None: return {}
+    return {name: value for name, value, override in parameters['switches'] if override}
 
 
 def constant_color(p, material):

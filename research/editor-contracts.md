@@ -723,6 +723,40 @@ level's actor list, and rewrites the copies' `source` to the staged actor with `
 lane clones it as it clones one of the map's own (`lane_actor` takes a staged source only outside the list). The
 manifest says `foreignEffects`, and each donor row its `effects`.
 
+## 9. A material's program (game-likeness plan, track A; program version 1)
+
+What a material's compiled shaders draw, sliced out of the game's SM3 bytecode by
+[shader_slice.py](../tools/viewer/shader_slice.py) (`slice_material`) and run on numbers by
+[shader_eval.py](../tools/viewer/shader_eval.py). The page carries out the same operations in its shader. A JSON
+object:
+
+- `version` (1), `shaders` (the shader types and IDs it was sliced from: `base`, `light`, `lightmap`), `ends`
+  (`diffuse`: the form of the colour's mark, `mad` or `mul`), `unlit` (true when the base pass has no colour end:
+  the material's whole colour is its glow).
+- `inputs`: {name: four component sources, null for a component not read}. A source is `{"kind": "uv", "channel",
+  "component", "scale", "bias"}` (a mesh UV channel), `{"kind": "color", "component", "scale", "bias"}` (the
+  vertex colour; the game gives white where a mesh has none), `{"kind": "const", "value"}` (with `"fog": true` for
+  the vertex shader's height fog, given as none: the editor draws the map's fog itself),
+  `{"kind": "cameraVector", "component"}` (the tangent-space vector to the camera, as the game's vertex shader makes
+  it), `{"kind": "worldPosition", "component"}` (the position less the camera's, in game units: the game's
+  translated world space; add `cameraWorldPos` for the absolute one), `{"kind": "worldTangent" | "worldBinormal" |
+  "worldNormal", "component"}` (the tangent frame in the world, game axes), `{"kind": "tangentSign"}`,
+  `{"kind": "vFace" | "vPos", "component"}`. A source may carry `"scale": -1`.
+- `constants`: {name: {"value": [four numbers]}}: a literal, or the material's own value with `"uniform"` naming it
+  (a parameter's name, or `scalars<n>` for four packed scalars): the page sets these per material, so instances of
+  one material share one program. `"vector"` (an expression tree) or `"scalars"` (four trees or nulls) when the value
+  moves with time (worked out again each frame); `"engine"` when the page sets it (`cameraWorldPos`,
+  `objectWorldPos`, `twoSidedSign`, `screenPositionScaleBias`).
+- `textures`: {name: {"parameter" (the texture parameter's name, absent for a texture the material samples by
+  itself), "index" (the material resource's texture list: the default)}}. The export adds the texture it resolved.
+- `code`: rows `{"op", "d" (the register written), "m" (its write mask), "s": [sources], "sat": 1?, "texld":
+  "project" | "bias"?}`; a source is `{"r" (a register, input, constant or texture name), "w" (a four-letter
+  swizzle), "n": 1? (negated), "a": 1? (absolute)}`. The operations are SM3's (`shader_slice.SUPPORTED`), one for one.
+- `outputs`: {"diffuse", "specular", "power", "normal" (tangent space), "glow", "mask" (a cut-out: a pixel is cut
+  where any component is below zero), "opacity"}: each `{"r", "m"}` (a register and the components it gives) or
+  `{"value": [...]}` when it folds to constants. A glow of zero is left out.
+- `refused`: {output: why} for each output the slice could not give (a short code, then what it found).
+
 ## What E0 still lacks
 
 - **Resolver discrepancy fixtures.** Test cases capturing the known differences between the preview resolver and the
