@@ -4324,6 +4324,19 @@ def check_likeness(page):
             page.wait_for_timeout(250)
         if seen: break
     assert seen, 'no likeness changes anything in the picture'
+    # (E5: an effect a building's upper floor lists is not drawn while the Floor picker cuts that floor away)
+    upper = page.evaluate('ids => ids.find(id => (viewer.effectRoots.get(id).userData.source.floors ?? []).some(f => f.floor >= 1))', can)
+    if upper and page.locator('#floor button[data-value="1"]').count():
+        page.evaluate('id => { viewer.setEffectsShown(true); viewer.pickEffect(id); }', upper)
+        page.keyboard.press('f')
+        page.wait_for_timeout(300)
+        page.evaluate('viewer.setEffectsShown(false)')
+        page.wait_for_function('id => viewer.likenessState().drawn.includes(id)', arg=upper)
+        floor_before = page.evaluate("document.getElementById('floor').value")
+        choose(page, 'floor', '1')
+        page.wait_for_function('id => !viewer.likenessState().drawn.includes(id)', arg=upper)
+        choose(page, 'floor', floor_before or 'all')
+        page.wait_for_function('id => viewer.likenessState().drawn.includes(id)', arg=upper)
     # a deleted effect is not drawn; Ctrl+Z draws it again (where the editor changes effects)
     page.evaluate('id => { viewer.setEffectsShown(true); viewer.pickEffect(id); }', target)
     if not page.evaluate('id => viewer.effectState(id).viewOnly', target):

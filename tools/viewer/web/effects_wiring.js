@@ -30,8 +30,8 @@ import { activeMapId, lighting, clearedParts, copySerial, data, effectIndex, eff
          setLikenessCount, setLikenessOn, setLikenessThin, setLiveCache, setNormalEffectsValue, setPickCentres,
          setTipDirty, setWavePlayer, spawnsOn, streamSet, volumesOn, wavePlayer, zonesOn } from './editor_state.js';
 import { drawable, leftOut, makeLikeness, SWAP, viewHeight } from './effects_preview.js';
-import { effectRecords, keptValues, KIND_LABEL, parameterControls, parameterRows, recordChips, recordLines, recordName,
-         savedValues, soundReach, survivesClear, tintOf, tintVector, VALUE_LIMITS, valuesViewOnly, withValues } from './effects_rules.js';
+import { effectFloors, effectRecords, keptValues, KIND_LABEL, parameterControls, parameterRows, recordChips, recordLines, recordName,
+         savedValues, shownOnFloor, soundReach, survivesClear, tintOf, tintVector, VALUE_LIMITS, valuesViewOnly, withValues } from './effects_rules.js';
 import { LIMITS as LIKENESS_LIMITS, parametersOf } from './effects_sim.js';
 import { boxShape, makeEffectMarker, markersNear, nearestMarker, paintEffectMarker, reachShape } from './effects_view.js';
 import { actorMatrix } from './gizmo.js';
@@ -256,10 +256,14 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
         const o = root.userData.source;
         if (o.kind !== 'effect' || !root.userData.there) continue;
         const now = effectNow(root, o);
-        if (now.startsOn === false && pickedEffect !== o.id) continue;
+        // (one saved hidden, as one that starts off, is drawn only while it is picked: the game draws neither, E5)
+        if ((now.startsOn === false || now.hidden) && pickedEffect !== o.id) continue;
         want(root, now, o.id);
       }
-      for (const m of derivedEffects.children) if (m.userData.there && m.userData.record.kind === 'effect' && m.userData.record.startsOn !== false) want(m, m.userData.record, `derived:${m.id}`);
+      for (const m of derivedEffects.children) {
+        const r = m.userData.record;
+        if (m.userData.there && r.kind === 'effect' && r.startsOn !== false && !r.hidden) want(m, r, `derived:${m.id}`);
+      }
     }
     for (const owner of [...likenesses.keys()]) if (!wanted.has(owner)) dropLikeness(owner);
     for (const [owner, { record, system, id }] of wanted) {
@@ -275,6 +279,17 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
   }
   const likenessBox = new THREE.Box3(), likenessFrustum = new THREE.Frustum(), likenessAt = new THREE.Vector3(), likenessMatrix = new THREE.Matrix4();
   const likenessNormal = new THREE.Vector3();
+  // The floors that list an effect where it stands now (effects_rules.effectFloors: its own listings, or a moved, copied
+  // or added one's by the floors' boxes), worked out again only when it has moved
+  function likenessFloors(owner, record) {
+    const moved = !owner.userData.effect || Boolean(owner.userData.edit) || Boolean(record.added);
+    const at = [likenessAt.x, likenessAt.z, likenessAt.y], key = `${moved}:${at.map(v => Math.round(v)).join(',')}`;
+    if (owner.userData.floorsKey !== key) {
+      owner.userData.floorsKey = key;
+      owner.userData.floorsNow = effectFloors(record, data?.buildings, at, moved);
+    }
+    return owner.userData.floorsNow;
+  }
   // Each frame: every likeness put where its effect stands now (a drag moves it) and stepped, unless it is out of the
   // picture or too far to tell; over the view's budget of particles, what they spawn is thinned evenly
   function stepLikenesses(dt) {
@@ -282,6 +297,7 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
     likenessFrustum.setFromProjectionMatrix(likenessMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     let count = 0;
     const pixelsPerUnit = renderer.domElement.clientHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    const picked = $('floor')?.value ?? 'all';
     for (const [owner, { likeness, record }] of likenesses) {
       const matrix = owner.userData.effect ? owner.matrix : owner.userData.matrix, cp = record.componentPose;
       const s = record.scale ?? [1, 1, 1], cs = cp?.scale ?? [1, 1, 1];
@@ -291,6 +307,8 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
       g.matrix.multiply(SWAP);
       g.matrixWorldNeedsUpdate = true;
       likenessAt.setFromMatrixPosition(matrix);
+      // (hidden with a floor the Floor picker cuts away, as the game hides what the floor lists: E5)
+      if (!shownOnFloor(likenessFloors(owner, record), picked)) { g.visible = false; continue; }
       const reach = 1200 * Math.max(Math.abs(s[0]), Math.abs(s[1]), Math.abs(s[2]), 1);
       likenessBox.setFromCenterAndSize(likenessAt, likenessAt.clone().setScalar(2 * reach));
       // (in the picture, and more than a few pixels of it: a whole large map seen from afar steps nothing)

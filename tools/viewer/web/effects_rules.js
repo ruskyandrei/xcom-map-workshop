@@ -285,3 +285,31 @@ export function survivesClear(r, ctx) {
   if (r.carriedBy && ctx.carrierMoved) return true;
   return Boolean(ctx.outside?.(r.location[0], r.location[1]));
 }
+
+/** How far outside a floor's box an effect a Build moves or adds may stand and be listed by it (native_effects.SLACK). */
+export const FLOOR_SLACK = 2;
+/** The building floors that list an effect, as a Build leaves them (native_effects.floor_lists): its own listings
+ *  (the export's `floors`: { building: an id of the export's buildings, floor }) where it stands as the map saves it;
+ *  where `moved` (moved, copied or added) each upper floor (index 1 up) one of whose boxes holds `at` (game units)
+ *  within FLOOR_SLACK. `buildings`: the export's. */
+export function effectFloors(record, buildings, at, moved) {
+  if (!moved) return record.floors ?? [];
+  const out = [];
+  for (const b of buildings ?? []) {
+    (b.floors ?? []).forEach((floor, k) => {
+      if (k < 1) return;
+      const holds = (floor.boxes ?? []).some(v => [0, 1, 2].every(a => v.min[a] - FLOOR_SLACK <= at[a] && at[a] <= v.max[a] + FLOOR_SLACK));
+      if (holds) out.push({ building: b.id, floor: k });
+    });
+  }
+  return out;
+}
+/** Whether the game draws an effect listed on `floors` with the Floor picker at `picked` ('all', or the floor shown,
+ *  from 1): a floor cut away hides what it lists, the floors run top to bottom so a building's lowest listing decides,
+ *  as for a piece (cutaway.js), and an effect no floor lists always shows. */
+export function shownOnFloor(floors, picked) {
+  if (picked === 'all' || picked == null || !floors?.length) return true;
+  const idx = Number(picked) - 1, lowest = new Map();
+  for (const f of floors) if (!lowest.has(f.building) || f.floor < lowest.get(f.building)) lowest.set(f.building, f.floor);
+  return [...lowest.values()].some(f => f <= idx);
+}
