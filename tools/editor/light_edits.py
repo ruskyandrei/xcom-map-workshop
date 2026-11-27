@@ -21,10 +21,12 @@ What the family shares with the compiler (FAMILIES, EPS_LOCATION, short, tidy, w
 it takes from compiler_tables, so it never imports the compiler. The export check that every project with edits needs
 (light_metadata_problem, LIGHT_METADATA) is the compiler's.
 
-The project's `sun` (schema 10; the game-likeness plan's T-S1: the time of day, the map's sun or moon and sky light) is
-this family's too (sun_mark). It is read for its shape alone for now (tools/viewer/sun_curve.py `problem`): the Build's
-lane for it is stage T-S2's, so a project with one builds and the map keeps its own sun, sky light and time of day,
-said in a note.
+The project's `sun` (schema 10; the game-likeness plan's track T: the time of day, the map's sun or moon and sky light)
+is this family's too (sun_mark, stage T-S2): checked for its shape (tools/viewer/sun_curve.py `problem`), it makes the
+native edit's `sun` lane, which the Build writes on the map's dominant light and sky light in place
+(tools/bake/native_lights.py apply_sun), and the report's `sun`, whose TimeOfDay the Build writes in the variant's
+records (build.py config_lines). A quick Build that turns the sun keeps the map's old shadows: stale_sun says so in the
+compile report (sun-shadows-stale).
 """
 import math
 
@@ -48,6 +50,12 @@ RECIPE_ROTATION = {'spot': [-16384, 0, 0],      # pointing down, as a placed Spo
                    'point': [0, 0, 0]}
 # An unresolved area light this near an edited piece's old box (units) is named in a warning (plan 4.8)
 AREA_NEAR = 64.0
+# The time of day (the project's `sun`): the TimeOfDay the variant's DefaultMaps.ini records get for the game's time of
+# day a record says (sun_curve.game_time), and how near the map's own rotation a record's may be (game units, on each of
+# pitch, yaw and roll) and still be the map's own direction: the page's rule (sun_rules.js sameRotation)
+SUN_TIMES = {'day': 'eMissionTime_Day', 'night': 'eMissionTime_Night'}
+SUN_SAME_TURN = 2
+LEVEL = 'TheWorld.PersistentLevel.'
 
 
 def light_rule(light):
@@ -61,8 +69,10 @@ def light_rule(light):
     if role == 'toggleable':
         who = ', '.join(light.get('referencedBy') or []) or 'a destructible'
         return 'it is lit live and switched by %s; moving it means relighting its shadow maps (a later step)' % who
-    if role in ('dominant', 'sky') or kind in ('directional', 'sky'):
-        return 'it is the sun, moon or sky: these come with the time of day, a later step'
+    if role in ('dominant', 'sky') or kind == 'sky':
+        return 'it is the sun, moon or sky light: the time of day sets it (Map settings, the Sun, moon and sky section)'
+    if kind == 'directional':
+        return 'it is a directional light baked into the map, not its sun or moon: the time of day leaves it as it is'
     if role != 'static' or kind not in ('point', 'spot'):
         return 'it is not a placed point or spot light'
     if 'lightmapGuid' not in light or 'bakedInto' not in light:
@@ -74,6 +84,29 @@ def light_rule(light):
     if not light.get('bakedInto'):
         return 'it is in no lightmap: the bake never used it'
     return None
+
+
+def level_name(path):
+    """An object's name in the persistent level, as the native edit names the lights it sets in place: its path without
+    'TheWorld.PersistentLevel.' (an actor's name, or a component's with its actor's: Light_1.LightComponent_0)."""
+    return path[len(LEVEL):] if path.startswith(LEVEL) else path
+
+
+def stale_sun(report):
+    """A Build without baking's compile report given the time of day's warning where its sun or moon turns
+    (sun-shadows-stale): the map's shadows stay where its own light cast them until a Build with baking makes new ones.
+    Changed in place (its warnings and their count); a report whose sun keeps the map's direction is left as it is. The
+    Build calls it (build.py compile), since the compiler does not know which kind of Build reads its report."""
+    sun = report.get('sun') or {}
+    if not sun.get('directionChanged'):
+        return report
+    report['warnings'].append(dict(
+        code='sun-shadows-stale', record='sun',
+        message='The sun or moon at %s comes from another side than the map\'s own: a Build without baking keeps the '
+                'map\'s shadows as its own light cast them (on the ground, the buildings and the units) until a Build '
+                'with baking makes new ones.' % sun.get('time')))
+    report['counts']['warnings'] = len(report['warnings'])
+    return report
 
 
 def light_values(light):
@@ -138,22 +171,63 @@ class LightEdits:
         self.owner_edits = []    # (kind, owner actor path, owner entity, rigid move or None, where)
         self.members = set()     # the group member keys of the lights the project adds
         self.object_boxes = None     # the base map's pieces' world boxes, made when reaching first needs them
+        # the project's time of day (sun_mark): the native edit's `sun` object and the report's `sun`, or None
+        self.sun = self.sun_report = None
 
     def sun_mark(self):
-        """The project's `sun` (the time of day) read for its shape: one this compiler can't read is left out
-        (sun-shape); one it reads is noted (sun-not-built), since no Build writes it yet (stage T-S2 makes its lane)."""
+        """The project's `sun` (the time of day: the map's sun or moon, its sky light and the game's time of day; schema
+        10). One this compiler can't read is left out (sun-shape). On a map with no sun or moon (no dominant directional
+        light in its base level) it is passed over, with a warning (sun-no-light). Else `sun` is the native edit's
+        object, which the Build writes in place (tools/bake/native_lights.py apply_sun): the dominant light's actor and
+        component (their names in the persistent level: level_name), the record's rotation (the map's own when it is
+        within SUN_SAME_TURN of it), colour and brightness, whether the rotation is another than the map's own
+        (directionChanged), and the sky light's actor, component, colours and brightnesses, or None where the map has
+        no sky light (sun-no-sky) or the record sets none. `sun_report` is the report's `sun`: the time, the game's time
+        of day the variant's records get (SUN_TIMES; 'auto' follows the light, sun_curve.game_time), whether the
+        direction changed. Another directional light of the map stays as it is (sun-second-light)."""
         rec = self.c.doc.get('sun')
         if rec is None:
             return
         import sun_curve
-        why = sun_curve.problem(rec)
+        curve = sun_curve.load()
+        why = sun_curve.problem(rec, curve)
         if why:
             self.c.leave_out('sun-shape', "The project's time of day can't be read (%s): it is left out, and the map "
                              'keeps its own sun, sky light and time of day.' % why, record='sun')
             return
-        self.c.note('sun-not-built', 'The project sets the time of day (%s): the editor shows it, and the Build does not '
-                    'write it into the map yet, so the map keeps its own sun, sky light and time of day.'
-                    % ('%02d:%02d' % divmod(round(rec['time'] * 60) % 1440, 60)), record='sun')
+        clock = '%02d:%02d' % divmod(round(rec['time'] * 60) % 1440, 60)
+        lights = self.c.scene.get('lights') or []
+        dominant = [l for l in lights if l.get('layer') == 'base' and l.get('role') == 'dominant'
+                    and l.get('kind') == 'directional']
+        if not dominant:
+            self.c.warn('sun-no-light', 'The project sets the time of day (%s), and the map has no sun or moon to set (no '
+                        'dominant directional light): the time of day is passed over, and the map keeps its light and '
+                        'its records\' time of day.' % clock, record='sun')
+            return
+        light = dominant[0]
+        own = [int(v) for v in light['rotation']]
+        rotation = [int(v) for v in rec['light']['rotation']]
+        turned = any(abs((a - b + 32768) % 65536 - 32768) > SUN_SAME_TURN for a, b in zip(rotation, own))
+        sky_lights = [l for l in lights if l.get('layer') == 'base' and l.get('kind') == 'sky']
+        sky = None
+        if sky_lights and rec.get('sky'):
+            s = rec['sky']
+            sky = dict(actor=level_name(sky_lights[0]['actor']), component=level_name(sky_lights[0]['component']),
+                       color=list(s['color']), brightness=s['brightness'], lowerColor=list(s['lowerColor']),
+                       lowerBrightness=s['lowerBrightness'])
+        self.sun = dict(actor=level_name(light['actor']), component=level_name(light['component']),
+                        rotation=rotation if turned else own, color=list(rec['light']['color']),
+                        brightness=rec['light']['brightness'], directionChanged=turned, sky=sky)
+        game = sun_curve.game_time(rec, curve)
+        self.sun_report = dict(time=clock, timeOfDay=SUN_TIMES[game], directionChanged=turned, sky=sky is not None)
+        if not sky_lights:
+            self.c.warn('sun-no-sky', 'The map has no sky light, so the time of day sets its sun or moon alone: at %s '
+                        'the units take no sky light of the hour on their shaded side.' % clock, record='sun')
+        others = [short(l['actor']) for l in lights if l.get('kind') == 'directional' and l is not light]
+        if others:
+            self.c.warn('sun-second-light', 'The map has another directional light beside its sun or moon (%s): the time '
+                        'of day leaves it as it is, baked into the map, so its light still falls as at the map\'s own '
+                        'time.' % ', '.join(others), record='sun', lights=others)
 
     def light_of(self, target):
         """The export's light a target {package, level, actor} names, or None."""

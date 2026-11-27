@@ -198,29 +198,26 @@ class BarAsItIs(unittest.TestCase):
 
 @unittest.skipUnless(BAR and BAR.exists(), NO_BAR)
 class TurnedBar(unittest.TestCase):
-    """A scratch copy of URB_Bar with its moon turned to a low sun (native_copy.set_pose on its actor), relit with
-    --sun-turned alone and read back."""
+    """URB_Bar with its moon turned to a low sun as a Build makes it: the copy tool given the native edit's sun lane
+    alone (T-S2 turns the light in the grown map) with --bake --sun-turned, so the relight traces the new sun's shadows
+    for the whole map; the written map read back. (audit_suns.py turn does the same on a copy turned by set_pose.)"""
 
     @classmethod
     def setUpClass(cls):
-        import native_copy
-        import package_grow
         cls.folder = tempfile.TemporaryDirectory()
         root = Path(cls.folder.name)
-        (root / 'turned').mkdir()
         src = Path(BAR)
-        p = lighting.Package(src)
-        g = package_grow.Grower(str(src))
-        native_copy.set_pose(native_copy.Walker(p, g), g, p, p.exports[p.by_name[MOON] - 1]['outer'], None, TURNED)
-        turned = root / 'turned' / 'URB_Bar.upk'
-        g.write(str(turned))
-        lighting.link_caches(turned.parent, src.parent)
+        edit = root / 'native-edit.json'
+        edit.write_text(json.dumps(dict(copies=[], sun=dict(
+            actor='DominantDirectionalLight_1', component=MOON[len(PL):], rotation=TURNED, color=[255, 139, 45],
+            brightness=1.0, directionChanged=True, sky=None))), encoding='utf-8', newline='\n')
         cls.out = root / 'lit'
-        run = subprocess.run([sys.executable, '-B', str(HERE.parent / 'relight.py'), str(turned), str(cls.out), 'URB_Bar_Sun',
-                              '--cache', 'Lighting_7004', '--sun-turned', '--receivers-near', '600'],
+        run = subprocess.run([sys.executable, '-B', str(HERE.parent / 'native_copy.py'), str(src), str(cls.out),
+                              'URB_Bar_Sun', '--copies', str(edit), '--bake', '--cache', 'URB_Bar_Sun_Lighting',
+                              '--receivers-near', '600', '--sun-turned'],
                              capture_output=True, text=True, encoding='utf-8', errors='replace')
         if run.returncode:
-            raise AssertionError(f'relight --sun-turned failed: {run.stdout[-2000:]} {run.stderr[-2000:]}')
+            raise AssertionError(f'native_copy.py --sun-turned failed: {run.stdout[-2000:]} {run.stderr[-2000:]}')
         lighting.link_caches(cls.out, src.parent)
         cls.record = json.loads((cls.out / 'URB_Bar_Sun.relight.json').read_text(encoding='utf-8'))
         cls.q = lighting.Package(cls.out / 'URB_Bar_Sun.upk')
@@ -234,6 +231,7 @@ class TurnedBar(unittest.TestCase):
 
     def test_the_record_says_what_was_made(self):
         r = self.record
+        self.assertEqual(self.q.own(self.q.exports[self.q.by_name[MOON] - 1]['outer'], 'Rotation'), TURNED)
         self.assertFalse(r['lightingUnchanged'])
         self.assertEqual((len(r['components']), r['failed']), (0, 0))
         self.assertEqual(len([s for s in r['shadowMaps'] if 'skipped' not in s]), 708)

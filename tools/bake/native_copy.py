@@ -2509,10 +2509,12 @@ class BuildState:
     diagonal_cover: object = None   # diagonalCover (the project's diagonal cover marks, diagonal_edit)
     kismet_cuts: tuple = ()         # kismetCuts (the deleted pieces the map's Kismet names: kismet_cut.py)
     atmosphere: object = None       # atmosphere (the project's fog and post-process members: native_world.py)
+    sun: object = None              # sun (the project's time of day: native_lights.apply_sun)
     # what build fills, as it goes
     p: object = filled()                # the pristine map read (build, first)
     g: object = filled()                # the variant map's growing writer (build, first)
     light_state: object = filled()      # the light edits resolved against the pristine map, or None (build)
+    sun_record: object = filled()       # the map's sun or moon and sky light set in place (sun_in_place), or None
     hidden: list = filled(list)         # hide_pieces' records
     edit_slots: set = filled(set)       # the building edits' emptied slots
     lights_gone: set = filled(set)      # the light edits' deletes
@@ -2660,6 +2662,7 @@ def manifest_parts(st, q, bake):
                                              how=f['how']) for f in floor_emitters]} if floor_emitters else {}),
                   **({'backgroundSound': st.sound_record} if st.sound_record else {}),
                   **({'atmosphere': st.atmosphere_record} if st.atmosphere_record else {}),
+                  **({'sun': st.sun_record} if st.sun_record else {}),
                   floorCaches=floor_caches, hiddenBuildings=hidden_buildings,
                   buildings=[dict(b, copy=q.name(b['building']).split('.')[-1],
                                   floors=[dict(f, volumes=[q.name(v).split('.')[-1] for v in f['volumes']],
@@ -2790,6 +2793,21 @@ def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, job
     if st.sun_turned:
         cmd.append('--sun-turned')
     return cmd
+
+
+def sun_in_place(st):
+    """The project's time of day made in the map (BuildState `st`, its `sun`): the map's sun or moon and its sky light
+    set where they stand, their names and GUIDs kept (native_lights.apply_sun), beside the light edits and before the
+    copies. Fills the state's sun_record (None for no lane)."""
+    import native_lights
+    st.sun_record = native_lights.apply_sun(st.g, st.p, st.sun)
+    if st.sun_record:
+        rec = st.sun_record
+        print('    the time of day: %s%s%s' % (
+            rec['light']['actor'].split('.')[-1],
+            ' turned' if rec['directionChanged'] else ' (its direction kept)',
+            ''.join('; %s %s' % (r['actor'].split('.')[-1], ', '.join(r['written']) or 'as the map has it')
+                    for r in (rec['light'], rec['sky']) if r)))
 
 
 def clone_copies(st):
@@ -3343,6 +3361,10 @@ def write_and_verify(st):
         check_vertex_lightmaps(q, m['info']['mapping'])
     if state:
         native_lights.verify(q, state, light_result)
+    # the time of day read back: the sun or moon's and the sky light's values, their GUIDs and the shadow map of the
+    # level kept
+    if st.sun_record:
+        native_lights.verify_sun(q, p, st.sun_record, st.sun)
     # the effects' and sounds' lanes and the floors' effect lists read back
     if lane_effects or lane_sounds or lane_flares or floor_emitters or lane_spawns:
         from package import Package as Reader
@@ -3385,8 +3407,8 @@ def build(st):
     or yaw alone (the original's pitch and roll); with neither, the original's rotation. `edit_spec`, with `bake`: an
     editor patch spec whose exact hides (and posed copies) relight models too (relight.py --edit-spec), for an edit
     whose hidden pieces stay in a patch. `sun_turned`, with `bake`: the map's sun points another way than it was baked
-    for, and the relight traces its shadows again for the whole map (relight.py --sun-turned). A copy's `breakGroup` (a number) and `break_originals` ({name, group}: the
-    map's own pieces left in place) link the editor's groups that break together (link_children). `hides` ({name,
+    for, and the relight traces its shadows again for the whole map (relight.py --sun-turned). A copy's `breakGroup`
+    (a number) and `break_originals` ({name, group}: the map's own pieces left in place) link the editor's groups that break together (link_children). `hides` ({name,
     box}) are taken out of the map (hide_pieces), after the copies are made (a moved piece is the source of its copy)
     and before the relight, which leaves them out of the scene after the edit (--remove-caster).
 
@@ -3450,6 +3472,13 @@ def build(st):
     height fog and post-process settings over those the map saves, on its WorldInfo (native_world.apply), read back
     (native_world.read_back); the manifest's `atmosphere` says what was written and what was added.
 
+    `sun` (the compiler's: {actor, component, rotation, color, brightness, directionChanged, sky}) is the project's
+    time of day: the map's sun or moon given the rotation (where the direction changed), colour and brightness, and its
+    sky light the sky's colours and brightnesses, in place, the lights keeping their names and GUIDs
+    (native_lights.apply_sun), read back (native_lights.verify_sun); the manifest's `sun` says what was written. The
+    dominant light's shadow map of the level and the map's shadow maps stay the old light's (a relight makes no new
+    ones).
+
     `landing_zones` (the compiler's: {zones, own, ownLandings}) moves the map's own landings to the zones that are also
     theirs (native_spawns.py), in place; the manifest's `landings` section lists what moved.
 
@@ -3487,8 +3516,10 @@ def build(st):
     # what the edit takes out, added to as each step takes something (BuildState.gone)
     st.p = p
     st.lights_gone = set((st.light_result or {}).get('gone') or ())
-    # the copies (clone_copies)
     st.g = g
+    # the project's time of day: the map's sun or moon and sky light set in place (sun_in_place)
+    sun_in_place(st)
+    # the copies (clone_copies)
     clone_copies(st)
     # the cover blocks: hidden level actors on box meshes, made from a recipe (cover_blocks.py), each in its tiles
     cover_actors, st.cover_records = cover_blocks.add_blocks(g, p, st.covers) if st.covers else ([], [])
@@ -3591,7 +3622,7 @@ def edit_state(src, out, variant, doc, **options):
     its field as it is, and each copy through copy_record."""
     copies, break_originals, hides, assemblies, lights, covers, buildings, edits = [], [], [], [], None, [], [], []
     cleared = landing_zones = carried_effects = effects = sounds = flares = spawns = background_sound = None
-    diagonal_cover = atmosphere = None
+    diagonal_cover = atmosphere = sun = None
     kismet_cuts = []
     stream_tiles, piece_flags, flag_ladders, piece_blasts = [], [], [], []
     if isinstance(doc, dict):
@@ -3613,6 +3644,7 @@ def edit_state(src, out, variant, doc, **options):
         diagonal_cover = doc.get('diagonalCover')
         kismet_cuts = doc.get('kismetCuts') or []
         atmosphere = doc.get('atmosphere')
+        sun = doc.get('sun')
         doc, break_originals, hides = doc.get('copies') or [], doc.get('breakOriginals') or [], doc.get('hides') or []
     for c in doc:
         copies.append(copy_record(c))
@@ -3621,7 +3653,7 @@ def edit_state(src, out, variant, doc, **options):
                       landing_zones=landing_zones, carried_effects=carried_effects, stream_tiles=stream_tiles,
                       piece_flags=piece_flags, flag_ladders=flag_ladders, effects=effects, sounds=sounds, flares=flares,
                       spawns=spawns, background_sound=background_sound, piece_blasts=piece_blasts,
-                      diagonal_cover=diagonal_cover, kismet_cuts=kismet_cuts, atmosphere=atmosphere, **options)
+                      diagonal_cover=diagonal_cover, kismet_cuts=kismet_cuts, atmosphere=atmosphere, sun=sun, **options)
 
 
 def main():
@@ -3679,7 +3711,7 @@ def main():
             and not st.cleared and not st.landing_zones and not st.stream_tiles and not st.piece_flags \
             and native_lights.is_empty(st.lights) and not st.effects and not st.sounds and not st.flares \
             and not st.spawns and not st.background_sound and not st.piece_blasts and not st.atmosphere \
-            and not ((st.diagonal_cover or {}).get('marks') or (st.diagonal_cover or {}).get('removed')) \
+            and not st.sun and not ((st.diagonal_cover or {}).get('marks') or (st.diagonal_cover or {}).get('removed')) \
             and not st.sun_turned:
         a.error('give --copy, --copies (or --actor with --at)')
     if args.edit_spec and not args.bake:

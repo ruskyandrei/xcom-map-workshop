@@ -543,7 +543,7 @@ def mission_entries(records, listed):
 
 
 def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None, zones=None, missions_list=None,
-                 drop_patches=False):
+                 drop_patches=False, time_of_day=None):
     """The variant's config lines from the game install's (lists of lines): one DefaultMaps.ini record per record of
     the base map (its missions), each under the variant's name and out of rotation, streaming `patch` unless it is
     None and the variant's own intro copies in place of the originals (`intros`, {original: copy}); landing zones and
@@ -562,7 +562,10 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
     (installs.build_record). missions_list: the project's `missions` (mission types plan, D1): records for those
     alone, an added kind's made from the base map's abduction record (missions.added_record); then the result says
     missionsFromProject. drop_patches (a cleared map, KNOWN-BUGS.md KB-23): each record streams none of LWR's patch
-    levels (mapsini.drop_patches), and the result lists those it took out in droppedStreams."""
+    levels (mapsini.drop_patches), and the result lists those it took out in droppedStreams. time_of_day (the project's
+    time of day: the compiler's report `sun`, eMissionTime_Day or eMissionTime_Night): each record's TimeOfDay (every
+    record of the game's has one), which a campaign draws the map for missions of that time by; the result then says
+    timeOfDay."""
     records, missions, slots, stands, matched, dropped = [], [], [], [], [], []
     found = base_records(maps, base)
     template = template_record(found)
@@ -599,6 +602,8 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
             record = mapsini.set_field(mapsini.set_field(base_line, 'Name', variant), 'DisplayName', text)
             if mapsini.unquoted(record, 'bInRotation') is not None:
                 record = mapsini.set_field(record, 'bInRotation', 'False', quoted=False)
+            if time_of_day and mapsini.unquoted(record, 'TimeOfDay') is not None:
+                record = mapsini.set_field(record, 'TimeOfDay', time_of_day, quoted=False)
             if drop_patches:
                 record, gone = mapsini.drop_patches(record)
                 dropped += [s for s in gone if s not in dropped]
@@ -640,6 +645,7 @@ def config_lines(maps, lz, minimods, base, variant, patch, display, intros=None,
     return dict(maps=records, missions=missions, recordMissions=stands, matchedNames=matched, streamSlots=slots,
                 landingZones=zones, miniMods=rules, **({'missionsFromProject': True} if isinstance(missions_list, list) else {}),
                 **({'droppedStreams': dropped} if drop_patches else {}),
+                **({'timeOfDay': time_of_day} if time_of_day else {}),
                 **({'landingZonesFromProject': True, 'landingZoneIds': ids} if own is not None and lz is not None else {}))
 
 
@@ -848,6 +854,7 @@ class Build:
         self.piece_flags = self.piece_blasts = self.flags_edit = self.spawn_edits = self.effects_edit = None
         self.marks_edit, self.diagonal = None, None
         self.background_sound = self.sound_brought = self.atmosphere = None
+        self.sun = self.time_of_day = None
         self.sun_turned = False
         self.has_patch = self.resizes = self.cleared = self.landing_zones = self.spawn_rules = self.map_info = None
         self.clears_lights = False
@@ -1049,6 +1056,9 @@ class Build:
         spec, report = compiler.compile_project(self.doc, self.scene, self.enable,
                                                 compiler.Library(self.cache, self.lwr), self.foreign)
         report['export'] = str(self.export)
+        if self.quick:
+            # a quick Build that turns the sun or moon keeps the map's shadows of it (light_edits.stale_sun)
+            compiler.stale_sun(report)
         self.compile_report = report
         compiler.write_json(self.work / 'compile-report.json', report)
         if spec is None:
@@ -1096,10 +1106,15 @@ class Build:
         # the map's fog and post-process members the project changes (game-likeness plan, C5; native_world.apply): its
         # WorldInfo's settings, no baked light, so they go with the effects too
         self.atmosphere = self.native.get('atmosphere')
-        # the sun turned (the native edit's sun.directionChanged, game-likeness plan T-S2): a baked build traces its
-        # shadows again for the whole map, with its map of the level and the lighting samples' marks (sun_bake.py)
-        self.sun_turned = bool((self.native.get('sun') or {}).get('directionChanged'))
-        self.effects_edit = bool(self.background_sound) or bool(self.atmosphere) or any(
+        # the project's time of day (game-likeness plan, T-S2; native_lights.apply_sun): the map's sun or moon and sky
+        # light set in place, drawn live by the game, so it goes with the effects too; the TimeOfDay its records get is
+        # the report's (config_lines)
+        self.sun = self.native.get('sun')
+        self.time_of_day = (report.get('sun') or {}).get('timeOfDay') if self.sun else None
+        # turned (its directionChanged), a baked build traces its shadows again for the whole map, with its map of the
+        # level and the lighting samples' marks (relight.py --sun-turned, sun_bake.py; T-S4)
+        self.sun_turned = bool((self.sun or {}).get('directionChanged'))
+        self.effects_edit = bool(self.background_sound) or bool(self.atmosphere) or bool(self.sun) or any(
             (self.native.get(k) or {}).get(op) for k in EFFECT_LANES + ('spawns',) for op in ('moves', 'deletes', 'copies', 'values'))
         self.has_patch = bool(patch_spec['objects'])
         # light edits (editor lights plan, 4.5): made in the map by native_copy.py, in both kinds of build
@@ -1919,7 +1934,7 @@ class Build:
         lines = config_lines(maps, cfg('DefaultLZMutator.ini'), cfg('DefaultMiniMods.ini'), self.map, self.variant,
                              patch, display, intros=replace, missions_list=listed,
                              zones=(self.native.get('landingZones') or {}).get('zones') if 'landingZones' in self.native else None,
-                             drop_patches=bool(self.native.get('dropPatches')))
+                             drop_patches=bool(self.native.get('dropPatches')), time_of_day=self.time_of_day)
         if lines.get('droppedStreams'):
             self.echo('records: stream none of the map\'s patch levels (a cleared map): %s' % ', '.join(lines['droppedStreams']))
         if self.spawn_rules:

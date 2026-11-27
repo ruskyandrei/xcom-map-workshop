@@ -42,7 +42,10 @@ def native_split(spec):
     `diagonalCover` the diagonal cover the project marks ({marks [{at, toward}], removed [at]}: tools/bake/native_copy.py
     diagonal_edit), and `kismetCuts` the deleted pieces the map's Kismet names, which it lets go of
     (tools/bake/kismet_cut.py), and `atmosphere` the map's fog and post-process members the project changes ({fog?,
-    postProcess?}: tools/bake/native_world.py). A group with a copy of another class stays
+    postProcess?}: tools/bake/native_world.py), and `sun` the project's time of day ({actor, component, rotation,
+    color, brightness, directionChanged, sky: {actor, component, color, brightness, lowerColor, lowerBrightness} or
+    null}: the map's dominant light and sky light set in place, tools/bake/native_lights.py apply_sun). A group with a
+    copy of another class stays
     the copier's whole, with its base-map pieces. What is left for the patch, if anything, is built by patchtool; with
     nothing left the Build makes no patch."""
     out, natives, originals, hides, moves = dict(spec, objects=[]), [], [], [], []
@@ -58,6 +61,7 @@ def native_split(spec):
     diagonal = out.pop('diagonalCover', None)
     kismet_cuts = out.pop('kismetCuts', None)
     atmosphere = out.pop('atmosphere', None)
+    sun = out.pop('sun', None)
     for obj in spec['objects']:
         if obj.get('type') == 'buildings':
             buildings += obj['buildings']
@@ -185,5 +189,7 @@ def native_split(spec):
         native['kismetCuts'] = kismet_cuts
     if atmosphere:
         native['atmosphere'] = atmosphere
+    if sun:
+        native['sun'] = sun
     native.update(effect_lanes)
     return out, native

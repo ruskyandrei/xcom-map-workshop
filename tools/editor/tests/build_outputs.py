@@ -125,6 +125,9 @@ INPUTS = [
     dict(name='bar-atmosphere', maps=BAR, parts=[part('exp98_project.py', '{out}', '--look', 'both', '--compile')],
          what='URB_Bar with its height fog made thick and red and its grade green (the atmosphere lane: its WorldInfo\'s '
               'structs written again)'),
+    dict(name='bar-sun', maps=BAR, parts=[part('exp99_project.py', '{out}', '--compile')],
+         what='URB_Bar made day by the time bar at 13:00 (the sun lane: its moon turned and given the noon sun\'s colour, '
+              'its sky light the hour\'s, the records\' TimeOfDay Day)'),
     dict(name='bar-grid', maps=BAR, parts=[part('grid_bar_project.py', '{out}', '--grid', '56', '43', '--compile')],
          what='URB_Bar on a larger grid (56 by 43) and nothing else: its baked Build relights a copy of the map the '
               'growing writer names (KB-2: a real one stops in the relight)'),

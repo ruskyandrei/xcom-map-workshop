@@ -94,6 +94,23 @@ class ConfigLines(unittest.TestCase):
         self.assertNotIn('droppedStreams', c)
         self.assertIn('MapName="patch_bar"', c['maps'][0])
 
+    def test_the_projects_time_of_day_is_each_records_time_of_day(self):
+        # the time of day (game-likeness plan, T-S2): every record the variant gets, an added kind's too, says the time
+        # the project sets, written by mapsini's one writer; nothing else of the record changes
+        bar = record('bar')
+        self.assertEqual(mapsini.unquoted(bar, 'TimeOfDay'), 'eMissionTime_Night')
+        terror = mapsini.set_field(bar, 'MissionType', 'eMission_TerrorSite', quoted=False)
+        c = build.config_lines([bar, terror], None, None, 'URB_Bar', VARIANT, PATCH, None,
+                               missions_list=[dict(record=0), dict(record=1), dict(kind='Special/Bomb')],
+                               time_of_day='eMissionTime_Day')
+        self.assertEqual(len(c['maps']), 3)
+        self.assertEqual([mapsini.unquoted(line, 'TimeOfDay') for line in c['maps']], ['eMissionTime_Day'] * 3)
+        self.assertEqual(c['timeOfDay'], 'eMissionTime_Day')
+        plain = build.config_lines([bar, terror], None, None, 'URB_Bar', VARIANT, PATCH, None,
+                                   missions_list=[dict(record=0), dict(record=1), dict(kind='Special/Bomb')])
+        self.assertNotIn('timeOfDay', plain)
+        self.assertEqual([line.replace('eMissionTime_Day', 'eMissionTime_Night') for line in c['maps']], plain['maps'])
+
     def test_the_base_map_is_found_whatever_the_case_of_its_name(self):
         # the farm's file is CsmallScout_Farm.upk and its records, landing zones and rules name CSmallScout_Farm: the
         # game matches names whatever their case, and so does the Build
@@ -723,38 +740,35 @@ class Builds(unittest.TestCase):
         self.assertEqual(([c['actor'] for c in edit['copies']], edit['covers']), (['XComLevelActor_1'], [block]))
 
     def test_a_turned_sun_has_its_shadows_traced_again_in_a_baked_build(self):
-        """The native edit's sun (the game-likeness plan's T-S2 lane; nothing writes it yet, so a stand-in for
-        native_split adds it here): with directionChanged, a baked Build hands native_copy.py --sun-turned with --bake,
-        which traces the sun's shadows again for the whole map (relight.py, sun_bake.py), even beside cover blocks
-        that alone relight nothing; the light stage says what the relight made. Without the change, or in a quick
-        Build, there is no --sun-turned."""
-        sun = dict(actor='DominantDirectionalLight_1', component='DominantDirectionalLightComponent_0',
+        """The native edit's sun (the T-S2 lane) with directionChanged: a baked Build hands native_copy.py --sun-turned
+        with --bake, which traces the sun's shadows again for the whole map (relight.py, sun_bake.py; T-S4), beside
+        cover blocks that alone relight nothing and beside copies. Without the change, or in a quick Build, there is
+        no --sun-turned. (The sun alone is test_the_time_of_day_alone_builds_with_the_lighting_kept_and_its_records_time.)"""
+        sun = dict(actor='DominantDirectionalLight_1', component='DominantDirectionalLight_1.DominantDirectionalLightComponent_0',
                    rotation=[-2912, 16384, 0], color=[255, 139, 45], brightness=1.0, directionChanged=True, sky=None)
-        real = compiler.native_split
-        self.addCleanup(setattr, compiler, 'native_split', real)
-        compiler.native_split = lambda spec: (lambda split: (split[0], dict(split[1], sun=dict(sun))))(real(spec))
         block = dict(name='CoverBlock_copy1', label='CoverBlock_copy1', kind='high', location=[0, 0, 0], rotation=[0, 0, 0],
                      size=[96.0, 96.0], heights=[-12.0, 96.0], box=[0, 96, 0, 96, -12, 96])
         self.spec['objects'] = [dict(type='covers', blocks=[block])]
+        self.spec['sun'] = dict(sun)
         m = self.make().run()
         light, = self.tool('native_copy.py')
         for flag in ('--bake', '--cache', '--receivers-near', '--sun-turned'):
             self.assertIn(flag, light)
         edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
-        self.assertEqual(edit['sun'], sun)
+        self.assertEqual((edit['sun'], edit['covers']), (sun, [block]))
         self.assertFalse(m['lightingUnchanged'])
-        # with copies too, the same; without the change, the cover blocks alone relight nothing
+        # with copies too, the same; without the change, the cover blocks and the sun's colour relight nothing
         for stamp, changed, objects, flags in (('110100', True, [COPY, DOOR, HIDE], ('--bake', '--sun-turned')),
                                                 ('110200', False, [dict(type='covers', blocks=[block])], ())):
             with self.subTest(changed=changed, objects=len(objects)):
-                sun['directionChanged'] = changed
+                self.spec['sun'] = dict(sun, directionChanged=changed)
                 self.spec['objects'] = objects
                 self.ran.clear()
                 self.make(stamp).run()
                 light, = self.tool('native_copy.py')
                 self.assertEqual([f for f in ('--bake', '--sun-turned') if f in light], list(flags))
         # a quick Build bakes nothing
-        sun['directionChanged'] = True
+        self.spec['sun'] = dict(sun)
         self.spec['objects'] = [COPY, DOOR, HIDE]
         self.ran.clear()
         self.make('110300', quick=True).run()
@@ -764,10 +778,10 @@ class Builds(unittest.TestCase):
     def test_the_relights_record_of_a_turned_sun_reaches_the_light_stage(self):
         """relight.py's `sun` (sun_bake.summary) is carried into the light stage as sunTurned: the maps of the level
         made again, the lighting samples' marks changed and any note."""
-        sun = dict(directionChanged=True)
-        real = compiler.native_split
-        self.addCleanup(setattr, compiler, 'native_split', real)
-        compiler.native_split = lambda spec: (lambda split: (split[0], dict(split[1], sun=sun)))(real(spec))
+        self.spec['sun'] = dict(actor='DominantDirectionalLight_1',
+                                component='DominantDirectionalLight_1.DominantDirectionalLightComponent_0',
+                                rotation=[-2912, 16384, 0], color=[66, 69, 136], brightness=1.1, directionChanged=True,
+                                sky=None)
         real_run = self.run_tool
 
         def run(args, log):
@@ -1042,6 +1056,45 @@ class Builds(unittest.TestCase):
             self.assertEqual(self.tool('relight.py'), [])
             self.assertEqual((m['quick'], m['cache']), (quick, None))
             self.assertEqual(m['spawnEdits'], dict(moved=1, valued=1, added=1, deleted=1))
+
+    def test_the_time_of_day_alone_builds_with_the_lighting_kept_and_its_records_time(self):
+        """The sun lane (game-likeness plan, T-S2), the project's only change: written into native-edit.json and made by
+        native_copy.py in both kinds of build; every record says the report's time of day; a quick Build that turns the
+        sun keeps the lighting and says its shadows stay the old ones (sun-shadows-stale), a full one bakes them again
+        (T-S4: --bake --sun-turned) and does not warn. With the direction kept, neither bakes."""
+        sun = dict(actor='DominantDirectionalLight_1', component='DominantDirectionalLight_1.DominantDirectionalLightComponent_0',
+                   rotation=[-10194, 24213, -27675], color=[255, 245, 215], brightness=1.1, directionChanged=True,
+                   sky=dict(actor='SkyLight_0', component='SkyLight_0.SkyLightComponent_263', color=[150, 150, 170],
+                            brightness=0.6, lowerColor=[255, 224, 173], lowerBrightness=0.01))
+        self.spec = dict(self.spec, objects=[], sun=sun)
+        self.report['sun'] = dict(time='13:00', timeOfDay='eMissionTime_Day', directionChanged=True, sky=True)
+        for quick in (False, True):
+            self.ran.clear()
+            m = self.make(stamp='110000' if not quick else '110100', quick=quick).run()
+            light, = self.tool('native_copy.py')
+            self.assertEqual([f for f in ('--bake', '--sun-turned') if f in light], [] if quick else ['--bake', '--sun-turned'])
+            edit = json.loads(Path(light[light.index('--copies') + 1]).read_text(encoding='utf-8'))
+            self.assertEqual(edit['sun'], sun)
+            self.assertEqual(self.tool('relight.py'), [])
+            self.assertEqual((m['quick'], m['cache']), (quick, None))
+            line, = m['config']['maps']
+            self.assertEqual(mapsini.unquoted(line, 'TimeOfDay'), 'eMissionTime_Day')
+            self.assertEqual(m['config']['timeOfDay'], 'eMissionTime_Day')
+            report = json.loads((Path(m['work']) / 'compile-report.json').read_text(encoding='utf-8'))
+            self.assertEqual([w['code'] for w in report['warnings']], ['sun-shadows-stale'] if quick else [])
+        # the direction kept: no warning on a quick Build either (the stand-in compile's report afresh: the quick Build
+        # added its warning to the list it shares)
+        self.report = dict(self.report, warnings=[], counts=dict(self.report['counts'], warnings=0),
+                           sun=dict(self.report['sun'], directionChanged=False))
+        self.spec['sun'] = dict(sun, directionChanged=False)
+        m = self.make(stamp='110200', quick=True).run()
+        self.assertEqual(json.loads((Path(m['work']) / 'compile-report.json').read_text(encoding='utf-8'))['warnings'], [])
+        # and a full Build with the direction kept relights nothing: the colour and brightness are drawn live
+        self.ran.clear()
+        m = self.make(stamp='110300').run()
+        light, = self.tool('native_copy.py')
+        self.assertEqual([f for f in ('--bake', '--sun-turned') if f in light], [])
+        self.assertTrue(m['lightingUnchanged'])
 
     def test_a_build_without_pieces_of_other_maps_stages_nothing(self):
         self.spec['objects'] = [COPY, HIDE]

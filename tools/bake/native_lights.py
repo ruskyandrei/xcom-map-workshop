@@ -22,6 +22,10 @@ only for offsets and templates:
 - generated area lights (GeneratedMeshAreaLight) are moved, copied or deleted with their glowing piece's derived pose,
   keeping their class, flags, archetype and WorldInfo owner, and never join a receiver's lightmap list.
 
+The project's time of day (the native edit's `sun`; the game-likeness plan, T-S2) is made here too: `apply_sun` sets
+the map's sun or moon (its DominantDirectionalLight's Rotation, its component's LightColor and Brightness) and its sky
+light's colours and brightnesses in place, the lights keeping their names and GUIDs, and `verify_sun` reads them back.
+
 `Registrar` and `register` are for baked builds only: each added or changed placed light that emits is listed in the
 texture lightmaps of the receivers its radius sphere meets at their final poses (conservative membership, not the
 brightness cutoff of native_copy.EXTRA_LIGHT_MIN), so the game doesn't light it live on top of the bake (plan 2.6).
@@ -604,6 +608,147 @@ def add_recipe(g, p, entry, version):
     if not isinstance(made, dict) or 'actor' not in made or 'component' not in made:
         raise ValueError('light_factory returned no actor and component for the recipe light')
     return made
+
+
+# ---------------------------------------------------------------- the time of day (the native edit's `sun`)
+
+# the classes of the lights the time of day sets: the map's sun or moon, and its sky light (actor, component)
+SUN_CLASSES = ('DominantDirectionalLight', 'DominantDirectionalLightComponent')
+SKY_CLASSES = ('SkyLight', 'SkyLightComponent')
+
+
+class SunError(ValueError):
+    """A `sun` lane the writer can't make: a light the map lacks, or one of another class."""
+
+
+def sun_light(p, actor, component, classes):
+    """(actor, component) export indices of the light of the map `p` a `sun` lane names by short names, its actor and
+    component of `classes` and the actor's LightComponent that component. SunError otherwise."""
+    ai, ci = p.by_name.get(PL + str(actor)), p.by_name.get(PL + str(component))
+    if not ai or not ci:
+        raise SunError(f'the map has no {actor} with {component}')
+    if (p.cls(ai), p.cls(ci)) != classes or p.own(ai, 'LightComponent', 0) != ci:
+        raise SunError(f'{actor} is a {p.cls(ai)} whose light component is not {component} ({classes[0]} expected)')
+    return ai, ci
+
+
+def _float32(v):
+    return struct.pack('<f', float(v))
+
+
+def _colour(rgb, alpha):
+    """A Color's value bytes (B G R A) for colour bytes [r, g, b] and the alpha byte."""
+    r, g, b = (int(v) for v in rgb)
+    return bytes([b, g, r, int(alpha)])
+
+
+def sun_values(p, ci, values):
+    """The light component `ci`'s properties of `values` ({property: colour bytes or a float}) that differ from what
+    the map has (a value it does not save, its class default: lights.light_record's), as (name, kind, struct name,
+    value bytes, before): a colour keeps the alpha byte the map saves (none saved: 255), a float is compared as the
+    package keeps it (float32)."""
+    from lights import COMPONENT_DEFAULTS, LIGHT_DEFAULTS
+    defaults = {**LIGHT_DEFAULTS, **COMPONENT_DEFAULTS[p.cls(ci)]}
+    out = []
+    for name, value in values.items():
+        have = p.effective(ci, name, defaults.get(name))
+        if isinstance(value, list):
+            alpha = int(round((p.own(ci, name) or [0, 0, 0, 1])[3] * 255))
+            before = [int(round(v * 255)) for v in have[:3]]
+            if before != [int(v) for v in value]:
+                out.append((name, 'StructProperty', 'Color', _colour(value, alpha), before))
+        elif _float32(have) != _float32(value):
+            out.append((name, 'FloatProperty', None, _float32(value), float(have)))
+    return out
+
+
+def apply_sun(g, p, lane):
+    """The native edit's `sun` (the project's time of day; the game-likeness plan, T-S2) made in place in the grower `g`
+    over the map `p`: the dominant light actor's Rotation where the direction changed (native_copy.set_pose), its
+    component's LightColor and Brightness, and the sky light's LightColor, Brightness, LowerColor and LowerBrightness,
+    each written where it differs from what the map has (sun_values; set_property from props_start, past the dominant
+    component's shadow map of the level: F-176). The lights keep their names, GUIDs and every other property; the
+    dominant light keeps its shadow map of the level and its DominantLightShadowInfo, the old light's, until a Build
+    with baking makes them again. Returns the record (dict(directionChanged, light, sky): each light's actor and
+    component paths, the properties written and those whose tags were added, the actor's too, and the values before
+    and after), None for no lane. SunError, nothing written, on a light the map lacks or of another class."""
+    if not lane:
+        return None
+    import native_copy
+    walker = native_copy.Walker(p, g)
+    sky = lane.get('sky')
+    ai, ci = sun_light(p, lane['actor'], lane['component'], SUN_CLASSES)
+    si = sun_light(p, sky['actor'], sky['component'], SKY_CLASSES) if sky else None
+    light = dict(actor=p.name(ai), component=p.name(ci), written=[], tagsAdded=[], actorWritten=[], actorTagsAdded=[])
+    if lane['directionChanged']:
+        old = light_record(p, ai)['rotation']
+        native_copy.set_pose(walker, g, p, ai, None, [int(v) for v in lane['rotation']],
+                             noted=(light['actorTagsAdded'], light['actorWritten']))
+        light['rotation'] = dict(before=[int(v) for v in old], after=[int(v) for v in lane['rotation']])
+    parts = [(light, ci, lane, ('LightColor', 'Brightness'))]
+    sky_record = None
+    if si:
+        sky_record = dict(actor=p.name(si[0]), component=p.name(si[1]), written=[], tagsAdded=[])
+        parts.append((sky_record, si[1], sky, SKY_PROPERTIES))
+    for rec, index, part, names in parts:
+        start = props_start(p, index)
+        data = bytearray(g.export_data(index))
+        rec['values'] = {}
+        for name, kind, sub, raw, before in sun_values(p, index, {n: lane_value(part, n) for n in names}):
+            data = put(walker, g, data, start, name, kind, sub, raw, rec['tagsAdded'], rec['written'])
+            rec['values'][name] = dict(before=before, after=lane_value(part, name))
+        if rec['written']:
+            g.relocate(index, bytes(data))
+    return dict(directionChanged=bool(lane['directionChanged']), light=light, sky=sky_record)
+
+
+# a `sun` lane's values by the component property each sets; the sky light's four
+SUN_KEYS = dict(LightColor='color', Brightness='brightness', LowerColor='lowerColor', LowerBrightness='lowerBrightness')
+SKY_PROPERTIES = ('LightColor', 'Brightness', 'LowerColor', 'LowerBrightness')
+
+
+def lane_value(part, name):
+    """A `sun` lane's (or its sky's) value of the property `name`, as the lane gives it."""
+    value = part[SUN_KEYS[name]]
+    return [int(v) for v in value] if isinstance(value, list) else float(value)
+
+
+def verify_sun(q, p, record, lane):
+    """The written map `q` read again against the source `p`: the dominant light's rotation is the lane's (its own
+    where the direction did not change), its colour and brightness and the sky light's four values the lane's, each
+    light's GUIDs and the dominant light's shadow map of the level (its depths and DominantLightShadowInfo) as the
+    source has them. SunError where it isn't so."""
+    if not record:
+        return
+    import lighting_records
+    parts = [(record['light'], lane, ('LightColor', 'Brightness'))]
+    if record['sky']:
+        parts.append((record['sky'], lane['sky'], SKY_PROPERTIES))
+    for rec, part, names in parts:
+        ci, ci0 = q.by_name.get(rec['component']), p.by_name[rec['component']]
+        if not ci:
+            raise SunError(f"{rec['component']} is not in the written map")
+        got = light_record(q, q.exports[ci - 1]['outer'])
+        for name in names:
+            want = lane_value(part, name)
+            have = q.effective(ci, name, None)
+            if isinstance(want, list):
+                same = have is not None and [int(round(v * 255)) for v in have[:3]] == want
+            else:
+                same = have is not None and _float32(have) == _float32(want)
+            if not same:
+                raise SunError(f"{rec['component']}: its {name} reads back {have!r}, not {want!r}")
+        for key in GUID_KEYS:
+            if q.own(ci, key) != p.own(ci0, key):
+                raise SunError(f"{rec['component']}: its {key} reads back as another")
+        if rec is record['light']:
+            want = [int(v) for v in (lane['rotation'] if lane['directionChanged'] else
+                                     light_record(p, p.exports[ci0 - 1]['outer'])['rotation'])]
+            if [int(v) for v in got['rotation']] != want:
+                raise SunError(f"{rec['actor']}: its rotation reads back {got['rotation']}, not {want}")
+            if lighting_records.dominant_shadow_map(q, ci)['depths'] != lighting_records.dominant_shadow_map(p, ci0)['depths'] \
+                    or q.own(ci, 'DominantLightShadowInfo') != p.own(ci0, 'DominantLightShadowInfo'):
+                raise SunError(f"{rec['component']}: its shadow map of the level did not stay as the map has it")
 
 
 # ---------------------------------------------------------------- receiver membership (baked builds only)

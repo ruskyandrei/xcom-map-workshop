@@ -1,7 +1,7 @@
 """The time of day's curve (sun_curve.json, sun_curve.py; the game-likeness plan, T-S1): its shape; each row taken from
 a map of T-S0's survey is that map's light, sky light, fog and grade (research/evidence/sun-audit-2026-11-27.json,
-F-175); the shape of the project's `sun` as the page reads it (sun_record_cases.json, which sun_rules_test.mjs reads
-too); and the server's /sun-curve.json."""
+F-175); the shape of the project's `sun` as the page reads it and the game's time of day a record says
+(sun_record_cases.json, which sun_rules_test.mjs reads too); and the server's /sun-curve.json."""
 from functools import partial
 import json
 import sys
@@ -72,6 +72,15 @@ class Curve(unittest.TestCase):
             with self.subTest(case['why']):
                 why = sun_curve.problem(case['record'], self.curve)
                 self.assertEqual(why is None, case['valid'], why)
+
+    def test_the_game_time_a_record_says(self):
+        """auto follows the light (night while the moon is up), day and night are as set: the cases the page's
+        sun_rules_test.mjs reads too (gameTime), which the Build writes as the records' TimeOfDay."""
+        cases = json.loads((HERE / 'sun_record_cases.json').read_text(encoding='utf-8'))['gameTimes']
+        for case in cases:
+            with self.subTest(time=case['time'], timeOfDay=case['timeOfDay']):
+                self.assertEqual(sun_curve.game_time(dict(time=case['time'], timeOfDay=case['timeOfDay']), self.curve),
+                                 case['gameTime'])
 
     def test_the_route(self):
         from viewer import Handler, LocalServer
