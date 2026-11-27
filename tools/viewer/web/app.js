@@ -92,7 +92,8 @@ import { recall, remember } from './storage.js';
 import { segButton, segmented } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createMapLighting } from './lighting.js';
-import { bakedAsked, createBakedSpike } from './baked_light_spike.js';
+import { createBakedLight } from './baked_light.js';
+import { missingByAddress } from './texture_file.js';
 import { COVER_KIND } from './cover.js';
 import { TILE } from './constants.js';
 import { loadLooks, lookTags } from './looks.js';
@@ -601,10 +602,14 @@ const { drawPlayArea, endGridDrag, gridHandleAt, gridHandles, gridHit, moveGridD
 const postChain = createPostChain(renderer);
 let postParts = null, postReady = false, postWarming = null, postKey = '', postValues = null;
 const gameLook = () => $('lighting').value === 'game';
+// The map's baked light (B2: baked_light.js), made as a map opens and loaded when the Game look is first on
+let bakedLight = null;
+const missingExtensions = missingByAddress(globalThis.location?.search);
+const hasExtension = name => !missingExtensions.has(name) && Boolean(renderer.extensions.has(name));
 function warmLook() {
   postReady = false;
   if (!gameLook() || !data) return Promise.resolve();
-  const warming = postWarming = postChain.warm(world, camera)
+  const warming = postWarming = Promise.resolve(bakedLight?.load()).then(() => postChain.warm(world, camera))
     .catch(error => console.warn(`Game look shaders not compiled ahead: ${error.message}`))
     .then(() => { if (postWarming === warming) postReady = true; });
   return warming;
@@ -968,11 +973,10 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   startMissionPicker();
   sceneViewOptions(streamObjects);
   placeObjects(); floorOptions(); frame();
-  // stage B0's spike of the baked light (?baked=on: baked_light_spike.js), off by default: the Game look draws each
-  // lightmapped piece by its lightmap
-  const bakedSpike = bakedAsked && data.scope === 'map' && !data.preview ? createBakedSpike({ cachePrefix, data, refresh: () => cutaway(), roots, texture }) : null;
-  if (bakedSpike) await bakedSpike.load().catch(error => console.warn(`baked light spike: ${error.message}`));
-  applyLighting = bakedSpike ? () => { applyMapLighting(); bakedSpike.set(gameLook()); } : applyMapLighting;
+  // the map's baked light (B2): nothing fetched until the Game look is first on (warmLook)
+  bakedLight?.reset();
+  bakedLight = data.scope === 'map' && !data.preview ? createBakedLight({ data, roots, assetUrl, hasExtension }) : null;
+  applyLighting = applyMapLighting;
   applyLighting();
   // the pieces' shaders compiled as the map opens, off the page's thread where the browser can (no first-frame freeze);
   // in the Game look for its target too
@@ -1004,7 +1008,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn, editSpawnCopy, editState, effectNow, effectShapes,
     effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grabView, setLook, grid, gridHandleAt,
     // the Game look's frame (C3) and the map's fog (C2), for the checks and the perf probe
-    post: { now: () => postNow(), ready: () => postReady, chain: postChain, fog: fogShared, draw: helpers => drawFrame(helpers) },
+    post: { now: () => postNow(), ready: () => postReady, chain: postChain, fog: fogShared, draw: helpers => drawFrame(helpers),
+            baked: () => bakedLight?.state() ?? null, setBaked: on => bakedLight?.set(on) },
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
@@ -1022,7 +1027,6 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     startLookPick, startSpawnPlacing, startWallDrawing, stopWallDrawing, stopWave, storedLook, storeysNow, streamObjects,
     sun, syncSpawnFilters, takePickBox, updateTileGrid, volumeBox, wallHandlePoint, wallHandlesNow, wallState,
     world, zoneGizmo, zoneGizmoHelper, zoneHit, zoneProxy, zonesNow });
-  if (bakedSpike) window.viewer.bakedSpike = bakedSpike;      // (the perf probe's: only with ?baked=)
   // every refresh the edit hub's runs list is registered by now (edit_hub.js): a lost one fails here, not silently
   checkHub();
 }

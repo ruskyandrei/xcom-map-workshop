@@ -18,18 +18,28 @@ const uniforms = {
 // likenesses share, so a change of the fog's values recompiles nothing; no fog in the Neutral look
 Object.assign(uniforms, fogShared);
 
-// (USE_BAKED: stage B0's spike of the baked light, baked_light_spike.js; off unless the page's address asks for it)
+// The map's baked light (game-likeness plan, B2: baked_light.js, baked_rules.js), in the Game look's frame only: a
+// shader compiled for its target (the frame's floating-point one) has USE_BAKED. Every lit material shares the packed
+// atlases and the switches (`baked`: on once the atlases are loaded; the weight; the sky light's part on a lightmapped
+// piece), and each piece brings its lightmap UVs in the packed atlas (bakedUv: u, v, and 1 where it has a lightmap)
+// and its two scales as attributes of its own geometry: its materials stay shared (F-183).
+export const bakedShared = { bakedColour: { value: null }, bakedDirections: { value: null }, bakedOn: { value: 0 },
+                             bakedWeight: { value: 1 }, bakedSky: { value: 0 } };
+Object.assign(uniforms, bakedShared);
 const VERTEX_PARS = `#include <common>
 varying vec3 vLocalWorld;
 #ifdef USE_BAKED
-attribute vec2 bakedUv;
-uniform vec4 bakedUvScaleBias;
-varying vec2 vBakedUv;
+attribute vec3 bakedUv;
+attribute vec3 bakedScale0;
+attribute vec3 bakedScale1;
+varying vec3 vBakedUv;
+varying vec3 vBakedScale0;
+varying vec3 vBakedScale1;
 #endif`;
 const VERTEX_MAIN = `#include <worldpos_vertex>
 vLocalWorld = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
 #ifdef USE_BAKED
-vBakedUv = bakedUv * bakedUvScaleBias.xy + bakedUvScaleBias.zw;
+vBakedUv = bakedUv; vBakedScale0 = bakedScale0; vBakedScale1 = bakedScale1;
 #endif`;
 const FRAGMENT_PARS = `#include <common>
 varying vec3 vLocalWorld;
@@ -42,28 +52,29 @@ uniform vec2 localGridSize;
 #ifdef USE_BAKED
 uniform sampler2D bakedColour;
 uniform sampler2D bakedDirections;
-uniform vec4 bakedScale0;
-uniform vec4 bakedScale1;
+uniform float bakedOn;
 uniform float bakedWeight;
 uniform float bakedSky;
-varying vec2 vBakedUv;
+varying vec3 vBakedUv;
+varying vec3 vBakedScale0;
+varying vec3 vBakedScale1;
 #endif
 ${FOG_PARS}`;
 // The game's directional lightmap (implementation plan, section 0): with N the material's tangent-space normal and
 // b_i = saturate(N . basis_i)^2 for UE3's three basis vectors, light = colour atlas x scale0 x dot(direction atlas x
 // scale1, b); both atlases read through sRGB. The sky light is not baked, and lights static pieces on no map
-// (bakedSky 0: its channels): the lightmap stands in its place (spike only).
+// (bakedSky 0: its channels, F-182): the lightmap stands in its place on a lightmapped piece.
 const BAKED_LIGHT = `#if defined( USE_BAKED ) && defined( RE_IndirectDiffuse )
-{
+if ( bakedOn > 0.5 && vBakedUv.z > 0.5 ) {
 	vec3 bakedN = vec3( 0.0, 0.0, 1.0 );
-#ifdef BAKED_PROGRAM_NORMAL
+#ifdef PROGRAM_NORMAL
 	if ( dot( progOut_normal.xyz, progOut_normal.xyz ) > 1e-8 ) bakedN = normalize( progOut_normal.xyz );
 #endif
 	vec3 bakedBasis = vec3( saturate( dot( bakedN.yz, vec2( 0.816496611, 0.577350259 ) ) ),
 		saturate( dot( bakedN, vec3( -0.707106769, -0.408248305, 0.577350259 ) ) ),
 		saturate( dot( bakedN, vec3( 0.707106769, -0.408248305, 0.577350259 ) ) ) );
-	vec3 bakedLight = texture2D( bakedColour, vBakedUv ).rgb * bakedScale0.rgb
-		* dot( texture2D( bakedDirections, vBakedUv ).rgb * bakedScale1.rgb, bakedBasis * bakedBasis ) * bakedWeight;
+	vec3 bakedLight = texture2D( bakedColour, vBakedUv.xy ).rgb * vBakedScale0
+		* dot( texture2D( bakedDirections, vBakedUv.xy ).rgb * vBakedScale1, bakedBasis * bakedBasis ) * bakedWeight;
 	irradiance = irradiance * bakedSky + PI * bakedLight;      // (three's Lambert divides by pi: the game's diffuse x light)
 }
 #endif`;
@@ -87,7 +98,7 @@ if ( localGridInfo.w > 0.5 ) {
 				vec4 ids = texelFetch( localLightIndices, ivec2( texel % localIndexWidth, texel / localIndexWidth ), 0 );
 				int li = int( ids[ offset % 4 ] );
 #ifdef USE_BAKED
-				if ( texelFetch( localLightData, ivec2( 3, li ), 0 ).y > 0.5 ) continue;
+				if ( bakedOn > 0.5 && vBakedUv.z > 0.5 && texelFetch( localLightData, ivec2( 3, li ), 0 ).y > 0.5 ) continue;
 #endif
 				vec4 lp = texelFetch( localLightData, ivec2( 0, li ), 0 );
 				vec3 toLight = lp.xyz - vLocalWorld;
@@ -114,15 +125,31 @@ material.specularColor = programSpecular;
 #endif
 ${BAKED_LIGHT}`;
 
-// One shared function, so every lit material shares one program cache key.
-function localLightShader(shader) {
+// One shared function, so every lit material shares one program cache key. A shader compiled for a render target (the
+// Game look's frame: its own parameters, no tone curve and linear colour, make it a program of its own) has the baked
+// light; one for the screen (the Neutral look, the helpers) has not.
+function localLightShader(shader, renderer) {
   Object.assign(shader.uniforms, uniforms);
-  shader.vertexShader = shader.vertexShader.replace('#include <common>', VERTEX_PARS)
+  const baked = renderer?.getRenderTarget?.() ? '#define USE_BAKED\n' : '';
+  shader.vertexShader = shader.vertexShader.replace('#include <common>', baked + VERTEX_PARS)
     .replace('#include <worldpos_vertex>', VERTEX_MAIN);
-  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', FRAGMENT_PARS)
+  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', baked + FRAGMENT_PARS)
     .replace('#include <lights_fragment_begin>', FRAGMENT_MAIN)
     // the fog in linear light, before three's tone curve and its colour space
     .replace('#include <opaque_fragment>', `#include <opaque_fragment>\n${fogChunk('vLocalWorld')}`);
+}
+
+// A geometry drawn by a baked-light shader needs its attributes: a piece without a lightmap gets zeros (no lightmap)
+// once the baked light is on, so no attribute is left to a value another shader set (three's attribute defaults are
+// not part of a vertex array's state). Called before each draw of a lit material (its onBeforeRender).
+const zeroBaked = new WeakSet();
+export function bakedGeometry(renderer, scene, camera, geometry) {
+  if (!bakedShared.bakedOn.value || geometry.attributes.bakedUv || zeroBaked.has(geometry)) return;
+  const count = geometry.attributes.position?.count ?? 0;
+  if (!count) return;
+  zeroBaked.add(geometry);
+  const zeros = new Float32Array(count * 3);
+  for (const name of ['bakedUv', 'bakedScale0', 'bakedScale1']) geometry.setAttribute(name, new THREE.BufferAttribute(zeros, 3));
 }
 
 /** Draw with the map's local lights off: small previews drawn away from where the piece stands. */
@@ -158,6 +185,7 @@ export function withLocalLights(material) {
   }
   // (a material drawn by its program has the local lights in its own patch, which chains this one: scene_pieces.js)
   if (material.isMeshPhongMaterial && !material.userData.program) material.onBeforeCompile = localLightShader;
+  if (material.isMeshPhongMaterial) material.onBeforeRender = bakedGeometry;
   return material;
 }
 

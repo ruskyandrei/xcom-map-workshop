@@ -73,15 +73,15 @@ MAP = """async ([pieces, camera, frames]) => {
   if (v.post && v.setLook('game')) {
     while (!v.post.ready()) await new Promise(r => setTimeout(r, 50));
     const game = shadow => () => { v.renderer.shadowMap.needsUpdate = shadow; v.post.draw(true); gl.finish(); };
-    // the baked light's spike (game-likeness plan, B0), where the page has it: the map's lights live first, then the
-    // baked light, from the same camera
-    const baked = v.bakedSpike;
-    if (baked) baked.set(false);
+    // the map's baked light (game-likeness plan, B2), where the export has lightmaps: the map's lights live first, then
+    // the baked light, from the same camera (only its uniform changes between the two)
+    const baked = v.post.baked?.()?.on ? v.post.baked() : null;
+    if (baked) v.post.setBaked(false);
     game(true)(); frame(false)();      // (each way's shaders compiled before it is timed)
     await timed('a Game look frame (ms)', game(false), frames);
     await timed('a Game look frame without the chain (ms)', frame(false), frames);
     if (baked) {
-      baked.set(true);
+      v.post.setBaked(true);
       game(true)(); frame(false)();
       await timed('a Game look frame with the baked light (ms)', game(false), frames);
       await timed('a Game look frame with the baked light, without the chain (ms)', frame(false), frames);

@@ -15,6 +15,7 @@ from package import Package, FormatError
 from mesh import read_mesh, write_glb
 import material_programs
 import atmosphere as atmosphere_records
+import baked_light
 from skeletal import read_skeletal
 from texture import export_texture
 from materials import coordinates, profile, static_switches, constant_color, approximate_colour, opacity_input, BY_KIND
@@ -111,10 +112,14 @@ import settings
 #     compressed textures as DDS files with their mips (texture.py `container`, A-S3b); the map's atmosphere
 #     (`atmosphere`: fog, grade, bloom and fog-of-war colours over the classes' defaults, its post-process volumes:
 #     atmosphere.py, C1)
+# 44: each lightmapped piece's baked light as the game stores it (game-likeness plan, B1: baked_light.py): its
+#     `lightmap` (the colour and direction atlases, as DDS files, their scales, the UV scale and bias and channel) and
+#     its `sunShadow` (its shadow map of the dominant light: atlas, UV scale and bias), the map's and its streamed
+#     levels' own pieces only (a piece of another map is lit live where it is put)
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 43
+EXPORT_VERSION = 44
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -232,11 +237,15 @@ def area_lights(p, objects, lights, meshes, materials, warn):
 
 
 class Exporter:
-    def __init__(self, package, folder,namespace='',progress=None,base=None,digest=None,programs=None):
+    def __init__(self, package, folder,namespace='',progress=None,base=None,digest=None,programs=None,lightmaps=None):
         """progress(done, total): called as the pieces are read (the export's slow part). base: the map's own
-        Exporter, for a package streamed into it (its stub and imported materials are the map's)."""
+        Exporter, for a package streamed into it (its stub and imported materials are the map's). lightmaps: whether
+        each piece's baked light is written (export 44: the map's export and its streams; never a piece of another
+        map's, which is lit where it is put); a stream follows its map."""
         self.p, self.folder = package, folder
         self.base = base
+        self.lightmaps = lightmaps if lightmaps is not None else bool(getattr(base, 'lightmaps', False))
+        self._dominant = ...        # the dominant light's LightGuid (baked_light.dominant_guid), read once
         # the materials' programs are made only where the exporter is told to (material_programs.Programs): the
         # bake's albedo resolves materials through a subclass of this and must not open the shader cache; a stream
         # or a patch layer follows its map
@@ -352,6 +361,31 @@ class Exporter:
             except UNREADABLE as error:
                 self.warn(self.p.name(index), error)
         return key if self.textures[key] else None
+
+    def baked(self, component, mesh):
+        """The piece's `lightmap` and `sunShadow` (export 44), their atlases exported once as stored; {} where it has
+        neither or they can't be read (a warning)."""
+        p, out = self.p, {}
+        try:
+            lm = baked_light.lightmap(p, component, mesh)
+            if lm:
+                colour, directions = self.texture(lm['colour']), self.texture(lm['directions'])
+                if colour and directions:
+                    out['lightmap'] = dict(lm, colour=colour, directions=directions)
+            if self._dominant is ...:
+                self._dominant = baked_light.dominant_guid(p) if not self.base else self.base.dominant_light()
+            sm = baked_light.sun_shadow(p, component, self._dominant)
+            if sm and (atlas := self.texture(sm['texture'])):
+                out['sunShadow'] = dict(sm, texture=atlas)
+        except baked_light.UNREADABLE as error:
+            self.warn(p.name(component), f'its baked light was not read: {error}')
+        return out
+
+    def dominant_light(self):
+        """The map's dominant light's LightGuid (hex), read once: a streamed level's pieces keep shadow maps of it."""
+        if self._dominant is ...:
+            self._dominant = baked_light.dominant_guid(self.p)
+        return self._dominant
 
     def material(self, index):
         key = self.prefix+str(index)
@@ -634,6 +668,8 @@ class Exporter:
                        and p.effective(component, "bPreventChunkRemoval", False) else {}),
                     hidden=bool(p.effective(actor,"bHidden",False) or p.effective(component,"HiddenGame",False)),
                     **({'paint': paint} if paint else {}),
+                    # its baked light as the game stores it (export 44): its lightmap, and its shadow map of the sun
+                    **(self.baked(component, mi) if self.lightmaps and mesh['kind'] == 'static' else {}),
                     # false when the actor collides with nothing, so touches no floor volume and no building lists it
                     # (F-87; the Build's native_copy.collides): left out otherwise, and in exports made before it
                     **({} if collides(p, actor) else {'collides': False}),
@@ -828,7 +864,7 @@ def export_map(source, cache_root, scope, specs=(), progress=None):
     stage = Path(tempfile.mkdtemp(prefix=".export-",dir=parent))
     try:
         exporter = Exporter(p,stage,progress=(lambda done, total: progress('reading the map', done, total)) if progress else None,
-                            digest=digest, programs=material_programs.Programs(Path(cache_root).resolve()))
+                            digest=digest, programs=material_programs.Programs(Path(cache_root).resolve()), lightmaps=True)
         result = exporter.run(scope)
         previews=[]
         inherited={}

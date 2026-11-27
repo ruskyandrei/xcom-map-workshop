@@ -20,7 +20,7 @@ shots before B2 is built. Findings F-180 to F-183; evidence
   only the `Gameplay_1` channel on every map, so no static piece, though the editor's Game look lights every piece
   with it; a piece with no lightmap takes the no-lightmap base pass and a live pass a light (F-180 to F-182).
 - The spike, off unless the page's address says `?baked=on` (`?baked=sum` sums the three values):
-  [baked_light_spike.js](../../tools/viewer/web/baked_light_spike.js) reads the records into each lightmapped part's own
+  `tools/viewer/web/baked_light_spike.js` (replaced by B2's baked_light.js) reads the records into each lightmapped part's own
   clone of its shared material; the formula is in the lights' patch of
   [lighting.js](../../tools/viewer/web/lighting.js) (`USE_BAKED`), which on such a piece puts the lightmap in place of
   the sky light and leaves out the static and area lights (a flag in the light data's fourth texel);

@@ -22,6 +22,7 @@ const ALLOWED = {
     'map_picture.js': [2, "the project's kept picture and a map's own picture, read as blobs"],
     'prefabs.js': [1, "a prefab's picture read as a blob, for its duplicate"],
     'scene_pieces.js': [1, "a texture file of the game's blocks (DDS) read as bytes for the GPU"],
+    'baked_light.js': [1, "a lightmap atlas (DDS) read as bytes, its blocks packed into the map's one atlas"],
   },
   localStorage: { 'storage.js': [6, 'the one home: recall (an older key moved), remember, forget'] },
   sessionStorage: { 'storage.js': [3, "the one home of a tab's own: recallSession, rememberSession, forgetSession"] },

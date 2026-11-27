@@ -783,6 +783,22 @@ PostProcessVolume: `name`, `box` (`min`, `max`, game units), `priority`, `enable
 the members it saves, its `bOverride_` flags among them; the rest are Default__PostProcessVolume's, in the defaults
 file's `volume`). Colours are 0 to 1 (a `Color` member's bytes over 255).
 
+## 11. A piece's baked light in the export (export 44)
+
+Each of the map's own lightmapped pieces (and its streamed levels'; never a piece of another map, which is lit where it
+is put) carries ([baked_light.py](../tools/viewer/baked_light.py); F-180, F-181):
+
+- `lightmap`: `{colour, directions, scale0, scale1, uvScale, uvBias, channel}`. `colour` and `directions` name the two
+  DXT1 atlases in `textures` (DDS files with their mips, read through sRGB), `scale0` and `scale1` the slots' `[r, g,
+  b]` scales, `uvScale` and `uvBias` the piece's rectangle of the atlas, `channel` the mesh's lightmap UV channel. The
+  light at a texel is colour x scale0 x dot(directions x scale1, b), b the squared saturated cosines of the material's
+  tangent-space normal with UE3's three basis vectors (a third each for a flat normal).
+- `sunShadow`: `{texture, uvScale, uvBias, factor}`, its shadow map of the map's dominant directional light: an 8-bit
+  distance field (`factor` false) or a plain shadow factor, at the same lightmap UVs with its own scale and bias.
+
+A piece with a vertex lightmap or none has neither. The page packs the atlases into one colour and one direction atlas
+(baked_rules.js) and lights each lightmapped piece by them in the Game look (baked_light.js).
+
 ## What E0 still lacks
 
 - **Resolver discrepancy fixtures.** Test cases capturing the known differences between the preview resolver and the

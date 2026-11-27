@@ -5796,6 +5796,7 @@ def check_map_lights(ctx):
           });
         }""")
     check_game_frame(page)
+    check_baked_light(page)
     # the Game look without and with its area lights, then the Neutral look, each pictured; K switches the look
     for mode, area in (('game', False), ('game', True), ('neutral', True)):
         page.evaluate('on => { const a = document.getElementById("areaLights"); a.checked = on; a.onchange(); }', area)
@@ -5856,6 +5857,40 @@ FOG_BANDS = """async () => {
     return bands;
   } finally { fog.value = on; v.frame(); }
 }"""
+
+
+BAKED_POOL = """async () => {
+  const v = viewer;
+  // the first of the map's static spot lights that points down: its beam meets the ground below it
+  const lamp = v.lightRecords().find(l => l.role === 'static' && l.kind === 'spot' && l.enabled && l.direction[2] < -0.9);
+  if (!lamp) return null;
+  const t = lamp.location[2] / -lamp.direction[2];
+  const hit = [0, 1, 2].map(k => lamp.location[k] + lamp.direction[k] * t);
+  v.controls.target.set(hit[0], 0, hit[1]); v.camera.position.set(hit[0] + 1, 1200, hit[1] + 1);
+  v.controls.update(); v.camera.updateMatrixWorld(true);
+  const picture = new Image(); picture.src = v.grabView(); await picture.decode();
+  const c = document.createElement('canvas'), w = c.width = picture.width, h = c.height = picture.height, g = c.getContext('2d');
+  g.drawImage(picture, 0, 0);
+  const mean = (x0, y0, size) => { const d = g.getImageData(x0, y0, size, size).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] + d[i + 1] + d[i + 2]; return s / (d.length / 4); };
+  const s = Math.round(h / 12), centre = mean(Math.round(w / 2 - s / 2), Math.round(h / 2 - s / 2), s);
+  const corners = [mean(0, 0, s), mean(w - s, 0, s), mean(0, h - s, s), mean(w - s, h - s, s)];
+  v.frame();
+  return { lamp: lamp.id, centre, corners };
+}"""
+
+
+def check_baked_light(page):
+    """The map's baked light in the Game look (game-likeness plan, B2), on a map of export 44: the lightmaps loaded once
+    the Game look is on, every lightmapped piece's parts lit by them with the materials still shared; a street lamp's
+    pool on the ground is where the map's light is (its static light is drawn by the lightmap alone)."""
+    if page.evaluate('(viewer.data.exporterVersion || 0) < 44 || !viewer.data.objects.some(o => o.lightmap)'):
+        return
+    page.wait_for_function('viewer.post.ready() && viewer.post.baked() && viewer.post.baked().on', timeout=120000)
+    baked = page.evaluate('viewer.post.baked()')
+    assert baked['parts'] > 100 and baked['atlas'], baked
+    pool = page.evaluate(BAKED_POOL)
+    if pool:
+        assert pool['centre'] > max(pool['corners']) and pool['centre'] > 1.5 * sum(pool['corners']) / 4, pool
 
 
 def check_game_frame(page):
