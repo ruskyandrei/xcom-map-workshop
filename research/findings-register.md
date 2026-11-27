@@ -14,8 +14,9 @@ Statuses:
 
 - F-203 (27 November, the game-likeness plan's T-S5, EXP-100): in a Build with baking whose sun turned, moving things
   are not darkened in its shadows: a soldier is as bright in a building's new shadow as in the sun, where on a map as
-  the game ships it he is about 1.5 times brighter in the sun. The Build's map of the level and lighting samples' marks
-  read at those tiles as the shipped map's do. Open.
+  the game ships it he is about 1.5 times brighter in the sun. Not the bake's: on URB_Bar built quick with the moon's
+  own direction and a pure red sun, the sun never shadows a soldier either; in one session it lit him nowhere, in the
+  next everywhere, inside the bar too. The cause is not settled. Open.
 - F-202 (27 November, the game-likeness plan's T-S6): the sky chosen is built as copies of another map's dome where
   the map's own domes stood, in the chosen dome's own scale: Bar's small turned-over dome under the map (0.41 of the
   mesh) becomes a full-size one (2, 2, 2.6). Accepted: in the game (EXP-100) all below the horizon is the fog's
@@ -370,10 +371,21 @@ Statuses:
   16, 64 and 128 units up in shadow, and the four nearest lighting samples (`bShadowedFromDominantLights`) are marked; at
   the sun tile, lit and unmarked. URB_CommercialStreet's own data reads the same way at its tiles. The game holds the
   map's new header (direction, importance box, size). Bar's Long War patch levels hold no lighting samples.
-- **Not settled.** What a unit's light environment takes the sun's visibility from, if neither of these as written:
-  the samples' own light (their colours, the old moon's), another field of the light or the level, or something the
-  game keeps from the map as cooked. The soldier's light environment settings read the same on both maps
-  (MinShadowAngle 80, bSynthesizeDirectionalLight, bUseBooleanEnvironmentShadowing False).
+- **Not the bake.** Two quick Builds with the sun made pure red at brightness 2, its own direction kept, and the
+  units-only sky light (F-52) at 0: on URB_CommercialStreet the soldier is lit red in the sun and stays blue in a
+  building's shadow. On URB_Bar (the moon's direction, 80.7 degrees up) the sunlit ground, walls and vehicles turn red
+  (the sun's direct light is drawn at run time on both maps; only its shadows are baked), but the soldier was not lit
+  red anywhere in one session (after one faint red first shot), and in a later session he was lit red everywhere,
+  inside the bar under its roof too. So on Bar the sun's shadows never reach units, baked or not, and whether its light
+  does changes between sessions; nothing he did told the two apart.
+- **Ruled out.** The two maps' dominant lights save the same members (no lighting channels of their own); their
+  WorldInfo's CharacterLitIndirectBrightness and CharacterShadowedIndirectBrightness are the same (2, 2); neither map's
+  Kismet uses SeqAct_UnitLightingChannels; the sky domes cast no shadow and collide with nothing. The game's
+  XComUnitPawn.ChangeLightEnvironmentForCurrentEnvironment (indoors, outdoors) is not it: the soldier keeps one light
+  environment, with the same readable settings (bEnabled, bDynamic, MinShadowAngle 80, bSynthesizeDirectionalLight,
+  bUseBooleanEnvironmentShadowing False), indoors and out, on both maps; only CurrentBuildingVolume changes.
+- **Not settled.** What a unit's light environment takes the sun's visibility from on Bar, and what changes between
+  sessions.
 
 ### F-202: The sky chosen stands where the map's own domes stood, in the chosen dome's own scale
 **Accepted** (EXP-100, 27 November 2026: nothing of the full-size dome shows in the game. Found 27 November 2026, the

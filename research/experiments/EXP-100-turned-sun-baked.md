@@ -59,8 +59,22 @@ v3 copy, whose game was open the whole time and never touched. LWR 2.06 in the l
    none of Bar's domes; from far and high on four sides everything below the horizon is one flat colour, the map's fog
    (the curve's low-sun fog), up to a sharp line where the sky starts, and from below the map the fog's colour alone.
 
+## Follow-up runs (F-203)
+
+- **A red sun, quick Builds**: URB_Bar and URB_CommercialStreet built quick with the sun pure red at brightness 2, each
+  in its own direction, and the units-only sky light at 0. On Commercial Street the soldier is lit red in the sun
+  (a shoulder pad (65, 59, 75) against (51, 80, 123) in a building's shadow). On Bar the ground, walls and vehicles in
+  the sun turn red, but the soldier was lit red on no tile (one faint red first shot aside), standing on red pavement.
+- **Indoors and outdoors**: in a later session of the same red Bar the soldier was lit red at every place tried (the
+  open car park, the pavement, inside the bar under its roof), one light environment throughout with the same
+  readable settings; only the pawn's CurrentBuildingVolume changed indoors. Commercial Street the same: one light
+  environment indoors and out.
+
+So on Bar the sun's shadows never darken units, with or without the bake, and whether its light reaches them at all
+differs between sessions. The cause is not settled.
+
 ## What it settles
 
 A turned sun built with baking shows in the game on the map itself: its shadows on the ground and on the buildings, and
-the sky chosen. Moving things are not yet darkened in its shadows (F-203): the data the Build writes for them reads as
-the game's own maps' do, so what the game takes them from is not settled.
+the sky chosen. Moving things are not darkened in its shadows on Bar (F-203), but neither are they in a quick Build
+that keeps the moon's direction: it is how Bar's units take its sun, not the bake. What decides it is not settled.
