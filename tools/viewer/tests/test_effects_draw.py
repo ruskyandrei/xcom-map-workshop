@@ -186,6 +186,50 @@ class MaterialColours(unittest.TestCase):
         self.assertEqual(ed.material_colours(P(), 5), {'Dark_Color': [0.015, 0.017, 0.027]})
 
 
+class MeshMaterials(unittest.TestCase):
+    """Draw version 8: a mesh emitter's sections take what its MeshMaterial modules set, before the emitter's own
+    override and the mesh's own material."""
+    class P:
+        """LOD level 1 with modules 2 to 5: a MeshMaterial module, another switched off, a size module and a second
+        MeshMaterial module whose list is shorter."""
+        lists = {2: [10, 11], 3: [99, 99], 5: [12]}
+
+        def own(self, index, key, default=None):
+            return [2, 3, 4, 5] if (index, key) == (1, 'Modules') else default
+
+        def effective(self, index, key, default=None):
+            return self.lists.get(index) if key == 'MeshMaterials' else default
+
+        def refs(self, raw):
+            return list(raw or [])
+
+        def cls(self, index):
+            return 'ParticleModuleSize' if index == 4 else 'ParticleModuleMeshMaterial'
+
+    class Defaults:
+        def value(self, index, key, zero=None):
+            return (False, 'actor') if (index, key) == (3, 'bEnabled') else (zero, 'class')
+
+    def test_the_modules_list_by_section(self):
+        # (the switched-off module's 99s never count; the later module's entry replaces the first's for section 0)
+        self.assertEqual(ed.mesh_materials(self.Defaults(), self.P(), 1), [12, 11])
+
+    def test_the_module_then_the_override_then_the_mesh(self):
+        import types
+        import export
+        sections = [dict(material=20, count=3), dict(material=21, count=0), dict(material=0, count=3), dict(material=23, count=3)]
+        fake = types.SimpleNamespace(p=None, prefix='', meshes={'7': dict(sections=sections)},
+                                     section_material=lambda m, mesh: 'key-%d' % m)
+
+        def drawn(override, chosen):
+            return export.Exporter.particle_mesh(fake, 7, override, chosen)[1:]
+        # (the section with no triangles is skipped; an empty slot of the module's list falls through)
+        self.assertEqual(drawn(0, ()), (['key-20', 'key-0', 'key-23'], [20, 0, 23]))
+        self.assertEqual(drawn(0, [0, 0, 30]), (['key-20', 'key-30', 'key-23'], [20, 30, 23]))
+        self.assertEqual(drawn(40, [0, 0, 30]), (['key-40', 'key-30', 'key-40'], [40, 30, 40]))
+        self.assertEqual(drawn(40, [50, 51, 52, 53]), (['key-50', 'key-52', 'key-53'], [50, 52, 53]))
+
+
 # what URB_Bar's textures' pixels hold (texture_traits on the export's PNGs), for an exporter that writes none
 BAR_TRAITS = {'T_Dust_Grainy_3Channel': dict(grey=False, shape=False, packed=True, redShare=0.497, bright=0.418),
               'T_fireyblast01': dict(grey=True, shape=False, packed=False, redShare=0.998, bright=0.086),
@@ -206,8 +250,8 @@ class Stub:
         self.textures[str(index)] = info
         return str(index)
 
-    def particle_mesh(self, mesh, override=0):
-        return 'mesh-%d' % mesh, ['material'], [override]
+    def particle_mesh(self, mesh, override=0, chosen=()):
+        return 'mesh-%d' % mesh, ['material'], [(chosen[0] if chosen else 0) or override]
 
 
 @unittest.skipUnless(INSTALL and INSTALL.exists(), WHY)
@@ -375,6 +419,38 @@ class Programs(unittest.TestCase):
                 self.assertTrue('entries' in row['value'] or 'parameter' in row['value'] or 'unread' in row['value'])
         self.assertTrue(any('entries' in row['value'] for m in found for row in m['DynamicParams']))
         self.assertNotIn('ParameterDynamic', {i for d in self.drawn() for i in d['ignored']})
+
+
+@unittest.skipUnless(INSTALL and (INSTALL.parent / 'CLrgScout_TheBarrens.upk').exists(), WHY)
+class PlasmaFire(unittest.TestCase):
+    """Draw version 8 on the crashed Raider's plasma fire (CLrgScout_TheBarrens, Emitter_4): its burst mesh has no
+    material of its own, and its MeshMaterial module gives it M_Plasma_Fire_Mesh, an added, unlit, two-sided glow."""
+
+    @classmethod
+    def setUpClass(cls):
+        import copy
+        import export
+        import material_programs
+        cls.folder = tempfile.TemporaryDirectory(prefix='effects-plasma-')
+        barrens = records('CLrgScout_TheBarrens')
+        key = barrens['by']['Emitter_4']['system']
+        cls.systems = {key: copy.deepcopy(barrens['systems'][key])}
+        cls.exporter = export.Exporter(barrens['package'], Path(cls.folder.name), programs=material_programs.Programs(None))
+        ed.attach(barrens['package'], em.Defaults(barrens['package']), cls.systems, cls.exporter, export.compiled_textures)
+        cls.system = cls.systems[key]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.folder.cleanup()
+
+    def test_the_burst_is_drawn_with_its_modules_material(self):
+        self.assertEqual(self.system['name'], 'P_Plasma_Fire_A')
+        d = next(e['draw'] for e in self.system['emitters'] if e.get('draw') and e['draw']['kind'] == 'mesh')
+        self.assertEqual(d['material'], 'FX_Alien_Destruction_Plasma.M_Plasma_Fire_Mesh')
+        self.assertEqual((d['blend'], d['lit'], d['twoSided']), ('BLEND_Additive', False, True))
+        material, = d['materials']
+        self.assertEqual(self.exporter.materials[material]['name'], d['material'])    # (not the neutral stand-in)
+        self.assertTrue(d['programs'] and d['programs'][0])
 
 
 if __name__ == '__main__':

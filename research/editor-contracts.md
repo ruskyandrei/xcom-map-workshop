@@ -662,6 +662,12 @@ a module's struct property (an orbit's `OffsetOptions`) is an object of its plai
 events has a draw record of `kind: "events"` (nothing drawn, stepped so its events reach the others) and keeps its
 `why`; one that only another's event starts is drawn (no longer `draw: null`).
 
+**Draw version 8** (export 50): a mesh emitter's sections are drawn as the game draws them: each with what its enabled
+`MeshMaterial` modules set for it (`MeshMaterials`, by section; a later module's entry wins), else the emitter's
+material where its type data overrides the mesh's (`bOverrideMaterial`), else the mesh's own. `materials`, `programs`,
+`material`, `blend`, `lit` and `twoSided` follow. Before, the module was not read: P_Plasma_Fire_A's burst mesh, which
+has no material of its own, was drawn with the neutral stand-in, and the seagulls with the sparrows' materials.
+
 **A distribution** is one of:
 - a table, `{ op, lock, per, chunk, scale, start, min, max, entries }`: the game's baked lookup table. An entry is
   `chunk` floats: the value (`op` 1), or its least then its most (`op` 2 random between them, 3 one or the other).

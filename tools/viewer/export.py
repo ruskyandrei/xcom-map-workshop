@@ -132,10 +132,12 @@ import settings
 # 49: draw version 7 (game-likeness plan, E4): the event generator (`Events`) and receivers, the location emitters,
 #     orbits, attractor points, size by speed, kill boxes and spawning by distance followed; each emitter's `name`; a
 #     struct property field by field; an emitter that only sends events keeps a record (`kind: events`, its `why`)
+# 50: draw version 8: a mesh emitter's sections take the materials its MeshMaterial modules set (effects_draw.
+#     mesh_materials), before its own override and the mesh's own (P_Plasma_Fire_A's burst, the seagulls, the rats)
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 49
+EXPORT_VERSION = 50
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -320,9 +322,11 @@ class Exporter:
                                                                     effects_draw.RULES, self.warn), None)
         return found
 
-    def particle_mesh(self, mi, override=0):
-        """A mesh particle's mesh as the export keeps a piece's: (mesh key, a material key for each drawn section, each
-        section's own material export), or (None, [], []) where it doesn't read. `override`: the emitter's own material, drawn on every section."""
+    def particle_mesh(self, mi, override=0, chosen=()):
+        """A mesh particle's mesh as the export keeps a piece's: (mesh key, a material key for each drawn section, the
+        material export each drawn section is drawn with), or (None, [], []) where it doesn't read. Each section is
+        drawn with `chosen`'s entry for it (its MeshMaterial modules' material, effects_draw.mesh_materials; 0 for
+        none), else `override` (the emitter's own material where it overrides the mesh's), else its own."""
         p = self.p
         mesh_key = self.prefix + str(mi)
         if mesh_key not in self.meshes:
@@ -337,9 +341,9 @@ class Exporter:
                 sections=mesh["sections"], bounds=mesh["bounds"], fragmentMask=None, kind='static', bones=[],
                 pose=None, origin=mesh.get('origin'), rotOrigin=mesh.get('rotOrigin'),
                 collision=self.mesh_collision(mi))
-        drawn = [s for s in self.meshes[mesh_key]["sections"] if s["count"]]
-        mats = [self.section_material(override if override > 0 else s["material"], mi) for s in drawn]
-        return mesh_key, mats, [s["material"] for s in drawn]
+        used = [(chosen[i] if i < len(chosen) else 0) or (override if override > 0 else 0) or s["material"]
+                for i, s in enumerate(self.meshes[mesh_key]["sections"]) if s["count"]]
+        return mesh_key, [self.section_material(m, mi) for m in used], used
 
     def particle_program(self, index, factories):
         """A particle material's program (game-likeness plan, E1): material_programs.program on the shaders of the

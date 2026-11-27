@@ -32,7 +32,7 @@ import struct
 from package import FormatError
 from effects_metadata import PARAMETER_DISTRIBUTIONS, floats, short, struct_fields
 
-DRAW_VERSION = 7     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
+DRAW_VERSION = 8     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
                      # 3: a packed texture's one channel as the opacity; distortion-only emitters not drawn
                      # 4: textures told apart by their pixels (texture_traits): the colour from a picture, the shape
                      #    from a mask (`maskFrom`); `opacity` none where the mask alone shapes it
@@ -40,6 +40,7 @@ DRAW_VERSION = 7     # 2: a mesh emitter's own textures, and its blend from the 
                      # 6: materials by their programs (`program`, `programs`); the dynamic parameter followed
                      # 7: the event, location emitter, orbit, attractor, size by speed, kill box and spawn per unit
                      #    modules followed; `name`; an event-only emitter's record (kind `events`)
+                     # 8: a mesh emitter's sections drawn with its MeshMaterial modules' materials (mesh_materials)
 P = 'ParticleModule'
 # the modules the page's simulator follows (effects_preview.js); any other is named in `ignored`
 FOLLOWED = frozenset(P + m for m in (
@@ -428,6 +429,29 @@ def sends_events_only(p, lod):
     return any(p.cls(m) == P + 'EventGenerator' for m in modules)
 
 
+def mesh_materials(defaults, p, lod):
+    """What a mesh emitter's MeshMaterial modules set for each section of its mesh, by section (0 where they set
+    none): the game draws a section with it in place of the emitter's material where its TypeDataMesh overrides the
+    mesh's (bOverrideMaterial) and of the mesh's own. A later module's list replaces an earlier one's entries.
+    (P_Plasma_Fire_A's burst mesh has no material of its own: its module gives it M_Plasma_Fire_Mesh. Machine_Alien's
+    debris overrides with M_Machine_Innards, which its own mesh has too: its module gives it MI_Alien_Machinery_B.)"""
+    try:
+        modules = [m for m in p.refs(p.own(lod, 'Modules')) if m > 0]
+    except (FormatError, ValueError, struct.error):
+        return []
+    chosen = []
+    for m in modules:
+        if p.cls(m) != P + 'MeshMaterial' or defaults.value(m, 'bEnabled', True)[0] is False:
+            continue
+        try:
+            listed = p.refs(p.effective(m, 'MeshMaterials'))
+        except (FormatError, ValueError, struct.error):
+            continue
+        chosen[len(chosen):] = [0] * (len(listed) - len(chosen))
+        chosen[:len(listed)] = listed
+    return chosen
+
+
 def emitter_draw(p, defaults, lod, exporter, compiled_textures):
     """An emitter's first LOD level as the page draws it: (draw record or None, why not)."""
     if defaults.value(lod, 'bEnabled', True)[0] is False:
@@ -457,13 +481,13 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures):
         if mesh <= 0 or p.cls(mesh) != 'StaticMesh':
             return None, 'its mesh is in another package' if mesh < 0 else 'no mesh'
         override = material if material > 0 and defaults.value(type_data, 'bOverrideMaterial', False)[0] else 0
-        key, materials, own = exporter.particle_mesh(mesh, override)
+        key, materials, sections = exporter.particle_mesh(mesh, override, mesh_materials(defaults, p, lod))
         if not key:
             return None, 'its mesh could not be read'
         draw.update(mesh=key, materials=materials)
-        sections = [override] * len(own) if override else list(own)
-        # what it is drawn with: the emitter's material where it overrides, else the mesh's own first
-        material = override or next((m for m in own if m > 0), 0)
+        # what it is drawn with: the first section's material (its MeshMaterial module's, else the emitter's where it
+        # overrides, else the mesh's own)
+        material = next((m for m in sections if m > 0), 0)
     chain = material_chain(p, material)
     lighting = 'MLM_Phong'
     for mat in reversed(chain):

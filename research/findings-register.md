@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-233 (27 November): a mesh emitter's MeshMaterial module sets the materials its mesh's sections are drawn with,
+  before the emitter's own override and the mesh's own; the export read none, so CLrgScout_TheBarrens' plasma fire
+  (P_Plasma_Fire_A), whose burst mesh has no material of its own, was drawn as a flat green stand-in. Fixed: draw
+  version 8 (export 50) draws each section with the module's material. Not seen in the game.
 - F-232 (27 November, the game-likeness plan's F1): DLC2_3_Furies' four toggleable point lights pulse by a light
   function, `(1 + sin(pi t)) / 2` every 2 seconds; the other two light functions of the install name no material.
   Fixed: export 46 carries the light function's program and the Game look pulses the light. Three maps flicker a light
@@ -394,7 +398,28 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
-### F-232: Four lights of one map pulse by a light function; the game draws it as a factor of time on the light
+### F-233: A mesh emitter's MeshMaterial module sets its sections' materials
+**Fixed** (27 November 2026; read offline from the 43 maps the editor's cache held, the editor's side checked on a
+test server on CLrgScout_TheBarrens; nothing played).
+- **What was seen.** CLrgScout_TheBarrens' plasma fire on the crashed Raider (Emitter_4, P_Plasma_Fire_A) was drawn
+  as a still, see-through green shape. Its second emitter draws the mesh FX_WP_PlasmaShared.ASE_Plasma_Burst, whose
+  one section has no material; its required module names M_Plasma_Shot_Twisted_Gooey, but its type data doesn't
+  override the mesh's (no `bOverrideMaterial`). Its `ParticleModuleMeshMaterial` lists
+  FX_Alien_Destruction_Plasma.M_Plasma_Fire_Mesh (added, unlit, two-sided). The export left that module out as
+  changing nothing it drew, so the section took the neutral stand-in, opaque and lit.
+- **The rule followed.** A section is drawn with the entry of the enabled MeshMaterial modules' `MeshMaterials` at its
+  index (a later module's entry wins), else the emitter's material where its type data overrides, else the mesh's
+  own. Where an emitter has both (278 LOD levels: the machines' debris and the grenade's rock chunks among them),
+  the module comes first: Machine_Alien's override is M_Machine_Innards, the material its own
+  mesh has, so its alien MI_Alien_Machinery_B would never show otherwise. That order is read from Firaxis's settings,
+  not from the engine's code, which is not at hand.
+- **What changes.** 40 systems of 38 of those maps have the module; 20 draw otherwise now. Those drawn with the stand-in
+  before: the plasma fire, plumes and destroyed power core, the hologram nav sphere, the flying seagulls, the car
+  explosion's and gas pump's shock rings and the generators' electric ball. Those with another material before: the
+  seagulls (sparrows' materials), the unlit rats (lit ones), the hologram wall's face, the owl attack's rat, and the
+  machines' debris and the grenade's rock chunks.
+- **Fix.** Draw version 8 (export 50, effects_draw.mesh_materials, export.Exporter.particle_mesh): each section's
+  material, and the emitter's material, blend, lighting and program, follow the rule.
 **Fixed** (27 November 2026, the game-likeness plan's F1; read offline from the lab copy's 97 maps and their records'
 134 streams, and the shader cache; the editor's side checked in a headless browser on DLC2_3_Furies; nothing played).
 - **Which lights.** Six light components in the 231 packages name a `LightFunction`: DLC2_3_Furies' four
