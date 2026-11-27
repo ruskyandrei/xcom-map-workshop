@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-203 (27 November, the game-likeness plan's T-S5, EXP-100): in a Build with baking whose sun turned, moving things
+  are not darkened in its shadows: a soldier is as bright in a building's new shadow as in the sun, where on a map as
+  the game ships it he is about 1.5 times brighter in the sun. The Build's map of the level and lighting samples' marks
+  read at those tiles as the shipped map's do. Open.
 - F-202 (27 November, the game-likeness plan's T-S6): the sky chosen is built as copies of another map's dome where
   the map's own domes stood, in the chosen dome's own scale: Bar's small turned-over dome under the map (0.41 of the
   mesh) becomes a full-size one (2, 2, 2.6). Accepted: in the game (EXP-100) all below the horizon is the fog's
@@ -354,6 +358,22 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-203: A turned sun's shadows do not darken moving things in the game
+**Open** (27 November 2026, the game-likeness plan's T-S5: EXP-100 and its control; the Build's data read offline).
+- **What is seen.** On URB_Bar built with baking under a sun turned to 20.7 degrees from a new side, one soldier moved
+  by TeleportToCursor with the same facing and camera is as bright on a tile in the bar's new shadow as on one in the
+  sun (torso armour (85, 123, 133) against (78, 116, 126)) while the ground under him changes from shade to sun; on the
+  sunlit tile he takes no orange from the sun either. On URB_CommercialStreet as the game ships it the same test
+  gives (63, 100, 141) in a building's shadow against (86, 139, 169) in the sun.
+- **What the Build wrote.** At the shade tile the light's map of the level (`sun_bake.shadowed_by_map`) puts points
+  16, 64 and 128 units up in shadow, and the four nearest lighting samples (`bShadowedFromDominantLights`) are marked; at
+  the sun tile, lit and unmarked. URB_CommercialStreet's own data reads the same way at its tiles. The game holds the
+  map's new header (direction, importance box, size). Bar's Long War patch levels hold no lighting samples.
+- **Not settled.** What a unit's light environment takes the sun's visibility from, if neither of these as written:
+  the samples' own light (their colours, the old moon's), another field of the light or the level, or something the
+  game keeps from the map as cooked. The soldier's light environment settings read the same on both maps
+  (MinShadowAngle 80, bSynthesizeDirectionalLight, bUseBooleanEnvironmentShadowing False).
 
 ### F-202: The sky chosen stands where the map's own domes stood, in the chosen dome's own scale
 **Accepted** (EXP-100, 27 November 2026: nothing of the full-size dome shows in the game. Found 27 November 2026, the
