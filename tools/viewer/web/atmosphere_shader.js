@@ -18,8 +18,9 @@ export function fogUniformsNone() {
            fogInscatter: [0, 0, 0], fogOpposite: [0, 0, 0], fogLight: [0, 0, -1] };
 }
 
-// the colours are UE3 linear colours (FLinearColor), which the game's fog takes as they are: no gamma
-const linear = c => (Array.isArray(c) ? c.slice(0, 3).map(v => Math.max(0, Number(v) || 0)) : [0, 0, 0]);
+// the colours are UE3 Colors (a byte a channel: the export gives them over 255), which the engine makes linear by its
+// 2.2 power before the fog's shader takes them (an FLinearColor of an FColor)
+const linear = c => (Array.isArray(c) ? c.slice(0, 3).map(v => Math.pow(Math.max(0, Number(v) || 0), 2.2)) : [0, 0, 0]);
 
 /** The power that makes the colours half and half at `angle` degrees from the light (UE3's light terminator). */
 export function terminatorPower(angle) {

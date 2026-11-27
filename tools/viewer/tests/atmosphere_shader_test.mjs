@@ -12,7 +12,7 @@ assert.equal(u.fogOn, 1);
 assert.equal(u.fogDensity, 0.02 / 1000);                  // UE3 keeps them a thousand times smaller
 assert.equal(u.fogFalloff, 4 / 1000);
 assert.equal(u.fogFloor, 0);
-assert.ok(Math.abs(u.fogOpposite[0] - 0.2 * 0.211765) < 1e-9);    // linear colours, taken as they are
+assert.ok(Math.abs(u.fogOpposite[0] - 0.2 * 0.211765 ** 2.2) < 1e-9);    // a Color made linear by the engine's 2.2
 
 // off, or absent: no fog
 assert.equal(fogUniforms({ ...road, bEnabled: false }).fogOn, 0);
