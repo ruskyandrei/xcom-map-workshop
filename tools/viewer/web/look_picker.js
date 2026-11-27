@@ -12,7 +12,7 @@ import { lookKey } from './looks.js';
 import { ask, hex16, sendPng } from './api.js';
 
 /** The pictures' size in pixels, and the version of their drawing (a better drawing replaces the old pictures). */
-export const PICTURE = { width: 512, height: 384, version: 1 };
+export const PICTURE = { width: 512, height: 384, version: 2 };     // 2: looks drawn by their programs (export 43)
 /** The cards' picture sizes, CSS pixels. */
 export const SIZES = { small: [180, 135], medium: [280, 210], large: [400, 300] };
 const FAVOURITES = 'workshop.lookFavourites', SIZE = 'workshop.lookPictureSize';

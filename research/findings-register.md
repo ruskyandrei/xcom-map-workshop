@@ -439,8 +439,11 @@ editor's view of the same place; nothing played).
   CSmallScout_DirtRoad 418 MB against 160, URB_Bar 690 against 246, URB_PoliceStation 767 against 280.
 
 ### F-167: The editor draws a blended ground material in one texture; the game mixes its layers by vertex colour
-**Open** (24 November 2026, a user's question: a made ground in COverseer_TheBarrens's `RocksRiver_VertPaint` drawn
-grey-brown in the editor and green in the game; read offline, not played). Recorded as KNOWN-BUGS.md KB-25.
+**Fixed** (found 24 November 2026, a user's question: a made ground in COverseer_TheBarrens's `RocksRiver_VertPaint`
+drawn grey-brown in the editor and green in the game; read offline, not played. Fixed 27 November 2026 by the
+game-likeness plan's track A, export 43: every material the slice can follow is drawn by its compiled shaders'
+program, with the meshes' and pieces' vertex colours; the made ground now draws olive grass over mud). Was
+KNOWN-BUGS.md KB-25.
 - **The material.** `RocksRiver_VertPaint` is an instance of `GEN_MaterialParents.Master_Materials.ENV_ForestGround`
   with four colour textures: Rock (`Rock_B_DIFF`, grey-brown rock), Dirt (`chasm1_Dif`, grey), Leaves
   (`Grass_New_Dark_DIFF`, a dark grass) and Grass (`GroundForestMudPlateauDirt_DIFF`, brown mud). The cooked material
@@ -479,7 +482,10 @@ grey-brown in the editor and green in the game; read offline, not played). Recor
   world-aligned masks), the world tangent frame 4,733 (reflections), UV 1 3,663. Most changed by section count:
   shipping containers (grey today, orange, blue and green tints), windows (grey today, dark tinted), snowy docks and
   ground (white where the vertex colour is), the forest grounds and RockPlateaus_Ground.
-- **Fix.** Not made. Planned: read each material's compiled pixel shader, take the part that makes its colour (and
+- **Fix (27 November 2026).** Made as planned below: the export writes each material's program (export 43) and the
+  page draws it (scene_pieces.js `withProgram`, material_program.js), colour and highlight; the rest of a material
+  (cut-out, glow, glass) as before until the plan's A5 to A7.
+- **Planned (24 November).** Read each material's compiled pixel shader, take the part that makes its colour (and
   its specular), and draw that in the editor with the pieces' vertex colours.
 
 ### F-166: A lights clear takes out lights the editor only shows; channel-only ones stayed baked into the pieces

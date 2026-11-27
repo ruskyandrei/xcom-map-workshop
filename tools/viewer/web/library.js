@@ -47,8 +47,11 @@ const json = (url, method = 'GET', body = undefined) => call(method, url, body, 
 // The key an effect's picture is kept under: its entry's and the drawing's version, so a better drawing replaces the
 // pictures made by an older one (the server keeps a picture under 16 hex digits)
 const PICTURE_VERSION = 2;
+// a piece's picture likewise: drawn again since its materials draw by their programs (export 43, game-likeness A-S4)
+const PIECE_PICTURE = 'programs1';
 // (an index entry says what it is by its family, the panel's entry by its effect kind too)
-const pictureKey = entry => (entry.effect || entry.family === 'effect' ? hex16(`${entry.key}|likeness${PICTURE_VERSION}`) : entry.key);
+const pictureKey = entry => (entry.effect || entry.family === 'effect' ? hex16(`${entry.key}|likeness${PICTURE_VERSION}`)
+  : hex16(`${entry.key}|${PIECE_PICTURE}`));
 // (a large picture is kept under a key of its own)
 const largeKey = key => hex16(`${key}|large1`);
 /** An entry's two picture keys, the list's and the large panel's (the panel's entry or the index's: Cache everything

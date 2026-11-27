@@ -539,7 +539,8 @@ class Exporter:
             with Image.open(self.folder / self.textures[source]['url']) as image:
                 pixels = image.convert('RGB') if channel == 'RGB' else image.getchannel(channel).convert('RGB')
                 pixels.save(self.folder / filename)
-            self.textures[key] = dict(self.textures[source], url=filename, derivedFrom=source,
+            kept = {k: v for k, v in self.textures[source].items() if k not in ('container', 'levels')}   # a PNG
+            self.textures[key] = dict(kept, url=filename, derivedFrom=source,
                                       channel=channel, srgb=self.textures[source]['srgb'] if channel == 'RGB' else False)
         return key
 

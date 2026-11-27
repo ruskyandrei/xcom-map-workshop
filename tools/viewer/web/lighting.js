@@ -26,8 +26,14 @@ uniform vec4 localGridInfo;
 uniform vec2 localGridSize;`;
 // UE3: radial attenuation pow(saturate(1 - (d/R)^2), FalloffExponent); spot cone
 // square(saturate((dot(L, -dir) - cosOuter) / (cosInner - cosOuter))).
+// A material drawn by its program (USE_PROGRAM, scene_pieces.js) takes no highlight from these: in the game the map's
+// placed lights are baked into lightmaps, whose pass has no highlight; only the sun (dominant) and live lights do.
 const FRAGMENT_MAIN = `#include <lights_fragment_begin>
 #if defined( RE_Direct )
+#ifdef USE_PROGRAM
+vec3 programSpecular = material.specularColor;
+material.specularColor = vec3( 0.0 );
+#endif
 if ( localGridInfo.w > 0.5 ) {
 	ivec2 localCell = ivec2( floor( ( vLocalWorld.xz - localGridInfo.xy ) / localGridInfo.z ) );
 	if ( all( greaterThanEqual( localCell, ivec2( 0 ) ) ) && all( lessThan( localCell, ivec2( localGridSize ) ) ) ) {
@@ -56,6 +62,9 @@ if ( localGridInfo.w > 0.5 ) {
 		}
 	}
 }
+#ifdef USE_PROGRAM
+material.specularColor = programSpecular;
+#endif
 #endif`;
 
 // One shared function, so every lit material shares one program cache key.

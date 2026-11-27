@@ -192,7 +192,7 @@ function readLooks() {
 // its template, a record's template and an original's recipe pose; made before the gizmo, which is given baseMatrix
 // (nothing of it runs as the page loads but a few tables and vectors made).
 const { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
-        materialCache, materialKey, movedBox, originalOf, partsOf, pick, pickAll, placeObjects, rayAt, recipeOf, removeRoots,
+        materialCache, materialKey, movedBox, originalOf, partsOf, pick, pickAll, placeObjects, programFrame, rayAt, recipeOf, removeRoots,
         templateFor, texture, track, unscaled, vertexBox } = createScenePieces({
   camera, content, gltfLoader, gridOrigin, pickables, renderer, textureLoader, texturePromises,
   // (made further down: called through, since they are not made yet while this runs)
@@ -913,6 +913,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   placeObjects(); floorOptions(); frame();
   applyLighting = applyMapLighting;
   applyLighting();
+  // the pieces' shaders compiled as the map opens, off the page's thread where the browser can (no first-frame freeze)
+  await renderer.compileAsync(world, camera).catch(error => console.warn(`shaders not compiled ahead: ${error.message}`));
   $('loading').hidden = true;
   // the ground grid and the landing zones, now that the pieces are on the map (Clear map plan, sections 3 and 4), and
   // the mission's objects (mission types plan, C2)
@@ -1387,6 +1389,7 @@ renderer.setAnimationLoop(() => {
     if (shadowsUntil === Infinity && data) touchShadows();      // (every frame until a scene is open)
   }
   viewHeight.value = Math.max(1, renderer.domElement.clientHeight);     // (a sprite's least size: effects_preview.js)
+  programFrame();
   renderer.render(world,camera);
 });
 setInterval(() => {

@@ -2,7 +2,10 @@
 // - picking: the mouse's ray (rayAt) and the first visible, unclipped piece under a screen point (pick), or every one
 //   of them, nearest first (pickAll: Ctrl and the wheel step through them, pick_step.js);
 // - textures and materials: a texture read (texture), a material made from the export's record (material; a made
-//   piece's plain one, plainMaterial, PLAIN_MATERIAL) and the materials' cache by key (materialKey, materialCache);
+//   piece's plain one, plainMaterial, PLAIN_MATERIAL) and the materials' cache by key (materialKey, materialCache); a
+//   material drawn by its program, its compiled shaders' slice (withProgram, material_program.js: the colour and the
+//   highlight; export 43), with the white vertex colours a mesh without any reads and a placed piece's own painted
+//   colours (programColours);
 // - the meshes' and materials' loads, each once, shared by every piece that uses it (track, loaded) and the box round
 //   some pieces' meshes (boundsOf);
 // - a piece's root built from its mesh file (buildRoot), added to the scene and taken away (addRoots, removeRoots), its
@@ -37,7 +40,8 @@ import { isPlain } from './made_requests.js';
 import { cloneBlasts, fromOf, isStream, sourceKey } from './piece_records.js';
 import { pieceGrid } from './pieces.js';
 import { targetKey, tidyLocation, tidyRotator } from './project.js';
-import { canTake, missingByAddress, readDds } from './texture_file.js';
+import { canTake, isDds, missingByAddress, readDds } from './texture_file.js';
+import { inputsRead, programGlsl } from './material_program.js';
 import { madeSlabShape, madeWallShape } from './walls.js';
 
 // An actor's pose at a render matrix: game location and rotator. A piece that was only moved keeps its source's own
@@ -76,10 +80,14 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
   const BLOCKS = { PF_DXT1: 'DXT1', PF_DXT3: 'DXT3', PF_DXT5: 'DXT5', PF_BC5: 'BC5' };
   const GPU_FORMATS = { DXT1: THREE.RGBA_S3TC_DXT1_Format, DXT3: THREE.RGBA_S3TC_DXT3_Format,
                         DXT5: THREE.RGBA_S3TC_DXT5_Format, BC5: THREE.RED_GREEN_RGTC2_Format };
-  async function compressed(url) {
+  // a file of the export's read as bytes: a texture's DDS, a piece's painted colours (the one plain fetch here)
+  async function bytesOf(url) {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`${url}: ${response.status}`);
-    const file = readDds(await response.arrayBuffer());
+    return response.arrayBuffer();
+  }
+  async function compressed(url) {
+    const file = readDds(await bytesOf(url));
     const tex = new THREE.CompressedTexture(file.mipmaps, file.width, file.height, GPU_FORMATS[file.format]);
     tex.minFilter = file.mipmaps.length > 1 ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
     tex.generateMipmaps = false;
@@ -92,7 +100,7 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
     // (a texture that failed to load is asked for again by the next material that needs it: track)
     track(texturePromises, key, async () => {
       const record = data.textures[id], url = assetUrl(record.url), srgb = Boolean(color && record.srgb);
-      const blocks = record.container === 'dds' ? BLOCKS[record.format] : null;
+      const blocks = record.container === 'dds' && isDds(record.url) ? BLOCKS[record.format] : null;
       const tex = !blocks ? await textureLoader.loadAsync(url)
         : canTake(blocks, srgb, hasExtension) ? await compressed(url) : await textureLoader.loadAsync(`${url}.png`);
       tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -124,6 +132,90 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
     };
     mat.customProgramCacheKey = () => 'plain-made';
     return mat;
+  }
+  // A material drawn by its program (the export's `program`, export 43): its colour and highlight worked out in the
+  // shader from its textures, the mesh's UV channels and vertex colours, as the game's compiled shader does, in place
+  // of the one texture picked by name; everything else of the material (its cut-out, glow, glass) as before. Programs
+  // whose text is the same share one compiled shader (customProgramCacheKey); their values are uniforms. The page's
+  // address turns them off with ?programs=off (for the probes' before and after).
+  const programsAsked = new URLSearchParams(globalThis.location?.search ?? '').get('programs');
+  const programsOn = programsAsked !== 'off';
+  const programCamera = { value: new THREE.Vector4(0, 0, 0, 1) };      // the camera in the game's axes, each frame
+  const PROGRAM_OUTPUTS = ['diffuse', 'specular', 'power'];
+  async function withProgram(mat, program) {
+    if (!programsOn || !program?.outputs?.diffuse) return mat;
+    let glsl;
+    const outputs = programsAsked === 'colour' ? ['diffuse'] : PROGRAM_OUTPUTS.filter(o => program.outputs[o]);
+    try { glsl = programGlsl(program, outputs); }
+    catch (error) { console.warn(`a program not drawn: ${error.message}`); return mat; }
+    const maps = await Promise.all(glsl.samplers.map(s => texture(s.record.texture, Boolean(s.record.srgb))));
+    if (maps.some(m => !m)) return mat;                // a texture that failed to load: drawn as before
+    const uniforms = {};
+    for (const u of glsl.uniforms) {
+      const record = program.constants[u.constant];
+      uniforms[u.name] = record.engine === 'cameraWorldPos' ? programCamera : { value: new THREE.Vector4(...record.value) };
+    }
+    glsl.samplers.forEach((s, k) => { uniforms[s.name] = { value: maps[k] }; });
+    const local = mat.onBeforeCompile;
+    mat.onBeforeCompile = (shader, r) => {
+      local?.call(mat, shader, r);
+      Object.assign(shader.uniforms, uniforms);
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${glsl.vertexDeclarations}`)
+        .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>\n${glsl.vertexBody}`);
+      let fragment = shader.fragmentShader.replace('#include <common>', `#include <common>\n${glsl.fragmentDeclarations}`)
+        .replace('#include <color_fragment>', `#include <color_fragment>\n${glsl.fragmentBody}\ndiffuseColor.rgb = progOut_diffuse.rgb;`);
+      // the game's highlight is Phong's (a reflection's power, unnormalised), three's Blinn's: a power four times as
+      // large is near it, and three's normalisation ((s / 2 + 1) / 4, the light's pi cancelling its 1 / pi) taken back
+      if (glsl.outputs.includes('specular')) fragment = fragment.replace('#include <lights_phong_fragment>', `#include <lights_phong_fragment>
+${glsl.outputs.includes('power') ? 'material.specularShininess = max(1.0, progOut_power.x * 4.0);' : ''}
+material.specularColor = progOut_specular.rgb / max(1.0, 0.25 * (0.5 * material.specularShininess + 1.0));`);
+      shader.fragmentShader = fragment;
+    };
+    // the texture picked by name stays only for a cut-out's alpha (alphaTest); otherwise it would be read for nothing
+    if (!mat.alphaTest) mat.map = null;
+    mat.userData.programTextures = maps;
+    mat.customProgramCacheKey = () => `program-${glsl.key}${mat.map ? '-map' : ''}`;
+    mat.defines = { ...(mat.defines ?? {}), USE_PROGRAM: '' };       // (lighting.js: no highlight from baked lights)
+    mat.color.setRGB(1, 1, 1);
+    mat.userData.program = glsl.key;
+    mat.userData.programReads = inputsRead(program);
+    mat.needsUpdate = true;
+    return mat;
+  }
+  // The vertex colours a program reads: a placed piece's own painted ones (its `paint` file, export 43) on a geometry
+  // of its own that shares every other buffer, else the mesh's own, else white, as the game gives a mesh with none.
+  const paintBytes = new Map();             // paint file -> Promise<Uint8Array>
+  const paintedGeometries = new Map();      // paint file + geometry -> geometry
+  async function programColours(obj, part) {
+    if (!part.material?.userData?.programReads?.color) return;
+    const geometry = part.geometry;
+    if (obj.paint) {
+      track(paintBytes, obj.paint, async () => new Uint8Array(await bytesOf(assetUrl(obj.paint))));
+      let bytes = null;
+      try { bytes = await paintBytes.get(obj.paint); } catch { bytes = null; }
+      if (bytes && bytes.length === 4 * geometry.attributes.position.count) {
+        const key = `${obj.paint}:${geometry.uuid}`;
+        if (!paintedGeometries.has(key)) {
+          const painted = new THREE.BufferGeometry();
+          for (const [name, attribute] of Object.entries(geometry.attributes)) painted.setAttribute(name, attribute);
+          painted.setIndex(geometry.index);
+          for (const g of geometry.groups) painted.addGroup(g.start, g.count, g.materialIndex);
+          painted.boundingBox = geometry.boundingBox; painted.boundingSphere = geometry.boundingSphere;
+          painted.setAttribute('color', new THREE.BufferAttribute(bytes, 4, true));
+          paintedGeometries.set(key, painted);
+        }
+        part.geometry = paintedGeometries.get(key);
+        return;
+      }
+    }
+    if (!geometry.attributes.color) {
+      const white = new Uint8Array(4 * geometry.attributes.position.count).fill(255);
+      geometry.setAttribute('color', new THREE.BufferAttribute(white, 4, true));
+    }
+  }
+  // the camera's place in the game's axes, for the programs that read it (the draw loop calls it each frame)
+  function programFrame() {
+    programCamera.value.set(camera.position.x, camera.position.z, camera.position.y, 1);
   }
   async function material(id,overrideTint=null) {
     if (id === PLAIN_MATERIAL) return plainMaterial();
@@ -162,7 +254,10 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
     });
     // Packed UE normals need family-specific decoding. Retain them in the manifest
     // rather than silently treating the DXT alpha channel as an ordinary RGB map.
-    return withLocalLights(mat);
+    withLocalLights(mat);
+    // (after the local lights' patch: the program's chains onto it)
+    if (info.program && !glass && !energy) await withProgram(mat, info.program);
+    return mat;
   }
   // Meshes and materials load once and are shared by every piece that uses them, copies included.
   const materialCache = new Map();     // (the meshes, geometryCache: editor_state.js)
@@ -222,6 +317,7 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
       const [key, tint] = materialKey(obj, obj.materials[i]);
       track(materialCache, key, () => material(obj.materials[i], tint));
       parts[i].material = await materialCache.get(key);
+      await programColours(obj, parts[i]);
       parts[i].userData.baseMaterial = parts[i].material;
       parts[i].castShadow = !parts[i].material.transparent;
       parts[i].receiveShadow = true;
@@ -410,7 +506,7 @@ export function createScenePieces({ assetUrl, camera, content, coverVersion, dra
     return templates.get(`${targetKey(from)}|${component}`) ?? foreignTemplates.get(`${targetKey(from)}|${component}`);
   }
 
-  return { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material,
+  return { addedObject, addRoots, baseMatrix, boundsOf, boxOf, buildPieces, buildRoot, loaded, madeShape, material, programFrame,
            materialCache, materialKey, movedBox, originalOf, partsOf, pick, pickAll, placeObjects, PLAIN_MATERIAL, rayAt,
            recipeOf, removeRoots, templateFor, texture, track, unscaled, vertexBox };
 }

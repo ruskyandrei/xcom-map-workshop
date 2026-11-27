@@ -64,7 +64,7 @@ MAP = """async pieces => {
   v.world.traverse(o => {
     for (const m of [o.material].flat()) {
       if (!m) continue;
-      for (const value of Object.values(m)) {
+      for (const value of [...Object.values(m), ...(m.userData?.programTextures ?? [])]) {
         if (!value?.isTexture || seen.has(value)) continue;
         seen.add(value);
         if (value.isCompressedTexture) bytes += value.mipmaps.reduce((sum, level) => sum + level.data.byteLength, 0);
