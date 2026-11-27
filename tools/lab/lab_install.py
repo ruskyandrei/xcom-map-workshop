@@ -100,8 +100,10 @@ def install(folder, game=None, work=None, dry=False, now=None):
     game = deploy_fixture.default_game() if game is None else Path(game)
     work = deploy_fixture.default_work() if work is None else Path(work)
     m = read_package(folder)
+    # (a project's time of day: the slot's record takes the package's records' TimeOfDay, T-S2)
     plan = deploy_fixture.deploy(fixture(m, folder), game=game, work=work, dry=dry, now=now, streams=m['streams'],
-                                 replace_streams=m.get('replaceStreams') or {}, drop_patches=bool(m.get('dropPatches')))
+                                 replace_streams=m.get('replaceStreams') or {}, drop_patches=bool(m.get('dropPatches')),
+                                 time_of_day=(m.get('config') or {}).get('timeOfDay'))
     if not dry:
         ledger = read_ledger(work)
         ledger[m['buildId']] = dict(package=str(folder), project=m['project'], variant=m['variant'],

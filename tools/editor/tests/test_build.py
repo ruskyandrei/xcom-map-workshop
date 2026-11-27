@@ -445,6 +445,9 @@ class Builds(unittest.TestCase):
         self.unchanged_lighting = False
         self.landing = True         # the intro has a landing of its own for URB_Bar
         self.no_staged_report = False
+        # a baked Build's records of what it made and relit: the writer's copies (none), the relight's reports of the
+        # lightmaps (two) and the sun shadow maps (none) it wrote
+        self.copies_made, self.relit_reports, self.shadow_reports = None, [1, 2], []
         # the compiler's own work is tested in test_compiler; here it gives a fixed spec
         saved = compiler.find_export, compiler.compile_project
         self.addCleanup(setattr, compiler, 'find_export', saved[0])
@@ -554,8 +557,16 @@ class Builds(unittest.TestCase):
             native = args[k].endswith('native_copy.py')
             if native:
                 self.flag_fixture(args, lit, variant)
+                if self.copies_made:
+                    # the writer's record of its copies (native_copy.py's nativeCopies `copies`: each copy's label
+                    # and the actor it made)
+                    path = lit / ('%s.fixture.json' % variant)
+                    fixture = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else dict(nativeCopies={})
+                    fixture['nativeCopies']['copies'] = self.copies_made
+                    path.write_text(json.dumps(fixture), encoding='utf-8')
             (lit / ('%s.relight.json' % variant)).write_text(json.dumps(dict(
-                components=[1, 2], unchanged=[3], skipped=[], copies=[] if native else [dict(source='X_1', triangles=5)],
+                components=self.relit_reports, shadowMaps=self.shadow_reports, unchanged=[3], skipped=[],
+                copies=[] if native else [dict(source='X_1', triangles=5)],
                 nativeCopies=[dict(copy='XComLevelActor_99', source='XComLevelActor_1')] if native else [],
                 # the relight's record of texels its writes changed in pieces it didn't relight (lighting_fixture)
                 otherPiecesChanged=getattr(self, 'other_changed', dict(textures=0, pieces=[], texels=0, largest=0.0)))))
@@ -705,6 +716,8 @@ class Builds(unittest.TestCase):
                 self.assertEqual((stage['baked'], stage['cache'], stage.get('lightingUnchanged'), stage['nativeCopies'], stage['hidden']),
                                  (True, None, True, 0, 0))
                 self.assertEqual((m['quick'], m['cache'], m['lightingUnchanged']), (False, None, True))
+                # (nothing relit: the map's own lightmaps are the Build's, and it names no light of its own)
+                self.assertFalse({'builtActors', 'relitComponents', 'asBuilt'} & set(m))
                 q = self.make('11%s30' % stamp[2:4], quick=True).run()
                 stage = next(s for s in q['stages'] if s['stage'] == 'light')
                 self.assertEqual((stage['baked'], stage['cache'], 'lightingUnchanged' in stage), (False, None, False))
@@ -1291,6 +1304,40 @@ class Builds(unittest.TestCase):
         self.assertEqual(copies, dict(copies=[dict(actor='XComLevelActor_1', location=[1, 2, 0], rotation=[0, 16384, 0],
                                                    label='XComLevelActor_1_copy1', box=[0, 1, 0, 1, 0, 1])],
                                       breakOriginals=[], hides=[NATIVE_HIDE]))
+
+    def test_a_baked_build_names_the_actor_each_piece_became_and_keeps_the_project_as_built(self):
+        """A baked Build's manifest (the game-likeness plan's B4): which built actor each project piece became, from the
+        writer's record of its copies (a moved original by its copy's label, an added piece by its output name, a made
+        piece cut into parts by its parts in order; a copy the project names nothing for left out), the components the
+        relight wrote a lightmap or a sun shadow map for (a skipped one not), and the project as built. A quick Build's
+        has none of them, nor a baked one whose lighting is unchanged (test_a_baked_build_that_changes_nothing...)."""
+        pl = 'TheWorld.PersistentLevel.'
+        self.doc['added'] = [dict(id='a', actor=pl + 'XComLevelActor_1_copy1', components=[], location=[1, 2, 0], rotation=[0, 0, 0],
+                                  **{'from': dict(package='URB_Bar', level='base', actor=pl + 'XComLevelActor_1')}),
+                             dict(id='b', actor=pl + 'XComFracLevelActor_5_copy2', components=[], location=[0, 0, 0], rotation=[0, 0, 0],
+                                  **{'from': dict(package='URB_Bar', level='base', actor=pl + 'XComFracLevelActor_5')})]
+        self.project.write_text(json.dumps(self.doc), encoding='utf-8')
+        self.copies_made = [dict(label='XComLevelActor_1_copy1', copy=pl + 'XComLevelActor_99'),
+                            dict(label='move:XComLevelActor_7', copy=pl + 'XComLevelActor_100'),
+                            dict(label='XComFracLevelActor_5_copy2_part2', copy=pl + 'XComFracLevelActor_31'),
+                            dict(label='XComFracLevelActor_5_copy2_part1', copy=pl + 'XComFracLevelActor_30'),
+                            dict(label='XComLevelActor_3_copy9', copy=pl + 'XComLevelActor_101')]
+        lit = lambda actor, component: dict(component='%s%s.%s' % (pl, actor, component), texels=4)  # noqa: E731
+        self.relit_reports = [lit('XComLevelActor_8', 'StaticMeshComponent_2'), lit('XComLevelActor_99', 'StaticMeshComponent_0')]
+        self.shadow_reports = [lit('XComLevelActor_8', 'StaticMeshComponent_2'), lit('XComLevelActor_9', 'StaticMeshComponent_4'),
+                               dict(lit('XComLevelActor_10', 'StaticMeshComponent_1'), skipped='no shadow map of the sun')]
+        m = self.make().run()
+        self.assertEqual(m['builtActors'], {pl + 'XComFracLevelActor_5_copy2': [pl + 'XComFracLevelActor_30', pl + 'XComFracLevelActor_31'],
+                                            pl + 'XComLevelActor_1_copy1': pl + 'XComLevelActor_99',
+                                            pl + 'XComLevelActor_7': pl + 'XComLevelActor_100'})
+        self.assertEqual(m['relitComponents'], [pl + 'XComLevelActor_8.StaticMeshComponent_2', pl + 'XComLevelActor_9.StaticMeshComponent_4',
+                                                pl + 'XComLevelActor_99.StaticMeshComponent_0'])
+        self.assertEqual(m['asBuilt'], self.doc)
+        on_disk = json.loads((self.output / VARIANT / 'manifest.json').read_text(encoding='utf-8'))
+        self.assertEqual((on_disk['builtActors'], on_disk['relitComponents'], on_disk['asBuilt']['added']),
+                         (m['builtActors'], m['relitComponents'], self.doc['added']))
+        q = self.make('120000', quick=True).run()
+        self.assertFalse({'builtActors', 'relitComponents', 'asBuilt'} & set(q))
 
     def test_the_manifest_names_every_module_of_the_compile(self):
         """The manifest's tools record names build.py first, then every module of tools/editor it imports, found from

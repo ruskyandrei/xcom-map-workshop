@@ -579,6 +579,7 @@
       <div class="lookrow"><div id="lighting" class="seg" role="group" aria-label="Look">
         <button data-value="game" title="The map as the game shows it: its own lights (K switches the look)">Game</button><button data-value="neutral" title="Even studio light, for building (K switches the look)">Neutral</button>
       </div><kbd title="Switches between the Game and Neutral looks">K</kbd></div>
+      <div id="buildLight" class="lightnote" hidden></div>
       <label class="check" id="areaLightsRow" title="In the Game look, the area lights the bake made for the map's glowing pieces (a lamp's shade, a lit sign), drawn as lights. Untick them to see the map's placed lights alone"><input id="areaLights" type="checkbox" checked> Area lights</label>
       <label class="slider">Brightness <input id="exposure" type="range" min="0.3" max="2.5" step="0.05" value="1"></label>
       <h3>Camera</h3>
@@ -820,6 +821,7 @@
             <svg id="mapSunDial" class="sundial" viewBox="-32 -32 64 64" role="slider" tabindex="0" aria-label="The side the light stands at its highest" aria-valuemin="0" aria-valuemax="359"></svg>
             <div class="sunwords"><div id="mapSunTime" class="suntime"></div><div id="mapSunWords"></div><div id="mapSunSide" hidden>Direction changed: the map's shadows stay as they fall until a baked Build makes new ones.</div></div>
           </div>
+          <label id="mapSunSkyRow" class="lwrrow"><span>Sky</span><select id="mapSunSky" title="The sky behind the map, seen in the Game look (K): the map's own, one of the game's maps' skies (the Build brings its dome from that map in place of the map's own), or one the time of day picks as the bar moves. One undo step"></select></label>
           <details id="mapSunFold" class="fold lookfold"><summary><span class="headname">More</span><span class="foldval">colour, strength, sky light, fog and colour of the hour</span></summary>
             <div class="lookcolours"><label title="The sun or moon's colour. Set here, the time of day leaves it as it is. One undo step"><input id="mapSunColour" type="color"> light</label><span id="mapSunColourCustom" class="chip" hidden title="Set by hand: the time of day leaves it as it is. As the map has it puts it back">custom</span></div>
             <label class="slider" title="The sun or moon's strength. Set here, the time of day leaves it as it is. One undo step on release"><span>Strength</span><input id="mapSunStrength" type="range" min="0" max="6" step="0.05"><output id="mapSunStrengthOut"></output><span id="mapSunStrengthCustom" class="chip" hidden>custom</span></label>

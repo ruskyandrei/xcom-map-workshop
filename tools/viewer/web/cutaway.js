@@ -51,8 +51,10 @@ export function createCutaway({ $, allBuildings, cutMaterials, editedKey, flashH
       // a streamed package's pieces show with the chosen mission's streams
       const shownStream = !isStream(obj) || streamSet.has(obj.stream);
       const helper = (obj.layer === 'inherited' || isStream(obj)) && shownStream && obj.hidden && obj.hiddenBy == null && !$('hideHelpers').checked;
-      // a sky dome shows in the Game look only, uncut (A6)
-      root.visible = (!obj.hidden || helper) && (!obj.environment || $('lighting').value === 'game') && !root.userData.deleted && shownStream
+      // a sky dome shows in the Game look only, uncut (A6), and the map's own not where the project's sky stands in its
+      // place (T-S6: sun_wiring.js draws the chosen dome)
+      root.visible = (!obj.hidden || helper) && (!obj.environment || ($('lighting').value === 'game' && !root.userData.skyReplaced))
+        && !root.userData.deleted && shownStream
         && !(cleared && isStream(obj) && data.streams?.[obj.stream]?.kind === 'lwr') && !(movedLanding?.has(obj.actor));
       // Pieces the user added always count as part of the playable scene, whatever their source's layer.
       root.userData.tacticalExcluded=interior && !obj.provenance && !obj.added && ['backdrop','roof','helper'].includes(obj.sceneryRole);

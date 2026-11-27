@@ -19,6 +19,7 @@ from projects import ProjectError, ProjectStore, draft_query
 from prefabs import MAX_PICTURE, PrefabStore
 from prefab_tests import PrefabTests
 from builds import BuildRunner
+import build_light
 from buildqueue import BuildQueue
 from exports import ExportRunner
 from play import Player
@@ -223,7 +224,8 @@ class Handler(SimpleHTTPRequestHandler):
     # and /projects/<id>/recovery.json (GET: the kept state or null; PUT; DELETE). Changes are accepted only from the viewer's own page.
     # Builds (builds.py): POST /projects/<id>/build builds the saved project ({"quick": true}: without baking its
     # lighting); GET /projects/<id>/build.json follows it; POST /builds/reveal {path} shows a builds-folder path in
-    # Explorer.
+    # Explorer. GET /projects/<id>/build-light.json is its last baked Build's own light (build_light.py), whose files
+    # are served from /cache-builds/<buildId>/.
     def project_route(self):
         parts = urlsplit(self.path).path.strip('/').split('/')
         if parts == ['projects.json']: return ('list', None)
@@ -231,6 +233,8 @@ class Handler(SimpleHTTPRequestHandler):
         if len(parts) == 3 and parts[0] == 'projects' and parts[2] in ('project.json', 'recovery.json', 'build.json'):
             return (parts[2].split('.')[0] + ('-status' if parts[2] == 'build.json' else ''), parts[1])
         if len(parts) == 3 and parts[0] == 'projects' and parts[2] in ('build', 'build-cancel', 'report'): return (parts[2], parts[1])
+        # the last package's own light, a baked Build's (builds.py, build_light.py)
+        if len(parts) == 3 and parts[0] == 'projects' and parts[2] == 'build-light.json': return ('build-light', parts[1])
         if parts == ['builds', 'reveal']: return ('reveal', None)
         # the project's map picture (pictures.py), and the game's own picture of a map
         if len(parts) == 3 and parts[0] == 'projects' and parts[2] == 'picture.png': return ('picture', parts[1])
@@ -390,8 +394,11 @@ class Handler(SimpleHTTPRequestHandler):
                 # ?owner=<page session>[&savedAt=<the draft shown>]: that draft alone
                 owner, saved_at = draft_query(parse_qs(urlsplit(self.path).query, keep_blank_values=True))
                 self.send_json(200, self.projects.drop_recovery(project_id, owner, saved_at))
-            elif kind in ('build', 'build-status', 'build-cancel', 'report', 'reveal') and self.builds is None:
+            elif kind in ('build', 'build-status', 'build-cancel', 'report', 'reveal', 'build-light') and self.builds is None:
                 raise ProjectError(404, 'This server does not build.')
+            elif kind == 'build-light' and method == 'GET':
+                # (the textures the Build did not write are the base map's, in the game install's texture caches)
+                self.send_json(200, self.builds.light(project_id, self.game_cooked()))
             elif kind == 'build' and method == 'POST':
                 # {"quick": true}: a quick build (the edit without its lighting baked); no body or {}: a full one
                 request = self.body_json() if self.body_length() else None
@@ -1090,6 +1097,11 @@ class Handler(SimpleHTTPRequestHandler):
             # a library piece's meshes and textures (library.py): <donor>/<generation>/<file>
             if self.library is None: return str(WEB / ".denied")
             root,rel=pieces_root(self.library.cache).resolve(),request[len('/cache-library/'):]
+        elif request.startswith(build_light.URL):
+            # a Build's own light's files (build_light.py): <buildId>/<file>
+            build_id,_,rel=request[len(build_light.URL):].partition('/')
+            root=build_light.folder(self.builds.cache, build_id) if self.builds is not None else None
+            if root is None: return str(WEB / ".denied")
         elif request.startswith('/cache/'):
             rel=request[len('/cache/'):]
             map_id,_,asset=rel.partition('/')

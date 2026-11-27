@@ -166,6 +166,10 @@ class DeployRestore(unittest.TestCase):
         self.assertEqual(dep.field(new, 'MapFamily'), 'URB_Bar')
         self.assertEqual(dep.unquoted(new, 'TimeOfDay'), dep.unquoted(record('templeship'), 'TimeOfDay'))
         self.assertIn(b'TempleShip_Stream', new)
+        # a package whose project sets the time of day: the slot's record takes it (T-S2)
+        for time in ('eMissionTime_Day', 'eMissionTime_Night'):
+            _, _, timed = dep.plan_maps([record('templeship'), slot], 'TempleShip', 'TempleShip_X_1', time_of_day=time)
+            self.assertEqual(dep.unquoted(timed, 'TimeOfDay'), time)
         # an abduction map keeps its own family
         at, old, new = dep.plan_maps([record('liquorstore'), slot], 'URB_LiquorStore', 'URB_LiquorStore_X_1')
         self.assertEqual(dep.field(new, 'MapFamily'), 'URB_LiquorStore')

@@ -12,10 +12,16 @@ Statuses:
 
 ## Open now
 
+- F-202 (27 November, the game-likeness plan's T-S6): the sky chosen is built as copies of another map's dome where
+  the map's own domes stood, in the chosen dome's own scale: Bar's small turned-over dome under the map (0.41 of the
+  mesh) becomes a full-size one (2, 2, 2.6). Open: the game look shows whether that matters.
+- F-201 (27 November, T-S6): a hidden piece that collides with nothing gets no rebuild volume (as a copy of one seeds
+  no tiles, F-93): a sky dome's would have rebuilt every tile of the map. Fixed (read back offline).
 - F-200 (27 November, the game-likeness plan's T-S2): the time of day is written on the map's own lights in place,
   with no bake: a Build changes only the sun or moon's actor and component and the sky light's component, the GUIDs,
   the shadow map of the level and its shadow info kept. The sun's component saves no `CachedParentToWorld`: its
-  direction is the actor's `Rotation` alone. Fixed (built and read back offline); EXP-99 shows it in the game.
+  direction is the actor's `Rotation` alone. Verified (EXP-99): the game draws the new colours, the sky light and a
+  turned direction on moving things; the map's baked shadows stay the old light's until a Build bakes them.
 - F-198 (27 November, the game-likeness plan's T-S4): a piece with the sun on its `IrrelevantLights` (F-184) has no
   shadow map to take a turned sun's field, so it stayed without the sun. Fixed: in a Build with baking whose sun
   turned, each such piece the new sun reaches on a texel at least gets a shadow map of its own and loses the light off
@@ -34,6 +40,11 @@ Statuses:
   within 4e-7, the box within 0.002 units, the size exact; the depths within 25 units on 93 to 99% of texels on four
   of six maps lit from 39 degrees up or more (85% and 70% on the other two), 39 to 55% under 11 to 19-degree suns.
   Fixed (the baker makes it for a turned sun).
+- F-190 (27 November, the game-likeness plan's B4): a baked Build's package holds only the lighting textures it wrote.
+  A relit atlas is the map's own texture object written again, under the map's name; a copy's are new objects; every
+  other texture a relit piece names (3 sun shadow maps in an earlier Build of URB_Bar) stays in the base map's texture
+  cache in the game install, which the package's folder lacks. Accepted: the server reads those from the install's
+  maps (`build_light.py`), and the page reads a relit atlas in the map's place by its name.
 - F-184 (27 November, the game-likeness plan's B3): a lightmapped piece with no shadow map of the sun is wholly in
   its shadow: the dominant light is on its `IrrelevantLights`, and the game draws none of the sun on it (on the four
   maps of track H, all 696 such pieces; 28 more list it and keep a shadow map). The editor drew them with the live
@@ -342,9 +353,49 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
+### F-202: The sky chosen stands where the map's own domes stood, in the chosen dome's own scale
+**Open** (27 November 2026, the game-likeness plan's T-S6; read offline from a quick Build of URB_Bar at 13:00 with
+the noon sky, EXP-99's project with `--sky day`; nothing played).
+- **The domes.** A map's sky is one or two pieces whose mesh is `Skybox.Meshes.SkyDome` (a hemisphere 127,000 units
+  across, its pivot at the middle of its base), its material the sky (`Skybox.Materials.NightSky`, `NoonSky`,
+  `DuskSky` and a few others; T-S0's survey: 93 of 97 maps have one, AlienBase01, AlienBase02, CB2_MP_Blank and
+  EWI_HQAssault none). Some maps keep a second dome turned over under the map, and some a black ground plane
+  (`Skybox.Meshes.GroundPlaneBlack`), which is no dome. None collides with anything; Bar's has no lightmap and no
+  shadow map, so no bake reads it.
+- **What a Build makes.** Bar's two domes (XComLevelActor_257 upright at DrawScale 2, DrawScale3D 1, 1, 1.3, and
+  XComLevelActor_63 turned over, DrawScale 2 with DrawScale3D 0.206) are taken out of the level's list, and two copies of
+  URB_TruckStop_EWI's noon dome stand at their places and turns, each in the noon dome's own scale (2; 1, 1, 1.3): the
+  turned-over one is a full-size dome under the map where Bar's was a fifth of the size. The tile data and the rebuild
+  volumes are the map's (F-201).
+- **Open.** Whether the full-size dome under the map shows in the game where Bar's small one did not (the camera looks
+  down, so most of it is under the ground), seen in the game look after T-S6. If it does, a copy that keeps the replaced
+  dome's own scale is new work for the copy tool (a copy takes its template's scale today).
+
+### F-201: A hidden piece that collides with nothing gets no rebuild volume
+**Fixed** (27 November 2026, the game-likeness plan's T-S6: `native_copy.hide_pieces`; read back offline from the Build
+of F-202, test_native_copy.py; nothing played).
+- **What was.** Every piece an edit takes out got a rebuild volume over the tiles its box crosses, plus a ring
+  (`hide_tiles`), and named its box among the changes whose tiles the Build writes as the battle's rebuild leaves them
+  (F-157). A sky dome's box holds the whole map: its delete would have made the game rebuild every tile at load, as a
+  copy of one once seeded every tile (F-93).
+- **Fix.** A piece that collides with nothing (`native_copy.collides`, the export's `collides: false`) holds no tile,
+  so taking it out changes none: it gets no rebuild volume and names no change; its section says `collides: false`. A
+  cleared map's hides get no volume of their own as before. None of build_outputs.py's inputs hid such a piece outside a
+  cleared map, so their Builds are as they were, byte for byte.
+
 ### F-200: The time of day is set on the map's own lights in place, without a bake
-**Fixed** (27 November 2026, the game-likeness plan's T-S2: `native_lights.apply_sun`; read offline from quick Builds
-of the configured install's URB_Bar made day by EXP-99's project, nothing played: EXP-99 shows it in the game).
+**Verified** (EXP-99, 27 November 2026: two quick Builds of URB_Bar played in the lab copy. Found 27 November 2026, the
+game-likeness plan's T-S2: `native_lights.apply_sun`; read offline from quick Builds of the configured install's
+URB_Bar made day by EXP-99's project).
+- **In the game (EXP-99).** The game holds the Build's values (`getall` read back the light's Rotation, colour and
+  brightness and the sky light's). The map is day-lit: the frames' mean colours from the three likeness cameras went
+  from (45, 35, 65), (43, 39, 72), (45, 43, 81) to (64, 59, 62), (64, 64, 68), (76, 79, 79) at 10:00; soldiers show
+  natural colours, their shaded side grey with a faint blue. It holds through a save and load. With the light turned
+  (80.7 to 56 degrees up, the same side), moving things take the new direction from the actor's Rotation: the
+  soldiers' shadows all fall toward -X, +Y, and vehicles' faces toward the light are some 30 to 38% brighter than with
+  the direction kept, while the static surfaces stay within 4%. The baked shadows stay the moon's: a narrow band under
+  the bar's wall beside the soldiers' long shadows. A soldier's shadow length tells nothing here: the units' composite
+  shadows are long under either light (their light environment's MinShadowAngle 80).
 - **What a Build changes.** Of URB_Bar's 14,051 exports, three: the `DominantDirectionalLight` (its `Rotation`, where
   the direction changes), its `DominantDirectionalLightComponent` (`LightColor`, `Brightness`) and the
   `SkyLightComponent` (`LightColor`, `Brightness`, `LowerColor`, `LowerBrightness`), each value written where the
@@ -470,6 +521,25 @@ of the configured install with `tools/upk/audit_suns.py level-rule`, evidence in
 - **A turned sun's map** keeps the stored size, as a write in place cannot change the count of depths: its texels
   stretch to the new box (URB_Bar under a 16-degree sun: 21 by 66 units).
 
+### F-190: A baked Build's package holds only the lighting textures it wrote
+**Accepted** (27 November 2026, the game-likeness plan's B4; read offline from two baked Builds of URB_Bar in scratch
+and builds folders: one made before 19 November with its texture cache beside the map, one made for the check with
+its lightmaps inside the map).
+- **What a Build writes.** The relight writes a relit piece's texels into its atlas where the atlas is
+  (`lightmap_writer.py`: the texture redirected to the variant's cache, then put inside the map): the same texture
+  object as the map's, under the map's name (`DirectionalMaxComponent0_1`, `ShadowMapTexture2D_323`). A copy made
+  with lighting of its own gets new textures (`NormalizedAverageColor1_90`), cropped to what it reads. Every other
+  texture keeps naming the base map's texture cache (`Lighting.tfc`) in the game install.
+- **What that means for reading a Build.** The package's folder alone can't give a relit piece's whole light: of
+  the 23 components the earlier Build relit, 3 sun shadow maps it did not write were unreadable from its folder. The
+  game reads them from its own CookedPCConsole, where the package is installed.
+- **How the editor lives with it.** The server reads a Build's light with the game install's maps as the package's
+  texture caches (`package.cache_file`'s `elsewhere`, `build_light.py`): 0 unreadable then, and the Build made for
+  the check (436 components relit, 44 textures) read in 1.0 s. The page packs a relit atlas in the map's atlas's
+  place by its name, so a piece the Build did not relight that shares it reads the same texels as before. Without
+  the game install's maps a relit piece's texture the Build did not write is left out (a warning in the export's
+  diagnostics), and the page lights that piece's sun live.
+
 ### F-184: A piece wholly in the sun's shadow lists the sun on its IrrelevantLights and has no shadow map of it
 **Fixed** (27 November 2026, the game-likeness plan's B3; read offline from the configured install's URB_Bar,
 CSmallScout_DirtRoad, LAbductor_FarmOutskirts and AlienBase01, and seen against track H's game shots).
@@ -488,9 +558,12 @@ CSmallScout_DirtRoad, LAbductor_FarmOutskirts and AlienBase01, and seen against 
   of the sun on it. Track H's mean colour difference went from 9.66 to 9.46 (LAbductor_FarmOutskirts 7.28 to 5.79;
   URB_Bar 4.64 to 5.16; CSmallScout_DirtRoad 10.50 to 10.69; AlienBase01 the same).
 - **Why the Bar scores worse.** In the game, its wood floor has a blue sheen that the editor's live moon happened to
-  stand in for. The floor's material, `FloorWood_BNatural`, switches its 2D reflection on (`Refelction`: true,
-  `Reflection2D` `FX_Shared.T_Goop_Reflection_Irridescent_B`, `Reflectivity` 0.2). That sheen is the reflection, not
-  the moon, and the editor's drawing of the material leaves it out (a matter for track A).
+  stand in for. Not settled. The floor's material, `FloorWood_BNatural`, switches its 2D reflection on (`Refelction`:
+  true, `Reflection2D` `FX_Shared.T_Goop_Reflection_Irridescent_B`, `Reflectivity` 0.2), which the editor's drawing
+  of the material leaves out. But the sheen is not a fixed texture: in EXP-99's day Builds (the moon made a warm sun
+  in the same direction) the floor's mean blue fell from 48.9 to 38.1 at 10:00 and 32.4 at 13:00 while its red stayed
+  near 60 to 69, so the sun does not light the floor (the rule holds), and the sheen follows something the time of day
+  changes: the night grade's blue, the sky light, or the reflection's own lighting. A matter for track A.
 
 ### F-183: A material for each lightmapped part costs more than the lightmap
 **Fixed** (B2, 27 November 2026: every lit material shares the two packed atlases, and each lightmapped part carries

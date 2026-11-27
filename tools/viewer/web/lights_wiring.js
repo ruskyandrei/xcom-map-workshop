@@ -27,8 +27,8 @@ import { copyText, field, plural, sentence, short, text } from './dom_words.js';
 import { onHub } from './edit_hub.js';
 import { areaBindings, areaShown, assigning, clearedParts, copySerial, data, derivedCopies, effectRoots,
          effectsOn, families, handleDefs, hintTimer, lightDrag, lightIndex, lighting, lightRadius, lightRoots,
-         lightsDirty, lightsOn, lightsShown, nextCopySerial, pickedEffect, placing, reachKey, reachNow, reachShown,
-         roots, selected, setAreaBindings, setAssigning, setCopySerial, setDerivedCopies, setHandleDefs,
+         lightsDirty, lightsOn, lightsShown, lightsSinceBuild, nextCopySerial, pickedEffect, placing, reachKey, reachNow,
+         reachShown, roots, selected, setAreaBindings, setAssigning, setCopySerial, setDerivedCopies, setHandleDefs,
          setLastLightSync, setLightDrag, setLightsDirty, setLightsOn, setNormalLightsValue, setReachKey, setReachNow,
          setSoloOn, soloOn, spawnsOn, streamSet, volumesOn, zonesOn } from './editor_state.js';
 import { soundReach, VALUE_LIMITS } from './effects_rules.js';
@@ -121,9 +121,22 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
   function lightRecordOf(root, matrix = root.matrix) {
     const pose = lightPose(root, matrix);
     const record = recordNow(root.userData.source, root.userData.values, pose.location, pose.rotation, directionOf(matrix));
-    // (a light the project moved, changed or added is in no lightmap: lighting.js draws it on the lightmapped pieces too)
+    // (a light the project moved, changed or added is in no lightmap: lighting.js draws it on the lightmapped pieces too;
+    // one changed since the project's last baked Build is in none of the Build's either, B4)
     if (lightEdited(root)) record.edited = true;
+    if (lightsSinceBuild?.has(root.userData.source.id)) record.sinceBuild = true;
     return record;
+  }
+  /** The ids of the pieces whose box a light's sphere meets, at `location` (game units) with `radius`, drawn or not:
+   *  the pieces a light changed since the project's last baked Build reaches, now or as built (B4, build_light.js). */
+  function reachedPieces(location, radius) {
+    const out = new Set();
+    for (const r of roots.values()) {
+      const s = r.userData.source;
+      if (r.userData.deleted || isStream(s) || s.layer === 'inherited') continue;
+      if (boxInReach(rootBox(r), location, radius)) out.add(s.id);
+    }
+    return out;
   }
   /** The ids of the map's pieces whose lightmap holds a light the project moved, changed or deleted (its bakedInto):
    *  the baked light lights them live (game-likeness plan, B4). */
@@ -964,7 +977,8 @@ export function createLightsWiring({ $, actorPose, applyLighting, banner, baseMa
            hoverHandle, lightClip, lightEdited, lightEntries, lightingModes, lightPanel, lightPose, lightRecords,
            lookOptions, setLook, toggleLook,
            lightsAt, lightsBlocked, lightShapes, lightSource, lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight,
-           recipeLight, refreshLightShapes, refreshLightVisibility, relitPieces, removeLightRoots, scaleMarkers, setBinding,
+           reachedPieces, recipeLight, refreshLightShapes, refreshLightVisibility, relitPieces, removeLightRoots,
+           scaleMarkers, setBinding,
            setLightsShown, setLightValues, setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
            withStorableCone };
 }

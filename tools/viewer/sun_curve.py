@@ -10,11 +10,14 @@ values it ended with (sun_rules.js `timeSet`), so a later change to the curve ne
 import json
 import math
 from pathlib import Path
+import re
 
 CURVE_FILE = Path(__file__).resolve().with_name('sun_curve.json')
-KEYS = ('time', 'heading', 'timeOfDay', 'light', 'sky', 'custom', 'atmosphere')
+KEYS = ('time', 'heading', 'timeOfDay', 'light', 'sky', 'custom', 'atmosphere', 'dome')
 TIMES_OF_DAY = ('auto', 'day', 'night')
 DAY = 24
+# a map's or an actor's name, as a sky dome's record names them (the page's sun_rules.js NAME)
+NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]{0,63}')
 
 
 def load(path=CURVE_FILE):
@@ -68,7 +71,22 @@ def problem(record, curve=None):
     if marks is not None and not (isinstance(marks, dict) and set(marks) <= {'fog', 'postProcess'}
                                   and all(isinstance(v, dict) and all(map(_value, v.values())) for v in marks.values())):
         return 'its fog and grade of the hour are not {fog, postProcess} of plain values'
+    if 'dome' in record and not dome_shape(record['dome']):
+        return 'its sky is not a dome of one of the game\'s maps ({map, actor}), following the light or not'
     return None
+
+
+def dome_shape(dome):
+    """Whether a record's `dome` (the Sky choice, stage T-S6) has its shape: {map, actor} naming the sky dome of one of
+    the game's maps, with `follows: true` when the time of day picks it; or {follows: true} alone, the time's pick being
+    a sky the map's own domes already show (the page's sun_rules.js validDome)."""
+    if not isinstance(dome, dict) or not dome or not set(dome) <= {'map', 'actor', 'follows'}:
+        return False
+    if 'follows' in dome and dome['follows'] is not True:
+        return False
+    if 'map' not in dome and 'actor' not in dome:
+        return dome.get('follows') is True
+    return all(isinstance(dome.get(k), str) and NAME.fullmatch(dome[k]) for k in ('map', 'actor'))
 
 
 def _value(v):

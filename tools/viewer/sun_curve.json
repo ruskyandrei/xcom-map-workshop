@@ -58,5 +58,18 @@
       "from": "URB_StreetOverpass, as at 05:00" }
   ],
   "limits": { "brightness": [0, 100], "skyBrightness": [0, 100], "height": [0, 90] },
-  "custom": ["color", "brightness", "skyColor", "skyBrightness"]
+  "custom": ["color", "brightness", "skyColor", "skyBrightness"],
+  "domes": {
+    "about": "The skies the Sun, moon and sky section offers (stage T-S6): each the sky dome of one of the game's maps (Skybox.Meshes.SkyDome with its material, research/evidence/sun-audit-2026-11-27.json), grouped as day, low sun and night. 'Follows the light' takes the first of the group the bar's time is in: night while the moon is up, low sun while the sun is under lowSun degrees, day above. The Build brings the dome from its map and puts it where the map's own domes stand, taking those out.",
+    "lowSun": 20,
+    "groups": [ { "id": "day", "label": "Day" }, { "id": "low", "label": "Low sun" }, { "id": "night", "label": "Night" } ],
+    "list": [
+      { "group": "day", "label": "Noon sky", "material": "Skybox.Materials.NoonSky", "map": "URB_TruckStop_EWI", "actor": "XComLevelActor_46" },
+      { "group": "day", "label": "Day sky (dynamic)", "material": "Skybox.Materials.SkyDynamic", "map": "URB_GasStation_EWI", "actor": "XComLevelActor_77" },
+      { "group": "low", "label": "Dusk sky", "material": "Skybox.Materials.DuskSky", "map": "URB_TruckStop", "actor": "XComLevelActor_46" },
+      { "group": "night", "label": "Night sky", "material": "Skybox.Materials.NightSky", "map": "URB_Bar", "actor": "XComLevelActor_257" },
+      { "group": "night", "label": "Night sky (terror maps)", "material": "Skybox.Materials.NightSky_Terror", "map": "URB_PoliceStation", "actor": "XComLevelActor_26" },
+      { "group": "night", "label": "Clear night sky", "material": "Skybox.Materials.NightSky_Clear", "map": "CBattleship_02", "actor": "XComLevelActor_355" }
+    ]
+  }
 }

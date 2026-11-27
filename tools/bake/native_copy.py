@@ -1431,6 +1431,14 @@ def has_mesh(p, actor):
     return any(static_mesh(p, ci) > 0 or skeletal_mesh(p, ci) > 0 for ci in subtree(p, actor))
 
 
+def sky_dome(p, actor):
+    """Whether the actor is a backdrop of the sky: every mesh it draws is one of the Skybox package's (a dome round the
+    map, a black ground plane under it), as the export's `environment` and the library's rule have it (the time of day's
+    sky, T-S6)."""
+    meshes = [static_mesh(p, ci) for ci in subtree(p, actor) if static_mesh(p, ci) > 0]
+    return bool(meshes) and all(p.name(m).startswith('Skybox.') for m in meshes)
+
+
 # Whether the actor can touch the game's tiles: it collides (bCollideActors) and one of its mesh components does
 # (CollideActors). A piece that can't (a sky dome) changes no tile, so its copy seeds none. The export's rule too.
 collides = piece_flags.collides
@@ -1568,8 +1576,10 @@ def hide_pieces(g, p, hides, volumes=True):
     XComCollectible.CollectCollectibles, walks the same list, so a hidden collectible isn't loot). Every other piece's
     AffectedChildren drops it, so breaking one doesn't put it through its states. Building floor caches and visibility
     groups that list it keep a dormant object. A rebuild volume over each re-checks its tiles at load (hide_tiles); a
-    piece outside the map's tiles has none (its section's `tiles` and `volume` are None). Without `volumes` (a cleared
-    map, whose one volume covers the whole grid: clear_level) none has a volume of its own.
+    piece outside the map's tiles has none (its section's `tiles` and `volume` are None), and neither has a piece that
+    collides with nothing, which no tile holds (a sky dome 127,000 units across: its volume would rebuild every tile,
+    as a copy of one seeded every tile, F-93; F-201). Without `volumes` (a cleared map, whose one volume covers the
+    whole grid: clear_level) none has a volume of its own.
     Returns (the manifest's sections, the volumes to add to the level)."""
     walker = Walker(p, g)
     level = p.by_name['TheWorld.PersistentLevel']
@@ -1583,11 +1593,13 @@ def hide_pieces(g, p, hides, volumes=True):
         gone.add(i)
         box = [float(v) for v in h['box']] if h.get('box') else piece_box(p, i, p.own(i, 'Location', [0.0, 0.0, 0.0]),
                                                                           p.own(i, 'Rotation', [0, 0, 0]))
-        tiles = hide_tiles(g, p, box, grid) if rebuild else None
+        touches = collides(p, i)
+        tiles = hide_tiles(g, p, box, grid) if rebuild and touches else None
         if tiles:
             volumes.append(tiles['volume']['export'])
         out.append(dict(name=h['name'], export=i, box=box, tiles=tiles['tiles'] if tiles else None,
-                        volume=tiles['volume'] if tiles else None, unlinkedFrom=[]))
+                        volume=tiles['volume'] if tiles else None, unlinkedFrom=[],
+                        **({'collides': False} if rebuild and not touches else {})))
     empty_slots(g, p, gone)
     # the pieces that list a hidden one as a child
     by_export = {s['export']: s for s in out}
@@ -2749,6 +2761,10 @@ def relight_command(st, dst, out, variant, cache, receivers_near, edit_spec, job
             continue
         cmd += ['--foreign-copy' if sec.get('staged') else '--native-copy',
                 f"{sec['copy'].split('.')[-1]}={sec['actor']}"]
+    # (a sky dome taken out for the project's sky is no edit of the baked light: it stands round the map, a dome turned
+    # over under it among them, and shadows none of its pieces, but its box holds the whole map, whose every piece the
+    # relight would take for one it reaches; T-S6, F-202)
+    hidden = [h for h in hidden if not sky_dome(p, h['export'])]
     if len(hidden) > CASTER_ARGS:
         # more than a command line holds (a cleared map hides about a thousand): one file
         listing = out / f'{variant}.removed-casters.txt'
@@ -3756,6 +3772,7 @@ def main():
     for h in m['nativeCopies']['hidden']:
         print(f"hidden {h['name']}: out of the Level's list, "
               + (f"tiles {h['tiles']} rebuilt by volume {h['volume']['export']}{diagonal_words(h['volume'])}" if h['volume']
+                 else 'it collides with nothing, no rebuild volume' if h.get('collides') is False
                  else 'outside the map\'s tiles, no rebuild volume')
               + (f", unlinked from {', '.join(h['unlinkedFrom'])}" if h['unlinkedFrom'] else ''))
     whole = (m['nativeCopies'].get('diagonalCover') or {}).get('whole', [])

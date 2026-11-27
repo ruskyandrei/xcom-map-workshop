@@ -2,8 +2,9 @@
 // (tools/viewer/sun_curve.json, which the server gives at /sun-curve.json and Python's sun_curve.py reads too) blended
 // at a time, the side's arc, the time that best matches the map's own light, the curve made the map's own (its light,
 // sky light, fog and grade stand at that time), the record a time and a heading make, checked and tidied, the fog and
-// grade the time sets with the members changed by hand left alone, what the view draws, and the words the Map settings
-// window shows.
+// grade the time sets with the members changed by hand left alone, what the view draws, the sky chosen in place of the
+// map's own domes (stage T-S6: the curve's `domes`, the one the time picks, a choice made and kept as the bar moves), and
+// the words the Map settings window shows.
 //
 // Angles: a light's height over the horizon and its side, the bearing it shines from, in degrees; the side counts from
 // the game's +X (the dial's N) toward its +Y (E), clockwise seen from above as a compass does. The record's rotation is
@@ -18,7 +19,11 @@ export const TIME_MEMBERS = [['fog', 'LightInscatteringColor'], ['fog', 'Opposit
                              ['postProcess', 'Scene_Colorize'], ['postProcess', 'Scene_Shadows']];
 const ROW_SECTION = { fog: 'fog', postProcess: 'grade' };
 const TIMES_OF_DAY = ['auto', 'day', 'night'];
-const KEYS = ['time', 'heading', 'timeOfDay', 'light', 'sky', 'custom', 'atmosphere'];
+const KEYS = ['time', 'heading', 'timeOfDay', 'light', 'sky', 'custom', 'atmosphere', 'dome'];
+/** A sky dome's mesh (the Sky choice, stage T-S6): a map's own domes are its base level's pieces drawn with it. */
+export const DOME_MESH = 'Skybox.Meshes.SkyDome';
+/** A map's or an actor's name, as a dome's record names them (Python's sun_curve.NAME). */
+const NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 
 const isPlain = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const finite = v => typeof v === 'number' && Number.isFinite(v);
@@ -85,8 +90,14 @@ export function curveAt(curve, t) {
 
 // ------------------------------------------------------------------------------------------------ the map's own
 
-/** The map's own sun or moon, sky light, fog and grade (the export's lights and atmosphere), or null for a map with no
- *  dominant light: { rotation, height, side, color (bytes), brightness, sky | null, fog, grade, atmosphere }. */
+/** Whether a scene object is one of the map's own sky domes: a backdrop piece of its base level, shown, its mesh the
+ *  dome (the compiler's light_edits.own_domes takes the same). */
+export const isOwnDome = (obj, meshes) => Boolean(obj?.environment) && obj.layer === 'base' && !obj.added && !obj.hidden
+  && meshes?.[obj.mesh]?.name === DOME_MESH;
+
+/** The map's own sun or moon, sky light, fog and grade (the export's lights and atmosphere), its name and its own sky
+ *  domes, or null for a map with no dominant light: { map, rotation, height, side, color (bytes), brightness,
+ *  sky | null, fog, grade, atmosphere, domes: [{ actor, material }] }. */
 export function ownSun(scene) {
   const lights = scene?.lights ?? [];
   const dominant = lights.find(l => l.role === 'dominant' && l.kind === 'directional');
@@ -94,12 +105,14 @@ export function ownSun(scene) {
   const sky = lights.find(l => l.kind === 'sky') ?? null;
   const d = dominant.direction;
   const world = scene?.atmosphere?.world ?? null;
-  return { rotation: (dominant.rotation ?? [0, 0, 0]).slice(0, 3),
+  const domes = (scene?.objects ?? []).filter(o => isOwnDome(o, scene.meshes))
+    .map(o => ({ actor: o.actor.split('.').pop(), material: scene.materials?.[o.materials?.[0]]?.name ?? null }));
+  return { map: scene?.name ?? null, rotation: (dominant.rotation ?? [0, 0, 0]).slice(0, 3),
            height: Math.asin(Math.max(-1, Math.min(1, -d[2]))) / RAD, side: wrap(Math.atan2(-d[1], -d[0]) / RAD),
            color: bytes(fromUnit(dominant.color)), brightness: dominant.brightness,
            sky: sky ? { color: bytes(fromUnit(sky.color)), brightness: sky.brightness, lowerColor: bytes(fromUnit(sky.lowerColor)),
                         lowerBrightness: sky.lowerBrightness ?? 0 } : null,
-           atmosphere: world ? { fog: world.fog ?? {}, postProcess: world.postProcess ?? {} } : null };
+           atmosphere: world ? { fog: world.fog ?? {}, postProcess: world.postProcess ?? {} } : null, domes };
 }
 
 /** The time whose light the map's own is likest (by height, then colour times brightness), to the bar's five minutes;
@@ -164,7 +177,17 @@ export function validSun(record, curve) {
     && (sky === undefined || (isPlain(sky) && colour(sky.color) && inRange(sky.brightness, limits.skyBrightness)
                               && colour(sky.lowerColor) && inRange(sky.lowerBrightness, limits.skyBrightness)))
     && (record.custom === undefined || (Array.isArray(record.custom) && record.custom.every(k => (curve?.custom ?? []).includes(k))))
-    && (record.atmosphere === undefined || validAtmosphere(record.atmosphere));
+    && (record.atmosphere === undefined || validAtmosphere(record.atmosphere))
+    && (record.dome === undefined || validDome(record.dome));
+}
+/** Whether a record's `dome` (the Sky choice) has its shape: { map, actor } naming the sky dome of one of the game's
+ *  maps, `follows: true` with them when the time picks it; or { follows: true } alone, the time's pick being a sky the
+ *  map's own domes show already (Python's sun_curve.dome_shape). */
+export function validDome(dome) {
+  if (!isPlain(dome) || !Object.keys(dome).length || !Object.keys(dome).every(k => ['map', 'actor', 'follows'].includes(k))) return false;
+  if ('follows' in dome && dome.follows !== true) return false;
+  if (!('map' in dome) && !('actor' in dome)) return dome.follows === true;
+  return ['map', 'actor'].every(k => typeof dome[k] === 'string' && NAME.test(dome[k]));
 }
 
 const markOf = (sun, section, name) => sun?.atmosphere?.[section]?.[name];
@@ -192,12 +215,70 @@ export function tidySun(record, own, curve) {
   if (record.custom?.length) out.custom = [...new Set(record.custom)].sort();
   const marks = tidyAtmosphere(record.atmosphere ?? null, own?.atmosphere ? { world: own.atmosphere } : null);
   if (marks) out.atmosphere = marks;
+  const dome = tidyDome(record.dome, own);
+  if (dome) out.dome = dome;
   if (!own) return out;
   const ownLight = sameRotation(out.light.rotation, own.rotation) && sameNumbers(out.light.color, own.color, 0)
     && sameNumbers(out.light.brightness, own.brightness);
   const ownSky = !out.sky || !own.sky || (sameNumbers(out.sky.color, own.sky.color, 0) && sameNumbers(out.sky.brightness, own.sky.brightness)
     && sameNumbers(out.sky.lowerColor, own.sky.lowerColor, 0) && sameNumbers(out.sky.lowerBrightness, own.sky.lowerBrightness));
-  return ownLight && ownSky && out.timeOfDay === 'auto' && !out.custom && !out.atmosphere ? null : out;
+  return ownLight && ownSky && out.timeOfDay === 'auto' && !out.custom && !out.atmosphere && !out.dome ? null : out;
+}
+// A record's dome tidied: one of the map's own domes chosen is the map's own sky (none); { map, actor, follows? } in
+// that order
+function tidyDome(dome, own) {
+  if (!validDome(dome)) return null;
+  if (dome.map && own?.map && dome.map.toLowerCase() === own.map.toLowerCase()
+      && (own.domes ?? []).some(d => d.actor === dome.actor)) return dome.follows ? { follows: true } : null;
+  return { ...(dome.map ? { map: dome.map, actor: dome.actor } : {}), ...(dome.follows ? { follows: true } : {}) };
+}
+
+// ------------------------------------------------------------------------------------------------ the sky
+// (the Sky choice, stage T-S6: the dome of one of the game's maps, the curve's `domes`, in place of the map's own)
+
+/** The skies the curve offers, in their groups: [{ id, label, domes: [{ group, label, material, map, actor, key }] }]. */
+export function skyGroups(curve) {
+  const list = curve?.domes?.list ?? [];
+  return (curve?.domes?.groups ?? []).map(g => ({ ...g, domes: list.filter(d => d.group === g.id).map(d => ({ ...d, key: domeKey(d) })) }));
+}
+/** A dome's key, as the Sky choice's options name it: "<map>|<actor>". */
+export const domeKey = d => (d?.map ? `${d.map}|${d.actor}` : '');
+/** The sky the time of day picks at hour t: the first of its group's (night while the moon is up, low sun while the sun
+ *  is under the curve's `lowSun` degrees, day above), or null for a curve without skies. */
+export function skyAt(curve, t) {
+  const group = phaseAt(curve, t).light === 'moon' ? 'night' : curveAt(curve, t).height < (curve?.domes?.lowSun ?? 20) ? 'low' : 'day';
+  return skyGroups(curve).find(g => g.id === group)?.domes[0] ?? null;
+}
+/** Whether a sky of the curve looks as the map's own domes do (each of them drawn with its material). */
+const ownLook = (own, sky) => Boolean(sky && own?.domes?.length) && own.domes.every(d => d.material === sky.material);
+/** The dome a record follows the light with at hour t: { map, actor, follows } of the time's pick, or { follows } where
+ *  the map's own domes show that sky already. */
+function followed(curve, own, t) {
+  const sky = skyAt(curve, t);
+  return sky && !ownLook(own, sky) ? { map: sky.map, actor: sky.actor, follows: true } : { follows: true };
+}
+/** The Sky choice set: `choice` 'own' (the map's own sky), 'follow' (the time of day picks it) or a dome's key: the
+ *  project's next `sun` (the record now, or one at the time shown with the map's own light; as handSet's). */
+export function skySet({ curve, own, before = null, atmosphere = null, choice }) {
+  const at = shownTime(before, own, curve);
+  const base = validSun(before, curve) ? before : recordAt({ curve, own, atmosphere, time: at.time, heading: at.heading }).record;
+  const next = structuredClone(base);
+  delete next.dome;
+  if (choice === 'follow') next.dome = followed(curve, own, next.time);
+  else if (choice && choice !== 'own') {
+    const sky = skyGroups(curve).flatMap(g => g.domes).find(d => d.key === choice);
+    const [map, actor] = sky ? [sky.map, sky.actor] : choice.split('|');
+    next.dome = { map, actor };
+  }
+  return tidySun(next, own, curve);
+}
+/** The Sky choice a record shows: 'own', 'follow' or a dome's key. */
+export const skyChoice = sun => (!sun?.dome ? 'own' : sun.dome.follows ? 'follow' : domeKey(sun.dome));
+/** The sky a record shows, in words: "the map's own", "Noon sky (URB_TruckStop_EWI)". */
+export function skyWords(curve, sun) {
+  if (!sun?.dome?.map) return 'the map\'s own';
+  const sky = skyGroups(curve).flatMap(g => g.domes).find(d => d.key === domeKey(sun.dome));
+  return `${sky?.label ?? sun.dome.actor} (${sun.dome.map})`;
 }
 
 /** The time and heading the bar and dial show for a record: the record's, or the map's own (its best time, and the
@@ -225,6 +306,8 @@ function recordAt({ curve, own, before = null, atmosphere = null, time, heading,
   const light = { rotation, color: custom.includes('color') ? ready.light.color.slice() : bytes(c.color),
                   brightness: custom.includes('brightness') ? ready.light.brightness : round(c.brightness, 4) };
   const record = { time, heading, timeOfDay: timeOfDay ?? ready?.timeOfDay ?? 'auto', light };
+  // the sky chosen stays; one that follows the light takes the time's pick
+  if (ready?.dome) record.dome = ready.dome.follows ? followed(curve, own, time) : { ...ready.dome };
   if (own.sky) record.sky = { color: custom.includes('skyColor') ? ready.sky.color.slice() : bytes(c.sky.color),
                               brightness: custom.includes('skyBrightness') ? ready.sky.brightness : round(c.sky.brightness, 4),
                               lowerColor: bytes(c.sky.lowerColor), lowerBrightness: round(c.sky.lowerBrightness, 4) };

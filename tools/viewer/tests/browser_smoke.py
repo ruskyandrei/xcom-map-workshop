@@ -2043,6 +2043,62 @@ def check_time_of_day(page):
     page.evaluate("viewer.setLook('neutral')")
 
 
+def check_sky_choice(page):
+    """The Sun, moon and sky section's Sky row (game-likeness plan, T-S6), on Bar (its two night domes), in the Game
+    look: the map's own sky first; another map's sky chosen is one undo step, the project's sun saying the dome, its
+    copies drawn where Bar's two domes stand (those drawn no longer) in the Game look alone; Follows the light at Bar's own
+    time is Bar's own night sky (no dome brought) and the noon sky once the bar is moved to noon; Ctrl+Z steps back."""
+    if not page.evaluate("viewer.data.exporterVersion >= 43 && Boolean(viewer.data.atmosphere)"):
+        return skip('sky-choice', 'needs a map of export 43 or later', whole=True)
+    page.wait_for_function('viewer.timeOfDay().ready', timeout=20000)
+    st = page.evaluate('viewer.timeOfDay()')
+    assert [d['material'] for d in st['own']['domes']] == ['Skybox.Materials.NightSky'] * 2, st['own']
+    assert page.evaluate("viewer.setLook('game')")
+    page.wait_for_function('viewer.post.ready()', timeout=180000)
+    steps = page.evaluate('viewer.gizmo.undoDepth()')
+    page.evaluate('viewer.showMapSettings()')
+    page.wait_for_function('viewer.mapSettings().open && viewer.mapSettings().sun.shown', timeout=10000)
+    section = page.evaluate('viewer.mapSettings().sun')
+    assert section['skyShown'] and section['sky'] == 'own', section
+    noon = 'URB_TruckStop_EWI|XComLevelActor_46'
+    assert section['skyOptions'][:2] == ['own', 'follow'] and noon in section['skyOptions'], section['skyOptions']
+    assert page.evaluate('viewer.timeOfDay().dome.ownShown') == 2
+    # another map's sky: one undo step; its dome drawn where Bar's two stand, in the chosen dome's own material
+    page.locator('#mapSunSky').select_option(noon)
+    assert page.evaluate('viewer.gizmo.undoDepth()') == steps + 1
+    assert page.evaluate('viewer.editState().sun.dome') == {'map': 'URB_TruckStop_EWI', 'actor': 'XComLevelActor_46'}
+    page.wait_for_function('viewer.timeOfDay().dome.drawn === 2 || viewer.timeOfDay().dome.why', timeout=60000)
+    dome = page.evaluate('viewer.timeOfDay().dome')
+    assert dome['why'] is None and dome['shown'] == 2 and dome['replaced'] == 2 and dome['ownShown'] == 0, dome
+    assert dome['materials'] == ['Skybox.Materials.NoonSky'] * 2, dome
+    assert page.evaluate('viewer.mapSettings().sun.sky') == noon
+    # the Neutral look draws no sky, the chosen one included
+    page.evaluate("viewer.setLook('neutral')")
+    page.wait_for_timeout(100)
+    dome = page.evaluate('viewer.timeOfDay().dome')
+    assert dome['shown'] == 0 and dome['ownShown'] == 0, dome
+    assert page.evaluate("viewer.setLook('game')")
+    # following the light at Bar's own time (night): Bar's own night sky, no dome brought; at noon the noon sky
+    page.locator('#mapSunSky').select_option('follow')
+    assert page.evaluate('viewer.editState().sun.dome') == {'follows': True}
+    page.wait_for_function('viewer.timeOfDay().dome.drawn === 0', timeout=10000)
+    assert page.evaluate('viewer.timeOfDay().dome.ownShown') == 2
+    page.locator('#mapTimeBar').focus()
+    for _ in range(12):
+        page.keyboard.press('Shift+ArrowRight')
+    assert abs(page.evaluate('viewer.timeOfDay().record.time') - 13) < 1e-3
+    assert page.evaluate('viewer.editState().sun.dome') == {'map': 'URB_TruckStop_EWI', 'actor': 'XComLevelActor_46', 'follows': True}
+    page.wait_for_function('viewer.timeOfDay().dome.drawn === 2', timeout=60000)
+    assert page.evaluate('viewer.mapSettings().sun.sky') == 'follow'
+    # back, one step at a time, to the map's own sky
+    for _ in range(14):
+        page.evaluate('viewer.gizmo.undo()')
+    assert page.evaluate('viewer.gizmo.undoDepth()') == steps and page.evaluate('viewer.timeOfDay().record') is None
+    page.wait_for_function('viewer.timeOfDay().dome.drawn === 0 && viewer.timeOfDay().dome.ownShown === 2', timeout=10000)
+    page.keyboard.press('Escape')
+    page.evaluate("viewer.setLook('neutral')")
+
+
 def check_cursor_floors(page):
     """A building's floors as the cursor's (the building cursor floors plan): the Buildings view's tick on a building of
     the project's, on for a new one (decision D2, since EXP-96); off, the cursor's floors over it are the map's; on, its
@@ -6388,6 +6444,8 @@ CHECKS = (
                                                              'Long War Rebalance is told of the map'),
     Check('time-of-day', on_page(check_time_of_day), 'the time of day: the bar at the map\'s own time, a drag of it and '
           'of the sun or moon\'s marker, the view\'s light, one undo step each', when=all_of(ON_BAR, version(43))),
+    Check('sky-choice', on_page(check_sky_choice), 'the Sky row: another map\'s sky drawn in place of the map\'s own domes '
+          'in the Game look, following the light as the bar moves, one undo step each', when=all_of(ON_BAR, version(43))),
     Check('align', on_page(check_align), 'Align'),
     Check('library', lambda c: check_library(c.page, c.is_bar), 'the Add panel: this map\'s pieces'),
     Check('cover', on_page(check_cover), 'cover blocks and invisible floors'),
@@ -6431,6 +6489,10 @@ CHECKS = (
     Check('library-assembly', lambda c: check_library_assembly(c.browser, c.page.url), 'assemblies from All maps',
           needs=('settings',), full=False),
     Check('output-names', run_output_names, 'maps named after the project', needs=('projects',), full=False),
+    Check('build-light', lambda c: __import__('browser_build_light').check_build_light(
+              c.browser, c.page.url, open_viewer, type_project_name, choose, skip, RUN),
+          "a baked Build's own light: a made-up Build's added piece and the map's pieces as built lit by its lightmaps, "
+          'one changed since lit live (saves a project)', needs=('projects',), when=all_of(ON_MAP, version(45))),
     Check('builder', run_builder, 'the prefab builder and its This prefab tab', needs=('projects',), full=False),
     Check('prefab-test', lambda c: __import__('browser_prefab_test').check_prefab_test(c.browser, c.page.url, c.args.screenshot),
           'the builder\'s Test in game', needs=('projects',), full=False),

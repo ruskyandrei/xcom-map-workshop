@@ -95,7 +95,12 @@ path-too-long). Stages, each logged in the build's work folder (<output>/.work/<
      README.txt                             what it is, where the files go, the config lines to add
      manifest.json                          project and revision, source map hash, names, files and hashes, streams,
                                             config lines, each stage's result, tool hashes, whether it is a quick
-                                            build, and how long the project's last full and quick builds took
+                                            build, and how long the project's last full and quick builds took; a
+                                            baked Build's (not quick, its lighting changed) also which built actor
+                                            each project piece became (builtActors), the components it relit
+                                            (relitComponents) and the project as built (asBuilt), by which the
+                                            editor lights the pieces still as built from its own lightmaps
+                                            (tools/viewer/build_light.py)
    The package is written beside the old one and swapped in last, so a failed build leaves the last good package as
    it was. No zip is made (until 10 November 2026 one was, <output>/<Variant>.zip: a build takes an earlier one away).
 
@@ -866,9 +871,9 @@ class Build:
         # transplant: the map the copy tool reads (the base map, or the one staged with pieces of other maps) and the
         # maps those came from
         self.source = self.donors = None
-        # light: the folder of the edited map, its texture cache's name, whether its lighting is unchanged, and the
-        # relight's record
-        self.lit = self.cache_name = self.relit = None
+        # light: the folder of the edited map, its texture cache's name, whether its lighting is unchanged, the
+        # relight's record, and the components whose lightmap or sun shadow map the relight wrote (a baked Build's)
+        self.lit = self.cache_name = self.relit = self.relit_components = None
         self.unchanged = False
         # the map's own landings the project moves, read once, when the intro copies (package) first ask (landing_moves)
         self._landing_moves = None
@@ -1518,6 +1523,10 @@ class Build:
         self.unchanged = bool(rec.get('lightingUnchanged'))
         if self.unchanged:
             self.cache_name = None
+        # the components the relight wrote a lightmap or a sun shadow map for (the manifest's relitComponents, by
+        # which the server exports the Build's own light: tools/viewer/build_light.py)
+        self.relit_components = sorted({r['component'] for r in (rec.get('components') or []) + (rec.get('shadowMaps') or [])
+                                        if isinstance(r, dict) and isinstance(r.get('component'), str) and 'skipped' not in r})
         self.relit = dict(written=len(rec['components']), unchanged=len(rec.get('unchanged') or []),
                           skipped=len(rec.get('skipped') or []),
                           shadowMaps=sum(1 for s in rec.get('shadowMaps') or [] if 'skipped' not in s),
@@ -1655,6 +1664,35 @@ class Build:
         return dict(diagonalCover=dict(marks=len(marks), noWall=sum(1 for r in marks if r.get('noWall')),
                                        noFloor=sum(1 for r in marks if r.get('noFloor')), removed=record['removed'],
                                        carried=record['carried']))
+
+    def built_actors(self):
+        """Which built actor each project piece made as a new actor of the map became (the fixture manifest's
+        nativeCopies `copies`, each with its label and copy): {the project's name for the piece: the built actor's
+        path}. The project's name is a moved original's actor (its copy's label `move:<name>`) or an added piece's output
+        name (`added[].actor`, whose last part is its copy's label); a made piece the compiler cut into parts
+        (`<name>_part<k>`) has its parts' actors, in order. A baked Build's manifest carries it (builtActors), with the
+        project as built (asBuilt): the editor lights each piece that is as built by the Build's own lightmaps
+        (tools/viewer/build_light.py; the game-likeness plan's B4)."""
+        try:
+            m = json.loads((self.lit / ('%s.fixture.json' % self.variant)).read_text(encoding='utf-8'))
+            copies = (m.get('nativeCopies') or {}).get('copies') or []
+        except (OSError, ValueError, AttributeError):
+            return {}
+        added = {a['actor'].split('.')[-1]: a['actor'] for a in self.doc.get('added') or []
+                 if isinstance(a, dict) and isinstance(a.get('actor'), str)}
+        out, parts = {}, {}
+        for c in copies:
+            label, copy = c.get('label'), c.get('copy')
+            if not (isinstance(label, str) and isinstance(copy, str)):
+                continue
+            if label.startswith('move:'):
+                out['TheWorld.PersistentLevel.' + label[len('move:'):]] = copy
+            elif label in added:
+                out[added[label]] = copy
+            elif (part := re.fullmatch(r'(.+)_part(\d+)', label)) and part.group(1) in added:
+                parts.setdefault(added[part.group(1)], []).append((int(part.group(2)), copy))
+        out.update({actor: [copy for _, copy in sorted(found)] for actor, found in parts.items()})
+        return dict(sorted(out.items()))
 
     def light_record(self):
         """What the writer's record says of the light edits (the fixture manifest's `lights`): the receivers each
@@ -2001,6 +2039,11 @@ class Build:
                  foreignEffects=sum(d.get('effects', 0) for d in self.donors),
                  lights=self.lights,
                  lightingUnchanged=self.unchanged,
+                 # a baked Build's own light (one that relit the map): which built actor each project piece became,
+                 # the components it relit and the project as built, by which the editor lights the pieces that are as
+                 # built from this Build's lightmaps (tools/viewer/build_light.py; game-likeness plan, B4)
+                 **(dict(builtActors=self.built_actors(), relitComponents=self.relit_components or [], asBuilt=self.doc)
+                    if not (self.quick or self.unchanged) else {}),
                  # the map's own picture (its file's SHA-256, as the project names it); absent: the map has none
                  **({'picture': self.pictured} if self.pictured else {}),
                  **({'pictureNote': self.picture_note} if self.picture_note else {}),

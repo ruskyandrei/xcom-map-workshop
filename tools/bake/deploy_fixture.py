@@ -114,12 +114,15 @@ def test_slot(game, slot_name=TEST_SLOT):
     return lines[slot_index(lines, slot_name)]
 
 
-def plan_maps(lines, base, variant, slot_name=TEST_SLOT, streams=(), replace=None, drop_patches=False):
+def plan_maps(lines, base, variant, slot_name=TEST_SLOT, streams=(), replace=None, drop_patches=False,
+              time_of_day=None):
     """The test slot's line made one of the base map's records (slot_record) under the variant's name, streaming
     `streams` in free slots, and with each stream in `replace` (old name -> new) streamed under its new name: a
     variant's own copy of the landing intro (tools/bake/intro_copy.py, F-45). A replacement the record doesn't stream
     is left out (another record of the map lands by the other intro); a `replace` the record streams none of is an
-    error. drop_patches (a cleared map's package): none of LWR's patch levels streamed (mapsini.drop_patches, KB-23)."""
+    error. drop_patches (a cleared map's package): none of LWR's patch levels streamed (mapsini.drop_patches, KB-23).
+    time_of_day (a package whose project sets the time of day: its manifest's config.timeOfDay, eMissionTime_Day or
+    eMissionTime_Night): the record's TimeOfDay, as the package's own records have it (game-likeness plan, T-S2)."""
     slot = slot_index(lines, slot_name)
     # (the name matches whatever its case, as the game matches it: installs.same_map; the farm's file is
     # CsmallScout_Farm.upk, its records name CSmallScout_Farm)
@@ -141,6 +144,8 @@ def plan_maps(lines, base, variant, slot_name=TEST_SLOT, streams=(), replace=Non
             new = set_field(new, 'MapFamily', family)
     if drop_patches:
         new, _ = drop_patch_streams(new)
+    if time_of_day and unquoted(new, 'TimeOfDay') is not None:
+        new = set_field(new, 'TimeOfDay', time_of_day, quoted=False)
     for patch in streams:
         new, _ = add_stream(new, patch)
     present = {was: now for was, now in (replace or {}).items() if f'MapName="{was}"'.encode() in new}
@@ -224,10 +229,10 @@ def previous_record(work, slot_at, old_slot):
 
 
 def deploy(manifest_path, game=None, work=None, dry=False, now=None, streams=(), seed_plans=(), patchtool=None,
-           replace_streams=None, drop_patches=False):
+           replace_streams=None, drop_patches=False, time_of_day=None):
     """Deploy a fixture manifest (a path, or the manifest itself: variant, source, outputs). `replace_streams` (old
     name -> new) streams the variant's own copy of a stream in its place (plan_maps); `drop_patches` (a cleared map's
-    package) streams none of LWR's patch levels."""
+    package) streams none of LWR's patch levels; `time_of_day` sets the record's TimeOfDay (plan_maps)."""
     game = default_game() if game is None else Path(game)
     work = default_work() if work is None else Path(work)
     m = manifest_path if isinstance(manifest_path, dict) else json.loads(Path(manifest_path).read_text(encoding='utf-8'))
@@ -267,7 +272,7 @@ def deploy(manifest_path, game=None, work=None, dry=False, now=None, streams=(),
     maps = lines_of(maps_path.read_bytes())
     lz = lines_of(lz_path.read_bytes())
     slot_at, old_slot, new_slot = plan_maps(maps, base, variant, streams=streams, replace=replace_streams,
-                                             drop_patches=drop_patches)
+                                             drop_patches=drop_patches, time_of_day=time_of_day)
     lz_at, lz_new = plan_lz(lz, base, variant, f'bake fixture, {stamp[:8]}')
     previous = previous_record(work, slot_at, old_slot)
     plan = dict(variant=variant, base=base, copies=[(str(s), str(d)) for s, d, _ in copies],
