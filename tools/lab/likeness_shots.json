@@ -1,0 +1,28 @@
+{
+  "about": "Track H's shot list (game-likeness plan): for each map three cameras the game and the editor both take. A camera is the game's overhead camera: what it looks at (target, world units, z up), its yaw and pitch (degrees) and its distance from the target, and its field of view (degrees, across the picture's width). likeness.py turns one into the game's console commands and into the editor's camera. The model: the game's camera looks along the commanded yaw plus yawOffset (measured on all four maps by reading XComCamera CameraCache back). The mask: rectangles (fractions x0, y0, x1, y1) the score leaves out, the version label for every shot, a shot's own (the squad) on it.",
+  "size": [1280, 720],
+  "model": {"yawOffset": 138.6, "fovAcross": "width"},
+  "mask": [[0.958, 0.983, 0.998, 0.998]],
+  "maps": {
+    "CSmallScout_DirtRoad": [
+      {"id": "dr-1", "target": [-240, 600, 0], "yaw": 45, "pitch": -45, "distance": 1800, "fov": 70},
+      {"id": "dr-2", "target": [-1700, 2600, 0], "yaw": 135, "pitch": -45, "distance": 1800, "fov": 70},
+      {"id": "dr-3", "target": [-1500, -1200, 0], "yaw": 300, "pitch": -45, "distance": 1800, "fov": 70}
+    ],
+    "LAbductor_FarmOutskirts": [
+      {"id": "fo-1", "target": [-2100, -300, 0], "yaw": 45, "pitch": -45, "distance": 1800, "fov": 70},
+      {"id": "fo-2", "target": [-4800, 0, 0], "yaw": 135, "pitch": -45, "distance": 1800, "fov": 70},
+      {"id": "fo-3", "target": [-700, 900, 0], "yaw": 250, "pitch": -45, "distance": 1800, "fov": 70}
+    ],
+    "URB_Bar": [
+      {"id": "ub-1", "target": [-300, 0, 0], "yaw": 45, "pitch": -45, "distance": 1800, "fov": 70},
+      {"id": "ub-2", "target": [-1500, 900, 0], "yaw": 135, "pitch": -45, "distance": 1800, "fov": 70, "mask": [[0.15, 0.1, 0.3, 0.3]]},
+      {"id": "ub-3", "target": [1300, 900, 0], "yaw": 225, "pitch": -45, "distance": 1800, "fov": 70}
+    ],
+    "AlienBase01": [
+      {"id": "ab-1", "target": [-1680, 4000, -384], "yaw": 90, "pitch": -45, "distance": 1800, "fov": 70},
+      {"id": "ab-2", "target": [-1680, 8000, -384], "yaw": 45, "pitch": -45, "distance": 1800, "fov": 70},
+      {"id": "ab-3", "target": [-1680, 12500, -384], "yaw": 270, "pitch": -45, "distance": 1800, "fov": 70}
+    ]
+  }
+}

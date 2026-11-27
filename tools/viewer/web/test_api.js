@@ -35,7 +35,7 @@ export function createTestApi({ $, showOpen, precachePictures, pageTables, addVo
                                 closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint,
                                 coverRecipe, deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn,
                                 editSpawnCopy, editState, effectNow, effectShapes, effectViewOnly, FACES, fileDialog,
-                                floorData, frame, ghostLikenesses, gizmo, goTo, grid, gridHandleAt, gridHandles,
+                                floorData, frame, ghostLikenesses, gizmo, goTo, grabView, grid, gridHandleAt, gridHandles,
                                 gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall,
                                 headerMissions, hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow,
                                 landingLayer, libraryTemplate, lightPanel, lightRecords, lightShapes, likenesses,
@@ -75,7 +75,9 @@ export function createTestApi({ $, showOpen, precachePictures, pageTables, addVo
     box.classList.toggle('showhow', had);
     return words;
   }
-  return {data, mapId:activeMapId, mapPicture, gizmo, renderer, world, camera, controls, roots, select, frame, lighting, sun, hemisphere, grid,
+  return {data, mapId:activeMapId, mapPicture, gizmo,
+    // the view as the Map picture takes it (no gizmo, grid, markers or handles), as a PNG data URL
+    grabView: () => grabView()?.toDataURL('image/png') ?? null, renderer, world, camera, controls, roots, select, frame, lighting, sun, hemisphere, grid,
     // the selected cover piece's handles on the screen ({ key: [x, y] }, none when they don't show), and a record put on a
     // cover piece as one undo step (for scripts: the guide's shots, the checks)
     // (each [x, y, x', y']: the handle, and where a point `tiles` tiles further out along its face's axis is, in below 0)

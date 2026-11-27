@@ -937,7 +937,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     builderDocument, builderRecords, buildingsFromVolumes, camera, changes, choosePrefab, chosenStorey, clearMap,
     clearParts, clearPlan, closeLookPicker, controls, copySpawn, copyVolumes, coverFacesNow, coverHandlePoint, coverRecipe,
     deleteSpawn, deleteVolumes, dirty, dropTarget, editBaseSpawn, editSpawnCopy, editState, effectNow, effectShapes,
-    effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grid, gridHandleAt,
+    effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grabView, grid, gridHandleAt,
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
