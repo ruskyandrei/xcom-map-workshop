@@ -12,6 +12,21 @@ Statuses:
 
 ## Open now
 
+- F-177 (27 November, the game-likeness plan's T-S0): tracing every sun shadow map of URB_Bar from nothing, by the
+  baker's own code on its own workers, takes 24 to 27 s with 16 workers (the Build's number on a 32-thread
+  computer) and 2.1 minutes in one process: 627 components, 53 atlases, 4.78 million texels, 67.5 million rays.
+  81 debris components hold sun shadow maps the baker's component reader does not take (72,900 texels). The
+  lighting samples' marks write back through the fixed-size writer. The gate for the baker's T-S4.
+- F-176 (27 November, T-S0): the dominant light's own shadow map of the level is a grid of 16-bit depths along the
+  light over a light-space box (URB_Bar: 132 by 97, about 50 units a texel; 92% of its texels within 25 units of
+  the depth traced from the map's geometry). The light writer (`native_lights.set_property`) writes the light's
+  component only from the start past that grid; `native_lights.props_start` gives a start inside it. Open: the
+  Build's start must skip it before T-S2 writes the light.
+- F-175 (27 November, T-S0): the sun across the 97 base maps: 50 blue moons, 10 dim lights, 16 day suns, 15
+  low suns, 3 sunsets, 3 maps with no dominant light; records Night on 58 maps, Day on 32, both on 2, None on 5;
+  70 sky lights, 93 sky domes; the commonest moon (66, 69, 136 at 1.1, 81 degrees up) lights 18 maps; suns stand
+  up to 56 degrees outdoors, the HQ assault maps' to 75. Fog is on in 94 maps. The curve's table and its fog and
+  grade columns are in the evidence file.
 - F-172 (26 November, laying LWR 3.00.00 beta 18 over the LWR v3 copies): beta 18 reads a map pack only as a
   folder in `CookedPCConsole\LWRMapPacks\` holding an `XComLWRMapPacks.ini` (first line
   `[XComMutator.LWRMapPacks]`, then the pack's `+Maps=`, `+Pictures=`, `+LZArray=` and `+MapInfo=` lines, no byte
@@ -276,6 +291,88 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-177: Every sun shadow map of URB_Bar traced from nothing takes about 25 seconds on the Build's workers
+**Accepted** (27 November 2026, the game-likeness plan's stage T-S0, the gate for its baker T-S4; measured offline on
+a 32-thread computer with `tools/upk/audit_suns.py trace`, evidence in
+[sun-audit-2026-11-27.json](evidence/sun-audit-2026-11-27.json) `trace`).
+- **Method.** The baker's own code, as it would run in a Build with baking: every distance-field shadow map of the
+  map's dominant light that `shadowmaps.dominant_receivers` finds, each a job of `shadowmaps.fresh_shadow_map` (the
+  piece's lightmap UV rasterised at 4 by 4 sub-samples a texel, one Embree ray each toward the light, then the signed
+  distance field and its 2-texel padding), queued on `relight.run_jobs` with the relight's own worker start (the map
+  opened, the scenes before and after an edit built with the relight's defaults). Timed from the queue handed over
+  to the last result, the workers' start included.
+- **Counts.** 627 components with a shadow map of the moon, in 53 atlases; 5.75 million texels in their rectangles,
+  4.78 million written (covered and padding), 67.5 million rays.
+- **Times.** 16 workers (`relight.default_jobs` here, what a Build uses): 25.3 s and 23.9 s (an earlier try 27.0 s);
+  the jobs' own seconds sum to about 300 s, the slowest job 9.6 s; a worker's peak memory 1.6 GB. One process:
+  125.6 s. The two scenes a worker builds first take 1.5 s.
+- **Left out by the baker's reader.** 81 components of the debris volume (`XComDebrisStaticMeshComponent`, under
+  `XComLevelVolume_4`) hold shadow maps of the moon, 72,900 texels (1.3%); `lightmap_fields.component_fields`
+  refuses their class, so `dominant_receivers` passes them over. At the same rate they would add under half a
+  second. A whole-map pass would have to take them too, or leave their old shadows.
+- **The lighting samples' marks write back.** `lighting_records.light_volume` gives each of the Level's lighting
+  samples with its place; `mark_edits` makes the fixed-size edits for `package_edit.write_edited`. On URB_Bar all
+  1,743 marks (222 set) were flipped in a scratch copy (two blocks re-encoded, 0.75 s), read back flipped with every
+  other field kept, then written back: the logical bytes after the summary came out as the map's.
+- **Not in the time.** The light's own shadow map of the level (12,804 depths on Bar, F-176) and the samples' marks
+  (1,743 rays) are each a few thousand rays more.
+
+### F-176: The dominant light's own shadow map of the level, and the light writer on its component
+**Open** (27 November 2026, T-S0; read offline from the install, `tools/upk/audit_suns.py level-map` and
+`write-back`, evidence in [sun-audit-2026-11-27.json](evidence/sun-audit-2026-11-27.json); nothing played).
+- **Layout.** A cooked `DominantDirectionalLightComponent` saves, ahead of its NetIndex and TemplateOwnerClass, a
+  counted array of 16-bit depths (`DominantLightShadowMap`), then its tagged properties, the first of them
+  `DominantLightShadowInfo` (struct `DominantShadowInfo`): `WorldToLight` and `LightToWorld` (matrices, each row saved
+  W first as `native_lights.parent_to_world` writes them; the two are inverses), `LightSpaceImportanceBounds` (a box in
+  light space) and `ShadowMapSizeX`, `ShadowMapSizeY`, whose product is the array's count. No native data follows the
+  properties. `lighting_records.dominant_shadow_map` reads it, bounded.
+- **What the depths are.** Light-space z is the light's direction. The grid runs in rows of X, Y down the rows, each
+  texel the depth of the first surface from the box's near face, as a fraction 0 to 65535 of the box's depth. On
+  URB_Bar (132 by 97, about 50 units a texel, the box 6,607 by 4,887 by 2,782 units) a ray from each texel's centre
+  through the map's geometry lands within 25 units of the stored depth on 92% of the texels and within 100 on 96.5%
+  (correlation 0.975; the stored ones lie 5.9 units deeper at the median); transposed or flipped, the grid does not
+  fit (correlation under 0.35). Across the install: 93 of the 94 dominant lights have one (EWI_HQAssault_MP's is
+  empty), from 6 by 5 texels (LAbductor_FarmOutskirts, a 636 by 531 unit box) to 391 by 492 (URB_HighwayBridge), at
+  25 to 106 units a texel.
+- **The light writer.** `native_lights.props_start` (props.props_start) takes the component's properties to start
+  4 bytes in, inside the depth array, and `set_property` from there is refused ("bad property name at 4"). From the
+  start past the array (where the viewer's Package reads, `LEADING_SHADOW_MAP`), `set_property` wrote Brightness
+  2.5 and LightColor (255, 139, 45) in place and added `bCastCompositeShadow`, and `native_copy.set_pose` wrote the
+  actor's Rotation; read back from the written map: every value as written, the GUIDs and the depth array kept.
+- **Open**: the Build's start must skip the array (as the viewer's reader does) before T-S2 writes the light;
+  nothing writes the dominant light today (the compiler refuses edits to it).
+
+### F-175: The sun, the sky and the time of day across the install's 97 base maps
+**Accepted** (27 November 2026, T-S0; read offline from the install, `tools/upk/audit_suns.py maps`, every base map
+of the map records the editor lists, evidence in [sun-audit-2026-11-27.json](evidence/sun-audit-2026-11-27.json)
+`maps`; the sun plan's table of 13 November read again with a tool of its own).
+- **The light.** 94 maps have one dominant directional light, none has two; 3 have none (AlienBase02, CB2_MP_Blank,
+  Command1). Read by its colour (`audit_suns.kind_of`): 50 blue moons (the commonest, 66, 69, 136 at 1.1 and 81
+  degrees up, on 18 maps; others 40, 46, 129 and darker; 16 to 81 degrees), 10 dim lights (no channel past 159 once
+  times the brightness: 123, 94, 72 at 0.4 on three terror maps and URB_MilitaryAmmo, two more terror maps,
+  CLrgScout_City, DLC1_2_CnfndLight, DLC2_3_Furies' faint white sun, AlienBase01's red light straight down), 16 day
+  suns (255, 250, 180 on 7 maps; 18 to 56 degrees outdoors, the EW HQ assault maps' 69 and 75; URB_HighwayFallen's
+  dark brown at 5 and the Temple Ship's at 6 read as day too), 15 low suns (255, 139, 45 on 5 maps, 16 degrees on 4
+  of them; the roof-top and truck-stop maps' 146, 78, 42 at 4 to 5; a nuked city's red glow) and 3 sunsets (11 to
+  12 degrees). 12 maps have a plain directional light, 10 of them beside the dominant one (CB2_MP_Blank and Command1
+  have only that).
+- **The records.** The `TimeOfDay` of the records naming these maps: Night 117, Day 67, None 5 records; by map, Night
+  only on 58, Day only on 32, both on 2 (URB_Boulevard, URB_FastFood_EWI, each with a moon), None on 5. Beside those
+  two, five maps' light reads otherwise than their records: a moon on CSmallScout_Badlands (Day), a low sun on
+  CSmallScout_NukedCity and DEMO_SonOfFacemelt and a day sun on URB_HighwayFallen (Night), DLC2_3_Furies dim (Day).
+  The records are the game's own word; the reading is by colour only.
+- **The sky.** 70 maps have a sky light, 27 none (most of Enemy Within's maps). 93 have a sky dome, a piece whose
+  mesh is `Skybox.Meshes.SkyDome` or kin, often two; their materials: NightSky 44, DuskSky 18, Black 13,
+  NightSky_Terror 12, NoonSky 10, and eight others once or twice. No dome: AlienBase01, AlienBase02, CB2_MP_Blank,
+  EWI_HQAssault.
+- **Fog and grade beside the light** (the curve's new columns). The height fog is on in 94 maps. Moons: the
+  inscattering colour a dark blue (54, 60, 92 commonest), the opposite colour grey (68, 68, 68 on 30), density 0.01 to
+  0.02 mostly; the grade's colorize often (1, 1, 1.2) and shadows (0, 0, -0.05). Low suns and sunsets: inscattering
+  (79, 67, 80), opposite (56, 51, 80), colorize warmer (1.2, 1, 1). Day: inscattering a grey green (80, 92, 87),
+  opposite grey, colorize (1, 1, 1) or (0.9, 1, 1.2). 23 maps have a post-process volume that sets the grade.
+- **The lighting samples** for moving things: every map has them, 29 to 10,360 (URB_Bar 1,743, 222 marked as out of
+  the dominant light).
 
 ### F-170: A made building's floor and building volumes are stretched copies of brushes that need not be boxes
 **Verified** (found 24 November 2026: the BoatAbduction project's quick build of revision 26 in a hidden run on the
