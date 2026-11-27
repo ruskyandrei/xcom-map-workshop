@@ -131,6 +131,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
           <li><a href="#view">The view and the camera</a></li>
           <li><a href="#bottom">Bottom bar and floors</a></li>
           <li><a href="#viewoptions">View options</a></li>
+          <li><a href="#game-look">The Game look</a></li>
           <li><a href="#maps">Open window: maps</a></li>
         </ol>
       </li>
@@ -193,8 +194,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h2 id="what">What it does</h2>
 <ul class="cards">
-  <li><b>Opens any map your game plays</b><span>Every map in your install's rotation (96 with Long War Rebalance, the tutorial's map included), in a 3D view you can orbit, cut open floor by floor and search.</span></li>
-  <li><b>Rearranges what is there</b><span>Move, turn, copy and delete the map's pieces: props, cars, walls, floors, doors, ladders. Add more of any piece the map has, or pieces from the game's other maps. Draw walls, rooms, floors, roofs and ground to your own size, in the look of any of the game's. Edit its lights, and its effects and sounds: fires, smoke, steam, a car's idle engine. Move where the aliens' pods and the Meld start. Save a set of pieces, or a whole building, as a prefab and place it in any map.</span></li>
+  <li><b>Opens any map your game plays</b><span>Every map in your install's rotation (96 with Long War Rebalance, the tutorial's map included), in a 3D view you can orbit, cut open floor by floor and search, in even light for building or as the game draws it.</span></li>
+  <li><b>Rearranges what is there</b><span>Move, turn, copy and delete the map's pieces: props, cars, walls, floors, doors, ladders. Add more of any piece the map has, or pieces from the game's other maps. Draw walls, rooms, floors, roofs and ground to your own size, in the look of any of the game's. Edit its lights, and its effects and sounds: fires, smoke, steam, a car's idle engine. Set its time of day, its sky, its fog and its colour. Move where the aliens' pods and the Meld start. Save a set of pieces, or a whole building, as a prefab and place it in any map.</span></li>
   <li><b>Makes room for a map of your own</b><span>Clear a map down to its light and its landing, set the size of its tile grid, give your buildings their cutaway, and say where the squad lands.</span></li>
   <li><b>Builds a new map</b><span>Your edits are saved as a project and built into a <i>variant</i>: a copy of the map with the changes made in it, cover and pathing included, its lighting baked on request. Several builds go into the game for campaigns, or out as a map pack.</span></li>
   <li><b>Starts the game on it</b><span><b class="ui">Play</b> starts XCOM straight in a battle on your variant, with a test squad: no campaign to start, and nothing of the game's own changed. The variant is taken back out when the game closes.</span></li>
@@ -338,8 +339,27 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li>Move it like a piece, or change its colour, brightness and radius in the light panel or with the white handles.</li>
   <li>Press <kbd>O</kbd> to see that light alone. Press it again to go back.</li>
   <li>For a new light, press <kbd>P</kbd>, choose Kind: <b class="ui">Lights</b>, and place a Point Light or a Spot Light.</li>
-  <li>Build with <b class="ui">Bake the lighting</b> ticked. Light edits show properly only in a baked build.</li>
+  <li>Press <kbd>K</kbd> for the <a href="#game-look">Game look</a>: the map drawn as the game draws it, your changed
+    lights with it.</li>
+  <li>Build with <b class="ui">Bake the lighting</b> ticked. In the game, light edits show properly only in a baked
+    build.</li>
 </ol>
+</div>
+
+<div class="task" id="task-time">
+<h3>Make it night, or noon</h3>
+<ol class="steps">
+  <li>Press <kbd>K</kbd> for the <a href="#game-look">Game look</a>, then open <b class="ui">Map</b>,
+    <b class="ui">Map settings…</b>.</li>
+  <li>Drag the time bar under <b class="ui">Sun, moon and sky</b>: the sun or moon, the sky light, the fog and the
+    colour follow the hour, in the view too.</li>
+  <li>Turn the dial to set the side the light stands at its highest.</li>
+  <li>Under <b class="ui">Sky</b>, choose <b class="ui">Follows the light</b> for a sky of the hour, or one of the
+    game's skies.</li>
+  <li>Build with <b class="ui">Bake the lighting</b> ticked. Another hour turns the light, and only a baked build gives
+    the map shadows that fit it; a quick build keeps the map's old ones.</li>
+</ol>
+<p>More: <a href="#time-of-day">the time of day</a>, <a href="#fog-colour">fog and colour</a>.</p>
 </div>
 
 <div class="task" id="task-effects">
@@ -617,8 +637,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <figure><img src="shots/header-right.webp" width="712" height="78" alt="The right of the header: the edit count, Undo, Redo, Reset all, Build, Play with its arrow, Settings, Import notes, View options and help"></figure>
 <ol class="legend">
   <li data-n="3"><b>What has changed:</b> how many pieces are moved, added and deleted, how many lights, buildings,
-    and effects or sounds are edited, a resized grid and changed landing zones, and whether that is saved: "not saved"
-    with no project, then "unsaved" or "saved".</li>
+    and effects or sounds are edited, a resized grid and changed landing zones, a time of day set and fog and colour
+    changed, and whether that is saved: "not saved" with no project, then "unsaved" or "saved".</li>
   <li data-n="4"><b>Undo</b> (<kbd>Ctrl</kbd>+<kbd>Z</kbd>).</li>
   <li data-n="5"><b>Redo</b> (<kbd>Ctrl</kbd>+<kbd>Y</kbd>).</li>
   <li data-n="6"><b>Reset all</b> puts the whole map back to the original: added pieces go, deleted ones return,
@@ -635,7 +655,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <a href="#settings">More</a></li>
   <li data-n="11"><b>Import notes:</b> what the editor couldn't read exactly from the map (a material drawn in an
     approximate colour, say), with their count. They are about the picture, not about your edits.</li>
-  <li data-n="12"><b>View options:</b> lighting, light markers, tile grid and more. <a href="#viewoptions">More</a></li>
+  <li data-n="12"><b>View options:</b> the look (Game or Neutral), the camera, the tile grid and more. <a href="#viewoptions">More</a></li>
   <li data-n="13"><b>Controls and shortcuts:</b> a short list of every key, the editor's version, and a link to this guide.</li>
 </ol>
 <p>Items 3 to 6 show once something has changed. While the project manager's <a href="#build-queue">build queue</a>
@@ -660,8 +680,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <figure><img src="shots/map-menu.webp" width="354" height="414" alt="The Map menu: This map and its name, the map's five items, Open with A map and A prefab side by side, and New prefab"></figure>
   <ol class="legend">
     <li data-n="1"><b>This map:</b> the name of the map that is open.</li>
-    <li data-n="2"><b>Map settings…</b> lists the sun, moon and sky light, sets the map's background sound, and what
-      Long War Rebalance is told of the map. <a href="#map-settings">More</a></li>
+    <li data-n="2"><b>Map settings…</b> sets the map's time of day and sky, its fog and colour, its background sound,
+      and what Long War Rebalance is told of the map. <a href="#map-settings">More</a></li>
     <li data-n="3"><b>Missions…</b> chooses the missions the project is for. <a href="#missions">More</a></li>
     <li data-n="4"><b>Map picture…</b> sets the picture the game shows for the map on its mission screens.
       <a href="#map-picture">More</a></li>
@@ -740,7 +760,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 <h4 id="snap">Snap: the steps of every move, size and turn</h4>
 <p>The Snap button (item 9) sets the steps of everything you move, size or turn in the view: the gizmo's arrows and
   rings, the white and blue handles of made pieces, gaps and cover blocks, a piece you place or paste, what you draw
-  from the <a href="#made">Build menu</a>, and a position or turn typed in the piece panel.</p>
+  from the <a href="#made">Build menu</a>, a position or turn typed in the piece panel, and the dial of the
+  <a href="#time-of-day">time of day</a>.</p>
 <table>
   <tr><th>Snap</th><th>Across the floor</th><th>Up</th><th>Turns</th></tr>
   <tr><td>Off</td><td>Smooth, to fractions of a unit</td><td>Smooth</td><td>Smooth</td></tr>
@@ -822,42 +843,90 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 
 <h3 id="viewoptions">View options</h3>
 <div class="split">
-  <figure><img src="shots/view-options.webp" width="332" height="622" alt="The View options menu, its fifteen items numbered"></figure>
+  <figure><img src="shots/view-options.webp" width="332" height="677" alt="The View options menu in the Game look, its seventeen items numbered, the line of the project's last baked Build under the look"></figure>
   <ol class="legend">
-    <li data-n="1"><b>Lighting:</b> <b class="ui">Neutral</b> is plain, even light, best for editing. <b class="ui">Map</b>
-      uses the map's own lights, as edited; <b class="ui">No area</b> is the same without the glow of lit surfaces. Both
-      are approximations of the game's lighting.</li>
-    <li data-n="2"><b>Brightness</b> of the view.</li>
-    <li data-n="3"><b>Keys move along the view:</b> <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys move the
+    <li data-n="1"><b>Look:</b> <b class="ui">Game</b>, the map as the game draws it, or <b class="ui">Neutral</b>,
+      plain even light, best for building. <kbd>K</kbd> switches between them anywhere. A map opens in the Neutral
+      look. <a href="#game-look">The Game look</a></li>
+    <li data-n="2"><b>Lit by the Build of…:</b> in the Game look, with a project open whose last build was baked: when
+      that build was made, and how many pieces changed since. <a href="#build-light">More</a></li>
+    <li data-n="3"><b>Area lights:</b> in the Game look, the lights the bake made for the map's glowing pieces (a
+      lamp's shade, a lit sign). Untick it to see the map's placed lights alone. Greyed in the Neutral look.</li>
+    <li data-n="4"><b>Brightness</b> of the view.</li>
+    <li data-n="5"><b>Keys move along the view:</b> <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys move the
       camera forward, back and sideways the way it faces, instead of panning across the map, and dragging looks round
       from where the camera stands instead of orbiting. <a href="#view">More</a></li>
-    <li data-n="4"><b>Move speed:</b> how fast <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys
+    <li data-n="6"><b>Move speed:</b> how fast <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> and the arrow keys
       move the camera, from a fifth of the usual speed to three times it (<kbd>Shift</kbd> still triples it).</li>
-    <li data-n="5"><b>Key turn speed:</b> how fast <kbd>Q</kbd> and <kbd>E</kbd> turn the camera.</li>
-    <li data-n="6"><b>Drag turn speed:</b> how fast a drag orbits, or looks round with Keys move along the view. The
+    <li data-n="7"><b>Key turn speed:</b> how fast <kbd>Q</kbd> and <kbd>E</kbd> turn the camera.</li>
+    <li data-n="8"><b>Drag turn speed:</b> how fast a drag orbits, or looks round with Keys move along the view. The
       three speeds are kept on this computer; double-click a slider to put it back to ×1.</li>
-    <li data-n="7"><b>Sun, moon and sky…</b> opens <a href="#map-settings">Map settings</a>, which lists the lights
-      that have no place.</li>
-    <li data-n="8"><b>Play area</b> (<kbd>B</kbd>): faint amber walls round the area the game plays on, its level volume:
+    <li data-n="9"><b>Sun, moon and sky…</b> opens <a href="#map-settings">Map settings</a>, where the time of day,
+      the sky, the fog and the colour are set.</li>
+    <li data-n="10"><b>Play area</b> (<kbd>B</kbd>): faint amber walls round the area the game plays on, its level volume:
       units can't leave it.</li>
-    <li data-n="9"><b>Tile grid</b> around the selection.</li>
-    <li data-n="10"><b>Floor tiles:</b> where the game has floor, coloured by the piece that carries each tile. Hover a
+    <li data-n="11"><b>Tile grid</b> around the selection.</li>
+    <li data-n="12"><b>Floor tiles:</b> where the game has floor, coloured by the piece that carries each tile. Hover a
       tile to name its piece; click to select it.</li>
-    <li data-n="11" id="diagonal-cover"><b>Diagonal cover:</b> the diagonal cover marks drawn in the normal view too,
+    <li data-n="13" id="diagonal-cover"><b>Diagonal cover:</b> the diagonal cover marks drawn in the normal view too,
       never picked there: amber the map's own as it is, teal the ones your project adds or changes, or that follow
       their piece. They are edited in the <a href="#diagonal">Diagonal cover view</a>.</li>
-    <li data-n="12"><b>Effects as they look:</b> each effect drawn where it stands, moving. Untick it for a busy map on a
+    <li data-n="14"><b>Effects as they look:</b> each effect drawn where it stands, moving. Untick it for a busy map on a
       slow computer; the markers and the editing stay. <a href="#effects-look">More</a></li>
-    <li data-n="13"><b>Wireframe.</b></li>
-    <li data-n="14"><b>Hide patch helpers:</b> untick to see Long War Rebalance's invisible cover and blockers, as a
+    <li data-n="15"><b>Wireframe.</b></li>
+    <li data-n="16"><b>Hide patch helpers:</b> untick to see Long War Rebalance's invisible cover and blockers, as a
       wireframe. Shown only on maps that have them.</li>
-    <li data-n="15"><b>Performance stats:</b> a line of counts (pieces, triangles, draw calls).</li>
+    <li data-n="17"><b>Performance stats:</b> a line of counts (pieces, triangles, draw calls).</li>
   </ol>
 </div>
 <p>Above Play area, on a whole map: <b class="ui">Ground grid</b> and <b class="ui">Landing zones</b>
-  (<a href="#clearmap">more</a>). The Lights view's own switches, <b class="ui">Area lights</b> and
+  (<a href="#clearmap">more</a>). The Lights view's own switches, <b class="ui">Area lights</b> (their markers) and
   <b class="ui">Outline the pieces a light reaches</b>, are under its row in the <a href="#views">Views list</a>:
   <a href="#lights">Lights</a>.</p>
+
+<h3 id="game-look">The Game look</h3>
+<p>The <b class="ui">Game</b> look draws the map as the game draws it; the <b class="ui">Neutral</b> look lights it
+  evenly, which is easier to build in. <kbd>K</kbd> switches between them, and View options' Look row does the same. A
+  map opens in the Neutral look; the Game look is greyed on a scene with no lighting of its own.</p>
+<div class="pair">
+  <figure class="zoom"><img src="shots/look-neutral.webp" width="470" height="320" alt="The Bar's front and car park in the Neutral look: even studio light"><figcaption>Neutral</figcaption></figure>
+  <figure class="zoom"><img src="shots/look-game.webp" width="470" height="320" alt="The same view in the Game look: the Bar at night in blue moonlight, its lamps lighting the pavement under the awnings"><figcaption>Game, at the map's own time (01:00)</figcaption></figure>
+</div>
+<p><b>What the Game look draws:</b></p>
+<ul>
+  <li><b>The materials as the game's shaders draw them:</b> their colours, highlights and bumps, what glows (a lit sign,
+    a screen), cut-outs and see-through parts, and parts that move with time (a panning texture, a pulsing glow). In the
+    Neutral look the moving parts stand still.</li>
+  <li><b>The map's light:</b> its sun or moon with its shadow, and the light baked into the map's pieces (their
+    lightmaps and their baked sun shadows), so a street lamp's pool shows on the pavement as in the game. The map's
+    <b class="ui">Area lights</b>, the lights the bake made for its glowing pieces, are a tick in View options.</li>
+  <li><b>The map's fog, colour and sky:</b> its height fog (thicker far away and low down), its colour grade and bloom,
+    and its sky dome, which shows in the Game look only. The <a href="#fog-colour">fog and colour</a> and the
+    <a href="#time-of-day">time of day</a> set in Map settings show here as they change.</li>
+  <li><b>What you changed, lit live.</b> A piece you moved, added or deleted, and the pieces whose baked light holds a
+    light you moved, changed or deleted, are lit by the map's lights as they are now, scaled to the baked light's
+    level. A light you moved, changed or added is drawn live on every piece. A baked build lights them for good.</li>
+</ul>
+<p>The gizmo, the handles, the markers, the grid and the outlines keep their own colours over the graded picture, and
+  are still hidden behind the map's pieces. <b class="ui">Brightness</b> in View options brightens the scene before
+  the grade, and <a href="#map-picture">Take from the view</a> takes the picture as the Game look draws it. It comes
+  close to the game's picture, not all the way: no decals, no depth of field, no reflections a material takes from the
+  scene (a polished floor's sheen), and effects are drawn as a likeness (<a href="#effects-look">Effects as they
+  look</a>). The game is the judge.</p>
+<h4 id="build-light">Lit by the project's last baked build</h4>
+<p>A baked build relights the map round your changes: the pieces it makes get lightmaps of their own, and the map's
+  pieces near your changes new ones. With a project open whose last build was baked, the Game look lights each piece
+  that is as that build made it by the build's own lightmaps, the first time the look is on (the editor reads them from
+  the build into its cache, in a second or so). View options says so under the look: <i>Lit by the Build of 27/11/2026,
+  16:52 · 1 piece changed since</i> (item 2 of <a href="#viewoptions">its picture</a>).</p>
+<ul>
+  <li><b>A piece changed since the build</b> is lit live, as are the pieces a light changed since reaches. Undo puts a
+    piece back on the build's light.</li>
+  <li><b>Walls, floors and ground you draw, and cover blocks,</b> are always lit live.</li>
+  <li><b>A piece moved away leaves its baked shadow</b> on its neighbours until the next baked build; only the changed
+    piece itself, and the lights changed since, are lit live.</li>
+  <li>A quick build has no light of its own: after one, the Game look lights your changes live again.</li>
+</ul>
 
 <h3 id="maps">The Open window: maps</h3>
 <p><b class="ui">A map…</b> in the header's <a href="#map-menu">Map menu</a> (or <kbd>M</kbd>) opens the
@@ -1228,7 +1297,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   little (the entry's tooltip says by how much at most).</p>
 <p><b>Lighting.</b> Built with <b class="ui">Bake the lighting</b>, a piece from another map is lit for where it
   stands, and the pieces around it take its shadow. Built without, it keeps the light it had in its home map, so it
-  can look too dark or too bright where you put it.</p>
+  can look too dark or too bright where you put it. The editor's <a href="#game-look">Game look</a> lights it live
+  where it stands.</p>
 <p><b>Effects, sounds and lens flares</b> of the other maps are listed here too, under their own kinds in the Kind
   menu: <a href="#effects-other">Effects from other maps</a>.</p>
 
@@ -1860,7 +1930,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>New lights</b> are in the piece list: Add, then Kind: <b class="ui">Lights</b>. Point Light and Spot Light are
     placed as pieces are. Each starts as a copy of one of the map's lights of that kind; on a map with none, the
     editor makes its own.</li>
-  <li>To see your light edits on the map itself, choose <b class="ui">Map</b> lighting in View options.</li>
+  <li>To see your light edits on the map itself, press <kbd>K</kbd> for the <a href="#game-look">Game look</a>: a
+    light you moved, changed or added is drawn live, and so are the pieces whose baked light held a light you
+    changed.</li>
+  <li><b>The sun or moon</b> is not picked and edited as these lights are: the time of day sets it, in
+    <a href="#time-of-day">Map settings</a>. While the Lights view is on, its marker stands on its arc over the map,
+    and dragging the marker along the arc sets the time.</li>
   <li><b>Two switches</b> stand under the Lights row of the <a href="#views">Views list</a> while the view is on:
     <b class="ui">Area lights</b> also shows the lights that stand for glowing surfaces (view only), and
     <b class="ui">Outline the pieces a light reaches</b> outlines, for the selected light, in teal the pieces it is
@@ -2621,22 +2696,133 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
 </div>
 <h3 id="map-settings">Map settings</h3>
 <p><b class="ui">Map settings…</b> in the <a href="#map-menu">Map menu</a> (or <b class="ui">Sun, moon and sky…</b> in
-  <a href="#viewoptions">View options</a>) opens a window of what the map has everywhere and at no place.</p>
+  <a href="#viewoptions">View options</a>) opens a window of what the map has everywhere and at no place: its time of
+  day and its sky, its fog and colour, its background sound, and what Long War Rebalance is told of it. The light, the
+  sky, the fog and the colour show in the <a href="#game-look">Game look</a> while they change, so press
+  <kbd>K</kbd> first. Each change is one undo step and is saved with the project, and the header counts it.</p>
+<h4 id="time-of-day">Sun, moon and sky: the time of day</h4>
+<div class="split">
+  <figure><img src="shots/map-sun.webp" width="452" height="583" alt="The Sun, moon and sky section of Map settings with the time bar at 19:30, the dial, the line saying dusk and the sun low in the north-north-east, the Sky row, and More unfolded"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>The time bar,</b> 0:00 to 24:00, tinted with the light of each hour and marked where the sun
+      comes up and goes down. Drag its knob, or click on the bar.</li>
+    <li data-n="2"><b>The hour and its light in words:</b> <i>19:30 · dusk</i>, <i>Sun low in the north-north-east,
+      warm, long shadows</i>. Once the light comes from another direction than the map's own, a second line says
+      that the map's shadows stay as they fall until a baked build makes new ones.</li>
+    <li data-n="3"><b>The dial:</b> the side the light stands at its highest (N is the game's X, E its Y). The needle
+      is that side, the dot where the light is now, and the mark on the rim the way the view looks. Drag it round.</li>
+    <li data-n="4"><b>Sky:</b> the sky behind the map. <a href="#sky-choice">Below</a></li>
+    <li data-n="5"><b>More</b>, folded at first: the rest of the section.</li>
+    <li data-n="6"><b>The light's colour</b>, the sun's or the moon's.</li>
+    <li data-n="7"><b>Its strength.</b></li>
+    <li data-n="8"><b>The sky light's colour:</b> the light of the whole sky, which lights the soldiers and aliens on
+      their shaded side.</li>
+    <li data-n="9"><b>The sky light's strength.</b></li>
+    <li data-n="10"><b>In the game:</b> the time of day the game's records give the map, which the campaign picks it
+      by for day and night missions. <b class="ui">Follows the light</b> is night while the moon is up and day while
+      the sun is; or <b class="ui">Day</b> or <b class="ui">Night</b> whatever the light.</li>
+    <li data-n="11"><b>The fog and colour of the hour:</b> which of the <a href="#fog-colour">Fog and colour</a>
+      values the time has set.</li>
+    <li data-n="12"><b>The map's own lights</b> without a place: its sun or moon and its sky light, with their
+      brightness.</li>
+    <li data-n="13"><b>As the map has it</b> puts back the map's own light, sky light, sky and time of day, and the fog
+      and colour the time set.</li>
+  </ol>
+</div>
 <ul>
-  <li><b>Sun, moon and sky</b> lists the map's lights that have no place, with their brightness. View only.</li>
+  <li><b>The bar sets several things together:</b> the sun or moon's height, side, colour and strength, the sky light,
+    and the fog's two colours, the tint and the shadows of that hour. Between 5:30 and 20:30 it is the sun, else the
+    moon. The hours' lights are taken from the game's own maps, and blended between them.</li>
+  <li><b>The knob starts at the map's own time,</b> the hour whose light is likest the map's (01:00 on the Bar, a night
+    map), and the bar changes nothing there.</li>
+  <li><b>A drag is one undo step.</b> The arrow keys move the knob five minutes, an hour with <kbd>Shift</kbd>. The
+    view follows while the knob moves.</li>
+  <li><b>The dial turns in the <a href="#snap">Snap</a> setting's turns</b> (smoothly with snap off), one undo step a
+    drag; the arrow keys turn it too. The light travels an arc round it: a quarter turn before the dial's side as it
+    comes up, a quarter turn after as it goes down.</li>
+  <li><b>A colour or strength set by hand</b> in More is marked <i>custom</i>, and the bar leaves it as it is from then
+    on. So is a fog or colour value changed in Fog and colour after the bar set it: there it is marked <i>the hour</i>
+    while the time sets it, and <i>custom</i> once you change it.</li>
+  <li><b>In the Game look,</b> a turned light also gives every piece its live shadow: the map's baked sun shadows fit
+    only the map's own light. Back at the map's own time, they come back.</li>
+</ul>
+<div class="pair">
+  <figure class="zoom"><img src="shots/look-game.webp" width="470" height="320" alt="The Bar in the Game look at its own time, 01:00: moonlight and the lamps' pools"><figcaption>The Bar at its own 01:00</figcaption></figure>
+  <figure class="zoom"><img src="shots/look-noon.webp" width="470" height="320" alt="The same view with the time bar at 13:00: the Bar and its car park in daylight"><figcaption>The time bar at 13:00</figcaption></figure>
+</div>
+<p id="sky-choice"><b>Sky</b> chooses the sky behind the map: <b class="ui">The map's own sky</b>, one of the game's
+  skies (a noon sky, a dynamic day sky, a dusk sky, three night skies), each the sky dome of one of the game's maps, or
+  <b class="ui">Follows the light</b>, which takes the night sky while the moon is up, the dusk sky while the sun is
+  low (under 20°), and the noon sky above, and changes as the bar moves. The list says which one it takes now. The Game look draws
+  the chosen sky where the map's own stands, and the Build brings its dome from its map. The row shows on maps that
+  have a sky dome of their own.</p>
+<figure class="zoom">
+  <img src="shots/sun-marker.webp" width="1080" height="675" alt="The Lights view on the Bar in the Game look at 17:30: the sun's marker low on its orange arc at the right, the moon's blue arc behind it, and a line from the marker down to the map">
+  <figcaption>The Lights view at 17:30, in the Game look.</figcaption>
+</figure>
+<ol class="legend">
+  <li data-n="1"><b>The sun or moon's marker,</b> in its light's colour, with a line down to the map. Drag it along its
+    arc to set the time: one undo step, and <kbd>Esc</kbd> during the drag puts it back.</li>
+  <li data-n="2"><b>The sun's arc</b> through the day.</li>
+  <li data-n="3"><b>The moon's arc</b> through the night.</li>
+</ol>
+<p>The marker and its arcs show in the <a href="#lights">Lights view</a> and while Map settings is open.</p>
+<p><b>What the Build does with it.</b> A quick build and a baked one both write the time of day into the variant: the
+  sun or moon's direction, colour and strength, the sky light's colours and strengths, the chosen sky (the map's own
+  domes taken out, the chosen dome copied in from its map), and the time of day into the map's records for the game.</p>
+<ul>
+  <li><b>A quick build keeps the map's shadows</b> as its own light cast them, on the ground, the buildings and the
+    units. When the light comes from another side, the build warns of it.</li>
+  <li><b>A baked build makes the sun's shadows again</b> for the whole map, every piece's, when the light turned, which
+    adds about half a minute to the Bar's build on a fast computer. The light the old sun bounced into the map stays,
+    and a piece the map's own sun never reached (wholly in its shadow) takes no light from the new sun.</li>
+  <li><b>The map's lamps stay as the map has them,</b> at any hour.</li>
+  <li><b>The build warns,</b> without stopping, of a map with no sky light (the time sets its sun or moon alone), a
+    second sun-like light beside the sun or moon (left as it is, so its light still falls as at the map's own time),
+    and a map with no sun or moon, where the time of day is passed over.</li>
+</ul>
+<h4 id="fog-colour">Fog and colour</h4>
+<div class="split">
+  <figure><img src="shots/fog-colour.webp" width="452" height="620" alt="The Fog and colour section of Map settings: the looks of the map and of four other maps as swatches with All maps, the Fog fold and the Colour fold open with their sliders and colours, the hour's chips beside three of them, and Reset to the map's own"></figure>
+  <ol class="legend">
+    <li data-n="1"><b>The looks:</b> each swatch is how a grey floor looks under that look's fog and colour. The first
+      is the map's own, ringed while the project changes none of it (here the time of day has changed it), then four of
+      the game's maps' looks that differ from it and from each other. A click gives the map that look's fog and colour:
+      one undo step.</li>
+    <li data-n="2"><b>All maps…</b> lists the look of every map of the game.</li>
+    <li data-n="3"><b>Height fog,</b> on or off: fog that thickens far away and low down, as the game's does.</li>
+    <li data-n="4"><b>Density, Height and Falloff:</b> how thick the fog is, the height it thins out from, and how fast
+      it thins with height.</li>
+    <li data-n="5"><b>The fog's two colours:</b> looking away from the sun or moon, and looking toward it. <i>the hour</i>
+      marks a value the <a href="#time-of-day">time of day</a> set.</li>
+    <li data-n="6"><b>Tint:</b> the colour the whole picture is tinted with.</li>
+    <li data-n="7"><b>Shadows</b> (lift or deepen the dark parts), <b>Strength</b> (the tint's), <b>Grey</b> (how much
+      colour is taken out) and <b>Bloom</b> (the glow round bright parts).</li>
+    <li data-n="8"><b>Reset to the map's own</b> puts the map's fog and colour back.</li>
+  </ol>
+</div>
+<ul>
+  <li><b>Folded,</b> the Fog and Colour lines say their values. A slider is one undo step when you let it go, the rest
+    one each, and the Game look follows while a slider moves.</li>
+  <li><b>A map whose colour a post-process volume sets</b> says so under the folds, naming the volume and its values,
+    which can't be changed here. Where the game's camera is inside such a volume, the game shows the volume's value, and
+    the Build warns of a value you changed that a volume sets.</li>
+  <li><b>The Build writes the fog and colour on the map,</b> in a quick build as in a baked one.</li>
+</ul>
+<h4 id="map-sound">Background sound and Long War Rebalance</h4>
+<ul>
   <li><b>Background sound</b> is the sound the map plays everywhere from the start: wind and traffic on the Bar,
     birds in a forest, crickets at night. Choose the map's own, another of the game's 26 sound beds (the Build brings
     it from the map that plays it), or <b class="ui">None</b>. <b class="ui">Play</b> plays the choice here, looping,
     until you press it again or close the window. The <b class="ui">Volume</b> bar under it sets how loud it is in the
-    game, 100% being the sound's own.</li>
+    game, 100% being the sound's own. A map that starts no background sound (the alien bases, the battleships, the
+    Temple Ship and a few others) has none to change.</li>
   <li><b>Long War Rebalance</b> is what Long War Rebalance 3 (from 3.00.00 beta 17) is told of the map.
     <b class="ui">Largest abduction</b> is the largest abduction the map suits: Light, Moderate, Heavy or Swarming
     (a larger one is moved to another map), or <i>Not set</i>, any size. <b class="ui">Keep Hold the Line off this
     map</b> keeps those stands against waves of aliens off it. Both travel with the map in a
     <a href="#map-packs">map pack</a>; a campaign install made by the project manager doesn't carry them, and says so.
     Plain Enemy Within reads neither, and the section doesn't show there unless the project has them set.</li>
-  <li><b>Each change is one undo step</b> and is saved with the project; the header counts it. A map that starts no
-    background sound (the alien bases, the battleships, the Temple Ship and a few others) has none to change.</li>
 </ul>
 
 <h3 id="map-picture">Map picture</h3>
@@ -2659,8 +2845,9 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   </ol>
 </div>
 <ul>
-  <li><b>Set up the view first</b> for Take from the view: the camera, the floors shown, the lighting. The image is
-    the view at the window's size, so a small window gives a soft picture.</li>
+  <li><b>Set up the view first</b> for Take from the view: the camera, the floors shown, the look (the
+    <a href="#game-look">Game look</a> gives the game's light, fog and colour). The image is the view at the window's
+    size, so a small window gives a soft picture.</li>
   <li><b>With no picture of its own,</b> the window shows the base map's and says so: a <a href="#map-packs">map
     pack</a> borrows that one for the map.</li>
   <li><b>Using a picture marks the project changed;</b> the next save keeps it. It is not an undo step.
@@ -2736,10 +2923,13 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <li data-n="1"><b>Bake the lighting</b>, off each time the panel opens.
       <ul>
         <li><b>Off</b> (a quick build): seconds. Cover, pathing and line of sight in the game are right; the lighting
-          around your changes isn't: copies are lit as their originals were, and moved or deleted pieces leave their
-          shadows behind.</li>
+          around your changes isn't: copies are lit as their originals were, moved or deleted pieces leave their
+          shadows behind, and a <a href="#time-of-day">time of day</a> that turns the sun keeps the map's old
+          shadows.</li>
         <li><b>On</b> (a baked build): a minute or two for a small edit, less when the project is built again. The
-          editor relights the map around your changes.</li>
+          editor relights the map around your changes, and makes the sun's shadows again over the whole map when the
+          time of day turned it. The <a href="#build-light">Game look</a> then lights the pieces as this build made
+          them by its own lightmaps.</li>
       </ul>
     </li>
     <li data-n="2"><b>Cancel</b> (<kbd>Esc</kbd>) builds nothing. On its left, about how long the build will take, from the
@@ -2755,11 +2945,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   build's folder or why it failed, and <b class="ui">Save a bug report</b>. Click the folder's path to open it in
   Windows Explorer, or <b class="ui">Copy the folder path</b>. Once built, <b class="ui">Play in game</b> installs the
   build and starts XCOM in a battle on it, as the header's Play does.</p>
-<p><b>What a build holds.</b> The map, with its baked lighting inside it, its mission records and its
-  <a href="#map-picture">map picture</a> if the project has one, and a README that lists the config lines the game needs.</p>
+<p><b>What a build holds.</b> The map, with its baked lighting inside it, its time of day, sky, fog and colour, its
+  mission records and its <a href="#map-picture">map picture</a> if the project has one, and a README that lists the
+  config lines the game needs.</p>
 <p><b>Warnings don't stop a build.</b> They say what may behave oddly in the game: a piece off its grid, a ladder
   that isn't expected to climb, a floor box that starts away from the cursor's floors, a landing zone over no floor,
-  fewer places for the aliens' pods than the map had.
+  fewer places for the aliens' pods than the map had, a quick build that turns the sun and keeps the old shadows.
   The map is built all the same, and the build window lists them.</p>
 <p>If the project holds an edit that can't be built at all, the build stops at once and says which piece and why.
   Undo that edit, or fix it as the message says, and build again.</p>
@@ -3185,6 +3376,7 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <tr><td><kbd>C</kbd></td><td>Pivot: the piece's own origin, or the selection's middle (a piece turns in place)</td></tr>
   <tr><td><kbd>B</kbd></td><td>Show or hide the play area; with a made wall, floor or roof or one of the map's fracturing pieces picked, <a href="#damage">Break</a> on or off</td></tr>
   <tr><td><kbd>L</kbd></td><td><a href="#align-to">Align to grid</a>: the selection onto the nearest step of the snap setting</td></tr>
+  <tr><td><kbd>K</kbd></td><td>The <a href="#game-look">Game look</a> or the Neutral look</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>N</kbd></td><td>The Normal view</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>B</kbd></td><td>The Buildings view on or off (only boxes are selected)</td></tr>
   <tr><td><kbd>Shift</kbd>+<kbd>L</kbd></td><td>The Lights view on or off (only lights are selected)</td></tr>
@@ -3227,7 +3419,8 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
     <h3>Maps and pieces</h3>
     <ul>
       <li><b>A new map starts from one of the game's.</b> <a href="#clearmap">Clear map</a> empties it, and you
-        build on its light, sky and landing. The sun, the time of day and the mission stay the base map's.</li>
+        build on its light and landing; its <a href="#time-of-day">time of day, sky</a>, <a href="#fog-colour">fog and
+        colour</a> can be changed in Map settings.</li>
       <li><b>Only the game's own models, materials and sounds.</b> Any piece of any map in your install can be
         placed, and <a href="#made">walls, floors, roofs and ground you draw</a> take the look of the game's, but you
         can't import your own models, textures or sounds.</li>
@@ -3283,20 +3476,26 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
         built as any other. A piece the Build can't make at all is <b>left out</b> and listed
         in the build window, and the rest is built. The prefab test does the same and waits for
         <b class="ui">Launch test</b> when it left something out.</li>
-      <li><b>Some lights are view only:</b> the sun, moon and sky, the glow of lit surfaces, and lights the map's
-        scripts or a breakable piece switch. New lights are point or spot lights.</li>
-      <li><b>Light edits need a baked build.</b> A quick build makes them without their lighting.</li>
+      <li><b>Some lights are view only:</b> the glow of lit surfaces, and lights the map's scripts or a breakable piece
+        switch. The sun or moon and the sky light are set by the <a href="#time-of-day">time of day</a>, not one by
+        one. New lights are point or spot lights.</li>
+      <li><b>Light edits need a baked build.</b> A quick build makes them without their lighting, and keeps the map's
+        old shadows under a time of day that turns the sun.</li>
       <li><b>One build at a time</b>, and a baked build takes minutes.</li>
     </ul>
   </section>
   <section>
     <h3>The view</h3>
     <ul>
-      <li><b>It is not the game's picture.</b> Colours and lighting are approximate, most lights cast no shadows, and
-        there is no fog, sky, decals or animation. Doors stand closed. Effects are drawn as a rough likeness, from
-        their own textures and colours but without the game's shaders: <a href="#effects-look">Effects as they
-        look</a>.</li>
-      <li><b>No preview of the baked lighting.</b> Only the game shows what a build's lighting looks like.</li>
+      <li><b>The <a href="#game-look">Game look</a> comes close to the game's picture, not all the way.</b> It draws
+        the materials, the map's baked light and its fog, colour and sky, but no decals, depth of field or reflections a
+        material takes from the scene. Lights drawn live cast no shadows (the sun or moon does), and doors stand closed.
+        Effects are drawn as a rough likeness, from their own textures and colours but without the game's shaders:
+        <a href="#effects-look">Effects as they look</a>.</li>
+      <li><b>What you change is lit live until a baked build.</b> The Game look lights it with the map's lights as they
+        are, without the lamps' shadows and the bounce a bake gives it, and after a baked build by the build's own
+        light. A quick build's
+        light (copies lit as their originals, old shadows left) shows only in the game.</li>
     </ul>
     <h3>The program</h3>
     <ul>
@@ -3332,8 +3531,12 @@ footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line);
   <li><b>The squad may land on a new piece.</b> Keep copies off the soldier tiles, or
     <a href="#landingzones">move the landing zone</a>.</li>
   <li><b>A quick build's lighting is wrong on purpose.</b> Copies are lit as their originals were and cast no shadows,
-    and a deleted or changed light's old pool stays on the floor. Bake the lighting for the finished map.</li>
-  <li><b>The editor's colours are approximate.</b> Judge the lighting, and how an effect looks, in the game.</li>
+    a deleted or changed light's old pool stays on the floor, and a time of day that turns the sun leaves the map's
+    shadows where its own light cast them. Bake the lighting for the finished map.</li>
+  <li><b>The editor's picture comes close, not all the way.</b> Judge the lighting, and how an effect looks, in the
+    game.</li>
+  <li><b>A baked build keeps some of the old sun under a new time of day:</b> the light it bounced into the map, and
+    the darkness of pieces it never reached.</li>
   <li><b>On plain Enemy Within, a moved landing leaves the grounded Skyranger's dust</b> where the landing was, in
     the editor as in the game. Under Long War the dust goes with the Skyranger when the battle starts.</li>
   <li><b>If something looks wrong in the game,</b> please report it.</li>
