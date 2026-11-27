@@ -3,21 +3,27 @@
 nothing here has a pass mark. The numbers go into the change's ledger entry.
 
   python -B tools/viewer/perf_probe.py --map <map id> [--prefab <prefab file.json>] [--port 8796] [--pieces 500]
-      [--headed] [--cache <cache>] [--flag <name=value> ...]
+      [--headed] [--cache <cache>] [--flag <name=value> ...] [--camera <x,y,z,tx,ty,tz,fov>]
+      [--frames 5]
 
 It starts a viewer on a test port (8790 to 8799) with scratch folders for projects, prefabs and builds, opens the
 page in Edge (Playwright), and prints:
 
-- the map: how long it takes to open, a frame with and without the sun's shadow pass, the draw calls, the shader
-  programs, the textures and their memory on the GPU (worked out from what they hold), a pick under
-  the cursor, selecting --pieces pieces, an edit event with them selected, pasting them, undoing the paste;
+- the map: how long it takes to open, a frame with and without the sun's shadow pass, the draw calls, the Game look's
+  frame with its chain and without (and, where the page has the baked light's spike, ?baked=on, both again with the
+  baked light: the bar of the game-likeness plan's B0), the shader programs, the textures and their memory on the
+  GPU (worked out from what they hold), a pick under the cursor, selecting --pieces pieces, an edit event with them
+  selected, pasting them, undoing the paste;
 - the prefab (copied into the scratch prefab folder): how long the builder takes to open it, an edit event, and the
   Problems check;
 - every stretch over 300 ms in which the page's thread was held with no busy mark and no loading overlay up
   (PerformanceObserver "longtask"): the steps that still freeze without saying so.
 
 A hidden or headless page draws no frames of its own, so the frame time is renderer.render with gl.finish, timed
-here. --headed shows the window.
+here. --headed shows the window. --camera times every frame from one camera of its own (its place and target in game
+units, its field of view up the picture), so that looks timed in one run or in several can be set against each other;
+without it the frames are timed from the view the map opens with. --frames: how many frames each frame time is the
+mean of (5 by default).
 """
 import argparse
 import json
@@ -41,8 +47,14 @@ new PerformanceObserver(list => {
 }).observe({ entryTypes: ['longtask'] });
 """
 
-MAP = """async pieces => {
+MAP = """async ([pieces, camera, frames]) => {
   const v = window.viewer, THREE = await import('three'), out = {}, gl = v.renderer.getContext();
+  if (camera) {
+    const [x, y, z, tx, ty, tz, fov] = camera;
+    v.select(null);
+    v.controls.target.set(tx, tz, ty); v.camera.position.set(x, z, y);
+    v.camera.fov = fov; v.camera.updateProjectionMatrix(); v.controls.update(); v.camera.updateMatrixWorld(true);
+  }
   const timed = async (name, work, times = 1) => {
     window.__step = name;
     const started = performance.now();
@@ -52,8 +64,8 @@ MAP = """async pieces => {
   };
   const frame = shadow => () => { v.renderer.shadowMap.needsUpdate = shadow; v.renderer.render(v.world, v.camera); gl.finish(); };
   frame(true)();
-  await timed('a frame with the shadow pass (ms)', frame(true), 5);
-  await timed('a frame without it (ms)', frame(false), 5);
+  await timed('a frame with the shadow pass (ms)', frame(true), frames);
+  await timed('a frame without it (ms)', frame(false), frames);
   v.renderer.info.reset(); frame(false)();
   out['draw calls'] = v.renderer.info.render.calls;
   // the Game look (game-likeness plan, C3): its frame through the chain (bloom, grade, the helpers after), and the
@@ -61,9 +73,21 @@ MAP = """async pieces => {
   if (v.post && v.setLook('game')) {
     while (!v.post.ready()) await new Promise(r => setTimeout(r, 50));
     const game = shadow => () => { v.renderer.shadowMap.needsUpdate = shadow; v.post.draw(true); gl.finish(); };
+    // the baked light's spike (game-likeness plan, B0), where the page has it: the map's lights live first, then the
+    // baked light, from the same camera
+    const baked = v.bakedSpike;
+    if (baked) baked.set(false);
     game(true)(); frame(false)();      // (each way's shaders compiled before it is timed)
-    await timed('a Game look frame (ms)', game(false), 5);
-    await timed('a Game look frame without the chain (ms)', frame(false), 5);
+    await timed('a Game look frame (ms)', game(false), frames);
+    await timed('a Game look frame without the chain (ms)', frame(false), frames);
+    if (baked) {
+      baked.set(true);
+      game(true)(); frame(false)();
+      await timed('a Game look frame with the baked light (ms)', game(false), frames);
+      await timed('a Game look frame with the baked light, without the chain (ms)', frame(false), frames);
+      v.renderer.info.reset(); game(false)();
+      out['the baked light: parts, draw calls'] = `${baked.parts}, ${v.renderer.info.render.calls}`;
+    }
     out["the Game look's frame buffers (MB)"] = +(v.post.chain.memory() / 1048576).toFixed(1);
     v.setLook('neutral');
   }
@@ -144,9 +168,14 @@ def main(argv=None):
     ap.add_argument('--cache', help='the cache folder (default: the cache setting)')
     ap.add_argument('--headed', action='store_true', help='show the browser window')
     ap.add_argument('--flag', action='append', default=[], help='a page address flag (name=value), as texfallback=all')
+    ap.add_argument('--frames', type=int, default=5, help='the frames each frame time is the mean of')
+    ap.add_argument('--camera', help='x,y,z,tx,ty,tz,fov: the camera every frame is timed from (game units, degrees)')
     args = ap.parse_args(argv)
     if not 8790 <= args.port <= 8799:
         raise SystemExit('use a test port, 8790 to 8799')
+    camera = [float(v) for v in args.camera.split(',')] if args.camera else None
+    if camera is not None and len(camera) != 7:
+        raise SystemExit('--camera takes seven numbers: x,y,z,tx,ty,tz,fov')
     from playwright.sync_api import sync_playwright
     with tempfile.TemporaryDirectory(prefix='perf-probe-') as scratch:
         scratch = Path(scratch)
@@ -179,7 +208,7 @@ def main(argv=None):
 
                 seconds = opened('?map=' + args.map + ''.join('&' + f for f in args.flag))
                 page.wait_for_timeout(1500)
-                rows = {'open the map (s)': seconds, **page.evaluate(MAP, args.pieces)}
+                rows = {'open the map (s)': seconds, **page.evaluate(MAP, [args.pieces, camera, max(1, args.frames)])}
                 table('Map %s' % args.map, rows)
                 held += page.evaluate('window.__long')
                 if prefab_id:

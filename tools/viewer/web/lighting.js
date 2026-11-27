@@ -18,8 +18,19 @@ const uniforms = {
 // likenesses share, so a change of the fog's values recompiles nothing; no fog in the Neutral look
 Object.assign(uniforms, fogShared);
 
-const VERTEX_PARS = '#include <common>\nvarying vec3 vLocalWorld;';
-const VERTEX_MAIN = '#include <worldpos_vertex>\nvLocalWorld = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;';
+// (USE_BAKED: stage B0's spike of the baked light, baked_light_spike.js; off unless the page's address asks for it)
+const VERTEX_PARS = `#include <common>
+varying vec3 vLocalWorld;
+#ifdef USE_BAKED
+attribute vec2 bakedUv;
+uniform vec4 bakedUvScaleBias;
+varying vec2 vBakedUv;
+#endif`;
+const VERTEX_MAIN = `#include <worldpos_vertex>
+vLocalWorld = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
+#ifdef USE_BAKED
+vBakedUv = bakedUv * bakedUvScaleBias.xy + bakedUvScaleBias.zw;
+#endif`;
 const FRAGMENT_PARS = `#include <common>
 varying vec3 vLocalWorld;
 uniform highp sampler2D localLightData;
@@ -28,7 +39,34 @@ uniform highp sampler2D localLightIndices;
 uniform int localIndexWidth;
 uniform vec4 localGridInfo;
 uniform vec2 localGridSize;
+#ifdef USE_BAKED
+uniform sampler2D bakedColour;
+uniform sampler2D bakedDirections;
+uniform vec4 bakedScale0;
+uniform vec4 bakedScale1;
+uniform float bakedWeight;
+uniform float bakedSky;
+varying vec2 vBakedUv;
+#endif
 ${FOG_PARS}`;
+// The game's directional lightmap (implementation plan, section 0): with N the material's tangent-space normal and
+// b_i = saturate(N . basis_i)^2 for UE3's three basis vectors, light = colour atlas x scale0 x dot(direction atlas x
+// scale1, b); both atlases read through sRGB. The sky light is not baked, and lights static pieces on no map
+// (bakedSky 0: its channels): the lightmap stands in its place (spike only).
+const BAKED_LIGHT = `#if defined( USE_BAKED ) && defined( RE_IndirectDiffuse )
+{
+	vec3 bakedN = vec3( 0.0, 0.0, 1.0 );
+#ifdef BAKED_PROGRAM_NORMAL
+	if ( dot( progOut_normal.xyz, progOut_normal.xyz ) > 1e-8 ) bakedN = normalize( progOut_normal.xyz );
+#endif
+	vec3 bakedBasis = vec3( saturate( dot( bakedN.yz, vec2( 0.816496611, 0.577350259 ) ) ),
+		saturate( dot( bakedN, vec3( -0.707106769, -0.408248305, 0.577350259 ) ) ),
+		saturate( dot( bakedN, vec3( 0.707106769, -0.408248305, 0.577350259 ) ) ) );
+	vec3 bakedLight = texture2D( bakedColour, vBakedUv ).rgb * bakedScale0.rgb
+		* dot( texture2D( bakedDirections, vBakedUv ).rgb * bakedScale1.rgb, bakedBasis * bakedBasis ) * bakedWeight;
+	irradiance = irradiance * bakedSky + PI * bakedLight;      // (three's Lambert divides by pi: the game's diffuse x light)
+}
+#endif`;
 // UE3: radial attenuation pow(saturate(1 - (d/R)^2), FalloffExponent); spot cone
 // square(saturate((dot(L, -dir) - cosOuter) / (cosInner - cosOuter))).
 // A material drawn by its program (USE_PROGRAM, scene_pieces.js) takes no highlight from these: in the game the map's
@@ -48,6 +86,9 @@ if ( localGridInfo.w > 0.5 ) {
 				int texel = offset / 4;
 				vec4 ids = texelFetch( localLightIndices, ivec2( texel % localIndexWidth, texel / localIndexWidth ), 0 );
 				int li = int( ids[ offset % 4 ] );
+#ifdef USE_BAKED
+				if ( texelFetch( localLightData, ivec2( 3, li ), 0 ).y > 0.5 ) continue;
+#endif
 				vec4 lp = texelFetch( localLightData, ivec2( 0, li ), 0 );
 				vec3 toLight = lp.xyz - vLocalWorld;
 				float d2 = dot( toLight, toLight ) / ( lp.w * lp.w );
@@ -70,7 +111,8 @@ if ( localGridInfo.w > 0.5 ) {
 #ifdef USE_PROGRAM
 material.specularColor = programSpecular;
 #endif
-#endif`;
+#endif
+${BAKED_LIGHT}`;
 
 // One shared function, so every lit material shares one program cache key.
 function localLightShader(shader) {
@@ -156,7 +198,10 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
         const [inner, outer] = effectiveCone(l.innerConeAngle, l.outerConeAngle);
         cosOuter = Math.cos(outer); coneScale = 1 / (Math.cos(inner) - cosOuter);
       }
-      lightData.set([p.x, p.y, p.z, l.radius, ...colour, l.falloffExponent, d.x, d.y, d.z, cosOuter, coneScale, 0, 0, 0], i * 16);
+      // (the fourth texel's second value: a light the game leaves out of a lightmapped piece, read by the baked light's
+      // spike only: a static one is in its lightmap, an area one lights only what moves)
+      const inLightmaps = l.role === 'static' || l.role === 'area' ? 1 : 0;
+      lightData.set([p.x, p.y, p.z, l.radius, ...colour, l.falloffExponent, d.x, d.y, d.z, cosOuter, coneScale, inLightmaps, 0, 0], i * 16);
     });
     uniforms.localLightData.value?.dispose();
     uniforms.localLightData.value = dataTexture(lightData, 4, Math.max(1, local.length));

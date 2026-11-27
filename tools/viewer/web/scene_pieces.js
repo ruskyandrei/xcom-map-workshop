@@ -222,7 +222,8 @@ gl_Position.z = gl_Position.w * 0.999999;`);
     if (sky) mat.depthWrite = false;
     const cacheKey = `program-${glsl.key}${mat.map ? '-map' : ''}${sky ? '-sky' : ''}`;
     mat.customProgramCacheKey = () => cacheKey;
-    mat.defines = { ...(mat.defines ?? {}), USE_PROGRAM: '' };       // (lighting.js: no highlight from baked lights)
+    // (lighting.js: no highlight from baked lights; PROGRAM_NORMAL: the baked light's spike reads the program's normal)
+    mat.defines = { ...(mat.defines ?? {}), USE_PROGRAM: '', ...(glsl.outputs.includes('normal') ? { PROGRAM_NORMAL: '' } : {}) };
     mat.color.setRGB(1, 1, 1);
     const reads = inputsRead(program);
     // what is the program's and not the material's own: kept out of userData's JSON copy (three's clone copies it so)
