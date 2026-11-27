@@ -401,32 +401,7 @@ class Exporter:
             if current in seen: raise FormatError("Material parent cycle")
             seen.add(current); chain.append(current)
             current = p.own(current, "Parent", 0)
-        textures, scalars, vectors, sampling, switches = {}, {}, {}, {}, {}
-        blend, two_sided = "BLEND_Opaque", False
-        for mat in reversed(chain):
-            for c in p.children.get(mat, []):
-                parameter, tex = p.own(c, "ParameterName"), p.own(c, "Texture", 0)
-                if parameter and tex:
-                    textures[parameter] = tex
-                    sampling[parameter] = coordinates(p,c)
-                if parameter and p.cls(c) == "MaterialExpressionScalarParameter":
-                    scalars[parameter] = p.own(c,"DefaultValue",0.0)
-                if parameter and p.cls(c) == "MaterialExpressionVectorParameter":
-                    vectors[parameter] = p.own(c,"DefaultValue",[0,0,0,0])
-                if parameter and p.cls(c) == 'MaterialExpressionStaticSwitchParameter':
-                    switches[parameter] = p.own(c, 'DefaultValue', False)
-            for field, target in [("TextureParameterValues", textures), ("ScalarParameterValues", scalars),
-                                  ("VectorParameterValues", vectors)]:
-                for row in p.structs(p.own(mat, field)):
-                    name = row.get(("ParameterName", 0), {}).get("value")
-                    fallback = [0,0,0,0] if field == "VectorParameterValues" else 0
-                    value = row.get(("ParameterValue", 0), {}).get("value", fallback)
-                    if name is not None: target[name] = value
-            blend = p.own(mat, "BlendMode", blend)
-            two_sided = p.own(mat, "TwoSided", two_sided)
-            try: switches.update(static_switches(p, mat))
-            except (ValueError, struct.error) as error:
-                self.warn(p.name(mat), f'Static switch overrides unavailable: {error}')
+        textures, scalars, vectors, sampling, switches, blend, two_sided = self.parameters(chain)
         def binding(names):
             for name in names:
                 if name in textures: return self.texture(textures[name])
@@ -525,6 +500,39 @@ class Exporter:
                                "mixes them")
         self.materials[key] = info
         return key
+
+    def parameters(self, chain):
+        """A material's parameter values through its parents (`chain`, nearest first: the root's set first, a
+        nearer one's over it): (textures (parameter name to texture object), scalars, vectors, sampling (each
+        texture parameter's coordinates), static switches, blend mode, two-sided)."""
+        p = self.p
+        textures, scalars, vectors, sampling, switches = {}, {}, {}, {}, {}
+        blend, two_sided = "BLEND_Opaque", False
+        for mat in reversed(chain):
+            for c in p.children.get(mat, []):
+                parameter, tex = p.own(c, "ParameterName"), p.own(c, "Texture", 0)
+                if parameter and tex:
+                    textures[parameter] = tex
+                    sampling[parameter] = coordinates(p,c)
+                if parameter and p.cls(c) == "MaterialExpressionScalarParameter":
+                    scalars[parameter] = p.own(c,"DefaultValue",0.0)
+                if parameter and p.cls(c) == "MaterialExpressionVectorParameter":
+                    vectors[parameter] = p.own(c,"DefaultValue",[0,0,0,0])
+                if parameter and p.cls(c) == 'MaterialExpressionStaticSwitchParameter':
+                    switches[parameter] = p.own(c, 'DefaultValue', False)
+            for field, target in [("TextureParameterValues", textures), ("ScalarParameterValues", scalars),
+                                  ("VectorParameterValues", vectors)]:
+                for row in p.structs(p.own(mat, field)):
+                    name = row.get(("ParameterName", 0), {}).get("value")
+                    fallback = [0,0,0,0] if field == "VectorParameterValues" else 0
+                    value = row.get(("ParameterValue", 0), {}).get("value", fallback)
+                    if name is not None: target[name] = value
+            blend = p.own(mat, "BlendMode", blend)
+            two_sided = p.own(mat, "TwoSided", two_sided)
+            try: switches.update(static_switches(p, mat))
+            except (ValueError, struct.error) as error:
+                self.warn(p.name(mat), f'Static switch overrides unavailable: {error}')
+        return textures, scalars, vectors, sampling, switches, blend, two_sided
 
     def stand_in(self, kind, name=None, source=None):
         """A material for a mesh section with none to draw: 'interior', a fractured mesh's inside faces with no
