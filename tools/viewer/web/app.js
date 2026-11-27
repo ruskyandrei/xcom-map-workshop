@@ -1039,7 +1039,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
             baked: () => bakedLight?.state() ?? null, setBaked: on => bakedLight?.set(on), buildLight: () => buildLightState() },
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
-    lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
+    lightRecords, lightShapes, likenesses, likenessPane, stepLikenesses, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
     mapSettingsState, sunState, previewSun, endSunEdit, alignToGamePose, alignToGrid, alignToLevel, memberOf, missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup, newBuilding,
     openLookPicker, openPrefabDocument, outsideBox, ownVolumeLayer, pasteSnapshot, pasteVolumes, pick, pickables,
     pickBoxEdge, pickEffect, pickLight, pickMovePoint, pickVolumeEdge, pickZone, placeMove, placeSpawn, plainLook,

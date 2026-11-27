@@ -5,7 +5,9 @@
 // here: effects_preview.js draws what this steps, and the node tests run it alone.
 //
 // Everything is in the emitter's own frame and the game's units and axes (z up). It is a likeness: orbit, collision,
-// events and attractors are not followed, and what the material's shader does is not known.
+// events and attractors are not followed. An emitter drawn by its material's program (draw version 6) keeps its
+// colour as the game gives it (`raw`: a channel that carries a number to the material is the material's to read) and
+// its four dynamic parameter values (`dynamic`), which the program reads.
 
 export const LIMITS = { emitter: 400, effect: 1500, view: 30000 };
 const TAU = Math.PI * 2;
@@ -145,8 +147,22 @@ const BIRTH = {
   RotationRate(m, s, p) { const v = sample(m.StartRotationRate, s.time, s.rand, s.params); if (v != null) s.baseRate[p] += num(v, 0) * TAU; },
   MeshRotation(m, s, p) { const v = vec(sample(m.StartRotation, s.time, s.rand, s.params), null); if (v) for (let k = 0; k < 3; k++) s.meshTurn[3 * p + k] += v[k] * TAU; },
   MeshRotationRate(m, s, p) { const v = vec(sample(m.StartRotationRate, s.time, s.rand, s.params), null); if (v) for (let k = 0; k < 3; k++) s.meshBase[3 * p + k] += v[k] * TAU; },
+  ParameterDynamic(m, s, p) { dynamicValues(m, s, p, 0, s.rand, true); },
 };
-for (const k of ['Lifetime', 'Location', 'Velocity', 'Size', 'Color', 'Rotation']) BIRTH[`${k}_Seeded`] = BIRTH[k];
+for (const k of ['Lifetime', 'Location', 'Velocity', 'Size', 'Color', 'Rotation', 'ParameterDynamic']) BIRTH[`${k}_Seeded`] = BIRTH[k];
+
+/** A dynamic parameter module's four values for particle `p` (ParticleModuleParameterDynamic: each its table at the
+ *  particle's life, or the emitter's time where it says so; or the particle's speed along an axis or in all, times
+ *  the table's value where it says so), at its birth (`born`) or each step but for those worked out once. */
+function dynamicValues(m, s, p, rel, rand, born) {
+  (m.DynamicParams ?? []).slice(0, 4).forEach((d, k) => {
+    if (!born && d.spawnOnly) return;
+    const t = d.emitterTime ? s.time : rel, value = num(sample(d.value, t, rand, s.params), 1);
+    const v = [s.vel[3 * p], s.vel[3 * p + 1], s.vel[3 * p + 2]];
+    const speed = { EDPV_VelocityX: v[0], EDPV_VelocityY: v[1], EDPV_VelocityZ: v[2], EDPV_VelocityMag: Math.hypot(...v) }[d.method];
+    s.dynamic[4 * p + k] = speed === undefined ? value : speed * (d.scaleVelocity ? value : 1);
+  });
+}
 
 const STEP = {
   SizeMultiplyLife(m, s, p, rel, own) {
@@ -191,13 +207,17 @@ const STEP = {
     const v = vec(sample(m.RotRate, rel, own, s.params), null);
     if (v) for (let k = 0; k < 3; k++) s.meshRate[3 * p + k] = m.bScaleRotRate ? s.meshRate[3 * p + k] * v[k] : v[k] * TAU;
   },
+  ParameterDynamic(m, s, p, rel, own) { dynamicValues(m, s, p, rel, own, false); },
 };
+STEP.ParameterDynamic_Seeded = STEP.ParameterDynamic;
 
 /** One emitter's simulation from its draw record. `params`: the effect's particle parameters (parametersOf); `seed`:
  *  a number; `limit`: the most particles it keeps. Gives its state: `count` live particles in the arrays `pos`,
- *  `vel` (3 each), `size` (3), `colour` (4), `turn`, `image`, `meshTurn` (3), and step(dt, thin = 1): thin (0 to 1)
- *  scales what it spawns, for the view's budget. `ended` once it has played its loops and its last particle died. */
-export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitter } = {}) {
+ *  `vel` (3 each), `size` (3), `colour` (4), `turn`, `image`, `meshTurn` (3), `dynamic` (4: 1 each where the emitter
+ *  has no dynamic parameter module, as the game gives a material), and step(dt, thin = 1): thin (0 to 1) scales what it
+ *  spawns, for the view's budget. `ended` once it has played its loops and its last particle died. `raw`: the colour
+ *  is left as the game gives it (a program reads it), not its data channels made brightness (`dataChannels`). */
+export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitter, raw = false } = {}) {
   const n = Math.max(1, Math.min(limit, LIMITS.emitter)), f = k => new Float32Array(n * k);
   const s = {
     draw, params, rand: rng(seed), count: 0, time: 0, clock: 0, owed: 0, ended: false, spawning: true, loop: -1, fired: new Set(),
@@ -205,17 +225,20 @@ export function makeEmitter(draw, { params = {}, seed = 1, limit = LIMITS.emitte
     images: Math.max(1, (draw.subImages?.[0] ?? 1) * (draw.subImages?.[1] ?? 1)),
     pos: f(3), base: f(3), vel: f(3), accel: f(3), baseSize: f(3), size: f(3), baseColour: f(4), colour: f(4),
     turn: f(1), baseRate: f(1), rate: f(1), age: f(1), life: f(1), image: f(1), own: f(1), meshTurn: f(3), meshBase: f(3), meshRate: f(3),
+    dynamic: f(4),
   };
   const births = (draw.modules ?? []).filter(m => BIRTH[m.cls]).map(m => [BIRTH[m.cls], m]);
-  const data = dataChannels(draw);
+  const data = raw ? null : dataChannels(draw);
   const steps = (draw.modules ?? []).filter(m => STEP[m.cls]).map(m => [STEP[m.cls], m]);
   const fields = [['pos', 3], ['base', 3], ['vel', 3], ['accel', 3], ['baseSize', 3], ['size', 3], ['baseColour', 4], ['colour', 4], ['turn', 1],
-                  ['baseRate', 1], ['rate', 1], ['age', 1], ['life', 1], ['image', 1], ['own', 1], ['meshTurn', 3], ['meshBase', 3], ['meshRate', 3]];
+                  ['baseRate', 1], ['rate', 1], ['age', 1], ['life', 1], ['image', 1], ['own', 1], ['meshTurn', 3], ['meshBase', 3], ['meshRate', 3],
+                  ['dynamic', 4]];
   function spawn() {
     if (s.count >= n) return;
     const p = s.count++;
     for (const [key, k] of fields) s[key].fill(0, p * k, p * k + k);
     s.baseColour.set([1, 1, 1, 1], 4 * p);
+    s.dynamic.set([1, 1, 1, 1], 4 * p);
     s.own[p] = s.rand();
     s.image[p] = s.randomImage ? Math.floor(s.rand() * s.images) : 0;
     for (const [birth, m] of births) birth(m, s, p);

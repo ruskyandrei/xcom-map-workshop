@@ -12,6 +12,10 @@ Statuses:
 
 ## Open now
 
+- F-221 (27 November, the game-likeness plan's E1): the local vertex factory's see-through base pass reads its UVs
+  through abs() of a literal (`mul o1, c5_abs.yyzz, v4.xyxx`), which a piece's slice refuses ("texcoord.x is made from
+  more than inputs"): most see-through pieces get no program. A particle's slice reads it as the literal's size. Open:
+  the same for pieces is track A's to decide (it changes what they draw, and the library's pieces).
 - F-203 (27 November, the game-likeness plan's T-S5, EXP-100): in a Build with baking whose sun turned, moving things
   are not darkened in its shadows: a soldier is as bright in a building's new shadow as in the sun, where on a map as
   the game ships it he is about 1.5 times brighter in the sun. Not the bake's: on URB_Bar built quick with the moon's
@@ -359,6 +363,42 @@ Statuses:
 ### F-03: Paint per object
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
+
+### F-221: The local factory's see-through base pass reads its UVs through abs() of a literal
+**Open** (27 November 2026, the game-likeness plan's E1; read off the shaders of the install's RefShaderCache).
+- **What is.** The base pass vertex shader of a see-through material on the local vertex factory writes the mesh's UV
+  as `mul o1, c5_abs.yyzz, v4.xyxx`: the UV times abs() of a literal (1 and 0). The slice's symbolic run took any source
+  modifier but a minus for something it could not follow, so the UV became "made from more than inputs" and the colour,
+  glow and opacity that read it were refused: CSmallScout_DirtRoad's smoke wall (M_Roiling_Smoke_Wall_Trans), the
+  Skyranger's thruster flames and lights, the holograms' bases, and most see-through pieces.
+- **What E1 does.** A particle's slice (`vertex_outputs(literal_abs=True)`) reads abs() of a literal as the literal's
+  size: every mesh emitter of CSmallScout_DirtRoad (63 placed) and AlienBase01 (132) has its programs.
+- **Open.** A piece's slice still refuses it (its programs, the scores of track A and the library's pieces would all
+  change): track A's to take up.
+
+### F-220: A particle's material is drawn by its shaders for its vertex factory
+**Fixed** (27 November 2026, the game-likeness plan's E1; read off the install's shaders and the likeness shots of
+track H; nothing to play: it is the editor's drawing).
+- **The factories.** A sprite's material has shaders for FParticleVertexFactory, FParticleSubUVVertexFactory and their
+  DynamicParameter kin (and a beam's or trail's for FParticleBeamTrailVertexFactory); a mesh emitter draws with the
+  mesh's local factory. The base pass's pixel shader is the same material code for each; their vertex shaders say what
+  each stream is: texcoord0 the corner's UV in the first sub-image (xy) and the second (zw), texcoord1 the particle's
+  colour, a SubUV factory's texcoord2 the blend between them (written to color0.x), a DynamicParameter factory's
+  texcoord3 the dynamic parameter (a beam's texcoord2). A mesh particle's colour and dynamic parameter reach its material
+  as the vector parameters MeshEmitterVertexColor and MeshEmitterDynamicParameter.
+- **The screen's inputs.** A soft particle reads its place on the screen from texcoord5, a copy of the position the
+  vertex shader writes (its relative reads of AxisRotationVectors hide it from a numeric run, so the slice follows the
+  copy itself: `Clip`), and the depth behind it from SceneColorTexture's alpha (UE3 keeps the scene's depth there) at a
+  level (`texldl`), turned into a distance with MinZ_MaxZRatio. texcoord6.xyz is the base pass's tangent-space vector
+  to the camera, as the local factory's numeric match shows.
+- **The game's numbers.** An added particle's shader multiplies its own colour by its opacity and writes 0 as its
+  alpha (M_Flare_Highlight); a see-through one writes the colour and the opacity apart. The fires carry numbers in
+  their colour's green and blue (each flame's offset into its scrolling texture), which their shaders read: the page
+  hands the program the colour as the game gives it.
+- **Fixed.** Of the placed emitters' drawn sprites, 205 of 208 on CSmallScout_DirtRoad and all 993 on AlienBase01 are
+  drawn by their programs (the leaves' Ground_Leaves_Unlit reads a colour1 the slice can't follow and keeps the old
+  rules). Track H's likeness: CSmallScout_DirtRoad 10.69 to 5.06, AlienBase01 16.21 to 13.17, all twelve 9.46 to 6.93
+  (the see-through smoke and the holograms' glare no longer drawn too bright and bloomed).
 
 ### F-203: A turned sun's shadows do not darken moving things in the game
 **Open** (27 November 2026, the game-likeness plan's T-S5: EXP-100 and its control; the Build's data read offline).

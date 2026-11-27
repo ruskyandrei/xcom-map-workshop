@@ -14,17 +14,24 @@ module's archetype chain (`effects_metadata.Defaults.chain`). The floats are the
 A particle parameter's distribution is kept as an object (its name, mode, constant and ranges): its value comes from
 the effect's instance parameters, which the export has.
 
-Nothing here says how sure the drawing is: an emitter the page can't draw gets `draw: None` and `why`."""
+Nothing here says how sure the drawing is: an emitter the page can't draw gets `draw: None` and `why`.
+
+Draw version 6 (game-likeness plan, track E, stage E1): a sprite emitter's material is drawn by its program where
+one can be made (`program`: its compiled shaders for the particle vertex factory the emitter draws with, sliced by
+shader_slice.py with the particle's own inputs: its colour, its sub-images' UVs, its dynamic parameter), and a mesh
+emitter's by a program a drawn section (`programs`); the dynamic parameter module is followed (`DynamicParams`), as
+those programs read it. Where none can be made the textures' roles (`pick_textures`) still draw it."""
 import struct
 
 from package import FormatError
 from effects_metadata import PARAMETER_DISTRIBUTIONS, floats, short, struct_fields
 
-DRAW_VERSION = 5     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
+DRAW_VERSION = 6     # 2: a mesh emitter's own textures, and its blend from the material it is drawn with
                      # 3: a packed texture's one channel as the opacity; distortion-only emitters not drawn
                      # 4: textures told apart by their pixels (texture_traits): the colour from a picture, the shape
                      #    from a mask (`maskFrom`); `opacity` none where the mask alone shapes it
                      # 5: an added particle's grey texture its picture; a picture with an alpha shape no other mask
+                     # 6: materials by their programs (`program`, `programs`); the dynamic parameter followed
 P = 'ParticleModule'
 # the modules the page's simulator follows (effects_preview.js); any other is named in `ignored`
 FOLLOWED = frozenset(P + m for m in (
@@ -33,10 +40,16 @@ FOLLOWED = frozenset(P + m for m in (
     'AccelerationOverLifetime', 'Size', 'Size_Seeded', 'SizeMultiplyLife', 'SizeScale', 'Color', 'Color_Seeded',
     'ColorOverLife', 'ColorScaleOverLife', 'Rotation', 'Rotation_Seeded', 'RotationRate', 'RotationRateMultiplyLife',
     'SubUV', 'MeshRotation', 'MeshRotationRate', 'MeshRotationRateMultiplyLife', 'MeshRotationRateOverLife',
-    'KillHeight'))
+    'KillHeight', 'ParameterDynamic', 'ParameterDynamic_Seeded'))
 # modules that change nothing the drawing shows (they feed the material or sort the particles): not named as ignored
-SILENT = frozenset(P + m for m in ('ParameterDynamic', 'ParameterDynamicModulator', 'CameraOffset', 'OrientationAxisLock',
+SILENT = frozenset(P + m for m in ('ParameterDynamicModulator', 'CameraOffset', 'OrientationAxisLock',
                                    'MeshMaterial', 'SourceMovement', 'Required', 'Spawn'))
+# The particle vertex factories (shader_slice.STREAMS): a sprite emitter that steps through sub-images (an
+# interpolation other than none) draws with a SubUV one, one with a dynamic parameter module with a DynamicParameter
+# one; a material's shaders for the others draw it the same, only their streams are named otherwise
+SPRITE_FACTORIES = ('FParticleVertexFactory', 'FParticleSubUVVertexFactory', 'FParticleDynamicParameterVertexFactory',
+                    'FParticleSubUVDynamicParameterVertexFactory')
+MESH_FACTORIES = ('FLocalVertexFactory',)
 HOUSEKEEPING = frozenset(('LODValidity', 'bSpawnModule', 'bUpdateModule', 'bFinalUpdateModule', 'bCurvesAsColor',
                           'b3DDrawMode', 'bSupported3DDrawMode', 'bEnabled', 'bEditable', 'ModuleEditorColor',
                           'LODDuplicate', 'bSupportsRandomSeed', 'bRequiresLoopingNotification', 'RandomSeedInfo',
@@ -140,9 +153,42 @@ def plain(value):
     return None
 
 
+def dynamic_params(defaults, p, index):
+    """A dynamic parameter module's four values (its DynamicParams array, the nearest of its chain that saves one), as
+    the page steps them: [dict(value (a distribution, as `distribution` gives one), spawnOnly (worked out once, as the
+    particle is born), emitterTime (read at the emitter's time, not the particle's life), method (EDPV_UserSet, or the
+    particle's speed along an axis or its size: EDPV_VelocityX, ...Y, ...Z, ...Mag), scaleVelocity (that speed times
+    the value))]."""
+    rows, owner = [], p
+    for pkg, j in defaults.chain(index):
+        try:
+            item = pkg.properties(j)[0].get(('DynamicParams', 0))
+            if item is not None:
+                rows, owner = pkg.structs(item['value']), pkg
+                break
+        except (FormatError, ValueError, IndexError, struct.error, TypeError):
+            continue
+    out = []
+    for row in rows[:4]:
+        def get(key, zero):
+            return row.get((key, 0), {}).get('value', zero)
+        fields = struct_fields(owner, get('ParamValue', b''))
+        d = fields.get('Distribution') or 0
+        value = None
+        if owner is p and isinstance(d, int) and d > 0 and p.cls(d) in PARAMETER_DISTRIBUTIONS:
+            value = parameter(defaults, p, d, PARAMETER_DISTRIBUTIONS[p.cls(d)])
+        if value is None:
+            kept = p.cls(d) if owner is p and isinstance(d, int) and d > 0 else None
+            value = table(fields, False) or dict(unread='kept as %s' % kept if kept else 'table not read')
+        out.append(dict(value=value, spawnOnly=bool(get('bSpawnTimeOnly', False)),
+                        emitterTime=bool(get('bUseEmitterTime', False)), method=str(get('ValueMethod', 'EDPV_UserSet')),
+                        scaleVelocity=bool(get('bScaleVelocityByParamValue', False))))
+    return out
+
+
 def module_record(defaults, p, index):
     """A followed module: dict(cls (without 'ParticleModule'), and each of its properties: a distribution, a number,
-    a flag, a name or a vector)."""
+    a flag, a name or a vector; a dynamic parameter module's four values as `dynamic_params` reads them)."""
     record = dict(cls=p.cls(index)[len(P):])
     for key, (pkg, item) in sorted(merged(defaults, p, index).items()):
         if key in HOUSEKEEPING:
@@ -153,6 +199,8 @@ def module_record(defaults, p, index):
             value = plain(item['value'])
         if value is not None:
             record[key] = value
+    if record['cls'].startswith('ParameterDynamic'):
+        record['DynamicParams'] = dynamic_params(defaults, p, index)
     return record
 
 
@@ -375,6 +423,7 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures):
         if not key:
             return None, 'its mesh could not be read'
         draw.update(mesh=key, materials=materials)
+        sections = [override] * len(own) if override else list(own)
         # what it is drawn with: the emitter's material where it overrides, else the mesh's own first
         material = override or next((m for m in own if m > 0), 0)
     chain = material_chain(p, material)
@@ -443,7 +492,26 @@ def emitter_draw(p, defaults, lod, exporter, compiled_textures):
     silent = not bursts and 'entries' in rate and not any(any(e) for e in rate['entries'])
     if silent:
         return None, 'another emitter\'s event starts it' if any(i.startswith('EventReceiver') for i in ignored) else 'it spawns nothing'
+    # its material by its program (draw version 6), where the exporter makes programs and one can be made
+    make = getattr(exporter, 'particle_program', None)
+    if make and kind == 'sprite' and material > 0:
+        program = make(material, sprite_factories(draw))
+        if program:
+            draw['program'] = program
+    elif make and kind == 'mesh':
+        programs = [make(m, MESH_FACTORIES) if m > 0 else None for m in sections]
+        if any(programs):
+            draw['programs'] = programs
     return draw, None
+
+
+def sprite_factories(draw):
+    """The particle vertex factories whose shaders draw a sprite emitter's material, the one it draws with first, then
+    those with its dynamic parameter or not as it has it, then the rest."""
+    sub = draw['subImages'] != [1, 1] and draw['interp'] != 'PSUVIM_None'
+    dynamic = any(m['cls'].startswith('ParameterDynamic') for m in draw['modules'])
+    own = 'FParticle%s%sVertexFactory' % ('SubUV' if sub else '', 'DynamicParameter' if dynamic else '')
+    return sorted(SPRITE_FACTORIES, key=lambda f: (f != own, ('DynamicParameter' in f) != dynamic))
 
 
 def attach(p, defaults, systems, exporter, compiled_textures, rules=None, warn=None):

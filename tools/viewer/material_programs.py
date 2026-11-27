@@ -88,11 +88,13 @@ def gives_colour(prog):
     return 'diffuse' in prog['outputs'] or bool(prog.get('unlit') and 'glow' not in prog['refused'])
 
 
-def program(exporter, index, chain, record, textures):
+def program(exporter, index, chain, record, textures, factory=shader_slice.FACTORY, particle=False):
     """The material's program (shader_slice's form) with each texture it samples exported (`texture`, its export
     key, and `srgb`), or None: no shader cache, no shader map, or its colour not sliced, each said once in the
     export's diagnostics. `textures` is the material's texture parameters as the exporter resolved them (name to
-    texture object), its defaults included."""
+    texture object), its defaults included. `factory` and `particle`: a particle's material, sliced from the
+    shaders of the vertex factory its emitter draws with (shader_slice.slice_material); a texture the page gives
+    itself (the scene's depth) is named, not exported."""
     if exporter.programs is None or not chain:
         return None
     p = exporter.p
@@ -107,12 +109,20 @@ def program(exporter, index, chain, record, textures):
             raise shader_slice.Refused('unmatched', 'no shader map of %s %s' % (
                 shader_cache.guid_text(base), ', '.join('%s=%s' % (n, v) for n, v, _ in switches) or 'with no switches'))
         values = {'vectors': record.get('vectors') or {}, 'scalars': record.get('scalars') or {}}
-        prog = shader_slice.slice_material(cache, smap, values, translucent=record.get('blend') in SEE_THROUGH)
+        if not isinstance(factory, str):
+            # (the first of the factories asked for that the map has shaders for: a particle material's part is the
+            # same for each, only its streams differ, and those the slice names by the factory it reads)
+            have = cache.shader_refs(smap)
+            factory = next((f for f in factory if f in have), factory[0])
+        prog = shader_slice.slice_material(cache, smap, values, translucent=record.get('blend') in SEE_THROUGH,
+                                           factory=factory, particle=particle)
         if not gives_colour(prog):
             raise shader_slice.Refused('colour', prog['refused'].get('diffuse') or prog['refused'].get('glow')
                                        or 'not sliced')
         defaults = materials.resource_textures(p, owner)
         for t in prog['textures'].values():
+            if t.get('engine'):
+                continue
             source = textures.get(t['parameter']) if t.get('parameter') else None
             if not (isinstance(source, int) and source > 0) and t.get('index') is not None and t['index'] < len(defaults):
                 source = defaults[t['index']]

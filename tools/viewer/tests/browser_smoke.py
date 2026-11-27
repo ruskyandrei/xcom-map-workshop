@@ -4264,6 +4264,10 @@ def check_likeness(page):
         page.evaluate('id => viewer.select(id)', held); return None
     assert now['effects'] >= len(can), now      # (seen whole from afar, a large map's are too small to step)
     assert page.locator('#likenessToggle').is_checked()
+    # (export 46: an emitter whose material has a program is drawn by it once its textures are in, game-likeness plan E1;
+    # ?programs=off or =pieces draws them by their textures' roles)
+    if page.evaluate("viewer.data.exporterVersion >= 46 && !/programs=(off|pieces)/.test(location.search)"):
+        page.wait_for_function('ids => ids.some(id => (viewer.likenessOf(id) ?? []).some(e => e.program && e.shown))', arg=can, timeout=60000)
 
     def frame_time():
         return page.evaluate("""() => new Promise(done => { let n = 0, t0 = performance.now(); const tick = () => { if (++n === 60) done((performance.now() - t0) / 60); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); })""")

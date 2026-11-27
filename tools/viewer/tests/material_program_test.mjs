@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
-import { constantAt, evaluateUniform, hash, inputsRead, programFor, programGlsl, runProgram } from '../web/material_program.js';
+import { PARTICLE_VARYINGS, constantAt, evaluateUniform, hash, inputsRead, programFor, programGlsl, runProgram } from '../web/material_program.js';
 
 const here = path.dirname(url.fileURLToPath(import.meta.url));
 const cases = JSON.parse(fs.readFileSync(path.join(here, 'material_program_cases.json'), 'utf8'));
@@ -66,4 +66,59 @@ for (const c of moving.cases) {
 }
 for (const c of moving.constants) assert.deepEqual(constantAt(c.record, c.values, c.time), c.value, c.name);
 assert.throws(() => evaluateUniform({ kind: 'TextureSample' }, {}, 0), /TextureSample/);
+
+// a particle's program (E1): its colour, dynamic parameter, sub-image blend and clip position read from the
+// likeness's varyings, and a soft edge's read of the scene's depth (SceneColorTexture's alpha, 1 / the distance)
+// turned into the distance by the ratio (-1, 1), less the particle's own depth, over its fade distance
+const soft = {
+  version: 1, outputs: { glow: { r: 'r1', m: 'xyz' }, opacity: { r: 'r0', m: 'z' } },
+  inputs: { i0: [{ kind: 'uv', channel: 0, component: 0, scale: 1, bias: 0 }, { kind: 'uv', channel: 0, component: 1, scale: 1, bias: 0 }, null, null],
+            i1: [0, 1, 2, 3].map(component => ({ kind: 'particleColor', component, scale: 1, bias: 0 })),
+            i2: [null, null, null, { kind: 'dynamic', component: 3, scale: 1, bias: 0 }],
+            i3: [0, 1, 2, 3].map(component => ({ kind: 'clipPosition', component })),
+            i4: [{ kind: 'subImageLerp', component: 0, scale: 1, bias: 0 }, null, null, null] },
+  constants: { k0: { value: [0.5, 0.5, 0.5, 0.5], engine: 'screenPositionScaleBias' }, k1: { value: [-1, 1, 0, 0], engine: 'minZMaxZRatio' },
+               k2: { value: [-1, 0, 0, 0] } },
+  textures: { t0: { parameter: 'Smoke', index: 0 }, t1: { engine: 'sceneDepth' } },
+  code: [
+    { op: 'texld', d: 'r1', m: 'xyzw', s: [{ r: 'i0', w: 'xyzw' }, { r: 't0', w: 'xyzw' }] },
+    { op: 'mul', d: 'r1', m: 'xyz', s: [{ r: 'r1', w: 'xyzw' }, { r: 'i1', w: 'xyzw' }] },
+    { op: 'add', d: 'r1', m: 'x', s: [{ r: 'r1', w: 'xxxx' }, { r: 'i4', w: 'xxxx' }] },
+    { op: 'rcp', d: 'r0', m: 'x', s: [{ r: 'i3', w: 'wwww' }] },
+    { op: 'mul', d: 'r0', m: 'xy', s: [{ r: 'r0', w: 'xxxx' }, { r: 'i3', w: 'xyxx' }] },
+    { op: 'mad', d: 'r2', m: 'xy', s: [{ r: 'r0', w: 'xyxx' }, { r: 'k0', w: 'xyxx' }, { r: 'k0', w: 'wzxx' }] },
+    { op: 'mov', d: 'r2', m: 'zw', s: [{ r: 'k2', w: 'yyyy' }] },
+    { op: 'texld', d: 'r3', m: 'xyzw', s: [{ r: 'r2', w: 'xyzw' }, { r: 't1', w: 'xyzw' }], texld: 'lod' },
+    { op: 'add', d: 'r0', m: 'z', s: [{ r: 'r3', w: 'wwww' }, { r: 'k1', w: 'yyyy' }] },
+    { op: 'add', d: 'r0', m: 'z', s: [{ r: 'r0', w: 'zzzz' }, { r: 'k2', w: 'xxxx' }] },
+    { op: 'rcp', d: 'r0', m: 'z', s: [{ r: 'r0', w: 'zzzz' }] },
+    { op: 'mad', d: 'r0', m: 'z', s: [{ r: 'k1', w: 'xxxx', n: 1 }, { r: 'r0', w: 'zzzz' }, { r: 'i3', w: 'wwww', n: 1 }] },
+    { op: 'rcp', d: 'r0', m: 'w', s: [{ r: 'i2', w: 'wwww' }] },
+    { op: 'mul', d: 'r0', m: 'z', s: [{ r: 'r0', w: 'zzzz' }, { r: 'r0', w: 'wwww' }], sat: 1 },
+    { op: 'mul', d: 'r0', m: 'z', s: [{ r: 'r0', w: 'zzzz' }, { r: 'i1', w: 'wwww' }] },
+  ],
+};
+{
+  const read = inputsRead(soft);
+  for (const kind of Object.keys(PARTICLE_VARYINGS)) assert.equal(read[kind], true, kind);
+  const glsl = programGlsl(soft);
+  // the varyings declared in both halves, the depth read by the shader's own function (a default where it has none),
+  // the engine texture no sampler, the read at a level a texture read as it is
+  for (const [type, name] of Object.values(PARTICLE_VARYINGS)) assert.match(glsl.fragmentDeclarations, new RegExp(`varying ${type} ${name};`));
+  assert.match(glsl.vertexDeclarations, /varying vec4 vProgParticle;/);
+  assert.match(glsl.fragmentBody, /progSceneDepth\(/);
+  assert.match(glsl.fragmentDeclarations, /#ifndef PROG_SCENE_DEPTH/);
+  assert.deepEqual(glsl.samplers.map(s => s.texture), ['t0']);
+  assert.match(glsl.fragmentBody, /vProgSubLerp/);
+  // on numbers: a grey texel times the particle's colour, red lifted by the blend; 600 units behind, at 100 from
+  // the camera, a fade distance of 250: (600 - 100) / 250, saturated, times the particle's alpha 0.5
+  const out = runProgram(soft, { uv0: [0.25, 0.75], particleColor: [0.5, 0.25, 1, 0.5], dynamic: [1, 1, 1, 250],
+                                 clipPosition: [10, 20, 90, 100], subImageLerp: 0.2 },
+                         { t0: () => [0.4, 0.4, 0.4, 1], t1: () => [0, 0, 0, 1 / 600] });
+  out.glow.forEach((v, k) => assert.ok(Math.abs(v - [0.4, 0.1, 0.4][k]) < 1e-6, `glow ${out.glow}`));
+  assert.ok(Math.abs(out.opacity[0] - 0.5) < 1e-6, `opacity ${out.opacity}`);
+  const near = runProgram(soft, { uv0: [0, 0], particleColor: [1, 1, 1, 1], dynamic: [1, 1, 1, 250], clipPosition: [0, 0, 0, 100], subImageLerp: 0 },
+                          { t0: () => [1, 1, 1, 1], t1: () => [0, 0, 0, 1 / 150] });
+  assert.ok(Math.abs(near.opacity[0] - 0.2) < 1e-6, `a wall 50 units behind fades it to a fifth: ${near.opacity}`);
+}
 console.log(`material programs: ${cases.length} cases agree with shader_eval.py, ${moving.cases.length} moving uniforms with shader_slice.py`);

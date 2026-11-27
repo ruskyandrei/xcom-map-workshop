@@ -194,4 +194,36 @@ const steam = {
 assert.deepEqual(parametersOf({ parameters: [{ name: 'Color', type: 'PSPT_Color', vector: [0.12, 0.18, 0.1] }] }), { Color: [0.12, 0.18, 0.1] });
 assert.deepEqual(parametersOf({ parameters: [{ name: 'Color', type: 'PSPT_Color', colour: [1, 0, 0, 1] }] }), { Color: [1, 0, 0] });
 
+// --- the dynamic parameter (E1: a program reads it): 1 each with no module; a table at the particle's life, worked
+// out once where it says so, the emitter's time where it says so, a speed along an axis times its value
+{
+  const plain = makeEmitter({ kind: 'sprite', rate: constant(10), duration: 1, loops: 0, delay: 0, modules: [{ cls: 'Lifetime', Lifetime: constant(2) }] }, { seed: 3 });
+  plain.step(0.5);
+  assert.ok(plain.count > 0);
+  assert.deepEqual([...plain.dynamic.subarray(0, 4)], [1, 1, 1, 1]);
+  const dyn = { cls: 'ParameterDynamic', DynamicParams: [
+    { value: curve([0, 10]), spawnOnly: false, emitterTime: false, method: 'EDPV_UserSet', scaleVelocity: false },
+    { value: curve([0, 10]), spawnOnly: true, emitterTime: false, method: 'EDPV_UserSet', scaleVelocity: false },
+    { value: constant(2), spawnOnly: false, emitterTime: false, method: 'EDPV_VelocityZ', scaleVelocity: true },
+    { value: constant(250), spawnOnly: false, emitterTime: false, method: 'EDPV_UserSet', scaleVelocity: false },
+  ] };
+  const sim = makeEmitter({ kind: 'sprite', rate: constant(0), bursts: [{ count: 1, countLow: -1, time: 0 }], duration: 9, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(2) }, { cls: 'Velocity', StartVelocity: constant(0, 0, 30) }, dyn] }, { seed: 4, raw: true });
+  sim.step(0.01); sim.step(0.99);
+  assert.equal(sim.count, 1);
+  near(sim.dynamic[0], 5, 0.1);        // half its life: half of 10
+  near(sim.dynamic[1], 0, 0.1);        // worked out as it was born
+  near(sim.dynamic[2], 60);            // its speed up, 30, times 2
+  near(sim.dynamic[3], 250);
+}
+// --- a raw colour: the channels that carry numbers to the material stay as the game gives them (a program reads them)
+{
+  const fire = { kind: 'sprite', rate: constant(20), duration: 1, loops: 0, delay: 0,
+    modules: [{ cls: 'Lifetime', Lifetime: constant(2) }, { cls: 'Color', StartColor: constant(2, 40, 30), StartAlpha: constant(1) }] };
+  const raw = makeEmitter(fire, { seed: 5, raw: true }), made = makeEmitter(fire, { seed: 5 });
+  raw.step(0.5); made.step(0.5);
+  assert.deepEqual([...raw.colour.subarray(0, 3)].map(v => Math.round(v)), [2, 40, 30]);
+  assert.ok(made.colour[1] < 3, 'without raw, a data channel is drawn as the others\' brightness');
+}
+
 console.log('effects_sim: ok');

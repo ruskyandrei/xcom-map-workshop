@@ -118,10 +118,13 @@ import settings
 #     levels' own pieces only (a piece of another map is lit live where it is put)
 # 45: `sunIrrelevant` in place of `sunShadow` on a lightmapped piece whose IrrelevantLights hold the dominant light
 #     (wholly in its shadow: the game draws none of the sun on it; B3, F-184)
+# 46: effects drawn by their materials' programs (game-likeness plan, E1; effects_draw draw version 6): a sprite
+#     emitter's `program`, sliced from its material's shaders for the particle vertex factory it draws with, and a mesh
+#     emitter's `programs`, one a drawn section; the dynamic parameter module followed (`DynamicParams`)
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 45
+EXPORT_VERSION = 46
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -258,6 +261,7 @@ class Exporter:
         self.kismet = {}
         self.breaks = {}
         self.meshes, self.materials, self.textures = {}, {}, {}
+        self.particle_programs = {}     # (material, vertex factories) -> its particle program (particle_program)
         # block-compressed textures as DDS files with their mips, as the game stores them (texture.export_texture)
         self.texture_container = 'auto'
         self.diagnostics = []
@@ -325,6 +329,24 @@ class Exporter:
         drawn = [s for s in self.meshes[mesh_key]["sections"] if s["count"]]
         mats = [self.section_material(override if override > 0 else s["material"], mi) for s in drawn]
         return mesh_key, mats, [s["material"] for s in drawn]
+
+    def particle_program(self, index, factories):
+        """A particle material's program (game-likeness plan, E1): material_programs.program on the shaders of the
+        first of `factories` (vertex factories) its shader map has, sliced with the particle's own inputs; made once a
+        material and list, None where it can't be made (the reason in the diagnostics). Not a piece's material: the
+        material itself is not exported."""
+        key = (index, tuple(factories))
+        if key not in self.particle_programs:
+            chain = effects_draw.material_chain(self.p, index)
+            textures, scalars, vectors, _, _, blend, _ = self.parameters(chain)
+            program = material_programs.program(self, index, chain, dict(vectors=vectors, scalars=scalars, blend=blend),
+                                                textures, factory=tuple(factories), particle=True)
+            if program and any('vector' in c or 'scalars' in c for c in program['constants'].values()):
+                # (what a constant that moves with time is worked out from each frame: the material's own values,
+                # which a piece's material record carries and a particle's has no record for)
+                program['values'] = dict(vectors=vectors, scalars=scalars)
+            self.particle_programs[key] = program
+        return self.particle_programs[key]
 
     def mesh_collision(self, mesh):
         """What the game's traces meet of a mesh: dict(bodySetup, simpleLine, simpleBox) for a static one (bodySetup

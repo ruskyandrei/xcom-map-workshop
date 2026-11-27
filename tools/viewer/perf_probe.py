@@ -9,7 +9,8 @@ nothing here has a pass mark. The numbers go into the change's ledger entry.
 It starts a viewer on a test port (8790 to 8799) with scratch folders for projects, prefabs and builds, opens the
 page in Edge (Playwright), and prints:
 
-- the map: how long it takes to open, a frame with and without the sun's shadow pass, the draw calls, the Game look's
+- the map: how long it takes to open, a frame with and without the sun's shadow pass (the effects' likenesses stepped
+  three seconds first, their particles counted), the draw calls, the Game look's
   frame with its chain and without (and, where the page has the baked light's spike, ?baked=on, both again with the
   baked light: the bar of the game-likeness plan's B0), the shader programs, the textures and their memory on the
   GPU (worked out from what they hold), a pick under the cursor, selecting --pieces pieces, an edit event with them
@@ -63,6 +64,9 @@ MAP = """async ([pieces, camera, frames]) => {
     window.__step = null;
   };
   const frame = shadow => () => { v.renderer.shadowMap.needsUpdate = shadow; v.renderer.render(v.world, v.camera); gl.finish(); };
+  // the effects' likenesses stepped as frames would step them (a headless page draws none of its own), so that a
+  // frame draws their particles
+  if (v.stepLikenesses) { for (let k = 0; k < 90; k++) v.stepLikenesses(1 / 30); out['effect particles drawn'] = v.likenessState().particles; }
   frame(true)();
   await timed('a frame with the shadow pass (ms)', frame(true), frames);
   await timed('a frame without it (ms)', frame(false), frames);

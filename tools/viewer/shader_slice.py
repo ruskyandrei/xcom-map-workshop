@@ -29,6 +29,13 @@ as today and says why.
   slice_material(cache, shader_map, values) -> program dict (PROGRAM_VERSION), or Refused
   evaluate_uniform(expr, values, time=0) -> [r, g, b, a]
 
+A particle's material (game-likeness plan, track E, stage E1) is sliced the same way from its shaders for the
+particle vertex factory its emitter draws with (`slice_material(..., factory=, particle=True)`): only the base pass
+(colour, glow, cut-out, opacity), its streams named for what the particle gives (its colour, its sub-images' UVs and
+blend, its dynamic parameter: `STREAMS`), and the screen's own inputs a soft particle reads: its clip-space position
+and the scene's depth (`SceneColorTexture`'s alpha, and `MinZ_MaxZRatio`, given so that the shader's sum is the
+depth itself).
+
 The program's form is written down in research/editor-contracts.md ("A material's program").
 """
 from pathlib import Path
@@ -57,6 +64,26 @@ ENGINE = {
     'TwoSidedSign': ('twoSidedSign', [1, 1, 1, 1]),
     'ScreenPositionScaleBias': ('screenPositionScaleBias', [0.5, -0.5, 0.5, 0.5]),
 }
+# What a particle's shaders read of the screen (a soft particle's fade against what is behind it): the scene's depth
+# is SceneColorTexture's alpha in UE3, turned into a distance by MinZ_MaxZRatio; with the ratio (-1, 1) that sum is
+# 1 / the alpha, so the page gives the alpha as 1 / the depth behind (the offline value: nothing behind, no fade)
+SCREEN_ENGINE = {'MinZ_MaxZRatio': ('minZMaxZRatio', [-1.0, 1.0, 0.0, 0.0])}
+SCREEN_TEXTURES = {'SceneColorTexture': 'sceneDepth'}
+# A particle vertex factory's streams (UE3's ParticleSpriteVertexFactory, ParticleSubUVVertexFactory and their
+# dynamic-parameter and beam kin, read off their vertex shaders): texcoord0 is the corner's UV in the first sub-image
+# (xy) and in the second (zw); the rest by name. A mesh particle draws with the mesh's own (local) vertex factory.
+STREAMS = {
+    'FParticleVertexFactory': {'texcoord1': 'particleColor'},
+    'FParticleSubUVVertexFactory': {'texcoord1': 'particleColor', 'texcoord2': 'subImageLerp'},
+    'FParticleDynamicParameterVertexFactory': {'texcoord1': 'particleColor', 'texcoord3': 'dynamic'},
+    'FParticleSubUVDynamicParameterVertexFactory': {'texcoord1': 'particleColor', 'texcoord2': 'subImageLerp',
+                                                    'texcoord3': 'dynamic'},
+    'FParticleBeamTrailVertexFactory': {'texcoord1': 'particleColor'},
+    'FParticleBeamTrailDynamicParameterVertexFactory': {'texcoord1': 'particleColor', 'texcoord2': 'dynamic'},
+}
+# A mesh particle's own values reach its material as vector parameters the engine sets each particle (UE3's mesh
+# emitter): a particle slice reads them as the particle's inputs
+MESH_PARTICLE = {'MeshEmitterVertexColor': 'particleColor', 'MeshEmitterDynamicParameter': 'dynamic'}
 # The vertex shader's height fog constants: an interpolant made from them is the fog
 FOG_CONSTANTS = {'FogInScattering', 'SharedFogParameter0', 'SharedFogParameter1', 'SharedFogParameter2',
                  'SharedFogParameter3', 'FogMaxHeight', 'bUseExponentialHeightFog', 'FogDistanceScale',
@@ -181,8 +208,8 @@ def reads(ins, comps):
             out += [(s.reg, s.swizzle[k]) for k in range(3)]
     elif op == 'sincos':
         out.append((srcs[0].reg, srcs[0].swizzle[0]))
-    elif op == 'texld':
-        coords = (0, 1, 3) if (ins.project or ins.bias) else (0, 1)
+    elif op in ('texld', 'texldl'):
+        coords = (0, 1, 3) if (ins.project or ins.bias or op == 'texldl') else (0, 1)
         out += [(srcs[0].reg, srcs[0].swizzle[k]) for k in coords]
         out.append((srcs[1].reg, 0))
     else:
@@ -217,10 +244,11 @@ class Flow:
         return self.shader.constant_at(sets.get(reg.kind, ''), reg.index)
 
 
-def backward(flow, end, wanted):
+def backward(flow, end, wanted, lod=False):
     """The instructions (indices, in order) that make `wanted` ({(register, component)}) as they stand before
     instruction `end`, and the registers and components read from outside them (the leaves). Refused on a branch,
-    a predicate or an instruction not supported in the way."""
+    a predicate or an instruction not supported in the way; `lod`: a texture read at a level (`texldl`, a particle's
+    read of the scene's depth) is followed too."""
     needed = set(wanted)
     kept = []
     for i in range(end - 1, -1, -1):
@@ -235,7 +263,7 @@ def backward(flow, end, wanted):
             raise Refused('branch', 'the slice runs through a branch or loop')
         if ins.predicate is not None:
             raise Refused('predicate')
-        if ins.op not in SUPPORTED:
+        if ins.op not in SUPPORTED and not (lod and ins.op == 'texldl'):
             raise Refused('instruction', ins.op)
         if ins.op == 'sincos':
             hit = [c for c in hit]
@@ -279,6 +307,16 @@ class Complex:
         self.uses = frozenset(uses)
 
 
+class Clip(Complex):
+    """A copy of the clip-space position the vertex shader writes (its `component`), as an interpolant: what the
+    pixel shader reads for its place on the screen."""
+    __slots__ = ('component',)
+
+    def __init__(self, component, uses=()):
+        super().__init__(uses)
+        self.component = component
+
+
 def _join(*values):
     uses = set()
     for v in values:
@@ -289,8 +327,11 @@ def _join(*values):
     return Complex(uses)
 
 
-def vertex_outputs(vs):
-    """{(usage, usage index, component): Affine or Complex} of a vertex shader's outputs, by running it on symbols."""
+def vertex_outputs(vs, literal_abs=False):
+    """{(usage, usage index, component): Affine or Complex} of a vertex shader's outputs, by running it on symbols.
+    An output that is the position's own value (a copy of the register the position is written from) is a `Clip`.
+    `literal_abs`: a literal read through abs() is the literal's size (a particle slice's: the local factory's
+    see-through base pass reads its UVs times abs(1, 0); a piece's slice still refuses it)."""
     flow = Flow(vs)
     state = {}
 
@@ -312,6 +353,8 @@ def vertex_outputs(vs):
         v = value(s.reg, s.swizzle[comp])
         if s.mod in ('neg',):
             return v.scaled(-1.0) if isinstance(v, Affine) else v
+        if literal_abs and s.mod in ('abs', 'abs_neg') and isinstance(v, Affine) and v.constant_value() is not None:
+            return Affine(const=-abs(v.const) if s.mod == 'abs_neg' else abs(v.const))
         if s.mod:
             return v if isinstance(v, Complex) else _join(v)
         return v
@@ -371,6 +414,12 @@ def vertex_outputs(vs):
             for c in range(4):
                 if (reg, c) in state:
                     out[(dcl.usage, dcl.usage_index, c)] = state[(reg, c)]
+    position = [out.get(('position', 0, c)) for c in range(4)]
+    for key, v in out.items():
+        if key[0] != 'position' and isinstance(v, Complex):
+            same = next((c for c, w in enumerate(position) if w is v), None)
+            if same is not None:
+                out[key] = Clip(same, v.uses)
     return out
 
 
@@ -415,7 +464,8 @@ def numeric_kinds(vs, samples=6, seed=845):
     for i, ins in enumerate(flow.code):
         if ins.dest is None or ins.op in FLOW:
             continue
-        unknown = flow.depth[i] > 0 or ins.predicate is not None or ins.op not in SUPPORTED or ins.op == 'texld'
+        unknown = (flow.depth[i] > 0 or ins.predicate is not None or ins.op not in SUPPORTED
+                   or ins.op in ('texld', 'texldl'))
         if unknown:
             dest = regs.setdefault(ins.dest.reg, np.zeros((samples, 4)))
             for c in ins.dest.mask:
@@ -463,6 +513,13 @@ def numeric_kinds(vs, samples=6, seed=845):
                 cl = sum(inverse[k][:, :3] * rel[:, k:k + 1] for k in range(3))
                 for c, axis in enumerate((x, y, z[:, :3])):
                     candidates[('cameraVector', c)] = (axis * cl).sum(axis=1)
+    # the clip-space position (what the shader writes as its position, copied to an interpolant for the screen's
+    # place: a soft particle's read of the depth behind it), last, so that it names only what nothing else does
+    for reg, dcl in flow.inputs.items():
+        if reg.kind == 'o' and dcl.usage == 'position' and not dcl.usage_index and reg in regs:
+            for c in range(4):
+                if not np.isnan(regs[reg][:, c]).any():
+                    candidates[('clipPosition', c)] = regs[reg][:, c].copy()
     out = {}
     for reg, dcl in flow.inputs.items():
         if reg.kind != 'o' or reg not in regs:
@@ -481,10 +538,26 @@ def numeric_kinds(vs, samples=6, seed=845):
     return out
 
 
-def pixel_input(ps_dcl, comp, vs_out, part, kinds=None):
-    """What a pixel shader input's component is, as a program input source: a UV channel's component (times a
-    constant, plus one), the vertex colour's, a constant, or one of numeric_kinds' engine values (`kinds`). Refused
-    otherwise."""
+def stream(factory, usage, index, comp):
+    """A vertex stream's component as a program input source (before its scale and bias), or None: a mesh's UV
+    channel or vertex colour (the local vertex factory), or what a particle factory's stream carries (`STREAMS`)."""
+    named = STREAMS.get(factory)
+    if named is None:
+        if usage == 'texcoord':
+            return {'kind': 'uv', 'channel': index, 'component': comp}
+        if usage == 'color' and index == 1:
+            return {'kind': 'color', 'component': comp}
+        return None
+    if usage == 'texcoord' and not index:
+        return {'kind': 'uv', 'channel': comp // 2, 'component': comp % 2}
+    kind = named.get('%s%s' % (usage, index or ''))
+    return {'kind': kind, 'component': comp} if kind else None
+
+
+def pixel_input(ps_dcl, comp, vs_out, part, kinds=None, factory=FACTORY, screen=False):
+    """What a pixel shader input's component is, as a program input source: a stream's component (times a constant,
+    plus one: `stream`), a constant, or one of numeric_kinds' engine values (`kinds`; the clip-space position only
+    where the slice takes the screen's inputs, `screen`). Refused otherwise."""
     key = (ps_dcl.usage, ps_dcl.usage_index, comp)
     v = vs_out.get(key)
     if v is None:
@@ -495,14 +568,19 @@ def pixel_input(ps_dcl, comp, vs_out, part, kinds=None):
             return {'kind': 'const', 'value': v.const}
         if len(v.terms) == 1:
             (usage, index, c), k = next(iter(v.terms.items()))
-            if usage == 'texcoord':
-                return {'kind': 'uv', 'channel': index, 'component': c, 'scale': k, 'bias': v.const}
-            if usage == 'color' and index == 1:
-                return {'kind': 'color', 'component': c, 'scale': k, 'bias': v.const}
+            source = stream(factory, usage, index, c)
+            if source is not None:
+                return dict(source, scale=k, bias=v.const)
         raise Refused('input', '%s%s.%s mixes %s' % (ps_dcl.usage, ps_dcl.usage_index or '', COMPONENTS[comp],
                                                      sorted('%s%s' % (t[0], t[1] or '') for t in v.terms)))
+    if screen and isinstance(v, Clip):
+        return {'kind': 'clipPosition', 'component': v.component}
+    if screen and factory in STREAMS and key[:2] == ('texcoord', 6) and comp < 3:
+        # the base pass's slot for the tangent-space vector to the camera (numeric_kinds names it so for the local
+        # factory; a particle factory's tangent frame is the sprite's own, which its relative reads hide from the run)
+        return {'kind': 'cameraVector', 'component': comp}
     known = (kinds or {}).get(key)
-    if known is not None:
+    if known is not None and (screen or known['kind'] != 'clipPosition'):
         return dict(known)
     names = {u[1] for u in v.uses if u[0] == 'constant'}
     if names & FOG_CONSTANTS:
@@ -519,9 +597,11 @@ def pixel_input(ps_dcl, comp, vs_out, part, kinds=None):
 class Part:
     """One pixel shader sliced from its ends: the kept instructions, renamed into the program's namespace."""
 
-    def __init__(self, tag, flow, vs_out, uniforms, values, program, fold=None, kinds=None):
+    def __init__(self, tag, flow, vs_out, uniforms, values, program, fold=None, kinds=None, factory=FACTORY,
+                 screen=False):
         self.tag, self.flow, self.vs_out, self.uniforms = tag, flow, vs_out, uniforms
         self.kinds = kinds or {}
+        self.factory, self.screen = factory, screen     # its streams' meaning; whether it takes the screen's inputs
         self.values, self.program, self.fold = values, program, fold or {}
         self.done = set()
         self.prefix = tag                         # the registers' prefix: the part's tag and the output's letter
@@ -562,7 +642,7 @@ class Part:
                 sources.append(None)
                 continue
             try:
-                sources.append(pixel_input(dcl, c, self.vs_out, self.tag, self.kinds))
+                sources.append(pixel_input(dcl, c, self.vs_out, self.tag, self.kinds, self.factory, self.screen))
             except Refused as why:
                 sources.append({'kind': 'refused', 'why': str(why)})
         return self.program_input(reg.name(), sources)
@@ -583,7 +663,11 @@ class Part:
             exprs = self.uniforms['pixelVectors']
             if n >= len(exprs):
                 raise Refused('constant', '%s past the map\'s list' % name)
-            return self.add_uniform(exprs[n])
+            e = exprs[n]
+            if self.screen and e.kind == 'VectorParameter' and e.fields.get('name') in MESH_PARTICLE:
+                kind = MESH_PARTICLE[e.fields['name']]
+                return self.program_input(kind, [{'kind': kind, 'component': c} for c in range(4)])
+            return self.add_uniform(e)
         if name.startswith('UniformPixelScalars_'):
             n = int(name.rsplit('_', 1)[1]) + offset
             exprs = self.uniforms['pixelScalars']
@@ -596,6 +680,8 @@ class Part:
             return self.add_constant(record)
         if name in ENGINE:
             return self.add_constant({'value': list(ENGINE[name][1]), 'engine': ENGINE[name][0]})
+        if self.screen and name in SCREEN_ENGINE:
+            return self.add_constant({'value': list(SCREEN_ENGINE[name][1]), 'engine': SCREEN_ENGINE[name][0]})
         raise Refused('engine', name)
 
     def add_uniform(self, expr):
@@ -621,18 +707,21 @@ class Part:
         name = entry.name
         if name.startswith('PixelTextureCube_'):
             raise Refused('cube', name)
-        if not name.startswith('PixelTexture2D_'):
+        if self.screen and name in SCREEN_TEXTURES:
+            record = {'engine': SCREEN_TEXTURES[name]}
+        elif not name.startswith('PixelTexture2D_'):
             raise Refused('engine', name)
-        n = int(name.rsplit('_', 1)[1])
-        exprs = self.uniforms['textures2d']
-        if n >= len(exprs):
-            raise Refused('texture', '%s past the map\'s list' % name)
-        e = exprs[n]
-        record = {'index': e.fields.get('index')}
-        if e.kind == 'TextureParameter':
-            record['parameter'] = e.fields['name']
-        elif e.kind != 'Texture':
-            raise Refused('texture', e.kind)
+        else:
+            n = int(name.rsplit('_', 1)[1])
+            exprs = self.uniforms['textures2d']
+            if n >= len(exprs):
+                raise Refused('texture', '%s past the map\'s list' % name)
+            e = exprs[n]
+            record = {'index': e.fields.get('index')}
+            if e.kind == 'TextureParameter':
+                record['parameter'] = e.fields['name']
+            elif e.kind != 'Texture':
+                raise Refused('texture', e.kind)
         textures = self.program['textures']
         for key, have in textures.items():
             if have == record:
@@ -649,16 +738,19 @@ class Part:
                 continue
             self.done.add((self.prefix, i))
             ins = self.flow.code[i]
-            if ins.op == 'texld':
+            if ins.op in ('texld', 'texldl'):
                 dcl = next((d for d in self.flow.shader.declarations() if d.dest.reg == ins.srcs[1].reg), None)
                 if dcl is not None and dcl.sampler != '2d':
                     raise Refused('cube' if dcl.sampler == 'cube' else 'texture', 'a %s texture' % dcl.sampler)
-            row = {'op': ins.op, 'd': self.name(ins.dest.reg), 'm': ins.dest.mask,
+            # (a read at a level of detail is a texld row read at that level, `texld: lod`)
+            row = {'op': 'texld' if ins.op == 'texldl' else ins.op, 'd': self.name(ins.dest.reg), 'm': ins.dest.mask,
                    's': [self.source(s) for s in ins.srcs]}
             if ins.dest.sat:
                 row['sat'] = 1
             if ins.op == 'texld' and (ins.project or ins.bias):
                 row['texld'] = 'project' if ins.project else 'bias'
+            if ins.op == 'texldl':
+                row['texld'] = 'lod'
             code.append(row)
 
     def source(self, s):
@@ -676,7 +768,7 @@ class Part:
         Each output's registers are named apart (`letter`), so that the slices of one shader, written one after
         the other, don't overwrite each other's values."""
         self.prefix = self.tag + letter
-        kept, leaves = backward(self.flow, end, {(reg, c) for c in comps})
+        kept, leaves = backward(self.flow, end, {(reg, c) for c in comps}, lod=self.screen)
         for leaf, c in sorted(leaves, key=lambda rc: (rc[0].kind, rc[0].index, rc[1])):   # (the same reason each run)
             if leaf.kind == 'r':
                 raise Refused('register', '%s.%s read before it is written' % (leaf.name(), COMPONENTS[c]))
@@ -684,7 +776,7 @@ class Part:
                 dcl = self.flow.inputs.get(leaf)
                 if dcl is None:
                     raise Refused('input', 'undeclared %s' % leaf.name())
-                src = pixel_input(dcl, c, self.vs_out, self.tag, self.kinds)
+                src = pixel_input(dcl, c, self.vs_out, self.tag, self.kinds, self.factory, self.screen)
                 if src['kind'] == 'refused':
                     raise Refused('input', src['why'])
         self.emit(kept)                           # (names given in the instructions' order: the same every run)
@@ -743,7 +835,7 @@ def pick(refs, starts, prefer):
     return None
 
 
-_VERTEX = {}       # a vertex shader's outputs worked out once a process, by its ID
+_VERTEX = {}       # a vertex shader's outputs worked out once a process, by its ID and whether a particle's
 BASE_PS = ('TBasePassPixelShaderFNoLightMapPolicyNoSkyLight', 'TBasePassPixelShaderFNoLightMapPolicySkyLight')
 BASE_VS = ('TBasePassVertexShaderFNoLightMapPolicyFNoDensityPolicy',)
 LIGHT_PS = ('TLightPixelShaderFPointLightPolicyFNoStaticShadowingPolicy',)
@@ -754,11 +846,13 @@ LMAP_VS = ('TBasePassVertexShaderFDirectionalLightMapTexturePolicyFNoDensityPoli
 FOW = ('WithoutTranslucentFOW', 'WithTranslucentFOW', '')
 
 
-def slice_material(cache, smap, values, translucent=False, factory=FACTORY):
+def slice_material(cache, smap, values, translucent=False, factory=FACTORY, particle=False):
     """The material's program: {'version', 'shaders', 'inputs', 'constants', 'textures', 'code', 'outputs',
     'refused'}. `values` holds the material's parameter values ({'vectors': {name: [r, g, b, a]}, 'scalars':
     {name: x}}). Each output it can't give is named in 'refused' with its reason; Refused when no shader of the
-    base pass is there or nothing can be given."""
+    base pass is there or nothing can be given. `particle`: a particle's material, from `factory`'s shaders (a sprite
+    emitter's particle factory, or a mesh emitter's local one): the base pass only, the screen's inputs taken
+    (`SCREEN_ENGINE`, `SCREEN_TEXTURES`, the clip-space position)."""
     refs = cache.shader_refs(smap).get(factory)
     if not refs:
         raise Refused('shaders', 'no shaders for %s' % factory)
@@ -769,17 +863,19 @@ def slice_material(cache, smap, values, translucent=False, factory=FACTORY):
     if not base_ps or not base_vs:
         raise Refused('shaders', 'no base pass without a lightmap')
     program['shaders'].update(base=base_ps, baseId=_hex(refs[base_ps]))
+    if particle:
+        program['shaders']['factory'] = factory
     if any(kind.startswith('TDistortion') for kind in refs):
         program['distortion'] = True              # the game draws it in its distortion pass: it bends what is behind
 
     def part(tag, ps_type, vs_type, fold=None):
         ps = cache.shader(refs[ps_type])
         vs_id = refs[vs_type]
-        if vs_id not in _VERTEX:
+        if (vs_id, particle) not in _VERTEX:
             vs = cache.shader(vs_id)
-            _VERTEX[vs_id] = (vertex_outputs(vs), numeric_kinds(vs))
-        vs_out, kinds = _VERTEX[vs_id]
-        return Part(tag, Flow(ps), vs_out, uniforms, values, program, fold, kinds)
+            _VERTEX[(vs_id, particle)] = (vertex_outputs(vs, literal_abs=particle), numeric_kinds(vs))
+        vs_out, kinds = _VERTEX[(vs_id, particle)]
+        return Part(tag, Flow(ps), vs_out, uniforms, values, program, fold, kinds, factory, particle)
 
     def attempt(output, work):
         mark = (len(program['code']), dict(program['inputs']), dict(program['constants']),
@@ -848,6 +944,12 @@ def slice_material(cache, smap, values, translucent=False, factory=FACTORY):
             return o.output(last + 1, o.flow.code[last].dest.reg, [3])
         attempt('opacity', opacity)
 
+    if particle:
+        # (a particle faces the camera: its highlight and its normal map are not drawn)
+        fold(program)
+        if not program['outputs']:
+            raise Refused('nothing', '; '.join('%s %s' % kv for kv in program['refused'].items()))
+        return program
     light_ps, light_vs = pick(refs, LIGHT_PS, ('',)), pick(refs, LIGHT_VS, ('',))
     if light_ps and light_vs:
         program['shaders'].update(light=light_ps, lightId=_hex(refs[light_ps]))

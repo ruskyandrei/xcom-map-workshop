@@ -176,6 +176,131 @@ class MadeUp(unittest.TestCase):
         self.assertNotIn('glow', program['refused'])
 
 
+def particle_vertex_shader():
+    """vs_3_0 of a particle factory with a dynamic parameter: the corner's UV (texcoord0), the particle's colour
+    (texcoord1) and its dynamic parameter (texcoord3) passed through; the position made from the view-projection
+    constants and written both as the position and as texcoord5 (the screen's place)."""
+    w = [0xFFFE0300]
+    w += dcl(0, 0, d('v', 0)) + dcl(5, 0, d('v', 4)) + dcl(5, 1, d('v', 5)) + dcl(5, 3, d('v', 6))
+    w += dcl(5, 0, d('o', 0, 'xy')) + dcl(5, 1, d('o', 1)) + dcl(5, 2, d('o', 2)) + dcl(5, 5, d('o', 3)) + dcl(0, 0, d('o', 4))
+    w += op(5, [d('r', 0), s('c', 0), s('v', 0, 'xxxx')])                     # mul r0, c0, v0.x
+    w += op(4, [d('r', 0), s('c', 1), s('v', 0, 'yyyy'), s('r', 0)])          # mad r0, c1, v0.y, r0
+    w += op(1, [d('o', 0, 'xy'), s('v', 4)]) + op(1, [d('o', 1), s('v', 5)]) + op(1, [d('o', 2), s('v', 6)])
+    w += op(1, [d('o', 3), s('r', 0)]) + op(1, [d('o', 4), s('r', 0)])
+    return code([w[0]] + ctab([('ViewProjectionMatrix', 2, 0, 4)]) + w[1:] + [0x0000FFFF])
+
+
+def soft_particle_shader():
+    """ps_3_0 of an unlit see-through particle: its texture times its colour, and its opacity faded where the scene
+    behind is near (SceneColorTexture's alpha read at a level, MinZ_MaxZRatio, the dynamic parameter's w the fade
+    distance), as UE3's soft particles compile."""
+    w = [0xFFFF0300] + ctab([('ScreenPositionScaleBias', 2, 1, 1), ('MinZ_MaxZRatio', 2, 2, 1),
+                             ('SceneColorTexture', 3, 0, 1), ('PixelTexture2D_0', 3, 1, 1)])
+    w += op(81, [d('c', 5)] + floats(-1, 0, 0, 0))
+    w += dcl(5, 0, d('v', 0, 'xy')) + dcl(5, 1, d('v', 1)) + dcl(5, 2, d('v', 2)) + dcl(5, 5, d('v', 3))
+    w += op(31, [0x80000000 | (2 << 27), d('s', 0)]) + op(31, [0x80000000 | (2 << 27), d('s', 1)])
+    w += op(66, [d('r', 1), s('v', 0), s('s', 1)])                             # texld r1, v0, s1
+    w += op(5, [d('r', 1, 'xyz'), s('r', 1), s('v', 1)])                       # mul r1.xyz, r1, v1
+    w += op(6, [d('r', 0, 'x'), s('v', 3, 'wwww')])                            # rcp r0.x, v3.w
+    w += op(5, [d('r', 0, 'xy'), s('r', 0, 'xxxx'), s('v', 3, 'xyxx')])        # mul r0.xy, r0.x, v3.xy
+    w += op(4, [d('r', 2, 'xy'), s('r', 0, 'xyxx'), s('c', 1, 'xyxx'), s('c', 1, 'wzzw')])
+    w += op(1, [d('r', 2, 'zw'), s('c', 5, 'yyyy')])
+    w += op(95, [d('r', 3), s('r', 2), s('s', 0)])                             # texldl r3, r2, s0
+    w += op(2, [d('r', 0, 'z'), s('r', 3, 'wwww'), s('c', 2, 'yyyy')])         # depth + ratio.y
+    w += op(2, [d('r', 0, 'z'), s('r', 0, 'zzzz'), s('c', 5, 'xxxx')])         # ... - 1
+    w += op(6, [d('r', 0, 'z'), s('r', 0, 'zzzz')])
+    w += op(4, [d('r', 0, 'z'), s('c', 2, 'xxxx', mod=1), s('r', 0, 'zzzz'), s('v', 3, 'wwww', mod=1)])
+    w += op(6, [d('r', 0, 'w'), s('v', 2, 'wwww')])                            # 1 / the fade distance
+    w += op(5, [d('r', 0, 'z', sat=True), s('r', 0, 'zzzz'), s('r', 0, 'wwww')])
+    w += op(5, [d('r', 0, 'z'), s('r', 0, 'zzzz'), s('v', 1, 'wwww')])
+    w += op(1, [d('oC', 0, 'xyz'), s('r', 1)]) + op(1, [d('oC', 0, 'w'), s('r', 0, 'zzzz')])
+    return code(w + [0x0000FFFF])
+
+
+class FakeParticle(Fake):
+    FACTORY = 'FParticleDynamicParameterVertexFactory'
+
+    def __init__(self):
+        self.codes = {b'P' * 16: soft_particle_shader(), b'V' * 16: particle_vertex_shader()}
+
+    def shader_refs(self, m):
+        return {self.FACTORY: {'TBasePassPixelShaderFNoLightMapPolicyNoSkyLightWithTranslucentFOW': b'P' * 16,
+                               'TBasePassVertexShaderFNoLightMapPolicyFNoDensityPolicy': b'V' * 16}}
+
+    def uniforms(self, m):
+        return {'pixelVectors': [], 'pixelScalars': [], 'texturesCube': [], 'vertexVectors': [], 'vertexScalars': [],
+                'textures2d': [shader_cache.Expr('TextureParameter', {'name': 'Smoke', 'index': 0})]}
+
+
+class Particles(unittest.TestCase):
+    """A particle's material (game-likeness plan, E1): its streams named by its vertex factory, the position's copy
+    read as the clip position, the scene's depth as the page gives it, only where the slice is a particle's."""
+
+    def setUp(self):
+        ss._VERTEX.clear()
+
+    def test_a_soft_particle(self):
+        program = ss.slice_material(FakeParticle(), None, {}, translucent=True, factory=FakeParticle.FACTORY, particle=True)
+        self.assertTrue(program['unlit'])
+        self.assertEqual(program['shaders']['factory'], FakeParticle.FACTORY)
+        kinds = {src['kind'] for srcs in program['inputs'].values() for src in srcs if src}
+        self.assertEqual(kinds, {'uv', 'particleColor', 'dynamic', 'clipPosition'})
+        engines = sorted(t.get('engine') or t.get('parameter') for t in program['textures'].values())
+        self.assertEqual(engines, ['Smoke', 'sceneDepth'])
+        self.assertTrue(any(row.get('texld') == 'lod' for row in program['code']))
+        ratio = next(c for c in program['constants'].values() if c.get('engine') == 'minZMaxZRatio')
+        self.assertEqual(ratio['value'], [-1.0, 1.0, 0.0, 0.0])
+        smoke = next(k for k, t in program['textures'].items() if t.get('parameter') == 'Smoke')
+        depth = next(k for k, t in program['textures'].items() if t.get('engine'))
+
+        def opacity(behind, colour=(0.5, 0.25, 1, 0.5)):
+            inputs = {'uv0': np.array([[0.25, 0.75]]), 'particleColor': np.array([colour]),
+                      'dynamic': np.array([[1, 1, 1, 250.0]]), 'clipPosition': np.array([[10, 20, 90, 100.0]])}
+            textures = {smoke: flat((0.4, 0.4, 0.4, 1)), depth: flat((0, 0, 0, 1 / behind))}
+            return shader_eval.run(program, inputs, textures, engine={'screenPositionScaleBias': [0.5, 0.5, 0.5, 0.5]})
+        far = opacity(600)
+        np.testing.assert_allclose(far['glow'][0], [0.2, 0.1, 0.4], rtol=1e-6)
+        np.testing.assert_allclose(far['opacity'][0], [0.5], rtol=1e-6)        # 500 units clear of the fade: whole
+        np.testing.assert_allclose(opacity(150)['opacity'][0], [0.1], rtol=1e-6)    # 50 of 250: a fifth of 0.5
+
+    def test_a_piece_slice_takes_no_screen_input(self):
+        # the same shaders read as a mesh's (the local factory's names, no screen inputs): the depth is refused
+        class AsPiece(FakeParticle):
+            FACTORY = ss.FACTORY
+        program = ss.slice_material(AsPiece(), None, {}, translucent=True)
+        self.assertNotIn('opacity', program['outputs'])
+        self.assertIn('texldl', program['refused']['opacity'])      # (its read at a level, then its engine texture)
+        self.assertEqual({src['kind'] for srcs in program['inputs'].values() for src in srcs if src}, {'uv'})
+
+    def test_a_mesh_particles_own_colour_is_an_input(self):
+        class MeshParticle(Fake):
+            def uniforms(self, m):
+                u = super().uniforms(m)
+                u['pixelVectors'] = [shader_cache.Expr('VectorParameter', {'name': 'MeshEmitterVertexColor', 'default': [1, 1, 1, 1]})]
+                return u
+        body = (op(66, [d('r', 2), s('v', 1), s('s', 0)]) + op(5, [d('r', 2, 'xyz'), s('r', 2), s('c', 0)]) + END)
+        cache = MeshParticle(pixel_shader(body, COMMON))
+        as_particle = ss.slice_material(cache, None, {}, particle=True)
+        kinds = {src['kind'] for srcs in as_particle['inputs'].values() for src in srcs if src}
+        self.assertIn('particleColor', kinds)
+        self.assertFalse(any(c.get('uniform') == 'MeshEmitterVertexColor' for c in as_particle['constants'].values()))
+        self.assertNotIn('specular', as_particle['refused'])    # (a particle's slice takes the base pass only)
+        ss._VERTEX.clear()
+        as_piece = ss.slice_material(cache, None, {})
+        self.assertTrue(any(c.get('uniform') == 'MeshEmitterVertexColor' for c in as_piece['constants'].values()))
+        inputs = {'uv0': np.array([[0.25, 0.75]]), 'particleColor': np.array([[0.5, 1, 0.25, 1]])}
+        out = shader_eval.run(as_particle, inputs, {k: flat((0.5, 0.5, 0.5, 1)) for k in as_particle['textures']})
+        np.testing.assert_allclose(out['diffuse'][0], [0.25, 0.5, 0.125], rtol=1e-6)   # the texel times its colour
+
+    def test_streams(self):
+        self.assertEqual(ss.stream('FParticleSubUVVertexFactory', 'texcoord', 0, 3), {'kind': 'uv', 'channel': 1, 'component': 1})
+        self.assertEqual(ss.stream('FParticleSubUVVertexFactory', 'texcoord', 2, 0), {'kind': 'subImageLerp', 'component': 0})
+        self.assertEqual(ss.stream('FParticleVertexFactory', 'texcoord', 1, 2), {'kind': 'particleColor', 'component': 2})
+        self.assertEqual(ss.stream(ss.FACTORY, 'texcoord', 1, 0), {'kind': 'uv', 'channel': 1, 'component': 0})
+        self.assertEqual(ss.stream(ss.FACTORY, 'color', 1, 3), {'kind': 'color', 'component': 3})
+        self.assertIsNone(ss.stream('FParticleVertexFactory', 'texcoord', 3, 0))
+
+
 @unittest.skipUnless(CACHE and CACHE.exists(), NO_CACHE)
 class Install(unittest.TestCase):
     @classmethod

@@ -224,7 +224,8 @@ export function createEffectsWiring({ $, actorPose, assetUrl, baseMatrix, camera
   const likenesses = new Map();
   setLikenessOn(recall('workshop.likeness') !== '0');     // (likenessOn, likenessThin, likenessCount: editor_state.js)
   const likenessDeps = {
-    texture: key => texture(key, true),
+    // (a program's texture says whether it is a colour; a texture of the roles is)
+    texture: (key, colour = true) => texture(key, colour),
     // a mesh particle's mesh as the map's pieces' are read, each drawn part with its material's colour texture
     async meshParts(draw) {
       if (!data.meshes[draw.mesh]) return [];
