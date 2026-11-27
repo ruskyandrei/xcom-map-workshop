@@ -22,18 +22,25 @@ Object.assign(uniforms, fogShared);
 // shader compiled for its target (the frame's floating-point one) has USE_BAKED. Every lit material shares the packed
 // atlases and the switches (`baked`: on once the atlases are loaded; the weight; the sky light's part on a lightmapped
 // piece), and each piece brings its lightmap UVs in the packed atlas (bakedUv: u, v, and 1 where it has a lightmap)
-// and its two scales as attributes of its own geometry: its materials stay shared (F-183).
+// and its two scales as attributes of its own geometry: its materials stay shared (F-183). Three attributes and three
+// varyings, no more (a headless browser's limit): bakedUv the lightmap's UVs and the sun shadow map's, bakedScale0
+// the colour's scale and the piece's mark (1: a lightmap, 2: and a shadow map of the sun, 3: and no sun), bakedScale1 the
+// directions' scale.
 export const bakedShared = { bakedColour: { value: null }, bakedDirections: { value: null }, bakedOn: { value: 0 },
-                             bakedWeight: { value: 1 }, bakedSky: { value: 0 } };
+                             bakedWeight: { value: 1 }, bakedSky: { value: 0 },
+                             // the sun's baked shadows (B3): the packed shadow maps, whether they stand for the sun (not
+                             // when the project's sun has another direction), and the field's sharpness and exponent
+                             bakedShadowMap: { value: null }, bakedSunOn: { value: 1 },
+                             bakedShadowShape: { value: new THREE.Vector2(2, 2) } };
 Object.assign(uniforms, bakedShared);
 const VERTEX_PARS = `#include <common>
 varying vec3 vLocalWorld;
 #ifdef USE_BAKED
-attribute vec3 bakedUv;
-attribute vec3 bakedScale0;
+attribute vec4 bakedUv;
+attribute vec4 bakedScale0;
 attribute vec3 bakedScale1;
-varying vec3 vBakedUv;
-varying vec3 vBakedScale0;
+varying vec4 vBakedUv;
+varying vec4 vBakedScale0;
 varying vec3 vBakedScale1;
 #endif`;
 const VERTEX_MAIN = `#include <worldpos_vertex>
@@ -55,9 +62,21 @@ uniform sampler2D bakedDirections;
 uniform float bakedOn;
 uniform float bakedWeight;
 uniform float bakedSky;
-varying vec3 vBakedUv;
-varying vec3 vBakedScale0;
+uniform sampler2D bakedShadowMap;
+uniform float bakedSunOn;
+uniform vec2 bakedShadowShape;
+varying vec4 vBakedUv;
+varying vec4 vBakedScale0;
 varying vec3 vBakedScale1;
+// the sun's shadow on a piece from its shadow map (B3): pow(saturate((field - 0.5) x sharpness + 0.5), exponent); none
+// of the sun on a piece wholly in its shadow (F-184)
+float bakedSunShadow() {
+	if ( vBakedScale0.a > 2.5 ) return 0.0;
+	float field = texture2D( bakedShadowMap, vBakedUv.zw ).r;
+	return pow( clamp( ( field - 0.5 ) * bakedShadowShape.x + 0.5, 0.0, 1.0 ), bakedShadowShape.y );
+}
+#define BAKED_PIECE ( bakedOn > 0.5 && vBakedScale0.a > 0.5 )
+#define BAKED_SUN ( bakedOn > 0.5 && bakedSunOn > 0.5 && vBakedScale0.a > 1.5 )
 #endif
 ${FOG_PARS}`;
 // The game's directional lightmap (implementation plan, section 0): with N the material's tangent-space normal and
@@ -65,7 +84,7 @@ ${FOG_PARS}`;
 // scale1, b); both atlases read through sRGB. The sky light is not baked, and lights static pieces on no map
 // (bakedSky 0: its channels, F-182): the lightmap stands in its place on a lightmapped piece.
 const BAKED_LIGHT = `#if defined( USE_BAKED ) && defined( RE_IndirectDiffuse )
-if ( bakedOn > 0.5 && vBakedUv.z > 0.5 ) {
+if ( BAKED_PIECE ) {
 	vec3 bakedN = vec3( 0.0, 0.0, 1.0 );
 #ifdef PROGRAM_NORMAL
 	if ( dot( progOut_normal.xyz, progOut_normal.xyz ) > 1e-8 ) bakedN = normalize( progOut_normal.xyz );
@@ -73,7 +92,7 @@ if ( bakedOn > 0.5 && vBakedUv.z > 0.5 ) {
 	vec3 bakedBasis = vec3( saturate( dot( bakedN.yz, vec2( 0.816496611, 0.577350259 ) ) ),
 		saturate( dot( bakedN, vec3( -0.707106769, -0.408248305, 0.577350259 ) ) ),
 		saturate( dot( bakedN, vec3( 0.707106769, -0.408248305, 0.577350259 ) ) ) );
-	vec3 bakedLight = texture2D( bakedColour, vBakedUv.xy ).rgb * vBakedScale0
+	vec3 bakedLight = texture2D( bakedColour, vBakedUv.xy ).rgb * vBakedScale0.rgb
 		* dot( texture2D( bakedDirections, vBakedUv.xy ).rgb * vBakedScale1, bakedBasis * bakedBasis ) * bakedWeight;
 	irradiance = irradiance * bakedSky + PI * bakedLight;      // (three's Lambert divides by pi: the game's diffuse x light)
 }
@@ -82,7 +101,25 @@ if ( bakedOn > 0.5 && vBakedUv.z > 0.5 ) {
 // square(saturate((dot(L, -dir) - cosOuter) / (cosInner - cosOuter))).
 // A material drawn by its program (USE_PROGRAM, scene_pieces.js) takes no highlight from these: in the game the map's
 // placed lights are baked into lightmaps, whose pass has no highlight; only the sun (dominant) and live lights do.
-const FRAGMENT_MAIN = `#include <lights_fragment_begin>
+// three's light loops with the sun's shadow (the first directional light's) taken from a piece's shadow map where it has
+// one and the baked light is on (B3); the live shadow map elsewhere
+const SUN_SHADOW_LINE = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow( directionalShadowMap[ i ], '
+  + 'directionalLightShadow.shadowMapSize, directionalLightShadow.shadowIntensity, directionalLightShadow.shadowBias, '
+  + 'directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;';
+const SUN_INFO_LINE = 'getDirectionalLightInfo( directionalLight, directLight );';
+if (!THREE.ShaderChunk.lights_fragment_begin.includes(SUN_SHADOW_LINE) || !THREE.ShaderChunk.lights_fragment_begin.includes(SUN_INFO_LINE)) {
+  throw new Error('three.js\'s light chunk changed: the sun\'s baked shadow (lighting.js) needs looking at');
+}
+const LIGHTS_BEGIN = THREE.ShaderChunk.lights_fragment_begin
+  .replace(SUN_INFO_LINE, `${SUN_INFO_LINE}
+		#if defined( USE_BAKED ) && ( UNROLLED_LOOP_INDEX == 0 )
+		if ( BAKED_SUN ) directLight.color *= bakedSunShadow();
+		#endif`)
+  .replace(SUN_SHADOW_LINE, `#if defined( USE_BAKED ) && ( UNROLLED_LOOP_INDEX == 0 )
+		if ( !BAKED_SUN )
+		#endif
+		${SUN_SHADOW_LINE}`);
+const FRAGMENT_MAIN = `${LIGHTS_BEGIN}
 #if defined( RE_Direct )
 #ifdef USE_PROGRAM
 vec3 programSpecular = material.specularColor;
@@ -98,7 +135,7 @@ if ( localGridInfo.w > 0.5 ) {
 				vec4 ids = texelFetch( localLightIndices, ivec2( texel % localIndexWidth, texel / localIndexWidth ), 0 );
 				int li = int( ids[ offset % 4 ] );
 #ifdef USE_BAKED
-				if ( bakedOn > 0.5 && vBakedUv.z > 0.5 && texelFetch( localLightData, ivec2( 3, li ), 0 ).y > 0.5 ) continue;
+				if ( BAKED_PIECE && texelFetch( localLightData, ivec2( 3, li ), 0 ).y > 0.5 ) continue;
 #endif
 				vec4 lp = texelFetch( localLightData, ivec2( 0, li ), 0 );
 				vec3 toLight = lp.xyz - vLocalWorld;
@@ -148,8 +185,10 @@ export function bakedGeometry(renderer, scene, camera, geometry) {
   const count = geometry.attributes.position?.count ?? 0;
   if (!count) return;
   zeroBaked.add(geometry);
-  const zeros = new Float32Array(count * 3);
-  for (const name of ['bakedUv', 'bakedScale0', 'bakedScale1']) geometry.setAttribute(name, new THREE.BufferAttribute(zeros, 3));
+  const zeros = new Float32Array(count * 4);
+  geometry.setAttribute('bakedUv', new THREE.BufferAttribute(zeros, 4));
+  geometry.setAttribute('bakedScale0', new THREE.BufferAttribute(zeros, 4));
+  geometry.setAttribute('bakedScale1', new THREE.BufferAttribute(zeros.subarray(0, count * 3), 3));
 }
 
 /** Draw with the map's local lights off: small previews drawn away from where the piece stands. */

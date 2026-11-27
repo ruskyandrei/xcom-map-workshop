@@ -5,11 +5,13 @@ three direction values, each with its scale, at the piece's lightmap UVs (its me
 scaled and biased into its rectangle of the atlas). The page weights the three direction values by the squared
 cosines of the material's normal with UE3's basis (section 0 of the implementation plan; the baker's flat_light is
 three times that, F-181). The sun's shadow on a piece is its shadow map of the dominant directional light: a distance
-field (or a plain factor) in an atlas of its own, at the same lightmap UVs with its own scale and bias.
+field (or a plain factor) in an atlas of its own, at the same lightmap UVs with its own scale and bias. A piece wholly
+in the sun's shadow has none: the light is on its IrrelevantLights, and the game draws no sun on it (F-184).
 
   lightmap(p, component, mesh) -> dict | None        the piece's lightmap: its two atlases (export indices), scales,
                                                      UV scale and bias and channel
   sun_shadow(p, component, guid) -> dict | None      its shadow map of the light with that LightGuid (hex)
+  sun_irrelevant(p, component, guid) -> bool         whether that light is on its IrrelevantLights
   dominant_guid(p) -> str | None                     the map's dominant directional light's LightGuid (hex)
 """
 from pathlib import Path
@@ -64,6 +66,18 @@ def sun_shadow(p, component, guid):
                     uvBias=[round(v, 7) for v in struct.unpack('<2f', p.own(ref, 'CoordinateBias'))],
                     factor=bool(p.own(ref, 'bIsShadowFactorTexture', False)))
     return None
+
+
+def sun_irrelevant(p, component, guid):
+    """Whether the light whose LightGuid is `guid` (hex) is on the piece's IrrelevantLights: Lightmass found it lights
+    none of the piece (wholly in its shadow), and the game draws none of it there (F-184)."""
+    if not guid:
+        return False
+    raw = p.own(component, 'IrrelevantLights', b'')
+    if not isinstance(raw, (bytes, bytearray)) or len(raw) < 4:
+        return False
+    n = struct.unpack_from('<i', raw)[0]
+    return any(raw[4 + 16 * k:20 + 16 * k].hex() == guid for k in range(max(0, min(n, (len(raw) - 4) // 16))))
 
 
 def dominant_guid(p):

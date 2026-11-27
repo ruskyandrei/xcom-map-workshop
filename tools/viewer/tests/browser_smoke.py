@@ -5880,14 +5880,21 @@ BAKED_POOL = """async () => {
 
 
 def check_baked_light(page):
-    """The map's baked light in the Game look (game-likeness plan, B2), on a map of export 44: the lightmaps loaded once
-    the Game look is on, every lightmapped piece's parts lit by them with the materials still shared; a street lamp's
-    pool on the ground is where the map's light is (its static light is drawn by the lightmap alone)."""
+    """The map's baked light in the Game look (game-likeness plan, B2 and B3), on a map of export 44: the lightmaps
+    loaded once the Game look is on, every lightmapped piece's parts lit by them with the materials still shared; a
+    street lamp's pool on the ground is where the map's light is (its static light is drawn by the lightmap alone);
+    the sun's shadow maps packed and taken."""
     if page.evaluate('(viewer.data.exporterVersion || 0) < 44 || !viewer.data.objects.some(o => o.lightmap)'):
         return
     page.wait_for_function('viewer.post.ready() && viewer.post.baked() && viewer.post.baked().on', timeout=120000)
     baked = page.evaluate('viewer.post.baked()')
     assert baked['parts'] > 100 and baked['atlas'], baked
+    # B3: the sun's shadow from the pieces' shadow maps, packed into one atlas; none of the sun on a piece wholly in
+    # its shadow (export 45)
+    if page.evaluate('viewer.data.objects.some(o => o.lightmap && o.sunShadow && !o.sunShadow.factor)'):
+        assert baked['shadows'] > 0 and baked['shadowAtlas'] and baked['sunShadows'], baked
+    if page.evaluate('viewer.data.objects.some(o => o.lightmap && o.sunIrrelevant)'):
+        assert baked['sunless'] > 0, baked
     pool = page.evaluate(BAKED_POOL)
     if pool:
         assert pool['centre'] > max(pool['corners']) and pool['centre'] > 1.5 * sum(pool['corners']) / 4, pool

@@ -44,3 +44,18 @@ assert.ok(Math.abs(flat[0] - 0.5 * (0.9 + 0.6 + 0.3) / 3) < 1e-6, flat);
 const toward = bakedLightAt([1, 1, 1], [0.9, 0.6, 0.3], [1, 1, 1], [1, 1, 1], [0, 0.816496611, 0.577350259]);
 assert.ok(Math.abs(toward[0] - 0.9) < 1e-6, toward);
 console.log('baked rules: ok');
+
+// the sun's baked shadows (B3): rows copied a byte a texel; the field turned into light
+{
+  const { copyRows, shadowAt } = await import('../web/baked_rules.js');
+  const rows = new Uint8Array(4 * 2).map((_, i) => i + 1), into = new Uint8Array(8 * 4);
+  copyRows(into, 8, rows, 4, 2, 4, 1);
+  assert.deepEqual([...into.subarray(12, 16)], [1, 2, 3, 4]);
+  assert.deepEqual([...into.subarray(20, 24)], [5, 6, 7, 8]);
+  assert.equal(into.subarray(0, 12).reduce((s, v) => s + v, 0), 0);
+  assert.equal(shadowAt(1), 1);
+  assert.equal(shadowAt(0), 0);
+  assert.ok(Math.abs(shadowAt(0.5) - 0.25) < 1e-12);      // (half light at the edge, squared)
+  assert.ok(shadowAt(0.6) > shadowAt(0.5) && shadowAt(0.5) > shadowAt(0.4));
+  console.log('baked rules (shadows): ok');
+}

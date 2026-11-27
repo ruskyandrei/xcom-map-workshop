@@ -116,10 +116,12 @@ import settings
 #     `lightmap` (the colour and direction atlases, as DDS files, their scales, the UV scale and bias and channel) and
 #     its `sunShadow` (its shadow map of the dominant light: atlas, UV scale and bias), the map's and its streamed
 #     levels' own pieces only (a piece of another map is lit live where it is put)
+# 45: `sunIrrelevant` in place of `sunShadow` on a lightmapped piece whose IrrelevantLights hold the dominant light
+#     (wholly in its shadow: the game draws none of the sun on it; B3, F-184)
 # The library's pieces are not kept by this version (since 24 November 2026: library.piece_folder): a change here to
 # what a piece of another map carries (its meshes, materials or textures as written, or a field of its record) raises
 # library.PIECE_VERSION as well, and tests/test_piece_version.py's fingerprints are written again.
-EXPORT_VERSION = 44
+EXPORT_VERSION = 45
 LIGHT_METADATA_VERSION = 1
 # What reading one piece, texture, record or streamed package of a damaged or modded package can raise, caught alike by
 # every per-piece guard of the export so one unreadable actor never ends the whole map's (review finding 50): the
@@ -363,8 +365,9 @@ class Exporter:
         return key if self.textures[key] else None
 
     def baked(self, component, mesh):
-        """The piece's `lightmap` and `sunShadow` (export 44), their atlases exported once as stored; {} where it has
-        neither or they can't be read (a warning)."""
+        """The piece's `lightmap` and `sunShadow` (export 44), their atlases exported once as stored, or
+        `sunIrrelevant` in place of `sunShadow` where the dominant light is on its IrrelevantLights (export 45, F-184);
+        {} where it has none of them or they can't be read (a warning)."""
         p, out = self.p, {}
         try:
             lm = baked_light.lightmap(p, component, mesh)
@@ -374,8 +377,9 @@ class Exporter:
                     out['lightmap'] = dict(lm, colour=colour, directions=directions)
             if self._dominant is ...:
                 self._dominant = baked_light.dominant_guid(p) if not self.base else self.base.dominant_light()
-            sm = baked_light.sun_shadow(p, component, self._dominant)
-            if sm and (atlas := self.texture(sm['texture'])):
+            if baked_light.sun_irrelevant(p, component, self._dominant):
+                out['sunIrrelevant'] = True
+            elif (sm := baked_light.sun_shadow(p, component, self._dominant)) and (atlas := self.texture(sm['texture'])):
                 out['sunShadow'] = dict(sm, texture=atlas)
         except baked_light.UNREADABLE as error:
             self.warn(p.name(component), f'its baked light was not read: {error}')

@@ -1,4 +1,4 @@
-"""A piece's baked light read for the export (baked_light.py; game-likeness plan, B1, export 44): on URB_Bar of the
+"""A piece's baked light read for the export (baked_light.py; game-likeness plan, B1, export 44; B3, export 45): on URB_Bar of the
 configured install, a lightmapped piece's two atlases, scales, UV rectangle and channel, and its shadow map of the
 map's dominant light (skipped without it)."""
 from pathlib import Path
@@ -29,7 +29,8 @@ class OnTheInstall(unittest.TestCase):
         self.assertRegex(self.guid or '', r'^[0-9a-f]{32}$')
 
     def test_lightmaps_and_sun_shadows(self):
-        found = shadows = 0
+        found = shadows = irrelevant = 0
+        unlit = []
         for ci in self.pieces[:300]:
             mesh = self.p.effective(ci, 'StaticMesh', 0)
             lm = baked_light.lightmap(self.p, ci, mesh)
@@ -45,11 +46,21 @@ class OnTheInstall(unittest.TestCase):
                 shadows += 1
                 self.assertEqual(self.p.cls(sm['texture']), 'ShadowMapTexture2D')
                 self.assertFalse(sm['factor'])
+            # a lightmapped piece with no shadow map of the sun is wholly in its shadow: the light on its
+            # IrrelevantLights (F-184)
+            if baked_light.sun_irrelevant(self.p, ci, self.guid):
+                irrelevant += 1
+            elif lm and not sm:
+                unlit.append(self.p.name(ci))
         self.assertGreater(found, 100)
         self.assertGreater(shadows, 50)
+        self.assertGreater(irrelevant, 20)
+        self.assertEqual(unlit, [], 'a lightmapped piece with neither a sun shadow map nor the sun irrelevant')
         # a light that names no shadow map gives none
         self.assertIsNone(baked_light.sun_shadow(self.p, self.pieces[0], '0' * 32))
         self.assertIsNone(baked_light.sun_shadow(self.p, self.pieces[0], None))
+        self.assertFalse(baked_light.sun_irrelevant(self.p, self.pieces[0], '0' * 32))
+        self.assertFalse(baked_light.sun_irrelevant(self.p, self.pieces[0], None))
 
 
 if __name__ == '__main__':

@@ -12,17 +12,22 @@ Statuses:
 
 ## Open now
 
+- F-184 (27 November, the game-likeness plan's B3): a lightmapped piece with no shadow map of the sun is wholly in
+  its shadow: the dominant light is on its `IrrelevantLights`, and the game draws none of the sun on it (on the four
+  maps of track H, all 696 such pieces; 28 more list it and keep a shadow map). The editor drew them with the live
+  shadow map, which lit a floor under a cut-away roof. Fixed (export 45's `sunIrrelevant`; likeness 9.66 to 9.46).
 - F-183 (27 November, the game-likeness plan's B0): drawing URB_Bar's lightmaps with a material of its own for each
   lightmapped part (1,109 parts, three.js) costs 1.2 to 1.5 ms of a frame of 4.5; the lightmap's own work in the
   shader costs about 0.15 ms. B0's spike measured from track H's ub-1 camera: Neutral 3.8 ms, the Game look with the
   map's lights live 4.5, with the baked light 5.7. Open: B2 hands a piece's lightmap to the shader without a material
-  of its own.
+  of its own. Fixed (B2: the materials stay shared, a part's lightmap in attributes of its own geometry; 4.9 ms with
+  the baked light as with the lights live).
 - F-182 (27 November, B0): what lights what in the game. The sky light lights only the `Gameplay_1` channel on every
   map that has one (67 of 69; the other 2 none), so no static piece, and is in no lightmap; the editor's Game look
   lights every piece with it. The sun or moon is drawn live with the piece's distance-field shadow map; the static
   point and spot lights are in the lightmaps; the 22,008 lights Lightmass made for glowing pieces are in no lightmap.
   A piece with no lightmap (5,533; 917 with a light environment) takes the no-lightmap base pass and a live pass a
-  light. Open (B2).
+  light. Fixed (B2 leaves the sky light and the static lights off the lightmapped pieces).
 - F-181 (27 November, B0): the game's lightmap shader weights each of the three direction values by its basis
   vector's squared cosine with the material's normal (a third each for a flat normal; they always sum to one), and
   the stored scales are made for that: summed, as the baker's `relight.flat_light` does, the light is three times
@@ -30,7 +35,7 @@ Statuses:
 - F-180 (27 November, B0): the baked light as the game stores it, over the 96 maps of the install's records: 95% of
   the static mesh components (108,041 of 113,579) have a directional lightmap texture, 5 a vertex one; 13,228 atlases,
   every one DXT1 and read through sRGB (none saves `SRGB`; the class default is true), a median 13.7 MB a map on the
-  GPU; 79,140 pieces have a sun shadow map. Open (B1 exports them).
+  GPU; 79,140 pieces have a sun shadow map. Fixed (B1: export 44 carries them).
 - F-177 (27 November, the game-likeness plan's T-S0): tracing every sun shadow map of URB_Bar from nothing, by the
   baker's own code on its own workers, takes 24 to 27 s with 16 workers (the Build's number on a 32-thread
   computer) and 2.1 minutes in one process: 627 components, 53 atlases, 4.78 million texels, 67.5 million rays.
@@ -315,8 +320,32 @@ Statuses:
 **Verified** (EXP-05 run 5).
 - Fix: set `TintColor` and call `UpdateTintColor()` on both the car and its glass.
 
+### F-184: A piece wholly in the sun's shadow lists the sun on its IrrelevantLights and has no shadow map of it
+**Fixed** (27 November 2026, the game-likeness plan's B3; read offline from the configured install's URB_Bar,
+CSmallScout_DirtRoad, LAbductor_FarmOutskirts and AlienBase01, and seen against track H's game shots).
+- **What the maps hold.** Every lightmapped static mesh component of the four maps with no shadow map of the
+  dominant light lists that light on its `IrrelevantLights`: URB_Bar 294, CSmallScout_DirtRoad 42,
+  LAbductor_FarmOutskirts 254, AlienBase01 106; none has neither. A few list it and keep a shadow map as well (2, 7,
+  15 and 4). On URB_Bar they are the inside pieces: the bar's floors (`URB_Bar_384Floor`, `URB_Bar_384CFloor`), its
+  tables, stools, chairs, pictures and signs, rugs, the ceiling lights and ducts.
+- **What the game does.** A light on a piece's `IrrelevantLights` is not drawn on it, so these pieces take none of
+  the sun or moon, whatever hides their roof: in the game's shot of the Bar's kitchen (ub-2) its floor is dark under
+  the cut-away roof.
+- **What the editor did.** B3 drew the sun on a lightmapped piece through its shadow map where it has one, and
+  through the live shadow map where it has none. The cutaway leaves the roof out of the live shadow map, so the
+  kitchen floor was moonlit.
+- **Fix.** Export 45 marks such a piece `sunIrrelevant` (`baked_light.sun_irrelevant`), and the Game look draws none
+  of the sun on it. Track H's mean colour difference went from 9.66 to 9.46 (LAbductor_FarmOutskirts 7.28 to 5.79;
+  URB_Bar 4.64 to 5.16; CSmallScout_DirtRoad 10.50 to 10.69; AlienBase01 the same).
+- **Why the Bar scores worse.** In the game, its wood floor has a blue sheen that the editor's live moon happened to
+  stand in for. The floor's material, `FloorWood_BNatural`, switches its 2D reflection on (`Refelction`: true,
+  `Reflection2D` `FX_Shared.T_Goop_Reflection_Irridescent_B`, `Reflectivity` 0.2). That sheen is the reflection, not
+  the moon, and the editor's drawing of the material leaves it out (a matter for track A).
+
 ### F-183: A material for each lightmapped part costs more than the lightmap
-**Open** (27 November 2026, the game-likeness plan's B0; the spike of B2 on URB_Bar, timed on this PC by
+**Fixed** (B2, 27 November 2026: every lit material shares the two packed atlases, and each lightmapped part carries
+its lightmap UVs and scales as attributes of a geometry of its own; from the same camera the Game look takes 4.9 ms
+with the baked light and 4.9 with the lights live. Found 27 November 2026, the game-likeness plan's B0; the spike of B2 on URB_Bar, timed on this PC by
 `tools/viewer/perf_probe.py --camera` from track H's ub-1 camera at 1600 by 1000, 40 frames a figure, three runs;
 evidence research/evidence/baked-light-survey-2026-11-27.json).
 - **The bar's three frames** (ms; the chain's frame, then without it): Neutral 3.8 (5.4 with the sun's shadow
@@ -335,7 +364,8 @@ evidence research/evidence/baked-light-survey-2026-11-27.json).
   records with the atlases packed into a few pages by B1. Pieces drawn in batches later need the second.
 
 ### F-182: What lights what in the game: the sky light lights no static piece; the lightmaps hold the static lights
-**Open** (27 November 2026, B0; read offline from the install's 96 maps, the RefShaderCache's ENV_ForestGround static
+**Fixed** (B2, 27 November 2026: the Game look leaves the sky light, the static lights and the glowing pieces' lights
+off the lightmapped pieces. Found 27 November 2026, B0; read offline from the install's 96 maps, the RefShaderCache's ENV_ForestGround static
 mesh shaders and Engine.upk's class defaults; seen against track H's game shots of URB_Bar).
 - **A lightmapped piece** is drawn by the `FDirectionalLightMapTexturePolicy` base pass: diffuse x (lightmap + sky
   + ambient) + glow, the lightmap colour x scale0 x dot(directions x scale1, saturate(N . b_i)^2) (F-181); the sky
@@ -389,7 +419,7 @@ evidence research/evidence/baked-light-survey-2026-11-27.json).
   flat_light with flat_light, so its results stand.
 
 ### F-180: The baked light as the game stores it: DXT1 atlases read through sRGB, on 95% of the pieces
-**Open** (27 November 2026, B0; `tools/upk/audit_baked_light.py survey` over the 96 maps of the configured install's
+**Fixed** (B1, 27 November 2026: export 44 carries each piece's lightmap and sun shadow map. Found 27 November 2026, B0; `tools/upk/audit_baked_light.py survey` over the 96 maps of the configured install's
 records, 68 s; evidence research/evidence/baked-light-survey-2026-11-27.json). B1 exports them.
 - **Pieces.** 113,579 static mesh components on the persistent levels: 108,041 (95%) with a directional lightmap
   texture, 5 with a vertex lightmap (CLrgScout_Stonewall 1, TempleShip 4), 5,533 with none (F-182); 79,140 with a sun

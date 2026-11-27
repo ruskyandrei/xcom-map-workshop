@@ -77,3 +77,19 @@ export function bakedLightAt(colour, directions, scale0, scale1, n = [0, 0, 1]) 
   const d = directions[0] * scale1[0] * b[0] + directions[1] * scale1[1] * b[1] + directions[2] * scale1[2] * b[2];
   return colour.map((c, k) => c * scale0[k] * d);
 }
+
+// The sun's baked shadows (stage B3): each piece's shadow map of the dominant light, an 8-bit distance field (0.5 on
+// the shadow's edge, 1 in the light and 0 in the shadow 25 units either side: XCOM's Lightmass, MaxTransitionDistance
+// 50; tools/bake/shadowmaps.py), packed the same way into one single-channel atlas.
+
+/** Rows of a one-byte-a-texel atlas (`src`, `width` by `height`) copied into the packed one (`dst`, `packedWidth`
+ *  across) at texel (x, y). */
+export function copyRows(dst, packedWidth, src, width, height, x, y) {
+  for (let row = 0; row < height; row++) dst.set(src.subarray(row * width, (row + 1) * width), (y + row) * packedWidth + x);
+}
+
+/** How the game's light pass turns the field into light: pow(saturate((field - 0.5) * sharpness + 0.5), exponent)
+ *  (its shader's (field + bias) x scale, then the power: DistanceFieldParameters, which the engine sets at run time;
+ *  SHADOW_SHAPE the editor's, held against the game's shots). */
+export const SHADOW_SHAPE = { sharpness: 2, exponent: 2 };
+export const shadowAt = (field, shape = SHADOW_SHAPE) => Math.pow(Math.min(1, Math.max(0, (field - 0.5) * shape.sharpness + 0.5)), shape.exponent);

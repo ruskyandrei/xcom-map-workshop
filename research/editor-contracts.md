@@ -783,7 +783,7 @@ PostProcessVolume: `name`, `box` (`min`, `max`, game units), `priority`, `enable
 the members it saves, its `bOverride_` flags among them; the rest are Default__PostProcessVolume's, in the defaults
 file's `volume`). Colours are 0 to 1 (a `Color` member's bytes over 255).
 
-## 11. A piece's baked light in the export (export 44)
+## 11. A piece's baked light in the export (exports 44 and 45)
 
 Each of the map's own lightmapped pieces (and its streamed levels'; never a piece of another map, which is lit where it
 is put) carries ([baked_light.py](../tools/viewer/baked_light.py); F-180, F-181):
@@ -795,9 +795,13 @@ is put) carries ([baked_light.py](../tools/viewer/baked_light.py); F-180, F-181)
   tangent-space normal with UE3's three basis vectors (a third each for a flat normal).
 - `sunShadow`: `{texture, uvScale, uvBias, factor}`, its shadow map of the map's dominant directional light: an 8-bit
   distance field (`factor` false) or a plain shadow factor, at the same lightmap UVs with its own scale and bias.
+- `sunIrrelevant`: `true` in place of `sunShadow` (export 45) where the dominant light is on the component's
+  `IrrelevantLights`: Lightmass found the piece wholly in its shadow, and the game draws none of that light on it
+  (F-184). On the four maps of track H every lightmapped piece without a sun shadow map has it.
 
-A piece with a vertex lightmap or none has neither. The page packs the atlases into one colour and one direction atlas
-(baked_rules.js) and lights each lightmapped piece by them in the Game look (baked_light.js).
+A piece with a vertex lightmap or none has none of these. The page packs the atlases into one colour and one direction atlas
+(baked_rules.js) and lights each lightmapped piece by them in the Game look (baked_light.js): the sun's shadow from
+its shadow map read as a distance field (B3), none of the sun where `sunIrrelevant`, the live shadow map otherwise.
 
 ## What E0 still lacks
 
