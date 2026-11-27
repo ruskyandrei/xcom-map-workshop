@@ -95,6 +95,7 @@ import { segButton, segmented } from './dom_words.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createMapLighting } from './lighting.js';
 import { createBakedLight } from './baked_light.js';
+import { createBuildLight } from './build_light.js';
 import { missingByAddress } from './texture_file.js';
 import { COVER_KIND } from './cover.js';
 import { TILE } from './constants.js';
@@ -340,15 +341,15 @@ const { addedLight, addedLightOf, addLightRoots, applyLightRecord, applyMapLight
         hoverHandle, lightClip, lightEdited,
         lightEntries, lightingModes, lightPanel, lightPose, lightRecords, lightsBlocked, lightShapes, lightSource,
         lookOptions, setLook, toggleLook,
-        lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, lightsAt, recipeLight, refreshLightShapes,
-        refreshLightVisibility, relitPieces, removeLightRoots, scaleMarkers, setBinding, setLightsShown, setLightValues,
-        setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
+        lightState, lightViewOnly, moveLightDrag, ownerRoot, pickLight, lightsAt, reachedPieces, recipeLight,
+        refreshLightShapes, refreshLightVisibility, relitPieces, removeLightRoots, scaleMarkers, setBinding,
+        setLightsShown, setLightValues, setNormalLights, setSolo, startLightDrag, updateLightHandles, valuesEdited,
         withStorableCone } = createLightsWiring({
   $, actorPose, baseMatrix, camera, editChanged, flashHint, gizmo, HANDLE_PICK, highlight, ladderMarks, lightLayer,
   pickables, projector, renderer, restingHint, showPop, sun, world,
   // (made further down: called through, since they are not made yet while this runs)
   applyLighting: () => applyLighting(), banner: (message, actions, options) => banner(message, actions, options),
-  lookChanged: () => { cutaway(); warmLook(); },
+  lookChanged: () => { cutaway(); warmLook(); showBuildLight(); },
   // (made with the views' switching, further down: called through)
   syncLights: () => syncLights(),
   // (made with Clear map, further down: called through)
@@ -479,6 +480,8 @@ const { followBuild, followQueueForProject, landHere, openBuild, openPrefabTest,
         refreshSquadLine, renderPlayItems, renderQueueChip, setLastBuild } = createBuildPlay({
   $, bakeNote, banner, builderDocument, builderRecords, dirty, dragHint, flashHint, gizmo, mapLabel,
   needsPrepare, projectsAvailable, saveProject, showPop, showPrepare,
+  // (the baked light, made further down: the project's last Build's own light follows its build status)
+  buildChanged: () => refreshBaked(),
   // (made with Clear map, further down: called through, since they are not made yet while this runs)
   headerMissions: () => headerMissions(), zonesNow: () => zonesNow(),
   // (made with the selection, further down: called through, since it is not made yet while this runs)
@@ -606,8 +609,14 @@ let postParts = null, postReady = false, postWarming = null, postKey = '', postV
 const gameLook = () => $('lighting').value === 'game';
 // The map's baked light (B2: baked_light.js), made as a map opens and loaded when the Game look is first on
 let bakedLight = null;
-// (B4: the map's pieces moved, deleted or relit, and the added ones, lit live after each edit, and once it loads)
-const refreshBaked = () => { bakedLight?.refresh(relitPieces()); };
+// The project's last baked Build's own light (B4: build_light.js): the pieces as built lit by its lightmaps
+const { plan: buildLightPlan, show: showBuildLight, state: buildLightState } = createBuildLight({
+  $, editState, reachedPieces, relitPieces, bakedLight: () => bakedLight,
+  // (made just below: called through)
+  refresh: () => refreshBaked() });
+// (B4: the map's pieces moved, deleted or relit, and the added ones, lit live after each edit, and once it loads; the
+// pieces as the project's last baked Build built them by its lightmaps)
+const refreshBaked = () => { bakedLight?.refresh(buildLightPlan()); };
 onHub('edit', 'baked-light', refreshBaked);
 onHub('scene', 'baked-light', refreshBaked);
 const missingExtensions = missingByAddress(globalThis.location?.search);
@@ -1027,7 +1036,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     effectViewOnly, FACES, fileDialog, floorData, frame, ghostLikenesses, gizmo, goTo, grabView, setLook, grid, gridHandleAt,
     // the Game look's frame (C3) and the map's fog (C2), for the checks and the perf probe
     post: { now: () => postNow(), ready: () => postReady, chain: postChain, fog: fogShared, draw: helpers => drawFrame(helpers),
-            baked: () => bakedLight?.state() ?? null, setBaked: on => bakedLight?.set(on) },
+            baked: () => bakedLight?.state() ?? null, setBaked: on => bakedLight?.set(on), buildLight: () => buildLightState() },
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
@@ -1111,7 +1120,7 @@ $('frame').onclick = () => frame();
 $('selected').onclick = () => selected && frame(allRoots.get(selected));
 $('grid').onchange = e => { grid.visible = e.target.checked; setTileKey(null); };
 let applyLighting = () => {};
-segmented($('lighting'), () => { lookOptions(); applyLighting(); cutaway(); warmLook(); });
+segmented($('lighting'), () => { lookOptions(); applyLighting(); cutaway(); warmLook(); showBuildLight(); });
 $('areaLights').onchange = () => applyLighting();
 // Update every base and cutaway material, not only those currently assigned, so
 // changing the floor cut afterwards keeps the chosen wireframe state.

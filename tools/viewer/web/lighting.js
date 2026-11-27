@@ -26,7 +26,9 @@ Object.assign(uniforms, fogShared);
 // varyings, no more (a headless browser's limit): bakedUv the lightmap's UVs and the sun shadow map's, bakedScale0
 // the colour's scale and the piece's mark (1: a lightmap, 2: and a shadow map of the sun, 3: and no sun; 4: a piece
 // the project moved, added or relit, B4, lit live with the local lights scaled to the lightmaps' level and no sky
-// light, as a static piece), bakedScale1 the directions' scale.
+// light, as a static piece; 5 to 7: 1 to 3 for a piece as the project's last baked Build built it, lit by its
+// lightmaps, which hold the lights the Build baked: the project's own edits of them that it built among them, B4),
+// bakedScale1 the directions' scale.
 export const bakedShared = { bakedColour: { value: null }, bakedDirections: { value: null }, bakedOn: { value: 0 },
                              bakedWeight: { value: 1 }, bakedSky: { value: 0 },
                              // the sun's baked shadows (B3): the packed shadow maps, whether they stand for the sun (not
@@ -74,14 +76,16 @@ varying vec4 vBakedScale0;
 varying vec3 vBakedScale1;
 // the sun's shadow on a piece from its shadow map (B3): pow(saturate((field - 0.5) x sharpness + 0.5), exponent); none
 // of the sun on a piece wholly in its shadow (F-184)
+#define BAKED_MARK ( vBakedScale0.a > 4.5 ? vBakedScale0.a - 4.0 : vBakedScale0.a )
 float bakedSunShadow() {
-	if ( vBakedScale0.a > 2.5 ) return 0.0;
+	if ( BAKED_MARK > 2.5 ) return 0.0;
 	float field = texture2D( bakedShadowMap, vBakedUv.zw ).r;
 	return pow( clamp( ( field - 0.5 ) * bakedShadowShape.x + 0.5, 0.0, 1.0 ), bakedShadowShape.y );
 }
-#define BAKED_PIECE ( bakedOn > 0.5 && vBakedScale0.a > 0.5 && vBakedScale0.a < 3.5 )
-#define BAKED_SUN ( BAKED_PIECE && bakedSunOn > 0.5 && vBakedScale0.a > 1.5 )
-#define BAKED_LIVE ( bakedOn > 0.5 && vBakedScale0.a > 3.5 )
+#define BAKED_PIECE ( bakedOn > 0.5 && vBakedScale0.a > 0.5 && ( vBakedScale0.a < 3.5 || vBakedScale0.a > 4.5 ) )
+#define BAKED_BUILD ( vBakedScale0.a > 4.5 )
+#define BAKED_SUN ( BAKED_PIECE && bakedSunOn > 0.5 && BAKED_MARK > 1.5 )
+#define BAKED_LIVE ( bakedOn > 0.5 && vBakedScale0.a > 3.5 && vBakedScale0.a < 4.5 )
 #endif
 ${FOG_PARS}`;
 // The game's directional lightmap (implementation plan, section 0): with N the material's tangent-space normal and
@@ -141,7 +145,8 @@ if ( localGridInfo.w > 0.5 ) {
 				vec4 ids = texelFetch( localLightIndices, ivec2( texel % localIndexWidth, texel / localIndexWidth ), 0 );
 				int li = int( ids[ offset % 4 ] );
 #ifdef USE_BAKED
-				if ( BAKED_PIECE && texelFetch( localLightData, ivec2( 3, li ), 0 ).y > 0.5 ) continue;
+				// (a light in the piece's lightmaps: the map's, or for a piece as built the Build's)
+				if ( BAKED_PIECE && dot( texelFetch( localLightData, ivec2( 3, li ), 0 ).yz, BAKED_BUILD ? vec2( 0.0, 1.0 ) : vec2( 1.0, 0.0 ) ) > 0.5 ) continue;
 #endif
 				vec4 lp = texelFetch( localLightData, ivec2( 0, li ), 0 );
 				vec3 toLight = lp.xyz - vLocalWorld;
@@ -288,9 +293,11 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
       }
       // (the fourth texel's second value: a light the game leaves out of a lightmapped piece: a static one is in its
       // lightmap, unless the project moved or changed it (B4: `edited`, lights_wiring.js), an area one lights only what
-      // moves)
+      // moves; its third: the same of a piece as the project's last baked Build built it, whose lightmaps hold the static
+      // lights as the Build had them: all but those changed since (B4: `sinceBuild`))
       const inLightmaps = (l.role === 'static' && !l.edited) || l.role === 'area' ? 1 : 0;
-      lightData.set([p.x, p.y, p.z, l.radius, ...colour, l.falloffExponent, d.x, d.y, d.z, cosOuter, coneScale, inLightmaps, 0, 0], i * 16);
+      const inBuild = (l.role === 'static' && !l.sinceBuild) || l.role === 'area' ? 1 : 0;
+      lightData.set([p.x, p.y, p.z, l.radius, ...colour, l.falloffExponent, d.x, d.y, d.z, cosOuter, coneScale, inLightmaps, inBuild, 0], i * 16);
     });
     uniforms.localLightData.value?.dispose();
     uniforms.localLightData.value = dataTexture(lightData, 4, Math.max(1, local.length));

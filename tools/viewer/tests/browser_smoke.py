@@ -6431,6 +6431,10 @@ CHECKS = (
     Check('library-assembly', lambda c: check_library_assembly(c.browser, c.page.url), 'assemblies from All maps',
           needs=('settings',), full=False),
     Check('output-names', run_output_names, 'maps named after the project', needs=('projects',), full=False),
+    Check('build-light', lambda c: __import__('browser_build_light').check_build_light(
+              c.browser, c.page.url, open_viewer, type_project_name, choose, skip, RUN),
+          "a baked Build's own light: a made-up Build's added piece and the map's pieces as built lit by its lightmaps, "
+          'one changed since lit live (saves a project)', needs=('projects',), when=all_of(ON_MAP, version(45))),
     Check('builder', run_builder, 'the prefab builder and its This prefab tab', needs=('projects',), full=False),
     Check('prefab-test', lambda c: __import__('browser_prefab_test').check_prefab_test(c.browser, c.page.url, c.args.screenshot),
           'the builder\'s Test in game', needs=('projects',), full=False),

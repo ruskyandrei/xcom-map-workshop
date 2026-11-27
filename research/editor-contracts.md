@@ -807,6 +807,45 @@ A piece the project moved, deleted or relit (its lightmap names, in a light's `b
 changed or deleted), and every added piece, is lit live instead, its local lights scaled by the map's factor (the
 lightmaps against the live lights at the lightmapped pieces' vertices, worked out as they load) and no sky light (B4).
 
+**A baked Build's own light** (B4, 27 November 2026). A baked Build's manifest (one that relit the map: not quick, its
+lighting changed; [build.py](../tools/editor/build.py) `built_actors`) adds:
+
+- `builtActors`: the project's name for each piece the Build made as a new actor of the map, a moved original's actor
+  or an added piece's output name (`added[].actor`), to the built actor's path; for a made piece the compiler cut into
+  parts, the parts' actors in order. A copy keeps its components' names under its new actor (native_copy.py
+  `clone_assembly`, transplant.py), so a piece's built component is the built actor's path with its component's last
+  name.
+- `relitComponents`: the components whose lightmap or sun shadow map the relight wrote (a moved original's copy and an
+  added piece's among them).
+- `asBuilt`: the project document as the Build read it.
+
+GET `/projects/<id>/build-light.json` ([builds.py](../tools/viewer/builds.py), [build_light.py](../tools/viewer/build_light.py))
+exports the light of the project's last package, where it is such a Build, into the cache the first time it is asked
+for (`<cache>/builds/<buildId>/`: `light.json` and the atlases; the variant's older Builds' folders go), with export 45's
+reader on the built package: each mesh component of every built actor `builtActors` names alone, and every relit one;
+the textures the Build did not write are read from the game install's maps, where the base map's caches are. It
+answers `{buildId, builtAt, revision, map, actors, project, pieces, textures, base}`: `actors` and `project` the
+manifest's `builtActors` and `asBuilt`, `pieces` each built component's `lightmap` and `sunShadow` or `sunIrrelevant`
+as above, `textures` the atlases' records (keys `build-<n>`, each with its texture's `name`), whose files are served
+from `base` (`/cache-builds/<buildId>/`). 404: a quick Build, one that relit nothing, or no package. A relit atlas is
+the map's own texture written again (lightmap_writer.py), so it carries the map's texture's name. The package
+summary of `/projects/<id>/build.json` says `light: true` for such a Build.
+
+The page asks for it once the Game look has been on, with a project open whose last package has it, on its map
+([build_light.js](../tools/viewer/web/build_light.js)), and packs its atlases with the map's, one carrying a map
+texture's name in that texture's place ([baked_light.js](../tools/viewer/web/baked_light.js) `setBuild`). A piece is as
+built where its record now is the one `asBuilt` has, numbers within a thousandth and its flags, prefab, partner and
+recipe left aside ([build_light_rules.js](../tools/viewer/web/build_light_rules.js) `sameRecord`); records are matched
+by the groups' keys (`orig|<package>|<level>|<actor>`, `added|<actor>`). Each lightmapped piece as built is marked 5
+to 7 (1 to 3 plus 4) and lit by: one of the map's left where the map has it, its own component's record in `pieces`
+where the Build relit it, else the map's; a moved original or an added piece, its built component's record (none:
+lit live). A piece changed since is lit live, and so are the pieces a light changed since reaches: its bake's pieces
+(`bakedInto`) for one of the map's, and every piece its sphere meets where it stands now and where it stood as built.
+Such a light's record carries `sinceBuild`, and lighting.js draws it live on the pieces as built; every other static
+light is in their lightmaps (its fourth texel's third value). A made piece (drawn whole from its numbers) and a cover
+block stay live. View options says, under the look, "Lit by the Build of <time> · <n> pieces changed since" (or
+"nothing changed since"), in the Game look.
+
 ## What E0 still lacks
 
 - **Resolver discrepancy fixtures.** Test cases capturing the known differences between the preview resolver and the

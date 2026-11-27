@@ -95,6 +95,20 @@ class BuildOutputsTests(unittest.TestCase):
         self.assertEqual(parts, ['copies.donor', 'copies.family.car', 'copies.generated', 'copies.generated.fracWall',
                                  'covers.floor', 'lights.deletes', 'sounds.moves'])
 
+    def test_a_baked_builds_map_names_every_copy(self):
+        """A baked Build's manifest names a built actor for each copy of its native edit (B4): a moved original by its
+        label's name, an added piece by its output name, a made piece's parts by the whole's; one it leaves out is
+        listed; a manifest without the map (a quick Build) lists none."""
+        native = dict(copies=[dict(label='move:XComLevelActor_7'), dict(label='XComLevelActor_1_copy1'),
+                              dict(label='XComFracLevelActor_5_copy2_part1'), dict(label='XComFracLevelActor_5_copy2_part2'),
+                              dict(label='XComLevelActor_3_copy9')])
+        actors = {PL + 'XComLevelActor_7': PL + 'XComLevelActor_100', PL + 'XComLevelActor_1_copy1': PL + 'XComLevelActor_99',
+                  PL + 'XComFracLevelActor_5_copy2': [PL + 'XComFracLevelActor_30', PL + 'XComFracLevelActor_31']}
+        self.assertEqual(bo.unnamed_copies(native, dict(builtActors=actors)), ['XComLevelActor_3_copy9'])
+        self.assertEqual(bo.unnamed_copies(native, dict(builtActors=dict(actors, **{PL + 'XComLevelActor_3_copy9': PL + 'X_1'}))), [])
+        self.assertEqual(bo.unnamed_copies(native, dict(quick=True)), [])
+        self.assertEqual(bo.unnamed_copies(native, None), [])
+
     def test_the_lanes_named_in_the_code_hold_the_listed_ones(self):
         found = bo.code_lanes()
         self.assertTrue(set(bo.LANES) <= set(found))

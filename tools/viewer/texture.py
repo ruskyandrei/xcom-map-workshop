@@ -71,7 +71,7 @@ def _mip_data(p, index, mip, cache_name):
     if mip["flags"] & 1:
         if not cache_name or cache_name == "None": raise FormatError("External texture has no cache name")
         if not cache_name.replace("_", "").isalnum(): raise FormatError("Invalid texture cache name")
-        cache_path = cache_file(p.path.parent, cache_name)
+        cache_path = cache_file(p.path.parent, cache_name, p.caches)
         if mip["offset"] < 0 or mip["offset"] + mip["size"] > cache_path.stat().st_size:
             raise FormatError("Mip outside texture cache")
         with cache_path.open("rb") as f:

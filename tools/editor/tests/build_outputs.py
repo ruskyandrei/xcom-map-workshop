@@ -26,7 +26,8 @@ the compile's whole spec, report and native edit (the compiler's boundary), and 
 
 `compare` lists the differing files and records by input, and exits 1 if anything differs; an input recorded on one
 side only is named as such. `--list` makes and compiles the inputs (no Build) and prints the lanes each one's native
-edit holds. `record` fails when a lane of the native edit is in none of the inputs.
+edit holds. `record` fails when a lane of the native edit is in none of the inputs, and when a baked Build's manifest
+names no built actor for one of its native edit's copies (`builtActors`, the game-likeness plan's B4: unnamed_copies).
 
 The install and the cache come from the settings (tools/viewer/viewer.py settings) or --game and --cache; without
 them the tool says so and exits 2. The cache is only read: the scene.json of the exports the inputs need and the
@@ -606,6 +607,18 @@ def run_build(project, cache, install, output, quick, enable, foreign, log):
     return m, error, rec, b.work
 
 
+def unnamed_copies(native, manifest):
+    """The labels of the native edit's copies a baked Build's manifest names no built actor for (build.py
+    built_actors: a moved original by its label's name, an added piece by its output name's last part, a made piece's
+    parts by the whole's), or [] for a manifest without the map (a quick Build, its lighting unchanged)."""
+    actors = (manifest or {}).get('builtActors')
+    if not isinstance(actors, dict):
+        return []
+    names = {key.split('.')[-1] for key in actors}
+    piece = lambda label: label[len('move:'):] if label.startswith('move:') else re.sub(r'_part\d+$', '', label)  # noqa: E731
+    return [c['label'] for c in (native or {}).get('copies') or [] if piece(c['label']) not in names]
+
+
 def package_files(folder):
     """{relative path: SHA-256} of every file of a package folder but its manifest (kept whole, masked)."""
     out = {}
@@ -746,15 +759,24 @@ def record(args):
         quick = (entry['builds']['quick'].get('work') or {}).get('native-edit.json')
         if quick is not None:
             entry['lanes'] = sorted(set(entry['lanes']) | set(lanes_of(quick)[0]))
+        # (the baked Build's map of the actors each project piece became names every copy it made: B4)
+        unnamed = unnamed_copies(x['native'], entry['builds']['baked'].get('manifest'))
+        if unnamed:
+            entry['builds']['baked']['unnamedCopies'] = unnamed
+            print('  %-16s baked Build\'s manifest names no built actor for %s' % (name, ', '.join(unnamed)))
     gaps = uncovered(result['inputs'], built=True) if not args.only else []
     if gaps:
         result['lanesInNone'] = gaps
+    unnamed = sorted(n for n, e in result['inputs'].items() if e['builds']['baked'].get('unnamedCopies'))
     result['seconds'] = round(time.monotonic() - started, 1)
     write_json(out / 'outputs.json', result)
     if not args.keep:
         shutil.rmtree(scratch, ignore_errors=True)
     if gaps:
         print('lanes of the native edit in none of the inputs: %s (the record is not one to compare)' % ', '.join(gaps))
+        return 1
+    if unnamed:
+        print('copies the baked Builds\' manifests name no built actor for, in: %s' % ', '.join(unnamed))
         return 1
     print('recorded %d input(s) in %.0f s: %s' % (len(made), result['seconds'], out / 'outputs.json'))
     return 0

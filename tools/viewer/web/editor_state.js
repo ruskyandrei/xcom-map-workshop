@@ -283,6 +283,11 @@ export function setHandleDefs(next) { handleDefs = next; }
 export function setLightDrag(next) { lightDrag = next; }
 export function setReachKey(next) { reachKey = next; }
 export function setReachNow(next) { reachNow = next; }
+// The project's last baked Build's light (build_light.js sets it; lights_wiring.js's light records read it, for
+// lighting.js): the ids of the lights changed since the Build, which its lightmaps hold as they were; null without
+// one in use.
+export let lightsSinceBuild = null;
+export function setLightsSinceBuild(next) { lightsSinceBuild = next; }
 
 // What other areas read or set of the Effects view (effects_wiring.js; the selection, selection.js; app.js's
 // pointer handlers and draw loop, the keys and the test hooks):
