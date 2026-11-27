@@ -2,16 +2,19 @@
 a game run shows the sun's new colour and brightness, the sky light on the soldiers, the records' time of day, and with
 a turned sun how wrong the old shadows are.
 
-Usage: exp99_project.py <out> [--time HH:MM] [--keep-direction] [--cache <cache>] [--game <install>] [--quick | --compile]
+Usage: exp99_project.py <out> [--time HH:MM] [--keep-direction | --heading DEG] [--cache <cache>] [--game <install>]
+                         [--quick | --full | --compile]
 
 The record is the one the Map settings window's time bar makes (the page's own rules, tools/viewer/web/sun_rules.js,
 run by node: the curve made the map's own, the dial where it puts the light as the map has it, the bar moved to
 --time, 13:00 by default), with the fog and colour of the hour beside it where the export has the map's atmosphere
 (export 43). At noon the sun stands at 56 degrees where Bar's moon stands at 81: the direction changes.
 --keep-direction gives the light the map's own rotation instead (only its colour, brightness, the sky light and the time
-change), as a record set by hand may. The project goes to <out>/project.json and the build under <out>/builds; the game
+change), as a record set by hand may; --heading turns the dial to that side (degrees from the game's +X toward its +Y,
+the side the light stands at its highest), as EXP-100 turns the sun to a new side. The project goes to <out>/project.json and the build under <out>/builds; the game
 and the cache are the settings' unless named (--game: an install folder, read only). --compile only compiles (the
-report beside the project); --quick (the default) builds without baking the lighting.
+report beside the project); --quick (the default) builds without baking the lighting; --full builds with baking (a
+turned sun's shadows traced again, T-S4).
 
 tools/editor/tests/build_outputs.py records the sun lane with this project (its input bar-sun)."""
 import argparse
@@ -39,11 +42,11 @@ import { bestTime, mapCurve, ownSun, shownTime, timeSet } from %s;
 let text = '';
 process.stdin.on('data', chunk => { text += chunk; });
 process.stdin.on('end', () => {
-  const { scene, curve, time } = JSON.parse(text);
+  const { scene, curve, time, heading } = JSON.parse(text);
   const own = ownSun(scene);
   const mine = mapCurve(curve, own, bestTime(curve, own));
   const at = shownTime(null, own, curve);
-  const set = timeSet({ curve: mine, own, time, heading: at.heading });
+  const set = timeSet({ curve: mine, own, time, heading: heading ?? at.heading });
   process.stdout.write(JSON.stringify({ own, ...set }));
 });
 """
@@ -55,13 +58,14 @@ def scene_of(cache, game):
     return sha, scene
 
 
-def bar_record(scene, hour, keep_direction=False):
-    """(the project's `sun`, its `atmosphere` or None) as the time bar makes them at `hour` on the map of `scene`."""
+def bar_record(scene, hour, keep_direction=False, heading=None):
+    """(the project's `sun`, its `atmosphere` or None) as the time bar makes them at `hour` on the map of `scene`, the
+    dial at `heading` (degrees) or where it puts the light as the map has it."""
     node = shutil.which('node')
     if not node:
         raise SystemExit('exp99_project.py runs the page\'s rules with node, which is not on the path')
     given = dict(scene=dict(lights=scene.get('lights') or [], atmosphere=scene.get('atmosphere')), curve=sun_curve.load(),
-                 time=hour)
+                 time=hour, heading=heading)
     out = subprocess.run([node, '--input-type=module', '-e', SCRIPT % json.dumps(RULES.as_uri())],
                          input=json.dumps(given), capture_output=True, text=True, encoding='utf-8', check=True)
     made = json.loads(out.stdout)
@@ -71,8 +75,8 @@ def bar_record(scene, hour, keep_direction=False):
     return sun, made['atmosphere']
 
 
-def document(sha, scene, hour, keep_direction):
-    sun, atmosphere = bar_record(scene, hour, keep_direction)
+def document(sha, scene, hour, keep_direction, heading=None):
+    sun, atmosphere = bar_record(scene, hour, keep_direction, heading)
     return dict(schema='xcom-map-workshop/project', schemaVersion=compiler.SCHEMA_VERSION, id=PROJECT_ID,
                 name='Bar by day', mode='edit', revision=1,
                 source=dict(map=MAP, package=MAP + '.upk', sha256=sha, exporterVersion=scene['exporterVersion']),
@@ -89,18 +93,21 @@ def main(argv=None):
     a = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
     a.add_argument('out', type=Path)
     a.add_argument('--time', default='13:00', help='the bar\'s time, HH:MM (default %(default)s)')
-    a.add_argument('--keep-direction', action='store_true', help='the light keeps the map\'s own rotation')
+    turn = a.add_mutually_exclusive_group()
+    turn.add_argument('--keep-direction', action='store_true', help='the light keeps the map\'s own rotation')
+    turn.add_argument('--heading', type=float, help='the dial\'s side in degrees (default: the map\'s own)')
     a.add_argument('--cache', type=Path, help='the export cache (default: the settings\')')
     a.add_argument('--game', type=Path, help='the install whose URB_Bar is built (default: the settings\')')
     mode = a.add_mutually_exclusive_group()
     mode.add_argument('--quick', action='store_true')
+    mode.add_argument('--full', action='store_true', help='build with baking')
     mode.add_argument('--compile', action='store_true')
     args = a.parse_args(argv)
     s = settings_module.load_settings()
     game = args.game or settings_module.resolve_game(s['game'])[0]
     cache = args.cache or s['cache']
     sha, scene = scene_of(cache, game)
-    doc = document(sha, scene, hour_of(args.time), args.keep_direction)
+    doc = document(sha, scene, hour_of(args.time), args.keep_direction, args.heading)
     args.out.mkdir(parents=True, exist_ok=True)
     project = args.out / 'project.json'
     compiler.write_json(project, doc)
@@ -115,7 +122,7 @@ def main(argv=None):
     if args.compile or spec is None:
         return 0 if spec else 1
     t = time.time()
-    m = build.Build(build.BuildInputs(project, cache, args.out / 'builds', game, s['udk'], quick=True)).run()
+    m = build.Build(build.BuildInputs(project, cache, args.out / 'builds', game, s['udk'], quick=not args.full)).run()
     print('built in %.1f s: %s' % (time.time() - t, m.get('buildId')))
     return 0
 
