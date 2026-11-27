@@ -1,5 +1,7 @@
 // The Map settings window (the Map menu's Map settings…, and View options' "Sun, moon and sky…"): what the map has
-// everywhere and at no place. The sun, moon and sky light, listed (lights_wiring.js's buildLights fills the list), and
+// everywhere and at no place. The sun, moon and sky light: the time of day (the project's `sun`, schema 10; the
+// game-likeness plan's T-S1), sun_settings.js's section, given sun_wiring.js's functions (the one place a change of it
+// is made), with the map's own lights listed in its More (lights_wiring.js's buildLights fills the list); and
 // the map's background sound (export 39's backgroundSound; the project's `backgroundSound`, schema 5): a choice of
 // the map's own, the game's other beds (/background-sounds.json) or None, a Play button that plays the choice here
 // (every wave of its cue at once, looping, through /background-sound.ogg: viewer.py, audio.py), and its volume, a
@@ -19,8 +21,9 @@ import { builderMode, data, landingLines, projectBackgroundSound, projectMapInfo
          setProjectMapInfo } from './editor_state.js';
 import { MAP_INFO, MAP_INFO_SINCE, mapInfoRecord, validMapInfo } from './missions.js';
 import { createAtmosphereSettings } from './atmosphere_settings.js';
+import { createSunSettings } from './sun_settings.js';
 
-export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
+export function createMapSettings({ $, camera, gizmo, projectsAvailable, showPop, sun }) {
   const els = { root: $('mapSettings'), form: $('mapSettingsForm'), close: $('mapSettingsClose'), sound: $('mapSoundSection'),
                 note: $('mapSoundNote'), choice: $('mapSound'), play: $('mapSoundPlay'), volume: $('mapSoundVolume'),
                 volumeValue: $('mapSoundVolumeValue'), status: $('mapSoundStatus'), lwr: $('mapLwrSection'),
@@ -28,7 +31,11 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
   els.density.append(new Option('Not set (any size)', ''), ...MAP_INFO.alienDensity[1].map(v => new Option(v, v)));
   Object.assign(els.volume, { min: VOLUME_SLIDER.min, max: VOLUME_SLIDER.max, step: VOLUME_SLIDER.step });
   let beds = null, bedsWhy = null, player = null, lastFocus = null;
-  const { atmosphereState, paintAtmosphere, showAtmosphere } = createAtmosphereSettings({ $, gizmo, projectsAvailable });
+  const { paintSun, sunSettingsState } = createSunSettings({ $, camera, projectsAvailable, sun });
+  const { atmosphereState, paintAtmosphere, showAtmosphere } = createAtmosphereSettings({ $, gizmo, projectsAvailable,
+                                                                                       changed: () => paintSun() });
+  // The time of day changed (a drag, an undo, a value set by hand): its section and the fog and colour it sets
+  function sunChanged() { if (!els.root.hidden) { paintSun(); paintAtmosphere(); } }
 
   // the game's beds, asked once
   async function loadBeds() {
@@ -149,7 +156,8 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
     els.choice.replaceChildren();
     els.sound.hidden = false;
     els.root.hidden = false;
-    paint(); paintLwr(); paintAtmosphere();
+    sun.setSunWindow(true);
+    paint(); paintLwr(); paintAtmosphere(); paintSun();
     showAtmosphere();
     if (own()) { await loadBeds(); if (!els.root.hidden) paint(); }
     setTimeout(() => $('mapSettingsDone').focus(), 0);
@@ -157,6 +165,7 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
   function hideMapSettings() {
     stopSound();
     els.root.hidden = true;
+    sun.setSunWindow(false);
     lastFocus?.focus?.();
   }
   els.form.onsubmit = e => { e.preventDefault(); hideMapSettings(); };
@@ -169,6 +178,7 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
   function startMapSettings() {
     stopSound();
     els.root.hidden = true; lastFocus = null;
+    sun.setSunWindow(false);
     els.choice.replaceChildren();
   }
   // What the browser checks read
@@ -178,6 +188,6 @@ export function createMapSettings({ $, gizmo, projectsAvailable, showPop }) {
                                     lwr: { shown: !els.lwr.hidden, density: els.density.value, noHold: els.noHold.checked,
                                            disabled: els.density.disabled, note: els.lwrNote.textContent,
                                            choices: [...els.density.options].map(o => ({ value: o.value, label: o.text })) },
-                                    atmosphere: atmosphereState() });
-  return { hideMapSettings, mapSettingsState, showMapSettings, startMapSettings, stopSound };
+                                    atmosphere: atmosphereState(), sun: sunSettingsState() });
+  return { hideMapSettings, mapSettingsState, showMapSettings, startMapSettings, stopSound, sunChanged };
 }

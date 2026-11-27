@@ -1871,7 +1871,9 @@ def check_map_settings(page):
     page.locator('#mapSettingsOpen').click()
     page.wait_for_function('viewer.mapSettings().open && (viewer.mapSettings().choices.length > 0 || !viewer.data.backgroundSound)',
                            timeout=10000)
-    assert page.locator('#mapSettings').is_visible() and page.locator('#skyList').inner_text().strip()
+    # (the time of day's bar, and the map's own lights listed in its More: T-S1)
+    assert page.locator('#mapSettings').is_visible() and page.locator('#skyList').text_content().strip()
+    assert page.locator('#mapTimeBar').is_visible() or not page.evaluate('viewer.timeOfDay().ready')
     st = page.evaluate('viewer.mapSettings()')
     if not own:
         assert 'no background sound' in st['note'] and page.locator('#mapSound').is_disabled(), st
@@ -1949,6 +1951,96 @@ def check_map_settings(page):
     assert page.evaluate('viewer.mapSettings().open')
     page.keyboard.press('Escape')
     assert not page.evaluate('viewer.mapSettings().open')
+
+
+def check_time_of_day(page):
+    """The Map settings window's Sun, moon and sky section (game-likeness plan, T-S1; the project's sun, schema 10), on
+    Bar's moon, in the Game look: the bar's knob at the map's own time, where the bar changes nothing (a key away and
+    back leaves no record and the light as it was); a drag along the bar to the afternoon lights the view as the curve
+    says (the sun's colour, height and the sky light) while it moves, and is one undo step on release, the project's sun
+    in the edit state and counted in the header, the fog and colour of the hour marked in Fog and colour; Ctrl+Z puts the
+    map's own back. In the Lights view the sun or moon's marker on its arc is dragged for the time too, one undo step."""
+    if not page.evaluate("viewer.data.exporterVersion >= 43 && Boolean(viewer.data.atmosphere)"):
+        return skip('time-of-day', 'needs a map of export 43 or later', whole=True)
+    page.wait_for_function('viewer.timeOfDay().ready', timeout=20000)
+    assert page.evaluate("viewer.setLook('game')")
+    page.wait_for_function('viewer.post.ready()', timeout=180000)
+    light = ("(() => ({ colour: viewer.sun.color.toArray(), intensity: viewer.sun.intensity, at: viewer.sun.position.clone()"
+             ".sub(viewer.sun.target.position).normalize().toArray(), sky: viewer.hemisphere.color.toArray() }))()")
+    near = lambda a, b, eps=1e-4: all(abs(x - y) <= eps for x, y in zip(a, b))  # noqa: E731
+    same = lambda a, b: all(near(a[k], b[k]) for k in ('colour', 'at', 'sky')) and abs(a['intensity'] - b['intensity']) < 1e-4  # noqa: E731
+    st = page.evaluate('viewer.timeOfDay()')
+    assert st['record'] is None and st['view'] is None and st['own']['time'] == 1, st
+    own = page.evaluate(light)
+    steps = page.evaluate('viewer.gizmo.undoDepth()')
+    page.evaluate('viewer.showMapSettings()')
+    page.wait_for_function('viewer.mapSettings().open && viewer.mapSettings().sun.shown', timeout=10000)
+    section = page.evaluate('viewer.mapSettings().sun')
+    assert section['time'].startswith("01:00 · night") and abs(section['knob'] - 100 / 24) < 0.01, section
+    assert section['words'].startswith('Moon high'), section
+    # the bar at the map's own time changes nothing: five minutes on and back is the map's own again (two steps)
+    page.locator('#mapTimeBar').focus()
+    page.keyboard.press('ArrowRight')
+    assert abs(page.evaluate('viewer.timeOfDay().record.time') - (1 + 5 / 60)) < 1e-3
+    page.keyboard.press('ArrowLeft')
+    page.wait_for_timeout(150)
+    assert page.evaluate('viewer.timeOfDay().record') is None and page.evaluate('viewer.editState().sun') is None
+    assert page.evaluate('viewer.editState().atmosphere') is None
+    assert same(page.evaluate(light), own), (page.evaluate(light), own)
+    page.evaluate('viewer.gizmo.undo()'); page.evaluate('viewer.gizmo.undo()')
+    assert page.evaluate('viewer.gizmo.undoDepth()') == steps
+    # a drag along the bar: the view follows while it moves, no step until it is let go
+    box = page.locator('#mapTimeBar').bounding_box()
+    at = lambda hours: box['x'] + box['width'] * hours / 24  # noqa: E731
+    y = box['y'] + box['height'] / 2
+    page.mouse.move(at(1), y); page.mouse.down()
+    for hours in (3, 6, 9, 12, 15.5):
+        page.mouse.move(at(hours), y, steps=3)
+    page.wait_for_timeout(200)
+    moving = page.evaluate('viewer.timeOfDay()')
+    assert moving['record'] and abs(moving['record']['time'] - 15.5) < 0.1, moving['record']
+    assert page.evaluate('viewer.gizmo.undoDepth()') == steps and not same(page.evaluate(light), own)
+    page.mouse.up()
+    page.wait_for_timeout(200)
+    kept = page.evaluate('viewer.timeOfDay()')['record']
+    assert page.evaluate('viewer.gizmo.undoDepth()') == steps + 1, 'one undo step a drag'
+    assert kept['timeOfDay'] == 'auto' and kept['light']['color'][0] == 255 and kept['light']['color'][2] < 220, kept
+    lit = page.evaluate(light)
+    assert lit['colour'][0] > 0.9 and lit['colour'][2] < lit['colour'][0] and lit['at'][1] > 0.4, lit     # (a warm sun, half way up)
+    assert not near(lit['sky'], own['sky'], 1e-3), (lit['sky'], own['sky'])
+    assert page.evaluate('viewer.editState().sun') == kept
+    assert page.evaluate('viewer.changes().sun') == 1 and 'time of day set' in page.locator('#editCount').inner_text()
+    section = page.evaluate('viewer.mapSettings().sun')
+    assert section['time'].startswith('15:30 · afternoon') and 'set by the time' in section['hour'], section
+    # the fog and colour of the hour: in the project's atmosphere, marked in Fog and colour
+    tint = page.evaluate('viewer.editState().atmosphere.postProcess.Scene_Colorize')
+    assert tint[0] < 1 and tint[2] > 1.1, tint          # (the day maps' bluer tint, most of the way to 16:00's)
+    page.locator('#mapColourFold summary').click()
+    assert page.locator('#mapTintMark').is_visible() and page.locator('#mapTintMark').inner_text() == 'the hour'
+    # Ctrl+Z: the map's own again, its light as it was
+    page.evaluate('viewer.gizmo.undo()')
+    page.wait_for_timeout(150)
+    assert page.evaluate('viewer.timeOfDay().record') is None and page.evaluate('viewer.editState().atmosphere') is None
+    assert same(page.evaluate(light), own), (page.evaluate(light), own)
+    assert page.evaluate('viewer.mapSettings().sun.time').startswith('01:00')
+    page.keyboard.press('Escape')
+    assert not page.evaluate('viewer.mapSettings().open')
+    # the marker in the Lights view: dragged up its arc, one undo step
+    page.evaluate('viewer.setLightsShown(true)')
+    page.wait_for_function('viewer.timeOfDay().marker !== null', timeout=5000)
+    point = page.evaluate('viewer.timeOfDay().markerAt')
+    assert point, 'the marker is behind the camera'
+    page.mouse.move(*point); page.mouse.down()
+    page.mouse.move(point[0] + 60, point[1] + 120, steps=6)
+    assert page.evaluate('viewer.timeOfDay().dragging')
+    page.mouse.up()
+    page.wait_for_timeout(150)
+    moved = page.evaluate('viewer.timeOfDay()')['record']
+    assert moved and moved['time'] != 1 and page.evaluate('viewer.gizmo.undoDepth()') == steps + 1, moved
+    page.evaluate('viewer.gizmo.undo()')
+    assert page.evaluate('viewer.timeOfDay().record') is None and page.evaluate('viewer.gizmo.undoDepth()') == steps
+    page.evaluate('viewer.setLightsShown(false)')
+    page.evaluate("viewer.setLook('neutral')")
 
 
 def check_cursor_floors(page):
@@ -6272,6 +6364,8 @@ CHECKS = (
     Check('clear-map', on_page(check_clear_map), 'Clear map, the map grid and the landing zones'),
     Check('map-settings', on_page(check_map_settings), 'Map settings: the sun and sky listed, the background sound and its volume, what '
                                                              'Long War Rebalance is told of the map'),
+    Check('time-of-day', on_page(check_time_of_day), 'the time of day: the bar at the map\'s own time, a drag of it and '
+          'of the sun or moon\'s marker, the view\'s light, one undo step each', when=all_of(ON_BAR, version(43))),
     Check('align', on_page(check_align), 'Align'),
     Check('library', lambda c: check_library(c.page, c.is_bar), 'the Add panel: this map\'s pieces'),
     Check('cover', on_page(check_cover), 'cover blocks and invisible floors'),

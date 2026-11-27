@@ -62,6 +62,7 @@ import { createMapGrid, gridOrigin, tileCorner } from './map_grid.js';
 import { createMapFamilies } from './map_families.js';
 import { createClearMap } from './clear_map.js';
 import { createMapSettings } from './map_settings.js';
+import { createSunWiring } from './sun_wiring.js';
 import { actorPose, createScenePieces, movedMatrix } from './scene_pieces.js';
 import { isPlain, madeRequest, plainLook } from './made_requests.js';
 import { createCutaway } from './cutaway.js';
@@ -680,10 +681,20 @@ const { chooseMission, clearMap, clearParts, clearPlan, floorStays, groundGrid, 
   setMissionMoves: next => setMissionMoves(next),
   spawnFamilyBuilds: () => spawnFamilyBuilds(), spawnsAvailable: () => spawnsAvailable(),
   zoneSoldiers: (z, st) => zoneSoldiers(z, st), zoneState: () => zoneState() });
-// Map settings (map_settings.js): the window of what the map has everywhere and at no place, its sun, moon and sky
-// listed and its background sound chosen, played here and set louder or softer; made after Clear map, beside the Map
-// menu's other windows, once the gizmo (its undo steps) is made.
-const { mapSettingsState, showMapSettings, startMapSettings } = createMapSettings({ $, gizmo, projectsAvailable, showPop });
+// The time of day in the view (sun_wiring.js; game-likeness plan, T-S1): the project's sun as the view draws it, the one
+// place it changes, the sun or moon's marker (its pointer listeners with the lights' handles; its Escape listener added
+// here); made before the Map settings window, which is given its functions, once the gizmo and the handles are made.
+const { beginSunEdit, commitSun, endSunDrag, endSunEdit, hoverSun, loadCurve, moveSunDrag, previewSun, previewSunRecord,
+        setSunWindow, startSun, startSunDrag, stepSun, sunCurve, sunDrag, sunOwn, sunShown, sunState, viewSun } = createSunWiring({
+  $, camera, gizmo, projector, renderer, restingHint, sun, touchShadows, world,
+  // (made just below: called through)
+  sunChanged: () => sunChanged() });
+// Map settings (map_settings.js): the window of what the map has everywhere and at no place, its time of day, its fog
+// and colour and its background sound chosen, played here and set louder or softer; made after Clear map, beside the
+// Map menu's other windows, once the gizmo (its undo steps) is made.
+const { mapSettingsState, showMapSettings, startMapSettings, sunChanged } = createMapSettings({
+  $, camera, gizmo, projectsAvailable, showPop,
+  sun: { beginSunEdit, commitSun, endSunEdit, loadCurve, previewSun, previewSunRecord, setSunWindow, sunCurve, sunOwn, sunShown } });
 
 // The landing zones' layer, shown as View options' Landing zones says (the Landing zones view: zones_wiring.js,
 // made below; the Spawns view, made just below, shows the zones too).
@@ -948,7 +959,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   showSceneTitle($);
   // Configure light data before the first lit material compiles.
   setLighting(createMapLighting({ world, sun, hemisphere, scene: data, maxTextureSize:renderer.capabilities.maxTextureSize,
-                                  atmosphere: () => viewAtmosphere() }));
+                                  atmosphere: () => viewAtmosphere(), timeOfDay: () => viewSun() }));
   showSceneMenus($);
   startMapSettings();
   setOwnGrid(null);
@@ -968,6 +979,8 @@ async function startScene({ parameters, familiesAsked, mapName }) {
   // the map's own buildings that can be edited, as boxes (a project's records replace them when it opens)
   setBuildings([]);
   if (data.scope === 'map' && !data.preview) buildLights(streamLights);
+  // the time of day: the map's own sun or moon, and the curve made its own (sun_wiring.js)
+  await startSun();
   buildEffects();
   lightButton();
   startMissionPicker();
@@ -1013,7 +1026,7 @@ async function startScene({ parameters, familiesAsked, mapName }) {
     gridHandles, gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall, headerMissions,
     hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow, landingLayer, libraryTemplate, lightPanel,
     lightRecords, lightShapes, likenesses, likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture,
-    mapSettingsState, alignToGamePose, alignToGrid, alignToLevel, memberOf, missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup, newBuilding,
+    mapSettingsState, sunState, previewSun, endSunEdit, alignToGamePose, alignToGrid, alignToLevel, memberOf, missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup, newBuilding,
     openLookPicker, openPrefabDocument, outsideBox, ownVolumeLayer, pasteSnapshot, pasteVolumes, pick, pickables,
     pickBoxEdge, pickEffect, pickLight, pickMovePoint, pickVolumeEdge, pickZone, placeMove, placeSpawn, plainLook,
     playArea, playWave, pointGizmo, prefabClip, prefabPlacementProblem, prefabRecords, projector, recipeOf,
@@ -1137,6 +1150,21 @@ renderer.domElement.addEventListener('pointercancel', () => {
   endTextureDrag(false); endVolumeDrag(false); endCoverDrag(false); endWallDrag(false); endPickDrag(false);
   if (wallDrawing?.start) { wallDrawing.start = null; wallDrawing.pointerId = null; wallGhost.visible = false; wallHint(); }
 });
+// The sun or moon's marker (sun_wiring.js, in the Lights view and while Map settings is open) takes a press on it first:
+// dragged along its arc it sets the time of day, one undo step.
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (!startSunDrag(e)) return;
+  pointerStart = null; e.stopImmediatePropagation(); e.preventDefault();
+}, { capture: true });
+renderer.domElement.addEventListener('pointermove', e => {
+  const drag = sunDrag();
+  if (drag) { if (e.pointerId === drag.pointerId) moveSunDrag(e); e.stopImmediatePropagation(); return; }
+  hoverSun(e);
+}, { capture: true });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (sunDrag()?.pointerId === e.pointerId) { e.stopImmediatePropagation(); endSunDrag(true); }
+}, { capture: true });
+renderer.domElement.addEventListener('pointercancel', () => endSunDrag(false));
 // A light's drag handle under the press takes it, ahead of the gizmo, the camera and picking (capture listeners run
 // before the controls' own on the canvas).
 renderer.domElement.addEventListener('pointerdown', e => {
@@ -1464,6 +1492,9 @@ renderer.setAnimationLoop(() => {
   // the project's fog and colour changed (a control of the Map settings window, an undo, a project opened): the fog's
   // uniforms set again from the view's atmosphere (the Game look's frame follows it by itself)
   if (lighting && viewAtmosphere() !== fogDrawn) { fogDrawn = viewAtmosphere(); lighting.fog?.(); }
+  // the time of day changed (a drag, an undo, a project opened): the view lit again and the sun's shadows asked for, every
+  // frame while the bar is dragged; its marker drawn (sun_wiring.js)
+  stepSun();
   drawFrame();
 });
 setInterval(() => {

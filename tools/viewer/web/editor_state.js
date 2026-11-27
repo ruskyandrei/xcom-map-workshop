@@ -87,6 +87,11 @@ export function setProjectMapInfo(next) { projectMapInfo = next; }
 // that differ ({ fog?, postProcess? })
 export let projectAtmosphere = null;
 export function setProjectAtmosphere(next) { projectAtmosphere = next; }
+// The map's time of day the project sets (schema 10; sun_rules.js): null, the map's own sun or moon and sky light, or
+// { time, heading, timeOfDay, light, sky?, custom?, atmosphere? } (the Map settings window's time bar, sun_settings.js;
+// the marker on its arc, sun_wiring.js)
+export let projectSun = null;
+export function setProjectSun(next) { projectSun = next; }
 // The diagonal cover the project marks (schema 7; diagonal_marks.js): its own marks and the map's it deletes ({ marks,
 // removed }, or null: the map's as it is), the marks that follow their pieces as the pieces stand now (worked out by
 // diagonal_wiring.js after each edit: saved with the project for the Build, worked out again when it opens), and the

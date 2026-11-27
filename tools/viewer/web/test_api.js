@@ -39,7 +39,7 @@ export function createTestApi({ $, showOpen, precachePictures, pageTables, addVo
                                 gridNow, groundAt, groundGrid, groundHeight, handleCover, handlePoint, handleWall,
                                 headerMissions, hemisphere, highlight, isPlain, keepRecovery, ladderMarks, ladderNow,
                                 landingLayer, libraryTemplate, lightPanel, lightRecords, lightShapes, likenesses,
-                                likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture, mapSettingsState, memberOf,
+                                likenessPane, listingsNow, liveKeys, loaded, madeRoot, mapEdits, mapPicture, mapSettingsState, sunState, previewSun, endSunEdit, memberOf,
                                 missionGizmo, missionProxy, missionsPanel, movedLandingActors, moveMissionGroup,
                                 newBuilding, openLookPicker, openPrefabDocument, outsideBox, ownVolumeLayer,
                                 pasteSnapshot, pasteVolumes, pick, pickables, pickBoxEdge, pickEffect, pickLight,
@@ -200,7 +200,12 @@ export function createTestApi({ $, showOpen, precachePictures, pageTables, addVo
       const m = middleOf(tile, tileCorner()), c = corner === null ? [0, 0] : CORNERS[corner];
       return [m[0] + c[0] * 0.42 * 96, m[1] + c[1] * 0.42 * 96, z + 3];
     },
-    backgroundSound: () => projectBackgroundSound, lwrMapInfo: () => projectMapInfo, showMapSettings, mapSettings: () => mapSettingsState(), stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
+    backgroundSound: () => projectBackgroundSound, lwrMapInfo: () => projectMapInfo, showMapSettings, mapSettings: () => mapSettingsState(),
+    // the time of day (T-S1): the record, the map's own, what the view draws, the marker; a drag of the bar in one step
+    timeOfDay: () => { const s = sunState(), r = renderer.domElement.getBoundingClientRect(), p = s.marker && new THREE.Vector3(...s.marker).project(camera);
+                       return { ...s, markerAt: p ? [r.left + (p.x + 1) / 2 * r.width, r.top + (1 - p.y) / 2 * r.height] : null }; },
+    dragTime: (time, heading) => { previewSun({ time, heading }); endSunEdit(true); },
+    stage: () => stage, zones: () => zonesNow(), landingLines: () => landingLines,
     groundGrid: () => ({ shown: groundGrid.visible, ...groundGrid.userData, ground: groundHeight() }), pickZone, pickedZone: () => pickedZone,
     lastClearMs: () => lastClearMs, landingLayer, setZones, setZonesShown, zonesOn: () => zonesOn,
     // the Spawns view (spawns plan, SP3): the entries drawn now, with where each marker stands and its screen point

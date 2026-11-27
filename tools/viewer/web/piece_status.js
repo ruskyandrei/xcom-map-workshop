@@ -45,7 +45,7 @@ export function createPieceStatus({ $, changes, gizmo, lightPose, lightViewOnly,
       count.deleted && `${count.deleted} deleted`, count.lights && plural(count.lights, 'light edit'),
       count.effects && plural(count.effects, 'effect or sound edit'),
       count.grid && `grid ${data.tileGrid.dimensions[0]} × ${data.tileGrid.dimensions[1]}${cleared ? ` × ${data.tileGrid.dimensions[2]}` : ''}`,
-      count.zones && 'landing zones changed', count.sound && 'background sound changed', count.info && 'Long War Rebalance map info set', count.atmosphere && 'fog and colour changed', count.buildings && plural(count.buildings, 'building'),
+      count.zones && 'landing zones changed', count.sound && 'background sound changed', count.info && 'Long War Rebalance map info set', count.atmosphere && 'fog and colour changed', count.sun && 'time of day set', count.buildings && plural(count.buildings, 'building'),
       count.missions && `${plural(count.missions, 'mission object')} moved`, count.spawns && plural(count.spawns, 'spawn point edit'), count.flags && `${plural(count.flags, 'piece')} with flags changed`, count.broken && `${plural(count.broken, 'piece')} broken`,
       saveState()].filter(Boolean).join(' · ');
     $('editCount').title = $('editCount').textContent;        // (whole, where a narrow header cuts the chip's words)

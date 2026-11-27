@@ -71,12 +71,13 @@ ENTRIES = ('viewer/viewer.py', 'viewer/gamesetup.py', 'viewer/setup_vendor.py', 
            'bake/relight.py', 'bake/intro_copy.py', 'bake/stream_copy.py')
 # run by path as subprocesses, which reading imports doesn't find
 # and the data the modules read from beside themselves: the looks of made walls, floors and ground, the game's background
-# sounds, the atmosphere's defaults and member kinds, and the game's maps' looks (test_release.py finds every data file
-# a shipped module names beside itself and checks it is here)
+# sounds, the atmosphere's defaults and member kinds, the game's maps' looks and the time of day's curve (test_release.py
+# finds every data file a shipped module names beside itself and checks it is here)
 EXTRAS = ('viewer/requirements.txt', 'viewer/version.py',
           'bake/wall_looks.json', 'bake/slab_looks.json', 'bake/ground_looks.json',
           'bake/looks/walls.json', 'bake/looks/slabs.json', 'bake/looks/ground.json',
-          'viewer/background_sounds.json', 'viewer/atmosphere_defaults.json', 'viewer/atmospheres.json')
+          'viewer/background_sounds.json', 'viewer/atmosphere_defaults.json', 'viewer/atmospheres.json',
+          'viewer/sun_curve.json')
 TEMPLATES = {'XCOM Map Workshop.cmd': 'XCOM Map Workshop.cmd', 'README.md': 'GETTING-STARTED.md'}
 INSTALLER = HERE / 'installer.iss'
 ISCC_PLACES = ('Inno Setup 7', 'Inno Setup 6')

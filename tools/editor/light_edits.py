@@ -20,6 +20,11 @@ and the compiler names again those that others read through it (compiler.LIGHT_R
 What the family shares with the compiler (FAMILIES, EPS_LOCATION, short, tidy, world_box and the others it imports)
 it takes from compiler_tables, so it never imports the compiler. The export check that every project with edits needs
 (light_metadata_problem, LIGHT_METADATA) is the compiler's.
+
+The project's `sun` (schema 10; the game-likeness plan's T-S1: the time of day, the map's sun or moon and sky light) is
+this family's too (sun_mark). It is read for its shape alone for now (tools/viewer/sun_curve.py `problem`): the Build's
+lane for it is stage T-S2's, so a project with one builds and the map keeps its own sun, sky light and time of day,
+said in a note.
 """
 import math
 
@@ -133,6 +138,22 @@ class LightEdits:
         self.owner_edits = []    # (kind, owner actor path, owner entity, rigid move or None, where)
         self.members = set()     # the group member keys of the lights the project adds
         self.object_boxes = None     # the base map's pieces' world boxes, made when reaching first needs them
+
+    def sun_mark(self):
+        """The project's `sun` (the time of day) read for its shape: one this compiler can't read is left out
+        (sun-shape); one it reads is noted (sun-not-built), since no Build writes it yet (stage T-S2 makes its lane)."""
+        rec = self.c.doc.get('sun')
+        if rec is None:
+            return
+        import sun_curve
+        why = sun_curve.problem(rec)
+        if why:
+            self.c.leave_out('sun-shape', "The project's time of day can't be read (%s): it is left out, and the map "
+                             'keeps its own sun, sky light and time of day.' % why, record='sun')
+            return
+        self.c.note('sun-not-built', 'The project sets the time of day (%s): the editor shows it, and the Build does not '
+                    'write it into the map yet, so the map keeps its own sun, sky light and time of day.'
+                    % ('%02d:%02d' % divmod(round(rec['time'] * 60) % 1440, 60)), record='sun')
 
     def light_of(self, target):
         """The export's light a target {package, level, actor} names, or None."""

@@ -11,8 +11,8 @@
 // broken piece drawn and the hints. What the other areas draw after a step follows the edit hub's runs (clear,
 // landing-zones, project-missions: edit_hub.js). It keeps no state of its own.
 import { areaBindings, buildingMeta, clearedParts, effectRoots, groups, hintTimer, landingZones,
-         lightRoots, missionMoves, ownSet, pickedEffect, projectAtmosphere, projectBackgroundSound, projectDiagonal, projectMapInfo, projectMissions, projectSpawnRules, roots,
-         setAreaBindings, setProjectAtmosphere, setProjectBackgroundSound, setProjectDiagonal, setProjectMapInfo,
+         lightRoots, missionMoves, ownSet, pickedEffect, projectAtmosphere, projectBackgroundSound, projectSun, projectDiagonal, projectMapInfo, projectMissions, projectSpawnRules, roots,
+         setAreaBindings, setProjectAtmosphere, setProjectBackgroundSound, setProjectSun, setProjectDiagonal, setProjectMapInfo,
          setClearedParts, setGroups, setLandingZones, setLightsDirty, setMergedBuildings, setPickedZone,
          setProjectMissions, setProjectSpawnRules, stage, volumesOn } from './editor_state.js';
 import { runHub } from './edit_hub.js';
@@ -120,18 +120,19 @@ export function createDeleteReset({ addEffectRoots, addLightRoots, addRoots, bas
     if (!added.length && !deleted.length && !moved.length && !flagged.length && !broken.length && !groups.size && !addedLights.length && !changed.length && !areaBindings.size && !restore.count
         && !addedEffects.length && !stays.length && !valued.length
         && !ownBoxes.length && !stage && !landingZones && !clearedParts && !projectMissions && !missionMoves.size && !projectSpawnRules
-        && !projectBackgroundSound && !projectMapInfo && !projectAtmosphere && !projectDiagonal) return;
+        && !projectBackgroundSound && !projectMapInfo && !projectAtmosphere && !projectSun && !projectDiagonal) return;
     const before = moved.map(r => r.matrix.clone()), home = moved.map(r => baseMatrix(r)), picks = gizmo.picks();
     // the map's own grid, landing zones and no part cleared
     const map = { stage, zones: landingZones ? landingZones.map(z => ({ ...z })) : null, parts: clearedParts,
                   missions: projectMissions ? projectMissions.map(e => ({ ...e })) : null, moves: new Map(missionMoves),
-                  rules: projectSpawnRules, sound: projectBackgroundSound, info: projectMapInfo, atmosphere: projectAtmosphere,
+                  rules: projectSpawnRules, sound: projectBackgroundSound, info: projectMapInfo, atmosphere: projectAtmosphere, sun: projectSun,
                   diagonal: projectDiagonal };
     const mapState = m => {
       setClearedParts(m.parts ?? null); setLandingZones(m.zones ? m.zones.map(z => ({ ...z })) : null);
       setProjectBackgroundSound(m.sound ?? null);
       setProjectMapInfo(m.info ?? null);
       setProjectAtmosphere(m.atmosphere ?? null);
+      setProjectSun(m.sun ?? null);
       setProjectDiagonal(m.diagonal ?? null);
       setProjectMissions(m.missions ? m.missions.map(e => ({ ...e })) : null);
       setMissionMoves(new Map(m.moves ?? []));

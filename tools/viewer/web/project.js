@@ -16,7 +16,8 @@ import { call } from './api.js';
 // (`diagonalCover`; diagonal_marks.js); 8: a building's floors as the cursor's; 9: the parts of the map the project
 // cleared (`cleared`: {part: {keepOutside?}}, the clear-by-parts plan; `cleared: true` of 1 to 8 is every part); 10:
 // the map's fog and colour the project changes (`atmosphere`: {fog?, postProcess?}, the members that differ from the
-// map's own; atmosphere_rules.js). A project of schema 1 to 9 opens, and saves as 10.
+// map's own; atmosphere_rules.js) and its time of day (`sun`: { time, heading, timeOfDay, light, sky?, custom?,
+// atmosphere? }; sun_rules.js). A project of schema 1 to 9 opens, and saves as 10.
 export const SCHEMA = 'xcom-map-workshop/project', SCHEMA_VERSION = 10;
 
 // Poses as saved: game units to 1/10000, rotators in native units (65536 a turn), whole where they are within 1/1000.
@@ -64,7 +65,8 @@ export const stateKey = state => JSON.stringify([state.overrides, state.added, s
                                                  state.buildings ?? [], clearedPartsOf(state), state.landingZones ?? null,
                                                  state.missions ?? null, state.spawnRules ?? null, state.picture?.sha256 ?? null,
                                                  state.backgroundSound ?? null,
-                                                 state.lwrMapInfo ?? null, state.diagonalCover ?? null, state.atmosphere ?? null]);
+                                                 state.lwrMapInfo ?? null, state.diagonalCover ?? null, state.atmosphere ?? null,
+                                                 state.sun ?? null]);
 // The project's map picture (LWR map packs plan, 4.3): null, or { sha256 }, the SHA-256 of the 512 x 256 picture the
 // server keeps with the project (tools/viewer/pictures.py); the Build writes it into the map.
 export const validPicture = p => Boolean(p) && typeof p === 'object' && !Array.isArray(p) && Object.keys(p).length === 1
@@ -204,6 +206,9 @@ export function sortState(state) {
            // page can't read is carried as it is, for the compiler to leave out; an empty one says nothing
            atmosphere: state.atmosphere && typeof state.atmosphere === 'object' && Object.keys(state.atmosphere).length
              ? (validAtmosphere(state.atmosphere) ? JSON.parse(JSON.stringify(state.atmosphere)) : { ...state.atmosphere }) : null,
+           // the map's time of day (schema 10): the window keeps it tidied (sun_rules.js tidySun); one of another shape is
+           // carried as it is, for the compiler to leave out; an empty one says nothing
+           sun: state.sun && typeof state.sun === 'object' && Object.keys(state.sun).length ? JSON.parse(JSON.stringify(state.sun)) : null,
            // the diagonal cover the project marks (schema 7): diagonal_marks.js savedDiagonal made it, its marks and places
            // in order; a record the page can't read is carried in it as saved, for the compiler to leave out
            diagonalCover: diagonalShape(state.diagonalCover) ? { marks: state.diagonalCover.marks ?? [], removed: state.diagonalCover.removed ?? [] } : null,

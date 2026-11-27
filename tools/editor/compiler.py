@@ -215,8 +215,9 @@ SCHEMA = 'xcom-map-workshop/project'
 # degrees builds without the corners 0.7.0 found there). 8: a building's floors as the cursor's
 # (`buildings[].cursorFloors`: the building cursor floors plan); a project of schema 7 builds as it did. 9: the parts
 # the project cleared (`cleared`: {part: {keepOutside?}}, the clear-by-parts plan); `cleared: true` of schema 1 to 8 is
-# every part, so it builds as it did. 10: the map's fog and colour the project changes (`atmosphere`: atmosphere_edits.py);
-# a project of schema 9 builds as it did.
+# every part, so it builds as it did. 10: the map's fog and colour the project changes (`atmosphere`: atmosphere_edits.py)
+# and its time of day (`sun`: read for its shape, light_edits.sun_mark; no lane yet); a project of schema 9 builds as it
+# did.
 SCHEMA_VERSION = 10
 READ_VERSIONS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 # The families whose pieces can come from another map (private/plans/done/cross-map-assets-implementation-plan.md): plain
@@ -1860,6 +1861,7 @@ class Compiler:
             self.mission_edits.map_info_mark()
             self.effect_edits.background_sound_mark()
             self.atmosphere_edits.check()
+            self.light_edits.sun_mark()
             self.overrides()
             self.added()
             self.made_edits.join_made_walls()

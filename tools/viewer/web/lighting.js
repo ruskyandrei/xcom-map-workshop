@@ -238,13 +238,25 @@ export const toView = v => new THREE.Vector3(v[0], v[2], v[1]);
  *  in place of the scene's (editor lights plan 4.6: moved, changed, added and deleted lights, and the area lights their
  *  glowing pieces take along); apply() again after it. `atmosphere` gives the map's atmosphere as the view draws it
  *  (the project's fog and colour over the map's own: game-likeness plan, C5b), else the scene's; fog() sets the fog
- *  again from it alone (a slider of the Map settings window). */
-export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSize = 4096, atmosphere = null }) {
+ *  again from it alone (a slider of the Map settings window). `timeOfDay` gives the project's time of day as the view
+ *  draws it (sun_rules.js sunView: the dominant light's direction, colour and brightness, the sky light's), or null for
+ *  the map's own (T-S1); sunMoved() puts the sun or moon and the sky light where it says again, without the lights'
+ *  grid (a drag of the time bar, each frame). */
+export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSize = 4096, atmosphere = null, timeOfDay = null }) {
   const neutral = { sky: hemisphere.color.clone(), ground: hemisphere.groundColor.clone(), hemi: hemisphere.intensity,
                     sun: sun.color.clone(), intensity: sun.intensity, castShadow: sun.castShadow };
   let all = [], enabled = [], local = [], grid = null, bounds = null, deepest = 0;
   const extraSuns = [];
-  let packed = null, lastMode = 'neutral', fogLight = null, fogShown = false;
+  let packed = null, lastMode = 'neutral', fogLight = null, fogShown = false, shown = null, dimmed = false;
+  // A light as the time of day sets it: the dominant light's direction, colour and brightness, the first sky light's
+  // colours and brightnesses (the others as the map has them)
+  function timed(lights) {
+    const day = timeOfDay?.();
+    if (!day) return lights;
+    const sky = lights.find(l => l.kind === 'sky');
+    return lights.map(l => (l.role === 'dominant' && l.kind === 'directional' && day.light ? { ...l, ...day.light }
+      : l === sky && day.sky ? { ...l, ...day.sky } : l));
+  }
 
   function setLights(records) {
     all = records || [];
@@ -291,11 +303,10 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
 
   /** mode: 'map', 'map-no-area' or 'neutral'. target/radius frame the shadow camera. */
   function apply(mode, target, radius) {
-    lastMode = mode;
+    lastMode = mode; dimmed = false; shown = null;
     for (const light of extraSuns) world.remove(light, light.target);
     extraSuns.length = 0;
     const lights = mode === 'neutral' ? [] : enabled.filter(l => mode === 'map' || l.role !== 'area');
-    const shadowDistance = radius * 3;
     if (mode === 'neutral' || !all.length) {
       fogShown = false;
       setFog(fogUniformsNone());
@@ -306,38 +317,51 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
       uniforms.localGridInfo.value.w = 0;
       return { local: 0 };
     }
-    const skies = lights.filter(l => l.kind === 'sky');
-    const sky = [0, 0, 0], ground = [0, 0, 0];
-    for (const l of skies) {
-      linear(l.color, l.brightness).forEach((v, k) => { sky[k] += v; });
-      linear(l.lowerColor, l.lowerBrightness).forEach((v, k) => { ground[k] += v; });
-    }
-    hemisphere.color.setRGB(...sky); hemisphere.groundColor.setRGB(...ground); hemisphere.intensity = Math.PI;
+    shown = lights;
     // The first directional light drives the shadow-mapped sun; any others light without shadows.
-    const directionals = lights.filter(l => l.kind === 'directional');
-    const place = (light, l) => {
-      light.color.setRGB(...linear(l.color)); light.intensity = l.brightness * Math.PI;
-      light.position.copy(target).addScaledVector(toView(l.direction).normalize(), -shadowDistance);
-      light.target.position.copy(target);
-    };
-    if (directionals.length) { place(sun, directionals[0]); sun.castShadow = directionals[0].castShadows; }
-    else { sun.intensity = 0; sun.castShadow = false; }
-    // the map's fog, its colours turned by the dominant light (C2); the view's background in its far colour
-    fogLight = directionals[0]?.direction ?? null;
-    fogShown = true;
-    fog();
-    for (const l of directionals.slice(1)) {
-      const light = new THREE.DirectionalLight(); place(light, l);
+    for (const l of lights.filter(l => l.kind === 'directional').slice(1)) {
+      const light = new THREE.DirectionalLight();
       world.add(light, light.target); extraSuns.push(light);
     }
+    place(target, radius);
     const chosen = new Set(lights);
     fillGrid(l => chosen.has(l));
     uniforms.localGridInfo.value.w = bounds && lights.some(l => l.kind === 'point' || l.kind === 'spot') ? 1 : 0;
     return { local: lights.filter(l => l.kind === 'point' || l.kind === 'spot').length };
   }
+  // The sky light and the directional lights apply() chose, as the time of day sets them, on the hemisphere, the
+  // shadow-mapped sun and the others' lights; the fog turned by the dominant light (C2), the background in its far colour
+  function place(target, radius) {
+    const lights = timed(shown), shadowDistance = radius * 3;
+    const sky = [0, 0, 0], ground = [0, 0, 0];
+    for (const l of lights.filter(l => l.kind === 'sky')) {
+      linear(l.color, l.brightness).forEach((v, k) => { sky[k] += v; });
+      linear(l.lowerColor, l.lowerBrightness).forEach((v, k) => { ground[k] += v; });
+    }
+    hemisphere.color.setRGB(...sky); hemisphere.groundColor.setRGB(...ground); hemisphere.intensity = Math.PI;
+    const directionals = lights.filter(l => l.kind === 'directional');
+    const put = (light, l) => {
+      light.color.setRGB(...linear(l.color)); light.intensity = l.brightness * Math.PI;
+      light.position.copy(target).addScaledVector(toView(l.direction).normalize(), -shadowDistance);
+      light.target.position.copy(target);
+    };
+    if (directionals.length) { put(sun, directionals[0]); sun.castShadow = directionals[0].castShadows; }
+    else { sun.intensity = 0; sun.castShadow = false; }
+    directionals.slice(1).forEach((l, k) => { if (extraSuns[k]) put(extraSuns[k], l); });
+    fogLight = directionals[0]?.direction ?? null;
+    fogShown = true;
+    fog();
+  }
+  /** The time of day changed (the bar dragged, an undo, a project opened): the sun or moon and the sky light set again
+   *  as it says, where the Game look draws the map's lights (not in the Neutral look, nor while Solo dims the map). */
+  function sunMoved(target, radius) {
+    if (lastMode === 'neutral' || dimmed || !shown) return;
+    place(target, radius);
+  }
 
   /** Solo (editor lights plan 4.6): the map dimmed to a faint neutral, its own lights off; apply() puts it back. */
   function dim(target, radius) {
+    dimmed = true;
     hemisphere.color.copy(neutral.sky); hemisphere.groundColor.copy(neutral.ground); hemisphere.intensity = 0.12;
     sun.intensity = 0; sun.castShadow = false;
     sun.position.copy(target).add(new THREE.Vector3(1, 1.6, -1).multiplyScalar(radius));
@@ -355,7 +379,7 @@ export function createMapLighting({ world, sun, hemisphere, scene, maxTextureSiz
       : neutral.background;
   }
 
-  return { apply, setLights, dim, fog, get available() { return all.length > 0; }, get grid() { return grid; },
+  return { apply, setLights, dim, fog, sunMoved, get available() { return all.length > 0; }, get grid() { return grid; },
            get packed() { return packed; }, get mode() { return lastMode; },
            get counts() { return { all: all.length, enabled: enabled.length, local: local.length, perCell: deepest }; } };
 }
